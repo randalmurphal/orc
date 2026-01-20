@@ -23,3 +23,4 @@ export {
 	type TooltipSide,
 	type TooltipAlign,
 } from './Tooltip';
+export { PageLoader } from './PageLoader';

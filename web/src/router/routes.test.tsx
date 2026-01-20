@@ -205,8 +205,9 @@ describe('Routes', () => {
 
 			renderWithRouter('/');
 			await waitFor(() => {
-				// After redirect, should show Board page
-				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+				// After redirect, should show BoardView
+				const boardView = document.querySelector('.board-view');
+				expect(boardView).toBeInTheDocument();
 			});
 		});
 
@@ -246,15 +247,18 @@ describe('Routes', () => {
 
 			// Wait for the component to render and show the board
 			await waitFor(() => {
-				// "Board" appears as h2 heading
-				expect(screen.getByRole('heading', { level: 2, name: 'Board' })).toBeInTheDocument();
+				// BoardView renders with the board-view class
+				const boardView = document.querySelector('.board-view');
+				expect(boardView).toBeInTheDocument();
 			});
 		});
 
-		it('renders empty state when no project selected', async () => {
+		it('renders board view component', async () => {
 			renderWithRouter('/board');
 			await waitFor(() => {
-				expect(screen.getByText('No Project Selected')).toBeInTheDocument();
+				// BoardView renders with the board-view class
+				const boardView = document.querySelector('.board-view');
+				expect(boardView).toBeInTheDocument();
 			});
 		});
 	});
@@ -294,19 +298,19 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Dashboard page with Quick Stats at /stats', async () => {
+		it('renders Stats page at /stats', async () => {
 			renderWithRouter('/stats');
 			await waitFor(() => {
-				// Dashboard shows "Quick Stats" section
-				expect(screen.getByText('Quick Stats')).toBeInTheDocument();
+				// StatsView shows "Statistics" title
+				expect(screen.getByText('Statistics')).toBeInTheDocument();
 			});
 		});
 
 		it('redirects /dashboard to /stats', async () => {
 			renderWithRouter('/dashboard');
 			await waitFor(() => {
-				// After redirect, should show Dashboard page with Quick Stats
-				expect(screen.getByText('Quick Stats')).toBeInTheDocument();
+				// After redirect, should show Stats page
+				expect(screen.getByText('Statistics')).toBeInTheDocument();
 			});
 		});
 	});

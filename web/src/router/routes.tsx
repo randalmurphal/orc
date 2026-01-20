@@ -1,20 +1,29 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { RouteObject, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Board } from '@/pages/Board';
-import { InitiativesPage } from '@/pages/InitiativesPage';
-import { StatsPage } from '@/pages/StatsPage';
-import { TaskDetail } from '@/pages/TaskDetail';
-import { InitiativeDetailPage } from '@/pages/InitiativeDetailPage';
-import { AutomationPage } from '@/pages/AutomationPage';
-import { Branches } from '@/pages/Branches';
-import { Preferences } from '@/pages/Preferences';
-import { NotFoundPage } from '@/pages/NotFoundPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { SettingsView, SettingsPlaceholder } from '@/components/settings';
-import { Agents } from '@/pages/environment/Agents';
+import { PageLoader } from '@/components/ui/PageLoader';
 import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
+
+// Lazy-loaded page components for code splitting
+// Each becomes a separate chunk, loaded on-demand when the route is visited
+const Board = lazy(() => import('@/pages/Board').then(m => ({ default: m.Board })));
+const InitiativesPage = lazy(() => import('@/pages/InitiativesPage').then(m => ({ default: m.InitiativesPage })));
+const InitiativeDetailPage = lazy(() => import('@/pages/InitiativeDetailPage').then(m => ({ default: m.InitiativeDetailPage })));
+const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m.StatsPage })));
+const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+
+// Settings sub-components (loaded with SettingsPage chunk)
+const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
+const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
+
+// Legacy pages (lower priority, separate chunks)
+const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
+const Branches = lazy(() => import('@/pages/Branches').then(m => ({ default: m.Branches })));
+const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ default: m.Preferences })));
 
 /**
  * Application Routes
@@ -39,6 +48,13 @@ import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
  * - g a -> navigate to /agents
  * - g , -> navigate to /settings
  */
+
+/**
+ * Suspense wrapper for lazy-loaded route components
+ */
+function LazyRoute({ children }: { children: React.ReactNode }) {
+	return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 /**
  * AppShell wrapper component that provides the main layout structure.
@@ -96,32 +112,56 @@ export const routes: RouteObject[] = [
 			// Board - Main kanban board view
 			{
 				path: 'board',
-				element: <Board />,
+				element: (
+					<LazyRoute>
+						<Board />
+					</LazyRoute>
+				),
 			},
 			// Initiatives - Overview page with stats and cards
 			{
 				path: 'initiatives',
-				element: <InitiativesPage />,
+				element: (
+					<LazyRoute>
+						<InitiativesPage />
+					</LazyRoute>
+				),
 			},
 			// Initiative detail
 			{
 				path: 'initiatives/:id',
-				element: <InitiativeDetailPage />,
+				element: (
+					<LazyRoute>
+						<InitiativeDetailPage />
+					</LazyRoute>
+				),
 			},
 			// Stats - Statistics overview with analytics
 			{
 				path: 'stats',
-				element: <StatsPage />,
+				element: (
+					<LazyRoute>
+						<StatsPage />
+					</LazyRoute>
+				),
 			},
 			// Agents - Agent configuration
 			{
 				path: 'agents',
-				element: <Agents />,
+				element: (
+					<LazyRoute>
+						<Agents />
+					</LazyRoute>
+				),
 			},
 			// Settings - New settings layout with 240px sidebar
 			{
 				path: 'settings',
-				element: <SettingsPage />,
+				element: (
+					<LazyRoute>
+						<SettingsPage />
+					</LazyRoute>
+				),
 				children: [
 					// Default redirect to commands
 					{
@@ -131,111 +171,141 @@ export const routes: RouteObject[] = [
 					// CLAUDE CODE section
 					{
 						path: 'commands',
-						element: <SettingsView />,
+						element: (
+							<LazyRoute>
+								<SettingsView />
+							</LazyRoute>
+						),
 					},
 					{
 						path: 'claude-md',
 						element: (
-							<SettingsPlaceholder
-								title="CLAUDE.md"
-								description="Edit your project's CLAUDE.md instructions file"
-								icon="file-text"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="CLAUDE.md"
+									description="Edit your project's CLAUDE.md instructions file"
+									icon="file-text"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'mcp',
 						element: (
-							<SettingsPlaceholder
-								title="MCP Servers"
-								description="Configure Model Context Protocol servers for extended capabilities"
-								icon="mcp"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="MCP Servers"
+									description="Configure Model Context Protocol servers for extended capabilities"
+									icon="mcp"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'memory',
 						element: (
-							<SettingsPlaceholder
-								title="Memory"
-								description="Manage Claude's persistent memory across conversations"
-								icon="database"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Memory"
+									description="Manage Claude's persistent memory across conversations"
+									icon="database"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'permissions',
 						element: (
-							<SettingsPlaceholder
-								title="Permissions"
-								description="Configure tool permissions and access controls"
-								icon="shield"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Permissions"
+									description="Configure tool permissions and access controls"
+									icon="shield"
+								/>
+							</LazyRoute>
 						),
 					},
 					// ORC section
 					{
 						path: 'projects',
 						element: (
-							<SettingsPlaceholder
-								title="Projects"
-								description="Manage your ORC projects and repositories"
-								icon="folder"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Projects"
+									description="Manage your ORC projects and repositories"
+									icon="folder"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'billing',
 						element: (
-							<SettingsPlaceholder
-								title="Billing & Usage"
-								description="View your usage statistics and billing information"
-								icon="dollar"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Billing & Usage"
+									description="View your usage statistics and billing information"
+									icon="dollar"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'import-export',
 						element: (
-							<SettingsPlaceholder
-								title="Import / Export"
-								description="Import and export tasks, initiatives, and settings"
-								icon="export"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Import / Export"
+									description="Import and export tasks, initiatives, and settings"
+									icon="export"
+								/>
+							</LazyRoute>
 						),
 					},
 					// ACCOUNT section
 					{
 						path: 'profile',
 						element: (
-							<SettingsPlaceholder
-								title="Profile"
-								description="Manage your account profile and preferences"
-								icon="user"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="Profile"
+									description="Manage your account profile and preferences"
+									icon="user"
+								/>
+							</LazyRoute>
 						),
 					},
 					{
 						path: 'api-keys',
 						element: (
-							<SettingsPlaceholder
-								title="API Keys"
-								description="Manage your API keys and authentication tokens"
-								icon="settings"
-							/>
+							<LazyRoute>
+								<SettingsPlaceholder
+									title="API Keys"
+									description="Manage your API keys and authentication tokens"
+									icon="settings"
+								/>
+							</LazyRoute>
 						),
 					},
 					// 404 for unknown settings paths
 					{
 						path: '*',
-						element: <NotFoundPage />,
+						element: (
+							<LazyRoute>
+								<NotFoundPage />
+							</LazyRoute>
+						),
 					},
 				],
 			},
 			// Task detail (existing route)
 			{
 				path: 'tasks/:id',
-				element: <TaskDetail />,
+				element: (
+					<LazyRoute>
+						<TaskDetail />
+					</LazyRoute>
+				),
 			},
 			// Legacy routes with redirects
 			{
@@ -244,15 +314,27 @@ export const routes: RouteObject[] = [
 			},
 			{
 				path: 'automation',
-				element: <AutomationPage />,
+				element: (
+					<LazyRoute>
+						<AutomationPage />
+					</LazyRoute>
+				),
 			},
 			{
 				path: 'branches',
-				element: <Branches />,
+				element: (
+					<LazyRoute>
+						<Branches />
+					</LazyRoute>
+				),
 			},
 			{
 				path: 'preferences',
-				element: <Preferences />,
+				element: (
+					<LazyRoute>
+						<Preferences />
+					</LazyRoute>
+				),
 			},
 			// Legacy environment routes redirect to settings
 			{
@@ -266,7 +348,11 @@ export const routes: RouteObject[] = [
 			// 404 catch-all
 			{
 				path: '*',
-				element: <NotFoundPage />,
+				element: (
+					<LazyRoute>
+						<NotFoundPage />
+					</LazyRoute>
+				),
 			},
 		],
 	},
