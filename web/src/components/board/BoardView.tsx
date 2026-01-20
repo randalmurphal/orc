@@ -145,20 +145,17 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		[]
 	);
 
-	const handleSkipBlock = useCallback((taskId: string) => {
+	const handleSkipBlock = useCallback((_taskId: string) => {
 		// TODO: Call API to skip block for task
-		console.log('Skip block for:', taskId);
 	}, []);
 
-	const handleForceBlock = useCallback((taskId: string) => {
+	const handleForceBlock = useCallback((_taskId: string) => {
 		// TODO: Call API to force run blocked task
-		console.log('Force run:', taskId);
 	}, []);
 
 	const handleDecide = useCallback(
-		async (decisionId: string, optionId: string) => {
+		async (_decisionId: string, _optionId: string) => {
 			// TODO: Call API to submit decision
-			console.log('Decision:', decisionId, 'Option:', optionId);
 		},
 		[]
 	);
