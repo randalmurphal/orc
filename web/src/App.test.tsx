@@ -99,27 +99,26 @@ describe('App', () => {
 	it('redirects root route to /board', async () => {
 		renderApp('/');
 		await waitFor(() => {
-			// Root route redirects to /board which renders the board-page
-			const boardPage = document.querySelector('.board-page');
-			expect(boardPage).toBeInTheDocument();
+			// Root route redirects to /board which renders BoardView
+			const boardView = document.querySelector('.board-view');
+			expect(boardView).toBeInTheDocument();
 		});
 	});
 
 	it('renders Board page at /board route', async () => {
 		renderApp('/board');
 		await waitFor(() => {
-			// Board page renders - check for the board-page container class
-			// The Board component renders either empty state or the actual board
-			const boardPage = document.querySelector('.board-page');
-			expect(boardPage).toBeInTheDocument();
+			// Board page renders - check for the board-view container class
+			const boardView = document.querySelector('.board-view');
+			expect(boardView).toBeInTheDocument();
 		});
 	});
 
-	it('redirects /dashboard to /stats and shows Quick Stats', async () => {
+	it('redirects /dashboard to /stats and shows Statistics', async () => {
 		renderApp('/dashboard');
 		await waitFor(() => {
-			// Dashboard (now at /stats) renders Quick Stats section
-			expect(screen.getByText('Quick Stats')).toBeInTheDocument();
+			// Stats page renders with "Statistics" title
+			expect(screen.getByText('Statistics')).toBeInTheDocument();
 		});
 	});
 });
