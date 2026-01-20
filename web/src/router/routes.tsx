@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { RouteObject, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -13,6 +14,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SettingsView, SettingsPlaceholder } from '@/components/settings';
 import { Agents } from '@/pages/environment/Agents';
+import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
 
 /**
  * Application Routes
@@ -46,12 +48,37 @@ import { Agents } from '@/pages/environment/Agents';
  * - TopBar (48px header)
  * - Main content area with Outlet
  * - RightPanel (300px, collapsible)
+ * - Modals for New Task and Project Switcher
  */
 function AppShellLayout() {
+	const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+	const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
+
+	const handleNewTask = useCallback(() => {
+		setShowNewTaskModal(true);
+	}, []);
+
+	const handleProjectChange = useCallback(() => {
+		setShowProjectSwitcher(true);
+	}, []);
+
 	return (
-		<AppShell>
-			<Outlet />
-		</AppShell>
+		<>
+			<AppShell
+				onNewTask={handleNewTask}
+				onProjectChange={handleProjectChange}
+			>
+				<Outlet />
+			</AppShell>
+			<NewTaskModal
+				open={showNewTaskModal}
+				onClose={() => setShowNewTaskModal(false)}
+			/>
+			<ProjectSwitcher
+				open={showProjectSwitcher}
+				onClose={() => setShowProjectSwitcher(false)}
+			/>
+		</>
 	);
 }
 
