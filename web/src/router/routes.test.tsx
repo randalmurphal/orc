@@ -379,86 +379,92 @@ describe('Routes', () => {
 	});
 
 	describe('/settings routes', () => {
-		it('redirects /settings to /settings/prompts/system', async () => {
+		it('redirects /settings to /settings/commands', async () => {
 			renderWithRouter('/settings');
 			await waitFor(() => {
-				// Prompts page has "Phase Prompts" heading
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
-				).toBeInTheDocument();
+				// Commands page shows "Slash Commands" in sidebar and content
+				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+				// Check that we're on the commands page by looking at the active nav
+				const activeLink = document.querySelector('.settings-nav-item--active');
+				expect(activeLink).toHaveTextContent('Slash Commands');
 			});
 		});
 
-		it('renders Prompts page at /settings/prompts/system', async () => {
-			renderWithRouter('/settings/prompts/system');
+		it('renders SettingsView at /settings/commands', async () => {
+			renderWithRouter('/settings/commands');
 			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
-				).toBeInTheDocument();
+				// SettingsView shows "Slash Commands" header
+				expect(screen.getByRole('heading', { level: 2, name: 'Slash Commands' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Settings page at /settings/configuration/general', async () => {
-			renderWithRouter('/settings/configuration/general');
+		it('renders placeholder at /settings/claude-md', async () => {
+			renderWithRouter('/settings/claude-md');
 			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Claude Code Settings' })
-				).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'CLAUDE.md' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Hooks page at /settings/automation/hooks', async () => {
-			renderWithRouter('/settings/automation/hooks');
+		it('renders placeholder at /settings/mcp', async () => {
+			renderWithRouter('/settings/mcp');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Hooks' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'MCP Servers' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Scripts page at /settings/automation/scripts', async () => {
-			renderWithRouter('/settings/automation/scripts');
+		it('renders placeholder at /settings/memory', async () => {
+			renderWithRouter('/settings/memory');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Scripts' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Memory' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders MCP page at /settings/advanced/mcp', async () => {
-			renderWithRouter('/settings/advanced/mcp');
+		it('renders placeholder at /settings/permissions', async () => {
+			renderWithRouter('/settings/permissions');
 			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'MCP Servers' })
-				).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Permissions' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Skills page at /settings/advanced/skills', async () => {
-			renderWithRouter('/settings/advanced/skills');
+		it('renders placeholder at /settings/projects', async () => {
+			renderWithRouter('/settings/projects');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Skills' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Projects' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Config page at /settings/advanced/config', async () => {
-			renderWithRouter('/settings/advanced/config');
+		it('renders placeholder at /settings/billing', async () => {
+			renderWithRouter('/settings/billing');
 			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Orc Configuration' })
-				).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Billing & Usage' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders ClaudeMd page at /settings/advanced/claudemd', async () => {
-			renderWithRouter('/settings/advanced/claudemd');
+		it('renders placeholder at /settings/import-export', async () => {
+			renderWithRouter('/settings/import-export');
 			await waitFor(() => {
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'CLAUDE.md' })
-				).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Import / Export' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Tools page at /settings/advanced/tools', async () => {
-			renderWithRouter('/settings/advanced/tools');
+		it('renders placeholder at /settings/profile', async () => {
+			renderWithRouter('/settings/profile');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Tools' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 2, name: 'Profile' })).toBeInTheDocument();
+			});
+		});
+
+		it('renders placeholder at /settings/api-keys', async () => {
+			renderWithRouter('/settings/api-keys');
+			await waitFor(() => {
+				expect(screen.getByRole('heading', { level: 2, name: 'API Keys' })).toBeInTheDocument();
+			});
+		});
+
+		it('renders 404 for unknown settings paths', async () => {
+			renderWithRouter('/settings/unknown-route');
+			await waitFor(() => {
+				expect(screen.getByText('Page not found')).toBeInTheDocument();
 			});
 		});
 	});
@@ -467,20 +473,16 @@ describe('Routes', () => {
 		it('redirects /environment to /settings', async () => {
 			renderWithRouter('/environment');
 			await waitFor(() => {
-				// Should redirect to /settings which shows Prompts page
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
-				).toBeInTheDocument();
+				// Should redirect to /settings which redirects to /settings/commands
+				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
 			});
 		});
 
 		it('redirects /environment/settings to /settings', async () => {
 			renderWithRouter('/environment/settings');
 			await waitFor(() => {
-				// Should redirect to /settings which shows Prompts page
-				expect(
-					screen.getByRole('heading', { level: 3, name: 'Phase Prompts' })
-				).toBeInTheDocument();
+				// Should redirect to /settings which redirects to /settings/commands
+				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
 			});
 		});
 	});
@@ -537,12 +539,14 @@ describe('Routes', () => {
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
-		it('shows settings sub-navigation on settings routes', async () => {
-			renderWithRouter('/settings/prompts/system');
+		it('shows settings sidebar navigation on settings routes', async () => {
+			renderWithRouter('/settings/commands');
 			await waitFor(() => {
-				// Should see sub-navigation links
-				expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
-				expect(screen.getByRole('link', { name: 'Prompts' })).toBeInTheDocument();
+				// Should see settings sidebar with navigation groups
+				expect(screen.getByRole('navigation', { name: 'Settings navigation' })).toBeInTheDocument();
+				// Check for navigation items
+				expect(screen.getByRole('link', { name: /Slash Commands/i })).toBeInTheDocument();
+				expect(screen.getByRole('link', { name: /CLAUDE\.md/i })).toBeInTheDocument();
 			});
 		});
 	});

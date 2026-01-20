@@ -1,0 +1,47 @@
+/* =============================================================================
+   SettingsPlaceholder Component Styles
+   Placeholder for unimplemented settings sections
+   ============================================================================= */
+
+.settings-placeholder {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	min-height: 400px;
+	text-align: center;
+	padding: var(--space-8);
+}
+
+.settings-placeholder__icon {
+	color: var(--text-muted);
+	opacity: 0.5;
+	margin-bottom: var(--space-4);
+}
+
+.settings-placeholder__title {
+	font-size: var(--text-2xl);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 var(--space-2);
+}
+
+.settings-placeholder__description {
+	font-size: var(--text-md);
+	color: var(--text-secondary);
+	margin: 0 0 var(--space-4);
+	max-width: 400px;
+	line-height: var(--leading-normal);
+}
+
+.settings-placeholder__status {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 0;
+	padding: var(--space-1-5) var(--space-3);
+	background: var(--bg-surface);
+	border-radius: var(--radius-full);
+}

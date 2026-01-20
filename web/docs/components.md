@@ -1085,3 +1085,127 @@ interface ConfigEditorProps {
 - Highlighted layer is `aria-hidden="true"`
 - `spellCheck={false}` to avoid red underlines in code
 - Respects `prefers-reduced-motion` (disables transitions)
+
+## SettingsLayout
+
+Layout component for settings pages with 240px sidebar and content area.
+
+```tsx
+import { SettingsLayout } from '@/components/settings';
+
+// Used as route element in SettingsPage
+<SettingsLayout />
+```
+
+**Visual Structure:**
+- CSS Grid: 240px sidebar + 1fr content
+- Sidebar: Fixed width, scrollable, grouped navigation
+- Content: Outlet for child routes, padded, scrollable
+
+**Sidebar Header:**
+- Title: "Settings" (14px, semibold)
+- Subtitle: "Configure ORC and Claude" (11px, muted)
+- Border-bottom separator
+
+**Navigation Groups:**
+| Group | Items |
+|-------|-------|
+| CLAUDE CODE | Slash Commands, CLAUDE.md, MCP Servers, Memory, Permissions |
+| ORC | Projects, Billing & Usage, Import / Export |
+| ACCOUNT | Profile, API Keys |
+
+**NavItem Props:**
+| Prop | Type | Description |
+|------|------|-------------|
+| `to` | `string` | Route path |
+| `icon` | `IconName` | Icon name |
+| `label` | `string` | Display text |
+| `badge` | `number` | Optional count badge |
+
+**CSS Variables Used:**
+- Sidebar background: `--bg-elevated`
+- Border: `--border`
+- Nav item hover: `--bg-surface`, `--text-primary`
+- Nav item active: `--primary-dim`, `--primary-bright`
+- Badge default: `--bg-surface`, `--text-muted`
+- Badge active: `rgba(168, 85, 247, 0.2)`, `--primary`
+
+**Accessibility:**
+- `role="navigation"` on sidebar with `aria-label="Settings navigation"`
+- NavLink provides automatic `aria-current` for active items
+- Keyboard navigable (Tab through items)
+
+## SettingsView
+
+Container component for the Slash Commands settings section.
+
+```tsx
+import { SettingsView } from '@/components/settings';
+
+// Used as element for /settings/commands route
+<SettingsView />
+```
+
+**Visual Structure:**
+- Header: Title, subtitle, "New Command" primary button
+- Content: Split view with CommandList (left) and ConfigEditor (right)
+
+**State Management:**
+| State | Type | Purpose |
+|-------|------|---------|
+| `commands` | `Command[]` | List of slash commands |
+| `selectedId` | `string \| undefined` | Currently selected command ID |
+| `editorContent` | `string` | Content in the config editor |
+
+**Data Flow:**
+Currently uses mock data. Will integrate with API endpoints when available.
+
+**Events:**
+| Action | Handler |
+|--------|---------|
+| Select command | `handleSelect` - Updates selection, loads content |
+| Delete command | `handleDelete` - Removes from list, selects next |
+| Edit content | `handleContentChange` - Updates editor state |
+| Save | `handleSave` - TODO: API integration |
+| New Command | `handleNewCommand` - TODO: Modal integration |
+
+**Empty State:**
+When no command is selected, shows placeholder with terminal icon and "Select a command to edit" message.
+
+**CSS Classes:**
+| Class | Purpose |
+|-------|---------|
+| `.settings-view` | Main container |
+| `.settings-view__header` | Page header with title/button |
+| `.settings-view__content` | Split content area |
+| `.settings-view__list` | CommandList wrapper |
+| `.settings-view__editor` | ConfigEditor wrapper |
+| `.settings-view__empty` | Empty state placeholder |
+
+## SettingsPlaceholder
+
+Placeholder component for unimplemented settings sections.
+
+```tsx
+import { SettingsPlaceholder } from '@/components/settings';
+
+<SettingsPlaceholder
+  title="CLAUDE.md"
+  description="Edit your project's CLAUDE.md instructions file"
+  icon="file-text"
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `title` | `string` | Section title |
+| `description` | `string` | Descriptive text |
+| `icon` | `IconName` | Icon to display |
+
+**Visual Structure:**
+- Centered layout with icon, title, and description
+- "Coming Soon" badge
+- Matches settings content area styling
+
+**Usage:**
+Used as placeholder elements for settings routes that haven't been implemented yet (claude-md, mcp, memory, permissions, projects, billing, import-export, profile, api-keys).

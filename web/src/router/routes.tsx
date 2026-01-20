@@ -10,16 +10,8 @@ import { AutomationPage } from '@/pages/AutomationPage';
 import { Branches } from '@/pages/Branches';
 import { Preferences } from '@/pages/Preferences';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { EnvironmentLayout } from '@/pages/environment/EnvironmentLayout';
-import { Settings } from '@/pages/environment/Settings';
-import { Prompts } from '@/pages/environment/Prompts';
-import { Scripts } from '@/pages/environment/Scripts';
-import { Hooks } from '@/pages/environment/Hooks';
-import { Skills } from '@/pages/environment/Skills';
-import { Mcp } from '@/pages/environment/Mcp';
-import { Config } from '@/pages/environment/Config';
-import { ClaudeMd } from '@/pages/environment/ClaudeMd';
-import { Tools } from '@/pages/environment/Tools';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { SettingsView, SettingsPlaceholder } from '@/components/settings';
 import { Agents } from '@/pages/environment/Agents';
 
 /**
@@ -99,78 +91,117 @@ export const routes: RouteObject[] = [
 				path: 'agents',
 				element: <Agents />,
 			},
-			// Settings - Environment settings with nested routes
+			// Settings - New settings layout with 240px sidebar
 			{
 				path: 'settings',
-				element: <EnvironmentLayout />,
+				element: <SettingsPage />,
 				children: [
+					// Default redirect to commands
 					{
 						index: true,
-						element: <Navigate to="/settings/prompts/system" replace />,
+						element: <Navigate to="/settings/commands" replace />,
 					},
-					// Prompts section
+					// CLAUDE CODE section
 					{
-						path: 'prompts',
-						element: <Navigate to="/settings/prompts/system" replace />,
-					},
-					{
-						path: 'prompts/:section',
-						element: <Prompts />,
-					},
-					// Configuration section
-					{
-						path: 'configuration',
-						element: <Navigate to="/settings/configuration/general" replace />,
+						path: 'commands',
+						element: <SettingsView />,
 					},
 					{
-						path: 'configuration/:section',
-						element: <Settings />,
-					},
-					// Automation section
-					{
-						path: 'automation',
-						element: <Navigate to="/settings/automation/hooks" replace />,
-					},
-					{
-						path: 'automation/hooks',
-						element: <Hooks />,
+						path: 'claude-md',
+						element: (
+							<SettingsPlaceholder
+								title="CLAUDE.md"
+								description="Edit your project's CLAUDE.md instructions file"
+								icon="file-text"
+							/>
+						),
 					},
 					{
-						path: 'automation/scripts',
-						element: <Scripts />,
+						path: 'mcp',
+						element: (
+							<SettingsPlaceholder
+								title="MCP Servers"
+								description="Configure Model Context Protocol servers for extended capabilities"
+								icon="mcp"
+							/>
+						),
 					},
 					{
-						path: 'automation/:section',
-						element: <Hooks />,
-					},
-					// Advanced section
-					{
-						path: 'advanced',
-						element: <Navigate to="/settings/advanced/mcp" replace />,
-					},
-					{
-						path: 'advanced/mcp',
-						element: <Mcp />,
+						path: 'memory',
+						element: (
+							<SettingsPlaceholder
+								title="Memory"
+								description="Manage Claude's persistent memory across conversations"
+								icon="database"
+							/>
+						),
 					},
 					{
-						path: 'advanced/tools',
-						element: <Tools />,
+						path: 'permissions',
+						element: (
+							<SettingsPlaceholder
+								title="Permissions"
+								description="Configure tool permissions and access controls"
+								icon="shield"
+							/>
+						),
+					},
+					// ORC section
+					{
+						path: 'projects',
+						element: (
+							<SettingsPlaceholder
+								title="Projects"
+								description="Manage your ORC projects and repositories"
+								icon="folder"
+							/>
+						),
 					},
 					{
-						path: 'advanced/skills',
-						element: <Skills />,
+						path: 'billing',
+						element: (
+							<SettingsPlaceholder
+								title="Billing & Usage"
+								description="View your usage statistics and billing information"
+								icon="dollar"
+							/>
+						),
 					},
 					{
-						path: 'advanced/config',
-						element: <Config />,
+						path: 'import-export',
+						element: (
+							<SettingsPlaceholder
+								title="Import / Export"
+								description="Import and export tasks, initiatives, and settings"
+								icon="export"
+							/>
+						),
+					},
+					// ACCOUNT section
+					{
+						path: 'profile',
+						element: (
+							<SettingsPlaceholder
+								title="Profile"
+								description="Manage your account profile and preferences"
+								icon="user"
+							/>
+						),
 					},
 					{
-						path: 'advanced/claudemd',
-						element: <ClaudeMd />,
+						path: 'api-keys',
+						element: (
+							<SettingsPlaceholder
+								title="API Keys"
+								description="Manage your API keys and authentication tokens"
+								icon="settings"
+							/>
+						),
 					},
+					// 404 for unknown settings paths
 					{
-						path: 'advanced/:section',
-						element: <Mcp />,
+						path: '*',
+						element: <NotFoundPage />,
 					},
 				],
 			},

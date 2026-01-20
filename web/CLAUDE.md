@@ -43,7 +43,7 @@ web/src/
 │   ├── stats/            # Statistics visualizations (OutcomesDonut)
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
-│   ├── settings/         # Settings components (CommandList, CommandEditor, ConfigEditor)
+│   ├── settings/         # Settings components (SettingsLayout, SettingsView, CommandList, CommandEditor, ConfigEditor)
 │   ├── stats/            # Statistics visualizations (TasksBarChart)
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
 ├── pages/                # Route pages
@@ -117,7 +117,9 @@ See [docs/components.md](docs/components.md) for full API.
 | `/agents` | AgentsPage (agent cards, execution settings, tool permissions) |
 | `/stats` | Dashboard stats |
 | `/tasks/:id` | TaskDetail (6 tabs) |
-| `/settings/*` | Config editors |
+| `/settings` | Redirects to `/settings/commands` |
+| `/settings/commands` | SettingsView (slash commands editor) |
+| `/settings/*` | Config editors (placeholders for other sections) |
 
 ## Testing
 
