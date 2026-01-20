@@ -123,7 +123,9 @@ export type IconName =
 	| 'minimize-2'
 	// IconNav specific icons
 	| 'help'
-	| 'bar-chart';
+	| 'bar-chart'
+	// File operation icons
+	| 'save';
 
 // Icon paths organized by category
 // All icons use viewBox="0 0 24 24" with stroke-based rendering
@@ -272,6 +274,9 @@ const icons: Record<IconName, string> = {
 	// IconNav specific icons
 	help: `<circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />`,
 	'bar-chart': `<path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />`,
+
+	// File operation icons
+	save: `<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />`,
 };
 
 interface IconProps {
