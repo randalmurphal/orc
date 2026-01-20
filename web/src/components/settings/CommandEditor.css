@@ -1,0 +1,251 @@
+/* =============================================================================
+   CommandEditor Component Styles
+   Markdown editor with syntax highlighting overlay for slash commands
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.editor-container {
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.editor-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	background: var(--bg-card);
+	border-bottom: 1px solid var(--border);
+}
+
+.editor-header-left {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.editor-command-name {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+}
+
+.editor-command-name svg {
+	color: var(--primary);
+	flex-shrink: 0;
+}
+
+.editor-path {
+	font-size: var(--text-sm);
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.editor-header-right {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   DIRTY INDICATOR
+   ========================================================================== */
+
+.editor-dirty {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	background: var(--amber-dim);
+	border-radius: var(--radius-sm);
+	font-size: var(--text-sm);
+	color: var(--amber);
+}
+
+.editor-dirty svg {
+	fill: currentColor;
+	stroke: none;
+}
+
+/* ==========================================================================
+   ERROR STATE
+   ========================================================================== */
+
+.editor-error {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	background: var(--red-bg);
+	border-bottom: 1px solid var(--red-border);
+	font-size: var(--text-md);
+	color: var(--red);
+}
+
+.editor-error svg {
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   BODY (Line numbers + Content)
+   ========================================================================== */
+
+.editor-body {
+	display: flex;
+	min-height: 300px;
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   LINE NUMBERS
+   ========================================================================== */
+
+.editor-line-numbers {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	padding: var(--space-3) 0;
+	background: var(--bg-elevated);
+	border-right: 1px solid var(--border);
+	user-select: none;
+	overflow: hidden;
+}
+
+.editor-line-number {
+	width: 40px;
+	height: 20px;
+	padding-right: var(--space-3);
+	text-align: right;
+	font-family: var(--font-mono);
+	font-size: var(--text-md);
+	line-height: 20px;
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   CONTENT AREA (Textarea + Highlight overlay)
+   ========================================================================== */
+
+.editor-content {
+	position: relative;
+	flex: 1;
+	overflow: auto;
+}
+
+.editor-textarea,
+.editor-highlight {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	padding: var(--space-3);
+	margin: 0;
+	border: none;
+	font-family: var(--font-mono);
+	font-size: var(--text-md);
+	line-height: 20px;
+	white-space: pre;
+	word-wrap: normal;
+	overflow-wrap: normal;
+	tab-size: 4;
+	overflow: auto;
+}
+
+.editor-textarea {
+	background: transparent;
+	color: transparent;
+	caret-color: var(--text-primary);
+	resize: none;
+	outline: none;
+	z-index: 1;
+}
+
+.editor-textarea::selection {
+	background: var(--selection-bg);
+	color: transparent;
+}
+
+.editor-highlight {
+	background: var(--bg-surface);
+	color: var(--text-primary);
+	pointer-events: none;
+	z-index: 0;
+}
+
+/* ==========================================================================
+   SYNTAX HIGHLIGHTING CLASSES
+   ========================================================================== */
+
+.md-header {
+	color: var(--primary-bright);
+	font-weight: var(--font-semibold);
+}
+
+.md-code {
+	background: var(--bg-card);
+	border-radius: var(--radius-sm);
+	color: var(--cyan);
+	padding: 0 var(--space-0-5);
+}
+
+.md-code-block {
+	display: block;
+	background: var(--bg-card);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+}
+
+.md-list {
+	color: var(--orange);
+}
+
+.md-bold {
+	font-weight: var(--font-bold);
+	color: var(--text-primary);
+}
+
+.md-italic {
+	font-style: italic;
+	color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   FOCUS STATES
+   ========================================================================== */
+
+.editor-container:focus-within {
+	border-color: var(--primary-border);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.editor-container {
+		transition: none;
+	}
+}
