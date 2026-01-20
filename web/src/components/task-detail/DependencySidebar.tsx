@@ -11,7 +11,7 @@ import {
 	listTasks,
 } from '@/lib/api';
 import { toast } from '@/stores/uiStore';
-import type { Task } from '@/lib/types';
+import type { Task, TaskStatus } from '@/lib/types';
 import type { DependencyGraph, DependencyInfo } from '@/lib/api';
 import './DependencySidebar.css';
 
@@ -257,7 +257,7 @@ function DependencySection({
 					{items.map((item) => (
 						<li key={item.id} className="dep-item">
 							<Link to={`/tasks/${item.id}`} className="dep-link">
-								<StatusIndicator status={item.status as any} size="sm" />
+								<StatusIndicator status={item.status as TaskStatus} size="sm" />
 								<span className="dep-id">{item.id}</span>
 								<span className="dep-title">{item.title}</span>
 							</Link>

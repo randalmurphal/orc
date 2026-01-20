@@ -251,10 +251,10 @@ export class OrcWebSocket {
 				this.notifyListeners(message.event as WSEventType, message as unknown as WSEvent);
 				break;
 			case 'subscribed':
-				console.log('Subscribed to task:', message.task_id);
+				// Subscription confirmed - no action needed
 				break;
 			case 'command_result':
-				console.log('Command result:', message);
+				// Command result received - no action needed
 				break;
 			case 'error':
 				this.notifyListeners('error', {
@@ -263,7 +263,7 @@ export class OrcWebSocket {
 				});
 				break;
 			default:
-				console.log('Unknown message type:', message);
+				console.warn('Unknown WebSocket message type:', message);
 		}
 	}
 
@@ -281,7 +281,7 @@ export class OrcWebSocket {
 
 	private attemptReconnect(): void {
 		if (this.reconnectAttempts >= this.maxReconnects) {
-			console.log('Max reconnect attempts reached');
+			console.warn('WebSocket: max reconnect attempts reached');
 			return;
 		}
 
@@ -289,7 +289,7 @@ export class OrcWebSocket {
 		this.reconnectAttempts++;
 
 		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-		console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+		// Reconnection attempts are expected behavior, no need to log
 
 		this.reconnectTimer = setTimeout(() => {
 			// Prefer primary subscription (e.g., global) over current taskId

@@ -171,12 +171,12 @@ func TestShowCommand_SpecFlag_JSON(t *testing.T) {
 	cmd := newShowCmd()
 	cmd.SetArgs([]string{"TASK-003", "--spec"})
 	if err := cmd.Execute(); err != nil {
-		w.Close()
+		_ = w.Close()
 		os.Stdout = oldStdout
 		t.Fatalf("execute command: %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 	os.Stdout = oldStdout
@@ -229,12 +229,12 @@ func TestShowCommand_SpecFlag_JSON_NoSpec(t *testing.T) {
 	cmd := newShowCmd()
 	cmd.SetArgs([]string{"TASK-004", "--spec"})
 	if err := cmd.Execute(); err != nil {
-		w.Close()
+		_ = w.Close()
 		os.Stdout = oldStdout
 		t.Fatalf("execute command: %v", err)
 	}
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 	os.Stdout = oldStdout
@@ -316,7 +316,7 @@ func TestPrintSpecInfo_NilSpec(t *testing.T) {
 
 	printSpecInfo(nil)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 	os.Stdout = oldStdout
@@ -345,7 +345,7 @@ func TestPrintSpecInfo_WithSpec(t *testing.T) {
 
 	printSpecInfo(spec)
 
-	w.Close()
+	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(r)
 	os.Stdout = oldStdout
