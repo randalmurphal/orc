@@ -7,8 +7,10 @@
 
 import * as Select from '@radix-ui/react-select';
 import { Icon } from '@/components/ui/Icon';
-import type { BoardViewMode } from './Board';
 import './ViewModeDropdown.css';
+
+/** Board view mode - flat columns or swimlane grouped by initiative */
+export type BoardViewMode = 'flat' | 'swimlane';
 
 interface ViewOption {
 	id: BoardViewMode;

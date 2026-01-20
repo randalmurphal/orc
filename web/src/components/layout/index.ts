@@ -1,10 +1,7 @@
-export { AppLayout } from './AppLayout';
 export { AppShell } from './AppShell';
 export type { AppShellProps } from './AppShell';
 export { AppShellProvider, useAppShell } from './AppShellContext';
 export type { AppShellContextValue } from './AppShellContext';
-export { Sidebar } from './Sidebar';
-export { Header } from './Header';
 export { TopBar } from './TopBar';
 export { UrlParamSync } from './UrlParamSync';
 export { DataProvider } from './DataProvider';
