@@ -813,3 +813,86 @@ import { OutcomesDonut } from '@/components/stats';
 **Animations:** Smooth segment transitions via `transition: background var(--duration-slow)`.
 
 **Implementation:** Uses CSS `conic-gradient` for rendering (no SVG or canvas). Inner hole created with `::after` pseudo-element over `--bg-card` background
+
+## CommandList
+
+List component displaying slash commands organized by scope (project/global). Each command shows an icon, name, description, and action buttons for editing and deleting.
+
+```tsx
+import { CommandList, type Command } from '@/components/settings';
+
+// Basic usage
+<CommandList
+  commands={commands}
+  selectedId={selectedCommandId}
+  onSelect={(id) => setSelectedCommandId(id)}
+  onDelete={(id) => deleteCommand(id)}
+/>
+
+// With mixed scopes
+const commands: Command[] = [
+  { id: '1', name: '/review', description: 'Run code review', scope: 'project' },
+  { id: '2', name: '/deploy', description: 'Deploy to production', scope: 'global' },
+];
+
+<CommandList
+  commands={commands}
+  selectedId="1"
+  onSelect={handleSelect}
+  onDelete={handleDelete}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `commands` | `Command[]` | required | Array of command objects |
+| `selectedId` | `string` | - | ID of currently selected command |
+| `onSelect` | `(id: string) => void` | required | Selection handler |
+| `onDelete` | `(id: string) => void` | required | Delete handler (called after confirmation) |
+
+**Command Interface:**
+```tsx
+interface Command {
+  id: string;
+  name: string;          // e.g., '/review'
+  description: string;
+  scope: 'project' | 'global';
+  path?: string;         // Optional file path
+}
+```
+
+**Visual Structure:**
+- **Project Commands section:** Header with title and description about `.claude/commands/`
+- **Global Commands section:** Header with title and description about `~/.claude/commands/`
+- **Command items:** 32px icon, monospace name, truncated description, edit/delete buttons
+
+**Icon Colors:**
+| Scope | Icon Background | Icon Color |
+|-------|-----------------|------------|
+| `project` | `var(--primary-dim)` | `var(--primary)` |
+| `global` | `var(--cyan-dim)` | `var(--cyan)` |
+
+**States:**
+- Default: `--bg-surface` background, 1px `--border`, 8px radius
+- Hover: Border lightens to `--border-light`
+- Selected: Border changes to `--primary-border`
+- Delete confirmation: Shows confirm/cancel buttons instead of edit/delete
+
+**Empty State:**
+When `commands` is empty, displays centered message:
+- Terminal icon (32px)
+- "No commands" title
+- "Create a command to get started" description
+
+**Delete Confirmation:**
+Clicking delete shows inline confirm/cancel buttons:
+- Confirm (checkmark): Calls `onDelete` with command ID
+- Cancel (X): Returns to normal edit/delete buttons
+- Escape key also cancels
+
+**Accessibility:**
+- Items have `role="button"` with `tabIndex={0}`
+- `aria-pressed` reflects selection state
+- Keyboard: Enter/Space to select item
+- Confirm/cancel buttons are keyboard accessible
+- All buttons have `aria-label` for screen readers
