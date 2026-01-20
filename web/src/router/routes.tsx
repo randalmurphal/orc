@@ -2,8 +2,8 @@ import { RouteObject, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Board } from '@/pages/Board';
-import { Dashboard } from '@/pages/Dashboard';
 import { InitiativesPage } from '@/pages/InitiativesPage';
+import { StatsPage } from '@/pages/StatsPage';
 import { TaskDetail } from '@/pages/TaskDetail';
 import { InitiativeDetail } from '@/pages/InitiativeDetail';
 import { AutomationPage } from '@/pages/AutomationPage';
@@ -81,10 +81,10 @@ export const routes: RouteObject[] = [
 				path: 'initiatives/:id',
 				element: <InitiativeDetail />,
 			},
-			// Stats - Dashboard with analytics
+			// Stats - Statistics overview with analytics
 			{
 				path: 'stats',
-				element: <Dashboard />,
+				element: <StatsPage />,
 			},
 			// Agents - Agent configuration
 			{

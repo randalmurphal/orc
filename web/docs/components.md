@@ -814,6 +814,90 @@ import { OutcomesDonut } from '@/components/stats';
 
 **Implementation:** Uses CSS `conic-gradient` for rendering (no SVG or canvas). Inner hole created with `::after` pseudo-element over `--bg-card` background
 
+## StatsView
+
+Container component assembling the complete statistics page with summary stat cards, time filter controls, activity heatmap, charts, and leaderboard tables.
+
+```tsx
+import { StatsView } from '@/components/stats';
+
+<StatsView />
+<StatsView className="custom-class" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Structure:**
+- Header: "Statistics" title, subtitle, time filter buttons (24h | 7d | 30d | All), Export button
+- Stats Grid: 5-column responsive grid with summary stat cards
+- Activity Heatmap: Full-width card containing `ActivityHeatmap` component
+- Charts Row: 2-column layout with `TasksBarChart` (2fr) + `OutcomesDonut` (1fr)
+- Tables Row: 2-column layout with leaderboard tables (Most Active Initiatives + Most Modified Files)
+
+**Stats Cards (5 metrics):**
+| Card | Icon | Icon Color | Format |
+|------|------|------------|--------|
+| Tasks Completed | check-circle | purple | Raw number |
+| Tokens Used | zap | amber | "2.4M" format |
+| Total Cost | dollar | green | "$47.82" format |
+| Avg Task Time | clock | blue | "3:24" (mm:ss) |
+| Success Rate | shield | green | "94.2%" format |
+
+Each card shows: label, colored icon, monospace value, % change indicator (green up/red down arrow).
+
+**Time Filter:**
+Tab-style buttons: 24h, 7d, 30d, All. Default is 7d. Triggers `statsStore.setPeriod()` and refetch on change.
+
+**Export:**
+Export button generates CSV with current period data (date, tasks_completed, tokens_used, cost, success_rate). Uses Blob + URL.createObjectURL pattern.
+
+**States:**
+| State | Rendering |
+|-------|-----------|
+| Loading | Skeleton placeholders for all sections (cards, heatmap, charts, tables) |
+| Empty | Icon + "No statistics yet" message + description |
+| Error | Error message with retry button |
+| Populated | Full layout with all visualizations |
+
+**Data Sources:**
+- All data from `statsStore` via hooks: `useStatsPeriod`, `useStatsLoading`, `useStatsError`, `useActivityData`, `useOutcomes`, `useTasksPerDay`, `useTopInitiatives`, `useTopFiles`, `useSummaryStats`, `useWeeklyChanges`
+- Period changes call `statsStore.setPeriod()` which triggers refetch
+
+**Exported Utilities:**
+```tsx
+// Internal utility functions (not exported, but documented for reference)
+formatTokens(tokens: number): string    // "2.4M", "1.5K", "847"
+formatCost(cost: number): string        // "$47.82"
+formatTime(seconds: number): string     // "3:24"
+formatRate(rate: number): string        // "94.2%"
+generateCSV(tasksPerDay, summaryStats): string
+downloadCSV(content: string, filename: string): void
+```
+
+**CSS Classes:**
+| Class | Purpose |
+|-------|---------|
+| `.stats-view` | Main container |
+| `.stats-view-header` | Page header with title/filter/export |
+| `.stats-view-content` | Scrollable content area |
+| `.stats-view-stats-grid` | 5-column responsive grid for stat cards |
+| `.stats-view-stat-card` | Individual stat card |
+| `.stats-view-section-card` | Card wrapper for sections |
+| `.stats-view-charts-row` | 2-column layout for charts |
+| `.stats-view-tables-row` | 2-column layout for leaderboards |
+| `.stats-view-time-filter` | Time filter button group |
+| `.stats-view-empty` | Empty state styling |
+| `.stats-view-error` | Error state with retry |
+
+**Accessibility:**
+- Time filter uses `role="tablist"` with `aria-selected` on buttons
+- Loading state has `aria-busy="true"` and `aria-label="Loading statistics"`
+- Error state has `role="alert"`
+- Empty state has `role="status"`
+- Export button disabled during loading or when no data
+
 ## CommandList
 
 List component displaying slash commands organized by scope (project/global). Each command shows an icon, name, description, and action buttons for editing and deleting.

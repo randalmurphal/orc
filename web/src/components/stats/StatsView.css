@@ -1,0 +1,527 @@
+/* =============================================================================
+   StatsView Container Component Styles
+   Assembles the complete statistics overview page
+   ============================================================================= */
+
+/* ==========================================================================
+   MAIN CONTAINER
+   ========================================================================== */
+
+.stats-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.stats-view-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 20px;
+	background: var(--bg-elevated);
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.stats-view-header-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.stats-view-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.stats-view-subtitle {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin: 0;
+}
+
+.stats-view-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+/* ==========================================================================
+   TIME FILTER
+   ========================================================================== */
+
+.stats-view-time-filter {
+	display: flex;
+	gap: 4px;
+	background: var(--bg-surface);
+	padding: 4px;
+	border-radius: var(--radius-md);
+}
+
+.stats-view-time-btn {
+	padding: 6px 12px;
+	border-radius: var(--radius-sm);
+	font-size: 11px;
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	cursor: pointer;
+	transition: all var(--duration-fast);
+}
+
+.stats-view-time-btn:hover {
+	color: var(--text-secondary);
+}
+
+.stats-view-time-btn--active {
+	background: var(--bg-card);
+	color: var(--text-primary);
+}
+
+/* ==========================================================================
+   CONTENT AREA
+   ========================================================================== */
+
+.stats-view-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 20px;
+}
+
+.stats-view-content::-webkit-scrollbar {
+	width: 6px;
+}
+
+.stats-view-content::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+/* ==========================================================================
+   STATS CARDS GRID
+   ========================================================================== */
+
+.stats-view-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 12px;
+	margin-bottom: 24px;
+}
+
+.stats-view-stat-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 16px;
+}
+
+.stats-view-stat-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.stats-view-stat-label {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.stats-view-stat-icon {
+	width: 24px;
+	height: 24px;
+	border-radius: var(--radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.stats-view-stat-icon--purple {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.stats-view-stat-icon--green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.stats-view-stat-icon--amber {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.stats-view-stat-icon--blue {
+	background: var(--blue-dim);
+	color: var(--blue);
+}
+
+.stats-view-stat-value {
+	font-size: 24px;
+	font-weight: var(--font-bold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+	margin-bottom: 4px;
+}
+
+.stats-view-stat-change {
+	font-size: 10px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.stats-view-stat-change--up {
+	color: var(--green);
+}
+
+.stats-view-stat-change--down {
+	color: var(--red);
+}
+
+.stats-view-stat-change--neutral {
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   SECTION CARDS
+   ========================================================================== */
+
+.stats-view-section-card {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 20px;
+	margin-bottom: 24px;
+}
+
+/* ==========================================================================
+   CHARTS ROW
+   ========================================================================== */
+
+.stats-view-charts-row {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 16px;
+	margin-bottom: 24px;
+}
+
+.stats-view-chart-card {
+	margin-bottom: 0;
+}
+
+.stats-view-chart-header {
+	margin-bottom: 20px;
+}
+
+.stats-view-chart-title {
+	font-size: 13px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+/* Adjust bar chart container */
+.stats-view-chart-card--bar .tasks-bar-chart {
+	height: 160px;
+}
+
+/* Adjust donut container */
+.stats-view-chart-card--donut .outcomes-donut-container {
+	min-height: 160px;
+}
+
+/* ==========================================================================
+   TABLES ROW
+   ========================================================================== */
+
+.stats-view-tables-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+}
+
+.stats-view-tables-row .leaderboard-table {
+	margin-bottom: 0;
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.stats-view-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	text-align: center;
+}
+
+.stats-view-empty-icon {
+	width: 64px;
+	height: 64px;
+	background: var(--bg-surface);
+	border-radius: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+	color: var(--text-muted);
+}
+
+.stats-view-empty-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 8px;
+}
+
+.stats-view-empty-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	max-width: 300px;
+	margin: 0;
+	line-height: var(--leading-relaxed);
+}
+
+/* ==========================================================================
+   ERROR STATE
+   ========================================================================== */
+
+.stats-view-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	text-align: center;
+}
+
+.stats-view-error-icon {
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-bottom: 16px;
+	color: var(--red);
+}
+
+.stats-view-error-title {
+	font-size: 16px;
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0 0 8px;
+}
+
+.stats-view-error-desc {
+	font-size: 13px;
+	color: var(--text-muted);
+	max-width: 400px;
+	margin: 0 0 16px;
+	line-height: var(--leading-relaxed);
+}
+
+/* ==========================================================================
+   SKELETON LOADING
+   ========================================================================== */
+
+.stats-view-stat-card--skeleton {
+	pointer-events: none;
+}
+
+.stats-view-skeleton-label {
+	width: 80px;
+	height: 11px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.stats-view-skeleton-icon {
+	width: 24px;
+	height: 24px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-md);
+}
+
+.stats-view-skeleton-value {
+	width: 60%;
+	height: 24px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+	margin-bottom: 4px;
+}
+
+.stats-view-skeleton-change {
+	width: 100px;
+	height: 10px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-sm);
+}
+
+.stats-view-skeleton-heatmap {
+	height: 180px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-md);
+}
+
+.stats-view-skeleton-chart {
+	height: 180px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-md);
+}
+
+.stats-view-skeleton-donut {
+	height: 180px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-md);
+}
+
+.stats-view-skeleton-table {
+	height: 200px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-hover) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: stats-shimmer 1.5s ease-in-out infinite;
+	border-radius: var(--radius-md);
+}
+
+@keyframes stats-shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+/* Tablet: 3 columns for stats, single column for charts/tables */
+@media (max-width: 1024px) {
+	.stats-view-stats-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+
+	.stats-view-charts-row {
+		grid-template-columns: 1fr;
+	}
+
+	.stats-view-tables-row {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Mobile: 2 columns for stats, stack everything */
+@media (max-width: 768px) {
+	.stats-view-stats-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.stats-view-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.stats-view-header-actions {
+		width: 100%;
+		justify-content: space-between;
+	}
+}
+
+/* Small mobile: single column */
+@media (max-width: 480px) {
+	.stats-view-stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.stats-view-content {
+		padding: 16px;
+	}
+
+	.stats-view-time-filter {
+		flex-wrap: wrap;
+	}
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.stats-view-skeleton-label,
+	.stats-view-skeleton-icon,
+	.stats-view-skeleton-value,
+	.stats-view-skeleton-change,
+	.stats-view-skeleton-heatmap,
+	.stats-view-skeleton-chart,
+	.stats-view-skeleton-donut,
+	.stats-view-skeleton-table {
+		animation: none;
+		background: var(--bg-surface);
+	}
+}

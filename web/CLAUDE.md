@@ -40,11 +40,10 @@ web/src/
 │   ├── dashboard/        # Dashboard sections
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
-│   ├── stats/            # Statistics visualizations (OutcomesDonut)
+│   ├── stats/            # Statistics (StatsView, ActivityHeatmap, TasksBarChart, OutcomesDonut, LeaderboardTable)
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
 │   ├── settings/         # Settings components (SettingsLayout, SettingsView, CommandList, CommandEditor, ConfigEditor)
-│   ├── stats/            # Statistics visualizations (TasksBarChart)
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
 ├── pages/                # Route pages
 ├── stores/               # Zustand stores
@@ -115,7 +114,7 @@ See [docs/components.md](docs/components.md) for full API.
 | `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
 | `/initiatives/:id` | InitiativeDetail |
 | `/agents` | AgentsPage (agent cards, execution settings, tool permissions) |
-| `/stats` | Dashboard stats |
+| `/stats` | StatsPage (StatsView with summary cards, charts, leaderboards) |
 | `/tasks/:id` | TaskDetail (6 tabs) |
 | `/settings` | Redirects to `/settings/commands` |
 | `/settings/commands` | SettingsView (slash commands editor) |
