@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CommandEditor, type EditableCommand } from './CommandEditor';
 
@@ -245,19 +245,21 @@ describe('CommandEditor', () => {
 			expect(onCancel).toHaveBeenCalledTimes(1);
 		});
 
-		it('keyboard shortcuts work from textarea', () => {
+		it('keyboard shortcuts work from textarea', async () => {
+			const user = userEvent.setup();
 			render(
 				<CommandEditor command={mockCommand} onSave={onSave} onCancel={onCancel} />
 			);
 
 			const textarea = screen.getByRole('textbox');
+			textarea.focus();
 
 			// Test Ctrl+S
-			fireEvent.keyDown(textarea, { key: 's', ctrlKey: true });
+			await user.keyboard('{Control>}s{/Control}');
 			expect(onSave).toHaveBeenCalledTimes(1);
 
 			// Test Escape
-			fireEvent.keyDown(textarea, { key: 'Escape' });
+			await user.keyboard('{Escape}');
 			expect(onCancel).toHaveBeenCalledTimes(1);
 		});
 	});
