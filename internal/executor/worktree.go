@@ -55,10 +55,15 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	var initiativePrefix string
 	if t.InitiativeID != "" && backend != nil {
 		init, err := backend.LoadInitiative(t.InitiativeID)
-		if err == nil && init != nil {
+		if err != nil {
+			slog.Warn("failed to load initiative for branch prefix, using default 'orc/' prefix",
+				"task_id", t.ID,
+				"initiative_id", t.InitiativeID,
+				"error", err,
+			)
+		} else if init != nil {
 			initiativePrefix = init.BranchPrefix
 		}
-		// Ignore errors - just use default prefix if initiative can't be loaded
 	}
 
 	// For non-default branches (initiative/staging), ensure they exist
@@ -82,7 +87,11 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	// Check if worktree already exists
 	// Use initiative prefix for consistent path resolution
 	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.ID, initiativePrefix)
-	if _, err := os.Stat(worktreePath); err == nil {
+	if info, err := os.Stat(worktreePath); err == nil {
+		// Validate it's a directory, not a file
+		if !info.IsDir() {
+			return nil, fmt.Errorf("worktree path exists but is not a directory: %s", worktreePath)
+		}
 		// Worktree exists - clean up any problematic state before reusing
 		// CRITICAL: Also verifies worktree is on the correct branch
 		if err := cleanWorktreeState(worktreePath, gitOps, expectedBranch); err != nil {
@@ -150,7 +159,11 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 
 	// Check if worktree already exists
 	worktreePath := gitOps.WorktreePath(taskID)
-	if _, err := os.Stat(worktreePath); err == nil {
+	if info, err := os.Stat(worktreePath); err == nil {
+		// Validate it's a directory, not a file
+		if !info.IsDir() {
+			return nil, fmt.Errorf("worktree path exists but is not a directory: %s", worktreePath)
+		}
 		// Worktree exists - clean up any problematic state before reusing
 		// This handles cases where a previous execution failed and left the
 		// worktree in a bad state (e.g., rebase in progress, conflicts, dirty)
@@ -210,13 +223,23 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 // - Commits going to the wrong branch
 // - Infinite review/implement loops
 func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch string) error {
+	slog.Debug("cleaning worktree state",
+		"worktree", worktreePath,
+		"expected_branch", expectedBranch,
+	)
+
 	worktreeGit := gitOps.InWorktree(worktreePath)
 
 	// Check and abort any in-progress rebase
 	rebaseInProgress, err := worktreeGit.IsRebaseInProgress()
 	if err != nil {
-		// Non-fatal: continue checking other states
+		// Log but continue - check may fail due to unexpected git state
+		slog.Warn("failed to check rebase status, assuming none in progress",
+			"worktree", worktreePath,
+			"error", err,
+		)
 	} else if rebaseInProgress {
+		slog.Debug("aborting in-progress rebase", "worktree", worktreePath)
 		if err := worktreeGit.AbortRebase(); err != nil {
 			return fmt.Errorf("abort rebase: %w", err)
 		}
@@ -225,8 +248,13 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch str
 	// Check and abort any in-progress merge
 	mergeInProgress, err := worktreeGit.IsMergeInProgress()
 	if err != nil {
-		// Non-fatal: continue checking other states
+		// Log but continue - check may fail due to unexpected git state
+		slog.Warn("failed to check merge status, assuming none in progress",
+			"worktree", worktreePath,
+			"error", err,
+		)
 	} else if mergeInProgress {
+		slog.Debug("aborting in-progress merge", "worktree", worktreePath)
 		if err := worktreeGit.AbortMerge(); err != nil {
 			return fmt.Errorf("abort merge: %w", err)
 		}
@@ -234,10 +262,20 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch str
 
 	// Check if working directory has uncommitted changes or conflicts
 	// and discard them to ensure clean state for execution.
-	// If IsClean fails, we still try DiscardChanges as a fallback.
-	clean, err := worktreeGit.IsClean()
-	if err != nil || !clean {
+	clean, isCleanErr := worktreeGit.IsClean()
+	if isCleanErr != nil {
+		// Log the error but still attempt cleanup
+		slog.Debug("IsClean check failed, attempting to discard changes anyway",
+			"worktree", worktreePath,
+			"error", isCleanErr,
+		)
+	}
+	if isCleanErr != nil || !clean {
 		if discardErr := worktreeGit.DiscardChanges(); discardErr != nil {
+			// Include both errors for debugging
+			if isCleanErr != nil {
+				return fmt.Errorf("discard changes (IsClean also failed: %v): %w", isCleanErr, discardErr)
+			}
 			return fmt.Errorf("discard changes: %w", discardErr)
 		}
 	}
@@ -256,6 +294,17 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch str
 			"current", currentBranch,
 			"expected", expectedBranch,
 		)
+
+		// Verify the expected branch exists before attempting checkout
+		exists, existsErr := worktreeGit.BranchExists(expectedBranch)
+		if existsErr != nil {
+			return fmt.Errorf("check if branch %s exists: %w", expectedBranch, existsErr)
+		}
+		if !exists {
+			return fmt.Errorf("expected branch %s does not exist - worktree at %s needs manual cleanup (currently on %s)",
+				expectedBranch, worktreePath, currentBranch)
+		}
+
 		// Use CheckoutSafe which has proper worktree context protection
 		if err := worktreeGit.CheckoutSafe(expectedBranch); err != nil {
 			return fmt.Errorf("checkout expected branch %s (was on %s): %w",

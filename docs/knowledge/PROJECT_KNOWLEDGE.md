@@ -85,6 +85,9 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Streaming transcript persistence | `TranscriptBuffer` in executor package batches transcript lines (50 lines or 5 seconds) for database persistence; attached to `EventPublisher` via `SetBuffer()`; chunks accumulated until newline then persisted; `Close()` flushes remaining on phase/executor completion; uses background context with 30s timeout to ensure writes complete even on cancellation | TASK-401 |
 | Merge retry with rebase on 405 | `MergePR()` retries on HTTP 405 "Base branch was modified" errors (up to 3 attempts with exponential backoff: 2s, 4s, 8s); rebases branch onto target before each retry; merge failures block task completion with `blocked_reason=merge_failed` instead of false positive "completed" | TASK-437 |
 | PhaseMax timeout enforcement | `ExecutePhase()` wrapped with `executePhaseWithTimeout()` to enforce `PhaseMax` config (default 60m); `FinalizeTask()` also respects timeout; `PhaseMax=0` disables timeout; timeout produces `phaseTimeoutError` which marks task as failed (resumable via `orc resume`); logs warnings at 50% and 75% thresholds; distinguishes phase timeout from parent context cancellation | TASK-439, TASK-444 |
+| Worktree branch verification on reuse | `cleanWorktreeState()` verifies worktree is on expected task branch before reuse; if wrong branch detected, logs warning and switches via `CheckoutSafe()`; also verifies branch exists before checkout; prevents review seeing no changes (diffing main against main) | TASK-392 |
+| Hook injection failure is fatal | `InjectWorktreeHooks()` failure now returns error instead of warning; worktrees without safety hooks lack branch protection; error message: "failed to inject worktree safety hooks (worktree not safe to use without branch protection)" | TASK-392 |
+| No silent failures in git state checks | `IsRebaseInProgress()` and `IsMergeInProgress()` errors logged at WARN level instead of silently swallowed; `IsClean()` errors logged at DEBUG and original error included if `DiscardChanges()` also fails | TASK-392 |
 
 ## Known Gotchas
 
@@ -121,6 +124,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | PhaseMax timeout not enforced (phases hang forever) | Fixed: `ExecutePhase()` now called via `executePhaseWithTimeout()` wrapper that applies `context.WithTimeout(ctx, PhaseMax)` if `PhaseMax > 0`; same pattern applied to `FinalizeTask()`; timeout errors produce `phaseTimeoutError` type to distinguish from parent context cancellation | TASK-439 |
 | Task left in 'running' after spec extraction fails | Fixed: `ExecuteTask()` now calls `failTask()` before returning errors for all three spec extraction failure paths (empty output, extraction error, database save error); task status correctly becomes `StatusFailed` instead of orphaned in `StatusRunning` | TASK-438 |
 | `orc log --follow` says "may not be running" for active tasks | Fixed: JSONLPath now persisted immediately after executor sets it (not just at phase end); fallback path construction added when JSONLPath empty; error messages now show actual task status with actionable guidance | TASK-460 |
+| Worktree on wrong branch causes infinite review loop | Fixed: `cleanWorktreeState()` now verifies and corrects branch on worktree reuse; post-creation validation added to `SetupWorktreeForTask()`; logs warning when switching branches; verifies expected branch exists before checkout | TASK-392 |
 
 ## Decisions
 
