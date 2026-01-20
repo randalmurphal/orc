@@ -137,20 +137,13 @@ git commit -m "[orc] {{TASK_ID}}: research - completed"
 Then output:
 
 ```
-### Research Summary
+Then output ONLY this JSON to signal completion:
 
-**Files Analyzed**: [count]
-**Dependencies Found**: [count]
-**Challenges Identified**: [count]
-**Commit**: [commit SHA]
-
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Research analyzed [count] files, found [count] dependencies, identified [count] challenges. Commit: [SHA]"}
 ```
 
-If blocked (e.g., access issues, unclear requirements):
-```
-<phase_blocked>
-reason: [what's blocking research]
-needs: [what's needed to proceed]
-</phase_blocked>
+If blocked (e.g., access issues, unclear requirements), output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what's blocking research and what's needed to proceed]"}
 ```

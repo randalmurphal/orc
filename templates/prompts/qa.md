@@ -146,31 +146,22 @@ Verify no regressions:
 ## Phase Completion
 
 ### If PASS:
-```
-QA Status: PASS
-All tests pass, documentation complete.
-Implementation is ready for release.
 
-<phase_complete>true</phase_complete>
+Output ONLY this JSON:
+```json
+{"status": "complete", "summary": "QA PASS: All tests pass, documentation complete. Ready for release."}
 ```
 
 ### If FAIL:
-```
-QA Status: FAIL
-Issues requiring attention:
-- [List issues]
 
-<phase_blocked>
-reason: QA failed - issues found
-needs: Fixes for identified issues
-</phase_blocked>
+Output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "QA FAIL: [list issues requiring fixes]"}
 ```
 
 ### If NEEDS_ATTENTION:
-```
-QA Status: NEEDS_ATTENTION
-Minor items for follow-up:
-- [List items]
 
-<phase_complete>true</phase_complete>
+Output ONLY this JSON:
+```json
+{"status": "complete", "summary": "QA NEEDS_ATTENTION: Minor items for follow-up: [list items]"}
 ```

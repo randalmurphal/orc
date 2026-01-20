@@ -101,10 +101,14 @@ func (e *Evaluator) evaluateAuto(gate *plan.Gate, phaseOutput string) (*Decision
 				}, nil
 			}
 		case "has_completion_marker":
-			if !strings.Contains(phaseOutput, "<phase_complete>true</phase_complete>") {
+			// Check for JSON completion status
+			var resp struct {
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal([]byte(phaseOutput), &resp); err != nil || resp.Status != "complete" {
 				return &Decision{
 					Approved: false,
-					Reason:   "no completion marker found",
+					Reason:   "no completion status found in JSON response",
 				}, nil
 			}
 		default:

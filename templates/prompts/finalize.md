@@ -267,20 +267,13 @@ Ready for merge: YES
 ```
 ### Finalization Summary
 
-**Target Branch**: {{TARGET_BRANCH}}
-**Conflicts Resolved**: [count]
-**Tests**: All passing
-**Risk Level**: [Low/Medium/High/Critical]
-**Ready for Merge**: YES
-**Commit**: [commit SHA]
+Then output ONLY this JSON to signal completion:
 
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Finalized: synced with {{TARGET_BRANCH}}, resolved [count] conflicts, all tests passing, risk level [Low/Medium/High/Critical]. Commit: [SHA]"}
 ```
 
-If blocked:
-```
-<phase_blocked>
-reason: [what failed - tests, unresolvable conflict, etc.]
-needs: [specific action required]
-</phase_blocked>
+If blocked, output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what failed - tests, unresolvable conflict, etc. - and specific action required]"}
 ```

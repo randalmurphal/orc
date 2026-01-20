@@ -134,8 +134,8 @@ If you identify questions that require user decisions (architecture, vision, req
 
 ## Phase Completion
 
-After documenting all findings:
+After documenting all findings, output ONLY this JSON:
 
-```
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Review round 1: [count] critical, [count] warnings, [count] suggestions"}
 ```

@@ -213,18 +213,13 @@ Then output:
 ```
 ### Design Summary
 
-**Components**: [count] defined
-**Design Decisions**: [count] documented
-**Risks Identified**: [count]
-**Commit**: [commit SHA]
+Then output ONLY this JSON to signal completion:
 
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Design defined [count] components with [count] decisions documented. Commit: [SHA]"}
 ```
 
-If blocked (e.g., need architectural review):
-```
-<phase_blocked>
-reason: [what's blocking design]
-needs: [what decision/input is needed]
-</phase_blocked>
+If blocked (e.g., need architectural review), output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what's blocking design and what decision/input is needed]"}
 ```

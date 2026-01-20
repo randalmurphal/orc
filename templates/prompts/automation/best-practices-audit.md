@@ -52,16 +52,16 @@ Review code for best practices violations and fix issues that don't require arch
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Best practices audit complete: [summary of findings/fixes]"}
 ```
 
-If significant issues require human decision, output:
+If significant issues require human decision, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of issues needing review]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of issues needing review]"}
 ```
 
 ## Guidelines

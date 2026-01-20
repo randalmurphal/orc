@@ -122,29 +122,43 @@ func RunPhase(task *Task, phase *Phase) error {
 
 ## Completion Detection
 
-### XML Tag Pattern
+### JSON Completion Pattern
 
-Claude outputs completion signals as XML tags:
+Claude outputs completion signals as JSON:
 
 ```markdown
 I've completed the implementation. All tests pass.
 
-<phase_complete>true</phase_complete>
+{"status": "complete", "summary": "Implemented feature X with tests"}
 ```
 
 ### Parsing Logic
 
 ```go
-var completionPattern = regexp.MustCompile(`<phase_complete>(\w+)</phase_complete>`)
+type PhaseResponse struct {
+    Status  string `json:"status"`  // complete, blocked, continue
+    Reason  string `json:"reason,omitempty"`
+    Summary string `json:"summary,omitempty"`
+}
 
-func DetectCompletion(output string) bool {
-    matches := completionPattern.FindStringSubmatch(output)
-    if len(matches) > 1 {
-        return matches[1] == "true"
+func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
+    resp, err := ParsePhaseResponse(content)
+    if err != nil {
+        return PhaseStatusContinue, ""
     }
-    return false
+    switch resp.Status {
+    case "complete":
+        return PhaseStatusComplete, resp.Summary
+    case "blocked":
+        return PhaseStatusBlocked, resp.Reason
+    default:
+        return PhaseStatusContinue, resp.Reason
+    }
 }
 ```
+
+**Note:** `--json-schema` only works with `--print` mode. For session-based output,
+use `ExtractPhaseResponse()` which falls back to Haiku LLM extraction.
 
 ### Additional Criteria
 
@@ -154,7 +168,7 @@ func DetectCompletion(output string) bool {
 | `no_lint_errors` | Run linter, check exit code |
 | `files_exist` | Check filesystem |
 | `coverage_above: N` | Parse coverage report, verify >= N% |
-| `claude_confirms` | Claude outputs `<phase_complete>true</phase_complete>` |
+| `claude_confirms` | Claude outputs `{"status": "complete"}` |
 | `spec_complete` | Spec artifact exists and passes AI validation |
 | `review_approved` | Review phase completed with no major findings |
 | `design_approved` | Design document exists and approved |

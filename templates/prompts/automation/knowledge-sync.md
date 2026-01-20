@@ -42,16 +42,16 @@ Review recent task transcripts and update CLAUDE.md with new patterns, gotchas, 
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Knowledge sync complete: [count] entries updated"}
 ```
 
-If blocked (e.g., conflicting information found), output:
+If blocked (e.g., conflicting information found), output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of issue]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of issue]"}
 ```
 
 ## Guidelines

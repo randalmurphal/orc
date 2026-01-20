@@ -164,7 +164,7 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 	testPhase := &plan.Phase{
 		ID:     "implement",
 		Name:   "Implementation",
-		Prompt: "Just respond with <phase_complete>true</phase_complete> and nothing else.",
+		Prompt: `Just respond with JSON: {"status": "complete", "summary": "Done"}`,
 	}
 
 	testState := state.New("INT-001")
@@ -231,7 +231,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 			{
 				ID:     "implement",
 				Name:   "Implementation",
-				Prompt: "Respond only with: <phase_complete>true</phase_complete>",
+				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
 			},
 		},
 	}
@@ -321,12 +321,12 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 			{
 				ID:     "spec",
 				Name:   "Specification",
-				Prompt: "Respond only with: <phase_complete>true</phase_complete>",
+				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
 			},
 			{
 				ID:     "implement",
 				Name:   "Implementation",
-				Prompt: "Respond only with: <phase_complete>true</phase_complete>",
+				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
 			},
 		},
 	}
@@ -402,11 +402,11 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 		Phases: []plan.Phase{
 			{
 				ID:     "phase1",
-				Prompt: "Respond only with: <phase_complete>true</phase_complete>",
+				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
 			},
 			{
 				ID:     "phase2",
-				Prompt: "Respond only with: <phase_complete>true</phase_complete>",
+				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
 			},
 		},
 	}
@@ -480,7 +480,7 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := &task.Task{
@@ -527,7 +527,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
 	e.SetBackend(backend)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
 	e.SetClient(mockClient)
 
 	pub := events.NewMemoryPublisher()
@@ -622,7 +622,7 @@ func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
 	e.SetBackend(backend)
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
 	e.SetClient(mockClient)
 
 	testTask := task.New("MOCK-ELAPSED", "Elapsed time test")
@@ -822,7 +822,7 @@ func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
 	e.SetBackend(backend)
 
 	// Mock client that completes quickly
-	mockClient := claude.NewMockClient("<phase_complete>true</phase_complete>Done!")
+	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
 	e.SetClient(mockClient)
 
 	testTask := task.New("INT-NO-TIMEOUT", "No timeout test")

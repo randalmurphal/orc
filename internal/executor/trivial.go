@@ -168,12 +168,13 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 	for iteration := 1; iteration <= e.config.MaxIterations; iteration++ {
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
-		// Execute single completion
+		// Execute single completion with JSON schema for structured output
 		resp, err := e.client.Complete(ctx, claude.CompletionRequest{
 			Messages: []claude.Message{
 				{Role: claude.RoleUser, Content: promptText},
 			},
-			Model: modelSetting.Model,
+			Model:      modelSetting.Model,
+			JSONSchema: PhaseCompletionSchema,
 		})
 
 		if err != nil {
@@ -194,24 +195,31 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", resp.Content)
 
-		// Check completion markers
-		status, reason := CheckPhaseCompletion(resp.Content)
-		switch status {
-		case PhaseStatusComplete:
+		// Parse JSON response (guaranteed by --json-schema flag)
+		phaseResp, err := ParsePhaseResponse(resp.Content)
+		if err != nil {
+			// Invalid JSON - retry with feedback about expected schema
+			e.logger.Warn("invalid phase response JSON", "error", err, "iteration", iteration)
+			promptText = BuildJSONRetryPrompt(resp.Content, err)
+			continue
+		}
+
+		switch phaseResp.Status {
+		case "complete":
 			result.Status = plan.PhaseCompleted
 			result.Output = resp.Content
 			e.logger.Info("phase complete (trivial)", "task", t.ID, "phase", p.ID, "iterations", iteration)
 			goto done
 
-		case PhaseStatusBlocked:
+		case "blocked":
 			result.Status = plan.PhaseFailed
-			result.Error = fmt.Errorf("phase blocked: %s", reason)
+			result.Error = fmt.Errorf("phase blocked: %s", phaseResp.Reason)
 			goto done
 
-		case PhaseStatusContinue:
+		case "continue":
 			// For trivial executor, add response to prompt for next iteration
 			// (stateless, so we concatenate)
-			promptText = fmt.Sprintf("%s\n\nAssistant's previous response:\n%s\n\nContinue working. Output <phase_complete>true</phase_complete> when done.",
+			promptText = fmt.Sprintf("%s\n\nAssistant's previous response:\n%s\n\nContinue working on the task.",
 				promptText, resp.Content)
 		}
 	}

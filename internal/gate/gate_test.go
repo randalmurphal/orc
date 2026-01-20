@@ -91,16 +91,16 @@ func TestEvaluateAutoHasCompletionMarker(t *testing.T) {
 		Criteria: []string{"has_completion_marker"},
 	}
 
-	// Should approve with marker
-	decision, _ := e.Evaluate(context.Background(), gate, "done <phase_complete>true</phase_complete>")
+	// Should approve with JSON completion status
+	decision, _ := e.Evaluate(context.Background(), gate, `{"status": "complete", "summary": "done"}`)
 	if !decision.Approved {
-		t.Error("gate should approve with completion marker")
+		t.Error("gate should approve with JSON completion status")
 	}
 
-	// Should reject without marker
+	// Should reject without completion status
 	decision, _ = e.Evaluate(context.Background(), gate, "done")
 	if decision.Approved {
-		t.Error("gate should reject without completion marker")
+		t.Error("gate should reject without JSON completion status")
 	}
 }
 
@@ -365,8 +365,8 @@ func TestEvaluateAutoMultipleCriteria(t *testing.T) {
 		Criteria: []string{"has_output", "no_errors", "has_completion_marker"},
 	}
 
-	// Should pass when all criteria met
-	output := "good output <phase_complete>true</phase_complete>"
+	// Should pass when all criteria met (JSON format)
+	output := `{"status": "complete", "summary": "good output"}`
 	decision, _ := e.Evaluate(context.Background(), gate, output)
 	if !decision.Approved {
 		t.Error("gate should approve when all criteria met")
@@ -378,16 +378,16 @@ func TestEvaluateAutoMultipleCriteria(t *testing.T) {
 		t.Error("gate should reject when output empty")
 	}
 
-	// Should fail when no_errors fails
-	decision, _ = e.Evaluate(context.Background(), gate, "error occurred <phase_complete>true</phase_complete>")
+	// Should fail when no_errors fails (note: JSON with "error" in content would fail no_errors)
+	decision, _ = e.Evaluate(context.Background(), gate, `{"status": "complete", "summary": "an error occurred"}`)
 	if decision.Approved {
-		t.Error("gate should reject when errors present")
+		t.Error("gate should reject when errors present in content")
 	}
 
-	// Should fail when completion marker missing
-	decision, _ = e.Evaluate(context.Background(), gate, "good output")
+	// Should fail when completion status missing
+	decision, _ = e.Evaluate(context.Background(), gate, "good output without json completion")
 	if decision.Approved {
-		t.Error("gate should reject when completion marker missing")
+		t.Error("gate should reject when JSON completion status missing")
 	}
 }
 

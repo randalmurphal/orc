@@ -40,16 +40,16 @@ Review and normalize code style, imports, and formatting across files modified i
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Style normalization complete: [count] files formatted"}
 ```
 
-If blocked (e.g., can't determine canonical style), output:
+If blocked (e.g., can't determine canonical style), output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of issue]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of issue]"}
 ```
 
 ## Guidelines
