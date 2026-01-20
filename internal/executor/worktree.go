@@ -84,6 +84,18 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	// Calculate expected branch name for this task
 	expectedBranch := gitOps.BranchNameWithInitiativePrefix(t.ID, initiativePrefix)
 
+	// Prune stale worktree entries BEFORE checking if worktree exists.
+	// This handles the case where a worktree directory was deleted (e.g., manually or
+	// by external cleanup) but git still has metadata about it. Without pruning first,
+	// os.Stat returns "not found" but git refuses to create because the branch is
+	// "already used by worktree at <path>".
+	if err := gitOps.PruneWorktrees(); err != nil {
+		slog.Debug("failed to prune stale worktrees (non-fatal)",
+			"task_id", t.ID,
+			"error", err,
+		)
+	}
+
 	// Check if worktree already exists
 	// Use initiative prefix for consistent path resolution
 	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.ID, initiativePrefix)
@@ -156,6 +168,16 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 
 	// Calculate expected branch name for this task (no initiative prefix in deprecated path)
 	expectedBranch := gitOps.BranchName(taskID)
+
+	// Prune stale worktree entries BEFORE checking if worktree exists.
+	// This handles the case where a worktree directory was deleted but git still
+	// has metadata about it (the "branch already used by worktree" error).
+	if err := gitOps.PruneWorktrees(); err != nil {
+		slog.Debug("failed to prune stale worktrees (non-fatal)",
+			"task_id", taskID,
+			"error", err,
+		)
+	}
 
 	// Check if worktree already exists
 	worktreePath := gitOps.WorktreePath(taskID)
