@@ -630,6 +630,64 @@ func TestSetupWorktree_StaleWorktree(t *testing.T) {
 	}
 }
 
+// TestSetupWorktreeForTask_StaleWorktree tests that SetupWorktreeForTask handles
+// the case where a worktree directory was deleted but git still has metadata about it.
+// This simulates what happens when a task times out, the worktree is manually deleted,
+// and then the user runs `orc resume`.
+func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-stale-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	tsk := &task.Task{ID: "TASK-STALE2"}
+
+	// Create worktree first time
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("first SetupWorktreeForTask failed: %v", err)
+	}
+
+	// Manually delete the worktree directory (simulating stale registration).
+	// This is what happens when a timeout causes cleanup or when someone
+	// manually removes the directory without using `git worktree remove`.
+	if err := os.RemoveAll(result1.Path); err != nil {
+		t.Fatalf("failed to remove worktree directory: %v", err)
+	}
+
+	// Verify directory is gone
+	if _, err := os.Stat(result1.Path); !os.IsNotExist(err) {
+		t.Fatal("worktree directory should not exist after manual deletion")
+	}
+
+	// Setup again - this MUST succeed, not fail with
+	// "fatal: 'orc/TASK-STALE2' is already used by worktree"
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask should handle stale worktree: %v", err)
+	}
+
+	// Verify it was created (not reused since directory was deleted)
+	if result2.Reused {
+		t.Error("should not be marked as reused when directory was deleted")
+	}
+
+	// Verify directory exists
+	if _, err := os.Stat(result2.Path); os.IsNotExist(err) {
+		t.Error("worktree should exist after re-creation")
+	}
+}
+
 func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-dirty-test-*")
 	if err != nil {
