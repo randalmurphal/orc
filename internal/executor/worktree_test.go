@@ -635,3 +635,78 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 		t.Error("worktree should be clean after reuse")
 	}
 }
+
+func TestSetupWorktree_SwitchesToCorrectBranch(t *testing.T) {
+	// This test verifies that when a worktree is reused but is on the wrong branch,
+	// it gets switched to the correct task branch. This prevents issues like:
+	// - Review phase seeing no changes (diffing main against main)
+	// - Commits going to the wrong branch
+	// - Infinite review/implement loops
+
+	tmpDir, err := os.MkdirTemp("", "orc-worktree-branch-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := initTestRepo(tmpDir); err != nil {
+		t.Fatalf("failed to init test repo: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	// Create worktree
+	result1, err := SetupWorktree("TASK-BRANCH", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed: %v", err)
+	}
+
+	// Verify we're on the expected branch
+	worktreeGit := gitOps.InWorktree(result1.Path)
+	expectedBranch := gitOps.BranchName("TASK-BRANCH")
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch: %v", err)
+	}
+	if currentBranch != expectedBranch {
+		t.Fatalf("expected branch %s, got %s", expectedBranch, currentBranch)
+	}
+
+	// Create a different branch that isn't used elsewhere
+	// (We can't checkout main since it's used by the main repo)
+	wrongBranch := "wrong-branch"
+	if err := runGitCmd(result1.Path, "checkout", "-b", wrongBranch); err != nil {
+		t.Fatalf("failed to create and checkout wrong branch: %v", err)
+	}
+
+	// Verify we're now on the wrong branch
+	currentBranch, err = worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch after checkout: %v", err)
+	}
+	if currentBranch != wrongBranch {
+		t.Fatalf("expected branch %s, got %s", wrongBranch, currentBranch)
+	}
+
+	// Reuse worktree - should switch back to the correct branch
+	result2, err := SetupWorktree("TASK-BRANCH", nil, gitOps)
+	if err != nil {
+		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+	}
+
+	if !result2.Reused {
+		t.Error("should be marked as reused")
+	}
+
+	// Verify we're back on the expected branch
+	currentBranch, err = worktreeGit.GetCurrentBranch()
+	if err != nil {
+		t.Fatalf("failed to get current branch after reuse: %v", err)
+	}
+	if currentBranch != expectedBranch {
+		t.Errorf("worktree should be on %s after reuse, but is on %s", expectedBranch, currentBranch)
+	}
+}

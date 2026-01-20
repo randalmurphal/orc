@@ -3,6 +3,7 @@ package executor
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -75,12 +76,16 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 		}
 	}
 
+	// Calculate expected branch name for this task
+	expectedBranch := gitOps.BranchNameWithInitiativePrefix(t.ID, initiativePrefix)
+
 	// Check if worktree already exists
 	// Use initiative prefix for consistent path resolution
 	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.ID, initiativePrefix)
 	if _, err := os.Stat(worktreePath); err == nil {
 		// Worktree exists - clean up any problematic state before reusing
-		if err := cleanWorktreeState(worktreePath, gitOps); err != nil {
+		// CRITICAL: Also verifies worktree is on the correct branch
+		if err := cleanWorktreeState(worktreePath, gitOps, expectedBranch); err != nil {
 			return nil, fmt.Errorf("clean worktree state for %s: %w", t.ID, err)
 		}
 		return &WorktreeSetup{
@@ -94,6 +99,18 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	path, err := gitOps.CreateWorktreeWithInitiativePrefix(t.ID, targetBranch, initiativePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("create worktree for %s: %w", t.ID, err)
+	}
+
+	// SAFETY: Validate branch after creation
+	// This catches any issues with worktree creation leaving us on the wrong branch
+	worktreeGit := gitOps.InWorktree(path)
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		return nil, fmt.Errorf("verify worktree branch for %s: %w", t.ID, err)
+	}
+	if currentBranch != expectedBranch {
+		return nil, fmt.Errorf("INTERNAL BUG: worktree created on wrong branch: expected %s, got %s - this indicates a bug in CreateWorktreeWithInitiativePrefix",
+			expectedBranch, currentBranch)
 	}
 
 	return &WorktreeSetup{
@@ -128,13 +145,17 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 		targetBranch = cfg.Completion.TargetBranch
 	}
 
+	// Calculate expected branch name for this task (no initiative prefix in deprecated path)
+	expectedBranch := gitOps.BranchName(taskID)
+
 	// Check if worktree already exists
 	worktreePath := gitOps.WorktreePath(taskID)
 	if _, err := os.Stat(worktreePath); err == nil {
 		// Worktree exists - clean up any problematic state before reusing
 		// This handles cases where a previous execution failed and left the
 		// worktree in a bad state (e.g., rebase in progress, conflicts, dirty)
-		if err := cleanWorktreeState(worktreePath, gitOps); err != nil {
+		// CRITICAL: Also verifies worktree is on the correct branch
+		if err := cleanWorktreeState(worktreePath, gitOps, expectedBranch); err != nil {
 			return nil, fmt.Errorf("clean worktree state for %s: %w", taskID, err)
 		}
 		return &WorktreeSetup{
@@ -148,6 +169,18 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 	path, err := gitOps.CreateWorktree(taskID, targetBranch)
 	if err != nil {
 		return nil, fmt.Errorf("create worktree for %s: %w", taskID, err)
+	}
+
+	// SAFETY: Validate branch after creation
+	// This catches any issues with worktree creation leaving us on the wrong branch
+	worktreeGit := gitOps.InWorktree(path)
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		return nil, fmt.Errorf("verify worktree branch for %s: %w", taskID, err)
+	}
+	if currentBranch != expectedBranch {
+		return nil, fmt.Errorf("INTERNAL BUG: worktree created on wrong branch: expected %s, got %s - this indicates a bug in CreateWorktree",
+			expectedBranch, currentBranch)
 	}
 
 	return &WorktreeSetup{
@@ -164,11 +197,19 @@ func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*Worktre
 // - Rebase in progress: aborts the rebase
 // - Merge in progress: aborts the merge
 // - Uncommitted changes/conflicts: discards all changes
+// - Wrong branch: switches to the expected branch
 //
 // This ensures that resumed tasks start with a clean worktree state,
 // preventing errors like "rebase already in progress" or "you have
 // unstaged changes" when syncing with the target branch.
-func cleanWorktreeState(worktreePath string, gitOps *git.Git) error {
+//
+// CRITICAL: The expectedBranch parameter ensures the worktree is on the correct
+// task branch. If the worktree ended up on a different branch (e.g., main),
+// this function will switch it back to prevent issues like:
+// - Review phase seeing no changes (diffing main against main)
+// - Commits going to the wrong branch
+// - Infinite review/implement loops
+func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch string) error {
 	worktreeGit := gitOps.InWorktree(worktreePath)
 
 	// Check and abort any in-progress rebase
@@ -198,6 +239,27 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git) error {
 	if err != nil || !clean {
 		if discardErr := worktreeGit.DiscardChanges(); discardErr != nil {
 			return fmt.Errorf("discard changes: %w", discardErr)
+		}
+	}
+
+	// CRITICAL: Verify worktree is on the expected branch
+	// This catches cases where a worktree ended up on the wrong branch
+	// (e.g., due to manual checkout or previous execution bugs)
+	currentBranch, err := worktreeGit.GetCurrentBranch()
+	if err != nil {
+		return fmt.Errorf("get current branch: %w", err)
+	}
+
+	if currentBranch != expectedBranch {
+		slog.Warn("worktree on wrong branch, switching",
+			"worktree", worktreePath,
+			"current", currentBranch,
+			"expected", expectedBranch,
+		)
+		// Use CheckoutSafe which has proper worktree context protection
+		if err := worktreeGit.CheckoutSafe(expectedBranch); err != nil {
+			return fmt.Errorf("checkout expected branch %s (was on %s): %w",
+				expectedBranch, currentBranch, err)
 		}
 	}
 

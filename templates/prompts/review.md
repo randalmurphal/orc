@@ -10,6 +10,23 @@ Fast validation before test phase. Three possible outcomes.
 
 {{INITIATIVE_CONTEXT}}
 
+## Worktree Safety
+
+You are working in an **isolated git worktree**.
+
+| Property | Value |
+|----------|-------|
+| Worktree Path | `{{WORKTREE_PATH}}` |
+| Task Branch | `{{TASK_BRANCH}}` |
+| Target Branch | `{{TARGET_BRANCH}}` |
+
+**CRITICAL SAFETY RULES:**
+- All commits go to branch `{{TASK_BRANCH}}`
+- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
+- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
+- Merging happens via PR after all phases complete
+- Git hooks are active to prevent accidental protected branch modifications
+
 ## Specification
 
 {{SPEC_CONTENT}}
@@ -105,10 +122,12 @@ Fix small bugs yourself using the Edit tool. Examples of "small":
 - Forgotten import
 - Simple logic fix
 
-After fixing (or if nothing to fix):
+If you made fixes, commit them:
 ```bash
-git add -A && git commit -m "[orc] {{TASK_ID}}: review - passed"
+git add -A && git commit -m "[orc] {{TASK_ID}}: review fixes"
 ```
+
+**Note:** Only commit if you actually made changes. Do NOT create empty commits just to track phase completion - phase tracking is handled by the executor, not commit history.
 
 Then output ONLY this JSON:
 ```json
