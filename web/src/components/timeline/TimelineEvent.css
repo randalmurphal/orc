@@ -1,0 +1,192 @@
+/**
+ * TimelineEvent component styles
+ * Displays individual events in the timeline feed with icons, labels, and expandable details.
+ */
+
+/* Container */
+.timeline-event {
+	display: flex;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border-bottom: 1px solid var(--border);
+	transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.timeline-event:last-child {
+	border-bottom: none;
+}
+
+.timeline-event--expandable {
+	cursor: pointer;
+}
+
+.timeline-event--expandable:hover {
+	background: var(--bg-hover);
+}
+
+.timeline-event--expandable:focus {
+	outline: none;
+	background: var(--bg-hover);
+}
+
+.timeline-event--expandable:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+/* Icon container */
+.timeline-event-icon {
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	border-radius: var(--radius-full);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+/* Icon style variants */
+.timeline-event-icon--success {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.timeline-event-icon--error {
+	background: var(--red-dim);
+	color: var(--red);
+}
+
+.timeline-event-icon--warning {
+	background: var(--amber-dim);
+	color: var(--amber);
+}
+
+.timeline-event-icon--info {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+.timeline-event-icon--default {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+/* Content area */
+.timeline-event-content {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+/* Header row with label and time */
+.timeline-event-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.timeline-event-label {
+	font-size: var(--text-md);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+.timeline-event-time {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+/* Task link */
+.timeline-event-task {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-base);
+	color: var(--text-secondary);
+	text-decoration: none;
+	transition: color var(--duration-fast) var(--ease-out);
+}
+
+.timeline-event-task:hover {
+	color: var(--primary);
+}
+
+.timeline-event-task-id {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
+
+.timeline-event-task-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Expandable details */
+.timeline-event-details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-0-5);
+	margin-top: var(--space-2);
+	padding-left: var(--space-1);
+}
+
+.timeline-event-detail {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-1);
+	font-size: var(--text-sm);
+}
+
+.timeline-event-detail-prefix {
+	font-family: var(--font-mono);
+	color: var(--text-muted);
+	user-select: none;
+}
+
+.timeline-event-detail-label {
+	color: var(--text-secondary);
+	white-space: nowrap;
+}
+
+.timeline-event-detail-value {
+	color: var(--text-primary);
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	word-break: break-all;
+}
+
+/* Expand hint */
+.timeline-event-expand-hint {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	opacity: 0;
+	transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.timeline-event--expandable:hover .timeline-event-expand-hint,
+.timeline-event--expandable:focus .timeline-event-expand-hint {
+	opacity: 1;
+}
+
+/* Animation for expanded state */
+.timeline-event--expanded .timeline-event-details {
+	animation: slideDown var(--duration-normal) var(--ease-out);
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
