@@ -151,6 +151,49 @@ Describe:
 - Dependencies needed
 - Data structures/schemas
 
+### Step 5.5: Integration Requirements (REQUIRED)
+
+**Components must be wired up to be usable.** Creating a component without integrating it means the work is incomplete.
+
+For every new file/component created, answer:
+- **Who consumes this?** (route, parent component, import location)
+- **Is the consumer updated to use it?** If not, why not?
+
+#### Integration Checklist
+
+| New File | Consumer | Integration Task | Included in This Spec? |
+|----------|----------|------------------|------------------------|
+| [component.tsx] | [Page or parent] | [Update import/render] | Yes / No (blocked by X) |
+| [api endpoint] | [Client code] | [Update API client] | Yes / No (blocked by X) |
+| [store] | [Components] | [Connect via hooks] | Yes / No (blocked by X) |
+
+**Rules:**
+1. **Default: Integration is IN SCOPE** - If you create it, wire it up
+2. **Explicit exceptions only** - If integration is blocked by other work, state WHY and create a follow-up task reference
+3. **No orphan components** - A component that exists but isn't used is not "done"
+4. **Routes must render new pages** - Creating a page component means updating the router
+5. **Replaced components must be removed** - Don't leave dead code alongside new code
+
+**Example - WRONG (orphan component):**
+```
+New Files:
+- web/src/components/board/BoardView.tsx  ← Created but never used!
+```
+
+**Example - CORRECT (integrated):**
+```
+New Files:
+- web/src/components/board/BoardView.tsx
+
+Files to Modify:
+- web/src/pages/Board.tsx: Replace <Board /> with <BoardView />
+```
+
+**If integration is genuinely blocked**, document:
+- What blocks it (dependency on another task)
+- What follow-up task will complete the integration
+- Add a TODO with the blocker task ID
+
 ### Step 6: Category-Specific Analysis
 
 **For BUG tasks (category = bug):**
@@ -344,6 +387,12 @@ Create the spec and wrap it in artifact tags:
 
 ### New Files
 - [file1]: [purpose]
+
+### Integration Requirements
+
+| New File | Consumer | Integration Task | Included? |
+|----------|----------|------------------|-----------|
+| [file] | [consumer] | [task] | Yes / No (reason) |
 
 ## [Category-Specific Section]
 [Include Bug Analysis / Feature Definition / Refactor Scope based on category]
