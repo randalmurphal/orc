@@ -1,0 +1,157 @@
+/* =============================================================================
+   ConfigEditor Component Styles
+   Editable code/config file viewer with syntax highlighting
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.config-editor {
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.config-editor-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-2-5) var(--space-3-5);
+	background: var(--bg-card);
+	border-bottom: 1px solid var(--border);
+}
+
+.config-editor-header-left {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.config-editor-path {
+	font-size: var(--text-base);
+	font-family: var(--font-mono);
+	color: var(--text-secondary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.config-editor-unsaved {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--amber);
+	padding: var(--space-0-5) var(--space-1-5);
+	background: var(--amber-dim);
+	border-radius: var(--radius-sm);
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   CONTENT AREA
+   ========================================================================== */
+
+.config-editor-content {
+	position: relative;
+	min-height: 200px;
+	max-height: 400px;
+	overflow: hidden;
+}
+
+/* Shared styles for both layers */
+.config-editor-highlight,
+.config-editor-textarea {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: var(--space-3-5);
+	font-family: var(--font-mono);
+	font-size: var(--text-md);
+	line-height: var(--leading-relaxed);
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	overflow-y: auto;
+	margin: 0;
+	border: none;
+	outline: none;
+	resize: none;
+}
+
+/* Highlighted layer (background, read-only) */
+.config-editor-highlight {
+	color: var(--text-secondary);
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* Textarea layer (foreground, editable, transparent text) */
+.config-editor-textarea {
+	color: transparent;
+	caret-color: var(--text-primary);
+	background: transparent;
+	z-index: 2;
+}
+
+.config-editor-textarea::selection {
+	background: var(--selection-bg);
+}
+
+/* Scrollbar styling for content area */
+.config-editor-highlight::-webkit-scrollbar,
+.config-editor-textarea::-webkit-scrollbar {
+	width: 6px;
+}
+
+.config-editor-highlight::-webkit-scrollbar-thumb,
+.config-editor-textarea::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 3px;
+}
+
+.config-editor-highlight::-webkit-scrollbar-thumb:hover,
+.config-editor-textarea::-webkit-scrollbar-thumb:hover {
+	background: var(--border-hover);
+}
+
+/* ==========================================================================
+   SYNTAX HIGHLIGHTING
+   ========================================================================== */
+
+.code-comment {
+	color: var(--text-muted);
+}
+
+.code-key {
+	color: var(--primary-bright);
+}
+
+.code-string {
+	color: var(--green);
+}
+
+/* ==========================================================================
+   FOCUS STATE
+   ========================================================================== */
+
+.config-editor:has(.config-editor-textarea:focus) {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.config-editor {
+		transition: none;
+	}
+}

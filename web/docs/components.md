@@ -976,3 +976,112 @@ interface EditableCommand {
 - Error message has `role="alert"`
 - Dirty indicator has `aria-label="Unsaved changes"`
 - Respects `prefers-reduced-motion`
+
+## ConfigEditor
+
+Editable code/config file viewer with syntax highlighting. Supports markdown, YAML, and JSON with save functionality and unsaved changes detection.
+
+```tsx
+import { ConfigEditor, type ConfigLanguage } from '@/components/settings';
+
+// Basic markdown editor
+<ConfigEditor
+  filePath="CLAUDE.md"
+  content={fileContent}
+  onChange={(content) => setFileContent(content)}
+  onSave={() => saveFile()}
+/>
+
+// YAML configuration
+<ConfigEditor
+  filePath=".orc/config.yaml"
+  content={yamlContent}
+  onChange={setYamlContent}
+  onSave={handleSave}
+  language="yaml"
+/>
+
+// JSON file
+<ConfigEditor
+  filePath="package.json"
+  content={jsonContent}
+  onChange={setJsonContent}
+  onSave={handleSave}
+  language="json"
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `filePath` | `string` | required | File path displayed in header (monospace) |
+| `content` | `string` | required | Current file content |
+| `onChange` | `(content: string) => void` | required | Called on every content change |
+| `onSave` | `() => void` | required | Called when Save button clicked or Ctrl+S pressed |
+| `language` | `'markdown' \| 'yaml' \| 'json'` | `'markdown'` | Syntax highlighting language |
+
+**Visual Structure:**
+- Header: File path (monospace), unsaved indicator (amber badge), Save button
+- Content: Overlay-based editor (hidden textarea + highlighted div)
+- Dimensions: 200px min-height, 400px max-height, scrollable
+
+**Syntax Highlighting Colors:**
+| Element | Class | Color |
+|---------|-------|-------|
+| Comments | `.code-comment` | `var(--text-muted)` |
+| Headers/Keys | `.code-key` | `var(--primary-bright)` |
+| Strings | `.code-string` | `var(--green)` |
+
+**Language-Specific Patterns:**
+
+*Markdown:*
+- Headers (`## Title`) → `.code-key`
+- Code fences (``` ` ` ` ```) → `.code-string`
+- Single `#` lines (not `##`) → `.code-comment`
+
+*YAML:*
+- Comments (`# comment`) → `.code-comment`
+- Keys (`key:`) → `.code-key`
+- Quoted strings → `.code-string`
+
+*JSON:*
+- Object keys (`"key":`) → `.code-key`
+- String values → `.code-string`
+
+**Keyboard Shortcuts:**
+| Key | Action |
+|-----|--------|
+| `Ctrl+S` / `Cmd+S` | Trigger `onSave` callback |
+| `Tab` | Insert tab character at cursor |
+
+**States:**
+- Default: `--bg-surface` background, 1px `--border`, `--radius-lg`
+- Focus: Border changes to `--primary`, 2px glow ring
+- Unsaved: Amber "Modified" badge appears in header
+
+**Implementation Details:**
+- Uses overlay technique: transparent textarea over highlighted div
+- Scroll positions are synchronized between layers
+- Cursor (caret) uses `--text-primary` color
+- Selection background uses `--selection-bg`
+- Memoized syntax highlighting to prevent unnecessary recomputation
+
+**Exported Types:**
+```tsx
+type ConfigLanguage = 'markdown' | 'yaml' | 'json';
+
+interface ConfigEditorProps {
+  filePath: string;
+  content: string;
+  onChange: (content: string) => void;
+  onSave: () => void;
+  language?: ConfigLanguage;
+}
+```
+
+**Accessibility:**
+- Textarea has `aria-label` describing the file being edited
+- Save button has `aria-label="Save changes"`
+- Unsaved indicator has `aria-label="Unsaved changes"`
+- Highlighted layer is `aria-hidden="true"`
+- `spellCheck={false}` to avoid red underlines in code
+- Respects `prefers-reduced-motion` (disables transitions)
