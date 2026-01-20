@@ -1293,3 +1293,300 @@ import { SettingsPlaceholder } from '@/components/settings';
 
 **Usage:**
 Used as placeholder elements for settings routes that haven't been implemented yet (claude-md, mcp, memory, permissions, projects, billing, import-export, profile, api-keys).
+
+## BoardView
+
+Main container component for the two-column board layout with right panel integration.
+
+```tsx
+import { BoardView } from '@/components/board';
+
+<BoardView />
+<BoardView className="custom-class" />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | `''` | Additional CSS classes |
+
+**Visual Structure:**
+- Two-column CSS grid: Queue (flex: 1, min 280px) | Running (420px fixed)
+- Queue column renders QueueColumn with initiative swimlanes
+- Running column renders RunningColumn with Pipeline visualization
+- Sets right panel content via AppShell context on mount
+
+**Data Flow:**
+| Store | Data | Usage |
+|-------|------|-------|
+| `taskStore.tasks` | All tasks | Filtered by status for columns |
+| `taskStore.taskStates` | Execution states | Passed to RunningColumn |
+| `initiativeStore` | Initiatives | Swimlane grouping |
+| `sessionStore` | totalTokens, totalCost | CompletedPanel stats |
+
+**Derived State:**
+- `queuedTasks`: status in ['planned', 'created', 'classifying']
+- `runningTasks`: status === 'running'
+- `blockedTasks`: status === 'blocked' or is_blocked === true
+- `completedToday`: status === 'completed' and completed_at is today
+
+**Right Panel Content:**
+On mount, sets AppShell right panel with:
+- `BlockedPanel` (orange theme)
+- `DecisionsPanel` (purple theme)
+- `ConfigPanel` (cyan theme)
+- `FilesPanel` (blue theme)
+- `CompletedPanel` (green theme)
+
+Clears right panel content on unmount.
+
+**States:**
+| State | Rendering |
+|-------|-----------|
+| Loading | Skeleton layout with placeholder cards |
+| Populated | QueueColumn + RunningColumn |
+
+**Accessibility:**
+- `role="region"` with `aria-label="Task board"`
+- Child columns have appropriate ARIA labels
+
+## BlockedPanel
+
+Right panel section displaying blocked tasks with skip/force actions.
+
+```tsx
+import { BlockedPanel } from '@/components/board';
+
+<BlockedPanel
+  tasks={blockedTasks}
+  onSkip={(taskId) => skipBlock(taskId)}
+  onForce={(taskId) => forceRun(taskId)}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tasks` | `Task[]` | required | Blocked tasks to display |
+| `onSkip` | `(taskId: string) => void` | required | Called when Skip button clicked |
+| `onForce` | `(taskId: string) => void` | required | Called when Force confirmed |
+
+**Visual Structure:**
+- Orange-themed collapsible header with blocked icon and count badge
+- Each blocked task shows: ID (monospace), title (truncated), blocking reason
+- Action buttons: Skip (bypass block), Force (run with confirmation modal)
+
+**Blocking Reason Display:**
+- Single blocker: "Waiting for `TASK-XXX`" with code formatting
+- Multiple blockers: Bulleted list with code formatting for task IDs
+- Unknown: "Unknown blocker"
+
+**Force Confirmation:**
+Modal with warning message about running despite incomplete dependencies.
+
+**Visibility:**
+Hidden when `tasks.length === 0`.
+
+**Accessibility:**
+- Header has `aria-expanded` and `aria-controls`
+- Action buttons have descriptive `aria-label`
+- Count badge has `aria-label="{n} blocked tasks"`
+
+## DecisionsPanel
+
+Right panel section displaying pending decisions from running tasks.
+
+```tsx
+import { DecisionsPanel } from '@/components/board';
+
+<DecisionsPanel
+  decisions={pendingDecisions}
+  onDecide={(decisionId, optionId) => submitDecision(decisionId, optionId)}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `decisions` | `PendingDecision[]` | required | Pending decisions array |
+| `onDecide` | `(decisionId: string, optionId: string) => void` | required | Called when option selected |
+
+**Visual Structure:**
+- Purple-themed collapsible header with decision icon and count badge
+- Each decision shows: task ID, question text, option buttons
+- Recommended option highlighted (first option or explicitly marked)
+
+**Decision Option Styling:**
+| State | Variant |
+|-------|---------|
+| Recommended | `primary` button |
+| Other | `ghost` button |
+
+**Loading State:**
+While submitting, decision item shows `aria-busy="true"` and buttons disabled.
+
+**Visibility:**
+Hidden when `decisions.length === 0`.
+
+**Accessibility:**
+- Uses RightPanel.Section compound component
+- Option buttons have `aria-label` with recommendation status
+- Items have `aria-busy` during submission
+
+## ConfigPanel
+
+Right panel section displaying Claude Code configuration quick links.
+
+```tsx
+import { ConfigPanel, type ConfigStats } from '@/components/board';
+
+<ConfigPanel config={{
+  slashCommandsCount: 5,
+  claudeMdSize: 2048,
+  mcpServersCount: 3,
+  permissionsProfile: 'Auto'
+}} />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `config` | `ConfigStats` | - | Stats for badge display |
+
+**ConfigStats Interface:**
+```tsx
+interface ConfigStats {
+  slashCommandsCount?: number;  // Badge shows count
+  claudeMdSize?: number;        // Badge shows "2.0K" format
+  mcpServersCount?: number;     // Badge shows count
+  permissionsProfile?: string;  // Badge shows profile name
+  loading?: boolean;            // Shows skeleton badges
+}
+```
+
+**Links:**
+| Link | Route | Badge |
+|------|-------|-------|
+| Slash Commands | `/settings/advanced/skills` | Count |
+| CLAUDE.md | `/settings/advanced/claudemd` | File size |
+| MCP Servers | `/settings/advanced/mcp` | Count |
+| Permissions | `/settings/configuration/general` | Profile |
+
+**Visual Structure:**
+- Cyan-themed collapsible header with code icon
+- Each link: icon, title, description, badge, arrow chevron
+- Clicking navigates to the route
+
+**Visibility:**
+Always visible (no empty state).
+
+**Accessibility:**
+- Header has `aria-expanded` and `aria-controls`
+- Links have `aria-label` with title and description
+- Loading badges have `aria-label="Loading"`
+
+## FilesPanel
+
+Right panel section displaying files changed by running tasks.
+
+```tsx
+import { FilesPanel, type ChangedFile } from '@/components/board';
+
+<FilesPanel
+  files={[
+    { path: 'src/App.tsx', status: 'modified', taskId: 'TASK-001' },
+    { path: 'src/utils/helper.ts', status: 'added', taskId: 'TASK-001' },
+  ]}
+  onFileClick={(file) => openFile(file)}
+  maxVisible={5}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `files` | `ChangedFile[]` | required | Changed files to display |
+| `onFileClick` | `(file: ChangedFile) => void` | required | Called when file clicked |
+| `maxVisible` | `number` | `5` | Max files before "more" link |
+| `onShowMore` | `() => void` | - | Called when "more" clicked |
+
+**ChangedFile Interface:**
+```tsx
+interface ChangedFile {
+  path: string;
+  status: 'modified' | 'added' | 'deleted' | 'renamed';
+  binary?: boolean;
+  taskId?: string;
+}
+```
+
+**Visual Structure:**
+- Blue-themed collapsible header with file icon and count badge
+- Each file: icon (file/image), path (monospace), status badge
+- Files grouped by task if multiple tasks running
+
+**Status Badge Colors:**
+| Status | Badge | Color |
+|--------|-------|-------|
+| Modified | M | Amber |
+| Added | A | Green |
+| Deleted | D | Red |
+| Renamed | R | Cyan |
+
+**Binary Detection:**
+Auto-detects binary files by extension (images, fonts, archives, etc.).
+
+**Visibility:**
+Hidden when `files.length === 0`.
+
+**Accessibility:**
+- File items have `role="button"` with descriptive `aria-label`
+- Keyboard navigation: Enter/Space triggers click
+- "More" button has `aria-label="{n} more files"`
+
+## CompletedPanel
+
+Right panel section displaying completed tasks summary with token/cost stats.
+
+```tsx
+import { CompletedPanel, formatTokenCount, formatCost } from '@/components/board';
+
+<CompletedPanel
+  completedCount={5}
+  todayTokens={847000}
+  todayCost={2.34}
+  recentTasks={completedTasks}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `completedCount` | `number` | required | Tasks completed today |
+| `todayTokens` | `number` | required | Total tokens used today |
+| `todayCost` | `number` | required | Total cost today in dollars |
+| `recentTasks` | `Task[]` | `[]` | Recent completed tasks for expanded list |
+
+**Visual Structure:**
+- Green-themed compact header with checkmark icon and count badge
+- Collapsed: Shows count badge only
+- Expanded: Shows token/cost stats and task list
+
+**Exported Utilities:**
+```tsx
+// Format token count with K/M suffix
+formatTokenCount(847000);  // "847K"
+formatTokenCount(1500000); // "1.5M"
+
+// Format cost as currency
+formatCost(2.34);          // "$2.34"
+```
+
+**States:**
+| State | Rendering |
+|-------|-----------|
+| Empty (count=0) | "No tasks completed today" message |
+| Collapsed | Count badge only |
+| Expanded | Stats + task list (when recentTasks provided) |
+
+**Visibility:**
+Always visible (shows empty message when count is 0).
+
+**Accessibility:**
+- Header has `aria-expanded` (when expandable) and `aria-controls`
+- Header has `aria-label` with full summary text
+- Disabled when no expandable content
