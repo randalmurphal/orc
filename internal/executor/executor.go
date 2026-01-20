@@ -230,6 +230,9 @@ type Executor struct {
 
 	// Global database for cross-project cost tracking
 	globalDB *db.GlobalDB
+
+	// Session broadcaster for real-time session metrics updates
+	sessionBroadcaster *SessionBroadcaster
 }
 
 // New creates a new executor with the given configuration.
@@ -383,8 +386,20 @@ func NewWithConfig(cfg *Config, orcCfg *config.Config) *Executor {
 }
 
 // SetPublisher sets the event publisher for real-time updates.
+// Also initializes the session broadcaster if a publisher is provided.
 func (e *Executor) SetPublisher(p events.Publisher) {
 	e.publisher = p
+
+	// Initialize session broadcaster when publisher is set
+	if p != nil {
+		e.sessionBroadcaster = NewSessionBroadcaster(
+			NewEventPublisher(p),
+			e.backend,
+			e.globalDB,
+			e.config.WorkDir,
+			e.logger,
+		)
+	}
 }
 
 // SetBackend sets the storage backend for task/state persistence.
@@ -621,6 +636,12 @@ func (e *Executor) SetResumeSessionID(sessionID string) {
 // GetResumeSessionID returns the current resume session ID.
 func (e *Executor) GetResumeSessionID() string {
 	return e.resumeSessionID
+}
+
+// SessionBroadcaster returns the session broadcaster for accessing current metrics.
+// Returns nil if no publisher has been set.
+func (e *Executor) SessionBroadcaster() *SessionBroadcaster {
+	return e.sessionBroadcaster
 }
 
 // SwitchToNextAccount switches to the next available account in the pool.
