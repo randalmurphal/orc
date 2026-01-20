@@ -109,13 +109,11 @@ export function SettingsView() {
 	}, []);
 
 	const handleSave = useCallback(() => {
-		// In a real implementation, this would save the content to the API
-		console.log('Saving command content:', editorContent);
-	}, [editorContent]);
+		// TODO: Save content to API when endpoint is available
+	}, []);
 
 	const handleNewCommand = useCallback(() => {
-		// In a real implementation, this would open a modal to create a new command
-		console.log('Creating new command');
+		// TODO: Open modal to create a new command when implemented
 	}, []);
 
 	return (
