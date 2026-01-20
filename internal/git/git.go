@@ -168,11 +168,9 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 		TaskID:            taskID,
 	}
 	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
-		// Log warning but don't fail - hooks are defense in depth
-		// The Push() protection will still work at the code level
-		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject worktree safety hooks: %v\n", err)
-		fmt.Fprintf(os.Stderr, "   Branch protection is still active at the code level.\n")
-		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
+		// FATAL: Hooks are safety-critical. Without them, the worktree lacks protection
+		// against operations on wrong branches. This must be resolved before continuing.
+		return "", fmt.Errorf("INTERNAL BUG: failed to inject worktree safety hooks - this must be resolved: %w", err)
 	}
 
 	// Ensure .claude/settings.json is untracked before injecting hooks.
@@ -233,10 +231,9 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 		TaskID:            taskID,
 	}
 	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
-		// Log warning but don't fail - hooks are defense in depth
-		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject worktree safety hooks: %v\n", err)
-		fmt.Fprintf(os.Stderr, "   Branch protection is still active at the code level.\n")
-		fmt.Fprintf(os.Stderr, "   Manual 'git push' to protected branches may not be blocked.\n\n")
+		// FATAL: Hooks are safety-critical. Without them, the worktree lacks protection
+		// against operations on wrong branches. This must be resolved before continuing.
+		return "", fmt.Errorf("INTERNAL BUG: failed to inject worktree safety hooks - this must be resolved: %w", err)
 	}
 
 	// Ensure .claude/settings.json is untracked before injecting hooks.
@@ -378,6 +375,9 @@ func (g *Git) CreateCheckpoint(taskID, phase, message string) (*Checkpoint, erro
 }
 
 // CreateBranch creates a new branch for a task.
+// NOTE: This function is primarily used in tests. Production worktree creation
+// uses CreateWorktree/CreateWorktreeWithInitiativePrefix which handle branch
+// creation internally.
 func (g *Git) CreateBranch(taskID string) error {
 	branchName := g.BranchName(taskID)
 	if err := g.ctx.CreateBranch(branchName); err != nil {
@@ -387,6 +387,8 @@ func (g *Git) CreateBranch(taskID string) error {
 }
 
 // SwitchBranch switches to an existing task branch.
+// NOTE: This function is primarily used in tests. Production code should use
+// CheckoutSafe for worktree operations.
 func (g *Git) SwitchBranch(taskID string) error {
 	branchName := g.BranchName(taskID)
 	return g.ctx.Checkout(branchName)
