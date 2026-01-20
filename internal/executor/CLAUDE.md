@@ -27,7 +27,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `template.go` | `BuildTemplateVars()`, `RenderTemplate()` |
 | `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` |
 | `session_adapter.go` | LLM session wrapper |
-| `completion.go` | `<phase_complete>` detection |
+| `phase_response.go` | JSON schema for phase completion |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
@@ -102,14 +102,18 @@ Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
 
 ## Completion Detection
 
-```xml
-<phase_complete>true</phase_complete>   <!-- Success -->
-<phase_blocked>reason: ...</phase_blocked>  <!-- Needs help -->
+```json
+{"status": "complete", "summary": "Work done"}    // Success
+{"status": "blocked", "reason": "Need X"}         // Needs help
+{"status": "continue", "reason": "In progress"}   // More work needed
 ```
+
+**Note:** `--json-schema` only works with `--print` mode, not `stream-json` sessions.
+For session-based output, use `ExtractPhaseResponse()` which falls back to Haiku extraction.
 
 ## Phase Retry Map
 
-When phases fail or emit `<phase_blocked>`, they retry from an earlier phase:
+When phases fail or output `{"status": "blocked"}`, they retry from an earlier phase:
 
 | Failed Phase | Retries From | Reason |
 |--------------|--------------|--------|
@@ -205,11 +209,11 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| Backpressure | `backpressure.go:146` | Runs tests/lint/build after `<phase_complete>` |
+| Backpressure | `backpressure.go:146` | Runs tests/lint/build after `{"status": "complete"}` |
 | Haiku Validation | `haiku_validation.go:53` | External LLM validates progress against spec |
 | Config Helpers | `config.go:2138` | `ShouldRunBackpressure()`, `ShouldValidateSpec()` |
 
-**Flow:** Agent outputs `<phase_complete>` → Backpressure runs → If fail, inject context and continue iteration.
+**Flow:** Agent outputs `{"status": "complete"}` → Backpressure runs → If fail, inject context and continue iteration.
 
 **API Error Handling:** Controlled by `config.Validation.FailOnAPIError`:
 - `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)

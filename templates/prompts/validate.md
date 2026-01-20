@@ -226,19 +226,13 @@ Ready for merge: YES
 ```
 ### Validation Summary
 
-**Criteria Verified**: [count]/[total]
-**E2E Tests**: [count] passed (if applicable)
-**Build**: Clean
-**Linting**: ✅ passed
-**Commit**: [commit SHA]
+Then output ONLY this JSON to signal completion:
 
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Validated [count]/[total] criteria, E2E tests passed, build clean, linting passed. Commit: [SHA]"}
 ```
 
-If validation fails:
-```
-<phase_blocked>
-reason: [what failed validation]
-needs: [specific fixes required]
-</phase_blocked>
+If validation fails, output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[what failed validation and specific fixes required]"}
 ```

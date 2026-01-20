@@ -43,16 +43,16 @@ Identify and refactor high-complexity code without changing functionality.
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Complexity reduction complete: [summary of refactors]"}
 ```
 
-If refactoring would require breaking changes, output:
+If refactoring would require breaking changes, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of required changes]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of required changes]"}
 ```
 
 ## Guidelines

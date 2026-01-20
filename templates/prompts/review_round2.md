@@ -103,34 +103,22 @@ Based on your validation:
 ## Phase Completion
 
 ### If PASS:
-```
-Review Status: PASS
-All identified issues have been addressed.
-Code is ready to proceed to QA or merge.
 
-<phase_complete>true</phase_complete>
+Output ONLY this JSON:
+```json
+{"status": "complete", "summary": "Review round 2 PASS: All issues addressed, ready for QA/merge"}
 ```
 
 ### If FAIL:
-```
-Review Status: FAIL
-The following issues need attention:
-- [List remaining issues]
 
-<phase_blocked>
-reason: Review failed - issues remain unaddressed
-needs: Implementation fixes for remaining issues
-</phase_blocked>
+Output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "Review FAIL: [list remaining issues]. Implementation fixes needed."}
 ```
 
 ### If NEEDS_USER_INPUT:
-```
-Review Status: NEEDS_USER_INPUT
-Questions requiring user decision:
-- [List questions]
 
-<phase_blocked>
-reason: User input required for architecture/requirements decisions
-needs: User answers to pending questions
-</phase_blocked>
+Output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "Review NEEDS_USER_INPUT: [list questions requiring user decision]"}
 ```

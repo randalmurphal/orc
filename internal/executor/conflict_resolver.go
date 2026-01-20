@@ -251,9 +251,11 @@ func (r *ConflictResolver) buildConflictResolutionPrompt(t *task.Task, conflictF
 	sb.WriteString("1. For each conflicted file, read and understand both sides of the conflict\n")
 	sb.WriteString("2. Resolve the conflict by merging both changes appropriately\n")
 	sb.WriteString("3. Stage the resolved file with `git add <file>`\n")
-	sb.WriteString("4. After all files are resolved, output: <phase_complete>true</phase_complete>\n")
-	sb.WriteString("\nIf you cannot resolve a conflict, output:\n")
-	sb.WriteString("<phase_blocked>reason: [explanation]</phase_blocked>\n")
+	sb.WriteString("4. After all files are resolved, output ONLY this JSON:\n")
+	sb.WriteString(`{"status": "complete", "summary": "Resolved X conflicts in files A, B, C"}`)
+	sb.WriteString("\n\nIf you cannot resolve a conflict, output ONLY this JSON:\n")
+	sb.WriteString(`{"status": "blocked", "reason": "[explanation]"}`)
+	sb.WriteString("\n")
 
 	return sb.String()
 }

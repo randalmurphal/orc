@@ -363,7 +363,7 @@ Your previous implementation attempt failed the following quality checks:
 %s
 
 **IMPORTANT**: You MUST fix these issues before claiming the phase is complete.
-Do NOT output <phase_complete> until all quality checks pass.
+Do NOT output completion JSON until all quality checks pass.
 
 Focus on the specific errors shown above and fix them one by one.`,
 		result.AsContext())

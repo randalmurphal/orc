@@ -254,25 +254,19 @@ Wrap your implementation summary in artifact tags for automatic persistence:
 - [Decision 2]: [Why]
 </artifact>
 
-Then output the completion marker:
+Then output ONLY this JSON to signal completion:
 
-```
-**Commit**: [commit SHA]
-**All criteria verified**: Yes
-
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Implemented [feature] with all criteria verified. Commit: [SHA]"}
 ```
 
-**If any verification fails**, do NOT output `<phase_complete>`. Instead:
+**If any verification fails**, do NOT output completion JSON. Instead:
 1. Note which criterion failed
 2. Fix the implementation
 3. Re-run verification
 4. Repeat until all pass
 
-If blocked (cannot proceed):
-```
-<phase_blocked>
-reason: [why blocked]
-needs: [what's needed]
-</phase_blocked>
+If blocked (cannot proceed), output ONLY this JSON:
+```json
+{"status": "blocked", "reason": "[why blocked and what's needed]"}
 ```

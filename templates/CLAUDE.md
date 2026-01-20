@@ -75,8 +75,10 @@ Use it to sync with target branch and resolve conflicts before merge.
 [Phase-specific]
 
 ## Completion
-<phase_complete>true</phase_complete>
-<phase_blocked>reason: [explanation]</phase_blocked>
+When ready to signal phase status, output ONLY valid JSON:
+{"status": "complete", "summary": "Brief description of what was accomplished"}
+{"status": "blocked", "reason": "Why blocked and what's needed"}
+{"status": "continue", "reason": "What was done and what's next"}
 ```
 
 ## Embedding

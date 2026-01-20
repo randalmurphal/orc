@@ -41,16 +41,16 @@ Find and remove unused code including unused functions, variables, exports, impo
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Dead code cleanup complete: [count] items removed"}
 ```
 
-If uncertain about removal safety, output:
+If uncertain about removal safety, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: [description of uncertain cases]</phase_blocked>
+```json
+{"status": "blocked", "reason": "[description of uncertain cases]"}
 ```
 
 ## Guidelines

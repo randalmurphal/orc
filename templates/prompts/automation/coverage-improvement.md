@@ -42,16 +42,16 @@ Analyze current test coverage, identify gaps, and add tests to improve coverage 
 
 ## Output Format
 
-When complete, output:
+When complete, output ONLY this JSON:
 
-```xml
-<phase_complete>true</phase_complete>
+```json
+{"status": "complete", "summary": "Coverage improvement complete: [current]% coverage achieved"}
 ```
 
-If coverage threshold cannot be met, output:
+If coverage threshold cannot be met, output ONLY this JSON:
 
-```xml
-<phase_blocked>reason: Coverage at X%, threshold is Y%. [Details on remaining gaps]</phase_blocked>
+```json
+{"status": "blocked", "reason": "Coverage at [X]%, threshold is [Y]%. [Details on remaining gaps]"}
 ```
 
 ## Guidelines
