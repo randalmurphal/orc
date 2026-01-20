@@ -2,7 +2,7 @@
 
 ## State Management (Zustand)
 
-Six stores with `subscribeWithSelector` middleware for efficient derived state.
+Seven stores with `subscribeWithSelector` middleware for efficient derived state.
 
 | Store | State | Persistence | Purpose |
 |-------|-------|-------------|---------|
@@ -11,6 +11,7 @@ Six stores with `subscribeWithSelector` middleware for efficient derived state.
 | `initiativeStore` | initiatives, currentInitiativeId | URL + localStorage | Initiative filter |
 | `dependencyStore` | currentDependencyStatus | URL + localStorage | Dependency filter |
 | `sessionStore` | duration, tokens, cost, isPaused | localStorage | Session metrics |
+| `statsStore` | period, activityData, outcomes, tasksPerDay, topInitiatives, topFiles | None (API) | Statistics metrics and trends |
 | `uiStore` | sidebarExpanded, wsStatus, toasts | localStorage (sidebar) | UI state |
 
 ### Store Patterns
@@ -72,7 +73,7 @@ React Router 7 with URL/store synchronization.
 |------|-----------|---------|
 | `/` | - | Redirects to `/board` |
 | `/board` | Board | Kanban board |
-| `/stats` | Dashboard | Overview stats |
+| `/stats` | StatsPage | Statistics with time filter, charts, leaderboards |
 | `/initiatives` | InitiativesPage | Initiatives overview with stats and cards |
 | `/initiatives/:id` | InitiativeDetail | Initiative management |
 | `/agents` | Agents | Agent configuration |

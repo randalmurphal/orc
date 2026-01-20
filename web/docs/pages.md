@@ -202,6 +202,70 @@ Agent configuration page at `/agents` with active agents grid, execution setting
 | `.agents-view-empty` | Empty state styling |
 | `.agents-view-error` | Error state with retry |
 
+## Stats
+
+Statistics overview page at `/stats` with comprehensive metrics visualization.
+
+### Page Structure
+
+| Component | Purpose |
+|-----------|---------|
+| `StatsPage` | Route wrapper that renders StatsView |
+| `StatsView` | Container with data fetching, time filter, and all visualizations |
+
+### Visual Sections
+
+| Section | Content |
+|---------|---------|
+| Header | "Statistics" title, "Token usage, costs, and task metrics" subtitle, time filter (24h/7d/30d/All), Export button |
+| Stats Grid | 5 summary stat cards (Tasks Completed, Tokens Used, Total Cost, Avg Task Time, Success Rate) |
+| Activity Heatmap | Full-width `ActivityHeatmap` showing task completion patterns |
+| Charts Row | `TasksBarChart` (2fr) + `OutcomesDonut` (1fr) side by side |
+| Tables Row | Two `LeaderboardTable` components (Most Active Initiatives, Most Modified Files) |
+
+### States
+
+| State | Display |
+|-------|---------|
+| Loading | Skeleton placeholders for all sections |
+| Empty | Icon, "No statistics yet" title, descriptive text |
+| Error | Error message with retry button |
+| Populated | Full layout with stat cards + heatmap + charts + leaderboards |
+
+### Data Flow
+
+- **Stats Data**: Fetched from `statsStore` via hooks
+- **Period**: Managed by `statsStore.setPeriod()`, triggers refetch
+- **Export**: Generates CSV with current period data
+
+### Time Filter
+
+| Period | Description |
+|--------|-------------|
+| 24h | Last 24 hours |
+| 7d | Last 7 days (default) |
+| 30d | Last 30 days |
+| All | All time |
+
+### Events
+
+| Action | Event/Effect |
+|--------|--------------|
+| Click time filter button | `setPeriod()` → refetch stats |
+| Click Export | Download CSV file with current data |
+| Click Retry (error state) | `fetchStats()` with current period |
+
+### CSS Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.stats-view` | Main container |
+| `.stats-view-header` | Page header with title/filter/export |
+| `.stats-view-content` | Scrollable content area |
+| `.stats-view-stats-grid` | 5-column responsive grid for stat cards |
+| `.stats-view-charts-row` | 2-column layout for charts (2fr + 1fr) |
+| `.stats-view-tables-row` | 2-column layout for leaderboards |
+
 ## Initiative Detail
 
 Initiative management at `/initiatives/:id`.
