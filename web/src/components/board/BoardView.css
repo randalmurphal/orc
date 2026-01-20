@@ -1,0 +1,154 @@
+/* =============================================================================
+   BoardView Component Styles
+   Main container with two-column grid layout: Queue (flex) | Running (420px)
+   Matches spec: example_ui/board.html mockup
+   ============================================================================= */
+
+/* =============================================================================
+   Base Layout
+   Two-column CSS grid: Queue column takes remaining space, Running is fixed 420px
+   ============================================================================= */
+
+.board-view {
+	display: grid;
+	grid-template-columns: 1fr 420px;
+	gap: 16px;
+	height: 100%;
+	padding: 16px;
+	overflow: hidden;
+}
+
+/* =============================================================================
+   Queue Column Container
+   Flexible width with card background and border
+   ============================================================================= */
+
+.board-view__queue {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	min-width: 280px;
+}
+
+/* =============================================================================
+   Running Column Container
+   Fixed 420px width, contains RunningColumn and overflow handling
+   ============================================================================= */
+
+.board-view__running {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	overflow: hidden;
+}
+
+/* =============================================================================
+   Loading State - Skeleton Placeholders
+   Shown while task data is loading
+   ============================================================================= */
+
+.board-view--loading {
+	pointer-events: none;
+}
+
+.board-view__skeleton {
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+}
+
+.board-view__skeleton--queue {
+	grid-column: 1;
+}
+
+.board-view__skeleton--running {
+	grid-column: 2;
+}
+
+.board-view__skeleton-header {
+	height: 48px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-elevated) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: skeleton-shimmer 1.5s infinite;
+	border-bottom: 1px solid var(--border);
+}
+
+.board-view__skeleton-content {
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.board-view__skeleton-card {
+	height: 64px;
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 25%,
+		var(--bg-elevated) 50%,
+		var(--bg-surface) 75%
+	);
+	background-size: 200% 100%;
+	animation: skeleton-shimmer 1.5s infinite;
+	border-radius: 8px;
+}
+
+.board-view__skeleton-card--large {
+	height: 160px;
+}
+
+@keyframes skeleton-shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* =============================================================================
+   Responsive Adjustments
+   Stack columns on smaller screens
+   ============================================================================= */
+
+@media (max-width: 900px) {
+	.board-view {
+		grid-template-columns: 1fr;
+		grid-template-rows: 1fr auto;
+		gap: 12px;
+		padding: 12px;
+	}
+
+	.board-view__queue {
+		min-height: 300px;
+	}
+
+	.board-view__running {
+		max-height: 350px;
+	}
+
+	.board-view__skeleton--queue,
+	.board-view__skeleton--running {
+		grid-column: 1;
+	}
+
+	.board-view__skeleton--running {
+		grid-row: 2;
+	}
+}
+
+@media (max-width: 600px) {
+	.board-view {
+		padding: 8px;
+		gap: 8px;
+	}
+}
