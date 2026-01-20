@@ -683,3 +683,185 @@ func scanUsageMetrics(rows *sql.Rows) ([]UsageMetric, error) {
 	}
 	return metrics, nil
 }
+
+// AgentStats contains per-agent statistics.
+type AgentStats struct {
+	Model              string     `json:"model"`
+	TokensToday        int        `json:"tokens_today"`
+	TasksDoneToday     int        `json:"tasks_done_today"`
+	TasksDoneTotal     int        `json:"tasks_done_total"`
+	SuccessRate        float64    `json:"success_rate"`
+	AvgTaskTimeSeconds int        `json:"avg_task_time_seconds"`
+	IsActive           bool       `json:"is_active"` // Has running tasks
+	LastActivity       *time.Time `json:"last_activity,omitempty"`
+}
+
+// GetAgentStats returns per-model/agent statistics.
+// The 'today' parameter should be midnight local time for accurate "today" stats.
+func (p *ProjectDB) GetAgentStats(today time.Time) (map[string]*AgentStats, error) {
+	stats := make(map[string]*AgentStats)
+
+	// Get total tasks completed per model (all time)
+	rows, err := p.Query(`
+		SELECT session_model,
+		       COUNT(*) as total_completed,
+		       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+		       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+		       AVG(CASE
+		           WHEN completed_at IS NOT NULL AND started_at IS NOT NULL
+		           THEN (julianday(completed_at) - julianday(started_at)) * 86400
+		           ELSE NULL
+		       END) as avg_time_seconds,
+		       MAX(completed_at) as last_activity
+		FROM tasks
+		WHERE session_model IS NOT NULL
+		  AND session_model != ''
+		  AND status IN ('completed', 'failed', 'resolved')
+		GROUP BY session_model
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get agent stats total: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var model string
+		var totalCompleted, successful, failed int
+		var avgTime sql.NullFloat64
+		var lastActivity sql.NullString
+
+		if err := rows.Scan(&model, &totalCompleted, &successful, &failed, &avgTime, &lastActivity); err != nil {
+			return nil, fmt.Errorf("scan agent stats: %w", err)
+		}
+
+		stat := &AgentStats{
+			Model:          model,
+			TasksDoneTotal: successful,
+		}
+
+		// Calculate success rate
+		total := successful + failed
+		if total > 0 {
+			stat.SuccessRate = float64(successful) / float64(total)
+		}
+
+		// Average task time
+		if avgTime.Valid {
+			stat.AvgTaskTimeSeconds = int(avgTime.Float64)
+		}
+
+		// Last activity
+		if lastActivity.Valid {
+			t, err := time.Parse(time.RFC3339, lastActivity.String)
+			if err == nil {
+				stat.LastActivity = &t
+			}
+		}
+
+		stats[model] = stat
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate agent stats: %w", err)
+	}
+
+	// Get today's completed tasks per model
+	rows2, err := p.Query(`
+		SELECT session_model,
+		       COUNT(*) as tasks_today
+		FROM tasks
+		WHERE session_model IS NOT NULL
+		  AND session_model != ''
+		  AND status = 'completed'
+		  AND completed_at >= ?
+		GROUP BY session_model
+	`, today.Format(time.RFC3339))
+	if err != nil {
+		return nil, fmt.Errorf("get agent stats today: %w", err)
+	}
+	defer func() { _ = rows2.Close() }()
+
+	for rows2.Next() {
+		var model string
+		var tasksToday int
+		if err := rows2.Scan(&model, &tasksToday); err != nil {
+			return nil, fmt.Errorf("scan today stats: %w", err)
+		}
+		if stat, ok := stats[model]; ok {
+			stat.TasksDoneToday = tasksToday
+		} else {
+			stats[model] = &AgentStats{
+				Model:          model,
+				TasksDoneToday: tasksToday,
+			}
+		}
+	}
+	if err := rows2.Err(); err != nil {
+		return nil, fmt.Errorf("iterate today stats: %w", err)
+	}
+
+	// Get today's token usage per model from usage_metrics
+	todayMs := today.UnixMilli()
+	rows3, err := p.Query(`
+		SELECT model,
+		       SUM(input_tokens + output_tokens) as total_tokens
+		FROM usage_metrics
+		WHERE timestamp >= ?
+		GROUP BY model
+	`, todayMs)
+	if err != nil {
+		return nil, fmt.Errorf("get token stats: %w", err)
+	}
+	defer func() { _ = rows3.Close() }()
+
+	for rows3.Next() {
+		var model string
+		var tokensToday int
+		if err := rows3.Scan(&model, &tokensToday); err != nil {
+			return nil, fmt.Errorf("scan token stats: %w", err)
+		}
+		if stat, ok := stats[model]; ok {
+			stat.TokensToday = tokensToday
+		} else {
+			stats[model] = &AgentStats{
+				Model:       model,
+				TokensToday: tokensToday,
+			}
+		}
+	}
+	if err := rows3.Err(); err != nil {
+		return nil, fmt.Errorf("iterate token stats: %w", err)
+	}
+
+	// Check which models have running tasks
+	rows4, err := p.Query(`
+		SELECT DISTINCT session_model
+		FROM tasks
+		WHERE session_model IS NOT NULL
+		  AND session_model != ''
+		  AND status = 'running'
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get running tasks: %w", err)
+	}
+	defer func() { _ = rows4.Close() }()
+
+	for rows4.Next() {
+		var model string
+		if err := rows4.Scan(&model); err != nil {
+			return nil, fmt.Errorf("scan running model: %w", err)
+		}
+		if stat, ok := stats[model]; ok {
+			stat.IsActive = true
+		} else {
+			stats[model] = &AgentStats{
+				Model:    model,
+				IsActive: true,
+			}
+		}
+	}
+	if err := rows4.Err(); err != nil {
+		return nil, fmt.Errorf("iterate running tasks: %w", err)
+	}
+
+	return stats, nil
+}
