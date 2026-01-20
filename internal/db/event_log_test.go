@@ -110,6 +110,25 @@ func TestProjectDB_SaveEvent(t *testing.T) {
 	if event.ID == 0 {
 		t.Error("event ID not set after save")
 	}
+
+	// Query back and verify nullable fields are read correctly
+	results, err := pdb.QueryEvents(QueryEventsOptions{TaskID: "TASK-001"})
+	if err != nil {
+		t.Fatalf("QueryEvents failed: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(results))
+	}
+	e := results[0]
+	if e.Phase == nil || *e.Phase != "implement" {
+		t.Errorf("expected phase='implement', got %v", e.Phase)
+	}
+	if e.Iteration == nil || *e.Iteration != 1 {
+		t.Errorf("expected iteration=1, got %v", e.Iteration)
+	}
+	if e.DurationMs == nil || *e.DurationMs != 1500 {
+		t.Errorf("expected durationMs=1500, got %v", e.DurationMs)
+	}
 }
 
 func TestProjectDB_SaveEvent_NullPhaseIteration(t *testing.T) {
