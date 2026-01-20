@@ -61,13 +61,13 @@ function highlightMarkdown(content: string): string {
 
 	// Bold (**text** or __text__)
 	html = html.replace(
-		/(\*\*|__)([^\*_]+)\1/g,
+		/(\*\*|__)([^*_]+)\1/g,
 		'<span class="md-bold">$1$2$1</span>'
 	);
 
 	// Italic (*text* or _text_) - avoid matching bold markers
 	html = html.replace(
-		/(?<!\*)(\*)(?!\*)([^\*\n]+)(?<!\*)(\*)(?!\*)/g,
+		/(?<!\*)(\*)(?!\*)([^*\n]+)(?<!\*)(\*)(?!\*)/g,
 		'<span class="md-italic">$1$2$3</span>'
 	);
 	html = html.replace(
