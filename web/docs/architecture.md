@@ -70,13 +70,31 @@ React Router 7 with URL/store synchronization.
 
 | Path | Component | Purpose |
 |------|-----------|---------|
-| `/` | TaskList | Task list with filters |
+| `/` | - | Redirects to `/board` |
 | `/board` | Board | Kanban board |
-| `/dashboard` | Dashboard | Overview stats |
-| `/tasks/:id` | TaskDetail | Task detail page |
+| `/stats` | Dashboard | Overview stats |
+| `/initiatives` | InitiativesPage | Initiatives overview with stats and cards |
 | `/initiatives/:id` | InitiativeDetail | Initiative management |
-| `/preferences` | Preferences | User settings |
-| `/environment/*` | EnvironmentPages | Config editing |
+| `/agents` | Agents | Agent configuration |
+| `/settings` | SettingsPage | Redirects to `/settings/commands` |
+| `/settings/*` | SettingsLayout + children | Settings with 240px sidebar navigation |
+| `/tasks/:id` | TaskDetail | Task detail page |
+
+**Settings Routes:**
+| Path | Component | Section |
+|------|-----------|---------|
+| `/settings/commands` | SettingsView | Slash commands editor |
+| `/settings/claude-md` | SettingsPlaceholder | CLAUDE.md editor |
+| `/settings/mcp` | SettingsPlaceholder | MCP servers |
+| `/settings/memory` | SettingsPlaceholder | Memory management |
+| `/settings/permissions` | SettingsPlaceholder | Permissions |
+| `/settings/projects` | SettingsPlaceholder | Projects |
+| `/settings/billing` | SettingsPlaceholder | Billing & Usage |
+| `/settings/import-export` | SettingsPlaceholder | Import / Export |
+| `/settings/profile` | SettingsPlaceholder | Profile |
+| `/settings/api-keys` | SettingsPlaceholder | API Keys |
+
+**Legacy Routes:** `/dashboard` redirects to `/stats`, `/environment/*` redirects to `/settings`.
 
 ### URL Parameter Sync
 

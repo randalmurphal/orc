@@ -217,32 +217,85 @@ Initiative management at `/initiatives/:id`.
 
 draft -> active -> completed -> archived
 
-## Environment Pages
+## Settings
 
-Settings pages under `/environment/*`.
+Settings page at `/settings` with dedicated sidebar layout.
 
-### Pattern
+### Route Structure
 
-All environment pages follow the same structure:
-1. Load data from API endpoint
-2. Display in editable form
-3. Save changes on blur or submit
-4. Toast notification on success/error
+| Route | Component | Content |
+|-------|-----------|---------|
+| `/settings` | SettingsPage | Redirects to `/settings/commands` |
+| `/settings/commands` | SettingsView | Slash commands editor (CommandList + ConfigEditor) |
+| `/settings/claude-md` | SettingsPlaceholder | CLAUDE.md editor (placeholder) |
+| `/settings/mcp` | SettingsPlaceholder | MCP servers (placeholder) |
+| `/settings/memory` | SettingsPlaceholder | Memory management (placeholder) |
+| `/settings/permissions` | SettingsPlaceholder | Permissions (placeholder) |
+| `/settings/projects` | SettingsPlaceholder | Projects (placeholder) |
+| `/settings/billing` | SettingsPlaceholder | Billing & Usage (placeholder) |
+| `/settings/import-export` | SettingsPlaceholder | Import / Export (placeholder) |
+| `/settings/profile` | SettingsPlaceholder | Profile (placeholder) |
+| `/settings/api-keys` | SettingsPlaceholder | API Keys (placeholder) |
+| `/settings/*` | NotFoundPage | Unknown paths |
 
-### Pages
+### Layout Structure
 
-| Route | Purpose |
-|-------|---------|
-| `/environment` | Overview |
-| `/environment/claude/settings` | Claude Code settings |
-| `/environment/claude/skills` | Custom skills |
-| `/environment/claude/hooks` | Git hooks |
-| `/environment/claude/agents` | AI agents |
-| `/environment/claude/tools` | Tool configuration |
-| `/environment/claude/mcp` | MCP servers |
-| `/environment/claude/prompts` | System prompts |
-| `/environment/orchestrator/automation` | Orc config |
-| `/environment/orchestrator/scripts` | Custom scripts |
+```
+SettingsPage
+└── SettingsLayout
+    ├── SettingsSidebar (240px)
+    │   ├── Header: "Settings" / "Configure ORC and Claude"
+    │   └── Navigation groups with NavLinks
+    │       ├── CLAUDE CODE: Slash Commands, CLAUDE.md, MCP Servers, Memory, Permissions
+    │       ├── ORC: Projects, Billing & Usage, Import / Export
+    │       └── ACCOUNT: Profile, API Keys
+    └── Content (1fr)
+        └── Outlet (renders section components)
+```
+
+### Sidebar Navigation
+
+| Group | Items |
+|-------|-------|
+| CLAUDE CODE | Slash Commands (badge), CLAUDE.md, MCP Servers (badge), Memory (badge), Permissions |
+| ORC | Projects, Billing & Usage, Import / Export |
+| ACCOUNT | Profile, API Keys |
+
+**Badge counts:** Slash Commands, MCP Servers, and Memory show count badges (currently mock data).
+
+### SettingsView (Slash Commands)
+
+Page header with title "Slash Commands", subtitle, and "New Command" button.
+
+Content area displays:
+- **CommandList**: Left panel showing project and global commands
+- **ConfigEditor**: Right panel for editing selected command
+
+**Data flow:** Mock data initially. Will integrate with API when endpoints are available.
+
+### CSS Specifications
+
+**Sidebar:**
+- Width: 240px fixed
+- Background: `var(--bg-elevated)`
+- Border-right: 1px solid `var(--border)`
+- Independent scrolling: `overflow-y: auto`
+
+**Navigation Items:**
+- Padding: 10px 12px
+- Border-radius: 6px
+- Font-size: 12px
+- Gap: 10px (icon to text)
+- Hover: `var(--bg-surface)`, `var(--text-primary)`
+- Active: `var(--primary-dim)`, `var(--primary-bright)`
+
+**Content Area:**
+- Padding: 24px
+- Independent scrolling: `overflow-y: auto`
+
+## Environment Pages (Legacy)
+
+**Note:** `/environment/*` routes now redirect to `/settings`. The new Settings page provides a redesigned interface with grouped navigation.
 
 ## Layout Components
 
