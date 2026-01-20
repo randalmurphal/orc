@@ -143,3 +143,10 @@ func (ep *EventPublisher) Warning(taskID, phase, message string) {
 		Message: message,
 	}))
 }
+
+// Session publishes a session update event with aggregate metrics.
+// Session events use an empty task ID as they represent session-level state.
+func (ep *EventPublisher) Session(update events.SessionUpdate) {
+	// Use GlobalTaskID so all subscribers receive session updates
+	ep.Publish(events.NewEvent(events.EventSessionUpdate, events.GlobalTaskID, update))
+}

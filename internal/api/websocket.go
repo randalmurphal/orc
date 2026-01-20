@@ -216,8 +216,19 @@ func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 		"task_id": taskID,
 	})
 
-	if taskID == events.GlobalTaskID {
+	// For global subscriptions, send initial session_update so reconnecting
+	// clients have current metrics immediately
+	if taskID == events.GlobalTaskID && h.server != nil {
 		h.logger.Debug("websocket subscribed to all tasks (global)")
+		// Send initial session_update event
+		sessionMetrics := h.server.GetSessionMetrics()
+		h.sendJSON(c, map[string]any{
+			"type":    "event",
+			"event":   string(events.EventSessionUpdate),
+			"task_id": events.GlobalTaskID,
+			"data":    sessionMetrics,
+			"time":    time.Now(),
+		})
 	} else {
 		h.logger.Debug("websocket subscribed", "task_id", taskID)
 	}
