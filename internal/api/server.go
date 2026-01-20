@@ -384,6 +384,7 @@ func (s *Server) registerRoutes() {
 
 	// Agents (sub-agent definitions)
 	s.mux.HandleFunc("GET /api/agents", cors(s.handleListAgents))
+	s.mux.HandleFunc("GET /api/agents/stats", cors(s.handleGetAgentStats))
 	s.mux.HandleFunc("POST /api/agents", cors(s.handleCreateAgent))
 	s.mux.HandleFunc("GET /api/agents/{name}", cors(s.handleGetAgent))
 	s.mux.HandleFunc("PUT /api/agents/{name}", cors(s.handleUpdateAgent))
