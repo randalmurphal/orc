@@ -170,7 +170,7 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
 		// FATAL: Hooks are safety-critical. Without them, the worktree lacks protection
 		// against operations on wrong branches. This must be resolved before continuing.
-		return "", fmt.Errorf("INTERNAL BUG: failed to inject worktree safety hooks - this must be resolved: %w", err)
+		return "", fmt.Errorf("failed to inject worktree safety hooks (worktree not safe to use without branch protection): %w", err)
 	}
 
 	// Ensure .claude/settings.json is untracked before injecting hooks.
@@ -208,6 +208,13 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 //   - Worktree dir: feature-auth-TASK-001 instead of orc-TASK-001
 //
 // This allows tasks belonging to an initiative to be grouped under a custom branch namespace.
+//
+// After creation, safety hooks are injected into the worktree that:
+//   - Block pushes to protected branches (main, master, develop, release)
+//   - Warn if commits are made on unexpected branches
+//
+// Hook injection failure is fatal - the function returns an error if hooks cannot be installed,
+// as the worktree would lack branch protection.
 func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativePrefix string) (string, error) {
 	branchName := g.BranchNameWithInitiativePrefix(taskID, initiativePrefix)
 	worktreePath := WorktreePathWithPrefix(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix, initiativePrefix)
@@ -233,7 +240,7 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
 		// FATAL: Hooks are safety-critical. Without them, the worktree lacks protection
 		// against operations on wrong branches. This must be resolved before continuing.
-		return "", fmt.Errorf("INTERNAL BUG: failed to inject worktree safety hooks - this must be resolved: %w", err)
+		return "", fmt.Errorf("failed to inject worktree safety hooks (worktree not safe to use without branch protection): %w", err)
 	}
 
 	// Ensure .claude/settings.json is untracked before injecting hooks.
