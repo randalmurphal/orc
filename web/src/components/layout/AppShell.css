@@ -92,7 +92,7 @@
 
 .app-shell__panel {
 	grid-column: 3;
-	grid-row: 1 / 3;
+	grid-row: 2; /* Below TopBar, not spanning full height */
 	width: 300px;
 	min-width: 300px;
 	overflow: hidden;
