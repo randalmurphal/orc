@@ -3,7 +3,7 @@ export { TaskList } from './TaskList';
 export { Board } from './Board';
 export { Dashboard } from './Dashboard';
 export { TaskDetail } from './TaskDetail';
-export { InitiativeDetail } from './InitiativeDetail';
+export { InitiativeDetailPage } from './InitiativeDetailPage';
 export { Preferences } from './Preferences';
 
 // Environment sub-pages
