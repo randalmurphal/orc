@@ -5,7 +5,7 @@ import { Board } from '@/pages/Board';
 import { InitiativesPage } from '@/pages/InitiativesPage';
 import { StatsPage } from '@/pages/StatsPage';
 import { TaskDetail } from '@/pages/TaskDetail';
-import { InitiativeDetail } from '@/pages/InitiativeDetail';
+import { InitiativeDetailPage } from '@/pages/InitiativeDetailPage';
 import { AutomationPage } from '@/pages/AutomationPage';
 import { Branches } from '@/pages/Branches';
 import { Preferences } from '@/pages/Preferences';
@@ -79,7 +79,7 @@ export const routes: RouteObject[] = [
 			// Initiative detail
 			{
 				path: 'initiatives/:id',
-				element: <InitiativeDetail />,
+				element: <InitiativeDetailPage />,
 			},
 			// Stats - Statistics overview with analytics
 			{

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { InitiativeDetail } from './InitiativeDetail';
+import { InitiativeDetailPage } from './InitiativeDetailPage';
 import * as api from '@/lib/api';
 import type { Initiative } from '@/lib/types';
 
@@ -16,17 +16,7 @@ vi.mock('@/lib/api', () => ({
 	getInitiativeDependencyGraph: vi.fn(),
 }));
 
-// Mock useNavigate
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-	const actual = await vi.importActual('react-router-dom');
-	return {
-		...actual,
-		useNavigate: () => mockNavigate,
-	};
-});
-
-describe('InitiativeDetail', () => {
+describe('InitiativeDetailPage', () => {
 	const mockInitiative: Initiative = {
 		version: 1,
 		id: 'INIT-001',
@@ -36,6 +26,7 @@ describe('InitiativeDetail', () => {
 		tasks: [
 			{ id: 'TASK-001', title: 'First Task', status: 'completed' },
 			{ id: 'TASK-002', title: 'Second Task', status: 'running' },
+			{ id: 'TASK-003', title: 'Third Task', status: 'pending' },
 		],
 		decisions: [
 			{
@@ -60,11 +51,11 @@ describe('InitiativeDetail', () => {
 		});
 	});
 
-	const renderInitiativeDetail = (initiativeId: string = 'INIT-001') => {
+	const renderInitiativeDetailPage = (initiativeId: string = 'INIT-001') => {
 		return render(
 			<MemoryRouter initialEntries={[`/initiatives/${initiativeId}`]}>
 				<Routes>
-					<Route path="/initiatives/:id" element={<InitiativeDetail />} />
+					<Route path="/initiatives/:id" element={<InitiativeDetailPage />} />
 				</Routes>
 			</MemoryRouter>
 		);
@@ -77,7 +68,7 @@ describe('InitiativeDetail', () => {
 				() => new Promise((resolve) => setTimeout(() => resolve(mockInitiative), 100))
 			);
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 			expect(screen.getByText('Loading initiative...')).toBeInTheDocument();
 		});
 	});
@@ -86,7 +77,7 @@ describe('InitiativeDetail', () => {
 		it('shows error message when load fails', async () => {
 			vi.mocked(api.getInitiative).mockRejectedValue(new Error('Failed to load'));
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByText('Failed to load')).toBeInTheDocument();
@@ -96,17 +87,27 @@ describe('InitiativeDetail', () => {
 		it('shows retry button on error', async () => {
 			vi.mocked(api.getInitiative).mockRejectedValue(new Error('Failed'));
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+			});
+		});
+
+		it('shows 404 when initiative not found', async () => {
+			vi.mocked(api.getInitiative).mockResolvedValue(null as any);
+
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				expect(screen.getByText('Initiative not found')).toBeInTheDocument();
 			});
 		});
 	});
 
 	describe('header section', () => {
 		it('displays initiative title', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByText('Test Initiative')).toBeInTheDocument();
@@ -114,7 +115,7 @@ describe('InitiativeDetail', () => {
 		});
 
 		it('displays vision statement', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByText('Test vision statement')).toBeInTheDocument();
@@ -122,25 +123,60 @@ describe('InitiativeDetail', () => {
 		});
 
 		it('displays status badge', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByText('active')).toBeInTheDocument();
 			});
 		});
 
-		it('displays progress bar', async () => {
-			renderInitiativeDetail();
+		it('displays progress bar with correct values', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				expect(screen.getByText('1/2 tasks (50%)')).toBeInTheDocument();
+				expect(screen.getByText('1/3 tasks (33%)')).toBeInTheDocument();
+			});
+		});
+	});
+
+	describe('stats row', () => {
+		it('displays Total Tasks stat', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				expect(screen.getByText('Total Tasks')).toBeInTheDocument();
+				expect(screen.getByText('3')).toBeInTheDocument();
+			});
+		});
+
+		it('displays Completed stat', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				// Check for the stat label inside stat-card
+				const statCards = document.querySelectorAll('.stat-card');
+				const completedCard = Array.from(statCards).find(
+					(card) => card.textContent?.includes('Completed')
+				);
+				expect(completedCard).toBeTruthy();
+				// 1 completed task - the value should be in the same card
+				expect(completedCard?.textContent).toContain('1');
+			});
+		});
+
+		it('displays Total Cost stat', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				expect(screen.getByText('Total Cost')).toBeInTheDocument();
+				expect(screen.getByText('$0.00')).toBeInTheDocument();
 			});
 		});
 	});
 
 	describe('status management', () => {
 		it('shows Complete button for active initiative', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByRole('button', { name: /complete/i })).toBeInTheDocument();
@@ -153,7 +189,7 @@ describe('InitiativeDetail', () => {
 				status: 'draft',
 			});
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByRole('button', { name: /activate/i })).toBeInTheDocument();
@@ -166,7 +202,7 @@ describe('InitiativeDetail', () => {
 				status: 'completed',
 			});
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				fireEvent.click(screen.getByRole('button', { name: /complete/i }));
@@ -180,62 +216,22 @@ describe('InitiativeDetail', () => {
 		});
 	});
 
-	describe('tab navigation', () => {
-		it('shows all three tabs', async () => {
-			renderInitiativeDetail();
-
-			await waitFor(() => {
-				expect(screen.getByRole('tab', { name: /tasks/i })).toBeInTheDocument();
-				expect(screen.getByRole('tab', { name: /graph/i })).toBeInTheDocument();
-				expect(screen.getByRole('tab', { name: /decisions/i })).toBeInTheDocument();
-			});
-		});
-
-		it('shows task count badge', async () => {
-			renderInitiativeDetail();
-
-			await waitFor(() => {
-				// Tab has count badge showing 2 tasks
-				const tasksTab = screen.getByRole('tab', { name: /tasks/i });
-				expect(tasksTab).toHaveTextContent('2');
-			});
-		});
-
-		it('switches to decisions tab when clicked', async () => {
-			renderInitiativeDetail();
-
-			await waitFor(() => {
-				fireEvent.click(screen.getByRole('tab', { name: /decisions/i }));
-			});
-
-			await waitFor(() => {
-				expect(screen.getByText('Use React for frontend')).toBeInTheDocument();
-			});
-		});
-	});
-
-	describe('tasks tab', () => {
-		it('displays linked tasks', async () => {
-			renderInitiativeDetail();
+	describe('task list', () => {
+		it('displays all linked tasks', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(screen.getByText('TASK-001')).toBeInTheDocument();
 				expect(screen.getByText('First Task')).toBeInTheDocument();
 				expect(screen.getByText('TASK-002')).toBeInTheDocument();
 				expect(screen.getByText('Second Task')).toBeInTheDocument();
-			});
-		});
-
-		it('shows Add Task button', async () => {
-			renderInitiativeDetail();
-
-			await waitFor(() => {
-				expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
+				expect(screen.getByText('TASK-003')).toBeInTheDocument();
+				expect(screen.getByText('Third Task')).toBeInTheDocument();
 			});
 		});
 
 		it('shows Link Existing button', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(
@@ -245,15 +241,67 @@ describe('InitiativeDetail', () => {
 		});
 	});
 
-	describe('decisions tab', () => {
-		it('displays decisions list', async () => {
-			renderInitiativeDetail();
+	describe('task filter', () => {
+		it('shows filter dropdown', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				fireEvent.click(screen.getByRole('tab', { name: /decisions/i }));
+				expect(screen.getByRole('combobox', { name: /filter tasks/i })).toBeInTheDocument();
+			});
+		});
+
+		it('filters to completed tasks', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				const filterSelect = screen.getByRole('combobox', { name: /filter tasks/i });
+				fireEvent.change(filterSelect, { target: { value: 'completed' } });
 			});
 
 			await waitFor(() => {
+				expect(screen.getByText('TASK-001')).toBeInTheDocument();
+				expect(screen.queryByText('TASK-002')).not.toBeInTheDocument();
+				expect(screen.queryByText('TASK-003')).not.toBeInTheDocument();
+			});
+		});
+
+		it('filters to running tasks', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				const filterSelect = screen.getByRole('combobox', { name: /filter tasks/i });
+				fireEvent.change(filterSelect, { target: { value: 'running' } });
+			});
+
+			await waitFor(() => {
+				expect(screen.queryByText('TASK-001')).not.toBeInTheDocument();
+				expect(screen.getByText('TASK-002')).toBeInTheDocument();
+				expect(screen.queryByText('TASK-003')).not.toBeInTheDocument();
+			});
+		});
+
+		it('filters to planned tasks', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				const filterSelect = screen.getByRole('combobox', { name: /filter tasks/i });
+				fireEvent.change(filterSelect, { target: { value: 'planned' } });
+			});
+
+			await waitFor(() => {
+				expect(screen.queryByText('TASK-001')).not.toBeInTheDocument();
+				expect(screen.queryByText('TASK-002')).not.toBeInTheDocument();
+				expect(screen.getByText('TASK-003')).toBeInTheDocument();
+			});
+		});
+	});
+
+	describe('decisions section', () => {
+		it('displays decisions inline (not in tab)', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				// Should be visible immediately without clicking a tab
 				expect(screen.getByText('Use React for frontend')).toBeInTheDocument();
 				expect(screen.getByText(/better ecosystem/i)).toBeInTheDocument();
 				expect(screen.getByText(/by john/i)).toBeInTheDocument();
@@ -261,11 +309,7 @@ describe('InitiativeDetail', () => {
 		});
 
 		it('shows Add Decision button', async () => {
-			renderInitiativeDetail();
-
-			await waitFor(() => {
-				fireEvent.click(screen.getByRole('tab', { name: /decisions/i }));
-			});
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				expect(
@@ -275,12 +319,31 @@ describe('InitiativeDetail', () => {
 		});
 	});
 
-	describe('graph tab', () => {
-		it('loads graph data when tab clicked', async () => {
-			renderInitiativeDetail();
+	describe('dependency graph section', () => {
+		it('shows expand button for collapsed graph', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				fireEvent.click(screen.getByRole('tab', { name: /graph/i }));
+				expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
+			});
+		});
+
+		it('is collapsed by default', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				// The expand button should be visible when collapsed
+				const expandButton = screen.getByRole('button', { name: /expand/i });
+				expect(expandButton).toHaveAttribute('aria-expanded', 'false');
+			});
+		});
+
+		it('loads graph data when expanded', async () => {
+			renderInitiativeDetailPage();
+
+			await waitFor(() => {
+				const expandButton = screen.getByRole('button', { name: /expand/i });
+				fireEvent.click(expandButton);
 			});
 
 			await waitFor(() => {
@@ -288,16 +351,17 @@ describe('InitiativeDetail', () => {
 			});
 		});
 
-		it('shows empty state when no tasks have dependencies', async () => {
+		it('shows empty state when expanded with no dependencies', async () => {
 			vi.mocked(api.getInitiativeDependencyGraph).mockResolvedValue({
 				nodes: [],
 				edges: [],
 			});
 
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				fireEvent.click(screen.getByRole('tab', { name: /graph/i }));
+				const expandButton = screen.getByRole('button', { name: /expand/i });
+				fireEvent.click(expandButton);
 			});
 
 			await waitFor(() => {
@@ -310,7 +374,7 @@ describe('InitiativeDetail', () => {
 
 	describe('edit modal', () => {
 		it('opens edit modal when Edit button clicked', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				fireEvent.click(screen.getByRole('button', { name: /edit/i }));
@@ -322,7 +386,7 @@ describe('InitiativeDetail', () => {
 		});
 
 		it('pre-fills form with current values', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				fireEvent.click(screen.getByRole('button', { name: /edit/i }));
@@ -337,7 +401,7 @@ describe('InitiativeDetail', () => {
 
 	describe('archive confirmation', () => {
 		it('opens confirmation modal when Archive clicked', async () => {
-			renderInitiativeDetail();
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
 				fireEvent.click(screen.getByRole('button', { name: /^archive$/i }));
@@ -354,20 +418,20 @@ describe('InitiativeDetail', () => {
 	});
 
 	describe('back link', () => {
-		it('shows back to tasks link', async () => {
-			renderInitiativeDetail();
+		it('shows back to initiatives link', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				expect(screen.getByText('Back to Tasks')).toBeInTheDocument();
+				expect(screen.getByText('Back to Initiatives')).toBeInTheDocument();
 			});
 		});
 
-		it('links to board filtered by initiative', async () => {
-			renderInitiativeDetail();
+		it('links to /initiatives', async () => {
+			renderInitiativeDetailPage();
 
 			await waitFor(() => {
-				const backLink = screen.getByRole('link', { name: /back to tasks/i });
-				expect(backLink).toHaveAttribute('href', '/board?initiative=INIT-001');
+				const backLink = screen.getByRole('link', { name: /back to initiatives/i });
+				expect(backLink).toHaveAttribute('href', '/initiatives');
 			});
 		});
 	});

@@ -270,16 +270,108 @@ Statistics overview page at `/stats` with comprehensive metrics visualization.
 
 Initiative management at `/initiatives/:id`.
 
-### Sections
+### Page Structure
 
-- **Overview**: Title, description, status, progress bar
-- **Tasks**: Linked tasks with add/remove
-- **Decisions**: Decision log with rationale
-- **Graph**: Dependency graph visualization (Kahn's algorithm)
+| Component | Purpose |
+|-----------|---------|
+| `InitiativeDetailPage` | Route component with data fetching and state management |
+| `DependencyGraph` | Dependency visualization (lazy loaded, collapsible) |
+| `Modal` | Edit, Link Task, Add Decision, Archive Confirmation dialogs |
+
+### Visual Layout
+
+| Section | Content |
+|---------|---------|
+| Back Link | Navigation to `/initiatives` |
+| Header | Emoji + title, status badge, status action buttons, edit/archive buttons |
+| Vision | Initiative vision statement (when present) |
+| Progress | Label with completed/total count + visual progress bar |
+| Stats Row | 3 stat cards: Total Tasks, Completed, Total Cost |
+| Decisions | Decision history with add capability |
+| Tasks | Filterable task list with link/unlink actions |
+| Dependency Graph | Collapsible graph visualization (lazy loaded) |
+
+### States
+
+| State | Display |
+|-------|---------|
+| Loading | Centered spinner + "Loading initiative..." |
+| Error | Error icon + message + Retry button |
+| Not Found | Error icon + "Initiative not found" + Back link |
+| Populated | Full layout with all sections |
+
+### Status Actions
+
+| Current Status | Available Actions |
+|----------------|-------------------|
+| draft | Activate (primary) |
+| active | Complete (success) |
+| completed | Reopen (secondary) |
+| any except archived | Archive (ghost with danger hover) |
 
 ### Status Flow
 
 draft -> active -> completed -> archived
+
+### Task Filter
+
+| Filter | Description |
+|--------|-------------|
+| All | Show all tasks (default) |
+| Completed | Tasks with status "completed" |
+| In Progress | Tasks with status "running" |
+| Planned | Tasks not completed, running, or failed |
+
+### Modals
+
+| Modal | Fields | Actions |
+|-------|--------|---------|
+| Edit Initiative | Title, Vision, Status, Target Branch, Task Branch Prefix | Save/Cancel |
+| Link Task | Search input, task list | Click task to link |
+| Add Decision | Decision text (required), Rationale, Decided By | Add/Cancel |
+| Archive Confirmation | Warning message | Archive/Cancel |
+
+### Dependency Graph
+
+- Collapsed by default
+- Lazy loads data on first expand
+- Uses `getInitiativeDependencyGraph()` API
+- Shows loading/error/empty states
+- Renders `DependencyGraph` component when data available
+
+### Data Flow
+
+- **Initiative**: Fetched from `/api/initiatives/:id` via `getInitiative()`
+- **Available Tasks**: Fetched from `/api/tasks` for link modal via `listTasks()`
+- **Graph Data**: Fetched from `/api/initiatives/:id/dependency-graph` via `getInitiativeDependencyGraph()`
+- **State Sync**: Updates `initiativeStore` on changes
+
+### Events
+
+| Action | Effect |
+|--------|--------|
+| Click status action | Updates initiative status via `updateInitiative()` |
+| Click Edit | Opens edit modal with pre-filled form |
+| Click Archive | Opens confirmation modal |
+| Click Link Existing | Opens task search modal |
+| Click task in list | Navigates to `/tasks/:id` |
+| Click task remove button | Calls `removeInitiativeTask()` after confirmation |
+| Click Add Decision | Opens decision form modal |
+
+### CSS Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.initiative-detail-page` | Page container |
+| `.initiative-detail` | Main content wrapper |
+| `.initiative-header` | Header section with title/actions |
+| `.progress-section` | Progress bar container |
+| `.stats-row` | 3-column stat cards grid |
+| `.decisions-section` | Decisions list section |
+| `.tasks-section` | Tasks list with filter |
+| `.graph-section` | Collapsible dependency graph |
+| `.status-badge.status-{status}` | Status-specific badge styling |
+| `.task-item` | Task row with link and remove button |
 
 ## Settings
 
