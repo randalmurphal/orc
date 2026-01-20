@@ -1,0 +1,239 @@
+/* =============================================================================
+   CommandList Component Styles
+   Displays slash commands organized by scope (project/global)
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.command-list-container {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-8);
+}
+
+/* ==========================================================================
+   SECTION STYLES
+   ========================================================================== */
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.section-header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.section-title {
+	font-size: var(--text-xl);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+.section-desc {
+	font-size: var(--text-md);
+	color: var(--text-muted);
+	line-height: var(--leading-normal);
+}
+
+/* ==========================================================================
+   COMMAND LIST
+   ========================================================================== */
+
+.command-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+/* ==========================================================================
+   COMMAND ITEM
+   ========================================================================== */
+
+.command-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-3-5);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: border-color var(--duration-normal) var(--ease-out),
+		background-color var(--duration-normal) var(--ease-out);
+}
+
+.command-item:hover {
+	border-color: var(--border-light);
+}
+
+.command-item:focus {
+	outline: none;
+}
+
+.command-item:focus-visible {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.command-item.selected {
+	border-color: var(--primary-border);
+	background: var(--primary-dim);
+}
+
+/* ==========================================================================
+   COMMAND ICON
+   ========================================================================== */
+
+.command-icon {
+	width: 32px;
+	height: 32px;
+	background: var(--primary-dim);
+	border-radius: var(--radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--primary);
+	flex-shrink: 0;
+}
+
+.command-icon.global {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+/* ==========================================================================
+   COMMAND INFO
+   ========================================================================== */
+
+.command-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-0-5);
+}
+
+.command-name {
+	font-size: var(--text-md);
+	font-weight: var(--font-semibold);
+	font-family: var(--font-mono);
+	color: var(--text-primary);
+}
+
+.command-desc {
+	font-size: var(--text-base);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   COMMAND ACTIONS
+   ========================================================================== */
+
+.command-actions {
+	display: flex;
+	gap: var(--space-1);
+	flex-shrink: 0;
+}
+
+.command-btn {
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color var(--duration-normal) var(--ease-out),
+		color var(--duration-normal) var(--ease-out),
+		border-color var(--duration-normal) var(--ease-out);
+}
+
+.command-btn:hover {
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.command-btn:focus {
+	outline: none;
+}
+
+.command-btn:focus-visible {
+	border-color: var(--primary);
+	box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.command-btn-confirm {
+	background: var(--green-dim);
+	color: var(--green);
+	border-color: transparent;
+}
+
+.command-btn-confirm:hover {
+	background: var(--green);
+	color: white;
+}
+
+.command-btn-cancel {
+	background: var(--red-dim);
+	color: var(--red);
+	border-color: transparent;
+}
+
+.command-btn-cancel:hover {
+	background: var(--red);
+	color: white;
+}
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.command-list-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-12) var(--space-6);
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.command-list-empty svg {
+	margin-bottom: var(--space-3);
+	opacity: 0.5;
+}
+
+.command-list-empty-title {
+	font-size: var(--text-xl);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+	margin-bottom: var(--space-1);
+}
+
+.command-list-empty-desc {
+	font-size: var(--text-md);
+	color: var(--text-muted);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.command-item,
+	.command-btn {
+		transition: none;
+	}
+}
