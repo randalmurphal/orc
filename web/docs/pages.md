@@ -21,29 +21,83 @@ Main overview page at `/dashboard`.
 
 ## Board
 
-Kanban board at `/board` with two view modes.
+Two-column board layout at `/board` with queue + running views and contextual right panel.
 
-### View Modes
+### Layout Structure
 
-| Mode | Description |
-|------|-------------|
-| Flat | Traditional columns: Todo, Spec, Implement, Test, Docs, Validate, Done |
-| By Initiative | Horizontal swimlanes grouping tasks by initiative |
-
-Toggle via `ViewModeDropdown`, persisted in localStorage.
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                           BoardView                               │
+├────────────────────────────────┬─────────────────────────────────┤
+│         QueueColumn            │        RunningColumn            │
+│         (flex: 1)              │        (420px fixed)            │
+│                                │                                 │
+│  ┌────────────────────────┐    │  ┌─────────────────────────┐   │
+│  │  Swimlane (Initiative) │    │  │     RunningCard         │   │
+│  │  └─ TaskCard           │    │  │  - Pipeline             │   │
+│  │  └─ TaskCard           │    │  │  - Elapsed time         │   │
+│  └────────────────────────┘    │  │  - Live output          │   │
+│  ┌────────────────────────┐    │  └─────────────────────────┘   │
+│  │  Swimlane (Unassigned) │    │                                 │
+│  └────────────────────────┘    │                                 │
+└────────────────────────────────┴─────────────────────────────────┘
+                               ↓ Sets via AppShell context
+┌─────────────────────────────────────────────────────────────────┐
+│                       Right Panel                                │
+│  BlockedPanel    (orange)  - Blocked tasks with Skip/Force      │
+│  DecisionsPanel  (purple)  - Pending decisions                  │
+│  ConfigPanel     (cyan)    - Claude config quick links          │
+│  FilesPanel      (blue)    - Changed files from running tasks   │
+│  CompletedPanel  (green)   - Today's completed summary          │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Components
 
 | Component | Purpose |
 |-----------|---------|
-| `Board` | Container managing view mode and columns |
-| `Column` | Single status column with task cards |
-| `QueuedColumn` | Column with active/backlog sections |
-| `Swimlane` | Initiative row in swimlane view |
-| `TaskCard` | Clickable task card with status/priority |
-| `Pipeline` | Horizontal phase progress visualization (4px bars, 5 phases) |
-| `InitiativeDropdown` | Filter by initiative |
-| `ViewModeDropdown` | Flat/swimlane toggle |
+| `BoardView` | Main container with two-column grid, sets right panel content |
+| `QueueColumn` | Queued tasks grouped by initiative in swimlanes |
+| `RunningColumn` | Active tasks with RunningCard and Pipeline |
+| `Swimlane` | Collapsible initiative group with tasks |
+| `TaskCard` | Compact card for queue display |
+| `RunningCard` | Expanded card with pipeline, timer, output |
+| `Pipeline` | Horizontal phase progress visualization |
+| `BlockedPanel` | Right panel section for blocked tasks |
+| `DecisionsPanel` | Right panel section for pending decisions |
+| `ConfigPanel` | Right panel section for Claude config links |
+| `FilesPanel` | Right panel section for changed files |
+| `CompletedPanel` | Right panel section for completed summary |
+
+### BoardView Data Flow
+
+```
+Stores → BoardView → Columns/Panels
+───────────────────────────────────
+taskStore.tasks        → queuedTasks, runningTasks, blockedTasks, completedToday
+taskStore.taskStates   → taskStatesRecord (for RunningColumn)
+initiativeStore        → initiatives (for swimlane grouping)
+sessionStore           → totalTokens, totalCost (for CompletedPanel)
+```
+
+### Right Panel Sections
+
+| Panel | Theme | Visibility | Content |
+|-------|-------|------------|---------|
+| `BlockedPanel` | Orange | Hidden when empty | Tasks with unmet blockers + Skip/Force actions |
+| `DecisionsPanel` | Purple | Hidden when empty | Pending decisions with option buttons |
+| `ConfigPanel` | Cyan | Always visible | Links to Slash Commands, CLAUDE.md, MCP, Permissions |
+| `FilesPanel` | Blue | Hidden when empty | Files modified by running tasks |
+| `CompletedPanel` | Green | Always visible | Today's completed count, tokens, cost |
+
+### States
+
+| State | Display |
+|-------|---------|
+| Loading | Skeleton cards in both columns |
+| Empty Queue | "No queued tasks" centered message |
+| Empty Running | "No running tasks" centered message |
+| Populated | Swimlanes in queue, RunningCards in running |
 
 ### TaskCard Behavior
 
@@ -54,6 +108,41 @@ Toggle via `ViewModeDropdown`, persisted in localStorage.
 - Blocked tasks show warning icon with pulse animation
 - Running tasks show animated progress indicator
 - Keyboard accessible: Enter/Space triggers click, focus-visible outline
+
+### CSS Specifications
+
+**BoardView Layout:**
+```css
+.board-view {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 16px;
+  height: 100%;
+  padding: 16px;
+}
+```
+
+**Column Styling:**
+- Queue: `flex: 1`, `min-width: 280px`, transparent bg, right border
+- Running: `420px` fixed width, flex column with 12px gap
+
+### Accessibility
+
+- `role="region"` with `aria-label="Task board"` on BoardView
+- `role="region"` with `aria-label` on each column
+- Swimlane headers have `role="button"` with `aria-expanded`
+- Panel headers have `aria-expanded` and `aria-controls`
+- All interactive elements keyboard accessible
+
+### Legacy Components
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `Board` | Preserved | Original kanban with flat/swimlane view modes |
+| `Column` | Preserved | Single status column |
+| `QueuedColumn` | Preserved | Column with active/backlog sections |
+| `ViewModeDropdown` | Preserved | Flat/swimlane toggle |
+| `InitiativeDropdown` | Preserved | Filter by initiative |
 
 ## Task Detail
 
