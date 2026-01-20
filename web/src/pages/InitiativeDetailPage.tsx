@@ -1,17 +1,17 @@
 /**
  * Initiative detail page (/initiatives/:id)
  *
- * Features:
- * - Header with title, status, progress bar
- * - Status management buttons (activate, complete, archive)
- * - Tab navigation (Tasks, Decisions, Graph)
- * - Task linking and unlinking
- * - Decision recording
- * - Dependency graph visualization
+ * Layout:
+ * - Header with back link, title (with emoji), status badge, edit button
+ * - Progress bar
+ * - Stats row (3 cards: Total Tasks, Completed, Total Cost)
+ * - Side-by-side: Stats summary | Decisions list
+ * - Filterable task list
+ * - Collapsible dependency graph
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
 	getInitiative,
 	updateInitiative,
@@ -29,23 +29,43 @@ import { useInitiativeStore } from '@/stores';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { DependencyGraph } from '@/components/initiative/DependencyGraph';
-import './InitiativeDetail.css';
+import './InitiativeDetailPage.css';
 
-type Tab = 'tasks' | 'graph' | 'decisions';
+type TaskFilter = 'all' | 'completed' | 'running' | 'planned';
 
-export function InitiativeDetail() {
+/**
+ * Extract first emoji from text or return default based on status
+ */
+function extractEmoji(text: string, status?: string): string {
+	const emojiMatch = text.match(/^(\p{Emoji})/u);
+	if (emojiMatch) return emojiMatch[1];
+
+	// Default emojis by status
+	switch (status) {
+		case 'active':
+			return '🚀';
+		case 'completed':
+			return '✅';
+		case 'archived':
+			return '📦';
+		default:
+			return '📋';
+	}
+}
+
+export function InitiativeDetailPage() {
 	const { id } = useParams<{ id: string }>();
-	const navigate = useNavigate();
 	const updateInitiativeInStore = useInitiativeStore((state) => state.updateInitiative);
 
 	const [initiative, setInitiative] = useState<Initiative | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Active tab state
-	const [activeTab, setActiveTab] = useState<Tab>('tasks');
+	// Task filter state
+	const [taskFilter, setTaskFilter] = useState<TaskFilter>('all');
 
-	// Graph data
+	// Graph state - collapsible and lazy loaded
+	const [graphExpanded, setGraphExpanded] = useState(false);
 	const [graphData, setGraphData] = useState<DependencyGraphData | null>(null);
 	const [graphLoading, setGraphLoading] = useState(false);
 	const [graphError, setGraphError] = useState<string | null>(null);
@@ -87,6 +107,25 @@ export function InitiativeDetail() {
 		return { completed, total, percentage: Math.round((completed / total) * 100) };
 	}, [initiative?.tasks]);
 
+	// Filter tasks by status
+	const filteredTasks = useMemo(() => {
+		if (!initiative?.tasks) return [];
+		if (taskFilter === 'all') return initiative.tasks;
+
+		return initiative.tasks.filter((task) => {
+			switch (taskFilter) {
+				case 'completed':
+					return task.status === 'completed';
+				case 'running':
+					return task.status === 'running';
+				case 'planned':
+					return !['completed', 'running', 'failed'].includes(task.status);
+				default:
+					return true;
+			}
+		});
+	}, [initiative?.tasks, taskFilter]);
+
 	// Filter tasks for linking (not already in initiative)
 	const filteredAvailableTasks = useMemo(() => {
 		const existingIds = new Set(initiative?.tasks?.map((t) => t.id) || []);
@@ -101,17 +140,12 @@ export function InitiativeDetail() {
 		return filtered;
 	}, [availableTasks, initiative?.tasks, linkTaskSearch]);
 
-	// Task dependencies within initiative
-	const taskDependencies = useMemo(() => {
-		if (!initiative?.tasks) return [];
-		const deps: { taskId: string; dependsOn: string[] }[] = [];
-		for (const task of initiative.tasks) {
-			if (task.depends_on && task.depends_on.length > 0) {
-				deps.push({ taskId: task.id, dependsOn: task.depends_on });
-			}
-		}
-		return deps;
-	}, [initiative?.tasks]);
+	// Calculate total cost - placeholder value since InitiativeTaskRef doesn't have cost data
+	// In a real implementation, this would come from the initiative or aggregated task data
+	const totalCost = useMemo(() => {
+		// Return 0 as placeholder - cost tracking not yet implemented in API
+		return 0;
+	}, []);
 
 	const loadInitiative = useCallback(async () => {
 		if (!id) return;
@@ -145,15 +179,16 @@ export function InitiativeDetail() {
 		loadInitiative();
 	}, [loadInitiative]);
 
-	const handleTabChange = useCallback(
-		(tab: Tab) => {
-			setActiveTab(tab);
-			if (tab === 'graph') {
+	// Toggle graph expansion and load data on first expand
+	const toggleGraph = useCallback(() => {
+		setGraphExpanded((prev) => {
+			const newExpanded = !prev;
+			if (newExpanded && !graphData && !graphLoading) {
 				loadGraphData();
 			}
-		},
-		[loadGraphData]
-	);
+			return newExpanded;
+		});
+	}, [graphData, graphLoading, loadGraphData]);
 
 	const openEditModal = useCallback(() => {
 		if (initiative) {
@@ -318,6 +353,10 @@ export function InitiativeDetail() {
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}, []);
 
+	const formatCost = useCallback((cost: number) => {
+		return `$${cost.toFixed(2)}`;
+	}, []);
+
 	if (loading) {
 		return (
 			<div className="loading-state">
@@ -344,27 +383,36 @@ export function InitiativeDetail() {
 			<div className="error-state">
 				<div className="error-icon">!</div>
 				<p>Initiative not found</p>
-				<Link to="/board" className="btn btn-primary">
-					Back to Board
+				<Link to="/initiatives" className="btn btn-primary">
+					Back to Initiatives
 				</Link>
 			</div>
 		);
 	}
 
+	const emoji = extractEmoji(initiative.title + ' ' + (initiative.vision || ''), initiative.status);
+	const titleWithoutEmoji = initiative.title.replace(/^(\p{Emoji})\s*/u, '');
+
 	return (
 		<div className="page initiative-detail-page">
 			<div className="initiative-detail">
-				{/* Back Link - navigates to board filtered by this initiative */}
-				<Link to={`/board?initiative=${initiative.id}`} className="back-link">
+				{/* Back Link - navigates to initiatives list */}
+				<Link to="/initiatives" className="back-link">
 					<Icon name="arrow-left" size={16} />
-					<span>Back to Tasks</span>
+					<span>Back to Initiatives</span>
 				</Link>
 
 				{/* Header Section */}
 				<header className="initiative-header">
 					<div className="header-top">
-						<h1 className="initiative-title">{initiative.title}</h1>
+						<div className="title-row">
+							<span className="initiative-emoji">{emoji}</span>
+							<h1 className="initiative-title">{titleWithoutEmoji}</h1>
+						</div>
 						<div className="header-actions">
+							<span className={`status-badge status-${initiative.status}`}>
+								{initiative.status}
+							</span>
 							{/* Status transition buttons based on current status */}
 							{initiative.status === 'draft' && (
 								<button
@@ -417,197 +465,177 @@ export function InitiativeDetail() {
 					{initiative.vision && (
 						<p className="initiative-vision">{initiative.vision}</p>
 					)}
-
-					<div className="initiative-meta">
-						{/* Progress Bar */}
-						<div className="progress-section">
-							<div className="progress-label">
-								<span>Progress</span>
-								<span className="progress-count">
-									{progress.completed}/{progress.total} tasks ({progress.percentage}
-									%)
-								</span>
-							</div>
-							<div className="progress-bar">
-								<div
-									className="progress-fill"
-									style={{ width: `${progress.percentage}%` }}
-								></div>
-							</div>
-						</div>
-
-						<div className="meta-grid">
-							{initiative.owner?.initials && (
-								<div className="meta-item">
-									<span className="meta-label">Owner</span>
-									<span className="meta-value">
-										{initiative.owner.display_name || initiative.owner.initials}
-									</span>
-								</div>
-							)}
-							<div className="meta-item">
-								<span className="meta-label">Status</span>
-								<span className={`status-badge status-${initiative.status}`}>
-									{initiative.status}
-								</span>
-							</div>
-							<div className="meta-item">
-								<span className="meta-label">Created</span>
-								<span className="meta-value">
-									{formatDate(initiative.created_at)}
-								</span>
-							</div>
-						</div>
-					</div>
 				</header>
 
-				{/* Tab Navigation */}
-				<div className="tabs-nav" role="tablist" aria-label="Initiative sections">
-					<button
-						className={`tab-btn ${activeTab === 'tasks' ? 'active' : ''}`}
-						onClick={() => handleTabChange('tasks')}
-						role="tab"
-						aria-selected={activeTab === 'tasks'}
-					>
-						<Icon name="list" size={16} />
-						Tasks
-						{initiative.tasks && initiative.tasks.length > 0 && (
-							<span className="tab-count">{initiative.tasks.length}</span>
-						)}
-					</button>
-					<button
-						className={`tab-btn ${activeTab === 'graph' ? 'active' : ''}`}
-						onClick={() => handleTabChange('graph')}
-						role="tab"
-						aria-selected={activeTab === 'graph'}
-					>
-						<Icon name="git-branch" size={16} />
-						Graph
-					</button>
-					<button
-						className={`tab-btn ${activeTab === 'decisions' ? 'active' : ''}`}
-						onClick={() => handleTabChange('decisions')}
-						role="tab"
-						aria-selected={activeTab === 'decisions'}
-					>
-						<Icon name="message-circle" size={16} />
-						Decisions
-						{initiative.decisions && initiative.decisions.length > 0 && (
-							<span className="tab-count">{initiative.decisions.length}</span>
-						)}
-					</button>
+				{/* Progress Section */}
+				<div className="progress-section">
+					<div className="progress-label">
+						<span>Progress</span>
+						<span className="progress-count">
+							{progress.completed}/{progress.total} tasks ({progress.percentage}%)
+						</span>
+					</div>
+					<div className="progress-bar">
+						<div
+							className="progress-fill"
+							style={{ width: `${progress.percentage}%` }}
+						></div>
+					</div>
 				</div>
 
-				{/* Tab Content */}
-				<div className="tab-content">
-					{/* Tasks Tab */}
-					{activeTab === 'tasks' && (
-						<section className="section tasks-section">
-							<div className="section-header">
-								<h2>Tasks</h2>
-								<div className="section-actions">
-									<button
-										className="btn btn-primary btn-sm"
-										onClick={() => {
-											navigate(`/?initiative=${initiative?.id}`);
-											window.dispatchEvent(
-												new CustomEvent('orc:new-task')
-											);
-										}}
-									>
-										<Icon name="plus" size={14} />
-										Add Task
-									</button>
-									<button
-										className="btn btn-secondary btn-sm"
-										onClick={openLinkTaskModal}
-									>
-										<Icon name="link" size={14} />
-										Link Existing
-									</button>
-								</div>
-							</div>
+				{/* Stats Row */}
+				<div className="stats-row">
+					<div className="stat-card">
+						<span className="stat-label">Total Tasks</span>
+						<span className="stat-value">{progress.total}</span>
+					</div>
+					<div className="stat-card">
+						<span className="stat-label">Completed</span>
+						<span className="stat-value stat-success">{progress.completed}</span>
+					</div>
+					<div className="stat-card">
+						<span className="stat-label">Total Cost</span>
+						<span className="stat-value stat-primary">{formatCost(totalCost)}</span>
+					</div>
+				</div>
 
-							{initiative.tasks && initiative.tasks.length > 0 ? (
-								<>
-									<div className="task-list">
-										{initiative.tasks.map((task) => (
-											<div key={task.id} className="task-item">
-												<Link
-													to={`/tasks/${task.id}`}
-													className="task-link"
-												>
-													<span
-														className={`task-status ${getStatusClass(task.status)}`}
-													>
-														<Icon
-															name={getStatusIcon(task.status) as any}
-															size={16}
-														/>
-													</span>
-													<span className="task-id">{task.id}</span>
-													<span className="task-title">
-														{task.title}
-													</span>
-													<span className="task-status-text">
-														{task.status}
-													</span>
-												</Link>
-												<button
-													className="btn-icon btn-remove"
-													onClick={() => unlinkTask(task.id)}
-													title="Remove from initiative"
-												>
-													<Icon name="x" size={14} />
-												</button>
-											</div>
-										))}
+				{/* Side-by-Side: Decisions Section */}
+				<section className="decisions-section">
+					<div className="section-header">
+						<h2>Decisions</h2>
+						<button
+							className="btn btn-secondary btn-sm"
+							onClick={openAddDecisionModal}
+						>
+							<Icon name="plus" size={14} />
+							Add Decision
+						</button>
+					</div>
+
+					{initiative.decisions && initiative.decisions.length > 0 ? (
+						<div className="decision-list">
+							{initiative.decisions.map((decision) => (
+								<div key={decision.id} className="decision-item">
+									<div className="decision-header">
+										<span className="decision-date">
+											{formatDate(decision.date)}
+										</span>
+										{decision.by && (
+											<span className="decision-by">
+												by {decision.by}
+											</span>
+										)}
 									</div>
-
-									{/* Dependencies Section */}
-									{taskDependencies.length > 0 && (
-										<div className="dependencies-section">
-											<h3>Dependencies</h3>
-											<ul className="dependency-list">
-												{taskDependencies.map((dep) => (
-													<li key={dep.taskId}>
-														<span className="dep-task">
-															{dep.taskId}
-														</span>
-														<span className="dep-arrow">
-															depends on
-														</span>
-														<span className="dep-targets">
-															{dep.dependsOn.join(', ')}
-														</span>
-													</li>
-												))}
-											</ul>
-										</div>
+									<p className="decision-text">{decision.decision}</p>
+									{decision.rationale && (
+										<p className="decision-rationale">
+											{decision.rationale}
+										</p>
 									)}
-								</>
-							) : (
-								<div className="empty-state">
-									<Icon name="clipboard" size={32} />
-									<p>No tasks in this initiative yet</p>
-									<button
-										className="btn btn-primary"
-										onClick={openLinkTaskModal}
+								</div>
+							))}
+						</div>
+					) : (
+						<div className="empty-state-inline">
+							<span>No decisions recorded yet</span>
+						</div>
+					)}
+				</section>
+
+				{/* Tasks Section */}
+				<section className="tasks-section">
+					<div className="section-header">
+						<h2>Tasks</h2>
+						<div className="section-actions">
+							<select
+								className="filter-select"
+								value={taskFilter}
+								onChange={(e) => setTaskFilter(e.target.value as TaskFilter)}
+								aria-label="Filter tasks"
+							>
+								<option value="all">All</option>
+								<option value="completed">Completed</option>
+								<option value="running">In Progress</option>
+								<option value="planned">Planned</option>
+							</select>
+							<button
+								className="btn btn-secondary btn-sm"
+								onClick={openLinkTaskModal}
+							>
+								<Icon name="link" size={14} />
+								Link Existing
+							</button>
+						</div>
+					</div>
+
+					{filteredTasks.length > 0 ? (
+						<div className="task-list">
+							{filteredTasks.map((task) => (
+								<div key={task.id} className="task-item">
+									<Link
+										to={`/tasks/${task.id}`}
+										className="task-link"
 									>
-										Link a Task
+										<span
+											className={`task-status ${getStatusClass(task.status)}`}
+										>
+											<Icon
+												name={getStatusIcon(task.status) as any}
+												size={16}
+											/>
+										</span>
+										<span className="task-id">{task.id}</span>
+										<span className="task-title">
+											{task.title}
+										</span>
+										<span className="task-status-text">
+											{task.status}
+										</span>
+									</Link>
+									<button
+										className="btn-icon btn-remove"
+										onClick={() => unlinkTask(task.id)}
+										title="Remove from initiative"
+									>
+										<Icon name="x" size={14} />
 									</button>
 								</div>
-							)}
-						</section>
+							))}
+						</div>
+					) : initiative.tasks && initiative.tasks.length > 0 ? (
+						<div className="empty-state-inline">
+							<span>No tasks match the current filter</span>
+						</div>
+					) : (
+						<div className="empty-state">
+							<Icon name="clipboard" size={32} />
+							<p>No tasks in this initiative yet</p>
+							<button
+								className="btn btn-primary"
+								onClick={openLinkTaskModal}
+							>
+								Link a Task
+							</button>
+						</div>
 					)}
+				</section>
 
-					{/* Graph Tab */}
-					{activeTab === 'graph' && (
-						<section className="section graph-section">
-							<div className="section-header">
-								<h2>Dependency Graph</h2>
-							</div>
+				{/* Dependency Graph Section - Collapsible */}
+				<section className="graph-section">
+					<div className="section-header section-header-collapsible">
+						<h2>Dependency Graph</h2>
+						<button
+							className="btn btn-ghost btn-sm"
+							onClick={toggleGraph}
+							aria-expanded={graphExpanded}
+						>
+							<Icon name={graphExpanded ? 'chevron-up' : 'chevron-down'} size={16} />
+							{graphExpanded ? 'Collapse' : 'Expand'}
+						</button>
+					</div>
 
+					{graphExpanded && (
+						<div className="graph-content">
 							{graphLoading ? (
 								<div className="graph-loading">
 									<div className="spinner"></div>
@@ -634,71 +662,14 @@ export function InitiativeDetail() {
 									/>
 								</div>
 							) : (
-								<div className="empty-state">
-									<Icon name="git-branch" size={32} />
-									<p>No tasks with dependencies to visualize</p>
-									<p className="empty-hint">
-										Add tasks with dependencies to see the dependency graph
-									</p>
+								<div className="empty-state-inline">
+									<Icon name="git-branch" size={24} />
+									<span>No tasks with dependencies to visualize</span>
 								</div>
 							)}
-						</section>
+						</div>
 					)}
-
-					{/* Decisions Tab */}
-					{activeTab === 'decisions' && (
-						<section className="section decisions-section">
-							<div className="section-header">
-								<h2>Decisions</h2>
-								<button
-									className="btn btn-secondary btn-sm"
-									onClick={openAddDecisionModal}
-								>
-									<Icon name="plus" size={14} />
-									Add Decision
-								</button>
-							</div>
-
-							{initiative.decisions && initiative.decisions.length > 0 ? (
-								<div className="decision-list">
-									{initiative.decisions.map((decision) => (
-										<div key={decision.id} className="decision-item">
-											<div className="decision-header">
-												<span className="decision-id">{decision.id}</span>
-												<span className="decision-date">
-													({formatDate(decision.date)})
-												</span>
-												{decision.by && (
-													<span className="decision-by">
-														by {decision.by}
-													</span>
-												)}
-											</div>
-											<p className="decision-text">{decision.decision}</p>
-											{decision.rationale && (
-												<p className="decision-rationale">
-													<strong>Rationale:</strong>{' '}
-													{decision.rationale}
-												</p>
-											)}
-										</div>
-									))}
-								</div>
-							) : (
-								<div className="empty-state">
-									<Icon name="message-circle" size={32} />
-									<p>No decisions recorded yet</p>
-									<button
-										className="btn btn-secondary"
-										onClick={openAddDecisionModal}
-									>
-										Record a Decision
-									</button>
-								</div>
-							)}
-						</section>
-					)}
-				</div>
+				</section>
 			</div>
 
 			{/* Edit Initiative Modal */}
