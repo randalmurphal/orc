@@ -897,6 +897,86 @@ Clicking delete shows inline confirm/cancel buttons:
 - Confirm/cancel buttons are keyboard accessible
 - All buttons have `aria-label` for screen readers
 
+## CommandEditor
+
+Markdown editor component for editing slash command files. Features syntax highlighting overlay, line numbers, dirty state tracking, and keyboard shortcuts.
+
+```tsx
+import { CommandEditor, type EditableCommand } from '@/components/settings';
+
+const command: EditableCommand = {
+  id: 'cmd-1',
+  name: '/review-pr',
+  path: '.claude/commands/review-pr.md',
+  content: '# Review PR\n\nRun a comprehensive code review.',
+};
+
+<CommandEditor
+  command={command}
+  onSave={async (content) => {
+    await saveCommand(command.id, content);
+  }}
+  onCancel={() => setEditing(false)}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `command` | `EditableCommand` | required | Command object with id, name, path, content |
+| `onSave` | `(content: string) => Promise<void>` | required | Async save handler called with current content |
+| `onCancel` | `() => void` | required | Cancel handler (no save) |
+
+**EditableCommand Interface:**
+```tsx
+interface EditableCommand {
+  id: string;
+  name: string;          // e.g., '/review-pr'
+  path: string;          // e.g., '.claude/commands/review-pr.md'
+  content: string;       // Markdown content
+}
+```
+
+**Visual Structure:**
+- **Header:** Command name (monospace with terminal icon), file path, dirty indicator, Cancel/Save buttons
+- **Body:** Line numbers column (40px, right-aligned) + content area with syntax highlighting overlay
+
+**Syntax Highlighting:**
+| Element | CSS Class | Color |
+|---------|-----------|-------|
+| Headers (`#`, `##`, etc.) | `.md-header` | `--primary-bright`, semibold |
+| Inline code (backticks) | `.md-code` | `--cyan` with `--bg-card` background |
+| Code blocks (triple backticks) | `.md-code-block` | `--text-secondary` with `--bg-card` background |
+| Lists (`-`, `*`, numbered) | `.md-list` | `--orange` |
+| Bold (`**text**`) | `.md-bold` | `--text-primary`, bold weight |
+| Italic (`*text*`) | `.md-italic` | `--text-secondary`, italic |
+
+**Keyboard Shortcuts:**
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` / `Cmd+S` | Save command |
+| `Escape` | Cancel editing |
+
+**States:**
+- Default: `--bg-surface` background, 1px `--border`
+- Dirty: Amber "Unsaved" badge in header
+- Saving: Save button shows loading spinner, disabled
+- Error: Red error banner below header with `role="alert"`
+- Focus: `--primary-border` with `--primary-glow` shadow
+
+**Implementation Details:**
+- Uses textarea with transparent text + pre element overlay for syntax highlighting
+- Line numbers sync with content via line count calculation
+- Scroll sync between textarea and highlight overlay
+- Content height auto-adjusts (300px min, 600px max)
+- HTML escaped before highlighting to prevent XSS
+
+**Accessibility:**
+- Textarea has `aria-label="Edit {command.name}"`
+- Save/Cancel buttons have descriptive `aria-label`
+- Error message has `role="alert"`
+- Dirty indicator has `aria-label="Unsaved changes"`
+- Respects `prefers-reduced-motion`
+
 ## ConfigEditor
 
 Editable code/config file viewer with syntax highlighting. Supports markdown, YAML, and JSON with save functionality and unsaved changes detection.
