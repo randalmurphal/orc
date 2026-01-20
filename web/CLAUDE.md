@@ -36,7 +36,7 @@ web/src/
 ├── lib/                  # Utilities (types, websocket, shortcuts)
 ├── components/           # UI components
 │   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions, AgentsView)
-│   ├── board/            # Kanban (Board, Column, TaskCard, etc.)
+│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, panels, TaskCard, etc.)
 │   ├── dashboard/        # Dashboard sections
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
