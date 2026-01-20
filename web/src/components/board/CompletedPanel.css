@@ -1,0 +1,179 @@
+/* =============================================================================
+   CompletedPanel Component Styles
+   Green-themed compact summary section for completed tasks
+   Matches mockup: example_ui/board.html (.completed-summary class)
+   ============================================================================= */
+
+/* =============================================================================
+   Panel Section (Compact Container)
+   ============================================================================= */
+
+.completed-panel {
+	border-top: 1px solid var(--border);
+	margin-top: auto; /* Push to bottom of right panel */
+}
+
+.completed-panel .panel-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	width: 100%;
+	background: none;
+	border: none;
+	cursor: pointer;
+	transition: background var(--duration-fast);
+}
+
+.completed-panel .panel-header:disabled {
+	cursor: default;
+}
+
+.completed-panel .panel-header:not(:disabled):hover {
+	background: var(--bg-hover);
+}
+
+.completed-panel .panel-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary);
+}
+
+.completed-panel .panel-title-icon {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+}
+
+.completed-panel .panel-title-icon.green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+/* =============================================================================
+   Summary Badge
+   ============================================================================= */
+
+.completed-panel .completed-summary {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-left: auto;
+}
+
+.completed-panel .panel-badge {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 var(--space-1-5);
+	font-size: var(--text-xs);
+	font-weight: var(--font-semibold);
+	border-radius: var(--radius-full);
+}
+
+.completed-panel .panel-badge.green {
+	background: var(--green-dim);
+	color: var(--green);
+}
+
+.completed-panel .panel-chevron {
+	color: var(--text-muted);
+	transition: transform var(--duration-fast);
+	flex-shrink: 0;
+}
+
+/* =============================================================================
+   Empty State
+   ============================================================================= */
+
+.completed-panel .completed-empty-text {
+	margin-left: auto;
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
+
+/* =============================================================================
+   Expanded Panel Body
+   ============================================================================= */
+
+.completed-panel .panel-body {
+	padding: 0 var(--space-3) var(--space-3);
+}
+
+/* =============================================================================
+   Stats Detail Row
+   ============================================================================= */
+
+.completed-panel .completed-stats-detail {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1-5);
+	margin-bottom: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+}
+
+.completed-panel .completed-stats-separator {
+	color: var(--text-muted);
+}
+
+.completed-panel .completed-stats-tokens {
+	font-family: var(--font-mono);
+}
+
+.completed-panel .completed-stats-cost {
+	font-family: var(--font-mono);
+	color: var(--green);
+}
+
+/* =============================================================================
+   Task List
+   ============================================================================= */
+
+.completed-panel .completed-task-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.completed-panel .completed-task-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1-5) var(--space-2);
+	background: var(--bg-surface);
+	border-radius: var(--radius-sm);
+	margin-bottom: var(--space-1);
+}
+
+.completed-panel .completed-task-item:last-child {
+	margin-bottom: 0;
+}
+
+.completed-panel .completed-task-id {
+	flex-shrink: 0;
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	color: var(--green);
+	font-weight: var(--font-medium);
+}
+
+.completed-panel .completed-task-title {
+	flex: 1;
+	min-width: 0;
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
