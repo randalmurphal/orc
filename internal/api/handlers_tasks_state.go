@@ -9,6 +9,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleGetState returns task execution state.
@@ -193,6 +194,55 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, response)
+}
+
+// GetSessionMetrics returns current session metrics for WebSocket initial state.
+// This is used to provide initial session_update to reconnecting clients.
+func (s *Server) GetSessionMetrics() map[string]any {
+	var tasksRunning int
+	var totalCost float64
+	var totalInputTokens, totalOutputTokens int
+
+	// Skip backend queries if not available (e.g., in tests)
+	if s.backend != nil {
+		// Count running tasks
+		tasks, err := s.backend.LoadAllTasks()
+		if err != nil {
+			s.logger.Warn("failed to load tasks for session metrics", "error", err)
+		} else {
+			for _, t := range tasks {
+				if t.Status == task.StatusRunning {
+					tasksRunning++
+				}
+			}
+		}
+
+		// Load today's aggregated state data for cost/tokens
+		states, err := s.backend.LoadAllStates()
+		if err != nil {
+			s.logger.Warn("failed to load states for session metrics", "error", err)
+		} else {
+			// Only count today's usage
+			today := time.Now().UTC().Truncate(24 * time.Hour)
+			for _, st := range states {
+				if st.StartedAt.After(today) || st.StartedAt.Equal(today) {
+					totalCost += st.Cost.TotalCostUSD
+					totalInputTokens += st.Tokens.InputTokens
+					totalOutputTokens += st.Tokens.OutputTokens
+				}
+			}
+		}
+	}
+
+	return map[string]any{
+		"duration_seconds":   0, // Session duration is executor-specific, set to 0 for API
+		"total_tokens":       totalInputTokens + totalOutputTokens,
+		"estimated_cost_usd": totalCost,
+		"input_tokens":       totalInputTokens,
+		"output_tokens":      totalOutputTokens,
+		"tasks_running":      tasksRunning,
+		"is_paused":          false, // Pause state is executor-specific
+	}
 }
 
 // handleGetTranscripts returns task transcripts from the database.

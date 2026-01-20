@@ -438,6 +438,73 @@ func TestWSHandler_GlobalSubscription(t *testing.T) {
 	}
 }
 
+func TestWSHandler_GlobalSubscription_InitialSessionUpdate(t *testing.T) {
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer func() { _ = ws.Close() }()
+
+	// Subscribe globally
+	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Read initial session_update event
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, data, err := ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read initial session_update: %v", err)
+	}
+
+	var sessionEvent map[string]any
+	if err := json.Unmarshal(data, &sessionEvent); err != nil {
+		t.Fatalf("failed to parse session_update: %v", err)
+	}
+
+	// Verify it's a session_update event
+	if sessionEvent["type"] != "event" {
+		t.Errorf("expected type 'event', got %v", sessionEvent["type"])
+	}
+	if sessionEvent["event"] != string(events.EventSessionUpdate) {
+		t.Errorf("expected event '%s', got %v", events.EventSessionUpdate, sessionEvent["event"])
+	}
+	if sessionEvent["task_id"] != events.GlobalTaskID {
+		t.Errorf("expected task_id '%s', got %v", events.GlobalTaskID, sessionEvent["task_id"])
+	}
+
+	// Verify session_update data contains expected fields
+	sessionData, ok := sessionEvent["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", sessionEvent["data"])
+	}
+
+	// Check that all required fields are present
+	requiredFields := []string{"duration_seconds", "total_tokens", "estimated_cost_usd",
+		"input_tokens", "output_tokens", "tasks_running", "is_paused"}
+	for _, field := range requiredFields {
+		if _, exists := sessionData[field]; !exists {
+			t.Errorf("session_update missing required field: %s", field)
+		}
+	}
+}
+
 func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
@@ -464,6 +531,13 @@ func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 	_, _, err = ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Read initial session_update event (sent on global subscription)
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read initial session_update: %v", err)
 	}
 
 	// Publish events for different tasks
@@ -528,6 +602,13 @@ func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
 	_, _, err = ws.ReadMessage()
 	if err != nil {
 		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Read initial session_update event (sent on global subscription)
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read initial session_update: %v", err)
 	}
 
 	// Simulate file watcher events (task_created, task_updated, task_deleted)
