@@ -461,3 +461,74 @@ func TestEventPublisher_ConcurrentPublish_Safe(t *testing.T) {
 		t.Errorf("expected %d events, got %d", expectedEvents, len(evts))
 	}
 }
+
+func TestEventPublisher_Session_PublishesSessionUpdate(t *testing.T) {
+	t.Parallel()
+
+	mock := newMockPublisher()
+	ep := NewEventPublisher(mock)
+
+	update := events.SessionUpdate{
+		DurationSeconds:  3650,
+		TotalTokens:      127500,
+		EstimatedCostUSD: 2.51,
+		InputTokens:      95000,
+		OutputTokens:     32500,
+		TasksRunning:     2,
+		IsPaused:         false,
+	}
+
+	ep.Session(update)
+
+	ev := mock.lastEvent()
+	if ev == nil {
+		t.Fatal("expected event to be published")
+	}
+
+	if ev.Type != events.EventSessionUpdate {
+		t.Errorf("expected EventSessionUpdate, got %v", ev.Type)
+	}
+
+	// Session events use GlobalTaskID so all subscribers receive them
+	if ev.TaskID != events.GlobalTaskID {
+		t.Errorf("expected TaskID %q, got %q", events.GlobalTaskID, ev.TaskID)
+	}
+
+	sessionData, ok := ev.Data.(events.SessionUpdate)
+	if !ok {
+		t.Fatalf("expected SessionUpdate data, got %T", ev.Data)
+	}
+
+	if sessionData.DurationSeconds != 3650 {
+		t.Errorf("expected DurationSeconds 3650, got %d", sessionData.DurationSeconds)
+	}
+	if sessionData.TotalTokens != 127500 {
+		t.Errorf("expected TotalTokens 127500, got %d", sessionData.TotalTokens)
+	}
+	if sessionData.EstimatedCostUSD != 2.51 {
+		t.Errorf("expected EstimatedCostUSD 2.51, got %f", sessionData.EstimatedCostUSD)
+	}
+	if sessionData.InputTokens != 95000 {
+		t.Errorf("expected InputTokens 95000, got %d", sessionData.InputTokens)
+	}
+	if sessionData.OutputTokens != 32500 {
+		t.Errorf("expected OutputTokens 32500, got %d", sessionData.OutputTokens)
+	}
+	if sessionData.TasksRunning != 2 {
+		t.Errorf("expected TasksRunning 2, got %d", sessionData.TasksRunning)
+	}
+	if sessionData.IsPaused {
+		t.Error("expected IsPaused false")
+	}
+}
+
+func TestEventPublisher_Session_NilPublisher_NoOp(t *testing.T) {
+	t.Parallel()
+
+	ep := NewEventPublisher(nil)
+
+	// Should not panic when publishing with nil publisher
+	ep.Session(events.SessionUpdate{
+		TasksRunning: 1,
+	})
+}

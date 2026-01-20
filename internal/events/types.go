@@ -48,6 +48,11 @@ const (
 	EventInitiativeUpdated EventType = "initiative_updated"
 	// EventInitiativeDeleted indicates an initiative was deleted.
 	EventInitiativeDeleted EventType = "initiative_deleted"
+
+	// Session-level events (not tied to a specific task)
+
+	// EventSessionUpdate indicates session metrics changed (tokens, cost, duration, running tasks).
+	EventSessionUpdate EventType = "session_update"
 )
 
 // Event represents a published event.
@@ -131,4 +136,28 @@ type HeartbeatData struct {
 type WarningData struct {
 	Phase   string `json:"phase,omitempty"`
 	Message string `json:"message"`
+}
+
+// SessionUpdate represents session-level metrics for real-time dashboard updates.
+// This event is broadcast:
+// - Every 10 seconds while tasks are running (heartbeat interval)
+// - Immediately when a task starts (tasks_running changes)
+// - Immediately when a task completes (tokens/cost change)
+// - Immediately when pause/resume is triggered (is_paused changes)
+// - No broadcasts when idle (no tasks running)
+type SessionUpdate struct {
+	// DurationSeconds is the elapsed time since session start (or first task start).
+	DurationSeconds int64 `json:"duration_seconds"`
+	// TotalTokens is the aggregate token usage across all tasks in this session.
+	TotalTokens int `json:"total_tokens"`
+	// EstimatedCostUSD is the aggregate estimated cost for this session.
+	EstimatedCostUSD float64 `json:"estimated_cost_usd"`
+	// InputTokens is the total input tokens used in this session.
+	InputTokens int `json:"input_tokens"`
+	// OutputTokens is the total output tokens used in this session.
+	OutputTokens int `json:"output_tokens"`
+	// TasksRunning is the count of tasks with status=running.
+	TasksRunning int `json:"tasks_running"`
+	// IsPaused indicates whether the executor is in a paused state.
+	IsPaused bool `json:"is_paused"`
 }

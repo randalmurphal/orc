@@ -71,6 +71,12 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		return fmt.Errorf("save state: %w", err)
 	}
 
+	// Notify session broadcaster that a task has started
+	if e.sessionBroadcaster != nil {
+		e.sessionBroadcaster.OnTaskStart(ctx)
+		defer e.sessionBroadcaster.OnTaskComplete(ctx)
+	}
+
 	// Start heartbeat goroutine to keep orphan detection happy during long-running phases.
 	// This prevents false positives where a task with a live PID is marked orphaned
 	// due to stale heartbeat. While our updated CheckOrphaned logic prioritizes PID
@@ -977,6 +983,12 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	// Save initial state with execution info
 	if err := e.backend.SaveState(s); err != nil {
 		return fmt.Errorf("save state: %w", err)
+	}
+
+	// Notify session broadcaster that a task has started
+	if e.sessionBroadcaster != nil {
+		e.sessionBroadcaster.OnTaskStart(ctx)
+		defer e.sessionBroadcaster.OnTaskComplete(ctx)
 	}
 
 	// Start heartbeat goroutine (same as ExecuteTask)
