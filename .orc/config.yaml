@@ -92,7 +92,7 @@ documentation:
         - commands
         - config-options
 timeouts:
-    phase_max: 30m0s
+    phase_max: 60m0s
     turn_max: 10m0s
     idle_warning: 5m0s
     heartbeat_interval: 30s
