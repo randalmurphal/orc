@@ -5,13 +5,13 @@ package executor
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 	"text/template"
 
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/llmutil"
 	"github.com/randalmurphal/orc/templates"
 )
 
@@ -204,42 +204,23 @@ func ValidateIterationProgress(
 	}
 	prompt := buf.String()
 
-	resp, err := client.Complete(ctx, claude.CompletionRequest{
-		Messages: []claude.Message{
-			{Role: claude.RoleUser, Content: prompt},
-		},
-		JSONSchema: iterationProgressSchema,
-	})
-
+	// Use consolidated schema executor - no fallbacks, explicit errors
+	schemaResult, err := llmutil.ExecuteWithSchema[progressResponse](ctx, client, prompt, iterationProgressSchema)
 	if err != nil {
-		slog.Warn("haiku validation API error", "error", err)
-		return ValidationContinue, "", fmt.Errorf("validation API error: %w", err)
+		slog.Warn("haiku validation failed", "error", err)
+		return ValidationContinue, "", fmt.Errorf("validation failed: %w", err)
 	}
 
-	if resp == nil {
-		return ValidationContinue, "", fmt.Errorf("validation API returned nil response")
-	}
-
-	// Parse JSON response
-	var result progressResponse
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		slog.Warn("haiku validation parse error",
-			"error", err,
-			"content", resp.Content,
-		)
-		return ValidationContinue, "", fmt.Errorf("validation parse error: %w", err)
-	}
-
-	decision := strings.ToUpper(result.Decision)
+	decision := strings.ToUpper(schemaResult.Data.Decision)
 	switch decision {
 	case "CONTINUE":
-		return ValidationContinue, result.Reason, nil
+		return ValidationContinue, schemaResult.Data.Reason, nil
 	case "RETRY":
-		return ValidationRetry, result.Reason, nil
+		return ValidationRetry, schemaResult.Data.Reason, nil
 	case "STOP":
-		return ValidationStop, result.Reason, nil
+		return ValidationStop, schemaResult.Data.Reason, nil
 	default:
-		return ValidationContinue, "", fmt.Errorf("unexpected decision: %s", result.Decision)
+		return ValidationContinue, "", fmt.Errorf("unexpected decision: %s", schemaResult.Data.Decision)
 	}
 }
 
@@ -290,33 +271,14 @@ func ValidateTaskReadiness(
 	}
 	prompt := buf.String()
 
-	resp, err := client.Complete(ctx, claude.CompletionRequest{
-		Messages: []claude.Message{
-			{Role: claude.RoleUser, Content: prompt},
-		},
-		JSONSchema: taskReadinessSchema,
-	})
-
+	// Use consolidated schema executor - no fallbacks, explicit errors
+	schemaResult, err := llmutil.ExecuteWithSchema[readinessResponse](ctx, client, prompt, taskReadinessSchema)
 	if err != nil {
-		slog.Warn("haiku spec validation API error", "error", err)
-		return true, nil, fmt.Errorf("spec validation API error: %w", err)
+		slog.Warn("haiku spec validation failed", "error", err)
+		return true, nil, fmt.Errorf("spec validation failed: %w", err)
 	}
 
-	if resp == nil {
-		return true, nil, fmt.Errorf("spec validation API returned nil response")
-	}
-
-	// Parse JSON response
-	var result readinessResponse
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		slog.Warn("haiku spec validation parse error",
-			"error", err,
-			"content", resp.Content,
-		)
-		return true, nil, fmt.Errorf("spec validation parse error: %w", err)
-	}
-
-	return result.Ready, result.Suggestions, nil
+	return schemaResult.Data.Ready, schemaResult.Data.Suggestions, nil
 }
 
 // CriteriaValidationResult holds the result of success criteria validation.
@@ -380,36 +342,17 @@ func ValidateSuccessCriteria(
 	}
 	prompt := buf.String()
 
-	resp, err := client.Complete(ctx, claude.CompletionRequest{
-		Messages: []claude.Message{
-			{Role: claude.RoleUser, Content: prompt},
-		},
-		JSONSchema: criteriaCompletionSchema,
-	})
-
+	// Use consolidated schema executor - no fallbacks, explicit errors
+	schemaResult, err := llmutil.ExecuteWithSchema[criteriaCompletionResponse](ctx, client, prompt, criteriaCompletionSchema)
 	if err != nil {
-		slog.Warn("criteria validation API error", "error", err)
-		return nil, fmt.Errorf("criteria validation API error: %w", err)
-	}
-
-	if resp == nil {
-		return nil, fmt.Errorf("criteria validation API returned nil response")
-	}
-
-	// Parse JSON response
-	var result criteriaCompletionResponse
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		slog.Warn("criteria validation parse error",
-			"error", err,
-			"content", resp.Content,
-		)
-		return nil, fmt.Errorf("criteria validation parse error: %w", err)
+		slog.Warn("criteria validation failed", "error", err)
+		return nil, fmt.Errorf("criteria validation failed: %w", err)
 	}
 
 	return &CriteriaValidationResult{
-		AllMet:         result.AllMet,
-		Criteria:       result.Criteria,
-		MissingSummary: result.MissingSummary,
+		AllMet:         schemaResult.Data.AllMet,
+		Criteria:       schemaResult.Data.Criteria,
+		MissingSummary: schemaResult.Data.MissingSummary,
 	}, nil
 }
 

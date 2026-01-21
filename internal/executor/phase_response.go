@@ -187,21 +187,24 @@ func HasJSONCompletion(content string) bool {
 
 // CheckPhaseCompletionJSON parses JSON content and returns the phase status.
 // Content MUST be pure JSON from --json-schema. No extraction, no mixed content.
-func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
+// Returns error if JSON parsing fails - callers must handle this explicitly.
+// NO silent continue on parse failure - that hides bugs.
+func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, error) {
 	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
 	if err != nil {
-		return PhaseStatusContinue, ""
+		return PhaseStatusContinue, "", fmt.Errorf("invalid phase completion JSON: %w (content=%q)",
+			err, truncateForPrompt(content, 200))
 	}
 
 	switch resp.Status {
 	case "complete":
-		return PhaseStatusComplete, resp.Summary
+		return PhaseStatusComplete, resp.Summary, nil
 	case "blocked":
-		return PhaseStatusBlocked, resp.Reason
+		return PhaseStatusBlocked, resp.Reason, nil
 	case "continue":
-		return PhaseStatusContinue, resp.Reason
+		return PhaseStatusContinue, resp.Reason, nil
 	default:
-		return PhaseStatusContinue, ""
+		return PhaseStatusContinue, "", fmt.Errorf("unexpected status %q in phase response", resp.Status)
 	}
 }
 
