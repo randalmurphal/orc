@@ -625,6 +625,81 @@ func (d *DatabaseBackend) GetTranscripts(taskID string) ([]Transcript, error) {
 	return result, nil
 }
 
+// GetTranscriptsPaginated retrieves paginated transcripts with filtering.
+func (d *DatabaseBackend) GetTranscriptsPaginated(taskID string, opts TranscriptPaginationOpts) ([]Transcript, PaginationResult, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Convert storage opts to db opts
+	dbOpts := db.TranscriptPaginationOpts{
+		Phase:        opts.Phase,
+		IterationMin: opts.IterationMin,
+		IterationMax: opts.IterationMax,
+		Cursor:       opts.Cursor,
+		Limit:        opts.Limit,
+		Direction:    opts.Direction,
+	}
+
+	dbTranscripts, dbPagination, err := d.db.GetTranscriptsPaginated(taskID, dbOpts)
+	if err != nil {
+		return nil, PaginationResult{}, fmt.Errorf("get paginated transcripts: %w", err)
+	}
+
+	// Convert db.Transcript to storage.Transcript
+	result := make([]Transcript, len(dbTranscripts))
+	for i, t := range dbTranscripts {
+		result[i] = Transcript{
+			ID:                  t.ID,
+			TaskID:              t.TaskID,
+			Phase:               t.Phase,
+			SessionID:           t.SessionID,
+			MessageUUID:         t.MessageUUID,
+			ParentUUID:          t.ParentUUID,
+			Type:                t.Type,
+			Role:                t.Role,
+			Content:             t.Content,
+			Model:               t.Model,
+			InputTokens:         t.InputTokens,
+			OutputTokens:        t.OutputTokens,
+			CacheCreationTokens: t.CacheCreationTokens,
+			CacheReadTokens:     t.CacheReadTokens,
+			ToolCalls:           t.ToolCalls,
+			ToolResults:         t.ToolResults,
+			Timestamp:           t.Timestamp.UnixMilli(),
+		}
+	}
+
+	// Convert db.PaginationResult to storage.PaginationResult
+	pagination := PaginationResult{
+		NextCursor: dbPagination.NextCursor,
+		PrevCursor: dbPagination.PrevCursor,
+		HasMore:    dbPagination.HasMore,
+		TotalCount: dbPagination.TotalCount,
+	}
+
+	return result, pagination, nil
+}
+
+// GetPhaseSummary returns transcript counts grouped by phase.
+func (d *DatabaseBackend) GetPhaseSummary(taskID string) ([]PhaseSummary, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbSummaries, err := d.db.GetPhaseSummary(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get phase summary: %w", err)
+	}
+
+	result := make([]PhaseSummary, len(dbSummaries))
+	for i, s := range dbSummaries {
+		result[i] = PhaseSummary{
+			Phase:           s.Phase,
+			TranscriptCount: s.TranscriptCount,
+		}
+	}
+	return result, nil
+}
+
 // SearchTranscripts performs FTS search across transcripts.
 func (d *DatabaseBackend) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 	d.mu.RLock()
