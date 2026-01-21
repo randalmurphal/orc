@@ -109,7 +109,22 @@ Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
 ```
 
 **Note:** `--json-schema` only works with `--print` mode, not `stream-json` sessions.
-For session-based output, use `ExtractPhaseResponse()` which falls back to Haiku extraction.
+
+### Extraction Functions
+
+| Function | Use Case |
+|----------|----------|
+| `CheckPhaseCompletionMixed()` | **Recommended for sessions** - handles mixed text+JSON |
+| `ExtractPhaseResponseFromMixed()` | Returns `*PhaseResponse` from mixed content |
+| `CheckPhaseCompletionJSON()` | Pure JSON only - use for structured output mode |
+| `ExtractPhaseResponse()` | With LLM fallback (requires client) |
+
+**Mixed content extraction order:**
+1. Direct JSON parsing (pure JSON output)
+2. JSON in markdown code blocks (```json ... ```)
+3. JSON object by brace matching (finds `{"status": ...}` pattern)
+
+Session-based executors use `CheckPhaseCompletionMixed()` to handle Claude's natural language + JSON output pattern.
 
 ## Phase Retry Map
 

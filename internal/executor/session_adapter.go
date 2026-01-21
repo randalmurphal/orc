@@ -251,8 +251,8 @@ collectLoop:
 		Duration: time.Since(start),
 	}
 
-	// Check completion status
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
+	// Check completion status - use mixed extraction to handle text+JSON output
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionMixed(turnResult.Content)
 
 	// Extract metadata from result message
 	if result != nil {
@@ -323,7 +323,8 @@ streamLoop:
 		Duration: time.Since(start),
 	}
 
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
+	// Check completion status - use mixed extraction to handle text+JSON output
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionMixed(turnResult.Content)
 
 	if result != nil {
 		turnResult.NumTurns = result.NumTurns
@@ -500,7 +501,8 @@ streamLoop:
 		Duration: time.Since(start),
 	}
 
-	turnResult.Status, turnResult.Reason = CheckPhaseCompletionJSON(turnResult.Content)
+	// Check completion status - use mixed extraction to handle text+JSON output
+	turnResult.Status, turnResult.Reason = CheckPhaseCompletionMixed(turnResult.Content)
 
 	if result != nil {
 		turnResult.NumTurns = result.NumTurns
