@@ -19,6 +19,25 @@ const (
 	OrcDir = ".orc"
 )
 
+// ExpandPath expands ~ to the user's home directory.
+// Returns the original path unchanged if expansion fails or not needed.
+func ExpandPath(path string) string {
+	if path == "" || !strings.HasPrefix(path, "~") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == "~" {
+		return home
+	}
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(home, path[2:])
+	}
+	return path
+}
+
 // AutomationProfile defines preset automation configurations.
 type AutomationProfile string
 
