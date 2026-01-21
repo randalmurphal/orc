@@ -15,52 +15,9 @@ import (
 	"github.com/randalmurphal/orc/templates"
 )
 
-// ValidationDecision represents Haiku's judgment on iteration progress.
-type ValidationDecision int
-
-const (
-	// ValidationContinue indicates the iteration is on track, keep going.
-	ValidationContinue ValidationDecision = iota
-	// ValidationRetry indicates the approach is going off track, redirect.
-	ValidationRetry
-	// ValidationStop indicates the task is fundamentally blocked.
-	ValidationStop
-)
-
-// String returns a human-readable representation of the decision.
-func (v ValidationDecision) String() string {
-	switch v {
-	case ValidationContinue:
-		return "continue"
-	case ValidationRetry:
-		return "retry"
-	case ValidationStop:
-		return "stop"
-	default:
-		return "unknown"
-	}
-}
-
 // JSON schemas for structured validation output.
 // Using schemas ensures consistent, parseable output.
 const (
-	// iterationProgressSchema forces structured output for progress validation.
-	iterationProgressSchema = `{
-		"type": "object",
-		"properties": {
-			"decision": {
-				"type": "string",
-				"enum": ["CONTINUE", "RETRY", "STOP"],
-				"description": "CONTINUE if on track, RETRY if off track, STOP if blocked"
-			},
-			"reason": {
-				"type": "string",
-				"description": "Brief explanation of the decision"
-			}
-		},
-		"required": ["decision", "reason"]
-	}`
-
 	// taskReadinessSchema forces structured output for spec validation.
 	taskReadinessSchema = `{
 		"type": "object",
@@ -122,12 +79,6 @@ const (
 	}`
 )
 
-// progressResponse is the JSON structure for iteration progress validation.
-type progressResponse struct {
-	Decision string `json:"decision"`
-	Reason   string `json:"reason"`
-}
-
 // readinessResponse is the JSON structure for spec readiness validation.
 type readinessResponse struct {
 	Ready       bool     `json:"ready"`
@@ -147,81 +98,6 @@ type criteriaCompletionResponse struct {
 	AllMet         bool              `json:"all_met"`
 	Criteria       []CriterionStatus `json:"criteria"`
 	MissingSummary string            `json:"missing_summary"`
-}
-
-// ValidateIterationProgress uses Haiku to assess whether an iteration is on track.
-// It evaluates the iteration output against the spec's success criteria.
-//
-// Returns:
-//   - ValidationContinue: The work is progressing toward the success criteria
-//   - ValidationRetry: The approach has diverged, needs redirection
-//   - ValidationStop: Fundamentally blocked, cannot proceed
-//
-// On error (API failure, timeout, parse failure), returns the error to let caller decide:
-//   - If config.Validation.FailOnAPIError is true: Fail the task (resumable)
-//   - If config.Validation.FailOnAPIError is false: Fail open, continue execution
-func ValidateIterationProgress(
-	ctx context.Context,
-	client claude.Client,
-	specContent string,
-	iterationOutput string,
-) (ValidationDecision, string, error) {
-	if client == nil {
-		return ValidationContinue, "", nil
-	}
-
-	// Skip validation if no spec to validate against
-	if specContent == "" {
-		return ValidationContinue, "", nil
-	}
-
-	// Truncate long outputs to keep token costs reasonable
-	maxOutputLen := 8000
-	truncatedOutput := iterationOutput
-	if len(iterationOutput) > maxOutputLen {
-		truncatedOutput = iterationOutput[:maxOutputLen] + "\n...[truncated]"
-	}
-
-	// Load and execute template
-	tmplContent, err := templates.Prompts.ReadFile("prompts/haiku_iteration_progress.md")
-	if err != nil {
-		return ValidationContinue, "", fmt.Errorf("read iteration progress template: %w", err)
-	}
-
-	tmpl, err := template.New("iteration_progress").Parse(string(tmplContent))
-	if err != nil {
-		return ValidationContinue, "", fmt.Errorf("parse iteration progress template: %w", err)
-	}
-
-	data := map[string]any{
-		"SpecContent":     specContent,
-		"IterationOutput": truncatedOutput,
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return ValidationContinue, "", fmt.Errorf("execute iteration progress template: %w", err)
-	}
-	prompt := buf.String()
-
-	// Use consolidated schema executor - no fallbacks, explicit errors
-	schemaResult, err := llmutil.ExecuteWithSchema[progressResponse](ctx, client, prompt, iterationProgressSchema)
-	if err != nil {
-		slog.Warn("haiku validation failed", "error", err)
-		return ValidationContinue, "", fmt.Errorf("validation failed: %w", err)
-	}
-
-	decision := strings.ToUpper(schemaResult.Data.Decision)
-	switch decision {
-	case "CONTINUE":
-		return ValidationContinue, schemaResult.Data.Reason, nil
-	case "RETRY":
-		return ValidationRetry, schemaResult.Data.Reason, nil
-	case "STOP":
-		return ValidationStop, schemaResult.Data.Reason, nil
-	default:
-		return ValidationContinue, "", fmt.Errorf("unexpected decision: %s", schemaResult.Data.Decision)
-	}
 }
 
 // ValidateTaskReadiness checks if a task has a quality spec before execution.
@@ -364,15 +240,21 @@ func FormatCriteriaFeedback(result *CriteriaValidationResult) string {
 
 	var sb strings.Builder
 	sb.WriteString("## Criteria Validation Failed\n\n")
-	sb.WriteString("Not all success criteria from the spec are satisfied. You must address the following:\n\n")
+	sb.WriteString("**IMPORTANT:** External validation determined that NOT ALL success criteria from the spec are satisfied.\n\n")
+	sb.WriteString("You MUST:\n")
+	sb.WriteString("1. Re-read the full specification carefully\n")
+	sb.WriteString("2. Study each finding below to understand why it failed\n")
+	sb.WriteString("3. Verify that your implementation actually meets 100% of the criteria\n")
+	sb.WriteString("4. Fix any gaps before claiming completion again\n\n")
 
+	sb.WriteString("### Failed Criteria\n\n")
 	for _, c := range result.Criteria {
 		if c.Status != "MET" {
-			sb.WriteString(fmt.Sprintf("### %s: %s\n", c.ID, c.Status))
+			sb.WriteString(fmt.Sprintf("**%s: %s**\n", c.ID, c.Status))
 			if c.Description != "" {
-				sb.WriteString(fmt.Sprintf("**Criterion:** %s\n", c.Description))
+				sb.WriteString(fmt.Sprintf("- Criterion: %s\n", c.Description))
 			}
-			sb.WriteString(fmt.Sprintf("**Issue:** %s\n\n", c.Reason))
+			sb.WriteString(fmt.Sprintf("- Issue: %s\n\n", c.Reason))
 		}
 	}
 
@@ -382,6 +264,6 @@ func FormatCriteriaFeedback(result *CriteriaValidationResult) string {
 		sb.WriteString("\n\n")
 	}
 
-	sb.WriteString("Please address all NOT_MET and PARTIAL criteria before claiming completion.\n")
+	sb.WriteString("Do not claim completion until ALL criteria are fully satisfied. If you believe a criterion is already met but was marked NOT_MET, verify your implementation by re-reading the relevant code and tests.\n")
 	return sb.String()
 }

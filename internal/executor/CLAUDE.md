@@ -32,7 +32,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `resource_tracker.go` | Orphan process detection |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
-| `haiku_validation.go` | Haiku-based spec and progress validation |
+| `haiku_validation.go` | Haiku-based spec and criteria validation |
 | `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
 | `publish.go` | `EventPublisher` for real-time events |
 | `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
@@ -243,10 +243,11 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 | Component | File | Purpose |
 |-----------|------|---------|
 | Backpressure | `backpressure.go:146` | Runs tests/lint/build after `{"status": "complete"}` |
-| Haiku Validation | `haiku_validation.go:53` | External LLM validates progress against spec |
-| Config Helpers | `config.go:2138` | `ShouldRunBackpressure()`, `ShouldValidateSpec()` |
+| Haiku Spec Validation | `haiku_validation.go` | Validates spec quality before execution (pre-gate) |
+| Haiku Criteria Validation | `haiku_validation.go` | Validates success criteria on completion claim |
+| Config Helpers | `config.go:2138` | `ShouldRunBackpressure()`, `ShouldValidateSpec()`, `ShouldValidateCriteria()` |
 
-**Flow:** Agent outputs `{"status": "complete"}` → Backpressure runs → If fail, inject context and continue iteration.
+**Flow:** Agent outputs `{"status": "complete"}` → Backpressure runs → Criteria validation runs → If any fail, inject context and continue iteration.
 
 **API Error Handling:** Controlled by `config.Validation.FailOnAPIError`:
 - `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
@@ -328,7 +329,7 @@ if err != nil {
 | File | Schema Constant | Purpose |
 |------|-----------------|---------|
 | `phase_response.go` | `PhaseCompletionSchema`, `PhaseCompletionWithArtifactSchema` | Phase completion |
-| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema`, `criteriaCompletionSchema` | Validation |
+| `haiku_validation.go` | `taskReadinessSchema`, `criteriaCompletionSchema` | Validation |
 | `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | Code review |
 | `qa.go` | `QAResultSchema` | QA session |
 | `../gate/gate.go` | `gateDecisionSchema` | Gate decisions |
@@ -339,15 +340,15 @@ if err != nil {
 
 ```go
 // ❌ WRONG - manual parsing with silent failure risk
-var result progressResponse
+var result readinessResponse
 if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-    return ValidationContinue, "", nil  // BUG: silent continue!
+    return true, nil, nil  // BUG: silent success on parse error!
 }
 
 // ✅ CORRECT - use ExecuteWithSchema which returns error
-schemaResult, err := llmutil.ExecuteWithSchema[progressResponse](ctx, client, prompt, schema)
+schemaResult, err := llmutil.ExecuteWithSchema[readinessResponse](ctx, client, prompt, schema)
 if err != nil {
-    return ValidationContinue, "", err  // Error propagated to caller
+    return true, nil, err  // Error propagated to caller
 }
 // schemaResult.Data is already typed and parsed
 ```

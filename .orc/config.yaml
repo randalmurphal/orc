@@ -154,6 +154,12 @@ storage:
         final_state: true
         transcripts: false
         context_summary: true
+validation:
+    enabled: false  # Temporarily disabled - haiku API returning empty content consistently
+    validate_specs: false
+    validate_progress: false
+    validate_criteria: false
+    fail_on_api_error: true
 model: claude-opus-4-5-20251101
 max_iterations: 30
 timeout: 10m0s

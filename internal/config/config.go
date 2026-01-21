@@ -472,10 +472,6 @@ type ValidationConfig struct {
 	// ValidateSpecs enables Haiku-based spec quality validation before execution (default: true)
 	ValidateSpecs bool `yaml:"validate_specs"`
 
-	// ValidateProgress enables Haiku-based progress validation during iteration (default: false)
-	// This is more expensive and may slow down execution.
-	ValidateProgress bool `yaml:"validate_progress"`
-
 	// ValidateCriteria enables Haiku-based success criteria validation on implement completion
 	// (default: true). This checks that all spec success criteria are met before accepting
 	// phase completion, ensuring the agent actually did what the spec required.
@@ -1331,7 +1327,6 @@ func Default() *Config {
 			BuildCommand:     "",                             // Auto-detect
 			TypeCheckCommand: "",                             // Auto-detect
 			ValidateSpecs:    true,                           // Haiku validates spec quality
-			ValidateProgress: true,                           // Haiku validates iteration progress
 			ValidateCriteria: true,                           // Haiku validates success criteria on completion
 			FailOnAPIError:   true,                           // Fail properly on API errors (resumable)
 		},
@@ -1667,7 +1662,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceBuild:     false,
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
-			ValidateProgress: false,
 			ValidateCriteria: false, // Fast: skip criteria validation for speed
 			FailOnAPIError:   false, // Fast: fail open for speed
 		}
@@ -1682,7 +1676,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceBuild:     true,
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
-			ValidateProgress: true,
 			ValidateCriteria: true, // Safe: validate criteria
 			FailOnAPIError:   true, // Safe: fail properly on API errors
 		}
@@ -1697,7 +1690,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceBuild:     true,
 			EnforceTypeCheck: true,
 			ValidateSpecs:    true,
-			ValidateProgress: true,
 			ValidateCriteria: true, // Strict: always validate criteria
 			FailOnAPIError:   true, // Strict: always fail properly on API errors
 		}
@@ -1712,7 +1704,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			EnforceBuild:     false,
 			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
-			ValidateProgress: true,
 			ValidateCriteria: true, // Auto: validate criteria
 			FailOnAPIError:   true, // Auto: fail properly on API errors (quality-first)
 		}
@@ -2241,14 +2232,6 @@ func (c *Config) ShouldRunBackpressure(weight string) bool {
 // ShouldValidateSpec returns true if Haiku spec validation should run.
 func (c *Config) ShouldValidateSpec(weight string) bool {
 	if !c.Validation.Enabled || !c.Validation.ValidateSpecs {
-		return false
-	}
-	return c.ShouldValidateForWeight(weight)
-}
-
-// ShouldValidateProgress returns true if Haiku progress validation should run.
-func (c *Config) ShouldValidateProgress(weight string) bool {
-	if !c.Validation.Enabled || !c.Validation.ValidateProgress {
 		return false
 	}
 	return c.ShouldValidateForWeight(weight)
