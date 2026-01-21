@@ -207,7 +207,7 @@ func (e *Executor) handleSyncConflict(result *git.SyncResult, taskID string, syn
 		// Create conflict resolver
 		resolver := NewConflictResolver(
 			WithResolverGitSvc(gitOps),
-			WithResolverSessionManager(e.sessionMgr),
+			WithResolverClaudePath(e.claudePath),
 			WithResolverLogger(e.logger),
 			WithResolverConfig(e.orcConfig.Completion.Finalize),
 			WithResolverWorkingDir(e.worktreePath),

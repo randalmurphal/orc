@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
@@ -40,7 +39,7 @@ import (
 // This executor supports retry/escalation back to the implement phase if
 // issues persist beyond configured thresholds.
 type FinalizeExecutor struct {
-	manager      session.SessionManager
+	claudePath   string // Path to claude binary
 	gitSvc       *git.Git
 	publisher    *EventPublisher
 	logger       *slog.Logger
@@ -50,6 +49,9 @@ type FinalizeExecutor struct {
 	taskDir      string
 	stateUpdater func(*state.State)
 	backend      storage.Backend
+
+	// MCP config path (generated for worktree)
+	mcpConfigPath string
 }
 
 // FinalizeExecutorOption configures a FinalizeExecutor.
@@ -104,12 +106,22 @@ func WithFinalizeBackend(b storage.Backend) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.backend = b }
 }
 
+// WithFinalizeClaudePath sets the path to the claude binary.
+func WithFinalizeClaudePath(path string) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.claudePath = path }
+}
+
+// WithFinalizeMCPConfig sets the MCP config path.
+func WithFinalizeMCPConfig(path string) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.mcpConfigPath = path }
+}
+
 // NewFinalizeExecutor creates a new finalize executor.
-func NewFinalizeExecutor(mgr session.SessionManager, opts ...FinalizeExecutorOption) *FinalizeExecutor {
+func NewFinalizeExecutor(opts ...FinalizeExecutorOption) *FinalizeExecutor {
 	e := &FinalizeExecutor{
-		manager:   mgr,
-		logger:    slog.Default(),
-		publisher: NewEventPublisher(nil),
+		claudePath: "claude",
+		logger:     slog.Default(),
+		publisher:  NewEventPublisher(nil),
 		config: ExecutorConfig{
 			MaxIterations:      10, // Lower for finalize - most work is git ops
 			CheckpointInterval: 1,
@@ -118,7 +130,9 @@ func NewFinalizeExecutor(mgr session.SessionManager, opts ...FinalizeExecutorOpt
 	}
 
 	for _, opt := range opts {
-		opt(e)
+		if opt != nil {
+			opt(e)
+		}
 	}
 
 	return e
@@ -571,10 +585,6 @@ func (e *FinalizeExecutor) resolveConflicts(
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
 ) (bool, error) {
-	if e.manager == nil {
-		return false, fmt.Errorf("session manager not available for conflict resolution")
-	}
-
 	// Build conflict resolution prompt
 	prompt := buildConflictResolutionPrompt(t, conflictFiles, cfg)
 
@@ -587,39 +597,35 @@ func (e *FinalizeExecutor) resolveConflicts(
 		e.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID, "phase", p.ID)
 	}
 
-	// Create session for conflict resolution
-	adapterOpts := SessionAdapterOptions{
-		SessionID:   fmt.Sprintf("%s-conflict-resolution", t.ID),
-		Model:       modelSetting.Model,
-		Workdir:     e.workingDir,
-		MaxTurns:    5, // Limited turns for conflict resolution
-		Persistence: false,
+	// Create ClaudeExecutor for conflict resolution
+	claudeOpts := []ClaudeExecutorOption{
+		WithClaudePath(e.claudePath),
+		WithClaudeWorkdir(e.workingDir),
+		WithClaudeModel(modelSetting.Model),
+		WithClaudeSessionID(fmt.Sprintf("%s-conflict-resolution", t.ID)),
+		WithClaudeMaxTurns(5), // Limited turns for conflict resolution
+		WithClaudeLogger(e.logger),
+	}
+	if e.mcpConfigPath != "" {
+		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
+	}
+	claudeExec := NewClaudeExecutor(claudeOpts...)
+
+	// Execute conflict resolution (without JSON schema - freeform response)
+	_, execErr := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
+	if execErr != nil {
+		return false, fmt.Errorf("conflict resolution turn: %w", execErr)
 	}
 
-	adapter, err := NewSessionAdapter(ctx, e.manager, adapterOpts)
-	if err != nil {
-		return false, fmt.Errorf("create conflict resolution session: %w", err)
-	}
-	defer func() { _ = adapter.Close() }()
-
-	// Execute conflict resolution
-	turnResult, err := adapter.ExecuteTurn(ctx, prompt)
-	if err != nil {
-		return false, fmt.Errorf("conflict resolution turn: %w", err)
+	// Verify no unmerged files remain (Claude should have resolved them)
+	unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+	if strings.TrimSpace(unmerged) == "" {
+		// All conflicts resolved, commit the merge
+		_, commitErr := e.gitSvc.Context().RunGit("commit", "--no-edit")
+		return commitErr == nil, commitErr
 	}
 
-	// Check if Claude indicated success
-	if turnResult.Status == PhaseStatusComplete {
-		// Verify no unmerged files remain
-		unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
-		if strings.TrimSpace(unmerged) == "" {
-			// All conflicts resolved, commit the merge
-			_, commitErr := e.gitSvc.Context().RunGit("commit", "--no-edit")
-			return commitErr == nil, commitErr
-		}
-	}
-
-	return false, fmt.Errorf("conflict resolution incomplete")
+	return false, fmt.Errorf("conflict resolution incomplete: unmerged files remain")
 }
 
 // resolveRebaseConflicts resolves conflicts during rebase.
@@ -744,10 +750,6 @@ func (e *FinalizeExecutor) tryFixTests(
 	s *state.State,
 	testResult *ParsedTestResult,
 ) (bool, error) {
-	if e.manager == nil {
-		return false, fmt.Errorf("session manager not available")
-	}
-
 	// Build fix prompt
 	prompt := buildTestFixPrompt(t, testResult)
 
@@ -760,29 +762,24 @@ func (e *FinalizeExecutor) tryFixTests(
 		e.logger.Debug("extended thinking enabled for test fix", "task", t.ID, "phase", p.ID)
 	}
 
-	// Create session for test fixing
-	adapterOpts := SessionAdapterOptions{
-		SessionID:   fmt.Sprintf("%s-test-fix", t.ID),
-		Model:       modelSetting.Model,
-		Workdir:     e.workingDir,
-		MaxTurns:    5,
-		Persistence: false,
+	// Create ClaudeExecutor for test fixing
+	claudeOpts := []ClaudeExecutorOption{
+		WithClaudePath(e.claudePath),
+		WithClaudeWorkdir(e.workingDir),
+		WithClaudeModel(modelSetting.Model),
+		WithClaudeSessionID(fmt.Sprintf("%s-test-fix", t.ID)),
+		WithClaudeMaxTurns(5),
+		WithClaudeLogger(e.logger),
 	}
-
-	adapter, err := NewSessionAdapter(ctx, e.manager, adapterOpts)
-	if err != nil {
-		return false, fmt.Errorf("create test fix session: %w", err)
+	if e.mcpConfigPath != "" {
+		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
 	}
-	defer func() { _ = adapter.Close() }()
+	claudeExec := NewClaudeExecutor(claudeOpts...)
 
-	// Execute fix
-	turnResult, err := adapter.ExecuteTurn(ctx, prompt)
+	// Execute test fix (without JSON schema - freeform response)
+	_, err := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
 	if err != nil {
 		return false, fmt.Errorf("test fix turn: %w", err)
-	}
-
-	if turnResult.Status != PhaseStatusComplete {
-		return false, fmt.Errorf("test fix incomplete")
 	}
 
 	// Re-run tests to verify fix

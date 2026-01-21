@@ -616,7 +616,7 @@ Tokens come from Claude Code output (JSON format):
 
 Example: A 28K token prompt might report `input_tokens: 56` with `cache_read_input_tokens: 27944`. Displaying just the raw value would be misleading.
 
-All executors use `EffectiveInputTokens()` to show the actual context size. See `internal/executor/session_adapter.go` for implementation.
+All executors use `EffectiveInputTokens()` to show the actual context size. See `llmkit/claude.TurnResult.Usage` and `internal/executor/claude_executor.go` for implementation.
 
 ### Pricing Updates
 

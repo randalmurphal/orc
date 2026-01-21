@@ -450,3 +450,47 @@ func TestJSONLSyncer_QueueOperationFiltered(t *testing.T) {
 		t.Error("queue-operation messages should not be stored")
 	}
 }
+
+func TestComputeJSONLPath(t *testing.T) {
+	// Test basic path computation
+	path, err := ComputeJSONLPath("/home/user/repos/project", "test-session-123")
+	if err != nil {
+		t.Fatalf("ComputeJSONLPath failed: %v", err)
+	}
+
+	// Should contain normalized path and session ID
+	if !strings.Contains(path, "-home-user-repos-project") {
+		t.Errorf("path should contain normalized workdir, got: %s", path)
+	}
+	if !strings.Contains(path, "test-session-123.jsonl") {
+		t.Errorf("path should contain session ID, got: %s", path)
+	}
+	if !strings.Contains(path, ".claude/projects/") {
+		t.Errorf("path should be in .claude/projects/, got: %s", path)
+	}
+}
+
+func TestComputeJSONLPath_EmptySessionID(t *testing.T) {
+	_, err := ComputeJSONLPath("/home/user/project", "")
+	if err == nil {
+		t.Error("ComputeJSONLPath should fail with empty session ID")
+	}
+}
+
+func TestNormalizeProjectPath(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"/home/user/repos/project", "-home-user-repos-project"},
+		{"/tmp/worktree", "-tmp-worktree"},
+		{"relative/path", "-relative-path"},
+	}
+
+	for _, tt := range tests {
+		result := normalizeProjectPath(tt.input)
+		if result != tt.expected {
+			t.Errorf("normalizeProjectPath(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}

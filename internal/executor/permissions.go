@@ -65,7 +65,7 @@ func (e *Executor) rebuildClient() {
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees
-	claudePath := resolveClaudePath(e.config.ClaudePath)
+	claudePath := ResolveClaudePath(e.config.ClaudePath)
 	if claudePath != "" {
 		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}

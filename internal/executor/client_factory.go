@@ -19,7 +19,7 @@ type ClientFactory struct {
 func NewClientFactory(cfg *Config) *ClientFactory {
 	return &ClientFactory{
 		config:     cfg,
-		claudePath: resolveClaudePath(cfg.ClaudePath),
+		claudePath: ResolveClaudePath(cfg.ClaudePath),
 	}
 }
 

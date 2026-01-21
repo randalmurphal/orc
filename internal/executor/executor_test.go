@@ -73,17 +73,17 @@ func TestResolveClaudePath(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := resolveClaudePath(tc.input)
+			result := ResolveClaudePath(tc.input)
 
 			if tc.wantSame && result != tc.input {
-				t.Errorf("resolveClaudePath(%q) = %q, want %q", tc.input, result, tc.input)
+				t.Errorf("ResolveClaudePath(%q) = %q, want %q", tc.input, result, tc.input)
 			}
 
 			if tc.wantAbs && result != "" && !filepath.IsAbs(result) {
 				// Only check for absolute if we expect it AND claude is actually in PATH
 				// If claude isn't installed, it should fall back to the original
 				if tc.input != "claude" {
-					t.Errorf("resolveClaudePath(%q) = %q, want absolute path", tc.input, result)
+					t.Errorf("ResolveClaudePath(%q) = %q, want absolute path", tc.input, result)
 				}
 			}
 		})
@@ -203,7 +203,7 @@ func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
 }
 
 func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
-	// Test that resolveClaudePath falls back to common locations
+	// Test that ResolveClaudePath falls back to common locations
 	// when PATH lookup fails
 
 	// Create a temp directory with a fake claude binary
@@ -223,9 +223,9 @@ func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
 	_ = os.Setenv("PATH", t.TempDir())
 	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
-	result := resolveClaudePath("claude")
+	result := ResolveClaudePath("claude")
 	if result != fakeClaude {
-		t.Errorf("resolveClaudePath(\"claude\") = %q, want %q (from common locations)", result, fakeClaude)
+		t.Errorf("ResolveClaudePath(\"claude\") = %q, want %q (from common locations)", result, fakeClaude)
 	}
 }
 
@@ -289,16 +289,16 @@ func TestNew(t *testing.T) {
 		t.Error("executor checkpointStore is nil when EnableCheckpoints=true")
 	}
 
-	// Verify session manager is initialized (required for session-based execution)
-	if e.sessionMgr == nil {
-		t.Error("executor sessionMgr is nil - session-based execution won't work")
+	// Verify claude path is set (required for ClaudeExecutor-based execution)
+	if e.claudePath == "" {
+		t.Error("executor claudePath is empty - ClaudeExecutor won't work")
 	}
 }
 
-// TestNew_SessionManagerWithClaudePath verifies that the session manager is initialized
-// with the Claude path. This is critical for the fix to TASK-309: without the Claude path,
-// session-based execution fails to spawn Claude processes when worktrees are disabled.
-func TestNew_SessionManagerWithClaudePath(t *testing.T) {
+// TestNew_ClaudePathResolution verifies that the claude path is resolved
+// correctly. This is critical: without the Claude path, ClaudeExecutor-based
+// execution fails to spawn Claude processes.
+func TestNew_ClaudePathResolution(t *testing.T) {
 	// Create a fake claude binary to test with
 	tmpDir := t.TempDir()
 	fakeClaude := filepath.Join(tmpDir, "claude")
@@ -315,15 +315,15 @@ func TestNew_SessionManagerWithClaudePath(t *testing.T) {
 		t.Fatal("New() returned nil")
 	}
 
-	// The session manager must be initialized for session-based execution to work
-	if e.sessionMgr == nil {
-		t.Fatal("sessionMgr is nil - session-based execution will fail")
+	// The claude path must be set for ClaudeExecutor-based execution to work
+	if e.claudePath == "" {
+		t.Fatal("claudePath is empty - ClaudeExecutor will fail")
 	}
 
-	// While we can't directly inspect the session manager's internal claudePath,
-	// we verify the executor was created successfully with a custom Claude path.
-	// The fix in executor.go line 268 ensures session.WithClaudePath(claudePath)
-	// is passed to the session manager, which enables proper Claude spawning.
+	// Verify the path was resolved to an absolute path
+	if !filepath.IsAbs(e.claudePath) {
+		t.Errorf("claudePath should be absolute, got %q", e.claudePath)
+	}
 }
 
 func TestNewWithNilConfig(t *testing.T) {

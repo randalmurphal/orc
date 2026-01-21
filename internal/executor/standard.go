@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
@@ -18,21 +17,24 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// StandardExecutor executes phases using session-based LLM interaction
-// with completion marker detection. This is the recommended executor
-// for small to medium tasks.
+// StandardExecutor executes phases using ClaudeCLI with headless mode (-p)
+// and JSON schema for structured completion output. This is the recommended
+// executor for small to medium tasks.
 //
-// Session Strategy: Creates a session per phase, maintains context within phase
+// Execution Strategy: ClaudeCLI per phase with --json-schema for completion detection
 // Checkpointing: Only on phase completion
 // Iteration Limit: Configurable, defaults based on weight
 type StandardExecutor struct {
-	manager    session.SessionManager
+	claudePath string // Path to claude binary
 	gitSvc     *git.Git
 	publisher  *EventPublisher
 	logger     *slog.Logger
 	config     ExecutorConfig
 	workingDir string
 	backend    storage.Backend // Storage backend for loading initiatives
+
+	// MCP config path (generated for worktree)
+	mcpConfigPath string
 
 	// Resume support: if set, use Claude's --resume flag instead of starting fresh
 	resumeSessionID string
@@ -97,12 +99,22 @@ func WithStandardResumeSessionID(id string) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.resumeSessionID = id }
 }
 
+// WithStandardClaudePath sets the path to the claude binary.
+func WithStandardClaudePath(path string) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.claudePath = path }
+}
+
+// WithStandardMCPConfig sets the MCP config path.
+func WithStandardMCPConfig(path string) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.mcpConfigPath = path }
+}
+
 // NewStandardExecutor creates a new standard executor.
-func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOption) *StandardExecutor {
+func NewStandardExecutor(opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{
-		manager:   mgr,
-		logger:    slog.Default(),
-		publisher: NewEventPublisher(nil), // Initialize with nil-safe wrapper
+		claudePath: "claude",
+		logger:     slog.Default(),
+		publisher:  NewEventPublisher(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      20,
 			CheckpointInterval: 0,
@@ -111,7 +123,9 @@ func NewStandardExecutor(mgr session.SessionManager, opts ...StandardExecutorOpt
 	}
 
 	for _, opt := range opts {
-		opt(e)
+		if opt != nil {
+			opt(e)
+		}
 	}
 
 	return e
@@ -122,7 +136,7 @@ func (e *StandardExecutor) Name() string {
 	return "standard"
 }
 
-// Execute runs a phase to completion using session-based execution.
+// Execute runs a phase to completion using ClaudeCLI with JSON schema.
 func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
@@ -130,8 +144,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		Status: plan.PhaseRunning,
 	}
 
-	// Transcript persistence is handled via JSONL sync from Claude Code's session files
-	// (see jsonl_sync.go), not through the publisher buffer
+	// Transcript streamer for real-time DB sync (started when JSONL path is known)
+	var transcriptStreamer *TranscriptStreamer
 
 	// Generate session ID: {task_id}-{phase_id}
 	// If resuming, use the stored session ID instead
@@ -146,34 +160,24 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
 	result.Model = modelSetting.Model
 
-	// Create session adapter
-	adapter, err := NewSessionAdapter(ctx, e.manager, SessionAdapterOptions{
-		SessionID:   sessionID,
-		Resume:      isResume,
-		Model:       modelSetting.Model,
-		Workdir:     e.workingDir,
-		MaxTurns:    e.config.MaxIterations,
-		Persistence: e.config.SessionPersistence,
-	})
-	if err != nil {
-		result.Status = plan.PhaseFailed
-		result.Error = fmt.Errorf("create session: %w", err)
-		result.Duration = time.Since(start)
-		return result, result.Error
+	// Create ClaudeExecutor for this phase
+	claudeOpts := []ClaudeExecutorOption{
+		WithClaudePath(e.claudePath),
+		WithClaudeWorkdir(e.workingDir),
+		WithClaudeModel(modelSetting.Model),
+		WithClaudeSessionID(sessionID),
+		WithClaudeResume(isResume),
+		WithClaudeMaxTurns(e.config.MaxIterations),
+		WithClaudeLogger(e.logger),
 	}
-	defer func() {
-		if closeErr := adapter.Close(); closeErr != nil {
-			e.logger.Error("failed to close adapter", "error", closeErr)
-		}
-	}()
+	if e.mcpConfigPath != "" {
+		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
+	}
+	claudeExec := NewClaudeExecutor(claudeOpts...)
 
-	// Update state with session info and JSONL path for live tailing (orc log --follow)
-	// Persist immediately so `orc log --follow` can find the file and resume can use session ID.
+	// Update state with session info
 	if s != nil {
-		s.SetSession(adapter.SessionID(), modelSetting.Model, "running", 0)
-		if adapter.JSONLPath() != "" {
-			s.JSONLPath = adapter.JSONLPath()
-		}
+		s.SetSession(sessionID, modelSetting.Model, "running", 0)
 		if e.backend != nil {
 			if err := e.backend.SaveState(s); err != nil {
 				e.logger.Warn("failed to persist session info to state", "error", err)
@@ -306,50 +310,43 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		// Publish prompt transcript
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
-		// Execute turn with streaming and progress tracking
-		isSpecPhase := p.ID == "spec"
-		progressOpts := StreamProgressOptions{
-			TurnTimeout:       e.config.TurnTimeout,
-			HeartbeatInterval: e.config.HeartbeatInterval,
-			IdleTimeout:       e.config.IdleTimeout,
-			OnChunk: func(chunk string) {
-				// Publish chunk for real-time display
-				e.publisher.TranscriptChunk(t.ID, p.ID, iteration, chunk)
-			},
-			OnActivityChange: func(state ActivityState) {
-				// For spec phase, translate generic states to spec-specific states
-				if isSpecPhase {
-					switch state {
-					case ActivityWaitingAPI:
-						state = ActivitySpecAnalyzing
-					case ActivityStreaming:
-						state = ActivitySpecWriting
+		// Publish activity state
+		e.publisher.Activity(t.ID, p.ID, string(ActivityWaitingAPI))
+
+		// Execute turn using ClaudeCLI with JSON schema
+		turnResult, err := claudeExec.ExecuteTurn(ctx, promptText)
+
+		// Update session ID from response for subsequent calls
+		if turnResult != nil && turnResult.SessionID != "" {
+			claudeExec.UpdateSessionID(turnResult.SessionID)
+			// Compute and store JSONL path for transcript sync and --follow mode
+			if s != nil && s.JSONLPath == "" {
+				if jsonlPath, pathErr := ComputeJSONLPath(e.workingDir, turnResult.SessionID); pathErr == nil {
+					s.JSONLPath = jsonlPath
+					// Persist immediately so --follow can find it
+					if e.backend != nil {
+						if saveErr := e.backend.SaveState(s); saveErr != nil {
+							e.logger.Warn("failed to persist JSONL path", "error", saveErr)
+						}
+					}
+					// Start real-time transcript streaming to DB
+					if transcriptStreamer == nil && e.backend != nil {
+						syncer := NewJSONLSyncer(e.backend, e.logger)
+						streamer, streamErr := syncer.StartStreaming(jsonlPath, SyncOptions{
+							TaskID: t.ID,
+							Phase:  p.ID,
+							Append: true,
+						})
+						if streamErr != nil {
+							e.logger.Warn("failed to start transcript streaming", "error", streamErr)
+						} else {
+							transcriptStreamer = streamer
+							e.logger.Debug("started real-time transcript streaming", "path", jsonlPath)
+						}
 					}
 				}
-				e.publisher.Activity(t.ID, p.ID, string(state))
-			},
-			OnHeartbeat: func() {
-				e.publisher.Heartbeat(t.ID, p.ID, iteration)
-			},
-			OnIdleWarning: func(idleDuration time.Duration) {
-				e.logger.Warn("API idle warning",
-					"task", t.ID,
-					"phase", p.ID,
-					"idle_duration", idleDuration,
-				)
-				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("No activity for %s - API may be slow", idleDuration.Round(time.Second)))
-			},
-			OnTurnTimeout: func(turnDuration time.Duration) {
-				e.logger.Warn("turn timeout",
-					"task", t.ID,
-					"phase", p.ID,
-					"duration", turnDuration,
-				)
-				e.publisher.Warning(t.ID, p.ID, fmt.Sprintf("Turn timeout after %s", turnDuration.Round(time.Second)))
-			},
+			}
 		}
-
-		turnResult, err := adapter.StreamTurnWithProgress(ctx, promptText, progressOpts)
 
 		if err != nil {
 			// Check if this is a recoverable timeout
@@ -403,6 +400,9 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 					result.Error = fmt.Errorf("progress validation API error (resumable): %w", valErr)
 					result.Output = lastResponse
 					result.Duration = time.Since(start)
+					if transcriptStreamer != nil {
+						transcriptStreamer.Stop()
+					}
 					return result, result.Error
 				}
 				// Fail open (legacy behavior for fast profile)
@@ -502,6 +502,9 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 						result.Error = fmt.Errorf("criteria validation API error (resumable): %w", valErr)
 						result.Output = turnResult.Content
 						result.Duration = time.Since(start)
+						if transcriptStreamer != nil {
+							transcriptStreamer.Stop()
+						}
 						return result, result.Error
 					}
 					// Fail open (legacy behavior for fast profile)
@@ -542,9 +545,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 			goto done
 
 		case PhaseStatusContinue:
-			// Continue with next iteration
-			// For session-based execution, we don't need to re-render the full prompt
-			// The session maintains context. Just send a continuation prompt.
+			// Continue with next iteration using continuation prompt
 			promptText = "Continue working on the task."
 		}
 
@@ -567,18 +568,10 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 done:
 	result.Duration = time.Since(start)
 
-	// Sync JSONL transcripts to database
-	if jsonlPath := adapter.JSONLPath(); jsonlPath != "" && e.backend != nil {
-		syncer := NewJSONLSyncer(e.backend, e.logger)
-		if err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
-			TaskID: t.ID,
-			Phase:  p.ID,
-			Append: true, // Append mode to avoid duplicates on re-execution
-		}); err != nil {
-			e.logger.Warn("failed to sync JSONL transcripts", "error", err, "path", jsonlPath)
-		} else {
-			e.logger.Debug("synced JSONL transcripts", "task", t.ID, "phase", p.ID, "path", jsonlPath)
-		}
+	// Stop transcript streaming (flushes any remaining messages to DB)
+	if transcriptStreamer != nil {
+		transcriptStreamer.Stop()
+		e.logger.Debug("stopped transcript streaming")
 	}
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)

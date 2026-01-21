@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
@@ -21,7 +20,6 @@ import (
 // then falls back to Claude-assisted resolution for remaining conflicts.
 type ConflictResolver struct {
 	gitSvc     *git.Git
-	manager    session.SessionManager
 	logger     *slog.Logger
 	config     config.FinalizeConfig
 	workingDir string
@@ -29,6 +27,10 @@ type ConflictResolver struct {
 	// Model settings for conflict resolution
 	model    string
 	thinking bool
+
+	// ClaudeCLI settings
+	claudePath    string
+	mcpConfigPath string
 }
 
 // ConflictResolverOption configures a ConflictResolver.
@@ -39,9 +41,14 @@ func WithResolverGitSvc(svc *git.Git) ConflictResolverOption {
 	return func(r *ConflictResolver) { r.gitSvc = svc }
 }
 
-// WithResolverSessionManager sets the session manager.
-func WithResolverSessionManager(mgr session.SessionManager) ConflictResolverOption {
-	return func(r *ConflictResolver) { r.manager = mgr }
+// WithResolverClaudePath sets the path to claude binary.
+func WithResolverClaudePath(path string) ConflictResolverOption {
+	return func(r *ConflictResolver) { r.claudePath = path }
+}
+
+// WithResolverMCPConfig sets the MCP config path.
+func WithResolverMCPConfig(path string) ConflictResolverOption {
+	return func(r *ConflictResolver) { r.mcpConfigPath = path }
 }
 
 // WithResolverLogger sets the logger.
@@ -70,7 +77,8 @@ func WithResolverModel(model string, thinking bool) ConflictResolverOption {
 // NewConflictResolver creates a new conflict resolver.
 func NewConflictResolver(opts ...ConflictResolverOption) *ConflictResolver {
 	r := &ConflictResolver{
-		logger: slog.Default(),
+		claudePath: "claude", // Default claude binary path
+		logger:     slog.Default(),
 		config: config.FinalizeConfig{
 			ConflictResolution: config.ConflictResolutionConfig{
 				Enabled: true,
@@ -141,10 +149,6 @@ func (r *ConflictResolver) Resolve(ctx context.Context, t *task.Task, conflictFi
 	result.Unresolved = remaining
 
 	// Step 2: Use Claude to resolve remaining conflicts
-	if r.manager == nil {
-		r.logger.Debug("session manager not available, skipping Claude-assisted resolution")
-		return result, nil
-	}
 
 	claudeResolved, claudeErr := r.resolveWithClaude(ctx, t, remaining)
 	if claudeErr != nil {
@@ -172,23 +176,21 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 		r.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID)
 	}
 
-	// Create session for conflict resolution
-	adapterOpts := SessionAdapterOptions{
-		SessionID:   fmt.Sprintf("%s-conflict-resolution", t.ID),
-		Model:       r.model,
-		Workdir:     r.workingDir,
-		MaxTurns:    5, // Limited turns for conflict resolution
-		Persistence: false,
+	// Create ClaudeExecutor for conflict resolution
+	claudeOpts := []ClaudeExecutorOption{
+		WithClaudePath(r.claudePath),
+		WithClaudeWorkdir(r.workingDir),
+		WithClaudeModel(r.model),
+		WithClaudeMaxTurns(5), // Limited turns for conflict resolution
+		WithClaudeLogger(r.logger),
 	}
-
-	adapter, err := NewSessionAdapter(ctx, r.manager, adapterOpts)
-	if err != nil {
-		return false, fmt.Errorf("create conflict resolution session: %w", err)
+	if r.mcpConfigPath != "" {
+		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(r.mcpConfigPath))
 	}
-	defer func() { _ = adapter.Close() }()
+	claudeExec := NewClaudeExecutor(claudeOpts...)
 
-	// Execute conflict resolution
-	turnResult, err := adapter.ExecuteTurn(ctx, prompt)
+	// Execute conflict resolution without schema - we verify success by checking git status
+	turnResult, err := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
 	if err != nil {
 		return false, fmt.Errorf("conflict resolution turn: %w", err)
 	}
@@ -196,11 +198,11 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 	// Check if Claude indicated success
 	if turnResult.Status == PhaseStatusComplete {
 		// Verify no unmerged files remain
-		ctx := r.gitSvc.Context()
-		unmerged, _ := ctx.RunGit("diff", "--name-only", "--diff-filter=U")
+		gitCtx := r.gitSvc.Context()
+		unmerged, _ := gitCtx.RunGit("diff", "--name-only", "--diff-filter=U")
 		if strings.TrimSpace(unmerged) == "" {
 			// All conflicts resolved, commit the merge
-			_, commitErr := ctx.RunGit("commit", "--no-edit")
+			_, commitErr := gitCtx.RunGit("commit", "--no-edit")
 			return commitErr == nil, commitErr
 		}
 	}

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude/jsonl"
@@ -52,6 +54,110 @@ func (s *JSONLSyncer) SyncFromFile(ctx context.Context, jsonlPath string, opts S
 	}
 
 	return s.SyncMessages(ctx, messages, opts)
+}
+
+// TranscriptStreamer streams JSONL transcripts to the database in real-time.
+// Uses file watching (fsnotify with polling fallback) to sync new messages
+// as they are written by Claude.
+type TranscriptStreamer struct {
+	syncer   *JSONLSyncer
+	opts     SyncOptions
+	cancel   context.CancelFunc
+	done     chan struct{}
+	logger   *slog.Logger
+}
+
+// StartStreaming begins watching a JSONL file and streaming new messages to the database.
+// The returned TranscriptStreamer can be stopped with Stop().
+// Streams messages in real-time as they appear in the file.
+func (s *JSONLSyncer) StartStreaming(jsonlPath string, opts SyncOptions) (*TranscriptStreamer, error) {
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend configured")
+	}
+
+	// Check file exists (may not exist yet if session just starting)
+	if _, err := os.Stat(jsonlPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("jsonl file not found: %s", jsonlPath)
+	}
+
+	reader, err := jsonl.NewReader(jsonlPath)
+	if err != nil {
+		return nil, fmt.Errorf("create jsonl reader: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	streamer := &TranscriptStreamer{
+		syncer: s,
+		opts:   opts,
+		cancel: cancel,
+		done:   make(chan struct{}),
+		logger: s.logger,
+	}
+
+	// Start background goroutine to watch and sync
+	go streamer.run(ctx, reader)
+
+	return streamer, nil
+}
+
+// run watches the JSONL file and syncs new messages to the database.
+func (ts *TranscriptStreamer) run(ctx context.Context, reader *jsonl.Reader) {
+	defer close(ts.done)
+	defer reader.Close()
+
+	// Tail the file for new messages
+	msgCh := reader.Tail(ctx)
+
+	// Batch messages for efficiency (sync every 100ms or 10 messages)
+	var batch []session.JSONLMessage
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	syncBatch := func() {
+		if len(batch) == 0 {
+			return
+		}
+		if err := ts.syncer.SyncMessages(ctx, batch, ts.opts); err != nil {
+			ts.logger.Warn("failed to sync transcript batch",
+				"task", ts.opts.TaskID,
+				"phase", ts.opts.Phase,
+				"count", len(batch),
+				"error", err,
+			)
+		}
+		batch = batch[:0] // Clear batch
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Final sync of any remaining messages
+			syncBatch()
+			return
+
+		case msg, ok := <-msgCh:
+			if !ok {
+				// Channel closed
+				syncBatch()
+				return
+			}
+			batch = append(batch, msg)
+			// Sync immediately if batch is large enough
+			if len(batch) >= 10 {
+				syncBatch()
+			}
+
+		case <-ticker.C:
+			// Periodic sync of accumulated messages
+			syncBatch()
+		}
+	}
+}
+
+// Stop stops the streamer and waits for it to finish.
+func (ts *TranscriptStreamer) Stop() {
+	ts.cancel()
+	<-ts.done
 }
 
 // SyncMessages syncs a slice of JSONL messages to the database.
@@ -268,4 +374,34 @@ type TokenUsageSummary struct {
 // TotalTokens returns the total token count including cache tokens.
 func (s TokenUsageSummary) TotalTokens() int {
 	return s.InputTokens + s.OutputTokens + s.CacheCreationTokens + s.CacheReadTokens
+}
+
+// ComputeJSONLPath computes the JSONL file path for a Claude session.
+// Claude Code stores JSONL files at: ~/.claude/projects/{normalized-workdir}/{sessionId}.jsonl
+// The workdir is normalized by replacing "/" with "-" and prepending "-".
+func ComputeJSONLPath(workdir, sessionID string) (string, error) {
+	if sessionID == "" {
+		return "", fmt.Errorf("empty session ID")
+	}
+
+	homeDir, err := os.Getenv("HOME"), error(nil)
+	if homeDir == "" {
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("get home directory: %w", err)
+		}
+	}
+
+	normalizedPath := normalizeProjectPath(workdir)
+	return fmt.Sprintf("%s/.claude/projects/%s/%s.jsonl", homeDir, normalizedPath, sessionID), nil
+}
+
+// normalizeProjectPath converts an absolute path to Claude Code's normalized format.
+// Example: /home/user/repos/project -> -home-user-repos-project
+func normalizeProjectPath(path string) string {
+	// Remove leading slash and replace remaining slashes with dashes
+	normalized := strings.TrimPrefix(path, "/")
+	normalized = strings.ReplaceAll(normalized, "/", "-")
+	// Prepend dash to match Claude Code's format
+	return "-" + normalized
 }
