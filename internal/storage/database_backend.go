@@ -1890,5 +1890,29 @@ func (d *DatabaseBackend) GetStaleBranches(since time.Time) ([]*Branch, error) {
 	return branches, nil
 }
 
+// SaveEvent saves a single event to the event log.
+func (d *DatabaseBackend) SaveEvent(e *db.EventLog) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveEvent(e)
+}
+
+// SaveEvents saves multiple events to the event log in a single transaction.
+func (d *DatabaseBackend) SaveEvents(events []*db.EventLog) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveEvents(events)
+}
+
+// QueryEvents retrieves events matching the specified filters.
+func (d *DatabaseBackend) QueryEvents(opts db.QueryEventsOptions) ([]db.EventLog, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.QueryEvents(opts)
+}
+
 // Ensure DatabaseBackend implements Backend
 var _ Backend = (*DatabaseBackend)(nil)

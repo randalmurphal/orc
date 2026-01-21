@@ -126,9 +126,6 @@ func New(cfg *Config) *Server {
 		orcCfg = config.Default()
 	}
 
-	// Create event publisher
-	pub := events.NewMemoryPublisher()
-
 	// Create storage backend (database-only mode)
 	storageCfg := &config.StorageConfig{Mode: "database"}
 	backend, err := storage.NewDatabaseBackend(workDir, storageCfg)
@@ -136,6 +133,9 @@ func New(cfg *Config) *Server {
 		// Fatal error - server cannot function without storage backend
 		panic(fmt.Sprintf("failed to create storage backend: %v", err))
 	}
+
+	// Create event publisher with persistence
+	pub := events.NewPersistentPublisher(backend, "executor", logger)
 
 	// Create a background context for the server - will be replaced by StartContext
 	serverCtx, serverCtxCancel := context.WithCancel(context.Background())

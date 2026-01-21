@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -60,6 +61,56 @@ func (p *ProjectDB) SaveEvent(event *EventLog) error {
 		return fmt.Errorf("get event id: %w", err)
 	}
 	event.ID = id
+	return nil
+}
+
+// SaveEvents inserts multiple events in a single transaction for efficiency.
+func (p *ProjectDB) SaveEvents(events []*EventLog) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	ctx := context.Background()
+	tx, err := p.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	for _, event := range events {
+		var dataJSON *string
+		if event.Data != nil {
+			bytes, err := json.Marshal(event.Data)
+			if err != nil {
+				return fmt.Errorf("marshal event data: %w", err)
+			}
+			s := string(bytes)
+			dataJSON = &s
+		}
+
+		createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+
+		result, err := tx.Exec(`
+			INSERT INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, event.TaskID, event.Phase, event.Iteration,
+			event.EventType, dataJSON, event.Source,
+			createdAt, event.DurationMs)
+		if err != nil {
+			return fmt.Errorf("insert event: %w", err)
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("get event id: %w", err)
+		}
+		event.ID = id
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
 	return nil
 }
 
