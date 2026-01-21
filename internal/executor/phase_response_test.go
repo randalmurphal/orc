@@ -338,3 +338,293 @@ func TestMightContainPhaseResponse(t *testing.T) {
 	}
 }
 
+func TestExtractPhaseResponseFromMixed(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		wantStatus  string
+		wantSummary string
+		wantReason  string
+		wantErr     bool
+	}{
+		{
+			name:        "pure JSON",
+			content:     `{"status": "complete", "summary": "Done"}`,
+			wantStatus:  "complete",
+			wantSummary: "Done",
+		},
+		{
+			name: "JSON in markdown code block",
+			content: `Here is my analysis:
+
+The implementation looks good.
+
+` + "```json\n" + `{"status": "complete", "summary": "Review passed"}` + "\n```",
+			wantStatus:  "complete",
+			wantSummary: "Review passed",
+		},
+		{
+			name: "JSON embedded in text (brace matching)",
+			content: `I've completed the review.
+
+All tests pass. No issues found.
+
+{"status": "complete", "summary": "All checks passed"}
+
+That's all for this phase.`,
+			wantStatus:  "complete",
+			wantSummary: "All checks passed",
+		},
+		{
+			name: "blocked status in code block",
+			content: `I cannot proceed.
+
+` + "```json\n" + `{"status": "blocked", "reason": "Missing dependencies"}` + "\n```",
+			wantStatus: "blocked",
+			wantReason: "Missing dependencies",
+		},
+		{
+			name: "real-world review output (TASK-392 style)",
+			content: `**Spec Compliance Check:**
+
+| Success Criterion | Status |
+|------------------|--------|
+| Migration file exists | ✅ |
+| Tests pass | ✅ |
+
+No issues found. The implementation is complete.
+
+` + "```json\n" + `{"status": "complete", "summary": "Review PASSED: No issues found. All success criteria verified."}` + "\n```",
+			wantStatus:  "complete",
+			wantSummary: "Review PASSED: No issues found. All success criteria verified.",
+		},
+		{
+			name:    "no JSON at all",
+			content: "Just some text without any JSON",
+			wantErr: true,
+		},
+		{
+			name:    "empty content",
+			content: "",
+			wantErr: true,
+		},
+		{
+			name: "JSON with nested braces",
+			content: `Result: {"status": "complete", "summary": "Created file with content: {\"key\": \"value\"}"}`,
+			wantStatus:  "complete",
+			wantSummary: `Created file with content: {"key": "value"}`,
+		},
+		{
+			name: "JSON with escaped quotes",
+			content: `Output: {"status": "blocked", "reason": "Error: \"file not found\""}`,
+			wantStatus: "blocked",
+			wantReason: `Error: "file not found"`,
+		},
+		{
+			name: "continue status",
+			content: `Still working...
+
+{"status": "continue", "reason": "Processing files"}`,
+			wantStatus: "continue",
+			wantReason: "Processing files",
+		},
+		{
+			name: "JSON with whitespace inside braces",
+			content: `Result: { "status": "complete", "summary": "Done" }`,
+			wantStatus:  "complete",
+			wantSummary: "Done",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := ExtractPhaseResponseFromMixed(tt.content)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ExtractPhaseResponseFromMixed() expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ExtractPhaseResponseFromMixed() unexpected error: %v", err)
+				return
+			}
+
+			if resp.Status != tt.wantStatus {
+				t.Errorf("status = %v, want %v", resp.Status, tt.wantStatus)
+			}
+			if resp.Summary != tt.wantSummary {
+				t.Errorf("summary = %v, want %v", resp.Summary, tt.wantSummary)
+			}
+			if resp.Reason != tt.wantReason {
+				t.Errorf("reason = %v, want %v", resp.Reason, tt.wantReason)
+			}
+		})
+	}
+}
+
+func TestExtractJSONFromCodeBlock(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "json code block",
+			content: "text\n```json\n{\"key\": \"value\"}\n```\nmore",
+			want:    `{"key": "value"}`,
+		},
+		{
+			name:    "json code block no newline after fence",
+			content: "text\n```json{\"key\": \"value\"}\n```",
+			want:    `{"key": "value"}`,
+		},
+		{
+			name:    "untyped code block with status",
+			content: "text\n```\n{\"status\": \"complete\"}\n```",
+			want:    `{"status": "complete"}`,
+		},
+		{
+			name:    "skip typed non-json block",
+			content: "```go\nfunc main() {}\n```\n```json\n{\"status\": \"complete\"}\n```",
+			want:    `{"status": "complete"}`,
+		},
+		{
+			name:    "no code block",
+			content: "just text {\"status\": \"complete\"}",
+			want:    "",
+		},
+		{
+			name:    "empty content",
+			content: "",
+			want:    "",
+		},
+		{
+			name:    "unclosed code block",
+			content: "```json\n{\"key\": \"value\"}",
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractJSONFromCodeBlock(tt.content)
+			if got != tt.want {
+				t.Errorf("extractJSONFromCodeBlock() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractJSONByBraceMatching(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "simple JSON with status",
+			content: `text {"status": "complete"} more`,
+			want:    `{"status": "complete"}`,
+		},
+		{
+			name:    "JSON with whitespace",
+			content: `text { "status": "blocked" } more`,
+			want:    `{ "status": "blocked" }`,
+		},
+		{
+			name:    "nested braces",
+			content: `result: {"status": "complete", "data": {"nested": true}}`,
+			want:    `{"status": "complete", "data": {"nested": true}}`,
+		},
+		{
+			name:    "escaped quotes in string",
+			content: `{"status": "complete", "msg": "said \"hello\""}`,
+			want:    `{"status": "complete", "msg": "said \"hello\""}`,
+		},
+		{
+			name:    "braces inside string",
+			content: `{"status": "complete", "code": "if (x) { y }"}`,
+			want:    `{"status": "complete", "code": "if (x) { y }"}`,
+		},
+		{
+			name:    "no status pattern",
+			content: `{"key": "value"}`,
+			want:    "",
+		},
+		{
+			name:    "empty content",
+			content: "",
+			want:    "",
+		},
+		{
+			name:    "unclosed brace",
+			content: `{"status": "complete"`,
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractJSONByBraceMatching(tt.content)
+			if got != tt.want {
+				t.Errorf("extractJSONByBraceMatching() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckPhaseCompletionMixed(t *testing.T) {
+	tests := []struct {
+		name       string
+		content    string
+		wantStatus PhaseCompletionStatus
+		wantReason string
+	}{
+		{
+			name:       "pure JSON complete",
+			content:    `{"status": "complete", "summary": "Done"}`,
+			wantStatus: PhaseStatusComplete,
+			wantReason: "Done",
+		},
+		{
+			name: "mixed text with JSON code block",
+			content: "Analysis complete.\n```json\n" + `{"status": "complete", "summary": "All good"}` + "\n```",
+			wantStatus: PhaseStatusComplete,
+			wantReason: "All good",
+		},
+		{
+			name:       "embedded JSON",
+			content:    `Here is the result: {"status": "blocked", "reason": "Missing file"} End.`,
+			wantStatus: PhaseStatusBlocked,
+			wantReason: "Missing file",
+		},
+		{
+			name:       "no JSON returns continue",
+			content:    "Just some text without JSON",
+			wantStatus: PhaseStatusContinue,
+			wantReason: "",
+		},
+		{
+			name:       "empty returns continue",
+			content:    "",
+			wantStatus: PhaseStatusContinue,
+			wantReason: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, reason := CheckPhaseCompletionMixed(tt.content)
+			if status != tt.wantStatus {
+				t.Errorf("CheckPhaseCompletionMixed() status = %v, want %v", status, tt.wantStatus)
+			}
+			if reason != tt.wantReason {
+				t.Errorf("CheckPhaseCompletionMixed() reason = %q, want %q", reason, tt.wantReason)
+			}
+		})
+	}
+}
+
