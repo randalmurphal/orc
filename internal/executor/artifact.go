@@ -123,9 +123,10 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 	var fileSize int64
 	var fileReadErr error
 
-	// If no artifact tags found, check for spec file in task directory
-	// Agents sometimes write spec.md files instead of using artifact tags
+	// If no artifact tags found, check for spec file in multiple locations
+	// Agents sometimes write spec files instead of using artifact tags
 	if specContent == "" && len(worktreePath) > 0 && worktreePath[0] != "" {
+		// Try legacy location first: .orc/tasks/TASK-XXX/spec.md
 		specPath = task.SpecPathIn(worktreePath[0], taskID)
 		if info, err := os.Stat(specPath); err == nil {
 			fileExists = true
@@ -138,6 +139,21 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 		} else if !os.IsNotExist(err) {
 			// Stat failed but not because file doesn't exist
 			fileReadErr = err
+		}
+
+		// If still not found, try .orc/specs/TASK-XXX.md location
+		if specContent == "" {
+			altSpecPath := filepath.Join(worktreePath[0], ".orc", "specs", taskID+".md")
+			if info, err := os.Stat(altSpecPath); err == nil {
+				specPath = altSpecPath // Update for error reporting
+				fileExists = true
+				fileSize = info.Size()
+				if content, err := os.ReadFile(altSpecPath); err == nil && len(content) > 0 {
+					specContent = strings.TrimSpace(string(content))
+				} else if err != nil {
+					fileReadErr = err
+				}
+			}
 		}
 	}
 
