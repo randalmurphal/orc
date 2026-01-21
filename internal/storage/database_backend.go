@@ -1070,6 +1070,27 @@ func (d *DatabaseBackend) GetNextTaskID() (string, error) {
 	return d.db.GetNextTaskID()
 }
 
+// GetTaskActivityByDate returns task completion counts grouped by date.
+func (d *DatabaseBackend) GetTaskActivityByDate(startDate, endDate string) ([]ActivityCount, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbActivity, err := d.db.GetTaskActivityByDate(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert from db.ActivityCount to storage.ActivityCount
+	result := make([]ActivityCount, len(dbActivity))
+	for i, ac := range dbActivity {
+		result[i] = ActivityCount{
+			Date:  ac.Date,
+			Count: ac.Count,
+		}
+	}
+	return result, nil
+}
+
 // ============================================================================
 // Spec operations
 // ============================================================================
