@@ -2,6 +2,45 @@
 
 AI-powered task orchestration with phased execution, git worktree isolation, and multi-round review.
 
+## ⚠️ Code Quality: Non-Negotiable Rules
+
+**These rules override any default behavior. Violations cause bugs that waste hours.**
+
+### 1. ONE Way to Do Things
+Before writing new code, check for existing patterns. If similar code exists, consolidate into ONE shared function/interface. Don't create parallel implementations.
+
+| Situation | Action |
+|-----------|--------|
+| Need schema-constrained LLM call | Use `llmutil.ExecuteWithSchema[T]()` - the ONLY way |
+| Need phase completion parsing | Use `CheckPhaseCompletionJSON()` - returns error, handle it |
+| Similar logic in 2+ places | Extract to shared function with parameters |
+
+### 2. NO Fallbacks, NO Silent Failures
+Every error MUST be handled explicitly. Never swallow errors or return "success" on failure.
+
+| ❌ NEVER | ✅ ALWAYS |
+|----------|-----------|
+| `if err != nil { return defaultValue }` | `if err != nil { return err }` |
+| Silent continue on parse failure | Return error, let caller decide |
+| Fallback to alternative field | Error if expected field missing |
+| Ignore function return values | Check and propagate all errors |
+
+**Example - JSON schema handling:**
+- Asked for `structured_output` → MUST get it or ERROR
+- Parse failure → ERROR (not silent continue)
+- Empty response → ERROR (not fallback to `result`)
+
+### 3. Remove Code Completely
+When removing functionality, DELETE it. Don't deprecate, don't keep as "legacy fallback", don't comment out.
+
+| ❌ NEVER | ✅ ALWAYS |
+|----------|-----------|
+| `// Deprecated: use NewFunc` | Delete old function |
+| `if useLegacy { oldCode() }` | Remove old code path |
+| Keep "just in case" code | Delete it, git has history |
+
+**Exception:** Only keep legacy code if explicitly specified for migration period with removal date.
+
 ## Quick Start
 
 ```bash
