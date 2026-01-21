@@ -792,3 +792,47 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 
 	return &t, nil
 }
+
+// ============================================================================
+// Task Activity Aggregation (for heatmap)
+// ============================================================================
+
+// ActivityCount represents task completions for a single date.
+type ActivityCount struct {
+	Date  string // YYYY-MM-DD format
+	Count int
+}
+
+// GetTaskActivityByDate returns task completion counts grouped by date.
+// The date range is [startDate, endDate) - inclusive start, exclusive end.
+func (p *ProjectDB) GetTaskActivityByDate(startDate, endDate string) ([]ActivityCount, error) {
+	query := `
+		SELECT DATE(completed_at) as date, COUNT(*) as count
+		FROM tasks
+		WHERE completed_at IS NOT NULL
+		  AND DATE(completed_at) >= ?
+		  AND DATE(completed_at) < ?
+		GROUP BY DATE(completed_at)
+		ORDER BY date ASC
+	`
+
+	rows, err := p.Query(query, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("get task activity by date: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []ActivityCount
+	for rows.Next() {
+		var ac ActivityCount
+		if err := rows.Scan(&ac.Date, &ac.Count); err != nil {
+			return nil, fmt.Errorf("scan activity count: %w", err)
+		}
+		results = append(results, ac)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate activity counts: %w", err)
+	}
+
+	return results, nil
+}

@@ -458,6 +458,9 @@ func (s *Server) registerRoutes() {
 	// Dashboard
 	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
 
+	// Stats (activity heatmap, metrics)
+	s.mux.HandleFunc("GET /api/stats/activity", cors(s.handleGetActivityStats))
+
 	// Automation (triggers and automation tasks)
 	s.mux.HandleFunc("GET /api/automation/triggers", cors(s.handleListTriggers))
 	s.mux.HandleFunc("GET /api/automation/triggers/{id}", cors(s.handleGetTrigger))
