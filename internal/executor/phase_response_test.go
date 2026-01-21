@@ -144,40 +144,55 @@ func TestCheckPhaseCompletionJSON(t *testing.T) {
 		content    string
 		wantStatus PhaseCompletionStatus
 		wantReason string
+		wantErr    bool
 	}{
 		{
 			name:       "complete",
 			content:    `{"status": "complete", "summary": "Done"}`,
 			wantStatus: PhaseStatusComplete,
 			wantReason: "Done",
+			wantErr:    false,
 		},
 		{
 			name:       "blocked",
 			content:    `{"status": "blocked", "reason": "Missing file"}`,
 			wantStatus: PhaseStatusBlocked,
 			wantReason: "Missing file",
+			wantErr:    false,
 		},
 		{
 			name:       "continue",
 			content:    `{"status": "continue", "reason": "In progress"}`,
 			wantStatus: PhaseStatusContinue,
 			wantReason: "In progress",
+			wantErr:    false,
 		},
 		{
-			name:       "invalid JSON returns continue",
+			name:       "invalid JSON returns error",
 			content:    "not json",
 			wantStatus: PhaseStatusContinue,
 			wantReason: "",
+			wantErr:    true,
+		},
+		{
+			name:       "prose instead of JSON returns error",
+			content:    "Task complete! I've implemented the feature successfully.",
+			wantStatus: PhaseStatusContinue,
+			wantReason: "",
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, reason := CheckPhaseCompletionJSON(tt.content)
+			status, reason, err := CheckPhaseCompletionJSON(tt.content)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckPhaseCompletionJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
 			if status != tt.wantStatus {
 				t.Errorf("CheckPhaseCompletionJSON() status = %v, want %v", status, tt.wantStatus)
 			}
-			if reason != tt.wantReason {
+			if !tt.wantErr && reason != tt.wantReason {
 				t.Errorf("CheckPhaseCompletionJSON() reason = %v, want %v", reason, tt.wantReason)
 			}
 		})

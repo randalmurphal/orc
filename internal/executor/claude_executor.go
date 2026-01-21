@@ -200,8 +200,18 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	}
 
 	// Parse completion status from JSON response
-	// Since we use --json-schema, response should be pure JSON matching the phase-appropriate schema
-	result.Status, result.Reason = CheckPhaseCompletionJSON(resp.Content)
+	// Since we use --json-schema, response MUST be pure JSON matching the phase-appropriate schema
+	// Error on parse failure - no silent continue
+	status, reason, parseErr := CheckPhaseCompletionJSON(resp.Content)
+	result.Status = status
+	result.Reason = reason
+
+	if parseErr != nil {
+		// JSON parse failed - this is a critical error, not a "continue" situation
+		result.IsError = true
+		result.ErrorText = parseErr.Error()
+		return result, fmt.Errorf("phase completion JSON parse failed: %w", parseErr)
+	}
 
 	// Check for error response
 	if resp.FinishReason == "error" {
@@ -409,9 +419,9 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 	}
 
 	// Parse status from content (same as real executor)
-	status, reason := CheckPhaseCompletionJSON(content)
+	status, reason, parseErr := CheckPhaseCompletionJSON(content)
 
-	return &TurnResult{
+	result := &TurnResult{
 		Content:   content,
 		Status:    status,
 		Reason:    reason,
@@ -421,7 +431,15 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 			InputTokens:  100,
 			OutputTokens: 50,
 		},
-	}, nil
+	}
+
+	if parseErr != nil {
+		result.IsError = true
+		result.ErrorText = parseErr.Error()
+		return result, parseErr
+	}
+
+	return result, nil
 }
 
 // ExecuteTurnWithoutSchema is the same as ExecuteTurn for the mock.

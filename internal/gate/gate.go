@@ -12,6 +12,7 @@ import (
 	"text/template"
 
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/llmutil"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/templates"
 )
@@ -160,42 +161,32 @@ func (e *Evaluator) evaluateAI(ctx context.Context, gate *plan.Gate, phaseOutput
 
 	prompt := buf.String()
 
-	resp, err := e.client.Complete(ctx, claude.CompletionRequest{
-		Messages: []claude.Message{
-			{Role: claude.RoleUser, Content: prompt},
-		},
-		JSONSchema: gateDecisionSchema,
-	})
+	// Use consolidated schema executor - no fallbacks, explicit errors
+	schemaResult, err := llmutil.ExecuteWithSchema[gateResponse](ctx, e.client, prompt, gateDecisionSchema)
 	if err != nil {
 		return nil, fmt.Errorf("AI evaluation failed: %w", err)
 	}
 
-	// Parse JSON response
-	var result gateResponse
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		return nil, fmt.Errorf("parse AI response: %w", err)
-	}
-
-	decision := strings.ToUpper(result.Decision)
+	decision := strings.ToUpper(schemaResult.Data.Decision)
 	switch decision {
 	case "APPROVED":
 		return &Decision{
 			Approved: true,
-			Reason:   result.Reason,
+			Reason:   schemaResult.Data.Reason,
 		}, nil
 	case "REJECTED":
 		return &Decision{
 			Approved: false,
-			Reason:   result.Reason,
+			Reason:   schemaResult.Data.Reason,
 		}, nil
 	case "NEEDS_CLARIFICATION":
 		return &Decision{
 			Approved:  false,
-			Reason:    result.Reason,
-			Questions: result.Questions,
+			Reason:    schemaResult.Data.Reason,
+			Questions: schemaResult.Data.Questions,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unexpected decision: %s", result.Decision)
+		return nil, fmt.Errorf("unexpected decision: %s", schemaResult.Data.Decision)
 	}
 }
 
