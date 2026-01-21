@@ -218,8 +218,9 @@ type Executor struct {
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
 
-	// Haiku client for validation calls (separate from main client)
-	haikuClient claude.Client
+	// Validation model for creating validation clients in worktree context
+	// Client is created dynamically per-phase with correct workdir
+	validationModel string
 
 	// Global database for cross-project cost tracking
 	globalDB *db.GlobalDB
@@ -319,20 +320,10 @@ func New(cfg *Config) *Executor {
 	}
 	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
 
-	// Create Haiku client for validation if enabled
-	var haikuClient claude.Client
+	// Store validation model for dynamic client creation in worktree context
+	var validationModel string
 	if orcCfg.Validation.Enabled {
-		haikuOpts := []claude.ClaudeOption{
-			claude.WithModel(orcCfg.Validation.Model),
-			claude.WithWorkdir(cfg.WorkDir),
-		}
-		if claudePath != "" {
-			haikuOpts = append(haikuOpts, claude.WithClaudePath(claudePath))
-		}
-		if cfg.DangerouslySkipPermissions {
-			haikuOpts = append(haikuOpts, claude.WithDangerouslySkipPermissions())
-		}
-		haikuClient = claude.NewClaudeCLI(haikuOpts...)
+		validationModel = orcCfg.Validation.Model
 	}
 
 	// Open global database for cross-project cost tracking
@@ -352,7 +343,7 @@ func New(cfg *Config) *Executor {
 		tokenPool:       pool,
 		backend:         cfg.Backend,
 		resourceTracker: resourceTracker,
-		haikuClient:     haikuClient,
+		validationModel: validationModel,
 		globalDB:        globalDB,
 		claudePath:      claudePath,
 	}
@@ -420,14 +411,29 @@ func (e *Executor) SetOrcConfig(cfg *config.Config) {
 	e.resetPhaseExecutors()
 }
 
-// SetHaikuClient sets the Haiku client for validation (for testing).
-func (e *Executor) SetHaikuClient(c claude.Client) {
-	e.haikuClient = c
+// ValidationModel returns the model to use for validation, or empty if validation is disabled.
+func (e *Executor) ValidationModel() string {
+	return e.validationModel
 }
 
-// HaikuClient returns the Haiku client for validation calls.
-func (e *Executor) HaikuClient() claude.Client {
-	return e.haikuClient
+// CreateValidationClient creates a validation client for the given working directory.
+// This should be called by sub-executors with their worktree path to ensure
+// validation runs in the correct directory context.
+func (e *Executor) CreateValidationClient(workdir string) claude.Client {
+	if e.validationModel == "" {
+		return nil
+	}
+	opts := []claude.ClaudeOption{
+		claude.WithModel(e.validationModel),
+		claude.WithWorkdir(workdir),
+	}
+	if e.claudePath != "" {
+		opts = append(opts, claude.WithClaudePath(e.claudePath))
+	}
+	if e.config.DangerouslySkipPermissions {
+		opts = append(opts, claude.WithDangerouslySkipPermissions())
+	}
+	return claude.NewClaudeCLI(opts...)
 }
 
 // getPhaseExecutor returns the appropriate phase executor for the given weight.
@@ -506,9 +512,9 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithFullBackpressure(bp))
 			}
 
-			// Pass haiku client and config for progress validation
-			if e.haikuClient != nil {
-				opts = append(opts, WithFullHaikuClient(e.haikuClient))
+			// Pass validation model for progress validation (client created dynamically with worktree workdir)
+			if e.validationModel != "" {
+				opts = append(opts, WithFullValidationModel(e.validationModel))
 			}
 			if e.orcConfig != nil {
 				opts = append(opts, WithFullOrcConfig(e.orcConfig))
@@ -560,9 +566,9 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithStandardBackpressure(bp))
 			}
 
-			// Pass haiku client and config for progress validation
-			if e.haikuClient != nil {
-				opts = append(opts, WithStandardHaikuClient(e.haikuClient))
+			// Pass validation model for progress validation (client created dynamically with worktree workdir)
+			if e.validationModel != "" {
+				opts = append(opts, WithStandardValidationModel(e.validationModel))
 			}
 			if e.orcConfig != nil {
 				opts = append(opts, WithStandardOrcConfig(e.orcConfig))

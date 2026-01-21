@@ -39,9 +39,9 @@ type StandardExecutor struct {
 	resumeSessionID string
 
 	// Validation components (optional)
-	backpressure *BackpressureRunner // Deterministic quality checks
-	haikuClient  claude.Client       // Haiku client for progress validation
-	orcConfig    *config.Config      // Config for validation settings
+	backpressure    *BackpressureRunner // Deterministic quality checks
+	validationModel string              // Model for validation (empty = disabled)
+	orcConfig       *config.Config      // Config for validation settings
 
 	// turnExecutor allows injection of a mock for testing.
 	// If nil, a real ClaudeExecutor is created during Execute.
@@ -86,9 +86,10 @@ func WithStandardBackpressure(bp *BackpressureRunner) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.backpressure = bp }
 }
 
-// WithStandardHaikuClient sets the Haiku client for progress validation.
-func WithStandardHaikuClient(c claude.Client) StandardExecutorOption {
-	return func(e *StandardExecutor) { e.haikuClient = c }
+// WithStandardValidationModel sets the model for progress validation.
+// The validation client is created dynamically with the correct workdir.
+func WithStandardValidationModel(model string) StandardExecutorOption {
+	return func(e *StandardExecutor) { e.validationModel = model }
 }
 
 // WithStandardOrcConfig sets the orc config for validation settings.
@@ -143,6 +144,22 @@ func NewStandardExecutor(opts ...StandardExecutorOption) *StandardExecutor {
 // Name returns the executor type name.
 func (e *StandardExecutor) Name() string {
 	return "standard"
+}
+
+// createValidationClient creates a validation client for the current working directory.
+// Returns nil if validation is disabled.
+func (e *StandardExecutor) createValidationClient() claude.Client {
+	if e.validationModel == "" {
+		return nil
+	}
+	opts := []claude.ClaudeOption{
+		claude.WithModel(e.validationModel),
+		claude.WithWorkdir(e.workingDir),
+	}
+	if e.claudePath != "" {
+		opts = append(opts, claude.WithClaudePath(e.claudePath))
+	}
+	return claude.NewClaudeCLI(opts...)
 }
 
 // Execute runs a phase to completion using ClaudeCLI with JSON schema.
@@ -280,9 +297,10 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
 		// Progress validation: check if iteration is on track (if enabled)
-		if e.haikuClient != nil && e.orcConfig != nil && specContent != "" &&
+		if e.validationModel != "" && e.orcConfig != nil && specContent != "" &&
 			e.orcConfig.ShouldValidateProgress(string(t.Weight)) {
-			decision, reason, valErr := ValidateIterationProgress(ctx, e.haikuClient, specContent, turnResult.Content)
+			valClient := e.createValidationClient()
+			decision, reason, valErr := ValidateIterationProgress(ctx, valClient, specContent, turnResult.Content)
 			if valErr != nil {
 				if e.orcConfig.Validation.FailOnAPIError {
 					// Fail properly - task is resumable from this phase
@@ -382,9 +400,10 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 			// Criteria validation: check if success criteria from spec are met
 			// This runs after backpressure (tests pass) but before accepting completion
-			if e.haikuClient != nil && e.orcConfig != nil && specContent != "" && p.ID == "implement" &&
+			if e.validationModel != "" && e.orcConfig != nil && specContent != "" && p.ID == "implement" &&
 				e.orcConfig.ShouldValidateCriteria(string(t.Weight)) {
-				criteriaResult, valErr := ValidateSuccessCriteria(ctx, e.haikuClient, specContent, turnResult.Content)
+				valClient := e.createValidationClient()
+				criteriaResult, valErr := ValidateSuccessCriteria(ctx, valClient, specContent, turnResult.Content)
 				if valErr != nil {
 					if e.orcConfig.Validation.FailOnAPIError {
 						// Fail properly - task is resumable from this phase
