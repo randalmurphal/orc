@@ -195,28 +195,22 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 
 		e.publisher.Transcript(t.ID, p.ID, iteration, "response", resp.Content)
 
-		// Parse JSON response (guaranteed by --json-schema flag)
-		phaseResp, err := ParsePhaseResponse(resp.Content)
-		if err != nil {
-			// Invalid JSON - retry with feedback about expected schema
-			e.logger.Warn("invalid phase response JSON", "error", err, "iteration", iteration)
-			promptText = BuildJSONRetryPrompt(resp.Content, err)
-			continue
-		}
+		// Extract completion status from response (handles mixed text/JSON output)
+		status, reason := CheckPhaseCompletionJSON(resp.Content)
 
-		switch phaseResp.Status {
-		case "complete":
+		switch status {
+		case PhaseStatusComplete:
 			result.Status = plan.PhaseCompleted
 			result.Output = resp.Content
 			e.logger.Info("phase complete (trivial)", "task", t.ID, "phase", p.ID, "iterations", iteration)
 			goto done
 
-		case "blocked":
+		case PhaseStatusBlocked:
 			result.Status = plan.PhaseFailed
-			result.Error = fmt.Errorf("phase blocked: %s", phaseResp.Reason)
+			result.Error = fmt.Errorf("phase blocked: %s", reason)
 			goto done
 
-		case "continue":
+		case PhaseStatusContinue:
 			// For trivial executor, add response to prompt for next iteration
 			// (stateless, so we concatenate)
 			promptText = fmt.Sprintf("%s\n\nAssistant's previous response:\n%s\n\nContinue working on the task.",

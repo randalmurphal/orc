@@ -292,3 +292,92 @@ func TestTruncateForPrompt(t *testing.T) {
 }
 
 
+
+func TestExtractJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantJSON string
+	}{
+		{
+			name:     "pure JSON",
+			input:    `{"status": "complete", "summary": "done"}`,
+			wantJSON: `{"status": "complete", "summary": "done"}`,
+		},
+		{
+			name:     "JSON in code block",
+			input:    "Some prose\n```json\n{\"status\": \"complete\", \"summary\": \"done\"}\n```\nMore prose",
+			wantJSON: `{"status": "complete", "summary": "done"}`,
+		},
+		{
+			name:     "JSON in code block without json label",
+			input:    "Some prose\n```\n{\"status\": \"blocked\", \"reason\": \"need help\"}\n```",
+			wantJSON: `{"status": "blocked", "reason": "need help"}`,
+		},
+		{
+			name:     "status pattern in prose",
+			input:    `Here's the result: {"status": "complete", "summary": "all done"} and more text`,
+			wantJSON: `{"status": "complete", "summary": "all done"}`,
+		},
+		{
+			name:     "no JSON",
+			input:    "This is just plain text with no JSON",
+			wantJSON: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractJSON(tt.input)
+			if got != tt.wantJSON {
+				t.Errorf("extractJSON() = %q, want %q", got, tt.wantJSON)
+			}
+		})
+	}
+}
+
+func TestCheckPhaseCompletionJSON_MixedContent(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantStatus PhaseCompletionStatus
+		wantReason string
+	}{
+		{
+			name:       "pure JSON complete",
+			input:      `{"status": "complete", "summary": "done"}`,
+			wantStatus: PhaseStatusComplete,
+			wantReason: "done",
+		},
+		{
+			name:       "code block JSON complete",
+			input:      "```json\n{\"status\": \"complete\", \"summary\": \"all good\"}\n```",
+			wantStatus: PhaseStatusComplete,
+			wantReason: "all good",
+		},
+		{
+			name:       "mixed prose with JSON blocked",
+			input:      "I tried but: {\"status\": \"blocked\", \"reason\": \"need info\"}",
+			wantStatus: PhaseStatusBlocked,
+			wantReason: "need info",
+		},
+		{
+			name:       "no JSON returns continue",
+			input:      "No JSON here",
+			wantStatus: PhaseStatusContinue,
+			wantReason: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, reason := CheckPhaseCompletionJSON(tt.input)
+			if status != tt.wantStatus {
+				t.Errorf("status = %v, want %v", status, tt.wantStatus)
+			}
+			if reason != tt.wantReason {
+				t.Errorf("reason = %q, want %q", reason, tt.wantReason)
+			}
+		})
+	}
+}
