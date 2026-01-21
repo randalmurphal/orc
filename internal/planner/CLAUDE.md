@@ -62,19 +62,30 @@ breakdown, err := p.ParseResponse(response)
 results, err := p.CreateTasks(breakdown)
 ```
 
-## XML Output Format
+## JSON Output Format
 
-Claude outputs tasks in this format:
+Claude outputs tasks as JSON:
 
-```xml
-<task_breakdown>
-<task id="1">
-<title>Task title</title>
-<description>What this task does...</description>
-<weight>small</weight>
-<depends_on>1,2</depends_on>
-</task>
-</task_breakdown>
+```json
+{
+  "summary": "Brief analysis summary",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Task title",
+      "description": "What this task does...",
+      "weight": "small",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "title": "Second task",
+      "description": "Depends on first task",
+      "weight": "medium",
+      "depends_on": [1]
+    }
+  ]
+}
 ```
 
 ## Dependency Validation

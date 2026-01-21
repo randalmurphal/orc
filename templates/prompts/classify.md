@@ -48,21 +48,12 @@ Consider:
 
 ## Output Format
 
-Provide brief reasoning, then output:
+Output JSON with your classification:
 
+```json
+{
+  "weight": "trivial|small|medium|large|greenfield",
+  "confidence": 0.9,
+  "rationale": "Brief explanation of classification"
+}
 ```
-### Analysis
-- Scope: [narrow/moderate/wide]
-- Uncertainty: [low/medium/high]
-- Risk: [low/medium/high]
-- Dependencies: [none/internal/external]
-
-### Classification
-Weight: [trivial|small|medium|large|greenfield]
-Confidence: [0.0-1.0]
-Rationale: [1-2 sentences]
-
-<weight>VALUE</weight>
-```
-
-Replace VALUE with exactly one of: trivial, small, medium, large, greenfield

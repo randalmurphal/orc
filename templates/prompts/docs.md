@@ -288,9 +288,11 @@ If any file exceeds threshold + tolerance (BLOCK status):
 
 ## Output Format
 
-Create a documentation summary and wrap it in artifact tags for automatic persistence:
+**CRITICAL**: Your final output MUST be a JSON object with the documentation summary in the `artifact` field.
 
-<artifact>
+Create a documentation summary following this structure:
+
+```markdown
 ## Documentation Summary
 
 **Task**: {{TASK_TITLE}}
@@ -315,24 +317,24 @@ Look for sections marked with `<!-- orc:auto:* -->` and regenerate them:
 
 ### CLAUDE.md Status
 [created/updated/verified] - [line count]
-</artifact>
+```
 
 ## Phase Completion
 
-After completing documentation updates, commit your changes:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: docs - completed"
-```
-
-Then output ONLY this JSON to signal completion:
+Output a JSON object with the summary in the `artifact` field:
 
 ```json
-{"status": "complete", "summary": "Documentation updated, lint passed. Commit: [SHA]"}
+{
+  "status": "complete",
+  "summary": "Documentation updated, lint passed",
+  "artifact": "## Documentation Summary\n\n**Task**: Feature X\n..."
+}
 ```
 
-If blocked (e.g., unclear what to document), output ONLY this JSON:
+If blocked (e.g., unclear what to document):
 ```json
-{"status": "blocked", "reason": "[what's blocking documentation and what clarification is needed]"}
+{
+  "status": "blocked",
+  "reason": "[what's blocking documentation and what clarification is needed]"
+}
 ```

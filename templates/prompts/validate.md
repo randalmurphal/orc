@@ -206,33 +206,13 @@ If there are conflicts:
 
 ## Phase Completion
 
-### Commit Validation Report
-
-Save report to `.orc/tasks/{{TASK_ID}}/artifacts/validation-report.md`:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: validate - completed
-
-Phase: validate
-Status: completed
-Artifact: artifacts/validation-report.md
-Ready for merge: YES
-"
-```
-
-### Output Completion
-
-```
-### Validation Summary
-
-Then output ONLY this JSON to signal completion:
+Output JSON to signal completion:
 
 ```json
-{"status": "complete", "summary": "Validated [count]/[total] criteria, E2E tests passed, build clean, linting passed. Commit: [SHA]"}
+{"status": "complete", "summary": "Validated [count]/[total] criteria, E2E tests passed, build clean, linting passed"}
 ```
 
-If validation fails, output ONLY this JSON:
+If validation fails:
 ```json
 {"status": "blocked", "reason": "[what failed validation and specific fixes required]"}
 ```

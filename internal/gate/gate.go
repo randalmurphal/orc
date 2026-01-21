@@ -3,14 +3,17 @@ package gate
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+	"text/template"
 
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // Decision represents a gate evaluation result.
@@ -134,20 +137,28 @@ func (e *Evaluator) evaluateAI(ctx context.Context, gate *plan.Gate, phaseOutput
 		return nil, fmt.Errorf("AI gate requires LLM client")
 	}
 
-	prompt := fmt.Sprintf(`Review the phase output and determine if it meets the quality criteria.
+	// Load template from centralized templates
+	tmplContent, err := templates.Prompts.ReadFile("prompts/gate_evaluation.md")
+	if err != nil {
+		return nil, fmt.Errorf("read gate evaluation template: %w", err)
+	}
 
-Criteria:
-%s
+	tmpl, err := template.New("gate_evaluation").Parse(string(tmplContent))
+	if err != nil {
+		return nil, fmt.Errorf("parse gate evaluation template: %w", err)
+	}
 
-Phase Output:
----
-%s
----
+	data := map[string]any{
+		"Criteria":    formatCriteria(gate.Criteria),
+		"PhaseOutput": truncateOutput(phaseOutput, 4000),
+	}
 
-Evaluate whether the output meets the criteria. If you need more information, specify what questions need answering.`,
-		formatCriteria(gate.Criteria),
-		truncateOutput(phaseOutput, 4000),
-	)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("execute gate evaluation template: %w", err)
+	}
+
+	prompt := buf.String()
 
 	resp, err := e.client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{

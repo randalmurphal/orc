@@ -3,13 +3,16 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
+	"text/template"
 
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // ValidationDecision represents Haiku's judgment on iteration progress.
@@ -37,10 +40,6 @@ func (v ValidationDecision) String() string {
 		return "unknown"
 	}
 }
-
-// HaikuValidationModel is the default model for validation calls.
-// Use the alias "haiku" for resilience against model name changes.
-const HaikuValidationModel = "haiku"
 
 // JSON schemas for structured validation output.
 // Using schemas ensures consistent, parseable output.
@@ -183,28 +182,33 @@ func ValidateIterationProgress(
 		truncatedOutput = iterationOutput[:maxOutputLen] + "\n...[truncated]"
 	}
 
-	prompt := fmt.Sprintf(`Evaluate whether an AI agent's work is progressing toward the success criteria.
+	// Load and execute template
+	tmplContent, err := templates.Prompts.ReadFile("prompts/haiku_iteration_progress.md")
+	if err != nil {
+		return ValidationContinue, "", fmt.Errorf("read iteration progress template: %w", err)
+	}
 
-## Specification
-%s
+	tmpl, err := template.New("iteration_progress").Parse(string(tmplContent))
+	if err != nil {
+		return ValidationContinue, "", fmt.Errorf("parse iteration progress template: %w", err)
+	}
 
-## Agent's Latest Output
-%s
+	data := map[string]any{
+		"SpecContent":     specContent,
+		"IterationOutput": truncatedOutput,
+	}
 
-## Task
-Assess if the work is:
-- ON TRACK: Making progress toward success criteria → decision: "CONTINUE"
-- OFF TRACK: Wrong approach, scope creep, misunderstanding → decision: "RETRY"
-- BLOCKED: Missing dependencies, impossible requirements → decision: "STOP"`, specContent, truncatedOutput)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return ValidationContinue, "", fmt.Errorf("execute iteration progress template: %w", err)
+	}
+	prompt := buf.String()
 
 	resp, err := client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{
 			{Role: claude.RoleUser, Content: prompt},
 		},
-		Model:       HaikuValidationModel,
-		MaxTokens:   200,
-		Temperature: 0,
-		JSONSchema:  iterationProgressSchema,
+		JSONSchema: iterationProgressSchema,
 	})
 
 	if err != nil {
@@ -263,33 +267,34 @@ func ValidateTaskReadiness(
 		return true, nil, nil
 	}
 
-	prompt := fmt.Sprintf(`Evaluate whether this task specification is complete enough for implementation.
+	// Load and execute template
+	tmplContent, err := templates.Prompts.ReadFile("prompts/haiku_task_readiness.md")
+	if err != nil {
+		return true, nil, fmt.Errorf("read task readiness template: %w", err)
+	}
 
-## Task Description
-%s
+	tmpl, err := template.New("task_readiness").Parse(string(tmplContent))
+	if err != nil {
+		return true, nil, fmt.Errorf("parse task readiness template: %w", err)
+	}
 
-## Task Weight
-%s (higher weights require more thorough specs)
+	data := map[string]any{
+		"TaskDescription": taskDescription,
+		"Weight":          weight,
+		"SpecContent":     specContent,
+	}
 
-## Specification
-%s
-
-## Criteria
-For a %s task, the spec should have:
-1. INTENT - Clear statement of why this work matters
-2. SUCCESS CRITERIA - Specific, testable conditions for "done"
-3. TESTING - How to verify the implementation works
-
-Set ready=true only if all criteria are met. Otherwise, list specific improvements needed.`, taskDescription, weight, specContent, weight)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return true, nil, fmt.Errorf("execute task readiness template: %w", err)
+	}
+	prompt := buf.String()
 
 	resp, err := client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{
 			{Role: claude.RoleUser, Content: prompt},
 		},
-		Model:       HaikuValidationModel,
-		MaxTokens:   300,
-		Temperature: 0,
-		JSONSchema:  taskReadinessSchema,
+		JSONSchema: taskReadinessSchema,
 	})
 
 	if err != nil {
@@ -353,32 +358,33 @@ func ValidateSuccessCriteria(
 		truncatedSummary = implementationSummary[:maxSummaryLen] + "\n...[truncated]"
 	}
 
-	prompt := fmt.Sprintf(`Evaluate whether the implementation satisfies ALL success criteria from the specification.
+	// Load and execute template
+	tmplContent, err := templates.Prompts.ReadFile("prompts/haiku_success_criteria.md")
+	if err != nil {
+		return nil, fmt.Errorf("read success criteria template: %w", err)
+	}
 
-## Specification
-%s
+	tmpl, err := template.New("success_criteria").Parse(string(tmplContent))
+	if err != nil {
+		return nil, fmt.Errorf("parse success criteria template: %w", err)
+	}
 
-## Implementation Summary (Agent's Claimed Work)
-%s
+	data := map[string]any{
+		"SpecContent":           specContent,
+		"ImplementationSummary": truncatedSummary,
+	}
 
-## Task
-For EACH success criterion in the spec (look for "Success Criteria" section, SC-1, SC-2, etc.):
-1. Determine if it is MET, NOT_MET, or PARTIAL
-2. Explain why in the reason field
-
-Be strict: a criterion is only MET if there's clear evidence it's satisfied.
-If the implementation summary doesn't mention addressing a criterion, mark it NOT_MET.
-
-Set all_met=true ONLY if every single criterion has status=MET.`, specContent, truncatedSummary)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("execute success criteria template: %w", err)
+	}
+	prompt := buf.String()
 
 	resp, err := client.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{
 			{Role: claude.RoleUser, Content: prompt},
 		},
-		Model:       HaikuValidationModel,
-		MaxTokens:   800, // More tokens for detailed criteria breakdown
-		Temperature: 0,
-		JSONSchema:  criteriaCompletionSchema,
+		JSONSchema: criteriaCompletionSchema,
 	})
 
 	if err != nil {

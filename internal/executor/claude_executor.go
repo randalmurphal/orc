@@ -46,6 +46,12 @@ type ClaudeExecutor struct {
 
 	// Max turns (budget control)
 	maxTurns int
+
+	// Phase ID for schema selection (artifact vs non-artifact phases)
+	phaseID string
+
+	// Review round for review phase schema selection (1 = findings, 2 = decision)
+	reviewRound int
 }
 
 // ClaudeExecutorOption configures a ClaudeExecutor.
@@ -89,6 +95,19 @@ func WithClaudeMaxTurns(maxTurns int) ClaudeExecutorOption {
 // WithClaudeLogger sets the logger.
 func WithClaudeLogger(l *slog.Logger) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.logger = l }
+}
+
+// WithClaudePhaseID sets the phase ID for schema selection.
+// Artifact-producing phases (spec, design, research, docs) use a schema
+// that includes an artifact field for capturing output content.
+func WithClaudePhaseID(id string) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.phaseID = id }
+}
+
+// WithClaudeReviewRound sets the review round for review phase schema selection.
+// Round 1 uses ReviewFindingsSchema, Round 2 uses ReviewDecisionSchema.
+func WithClaudeReviewRound(round int) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.reviewRound = round }
 }
 
 // NewClaudeExecutor creates a new Claude executor.
@@ -139,12 +158,16 @@ func (u TokenUsage) EffectiveTotalTokens() int {
 
 // ExecuteTurn sends a prompt to Claude and waits for the response.
 // Uses --json-schema to force structured output for completion detection.
+// The schema varies by phase: artifact-producing phases (spec, design, research, docs)
+// use a schema with an artifact field to capture output content.
 func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
 
 	// Build CLI options using consolidated helper, then add JSON schema
 	cliOpts := e.buildBaseCLIOptions()
-	cliOpts = append(cliOpts, claude.WithJSONSchema(PhaseCompletionSchema))
+	// Select schema based on phase and round - review/qa use specialized schemas
+	schema := GetSchemaForPhaseWithRound(e.phaseID, e.reviewRound)
+	cliOpts = append(cliOpts, claude.WithJSONSchema(schema))
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
@@ -177,7 +200,7 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 	}
 
 	// Parse completion status from JSON response
-	// Since we use --json-schema, response should be pure JSON matching PhaseCompletionSchema
+	// Since we use --json-schema, response should be pure JSON matching the phase-appropriate schema
 	result.Status, result.Reason = CheckPhaseCompletionJSON(resp.Content)
 
 	// Check for error response
@@ -296,6 +319,15 @@ func NewClaudeExecutorFromContext(ctx *ExecutionContext, claudePath string, maxI
 		logger = slog.Default()
 	}
 
+	// Get phase ID for schema selection
+	phaseID := ""
+	if ctx.Phase != nil {
+		phaseID = ctx.Phase.ID
+	}
+
+	// Get review round for review phase schema selection
+	reviewRound := ctx.TemplateVars.ReviewRound
+
 	return NewClaudeExecutor(
 		WithClaudePath(claudePath),
 		WithClaudeWorkdir(ctx.WorkingDir),
@@ -305,6 +337,8 @@ func NewClaudeExecutorFromContext(ctx *ExecutionContext, claudePath string, maxI
 		WithClaudeMaxTurns(maxIterations),
 		WithClaudeLogger(logger),
 		WithClaudeMCPConfig(ctx.MCPConfigPath),
+		WithClaudePhaseID(phaseID),
+		WithClaudeReviewRound(reviewRound),
 	)
 }
 

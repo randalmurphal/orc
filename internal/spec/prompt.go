@@ -2,7 +2,6 @@ package spec
 
 import (
 	"bytes"
-	_ "embed"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -10,10 +9,8 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/templates"
 )
-
-//go:embed builtin/spec_session.md
-var builtinPromptTemplate string
 
 // PromptData contains the data used to generate the spec prompt.
 type PromptData struct {
@@ -61,8 +58,14 @@ func GeneratePrompt(data PromptData) (string, error) {
 		tmplData["InitiativeDecisions"] = formatDecisions(data.Initiative.Decisions)
 	}
 
+	// Load template from centralized templates
+	tmplContent, err := templates.Prompts.ReadFile("prompts/spec_session.md")
+	if err != nil {
+		return "", fmt.Errorf("read spec prompt template: %w", err)
+	}
+
 	// Parse and execute template
-	tmpl, err := template.New("spec").Parse(builtinPromptTemplate)
+	tmpl, err := template.New("spec").Parse(string(tmplContent))
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}

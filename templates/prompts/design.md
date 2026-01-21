@@ -99,9 +99,11 @@ Use ASCII diagrams for:
 
 ## Output Format
 
-Create the design document and wrap it in artifact tags for automatic persistence:
+**CRITICAL**: Your final output MUST be a JSON object with the design document in the `artifact` field.
 
-<artifact>
+Create the design document following this structure:
+
+```markdown
 # Design: {{TASK_TITLE}}
 
 ## Overview
@@ -134,7 +136,7 @@ Create the design document and wrap it in artifact tags for automatic persistenc
 type ComponentA interface {
     Method1(input Type1) (Type2, error)
     Method2(input Type3) error
-}}
+}
 ```
 
 ### Component B
@@ -197,29 +199,24 @@ User Input
 ## Open Questions
 
 [Any remaining design questions - or "None"]
-</artifact>
+```
 
 ## Phase Completion
 
-After completing the design, commit your changes:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: design - completed"
-```
-
-Then output:
-
-```
-### Design Summary
-
-Then output ONLY this JSON to signal completion:
+Output a JSON object with the design in the `artifact` field:
 
 ```json
-{"status": "complete", "summary": "Design defined [count] components with [count] decisions documented. Commit: [SHA]"}
+{
+  "status": "complete",
+  "summary": "Design defined 3 components with 5 decisions documented",
+  "artifact": "# Design: Feature Name\n\n## Overview\n..."
+}
 ```
 
-If blocked (e.g., need architectural review), output ONLY this JSON:
+If blocked (e.g., need architectural review):
 ```json
-{"status": "blocked", "reason": "[what's blocking design and what decision/input is needed]"}
+{
+  "status": "blocked",
+  "reason": "[what's blocking design and what decision/input is needed]"
+}
 ```

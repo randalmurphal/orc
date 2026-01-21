@@ -483,16 +483,9 @@ fatal: 'path/to/worktree' is already a worktree
 - Merge conflicts in worktrees involving spec.md files
 - `git status` shows untracked spec.md
 
-**Cause**: In older versions of orc, Claude Code sometimes wrote spec.md files directly to the filesystem instead of outputting them via `<artifact>` tags for database storage. This has been fixed (TASK-292), but you may encounter leftover files from previous runs.
+**Cause**: In older versions of orc, Claude Code sometimes wrote spec.md files directly to the filesystem. Specs are now captured via JSON output and stored in the database.
 
-**Why This Happens**:
-
-Specs are designed to be:
-1. Output in `<artifact>` tags by Claude
-2. Extracted by orc and saved to the database via `SaveSpecToDatabase()`
-3. Never written to the filesystem
-
-When Claude incorrectly uses the Write tool to create spec.md, it bypasses the database and creates merge conflicts when multiple worktrees exist.
+**Current design**: Specs are output in JSON `artifact` field using `--json-schema` constrained output, extracted by orc, and saved to database via `SaveSpecToDatabase()`.
 
 **Solutions**:
 
@@ -514,10 +507,8 @@ If the spec displays correctly, any filesystem spec.md is redundant and can be d
 
 **Prevention**:
 
-As of TASK-292:
 - `spec.md` and `artifacts/spec.md` are in `.gitignore`
-- The spec prompt explicitly instructs Claude not to write spec files
-- The prompt emphasizes using `<artifact>` tags for database persistence
+- Spec prompts use JSON schema for structured output
 
 ---
 

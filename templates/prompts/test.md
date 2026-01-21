@@ -237,19 +237,6 @@ Before marking the phase complete, verify:
 2. Coverage ≥ {{COVERAGE_THRESHOLD}}%
 3. Linting passes (0 errors from golangci-lint/go vet/npm lint/ruff)
 
-### Commit Tests
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: test - completed
-
-Phase: test
-Status: completed
-Tests: [count] passed
-Coverage: [percent]% (threshold: {{COVERAGE_THRESHOLD}}%)
-"
-```
-
 ### Output Completion
 
 Only signal completion when ALL THREE conditions are met:

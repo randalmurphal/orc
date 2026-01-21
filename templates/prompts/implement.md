@@ -200,73 +200,17 @@ Common issues to watch for:
 - Type errors (TypeScript)
 - Formatting issues
 
-### Step 10: Commit Changes
+### Step 10: Output Completion
 
-**IMPORTANT**: Before marking the phase complete, commit all changes:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: implement - completed
-
-Phase: implement
-Status: completed
-Files changed: [count]
-"
-```
-
-This checkpoint enables rollback if later phases fail.
-
-### Step 11: Output Completion
-
-Wrap your implementation summary in artifact tags for automatic persistence:
-
-<artifact>
-## Implementation Summary
-
-**Task**: {{TASK_TITLE}}
-
-### Impact Analysis Results
-
-| Code Changed | Dependents Found | Updates Made |
-|--------------|------------------|--------------|
-| [function/file] | [list] | [what was updated] |
-
-### Preservation Verification
-- [ ] [Preserved behavior 1]: Verified via [test/command]
-- [ ] [Preserved behavior 2]: Verified via [test/command]
-
-### Files Changed
-- [file1]: [description]
-- [file2]: [description]
-
-### Verification Results
-
-| ID | Criterion | Method | Result | Notes |
-|----|-----------|--------|--------|-------|
-| SC-1 | [From spec] | [Command run] | ✅ PASS | [Output summary] |
-| SC-2 | [From spec] | [Command run] | ✅ PASS | [Output summary] |
-
-### Amendments (if any)
-[List any AMEND-XXX entries, or "None"]
-
-### Key Decisions
-- [Decision 1]: [Why]
-- [Decision 2]: [Why]
-</artifact>
-
-Then output ONLY this JSON to signal completion:
+When all success criteria pass, output JSON to signal completion:
 
 ```json
-{"status": "complete", "summary": "Implemented [feature] with all criteria verified. Commit: [SHA]"}
+{"status": "complete", "summary": "Implemented [feature]: [files changed count] files, all [criteria count] criteria verified"}
 ```
 
-**If any verification fails**, do NOT output completion JSON. Instead:
-1. Note which criterion failed
-2. Fix the implementation
-3. Re-run verification
-4. Repeat until all pass
+**If any verification fails**, fix the implementation and re-verify. Only output completion when all criteria pass.
 
-If blocked (cannot proceed), output ONLY this JSON:
+If blocked (cannot proceed), output:
 ```json
 {"status": "blocked", "reason": "[why blocked and what's needed]"}
 ```

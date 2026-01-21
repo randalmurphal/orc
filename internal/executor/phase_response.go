@@ -5,7 +5,6 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -23,8 +22,8 @@ const (
 	PhaseStatusBlocked
 )
 
-// PhaseCompletionSchema is the JSON schema that forces structured output for phase completion.
-// This replaces the legacy XML marker parsing (<phase_complete>, <phase_blocked>).
+// PhaseCompletionSchema is the JSON schema for phases that don't produce artifacts.
+// Used by: implement, test, validate, finalize
 const PhaseCompletionSchema = `{
 	"type": "object",
 	"properties": {
@@ -45,11 +44,78 @@ const PhaseCompletionSchema = `{
 	"required": ["status"]
 }`
 
+// PhaseCompletionWithArtifactSchema is the JSON schema for phases that produce artifacts.
+// Used by: spec, design, research, docs
+// The artifact field contains the full artifact content (spec, design doc, etc.)
+const PhaseCompletionWithArtifactSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["complete", "blocked", "continue"],
+			"description": "Phase status: complete (work done), blocked (cannot proceed), continue (more work needed)"
+		},
+		"reason": {
+			"type": "string",
+			"description": "Explanation for blocked status, or progress summary for continue"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Work summary for complete status"
+		},
+		"artifact": {
+			"type": "string",
+			"description": "The full artifact content (spec, design doc, research notes, etc.). REQUIRED when status is complete."
+		}
+	},
+	"required": ["status"]
+}`
+
+// PhasesWithArtifacts lists phases that produce artifacts and should use PhaseCompletionWithArtifactSchema
+var PhasesWithArtifacts = map[string]bool{
+	"spec":     true,
+	"design":   true,
+	"research": true,
+	"docs":     true,
+}
+
+// GetSchemaForPhase returns the appropriate JSON schema for a phase.
+// For review phases, use GetSchemaForPhaseWithRound to get round-specific schemas.
+func GetSchemaForPhase(phaseID string) string {
+	return GetSchemaForPhaseWithRound(phaseID, 0)
+}
+
+// GetSchemaForPhaseWithRound returns the appropriate JSON schema for a phase,
+// with support for round-specific schemas (e.g., review round 1 vs round 2).
+func GetSchemaForPhaseWithRound(phaseID string, round int) string {
+	// Artifact-producing phases get schema with artifact field
+	if PhasesWithArtifacts[phaseID] {
+		return PhaseCompletionWithArtifactSchema
+	}
+
+	// Review phase has round-specific schemas
+	if phaseID == "review" {
+		if round == 2 {
+			return ReviewDecisionSchema
+		}
+		// Round 1 (or unspecified) uses findings schema
+		return ReviewFindingsSchema
+	}
+
+	// QA phase has its own schema
+	if phaseID == "qa" {
+		return QAResultSchema
+	}
+
+	return PhaseCompletionSchema
+}
+
 // PhaseResponse represents the structured response from a phase execution.
 type PhaseResponse struct {
-	Status  string `json:"status"`            // "complete", "blocked", or "continue"
-	Reason  string `json:"reason,omitempty"`  // Required for blocked, optional for others
-	Summary string `json:"summary,omitempty"` // Work summary for complete status
+	Status   string `json:"status"`             // "complete", "blocked", or "continue"
+	Reason   string `json:"reason,omitempty"`   // Required for blocked, optional for others
+	Summary  string `json:"summary,omitempty"`  // Work summary for complete status
+	Artifact string `json:"artifact,omitempty"` // Artifact content for phases that produce them (spec, design, research, docs)
 }
 
 // ParsePhaseResponse parses a JSON response into a PhaseResponse struct.
@@ -109,40 +175,21 @@ func truncateForPrompt(content string, maxLen int) string {
 	return content[:maxLen] + "...[truncated]"
 }
 
-// HasJSONCompletion checks if accumulated content contains a JSON object
-// indicating phase completion or blocking. Used during streaming to detect
-// early completion (workaround for Claude CLI bug #1920).
+// HasJSONCompletion checks if content is valid JSON indicating phase completion.
+// Content MUST be pure JSON from --json-schema.
 func HasJSONCompletion(content string) bool {
-	// Use extractJSON to handle mixed content
-	jsonContent := extractJSON(content)
-	if jsonContent == "" {
-		return false
-	}
-	resp, err := ParsePhaseResponse(jsonContent)
+	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
 	if err != nil {
 		return false
 	}
-	// Only complete/blocked indicate we're done; continue means more work needed
 	return resp.IsComplete() || resp.IsBlocked()
 }
 
-// CheckPhaseCompletionJSON parses the content as JSON and returns the phase status.
-// This is the JSON equivalent of the legacy CheckPhaseCompletion function.
-// Returns (status, reason) where status is PhaseCompletionStatus and reason is the
-// summary (for complete) or reason (for blocked/continue).
-//
-// This function handles both pure JSON and mixed text/JSON content (e.g., JSON
-// wrapped in markdown code blocks).
+// CheckPhaseCompletionJSON parses JSON content and returns the phase status.
+// Content MUST be pure JSON from --json-schema. No extraction, no mixed content.
 func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
-	// Try to extract JSON from the content (handles code blocks, mixed text, etc.)
-	jsonContent := extractJSON(content)
-	if jsonContent == "" {
-		return PhaseStatusContinue, ""
-	}
-
-	resp, err := ParsePhaseResponse(jsonContent)
+	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
 	if err != nil {
-		// Can't parse as JSON - treat as continue (need more work)
 		return PhaseStatusContinue, ""
 	}
 
@@ -158,30 +205,12 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
 	}
 }
 
-// extractJSON attempts to extract a JSON object from content that may contain
-// markdown code blocks, prose, or other non-JSON text.
-func extractJSON(content string) string {
-	content = strings.TrimSpace(content)
-
-	// Try direct JSON parse first (fast path)
-	if strings.HasPrefix(content, "{") {
-		var js json.RawMessage
-		if json.Unmarshal([]byte(content), &js) == nil {
-			return content
-		}
+// ExtractArtifactFromOutput parses JSON and returns the artifact field.
+// Content MUST be pure JSON from --json-schema.
+func ExtractArtifactFromOutput(content string) string {
+	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
+	if err != nil {
+		return ""
 	}
-
-	// Try to extract from markdown code block: ```json ... ```
-	codeBlockRe := regexp.MustCompile("(?s)```(?:json)?\\s*\\n?({.*?})\\s*\\n?```")
-	if matches := codeBlockRe.FindStringSubmatch(content); len(matches) > 1 {
-		return strings.TrimSpace(matches[1])
-	}
-
-	// Try to find a JSON object by looking for {"status": pattern
-	statusRe := regexp.MustCompile(`(?s)(\{"status"\s*:\s*"(?:complete|blocked|continue)"[^}]*\})`)
-	if matches := statusRe.FindStringSubmatch(content); len(matches) > 1 {
-		return strings.TrimSpace(matches[1])
-	}
-
-	return ""
+	return resp.Artifact
 }

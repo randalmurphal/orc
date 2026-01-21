@@ -224,18 +224,17 @@ go test ./internal/executor/... -v
 
 ## Artifact Storage
 
-| Phase | Storage | Reason |
-|-------|---------|--------|
-| spec | Database only | Avoids merge conflicts in worktrees |
-| research, design, implement, test, docs, validate | File artifacts | Traditional file-based storage |
+| Phase | Storage | Extraction |
+|-------|---------|------------|
+| spec, design, research, docs | Database | From JSON `artifact` field via `--json-schema` |
+| implement, test, validate | Code changes only | No artifact extraction |
 
-**Spec handling:**
-- `SavePhaseArtifact()` skips file writes for spec phase
-- `SaveSpecToDatabase()` extracts spec content and saves to database with source tag
-  - Primary: Looks for `<artifact>` tags in agent output
-  - Fallback: If no artifact tags, checks for `spec.md` file in task directory (agents sometimes write specs to files instead of using artifact tags)
-- `ArtifactDetector` checks database first (via `NewArtifactDetectorWithBackend`), falls back to legacy `spec.md` file
-- **Failure handling:** All three spec extraction failure paths (empty output, extraction error, database save error) call `failTask()` to ensure task status becomes `StatusFailed` rather than orphaned in `StatusRunning`
+**JSON-based artifact extraction:**
+- Phase prompts use `--json-schema` for constrained JSON output
+- `GetSchemaForPhase()` returns appropriate schema (with or without `artifact` field)
+- `ExtractArtifactFromOutput()` parses JSON and extracts `artifact` field
+- `SaveSpecToDatabase()` extracts spec from JSON and saves to database
+- **Failure handling:** Extraction failures call `failTask()` to ensure task status becomes `StatusFailed`
 
 ## Backpressure & Haiku Validation
 
@@ -253,39 +252,83 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 - `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
 - `false` (fast profile): Fail open, continue execution without validation
 
+## Claude Call Patterns (CRITICAL)
+
+**All Claude calls MUST follow these consolidated patterns. Deviating causes bugs.**
+
+### Pattern 1: TurnExecutor for Phase Execution
+
+```go
+// Phase execution with sessions - model from ResolveModelSetting()
+turnExec := NewClaudeExecutorFromContext(execCtx, claudePath, maxIterations, logger)
+result, err := turnExec.ExecuteTurn(ctx, prompt)              // With JSON schema
+result, err := turnExec.ExecuteTurnWithoutSchema(ctx, prompt) // Freeform output
+```
+
+### Pattern 2: Direct Client for One-Shot Validation
+
+```go
+// Validation calls - model set on client creation, NOT in request
+resp, err := client.Complete(ctx, claude.CompletionRequest{
+    Messages:   []claude.Message{{Role: claude.RoleUser, Content: prompt}},
+    JSONSchema: schema,  // Always use schema for structured output
+    // Model NOT specified here - uses client's configured model
+})
+```
+
+### Model Configuration
+
+| Call Type | Model Source | Config Key |
+|-----------|--------------|------------|
+| Phase execution | `ResolveModelSetting(weight, phase)` | `config.Models[weight][phase]` |
+| Haiku validation | Client configured at creation | `config.Validation.Model` |
+| Gate evaluation | Main executor client | `executor.Config.Model` |
+
+**NEVER hardcode model in CompletionRequest** - model is set when creating the client.
+
+### Schema Routing (`phase_response.go`)
+
+`GetSchemaForPhaseWithRound(phaseID, round)` returns the correct schema:
+
+| Phase | Round | Schema |
+|-------|-------|--------|
+| spec, design, research, docs | - | `PhaseCompletionWithArtifactSchema` |
+| review | 1 | `ReviewFindingsSchema` |
+| review | 2 | `ReviewDecisionSchema` |
+| qa | - | `QAResultSchema` |
+| other | - | `PhaseCompletionSchema` |
+
+### ExecuteTurn vs ExecuteTurnWithoutSchema
+
+| Method | When to Use | Example |
+|--------|-------------|---------|
+| `ExecuteTurn()` | Need completion detection from JSON | Phase execution |
+| `ExecuteTurnWithoutSchema()` | Verify success externally | `conflict_resolver.go` (checks git status) |
+
 ## Structured Output (JSON Schema)
 
-LLM responses requiring structured data use JSON schemas via Claude's `--json-schema` flag. This replaces fragile XML regex parsing with reliable `json.Unmarshal`.
+**ALL LLM output is pure JSON via `--json-schema`.** No mixed text/JSON. No extraction needed.
 
 ### Schema Definitions
 
 | File | Schema Constant | Purpose |
 |------|-----------------|---------|
-| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema` | Progress and spec validation |
-| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | Code review structured output |
-| `qa.go` | `QAResultSchema` | QA session results |
-| `../gate/gate.go` | `gateDecisionSchema` | Gate approval decisions |
+| `phase_response.go` | `PhaseCompletionSchema`, `PhaseCompletionWithArtifactSchema` | Phase completion |
+| `haiku_validation.go` | `iterationProgressSchema`, `taskReadinessSchema`, `criteriaCompletionSchema` | Validation |
+| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | Code review |
+| `qa.go` | `QAResultSchema` | QA session |
+| `../gate/gate.go` | `gateDecisionSchema` | Gate decisions |
 
-### Parsing Functions
+### Parsing
 
-| Function | Use Case |
-|----------|----------|
-| `ParseReviewFindings()`, `ParseReviewDecision()` | Direct JSON parsing (clean JSON input) |
-| `ParseQAResult()` | Direct JSON parsing (clean JSON input) |
-| `ExtractReviewFindings()`, `ExtractReviewDecision()` | Robust extraction from mixed text/JSON session output |
-| `ExtractQAResult()` | Robust extraction from mixed text/JSON session output |
+All parsing is direct `json.Unmarshal()`. No regex, no extraction, no mixed content handling.
 
-**Extract vs Parse:**
-- `Parse*` functions expect clean JSON - use when LLM returns pure JSON via `--json-schema`
-- `Extract*` functions handle mixed output - use when processing session output that may contain text around JSON
-
-**Extraction Flow (llmkit/claude/extract.go):**
-1. Try direct JSON parsing (fast path)
-2. Look for JSON in code blocks (```json ... ```)
-3. Find JSON object by brace matching
-4. If no valid JSON found, fallback to LLM extraction with schema
-
-**Pattern:** Define JSON schema constant → Pass to LLM call → Unmarshal response → Normalize fields (e.g., lowercase status enums).
+```go
+var result progressResponse
+if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+    return ValidationContinue, "", fmt.Errorf("parse error: %w", err)
+}
+```
 
 ## Transcript Persistence (JSONL Sync)
 

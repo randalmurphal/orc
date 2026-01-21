@@ -1,12 +1,10 @@
 package executor
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 )
 
@@ -185,35 +183,6 @@ func ParseQAResult(response string) (*QAResult, error) {
 	return &result, nil
 }
 
-// ExtractQAResult extracts QA result from session output using a two-phase
-// approach: direct JSON parsing, then LLM extraction with schema.
-// This handles cases where sessions emit mixed text + JSON output.
-func ExtractQAResult(ctx context.Context, client claude.Client, output string) (*QAResult, error) {
-	var result QAResult
-	err := claude.ExtractStructured(ctx, client, output, QAResultSchema, &result, &claude.ExtractStructuredOptions{
-		Model:   "haiku",
-		Context: "QA session result. Extract the status (pass/fail/needs_attention), summary, tests written, test run results, coverage info, documentation created, issues found, and recommendation.",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("extract QA result: %w", err)
-	}
-
-	// Normalize status to lowercase
-	result.Status = QAStatus(strings.ToLower(string(result.Status)))
-
-	// Initialize nil slices to empty
-	if result.TestsWritten == nil {
-		result.TestsWritten = []QATest{}
-	}
-	if result.Documentation == nil {
-		result.Documentation = []QADoc{}
-	}
-	if result.Issues == nil {
-		result.Issues = []QAIssue{}
-	}
-
-	return &result, nil
-}
 
 // HasHighSeverityIssues checks if there are any high-severity issues.
 func (r *QAResult) HasHighSeverityIssues() bool {

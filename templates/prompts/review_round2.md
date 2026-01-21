@@ -82,22 +82,20 @@ Based on your validation:
 
 ## Output Format
 
-```xml
-<review_decision>
-  <status>pass|fail|needs_user_input</status>
-  <gaps_addressed>true|false</gaps_addressed>
-  <summary>Overall assessment of the implementation</summary>
-  <issues_resolved>
-    <issue>Description of resolved issue from Round 1</issue>
-  </issues_resolved>
-  <remaining_issues>
-    <issue severity="high|medium|low">Description of remaining issue</issue>
-  </remaining_issues>
-  <user_questions>
-    <question>Question requiring user decision (if needs_user_input)</question>
-  </user_questions>
-  <recommendation>What should happen next</recommendation>
-</review_decision>
+Output JSON matching the review decision schema:
+
+```json
+{
+  "status": "pass|fail|needs_user_input",
+  "gaps_addressed": true,
+  "summary": "Overall assessment of the implementation",
+  "issues_resolved": ["Resolved issue 1 from Round 1", "Resolved issue 2"],
+  "remaining_issues": [
+    {"severity": "medium", "description": "Remaining issue description"}
+  ],
+  "user_questions": ["Question requiring user decision (if needs_user_input)"],
+  "recommendation": "What should happen next"
+}
 ```
 
 ## Phase Completion

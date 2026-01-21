@@ -72,10 +72,7 @@ orc new "<title>" --weight <trivial|small|medium|large>
 
 ### Completion
 
-When the spec is complete and saved:
-```
-<spec_complete>true</spec_complete>
-```
+When the spec is complete and saved, confirm with the user that the spec meets their needs.
 
 ---
 

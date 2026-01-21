@@ -9,26 +9,34 @@ import (
 func TestParseTaskBreakdown_Valid(t *testing.T) {
 	response := `Here is my analysis of the spec.
 
-<task_breakdown>
-<task id="1">
-<title>Create User model</title>
-<description>Define the User model with email, password_hash, created_at fields.</description>
-<weight>small</weight>
-<depends_on></depends_on>
-</task>
-<task id="2">
-<title>Add password hashing</title>
-<description>Implement bcrypt-based password hashing.</description>
-<weight>trivial</weight>
-<depends_on>1</depends_on>
-</task>
-<task id="3">
-<title>Create registration endpoint</title>
-<description>POST /api/auth/register with validation.</description>
-<weight>medium</weight>
-<depends_on>1,2</depends_on>
-</task>
-</task_breakdown>`
+` + "```json" + `
+{
+  "summary": "User authentication feature implementation",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Create User model",
+      "description": "Define the User model with email, password_hash, created_at fields.",
+      "weight": "small",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "title": "Add password hashing",
+      "description": "Implement bcrypt-based password hashing.",
+      "weight": "trivial",
+      "depends_on": [1]
+    },
+    {
+      "id": 3,
+      "title": "Create registration endpoint",
+      "description": "POST /api/auth/register with validation.",
+      "weight": "medium",
+      "depends_on": [1, 2]
+    }
+  ]
+}
+` + "```"
 
 	breakdown, err := ParseTaskBreakdown(response)
 	if err != nil {
@@ -37,6 +45,11 @@ func TestParseTaskBreakdown_Valid(t *testing.T) {
 
 	if len(breakdown.Tasks) != 3 {
 		t.Errorf("Expected 3 tasks, got %d", len(breakdown.Tasks))
+	}
+
+	// Check summary
+	if breakdown.Summary != "User authentication feature implementation" {
+		t.Errorf("Summary = %q, want %q", breakdown.Summary, "User authentication feature implementation")
 	}
 
 	// Check first task
@@ -59,9 +72,36 @@ func TestParseTaskBreakdown_Valid(t *testing.T) {
 	}
 }
 
+func TestParseTaskBreakdown_RawJSON(t *testing.T) {
+	// Test parsing raw JSON without markdown code blocks
+	response := `{
+  "summary": "Simple task list",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Single task",
+      "description": "Just one task",
+      "weight": "small",
+      "depends_on": []
+    }
+  ]
+}`
+
+	breakdown, err := ParseTaskBreakdown(response)
+	if err != nil {
+		t.Fatalf("ParseTaskBreakdown failed: %v", err)
+	}
+
+	if len(breakdown.Tasks) != 1 {
+		t.Errorf("Expected 1 task, got %d", len(breakdown.Tasks))
+	}
+}
+
 func TestParseTaskBreakdown_NoTasks(t *testing.T) {
-	response := `<task_breakdown>
-</task_breakdown>`
+	response := `{
+  "summary": "Empty breakdown",
+  "tasks": []
+}`
 
 	_, err := ParseTaskBreakdown(response)
 	if err == nil {
@@ -69,7 +109,7 @@ func TestParseTaskBreakdown_NoTasks(t *testing.T) {
 	}
 }
 
-func TestParseTaskBreakdown_NoBreakdown(t *testing.T) {
+func TestParseTaskBreakdown_NoJSON(t *testing.T) {
 	response := "Just some text without any task breakdown."
 
 	_, err := ParseTaskBreakdown(response)
@@ -78,32 +118,58 @@ func TestParseTaskBreakdown_NoBreakdown(t *testing.T) {
 	}
 }
 
-func TestParseDependencies(t *testing.T) {
+func TestParseTaskBreakdown_InvalidJSON(t *testing.T) {
+	response := `{
+  "summary": "Broken JSON",
+  "tasks": [
+    {invalid json}
+  ]
+}`
+
+	_, err := ParseTaskBreakdown(response)
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+}
+
+func TestExtractJSON(t *testing.T) {
 	tests := []struct {
-		input string
-		want  []int
+		name    string
+		content string
+		want    string
 	}{
-		{"", nil},
-		{"1", []int{1}},
-		{"1,2", []int{1, 2}},
-		{"1, 2, 3", []int{1, 2, 3}},
-		{"  1  ,  2  ", []int{1, 2}},
-		{"invalid", nil},
-		{"1,invalid,2", []int{1, 2}},
+		{
+			name:    "json code block",
+			content: "Some text\n```json\n{\"key\": \"value\"}\n```\nMore text",
+			want:    `{"key": "value"}`,
+		},
+		{
+			name:    "generic code block",
+			content: "Some text\n```\n{\"key\": \"value\"}\n```\nMore text",
+			want:    `{"key": "value"}`,
+		},
+		{
+			name:    "raw json",
+			content: `Some text {"key": "value"} more text`,
+			want:    `{"key": "value"}`,
+		},
+		{
+			name:    "nested json",
+			content: `{"outer": {"inner": "value"}}`,
+			want:    `{"outer": {"inner": "value"}}`,
+		},
+		{
+			name:    "no json",
+			content: "No JSON here",
+			want:    "",
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := parseDependencies(tt.input)
-			if len(got) != len(tt.want) {
-				t.Errorf("parseDependencies(%q) = %v, want %v", tt.input, got, tt.want)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("parseDependencies(%q) = %v, want %v", tt.input, got, tt.want)
-					return
-				}
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractJSON(tt.content)
+			if got != tt.want {
+				t.Errorf("extractJSON() = %q, want %q", got, tt.want)
 			}
 		})
 	}

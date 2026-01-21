@@ -1,13 +1,11 @@
 package executor
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -274,62 +272,6 @@ func ParseReviewDecision(response string) (*ReviewDecision, error) {
 	return &decision, nil
 }
 
-// ExtractReviewFindings extracts review findings from session output using a
-// two-phase approach: direct JSON parsing, then LLM extraction with schema.
-// This handles cases where sessions emit mixed text + JSON output.
-func ExtractReviewFindings(ctx context.Context, client claude.Client, output string) (*ReviewFindings, error) {
-	var findings ReviewFindings
-	err := claude.ExtractStructured(ctx, client, output, ReviewFindingsSchema, &findings, &claude.ExtractStructuredOptions{
-		Model:   "haiku",
-		Context: "Review findings from a code review session. Extract the round number, summary, issues found (with severity, file, line, description), and any questions or positives noted.",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("extract review findings: %w", err)
-	}
-
-	// Initialize nil slices to empty
-	if findings.Issues == nil {
-		findings.Issues = []ReviewFinding{}
-	}
-	if findings.Questions == nil {
-		findings.Questions = []string{}
-	}
-	if findings.Positives == nil {
-		findings.Positives = []string{}
-	}
-
-	return &findings, nil
-}
-
-// ExtractReviewDecision extracts review decision from session output using a
-// two-phase approach: direct JSON parsing, then LLM extraction with schema.
-// This handles cases where sessions emit mixed text + JSON output.
-func ExtractReviewDecision(ctx context.Context, client claude.Client, output string) (*ReviewDecision, error) {
-	var decision ReviewDecision
-	err := claude.ExtractStructured(ctx, client, output, ReviewDecisionSchema, &decision, &claude.ExtractStructuredOptions{
-		Model:   "haiku",
-		Context: "Review decision from a code review session. Extract the status (pass/fail/needs_user_input), whether gaps were addressed, summary, resolved issues, remaining issues, user questions, and recommendation.",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("extract review decision: %w", err)
-	}
-
-	// Normalize status to lowercase
-	decision.Status = ReviewDecisionStatus(strings.ToLower(string(decision.Status)))
-
-	// Initialize nil slices to empty
-	if decision.RemainingIssues == nil {
-		decision.RemainingIssues = []ReviewFinding{}
-	}
-	if decision.IssuesResolved == nil {
-		decision.IssuesResolved = []string{}
-	}
-	if decision.UserQuestions == nil {
-		decision.UserQuestions = []string{}
-	}
-
-	return &decision, nil
-}
 
 // HasHighSeverityIssues checks if there are any high-severity issues.
 func (f *ReviewFindings) HasHighSeverityIssues() bool {
