@@ -37,6 +37,7 @@ func (m *mockStateSaver) getSaveCount() int {
 }
 
 func TestHeartbeatRunner_UpdatesHeartbeat(t *testing.T) {
+	t.Parallel()
 	// Create a state with execution info
 	s := state.New("test-task")
 	s.StartExecution(os.Getpid(), "test-host")
@@ -72,6 +73,7 @@ func TestHeartbeatRunner_UpdatesHeartbeat(t *testing.T) {
 }
 
 func TestHeartbeatRunner_StopsOnContextCancel(t *testing.T) {
+	t.Parallel()
 	s := state.New("test-task")
 	s.StartExecution(os.Getpid(), "test-host")
 
@@ -101,6 +103,7 @@ func TestHeartbeatRunner_StopsOnContextCancel(t *testing.T) {
 }
 
 func TestHeartbeatRunner_StopsOnStopSignal(t *testing.T) {
+	t.Parallel()
 	s := state.New("test-task")
 	s.StartExecution(os.Getpid(), "test-host")
 
@@ -127,6 +130,7 @@ func TestHeartbeatRunner_StopsOnStopSignal(t *testing.T) {
 }
 
 func TestHeartbeatRunner_ContinuesOnSaveFailure(t *testing.T) {
+	t.Parallel()
 	s := state.New("test-task")
 	s.StartExecution(os.Getpid(), "test-host")
 
@@ -150,6 +154,7 @@ func TestHeartbeatRunner_ContinuesOnSaveFailure(t *testing.T) {
 }
 
 func TestHeartbeatRunner_UpdateState(t *testing.T) {
+	t.Parallel()
 	s1 := state.New("task-1")
 	s1.StartExecution(os.Getpid(), "test-host")
 

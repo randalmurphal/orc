@@ -19,6 +19,7 @@ import (
 // === Attachments API Tests ===
 
 func TestListAttachmentsEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -36,6 +37,7 @@ func TestListAttachmentsEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestListAttachmentsEndpoint_EmptyList(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -75,6 +77,7 @@ func TestListAttachmentsEndpoint_EmptyList(t *testing.T) {
 }
 
 func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -123,6 +126,7 @@ func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -148,6 +152,7 @@ func TestUploadAttachmentEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_NoFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -184,6 +189,7 @@ func TestUploadAttachmentEndpoint_NoFile(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -251,6 +257,7 @@ func TestUploadAttachmentEndpoint_Success(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -297,6 +304,7 @@ func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 }
 
 func TestGetAttachmentEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -314,6 +322,7 @@ func TestGetAttachmentEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestGetAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -345,6 +354,7 @@ func TestGetAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 }
 
 func TestGetAttachmentEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -397,6 +407,7 @@ func TestGetAttachmentEndpoint_Success(t *testing.T) {
 }
 
 func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -438,6 +449,7 @@ func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
 }
 
 func TestDeleteAttachmentEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -455,6 +467,7 @@ func TestDeleteAttachmentEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestDeleteAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -486,6 +499,7 @@ func TestDeleteAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 }
 
 func TestDeleteAttachmentEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -533,6 +547,7 @@ func TestDeleteAttachmentEndpoint_Success(t *testing.T) {
 // === Security Edge Cases ===
 
 func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -582,6 +597,7 @@ func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -646,6 +662,7 @@ func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 }
 
 func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -704,6 +721,7 @@ func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -744,6 +762,7 @@ func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
 }
 
 func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -786,6 +805,7 @@ func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
 // === Task Creation with Attachments ===
 
 func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -860,6 +880,7 @@ func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_MultipartWithoutAttachments(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
@@ -893,6 +914,7 @@ func TestCreateTaskEndpoint_MultipartWithoutAttachments(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 
@@ -925,6 +947,7 @@ func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_MultipartMissingTitle(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
 

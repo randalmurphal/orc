@@ -8,6 +8,7 @@ import (
 )
 
 func TestHashKnowledgeSection(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -60,6 +61,7 @@ Some content here
 }
 
 func TestHashKnowledgeSection_SameContent(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	content := `# Project
@@ -83,6 +85,7 @@ Fixed content here
 }
 
 func TestShouldExtractKnowledge(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		beforeHash string
@@ -127,6 +130,7 @@ func TestShouldExtractKnowledge(t *testing.T) {
 }
 
 func TestExtractKnowledgeFromTranscript(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		transcript    string
@@ -209,6 +213,7 @@ Watch out for connection timeouts in high-load scenarios.`,
 }
 
 func TestKnowledgeCapture_HasEntries(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		capture *KnowledgeCapture
@@ -252,6 +257,7 @@ func TestKnowledgeCapture_HasEntries(t *testing.T) {
 }
 
 func TestAppendKnowledgeToClaudeMD(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	initialContent := `# Project
@@ -317,6 +323,7 @@ func TestAppendKnowledgeToClaudeMD(t *testing.T) {
 }
 
 func TestAppendKnowledgeToClaudeMD_NoEntries(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	content := "# Project\n"
@@ -339,6 +346,7 @@ func TestAppendKnowledgeToClaudeMD_NoEntries(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input  string
 		maxLen int
@@ -362,6 +370,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestLoadDocsPhaseTranscript(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create transcript directory
@@ -399,6 +408,7 @@ func TestLoadDocsPhaseTranscript(t *testing.T) {
 }
 
 func TestLoadDocsPhaseTranscript_NoTranscripts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	content, err := LoadDocsPhaseTranscript(tmpDir, "TASK-001")

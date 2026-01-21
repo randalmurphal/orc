@@ -12,6 +12,7 @@ import (
 )
 
 func TestSaveRetryContextFile_WritesToDisk(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -51,6 +52,7 @@ func TestSaveRetryContextFile_WritesToDisk(t *testing.T) {
 }
 
 func TestSaveRetryContextFile_CreatesTaskDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Task directory doesn't exist yet
@@ -72,6 +74,7 @@ func TestSaveRetryContextFile_CreatesTaskDirectory(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase_ReadsFromState(t *testing.T) {
+	t.Parallel()
 	s := state.New("TASK-001")
 	s.SetRetryContext("test", "implement", "Tests failed", "Error output", 1)
 
@@ -95,6 +98,7 @@ func TestLoadRetryContextForPhase_ReadsFromState(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase_NilState_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	context := LoadRetryContextForPhase(nil)
 	if context != "" {
 		t.Error("LoadRetryContextForPhase with nil state should return empty string")
@@ -102,6 +106,7 @@ func TestLoadRetryContextForPhase_NilState_ReturnsEmpty(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase_NoRetryContext_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	s := state.New("TASK-001")
 	// No retry context set
 
@@ -112,6 +117,7 @@ func TestLoadRetryContextForPhase_NoRetryContext_ReturnsEmpty(t *testing.T) {
 }
 
 func TestBuildRetryContext_FormatsCorrectly(t *testing.T) {
+	t.Parallel()
 	context := BuildRetryContext("test", "Tests failed: 2 errors", "Error: foo\nError: bar", 1, "")
 
 	// Check structure
@@ -133,6 +139,7 @@ func TestBuildRetryContext_FormatsCorrectly(t *testing.T) {
 }
 
 func TestBuildRetryContext_IncludesAttemptNumber(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		attempt  int
 		expected string
@@ -151,6 +158,7 @@ func TestBuildRetryContext_IncludesAttemptNumber(t *testing.T) {
 }
 
 func TestBuildRetryContext_IncludesContextFile(t *testing.T) {
+	t.Parallel()
 	context := BuildRetryContext("test", "reason", "output", 1, "/path/to/context.md")
 
 	if !strings.Contains(context, "Detailed context saved to: /path/to/context.md") {
@@ -159,6 +167,7 @@ func TestBuildRetryContext_IncludesContextFile(t *testing.T) {
 }
 
 func TestBuildRetryContext_NoContextFile_NoReference(t *testing.T) {
+	t.Parallel()
 	context := BuildRetryContext("test", "reason", "output", 1, "")
 
 	if strings.Contains(context, "Detailed context saved to:") {
@@ -167,6 +176,7 @@ func TestBuildRetryContext_NoContextFile_NoReference(t *testing.T) {
 }
 
 func TestRetryTracker_CanRetry(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(2)
 
 	// First attempt should be allowed
@@ -188,6 +198,7 @@ func TestRetryTracker_CanRetry(t *testing.T) {
 }
 
 func TestRetryTracker_Increment(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(3)
 
 	if count := tracker.Increment("test"); count != 1 {
@@ -199,6 +210,7 @@ func TestRetryTracker_Increment(t *testing.T) {
 }
 
 func TestRetryTracker_GetCount(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(3)
 
 	if count := tracker.GetCount("test"); count != 0 {
@@ -214,6 +226,7 @@ func TestRetryTracker_GetCount(t *testing.T) {
 }
 
 func TestRetryTracker_Reset(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(2)
 
 	tracker.Increment("test")
@@ -232,6 +245,7 @@ func TestRetryTracker_Reset(t *testing.T) {
 }
 
 func TestRetryTracker_ResetAll(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(2)
 
 	tracker.Increment("test")
@@ -248,6 +262,7 @@ func TestRetryTracker_ResetAll(t *testing.T) {
 }
 
 func TestRetryTracker_IndependentPhases(t *testing.T) {
+	t.Parallel()
 	tracker := NewRetryTracker(2)
 
 	tracker.Increment("test")
@@ -263,6 +278,7 @@ func TestRetryTracker_IndependentPhases(t *testing.T) {
 }
 
 func TestDefaultRetryMap(t *testing.T) {
+	t.Parallel()
 	retryMap := DefaultRetryMap()
 
 	expected := map[string]string{
@@ -281,6 +297,7 @@ func TestDefaultRetryMap(t *testing.T) {
 }
 
 func TestNewRetryTracker_DefaultMaxRetries(t *testing.T) {
+	t.Parallel()
 	// Zero should use default (5)
 	tracker := NewRetryTracker(0)
 	for i := 0; i < 5; i++ {
@@ -303,6 +320,7 @@ func TestNewRetryTracker_DefaultMaxRetries(t *testing.T) {
 // Tests for enhanced fresh session retry functions
 
 func TestBuildRetryContextForFreshSession_Basic(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "test",
 		FailureReason: "Tests failed",
@@ -338,6 +356,7 @@ func TestBuildRetryContextForFreshSession_Basic(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithFailureOutput(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "test",
 		FailureOutput: "Error: test assertion failed at line 42",
@@ -356,6 +375,7 @@ func TestBuildRetryContextForFreshSession_WithFailureOutput(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithReviewComments(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "test",
 		AttemptNumber: 1,
@@ -400,6 +420,7 @@ func TestBuildRetryContextForFreshSession_WithReviewComments(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithPRComments(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "implement",
 		AttemptNumber: 1,
@@ -435,6 +456,7 @@ func TestBuildRetryContextForFreshSession_WithPRComments(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithInstructions(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "test",
 		AttemptNumber: 1,
@@ -453,6 +475,7 @@ func TestBuildRetryContextForFreshSession_WithInstructions(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithPreviousContext(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:     "test",
 		AttemptNumber:   2,
@@ -471,6 +494,7 @@ func TestBuildRetryContextForFreshSession_WithPreviousContext(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_Full(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase:   "test",
 		FailureReason: "3 tests failed",
@@ -515,6 +539,7 @@ func TestBuildRetryContextForFreshSession_Full(t *testing.T) {
 }
 
 func TestTruncateOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -561,6 +586,7 @@ func TestTruncateOutput(t *testing.T) {
 }
 
 func TestTruncateString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -598,6 +624,7 @@ func TestTruncateString(t *testing.T) {
 }
 
 func TestCompressPreviousContext_Empty(t *testing.T) {
+	t.Parallel()
 	result := CompressPreviousContext(nil)
 	if result != "" {
 		t.Error("empty transcripts should return empty string")
@@ -610,6 +637,7 @@ func TestCompressPreviousContext_Empty(t *testing.T) {
 }
 
 func TestCompressPreviousContext_WithPhases(t *testing.T) {
+	t.Parallel()
 	transcripts := []db.Transcript{
 		{Phase: "implement", Content: "Starting implementation"},
 		{Phase: "implement", Content: "Added function foo"},
@@ -631,6 +659,7 @@ func TestCompressPreviousContext_WithPhases(t *testing.T) {
 }
 
 func TestCompressPreviousContext_WithErrors(t *testing.T) {
+	t.Parallel()
 	transcripts := []db.Transcript{
 		{Phase: "implement", Content: "Starting implementation"},
 		{Phase: "test", Content: "Error: test failed at line 42"},
@@ -648,6 +677,7 @@ func TestCompressPreviousContext_WithErrors(t *testing.T) {
 }
 
 func TestShouldContinueRetrying(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		current  int
 		max      int
@@ -670,6 +700,7 @@ func TestShouldContinueRetrying(t *testing.T) {
 }
 
 func TestIncrementRetryAttempt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		current  int
 		expected int
@@ -689,6 +720,7 @@ func TestIncrementRetryAttempt(t *testing.T) {
 }
 
 func TestBuildRetryPreview(t *testing.T) {
+	t.Parallel()
 	opts := RetryOptions{
 		FailedPhase: "test",
 		ReviewComments: []db.ReviewComment{
@@ -722,6 +754,7 @@ func TestBuildRetryPreview(t *testing.T) {
 }
 
 func TestFormatReviewCommentsForContext_GroupsByFile(t *testing.T) {
+	t.Parallel()
 	comments := []db.ReviewComment{
 		{FilePath: "a.go", LineNumber: 10, Content: "Issue in a.go", Severity: db.SeverityIssue},
 		{FilePath: "b.go", LineNumber: 20, Content: "Issue in b.go", Severity: db.SeverityBlocker},
@@ -752,6 +785,7 @@ func TestFormatReviewCommentsForContext_GroupsByFile(t *testing.T) {
 }
 
 func TestFormatPRCommentsForContext(t *testing.T) {
+	t.Parallel()
 	comments := []PRCommentFeedback{
 		{Author: "alice", Body: "Fix this please", FilePath: "main.go", Line: 42},
 		{Author: "bob", Body: "Multi-line\ncomment here"},
@@ -777,6 +811,7 @@ func TestFormatPRCommentsForContext(t *testing.T) {
 }
 
 func TestRetryState_Fields(t *testing.T) {
+	t.Parallel()
 	// Test that RetryState struct has expected fields
 	now := time.Now()
 	state := RetryState{
@@ -805,6 +840,7 @@ func TestRetryState_Fields(t *testing.T) {
 }
 
 func TestRetryPreview_Fields(t *testing.T) {
+	t.Parallel()
 	preview := RetryPreview{
 		TaskID:          "TASK-001",
 		CurrentPhase:    "test",
@@ -835,6 +871,7 @@ func TestRetryPreview_Fields(t *testing.T) {
 }
 
 func TestIsErrorLine(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		line     string
@@ -881,6 +918,7 @@ func TestIsErrorLine(t *testing.T) {
 }
 
 func TestNormalizeSeverity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected string
@@ -905,6 +943,7 @@ func TestNormalizeSeverity(t *testing.T) {
 }
 
 func TestFormatReviewCommentsForContext_EmptySeverity(t *testing.T) {
+	t.Parallel()
 	comments := []db.ReviewComment{
 		{FilePath: "test.go", LineNumber: 10, Content: "Missing something", Severity: ""},
 	}
@@ -918,6 +957,7 @@ func TestFormatReviewCommentsForContext_EmptySeverity(t *testing.T) {
 }
 
 func TestFormatReviewCommentsForContext_DeterministicOrder(t *testing.T) {
+	t.Parallel()
 	// Create comments for multiple files
 	comments := []db.ReviewComment{
 		{FilePath: "zebra.go", Content: "Z comment", Severity: "issue"},
@@ -953,6 +993,7 @@ func TestFormatReviewCommentsForContext_DeterministicOrder(t *testing.T) {
 }
 
 func TestCompressPreviousContext_FalsePositivesFiltered(t *testing.T) {
+	t.Parallel()
 	transcripts := []db.Transcript{
 		{Phase: "test", Content: "No errors found"},
 		{Phase: "test", Content: "0 errors, 10 tests passed"},

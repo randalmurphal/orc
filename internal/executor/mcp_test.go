@@ -11,6 +11,7 @@ import (
 )
 
 func TestGenerateWorktreeMCPConfig(t *testing.T) {
+	t.Parallel()
 	t.Run("generates config for UI testing task", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		worktreePath := filepath.Join(tmpDir, "worktree")
@@ -229,6 +230,7 @@ func TestGenerateWorktreeMCPConfig(t *testing.T) {
 }
 
 func TestShouldGenerateMCPConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		requiresUITesting bool
@@ -279,6 +281,7 @@ func TestShouldGenerateMCPConfig(t *testing.T) {
 }
 
 func TestCleanupPlaywrightUserData(t *testing.T) {
+	t.Parallel()
 	t.Run("removes existing directory", func(t *testing.T) {
 		// Create temp dir simulating playwright user data
 		taskID := "TASK-CLEANUP-TEST"

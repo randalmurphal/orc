@@ -46,6 +46,9 @@ type FullExecutor struct {
 	backpressure *BackpressureRunner // Deterministic quality checks
 	haikuClient  claude.Client       // Haiku client for progress validation
 	orcConfig    *config.Config      // Config for validation settings
+
+	// turnExecutor allows injection of a mock for testing
+	turnExecutor TurnExecutor
 }
 
 // FullExecutorOption configures a FullExecutor.
@@ -122,6 +125,11 @@ func WithFullMCPConfig(path string) FullExecutorOption {
 	return func(e *FullExecutor) { e.mcpConfigPath = path }
 }
 
+// WithFullTurnExecutor sets a mock TurnExecutor for testing.
+func WithFullTurnExecutor(te TurnExecutor) FullExecutorOption {
+	return func(e *FullExecutor) { e.turnExecutor = te }
+}
+
 // NewFullExecutor creates a new full executor.
 func NewFullExecutor(opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{
@@ -160,49 +168,10 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 	// Transcript streamer for real-time DB sync (started when JSONL path is known)
 	var transcriptStreamer *TranscriptStreamer
 
-	// Transcript persistence is handled via JSONL sync from Claude Code's session files
-	// (see jsonl_sync.go), not through the publisher buffer
-
-	// Generate session ID for resumability
-	// If resuming via orc resume, use the stored session ID
-	sessionID := fmt.Sprintf("%s-%s", t.ID, p.ID)
-	isResume := e.resumeSessionID != ""
-	if isResume {
-		sessionID = e.resumeSessionID
-		e.logger.Info("resuming from previous session", "session_id", sessionID)
-	}
-
 	// Check for existing checkpoint to resume from (fallback if no explicit resume)
 	checkpoint, err := e.loadCheckpoint(t.ID, p.ID)
 	if err != nil {
 		e.logger.Debug("no checkpoint found, starting fresh", "task", t.ID, "phase", p.ID)
-	}
-
-	// Resolve model settings for this phase and weight
-	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
-	result.Model = modelSetting.Model
-
-	// Create ClaudeExecutor for this phase
-	claudeOpts := []ClaudeExecutorOption{
-		WithClaudePath(e.claudePath),
-		WithClaudeWorkdir(e.workingDir),
-		WithClaudeModel(modelSetting.Model),
-		WithClaudeSessionID(sessionID),
-		WithClaudeResume(isResume),
-		WithClaudeMaxTurns(e.config.MaxIterations),
-		WithClaudeLogger(e.logger),
-	}
-	if e.mcpConfigPath != "" {
-		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
-	}
-	claudeExec := NewClaudeExecutor(claudeOpts...)
-
-	// Update state with session info
-	if s != nil {
-		s.SetSession(sessionID, modelSetting.Model, "running", 0)
-		if e.stateUpdater != nil {
-			e.stateUpdater(s)
-		}
 	}
 
 	// Determine starting iteration (from checkpoint or 0)
@@ -218,119 +187,45 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		)
 	}
 
-	// Load and render initial prompt using shared template module
-	tmpl, err := LoadPromptTemplate(p)
+	// Build execution context using centralized builder
+	execCtx, err := BuildExecutionContext(ExecutionContextConfig{
+		Task:            t,
+		Phase:           p,
+		State:           s,
+		Backend:         e.backend,
+		WorkingDir:      e.workingDir,
+		MCPConfigPath:   e.mcpConfigPath,
+		TaskDir:         e.taskDir,
+		ExecutorConfig:  e.config,
+		OrcConfig:       e.orcConfig,
+		ResumeSessionID: e.resumeSessionID,
+		Logger:          e.logger,
+	})
 	if err != nil {
 		result.Status = plan.PhaseFailed
-		result.Error = fmt.Errorf("load prompt: %w", err)
+		result.Error = fmt.Errorf("build execution context: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	vars := BuildTemplateVars(t, p, s, startIteration, LoadRetryContextForPhase(s))
 
-	// Load spec content from database (specs are not stored as file artifacts)
-	vars = vars.WithSpecFromDatabase(e.backend, t.ID)
+	result.Model = execCtx.ModelSetting.Model
+	promptText := execCtx.PromptText
+	specContent := execCtx.SpecContent
 
-	// Load review context for review phases (round 2+ needs prior findings)
-	if p.ID == "review" {
-		round := 1
-		if e.config.OrcConfig != nil {
-			if s != nil && s.Phases != nil {
-				if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
-					round = 2
-				}
-			}
-		}
-		vars = vars.WithReviewContext(e.backend, t.ID, round)
-	}
-
-	// Add testing configuration (coverage threshold)
-	if e.config.OrcConfig != nil {
-		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
-	}
-
-	// Add worktree context for template rendering
-	if e.workingDir != "" {
-		vars.WorktreePath = e.workingDir
-		vars.TaskBranch = t.Branch
-		vars.TargetBranch = ResolveTargetBranchForTask(t, e.backend, e.config.OrcConfig)
-	}
-
-	// Add UI testing context if task requires it
-	if t.RequiresUITesting {
-		if e.workingDir == "" {
-			e.logger.Warn("workingDir not set for UI testing - skipping UI testing context",
-				"task", t.ID, "phase", p.ID)
-		} else {
-			// Set up screenshot directory in task test-results
-			screenshotDir := task.ScreenshotsPath(e.workingDir, t.ID)
-			if err := os.MkdirAll(screenshotDir, 0755); err != nil {
-				e.logger.Warn("failed to create screenshot directory", "error", err)
-			}
-
-			vars = vars.WithUITestingContext(UITestingContext{
-				RequiresUITesting: true,
-				ScreenshotDir:     screenshotDir,
-				TestResults:       loadPriorContent(task.TaskDir(t.ID), s, "test"),
-			})
-
-			e.logger.Info("UI testing enabled (full)",
-				"task", t.ID,
-				"phase", p.ID,
-				"screenshot_dir", screenshotDir,
-			)
-		}
-	}
-
-	// Add initiative context if task belongs to an initiative
-	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
-		vars = vars.WithInitiativeContext(*initCtx)
-		e.logger.Info("initiative context injected (full)",
-			"task", t.ID,
-			"initiative", initCtx.ID,
-			"has_vision", initCtx.Vision != "",
-			"decision_count", len(initCtx.Decisions),
-		)
-	}
-
-	// Add automation context if this is an automation task (AUTO-XXX)
-	if t.IsAutomation {
-		if e.workingDir == "" {
-			e.logger.Warn("workingDir not set for automation context - skipping automation context",
-				"task", t.ID, "phase", p.ID)
-		} else if autoCtx := LoadAutomationContext(t, e.backend, e.workingDir); autoCtx != nil {
-			vars = vars.WithAutomationContext(*autoCtx)
-			e.logger.Info("automation context injected (full)",
-				"task", t.ID,
-				"has_recent_tasks", autoCtx.RecentCompletedTasks != "",
-				"has_changed_files", autoCtx.RecentChangedFiles != "",
-			)
-		}
-	}
-
-	// Use continuation prompt when resuming (Claude already has full context)
-	// Otherwise render the full template
-	var promptText string
-	if isResume {
-		promptText = BuildContinuationPrompt(s, p.ID)
-		e.logger.Info("using continuation prompt for resume", "task", t.ID, "phase", p.ID)
+	// Use injected TurnExecutor if available (for testing), otherwise create ClaudeExecutor
+	var turnExec TurnExecutor
+	if e.turnExecutor != nil {
+		turnExec = e.turnExecutor
 	} else {
-		promptText = RenderTemplate(tmpl, vars)
+		turnExec = NewClaudeExecutorFromContext(execCtx, e.claudePath, e.config.MaxIterations, e.logger)
 	}
 
-	// Load spec content for progress validation (if enabled)
-	var specContent string
-	if e.haikuClient != nil && e.orcConfig != nil && e.backend != nil {
-		if content, err := e.backend.LoadSpec(t.ID); err == nil {
-			specContent = content
+	// Update state with session info
+	if s != nil {
+		s.SetSession(execCtx.SessionID, execCtx.ModelSetting.Model, "running", 0)
+		if e.stateUpdater != nil {
+			e.stateUpdater(s)
 		}
-	}
-
-	// Inject "ultrathink" for extended thinking mode (skip for resume - Claude preserves thinking mode)
-	// This triggers maximum thinking budget (31,999 tokens) in Claude Code
-	if modelSetting.Thinking && !isResume {
-		promptText = "ultrathink\n\n" + promptText
-		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
 	}
 
 	// Iteration loop with checkpointing
@@ -342,12 +237,12 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		// Publish activity state
 		e.publisher.Activity(t.ID, p.ID, string(ActivityWaitingAPI))
 
-		// Execute turn using ClaudeCLI with JSON schema
-		turnResult, err := claudeExec.ExecuteTurn(ctx, promptText)
+		// Execute turn using TurnExecutor with JSON schema
+		turnResult, err := turnExec.ExecuteTurn(ctx, promptText)
 
 		// Update session ID from response for subsequent calls
 		if turnResult != nil && turnResult.SessionID != "" {
-			claudeExec.UpdateSessionID(turnResult.SessionID)
+			turnExec.UpdateSessionID(turnResult.SessionID)
 			// Compute and store JSONL path for transcript sync and --follow mode
 			if s != nil && s.JSONLPath == "" {
 				if jsonlPath, pathErr := ComputeJSONLPath(e.workingDir, turnResult.SessionID); pathErr == nil {

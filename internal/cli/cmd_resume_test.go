@@ -88,39 +88,6 @@ func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *
 	return tk
 }
 
-func TestResumeCommand_FailedTask(t *testing.T) {
-	tmpDir := withResumeTestDir(t)
-
-	// Create a failed task
-	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusFailed)
-
-	// Run resume command
-	cmd := newResumeCmd()
-	cmd.SetArgs([]string{"TASK-001"})
-
-	// Capture output
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-
-	// The command will fail because executor requires actual Claude API
-	// but we're testing that it properly loads the task first
-	err := cmd.Execute()
-
-	// We expect an error from the executor, not "task not found"
-	if err != nil {
-		errStr := err.Error()
-		if errStr == "load task: task TASK-001 not found" {
-			t.Errorf("Resume should find the failed task, got: %v", err)
-		}
-		// Other errors (like executor-related) are expected since we don't have
-		// a real Claude API in tests
-	}
-
-	// Verify the task status message was printed (optional check, may not capture)
-	_ = stdout.String() // output may or may not contain "failed previously" depending on capture
-}
-
 func TestResumeCommand_TaskNotFound(t *testing.T) {
 	withResumeTestDir(t)
 
@@ -141,86 +108,144 @@ func TestResumeCommand_TaskNotFound(t *testing.T) {
 	}
 }
 
-func TestResumeCommand_PausedTask(t *testing.T) {
-	tmpDir := withResumeTestDir(t)
+// TestValidateTaskResumable tests the validation logic directly without running the executor.
+func TestValidateTaskResumable(t *testing.T) {
+	tests := []struct {
+		name        string
+		status      task.Status
+		forceResume bool
+		wantErr     bool
+		errContains string
+	}{
+		// Non-resumable statuses
+		{
+			name:        "completed task not resumable",
+			status:      task.StatusCompleted,
+			wantErr:     true,
+			errContains: "cannot be resumed",
+		},
+		{
+			name:        "created task not resumable",
+			status:      task.StatusCreated,
+			wantErr:     true,
+			errContains: "cannot be resumed",
+		},
+		// Resumable statuses
+		{
+			name:    "paused task is resumable",
+			status:  task.StatusPaused,
+			wantErr: false,
+		},
+		{
+			name:    "blocked task is resumable",
+			status:  task.StatusBlocked,
+			wantErr: false,
+		},
+		{
+			name:    "failed task is resumable",
+			status:  task.StatusFailed,
+			wantErr: false,
+		},
+		// Running task cases
+		{
+			name:        "running task not resumable without force",
+			status:      task.StatusRunning,
+			forceResume: false,
+			wantErr:     true,
+			errContains: "currently running",
+		},
+		{
+			name:        "running task resumable with force",
+			status:      task.StatusRunning,
+			forceResume: true,
+			wantErr:     false,
+		},
+	}
 
-	// Create a paused task
-	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusPaused)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tk := task.New("TASK-001", "Test task")
+			tk.Status = tt.status
 
-	cmd := newResumeCmd()
-	cmd.SetArgs([]string{"TASK-001"})
+			s := state.New("TASK-001")
+			s.CurrentPhase = "implement"
 
-	err := cmd.Execute()
+			result, err := ValidateTaskResumable(tk, s, tt.forceResume)
 
-	// Should not get "task not found" error
-	if err != nil && contains([]string{err.Error()}, "task TASK-001 not found") {
-		t.Errorf("Resume should find the paused task, got: %v", err)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error containing %q, got nil", tt.errContains)
+					return
+				}
+				if !contains([]string{err.Error()}, tt.errContains) {
+					t.Errorf("Expected error containing %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				}
+				if result == nil {
+					t.Error("Expected validation result, got nil")
+				}
+			}
+		})
 	}
 }
 
-func TestResumeCommand_BlockedTask(t *testing.T) {
-	tmpDir := withResumeTestDir(t)
+// TestValidateTaskResumable_OrphanedTask tests orphan detection in validation.
+func TestValidateTaskResumable_OrphanedTask(t *testing.T) {
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusRunning
 
-	// Create a blocked task
-	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusBlocked)
+	s := state.New("TASK-001")
+	s.CurrentPhase = "implement"
+	s.Status = state.StatusRunning // State must also be running for orphan check
+	// Set a PID that doesn't exist (process is dead = orphaned)
+	s.StartExecution(999999, "testhost")
 
-	cmd := newResumeCmd()
-	cmd.SetArgs([]string{"TASK-001"})
+	result, err := ValidateTaskResumable(tk, s, false)
 
-	err := cmd.Execute()
-
-	// Should not get "task not found" error
-	if err != nil && contains([]string{err.Error()}, "task TASK-001 not found") {
-		t.Errorf("Resume should find the blocked task, got: %v", err)
-	}
-}
-
-func TestResumeCommand_CompletedTaskNotResumable(t *testing.T) {
-	tmpDir := withResumeTestDir(t)
-
-	// Create a completed task
-	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusCompleted)
-
-	cmd := newResumeCmd()
-	cmd.SetArgs([]string{"TASK-001"})
-
-	var stderr bytes.Buffer
-	cmd.SetErr(&stderr)
-
-	err := cmd.Execute()
-	if err == nil {
-		t.Error("Resume should fail for completed task")
-	}
-
-	// Should get "cannot be resumed" error, not "task not found"
 	if err != nil {
-		errStr := err.Error()
-		if contains([]string{errStr}, "task TASK-001 not found") {
-			t.Errorf("Should not get 'task not found' error, got: %v", err)
-		}
-		if !contains([]string{errStr}, "cannot be resumed") {
-			t.Errorf("Expected 'cannot be resumed' error, got: %v", err)
-		}
+		t.Errorf("Orphaned task should be resumable, got error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected validation result, got nil")
+	}
+	if !result.IsOrphaned {
+		t.Error("Expected IsOrphaned=true for dead PID")
+	}
+	if !result.RequiresStateUpdate {
+		t.Error("Expected RequiresStateUpdate=true for orphaned task")
 	}
 }
 
-func TestResumeCommand_CreatedTaskNotResumable(t *testing.T) {
-	tmpDir := withResumeTestDir(t)
+// TestValidateTaskResumable_ForceRunning tests force flag with running task.
+func TestValidateTaskResumable_ForceRunning(t *testing.T) {
+	tk := task.New("TASK-001", "Test task")
+	tk.Status = task.StatusRunning
 
-	// Create a task with created status
-	createTaskWithStatus(t, tmpDir, "TASK-001", task.StatusCreated)
+	s := state.New("TASK-001")
+	s.CurrentPhase = "implement"
+	s.Status = state.StatusRunning // State must also be running for orphan check
+	// Set our own PID so it appears as a live process
+	s.StartExecution(os.Getpid(), "testhost")
 
-	cmd := newResumeCmd()
-	cmd.SetArgs([]string{"TASK-001"})
-
-	err := cmd.Execute()
+	// Without force - should fail
+	_, err := ValidateTaskResumable(tk, s, false)
 	if err == nil {
-		t.Error("Resume should fail for created task")
+		t.Error("Expected error for running task without force")
 	}
 
-	// Should get "cannot be resumed" error
-	if err != nil && contains([]string{err.Error()}, "task TASK-001 not found") {
-		t.Errorf("Should not get 'task not found' error, got: %v", err)
+	// With force - should succeed
+	result, err := ValidateTaskResumable(tk, s, true)
+	if err != nil {
+		t.Errorf("Expected no error with force flag, got: %v", err)
+	}
+	if result == nil {
+		t.Fatal("Expected validation result, got nil")
+	}
+	if !result.RequiresStateUpdate {
+		t.Error("Expected RequiresStateUpdate=true for force-resumed task")
 	}
 }
 
@@ -242,11 +267,12 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 		t.Fatalf("failed to chdir to tmpDir: %v", err)
 	}
 
-	// Create test data via backend
+	// Create test data via backend - use completed status so it fails validation
+	// early (before trying to run executor)
 	backend := createResumeTestBackend(t, tmpDir)
 
 	tk := task.New("TASK-001", "Test task")
-	tk.Status = task.StatusFailed
+	tk.Status = task.StatusCompleted // Will fail with "cannot be resumed"
 	tk.Weight = task.WeightSmall
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -275,7 +301,6 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 	_ = backend.Close()
 
 	// Create a "worktree-like" subdirectory (simulating worktree context)
-	// In a real worktree, this would be .orc/worktrees/orc-TASK-001/
 	worktreeDir := filepath.Join(tmpDir, ".orc", "worktrees", "orc-TASK-001")
 	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
 		t.Fatalf("failed to create worktree dir: %v", err)
@@ -298,7 +323,11 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 
 	err = cmd.Execute()
 
-	// Should NOT get "task not found" error
+	// Should get "cannot be resumed" (because completed), NOT "task not found"
+	// This verifies the task was found from the worktree directory
+	if err == nil {
+		t.Error("Expected error for completed task")
+	}
 	if err != nil && contains([]string{err.Error()}, "task TASK-001 not found") {
 		t.Errorf("Resume from worktree should find task in main repo, got: %v", err)
 	}

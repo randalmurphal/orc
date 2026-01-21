@@ -10,6 +10,7 @@ import (
 )
 
 func TestShouldRunQA(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfg      *config.Config
@@ -77,6 +78,7 @@ func TestShouldRunQA(t *testing.T) {
 }
 
 func TestParseQAResult(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		response   string
@@ -142,6 +144,7 @@ func TestParseQAResult(t *testing.T) {
 }
 
 func TestParseQAResultDetails(t *testing.T) {
+	t.Parallel()
 	response := `{
 		"status": "pass",
 		"summary": "QA session complete. All tests pass with good coverage.",
@@ -266,6 +269,7 @@ func TestParseQAResultDetails(t *testing.T) {
 }
 
 func TestQAResultHasHighSeverityIssues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		result   *QAResult
@@ -309,6 +313,7 @@ func TestQAResultHasHighSeverityIssues(t *testing.T) {
 }
 
 func TestQAResultAllTestsPassed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		result   *QAResult
@@ -346,6 +351,7 @@ func TestQAResultAllTestsPassed(t *testing.T) {
 }
 
 func TestFormatQAResultSummary(t *testing.T) {
+	t.Parallel()
 	t.Run("nil result", func(t *testing.T) {
 		result := FormatQAResultSummary(nil)
 		if result != "No QA result available." {
@@ -398,6 +404,7 @@ func TestFormatQAResultSummary(t *testing.T) {
 }
 
 func TestExtractQAResult(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	// MockClient returns what we give it, but ExtractStructured tries direct parsing first
 	mockClient := claude.NewMockClient("")

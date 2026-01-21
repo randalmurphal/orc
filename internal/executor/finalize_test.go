@@ -15,6 +15,7 @@ import (
 )
 
 func TestFinalizeExecutor_Name(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	if exec.Name() != "finalize" {
 		t.Errorf("expected Name() = 'finalize', got '%s'", exec.Name())
@@ -22,6 +23,7 @@ func TestFinalizeExecutor_Name(t *testing.T) {
 }
 
 func TestNewFinalizeExecutor_Defaults(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 
 	if exec.logger == nil {
@@ -42,6 +44,7 @@ func TestNewFinalizeExecutor_Defaults(t *testing.T) {
 }
 
 func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	cfg := ExecutorConfig{
 		MaxIterations:      5,
@@ -77,6 +80,7 @@ func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
 }
 
 func TestFinalizeExecutor_getFinalizeConfig_WithOrcConfig(t *testing.T) {
+	t.Parallel()
 	orcCfg := &config.Config{
 		Completion: config.CompletionConfig{
 			Finalize: config.FinalizeConfig{
@@ -118,6 +122,7 @@ func TestFinalizeExecutor_getFinalizeConfig_WithOrcConfig(t *testing.T) {
 }
 
 func TestFinalizeExecutor_getFinalizeConfig_Defaults(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil) // No orc config
 	cfg := exec.getFinalizeConfig()
 
@@ -142,6 +147,7 @@ func TestFinalizeExecutor_getFinalizeConfig_Defaults(t *testing.T) {
 }
 
 func TestFinalizeExecutor_getTargetBranch(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		orcConfig  *config.Config
@@ -201,6 +207,7 @@ func TestFinalizeExecutor_getTargetBranch(t *testing.T) {
 }
 
 func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
+	t.Parallel()
 	orcCfg := &config.Config{
 		Completion: config.CompletionConfig{
 			Finalize: config.FinalizeConfig{
@@ -229,6 +236,7 @@ func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 }
 
 func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil) // No git service
 
 	tsk := &task.Task{
@@ -249,6 +257,7 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_shouldEscalate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		result   *FinalizeResult
@@ -307,6 +316,7 @@ func TestFinalizeExecutor_shouldEscalate(t *testing.T) {
 }
 
 func TestClassifyRisk(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		files     int
@@ -337,6 +347,7 @@ func TestClassifyRisk(t *testing.T) {
 }
 
 func TestClassifyFileRisk(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		files    int
 		expected string
@@ -356,6 +367,7 @@ func TestClassifyFileRisk(t *testing.T) {
 }
 
 func TestClassifyLineRisk(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		lines    int
 		expected string
@@ -375,6 +387,7 @@ func TestClassifyLineRisk(t *testing.T) {
 }
 
 func TestClassifyConflictRisk(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		conflicts int
 		expected  string
@@ -394,6 +407,7 @@ func TestClassifyConflictRisk(t *testing.T) {
 }
 
 func TestShouldTriggerReview(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		riskLevel string
 		threshold string
@@ -421,6 +435,7 @@ func TestShouldTriggerReview(t *testing.T) {
 }
 
 func TestParseFileCount(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		line     string
 		expected int
@@ -441,6 +456,7 @@ func TestParseFileCount(t *testing.T) {
 }
 
 func TestParseTotalLines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		numstat  string
 		expected int
@@ -460,6 +476,7 @@ func TestParseTotalLines(t *testing.T) {
 }
 
 func TestBuildConflictResolutionPrompt(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{
 		ID:    "TASK-001",
 		Title: "Test task",
@@ -496,6 +513,7 @@ func TestBuildConflictResolutionPrompt(t *testing.T) {
 }
 
 func TestBuildTestFixPrompt(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{
 		ID:    "TASK-001",
 		Title: "Test task",
@@ -529,6 +547,7 @@ func TestBuildTestFixPrompt(t *testing.T) {
 }
 
 func TestBuildFinalizeReport(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		Synced:            true,
 		ConflictsResolved: 2,
@@ -568,6 +587,7 @@ func TestBuildFinalizeReport(t *testing.T) {
 }
 
 func TestBuildEscalationContext(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		ConflictFiles: []string{"file1.go", "file2.go"},
 		TestsPassed:   false,
@@ -590,6 +610,7 @@ func TestBuildEscalationContext(t *testing.T) {
 }
 
 func TestBuildEscalationContext_NilResult(t *testing.T) {
+	t.Parallel()
 	ctx := buildEscalationContext(nil)
 	if !strings.Contains(ctx, "requires escalation") {
 		t.Error("context should indicate escalation is needed")
@@ -597,6 +618,7 @@ func TestBuildEscalationContext_NilResult(t *testing.T) {
 }
 
 func TestFinalizeResult_Fields(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		Synced:            true,
 		ConflictsResolved: 3,
@@ -628,6 +650,7 @@ func TestFinalizeResult_Fields(t *testing.T) {
 }
 
 func TestWithFinalizeGitSvc(t *testing.T) {
+	t.Parallel()
 	// Test that WithFinalizeGitSvc option sets the git service
 	// We can't fully test with a real git.Git without a repo,
 	// but we can verify the option mechanism works
@@ -647,6 +670,7 @@ func TestWithFinalizeGitSvc(t *testing.T) {
 }
 
 func TestWithFinalizePublisher(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	initialPublisher := exec.publisher
 
@@ -665,6 +689,7 @@ func TestWithFinalizePublisher(t *testing.T) {
 }
 
 func TestWithFinalizeStateUpdater(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	if exec.stateUpdater != nil {
 		t.Error("expected stateUpdater to be nil initially")
@@ -690,6 +715,7 @@ func TestWithFinalizeStateUpdater(t *testing.T) {
 }
 
 func TestFinalizeExecutor_fetchTarget_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	err := exec.fetchTarget()
 	if err == nil {
@@ -701,6 +727,7 @@ func TestFinalizeExecutor_fetchTarget_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_checkDivergence_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	ahead, behind, err := exec.checkDivergence("main")
 	if err == nil {
@@ -715,6 +742,7 @@ func TestFinalizeExecutor_checkDivergence_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	cfg := config.FinalizeConfig{
 		Sync: config.FinalizeSyncConfig{Strategy: config.FinalizeSyncMerge},
@@ -738,6 +766,7 @@ func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_assessRisk_Disabled(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	result := &FinalizeResult{}
 	cfg := config.FinalizeConfig{
@@ -756,6 +785,7 @@ func TestFinalizeExecutor_assessRisk_Disabled(t *testing.T) {
 }
 
 func TestFinalizeExecutor_assessRisk_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	result := &FinalizeResult{}
 	cfg := config.FinalizeConfig{
@@ -774,6 +804,7 @@ func TestFinalizeExecutor_assessRisk_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_createFinalizeCommit_NoGitService(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	result := &FinalizeResult{}
 	tsk := &task.Task{ID: "TASK-001"}
@@ -788,6 +819,7 @@ func TestFinalizeExecutor_createFinalizeCommit_NoGitService(t *testing.T) {
 }
 
 func TestFinalizeExecutor_publishProgress(t *testing.T) {
+	t.Parallel()
 	// Verify publishProgress doesn't panic
 	exec := NewFinalizeExecutor(nil)
 	exec.publishProgress("TASK-001", "finalize", "Test progress message")
@@ -795,6 +827,7 @@ func TestFinalizeExecutor_publishProgress(t *testing.T) {
 }
 
 func TestBuildFinalizeReport_NeedsReview(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		Synced:            true,
 		ConflictsResolved: 5,
@@ -821,6 +854,7 @@ func TestBuildFinalizeReport_NeedsReview(t *testing.T) {
 }
 
 func TestBuildFinalizeReport_CriticalRisk(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		Synced:            true,
 		ConflictsResolved: 0,
@@ -843,6 +877,7 @@ func TestBuildFinalizeReport_CriticalRisk(t *testing.T) {
 }
 
 func TestBuildFinalizeReport_TestsFailed(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		Synced:      true,
 		TestsPassed: false,
@@ -857,6 +892,7 @@ func TestBuildFinalizeReport_TestsFailed(t *testing.T) {
 }
 
 func TestBuildTestFailureContext_NilResult(t *testing.T) {
+	t.Parallel()
 	ctx := buildTestFailureContext(nil)
 	if !strings.Contains(ctx, "unknown results") {
 		t.Error("context should indicate unknown results for nil input")
@@ -864,6 +900,7 @@ func TestBuildTestFailureContext_NilResult(t *testing.T) {
 }
 
 func TestBuildTestFailureContext_WithFailures(t *testing.T) {
+	t.Parallel()
 	testResult := &ParsedTestResult{
 		Failed: 2,
 		Failures: []TestFailure{
@@ -879,6 +916,7 @@ func TestBuildTestFailureContext_WithFailures(t *testing.T) {
 }
 
 func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{
 		ID:    "TASK-001",
 		Title: "Test task",
@@ -902,6 +940,7 @@ func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
 }
 
 func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{ID: "TASK-001", Title: "Test"}
 	testResult := &ParsedTestResult{
 		Failed: 10,
@@ -930,8 +969,15 @@ func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
 	}
 }
 
-func TestFinalizeExecutor_tryFixTests_NoManager(t *testing.T) {
-	exec := NewFinalizeExecutor(nil) // No session manager
+func TestFinalizeExecutor_tryFixTests_ExecutorError(t *testing.T) {
+	t.Parallel()
+	// Use mock executor that returns an error
+	mockExec := NewMockTurnExecutor("")
+	mockExec.Error = fmt.Errorf("executor error")
+
+	exec := NewFinalizeExecutor(
+		WithFinalizeTurnExecutor(mockExec),
+	)
 	testResult := &ParsedTestResult{}
 
 	fixed, err := exec.tryFixTests(
@@ -943,15 +989,22 @@ func TestFinalizeExecutor_tryFixTests_NoManager(t *testing.T) {
 	)
 
 	if err == nil {
-		t.Error("expected error when session manager not available")
+		t.Error("expected error from executor")
 	}
 	if fixed {
 		t.Error("expected fixed to be false on error")
 	}
 }
 
-func TestFinalizeExecutor_resolveConflicts_NoManager(t *testing.T) {
-	exec := NewFinalizeExecutor(nil) // No session manager
+func TestFinalizeExecutor_resolveConflicts_ExecutorError(t *testing.T) {
+	t.Parallel()
+	// Use mock executor that returns an error
+	mockExec := NewMockTurnExecutor("")
+	mockExec.Error = fmt.Errorf("executor error")
+
+	exec := NewFinalizeExecutor(
+		WithFinalizeTurnExecutor(mockExec),
+	)
 	cfg := config.FinalizeConfig{}
 
 	resolved, err := exec.resolveConflicts(
@@ -964,7 +1017,7 @@ func TestFinalizeExecutor_resolveConflicts_NoManager(t *testing.T) {
 	)
 
 	if err == nil {
-		t.Error("expected error when session manager not available")
+		t.Error("expected error from executor")
 	}
 	if resolved {
 		t.Error("expected resolved to be false on error")
@@ -972,6 +1025,7 @@ func TestFinalizeExecutor_resolveConflicts_NoManager(t *testing.T) {
 }
 
 func TestFinalizeExecutor_shouldEscalate_EdgeCases(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	cfg := config.FinalizeConfig{}
 
@@ -1033,6 +1087,7 @@ func TestFinalizeExecutor_shouldEscalate_EdgeCases(t *testing.T) {
 }
 
 func TestBuildEscalationContext_OnlyConflicts(t *testing.T) {
+	t.Parallel()
 	result := &FinalizeResult{
 		ConflictFiles: []string{"a.go", "b.go"},
 		TestsPassed:   true,
@@ -1049,6 +1104,7 @@ func TestBuildEscalationContext_OnlyConflicts(t *testing.T) {
 }
 
 func TestBuildEscalationContext_ManyTestFailures(t *testing.T) {
+	t.Parallel()
 	failures := make([]TestFailure, 10)
 	for i := 0; i < 10; i++ {
 		failures[i] = TestFailure{
@@ -1070,6 +1126,7 @@ func TestBuildEscalationContext_ManyTestFailures(t *testing.T) {
 }
 
 func TestSyncStrategy_DefaultMerge(t *testing.T) {
+	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	cfg := config.FinalizeConfig{
 		Sync: config.FinalizeSyncConfig{
@@ -1097,6 +1154,7 @@ func TestSyncStrategy_DefaultMerge(t *testing.T) {
 }
 
 func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
+	t.Parallel()
 	// This test verifies the path when branch is already up-to-date
 	// Since we can't easily mock git operations, we test the disabled path instead
 	orcCfg := &config.Config{

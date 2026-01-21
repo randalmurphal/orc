@@ -7,6 +7,7 @@ import (
 )
 
 func TestProjectDB_TaskComments(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -80,6 +81,7 @@ func TestProjectDB_TaskComments(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_AuthorTypes(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -139,6 +141,7 @@ func TestProjectDB_TaskComments_AuthorTypes(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_ByPhase(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -189,6 +192,7 @@ func TestProjectDB_TaskComments_ByPhase(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_Update(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -234,6 +238,7 @@ func TestProjectDB_TaskComments_Update(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_Delete(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -274,6 +279,7 @@ func TestProjectDB_TaskComments_Delete(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_DeleteAll(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -316,6 +322,7 @@ func TestProjectDB_TaskComments_DeleteAll(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_Count(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -362,6 +369,7 @@ func TestProjectDB_TaskComments_Count(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_CascadeDelete(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -404,6 +412,7 @@ func TestProjectDB_TaskComments_CascadeDelete(t *testing.T) {
 }
 
 func TestProjectDB_TaskComments_DefaultAuthor(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 

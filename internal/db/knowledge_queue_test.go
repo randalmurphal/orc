@@ -6,6 +6,7 @@ import (
 )
 
 func TestKnowledgeEntry_IsStale(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	thirtyDaysAgo := now.AddDate(0, 0, -30)
 	hundredDaysAgo := now.AddDate(0, 0, -100)
@@ -121,6 +122,7 @@ func TestKnowledgeEntry_IsStale(t *testing.T) {
 }
 
 func TestKnowledgeQueueCRUD(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test db
 	tmpDir := t.TempDir()
 
@@ -219,6 +221,7 @@ func TestKnowledgeQueueCRUD(t *testing.T) {
 }
 
 func TestKnowledgeQueueReject(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	pdb, err := OpenProject(tmpDir)
@@ -244,6 +247,7 @@ func TestKnowledgeQueueReject(t *testing.T) {
 }
 
 func TestListStaleKnowledge(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	pdb, err := OpenProject(tmpDir)
@@ -281,6 +285,7 @@ func TestListStaleKnowledge(t *testing.T) {
 }
 
 func TestApproveAllPending(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	pdb, err := OpenProject(tmpDir)

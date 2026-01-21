@@ -12,6 +12,22 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 )
 
+// TurnExecutor defines the interface for executing Claude turns.
+// This abstraction allows for mocking in tests without spawning real Claude CLI.
+type TurnExecutor interface {
+	// ExecuteTurn sends a prompt and expects structured JSON output.
+	ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error)
+	// ExecuteTurnWithoutSchema sends a prompt without requiring structured output.
+	ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error)
+	// UpdateSessionID updates the session ID for multi-turn conversations.
+	UpdateSessionID(id string)
+	// SessionID returns the current session ID.
+	SessionID() string
+}
+
+// Ensure ClaudeExecutor implements TurnExecutor
+var _ TurnExecutor = (*ClaudeExecutor)(nil)
+
 // ClaudeExecutor wraps ClaudeCLI for phase execution with proper
 // structured output via --json-schema. This replaces the old
 // session-based approach that used stream-json mode.
@@ -126,38 +142,9 @@ func (u TokenUsage) EffectiveTotalTokens() int {
 func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
 
-	// Build ClaudeCLI with proper options
-	cliOpts := []claude.ClaudeOption{
-		claude.WithWorkdir(e.workdir),
-		claude.WithOutputFormat(claude.OutputFormatJSON),
-		claude.WithJSONSchema(PhaseCompletionSchema),
-		claude.WithDangerouslySkipPermissions(),
-		claude.WithSettingSources([]string{"project", "local", "user"}),
-	}
-
-	if e.claudePath != "" {
-		cliOpts = append(cliOpts, claude.WithClaudePath(e.claudePath))
-	}
-
-	if e.model != "" {
-		cliOpts = append(cliOpts, claude.WithModel(e.model))
-	}
-
-	if e.sessionID != "" {
-		if e.resume {
-			cliOpts = append(cliOpts, claude.WithResume(e.sessionID))
-		} else {
-			cliOpts = append(cliOpts, claude.WithSessionID(e.sessionID))
-		}
-	}
-
-	if e.mcpConfigPath != "" {
-		cliOpts = append(cliOpts, claude.WithMCPConfig(e.mcpConfigPath))
-	}
-
-	if e.maxTurns > 0 {
-		cliOpts = append(cliOpts, claude.WithMaxTurns(e.maxTurns))
-	}
+	// Build CLI options using consolidated helper, then add JSON schema
+	cliOpts := e.buildBaseCLIOptions()
+	cliOpts = append(cliOpts, claude.WithJSONSchema(PhaseCompletionSchema))
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
@@ -207,37 +194,8 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
 
-	// Build ClaudeCLI without JSON schema
-	cliOpts := []claude.ClaudeOption{
-		claude.WithWorkdir(e.workdir),
-		claude.WithOutputFormat(claude.OutputFormatJSON), // Still use JSON for metadata
-		claude.WithDangerouslySkipPermissions(),
-		claude.WithSettingSources([]string{"project", "local", "user"}),
-	}
-
-	if e.claudePath != "" {
-		cliOpts = append(cliOpts, claude.WithClaudePath(e.claudePath))
-	}
-
-	if e.model != "" {
-		cliOpts = append(cliOpts, claude.WithModel(e.model))
-	}
-
-	if e.sessionID != "" {
-		if e.resume {
-			cliOpts = append(cliOpts, claude.WithResume(e.sessionID))
-		} else {
-			cliOpts = append(cliOpts, claude.WithSessionID(e.sessionID))
-		}
-	}
-
-	if e.mcpConfigPath != "" {
-		cliOpts = append(cliOpts, claude.WithMCPConfig(e.mcpConfigPath))
-	}
-
-	if e.maxTurns > 0 {
-		cliOpts = append(cliOpts, claude.WithMaxTurns(e.maxTurns))
-	}
+	// Build CLI options using consolidated helper (no JSON schema)
+	cliOpts := e.buildBaseCLIOptions()
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
@@ -281,6 +239,7 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 // UpdateSessionID updates the session ID for subsequent calls.
 // Used after getting a session ID from the first response.
 func (e *ClaudeExecutor) UpdateSessionID(id string) {
+	e.logger.Debug("updating session ID", "old_id", e.sessionID, "new_id", id, "old_resume", e.resume)
 	e.sessionID = id
 	e.resume = true // Enable resume mode for subsequent calls
 }
@@ -288,4 +247,165 @@ func (e *ClaudeExecutor) UpdateSessionID(id string) {
 // SessionID returns the current session ID.
 func (e *ClaudeExecutor) SessionID() string {
 	return e.sessionID
+}
+
+// buildBaseCLIOptions builds the common set of CLI options shared by all execution methods.
+// This consolidates the option building that was previously duplicated.
+func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
+	opts := []claude.ClaudeOption{
+		claude.WithWorkdir(e.workdir),
+		claude.WithOutputFormat(claude.OutputFormatJSON),
+		claude.WithDangerouslySkipPermissions(),
+		claude.WithSettingSources([]string{"project", "local", "user"}),
+	}
+
+	if e.claudePath != "" {
+		opts = append(opts, claude.WithClaudePath(e.claudePath))
+	}
+
+	if e.model != "" {
+		opts = append(opts, claude.WithModel(e.model))
+	}
+
+	// Only pass session ID in resume mode. Claude CLI requires UUIDs for session IDs,
+	// but orc uses custom IDs like "TASK-XXX-implement". On the first call, we let
+	// Claude generate a UUID and capture it from the response. Subsequent calls use
+	// --resume with that UUID.
+	if e.sessionID != "" && e.resume {
+		opts = append(opts, claude.WithResume(e.sessionID))
+		e.logger.Debug("using --resume with session ID", "session_id", e.sessionID)
+	} else {
+		e.logger.Debug("starting new session", "existing_session_id", e.sessionID, "resume", e.resume)
+	}
+
+	if e.mcpConfigPath != "" {
+		opts = append(opts, claude.WithMCPConfig(e.mcpConfigPath))
+	}
+
+	if e.maxTurns > 0 {
+		opts = append(opts, claude.WithMaxTurns(e.maxTurns))
+	}
+
+	return opts
+}
+
+// NewClaudeExecutorFromContext creates a ClaudeExecutor configured from an ExecutionContext.
+// This is the recommended way to create an executor for phase execution.
+func NewClaudeExecutorFromContext(ctx *ExecutionContext, claudePath string, maxIterations int, logger *slog.Logger) *ClaudeExecutor {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	return NewClaudeExecutor(
+		WithClaudePath(claudePath),
+		WithClaudeWorkdir(ctx.WorkingDir),
+		WithClaudeModel(ctx.ModelSetting.Model),
+		WithClaudeSessionID(ctx.SessionID),
+		WithClaudeResume(ctx.IsResume),
+		WithClaudeMaxTurns(maxIterations),
+		WithClaudeLogger(logger),
+		WithClaudeMCPConfig(ctx.MCPConfigPath),
+	)
+}
+
+// MockTurnExecutor is a test double for TurnExecutor that returns configurable responses.
+// Use this in tests to avoid spawning real Claude CLI processes.
+type MockTurnExecutor struct {
+	// Responses is a queue of responses to return. Each call pops the first response.
+	// If empty, returns DefaultResponse.
+	Responses []string
+	// DefaultResponse is returned when Responses is empty.
+	DefaultResponse string
+	// CallCount tracks how many times ExecuteTurn was called.
+	callCount int
+	// Prompts stores all prompts received for verification.
+	Prompts []string
+	// SessionIDValue is the session ID to return.
+	SessionIDValue string
+	// Error to return (if set, returned on every call).
+	Error error
+	// Delay is how long to wait before returning. If set, respects context cancellation.
+	Delay time.Duration
+}
+
+// Ensure MockTurnExecutor implements TurnExecutor
+var _ TurnExecutor = (*MockTurnExecutor)(nil)
+
+// NewMockTurnExecutor creates a mock that returns the given response.
+func NewMockTurnExecutor(response string) *MockTurnExecutor {
+	return &MockTurnExecutor{
+		DefaultResponse: response,
+		SessionIDValue:  "mock-session-123",
+	}
+}
+
+// NewMockTurnExecutorWithResponses creates a mock with a queue of responses.
+func NewMockTurnExecutorWithResponses(responses ...string) *MockTurnExecutor {
+	return &MockTurnExecutor{
+		Responses:      responses,
+		SessionIDValue: "mock-session-123",
+	}
+}
+
+// ExecuteTurn returns the next response from the queue or DefaultResponse.
+func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
+	m.callCount++
+	m.Prompts = append(m.Prompts, prompt)
+
+	// Honor Delay if set, respecting context cancellation
+	if m.Delay > 0 {
+		select {
+		case <-time.After(m.Delay):
+			// Continue to return response
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	if m.Error != nil {
+		return &TurnResult{IsError: true, ErrorText: m.Error.Error()}, m.Error
+	}
+
+	var content string
+	if len(m.Responses) > 0 {
+		content = m.Responses[0]
+		m.Responses = m.Responses[1:]
+	} else {
+		content = m.DefaultResponse
+	}
+
+	// Parse status from content (same as real executor)
+	status, reason := CheckPhaseCompletionJSON(content)
+
+	return &TurnResult{
+		Content:   content,
+		Status:    status,
+		Reason:    reason,
+		NumTurns:  1,
+		SessionID: m.SessionIDValue,
+		Usage: TokenUsage{
+			InputTokens:  100,
+			OutputTokens: 50,
+		},
+	}, nil
+}
+
+// ExecuteTurnWithoutSchema is the same as ExecuteTurn for the mock.
+func (m *MockTurnExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error) {
+	return m.ExecuteTurn(ctx, prompt)
+}
+
+// UpdateSessionID updates the session ID.
+func (m *MockTurnExecutor) UpdateSessionID(id string) {
+	m.SessionIDValue = id
+}
+
+// SessionID returns the current session ID.
+func (m *MockTurnExecutor) SessionID() string {
+	return m.SessionIDValue
+}
+
+// CallCount returns how many times ExecuteTurn was called.
+func (m *MockTurnExecutor) CallCount() int {
+	return m.callCount
 }

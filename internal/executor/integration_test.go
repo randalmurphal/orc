@@ -137,6 +137,7 @@ func TestMain(m *testing.M) {
 // === Integration Tests (require ORC_REAL_CLAUDE=1) ===
 
 func TestIntegration_ExecutePhase_Complete(t *testing.T) {
+	t.Parallel()
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
@@ -191,6 +192,7 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 }
 
 func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
+	t.Parallel()
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
@@ -287,6 +289,7 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 }
 
 func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
+	t.Parallel()
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
@@ -370,6 +373,7 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 }
 
 func TestIntegration_Pause_Resume(t *testing.T) {
+	t.Parallel()
 	skipIfNoRealClaude(t)
 
 	tmpDir := t.TempDir()
@@ -466,6 +470,7 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 // === Mock-based tests (always run) ===
 
 func TestMock_ExecutePhase_Complete(t *testing.T) {
+	t.Parallel()
 	if useRealClaude() {
 		t.Skip("Skipping mock test when ORC_REAL_CLAUDE=1")
 	}
@@ -480,8 +485,11 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Use mock TurnExecutor instead of real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
 
 	testTask := &task.Task{
 		ID:     "MOCK-001",
@@ -510,6 +518,7 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 }
 
 func TestMock_ExecuteTask_WithEvents(t *testing.T) {
+	t.Parallel()
 	if useRealClaude() {
 		t.Skip("Skipping mock test when ORC_REAL_CLAUDE=1")
 	}
@@ -527,8 +536,11 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
 	e.SetBackend(backend)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
-	e.SetClient(mockClient)
+	// Use mock TurnExecutor instead of real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+	e.SetTurnExecutor(mockExecutor)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
 
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -605,6 +617,7 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 // ExecuteTask must set state.StartedAt when execution begins, ensuring
 // Elapsed() returns a valid duration instead of 0.
 func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
+	t.Parallel()
 	if useRealClaude() {
 		t.Skip("Skipping mock test when ORC_REAL_CLAUDE=1")
 	}
@@ -622,8 +635,11 @@ func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
 	cfg.WorkDir = tmpDir
 	e := New(cfg)
 	e.SetBackend(backend)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
-	e.SetClient(mockClient)
+	// Use mock TurnExecutor instead of real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+	e.SetTurnExecutor(mockExecutor)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
 
 	testTask := task.New("MOCK-ELAPSED", "Elapsed time test")
 	testTask.Weight = task.WeightSmall
@@ -692,6 +708,7 @@ func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
 // TestIntegration_PhaseTimeout_EnforcesLimit verifies that PhaseMax timeout is enforced
 // and produces a recoverable interrupted state.
 func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend
@@ -715,16 +732,10 @@ func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
 	e := NewWithConfig(cfg, orcCfg)
 	e.SetBackend(backend)
 
-	// Use a mock client that takes longer than the timeout
-	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
-		select {
-		case <-time.After(500 * time.Millisecond):
-			return &claude.CompletionResponse{Content: "Done!"}, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	})
-	e.SetClient(mockClient)
+	// Use a mock executor that takes longer than the timeout
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	mockExecutor.Delay = 500 * time.Millisecond // Longer than PhaseMax
+	e.SetTurnExecutor(mockExecutor)
 
 	// Create task
 	testTask := task.New("INT-TIMEOUT", "Phase timeout test")
@@ -799,6 +810,7 @@ func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
 
 // TestIntegration_PhaseTimeout_Disabled verifies that PhaseMax=0 disables timeout.
 func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	backend, err := storage.NewDatabaseBackend(tmpDir, &config.StorageConfig{})
@@ -821,9 +833,14 @@ func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
 	e := NewWithConfig(cfg, orcCfg)
 	e.SetBackend(backend)
 
-	// Mock client that completes quickly
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Use mock TurnExecutor instead of real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{
+		Timeouts:   config.TimeoutsConfig{PhaseMax: 0},
+		Validation: config.ValidationConfig{Enabled: false},
+	})
 
 	testTask := task.New("INT-NO-TIMEOUT", "No timeout test")
 	testTask.Weight = task.WeightSmall

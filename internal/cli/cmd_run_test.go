@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseConflictFilesFromError_BasicFormat(t *testing.T) {
+	t.Parallel()
 	// Test basic bracket format: [file1 file2 file3]
 	errStr := "sync conflict: files have conflicts [internal/foo.go internal/bar.go]"
 
@@ -26,6 +27,7 @@ func TestParseConflictFilesFromError_BasicFormat(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_SingleFile(t *testing.T) {
+	t.Parallel()
 	errStr := "sync conflict [README.md]"
 
 	files := parseConflictFilesFromError(errStr)
@@ -39,6 +41,7 @@ func TestParseConflictFilesFromError_SingleFile(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_EmptyBrackets(t *testing.T) {
+	t.Parallel()
 	errStr := "sync conflict []"
 
 	files := parseConflictFilesFromError(errStr)
@@ -49,6 +52,7 @@ func TestParseConflictFilesFromError_EmptyBrackets(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_NoBrackets(t *testing.T) {
+	t.Parallel()
 	errStr := "sync conflict without file list"
 
 	files := parseConflictFilesFromError(errStr)
@@ -59,6 +63,7 @@ func TestParseConflictFilesFromError_NoBrackets(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_EmptyString(t *testing.T) {
+	t.Parallel()
 	errStr := ""
 
 	files := parseConflictFilesFromError(errStr)
@@ -69,6 +74,7 @@ func TestParseConflictFilesFromError_EmptyString(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_WithCommas(t *testing.T) {
+	t.Parallel()
 	// Test that commas are trimmed from file names
 	errStr := "conflicts: [file1.go, file2.go, file3.go]"
 
@@ -90,6 +96,7 @@ func TestParseConflictFilesFromError_WithCommas(t *testing.T) {
 }
 
 func TestParseConflictFilesFromError_MultipleSpaces(t *testing.T) {
+	t.Parallel()
 	// Test that multiple spaces are handled
 	errStr := "conflicts: [file1.go   file2.go]"
 
@@ -101,6 +108,7 @@ func TestParseConflictFilesFromError_MultipleSpaces(t *testing.T) {
 }
 
 func TestBuildBlockedContext_NilConfig(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 
 	ctx := buildBlockedContext(tk, nil)
@@ -117,6 +125,7 @@ func TestBuildBlockedContext_NilConfig(t *testing.T) {
 }
 
 func TestBuildBlockedContext_WorktreeDisabled(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
@@ -132,6 +141,7 @@ func TestBuildBlockedContext_WorktreeDisabled(t *testing.T) {
 }
 
 func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
@@ -149,6 +159,7 @@ func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 }
 
 func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-002", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
@@ -166,6 +177,7 @@ func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 }
 
 func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	tk.Metadata = map[string]string{
 		"blocked_error": "sync conflict: files [internal/foo.go internal/bar.go]",
@@ -187,6 +199,7 @@ func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
 }
 
 func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	tk.Metadata = map[string]string{
 		"some_other_key": "value",
@@ -205,6 +218,7 @@ func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
 }
 
 func TestBuildBlockedContext_NilMetadata(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	tk.Metadata = nil
 	cfg := &config.Config{
@@ -221,6 +235,7 @@ func TestBuildBlockedContext_NilMetadata(t *testing.T) {
 }
 
 func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
@@ -240,6 +255,7 @@ func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
 }
 
 func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
@@ -259,6 +275,7 @@ func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
 }
 
 func TestBuildBlockedContext_TargetBranch(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
@@ -274,6 +291,7 @@ func TestBuildBlockedContext_TargetBranch(t *testing.T) {
 }
 
 func TestBuildBlockedContext_DefaultTargetBranch(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
@@ -289,6 +307,7 @@ func TestBuildBlockedContext_DefaultTargetBranch(t *testing.T) {
 }
 
 func TestBuildBlockedContext_FullContext(t *testing.T) {
+	t.Parallel()
 	tk := task.New("TASK-123", "Full context test")
 	tk.Metadata = map[string]string{
 		"blocked_error": "sync conflict: [pkg/api.go pkg/handler.go pkg/service.go]",
@@ -326,6 +345,7 @@ func TestBuildBlockedContext_FullContext(t *testing.T) {
 }
 
 func TestContainsPhase(t *testing.T) {
+	t.Parallel()
 	phases := []string{"spec", "implement", "test", "docs"}
 
 	tests := []struct {
@@ -352,6 +372,7 @@ func TestContainsPhase(t *testing.T) {
 }
 
 func TestContainsPhase_EmptyList(t *testing.T) {
+	t.Parallel()
 	phases := []string{}
 
 	if containsPhase(phases, "implement") {

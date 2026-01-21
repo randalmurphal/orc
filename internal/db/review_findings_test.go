@@ -26,6 +26,7 @@ func setupProjectDB(t *testing.T) *ProjectDB {
 }
 
 func TestSaveAndGetReviewFindings(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create a task first (foreign key constraint)
@@ -106,6 +107,7 @@ func TestSaveAndGetReviewFindings(t *testing.T) {
 }
 
 func TestReviewFindingsUpsert(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -157,6 +159,7 @@ func TestReviewFindingsUpsert(t *testing.T) {
 }
 
 func TestGetAllReviewFindings(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -213,6 +216,7 @@ func TestGetAllReviewFindings(t *testing.T) {
 }
 
 func TestGetReviewFindingsNotFound(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Get non-existent findings
@@ -226,6 +230,7 @@ func TestGetReviewFindingsNotFound(t *testing.T) {
 }
 
 func TestDeleteReviewFindings(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -271,6 +276,7 @@ func TestDeleteReviewFindings(t *testing.T) {
 }
 
 func TestReviewFindingsNullFields(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -317,6 +323,7 @@ func TestReviewFindingsNullFields(t *testing.T) {
 }
 
 func TestReviewFindingsCascadeDelete(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -356,6 +363,7 @@ func TestReviewFindingsCascadeDelete(t *testing.T) {
 }
 
 func TestReviewFindingsCreatedAtTimestamp(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task

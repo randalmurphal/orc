@@ -162,6 +162,7 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 // === handleRetryTask Tests ===
 
 func TestHandleRetryTask_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/retry", nil)
@@ -175,6 +176,7 @@ func TestHandleRetryTask_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleRetryTask_DefaultOptions(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -209,6 +211,7 @@ func TestHandleRetryTask_DefaultOptions(t *testing.T) {
 }
 
 func TestHandleRetryTask_WithReviewComments(t *testing.T) {
+	t.Parallel()
 	comments := []db.ReviewComment{
 		{
 			ID:         "RC-retry1",
@@ -259,6 +262,7 @@ func TestHandleRetryTask_WithReviewComments(t *testing.T) {
 }
 
 func TestHandleRetryTask_WithCustomFromPhase(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -285,6 +289,7 @@ func TestHandleRetryTask_WithCustomFromPhase(t *testing.T) {
 }
 
 func TestHandleRetryTask_WithInstructions(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -315,6 +320,7 @@ func TestHandleRetryTask_WithInstructions(t *testing.T) {
 }
 
 func TestHandleRetryTask_AttemptNumberFromState(t *testing.T) {
+	t.Parallel()
 	// Set up state with existing retry context (attempt 2)
 	srv, taskID, cleanup := setupRetryTestEnv(t, withRetryContext(2))
 	defer cleanup()
@@ -344,6 +350,7 @@ func TestHandleRetryTask_AttemptNumberFromState(t *testing.T) {
 // === handleGetRetryPreview Tests ===
 
 func TestHandleGetRetryPreview_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/retry/preview", nil)
@@ -357,6 +364,7 @@ func TestHandleGetRetryPreview_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleGetRetryPreview_ReturnsPreview(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -388,6 +396,7 @@ func TestHandleGetRetryPreview_ReturnsPreview(t *testing.T) {
 }
 
 func TestHandleGetRetryPreview_IncludesOpenComments(t *testing.T) {
+	t.Parallel()
 	comments := []db.ReviewComment{
 		{
 			ID:       "RC-preview1",
@@ -427,6 +436,7 @@ func TestHandleGetRetryPreview_IncludesOpenComments(t *testing.T) {
 }
 
 func TestHandleGetRetryPreview_AttemptNumberFromState(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t, withRetryContext(3))
 	defer cleanup()
 
@@ -453,6 +463,7 @@ func TestHandleGetRetryPreview_AttemptNumberFromState(t *testing.T) {
 // === handleRetryWithFeedback Tests ===
 
 func TestHandleRetryWithFeedback_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`{"failure_reason": "Tests failed"}`)
@@ -468,6 +479,7 @@ func TestHandleRetryWithFeedback_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -484,6 +496,7 @@ func TestHandleRetryWithFeedback_InvalidBody(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_WithFailureReason(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -518,6 +531,7 @@ func TestHandleRetryWithFeedback_WithFailureReason(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_WithPRComments(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -565,6 +579,7 @@ func TestHandleRetryWithFeedback_WithPRComments(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_CombinesReviewAndPRComments(t *testing.T) {
+	t.Parallel()
 	// Set up with review comments
 	reviewComments := []db.ReviewComment{
 		{
@@ -610,6 +625,7 @@ func TestHandleRetryWithFeedback_CombinesReviewAndPRComments(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_CustomFromPhase(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -638,6 +654,7 @@ func TestHandleRetryWithFeedback_CustomFromPhase(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_AttemptTracking(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t, withRetryContext(1))
 	defer cleanup()
 
@@ -666,6 +683,7 @@ func TestHandleRetryWithFeedback_AttemptTracking(t *testing.T) {
 // === Retry Map Tests ===
 
 func TestDefaultRetryMap(t *testing.T) {
+	t.Parallel()
 	retryMap := executor.DefaultRetryMap()
 
 	tests := []struct {
@@ -704,6 +722,7 @@ func TestDefaultRetryMap(t *testing.T) {
 // === Warning Log Tests ===
 
 func TestHandleRetryTask_LogsWarningOnCommentFetchError(t *testing.T) {
+	t.Parallel()
 	// This test verifies the handler gracefully handles errors when fetching comments
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
@@ -742,6 +761,7 @@ func TestHandleRetryTask_LogsWarningOnCommentFetchError(t *testing.T) {
 // === Response Type Tests ===
 
 func TestRetryResponse_Structure(t *testing.T) {
+	t.Parallel()
 	resp := retryResponse{
 		TaskID:       "TASK-001",
 		FromPhase:    "implement",
@@ -772,6 +792,7 @@ func TestRetryResponse_Structure(t *testing.T) {
 }
 
 func TestRetryPreviewResponse_Structure(t *testing.T) {
+	t.Parallel()
 	resp := retryPreviewResponse{
 		TaskID:          "TASK-002",
 		CurrentPhase:    "test",
@@ -807,6 +828,7 @@ func TestRetryPreviewResponse_Structure(t *testing.T) {
 // === Edge Cases ===
 
 func TestHandleRetryTask_EmptyTaskID(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -825,6 +847,7 @@ func TestHandleRetryTask_EmptyTaskID(t *testing.T) {
 }
 
 func TestHandleRetryTask_NoState(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -871,6 +894,7 @@ func TestHandleRetryTask_NoState(t *testing.T) {
 }
 
 func TestHandleRetryWithFeedback_WithInstructions(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupRetryTestEnv(t)
 	defer cleanup()
 
@@ -902,6 +926,7 @@ func TestHandleRetryWithFeedback_WithInstructions(t *testing.T) {
 // === Request Type Tests ===
 
 func TestRetryRequest_Structure(t *testing.T) {
+	t.Parallel()
 	req := retryRequest{
 		IncludeReviewComments: true,
 		IncludePRComments:     true,
@@ -930,6 +955,7 @@ func TestRetryRequest_Structure(t *testing.T) {
 // === Integration with Executor Package ===
 
 func TestBuildRetryContextForFreshSession(t *testing.T) {
+	t.Parallel()
 	// Test that the executor function is callable and produces valid output
 	opts := executor.RetryOptions{
 		FailedPhase:   "test",
@@ -959,6 +985,7 @@ func TestBuildRetryContextForFreshSession(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithReviewComments(t *testing.T) {
+	t.Parallel()
 	comments := []db.ReviewComment{
 		{
 			FilePath:   "auth.go",
@@ -999,6 +1026,7 @@ func TestBuildRetryContextForFreshSession_WithReviewComments(t *testing.T) {
 }
 
 func TestBuildRetryContextForFreshSession_WithPRComments(t *testing.T) {
+	t.Parallel()
 	prComments := []executor.PRCommentFeedback{
 		{
 			Author:   "reviewer1",

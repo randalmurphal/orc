@@ -47,6 +47,22 @@ func NewDatabaseBackend(projectPath string, cfg *config.StorageConfig) (*Databas
 	}, nil
 }
 
+// NewInMemoryBackend creates an in-memory database backend for testing.
+// This is much faster than file-based databases and ideal for unit tests.
+func NewInMemoryBackend() (*DatabaseBackend, error) {
+	pdb, err := db.OpenProjectInMemory()
+	if err != nil {
+		return nil, fmt.Errorf("open in-memory database: %w", err)
+	}
+
+	return &DatabaseBackend{
+		projectPath: ":memory:",
+		db:          pdb,
+		cfg:         nil,
+		logger:      log.New(io.Discard, "", 0),
+	}, nil
+}
+
 // SetLogger sets the logger for warnings and debug messages.
 func (d *DatabaseBackend) SetLogger(l *log.Logger) {
 	d.mu.Lock()

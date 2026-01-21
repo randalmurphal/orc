@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
@@ -188,15 +187,14 @@ type Result struct {
 
 // Executor runs phases using session-based execution with weight-adaptive strategies.
 type Executor struct {
-	config          *Config
-	orcConfig       *config.Config
-	client          claude.Client
-	gateEvaluator   *gate.Evaluator
-	gitOps          *git.Git
-	checkpointStore checkpoint.Store
-	logger          *slog.Logger
-	publisher       events.Publisher
-	backend         storage.Backend
+	config        *Config
+	orcConfig     *config.Config
+	client        claude.Client
+	gateEvaluator *gate.Evaluator
+	gitOps        *git.Git
+	logger        *slog.Logger
+	publisher     events.Publisher
+	backend       storage.Backend
 
 	// Token pool for automatic account switching (nil if disabled)
 	tokenPool *tokenpool.Pool
@@ -210,9 +208,6 @@ type Executor struct {
 	worktreePath   string   // Path to worktree if enabled
 	worktreeGit    *git.Git // Git operations for worktree
 	currentTaskDir string   // Directory for current task's files
-
-	// Use session-based execution (new) vs flowgraph (legacy)
-	useSessionExecution bool
 
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
@@ -237,6 +232,10 @@ type Executor struct {
 
 	// MCP config path for worktree context (optional)
 	mcpConfigPath string
+
+	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
+	// When set, passed to sub-executors (StandardExecutor, FullExecutor, etc.)
+	turnExecutor TurnExecutor
 }
 
 // New creates a new executor with the given configuration.
@@ -280,12 +279,6 @@ func New(cfg *Config) *Executor {
 	// We'll rebuild the client with the token if pool is enabled
 
 	client := claude.NewClaudeCLI(clientOpts...)
-
-	// Create checkpoint store if enabled
-	var cpStore checkpoint.Store
-	if cfg.EnableCheckpoints {
-		cpStore = checkpoint.NewMemoryStore()
-	}
 
 	// Create git operations with orc-specific config
 	gitCfg := git.Config{
@@ -350,20 +343,18 @@ func New(cfg *Config) *Executor {
 	}
 
 	return &Executor{
-		config:              cfg,
-		orcConfig:           orcCfg,
-		client:              client,
-		gateEvaluator:       gate.New(client),
-		gitOps:              gitOps,
-		checkpointStore:     cpStore,
-		logger:              slog.Default(),
-		tokenPool:           pool,
-		backend:             cfg.Backend,
-		useSessionExecution: orcCfg.Execution.UseSessionExecution,
-		resourceTracker:     resourceTracker,
-		haikuClient:         haikuClient,
-		globalDB:            globalDB,
-		claudePath:          claudePath,
+		config:          cfg,
+		orcConfig:       orcCfg,
+		client:          client,
+		gateEvaluator:   gate.New(client),
+		gitOps:          gitOps,
+		logger:          slog.Default(),
+		tokenPool:       pool,
+		backend:         cfg.Backend,
+		resourceTracker: resourceTracker,
+		haikuClient:     haikuClient,
+		globalDB:        globalDB,
+		claudePath:      claudePath,
 	}
 }
 
@@ -413,6 +404,22 @@ func (e *Executor) SetClient(c claude.Client) {
 	e.client = c
 }
 
+// SetTurnExecutor sets a mock TurnExecutor for testing.
+// When set, sub-executors use this instead of spawning real Claude CLI.
+func (e *Executor) SetTurnExecutor(te TurnExecutor) {
+	e.turnExecutor = te
+	// Reset cached executors so they pick up the new TurnExecutor
+	e.resetPhaseExecutors()
+}
+
+// SetOrcConfig sets a custom orc config (for testing).
+// This controls validation, backpressure, and other behavior.
+func (e *Executor) SetOrcConfig(cfg *config.Config) {
+	e.orcConfig = cfg
+	// Reset cached executors so they pick up the new config
+	e.resetPhaseExecutors()
+}
+
 // SetHaikuClient sets the Haiku client for validation (for testing).
 func (e *Executor) SetHaikuClient(c claude.Client) {
 	e.haikuClient = c
@@ -421,12 +428,6 @@ func (e *Executor) SetHaikuClient(c claude.Client) {
 // HaikuClient returns the Haiku client for validation calls.
 func (e *Executor) HaikuClient() claude.Client {
 	return e.haikuClient
-}
-
-// SetUseSessionExecution enables or disables session-based execution.
-// When disabled, falls back to the legacy flowgraph-based execution.
-func (e *Executor) SetUseSessionExecution(use bool) {
-	e.useSessionExecution = use
 }
 
 // getPhaseExecutor returns the appropriate phase executor for the given weight.
@@ -451,13 +452,23 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 	switch execType {
 	case ExecutorTypeTrivial:
 		if e.trivialExecutor == nil {
-			e.trivialExecutor = NewTrivialExecutor(
-				WithTrivialClient(e.client),
+			opts := []TrivialExecutorOption{
+				WithTrivialClaudePath(e.claudePath),
+				WithTrivialWorkingDir(workingDir),
 				WithTrivialPublisher(e.publisher),
 				WithTrivialLogger(e.logger),
 				WithTrivialConfig(execCfg),
 				WithTrivialBackend(e.backend),
-			)
+				WithTrivialOrcConfig(e.orcConfig),
+			}
+			if e.mcpConfigPath != "" {
+				opts = append(opts, WithTrivialMCPConfig(e.mcpConfigPath))
+			}
+			// Pass injected TurnExecutor for testing
+			if e.turnExecutor != nil {
+				opts = append(opts, WithTrivialTurnExecutor(e.turnExecutor))
+			}
+			e.trivialExecutor = NewTrivialExecutor(opts...)
 		}
 		return e.trivialExecutor
 
@@ -513,6 +524,11 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithFullMCPConfig(e.mcpConfigPath))
 			}
 
+			// Pass injected TurnExecutor for testing
+			if e.turnExecutor != nil {
+				opts = append(opts, WithFullTurnExecutor(e.turnExecutor))
+			}
+
 			e.fullExecutor = NewFullExecutor(opts...)
 		}
 		return e.fullExecutor
@@ -560,6 +576,11 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 			// Pass MCP config path for worktree isolation
 			if e.mcpConfigPath != "" {
 				opts = append(opts, WithStandardMCPConfig(e.mcpConfigPath))
+			}
+
+			// Pass injected TurnExecutor for testing
+			if e.turnExecutor != nil {
+				opts = append(opts, WithStandardTurnExecutor(e.turnExecutor))
 			}
 
 			e.standardExecutor = NewStandardExecutor(opts...)

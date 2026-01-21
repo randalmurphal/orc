@@ -13,6 +13,7 @@ import (
 )
 
 func TestCICheckResult_Status(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		result   CICheckResult
@@ -65,6 +66,7 @@ func TestCICheckResult_Status(t *testing.T) {
 }
 
 func TestCIConfig_Defaults(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 
 	// Verify default values
@@ -90,6 +92,7 @@ func TestCIConfig_Defaults(t *testing.T) {
 }
 
 func TestConfig_ShouldWaitForCI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		profile  config.AutomationProfile
@@ -142,6 +145,7 @@ func TestConfig_ShouldWaitForCI(t *testing.T) {
 }
 
 func TestConfig_ShouldMergeOnCIPass(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		profile  config.AutomationProfile
@@ -188,6 +192,7 @@ func TestConfig_ShouldMergeOnCIPass(t *testing.T) {
 }
 
 func TestConfig_CITimeout(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		timeout  time.Duration
@@ -223,6 +228,7 @@ func TestConfig_CITimeout(t *testing.T) {
 }
 
 func TestConfig_CIPollInterval(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		interval time.Duration
@@ -258,6 +264,7 @@ func TestConfig_CIPollInterval(t *testing.T) {
 }
 
 func TestConfig_MergeMethod(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		method   string
@@ -298,6 +305,7 @@ func TestConfig_MergeMethod(t *testing.T) {
 }
 
 func TestCIMerger_WaitForCIAndMerge_NoPR(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Profile = config.ProfileAuto
 
@@ -315,6 +323,7 @@ func TestCIMerger_WaitForCIAndMerge_NoPR(t *testing.T) {
 }
 
 func TestCIMerger_WaitForCIAndMerge_CIDisabled(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Profile = config.ProfileSafe // Safe profile disables CI wait
 
@@ -336,6 +345,7 @@ func TestCIMerger_WaitForCIAndMerge_CIDisabled(t *testing.T) {
 }
 
 func TestParseChecksJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		jsonStr        string
@@ -460,6 +470,7 @@ func TestParseChecksJSON(t *testing.T) {
 }
 
 func TestTask_GetPRURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		task     *task.Task
@@ -498,6 +509,7 @@ func TestTask_GetPRURL(t *testing.T) {
 }
 
 func TestTask_SetMergedInfo(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{ID: "TASK-001"}
 
 	tsk.SetMergedInfo("https://github.com/owner/repo/pull/123", "main")
@@ -523,6 +535,7 @@ func TestTask_SetMergedInfo(t *testing.T) {
 }
 
 func TestParsePRURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		url            string
@@ -623,6 +636,7 @@ func TestParsePRURL(t *testing.T) {
 }
 
 func TestMergeMethodTranslation(t *testing.T) {
+	t.Parallel()
 	// Test that merge method values are passed correctly to the API
 	// GitHub API expects: "squash", "merge", or "rebase"
 	tests := []struct {
@@ -667,6 +681,7 @@ func TestMergeMethodTranslation(t *testing.T) {
 }
 
 func TestMergeAPIPathConstruction(t *testing.T) {
+	t.Parallel()
 	// Test that the API path is constructed correctly for different PR URLs
 	// This verifies the format: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
 	tests := []struct {
@@ -708,6 +723,7 @@ func TestMergeAPIPathConstruction(t *testing.T) {
 }
 
 func TestDeleteBranchAPIPathConstruction(t *testing.T) {
+	t.Parallel()
 	// Test that delete branch API path is constructed correctly
 	// This verifies the format: DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
 	tests := []struct {
@@ -757,6 +773,7 @@ func TestDeleteBranchAPIPathConstruction(t *testing.T) {
 }
 
 func TestIsRetryableMergeError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -824,6 +841,7 @@ func TestIsRetryableMergeError(t *testing.T) {
 }
 
 func TestIsValidationMergeError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -873,6 +891,7 @@ func TestIsValidationMergeError(t *testing.T) {
 }
 
 func TestErrMergeFailed_Sentinel(t *testing.T) {
+	t.Parallel()
 	// Test that ErrMergeFailed works as a sentinel error
 	wrappedErr := fmt.Errorf("%w: some details", ErrMergeFailed)
 
@@ -888,6 +907,7 @@ func TestErrMergeFailed_Sentinel(t *testing.T) {
 }
 
 func TestMergePR_ExponentialBackoffValues(t *testing.T) {
+	t.Parallel()
 	// Test that backoff calculation produces expected values
 	// Formula: min(2^attempt seconds, 8 seconds)
 	tests := []struct {

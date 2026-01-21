@@ -22,6 +22,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/health", nil)
@@ -44,6 +45,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestCORSHeaders(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// CORS headers are set on actual requests, not just OPTIONS
@@ -58,6 +60,7 @@ func TestCORSHeaders(t *testing.T) {
 }
 
 func TestListPromptsEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts", nil)
@@ -93,6 +96,7 @@ func TestListPromptsEndpoint(t *testing.T) {
 }
 
 func TestGetPromptVariablesEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts/variables", nil)
@@ -116,6 +120,7 @@ func TestGetPromptVariablesEndpoint(t *testing.T) {
 }
 
 func TestGetPromptEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts/implement", nil)
@@ -142,6 +147,7 @@ func TestGetPromptEndpoint(t *testing.T) {
 }
 
 func TestGetPromptEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts/nonexistent", nil)
@@ -155,6 +161,7 @@ func TestGetPromptEndpoint_NotFound(t *testing.T) {
 }
 
 func TestGetPromptDefaultEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts/implement/default", nil)
@@ -177,6 +184,7 @@ func TestGetPromptDefaultEndpoint(t *testing.T) {
 }
 
 func TestSavePromptEndpoint_EmptyContent(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`{"content":""}`)
@@ -192,6 +200,7 @@ func TestSavePromptEndpoint_EmptyContent(t *testing.T) {
 }
 
 func TestDeletePromptEndpoint_NoOverride(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// Try to delete a prompt that has no override
@@ -208,6 +217,7 @@ func TestDeletePromptEndpoint_NoOverride(t *testing.T) {
 // === Hooks API Tests (settings.json format) ===
 
 func TestListHooksEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
@@ -237,6 +247,7 @@ func TestListHooksEndpoint(t *testing.T) {
 }
 
 func TestGetHookTypesEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/hooks/types", nil)
@@ -259,6 +270,7 @@ func TestGetHookTypesEndpoint(t *testing.T) {
 }
 
 func TestGetHookEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create empty settings
@@ -278,6 +290,7 @@ func TestGetHookEndpoint_NotFound(t *testing.T) {
 }
 
 func TestCreateHookEndpoint_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`invalid json`)
@@ -293,6 +306,7 @@ func TestCreateHookEndpoint_InvalidBody(t *testing.T) {
 }
 
 func TestCreateHookEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
@@ -314,6 +328,7 @@ func TestCreateHookEndpoint_Success(t *testing.T) {
 }
 
 func TestDeleteHookEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create empty settings
@@ -335,6 +350,7 @@ func TestDeleteHookEndpoint_NotFound(t *testing.T) {
 // === Skills API Tests (SKILL.md format) ===
 
 func TestListSkillsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/skills directory
@@ -363,6 +379,7 @@ func TestListSkillsEndpoint(t *testing.T) {
 }
 
 func TestGetSkillEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
@@ -380,6 +397,7 @@ func TestGetSkillEndpoint_NotFound(t *testing.T) {
 }
 
 func TestCreateSkillEndpoint_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`invalid json`)
@@ -395,6 +413,7 @@ func TestCreateSkillEndpoint_InvalidBody(t *testing.T) {
 }
 
 func TestCreateSkillEndpoint_MissingName(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`{"description":"Something"}`)
@@ -410,6 +429,7 @@ func TestCreateSkillEndpoint_MissingName(t *testing.T) {
 }
 
 func TestCreateSkillEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/skills directory
@@ -436,6 +456,7 @@ func TestCreateSkillEndpoint_Success(t *testing.T) {
 }
 
 func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0755)
@@ -453,6 +474,7 @@ func TestDeleteSkillEndpoint_NotFound(t *testing.T) {
 }
 
 func TestDeleteSkillEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create skill directory with SKILL.md
@@ -486,6 +508,7 @@ Some content
 // === Settings API Tests ===
 
 func TestGetSettingsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -503,6 +526,7 @@ func TestGetSettingsEndpoint(t *testing.T) {
 }
 
 func TestUpdateSettingsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -524,6 +548,7 @@ func TestUpdateSettingsEndpoint(t *testing.T) {
 // === Tools API Tests ===
 
 func TestListToolsEndpoint(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/tools", nil)
@@ -546,6 +571,7 @@ func TestListToolsEndpoint(t *testing.T) {
 }
 
 func TestListToolsByCategory(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/tools?by_category=true", nil)
@@ -568,6 +594,7 @@ func TestListToolsByCategory(t *testing.T) {
 }
 
 func TestGetToolPermissionsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -585,6 +612,7 @@ func TestGetToolPermissionsEndpoint(t *testing.T) {
 }
 
 func TestUpdateToolPermissionsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -606,6 +634,7 @@ func TestUpdateToolPermissionsEndpoint(t *testing.T) {
 // === Agents API Tests ===
 
 func TestListAgentsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -623,6 +652,7 @@ func TestListAgentsEndpoint(t *testing.T) {
 }
 
 func TestCreateAgentEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -642,6 +672,7 @@ func TestCreateAgentEndpoint(t *testing.T) {
 }
 
 func TestGetAgentEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -661,6 +692,7 @@ func TestGetAgentEndpoint_NotFound(t *testing.T) {
 // === Scripts API Tests ===
 
 func TestListScriptsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0755)
@@ -678,6 +710,7 @@ func TestListScriptsEndpoint(t *testing.T) {
 }
 
 func TestDiscoverScriptsEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create scripts directory with a test script
@@ -709,6 +742,7 @@ func TestDiscoverScriptsEndpoint(t *testing.T) {
 // === CLAUDE.md API Tests ===
 
 func TestGetClaudeMDEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create CLAUDE.md
@@ -736,6 +770,7 @@ func TestGetClaudeMDEndpoint(t *testing.T) {
 }
 
 func TestGetClaudeMDEndpoint_EmptyProject(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -767,6 +802,7 @@ func TestGetClaudeMDEndpoint_EmptyProject(t *testing.T) {
 }
 
 func TestUpdateClaudeMDEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -793,6 +829,7 @@ func TestUpdateClaudeMDEndpoint(t *testing.T) {
 }
 
 func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create project CLAUDE.md
@@ -822,6 +859,7 @@ func TestGetClaudeMDHierarchyEndpoint(t *testing.T) {
 // === Task API Tests ===
 
 func TestListTasksEndpoint_EmptyDir(t *testing.T) {
+	t.Parallel()
 	// Create temp dir for .orc
 	tmpDir := t.TempDir()
 
@@ -854,6 +892,7 @@ func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 // This is the fix for the issue where the server breaks when started from a
 // different directory than the project.
 func TestListTasksEndpoint_NoOrcDir(t *testing.T) {
+	t.Parallel()
 	// Create a temp dir that is NOT an orc project (no .orc)
 	tmpDir := t.TempDir()
 
@@ -880,6 +919,7 @@ func TestListTasksEndpoint_NoOrcDir(t *testing.T) {
 }
 
 func TestListTasksEndpoint_WithTasks(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -924,6 +964,7 @@ func TestListTasksEndpoint_WithTasks(t *testing.T) {
 }
 
 func TestListTasksEndpoint_Pagination(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and multiple tasks for pagination testing
@@ -982,6 +1023,7 @@ func TestListTasksEndpoint_Pagination(t *testing.T) {
 }
 
 func TestGetTaskEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -1026,6 +1068,7 @@ func TestGetTaskEndpoint(t *testing.T) {
 }
 
 func TestGetTaskEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -1043,6 +1086,7 @@ func TestGetTaskEndpoint_NotFound(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -1075,6 +1119,7 @@ func TestCreateTaskEndpoint(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_MissingTitle(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -1094,6 +1139,7 @@ func TestCreateTaskEndpoint_MissingTitle(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`invalid json`)
@@ -1109,6 +1155,7 @@ func TestCreateTaskEndpoint_InvalidJSON(t *testing.T) {
 }
 
 func TestDeleteTaskEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -1148,6 +1195,7 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 }
 
 func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -1165,6 +1213,7 @@ func TestDeleteTaskEndpoint_NotFound(t *testing.T) {
 }
 
 func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -1204,6 +1253,7 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 }
 
 func TestServerConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 
 	if cfg.Addr != ":8080" {
@@ -1212,6 +1262,7 @@ func TestServerConfig(t *testing.T) {
 }
 
 func TestNewServer_WithConfig(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{
 		Addr: ":9090",
 	}
@@ -1233,6 +1284,7 @@ type TranscriptFile struct {
 // === Config API Tests ===
 
 func TestGetConfigEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create config directory and file
@@ -1257,6 +1309,7 @@ timeout: 10m
 }
 
 func TestGetConfigEndpoint_NoConfig(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// No config file exists
@@ -1274,6 +1327,7 @@ func TestGetConfigEndpoint_NoConfig(t *testing.T) {
 }
 
 func TestUpdateConfigEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create config directory
@@ -1321,6 +1375,7 @@ func TestUpdateConfigEndpoint(t *testing.T) {
 }
 
 func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`{invalid json}`)
@@ -1336,6 +1391,7 @@ func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
 }
 
 func TestGetConfigWithSourcesEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory and config
@@ -1380,6 +1436,7 @@ model: claude-sonnet
 }
 
 func TestGetSettingsHierarchyEndpoint(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude directory
@@ -1433,6 +1490,7 @@ func TestGetSettingsHierarchyEndpoint(t *testing.T) {
 // === Publisher Test ===
 
 func TestServerPublisher(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// Publisher method should return the internal publisher
@@ -1445,6 +1503,7 @@ func TestServerPublisher(t *testing.T) {
 // === Publish Tests ===
 
 func TestPublishWithSubscribers(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// Manually add a subscriber
@@ -1468,6 +1527,7 @@ func TestPublishWithSubscribers(t *testing.T) {
 }
 
 func TestPublishWithFullChannel(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// Create a full channel (capacity 0)
@@ -1493,6 +1553,7 @@ func TestPublishWithFullChannel(t *testing.T) {
 }
 
 func TestPublishNoSubscribers(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	// Publish should not panic with no subscribers
@@ -1502,6 +1563,7 @@ func TestPublishNoSubscribers(t *testing.T) {
 // === Save Prompt Success Test ===
 
 func TestSavePromptEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc/prompts directory
@@ -1531,6 +1593,7 @@ func TestSavePromptEndpoint_Success(t *testing.T) {
 }
 
 func TestDeletePromptEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc/prompts directory with a prompt
@@ -1557,6 +1620,7 @@ func TestDeletePromptEndpoint_Success(t *testing.T) {
 // === Get Plan Success Test ===
 
 func TestGetPlanEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend with task and plan
@@ -1601,6 +1665,7 @@ func TestGetPlanEndpoint_Success(t *testing.T) {
 // === Run Task Additional Tests ===
 
 func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -1680,6 +1745,7 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 // the UI shows the task in the correct column (e.g., "Spec" or "Implement")
 // instead of "Queued".
 func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -1750,6 +1816,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 }
 
 func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task with running status
@@ -1780,6 +1847,7 @@ func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 }
 
 func TestRunTaskEndpoint_NoPlan(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task without plan (status must allow running)
@@ -1812,6 +1880,7 @@ func TestRunTaskEndpoint_NoPlan(t *testing.T) {
 // === Blocking Enforcement Tests ===
 
 func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and tasks
@@ -1893,6 +1962,7 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 }
 
 func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and tasks
@@ -1944,6 +2014,7 @@ func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
 }
 
 func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and tasks
@@ -1996,6 +2067,7 @@ func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
 }
 
 func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task with no blockers
@@ -2039,6 +2111,7 @@ func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
 // === Pause/Resume Tests ===
 
 func TestPauseTaskEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and running task
@@ -2076,6 +2149,7 @@ func TestPauseTaskEndpoint_Success(t *testing.T) {
 }
 
 func TestPauseTaskEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2093,6 +2167,7 @@ func TestPauseTaskEndpoint_NotFound(t *testing.T) {
 }
 
 func TestResumeTaskEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend with task, plan, and state
@@ -2151,6 +2226,7 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 }
 
 func TestResumeTaskEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2170,6 +2246,7 @@ func TestResumeTaskEndpoint_NotFound(t *testing.T) {
 // === SSE Stream Tests ===
 
 func TestStreamEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2189,6 +2266,7 @@ func TestStreamEndpoint_TaskNotFound(t *testing.T) {
 // === Additional Transcript Tests ===
 
 func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -2230,6 +2308,7 @@ func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
 }
 
 func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -2308,6 +2387,7 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 // === Additional Create Task Tests ===
 
 func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2333,6 +2413,7 @@ func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 }
 
 func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2360,6 +2441,7 @@ func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 // === Prompt Default Tests ===
 
 func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/prompts/nonexistent/default", nil)
@@ -2713,6 +2795,7 @@ func TestProjectTaskNotFound(t *testing.T) {
 }
 
 func TestProjectNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/projects/invalid-project/tasks/TASK-001", nil)
@@ -2728,6 +2811,7 @@ func TestProjectNotFound(t *testing.T) {
 // === Cost Summary API Tests ===
 
 func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create minimal .orc structure with no tasks
@@ -2755,6 +2839,7 @@ func TestGetCostSummaryEndpoint_Empty(t *testing.T) {
 }
 
 func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
+	t.Parallel()
 	// Skip: DatabaseBackend doesn't persist cost data (state.Cost is not saved/loaded)
 	// This test requires cost tracking to be properly implemented in DatabaseBackend
 	t.Skip("DatabaseBackend does not persist cost tracking data - requires implementation")
@@ -2834,6 +2919,7 @@ func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
 }
 
 func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
+	t.Parallel()
 	// Skip: DatabaseBackend doesn't persist cost data (state.Cost is not saved/loaded)
 	// This test requires cost tracking to be properly implemented in DatabaseBackend
 	t.Skip("DatabaseBackend does not persist cost tracking data - requires implementation")
@@ -2940,6 +3026,7 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 }
 
 func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2959,6 +3046,7 @@ func TestGetCostSummaryEndpoint_InvalidPeriod(t *testing.T) {
 }
 
 func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -2979,6 +3067,7 @@ func TestGetCostSummaryEndpoint_InvalidSinceParameter(t *testing.T) {
 // === Update Task API Tests ===
 
 func TestUpdateTaskEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task to update
@@ -3027,6 +3116,7 @@ func TestUpdateTaskEndpoint_Success(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task to update
@@ -3070,6 +3160,7 @@ func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_InvalidWeight(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -3104,6 +3195,7 @@ func TestUpdateTaskEndpoint_InvalidWeight(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -3138,6 +3230,7 @@ func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc", "tasks"), 0755)
@@ -3157,6 +3250,7 @@ func TestUpdateTaskEndpoint_NotFound(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_RunningTask(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and running task
@@ -3191,6 +3285,7 @@ func TestUpdateTaskEndpoint_RunningTask(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_InvalidJSON(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -3224,6 +3319,7 @@ func TestUpdateTaskEndpoint_InvalidJSON(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_Metadata(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task
@@ -3270,6 +3366,7 @@ func TestUpdateTaskEndpoint_Metadata(t *testing.T) {
 }
 
 func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create backend and task with all fields populated
@@ -3448,6 +3545,7 @@ func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
 }
 
 func TestSetDefaultProjectEndpoint_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`invalid json`)

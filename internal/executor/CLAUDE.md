@@ -8,25 +8,25 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 |------|---------|
 | `executor.go` | Main orchestrator, `getPhaseExecutor()` |
 | `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()` |
-| `phase.go` | `ExecutePhase()`, session/flowgraph dispatch |
+| `phase.go` | `ExecutePhase()`, executor dispatch |
 | `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
 
 ### Executor Types
 
 | File | Strategy | Weight |
 |------|----------|--------|
-| `trivial.go` | Fire-and-forget | trivial |
+| `trivial.go` | ClaudeExecutor, no session persistence | trivial |
 | `standard.go` | ClaudeExecutor per phase | small/medium |
-| `full.go` | Persistent ClaudeExecutor | large/greenfield |
+| `full.go` | ClaudeExecutor with checkpointing | large/greenfield |
 | `finalize.go` | Branch sync, conflict resolution | large/greenfield |
 
 ### Support Modules
 
 | File | Purpose |
 |------|---------|
-| `claude_executor.go` | ClaudeCLI wrapper with `--json-schema` |
+| `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
+| `execution_context.go` | `BuildExecutionContext()` - centralized context building |
 | `template.go` | `BuildTemplateVars()`, `RenderTemplate()` |
-| `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` |
 | `phase_response.go` | JSON schema for phase completion |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
@@ -78,13 +78,42 @@ ResolveModelSetting(weight, phase)
 
 **Extended thinking:** When `modelSetting.Thinking == true`, prepend `ultrathink\n\n` to prompt text.
 
+## Unified Execution Context
+
+All executors (trivial, standard, full) use the same context building via `BuildExecutionContext()`:
+
+```go
+execCtx, err := BuildExecutionContext(ExecutionContextConfig{
+    Task:            t,
+    Phase:           p,
+    State:           s,
+    Backend:         backend,
+    WorkingDir:      workingDir,
+    MCPConfigPath:   mcpConfigPath,
+    ExecutorConfig:  config,
+    OrcConfig:       orcConfig,
+    ResumeSessionID: resumeSessionID,
+    Logger:          logger,
+})
+```
+
+**What it handles:**
+- Template loading and rendering
+- Spec content from database
+- Review context (round, findings)
+- Initiative context
+- Automation context
+- UI testing context
+- Ultrathink injection
+- Model resolution
+- Session ID generation
+
+**ClaudeExecutor creation:**
+```go
+turnExec := NewClaudeExecutorFromContext(execCtx, claudePath, maxIterations, logger)
+```
+
 ## Template Variables
-
-⚠️ **CRITICAL**: Two rendering paths MUST stay in sync:
-- `template.go:RenderTemplate()` - Session-based executors
-- `flowgraph_nodes.go:renderTemplate()` - Flowgraph execution
-
-Both call `processReviewConditionals()` for `{{#if REVIEW_ROUND_N}}` blocks.
 
 Key variables: `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{TASK_CATEGORY}}`, `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}`, `{{RETRY_CONTEXT}}`, `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}`, `{{VERIFICATION_RESULTS}}`
 
@@ -334,13 +363,66 @@ GlobalDB.RecordCostExtended() (db/global.go:340)
 
 **Integration point:** `task_execution.go:~280` calls `recordCostToGlobal()` after phase completion.
 
+## Testing with TurnExecutor
+
+All executors accept a `TurnExecutor` interface for testing without spawning real Claude CLI:
+
+```go
+// Create mock executor
+mock := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+
+// Inject via option
+executor := NewStandardExecutor(
+    WithStandardTurnExecutor(mock),
+    // ... other options
+)
+```
+
+**TurnExecutor interface:**
+```go
+type TurnExecutor interface {
+    ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error)
+    ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error)
+    UpdateSessionID(id string)
+    SessionID() string
+}
+```
+
+**Available mocks:** `MockTurnExecutor` with configurable responses, delays, and errors.
+
+**Executor-specific injection:**
+
+| Executor | Option Function |
+|----------|-----------------|
+| `StandardExecutor` | `WithStandardTurnExecutor(mock)` |
+| `FullExecutor` | `WithFullTurnExecutor(mock)` |
+| `TrivialExecutor` | `WithTrivialTurnExecutor(mock)` |
+| `FinalizeExecutor` | `WithFinalizeTurnExecutor(mock)` |
+| `ConflictResolver` | `WithResolverTurnExecutor(mock)` |
+
+**In-memory backends for fast tests:**
+
+```go
+// Use in-memory backend (no disk I/O)
+backend := storage.NewTestBackend(t)  // Auto-cleanup via t.Cleanup()
+
+// Or manually for more control
+backend, _ := storage.NewInMemoryBackend()
+defer backend.Close()
+```
+
+**Test parallelization:**
+- Most tests use `t.Parallel()` for concurrent execution
+- Tests using `t.Setenv()` or `os.Chdir()` CANNOT use `t.Parallel()` (process-wide state)
+- CLI tests are mostly sequential due to chdir usage
+
 ## Common Gotchas
 
 1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()`
 2. **Ultrathink in system prompt** - Doesn't work; must be user message
-3. **Template not substituted** - Check BOTH `template.go` AND `flowgraph_nodes.go`
-4. **User agents unavailable** - Need `WithSettingSources` with "user"
-5. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
-6. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
-7. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
-8. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path
+3. **User agents unavailable** - Need `WithSettingSources` with "user"
+4. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
+5. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
+6. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
+7. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path
+8. **Testing real Claude CLI** - Use `WithStandardTurnExecutor(mock)` to inject test doubles; avoids real API calls

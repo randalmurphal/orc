@@ -7,6 +7,7 @@ import (
 )
 
 func TestCORS_SetsHeaders(t *testing.T) {
+	t.Parallel()
 	handler := CORS(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -28,6 +29,7 @@ func TestCORS_SetsHeaders(t *testing.T) {
 }
 
 func TestCORS_OptionsRequest_Returns200(t *testing.T) {
+	t.Parallel()
 	handlerCalled := false
 	handler := CORS(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true
@@ -48,6 +50,7 @@ func TestCORS_OptionsRequest_Returns200(t *testing.T) {
 }
 
 func TestCORS_PassesThroughToHandler(t *testing.T) {
+	t.Parallel()
 	handlerCalled := false
 	handler := CORS(func(w http.ResponseWriter, r *http.Request) {
 		handlerCalled = true
@@ -68,6 +71,7 @@ func TestCORS_PassesThroughToHandler(t *testing.T) {
 }
 
 func TestCORS_AllMethods(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		method string
 	}{

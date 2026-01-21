@@ -90,6 +90,7 @@ func withTaskComments(comments []db.TaskComment) func(*testing.T, string, string
 }
 
 func TestHandleListTaskComments_Empty(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupTaskCommentsTestEnv(t)
 	defer cleanup()
 
@@ -114,6 +115,7 @@ func TestHandleListTaskComments_Empty(t *testing.T) {
 }
 
 func TestHandleListTaskComments_WithComments(t *testing.T) {
+	t.Parallel()
 	testComments := []db.TaskComment{
 		{Author: "user1", AuthorType: db.AuthorTypeHuman, Content: "Comment 1"},
 		{Author: "claude", AuthorType: db.AuthorTypeAgent, Content: "Comment 2"},
@@ -143,6 +145,7 @@ func TestHandleListTaskComments_WithComments(t *testing.T) {
 }
 
 func TestHandleListTaskComments_FilterByAuthorType(t *testing.T) {
+	t.Parallel()
 	testComments := []db.TaskComment{
 		{Author: "user1", AuthorType: db.AuthorTypeHuman, Content: "Human comment"},
 		{Author: "claude", AuthorType: db.AuthorTypeAgent, Content: "Agent comment"},
@@ -175,6 +178,7 @@ func TestHandleListTaskComments_FilterByAuthorType(t *testing.T) {
 }
 
 func TestHandleCreateTaskComment(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupTaskCommentsTestEnv(t)
 	defer cleanup()
 
@@ -220,6 +224,7 @@ func TestHandleCreateTaskComment(t *testing.T) {
 }
 
 func TestHandleCreateTaskComment_EmptyContent(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupTaskCommentsTestEnv(t)
 	defer cleanup()
 
@@ -242,6 +247,7 @@ func TestHandleCreateTaskComment_EmptyContent(t *testing.T) {
 }
 
 func TestHandleCreateTaskComment_InvalidAuthorType(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupTaskCommentsTestEnv(t)
 	defer cleanup()
 
@@ -264,6 +270,7 @@ func TestHandleCreateTaskComment_InvalidAuthorType(t *testing.T) {
 }
 
 func TestHandleGetTaskComment(t *testing.T) {
+	t.Parallel()
 	var commentID string
 	testComments := []db.TaskComment{
 		{Author: "testuser", AuthorType: db.AuthorTypeHuman, Content: "Test comment"},
@@ -312,6 +319,7 @@ func TestHandleGetTaskComment(t *testing.T) {
 }
 
 func TestHandleGetTaskComment_NotFound(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupTaskCommentsTestEnv(t)
 	defer cleanup()
 
@@ -328,6 +336,7 @@ func TestHandleGetTaskComment_NotFound(t *testing.T) {
 }
 
 func TestHandleUpdateTaskComment(t *testing.T) {
+	t.Parallel()
 	var commentID string
 	setupWithID := func(t *testing.T, tmpDir, taskID string) {
 		t.Helper()
@@ -382,6 +391,7 @@ func TestHandleUpdateTaskComment(t *testing.T) {
 }
 
 func TestHandleDeleteTaskComment(t *testing.T) {
+	t.Parallel()
 	var commentID string
 	setupWithID := func(t *testing.T, tmpDir, taskID string) {
 		t.Helper()
@@ -420,6 +430,7 @@ func TestHandleDeleteTaskComment(t *testing.T) {
 }
 
 func TestHandleGetTaskCommentStats(t *testing.T) {
+	t.Parallel()
 	testComments := []db.TaskComment{
 		{Author: "user1", AuthorType: db.AuthorTypeHuman, Content: "Human 1"},
 		{Author: "user2", AuthorType: db.AuthorTypeHuman, Content: "Human 2"},

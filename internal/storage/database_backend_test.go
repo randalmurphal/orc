@@ -51,6 +51,7 @@ func teardownTestDB(t *testing.T, backend *DatabaseBackend, tmpDir string) {
 
 // TestSaveTask_Transaction verifies task and dependencies are saved atomically.
 func TestSaveTask_Transaction(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -108,6 +109,7 @@ func TestSaveTask_Transaction(t *testing.T) {
 
 // TestSaveTask_QualityMetrics verifies quality metrics are persisted and loaded correctly.
 func TestSaveTask_QualityMetrics(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -169,6 +171,7 @@ func TestSaveTask_QualityMetrics(t *testing.T) {
 
 // TestSaveTask_QualityMetrics_Empty verifies tasks without quality metrics load correctly.
 func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -199,6 +202,7 @@ func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
 
 // TestSaveState_Transaction verifies state and phases are saved atomically.
 func TestSaveState_Transaction(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -261,6 +265,7 @@ func TestSaveState_Transaction(t *testing.T) {
 
 // TestSaveState_RetryContext verifies RetryContext is saved and loaded correctly.
 func TestSaveState_RetryContext(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -317,6 +322,7 @@ func TestSaveState_RetryContext(t *testing.T) {
 
 // TestSaveInitiative_Transaction verifies initiative and related data are saved atomically.
 func TestSaveInitiative_Transaction(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -365,6 +371,7 @@ func TestSaveInitiative_Transaction(t *testing.T) {
 
 // TestSaveInitiative_WithDependencies verifies initiative dependencies are saved.
 func TestSaveInitiative_WithDependencies(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -405,6 +412,7 @@ func TestSaveInitiative_WithDependencies(t *testing.T) {
 
 // TestDeleteTask_CascadesCorrectly verifies cascade deletes work.
 func TestDeleteTask_CascadesCorrectly(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -454,6 +462,7 @@ func TestDeleteTask_CascadesCorrectly(t *testing.T) {
 // the task data is not partially written.
 // This is a regression test for transaction atomicity.
 func TestTransactionRollback_SaveTask(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -495,6 +504,7 @@ func TestTransactionRollback_SaveTask(t *testing.T) {
 // TestTransactionAtomicity_SaveState verifies that state changes are atomic.
 // If phase save fails, the task update should also be rolled back.
 func TestTransactionAtomicity_SaveState(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -573,6 +583,7 @@ func TestTransactionAtomicity_SaveState(t *testing.T) {
 
 // TestTransactionAtomicity_SaveInitiative verifies initiative saves are atomic.
 func TestTransactionAtomicity_SaveInitiative(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -637,6 +648,7 @@ func TestTransactionAtomicity_SaveInitiative(t *testing.T) {
 
 // TestConcurrentAccess verifies mutex protection for concurrent operations.
 func TestConcurrentAccess(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -709,6 +721,7 @@ func timePtr(t time.Time) *time.Time {
 // This is critical for orphan detection - without this, running tasks appear orphaned
 // when their state is loaded from the database.
 func TestSaveState_ExecutionInfo(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -774,6 +787,7 @@ func TestSaveState_ExecutionInfo(t *testing.T) {
 // This simulates an orc restart where a new DatabaseBackend is created against the same database.
 // The test ensures execution info is properly persisted to disk (not just held in memory).
 func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
+	t.Parallel()
 	// Create initial backend and save state with ExecutionInfo
 	tmpDir, err := os.MkdirTemp("", "orc-test-*")
 	if err != nil {
@@ -874,6 +888,7 @@ func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
 // Note: With the TASK-291 fix, PID checks take precedence over heartbeat checks. A task with
 // a live PID is NOT orphaned regardless of heartbeat staleness.
 func TestSaveState_HeartbeatUpdate(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -945,6 +960,7 @@ func TestSaveState_HeartbeatUpdate(t *testing.T) {
 
 // TestSaveState_ExecutionInfoCleared verifies ExecutionInfo is cleared when task completes.
 func TestSaveState_ExecutionInfoCleared(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1000,6 +1016,7 @@ func TestSaveState_ExecutionInfoCleared(t *testing.T) {
 // TestSaveTaskCtx_ContextCancellation verifies that a canceled context aborts the transaction.
 // This tests the context propagation from DatabaseBackend through TxOps to the driver.
 func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1034,6 +1051,7 @@ func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
 
 // TestSaveStateCtx_ContextCancellation verifies that a canceled context aborts the state save.
 func TestSaveStateCtx_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1074,6 +1092,7 @@ func TestSaveStateCtx_ContextCancellation(t *testing.T) {
 
 // TestSaveInitiativeCtx_ContextCancellation verifies that a canceled context aborts the initiative save.
 func TestSaveInitiativeCtx_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1108,6 +1127,7 @@ func TestSaveInitiativeCtx_ContextCancellation(t *testing.T) {
 
 // TestSaveTaskCtx_ValidContext verifies that a valid context allows the operation to succeed.
 func TestSaveTaskCtx_ValidContext(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1147,6 +1167,7 @@ func TestSaveTaskCtx_ValidContext(t *testing.T) {
 // 2. Some other code (e.g., CLI edit, API update) calls SaveTask to update task metadata
 // 3. SaveTask MUST preserve executor fields to avoid false orphan detection
 func TestSaveTask_PreservesExecutorFields(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1229,6 +1250,7 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 // TestSaveTask_PreservesStateStatus verifies that SaveTask preserves StateStatus field.
 // This tests the existing behavior along with the new executor field preservation.
 func TestSaveTask_PreservesStateStatus(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1278,6 +1300,7 @@ func TestSaveTask_PreservesStateStatus(t *testing.T) {
 
 // TestBranch_SaveAndLoad verifies basic branch save/load operations.
 func TestBranch_SaveAndLoad(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1319,6 +1342,7 @@ func TestBranch_SaveAndLoad(t *testing.T) {
 
 // TestBranch_Update verifies branch update operations.
 func TestBranch_Update(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1353,6 +1377,7 @@ func TestBranch_Update(t *testing.T) {
 
 // TestBranch_UpdateActivity verifies last activity timestamp updates.
 func TestBranch_UpdateActivity(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1389,6 +1414,7 @@ func TestBranch_UpdateActivity(t *testing.T) {
 
 // TestBranch_Delete verifies branch deletion.
 func TestBranch_Delete(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1422,6 +1448,7 @@ func TestBranch_Delete(t *testing.T) {
 
 // TestBranch_ListAll verifies listing all branches.
 func TestBranch_ListAll(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1452,6 +1479,7 @@ func TestBranch_ListAll(t *testing.T) {
 
 // TestBranch_ListByType verifies filtering by type.
 func TestBranch_ListByType(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1486,6 +1514,7 @@ func TestBranch_ListByType(t *testing.T) {
 
 // TestBranch_ListByStatus verifies filtering by status.
 func TestBranch_ListByStatus(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1524,6 +1553,7 @@ func TestBranch_ListByStatus(t *testing.T) {
 
 // TestBranch_ListByTypeAndStatus verifies combined filtering.
 func TestBranch_ListByTypeAndStatus(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1558,6 +1588,7 @@ func TestBranch_ListByTypeAndStatus(t *testing.T) {
 
 // TestBranch_GetStaleBranches verifies stale branch detection.
 func TestBranch_GetStaleBranches(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1598,6 +1629,7 @@ func TestBranch_GetStaleBranches(t *testing.T) {
 
 // TestBranch_LoadNonExistent verifies loading non-existent branch returns nil.
 func TestBranch_LoadNonExistent(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1612,6 +1644,7 @@ func TestBranch_LoadNonExistent(t *testing.T) {
 
 // TestBranch_Upsert verifies that SaveBranch can update existing branches.
 func TestBranch_Upsert(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1651,6 +1684,7 @@ func TestBranch_Upsert(t *testing.T) {
 // can each have decisions with the same local IDs (e.g., DEC-001).
 // This tests the fix for the decision ID collision bug.
 func TestSaveInitiative_DecisionIDsAcrossInitiatives(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1727,6 +1761,7 @@ func TestSaveInitiative_DecisionIDsAcrossInitiatives(t *testing.T) {
 // TestSaveInitiative_DecisionLookupByInitiative verifies decision lookup works correctly
 // with the composite key schema.
 func TestSaveInitiative_DecisionLookupByInitiative(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 
@@ -1773,6 +1808,7 @@ func TestSaveInitiative_DecisionLookupByInitiative(t *testing.T) {
 // TestSaveInitiative_DecisionUpdate verifies that updating an initiative preserves decisions
 // correctly with the clear-and-reinsert pattern.
 func TestSaveInitiative_DecisionUpdate(t *testing.T) {
+	t.Parallel()
 	backend, tmpDir := setupTestDB(t)
 	defer teardownTestDB(t, backend, tmpDir)
 

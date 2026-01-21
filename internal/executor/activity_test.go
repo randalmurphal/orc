@@ -8,6 +8,7 @@ import (
 )
 
 func TestActivityState_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		state    ActivityState
 		expected string
@@ -32,6 +33,7 @@ func TestActivityState_String(t *testing.T) {
 }
 
 func TestActivityState_IsSpecPhaseActivity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		state    ActivityState
 		expected bool
@@ -56,6 +58,7 @@ func TestActivityState_IsSpecPhaseActivity(t *testing.T) {
 }
 
 func TestNewActivityTracker(t *testing.T) {
+	t.Parallel()
 	tracker := NewActivityTracker()
 	if tracker == nil {
 		t.Fatal("NewActivityTracker() returned nil")
@@ -76,6 +79,7 @@ func TestNewActivityTracker(t *testing.T) {
 }
 
 func TestActivityTracker_Options(t *testing.T) {
+	t.Parallel()
 	heartbeat := 1 * time.Second
 	idle := 5 * time.Second
 	turn := 30 * time.Second
@@ -102,6 +106,7 @@ func TestActivityTracker_Options(t *testing.T) {
 }
 
 func TestActivityTracker_SetState(t *testing.T) {
+	t.Parallel()
 	var receivedState ActivityState
 	var mu sync.Mutex
 
@@ -127,6 +132,7 @@ func TestActivityTracker_SetState(t *testing.T) {
 }
 
 func TestActivityTracker_RecordChunk(t *testing.T) {
+	t.Parallel()
 	tracker := NewActivityTracker()
 	tracker.SetState(ActivityWaitingAPI)
 
@@ -145,6 +151,7 @@ func TestActivityTracker_RecordChunk(t *testing.T) {
 }
 
 func TestActivityTracker_TurnDuration(t *testing.T) {
+	t.Parallel()
 	tracker := NewActivityTracker()
 
 	// Before starting a turn, duration should be 0
@@ -163,6 +170,7 @@ func TestActivityTracker_TurnDuration(t *testing.T) {
 }
 
 func TestActivityTracker_Progress(t *testing.T) {
+	t.Parallel()
 	tracker := NewActivityTracker(WithActivityMaxIterations(20))
 	tracker.SetIteration(5)
 
@@ -176,6 +184,7 @@ func TestActivityTracker_Progress(t *testing.T) {
 }
 
 func TestActivityTracker_HeartbeatCallback(t *testing.T) {
+	t.Parallel()
 	heartbeatCount := 0
 	var mu sync.Mutex
 
@@ -207,6 +216,7 @@ func TestActivityTracker_HeartbeatCallback(t *testing.T) {
 }
 
 func TestActivityTracker_IdleWarningCallback(t *testing.T) {
+	t.Parallel()
 	idleWarningCalled := false
 	var mu sync.Mutex
 
@@ -239,6 +249,7 @@ func TestActivityTracker_IdleWarningCallback(t *testing.T) {
 }
 
 func TestActivityTracker_NoHeartbeatWhenIdle(t *testing.T) {
+	t.Parallel()
 	heartbeatCount := 0
 	var mu sync.Mutex
 
@@ -269,6 +280,7 @@ func TestActivityTracker_NoHeartbeatWhenIdle(t *testing.T) {
 }
 
 func TestActivityTracker_DoubleStopSafety(t *testing.T) {
+	t.Parallel()
 	tracker := NewActivityTracker()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

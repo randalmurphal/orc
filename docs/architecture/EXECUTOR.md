@@ -15,22 +15,23 @@ The executor package is organized into focused modules:
 | **Core** | `executor.go` | Main orchestrator, task lifecycle |
 | **Task Execution** | `task_execution.go` | ExecuteTask, ResumeFromPhase, gate evaluation |
 | **Phase Execution** | `phase.go` | ExecutePhase, executor dispatch |
-| **Trivial Executor** | `trivial.go` | Stateless, fire-and-forget execution |
-| **Standard Executor** | `standard.go` | Session per phase, iteration loop |
-| **Full Executor** | `full.go` | Persistent sessions, per-iteration checkpointing |
+| **Execution Context** | `execution_context.go` | `BuildExecutionContext()` - centralized context building |
+| **Claude Executor** | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper |
+| **Trivial Executor** | `trivial.go` | ClaudeExecutor, no session persistence |
+| **Standard Executor** | `standard.go` | ClaudeExecutor per phase, iteration loop |
+| **Full Executor** | `full.go` | ClaudeExecutor with per-iteration checkpointing |
 | **Finalize Executor** | `finalize.go` | Branch sync, conflict resolution, risk assessment |
 | **Publishing** | `publish.go` | Nil-safe EventPublisher |
 | **Templates** | `template.go` | Prompt variable substitution |
 | **Retry** | `retry.go` | Cross-phase retry context |
 | **Worktree** | `worktree.go` | Git worktree isolation |
-| **Flowgraph** | `flowgraph_nodes.go` | Flowgraph node builders |
 | **Completion** | `completion.go` | Phase completion detection |
 
 ---
 
 ## Executor Strategies
 
-Three executor types scale to task weight:
+All executors use the unified `ClaudeExecutor` via `TurnExecutor` interface. They differ in session handling and checkpointing:
 
 | Executor | Session | Checkpointing | Max Iterations | Best For |
 |----------|---------|---------------|----------------|----------|
@@ -58,26 +59,31 @@ The **Finalize Executor** handles the finalize phase specifically:
 │                         EXECUTOR                                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
-│  │   Template  │───►│   Claude    │───►│   Output    │        │
-│  │  Rendering  │    │   Session   │    │   Parser    │        │
-│  └─────────────┘    └─────────────┘    └─────────────┘        │
-│        ▲                                      │                │
-│        │                                      ▼                │
-│        │                              ┌─────────────┐          │
-│        │                              │ Completion  │          │
-│        │                              │  Detector   │          │
-│        │                              └──────┬──────┘          │
-│        │                                     │                 │
-│        │         ┌───────────────────────────┤                 │
-│        │         │                           │                 │
-│        │         ▼                           ▼                 │
-│  ┌─────────────────────┐           ┌─────────────┐            │
-│  │  NOT COMPLETE       │           │  COMPLETE   │            │
-│  │  (loop continues)   │           │ (checkpoint)│            │
-│  └─────────────────────┘           └─────────────┘            │
+│  ┌─────────────────┐    ┌─────────────┐    ┌─────────────┐    │
+│  │ BuildExecution  │───►│   Claude    │───►│   Output    │    │
+│  │    Context()    │    │   Executor  │    │   Parser    │    │
+│  └─────────────────┘    └─────────────┘    └─────────────┘    │
+│        ▲                                          │            │
+│        │                                          ▼            │
+│        │                                  ┌─────────────┐      │
+│        │                                  │ Completion  │      │
+│        │                                  │  Detector   │      │
+│        │                                  └──────┬──────┘      │
+│        │                                         │             │
+│        │             ┌───────────────────────────┤             │
+│        │             │                           │             │
+│        │             ▼                           ▼             │
+│  ┌─────────────────────┐               ┌─────────────┐        │
+│  │  NOT COMPLETE       │               │  COMPLETE   │        │
+│  │  (loop continues)   │               │ (checkpoint)│        │
+│  └─────────────────────┘               └─────────────┘        │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
+
+All executors share unified context building and Claude invocation:
+- BuildExecutionContext() handles template rendering, spec loading, context injection
+- NewClaudeExecutorFromContext() creates TurnExecutor with consistent CLI options
+- TurnExecutor.ExecuteTurn() sends prompts with --json-schema for completion detection
 ```
 
 ---

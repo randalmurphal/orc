@@ -12,6 +12,7 @@ import (
 )
 
 func TestArtifactDetector_DetectSpecArtifacts(t *testing.T) {
+	t.Parallel()
 	// Create temp task directory
 	tmpDir := t.TempDir()
 	taskID := "TEST-001"
@@ -137,6 +138,7 @@ The fix is straightforward and doesn't need detailed specification.
 }
 
 func TestArtifactDetector_DetectResearchArtifacts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-002"
 
@@ -204,6 +206,7 @@ Detailed research findings go here with lots of information.
 }
 
 func TestArtifactDetector_ImplementTestValidateNotAutoSkippable(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-003"
 	taskDir := filepath.Join(tmpDir, "task")
@@ -222,6 +225,7 @@ func TestArtifactDetector_ImplementTestValidateNotAutoSkippable(t *testing.T) {
 }
 
 func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-004"
 
@@ -269,6 +273,7 @@ func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
 }
 
 func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-005"
 	taskDir := filepath.Join(tmpDir, "task")
@@ -318,6 +323,7 @@ and architectural decisions that will inform the implementation.
 }
 
 func TestArtifactDetector_UnknownPhase(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
@@ -339,6 +345,7 @@ func TestArtifactDetector_UnknownPhase(t *testing.T) {
 // TestArtifactDetector_DetectSpecFromDatabase verifies that spec detection
 // prioritizes database over file-based storage.
 func TestArtifactDetector_DetectSpecFromDatabase(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
@@ -408,6 +415,7 @@ Test spec stored in database, not as file.
 // TestArtifactDetector_PrefersDatabaseOverFile verifies that when both
 // database and file spec exist, database is preferred.
 func TestArtifactDetector_PrefersDatabaseOverFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
@@ -483,6 +491,7 @@ This is the legacy file-based spec.
 // TestArtifactDetector_FallsBackToFile verifies that when no database backend
 // is available, the detector falls back to file-based detection.
 func TestArtifactDetector_FallsBackToFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)

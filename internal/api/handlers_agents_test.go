@@ -15,6 +15,7 @@ import (
 )
 
 func TestHandleGetAgentStats_Empty(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -62,6 +63,7 @@ func TestHandleGetAgentStats_Empty(t *testing.T) {
 }
 
 func TestHandleGetAgentStats_WithTasks(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -207,6 +209,7 @@ func TestHandleGetAgentStats_WithTasks(t *testing.T) {
 }
 
 func TestHandleGetAgentStats_ActiveStatus(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -283,6 +286,7 @@ func TestHandleGetAgentStats_ActiveStatus(t *testing.T) {
 }
 
 func TestDeriveAgentName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		model    string
 		expected string
@@ -305,6 +309,7 @@ func TestDeriveAgentName(t *testing.T) {
 }
 
 func TestStringContainsIgnoreCase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		s      string
 		substr string
@@ -330,6 +335,7 @@ func TestStringContainsIgnoreCase(t *testing.T) {
 }
 
 func TestGetAgentStats_DB(t *testing.T) {
+	t.Parallel()
 	// Test the database method directly
 	tmpDir := t.TempDir()
 

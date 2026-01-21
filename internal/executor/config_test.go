@@ -6,6 +6,7 @@ import (
 )
 
 func TestDefaultConfig_SetsCorrectDefaults(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 
 	// Claude CLI settings
@@ -58,6 +59,7 @@ func TestDefaultConfig_SetsCorrectDefaults(t *testing.T) {
 }
 
 func TestConfig_AllFieldsExported(t *testing.T) {
+	t.Parallel()
 	// Verify that the struct can be created externally with all fields
 	cfg := &Config{
 		ClaudePath:                 "/custom/claude",
