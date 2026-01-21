@@ -19,6 +19,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `events/` | Event publishing for real-time updates | `Publisher`, `Event` |
 | `executor/` | Phase execution engine | `Executor`, `Result` |
 | `gate/` | Quality gates and approval workflow | `Gate`, `Evaluator` |
+| `llmutil/` | **Shared LLM utilities - schema execution** | `ExecuteWithSchema[T]()` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `github/` | GitHub API client, PR operations, status detection | `Client`, `PR`, `PRStatusSummary` |
 | `plan/` | Plan generation, regeneration on weight change | `Plan`, `Phase`, `RegeneratePlan` |

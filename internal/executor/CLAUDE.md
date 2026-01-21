@@ -271,16 +271,24 @@ result, err := turnExec.ExecuteTurn(ctx, prompt)              // With JSON schem
 result, err := turnExec.ExecuteTurnWithoutSchema(ctx, prompt) // Freeform output
 ```
 
-### Pattern 2: Direct Client for One-Shot Validation
+### Pattern 2: Schema-Constrained Validation (ONE WAY)
+
+**Use `llmutil.ExecuteWithSchema[T]()` for ALL schema-constrained LLM calls.**
 
 ```go
-// Validation calls - model set on client creation, NOT in request
-resp, err := client.Complete(ctx, claude.CompletionRequest{
-    Messages:   []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-    JSONSchema: schema,  // Always use schema for structured output
-    // Model NOT specified here - uses client's configured model
-})
+// The ONLY way to do schema-constrained calls - no exceptions
+schemaResult, err := llmutil.ExecuteWithSchema[responseType](ctx, client, prompt, schema)
+if err != nil {
+    return nil, fmt.Errorf("validation failed: %w", err)  // ALWAYS propagate error
+}
+// Use schemaResult.Data (typed) - no manual json.Unmarshal needed
 ```
+
+**Why this is the only pattern:**
+- Enforces `--output-format json` when schema specified
+- Errors if `structured_output` is empty (no silent fallback to `result`)
+- Handles JSON parsing with proper error propagation
+- Generic type `[T]` provides compile-time type safety
 
 ### Model Configuration
 
@@ -325,16 +333,26 @@ resp, err := client.Complete(ctx, claude.CompletionRequest{
 | `qa.go` | `QAResultSchema` | QA session |
 | `../gate/gate.go` | `gateDecisionSchema` | Gate decisions |
 
-### Parsing
+### Parsing (via ExecuteWithSchema)
 
-All parsing is direct `json.Unmarshal()`. No regex, no extraction, no mixed content handling.
+**DO NOT manually parse JSON.** Use `llmutil.ExecuteWithSchema[T]()` which handles parsing internally.
 
 ```go
+// ❌ WRONG - manual parsing with silent failure risk
 var result progressResponse
 if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-    return ValidationContinue, "", fmt.Errorf("parse error: %w", err)
+    return ValidationContinue, "", nil  // BUG: silent continue!
 }
+
+// ✅ CORRECT - use ExecuteWithSchema which returns error
+schemaResult, err := llmutil.ExecuteWithSchema[progressResponse](ctx, client, prompt, schema)
+if err != nil {
+    return ValidationContinue, "", err  // Error propagated to caller
+}
+// schemaResult.Data is already typed and parsed
 ```
+
+**Phase completion parsing** uses `CheckPhaseCompletionJSON()` which returns `(status, reason, error)` - the error MUST be handled.
 
 ## Transcript Persistence (JSONL Sync)
 
