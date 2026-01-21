@@ -48,6 +48,12 @@ type TranscriptMatch struct {
 	Rank      float64
 }
 
+// ActivityCount represents task completions for a single date.
+type ActivityCount struct {
+	Date  string // YYYY-MM-DD format
+	Count int
+}
+
 // TaskComment represents a discussion comment on a task.
 type TaskComment struct {
 	ID         string
@@ -212,6 +218,9 @@ type Backend interface {
 	DeleteTask(id string) error
 	TaskExists(id string) (bool, error)
 	GetNextTaskID() (string, error)
+
+	// Task activity operations (for heatmap)
+	GetTaskActivityByDate(startDate, endDate string) ([]ActivityCount, error)
 
 	// State operations
 	SaveState(s *state.State) error

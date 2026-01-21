@@ -217,6 +217,9 @@ func (b *emptyBackend) LoadTask(string) (*task.Task, error)                   { 
 func (b *emptyBackend) DeleteTask(string) error                               { return nil }
 func (b *emptyBackend) TaskExists(string) (bool, error)                       { return false, nil }
 func (b *emptyBackend) GetNextTaskID() (string, error)                        { return "", nil }
+func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
+	return nil, nil
+}
 func (b *emptyBackend) SaveState(*state.State) error                          { return nil }
 func (b *emptyBackend) LoadState(string) (*state.State, error)                { return nil, nil }
 func (b *emptyBackend) LoadAllStates() ([]*state.State, error)                { return nil, nil }
