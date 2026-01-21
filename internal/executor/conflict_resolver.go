@@ -31,6 +31,9 @@ type ConflictResolver struct {
 	// ClaudeCLI settings
 	claudePath    string
 	mcpConfigPath string
+
+	// turnExecutor allows injection of a mock for testing
+	turnExecutor TurnExecutor
 }
 
 // ConflictResolverOption configures a ConflictResolver.
@@ -72,6 +75,11 @@ func WithResolverModel(model string, thinking bool) ConflictResolverOption {
 		r.model = model
 		r.thinking = thinking
 	}
+}
+
+// WithResolverTurnExecutor sets a TurnExecutor for testing.
+func WithResolverTurnExecutor(te TurnExecutor) ConflictResolverOption {
+	return func(r *ConflictResolver) { r.turnExecutor = te }
 }
 
 // NewConflictResolver creates a new conflict resolver.
@@ -176,21 +184,26 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 		r.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID)
 	}
 
-	// Create ClaudeExecutor for conflict resolution
-	claudeOpts := []ClaudeExecutorOption{
-		WithClaudePath(r.claudePath),
-		WithClaudeWorkdir(r.workingDir),
-		WithClaudeModel(r.model),
-		WithClaudeMaxTurns(5), // Limited turns for conflict resolution
-		WithClaudeLogger(r.logger),
+	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	var turnExec TurnExecutor
+	if r.turnExecutor != nil {
+		turnExec = r.turnExecutor
+	} else {
+		claudeOpts := []ClaudeExecutorOption{
+			WithClaudePath(r.claudePath),
+			WithClaudeWorkdir(r.workingDir),
+			WithClaudeModel(r.model),
+			WithClaudeMaxTurns(5), // Limited turns for conflict resolution
+			WithClaudeLogger(r.logger),
+		}
+		if r.mcpConfigPath != "" {
+			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(r.mcpConfigPath))
+		}
+		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
-	if r.mcpConfigPath != "" {
-		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(r.mcpConfigPath))
-	}
-	claudeExec := NewClaudeExecutor(claudeOpts...)
 
 	// Execute conflict resolution without schema - we verify success by checking git status
-	turnResult, err := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
+	turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 	if err != nil {
 		return false, fmt.Errorf("conflict resolution turn: %w", err)
 	}

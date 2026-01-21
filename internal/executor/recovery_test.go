@@ -7,6 +7,7 @@ import (
 )
 
 func TestDefaultRetryConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultRetryConfig()
 
 	if cfg.MaxRetries != 3 {
@@ -19,6 +20,7 @@ func TestDefaultRetryConfig(t *testing.T) {
 }
 
 func TestIsRetryable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		err       error
@@ -48,6 +50,7 @@ func TestIsRetryable(t *testing.T) {
 }
 
 func TestClassifyError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error

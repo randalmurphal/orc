@@ -6,6 +6,7 @@ import (
 )
 
 func TestSaveAndGetQAResult(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create a task first (foreign key constraint)
@@ -110,6 +111,7 @@ func TestSaveAndGetQAResult(t *testing.T) {
 }
 
 func TestQAResultUpsert(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -159,6 +161,7 @@ func TestQAResultUpsert(t *testing.T) {
 }
 
 func TestGetQAResultNotFound(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Get non-existent result
@@ -172,6 +175,7 @@ func TestGetQAResultNotFound(t *testing.T) {
 }
 
 func TestDeleteQAResult(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -217,6 +221,7 @@ func TestDeleteQAResult(t *testing.T) {
 }
 
 func TestQAResultNullFields(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -270,6 +275,7 @@ func TestQAResultNullFields(t *testing.T) {
 }
 
 func TestQAResultCascadeDelete(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task
@@ -309,6 +315,7 @@ func TestQAResultCascadeDelete(t *testing.T) {
 }
 
 func TestQAResultCreatedAtTimestamp(t *testing.T) {
+	t.Parallel()
 	db := setupProjectDB(t)
 
 	// Create task

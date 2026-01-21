@@ -23,6 +23,7 @@ func testBackend(t *testing.T, tmpDir string) *storage.DatabaseBackend {
 }
 
 func TestJSONLSyncer_SyncMessages(t *testing.T) {
+	t.Parallel()
 	// Create temp dir and database
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
@@ -103,6 +104,7 @@ func TestJSONLSyncer_SyncMessages(t *testing.T) {
 }
 
 func TestJSONLSyncer_AppendMode(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
@@ -181,6 +183,7 @@ func TestJSONLSyncer_AppendMode(t *testing.T) {
 }
 
 func TestJSONLSyncer_SyncFromFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create test JSONL file
@@ -221,6 +224,7 @@ func TestJSONLSyncer_SyncFromFile(t *testing.T) {
 }
 
 func TestComputeTokenUsage(t *testing.T) {
+	t.Parallel()
 	transcripts := []storage.Transcript{
 		{Type: "user", InputTokens: 100, OutputTokens: 0},
 		{Type: "assistant", InputTokens: 100, OutputTokens: 50, CacheCreationTokens: 10, CacheReadTokens: 80},
@@ -248,6 +252,7 @@ func TestComputeTokenUsage(t *testing.T) {
 }
 
 func TestParseTimestamp(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  time.Time
@@ -275,6 +280,7 @@ func strPtr(s string) *string {
 }
 
 func TestJSONLSyncer_FileNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
@@ -299,6 +305,7 @@ func TestJSONLSyncer_FileNotFound(t *testing.T) {
 }
 
 func TestJSONLSyncer_MalformedJSONL(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
@@ -358,6 +365,7 @@ func TestJSONLSyncer_MalformedJSONL(t *testing.T) {
 }
 
 func TestJSONLSyncer_QueueOperationFiltered(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := testBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
@@ -452,6 +460,7 @@ func TestJSONLSyncer_QueueOperationFiltered(t *testing.T) {
 }
 
 func TestComputeJSONLPath(t *testing.T) {
+	t.Parallel()
 	// Test basic path computation
 	path, err := ComputeJSONLPath("/home/user/repos/project", "test-session-123")
 	if err != nil {
@@ -471,6 +480,7 @@ func TestComputeJSONLPath(t *testing.T) {
 }
 
 func TestComputeJSONLPath_EmptySessionID(t *testing.T) {
+	t.Parallel()
 	_, err := ComputeJSONLPath("/home/user/project", "")
 	if err == nil {
 		t.Error("ComputeJSONLPath should fail with empty session ID")
@@ -478,6 +488,7 @@ func TestComputeJSONLPath_EmptySessionID(t *testing.T) {
 }
 
 func TestNormalizeProjectPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected string

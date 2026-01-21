@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseKnowledgeSection(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	claudeMD := `# Project
@@ -60,6 +61,7 @@ func TestParseKnowledgeSection(t *testing.T) {
 }
 
 func TestCountKnowledgeEntries(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	claudeMD := `# Project
@@ -105,6 +107,7 @@ func TestCountKnowledgeEntries(t *testing.T) {
 }
 
 func TestFormatFiles(t *testing.T) {
+	t.Parallel()
 	patterns := [][]string{
 		{"Pattern1", "Description1", "TASK-001"},
 		{"Pattern2", "Description2", "TASK-002"},
@@ -138,6 +141,7 @@ func TestFormatFiles(t *testing.T) {
 }
 
 func TestReplaceKnowledgeSectionWithPointer(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	claudeMD := `# Project
@@ -184,6 +188,7 @@ More content after.
 }
 
 func TestParseTable(t *testing.T) {
+	t.Parallel()
 	content := `
 ### Test Table
 | Name | Description | Source |

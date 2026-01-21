@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseAddr(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		addr     string
 		wantHost string
@@ -38,6 +39,7 @@ func TestParseAddr(t *testing.T) {
 }
 
 func TestFindAvailablePort(t *testing.T) {
+	t.Parallel()
 	// Test finding a port
 	ln, port, err := findAvailablePort("", 18080, 10)
 	if err != nil {
@@ -57,6 +59,7 @@ func TestFindAvailablePort(t *testing.T) {
 }
 
 func TestFindAvailablePort_SkipsBusy(t *testing.T) {
+	t.Parallel()
 	// Occupy first port
 	ln1, err := net.Listen("tcp", ":19080")
 	if err != nil {
@@ -77,6 +80,7 @@ func TestFindAvailablePort_SkipsBusy(t *testing.T) {
 }
 
 func TestFindAvailablePort_AllBusy(t *testing.T) {
+	t.Parallel()
 	basePort := 29080
 	maxAttempts := 3
 

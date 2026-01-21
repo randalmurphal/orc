@@ -12,6 +12,7 @@ import (
 )
 
 func TestSetupWorktree_NilGitOps(t *testing.T) {
+	t.Parallel()
 	_, err := SetupWorktree("TASK-001", nil, nil)
 	if err == nil {
 		t.Error("expected error when gitOps is nil")
@@ -21,6 +22,7 @@ func TestSetupWorktree_NilGitOps(t *testing.T) {
 // Tests for SetupWorktreeForTask (preferred function)
 
 func TestSetupWorktreeForTask_NilGitOps(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{ID: "TASK-001"}
 	_, err := SetupWorktreeForTask(tsk, nil, nil, nil)
 	if err == nil {
@@ -29,6 +31,7 @@ func TestSetupWorktreeForTask_NilGitOps(t *testing.T) {
 }
 
 func TestSetupWorktreeForTask_NilTask(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -51,6 +54,7 @@ func TestSetupWorktreeForTask_NilTask(t *testing.T) {
 }
 
 func TestSetupWorktreeForTask_CreatesWorktree(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -104,6 +108,7 @@ func TestSetupWorktreeForTask_CreatesWorktree(t *testing.T) {
 }
 
 func TestSetupWorktreeForTask_ReusesExisting(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-reuse-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -147,6 +152,7 @@ func TestSetupWorktreeForTask_ReusesExisting(t *testing.T) {
 }
 
 func TestSetupWorktreeForTask_SwitchesToCorrectBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-branch-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -217,6 +223,7 @@ func TestSetupWorktreeForTask_SwitchesToCorrectBranch(t *testing.T) {
 }
 
 func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-target-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -255,6 +262,7 @@ func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
 }
 
 func TestSetupWorktree_CreatesDirectory(t *testing.T) {
+	t.Parallel()
 	// Create a temporary git repo for testing
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
@@ -295,6 +303,7 @@ func TestSetupWorktree_CreatesDirectory(t *testing.T) {
 }
 
 func TestSetupWorktree_ReturnsPath(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -331,6 +340,7 @@ func TestSetupWorktree_ReturnsPath(t *testing.T) {
 }
 
 func TestSetupWorktree_ReusesExisting(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -372,6 +382,7 @@ func TestSetupWorktree_ReusesExisting(t *testing.T) {
 }
 
 func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -410,6 +421,7 @@ func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
 }
 
 func TestCleanupWorktree_NonexistentPath_NoError(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -433,6 +445,7 @@ func TestCleanupWorktree_NonexistentPath_NoError(t *testing.T) {
 }
 
 func TestCleanupWorktree_NilGitOps(t *testing.T) {
+	t.Parallel()
 	// Should not error when gitOps is nil
 	err := CleanupWorktree("TASK-001", nil)
 	if err != nil {
@@ -441,6 +454,7 @@ func TestCleanupWorktree_NilGitOps(t *testing.T) {
 }
 
 func TestWorktreePath_NilGitOps(t *testing.T) {
+	t.Parallel()
 	path := WorktreePath("TASK-001", nil)
 	if path != "" {
 		t.Errorf("expected empty path when gitOps is nil, got: %s", path)
@@ -448,6 +462,7 @@ func TestWorktreePath_NilGitOps(t *testing.T) {
 }
 
 func TestWorktreeExists_NilGitOps(t *testing.T) {
+	t.Parallel()
 	exists := WorktreeExists("TASK-001", nil)
 	if exists {
 		t.Error("expected false when gitOps is nil")
@@ -455,6 +470,7 @@ func TestWorktreeExists_NilGitOps(t *testing.T) {
 }
 
 func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -487,6 +503,7 @@ func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
 }
 
 func TestShouldCleanupWorktree_NilConfig(t *testing.T) {
+	t.Parallel()
 	// Default: cleanup on completion, not on failure
 	if !ShouldCleanupWorktree(true, false, nil) {
 		t.Error("should cleanup when completed with nil config")
@@ -500,6 +517,7 @@ func TestShouldCleanupWorktree_NilConfig(t *testing.T) {
 }
 
 func TestShouldCleanupWorktree_ConfiguredBehavior(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		completed         bool
@@ -577,6 +595,7 @@ func containsTaskID(path, taskID string) bool {
 }
 
 func TestSetupWorktree_StaleWorktree(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-stale-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -635,6 +654,7 @@ func TestSetupWorktree_StaleWorktree(t *testing.T) {
 // This simulates what happens when a task times out, the worktree is manually deleted,
 // and then the user runs `orc resume`.
 func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-task-stale-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -689,6 +709,7 @@ func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
 }
 
 func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-dirty-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -758,6 +779,7 @@ func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 }
 
 func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-rebase-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -838,6 +860,7 @@ func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
 }
 
 func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
+	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-merge-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -932,6 +955,7 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 }
 
 func TestSetupWorktree_SwitchesToCorrectBranch(t *testing.T) {
+	t.Parallel()
 	// This test verifies that when a worktree is reused but is on the wrong branch,
 	// it gets switched to the correct task branch. This prevents issues like:
 	// - Review phase seeing no changes (diffing main against main)

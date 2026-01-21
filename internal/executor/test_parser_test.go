@@ -6,6 +6,7 @@ import (
 )
 
 func TestParseGoTestOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		output        string
@@ -106,6 +107,7 @@ FAIL	example.com/broken	0.002s`,
 }
 
 func TestParseJestOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		output        string
@@ -191,6 +193,7 @@ Time:        0.5 s`,
 }
 
 func TestParsePytestOutput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		output        string
@@ -271,6 +274,7 @@ test_math.py .s                                                          [100%]
 }
 
 func TestParseTestOutput_AutoDetect(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		output        string
@@ -321,6 +325,7 @@ test_math.py ..                                                          [100%]
 }
 
 func TestBuildTestRetryContext(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		result       *ParsedTestResult
@@ -407,6 +412,7 @@ func containsStringHelper(s, substr string) bool {
 }
 
 func TestParsedTestResult_Duration(t *testing.T) {
+	t.Parallel()
 	output := `=== RUN   TestAdd
 --- PASS: TestAdd (0.50s)
 PASS
@@ -421,6 +427,7 @@ ok  	example.com/math	(1.234s)`
 }
 
 func TestValidateTestResults(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		result            *ParsedTestResult
@@ -503,6 +510,7 @@ func TestValidateTestResults(t *testing.T) {
 }
 
 func TestCheckCoverageThreshold(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		coverage  float64
@@ -546,6 +554,7 @@ func TestCheckCoverageThreshold(t *testing.T) {
 }
 
 func TestShouldSkipTestPhase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		weight         string
@@ -589,6 +598,7 @@ func TestShouldSkipTestPhase(t *testing.T) {
 }
 
 func TestBuildCoverageRetryContext(t *testing.T) {
+	t.Parallel()
 	result := &ParsedTestResult{
 		Framework: "go",
 		Passed:    10,

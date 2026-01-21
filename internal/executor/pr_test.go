@@ -14,6 +14,7 @@ import (
 )
 
 func TestBuildPRBody_IncludesTaskTitle(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:     "TEST-001",
@@ -32,6 +33,7 @@ func TestBuildPRBody_IncludesTaskTitle(t *testing.T) {
 }
 
 func TestBuildPRBody_IncludesPhases(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:          "TEST-002",
@@ -65,6 +67,7 @@ func TestBuildPRBody_IncludesPhases(t *testing.T) {
 }
 
 func TestBuildPRBody_UsesDescription(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:          "TEST-003",
@@ -82,6 +85,7 @@ func TestBuildPRBody_UsesDescription(t *testing.T) {
 }
 
 func TestBuildPRBody_FallsBackToTitle(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:          "TEST-004",
@@ -99,6 +103,7 @@ func TestBuildPRBody_FallsBackToTitle(t *testing.T) {
 }
 
 func TestBuildPRBody_HasOrcFooter(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:     "TEST-005",
@@ -117,6 +122,7 @@ func TestBuildPRBody_HasOrcFooter(t *testing.T) {
 }
 
 func TestIsLabelError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -180,6 +186,7 @@ func TestIsLabelError(t *testing.T) {
 }
 
 func TestErrSyncConflict(t *testing.T) {
+	t.Parallel()
 	// ErrSyncConflict should be defined and usable
 	if ErrSyncConflict == nil {
 		t.Error("ErrSyncConflict should not be nil")
@@ -190,6 +197,7 @@ func TestErrSyncConflict(t *testing.T) {
 }
 
 func TestSyncPhaseConstants(t *testing.T) {
+	t.Parallel()
 	// Verify sync phase constants are defined
 	if SyncPhaseStart != "start" {
 		t.Errorf("SyncPhaseStart = %s, want 'start'", SyncPhaseStart)
@@ -200,6 +208,7 @@ func TestSyncPhaseConstants(t *testing.T) {
 }
 
 func TestSyncOnTaskStart_SkipsWithoutGitOps(t *testing.T) {
+	t.Parallel()
 	// Create executor without git ops
 	e := &Executor{
 		logger:    slog.Default(),
@@ -220,6 +229,7 @@ func TestSyncOnTaskStart_SkipsWithoutGitOps(t *testing.T) {
 }
 
 func TestSyncOnTaskStart_UsesWorktreeGit(t *testing.T) {
+	t.Parallel()
 	// This test verifies that syncOnTaskStart prefers worktreeGit over gitOps
 	// when both are set (indicating we're in a worktree context)
 	// We can't fully test this without a real git repo, but we can verify
@@ -238,6 +248,7 @@ func TestSyncOnTaskStart_UsesWorktreeGit(t *testing.T) {
 }
 
 func TestIsAuthError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -321,6 +332,7 @@ func TestIsAuthError(t *testing.T) {
 }
 
 func TestErrGHNotAuthenticated(t *testing.T) {
+	t.Parallel()
 	// ErrGHNotAuthenticated should be defined and usable
 	if ErrGHNotAuthenticated == nil {
 		t.Error("ErrGHNotAuthenticated should not be nil")
@@ -332,6 +344,7 @@ func TestErrGHNotAuthenticated(t *testing.T) {
 }
 
 func TestPRReviewResult(t *testing.T) {
+	t.Parallel()
 	// Test that PRReviewResult struct works correctly
 	result := PRReviewResult{
 		Approved: true,
@@ -347,6 +360,7 @@ func TestPRReviewResult(t *testing.T) {
 }
 
 func TestReviewAndApprove_FailsOnCheckFailure(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:    "TEST-001",
@@ -367,6 +381,7 @@ func TestReviewAndApprove_FailsOnCheckFailure(t *testing.T) {
 }
 
 func TestReviewAndApprove_ApprovesOnCheckSuccess(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:    "TEST-002",
@@ -390,6 +405,7 @@ func TestReviewAndApprove_ApprovesOnCheckSuccess(t *testing.T) {
 }
 
 func TestReviewAndApprove_IncludesTaskTitle(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:    "TEST-003",
@@ -407,6 +423,7 @@ func TestReviewAndApprove_IncludesTaskTitle(t *testing.T) {
 }
 
 func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
+	t.Parallel()
 	e := &Executor{}
 	tsk := &task.Task{
 		ID:    "TEST-004",
@@ -425,6 +442,7 @@ func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
 }
 
 func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
+	t.Parallel()
 	// Test that we correctly parse the gh pr checks JSON output format
 	// gh pr checks --json returns bucket field (pass/fail/pending/skipping/cancel)
 	// not conclusion field (which was the old expected format)
@@ -542,6 +560,7 @@ func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
 }
 
 func TestErrTaskBlocked(t *testing.T) {
+	t.Parallel()
 	// ErrTaskBlocked should be defined and usable
 	if ErrTaskBlocked == nil {
 		t.Error("ErrTaskBlocked should not be nil")
@@ -552,6 +571,7 @@ func TestErrTaskBlocked(t *testing.T) {
 }
 
 func TestErrTaskBlocked_WrappingWithFmtErrorf(t *testing.T) {
+	t.Parallel()
 	// Test that ErrTaskBlocked can be properly wrapped using fmt.Errorf
 	// This matches the pattern used in completeTask:
 	//   return fmt.Errorf("%w: sync conflict - resolve conflicts then run 'orc resume %s'", ErrTaskBlocked, t.ID)
@@ -575,6 +595,7 @@ func TestErrTaskBlocked_WrappingWithFmtErrorf(t *testing.T) {
 }
 
 func TestIsNonFastForwardError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error
@@ -653,6 +674,7 @@ func TestIsNonFastForwardError(t *testing.T) {
 }
 
 func TestErrMergeFailed(t *testing.T) {
+	t.Parallel()
 	// ErrMergeFailed should be defined and usable
 	if ErrMergeFailed == nil {
 		t.Error("ErrMergeFailed should not be nil")
@@ -663,6 +685,7 @@ func TestErrMergeFailed(t *testing.T) {
 }
 
 func TestErrMergeFailed_WrappingWithFmtErrorf(t *testing.T) {
+	t.Parallel()
 	// Test that ErrMergeFailed can be properly wrapped using fmt.Errorf
 	// This matches the pattern used in completeTask:
 	//   return fmt.Errorf("%w: merge failed - run 'orc resume %s' after resolving", ErrTaskBlocked, t.ID)
@@ -686,6 +709,7 @@ func TestErrMergeFailed_WrappingWithFmtErrorf(t *testing.T) {
 }
 
 func TestErrMergeFailed_NestedWrapping(t *testing.T) {
+	t.Parallel()
 	// Test that ErrMergeFailed can be detected through multiple layers of wrapping
 	// This is important because the error flows through multiple function calls:
 	// MergePR -> WaitForCIAndMerge -> createPR -> runCompletion -> completeTask
@@ -702,6 +726,7 @@ func TestErrMergeFailed_NestedWrapping(t *testing.T) {
 }
 
 func TestIsAutoMergeConfigError(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      error

@@ -11,6 +11,7 @@ import (
 )
 
 func TestSavePhaseArtifact(t *testing.T) {
+	t.Parallel()
 	// Create temp task directory
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ART-001")
@@ -97,6 +98,7 @@ This is the spec content.
 }
 
 func TestExtractArtifact(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -215,6 +217,7 @@ This is the real spec from the agent.`,
 }
 
 func TestLoadFromTranscript(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "TASK-TRANS-001")
 	transcriptsDir := filepath.Join(taskDir, "transcripts")
@@ -264,18 +267,10 @@ func TestLoadFromTranscript(t *testing.T) {
 	}
 }
 
-// newArtifactTestBackend creates a test backend for artifact tests.
+// newArtifactTestBackend creates a test backend for artifact tests using in-memory database.
 func newArtifactTestBackend(t *testing.T) *storage.DatabaseBackend {
 	t.Helper()
-	tmpDir := t.TempDir()
-	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
-	if err != nil {
-		t.Fatalf("create backend: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = backend.Close()
-	})
-	return backend
+	return storage.NewTestBackend(t)
 }
 
 // createTestTask creates a task in the backend for testing spec operations.
@@ -293,6 +288,7 @@ func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID strin
 }
 
 func TestSaveSpecToDatabase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		phaseID     string
@@ -404,6 +400,7 @@ Build a feature.
 }
 
 func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
+	t.Parallel()
 	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", "Some content")
 	// Nil backend now returns an error for visibility
 	if err == nil {
@@ -421,6 +418,7 @@ func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 // spec.md files when artifact tags are missing from the output. This handles the case
 // where agents write specs to files instead of using artifact tags.
 func TestSaveSpecToDatabase_FallbackToFile(t *testing.T) {
+	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-FILE-001"
 
@@ -476,6 +474,7 @@ This tests the file fallback mechanism.
 // TestSaveSpecToDatabase_ArtifactTagsTakePrecedence verifies that artifact tags
 // are preferred over spec files when both exist.
 func TestSaveSpecToDatabase_ArtifactTagsTakePrecedence(t *testing.T) {
+	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-PREC-001"
 
@@ -539,6 +538,7 @@ This is from artifact tags, which should take precedence over file content.
 // write files for the spec phase. Spec content should only be saved to the database
 // via SaveSpecToDatabase to avoid merge conflicts in worktrees.
 func TestSavePhaseArtifact_SkipsSpecPhase(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with task structure
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SKIP-001")
@@ -588,6 +588,7 @@ This spec should NOT be written to a file.
 // TestSavePhaseArtifact_WritesNonSpecPhases verifies that SavePhaseArtifact
 // still writes files for non-spec phases like implement, test, docs, etc.
 func TestSavePhaseArtifact_WritesNonSpecPhases(t *testing.T) {
+	t.Parallel()
 	// This test verifies the behavior through the extractArtifact function
 	// since actual file writing depends on task.TaskDir configuration
 
@@ -616,6 +617,7 @@ Changed these files:
 }
 
 func TestSaveSpecToDatabase_ArtifactTagsPrecedence(t *testing.T) {
+	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-SPEC-002"
 
@@ -660,6 +662,7 @@ And some trailing text.`
 }
 
 func TestIsValidSpecContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -723,6 +726,7 @@ func TestIsValidSpecContent(t *testing.T) {
 }
 
 func TestLoadPriorContent(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "TASK-PRIOR-001")
 	artifactsDir := filepath.Join(taskDir, "artifacts")
@@ -782,6 +786,7 @@ func TestLoadPriorContent(t *testing.T) {
 // TestSpecExtractionError_Diagnostics verifies that the error message includes
 // comprehensive diagnostic information for debugging spec failures.
 func TestSpecExtractionError_Diagnostics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		err            *SpecExtractionError
@@ -880,6 +885,7 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 // TestValidateSpecContent_ReturnsReason verifies the new validateSpecContent
 // function returns descriptive failure reasons.
 func TestValidateSpecContent_ReturnsReason(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -931,6 +937,7 @@ func TestValidateSpecContent_ReturnsReason(t *testing.T) {
 // TestSaveSpecToDatabase_PopulatesDiagnostics verifies that SaveSpecToDatabase
 // populates all diagnostic fields in SpecExtractionError.
 func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
+	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-DIAG-001"
 	createTestTask(t, backend, taskID)

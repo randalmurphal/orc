@@ -391,6 +391,7 @@ func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *c
 
 	// Create executor
 	exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
+	exec.SetBackend(backend)
 
 	// Set up streaming if verbose or --stream flag is set
 	if verbose || stream {

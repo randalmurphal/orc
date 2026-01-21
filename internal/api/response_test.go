@@ -11,6 +11,7 @@ import (
 )
 
 func TestJSONResponse_SetsContentType(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	JSONResponse(w, map[string]string{"status": "ok"})
@@ -22,6 +23,7 @@ func TestJSONResponse_SetsContentType(t *testing.T) {
 }
 
 func TestJSONResponse_EncodesData(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	data := map[string]any{
@@ -45,6 +47,7 @@ func TestJSONResponse_EncodesData(t *testing.T) {
 }
 
 func TestJSONError_SetsStatusCode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		status     int
@@ -68,6 +71,7 @@ func TestJSONError_SetsStatusCode(t *testing.T) {
 }
 
 func TestJSONError_ReturnsErrorJSON(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	JSONError(w, "something went wrong", http.StatusBadRequest)
@@ -88,6 +92,7 @@ func TestJSONError_ReturnsErrorJSON(t *testing.T) {
 }
 
 func TestHandleError_OrcError_UsesHTTPStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		err        *orcerrors.OrcError
@@ -136,6 +141,7 @@ func TestHandleError_OrcError_UsesHTTPStatus(t *testing.T) {
 }
 
 func TestHandleError_GenericError_Returns500(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	genericErr := errors.New("database connection failed")
@@ -161,6 +167,7 @@ func TestHandleError_GenericError_Returns500(t *testing.T) {
 }
 
 func TestHandleOrcError_FormatsCorrectly(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	err := orcerrors.ErrTaskNotFound("TASK-123")
@@ -190,6 +197,7 @@ func TestHandleOrcError_FormatsCorrectly(t *testing.T) {
 }
 
 func TestJSONResponseStatus_SetsStatusAndData(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	data := map[string]string{"id": "TASK-001"}
@@ -215,6 +223,7 @@ func TestJSONResponseStatus_SetsStatusAndData(t *testing.T) {
 }
 
 func TestNoContent_Returns204(t *testing.T) {
+	t.Parallel()
 	w := httptest.NewRecorder()
 
 	NoContent(w)

@@ -52,6 +52,9 @@ type FinalizeExecutor struct {
 
 	// MCP config path (generated for worktree)
 	mcpConfigPath string
+
+	// turnExecutor allows injection of a mock for testing
+	turnExecutor TurnExecutor
 }
 
 // FinalizeExecutorOption configures a FinalizeExecutor.
@@ -114,6 +117,11 @@ func WithFinalizeClaudePath(path string) FinalizeExecutorOption {
 // WithFinalizeMCPConfig sets the MCP config path.
 func WithFinalizeMCPConfig(path string) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.mcpConfigPath = path }
+}
+
+// WithFinalizeTurnExecutor sets a TurnExecutor for testing.
+func WithFinalizeTurnExecutor(te TurnExecutor) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.turnExecutor = te }
 }
 
 // NewFinalizeExecutor creates a new finalize executor.
@@ -597,22 +605,27 @@ func (e *FinalizeExecutor) resolveConflicts(
 		e.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID, "phase", p.ID)
 	}
 
-	// Create ClaudeExecutor for conflict resolution
-	claudeOpts := []ClaudeExecutorOption{
-		WithClaudePath(e.claudePath),
-		WithClaudeWorkdir(e.workingDir),
-		WithClaudeModel(modelSetting.Model),
-		WithClaudeSessionID(fmt.Sprintf("%s-conflict-resolution", t.ID)),
-		WithClaudeMaxTurns(5), // Limited turns for conflict resolution
-		WithClaudeLogger(e.logger),
+	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	var turnExec TurnExecutor
+	if e.turnExecutor != nil {
+		turnExec = e.turnExecutor
+	} else {
+		claudeOpts := []ClaudeExecutorOption{
+			WithClaudePath(e.claudePath),
+			WithClaudeWorkdir(e.workingDir),
+			WithClaudeModel(modelSetting.Model),
+			WithClaudeSessionID(fmt.Sprintf("%s-conflict-resolution", t.ID)),
+			WithClaudeMaxTurns(5), // Limited turns for conflict resolution
+			WithClaudeLogger(e.logger),
+		}
+		if e.mcpConfigPath != "" {
+			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
+		}
+		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
-	if e.mcpConfigPath != "" {
-		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
-	}
-	claudeExec := NewClaudeExecutor(claudeOpts...)
 
 	// Execute conflict resolution (without JSON schema - freeform response)
-	_, execErr := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
+	_, execErr := turnExec.ExecuteTurn(ctx, prompt)
 	if execErr != nil {
 		return false, fmt.Errorf("conflict resolution turn: %w", execErr)
 	}
@@ -762,22 +775,27 @@ func (e *FinalizeExecutor) tryFixTests(
 		e.logger.Debug("extended thinking enabled for test fix", "task", t.ID, "phase", p.ID)
 	}
 
-	// Create ClaudeExecutor for test fixing
-	claudeOpts := []ClaudeExecutorOption{
-		WithClaudePath(e.claudePath),
-		WithClaudeWorkdir(e.workingDir),
-		WithClaudeModel(modelSetting.Model),
-		WithClaudeSessionID(fmt.Sprintf("%s-test-fix", t.ID)),
-		WithClaudeMaxTurns(5),
-		WithClaudeLogger(e.logger),
+	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	var turnExec TurnExecutor
+	if e.turnExecutor != nil {
+		turnExec = e.turnExecutor
+	} else {
+		claudeOpts := []ClaudeExecutorOption{
+			WithClaudePath(e.claudePath),
+			WithClaudeWorkdir(e.workingDir),
+			WithClaudeModel(modelSetting.Model),
+			WithClaudeSessionID(fmt.Sprintf("%s-test-fix", t.ID)),
+			WithClaudeMaxTurns(5),
+			WithClaudeLogger(e.logger),
+		}
+		if e.mcpConfigPath != "" {
+			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
+		}
+		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
-	if e.mcpConfigPath != "" {
-		claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
-	}
-	claudeExec := NewClaudeExecutor(claudeOpts...)
 
 	// Execute test fix (without JSON schema - freeform response)
-	_, err := claudeExec.ExecuteTurnWithoutSchema(ctx, prompt)
+	_, err := turnExec.ExecuteTurn(ctx, prompt)
 	if err != nil {
 		return false, fmt.Errorf("test fix turn: %w", err)
 	}

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -14,27 +14,39 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// TrivialExecutor executes phases using fire-and-forget LLM calls.
-// No session continuity, minimal overhead. Best for trivial tasks
-// that can be completed in a single prompt.
+// TrivialExecutor executes phases using ClaudeExecutor with minimal overhead.
+// Best for trivial tasks that can be completed in a single prompt.
 //
-// Session Strategy: No session, just a single completion call
+// Session Strategy: No session persistence, each iteration is stateless
 // Checkpointing: None
 // Iteration Limit: 5 (low, expects quick completion)
 type TrivialExecutor struct {
-	client    claude.Client
-	publisher *EventPublisher
-	logger    *slog.Logger
-	config    ExecutorConfig
-	backend   storage.Backend // Storage backend for loading initiatives
+	claudePath string // Path to claude binary
+	workingDir string // Working directory for execution
+	publisher  *EventPublisher
+	logger     *slog.Logger
+	config     ExecutorConfig
+	backend    storage.Backend // Storage backend for loading initiatives
+	orcConfig  *config.Config  // Orc config for model resolution
+
+	// MCP config path (generated for worktree)
+	mcpConfigPath string
+
+	// turnExecutor allows injection of a mock for testing
+	turnExecutor TurnExecutor
 }
 
 // TrivialExecutorOption configures a TrivialExecutor.
 type TrivialExecutorOption func(*TrivialExecutor)
 
-// WithTrivialClient sets the LLM client.
-func WithTrivialClient(client claude.Client) TrivialExecutorOption {
-	return func(e *TrivialExecutor) { e.client = client }
+// WithTrivialClaudePath sets the path to the claude binary.
+func WithTrivialClaudePath(path string) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.claudePath = path }
+}
+
+// WithTrivialWorkingDir sets the working directory.
+func WithTrivialWorkingDir(dir string) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.workingDir = dir }
 }
 
 // WithTrivialPublisher sets the event publisher.
@@ -57,11 +69,27 @@ func WithTrivialBackend(b storage.Backend) TrivialExecutorOption {
 	return func(e *TrivialExecutor) { e.backend = b }
 }
 
+// WithTrivialOrcConfig sets the orc config for model resolution.
+func WithTrivialOrcConfig(cfg *config.Config) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.orcConfig = cfg }
+}
+
+// WithTrivialMCPConfig sets the MCP config path.
+func WithTrivialMCPConfig(path string) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.mcpConfigPath = path }
+}
+
+// WithTrivialTurnExecutor sets a mock TurnExecutor for testing.
+func WithTrivialTurnExecutor(te TurnExecutor) TrivialExecutorOption {
+	return func(e *TrivialExecutor) { e.turnExecutor = te }
+}
+
 // NewTrivialExecutor creates a new trivial executor.
 func NewTrivialExecutor(opts ...TrivialExecutorOption) *TrivialExecutor {
 	e := &TrivialExecutor{
-		logger:    slog.Default(),
-		publisher: NewEventPublisher(nil), // Initialize with nil-safe wrapper
+		claudePath: "claude",
+		logger:     slog.Default(),
+		publisher:  NewEventPublisher(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      5,
 			CheckpointInterval: 0,
@@ -81,7 +109,7 @@ func (e *TrivialExecutor) Name() string {
 	return "trivial"
 }
 
-// Execute runs a phase using simple LLM calls without session management.
+// Execute runs a phase using ClaudeExecutor without session management.
 func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
@@ -89,132 +117,89 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		Status: plan.PhaseRunning,
 	}
 
-	// Transcript persistence is handled via JSONL sync from Claude Code's session files
-	// (see jsonl_sync.go), not through the publisher buffer
-
-	if e.client == nil {
-		result.Status = plan.PhaseFailed
-		result.Error = fmt.Errorf("no LLM client configured")
-		result.Duration = time.Since(start)
-		return result, result.Error
-	}
-
-	// Load and render prompt using shared template module
-	tmpl, err := LoadPromptTemplate(p)
+	// Build execution context using centralized builder
+	execCtx, err := BuildExecutionContext(ExecutionContextConfig{
+		Task:           t,
+		Phase:          p,
+		State:          s,
+		Backend:        e.backend,
+		WorkingDir:     e.workingDir,
+		MCPConfigPath:  e.mcpConfigPath,
+		ExecutorConfig: e.config,
+		OrcConfig:      e.orcConfig,
+		Logger:         e.logger,
+	})
 	if err != nil {
 		result.Status = plan.PhaseFailed
-		result.Error = fmt.Errorf("load prompt: %w", err)
+		result.Error = fmt.Errorf("build execution context: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
-	vars := BuildTemplateVars(t, p, s, 0, "")
 
-	// Load spec content from database (specs are not stored as file artifacts)
-	vars = vars.WithSpecFromDatabase(e.backend, t.ID)
+	result.Model = execCtx.ModelSetting.Model
 
-	// Load review context for review phases (round 2+ needs prior findings)
-	if p.ID == "review" {
-		round := 1
-		if s != nil && s.Phases != nil {
-			if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
-				round = 2
-			}
-		}
-		vars = vars.WithReviewContext(e.backend, t.ID, round)
+	// Use injected TurnExecutor if available (for testing), otherwise create ClaudeExecutor
+	var turnExec TurnExecutor
+	if e.turnExecutor != nil {
+		turnExec = e.turnExecutor
+	} else {
+		turnExec = NewClaudeExecutorFromContext(execCtx, e.claudePath, e.config.MaxIterations, e.logger)
 	}
 
-	// Add testing configuration (coverage threshold)
-	if e.config.OrcConfig != nil {
-		vars.CoverageThreshold = e.config.OrcConfig.Testing.CoverageThreshold
-	}
-
-	// Add initiative context if task belongs to an initiative
-	if initCtx := LoadInitiativeContext(t, e.backend); initCtx != nil {
-		vars = vars.WithInitiativeContext(*initCtx)
-		e.logger.Info("initiative context injected (trivial)",
-			"task", t.ID,
-			"initiative", initCtx.ID,
-			"has_vision", initCtx.Vision != "",
-			"decision_count", len(initCtx.Decisions),
-		)
-	}
-
-	// Add automation context if this is an automation task (AUTO-XXX)
-	if t.IsAutomation {
-		if autoCtx := LoadAutomationContext(t, e.backend, "."); autoCtx != nil {
-			vars = vars.WithAutomationContext(*autoCtx)
-			e.logger.Info("automation context injected (trivial)",
-				"task", t.ID,
-				"has_recent_tasks", autoCtx.RecentCompletedTasks != "",
-				"has_changed_files", autoCtx.RecentChangedFiles != "",
-			)
-		}
-	}
-
-	promptText := RenderTemplate(tmpl, vars)
-
-	// Resolve model settings for this phase and weight
-	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
-	result.Model = modelSetting.Model
-
-	// Inject "ultrathink" for extended thinking mode (rare for trivial, but consistent)
-	if modelSetting.Thinking {
-		promptText = "ultrathink\n\n" + promptText
-		e.logger.Debug("extended thinking enabled", "task", t.ID, "phase", p.ID)
-	}
-
-	// Simple iteration loop - no session, just repeated completions
+	// Simple iteration loop - no session persistence, each turn is standalone
+	promptText := execCtx.PromptText
 	var lastResponse string
+
 	for iteration := 1; iteration <= e.config.MaxIterations; iteration++ {
 		e.publisher.Transcript(t.ID, p.ID, iteration, "prompt", promptText)
 
-		// Execute single completion with JSON schema for structured output
-		resp, err := e.client.Complete(ctx, claude.CompletionRequest{
-			Messages: []claude.Message{
-				{Role: claude.RoleUser, Content: promptText},
-			},
-			Model:      modelSetting.Model,
-			JSONSchema: PhaseCompletionSchema,
-		})
+		// Execute turn using TurnExecutor with JSON schema
+		turnResult, err := turnExec.ExecuteTurn(ctx, promptText)
 
 		if err != nil {
 			result.Status = plan.PhaseFailed
-			result.Error = fmt.Errorf("completion failed: %w", err)
+			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
 			break
 		}
 
-		// Use effective input tokens (includes cache) to show actual context size
-		// Note: claude.TokenUsage doesn't have EffectiveInputTokens method, so compute directly
-		result.InputTokens += resp.Usage.InputTokens + resp.Usage.CacheCreationInputTokens + resp.Usage.CacheReadInputTokens
-		result.OutputTokens += resp.Usage.OutputTokens
-		result.CacheCreationTokens += resp.Usage.CacheCreationInputTokens
-		result.CacheReadTokens += resp.Usage.CacheReadInputTokens
-		result.CostUSD += resp.CostUSD
+		// Track tokens using effective input (includes cache)
+		result.InputTokens += turnResult.Usage.EffectiveInputTokens()
+		result.OutputTokens += turnResult.Usage.OutputTokens
+		result.CacheCreationTokens += turnResult.Usage.CacheCreationInputTokens
+		result.CacheReadTokens += turnResult.Usage.CacheReadInputTokens
+		result.CostUSD += turnResult.CostUSD
 		result.Iterations = iteration
-		lastResponse = resp.Content
+		lastResponse = turnResult.Content
 
-		e.publisher.Transcript(t.ID, p.ID, iteration, "response", resp.Content)
+		e.publisher.Transcript(t.ID, p.ID, iteration, "response", turnResult.Content)
 
-		// Extract completion status from response (handles mixed text/JSON output)
-		status, reason := CheckPhaseCompletionJSON(resp.Content)
-
-		switch status {
+		// Handle completion status
+		switch turnResult.Status {
 		case PhaseStatusComplete:
 			result.Status = plan.PhaseCompleted
-			result.Output = resp.Content
+			result.Output = turnResult.Content
 			e.logger.Info("phase complete (trivial)", "task", t.ID, "phase", p.ID, "iterations", iteration)
 			goto done
 
 		case PhaseStatusBlocked:
 			result.Status = plan.PhaseFailed
-			result.Error = fmt.Errorf("phase blocked: %s", reason)
+			result.Output = turnResult.Content // Preserve output for retry context
+			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
 			goto done
 
 		case PhaseStatusContinue:
 			// For trivial executor, add response to prompt for next iteration
-			// (stateless, so we concatenate)
+			// (stateless, so we concatenate prior context)
 			promptText = fmt.Sprintf("%s\n\nAssistant's previous response:\n%s\n\nContinue working on the task.",
-				promptText, resp.Content)
+				promptText, turnResult.Content)
+		}
+
+		// Check for errors
+		if turnResult.IsError {
+			result.Status = plan.PhaseFailed
+			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
+			result.Output = lastResponse
+			goto done
 		}
 	}
 
@@ -224,7 +209,9 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 	}
 
 done:
-	result.Output = lastResponse
+	if result.Output == "" {
+		result.Output = lastResponse
+	}
 	result.Duration = time.Since(start)
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)

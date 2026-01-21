@@ -38,7 +38,7 @@ completion:
     weight_actions:
         trivial: none
 execution:
-    use_session_execution: false
+    use_session_execution: true
     session_persistence: true
     checkpoint_interval: 0
     max_retries: 5

@@ -17,8 +17,74 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// ResumeValidationResult contains the result of validating a task for resume.
+type ResumeValidationResult struct {
+	// IsOrphaned indicates the task was running but its executor died.
+	IsOrphaned bool
+	// OrphanReason explains why the task was detected as orphaned.
+	OrphanReason string
+	// RequiresStateUpdate indicates the task/state need updating before execution.
+	RequiresStateUpdate bool
+}
+
+// ValidateTaskResumable checks if a task can be resumed and returns validation details.
+// Returns an error if the task cannot be resumed.
+func ValidateTaskResumable(t *task.Task, s *state.State, forceResume bool) (*ResumeValidationResult, error) {
+	result := &ResumeValidationResult{}
+
+	switch t.Status {
+	case task.StatusPaused, task.StatusBlocked:
+		// These are always resumable
+		return result, nil
+	case task.StatusRunning:
+		// Check if it's orphaned
+		isOrphaned, reason := s.CheckOrphaned()
+		if isOrphaned {
+			result.IsOrphaned = true
+			result.OrphanReason = reason
+			result.RequiresStateUpdate = true
+			return result, nil
+		} else if forceResume {
+			result.RequiresStateUpdate = true
+			return result, nil
+		}
+		return nil, fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
+	case task.StatusFailed:
+		// Allow resuming failed tasks
+		return result, nil
+	default:
+		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
+	}
+}
+
+// ApplyResumeStateUpdates applies necessary state updates for orphaned or force-resumed tasks.
+func ApplyResumeStateUpdates(t *task.Task, s *state.State, result *ResumeValidationResult, forceResume bool, backend storage.Backend) error {
+	if !result.RequiresStateUpdate {
+		return nil
+	}
+
+	if result.IsOrphaned {
+		s.InterruptPhase(s.CurrentPhase)
+	} else if forceResume {
+		s.ClearExecution()
+		s.InterruptPhase(s.CurrentPhase)
+	}
+
+	if err := backend.SaveState(s); err != nil {
+		return fmt.Errorf("save state: %w", err)
+	}
+
+	t.Status = task.StatusBlocked
+	if err := backend.SaveTask(t); err != nil {
+		return fmt.Errorf("save task: %w", err)
+	}
+
+	return nil
+}
 
 func newResumeCmd() *cobra.Command {
 	var forceResume bool
@@ -62,47 +128,26 @@ Use --force to resume a task even if it appears to still be running.`,
 				s = state.New(id)
 			}
 
-			// Handle different task statuses
-			switch t.Status {
-			case task.StatusPaused, task.StatusBlocked:
-				// These are always resumable
-			case task.StatusRunning:
-				// Check if it's orphaned
-				isOrphaned, reason := s.CheckOrphaned()
-				if isOrphaned {
-					fmt.Printf("Task %s appears orphaned (%s)\n", id, reason)
-					fmt.Println("Marking as interrupted and resuming...")
-					// Mark as interrupted and save
-					s.InterruptPhase(s.CurrentPhase)
-					if err := backend.SaveState(s); err != nil {
-						return fmt.Errorf("save state: %w", err)
-					}
-					t.Status = task.StatusBlocked
-					if err := backend.SaveTask(t); err != nil {
-						return fmt.Errorf("save task: %w", err)
-					}
-				} else if forceResume {
-					fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, s.GetExecutorPID())
-					fmt.Println("Force-resuming as requested...")
-					// Clear execution info to allow resume
-					s.ClearExecution()
-					s.InterruptPhase(s.CurrentPhase)
-					if err := backend.SaveState(s); err != nil {
-						return fmt.Errorf("save state: %w", err)
-					}
-					t.Status = task.StatusBlocked
-					if err := backend.SaveTask(t); err != nil {
-						return fmt.Errorf("save task: %w", err)
-					}
-				} else {
-					return fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
-				}
-			case task.StatusFailed:
-				// Allow resuming failed tasks - continues from last incomplete phase.
-				// This enables retry after fixing external issues (missing deps, config, etc.)
+			// Validate task is resumable
+			validationResult, err := ValidateTaskResumable(t, s, forceResume)
+			if err != nil {
+				return err
+			}
+
+			// Print appropriate messages based on validation result
+			if validationResult.IsOrphaned {
+				fmt.Printf("Task %s appears orphaned (%s)\n", id, validationResult.OrphanReason)
+				fmt.Println("Marking as interrupted and resuming...")
+			} else if forceResume && validationResult.RequiresStateUpdate {
+				fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, s.GetExecutorPID())
+				fmt.Println("Force-resuming as requested...")
+			} else if t.Status == task.StatusFailed {
 				fmt.Printf("Task %s failed previously, resuming from last phase...\n", id)
-			default:
-				return fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
+			}
+
+			// Apply state updates if needed
+			if err := ApplyResumeStateUpdates(t, s, validationResult, forceResume, backend); err != nil {
+				return err
 			}
 
 			p, err := backend.LoadPlan(id)

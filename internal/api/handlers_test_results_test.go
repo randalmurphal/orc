@@ -27,6 +27,7 @@ func createTestResultsBackend(t *testing.T, tmpDir string) *storage.DatabaseBack
 }
 
 func TestGetTestResultsEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 	_ = backend.Close()
@@ -44,6 +45,7 @@ func TestGetTestResultsEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestGetTestResultsEndpoint_NoResults(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -81,6 +83,7 @@ func TestGetTestResultsEndpoint_NoResults(t *testing.T) {
 }
 
 func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -143,6 +146,7 @@ func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 }
 
 func TestListScreenshotsEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 	_ = backend.Close()
@@ -160,6 +164,7 @@ func TestListScreenshotsEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestListScreenshotsEndpoint_EmptyList(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -194,6 +199,7 @@ func TestListScreenshotsEndpoint_EmptyList(t *testing.T) {
 }
 
 func TestListScreenshotsEndpoint_WithScreenshots(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -235,6 +241,7 @@ func TestListScreenshotsEndpoint_WithScreenshots(t *testing.T) {
 }
 
 func TestGetScreenshotEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -275,6 +282,7 @@ func TestGetScreenshotEndpoint_Success(t *testing.T) {
 }
 
 func TestGetScreenshotEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -300,6 +308,7 @@ func TestGetScreenshotEndpoint_NotFound(t *testing.T) {
 }
 
 func TestGetScreenshotEndpoint_PathTraversal(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -327,6 +336,7 @@ func TestGetScreenshotEndpoint_PathTraversal(t *testing.T) {
 }
 
 func TestUploadScreenshotEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -370,6 +380,7 @@ func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 }
 
 func TestUploadScreenshotEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 	_ = backend.Close()
@@ -394,6 +405,7 @@ func TestUploadScreenshotEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestUploadScreenshotEndpoint_NoFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -424,6 +436,7 @@ func TestUploadScreenshotEndpoint_NoFile(t *testing.T) {
 }
 
 func TestSaveTestReportEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -470,6 +483,7 @@ func TestSaveTestReportEndpoint_Success(t *testing.T) {
 }
 
 func TestSaveTestReportEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 	_ = backend.Close()
@@ -491,6 +505,7 @@ func TestSaveTestReportEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestSaveTestReportEndpoint_InvalidBody(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -517,6 +532,7 @@ func TestSaveTestReportEndpoint_InvalidBody(t *testing.T) {
 }
 
 func TestInitTestResultsEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -563,6 +579,7 @@ func TestInitTestResultsEndpoint_Success(t *testing.T) {
 }
 
 func TestInitTestResultsEndpoint_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 	_ = backend.Close()
@@ -580,6 +597,7 @@ func TestInitTestResultsEndpoint_TaskNotFound(t *testing.T) {
 }
 
 func TestGetHTMLReportEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -620,6 +638,7 @@ func TestGetHTMLReportEndpoint_Success(t *testing.T) {
 }
 
 func TestGetHTMLReportEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -645,6 +664,7 @@ func TestGetHTMLReportEndpoint_NotFound(t *testing.T) {
 }
 
 func TestGetTraceEndpoint_Success(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -685,6 +705,7 @@ func TestGetTraceEndpoint_Success(t *testing.T) {
 }
 
 func TestGetTraceEndpoint_NotFound(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -710,6 +731,7 @@ func TestGetTraceEndpoint_NotFound(t *testing.T) {
 }
 
 func TestGetTraceEndpoint_PathTraversal(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 
@@ -737,6 +759,7 @@ func TestGetTraceEndpoint_PathTraversal(t *testing.T) {
 }
 
 func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	backend := createTestResultsBackend(t, tmpDir)
 

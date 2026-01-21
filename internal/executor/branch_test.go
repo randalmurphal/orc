@@ -9,6 +9,7 @@ import (
 )
 
 func TestResolveTargetBranch(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		task           *task.Task
@@ -159,6 +160,7 @@ func TestResolveTargetBranch(t *testing.T) {
 }
 
 func TestResolveTargetBranchSource(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		task           *task.Task
@@ -238,6 +240,7 @@ func TestResolveTargetBranchSource(t *testing.T) {
 }
 
 func TestIsDefaultBranch(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		branch   string
 		expected bool

@@ -6,6 +6,7 @@ import (
 )
 
 func TestParsePhaseResponse(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		content     string
@@ -93,6 +94,7 @@ func TestParsePhaseResponse(t *testing.T) {
 }
 
 func TestPhaseResponse_IsComplete(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		status string
@@ -114,6 +116,7 @@ func TestPhaseResponse_IsComplete(t *testing.T) {
 }
 
 func TestPhaseResponse_IsBlocked(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		status string
@@ -135,6 +138,7 @@ func TestPhaseResponse_IsBlocked(t *testing.T) {
 }
 
 func TestCheckPhaseCompletionJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		content    string
@@ -181,6 +185,7 @@ func TestCheckPhaseCompletionJSON(t *testing.T) {
 }
 
 func TestHasJSONCompletion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -203,6 +208,7 @@ func TestHasJSONCompletion(t *testing.T) {
 }
 
 func TestPhaseResponse_IsContinue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		status string
@@ -224,6 +230,7 @@ func TestPhaseResponse_IsContinue(t *testing.T) {
 }
 
 func TestBuildJSONRetryPrompt(t *testing.T) {
+	t.Parallel()
 	invalidContent := "this is not json"
 	_, parseErr := ParsePhaseResponse(invalidContent)
 	if parseErr == nil {
@@ -249,6 +256,7 @@ func TestBuildJSONRetryPrompt(t *testing.T) {
 }
 
 func TestTruncateForPrompt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -294,6 +302,7 @@ func TestTruncateForPrompt(t *testing.T) {
 
 
 func TestExtractJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -337,6 +346,7 @@ func TestExtractJSON(t *testing.T) {
 }
 
 func TestCheckPhaseCompletionJSON_MixedContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		input      string

@@ -66,6 +66,23 @@ func Open(path string) (*DB, error) {
 	return OpenWithDialect(path, driver.DialectSQLite)
 }
 
+// OpenInMemory opens an in-memory SQLite database.
+// This is much faster than file-based databases and ideal for testing.
+// Each call creates a new isolated database.
+func OpenInMemory() (*DB, error) {
+	drv, err := driver.New(driver.DialectSQLite)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use :memory: for in-memory database
+	if err := drv.Open(":memory:"); err != nil {
+		return nil, err
+	}
+
+	return &DB{driver: drv, path: ":memory:"}, nil
+}
+
 // OpenWithDialect opens a database with a specific dialect.
 func OpenWithDialect(dsn string, dialect driver.Dialect) (*DB, error) {
 	// For SQLite, create parent directory if needed

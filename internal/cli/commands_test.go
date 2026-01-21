@@ -8,6 +8,7 @@ import (
 )
 
 func TestStatusIcon(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		status   task.Status
 		expected string
@@ -33,6 +34,7 @@ func TestStatusIcon(t *testing.T) {
 }
 
 func TestPhaseStatusIcon(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		status   plan.PhaseStatus
 		expected string
@@ -54,6 +56,7 @@ func TestPhaseStatusIcon(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		maxLen   int

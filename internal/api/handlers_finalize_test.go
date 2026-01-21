@@ -42,6 +42,7 @@ func createTestBackend(t *testing.T) storage.Backend {
 }
 
 func TestHandleFinalizeTask(t *testing.T) {
+	t.Parallel()
 	backend := createTestBackend(t)
 
 	// Create a task
@@ -220,6 +221,7 @@ func TestHandleFinalizeTask(t *testing.T) {
 }
 
 func TestHandleGetFinalizeStatus(t *testing.T) {
+	t.Parallel()
 	backend := createTestBackend(t)
 
 	// Create a task
@@ -452,6 +454,7 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 }
 
 func TestFinalizeTracker(t *testing.T) {
+	t.Parallel()
 	t.Run("get returns nil for unknown task", func(t *testing.T) {
 		state := finTracker.get("unknown-task")
 		if state != nil {
@@ -493,6 +496,7 @@ func TestFinalizeTracker(t *testing.T) {
 }
 
 func TestFinalizeTrackerCleanup(t *testing.T) {
+	t.Parallel()
 	// Create a fresh tracker for this test to avoid interference
 	tracker := &finalizeTracker{
 		states: make(map[string]*FinalizeState),
@@ -572,6 +576,7 @@ func TestFinalizeTrackerCleanup(t *testing.T) {
 }
 
 func TestFinalizeTrackerCleanupPreservesRunning(t *testing.T) {
+	t.Parallel()
 	tracker := &finalizeTracker{
 		states: make(map[string]*FinalizeState),
 	}
@@ -610,6 +615,7 @@ func TestFinalizeTrackerCleanupPreservesRunning(t *testing.T) {
 }
 
 func TestFinalizeTrackerCleanupShutdown(t *testing.T) {
+	t.Parallel()
 	tracker := &finalizeTracker{
 		states: make(map[string]*FinalizeState),
 	}
@@ -667,6 +673,7 @@ func TestFinalizeTrackerCleanupShutdown(t *testing.T) {
 }
 
 func TestFinalizeTrackerCancelAll(t *testing.T) {
+	t.Parallel()
 	// Create a fresh tracker for this test
 	tracker := &finalizeTracker{
 		states:  make(map[string]*FinalizeState),
@@ -719,6 +726,7 @@ func TestFinalizeTrackerCancelAll(t *testing.T) {
 }
 
 func TestFinalizeTrackerSetCancelAndCancel(t *testing.T) {
+	t.Parallel()
 	// Create a fresh tracker for this test
 	tracker := &finalizeTracker{
 		states:  make(map[string]*FinalizeState),
@@ -800,6 +808,7 @@ func TestFinalizeTrackerSetCancelAndCancel(t *testing.T) {
 }
 
 func TestServerContextOnShutdown(t *testing.T) {
+	t.Parallel()
 	// Create server with a context we control
 	ctx, cancel := context.WithCancel(context.Background())
 	serverCtx, serverCancel := context.WithCancel(ctx)
@@ -844,6 +853,7 @@ func TestServerContextOnShutdown(t *testing.T) {
 }
 
 func TestFinalizeTrackerTryStart(t *testing.T) {
+	t.Parallel()
 	t.Run("returns true when no prior state", func(t *testing.T) {
 		tracker := &finalizeTracker{
 			states:  make(map[string]*FinalizeState),
@@ -1035,6 +1045,7 @@ func TestFinalizeTrackerTryStart(t *testing.T) {
 }
 
 func TestHandleFinalizeTask_ConcurrentRequests(t *testing.T) {
+	t.Parallel()
 	backend := createTestBackend(t)
 
 	// Create a task
@@ -1136,6 +1147,7 @@ func TestHandleFinalizeTask_ConcurrentRequests(t *testing.T) {
 }
 
 func TestTriggerFinalizeOnApproval_ConcurrentCalls(t *testing.T) {
+	t.Parallel()
 	backend := createTestBackend(t)
 
 	taskID := "TASK-CONCURRENT-APPROVAL"
@@ -1226,6 +1238,7 @@ func TestTriggerFinalizeOnApproval_ConcurrentCalls(t *testing.T) {
 }
 
 func TestTriggerFinalizeOnApproval(t *testing.T) {
+	t.Parallel()
 	t.Run("does not trigger when config disabled", func(t *testing.T) {
 		backend := createTestBackend(t)
 

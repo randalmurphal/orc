@@ -15,6 +15,7 @@ import (
 )
 
 func TestPRPoller_ShouldPoll(t *testing.T) {
+	t.Parallel()
 	poller := &PRPoller{}
 
 	tests := []struct {
@@ -116,6 +117,7 @@ func TestPRPoller_ShouldPoll(t *testing.T) {
 }
 
 func TestPRPoller_DeterminePRStatus(t *testing.T) {
+	t.Parallel()
 	poller := &PRPoller{}
 
 	tests := []struct {
@@ -173,6 +175,7 @@ func TestPRPoller_DeterminePRStatus(t *testing.T) {
 }
 
 func TestNewPRPoller(t *testing.T) {
+	t.Parallel()
 	// Test default interval
 	poller := NewPRPoller(PRPollerConfig{
 		WorkDir: "/tmp/test",
@@ -280,6 +283,7 @@ func (b *emptyBackend) SaveQAResult(*storage.QAResult) error     { return nil }
 func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
+	t.Parallel()
 	// Create a poller with a backend that returns no tasks
 	poller := NewPRPoller(PRPollerConfig{
 		WorkDir:  "/tmp/test",
@@ -303,6 +307,7 @@ func TestPRPoller_StopTwice(t *testing.T) {
 }
 
 func TestPRPoller_StopConcurrent(t *testing.T) {
+	t.Parallel()
 	// Create a poller with a backend that returns no tasks
 	poller := NewPRPoller(PRPollerConfig{
 		WorkDir:  "/tmp/test",

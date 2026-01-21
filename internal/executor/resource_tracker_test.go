@@ -10,6 +10,7 @@ import (
 
 // TestProcessSnapshot verifies snapshot captures correct fields.
 func TestProcessSnapshot(t *testing.T) {
+	t.Parallel()
 	// Create a resource tracker with tracking enabled
 	config := ResourceTrackerConfig{
 		Enabled:           true,
@@ -56,6 +57,7 @@ func TestProcessSnapshot(t *testing.T) {
 
 // TestOrphanDetection verifies orphan detection logic with mock data.
 func TestOrphanDetection(t *testing.T) {
+	t.Parallel()
 	// Create a tracker
 	config := ResourceTrackerConfig{
 		Enabled:            true,
@@ -122,6 +124,7 @@ func TestOrphanDetection(t *testing.T) {
 
 // TestOrphanDetectionMCPOnly verifies MCP-only filtering works.
 func TestOrphanDetectionMCPOnly(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:            true,
 		MemoryThresholdMB:  100,
@@ -159,6 +162,7 @@ func TestOrphanDetectionMCPOnly(t *testing.T) {
 
 // TestMemoryTracking verifies memory delta calculation.
 func TestMemoryTracking(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:           true,
 		MemoryThresholdMB: 100,
@@ -211,6 +215,7 @@ func TestMemoryTracking(t *testing.T) {
 
 // TestResourceTrackerConfig verifies config enables/disables tracking.
 func TestResourceTrackerConfig(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		enabled       bool
@@ -256,6 +261,7 @@ func TestResourceTrackerConfig(t *testing.T) {
 
 // TestReset verifies Reset clears snapshots.
 func TestReset(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:           true,
 		MemoryThresholdMB: 100,
@@ -289,6 +295,7 @@ func TestReset(t *testing.T) {
 
 // TestIsMCPProcess verifies MCP process detection.
 func TestIsMCPProcess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		command string
 		isMCP   bool
@@ -328,6 +335,7 @@ func TestIsMCPProcess(t *testing.T) {
 
 // TestIsOrcRelatedProcess verifies orc-related process detection.
 func TestIsOrcRelatedProcess(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		command      string
 		isOrcRelated bool
@@ -383,6 +391,7 @@ func TestIsOrcRelatedProcess(t *testing.T) {
 
 // TestOrphanDetectionFilterSystemProcesses verifies system process filtering.
 func TestOrphanDetectionFilterSystemProcesses(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:               true,
 		MemoryThresholdMB:     100,
@@ -436,6 +445,7 @@ func TestOrphanDetectionFilterSystemProcesses(t *testing.T) {
 
 // TestOrphanDetectionFilterSystemProcessesDisabled verifies original behavior when filtering is disabled.
 func TestOrphanDetectionFilterSystemProcessesDisabled(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:               true,
 		MemoryThresholdMB:     100,
@@ -470,6 +480,7 @@ func TestOrphanDetectionFilterSystemProcessesDisabled(t *testing.T) {
 
 // TestOrphanDetectionPriorityFilterSystemOverMCPOnly verifies FilterSystemProcesses takes priority over LogOrphanedMCPOnly.
 func TestOrphanDetectionPriorityFilterSystemOverMCPOnly(t *testing.T) {
+	t.Parallel()
 	// When both are set, FilterSystemProcesses should take priority
 	config := ResourceTrackerConfig{
 		Enabled:               true,
@@ -518,6 +529,7 @@ func TestOrphanDetectionPriorityFilterSystemOverMCPOnly(t *testing.T) {
 
 // TestDetectOrphansNoSnapshots verifies detection handles missing snapshots.
 func TestDetectOrphansNoSnapshots(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:           true,
 		MemoryThresholdMB: 100,
@@ -540,6 +552,7 @@ func TestDetectOrphansNoSnapshots(t *testing.T) {
 
 // TestCheckMemoryGrowthNoSnapshots verifies memory check handles missing snapshots.
 func TestCheckMemoryGrowthNoSnapshots(t *testing.T) {
+	t.Parallel()
 	config := ResourceTrackerConfig{
 		Enabled:           true,
 		MemoryThresholdMB: 100,
@@ -556,6 +569,7 @@ func TestCheckMemoryGrowthNoSnapshots(t *testing.T) {
 // TestResourceTrackingDuringTask verifies the full resource tracking lifecycle.
 // This is an integration test that simulates what happens during task execution.
 func TestResourceTrackingDuringTask(t *testing.T) {
+	t.Parallel()
 	// Create a buffer to capture log output
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -635,6 +649,7 @@ func TestResourceTrackingDuringTask(t *testing.T) {
 
 // TestResourceTrackingLifecycleWithMockOrphans tests the full lifecycle with injected orphans.
 func TestResourceTrackingLifecycleWithMockOrphans(t *testing.T) {
+	t.Parallel()
 	// Create a buffer to capture log output
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn}))

@@ -17,6 +17,7 @@ import (
 )
 
 func TestDetectImportFormat(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -99,6 +100,7 @@ func TestDetectImportFormat(t *testing.T) {
 }
 
 func TestBuildManifest(t *testing.T) {
+	t.Parallel()
 	manifest := buildManifest(10, 2, true, true)
 
 	if manifest.Version != ExportFormatVersion {
@@ -122,6 +124,7 @@ func TestBuildManifest(t *testing.T) {
 }
 
 func TestWriteTarFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	archivePath := filepath.Join(tmpDir, "test.tar.gz")
 
@@ -164,6 +167,7 @@ func TestWriteTarFile(t *testing.T) {
 }
 
 func TestWriteZipFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	archivePath := filepath.Join(tmpDir, "test.zip")
 
@@ -197,6 +201,7 @@ func TestWriteZipFile(t *testing.T) {
 }
 
 func TestFindLatestExport(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create a directory structure
@@ -221,6 +226,7 @@ func TestFindLatestExport(t *testing.T) {
 }
 
 func TestFindLatestExportFallsBackToDir(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create empty export directory (no archives)
@@ -237,12 +243,14 @@ func TestFindLatestExportFallsBackToDir(t *testing.T) {
 }
 
 func TestExportDataVersion(t *testing.T) {
+	t.Parallel()
 	if ExportFormatVersion != 3 {
 		t.Errorf("expected ExportFormatVersion 3, got %d", ExportFormatVersion)
 	}
 }
 
 func TestExportManifestStruct(t *testing.T) {
+	t.Parallel()
 	manifest := &ExportManifest{
 		Version:             3,
 		ExportedAt:          time.Now(),
@@ -275,6 +283,7 @@ func TestExportManifestStruct(t *testing.T) {
 }
 
 func TestExportDataStruct(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	export := &ExportData{
 		Version:    3,
@@ -321,6 +330,7 @@ func TestExportDataStruct(t *testing.T) {
 
 // TestRunningTaskImportTransform verifies that running tasks are transformed on import
 func TestRunningTaskImportTransform(t *testing.T) {
+	t.Parallel()
 	// Create an export with a running task
 	export := &ExportData{
 		Version:    3,

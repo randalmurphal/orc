@@ -18,18 +18,10 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// newTestBackend creates a test backend.
+// newTestBackend creates a test backend using in-memory database for speed.
 func newTestBackend(t *testing.T) storage.Backend {
 	t.Helper()
-	tmpDir := t.TempDir()
-	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
-	if err != nil {
-		t.Fatalf("create backend: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = backend.Close()
-	})
-	return backend
+	return storage.NewTestBackend(t)
 }
 
 // newTestExecutor creates an executor configured for test isolation.
@@ -42,6 +34,7 @@ func newTestExecutor(t *testing.T) *Executor {
 }
 
 func TestResolveClaudePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -91,6 +84,7 @@ func TestResolveClaudePath(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with a fake claude binary
 	tmpDir := t.TempDir()
 	fakeClaude := filepath.Join(tmpDir, "claude")
@@ -115,6 +109,7 @@ func TestFindClaudeInCommonLocations(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_HomeExpansion(t *testing.T) {
+	t.Parallel()
 	// This test verifies ~ expansion works
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -146,6 +141,7 @@ func TestFindClaudeInCommonLocations_HomeExpansion(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_NoMatch(t *testing.T) {
+	t.Parallel()
 	// Save original and replace with nonexistent locations
 	originalLocations := commonClaudeLocations
 	commonClaudeLocations = []string{
@@ -161,6 +157,7 @@ func TestFindClaudeInCommonLocations_NoMatch(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_SkipsNonExecutable(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with a non-executable file
 	tmpDir := t.TempDir()
 	nonExecFile := filepath.Join(tmpDir, "claude")
@@ -182,6 +179,7 @@ func TestFindClaudeInCommonLocations_SkipsNonExecutable(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
+	t.Parallel()
 	// Create a directory named "claude" (edge case: something might create a dir with this name)
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, "claude")
@@ -203,6 +201,7 @@ func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
 }
 
 func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
+	t.Parallel()
 	// Test that ResolveClaudePath falls back to common locations
 	// when PATH lookup fails
 
@@ -230,6 +229,7 @@ func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 
 	if cfg.ClaudePath != "claude" {
@@ -266,6 +266,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	e := New(cfg)
 
@@ -285,10 +286,6 @@ func TestNew(t *testing.T) {
 		t.Error("executor gitOps is nil")
 	}
 
-	if e.checkpointStore == nil {
-		t.Error("executor checkpointStore is nil when EnableCheckpoints=true")
-	}
-
 	// Verify claude path is set (required for ClaudeExecutor-based execution)
 	if e.claudePath == "" {
 		t.Error("executor claudePath is empty - ClaudeExecutor won't work")
@@ -299,6 +296,7 @@ func TestNew(t *testing.T) {
 // correctly. This is critical: without the Claude path, ClaudeExecutor-based
 // execution fails to spawn Claude processes.
 func TestNew_ClaudePathResolution(t *testing.T) {
+	t.Parallel()
 	// Create a fake claude binary to test with
 	tmpDir := t.TempDir()
 	fakeClaude := filepath.Join(tmpDir, "claude")
@@ -327,6 +325,7 @@ func TestNew_ClaudePathResolution(t *testing.T) {
 }
 
 func TestNewWithNilConfig(t *testing.T) {
+	t.Parallel()
 	e := New(nil)
 
 	if e == nil {
@@ -339,63 +338,10 @@ func TestNewWithNilConfig(t *testing.T) {
 	}
 }
 
-func TestNewWithoutCheckpoints(t *testing.T) {
-	cfg := DefaultConfig()
-	cfg.EnableCheckpoints = false
-	e := New(cfg)
-
-	if e.checkpointStore != nil {
-		t.Error("checkpointStore should be nil when EnableCheckpoints=false")
-	}
-}
-
-func TestRenderTemplate(t *testing.T) {
-	e := newTestExecutor(t)
-
-	state := PhaseState{
-		TaskID:    "TASK-001",
-		TaskTitle: "Add feature X",
-		Phase:     "implement",
-		Weight:    "medium",
-		Iteration: 3,
-	}
-
-	tmpl := "Task: {{TASK_ID}} - {{TASK_TITLE}}, Phase: {{PHASE}}, Weight: {{WEIGHT}}, Iteration: {{ITERATION}}"
-	result := e.renderTemplate(tmpl, state)
-
-	expected := "Task: TASK-001 - Add feature X, Phase: implement, Weight: medium, Iteration: 3"
-	if result != expected {
-		t.Errorf("renderTemplate() = %q, want %q", result, expected)
-	}
-}
-
-func TestRenderTemplateWithPriorContent(t *testing.T) {
-	e := newTestExecutor(t)
-
-	state := PhaseState{
-		TaskID:          "TASK-001",
-		TaskTitle:       "Build system",
-		Phase:           "implement",
-		Weight:          "large",
-		ResearchContent: "Research findings here",
-		SpecContent:     "Spec document here",
-		DesignContent:   "Design document here",
-	}
-
-	tmpl := `Research: {{RESEARCH_CONTENT}}
-Spec: {{SPEC_CONTENT}}
-Design: {{DESIGN_CONTENT}}`
-
-	result := e.renderTemplate(tmpl, state)
-
-	if result != `Research: Research findings here
-Spec: Spec document here
-Design: Design document here` {
-		t.Errorf("renderTemplate() with prior content failed: %s", result)
-	}
-}
+// Note: TestRenderTemplate* tests removed - template rendering is tested in template_test.go
 
 func TestPhaseState(t *testing.T) {
+	t.Parallel()
 	state := PhaseState{
 		TaskID:    "TASK-001",
 		TaskTitle: "Test task",
@@ -421,6 +367,7 @@ func TestPhaseState(t *testing.T) {
 }
 
 func TestResult(t *testing.T) {
+	t.Parallel()
 	result := &Result{
 		Phase:        "implement",
 		Iterations:   5,
@@ -448,67 +395,8 @@ func TestResult(t *testing.T) {
 	}
 }
 
-func TestRenderTemplateWithRetryContext(t *testing.T) {
-	e := newTestExecutor(t)
-
-	state := PhaseState{
-		TaskID:       "TASK-001",
-		TaskTitle:    "Fix bug",
-		Phase:        "implement",
-		Weight:       "small",
-		RetryContext: "Previous attempt failed because tests didn't pass",
-	}
-
-	tmpl := "Task: {{TASK_ID}}\nRetry info: {{RETRY_CONTEXT}}"
-	result := e.renderTemplate(tmpl, state)
-
-	expected := "Task: TASK-001\nRetry info: Previous attempt failed because tests didn't pass"
-	if result != expected {
-		t.Errorf("renderTemplate() = %q, want %q", result, expected)
-	}
-}
-
-func TestRenderTemplateWithDescription(t *testing.T) {
-	e := newTestExecutor(t)
-
-	state := PhaseState{
-		TaskID:          "TASK-002",
-		TaskTitle:       "Add feature",
-		TaskDescription: "Add a new button to the UI that triggers an action",
-		Phase:           "spec",
-		Weight:          "medium",
-	}
-
-	tmpl := "Title: {{TASK_TITLE}}\nDescription: {{TASK_DESCRIPTION}}"
-	result := e.renderTemplate(tmpl, state)
-
-	expected := "Title: Add feature\nDescription: Add a new button to the UI that triggers an action"
-	if result != expected {
-		t.Errorf("renderTemplate() = %q, want %q", result, expected)
-	}
-}
-
-func TestRenderTemplateWithEmptyValues(t *testing.T) {
-	e := newTestExecutor(t)
-
-	state := PhaseState{
-		TaskID:    "TASK-003",
-		TaskTitle: "Test",
-		Phase:     "implement",
-		Weight:    "trivial",
-		// All other fields empty
-	}
-
-	tmpl := "{{RESEARCH_CONTENT}}{{SPEC_CONTENT}}{{DESIGN_CONTENT}}"
-	result := e.renderTemplate(tmpl, state)
-
-	// Empty strings should just result in empty output
-	if result != "" {
-		t.Errorf("renderTemplate() with empty values = %q, want empty", result)
-	}
-}
-
 func TestPhaseStateWithAllFields(t *testing.T) {
+	t.Parallel()
 	state := PhaseState{
 		TaskID:          "TASK-001",
 		TaskTitle:       "Full task",
@@ -540,6 +428,7 @@ func TestPhaseStateWithAllFields(t *testing.T) {
 }
 
 func TestResultWithError(t *testing.T) {
+	t.Parallel()
 	testErr := fmt.Errorf("tests failed")
 	result := &Result{
 		Phase:      "test",
@@ -557,6 +446,7 @@ func TestResultWithError(t *testing.T) {
 }
 
 func TestSetPublisher(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 
 	if e.publisher != nil {
@@ -573,6 +463,7 @@ func TestSetPublisher(t *testing.T) {
 }
 
 func TestNewWithDifferentConfigs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		cfg            *Config
@@ -610,6 +501,7 @@ func TestNewWithDifferentConfigs(t *testing.T) {
 }
 
 func TestConfigFromOrc(t *testing.T) {
+	t.Parallel()
 	orcCfg := &config.Config{
 		ClaudePath:                 "/custom/claude",
 		Model:                      "custom-model",
@@ -648,6 +540,7 @@ func TestConfigFromOrc(t *testing.T) {
 }
 
 func TestNewWithConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Profile: "strict",
@@ -664,6 +557,7 @@ func TestNewWithConfig(t *testing.T) {
 }
 
 func TestNewWithConfig_NilOrcConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 
 	e := NewWithConfig(cfg, nil)
@@ -678,6 +572,7 @@ func TestNewWithConfig_NilOrcConfig(t *testing.T) {
 }
 
 func TestSetClient(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 
 	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done"}`)
@@ -690,6 +585,7 @@ func TestSetClient(t *testing.T) {
 }
 
 func TestPublishHelpers(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -725,6 +621,7 @@ func TestPublishHelpers(t *testing.T) {
 }
 
 func TestPublishPhaseComplete(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -752,6 +649,7 @@ func TestPublishPhaseComplete(t *testing.T) {
 }
 
 func TestPublishPhaseFailed(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -780,6 +678,7 @@ func TestPublishPhaseFailed(t *testing.T) {
 }
 
 func TestPublishTranscript(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -813,6 +712,7 @@ func TestPublishTranscript(t *testing.T) {
 }
 
 func TestPublishTokens(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -846,6 +746,7 @@ func TestPublishTokens(t *testing.T) {
 }
 
 func TestPublishError(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -879,6 +780,7 @@ func TestPublishError(t *testing.T) {
 }
 
 func TestPublishWithNoPublisher(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	// No publisher set - should not panic
 	e.publishPhaseStart("TASK-001", "test")
@@ -890,14 +792,19 @@ func TestPublishWithNoPublisher(t *testing.T) {
 }
 
 func TestExecutePhase_Complete(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Implementation done."}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Implementation done."}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	// Create test task
 	testTask := &task.Task{
@@ -932,28 +839,31 @@ func TestExecutePhase_Complete(t *testing.T) {
 		t.Errorf("expected phase implement, got %s", result.Phase)
 	}
 
-	if mockClient.CallCount() < 1 {
+	if mockExecutor.CallCount() < 1 {
 		t.Error("expected at least one Claude call")
 	}
 }
 
 func TestExecutePhase_MaxIterations(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
-	cfg.MaxIterations = 2 // Low for testing
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	// Mock that never completes
-	mockClient := claude.NewMockClient("Still working on it...")
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Mock that never completes - always returns "continue" status
+	mockExecutor := NewMockTurnExecutor("Still working on it...")
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-002",
 		Title:  "Never ending task",
 		Status: task.StatusRunning,
-		Weight: task.WeightSmall,
+		Weight: task.WeightTrivial, // Trivial has max 5 iterations (lowest)
 	}
 
 	testPhase := &plan.Phase{
@@ -967,21 +877,26 @@ func TestExecutePhase_MaxIterations(t *testing.T) {
 	ctx := context.Background()
 	result, _ := e.ExecutePhase(ctx, testTask, testPhase, testState)
 
-	// Should stop at max iterations
-	if result.Iterations > 2 {
-		t.Errorf("expected max 2 iterations, got %d", result.Iterations)
+	// Should stop at max iterations for trivial weight (5)
+	if result.Iterations > 5 {
+		t.Errorf("expected max 5 iterations for trivial weight, got %d", result.Iterations)
 	}
 }
 
 func TestExecutePhase_Blocked(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient(`{"status": "blocked", "reason": "Need clarification on requirements"}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "blocked", "reason": "Need clarification on requirements"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-003",
@@ -1011,15 +926,16 @@ func TestExecutePhase_Blocked(t *testing.T) {
 }
 
 func TestExecutePhase_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	// Mock that takes time (simulated by the mock sleeping)
-	mockClient := claude.NewMockClient("Response")
-	e.SetClient(mockClient)
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor("Response")
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-004",
@@ -1050,17 +966,22 @@ func TestExecutePhase_ContextCancellation(t *testing.T) {
 }
 
 func TestExecutePhase_WithPublisher(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
 
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	ch := pub.Subscribe("TEST-005")
 	defer pub.Unsubscribe("TEST-005", ch)
@@ -1100,6 +1021,7 @@ func TestExecutePhase_WithPublisher(t *testing.T) {
 }
 
 func TestPublishState(t *testing.T) {
+	t.Parallel()
 	e := newTestExecutor(t)
 	pub := events.NewMemoryPublisher()
 	e.SetPublisher(pub)
@@ -1130,6 +1052,7 @@ func TestPublishState(t *testing.T) {
 }
 
 func TestEvaluateGate_AutoApprove(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Gates: config.GateConfig{
@@ -1165,6 +1088,7 @@ func TestEvaluateGate_AutoApprove(t *testing.T) {
 }
 
 func TestEvaluateGate_WithCriteria(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Gates: config.GateConfig{
@@ -1205,6 +1129,7 @@ func TestEvaluateGate_WithCriteria(t *testing.T) {
 }
 
 func TestEvaluateGate_PhaseOverride(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	orcCfg := &config.Config{
 		Gates: config.GateConfig{
@@ -1239,6 +1164,7 @@ func TestEvaluateGate_PhaseOverride(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase(t *testing.T) {
+	t.Parallel()
 	// Test with no retry context
 	testState := state.New("TASK-999")
 	ctx := LoadRetryContextForPhase(testState)
@@ -1248,6 +1174,7 @@ func TestLoadRetryContextForPhase(t *testing.T) {
 }
 
 func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
+	t.Parallel()
 	// Test with retry context set
 	testState := state.New("TASK-888")
 	testState.SetRetryContext("test", "implement", "test failed", "output here", 1)
@@ -1262,6 +1189,7 @@ func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
 }
 
 func TestSaveRetryContextFile(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create task directory for context file
@@ -1297,6 +1225,7 @@ func TestSaveRetryContextFile(t *testing.T) {
 }
 
 func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create task directory for context files
@@ -1322,76 +1251,22 @@ func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 	}
 }
 
-func TestBuildPromptNode_InlinePrompt(t *testing.T) {
-	e := newTestExecutor(t)
-
-	// Create a phase with inline prompt (no template file)
-	testPhase := &plan.Phase{
-		ID:     "custom",
-		Name:   "Custom Phase",
-		Prompt: "Do something for {{TASK_TITLE}}",
-	}
-
-	nodeFunc := e.buildPromptNode(testPhase)
-
-	initialState := PhaseState{
-		TaskID:    "TEST-001",
-		TaskTitle: "Test Task",
-		Phase:     "custom",
-		Weight:    "small",
-	}
-
-	// Execute the node
-	result, err := nodeFunc(nil, initialState)
-	if err != nil {
-		t.Fatalf("buildPromptNode failed: %v", err)
-	}
-
-	// Verify prompt was rendered
-	if !strings.Contains(result.Prompt, "Test Task") {
-		t.Errorf("prompt should contain task title, got: %s", result.Prompt)
-	}
-
-	// Verify iteration was incremented
-	if result.Iteration != 1 {
-		t.Errorf("iteration = %d, want 1", result.Iteration)
-	}
-}
-
-func TestBuildPromptNode_NoPrompt(t *testing.T) {
-	e := newTestExecutor(t)
-
-	// Create a phase with no prompt and no template
-	testPhase := &plan.Phase{
-		ID:   "nonexistent",
-		Name: "Nonexistent Phase",
-		// No Prompt field
-	}
-
-	nodeFunc := e.buildPromptNode(testPhase)
-
-	initialState := PhaseState{
-		TaskID:    "TEST-001",
-		TaskTitle: "Test Task",
-		Phase:     "nonexistent",
-	}
-
-	// Execute the node - should return error
-	_, err := nodeFunc(nil, initialState)
-	if err == nil {
-		t.Error("buildPromptNode should fail when no prompt is available")
-	}
-}
+// Note: TestBuildPromptNode* tests removed - flowgraph node builders no longer exist
 
 func TestExecuteWithRetry_Success(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-RETRY-001",
@@ -1421,14 +1296,16 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 }
 
 func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	mockClient := claude.NewMockClient("Still working...")
-	e.SetClient(mockClient)
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor("Still working...")
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-CANCEL",
@@ -1453,43 +1330,14 @@ func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
 	_ = err
 }
 
-func TestCommitCheckpointNode(t *testing.T) {
-	// Create temp dir that's not a git repo to ensure gitOps is nil
-	tmpDir := t.TempDir()
-
-	backend := newTestBackend(t)
-	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
-	cfg.Backend = backend
-	e := New(cfg)
-
-	nodeFunc := e.commitCheckpointNode()
-
-	// Test with completed state
-	state := PhaseState{
-		TaskID:   "TEST-001",
-		Phase:    "implement",
-		Complete: true,
-		Response: "Implementation done",
-	}
-
-	// Since gitOps is nil in a non-git dir, this should pass through without error
-	result, err := nodeFunc(nil, state)
-	if err != nil {
-		t.Fatalf("commitCheckpointNode failed: %v", err)
-	}
-
-	// State should pass through
-	if !result.Complete {
-		t.Error("state should still be complete")
-	}
-}
+// Note: TestCommitCheckpointNode removed - flowgraph node builders no longer exist
 
 // === ExecuteTask Tests ===
 // Note: These tests require full integration and are simplified
 // since they would need a real git repo and more setup.
 
 func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -1520,13 +1368,18 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 	// Create state
 	testState := state.New("TASK-EXEC-001")
 
-	// Create executor with mock client
+	// Create executor with mock TurnExecutor
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Implementation done!"}`)
-	e.SetClient(mockClient)
+
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Implementation done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	// Execute task
 	ctx := context.Background()
@@ -1546,6 +1399,7 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 }
 
 func TestExecuteTask_ContextCancelled(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -1575,13 +1429,15 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 	// Create state
 	testState := state.New("TASK-CANCEL-001")
 
-	// Create executor with mock client that returns incomplete response
+	// Create executor with mock TurnExecutor that returns incomplete response
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient("Still working...")
-	e.SetClient(mockClient)
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor("Still working...")
+	e.SetTurnExecutor(mockExecutor)
 
 	// Cancel context immediately
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1599,6 +1455,7 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 }
 
 func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -1638,13 +1495,18 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
-	// Create executor with mock client
+	// Create executor with mock TurnExecutor
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	// Execute task
 	ctx := context.Background()
@@ -1668,6 +1530,7 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 }
 
 func TestExecuteTask_WithPublisher(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -1713,13 +1576,18 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 		}
 	}()
 
-	// Create executor with mock client and publisher
+	// Create executor with mock TurnExecutor and publisher
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 	e.SetPublisher(pub)
 
 	// Execute task
@@ -1764,6 +1632,7 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 // === ResumeFromPhase Tests ===
 
 func TestResumeFromPhase_Success(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -1805,13 +1674,18 @@ func TestResumeFromPhase_Success(t *testing.T) {
 		t.Fatalf("failed to save state: %v", err)
 	}
 
-	// Create executor with mock client
+	// Create executor with mock TurnExecutor
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	// Resume from implement phase
 	ctx := context.Background()
@@ -1828,6 +1702,7 @@ func TestResumeFromPhase_Success(t *testing.T) {
 }
 
 func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	testTask := task.New("TASK-RESUME-002", "Resume Test")
@@ -1869,19 +1744,18 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 // === ExecuteWithRetry Tests ===
 
 func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
 
-	// Create a mock client that fails with an error
-	mockClient := claude.NewMockClient("").
-		WithError(fmt.Errorf("rate limited"))
-
-	// This approach doesn't work well with the mock - the error persists
-	// Let's just test that the function handles the retry config properly
-	e.SetClient(mockClient)
+	// Use a non-retryable error to avoid 14s of backoff waits
+	// "invalid input" doesn't match any retry patterns
+	mockExecutor := NewMockTurnExecutor("")
+	mockExecutor.Error = fmt.Errorf("invalid input")
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-RETRY-002",
@@ -1900,52 +1774,19 @@ func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
 
 	ctx := context.Background()
 
-	// This will likely fail due to mock limitation, but it exercises the retry path
+	// Should fail immediately without retries since error is not retryable
 	_, err := e.ExecuteWithRetry(ctx, testTask, testPhase, testState)
 	if err == nil {
-		t.Log("ExecuteWithRetry succeeded (mock returned success eventually)")
-	} else {
-		t.Log("ExecuteWithRetry failed as expected with mock error:", err)
+		t.Error("expected error from non-retryable failure")
 	}
 }
 
-func TestSaveTranscript(t *testing.T) {
-	tmpDir := t.TempDir()
-	transcriptsDir := filepath.Join(tmpDir, ".orc/tasks/TASK-TRANS-001/transcripts")
-
-	// Create task directory structure
-	if err := os.MkdirAll(transcriptsDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-
-	backend := newTestBackend(t)
-	cfg := DefaultConfig()
-	cfg.WorkDir = tmpDir
-	cfg.Backend = backend
-	e := New(cfg)
-
-	phaseState := PhaseState{
-		TaskID:    "TASK-TRANS-001",
-		Phase:     "implement",
-		Iteration: 1,
-		Response:  "Implementation complete!",
-	}
-
-	err := e.saveTranscript(phaseState)
-	if err != nil {
-		t.Fatalf("saveTranscript failed: %v", err)
-	}
-
-	// Verify file was created
-	files, _ := os.ReadDir(transcriptsDir)
-	if len(files) == 0 {
-		t.Error("expected transcript file to be created")
-	}
-}
+// Note: TestSaveTranscript removed - flowgraph saveTranscript no longer exists
 
 // TestFailSetup_UpdatesTaskStatus verifies that when setup fails (e.g., worktree creation),
 // the task status is properly updated to "failed" and the error is stored.
 func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	tmpDir := t.TempDir()
 
@@ -2024,6 +1865,7 @@ func TestFailSetup_UpdatesTaskStatus(t *testing.T) {
 }
 
 func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -2061,8 +1903,13 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
 	e := New(cfg)
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	ctx := context.Background()
 	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
@@ -2090,6 +1937,7 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 // TestHandlePhaseFailure_BlockedReview_TriggersRetry verifies that when a review phase
 // fails with a blocked error, the retry logic triggers a retry from the implement phase.
 func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	cfg := DefaultConfig()
@@ -2161,6 +2009,7 @@ func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
 // TestHandlePhaseFailure_BlockedTest_TriggersRetry verifies that when a test phase
 // fails with a blocked error, the retry logic triggers a retry from the implement phase.
 func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	cfg := DefaultConfig()
@@ -2203,6 +2052,7 @@ func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
 // TestHandlePhaseFailure_NoRetryForSpec verifies that spec phase failures do NOT trigger retry
 // (spec has no upstream phase to retry from).
 func TestHandlePhaseFailure_NoRetryForSpec(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	cfg := DefaultConfig()
@@ -2248,6 +2098,7 @@ func TestHandlePhaseFailure_NoRetryForSpec(t *testing.T) {
 // TestHandlePhaseFailure_MaxRetriesExceeded verifies that retry is not triggered when
 // max retries have been exceeded.
 func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	cfg := DefaultConfig()
@@ -2296,6 +2147,7 @@ func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
 // should be marked as failed (not paused), with a clear error message including
 // the task ID and resume hint.
 func TestExecutePhase_PhaseTimeout(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
@@ -2310,11 +2162,13 @@ func TestExecutePhase_PhaseTimeout(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	// Create a mock client that takes a long time to respond
-	// The mock will respond instantly, but we'll verify the timeout mechanism
-	// by checking the context behavior
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing (preserve timeouts config)
+	e.orcConfig.Validation.Enabled = false
+
+	// Create a mock TurnExecutor that responds instantly
+	// We're verifying the timeout mechanism by checking the context behavior
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-TIMEOUT-001",
@@ -2347,6 +2201,7 @@ func TestExecutePhase_PhaseTimeout(t *testing.T) {
 
 // TestExecutePhase_PhaseTimeoutDisabled verifies that PhaseMax=0 disables timeout.
 func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
@@ -2361,8 +2216,12 @@ func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing (preserve timeouts config)
+	e.orcConfig.Validation.Enabled = false
+
+	// Use MockTurnExecutor instead of spawning real Claude CLI
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-TIMEOUT-002",
@@ -2395,6 +2254,7 @@ func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
 // TestExecutePhase_TimeoutProducesInterruptedState verifies that when a phase timeout
 // occurs, the task is marked as paused (interrupted) rather than failed, allowing resume.
 func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create task
@@ -2436,19 +2296,10 @@ func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	// Use a mock client with a custom complete function that blocks longer than the timeout
-	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
-		// Sleep longer than PhaseMax to trigger timeout
-		select {
-		case <-time.After(200 * time.Millisecond):
-			return &claude.CompletionResponse{
-				Content: "Still working...",
-			}, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	})
-	e.SetClient(mockClient)
+	// Use MockTurnExecutor with a Delay longer than the timeout to trigger timeout
+	mockExecutor := NewMockTurnExecutor("Still working...")
+	mockExecutor.Delay = 200 * time.Millisecond // Much longer than 10ms PhaseMax
+	e.SetTurnExecutor(mockExecutor)
 
 	// Execute task - should timeout
 	ctx := context.Background()
@@ -2496,6 +2347,7 @@ func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
 
 // TestPhaseTimeoutError verifies the phaseTimeoutError type behavior.
 func TestPhaseTimeoutError(t *testing.T) {
+	t.Parallel()
 	underlyingErr := fmt.Errorf("underlying error")
 	pte := &phaseTimeoutError{
 		phase:   "implement",
@@ -2545,6 +2397,7 @@ func TestPhaseTimeoutError(t *testing.T) {
 // TestExecutePhase_TurnTimeoutStillWorks verifies that the existing TurnMax timeout
 // still takes precedence when it's shorter than PhaseMax.
 func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 	cfg := DefaultConfig()
 	cfg.WorkDir = t.TempDir()
@@ -2560,9 +2413,12 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	// Use a mock client that completes quickly
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Done!"}`)
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing (preserve timeouts config)
+	e.orcConfig.Validation.Enabled = false
+
+	// Use MockTurnExecutor that completes quickly
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Done!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	testTask := &task.Task{
 		ID:     "TEST-TURN-TIMEOUT",
@@ -2594,6 +2450,7 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 
 // TestTimeoutWarningThresholds verifies that warning thresholds are calculated correctly.
 func TestTimeoutWarningThresholds(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		phaseMax     time.Duration
@@ -2649,6 +2506,7 @@ func TestTimeoutWarningThresholds(t *testing.T) {
 // TestExecuteTask_SpecExtractionFailure verifies that when spec extraction fails
 // (no artifact tags found), the task is properly marked as failed.
 func TestExecuteTask_SpecExtractionFailure(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create a medium-weight task (requires spec)
@@ -2689,9 +2547,9 @@ func TestExecuteTask_SpecExtractionFailure(t *testing.T) {
 	ch := pub.Subscribe("TASK-SPEC-FAIL-001")
 	defer pub.Unsubscribe("TASK-SPEC-FAIL-001", ch)
 
-	// Mock client returns output WITHOUT artifact tags - this should cause spec extraction to fail
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "Spec done but no artifact tags!"}`)
-	e.SetClient(mockClient)
+	// Mock TurnExecutor returns output WITHOUT artifact tags - this should cause spec extraction to fail
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "Spec done but no artifact tags!"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	// Execute task - should fail during spec extraction
 	ctx := context.Background()
@@ -2765,6 +2623,7 @@ drainEvents:
 // TestExecuteTask_EmptySpecOutput verifies that when spec phase produces empty output
 // for a medium+ weight task, the task is properly marked as failed.
 func TestExecuteTask_EmptySpecOutput(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create a medium-weight task (requires spec)
@@ -2798,17 +2657,12 @@ func TestExecuteTask_EmptySpecOutput(t *testing.T) {
 	cfg.MaxIterations = 1
 	cfg.WorkDir = t.TempDir()
 	cfg.Backend = backend
+	cfg.MaxIterations = 2 // Keep low to speed up test
 	e := New(cfg)
 
-	// Mock client returns empty output - phase completes but returns nothing
-	// This uses WithCompleteFunc to set result.Output to empty string after completion
-	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
-		// Return response with NO content - simulates agent that doesn't produce output
-		return &claude.CompletionResponse{
-			Content: "", // Empty output
-		}, nil
-	})
-	e.SetClient(mockClient)
+	// Mock TurnExecutor returns empty output - phase never completes since there's no completion marker
+	mockExecutor := NewMockTurnExecutor("") // Empty output - no completion marker
+	e.SetTurnExecutor(mockExecutor)
 
 	// Execute task - should fail due to max iterations (phase never completes)
 	// The empty output check only happens AFTER a phase completes successfully.
@@ -2836,6 +2690,7 @@ func TestExecuteTask_EmptySpecOutput(t *testing.T) {
 // TestExecuteTask_SpecDatabaseSaveFailure verifies that when database save fails
 // for spec content, the task is properly marked as failed.
 func TestExecuteTask_SpecDatabaseSaveFailure(t *testing.T) {
+	t.Parallel()
 	// This test is more complex as it requires mocking database failures.
 	// For now, we verify the code path exists by checking that a nil backend
 	// during spec save would be handled (though in practice backend is never nil).
@@ -2852,6 +2707,7 @@ func TestExecuteTask_SpecDatabaseSaveFailure(t *testing.T) {
 // TestExecuteTask_SpecFailure_ClearsExecution verifies that spec extraction failure
 // clears execution tracking (PID, hostname) so the task isn't detected as orphaned.
 func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	testTask := task.New("TASK-SPEC-EXEC-001", "Spec Execution Clear Test")
@@ -2883,9 +2739,9 @@ func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	// Mock returns output without artifact tags
-	mockClient := claude.NewMockClient(`{"status": "complete", "summary": "No spec content"}`)
-	e.SetClient(mockClient)
+	// Mock TurnExecutor returns output without artifact tags
+	mockExecutor := NewMockTurnExecutor(`{"status": "complete", "summary": "No spec content"}`)
+	e.SetTurnExecutor(mockExecutor)
 
 	ctx := context.Background()
 	_ = e.ExecuteTask(ctx, testTask, testPlan, testState)
@@ -2906,6 +2762,7 @@ func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
 // TestExecuteTask_SmallWeight_NoSpecRequired verifies that small/trivial weight tasks
 // don't fail when spec extraction fails (they don't require specs).
 func TestExecuteTask_SmallWeight_NoSpecRequired(t *testing.T) {
+	t.Parallel()
 	backend := newTestBackend(t)
 
 	// Create a small-weight task (does NOT require spec)
@@ -2944,22 +2801,15 @@ func TestExecuteTask_SmallWeight_NoSpecRequired(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	// Mock returns output without artifact tags for spec, then completes implement
-	callCount := 0
-	mockClient := claude.NewMockClient("").WithCompleteFunc(func(ctx context.Context, req claude.CompletionRequest) (*claude.CompletionResponse, error) {
-		callCount++
-		if callCount == 1 {
-			// First call (spec phase) - no artifact tags
-			return &claude.CompletionResponse{
-				Content: `{"status": "complete", "summary": "Spec done but no tags"}`,
-			}, nil
-		}
-		// Second call (implement phase) - complete
-		return &claude.CompletionResponse{
-			Content: `{"status": "complete", "summary": "Implementation done!"}`,
-		}, nil
-	})
-	e.SetClient(mockClient)
+	// Disable validation/backpressure for testing
+	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
+
+	// Mock TurnExecutor returns output without artifact tags for spec, then completes implement
+	mockExecutor := NewMockTurnExecutorWithResponses(
+		`{"status": "complete", "summary": "Spec done but no tags"}`,
+		`{"status": "complete", "summary": "Implementation done!"}`,
+	)
+	e.SetTurnExecutor(mockExecutor)
 
 	ctx := context.Background()
 	err := e.ExecuteTask(ctx, testTask, testPlan, testState)

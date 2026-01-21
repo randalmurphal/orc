@@ -11,6 +11,7 @@ import (
 )
 
 func TestShouldRunReview(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfg      *config.Config
@@ -52,6 +53,7 @@ func TestShouldRunReview(t *testing.T) {
 }
 
 func TestGetReviewRounds(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfg      *config.Config
@@ -89,6 +91,7 @@ func TestGetReviewRounds(t *testing.T) {
 }
 
 func TestParseReviewFindings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		response  string
@@ -170,6 +173,7 @@ func TestParseReviewFindings(t *testing.T) {
 }
 
 func TestParseReviewFindingsDetails(t *testing.T) {
+	t.Parallel()
 	response := `{
 		"round": 1,
 		"summary": "Review complete",
@@ -232,6 +236,7 @@ func TestParseReviewFindingsDetails(t *testing.T) {
 }
 
 func TestParseReviewDecision(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		response   string
@@ -302,6 +307,7 @@ func TestParseReviewDecision(t *testing.T) {
 }
 
 func TestParseReviewDecisionDetails(t *testing.T) {
+	t.Parallel()
 	response := `{
 		"status": "pass",
 		"gaps_addressed": true,
@@ -349,6 +355,7 @@ func TestParseReviewDecisionDetails(t *testing.T) {
 }
 
 func TestHasHighSeverityIssues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		findings *ReviewFindings
@@ -393,6 +400,7 @@ func TestHasHighSeverityIssues(t *testing.T) {
 }
 
 func TestCountBySeverity(t *testing.T) {
+	t.Parallel()
 	findings := &ReviewFindings{
 		Issues: []ReviewFinding{
 			{Severity: "high"},
@@ -418,6 +426,7 @@ func TestCountBySeverity(t *testing.T) {
 }
 
 func TestFormatFindingsForRound2(t *testing.T) {
+	t.Parallel()
 	t.Run("nil findings", func(t *testing.T) {
 		result := FormatFindingsForRound2(nil)
 		if result != "No findings from Round 1." {
@@ -476,6 +485,7 @@ func TestFormatFindingsForRound2(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 func TestParallelReviewResult_Merge(t *testing.T) {
+	t.Parallel()
 	pr := NewParallelReviewResult([]ReviewerPerspective{
 		PerspectiveCorrectness,
 		PerspectiveArchitecture,
@@ -536,6 +546,7 @@ func TestParallelReviewResult_Merge(t *testing.T) {
 }
 
 func TestParallelReviewResult_HasHighSeverityIssues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		findings map[ReviewerPerspective]*ReviewFindings
@@ -580,6 +591,7 @@ func TestParallelReviewResult_HasHighSeverityIssues(t *testing.T) {
 }
 
 func TestShouldRunParallelReview(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfg      *config.Config
@@ -665,6 +677,7 @@ func TestShouldRunParallelReview(t *testing.T) {
 }
 
 func TestGetReviewPerspectives(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		cfg      *config.Config
@@ -716,6 +729,7 @@ func TestGetReviewPerspectives(t *testing.T) {
 }
 
 func TestGetPerspectivePromptContext(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		perspective ReviewerPerspective
 		contains    string
@@ -747,6 +761,7 @@ func TestGetPerspectivePromptContext(t *testing.T) {
 }
 
 func TestFormatParallelReviewSummary(t *testing.T) {
+	t.Parallel()
 	t.Run("nil result", func(t *testing.T) {
 		result := FormatParallelReviewSummary(nil)
 		if !strings.Contains(result, "No parallel review") {
@@ -781,6 +796,7 @@ func TestFormatParallelReviewSummary(t *testing.T) {
 }
 
 func TestIssueDeduplication(t *testing.T) {
+	t.Parallel()
 	// Test that similar issues are deduplicated
 	pr := NewParallelReviewResult([]ReviewerPerspective{
 		PerspectiveCorrectness,
@@ -827,6 +843,7 @@ func taskWeightFromString(s string) task.Weight {
 }
 
 func TestExtractReviewFindings(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	// MockClient returns what we give it, but ExtractStructured tries direct parsing first
 	mockClient := claude.NewMockClient("")
@@ -920,6 +937,7 @@ Please let me know if you have questions.`,
 }
 
 func TestExtractReviewDecision(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	mockClient := claude.NewMockClient("")
 

@@ -8,6 +8,7 @@ import (
 )
 
 func TestOpen(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
@@ -32,6 +33,7 @@ func TestOpen(t *testing.T) {
 }
 
 func TestOpen_CreatesParentDir(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "subdir", "nested", "test.db")
 
@@ -43,6 +45,7 @@ func TestOpen_CreatesParentDir(t *testing.T) {
 }
 
 func TestMigrate(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
@@ -70,6 +73,7 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestMigrate_Project(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 
@@ -95,6 +99,7 @@ func TestMigrate_Project(t *testing.T) {
 }
 
 func TestGlobalDB_Projects(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -176,6 +181,7 @@ func TestGlobalDB_Projects(t *testing.T) {
 }
 
 func TestGlobalDB_CostTracking(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -228,6 +234,7 @@ func TestGlobalDB_CostTracking(t *testing.T) {
 }
 
 func TestProjectDB_Detection(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -275,6 +282,7 @@ func TestProjectDB_Detection(t *testing.T) {
 }
 
 func TestProjectDB_Tasks(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -376,6 +384,7 @@ func TestProjectDB_Tasks(t *testing.T) {
 }
 
 func TestProjectDB_Phases(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -435,6 +444,7 @@ func TestProjectDB_Phases(t *testing.T) {
 }
 
 func TestProjectDB_Transcripts(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -484,6 +494,7 @@ func TestProjectDB_Transcripts(t *testing.T) {
 }
 
 func TestProjectDB_TranscriptBatch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -552,6 +563,7 @@ func TestProjectDB_TranscriptBatch(t *testing.T) {
 }
 
 func TestProjectDB_TranscriptBatch_Empty(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -578,6 +590,7 @@ func TestProjectDB_TranscriptBatch_Empty(t *testing.T) {
 }
 
 func TestProjectDB_TranscriptSearch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -632,6 +645,7 @@ func TestProjectDB_TranscriptSearch(t *testing.T) {
 }
 
 func TestProjectDB_CascadeDelete(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -680,6 +694,7 @@ func TestProjectDB_CascadeDelete(t *testing.T) {
 }
 
 func TestProjectDB_Initiatives(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -767,6 +782,7 @@ func TestProjectDB_Initiatives(t *testing.T) {
 }
 
 func TestProjectDB_InitiativeDecisions(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -827,6 +843,7 @@ func TestProjectDB_InitiativeDecisions(t *testing.T) {
 }
 
 func TestProjectDB_InitiativeTasks(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -900,6 +917,7 @@ func TestProjectDB_InitiativeTasks(t *testing.T) {
 }
 
 func TestProjectDB_TaskDependencies(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -972,6 +990,7 @@ func TestProjectDB_TaskDependencies(t *testing.T) {
 }
 
 func TestProjectDB_InitiativeDependencies(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1044,6 +1063,7 @@ func TestProjectDB_InitiativeDependencies(t *testing.T) {
 }
 
 func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1174,6 +1194,7 @@ func TestProjectDB_InitiativeBatchLoading(t *testing.T) {
 }
 
 func TestProjectDB_InitiativeBatchLoading_Empty(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1224,6 +1245,7 @@ func TestProjectDB_InitiativeBatchLoading_Empty(t *testing.T) {
 }
 
 func TestProjectDB_GetTranscriptsByPhase(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1304,6 +1326,7 @@ func TestProjectDB_GetTranscriptsByPhase(t *testing.T) {
 }
 
 func TestProjectDB_GetTranscriptsBySession(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1379,6 +1402,7 @@ func TestProjectDB_GetTranscriptsBySession(t *testing.T) {
 }
 
 func TestProjectDB_GetLatestTranscript(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 
@@ -1456,6 +1480,7 @@ func TestProjectDB_GetLatestTranscript(t *testing.T) {
 }
 
 func TestProjectDB_TokenUsage(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
 

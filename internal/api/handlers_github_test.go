@@ -129,6 +129,7 @@ func withReviewComments(comments []db.ReviewComment) func(*testing.T, string, st
 // === handleAutoFixComment Tests ===
 
 func TestHandleAutoFixComment_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/C123/autofix", nil)
@@ -142,6 +143,7 @@ func TestHandleAutoFixComment_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleAutoFixComment_CommentNotFound(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupGitHubTestEnv(t)
 	defer cleanup()
 
@@ -156,6 +158,7 @@ func TestHandleAutoFixComment_CommentNotFound(t *testing.T) {
 }
 
 func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
+	t.Parallel()
 	// Create a comment to autofix
 	testComment := db.ReviewComment{
 		ID:         "RC-testfix1",
@@ -208,6 +211,7 @@ func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
 }
 
 func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
+	t.Parallel()
 	testComment := db.ReviewComment{
 		ID:         "RC-meta123",
 		FilePath:   "pkg/handler.go",
@@ -259,6 +263,7 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 }
 
 func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
+	t.Parallel()
 	testComment := db.ReviewComment{
 		ID:       "RC-status1",
 		FilePath: "main.go",
@@ -299,6 +304,7 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 // === handleReplyToPRComment Tests ===
 
 func TestHandleReplyToPRComment_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	body := bytes.NewBufferString(`{"body": "Reply text"}`)
@@ -314,6 +320,7 @@ func TestHandleReplyToPRComment_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -350,6 +357,7 @@ func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 }
 
 func TestHandleReplyToPRComment_EmptyBody(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupGitHubTestEnv(t)
 	defer cleanup()
 
@@ -373,6 +381,7 @@ func TestHandleReplyToPRComment_EmptyBody(t *testing.T) {
 }
 
 func TestHandleReplyToPRComment_InvalidBody(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupGitHubTestEnv(t)
 	defer cleanup()
 
@@ -389,6 +398,7 @@ func TestHandleReplyToPRComment_InvalidBody(t *testing.T) {
 }
 
 func TestHandleReplyToPRComment_InvalidCommentID(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupGitHubTestEnv(t)
 	defer cleanup()
 
@@ -412,6 +422,7 @@ func TestHandleReplyToPRComment_InvalidCommentID(t *testing.T) {
 // === handleImportPRComments Tests ===
 
 func TestHandleImportPRComments_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/import", nil)
@@ -425,6 +436,7 @@ func TestHandleImportPRComments_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleImportPRComments_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -461,6 +473,7 @@ func TestHandleImportPRComments_NoBranch(t *testing.T) {
 // === handleListPRChecks Tests ===
 
 func TestHandleListPRChecks_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/github/pr/checks", nil)
@@ -474,6 +487,7 @@ func TestHandleListPRChecks_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleListPRChecks_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -513,6 +527,7 @@ func TestHandleListPRChecks_NoBranch(t *testing.T) {
 // tests would require mocking the GitHub client.
 
 func TestCheckStatusCategorization_NeutralAndSkipped(t *testing.T) {
+	t.Parallel()
 	// Test that neutral, skipped, and cancelled conclusions are not counted as failures
 	// This validates the logic in handleListPRChecks
 
@@ -566,6 +581,7 @@ func TestCheckStatusCategorization_NeutralAndSkipped(t *testing.T) {
 // === handleCreatePR Tests ===
 
 func TestHandleCreatePR_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr", nil)
@@ -579,6 +595,7 @@ func TestHandleCreatePR_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleCreatePR_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -613,6 +630,7 @@ func TestHandleCreatePR_NoBranch(t *testing.T) {
 }
 
 func TestHandleCreatePR_DefaultsTitle(t *testing.T) {
+	t.Parallel()
 	// This tests that buildPRBody works correctly with a task
 	tsk := &task.Task{
 		ID:          "TASK-PR-001",
@@ -642,6 +660,7 @@ func TestHandleCreatePR_DefaultsTitle(t *testing.T) {
 // === handleGetPR Tests ===
 
 func TestHandleGetPR_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/github/pr", nil)
@@ -655,6 +674,7 @@ func TestHandleGetPR_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleGetPR_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -691,6 +711,7 @@ func TestHandleGetPR_NoBranch(t *testing.T) {
 // === handleMergePR Tests ===
 
 func TestHandleMergePR_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/merge", nil)
@@ -704,6 +725,7 @@ func TestHandleMergePR_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleMergePR_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -740,6 +762,7 @@ func TestHandleMergePR_NoBranch(t *testing.T) {
 // === handleSyncPRComments Tests ===
 
 func TestHandleSyncPRComments_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	srv := New(nil)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/sync", nil)
@@ -753,6 +776,7 @@ func TestHandleSyncPRComments_TaskNotFound(t *testing.T) {
 }
 
 func TestHandleSyncPRComments_NoBranch(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .orc directory
@@ -787,6 +811,7 @@ func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 }
 
 func TestHandleSyncPRComments_NoComments(t *testing.T) {
+	t.Parallel()
 	srv, taskID, cleanup := setupGitHubTestEnv(t)
 	defer cleanup()
 
@@ -817,6 +842,7 @@ func TestHandleSyncPRComments_NoComments(t *testing.T) {
 // === Helper Function Tests ===
 
 func TestFormatReviewCommentBody(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		comment  db.ReviewComment
@@ -867,6 +893,7 @@ func TestFormatReviewCommentBody(t *testing.T) {
 }
 
 func TestTruncateString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		maxLen   int
@@ -891,6 +918,7 @@ func TestTruncateString(t *testing.T) {
 }
 
 func TestBuildPRBody_WithDescription(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{
 		ID:          "TASK-001",
 		Title:       "Add user authentication",
@@ -916,6 +944,7 @@ func TestBuildPRBody_WithDescription(t *testing.T) {
 }
 
 func TestBuildPRBody_WithoutDescription(t *testing.T) {
+	t.Parallel()
 	tsk := &task.Task{
 		ID:    "TASK-002",
 		Title: "Fix bug",
@@ -937,6 +966,7 @@ func TestBuildPRBody_WithoutDescription(t *testing.T) {
 // === State/Plan Loading Tests ===
 
 func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
+	t.Parallel()
 	testComment := db.ReviewComment{
 		ID:         "RC-loadtest",
 		FilePath:   "test.go",
@@ -986,6 +1016,7 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 // === Response Type Tests ===
 
 func TestSyncCommentsResponse_Structure(t *testing.T) {
+	t.Parallel()
 	resp := syncCommentsResponse{
 		Synced:   5,
 		Skipped:  2,
@@ -1014,6 +1045,7 @@ func TestSyncCommentsResponse_Structure(t *testing.T) {
 }
 
 func TestAutoFixResponse_Structure(t *testing.T) {
+	t.Parallel()
 	resp := autoFixResponse{
 		TaskID:    "TASK-001",
 		CommentID: "RC-abc123",
@@ -1040,6 +1072,7 @@ func TestAutoFixResponse_Structure(t *testing.T) {
 }
 
 func TestImportPRCommentsResponse_Structure(t *testing.T) {
+	t.Parallel()
 	resp := importPRCommentsResponse{
 		Imported: 3,
 		Skipped:  1,
@@ -1070,6 +1103,7 @@ func TestImportPRCommentsResponse_Structure(t *testing.T) {
 // === Edge Cases ===
 
 func TestHandleAutoFixComment_WithOpenComments(t *testing.T) {
+	t.Parallel()
 	// Test that other open comments are included in the retry context
 	comments := []db.ReviewComment{
 		{
@@ -1126,6 +1160,7 @@ func TestHandleAutoFixComment_WithOpenComments(t *testing.T) {
 // TestHandleAutoFixComment_ConcurrentExecution tests that the handler
 // properly manages the running tasks map.
 func TestHandleAutoFixComment_RegistersRunningTask(t *testing.T) {
+	t.Parallel()
 	testComment := db.ReviewComment{
 		ID:       "RC-concurrent",
 		FilePath: "concurrent.go",

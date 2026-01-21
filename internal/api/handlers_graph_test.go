@@ -14,6 +14,7 @@ import (
 )
 
 func TestMapTaskStatus(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected string
@@ -41,6 +42,7 @@ func TestMapTaskStatus(t *testing.T) {
 }
 
 func TestBuildGraphFromTasks(t *testing.T) {
+	t.Parallel()
 	taskMap := map[string]*task.Task{
 		"TASK-001": {
 			ID:     "TASK-001",
@@ -127,6 +129,7 @@ func TestBuildGraphFromTasks(t *testing.T) {
 }
 
 func TestBuildGraphFromTasks_NoExternalDeps(t *testing.T) {
+	t.Parallel()
 	taskMap := map[string]*task.Task{
 		"TASK-001": {
 			ID:     "TASK-001",
@@ -159,6 +162,7 @@ func TestBuildGraphFromTasks_NoExternalDeps(t *testing.T) {
 }
 
 func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -241,6 +245,7 @@ func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 }
 
 func TestHandleGetTasksDependencyGraph(t *testing.T) {
+	t.Parallel()
 	// Create temp directory for test
 	tmpDir := t.TempDir()
 
@@ -312,6 +317,7 @@ func TestHandleGetTasksDependencyGraph(t *testing.T) {
 }
 
 func TestHandleGetTasksDependencyGraph_MissingIDs(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{
 		Addr:    ":0",
 		WorkDir: t.TempDir(),

@@ -27,6 +27,7 @@ func (m *mockValidationClient) Stream(_ context.Context, _ claude.CompletionRequ
 }
 
 func TestValidateIterationProgress_JSONParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		response     progressResponse
@@ -85,6 +86,7 @@ func TestValidateIterationProgress_JSONParsing(t *testing.T) {
 }
 
 func TestValidateIterationProgress_EdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("nil client returns continue", func(t *testing.T) {
 		decision, reason, err := ValidateIterationProgress(
 			context.Background(),
@@ -134,6 +136,7 @@ func TestValidateIterationProgress_EdgeCases(t *testing.T) {
 }
 
 func TestValidateTaskReadiness_JSONParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		response      readinessResponse
@@ -187,6 +190,7 @@ func TestValidateTaskReadiness_JSONParsing(t *testing.T) {
 }
 
 func TestValidateTaskReadiness_EdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("nil client returns ready", func(t *testing.T) {
 		ready, suggestions, err := ValidateTaskReadiness(
 			context.Background(),
@@ -256,6 +260,7 @@ func TestValidateTaskReadiness_EdgeCases(t *testing.T) {
 }
 
 func TestValidationDecision_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		decision ValidationDecision
 		want     string
@@ -276,6 +281,7 @@ func TestValidationDecision_String(t *testing.T) {
 }
 
 func TestValidateSuccessCriteria_JSONParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		response       criteriaCompletionResponse
@@ -368,6 +374,7 @@ func TestValidateSuccessCriteria_JSONParsing(t *testing.T) {
 }
 
 func TestValidateSuccessCriteria_EdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("nil client returns AllMet=true", func(t *testing.T) {
 		result, err := ValidateSuccessCriteria(
 			context.Background(),
@@ -414,6 +421,7 @@ func TestValidateSuccessCriteria_EdgeCases(t *testing.T) {
 }
 
 func TestFormatCriteriaFeedback(t *testing.T) {
+	t.Parallel()
 	t.Run("nil result returns empty string", func(t *testing.T) {
 		got := FormatCriteriaFeedback(nil)
 		if got != "" {

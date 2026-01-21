@@ -8,6 +8,7 @@ import (
 )
 
 func TestRalphStateManager_Create(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -50,6 +51,7 @@ func TestRalphStateManager_Create(t *testing.T) {
 }
 
 func TestRalphStateManager_CreateWithOptions(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -80,6 +82,7 @@ func TestRalphStateManager_CreateWithOptions(t *testing.T) {
 }
 
 func TestRalphStateManager_IncrementIteration(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -105,6 +108,7 @@ func TestRalphStateManager_IncrementIteration(t *testing.T) {
 }
 
 func TestRalphStateManager_UpdateSessionID(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -129,6 +133,7 @@ func TestRalphStateManager_UpdateSessionID(t *testing.T) {
 }
 
 func TestRalphStateManager_Remove(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -156,6 +161,7 @@ func TestRalphStateManager_Remove(t *testing.T) {
 }
 
 func TestRalphStateManager_LoadNonExistent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -172,6 +178,7 @@ func TestRalphStateManager_LoadNonExistent(t *testing.T) {
 }
 
 func TestRalphStateManager_PromptPreservation(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -210,6 +217,7 @@ Complete when done.`
 }
 
 func TestRalphStateManager_StartedAt(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	mgr := NewRalphStateManager(dir)
 
@@ -231,6 +239,7 @@ func TestRalphStateManager_StartedAt(t *testing.T) {
 }
 
 func TestIsOrcWorktree(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -255,6 +264,7 @@ func TestIsOrcWorktree(t *testing.T) {
 }
 
 func TestExtractTaskIDFromWorktree(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want string
@@ -278,6 +288,7 @@ func TestExtractTaskIDFromWorktree(t *testing.T) {
 }
 
 func TestParseRalphFile_InvalidFormats(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string

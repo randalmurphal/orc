@@ -9,6 +9,7 @@ import (
 )
 
 func TestRenderTemplateFunc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		template string
@@ -118,6 +119,7 @@ func TestRenderTemplateFunc(t *testing.T) {
 }
 
 func TestBuildTemplateVars(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		task         *task.Task
@@ -243,6 +245,7 @@ func TestBuildTemplateVars(t *testing.T) {
 }
 
 func TestLoadPromptTemplate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		phase     *plan.Phase
@@ -318,6 +321,7 @@ func TestLoadPromptTemplate(t *testing.T) {
 }
 
 func TestTemplateVars_ZeroValue(t *testing.T) {
+	t.Parallel()
 	var vars TemplateVars
 
 	// Zero value should be safe to use
@@ -355,6 +359,7 @@ func findSubstring(s, substr string) bool {
 }
 
 func TestRenderTemplate_WorktreeVariables(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		template string
@@ -414,6 +419,7 @@ func TestRenderTemplate_WorktreeVariables(t *testing.T) {
 }
 
 func TestBuildTemplateVarsWithWorktree(t *testing.T) {
+	t.Parallel()
 	taskObj := &task.Task{
 		ID:          "TASK-001",
 		Title:       "Test Task",
@@ -453,6 +459,7 @@ func TestBuildTemplateVarsWithWorktree(t *testing.T) {
 }
 
 func TestTemplateVars_WithWorktreeContext(t *testing.T) {
+	t.Parallel()
 	vars := TemplateVars{
 		TaskID:    "TASK-001",
 		TaskTitle: "Test",
@@ -491,6 +498,7 @@ func TestTemplateVars_WithWorktreeContext(t *testing.T) {
 }
 
 func TestExecutorConfig_GetTargetBranch(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		config ExecutorConfig
@@ -535,6 +543,7 @@ func TestExecutorConfig_GetTargetBranch(t *testing.T) {
 }
 
 func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
+	t.Parallel()
 	weights := []task.Weight{
 		task.WeightTrivial,
 		task.WeightSmall,
@@ -559,6 +568,7 @@ func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
 }
 
 func TestRenderTemplate_UITestingVariables(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		template string
@@ -620,6 +630,7 @@ func TestRenderTemplate_UITestingVariables(t *testing.T) {
 }
 
 func TestTemplateVars_WithUITestingContext(t *testing.T) {
+	t.Parallel()
 	vars := TemplateVars{
 		TaskID:    "TASK-001",
 		TaskTitle: "Test",
@@ -664,6 +675,7 @@ func TestTemplateVars_WithUITestingContext(t *testing.T) {
 }
 
 func TestUITestingContext_ZeroValue(t *testing.T) {
+	t.Parallel()
 	var ctx UITestingContext
 
 	// Zero value should be safe to use
@@ -682,6 +694,7 @@ func TestUITestingContext_ZeroValue(t *testing.T) {
 }
 
 func TestRenderTemplate_InitiativeVariables(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		template string
@@ -749,6 +762,7 @@ func TestRenderTemplate_InitiativeVariables(t *testing.T) {
 }
 
 func TestTemplateVars_WithInitiativeContext(t *testing.T) {
+	t.Parallel()
 	vars := TemplateVars{
 		TaskID:    "TASK-001",
 		TaskTitle: "Test",
@@ -806,6 +820,7 @@ func TestTemplateVars_WithInitiativeContext(t *testing.T) {
 }
 
 func TestInitiativeContext_FormatDecisions(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		ctx       InitiativeContext
@@ -871,6 +886,7 @@ func TestInitiativeContext_FormatDecisions(t *testing.T) {
 }
 
 func TestInitiativeContext_ZeroValue(t *testing.T) {
+	t.Parallel()
 	var ctx InitiativeContext
 
 	// Zero value should be safe to use
@@ -892,6 +908,7 @@ func TestInitiativeContext_ZeroValue(t *testing.T) {
 }
 
 func TestExtractVerificationResults(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -1012,6 +1029,7 @@ Summary: All passed.`,
 }
 
 func TestRenderTemplate_VerificationResultsVariable(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		template string
@@ -1053,6 +1071,7 @@ func TestRenderTemplate_VerificationResultsVariable(t *testing.T) {
 }
 
 func TestRenderTemplate_InitiativeContextSection(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		vars         TemplateVars

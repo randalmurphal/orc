@@ -7,6 +7,7 @@ import (
 )
 
 func TestLoadProjectToolPermissions_NoSettingsFile_ReturnsNil(t *testing.T) {
+	t.Parallel()
 	// Create a temp directory with no .claude/settings.json
 	tmpDir := t.TempDir()
 
@@ -28,6 +29,7 @@ func TestLoadProjectToolPermissions_NoSettingsFile_ReturnsNil(t *testing.T) {
 }
 
 func TestLoadProjectToolPermissions_ParsesAllowedTools(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/settings.json with allowed tools
@@ -68,6 +70,7 @@ func TestLoadProjectToolPermissions_ParsesAllowedTools(t *testing.T) {
 }
 
 func TestLoadProjectToolPermissions_ParsesDisallowedTools(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/settings.json with denied tools
@@ -108,6 +111,7 @@ func TestLoadProjectToolPermissions_ParsesDisallowedTools(t *testing.T) {
 }
 
 func TestLoadProjectToolPermissions_SkipsIfAlreadyConfigured(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/settings.json that would override
@@ -147,6 +151,7 @@ func TestLoadProjectToolPermissions_SkipsIfAlreadyConfigured(t *testing.T) {
 }
 
 func TestRebuildClient_UpdatesConfig(t *testing.T) {
+	t.Parallel()
 	cfg := DefaultConfig()
 	cfg.AllowedTools = []string{"Read", "Write"}
 	cfg.DisallowedTools = []string{"Bash"}
@@ -171,6 +176,7 @@ func TestRebuildClient_UpdatesConfig(t *testing.T) {
 }
 
 func TestLoadProjectToolPermissions_HandlesBothAllowAndDeny(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 
 	// Create .claude/settings.json with both allow and deny

@@ -97,6 +97,22 @@ func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, err
 	return &ProjectDB{DB: db}, nil
 }
 
+// OpenProjectInMemory opens an in-memory project database.
+// This is much faster than file-based databases and ideal for testing.
+func OpenProjectInMemory() (*ProjectDB, error) {
+	db, err := OpenInMemory()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Migrate("project"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("migrate project db: %w", err)
+	}
+
+	return &ProjectDB{DB: db}, nil
+}
+
 // RunInTx executes the given function within a database transaction.
 // If fn returns an error, the transaction is rolled back.
 // If fn returns nil, the transaction is committed.

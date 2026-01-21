@@ -7,6 +7,7 @@ import (
 )
 
 func TestDetectModel(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected string
@@ -35,6 +36,7 @@ func TestDetectModel(t *testing.T) {
 }
 
 func TestMigration002_AppliesCleanly(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -84,6 +86,7 @@ func TestMigration002_AppliesCleanly(t *testing.T) {
 }
 
 func TestMigration003_AddsDurationMs(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -120,6 +123,7 @@ func TestMigration003_AddsDurationMs(t *testing.T) {
 }
 
 func TestMigration002_Idempotent(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -139,6 +143,7 @@ func TestMigration002_Idempotent(t *testing.T) {
 }
 
 func TestMigration002_PreservesData(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -182,6 +187,7 @@ func TestMigration002_PreservesData(t *testing.T) {
 }
 
 func TestRecordCostExtended_AllFields(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -261,6 +267,7 @@ func TestRecordCostExtended_AllFields(t *testing.T) {
 }
 
 func TestGetCostByModel_GroupsCorrectly(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -320,6 +327,7 @@ func TestGetCostByModel_GroupsCorrectly(t *testing.T) {
 }
 
 func TestGetCostTimeseries_DailyGranularity(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -369,6 +377,7 @@ func TestGetCostTimeseries_DailyGranularity(t *testing.T) {
 }
 
 func TestGetCostTimeseries_Granularities(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -426,6 +435,7 @@ func TestGetCostTimeseries_Granularities(t *testing.T) {
 }
 
 func TestCostAggregate_Upsert(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -492,6 +502,7 @@ func TestCostAggregate_Upsert(t *testing.T) {
 }
 
 func TestBudget_CRUD(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -564,6 +575,7 @@ func TestBudget_CRUD(t *testing.T) {
 }
 
 func TestBudgetStatus(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 
@@ -639,6 +651,7 @@ func TestBudgetStatus(t *testing.T) {
 }
 
 func TestGlobalDB_CostWorkflow(t *testing.T) {
+	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
 

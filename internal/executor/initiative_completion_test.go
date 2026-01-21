@@ -11,6 +11,7 @@ import (
 )
 
 func TestInitiativeCompleter_buildInitiativePRBody(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	completer := &InitiativeCompleter{logger: logger}
 
@@ -134,6 +135,7 @@ func TestInitiativeCompleter_buildInitiativePRBody(t *testing.T) {
 }
 
 func TestInitiativeCompleter_getProfile(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	tests := []struct {
@@ -196,6 +198,7 @@ func TestInitiativeCompleter_getProfile(t *testing.T) {
 }
 
 func TestInitiativeCompleter_getTargetBranch(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	tests := []struct {
@@ -239,6 +242,7 @@ func TestInitiativeCompleter_getTargetBranch(t *testing.T) {
 }
 
 func TestInitiativeCompleter_getPRLabels(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	tests := []struct {
@@ -290,6 +294,7 @@ func TestInitiativeCompleter_getPRLabels(t *testing.T) {
 }
 
 func TestInitiativeCompleter_shouldAutoMerge(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	tests := []struct {
@@ -336,6 +341,7 @@ func TestInitiativeCompleter_shouldAutoMerge(t *testing.T) {
 }
 
 func TestNewInitiativeCompleter(t *testing.T) {
+	t.Parallel()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := &config.Config{}
 
@@ -356,6 +362,7 @@ func TestNewInitiativeCompleter(t *testing.T) {
 }
 
 func TestInitiativeCompletionResult(t *testing.T) {
+	t.Parallel()
 	// Test that result struct properly stores values
 	result := &InitiativeCompletionResult{
 		InitiativeID: "INIT-001",

@@ -14,6 +14,7 @@ import (
 )
 
 func TestWSHandler_Connect(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -42,6 +43,7 @@ func TestWSHandler_Connect(t *testing.T) {
 }
 
 func TestWSHandler_Subscribe(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -83,6 +85,7 @@ func TestWSHandler_Subscribe(t *testing.T) {
 }
 
 func TestWSHandler_ReceiveEvents(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -137,6 +140,7 @@ func TestWSHandler_ReceiveEvents(t *testing.T) {
 }
 
 func TestWSHandler_InvalidMessage(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -174,6 +178,7 @@ func TestWSHandler_InvalidMessage(t *testing.T) {
 }
 
 func TestWSHandler_SubscribeWithoutTaskID(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -212,6 +217,7 @@ func TestWSHandler_SubscribeWithoutTaskID(t *testing.T) {
 }
 
 func TestWSHandler_UnknownMessageType(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -250,6 +256,7 @@ func TestWSHandler_UnknownMessageType(t *testing.T) {
 }
 
 func TestWSHandler_MultipleConnections(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -292,6 +299,7 @@ func TestWSHandler_MultipleConnections(t *testing.T) {
 }
 
 func TestWSHandler_Broadcast(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -342,6 +350,7 @@ func TestWSHandler_Broadcast(t *testing.T) {
 }
 
 func TestWSHandler_Close(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -376,6 +385,7 @@ func TestWSHandler_Close(t *testing.T) {
 }
 
 func TestWSHandler_CORSUpgrader(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -398,6 +408,7 @@ func TestWSHandler_CORSUpgrader(t *testing.T) {
 }
 
 func TestWSHandler_GlobalSubscription(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -439,6 +450,7 @@ func TestWSHandler_GlobalSubscription(t *testing.T) {
 }
 
 func TestWSHandler_GlobalSubscription_InitialSessionUpdate(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -506,6 +518,7 @@ func TestWSHandler_GlobalSubscription_InitialSessionUpdate(t *testing.T) {
 }
 
 func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
@@ -577,6 +590,7 @@ func TestWSHandler_GlobalSubscription_ReceivesAllTaskEvents(t *testing.T) {
 }
 
 func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
+	t.Parallel()
 	pub := events.NewMemoryPublisher()
 	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
 	handler := NewWSHandler(pub, server, nil)
