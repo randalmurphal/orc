@@ -7,14 +7,32 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
-// TestPersistentPublisher_PersistsEvents verifies events are written to the database.
-func TestPersistentPublisher_PersistsEvents(t *testing.T) {
+// setupTestBackend creates a backend with a test task to satisfy foreign key constraints.
+func setupTestBackend(t *testing.T, taskID string) storage.Backend {
+	t.Helper()
 	backend, err := storage.NewInMemoryBackend()
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
+
+	// Create task to satisfy foreign key constraint
+	testTask := &task.Task{
+		ID:    taskID,
+		Title: "Test Task",
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save test task: %v", err)
+	}
+
+	return backend
+}
+
+// TestPersistentPublisher_PersistsEvents verifies events are written to the database.
+func TestPersistentPublisher_PersistsEvents(t *testing.T) {
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()
@@ -74,10 +92,7 @@ func TestPersistentPublisher_PersistsEvents(t *testing.T) {
 
 // TestPersistentPublisher_WebSocketBroadcast verifies wrapped MemoryPublisher still broadcasts.
 func TestPersistentPublisher_WebSocketBroadcast(t *testing.T) {
-	backend, err := storage.NewInMemoryBackend()
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()
@@ -107,10 +122,7 @@ func TestPersistentPublisher_WebSocketBroadcast(t *testing.T) {
 
 // TestPersistentPublisher_BatchFlush verifies buffer flushes at threshold.
 func TestPersistentPublisher_BatchFlush(t *testing.T) {
-	backend, err := storage.NewInMemoryBackend()
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()
@@ -145,10 +157,7 @@ func TestPersistentPublisher_BatchFlush(t *testing.T) {
 
 // TestPersistentPublisher_TimeFlush verifies buffer flushes after 5 seconds.
 func TestPersistentPublisher_TimeFlush(t *testing.T) {
-	backend, err := storage.NewInMemoryBackend()
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()
@@ -180,10 +189,7 @@ func TestPersistentPublisher_TimeFlush(t *testing.T) {
 
 // TestPersistentPublisher_PhaseCompletionFlush verifies flush on phase complete event.
 func TestPersistentPublisher_PhaseCompletionFlush(t *testing.T) {
-	backend, err := storage.NewInMemoryBackend()
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()
@@ -219,10 +225,7 @@ func TestPersistentPublisher_PhaseCompletionFlush(t *testing.T) {
 
 // TestPersistentPublisher_DurationCalculation verifies duration_ms calculated correctly.
 func TestPersistentPublisher_DurationCalculation(t *testing.T) {
-	backend, err := storage.NewInMemoryBackend()
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
+	backend := setupTestBackend(t, "TASK-001")
 	defer backend.Close()
 
 	logger := slog.Default()

@@ -6,6 +6,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // TestEventPersistence_RoundTrip is an integration test that verifies
@@ -18,12 +19,21 @@ func TestEventPersistence_RoundTrip(t *testing.T) {
 	}
 	defer backend.Close()
 
+	// Create task to satisfy foreign key constraint
+	taskID := "TASK-001"
+	testTask := &task.Task{
+		ID:    taskID,
+		Title: "Test Task",
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("failed to save test task: %v", err)
+	}
+
 	// Create publisher
 	pub := NewPersistentPublisher(backend, "executor", nil)
 	defer pub.Close()
 
 	// Publish a variety of event types
-	taskID := "TASK-001"
 
 	// Phase events
 	pub.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
