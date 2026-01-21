@@ -199,8 +199,11 @@ Example:
 			}
 
 			// Handle dependency updates
-			hasDepChanges := len(blockedBy) > 0 || len(addBlockers) > 0 || len(removeBlockers) > 0 ||
-				len(relatedTo) > 0 || len(addRelated) > 0 || len(removeRelated) > 0
+			// Use cmd.Flags().Changed() to detect explicit flag usage (including empty strings to clear)
+			blockedByChanged := cmd.Flags().Changed("blocked-by")
+			relatedToChanged := cmd.Flags().Changed("related-to")
+			hasDepChanges := blockedByChanged || len(addBlockers) > 0 || len(removeBlockers) > 0 ||
+				relatedToChanged || len(addRelated) > 0 || len(removeRelated) > 0
 
 			if hasDepChanges {
 				// Load all tasks for validation
@@ -217,18 +220,20 @@ Example:
 				}
 
 				// Handle blocked_by changes
-				if len(blockedBy) > 0 {
-					// Replace entire list
-					if errs := task.ValidateBlockedBy(taskID, blockedBy, existingIDs); len(errs) > 0 {
-						return errs[0]
-					}
-					// Check for circular dependencies with all new blockers at once
-					if cycle := task.DetectCircularDependencyWithAll(taskID, blockedBy, taskMap); cycle != nil {
-						return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+				if blockedByChanged {
+					// Replace entire list (can be empty to clear all blockers)
+					if len(blockedBy) > 0 {
+						if errs := task.ValidateBlockedBy(taskID, blockedBy, existingIDs); len(errs) > 0 {
+							return errs[0]
+						}
+						// Check for circular dependencies with all new blockers at once
+						if cycle := task.DetectCircularDependencyWithAll(taskID, blockedBy, taskMap); cycle != nil {
+							return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
+						}
 					}
 					t.BlockedBy = blockedBy
 					changes = append(changes, "blocked_by")
-				} else {
+				} else if len(addBlockers) > 0 || len(removeBlockers) > 0 {
 					// Handle add/remove
 					if len(addBlockers) > 0 {
 						if errs := task.ValidateBlockedBy(taskID, addBlockers, existingIDs); len(errs) > 0 {
@@ -272,14 +277,16 @@ Example:
 				}
 
 				// Handle related_to changes
-				if len(relatedTo) > 0 {
-					// Replace entire list
-					if errs := task.ValidateRelatedTo(taskID, relatedTo, existingIDs); len(errs) > 0 {
-						return errs[0]
+				if relatedToChanged {
+					// Replace entire list (can be empty to clear all related tasks)
+					if len(relatedTo) > 0 {
+						if errs := task.ValidateRelatedTo(taskID, relatedTo, existingIDs); len(errs) > 0 {
+							return errs[0]
+						}
 					}
 					t.RelatedTo = relatedTo
 					changes = append(changes, "related_to")
-				} else {
+				} else if len(addRelated) > 0 || len(removeRelated) > 0 {
 					// Handle add/remove
 					if len(addRelated) > 0 {
 						if errs := task.ValidateRelatedTo(taskID, addRelated, existingIDs); len(errs) > 0 {
