@@ -215,7 +215,7 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 		tc.SetSourceWithPath("commit_prefix", source, path)
 	}
 	if _, ok := raw["claude_path"]; ok {
-		cfg.ClaudePath = fileCfg.ClaudePath
+		cfg.ClaudePath = ExpandPath(fileCfg.ClaudePath)
 		tc.SetSourceWithPath("claude_path", source, path)
 	}
 	if _, ok := raw["dangerously_skip_permissions"]; ok {

@@ -111,7 +111,7 @@ func applyEnvVar(cfg *Config, path string, value string) bool {
 			cfg.Timeout = d
 		}
 	case "claude_path":
-		cfg.ClaudePath = value
+		cfg.ClaudePath = ExpandPath(value)
 	case "retry.enabled":
 		cfg.Retry.Enabled = parseBool(value)
 	case "retry.max_retries":
