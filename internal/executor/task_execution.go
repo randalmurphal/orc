@@ -876,9 +876,10 @@ func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 		}
 
 		// Haiku validation for spec quality (if enabled)
-		if e.haikuClient != nil && e.orcConfig.ShouldValidateSpec(string(t.Weight)) {
+		if e.validationModel != "" && e.orcConfig.ShouldValidateSpec(string(t.Weight)) {
 			ctx := context.Background()
-			ready, suggestions, valErr := ValidateTaskReadiness(ctx, e.haikuClient, t.Description, specContent, string(t.Weight))
+			valClient := e.CreateValidationClient(e.config.WorkDir)
+			ready, suggestions, valErr := ValidateTaskReadiness(ctx, valClient, t.Description, specContent, string(t.Weight))
 			if valErr != nil {
 				if e.orcConfig.Validation.FailOnAPIError {
 					// Fail properly - task is resumable from spec phase

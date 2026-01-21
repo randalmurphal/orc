@@ -252,6 +252,12 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 - `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
 - `false` (fast profile): Fail open, continue execution without validation
 
+**Validation Client Creation:** Validation clients are created **dynamically per-call** with the correct workdir:
+- `Executor.CreateValidationClient(workdir)` creates a client for a given directory
+- Sub-executors use their `workingDir` field (the worktree path) for client creation
+- This ensures validation runs in the worktree context where task files exist
+- **CRITICAL:** Never store a pre-created validation client - always create dynamically with correct workdir
+
 ## Claude Call Patterns (CRITICAL)
 
 **All Claude calls MUST follow these consolidated patterns. Deviating causes bugs.**
@@ -469,3 +475,4 @@ defer backend.Close()
 6. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
 7. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path
 8. **Testing real Claude CLI** - Use `WithStandardTurnExecutor(mock)` to inject test doubles; avoids real API calls
+9. **Validation can't see worktree files** - Validation clients must be created dynamically with correct workdir; never store a pre-created client at executor startup
