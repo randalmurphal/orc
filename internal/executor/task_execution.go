@@ -439,7 +439,8 @@ func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
 		return
 	}
 
-	shouldCleanup := (t.Status == task.StatusCompleted && e.orcConfig.Worktree.CleanupOnComplete) ||
+	// StatusResolved is treated like StatusCompleted for cleanup - both are terminal success states
+	shouldCleanup := ((t.Status == task.StatusCompleted || t.Status == task.StatusResolved) && e.orcConfig.Worktree.CleanupOnComplete) ||
 		(t.Status == task.StatusFailed && e.orcConfig.Worktree.CleanupOnFail)
 	if !shouldCleanup {
 		return
