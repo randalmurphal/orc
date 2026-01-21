@@ -54,6 +54,30 @@ type ActivityCount struct {
 	Count int
 }
 
+// TranscriptPaginationOpts configures transcript pagination and filtering.
+type TranscriptPaginationOpts struct {
+	Phase        string // Filter by phase (optional)
+	IterationMin *int   // Minimum iteration (optional)
+	IterationMax *int   // Maximum iteration (optional)
+	Cursor       int64  // Cursor for pagination (transcript ID, 0 = start)
+	Limit        int    // Max results (default: 50, max: 200)
+	Direction    string // 'asc' | 'desc' (default: asc)
+}
+
+// PaginationResult contains pagination metadata.
+type PaginationResult struct {
+	NextCursor *int64 `json:"next_cursor,omitempty"`
+	PrevCursor *int64 `json:"prev_cursor,omitempty"`
+	HasMore    bool   `json:"has_more"`
+	TotalCount int    `json:"total_count"`
+}
+
+// PhaseSummary contains transcript count for a single phase.
+type PhaseSummary struct {
+	Phase           string `json:"phase"`
+	TranscriptCount int    `json:"transcript_count"`
+}
+
 // TaskComment represents a discussion comment on a task.
 type TaskComment struct {
 	ID         string
@@ -249,6 +273,8 @@ type Backend interface {
 	AddTranscript(t *Transcript) error
 	AddTranscriptBatch(ctx context.Context, transcripts []Transcript) error
 	GetTranscripts(taskID string) ([]Transcript, error)
+	GetTranscriptsPaginated(taskID string, opts TranscriptPaginationOpts) ([]Transcript, PaginationResult, error)
+	GetPhaseSummary(taskID string) ([]PhaseSummary, error)
 	SearchTranscripts(query string) ([]TranscriptMatch, error)
 
 	// Attachment operations
