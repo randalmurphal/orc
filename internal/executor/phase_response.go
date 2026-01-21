@@ -160,6 +160,13 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
 
 // extractJSON attempts to extract a JSON object from content that may contain
 // markdown code blocks, prose, or other non-JSON text.
+//
+// TODO: Current extraction strategy uses regex patterns with priority order:
+//   1. Direct JSON parse (fast path for pure JSON)
+//   2. Markdown code block extraction (```json ... ```)
+//   3. Status pattern matching ({"status": "complete|blocked|continue"...})
+// Consider: streaming-friendly incremental parsing, or using a JSON tokenizer
+// for more robust extraction from malformed/partial content.
 func extractJSON(content string) string {
 	content = strings.TrimSpace(content)
 
