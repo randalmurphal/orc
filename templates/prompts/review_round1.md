@@ -72,64 +72,32 @@ For each issue found, categorize by severity:
 
 ## Output Format
 
-Produce a review findings document:
+Output JSON matching the review findings schema:
 
-```xml
-<review_findings>
-  <round>1</round>
-  <summary>Brief overview of review findings</summary>
-  <issues>
-    <issue severity="critical" type="incomplete">
-      <file>path/to/caller.go</file>
-      <line>N/A</line>
-      <description>Caller of modified function not updated</description>
-      <suggestion>Update all callers identified in impact analysis</suggestion>
-    </issue>
-    <issue severity="critical" type="preservation">
-      <file>path/to/feature.go</file>
-      <line>50</line>
-      <description>Preserved feature X was removed</description>
-      <suggestion>Restore feature per preservation requirements</suggestion>
-    </issue>
-    <issue severity="high">
-      <file>path/to/file.go</file>
-      <line>42</line>
-      <description>Description of the issue</description>
-      <suggestion>How to fix it</suggestion>
-    </issue>
-    <issue severity="medium">
-      <file>path/to/another.go</file>
-      <line>100</line>
-      <description>Missing error handling for network failure</description>
-      <suggestion>Add timeout and retry logic</suggestion>
-    </issue>
-    <issue severity="low">
-      <file>path/to/util.go</file>
-      <line>15</line>
-      <description>Variable name could be clearer</description>
-      <suggestion>Rename 'x' to 'itemCount'</suggestion>
-    </issue>
-  </issues>
-  <questions>
-    <question context="architecture">Question requiring clarification about design decisions</question>
-  </questions>
-  <positives>
-    <positive>Good thing noticed in the implementation</positive>
-  </positives>
-</review_findings>
+```json
+{
+  "round": 1,
+  "summary": "Brief overview of review findings",
+  "issues": [
+    {"severity": "high", "file": "path/to/file.go", "line": 42, "description": "Issue description", "suggestion": "How to fix"},
+    {"severity": "medium", "file": "path/to/another.go", "line": 100, "description": "Missing error handling", "suggestion": "Add retry logic"}
+  ],
+  "questions": ["Question requiring clarification"],
+  "positives": ["Good thing noticed in the implementation"]
+}
 ```
 
 ## If User Input Required
 
-If you identify questions that require user decisions (architecture, vision, requirements):
+If questions require user decisions, use the review decision schema:
 
-```xml
-<review_decision>
-  <status>needs_user_input</status>
-  <user_questions>
-    <question priority="high">Architecture question needing decision</question>
-  </user_questions>
-</review_decision>
+```json
+{
+  "status": "needs_user_input",
+  "summary": "Review requires user input",
+  "user_questions": ["Architecture question needing decision"],
+  "recommendation": "Await user decision before proceeding"
+}
 ```
 
 ## Phase Completion

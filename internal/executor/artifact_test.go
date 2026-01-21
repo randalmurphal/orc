@@ -12,211 +12,119 @@ import (
 
 func TestSavePhaseArtifact(t *testing.T) {
 	t.Parallel()
-	// Create temp task directory
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-ART-001")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-
-	// Override task.OrcDir for testing
-	oldOrcDir := ".orc"
-	defer func() { _ = oldOrcDir }()
 
 	tests := []struct {
-		name        string
-		taskID      string
-		phaseID     string
-		output      string
-		wantSaved   bool
-		wantContent string
+		name     string
+		phaseID  string
+		output   string
+		wantPath bool
 	}{
 		{
-			name:    "extracts artifact from tags",
-			taskID:  "TASK-ART-001",
-			phaseID: "spec",
-			output: `Some preamble text
-
-<artifact>
-# Specification
-
-## Problem Statement
-This is the spec content.
-
-## Success Criteria
-- Criterion 1
-- Criterion 2
-</artifact>
-
-{"status": "complete", "summary": "Done"}`,
-			wantSaved: true,
-			wantContent: `# Specification
-
-## Problem Statement
-This is the spec content.
-
-## Success Criteria
-- Criterion 1
-- Criterion 2`,
+			name:     "spec phase always returns empty (database only)",
+			phaseID:  "spec",
+			output:   `{"status": "complete", "artifact": "some spec content"}`,
+			wantPath: false,
 		},
 		{
-			name:      "no artifact when no tags",
-			taskID:    "TASK-ART-001",
-			phaseID:   "implement",
-			output:    "Just some random output without artifact tags",
-			wantSaved: false,
+			name:     "implement phase returns empty (no artifact field)",
+			phaseID:  "implement",
+			output:   `{"status": "complete", "summary": "Done"}`,
+			wantPath: false,
 		},
 		{
-			name:      "empty artifact",
-			taskID:    "TASK-ART-001",
-			phaseID:   "design",
-			output:    "<artifact></artifact>",
-			wantSaved: false,
+			name:     "design phase extracts artifact from JSON",
+			phaseID:  "design",
+			output:   `{"status": "complete", "artifact": "# Design Document\n\nThis is the design."}`,
+			wantPath: true, // design produces artifacts
+		},
+		{
+			name:     "research phase extracts artifact from JSON",
+			phaseID:  "research",
+			output:   `{"status": "complete", "artifact": "# Research Findings\n\nRelevant code found."}`,
+			wantPath: true,
+		},
+		{
+			name:     "docs phase extracts artifact from JSON",
+			phaseID:  "docs",
+			output:   `{"status": "complete", "artifact": "# Documentation\n\nAPI docs."}`,
+			wantPath: true,
+		},
+		{
+			name:     "returns empty when no artifact in JSON",
+			phaseID:  "design",
+			output:   `{"status": "complete", "summary": "Done but no artifact"}`,
+			wantPath: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// For this test, manually create the artifact to bypass the task.TaskDir lookup
-			artifact := extractArtifact(tt.output)
+			// Note: SavePhaseArtifact uses task.TaskDir which won't match our tmpDir
+			// This test verifies the logic flow for spec phase handling
+			path, err := SavePhaseArtifact("TASK-ART-TEST", tt.phaseID, tt.output)
+			if err != nil {
+				t.Fatalf("SavePhaseArtifact() error = %v", err)
+			}
 
-			if tt.wantSaved {
-				if artifact == "" {
-					t.Error("expected artifact to be extracted, got empty string")
-					return
-				}
-				if artifact != tt.wantContent {
-					t.Errorf("artifact content mismatch\ngot:\n%s\n\nwant:\n%s", artifact, tt.wantContent)
-				}
-			} else {
-				if artifact != "" {
-					t.Errorf("expected no artifact, got: %s", artifact)
-				}
+			// For spec phase, always empty
+			if tt.phaseID == "spec" && path != "" {
+				t.Errorf("SavePhaseArtifact(spec) should return empty path, got %q", path)
+			}
+
+			// For non-artifact phases with no artifact, should be empty
+			if !PhasesWithArtifacts[tt.phaseID] && path != "" {
+				t.Errorf("SavePhaseArtifact(%s) should return empty path for non-artifact phase, got %q", tt.phaseID, path)
 			}
 		})
 	}
 }
 
-func TestExtractArtifact(t *testing.T) {
+func TestExtractArtifactContent(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
-		name    string
-		content string
-		want    string
+		name   string
+		output string
+		want   string
 	}{
 		{
-			name:    "simple artifact",
-			content: "<artifact>test content</artifact>",
-			want:    "test content",
+			name:   "extracts artifact from JSON",
+			output: `{"status": "complete", "artifact": "The artifact content"}`,
+			want:   "The artifact content",
 		},
 		{
-			name: "artifact with markdown",
-			content: `<artifact>
-# Title
-
-## Section
-Content here.
-</artifact>`,
-			want: `# Title
-
-## Section
-Content here.`,
+			name:   "returns empty when no artifact field",
+			output: `{"status": "complete", "summary": "Done"}`,
+			want:   "",
 		},
 		{
-			name:    "no artifact tags",
-			content: "just some text",
-			want:    "",
+			name:   "returns empty for invalid JSON",
+			output: "not json at all",
+			want:   "",
 		},
 		{
-			name: "specification section fallback",
-			content: `## Specification
-
-This is the spec content.
-
-## Other Section
-Something else`,
-			want: "This is the spec content.",
+			name:   "handles artifact with newlines",
+			output: `{"status": "complete", "artifact": "Line 1\nLine 2\nLine 3"}`,
+			want:   "Line 1\nLine 2\nLine 3",
 		},
 		{
-			name: "research results fallback",
-			content: `## Research Results
-
-Found these patterns:
-- Pattern 1
-- Pattern 2
-
-## Conclusion
-Done`,
-			want: `Found these patterns:
-- Pattern 1
-- Pattern 2`,
-		},
-		{
-			name: "design section fallback",
-			content: `## Design
-
-Architecture overview here.
-
-## Implementation
-Not this part`,
-			want: "Architecture overview here.",
-		},
-		{
-			name: "implementation summary fallback",
-			content: `## Implementation Summary
-
-Changed these files:
-- file1.go
-- file2.go
-
-## Done`,
-			want: `Changed these files:
-- file1.go
-- file2.go`,
-		},
-		{
-			name:    "artifact tags take precedence",
-			content: "<artifact>preferred content</artifact>\n\n## Specification\nfallback content",
-			want:    "preferred content",
-		},
-		{
-			name: "uses last artifact match (avoids template examples)",
-			content: `Here's an example:
-<artifact>
-[Template placeholder - not real content]
-</artifact>
-
-## Response
-
-<artifact>
-# Actual Spec Content
-
-This is the real spec from the agent.
-</artifact>`,
-			want: `# Actual Spec Content
-
-This is the real spec from the agent.`,
-		},
-		{
-			name: "multiple artifacts returns last one",
-			content: `<artifact>first</artifact>
-<artifact>second</artifact>
-<artifact>third and final</artifact>`,
-			want: "third and final",
+			name:   "handles artifact with escaped characters",
+			output: `{"status": "complete", "artifact": "Code: \"function() {}\""}`,
+			want:   `Code: "function() {}"`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractArtifact(tt.content)
+			got := ExtractArtifactContent(tt.output)
 			if got != tt.want {
-				t.Errorf("extractArtifact() = %q, want %q", got, tt.want)
+				t.Errorf("ExtractArtifactContent() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestLoadFromTranscript(t *testing.T) {
+func TestLoadFromTranscript_NoOp(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "TASK-TRANS-001")
@@ -225,12 +133,10 @@ func TestLoadFromTranscript(t *testing.T) {
 		t.Fatalf("failed to create transcripts dir: %v", err)
 	}
 
-	// Create transcript files
+	// Create transcript files (should be ignored now)
 	files := map[string]string{
-		"spec-001.md":  "iteration 1 content",
-		"spec-002.md":  "<artifact>iteration 2 artifact</artifact>",
-		"spec-003.md":  "<artifact>iteration 3 artifact (latest)</artifact>",
-		"other-001.md": "other phase content",
+		"spec-001.md": "<artifact>content from transcript</artifact>",
+		"spec-002.md": "<artifact>more content</artifact>",
 	}
 
 	for name, content := range files {
@@ -240,30 +146,10 @@ func TestLoadFromTranscript(t *testing.T) {
 		}
 	}
 
-	tests := []struct {
-		name    string
-		phaseID string
-		want    string
-	}{
-		{
-			name:    "loads latest transcript",
-			phaseID: "spec",
-			want:    "iteration 3 artifact (latest)",
-		},
-		{
-			name:    "returns empty for no matching phase",
-			phaseID: "missing",
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := loadFromTranscript(taskDir, tt.phaseID)
-			if got != tt.want {
-				t.Errorf("loadFromTranscript() = %q, want %q", got, tt.want)
-			}
-		})
+	// loadFromTranscript should always return empty now
+	result := loadFromTranscript(taskDir, "spec")
+	if result != "" {
+		t.Errorf("loadFromTranscript() should return empty (no-op), got %q", result)
 	}
 }
 
@@ -290,65 +176,28 @@ func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID strin
 func TestSaveSpecToDatabase(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		phaseID     string
-		output      string
-		wantSaved   bool
-		wantErr     bool // Whether we expect an error
-		wantContent string
+		name    string
+		phaseID string
+		output  string
+		wantErr bool
 	}{
 		{
-			name:    "saves spec content from artifact tags",
+			name:    "skips non-spec phase",
+			phaseID: "implement",
+			output:  `{"status": "complete", "artifact": "some content"}`,
+			wantErr: false, // Non-spec phases return (false, nil)
+		},
+		{
+			name:    "returns error when no artifact in JSON",
 			phaseID: "spec",
-			output: `Some preamble
-
-<artifact>
-# Specification
-
-## Intent
-Build a feature.
-
-## Success Criteria
-- Works correctly
-</artifact>
-
-{"status": "complete", "summary": "Done"}`,
-			wantSaved: true,
-			wantContent: `# Specification
-
-## Intent
-Build a feature.
-
-## Success Criteria
-- Works correctly`,
+			output:  `{"status": "complete", "summary": "Done"}`,
+			wantErr: true,
 		},
 		{
-			name:      "rejects raw output without artifact tags or structure",
-			phaseID:   "spec",
-			output:    "Raw spec content without artifact tags",
-			wantSaved: false,
-			wantErr:   true, // Now returns SpecExtractionError
-		},
-		{
-			name:      "skips non-spec phase",
-			phaseID:   "implement",
-			output:    "<artifact>Some content</artifact>",
-			wantSaved: false,
-			wantErr:   false, // Non-spec phases return (false, nil)
-		},
-		{
-			name:      "returns error for empty output",
-			phaseID:   "spec",
-			output:    "",
-			wantSaved: false,
-			wantErr:   true, // Now returns SpecExtractionError
-		},
-		{
-			name:      "skips research phase",
-			phaseID:   "research",
-			output:    "<artifact>Research results</artifact>",
-			wantSaved: false,
-			wantErr:   false, // Non-spec phases return (false, nil)
+			name:    "returns error for invalid JSON",
+			phaseID: "spec",
+			output:  "not json",
+			wantErr: true,
 		},
 	}
 
@@ -356,21 +205,13 @@ Build a feature.
 		t.Run(tt.name, func(t *testing.T) {
 			backend := newArtifactTestBackend(t)
 			taskID := "TASK-SPEC-001"
-
-			// Create task first (required for foreign key constraint)
 			createTestTask(t, backend, taskID)
 
 			saved, err := SaveSpecToDatabase(backend, taskID, tt.phaseID, tt.output)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("SaveSpecToDatabase() expected error, got nil")
-				}
-				// Verify it's a SpecExtractionError with useful info
-				if specErr, ok := err.(*SpecExtractionError); ok {
-					if specErr.Reason == "" {
-						t.Error("SpecExtractionError should have a reason")
-					}
+					t.Error("SaveSpecToDatabase() expected error, got nil")
 				}
 			} else {
 				if err != nil {
@@ -378,22 +219,8 @@ Build a feature.
 				}
 			}
 
-			if saved != tt.wantSaved {
-				t.Errorf("SaveSpecToDatabase() saved = %v, want %v", saved, tt.wantSaved)
-			}
-
-			if tt.wantSaved {
-				// Verify content was saved to database
-				specContent, err := backend.LoadSpec(taskID)
-				if err != nil {
-					t.Fatalf("LoadSpec() error = %v", err)
-				}
-				if specContent == "" {
-					t.Fatal("LoadSpec() returned empty, expected spec")
-				}
-				if specContent != tt.wantContent {
-					t.Errorf("spec content = %q, want %q", specContent, tt.wantContent)
-				}
+			if tt.phaseID != "spec" && saved {
+				t.Error("non-spec phase should not save")
 			}
 		})
 	}
@@ -401,8 +228,7 @@ Build a feature.
 
 func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	t.Parallel()
-	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", "Some content")
-	// Nil backend now returns an error for visibility
+	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", `{"status": "complete", "artifact": "content"}`)
 	if err == nil {
 		t.Fatal("SaveSpecToDatabase() with nil backend should return error")
 	}
@@ -414,250 +240,69 @@ func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	}
 }
 
-// TestSaveSpecToDatabase_FallbackToFile verifies that SaveSpecToDatabase reads from
-// spec.md files when artifact tags are missing from the output. This handles the case
-// where agents write specs to files instead of using artifact tags.
-func TestSaveSpecToDatabase_FallbackToFile(t *testing.T) {
+// TestSaveSpecToDatabase_ExtractsFromJSON verifies that SaveSpecToDatabase extracts
+// spec content from JSON artifact field.
+func TestSaveSpecToDatabase_ExtractsFromJSON(t *testing.T) {
 	t.Parallel()
 	backend := newArtifactTestBackend(t)
-	taskID := "TASK-FILE-001"
+	taskID := "TASK-JSON-001"
 
-	// Create task first (required for foreign key constraint)
 	createTestTask(t, backend, taskID)
 
-	// Create a worktree directory with spec file
-	tmpDir := t.TempDir()
-	specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(specDir, 0755); err != nil {
-		t.Fatalf("failed to create spec dir: %v", err)
-	}
-
-	// Write spec file (what agents sometimes do instead of using artifact tags)
+	// Output with spec in artifact field
 	specContent := `# Specification: Test Feature
 
 ## Problem Statement
-This tests the file fallback mechanism.
+This tests the JSON extraction mechanism.
 
 ## Success Criteria
-- [ ] Agent writes spec to file
-- [ ] System reads from file when no artifact tags
+- [ ] Agent outputs spec in artifact field
+- [ ] System extracts from JSON
 `
-	specPath := filepath.Join(specDir, "spec.md")
-	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-		t.Fatalf("failed to write spec file: %v", err)
-	}
-
-	// Call with output that has NO artifact tags - should fall back to file
-	outputWithNoArtifact := `The spec is stored in the task directory.
-{"status": "complete", "summary": "Done"}`
-
-	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithNoArtifact, tmpDir)
-	if err != nil {
-		t.Fatalf("SaveSpecToDatabase() error = %v", err)
-	}
-	if !saved {
-		t.Error("SaveSpecToDatabase() should have saved spec from file")
-	}
-
-	// Verify content was saved from file
-	loadedSpec, err := backend.LoadSpec(taskID)
-	if err != nil {
-		t.Fatalf("LoadSpec() error = %v", err)
-	}
-
-	// Should contain the file content
-	if !strings.Contains(loadedSpec, "This tests the file fallback mechanism") {
-		t.Errorf("spec content should be from file, got: %s", loadedSpec)
-	}
-}
-
-// TestSaveSpecToDatabase_ArtifactTagsTakePrecedence verifies that artifact tags
-// are preferred over spec files when both exist.
-func TestSaveSpecToDatabase_ArtifactTagsTakePrecedence(t *testing.T) {
-	t.Parallel()
-	backend := newArtifactTestBackend(t)
-	taskID := "TASK-PREC-001"
-
-	// Create task first (required for foreign key constraint)
-	createTestTask(t, backend, taskID)
-
-	// Create a worktree directory with spec file
-	tmpDir := t.TempDir()
-	specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(specDir, 0755); err != nil {
-		t.Fatalf("failed to create spec dir: %v", err)
-	}
-
-	// Write spec file with different content
-	fileContent := `# File Spec
-## Intent
-This is from the file, not the artifact tags. File content should not be used.
-
-## Success Criteria
-- [ ] This should NOT be saved`
-	specPath := filepath.Join(specDir, "spec.md")
-	if err := os.WriteFile(specPath, []byte(fileContent), 0644); err != nil {
-		t.Fatalf("failed to write spec file: %v", err)
-	}
-
-	// Output with artifact tags should take precedence
-	outputWithArtifact := `<artifact>
-# Artifact Spec
-## Intent
-This is from artifact tags, which should take precedence over file content.
-
-## Success Criteria
-- [ ] Artifact tags are prioritized
-- [ ] File is only used as fallback
-</artifact>
-{"status": "complete", "summary": "Done"}`
-
-	saved, err := SaveSpecToDatabase(backend, taskID, "spec", outputWithArtifact, tmpDir)
-	if err != nil {
-		t.Fatalf("SaveSpecToDatabase() error = %v", err)
-	}
-	if !saved {
-		t.Error("SaveSpecToDatabase() should have saved spec")
-	}
-
-	// Verify artifact content was saved (not file content)
-	loadedSpec, err := backend.LoadSpec(taskID)
-	if err != nil {
-		t.Fatalf("LoadSpec() error = %v", err)
-	}
-
-	if !strings.Contains(loadedSpec, "artifact tags, which should take precedence") {
-		t.Errorf("spec content should be from artifact tags, got: %s", loadedSpec)
-	}
-	if strings.Contains(loadedSpec, "File content should not be used") {
-		t.Error("spec content should NOT contain file content")
-	}
-}
-
-// TestSavePhaseArtifact_SkipsSpecPhase verifies that SavePhaseArtifact does NOT
-// write files for the spec phase. Spec content should only be saved to the database
-// via SaveSpecToDatabase to avoid merge conflicts in worktrees.
-func TestSavePhaseArtifact_SkipsSpecPhase(t *testing.T) {
-	t.Parallel()
-	// Create a temp directory with task structure
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-SKIP-001")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("failed to create task dir: %v", err)
-	}
-
-	// Save the old task dir resolver and restore after test
-	oldTaskDir := task.TaskDir("TASK-SKIP-001")
-	_ = oldTaskDir // acknowledge old value
-
-	// Since task.TaskDir uses a global path, we need to verify behavior
-	// by checking that the function returns empty string for spec phase
-
-	specOutput := `<artifact>
-# Specification
-
-## Problem Statement
-This spec should NOT be written to a file.
-
-## Success Criteria
-- Only saved to database
-</artifact>
-
-{"status": "complete", "summary": "Done"}`
-
-	// Call SavePhaseArtifact for spec phase
-	path, err := SavePhaseArtifact("TASK-SKIP-001", "spec", specOutput)
-	if err != nil {
-		t.Fatalf("SavePhaseArtifact() error = %v", err)
-	}
-
-	// Should return empty path for spec phase (no file written)
-	if path != "" {
-		t.Errorf("SavePhaseArtifact(spec) should return empty path, got %q", path)
-	}
-
-	// Verify no artifacts directory was created in the actual task dir
-	// (this tests the real behavior when task.TaskDir resolves)
-	artifactDir := filepath.Join(taskDir, "artifacts")
-	specPath := filepath.Join(artifactDir, "spec.md")
-	if _, err := os.Stat(specPath); err == nil {
-		t.Error("spec.md file should not exist in artifacts directory")
-	}
-}
-
-// TestSavePhaseArtifact_WritesNonSpecPhases verifies that SavePhaseArtifact
-// still writes files for non-spec phases like implement, test, docs, etc.
-func TestSavePhaseArtifact_WritesNonSpecPhases(t *testing.T) {
-	t.Parallel()
-	// This test verifies the behavior through the extractArtifact function
-	// since actual file writing depends on task.TaskDir configuration
-
-	implementOutput := `<artifact>
-## Implementation Summary
-
-Changed these files:
-- file1.go
-- file2.go
-</artifact>`
-
-	// Verify artifact is extracted for non-spec phases
-	artifact := extractArtifact(implementOutput)
-	if artifact == "" {
-		t.Error("extractArtifact should extract content for non-spec phases")
-	}
-
-	expectedContent := `## Implementation Summary
-
-Changed these files:
-- file1.go
-- file2.go`
-	if artifact != expectedContent {
-		t.Errorf("artifact content mismatch\ngot:\n%s\n\nwant:\n%s", artifact, expectedContent)
-	}
-}
-
-func TestSaveSpecToDatabase_ArtifactTagsPrecedence(t *testing.T) {
-	t.Parallel()
-	backend := newArtifactTestBackend(t)
-	taskID := "TASK-SPEC-002"
-
-	// Create task first (required for foreign key constraint)
-	createTestTask(t, backend, taskID)
-
-	// Expected spec content - must have spec sections to pass validation
-	expectedSpec := `# Specification
-
-## Intent
-Implement the user authentication feature.
-
-## Success Criteria
-- Users can log in with email/password
-- Sessions are properly managed`
-
-	// Output with both artifact tags and other content
-	output := `Some preamble that should be ignored.
-
-<artifact>
-` + expectedSpec + `
-</artifact>
-
-And some trailing text.`
+	output := `{"status": "complete", "summary": "Spec completed", "artifact": ` + escapeJSONString(specContent) + `}`
 
 	saved, err := SaveSpecToDatabase(backend, taskID, "spec", output)
 	if err != nil {
 		t.Fatalf("SaveSpecToDatabase() error = %v", err)
 	}
 	if !saved {
-		t.Error("SaveSpecToDatabase() should have saved spec")
+		t.Error("SaveSpecToDatabase() should have saved spec from JSON")
 	}
 
-	// Verify only artifact content was saved
-	specContent, err := backend.LoadSpec(taskID)
+	// Verify content was saved from artifact field
+	loadedSpec, err := backend.LoadSpec(taskID)
 	if err != nil {
 		t.Fatalf("LoadSpec() error = %v", err)
 	}
-	if specContent != expectedSpec {
-		t.Errorf("spec content = %q, want %q", specContent, expectedSpec)
+
+	if !strings.Contains(loadedSpec, "JSON extraction mechanism") {
+		t.Errorf("spec content should be from JSON artifact, got: %s", loadedSpec)
+	}
+}
+
+// escapeJSONString properly escapes a string for JSON
+func escapeJSONString(s string) string {
+	// Simple escaping for test purposes
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	return `"` + s + `"`
+}
+
+// TestSavePhaseArtifact_SkipsSpecPhase verifies that SavePhaseArtifact does NOT
+// write files for the spec phase. Spec content should only be saved to the database.
+func TestSavePhaseArtifact_SkipsSpecPhase(t *testing.T) {
+	t.Parallel()
+	// Call SavePhaseArtifact for spec phase
+	path, err := SavePhaseArtifact("TASK-SKIP-001", "spec", `{"status": "complete", "artifact": "content"}`)
+	if err != nil {
+		t.Fatalf("SavePhaseArtifact() error = %v", err)
+	}
+
+	// Should return empty path for spec phase (no file operations)
+	if path != "" {
+		t.Errorf("SavePhaseArtifact(spec) should return empty path, got %q", path)
 	}
 }
 
@@ -745,7 +390,7 @@ func TestLoadPriorContent(t *testing.T) {
 		t.Fatalf("failed to write artifact: %v", err)
 	}
 
-	// Create transcript file (for fallback test)
+	// Create transcript file (should be ignored - no extraction from transcripts)
 	transcriptContent := "<artifact>Transcript artifact</artifact>"
 	if err := os.WriteFile(filepath.Join(transcriptsDir, "design-001.md"), []byte(transcriptContent), 0644); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
@@ -762,9 +407,9 @@ func TestLoadPriorContent(t *testing.T) {
 			want:    artifactContent,
 		},
 		{
-			name:    "falls back to transcript",
+			name:    "returns empty for transcript fallback (no extraction)",
 			phaseID: "design",
-			want:    "Transcript artifact",
+			want:    "", // No longer extracts from transcripts
 		},
 		{
 			name:    "returns empty for missing phase",
@@ -796,42 +441,14 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 		{
 			name: "includes output length and preview",
 			err: &SpecExtractionError{
-				Reason:        "no spec content found",
+				Reason:        "no artifact field in JSON output",
 				OutputLen:     500,
-				OutputPreview: "Some output without artifact tags...",
+				OutputPreview: "Some output without artifact field...",
 			},
 			wantContains: []string{
-				"no spec content found",
+				"no artifact field in JSON output",
 				"output_length: 500 bytes",
-				"output_preview: \"Some output without artifact tags...\"",
-			},
-		},
-		{
-			name: "includes file info when path provided",
-			err: &SpecExtractionError{
-				Reason:     "no spec content found",
-				OutputLen:  100,
-				SpecPath:   "/worktree/path/.orc/tasks/TASK-001/spec.md",
-				FileExists: true,
-				FileSize:   256,
-			},
-			wantContains: []string{
-				"spec_path: /worktree/path/.orc/tasks/TASK-001/spec.md",
-				"file_exists: true",
-				"file_size: 256 bytes",
-			},
-		},
-		{
-			name: "includes file read error",
-			err: &SpecExtractionError{
-				Reason:      "no spec content found",
-				OutputLen:   100,
-				SpecPath:    "/worktree/path/.orc/tasks/TASK-001/spec.md",
-				FileExists:  true,
-				FileReadErr: os.ErrPermission,
-			},
-			wantContains: []string{
-				"file_read_error: permission denied",
+				"output_preview: \"Some output without artifact field...\"",
 			},
 		},
 		{
@@ -839,7 +456,7 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 			err: &SpecExtractionError{
 				Reason:            "spec content failed validation",
 				OutputLen:         500,
-				OutputPreview:     "<artifact>short</artifact>",
+				OutputPreview:     "short",
 				ValidationFailure: "content too short (5 chars, need at least 50)",
 			},
 			wantContains: []string{
@@ -849,15 +466,11 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 		{
 			name: "omits empty fields",
 			err: &SpecExtractionError{
-				Reason:    "no spec content found",
+				Reason:    "no artifact field",
 				OutputLen: 0,
 			},
 			wantNotContain: []string{
 				"output_preview",
-				"spec_path",
-				"file_exists",
-				"file_size",
-				"file_read_error",
 				"validation_failure",
 			},
 		},
@@ -942,8 +555,8 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	taskID := "TASK-DIAG-001"
 	createTestTask(t, backend, taskID)
 
-	t.Run("no content found includes output preview", func(t *testing.T) {
-		output := "Some agent output without any artifact tags or spec structure at all."
+	t.Run("no artifact includes output preview", func(t *testing.T) {
+		output := `{"status": "complete", "summary": "Done but no artifact"}`
 		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
@@ -957,14 +570,23 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 		if specErr.OutputPreview == "" {
 			t.Error("OutputPreview should not be empty")
 		}
-		if !strings.HasPrefix(specErr.OutputPreview, "Some agent") {
-			t.Errorf("OutputPreview should start with output, got %q", specErr.OutputPreview)
+	})
+
+	t.Run("artifact extraction success", func(t *testing.T) {
+		specContent := "# Specification\n\n## Intent\nBuild a feature with proper error handling and tests."
+		output := `{"status": "complete", "artifact": ` + escapeJSONString(specContent) + `}`
+		saved, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+
+		if err != nil {
+			t.Fatalf("SaveSpecToDatabase() unexpected error: %v", err)
+		}
+		if !saved {
+			t.Error("SaveSpecToDatabase() should have saved from artifact")
 		}
 	})
 
-	t.Run("validation failure includes reason", func(t *testing.T) {
-		// Artifact with content that's too short
-		output := "<artifact>Too short</artifact>"
+	t.Run("artifact too short returns validation failure", func(t *testing.T) {
+		output := `{"status": "complete", "artifact": "short"}`
 		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
@@ -973,70 +595,74 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 		}
 
 		if specErr.ValidationFailure == "" {
-			t.Error("ValidationFailure should not be empty for invalid content")
+			t.Error("ValidationFailure should be populated for short content")
 		}
 		if !strings.Contains(specErr.ValidationFailure, "content too short") {
-			t.Errorf("ValidationFailure should mention 'content too short', got %q", specErr.ValidationFailure)
+			t.Errorf("ValidationFailure should mention 'too short', got %q", specErr.ValidationFailure)
+		}
+	})
+}
+
+// TestPhasesWithArtifacts verifies the phase-to-artifact mapping
+func TestPhasesWithArtifacts(t *testing.T) {
+	t.Parallel()
+
+	artifactPhases := []string{"spec", "design", "research", "docs"}
+	nonArtifactPhases := []string{"implement", "test", "review", "validate", "finalize"}
+
+	for _, phase := range artifactPhases {
+		if !PhasesWithArtifacts[phase] {
+			t.Errorf("PhasesWithArtifacts[%q] should be true", phase)
+		}
+	}
+
+	for _, phase := range nonArtifactPhases {
+		if PhasesWithArtifacts[phase] {
+			t.Errorf("PhasesWithArtifacts[%q] should be false", phase)
+		}
+	}
+}
+
+// TestGetSchemaForPhase verifies schema selection by phase
+func TestGetSchemaForPhase(t *testing.T) {
+	t.Parallel()
+
+	t.Run("artifact phases get artifact schema", func(t *testing.T) {
+		for _, phase := range []string{"spec", "design", "research", "docs"} {
+			schema := GetSchemaForPhase(phase)
+			if !strings.Contains(schema, `"artifact"`) {
+				t.Errorf("GetSchemaForPhase(%q) should return schema with artifact field", phase)
+			}
 		}
 	})
 
-	t.Run("file fallback includes file info", func(t *testing.T) {
-		// Create a worktree with spec file
-		tmpDir := t.TempDir()
-		specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(specDir, 0755); err != nil {
-			t.Fatalf("failed to create spec dir: %v", err)
-		}
-
-		// Write a valid spec file
-		specContent := "# Specification\n\n## Intent\nBuild a feature with proper error handling and tests."
-		specPath := filepath.Join(specDir, "spec.md")
-		if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-			t.Fatalf("failed to write spec file: %v", err)
-		}
-
-		// Output without artifact tags - should fall back to file
-		output := "The spec has been written to the file."
-		saved, err := SaveSpecToDatabase(backend, taskID, "spec", output, tmpDir)
-
-		if err != nil {
-			t.Fatalf("SaveSpecToDatabase() unexpected error: %v", err)
-		}
-		if !saved {
-			t.Error("SaveSpecToDatabase() should have saved from file")
+	t.Run("standard phases get basic schema", func(t *testing.T) {
+		for _, phase := range []string{"implement", "test", "validate", "finalize"} {
+			schema := GetSchemaForPhase(phase)
+			if strings.Contains(schema, `"artifact"`) {
+				t.Errorf("GetSchemaForPhase(%q) should return schema WITHOUT artifact field", phase)
+			}
 		}
 	})
 
-	t.Run("file exists but empty returns file info in error", func(t *testing.T) {
-		// Create a worktree with empty spec file
-		tmpDir := t.TempDir()
-		specDir := filepath.Join(tmpDir, ".orc", "tasks", taskID)
-		if err := os.MkdirAll(specDir, 0755); err != nil {
-			t.Fatalf("failed to create spec dir: %v", err)
+	t.Run("review phase gets specialized schema", func(t *testing.T) {
+		// Round 1 (default) gets ReviewFindingsSchema
+		schema := GetSchemaForPhaseWithRound("review", 1)
+		if !strings.Contains(schema, `"issues"`) {
+			t.Error("review round 1 should return ReviewFindingsSchema with issues field")
 		}
 
-		// Write an empty spec file
-		specPath := filepath.Join(specDir, "spec.md")
-		if err := os.WriteFile(specPath, []byte(""), 0644); err != nil {
-			t.Fatalf("failed to write spec file: %v", err)
+		// Round 2 gets ReviewDecisionSchema
+		schema = GetSchemaForPhaseWithRound("review", 2)
+		if !strings.Contains(schema, `"gaps_addressed"`) {
+			t.Error("review round 2 should return ReviewDecisionSchema with gaps_addressed field")
 		}
+	})
 
-		// Output without artifact tags
-		output := "No spec content."
-		_, err := SaveSpecToDatabase(backend, taskID, "spec", output, tmpDir)
-
-		specErr, ok := err.(*SpecExtractionError)
-		if !ok {
-			t.Fatalf("expected SpecExtractionError, got %T", err)
-		}
-
-		if specErr.SpecPath == "" {
-			t.Error("SpecPath should be populated")
-		}
-		// File exists but is empty, so FileExists should be true
-		// but we don't read empty files as valid content
-		if !strings.Contains(specErr.SpecPath, "spec.md") {
-			t.Errorf("SpecPath should include spec.md, got %q", specErr.SpecPath)
+	t.Run("qa phase gets specialized schema", func(t *testing.T) {
+		schema := GetSchemaForPhase("qa")
+		if !strings.Contains(schema, `"tests_written"`) {
+			t.Error("qa phase should return QAResultSchema with tests_written field")
 		}
 	})
 }

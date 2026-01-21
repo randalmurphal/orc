@@ -1,10 +1,8 @@
 package planner
 
 import (
-	"encoding/xml"
+	"encoding/json"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/task"
@@ -25,34 +23,32 @@ type TaskBreakdown struct {
 	Tasks   []*ProposedTask `yaml:"tasks" json:"tasks"`
 }
 
-// xmlTaskBreakdown matches the Claude output format.
-type xmlTaskBreakdown struct {
-	Tasks []xmlTask `xml:"task"`
+// jsonTaskBreakdown matches the Claude JSON output format.
+type jsonTaskBreakdown struct {
+	Summary string     `json:"summary"`
+	Tasks   []jsonTask `json:"tasks"`
 }
 
-type xmlTask struct {
-	ID          string `xml:"id,attr"`
-	Title       string `xml:"title"`
-	Description string `xml:"description"`
-	Weight      string `xml:"weight"`
-	DependsOn   string `xml:"depends_on"`
+type jsonTask struct {
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Weight      string `json:"weight"`
+	DependsOn   []int  `json:"depends_on"`
 }
-
-var taskBreakdownPattern = regexp.MustCompile(`(?s)<task_breakdown>(.*?)</task_breakdown>`)
 
 // ParseTaskBreakdown extracts tasks from Claude's response.
+// Expects JSON output with structure: {"summary": "...", "tasks": [...]}
 func ParseTaskBreakdown(content string) (*TaskBreakdown, error) {
-	// Extract <task_breakdown>...</task_breakdown>
-	matches := taskBreakdownPattern.FindStringSubmatch(content)
-	if len(matches) < 2 {
-		return nil, fmt.Errorf("no task breakdown found in response")
+	// Find JSON in the response - it may be wrapped in markdown code blocks
+	jsonContent := extractJSON(content)
+	if jsonContent == "" {
+		return nil, fmt.Errorf("no JSON task breakdown found in response")
 	}
 
-	xmlContent := "<task_breakdown>" + matches[1] + "</task_breakdown>"
-
-	var breakdown xmlTaskBreakdown
-	if err := xml.Unmarshal([]byte(xmlContent), &breakdown); err != nil {
-		return nil, fmt.Errorf("parse task breakdown XML: %w", err)
+	var breakdown jsonTaskBreakdown
+	if err := json.Unmarshal([]byte(jsonContent), &breakdown); err != nil {
+		return nil, fmt.Errorf("parse task breakdown JSON: %w", err)
 	}
 
 	if len(breakdown.Tasks) == 0 {
@@ -60,12 +56,13 @@ func ParseTaskBreakdown(content string) (*TaskBreakdown, error) {
 	}
 
 	result := &TaskBreakdown{
-		Tasks: make([]*ProposedTask, len(breakdown.Tasks)),
+		Summary: breakdown.Summary,
+		Tasks:   make([]*ProposedTask, len(breakdown.Tasks)),
 	}
 
 	for i, t := range breakdown.Tasks {
-		idx, err := strconv.Atoi(t.ID)
-		if err != nil {
+		idx := t.ID
+		if idx == 0 {
 			idx = i + 1 // Default to position-based index
 		}
 
@@ -76,35 +73,57 @@ func ParseTaskBreakdown(content string) (*TaskBreakdown, error) {
 			Title:       strings.TrimSpace(t.Title),
 			Description: strings.TrimSpace(t.Description),
 			Weight:      weight,
-			DependsOn:   parseDependencies(t.DependsOn),
+			DependsOn:   t.DependsOn,
 		}
-	}
-
-	// Extract summary if present (text before task_breakdown)
-	summaryIdx := strings.Index(content, "<task_breakdown>")
-	if summaryIdx > 0 {
-		result.Summary = strings.TrimSpace(content[:summaryIdx])
 	}
 
 	return result, nil
 }
 
-// parseDependencies parses a comma-separated list of task indices.
-func parseDependencies(s string) []int {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-
-	parts := strings.Split(s, ",")
-	var deps []int
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if id, err := strconv.Atoi(p); err == nil && id > 0 {
-			deps = append(deps, id)
+// extractJSON finds JSON content in the response.
+// It handles JSON wrapped in code blocks or raw JSON.
+func extractJSON(content string) string {
+	// Try to find JSON in markdown code block
+	if start := strings.Index(content, "```json"); start != -1 {
+		start += 7 // skip "```json"
+		if end := strings.Index(content[start:], "```"); end != -1 {
+			return strings.TrimSpace(content[start : start+end])
 		}
 	}
-	return deps
+
+	// Try to find JSON in generic code block
+	if start := strings.Index(content, "```"); start != -1 {
+		start += 3 // skip "```"
+		// Skip language identifier if present
+		if newline := strings.Index(content[start:], "\n"); newline != -1 {
+			start += newline + 1
+		}
+		if end := strings.Index(content[start:], "```"); end != -1 {
+			candidate := strings.TrimSpace(content[start : start+end])
+			if strings.HasPrefix(candidate, "{") {
+				return candidate
+			}
+		}
+	}
+
+	// Try to find raw JSON object
+	if start := strings.Index(content, "{"); start != -1 {
+		// Find the matching closing brace
+		depth := 0
+		for i := start; i < len(content); i++ {
+			switch content[i] {
+			case '{':
+				depth++
+			case '}':
+				depth--
+				if depth == 0 {
+					return content[start : i+1]
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // normalizeWeight converts a weight string to task.Weight.

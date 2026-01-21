@@ -4,15 +4,18 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // ConflictResolver handles conflict resolution for task branches.
@@ -176,7 +179,10 @@ func (r *ConflictResolver) Resolve(ctx context.Context, t *task.Task, conflictFi
 // resolveWithClaude uses Claude to resolve conflicts.
 func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, conflictFiles []string) (bool, error) {
 	// Build conflict resolution prompt
-	prompt := r.buildConflictResolutionPrompt(t, conflictFiles)
+	prompt, err := r.buildConflictResolutionPrompt(t, conflictFiles)
+	if err != nil {
+		return false, fmt.Errorf("build conflict resolution prompt: %w", err)
+	}
 
 	// Inject "ultrathink" for extended thinking mode
 	if r.thinking {
@@ -203,76 +209,49 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 	}
 
 	// Execute conflict resolution without schema - we verify success by checking git status
-	turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
+	_, err = turnExec.ExecuteTurnWithoutSchema(ctx, prompt)
 	if err != nil {
 		return false, fmt.Errorf("conflict resolution turn: %w", err)
 	}
 
-	// Check if Claude indicated success
-	if turnResult.Status == PhaseStatusComplete {
-		// Verify no unmerged files remain
-		gitCtx := r.gitSvc.Context()
-		unmerged, _ := gitCtx.RunGit("diff", "--name-only", "--diff-filter=U")
-		if strings.TrimSpace(unmerged) == "" {
-			// All conflicts resolved, commit the merge
-			_, commitErr := gitCtx.RunGit("commit", "--no-edit")
-			return commitErr == nil, commitErr
-		}
+	// Verify no unmerged files remain - this is the real success check
+	gitCtx := r.gitSvc.Context()
+	unmerged, _ := gitCtx.RunGit("diff", "--name-only", "--diff-filter=U")
+	if strings.TrimSpace(unmerged) == "" {
+		// All conflicts resolved, commit the merge
+		_, commitErr := gitCtx.RunGit("commit", "--no-edit")
+		return commitErr == nil, commitErr
 	}
 
-	return false, fmt.Errorf("conflict resolution incomplete")
+	return false, fmt.Errorf("conflict resolution incomplete: unmerged files remain")
 }
 
 // buildConflictResolutionPrompt creates the prompt for conflict resolution.
-func (r *ConflictResolver) buildConflictResolutionPrompt(t *task.Task, conflictFiles []string) string {
-	cfg := r.config.ConflictResolution
-	var sb strings.Builder
-
-	sb.WriteString("# Conflict Resolution Task\n\n")
-	sb.WriteString("You are resolving merge conflicts for task: ")
-	sb.WriteString(t.ID)
-	sb.WriteString(" - ")
-	sb.WriteString(t.Title)
-	sb.WriteString("\n\n")
-
-	sb.WriteString("## Conflicted Files\n\n")
-	for _, f := range conflictFiles {
-		sb.WriteString("- `")
-		sb.WriteString(f)
-		sb.WriteString("`\n")
+func (r *ConflictResolver) buildConflictResolutionPrompt(t *task.Task, conflictFiles []string) (string, error) {
+	// Load template from centralized templates
+	tmplContent, err := templates.Prompts.ReadFile("prompts/conflict_resolution.md")
+	if err != nil {
+		return "", fmt.Errorf("read conflict resolution template: %w", err)
 	}
 
-	sb.WriteString("\n## Conflict Resolution Rules\n\n")
-	sb.WriteString("**CRITICAL - You MUST follow these rules:**\n\n")
-	sb.WriteString("1. **NEVER remove features** - Both your changes AND upstream changes must be preserved\n")
-	sb.WriteString("2. **Merge intentions, not text** - Understand what each side was trying to accomplish\n")
-	sb.WriteString("3. **Prefer additive resolution** - If in doubt, keep both implementations\n")
-	sb.WriteString("4. **Test after every file** - Don't batch conflict resolutions\n\n")
-
-	sb.WriteString("## Prohibited Resolutions\n\n")
-	sb.WriteString("- **NEVER**: Just take \"ours\" or \"theirs\" without understanding\n")
-	sb.WriteString("- **NEVER**: Remove upstream features to fix conflicts\n")
-	sb.WriteString("- **NEVER**: Remove your features to fix conflicts\n")
-	sb.WriteString("- **NEVER**: Comment out conflicting code\n\n")
-
-	// Add custom instructions if provided
-	if cfg.Instructions != "" {
-		sb.WriteString("## Additional Instructions\n\n")
-		sb.WriteString(cfg.Instructions)
-		sb.WriteString("\n\n")
+	tmpl, err := template.New("conflict_resolution").Parse(string(tmplContent))
+	if err != nil {
+		return "", fmt.Errorf("parse conflict resolution template: %w", err)
 	}
 
-	sb.WriteString("## Instructions\n\n")
-	sb.WriteString("1. For each conflicted file, read and understand both sides of the conflict\n")
-	sb.WriteString("2. Resolve the conflict by merging both changes appropriately\n")
-	sb.WriteString("3. Stage the resolved file with `git add <file>`\n")
-	sb.WriteString("4. After all files are resolved, output ONLY this JSON:\n")
-	sb.WriteString(`{"status": "complete", "summary": "Resolved X conflicts in files A, B, C"}`)
-	sb.WriteString("\n\nIf you cannot resolve a conflict, output ONLY this JSON:\n")
-	sb.WriteString(`{"status": "blocked", "reason": "[explanation]"}`)
-	sb.WriteString("\n")
+	data := map[string]any{
+		"TaskID":        t.ID,
+		"TaskTitle":     t.Title,
+		"ConflictFiles": conflictFiles,
+		"Instructions":  r.config.ConflictResolution.Instructions,
+	}
 
-	return sb.String()
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("execute conflict resolution template: %w", err)
+	}
+
+	return buf.String(), nil
 }
 
 // BranchLock provides per-branch serialization for conflict resolution.

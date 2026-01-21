@@ -18,7 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -252,7 +251,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 				}
 				e.logger.Warn("spec phase produced no output, continuing (trivial/small weight)")
 			} else {
-				saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output, e.worktreePath)
+				saved, err := SaveSpecToDatabase(e.backend, t.ID, phase.ID, result.Output)
 				if err != nil {
 					// Check if it's a spec extraction error with details
 					if specErr, ok := err.(*SpecExtractionError); ok {
@@ -261,10 +260,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 								"task", t.ID,
 								"reason", specErr.Reason,
 								"output_len", specErr.OutputLen,
-								"spec_path", specErr.SpecPath,
-								"file_exists", specErr.FileExists,
-								"file_read_err", specErr.FileReadErr,
-								"hint", "Agent must output spec in <artifact> tags OR write to spec.md file",
+								"hint", "Agent must include spec in JSON artifact field",
 							)
 							extractionErr := fmt.Errorf("spec phase failed: %s", specErr.Reason)
 							e.failTask(t, phase, s, extractionErr)
@@ -288,27 +284,6 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 					e.logger.Info("saved spec to database", "task", t.ID)
 				}
 			}
-		}
-
-		// Extract and save review findings for review phase.
-		// This enables multi-round review by persisting findings between rounds.
-		if phase.ID == "review" && result.Output != "" {
-			// Determine review round - same logic as template context loading.
-			// Round 1: first time review runs (phase not yet completed before).
-			// Round 2: review phase was previously completed.
-			reviewRound := 1
-			if s.Phases != nil {
-				if ps, ok := s.Phases["review"]; ok && ps.Status == "completed" {
-					reviewRound = 2
-				}
-			}
-			e.tryExtractReviewFindings(ctx, t.ID, result.Output, reviewRound)
-		}
-
-		// Extract and save QA results for qa phase.
-		// This enables QA result persistence for reporting and dashboard display.
-		if phase.ID == "qa" && result.Output != "" {
-			e.tryExtractQAResult(ctx, t.ID, result.Output)
 		}
 
 		// Complete phase
@@ -1231,148 +1206,6 @@ func (e *Executor) triggerAutomationEvent(ctx context.Context, eventType string,
 	}
 }
 
-// tryExtractReviewFindings attempts to extract and save review findings from phase output.
-// This is a best-effort operation - extraction failures are logged but don't fail the phase.
-func (e *Executor) tryExtractReviewFindings(ctx context.Context, taskID, output string, round int) {
-	// Use haiku client for extraction (same as validation)
-	if e.haikuClient == nil {
-		e.logger.Debug("skipping review findings extraction - no haiku client configured")
-		return
-	}
-
-	// Extract review findings from the output
-	findings, err := ExtractReviewFindings(ctx, e.haikuClient, output)
-	if err != nil {
-		e.logger.Warn("failed to extract review findings",
-			"task", taskID,
-			"round", round,
-			"error", err,
-		)
-		return
-	}
-
-	// Convert executor.ReviewFindings to storage.ReviewFindings
-	storageFindings := &storage.ReviewFindings{
-		TaskID:      taskID,
-		Round:       round,
-		Summary:     findings.Summary,
-		Issues:      make([]storage.ReviewFinding, len(findings.Issues)),
-		Questions:   findings.Questions,
-		Positives:   findings.Positives,
-		Perspective: string(findings.Perspective),
-	}
-	for i, issue := range findings.Issues {
-		storageFindings.Issues[i] = storage.ReviewFinding{
-			Severity:    issue.Severity,
-			File:        issue.File,
-			Line:        issue.Line,
-			Description: issue.Description,
-			Suggestion:  issue.Suggestion,
-			Perspective: string(issue.Perspective),
-		}
-	}
-
-	// Save to database
-	if err := e.backend.SaveReviewFindings(storageFindings); err != nil {
-		e.logger.Warn("failed to save review findings",
-			"task", taskID,
-			"round", round,
-			"error", err,
-		)
-		return
-	}
-
-	e.logger.Info("extracted and saved review findings",
-		"task", taskID,
-		"round", round,
-		"issues", len(findings.Issues),
-		"summary_length", len(findings.Summary),
-	)
-}
-
-// tryExtractQAResult attempts to extract and save QA results from phase output.
-// This is a best-effort operation - extraction failures are logged but don't fail the phase.
-func (e *Executor) tryExtractQAResult(ctx context.Context, taskID, output string) {
-	// Use haiku client for extraction (same as validation)
-	if e.haikuClient == nil {
-		e.logger.Debug("skipping QA result extraction - no haiku client configured")
-		return
-	}
-
-	// Extract QA results from the output
-	qaResult, err := ExtractQAResult(ctx, e.haikuClient, output)
-	if err != nil {
-		e.logger.Warn("failed to extract QA result",
-			"task", taskID,
-			"error", err,
-		)
-		return
-	}
-
-	// Convert executor.QAResult to storage.QAResult
-	storageResult := &storage.QAResult{
-		TaskID:         taskID,
-		Status:         string(qaResult.Status),
-		Summary:        qaResult.Summary,
-		Recommendation: qaResult.Recommendation,
-	}
-
-	// Convert nested types
-	for _, t := range qaResult.TestsWritten {
-		storageResult.TestsWritten = append(storageResult.TestsWritten, storage.QATest{
-			File:        t.File,
-			Description: t.Description,
-			Type:        t.Type,
-		})
-	}
-
-	if qaResult.TestsRun != nil {
-		storageResult.TestsRun = &storage.QATestRun{
-			Total:   qaResult.TestsRun.Total,
-			Passed:  qaResult.TestsRun.Passed,
-			Failed:  qaResult.TestsRun.Failed,
-			Skipped: qaResult.TestsRun.Skipped,
-		}
-	}
-
-	if qaResult.Coverage != nil {
-		storageResult.Coverage = &storage.QACoverage{
-			Percentage:     qaResult.Coverage.Percentage,
-			UncoveredAreas: qaResult.Coverage.UncoveredAreas,
-		}
-	}
-
-	for _, doc := range qaResult.Documentation {
-		storageResult.Documentation = append(storageResult.Documentation, storage.QADoc{
-			File: doc.File,
-			Type: doc.Type,
-		})
-	}
-
-	for _, issue := range qaResult.Issues {
-		storageResult.Issues = append(storageResult.Issues, storage.QAIssue{
-			Severity:     issue.Severity,
-			Description:  issue.Description,
-			Reproduction: issue.Reproduction,
-		})
-	}
-
-	// Save to database
-	if err := e.backend.SaveQAResult(storageResult); err != nil {
-		e.logger.Warn("failed to save QA result",
-			"task", taskID,
-			"error", err,
-		)
-		return
-	}
-
-	e.logger.Info("extracted and saved QA result",
-		"task", taskID,
-		"status", qaResult.Status,
-		"tests_written", len(qaResult.TestsWritten),
-		"issues", len(qaResult.Issues),
-	)
-}
 
 // phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout
 type phaseTimeoutError struct {

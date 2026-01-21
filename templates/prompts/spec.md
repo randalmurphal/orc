@@ -26,7 +26,7 @@ You are working in an **isolated git worktree**.
 - All commits go to branch `{{TASK_BRANCH}}`
 - **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
-- **DO NOT** write `spec.md` files to the filesystem - specs are saved to the database from `<artifact>` tags
+- **DO NOT** write `spec.md` files to the filesystem - specs are captured via JSON output
 - Merging happens via PR after all phases complete
 - Git hooks are active to prevent accidental protected branch modifications
 
@@ -312,17 +312,11 @@ This checklist will be verified during the review phase. Define upfront what rev
 
 ## Output Format
 
-**CRITICAL REQUIREMENTS**:
-1. You **MUST** output your spec wrapped in `<artifact>` tags - this is how specs are captured
-2. Do NOT use the Write tool to create `spec.md` files - specs are extracted from `<artifact>` tags automatically
-3. The `<artifact>` tags are **MANDATORY** even if no file changes were made
-4. Worktree state is IRRELEVANT - you must always produce the artifact
+**CRITICAL**: Your final output MUST be a JSON object with the spec in the `artifact` field. This is how specs are captured - no files, no XML tags.
 
-The spec exists ONLY in your `<artifact>` output. Without it, subsequent phases have no success criteria to work from.
+Create the spec following this structure:
 
-Create the spec and wrap it in artifact tags:
-
-<artifact>
+```markdown
 # Specification: {{TASK_TITLE}}
 
 ## Problem Statement
@@ -429,32 +423,24 @@ Create the spec and wrap it in artifact tags:
 
 ## Open Questions
 [Any questions needing clarification - or "None"]
-</artifact>
+```
 
 ## Phase Completion
 
-**Step 1**: Output your spec in `<artifact>` tags (REQUIRED - see Output Format above)
-
-**Step 2**: Commit any file changes made during spec creation (if any):
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: spec - completed"
-```
-
-If the working tree is clean, skip the commit but **still output the artifact**.
-
-**Step 3**: Output completion with summary:
-
-Then output ONLY this JSON to signal completion:
+Output a JSON object with the spec in the `artifact` field:
 
 ```json
-{"status": "complete", "summary": "Spec defined [count] success criteria and [count] testing requirements. Scope: [narrow/moderate/wide]"}
+{
+  "status": "complete",
+  "summary": "Spec defined 3 success criteria and 2 testing requirements",
+  "artifact": "# Specification: Feature Name\n\n## Problem Statement\n..."
+}
 ```
 
-**If blocked** (requirements genuinely unclear - NOT because worktree is clean), output ONLY this JSON:
+If blocked (requirements genuinely unclear):
 ```json
-{"status": "blocked", "reason": "[what's unclear and what clarification is needed]"}
+{
+  "status": "blocked",
+  "reason": "[what's unclear and what clarification is needed]"
+}
 ```
-
-⚠️ **Common mistake**: Do NOT skip the `<artifact>` tags because the worktree is clean. The artifact is your spec output, not a file.

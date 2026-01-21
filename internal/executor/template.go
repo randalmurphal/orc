@@ -580,80 +580,12 @@ func loadPriorContent(taskDir string, s *state.State, phaseID string) string {
 	return loadFromTranscript(taskDir, phaseID)
 }
 
-// loadFromTranscript reads the latest transcript for a phase and extracts artifacts.
-func loadFromTranscript(taskDir string, phaseID string) string {
-	transcriptsDir := filepath.Join(taskDir, "transcripts")
-
-	// Find transcript files for this phase: {phase}-{iteration}.md
-	entries, err := os.ReadDir(transcriptsDir)
-	if err != nil {
-		return ""
-	}
-
-	// Pattern: {phase}-{number}.md
-	pattern := regexp.MustCompile(`^` + regexp.QuoteMeta(phaseID) + `-(\d+)\.md$`)
-
-	var transcriptFiles []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if pattern.MatchString(entry.Name()) {
-			transcriptFiles = append(transcriptFiles, entry.Name())
-		}
-	}
-
-	if len(transcriptFiles) == 0 {
-		return ""
-	}
-
-	// Sort to get the latest iteration (highest number)
-	sort.Strings(transcriptFiles)
-	latestFile := transcriptFiles[len(transcriptFiles)-1]
-
-	content, err := os.ReadFile(filepath.Join(transcriptsDir, latestFile))
-	if err != nil {
-		return ""
-	}
-
-	return extractArtifact(string(content))
-}
-
-// extractArtifact extracts content between <artifact>...</artifact> tags.
-// Uses the LAST match to avoid matching template examples in prompts.
-// If no artifact tags are found, returns empty string.
-func extractArtifact(content string) string {
-	// Try to extract content between <artifact> tags
-	// Use FindAllStringSubmatch and take the LAST match - this avoids matching
-	// template examples in the prompt and finds the agent's actual output
-	artifactPattern := regexp.MustCompile(`(?s)<artifact>(.*?)</artifact>`)
-	allMatches := artifactPattern.FindAllStringSubmatch(content, -1)
-	if len(allMatches) > 0 {
-		// Take the last match (agent's response, not template example)
-		lastMatch := allMatches[len(allMatches)-1]
-		if len(lastMatch) >= 2 {
-			return strings.TrimSpace(lastMatch[1])
-		}
-	}
-
-	// If no artifact tags, look for structured output markers
-	// e.g., spec_complete:, ## Specification, etc.
-	structuredPatterns := []string{
-		`(?s)## Specification\s*\n(.*?)(?:\n##|$)`,
-		`(?s)## Research Results\s*\n(.*?)(?:\n##|$)`,
-		`(?s)## Design\s*\n(.*?)(?:\n##|$)`,
-		`(?s)## Implementation Summary\s*\n(.*?)(?:\n##|$)`,
-	}
-
-	for _, p := range structuredPatterns {
-		re := regexp.MustCompile(p)
-		if m := re.FindStringSubmatch(content); len(m) >= 2 {
-			return strings.TrimSpace(m[1])
-		}
-	}
-
-	// If no structured content found, return empty
-	// We don't want to return raw transcript content as it's too noisy
+// loadFromTranscript is a no-op fallback.
+// Artifact content should be written directly to artifact files by agents.
+// No extraction from transcripts is performed - if the artifact file doesn't
+// exist in {taskDir}/artifacts/{phase}.md, there's no artifact for that phase.
+func loadFromTranscript(_, _ string) string {
+	// No transcript extraction - agents write files directly
 	return ""
 }
 

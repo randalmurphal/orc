@@ -70,9 +70,11 @@ Create a research summary documenting:
 
 ## Output Format
 
-Create the research document and wrap it in artifact tags for automatic persistence:
+**CRITICAL**: Your final output MUST be a JSON object with the research document in the `artifact` field.
 
-<artifact>
+Create the research document following this structure:
+
+```markdown
 # Research: {{TASK_TITLE}}
 
 ## Goal
@@ -123,27 +125,24 @@ Create the research document and wrap it in artifact tags for automatic persiste
 ## Recommendations
 
 [Summary of recommended approach based on findings]
-</artifact>
+```
 
 ## Phase Completion
 
-After completing research, commit your changes:
-
-```bash
-git add -A
-git commit -m "[orc] {{TASK_ID}}: research - completed"
-```
-
-Then output:
-
-```
-Then output ONLY this JSON to signal completion:
+Output a JSON object with the research in the `artifact` field:
 
 ```json
-{"status": "complete", "summary": "Research analyzed [count] files, found [count] dependencies, identified [count] challenges. Commit: [SHA]"}
+{
+  "status": "complete",
+  "summary": "Research analyzed 12 files, found 3 dependencies, identified 2 challenges",
+  "artifact": "# Research: Feature Name\n\n## Goal\n..."
+}
 ```
 
-If blocked (e.g., access issues, unclear requirements), output ONLY this JSON:
+If blocked (e.g., access issues, unclear requirements):
 ```json
-{"status": "blocked", "reason": "[what's blocking research and what's needed to proceed]"}
+{
+  "status": "blocked",
+  "reason": "[what's blocking research and what's needed to proceed]"
+}
 ```

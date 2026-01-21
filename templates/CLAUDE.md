@@ -9,9 +9,13 @@ templates/
 ├── embed.go          # Go embed directives
 ├── plans/            # Weight-based plan templates
 │   ├── trivial.yaml, small.yaml, medium.yaml, large.yaml, greenfield.yaml
-├── prompts/          # Phase prompt templates
-│   ├── classify.md, research.md, spec.md, design.md, implement.md
-│   ├── review.md, test.md, docs.md, validate.md, finalize.md
+├── prompts/          # ALL prompts (phase, validation, gates)
+│   ├── [phase prompts] classify, research, spec, design, implement, review, test, docs, validate, finalize
+│   ├── [validation] haiku_iteration_progress, haiku_task_readiness, haiku_success_criteria
+│   ├── [gates] gate_evaluation, conflict_resolution
+│   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
+│   ├── [review] review_round1, review_round2, qa
+│   └── [automation] automation/*.md
 └── pr-body.md        # PR description template
 ```
 
@@ -75,13 +79,32 @@ Use it to sync with target branch and resolve conflicts before merge.
 [Phase-specific]
 
 ## Completion
-When ready to signal phase status, output ONLY valid JSON:
-{"status": "complete", "summary": "Brief description of what was accomplished"}
+When ready to signal phase status, output valid JSON (constrained by --json-schema):
+{"status": "complete", "summary": "Brief description", "artifact": "...content..."}
 {"status": "blocked", "reason": "Why blocked and what's needed"}
 {"status": "continue", "reason": "What was done and what's next"}
 ```
 
-## Embedding
+## Artifact Output
+
+Phases that produce artifacts use `--json-schema` constrained output with an `artifact` field.
+
+| Phase | Produces Artifact | Content |
+|-------|-------------------|---------|
+| spec | Yes | Technical specification |
+| design | Yes | Architecture document |
+| research | Yes | Research findings |
+| docs | Yes | Documentation summary |
+| implement | No | Code changes only |
+| test | No | Test execution only |
+| review | No | Review findings only |
+| validate | No | Validation results only |
+
+Artifact content is extracted from the JSON `artifact` field by `ExtractArtifactFromOutput()`.
+
+## Embedding & Loading Pattern
+
+**CRITICAL**: ALL prompts MUST be loaded via `templates.Prompts.ReadFile()`. No inline prompts.
 
 ```go
 //go:embed prompts/*.md
@@ -90,9 +113,34 @@ var Prompts embed.FS
 //go:embed plans/*.yaml
 var Plans embed.FS
 
-// Usage
-content, err := templates.Prompts.ReadFile("prompts/implement.md")
+// Standard loading pattern (with template execution)
+tmplContent, err := templates.Prompts.ReadFile("prompts/implement.md")
+if err != nil {
+    return "", fmt.Errorf("read implement template: %w", err)  // NEVER return empty string
+}
+tmpl, err := template.New("implement").Parse(string(tmplContent))
+// ... execute with data map
 ```
+
+**Anti-pattern (NEVER do this):**
+```go
+// BAD: Inline prompt
+prompt := fmt.Sprintf("Evaluate whether %s...", content)
+
+// BAD: Silent failure
+content, _ := templates.Prompts.ReadFile("prompts/foo.md")
+if content == nil { return "" }  // Lost error!
+```
+
+| Package | Prompt Files |
+|---------|--------------|
+| `executor/haiku_validation.go` | `haiku_iteration_progress.md`, `haiku_task_readiness.md`, `haiku_success_criteria.md` |
+| `executor/conflict_resolver.go` | `conflict_resolution.md` |
+| `gate/gate.go` | `gate_evaluation.md` |
+| `spec/prompt.go` | `spec_session.md` |
+| `plan_session/prompt.go` | `plan_session.md` |
+| `planner/prompt.go` | `plan_from_spec.md` |
+| `setup/prompt.go` | `setup.md` |
 
 ## Project Overrides
 

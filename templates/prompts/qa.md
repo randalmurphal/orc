@@ -83,45 +83,25 @@ Verify no regressions:
 
 ## Output Format
 
-```xml
-<qa_result>
-  <status>pass|fail|needs_attention</status>
-  <summary>Overall QA assessment</summary>
+Output JSON matching the QA result schema:
 
-  <tests_written>
-    <test>
-      <file>path/to/test_file.go</file>
-      <description>What this test covers</description>
-      <type>e2e|integration|unit</type>
-    </test>
-  </tests_written>
-
-  <tests_run>
-    <total>N</total>
-    <passed>N</passed>
-    <failed>N</failed>
-    <skipped>N</skipped>
-  </tests_run>
-
-  <coverage>
-    <percentage>N%</percentage>
-    <uncovered_areas>Description of areas lacking coverage</uncovered_areas>
-  </coverage>
-
-  <documentation>
-    <file>path/to/doc.md</file>
-    <type>feature|api|testing</type>
-  </documentation>
-
-  <issues>
-    <issue severity="high|medium|low">
-      <description>Issue found during QA</description>
-      <reproduction>Steps to reproduce</reproduction>
-    </issue>
-  </issues>
-
-  <recommendation>What should happen next</recommendation>
-</qa_result>
+```json
+{
+  "status": "pass|fail|needs_attention",
+  "summary": "Overall QA assessment",
+  "tests_written": [
+    {"file": "path/to/test.go", "description": "What it tests", "type": "e2e|integration|unit"}
+  ],
+  "tests_run": {"total": 10, "passed": 10, "failed": 0, "skipped": 0},
+  "coverage": {"percentage": 85, "uncovered_areas": "Description if any"},
+  "documentation": [
+    {"file": "path/to/doc.md", "type": "feature|api|testing"}
+  ],
+  "issues": [
+    {"severity": "high|medium|low", "description": "Issue found", "reproduction": "Steps"}
+  ],
+  "recommendation": "What should happen next"
+}
 ```
 
 ## Decision Criteria

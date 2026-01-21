@@ -2,7 +2,6 @@ package plan_session
 
 import (
 	"bytes"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,10 +10,8 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/templates"
 )
-
-//go:embed builtin/plan_session.md
-var builtinPromptTemplate string
 
 // PromptOverridePath is the path to the user-overridable prompt template.
 const PromptOverridePath = ".orc/prompts/plan.md"
@@ -52,12 +49,19 @@ type PromptData struct {
 // GeneratePrompt creates the planning session prompt.
 func GeneratePrompt(data PromptData) (string, error) {
 	// Load template (check for override first)
-	templateContent := builtinPromptTemplate
+	var templateContent string
 	if data.WorkDir != "" {
 		overridePath := filepath.Join(data.WorkDir, PromptOverridePath)
 		if content, err := os.ReadFile(overridePath); err == nil {
 			templateContent = string(content)
 		}
+	}
+	if templateContent == "" {
+		content, err := templates.Prompts.ReadFile("prompts/plan_session.md")
+		if err != nil {
+			return "", fmt.Errorf("read plan session prompt: %w", err)
+		}
+		templateContent = string(content)
 	}
 
 	// Build template data

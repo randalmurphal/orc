@@ -11,41 +11,48 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// SavePhaseArtifact extracts and saves artifact content from phase output.
-// Returns the path to the saved artifact file, or empty string if no artifact found.
+// SavePhaseArtifact extracts artifact content from JSON output and saves to file.
+// For artifact-producing phases (spec, design, research, docs), agents output
+// structured JSON with an "artifact" field containing the full content.
 //
-// NOTE: For the "spec" phase, this function returns early without writing to the
-// filesystem. Spec content is saved exclusively to the database via SaveSpecToDatabase
-// to avoid merge conflicts in worktrees. Use SaveSpecToDatabase for spec phase output.
+// NOTE: For the "spec" phase, this function returns early - use SaveSpecToDatabase instead.
+// Spec content is saved to the database to avoid merge conflicts in worktrees.
 func SavePhaseArtifact(taskID, phaseID, output string) (string, error) {
-	// Skip file writing for spec phase - use database only via SaveSpecToDatabase
+	// Skip for spec phase - use database only via SaveSpecToDatabase
 	if phaseID == "spec" {
 		return "", nil
 	}
 
-	artifact := extractArtifact(output)
+	// Only artifact-producing phases need artifact extraction
+	if !PhasesWithArtifacts[phaseID] {
+		return "", nil
+	}
+
+	// Extract artifact from JSON output
+	artifact := ExtractArtifactFromOutput(output)
 	if artifact == "" {
-		return "", nil // No artifact to save
+		return "", nil // No artifact in output
 	}
 
+	// Write artifact to file
 	taskDir := task.TaskDir(taskID)
-	artifactDir := filepath.Join(taskDir, "artifacts")
-	if err := os.MkdirAll(artifactDir, 0755); err != nil {
-		return "", err
+	artifactsDir := filepath.Join(taskDir, "artifacts")
+	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
+		return "", fmt.Errorf("create artifacts dir: %w", err)
 	}
 
-	path := filepath.Join(artifactDir, phaseID+".md")
-	if err := os.WriteFile(path, []byte(artifact), 0644); err != nil {
-		return "", err
+	artifactPath := filepath.Join(artifactsDir, phaseID+".md")
+	if err := os.WriteFile(artifactPath, []byte(artifact), 0644); err != nil {
+		return "", fmt.Errorf("write artifact: %w", err)
 	}
 
-	return path, nil
+	return artifactPath, nil
 }
 
-// ExtractArtifactContent extracts artifact content from raw output without saving.
-// This is useful for getting the artifact content for template variables.
+// ExtractArtifactContent extracts artifact from JSON output.
+// This is the only mechanism for capturing artifact content - no file lookups or XML parsing.
 func ExtractArtifactContent(output string) string {
-	return extractArtifact(output)
+	return ExtractArtifactFromOutput(output)
 }
 
 // SaveSpecToDatabase saves spec content to the database for the spec phase.
@@ -54,21 +61,18 @@ func ExtractArtifactContent(output string) string {
 // of truth for spec content, which is loaded via backend.LoadSpec() to populate
 // {{SPEC_CONTENT}} in subsequent phase templates.
 //
-// The worktreePath parameter is optional - if provided, we check for spec.md files
-// that agents may have written instead of using artifact tags.
+// Spec content is extracted from the JSON "artifact" field in the agent's output.
+// The --json-schema constraint ensures reliable structured output.
 //
 // This should be called after a successful spec phase completion.
 // Returns true if the spec was saved, false if the phase is not "spec" or no content found.
+
 // SpecExtractionError provides details about why spec extraction failed
 type SpecExtractionError struct {
 	Reason            string
 	OutputLen         int
 	OutputPreview     string // First 200 chars of output for debugging
-	SpecPath          string
-	FileExists        bool
-	FileSize          int64 // Size of spec.md if it exists
-	FileReadErr       error
-	ValidationFailure string // Specific reason why isValidSpecContent failed
+	ValidationFailure string // Specific reason why validateSpecContent failed
 }
 
 func (e *SpecExtractionError) Error() string {
@@ -80,16 +84,6 @@ func (e *SpecExtractionError) Error() string {
 	if e.OutputPreview != "" {
 		fmt.Fprintf(&b, "\n  output_preview: %q", e.OutputPreview)
 	}
-	if e.SpecPath != "" {
-		fmt.Fprintf(&b, "\n  spec_path: %s", e.SpecPath)
-		fmt.Fprintf(&b, "\n  file_exists: %v", e.FileExists)
-		if e.FileExists && e.FileSize > 0 {
-			fmt.Fprintf(&b, "\n  file_size: %d bytes", e.FileSize)
-		}
-		if e.FileReadErr != nil {
-			fmt.Fprintf(&b, "\n  file_read_error: %v", e.FileReadErr)
-		}
-	}
 	if e.ValidationFailure != "" {
 		fmt.Fprintf(&b, "\n  validation_failure: %s", e.ValidationFailure)
 	}
@@ -97,14 +91,15 @@ func (e *SpecExtractionError) Error() string {
 	return b.String()
 }
 
-func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, worktreePath ...string) (bool, error) {
+// SaveSpecToDatabase extracts spec from JSON output and saves to database.
+// The worktreePath parameter is deprecated and ignored - specs come from JSON output only.
+func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, _ ...string) (bool, error) {
 	// Only save for spec phase
 	if phaseID != "spec" {
 		return false, nil
 	}
 
 	if backend == nil {
-		// This shouldn't happen in production - return error for visibility
 		return false, fmt.Errorf("backend is nil - cannot save spec")
 	}
 
@@ -116,70 +111,24 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 		return s[:maxLen] + "..."
 	}
 
-	// Extract the spec content from the output using artifact tags or structured markers
-	specContent := extractArtifact(output)
-	var specPath string
-	var fileExists bool
-	var fileSize int64
-	var fileReadErr error
-
-	// If no artifact tags found, check for spec file in multiple locations
-	// Agents sometimes write spec files instead of using artifact tags
-	if specContent == "" && len(worktreePath) > 0 && worktreePath[0] != "" {
-		// Try legacy location first: .orc/tasks/TASK-XXX/spec.md
-		specPath = task.SpecPathIn(worktreePath[0], taskID)
-		if info, err := os.Stat(specPath); err == nil {
-			fileExists = true
-			fileSize = info.Size()
-			if content, err := os.ReadFile(specPath); err == nil && len(content) > 0 {
-				specContent = strings.TrimSpace(string(content))
-			} else if err != nil {
-				fileReadErr = err
-			}
-		} else if !os.IsNotExist(err) {
-			// Stat failed but not because file doesn't exist
-			fileReadErr = err
-		}
-
-		// If still not found, try .orc/specs/TASK-XXX.md location
-		if specContent == "" {
-			altSpecPath := filepath.Join(worktreePath[0], ".orc", "specs", taskID+".md")
-			if info, err := os.Stat(altSpecPath); err == nil {
-				specPath = altSpecPath // Update for error reporting
-				fileExists = true
-				fileSize = info.Size()
-				if content, err := os.ReadFile(altSpecPath); err == nil && len(content) > 0 {
-					specContent = strings.TrimSpace(string(content))
-				} else if err != nil {
-					fileReadErr = err
-				}
-			}
-		}
-	}
-
+	// Extract spec from JSON artifact field
+	specContent := ExtractArtifactFromOutput(output)
 	if specContent == "" {
-		// No structured spec content found - return detailed error for diagnostics
 		return false, &SpecExtractionError{
-			Reason:        "no spec content found in output or file",
+			Reason:        "no artifact field in JSON output - agent must output spec in artifact field",
 			OutputLen:     len(output),
 			OutputPreview: outputPreview(output, 200),
-			SpecPath:      specPath,
-			FileExists:    fileExists,
-			FileSize:      fileSize,
-			FileReadErr:   fileReadErr,
 		}
 	}
 
+	specContent = strings.TrimSpace(specContent)
+
 	// Validate that the spec content looks like a valid spec
-	// A valid spec should have meaningful content and not just completion markers
 	if validationFailure := validateSpecContent(specContent); validationFailure != "" {
 		return false, &SpecExtractionError{
 			Reason:            "spec content failed validation",
 			OutputLen:         len(output),
-			OutputPreview:     outputPreview(output, 200),
-			SpecPath:          specPath,
-			FileExists:        fileExists,
-			FileSize:          fileSize,
+			OutputPreview:     outputPreview(specContent, 200),
 			ValidationFailure: validationFailure,
 		}
 	}

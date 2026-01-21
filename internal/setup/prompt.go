@@ -2,17 +2,14 @@ package setup
 
 import (
 	"bytes"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 	"text/template"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/templates"
 )
-
-//go:embed builtin/setup.yaml
-var builtinPromptTemplate string
 
 // PromptData contains the data used to generate the setup prompt.
 type PromptData struct {
@@ -60,8 +57,14 @@ func GeneratePrompt(workDir string, detection *db.Detection) (string, error) {
 	// Estimate project size
 	data.ProjectSize = estimateProjectSize(workDir)
 
+	// Load template from centralized templates
+	tmplContent, err := templates.Prompts.ReadFile("prompts/setup.md")
+	if err != nil {
+		return "", fmt.Errorf("read setup prompt: %w", err)
+	}
+
 	// Parse and execute template
-	tmpl, err := template.New("setup").Parse(builtinPromptTemplate)
+	tmpl, err := template.New("setup").Parse(string(tmplContent))
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)
 	}

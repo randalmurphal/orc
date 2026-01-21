@@ -71,54 +71,65 @@ Use these definitions:
 
 First, provide a brief summary of your analysis.
 
-Then output the task breakdown in this exact format:
+Then output the task breakdown as JSON with this structure:
 
-<task_breakdown>
-<task id="1">
-<title>Short, action-oriented title</title>
-<description>What this task accomplishes. Include:
-- Key changes
-- Files likely affected
-- Success criteria</description>
-<weight>trivial|small|medium|large</weight>
-<depends_on>comma-separated IDs or empty</depends_on>
-</task>
-<!-- More tasks... -->
-</task_breakdown>
+```json
+{
+  "summary": "Brief summary of the analysis and overall approach",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Short, action-oriented title",
+      "description": "What this task accomplishes. Include:\n- Key changes\n- Files likely affected\n- Success criteria",
+      "weight": "trivial|small|medium|large",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "title": "Second task title",
+      "description": "Description of second task",
+      "weight": "small",
+      "depends_on": [1]
+    }
+  ]
+}
+```
 
 ## Guidelines
 
 - **Atomic tasks**: Each task should do one thing well
 - **Clear descriptions**: Include enough context for implementation
 - **Conservative weights**: When uncertain, round UP
-- **Minimal dependencies**: Only specify true blockers
+- **Minimal dependencies**: Only specify true blockers (use task IDs)
 - **Testable outcomes**: Each task should have verifiable results
 
 ## Example
 
-<task_breakdown>
-<task id="1">
-<title>Create User model schema</title>
-<description>Define the User model with email, password_hash, created_at fields.
-- File: internal/models/user.go
-- Success: Model compiles, migrations run</description>
-<weight>small</weight>
-<depends_on></depends_on>
-</task>
-<task id="2">
-<title>Implement password hashing utility</title>
-<description>Add bcrypt-based password hashing in auth package.
-- File: internal/auth/password.go
-- Success: Hash and verify functions with tests</description>
-<weight>small</weight>
-<depends_on></depends_on>
-</task>
-<task id="3">
-<title>Create registration endpoint</title>
-<description>POST /api/auth/register with validation.
-- Uses User model and password hashing
-- Success: Endpoint returns 201 on valid registration</description>
-<weight>medium</weight>
-<depends_on>1,2</depends_on>
-</task>
-</task_breakdown>
+```json
+{
+  "summary": "User authentication feature requiring model, hashing utility, and API endpoint",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Create User model schema",
+      "description": "Define the User model with email, password_hash, created_at fields.\n- File: internal/models/user.go\n- Success: Model compiles, migrations run",
+      "weight": "small",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "title": "Implement password hashing utility",
+      "description": "Add bcrypt-based password hashing in auth package.\n- File: internal/auth/password.go\n- Success: Hash and verify functions with tests",
+      "weight": "small",
+      "depends_on": []
+    },
+    {
+      "id": 3,
+      "title": "Create registration endpoint",
+      "description": "POST /api/auth/register with validation.\n- Uses User model and password hashing\n- Success: Endpoint returns 201 on valid registration",
+      "weight": "medium",
+      "depends_on": [1, 2]
+    }
+  ]
+}
+```

@@ -2,14 +2,12 @@ package planner
 
 import (
 	"bytes"
-	"embed"
 	"fmt"
 	"path/filepath"
 	"text/template"
-)
 
-//go:embed templates/*
-var embeddedTemplates embed.FS
+	"github.com/randalmurphal/orc/templates"
+)
 
 // PromptData contains the data for prompt template rendering.
 type PromptData struct {
@@ -40,8 +38,8 @@ type PromptData struct {
 
 // GeneratePrompt generates the planning prompt from spec files.
 func GeneratePrompt(files []*SpecFile, data *PromptData) (string, error) {
-	// Read template
-	tmplContent, err := embeddedTemplates.ReadFile("templates/plan_from_spec.md")
+	// Read template from centralized templates
+	tmplContent, err := templates.Prompts.ReadFile("prompts/plan_from_spec.md")
 	if err != nil {
 		return "", fmt.Errorf("read prompt template: %w", err)
 	}
