@@ -5,6 +5,8 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 // PhaseCompletionStatus represents the completion status of a phase.
@@ -111,7 +113,12 @@ func truncateForPrompt(content string, maxLen int) string {
 // indicating phase completion or blocking. Used during streaming to detect
 // early completion (workaround for Claude CLI bug #1920).
 func HasJSONCompletion(content string) bool {
-	resp, err := ParsePhaseResponse(content)
+	// Use extractJSON to handle mixed content
+	jsonContent := extractJSON(content)
+	if jsonContent == "" {
+		return false
+	}
+	resp, err := ParsePhaseResponse(jsonContent)
 	if err != nil {
 		return false
 	}
@@ -124,10 +131,16 @@ func HasJSONCompletion(content string) bool {
 // Returns (status, reason) where status is PhaseCompletionStatus and reason is the
 // summary (for complete) or reason (for blocked/continue).
 //
-// This function requires pure JSON input, which is guaranteed when using
-// ClaudeExecutor with --json-schema in headless mode.
+// This function handles both pure JSON and mixed text/JSON content (e.g., JSON
+// wrapped in markdown code blocks).
 func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
-	resp, err := ParsePhaseResponse(content)
+	// Try to extract JSON from the content (handles code blocks, mixed text, etc.)
+	jsonContent := extractJSON(content)
+	if jsonContent == "" {
+		return PhaseStatusContinue, ""
+	}
+
+	resp, err := ParsePhaseResponse(jsonContent)
 	if err != nil {
 		// Can't parse as JSON - treat as continue (need more work)
 		return PhaseStatusContinue, ""
@@ -143,4 +156,32 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string) {
 	default:
 		return PhaseStatusContinue, ""
 	}
+}
+
+// extractJSON attempts to extract a JSON object from content that may contain
+// markdown code blocks, prose, or other non-JSON text.
+func extractJSON(content string) string {
+	content = strings.TrimSpace(content)
+
+	// Try direct JSON parse first (fast path)
+	if strings.HasPrefix(content, "{") {
+		var js json.RawMessage
+		if json.Unmarshal([]byte(content), &js) == nil {
+			return content
+		}
+	}
+
+	// Try to extract from markdown code block: ```json ... ```
+	codeBlockRe := regexp.MustCompile("(?s)```(?:json)?\\s*\\n?({.*?})\\s*\\n?```")
+	if matches := codeBlockRe.FindStringSubmatch(content); len(matches) > 1 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	// Try to find a JSON object by looking for {"status": pattern
+	statusRe := regexp.MustCompile(`(?s)(\{"status"\s*:\s*"(?:complete|blocked|continue)"[^}]*\})`)
+	if matches := statusRe.FindStringSubmatch(content); len(matches) > 1 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	return ""
 }
