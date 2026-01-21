@@ -997,7 +997,7 @@ func (t *Task) ComputeDependencyStatus() DependencyStatus {
 
 // isDone returns true if the status indicates the task has completed its work.
 func isDone(s Status) bool {
-	return s == StatusCompleted
+	return s == StatusCompleted || s == StatusResolved
 }
 
 // HasUnmetDependencies returns true if any task in BlockedBy is not completed.
