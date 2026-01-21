@@ -11,7 +11,6 @@ import (
 
 	"github.com/randalmurphal/flowgraph/pkg/flowgraph/checkpoint"
 	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
@@ -106,7 +105,7 @@ var commonClaudeLocations = []string{
 	"/snap/bin/claude",
 }
 
-// resolveClaudePath resolves a Claude CLI path to an absolute path.
+// ResolveClaudePath resolves a Claude CLI path to an absolute path.
 // This is necessary because when cmd.Dir is set (e.g., for worktrees),
 // Go's exec.Command won't perform PATH lookup for relative executables.
 // By resolving to absolute path upfront, execution works regardless of cmd.Dir.
@@ -116,7 +115,7 @@ var commonClaudeLocations = []string{
 //  2. Already absolute - returned unchanged
 //  3. PATH lookup - uses exec.LookPath for relative names like "claude"
 //  4. Common locations - checks well-known install paths as fallback
-func resolveClaudePath(path string) string {
+func ResolveClaudePath(path string) string {
 	if path == "" {
 		return path
 	}
@@ -192,7 +191,6 @@ type Executor struct {
 	config          *Config
 	orcConfig       *config.Config
 	client          claude.Client
-	sessionMgr      session.SessionManager
 	gateEvaluator   *gate.Evaluator
 	gitOps          *git.Git
 	checkpointStore checkpoint.Store
@@ -233,6 +231,12 @@ type Executor struct {
 
 	// Session broadcaster for real-time session metrics updates
 	sessionBroadcaster *SessionBroadcaster
+
+	// ClaudeCLI path (resolved absolute path)
+	claudePath string
+
+	// MCP config path for worktree context (optional)
+	mcpConfigPath string
 }
 
 // New creates a new executor with the given configuration.
@@ -255,7 +259,7 @@ func New(cfg *Config) *Executor {
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees
-	claudePath := resolveClaudePath(cfg.ClaudePath)
+	claudePath := ResolveClaudePath(cfg.ClaudePath)
 	if claudePath != "" {
 		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}
@@ -276,19 +280,6 @@ func New(cfg *Config) *Executor {
 	// We'll rebuild the client with the token if pool is enabled
 
 	client := claude.NewClaudeCLI(clientOpts...)
-
-	// Create session manager for session-based execution
-	// Sessions will use the same model and workdir settings
-	// Include "user" setting source to load agents from ~/.claude/agents/
-	sessionMgr := session.NewManager(
-		session.WithDefaultSessionOptions(
-			session.WithModel(cfg.Model),
-			session.WithWorkdir(cfg.WorkDir),
-			session.WithClaudePath(claudePath),
-			session.WithPermissions(cfg.DangerouslySkipPermissions),
-			session.WithSettingSources([]string{"project", "local", "user"}),
-		),
-	)
 
 	// Create checkpoint store if enabled
 	var cpStore checkpoint.Store
@@ -362,7 +353,6 @@ func New(cfg *Config) *Executor {
 		config:              cfg,
 		orcConfig:           orcCfg,
 		client:              client,
-		sessionMgr:          sessionMgr,
 		gateEvaluator:       gate.New(client),
 		gitOps:              gitOps,
 		checkpointStore:     cpStore,
@@ -373,6 +363,7 @@ func New(cfg *Config) *Executor {
 		resourceTracker:     resourceTracker,
 		haikuClient:         haikuClient,
 		globalDB:            globalDB,
+		claudePath:          claudePath,
 	}
 }
 
@@ -512,7 +503,17 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithFullOrcConfig(e.orcConfig))
 			}
 
-			e.fullExecutor = NewFullExecutor(e.sessionMgr, opts...)
+			// Pass claude path for ClaudeExecutor
+			if e.claudePath != "" {
+				opts = append(opts, WithFullClaudePath(e.claudePath))
+			}
+
+			// Pass MCP config path for worktree isolation
+			if e.mcpConfigPath != "" {
+				opts = append(opts, WithFullMCPConfig(e.mcpConfigPath))
+			}
+
+			e.fullExecutor = NewFullExecutor(opts...)
 		}
 		return e.fullExecutor
 
@@ -551,7 +552,17 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithStandardOrcConfig(e.orcConfig))
 			}
 
-			e.standardExecutor = NewStandardExecutor(e.sessionMgr, opts...)
+			// Pass claude path for ClaudeExecutor
+			if e.claudePath != "" {
+				opts = append(opts, WithStandardClaudePath(e.claudePath))
+			}
+
+			// Pass MCP config path for worktree isolation
+			if e.mcpConfigPath != "" {
+				opts = append(opts, WithStandardMCPConfig(e.mcpConfigPath))
+			}
+
+			e.standardExecutor = NewStandardExecutor(opts...)
 		}
 		return e.standardExecutor
 	}
@@ -685,7 +696,7 @@ func (e *Executor) rebuildClientWithToken(token string) {
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees
-	claudePath := resolveClaudePath(e.config.ClaudePath)
+	claudePath := ResolveClaudePath(e.config.ClaudePath)
 	if claudePath != "" {
 		clientOpts = append(clientOpts, claude.WithClaudePath(claudePath))
 	}

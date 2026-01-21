@@ -16,17 +16,17 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | File | Strategy | Weight |
 |------|----------|--------|
 | `trivial.go` | Fire-and-forget | trivial |
-| `standard.go` | Session per phase | small/medium |
-| `full.go` | Persistent session | large/greenfield |
+| `standard.go` | ClaudeExecutor per phase | small/medium |
+| `full.go` | Persistent ClaudeExecutor | large/greenfield |
 | `finalize.go` | Branch sync, conflict resolution | large/greenfield |
 
 ### Support Modules
 
 | File | Purpose |
 |------|---------|
+| `claude_executor.go` | ClaudeCLI wrapper with `--json-schema` |
 | `template.go` | `BuildTemplateVars()`, `RenderTemplate()` |
 | `flowgraph_nodes.go` | Flowgraph nodes, `renderTemplate()` |
-| `session_adapter.go` | LLM session wrapper |
 | `phase_response.go` | JSON schema for phase completion |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
@@ -108,23 +108,13 @@ Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
 {"status": "continue", "reason": "In progress"}   // More work needed
 ```
 
-**Note:** `--json-schema` only works with `--print` mode, not `stream-json` sessions.
-
-### Extraction Functions
+### Extraction Function
 
 | Function | Use Case |
 |----------|----------|
-| `CheckPhaseCompletionMixed()` | **Recommended for sessions** - handles mixed text+JSON |
-| `ExtractPhaseResponseFromMixed()` | Returns `*PhaseResponse` from mixed content |
-| `CheckPhaseCompletionJSON()` | Pure JSON only - use for structured output mode |
-| `ExtractPhaseResponse()` | With LLM fallback (requires client) |
+| `CheckPhaseCompletionJSON()` | Parse pure JSON from `--json-schema` output |
 
-**Mixed content extraction order:**
-1. Direct JSON parsing (pure JSON output)
-2. JSON in markdown code blocks (```json ... ```)
-3. JSON object by brace matching (finds `{"status": ...}` pattern)
-
-Session-based executors use `CheckPhaseCompletionMixed()` to handle Claude's natural language + JSON output pattern.
+The executors use `ClaudeExecutor` with `--json-schema` in headless mode, which guarantees pure JSON output.
 
 ## Phase Retry Map
 
@@ -270,22 +260,37 @@ LLM responses requiring structured data use JSON schemas via Claude's `--json-sc
 
 ## Transcript Persistence (JSONL Sync)
 
-`jsonl_sync.go` syncs Claude Code JSONL session files to the database on phase completion.
+`jsonl_sync.go` syncs Claude Code JSONL session files to the database in real-time and as a final catchup.
 
 **Key features:**
 - Reads JSONL files written by Claude Code (`~/.claude/projects/`)
 - Extracts: messages, tool calls, token usage, todos
 - Deduplicates via `MessageUUID` (append mode)
 - Filters out `queue-operation` messages (internal bookkeeping)
+- Real-time streaming via `TranscriptStreamer` (fsnotify-based file watcher)
+
+**Two-phase sync strategy:**
+
+1. **Real-time streaming** (during execution): `TranscriptStreamer` watches the JSONL file using fsnotify and syncs new messages to DB in batches (every 100ms or 10 messages)
+2. **Post-phase catchup** (after completion): `SyncFromFile()` runs as a final sweep to ensure no messages were missed
 
 **Integration:**
 ```go
-// In executor, after phase completion
+// Real-time streaming (in standard.go/full.go)
 syncer := NewJSONLSyncer(backend, logger)
-err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+streamer, _ := syncer.StartStreaming(jsonlPath, SyncOptions{
     TaskID: task.ID,
     Phase:  phase.ID,
-    Append: true,  // Only sync new messages
+    Append: true,
+})
+// ... phase executes ...
+streamer.Stop()  // Flushes remaining messages
+
+// Post-phase catchup (in task_execution.go)
+syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+    TaskID: task.ID,
+    Phase:  phase.ID,
+    Append: true,  // Deduplicates by UUID
 })
 ```
 
@@ -306,7 +311,7 @@ err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
 
 **Data flow:**
 ```
-TurnResult.Usage (session_adapter.go:228-234)
+TurnResult.Usage (llmkit/claude, via claude_executor.go)
     ↓ accumulated per iteration
 Result{InputTokens, OutputTokens, CacheCreation/ReadTokens, CostUSD} (executor.go:180-187)
     ↓ after phase completion

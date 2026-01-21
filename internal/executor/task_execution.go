@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -348,6 +347,11 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("save plan: %w", err)
 		}
 
+		// Sync JSONL transcripts to database for persistence and querying
+		if s.JSONLPath != "" {
+			e.syncTranscriptsFromJSONL(ctx, s.JSONLPath, t.ID, phase.ID)
+		}
+
 		// Publish phase completion events
 		e.publishPhaseComplete(t.ID, phase.ID, result.CommitSHA)
 		e.publishTokens(t.ID, phase.ID, result.InputTokens, result.OutputTokens, 0, 0, result.InputTokens+result.OutputTokens)
@@ -405,7 +409,8 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 			e.logger.Warn("failed to generate MCP config", "task", t.ID, "error", err)
 			// Non-fatal: continue without MCP config
 		} else {
-			e.logger.Info("generated MCP config", "task", t.ID, "path", result.Path+"/.mcp.json")
+			e.mcpConfigPath = result.Path + "/.mcp.json"
+			e.logger.Info("generated MCP config", "task", t.ID, "path", e.mcpConfigPath)
 		}
 	}
 
@@ -421,7 +426,7 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		claude.WithEnvVar("GOWORK", "off"),
 	}
 	// Resolve Claude path to absolute to ensure it works with worktree cmd.Dir
-	claudePath := resolveClaudePath(e.config.ClaudePath)
+	claudePath := ResolveClaudePath(e.config.ClaudePath)
 	if claudePath != "" {
 		worktreeClientOpts = append(worktreeClientOpts, claude.WithClaudePath(claudePath))
 	}
@@ -444,19 +449,8 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 	e.client = claude.NewClaudeCLI(worktreeClientOpts...)
 	e.logger.Info("claude client configured for worktree", "path", result.Path)
 
-	// Create new session manager for worktree context
-	// Include "user" setting source to load agents from ~/.claude/agents/
-	e.sessionMgr = session.NewManager(
-		session.WithDefaultSessionOptions(
-			session.WithModel(e.config.Model),
-			session.WithWorkdir(result.Path),
-			session.WithClaudePath(claudePath),
-			session.WithPermissions(e.config.DangerouslySkipPermissions),
-			// Disable go.work in sessions (same reason as above)
-			session.WithEnv(map[string]string{"GOWORK": "off"}),
-			session.WithSettingSources([]string{"project", "local", "user"}),
-		),
-	)
+	// Update claude path for worktree context (used by ClaudeExecutor)
+	e.claudePath = claudePath
 
 	// Reset phase executors to use new worktree context
 	e.resetPhaseExecutors()
@@ -1031,7 +1025,6 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 	}
 
 	finalizeExec := NewFinalizeExecutor(
-		e.sessionMgr,
 		WithFinalizeGitSvc(gitSvc),
 		WithFinalizePublisher(e.publisher),
 		WithFinalizeLogger(e.logger),
@@ -1045,6 +1038,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 				e.logger.Error("failed to save state during finalize", "error", saveErr)
 			}
 		}),
+		WithFinalizeClaudePath(e.claudePath),
 	)
 
 	// Execute finalize phase with PhaseMax timeout if configured
@@ -1496,5 +1490,37 @@ func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, ph
 		}
 	}
 	return result, err
+}
+
+// syncTranscriptsFromJSONL syncs Claude JSONL transcripts to the database.
+// This runs after phase completion as a final catchup for any messages that
+// might have been missed by the real-time TranscriptStreamer. Since it uses
+// Append mode (deduplication by UUID), it's safe to run after streaming.
+func (e *Executor) syncTranscriptsFromJSONL(ctx context.Context, jsonlPath, taskID, phaseID string) {
+	if e.backend == nil {
+		return
+	}
+
+	syncer := NewJSONLSyncer(e.backend, e.logger)
+	err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
+		TaskID: taskID,
+		Phase:  phaseID,
+		Append: true, // Only sync new messages not already in DB
+	})
+	if err != nil {
+		// Log but don't fail - transcript sync is best-effort
+		e.logger.Warn("failed to sync transcripts from JSONL",
+			"task", taskID,
+			"phase", phaseID,
+			"path", jsonlPath,
+			"error", err,
+		)
+	} else {
+		e.logger.Debug("synced transcripts from JSONL",
+			"task", taskID,
+			"phase", phaseID,
+			"path", jsonlPath,
+		)
+	}
 }
 

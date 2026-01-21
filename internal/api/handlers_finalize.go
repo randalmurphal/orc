@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/randalmurphal/llmkit/claude/session"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -456,11 +455,6 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		return
 	}
 
-	// Create session manager (may be nil if no AI resolution needed)
-	var mgr session.SessionManager
-	// For now, we'll create a basic executor without session manager
-	// This handles the git sync and test running
-
 	// Create finalize executor config
 	targetBranch := "main"
 	if s.orcConfig != nil && s.orcConfig.Completion.TargetBranch != "" {
@@ -473,8 +467,10 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		TargetBranch:       targetBranch,
 	}
 
+	// Resolve claude path for worktree context
+	claudePath := executor.ResolveClaudePath("claude")
+
 	finalizeExec := executor.NewFinalizeExecutor(
-		mgr,
 		executor.WithFinalizeGitSvc(gitSvc),
 		executor.WithFinalizePublisher(s.publisher),
 		executor.WithFinalizeLogger(s.logger),
@@ -483,6 +479,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		executor.WithFinalizeWorkingDir(s.workDir),
 		executor.WithFinalizeTaskDir(task.TaskDirIn(s.workDir, taskID)),
 		executor.WithFinalizeBackend(s.backend),
+		executor.WithFinalizeClaudePath(claudePath),
 		executor.WithFinalizeStateUpdater(func(updatedState *state.State) {
 			// Update progress based on state changes
 			finState.mu.Lock()
