@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,10 +27,13 @@ func (m *MockFileChangeDetector) Detect(ctx context.Context, worktreePath, baseR
 
 // MockPublisher is a mock implementation of events.Publisher for testing.
 type MockPublisher struct {
+	mu     sync.Mutex
 	events []events.Event
 }
 
 func (m *MockPublisher) Publish(ev events.Event) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.events = append(m.events, ev)
 }
 
@@ -47,10 +51,16 @@ func (m *MockPublisher) Close() {
 }
 
 func (m *MockPublisher) GetEvents() []events.Event {
-	return m.events
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]events.Event, len(m.events))
+	copy(result, m.events)
+	return result
 }
 
 func (m *MockPublisher) GetFilesChangedEvents() []events.FilesChangedUpdate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var result []events.FilesChangedUpdate
 	for _, ev := range m.events {
 		if ev.Type == events.EventFilesChanged {
