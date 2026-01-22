@@ -29,7 +29,18 @@ import { useAppShell } from '@/components/layout/AppShellContext';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiatives } from '@/stores/initiativeStore';
 import { useSessionStore } from '@/stores/sessionStore';
-import type { Task, TaskState, PendingDecision } from '@/lib/types';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { submitDecision } from '@/lib/api';
+import type {
+	Task,
+	TaskState,
+	PendingDecision,
+	DecisionRequiredData,
+	DecisionResolvedData,
+	FilesChangedData,
+	FileChangedInfo,
+	DecisionOption,
+} from '@/lib/types';
 import './BoardView.css';
 
 export interface BoardViewProps {
@@ -69,13 +80,16 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const totalTokens = useSessionStore((state) => state.totalTokens);
 	const totalCost = useSessionStore((state) => state.totalCost);
 
+	// WebSocket hook
+	const { on } = useWebSocket();
+
 	// Local state
 	const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<Set<string>>(
 		new Set()
 	);
-	const [pendingDecisions] = useState<PendingDecision[]>([]);
+	const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
 	const [configStats] = useState<ConfigStats | undefined>(undefined);
-	const [changedFiles] = useState<ChangedFile[]>([]);
+	const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
 
 	// Derived state: filter tasks by status
 	const queuedTasks = useMemo(
@@ -103,6 +117,16 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		() => tasks.filter((task: Task) => isCompletedToday(task)),
 		[tasks]
 	);
+
+	// Map of task ID to pending decision count
+	const taskDecisionCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const decision of pendingDecisions) {
+			const currentCount = counts.get(decision.task_id) || 0;
+			counts.set(decision.task_id, currentCount + 1);
+		}
+		return counts;
+	}, [pendingDecisions]);
 
 	// Convert Map to Record for RunningColumn
 	const taskStatesRecord = useMemo(() => {
@@ -154,10 +178,29 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	}, []);
 
 	const handleDecide = useCallback(
-		async (_decisionId: string, _optionId: string) => {
-			// TODO: Call API to submit decision
+		async (decisionId: string, optionId: string) => {
+			try {
+				// Find the decision to get the option details
+				const decision = pendingDecisions.find((d) => d.id === decisionId);
+				if (!decision) return;
+
+				// Find the selected option
+				const option = decision.options.find((o) => o.id === optionId);
+				if (!option) return;
+
+				// Submit the decision (approve with selected option)
+				await submitDecision(decisionId, {
+					approved: true,
+					reason: option.label,
+				});
+
+				// Remove the decision from pending list immediately (don't wait for WebSocket)
+				setPendingDecisions((prev) => prev.filter((d) => d.id !== decisionId));
+			} catch (error) {
+				console.error('Failed to submit decision:', error);
+			}
 		},
-		[]
+		[pendingDecisions]
 	);
 
 	const handleFileClick = useCallback(
@@ -169,6 +212,95 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		},
 		[navigate]
 	);
+
+	// Subscribe to WebSocket events for decisions and files
+	useEffect(() => {
+		// Subscribe to decision_required events
+		const unsubDecisionRequired = on('decision_required', (event) => {
+			if ('event' in event && event.event === 'decision_required') {
+				const data = event.data as DecisionRequiredData;
+
+				// Convert decision_required data to PendingDecision format
+				const decision: PendingDecision = {
+					id: data.decision_id,
+					task_id: data.task_id,
+					question: data.question,
+					// Parse context into options if it contains newline-separated criteria
+					// For now, create a simple approve/reject option set
+					options: [
+						{
+							id: 'approve',
+							label: 'Approve',
+							description: 'Approve the gate and continue execution',
+							recommended: true,
+						},
+						{
+							id: 'reject',
+							label: 'Reject',
+							description: 'Reject the gate and fail the task',
+						},
+					] as DecisionOption[],
+					created_at: data.requested_at,
+				};
+
+				setPendingDecisions((prev) => {
+					// Check if decision already exists (avoid duplicates)
+					if (prev.some((d) => d.id === decision.id)) {
+						return prev;
+					}
+					return [...prev, decision];
+				});
+			}
+		});
+
+		// Subscribe to decision_resolved events
+		const unsubDecisionResolved = on('decision_resolved', (event) => {
+			if ('event' in event && event.event === 'decision_resolved') {
+				const data = event.data as DecisionResolvedData;
+
+				// Remove the decision from pending list
+				setPendingDecisions((prev) => prev.filter((d) => d.id !== data.decision_id));
+			}
+		});
+
+		// Subscribe to files_changed events
+		const unsubFilesChanged = on('files_changed', (event) => {
+			if ('event' in event && event.event === 'files_changed') {
+				const data = event.data as FilesChangedData;
+				const taskId = event.task_id;
+
+				// Convert FilesChangedData to ChangedFile[] format
+				const files: ChangedFile[] = data.files.map((file: FileChangedInfo) => ({
+					path: file.path,
+					status: file.status,
+					taskId,
+				}));
+
+				// Replace changed files (it's a snapshot, not accumulative)
+				setChangedFiles(files);
+			}
+		});
+
+		// Subscribe to complete event to clear state
+		const unsubComplete = on('complete', (event) => {
+			if ('event' in event && event.event === 'complete') {
+				const taskId = event.task_id;
+
+				// Clear decisions for this task
+				setPendingDecisions((prev) => prev.filter((d) => d.task_id !== taskId));
+
+				// Clear files for this task
+				setChangedFiles((prev) => prev.filter((f) => f.taskId !== taskId));
+			}
+		});
+
+		return () => {
+			unsubDecisionRequired();
+			unsubDecisionResolved();
+			unsubFilesChanged();
+			unsubComplete();
+		};
+	}, [on]);
 
 	// Set right panel content on mount
 	useEffect(() => {
@@ -248,6 +380,7 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 					onToggleSwimlane={handleToggleSwimlane}
 					onTaskClick={handleTaskClick}
 					onContextMenu={handleContextMenu}
+					taskDecisionCounts={taskDecisionCounts}
 				/>
 			</div>
 			<div className="board-view__running">
@@ -256,6 +389,7 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 					taskStates={taskStatesRecord}
 					taskOutputs={taskOutputs}
 					onTaskClick={handleTaskClick}
+					taskDecisionCounts={taskDecisionCounts}
 				/>
 			</div>
 		</div>
