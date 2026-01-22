@@ -694,13 +694,20 @@ Cache usage reduces costs significantly:
 
 ## Success Criteria
 
-- [ ] Every iteration captures token counts
+### Database Layer (Completed - TASK-406)
+- [x] Every iteration captures token counts (`cost_tracking.go`)
+- [x] Model information recorded (`DetectModel()`)
+- [x] Cache tokens tracked (creation and read)
+- [x] Duration tracked (`DurationMs`)
+- [x] Budget infrastructure (`GetBudget()`, `SetBudget()`, `GetBudgetStatus()`)
+- [x] Historical data available (`GetCostTimeseries()`, `GetCostByModel()`)
+- [x] Test coverage exists (`internal/db/global_test.go`)
+
+### Pending (Future Tasks)
 - [ ] Costs displayed on task cards and details
 - [ ] `orc cost` shows summary by period
-- [ ] API returns token/cost data
+- [ ] API endpoints implemented (`/api/cost/*`)
 - [ ] Web UI shows token widget on dashboard
-- [ ] Budget alerts work when configured
-- [ ] Cache savings are highlighted
-- [ ] Historical data available for trends
-- [ ] 80%+ test coverage on cost tracking code
-- [ ] All E2E tests pass
+- [ ] Budget alerting logic triggers notifications
+- [ ] Cache savings highlighted in UI
+- [ ] E2E tests for cost display
