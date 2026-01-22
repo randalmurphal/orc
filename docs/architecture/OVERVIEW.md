@@ -37,12 +37,12 @@
 | Component | Language | Responsibility |
 |-----------|----------|----------------|
 | **CLI** | Go | Task creation, execution control, status display |
-| **API Server** | Go | REST API, WebSocket/SSE for live updates |
+| **API Server** | Go | REST API, WebSocket for live updates, event persistence |
 | **Planner** | Go | Weight classification, phase generation from templates |
 | **Executor** | Go | Claude Code invocation, output parsing, completion detection |
 | **Checkpoint Manager** | Go | Git commits, branch management, rewind operations |
 | **Gate Evaluator** | Go | Quality checks, approval workflow |
-| **Frontend** | Svelte 5 | Task list, timeline, transcript viewer, controls |
+| **Frontend** | React 19 | Task board, timeline, transcript viewer, controls |
 
 ---
 
@@ -105,8 +105,9 @@ project/
 | Layer | Technology | Rationale |
 |-------|------------|-----------|
 | Backend | Go 1.22+ | Single binary, fast startup, excellent concurrency |
-| Frontend | Svelte 5 | Reactive, small bundles, perfect for live streaming |
-| State | YAML files | Git-tracked, human-readable, no database needed |
+| Frontend | React 19 | Modern React with concurrent features |
+| State | SQLite | Single-file database, no external dependencies |
+| Real-time | WebSocket | Persistent events stored in `event_log` table |
 | Version Control | Git | Native checkpointing, branches, worktrees |
 | AI Runtime | Claude Code CLI | Subprocess invocation |
 
@@ -116,7 +117,8 @@ project/
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| State storage | Files over DB | Git-native, no dependencies |
+| State storage | SQLite | Single-file database, portable, no server needed |
+| Event persistence | Batched writes | 10 events or 5s buffer reduces DB load |
 | Branch strategy | `orc/TASK-ID` | Clear namespace, worktree compatible |
 | Weight classification | AI-first | Better than heuristics, user can override |
 | Merge gate | Human default | Safety for production codebases |

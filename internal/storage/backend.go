@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
@@ -299,6 +300,11 @@ type Backend interface {
 	// Gate decision operations (for export/import)
 	ListGateDecisions(taskID string) ([]GateDecision, error)
 	SaveGateDecision(d *GateDecision) error
+
+	// Event log operations (for timeline reconstruction)
+	SaveEvent(e *db.EventLog) error
+	SaveEvents(events []*db.EventLog) error
+	QueryEvents(opts db.QueryEventsOptions) ([]db.EventLog, error)
 
 	// Context materialization (for agents working in worktrees)
 	// Generates context.md with all relevant task information

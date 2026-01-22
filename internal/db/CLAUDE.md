@@ -20,6 +20,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
 | `plan.go` | Plan CRUD |
 | `spec.go` | Spec CRUD, FTS search |
+| `event_log.go` | EventLog CRUD, batch insert, time/type filtering for timeline |
 | `gate_decision.go` | GateDecision CRUD, Tx variants |
 | `attachment.go` | Attachment CRUD |
 | `sync_state.go` | SyncState for P2P sync |
@@ -133,6 +134,66 @@ matches, err := pdb.SearchTranscripts(query)
 // SQLite: FTS5 MATCH
 // PostgreSQL: ILIKE
 ```
+
+## Event Log System
+
+Persisted executor events for timeline reconstruction and historical queries. `event_log.go`
+
+### EventLog Schema
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `TaskID` | string | Task this event belongs to |
+| `Phase` | *string | Phase name (nullable for task-level events) |
+| `Iteration` | *int | Iteration number (nullable) |
+| `EventType` | string | Event type (phase, transcript, activity, tokens, etc.) |
+| `Data` | any | JSON-serialized event payload |
+| `Source` | string | Event origin: "executor", "api" |
+| `CreatedAt` | time.Time | UTC timestamp |
+| `DurationMs` | *int64 | Phase duration in ms (for completed phases) |
+
+### Event Persistence
+
+```go
+// Save single event
+pdb.SaveEvent(&db.EventLog{
+    TaskID:    "TASK-001",
+    Phase:     &phase,
+    EventType: "phase",
+    Data:      phaseUpdate,
+    Source:    "executor",
+    CreatedAt: time.Now(),
+})
+
+// Batch save (transactional, used by PersistentPublisher)
+pdb.SaveEvents([]*db.EventLog{event1, event2, ...})
+```
+
+### Event Queries
+
+```go
+// Query with filters
+events, err := pdb.QueryEvents(db.QueryEventsOptions{
+    TaskID:     "TASK-001",
+    Since:      &startTime,
+    Until:      &endTime,
+    EventTypes: []string{"phase", "transcript"},
+    Limit:      100,
+    Offset:     0,
+})
+// Returns: newest first (ORDER BY created_at DESC)
+```
+
+### QueryEventsOptions
+
+| Field | Purpose |
+|-------|---------|
+| `TaskID` | Filter by task (required for most queries) |
+| `Since` | Events after this time |
+| `Until` | Events before this time |
+| `EventTypes` | Filter to specific event types |
+| `Limit` | Max results (0 = unlimited) |
+| `Offset` | Skip first N results |
 
 ## Cost Tracking
 

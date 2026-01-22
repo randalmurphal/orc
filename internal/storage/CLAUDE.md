@@ -26,6 +26,7 @@ All storage operations are defined by the `Backend` interface:
 | Attachment | `SaveAttachment`, `GetAttachment`, `ListAttachments`, `DeleteAttachment` |
 | Comments | `ListTaskComments`, `SaveTaskComment`, `ListReviewComments`, `SaveReviewComment` |
 | Gates | `ListGateDecisions`, `SaveGateDecision` |
+| Events | `SaveEvent`, `SaveEvents`, `QueryEvents` |
 | Branch | `SaveBranch`, `LoadBranch`, `ListBranches`, `UpdateBranchStatus`, `UpdateBranchActivity`, `DeleteBranch`, `GetStaleBranches` |
 | Context | `MaterializeContext`, `NeedsMaterialization` |
 | Lifecycle | `Sync`, `Cleanup`, `Close` |
@@ -166,3 +167,49 @@ The database stores two status fields:
 - `"response"` - Model responses
 - `"chunk"` - Aggregated streaming chunks
 - `"combined"` - Full transcript for phase
+
+## Event Persistence
+
+`PersistentPublisher` (in `events/` package) wraps `MemoryPublisher` to add database persistence while maintaining real-time WebSocket broadcasts.
+
+### Event Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `SaveEvent(e)` | Persist single event to `event_log` table |
+| `SaveEvents(events)` | Batch insert (transactional) for efficiency |
+| `QueryEvents(opts)` | Retrieve events with filtering and pagination |
+
+### How It Works
+
+```
+API Server → PersistentPublisher → MemoryPublisher → WebSocket clients
+                    ↓
+              DatabaseBackend → event_log table
+```
+
+1. Events broadcast to WebSocket subscribers immediately (real-time)
+2. Events buffered in memory (10 events or 5 seconds)
+3. Buffer flushed to database in batch transaction
+4. Phase completion events trigger immediate flush
+5. DB failures logged but don't block WebSocket broadcast
+
+### Phase Duration Tracking
+
+`PersistentPublisher` tracks phase start times. When phase completes:
+- Calculates `duration_ms` from start to completion
+- Includes duration in the persisted event
+- Cleans up start time entry to prevent memory leaks
+
+### Usage
+
+```go
+// API server creates PersistentPublisher on startup
+pub := events.NewPersistentPublisher(backend, "executor", logger)
+defer pub.Close()  // Flushes remaining events
+
+// All standard Publisher methods work
+pub.Publish(event)
+ch := pub.Subscribe("TASK-001")
+pub.Unsubscribe("TASK-001", ch)
+```

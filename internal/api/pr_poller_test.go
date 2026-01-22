@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/plan"
@@ -277,6 +278,9 @@ func (b *emptyBackend) ListTaskComments(string) ([]storage.TaskComment, error)  
 func (b *emptyBackend) SaveTaskComment(*storage.TaskComment) error                 { return nil }
 func (b *emptyBackend) ListReviewComments(string) ([]storage.ReviewComment, error) { return nil, nil }
 func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error             { return nil }
+func (b *emptyBackend) SaveEvent(*db.EventLog) error                               { return nil }
+func (b *emptyBackend) SaveEvents([]*db.EventLog) error                            { return nil }
+func (b *emptyBackend) QueryEvents(db.QueryEventsOptions) ([]db.EventLog, error)   { return nil, nil }
 func (b *emptyBackend) ListGateDecisions(string) ([]storage.GateDecision, error)   { return nil, nil }
 func (b *emptyBackend) SaveGateDecision(*storage.GateDecision) error               { return nil }
 func (b *emptyBackend) SaveReviewFindings(*storage.ReviewFindings) error           { return nil }
