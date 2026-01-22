@@ -27,6 +27,8 @@ export interface QueueColumnProps {
 	onTaskClick?: (task: Task) => void;
 	/** Callback for task context menu (right-click) */
 	onContextMenu?: (task: Task, e: React.MouseEvent) => void;
+	/** Map of task ID to pending decision count */
+	taskDecisionCounts?: Map<string, number>;
 }
 
 interface SwimlaneGroup {
@@ -106,6 +108,7 @@ export function QueueColumn({
 	onToggleSwimlane,
 	onTaskClick,
 	onContextMenu,
+	taskDecisionCounts,
 }: QueueColumnProps) {
 	// Group and sort tasks into swimlanes
 	const swimlaneGroups = useMemo(
@@ -156,6 +159,7 @@ export function QueueColumn({
 								onToggle={() => handleToggle(swimlaneId)}
 								onTaskClick={onTaskClick}
 								onContextMenu={onContextMenu}
+								taskDecisionCounts={taskDecisionCounts}
 							/>
 						);
 					})

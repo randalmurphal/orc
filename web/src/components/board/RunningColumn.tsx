@@ -25,6 +25,8 @@ export interface RunningColumnProps {
 	taskOutputs?: Record<string, string[]>;
 	/** Callback when a task card is clicked */
 	onTaskClick?: (task: Task) => void;
+	/** Map of task ID to pending decision count */
+	taskDecisionCounts?: Map<string, number>;
 }
 
 /**
@@ -35,6 +37,7 @@ export function RunningColumn({
 	taskStates = {},
 	taskOutputs = {},
 	onTaskClick: _onTaskClick,
+	taskDecisionCounts,
 }: RunningColumnProps) {
 	// Note: onTaskClick is reserved for future task detail navigation (e.g., double-click)
 	// Currently, single-click on RunningCard toggles expanded state
@@ -168,6 +171,7 @@ export function RunningColumn({
 								expanded={expandedTaskId === task.id}
 								onToggleExpand={() => handleToggleExpand(task.id)}
 								outputLines={taskOutputs[task.id]}
+								pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
 							/>
 						</div>
 					))

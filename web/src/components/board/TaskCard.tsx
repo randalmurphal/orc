@@ -22,6 +22,8 @@ interface TaskCardProps {
 	isSelected?: boolean;
 	showInitiative?: boolean;
 	className?: string;
+	/** Number of pending decisions for this task */
+	pendingDecisionCount?: number;
 }
 
 // Priority dot colors
@@ -67,6 +69,7 @@ export function TaskCard({
 	isSelected = false,
 	showInitiative = false,
 	className = '',
+	pendingDecisionCount = 0,
 }: TaskCardProps) {
 	const priority = (task.priority || 'normal') as TaskPriority;
 	const category = (task.category || 'feature') as TaskCategory;
@@ -76,6 +79,7 @@ export function TaskCard({
 
 	const isRunning = task.status === 'running';
 	const isBlocked = task.is_blocked;
+	const hasPendingDecision = pendingDecisionCount > 0;
 
 	// Click handler
 	const handleClick = useCallback(() => {
@@ -107,6 +111,7 @@ export function TaskCard({
 		isSelected && 'selected',
 		isRunning && 'running',
 		isBlocked && 'blocked',
+		hasPendingDecision && 'has-pending-decision',
 		className,
 	]
 		.filter(Boolean)
@@ -155,6 +160,13 @@ export function TaskCard({
 				{isRunning && (
 					<span className="task-card-running" title={`Running: ${task.current_phase || 'starting'}`}>
 						<span className="task-card-running-dot" />
+					</span>
+				)}
+
+				{/* Decision count badge */}
+				{hasPendingDecision && (
+					<span className="task-card-decision-badge" title={`${pendingDecisionCount} pending decision${pendingDecisionCount > 1 ? 's' : ''}`}>
+						{pendingDecisionCount}
 					</span>
 				)}
 
