@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Swimlane, type SwimlaneProps } from './Swimlane';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task, Initiative } from '@/lib/types';
 
 // Sample task factory
@@ -41,7 +42,11 @@ function renderSwimlane(props: Partial<SwimlaneProps> = {}) {
 		onToggle: vi.fn(),
 		...props,
 	};
-	return render(<Swimlane {...defaultProps} />);
+	return render(
+		<TooltipProvider>
+			<Swimlane {...defaultProps} />
+		</TooltipProvider>
+	);
 }
 
 describe('Swimlane', () => {

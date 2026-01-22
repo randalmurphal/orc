@@ -91,6 +91,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Event persistence with PersistentPublisher | `PersistentPublisher` wraps `MemoryPublisher` using composition pattern; broadcasts to WebSocket first (real-time), buffers events (10 or 5s), flushes to `event_log` table in batch transaction; phase completion triggers immediate flush; tracks phase start times for `duration_ms` calculation; DB failures logged but don't block WebSocket broadcast | TASK-393 |
 | Cost tracking with model differentiation | `recordCostToGlobal()` called after each phase completion logs to global database with model (opus/sonnet/haiku), cache tokens, iteration, duration_ms; `DetectModel()` normalizes model IDs; `GetCostByModel()` and `GetCostTimeseries()` for analytics; budget tracking via `GetBudget()`/`SetBudget()`/`GetBudgetStatus()` | TASK-406 |
 | Real-time file change events | `FileWatcher` polls git diff every 10 seconds during task execution, comparing HEAD against target branch merge-base; publishes `files_changed` WebSocket event with per-file additions/deletions; deduplicates via state hash to only emit when changes detected; started by `ExecuteTask()` after worktree setup; stopped before cleanup | TASK-470 |
+| Auto-migration for stale plans | `orc run` calls `checkAndMigrateStalePlan()` before execution; detects staleness via version mismatch, phase sequence change, or inline prompts (legacy); `MigratePlan()` preserves completed/skipped phases; manual migration via `orc migrate plans --all`; API auto-migrates before task execution too | TASK-498 |
 
 ## Known Gotchas
 
@@ -128,6 +129,8 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Task left in 'running' after spec extraction fails | Fixed: `ExecuteTask()` now calls `failTask()` before returning errors for all three spec extraction failure paths (empty output, extraction error, database save error); task status correctly becomes `StatusFailed` instead of orphaned in `StatusRunning` | TASK-438 |
 | `orc log --follow` says "may not be running" for active tasks | Fixed: JSONLPath now persisted immediately after executor sets it (not just at phase end); fallback path construction added when JSONLPath empty; error messages now show actual task status with actionable guidance | TASK-460 |
 | Worktree on wrong branch causes infinite review loop | Fixed: `cleanWorktreeState()` now verifies and corrects branch on worktree reuse; post-creation validation added to `SetupWorktreeForTask()`; logs warning when switching branches; verifies expected branch exists before checkout | TASK-392 |
+| `orc log` shows "No transcripts found" when database empty | Fixed: Added filesystem fallback via `readFilesystemTranscripts()` that reads markdown files from `.orc/tasks/{taskID}/transcripts/`; parses filenames in formats `{seq}-{phase}-{iter}.md` and `{phase}-{seq}.md`; enables viewing transcripts even when database sync didn't run | TASK-481 |
+| Old tasks run with outdated phases after template update | Fixed: `orc run` now auto-detects stale plans via `IsPlanStale()` (checks version, phase sequence, inline prompts) and auto-migrates before execution; completed/skipped phases preserved; bulk migration via `orc migrate plans --all` | TASK-498 |
 
 ## Decisions
 

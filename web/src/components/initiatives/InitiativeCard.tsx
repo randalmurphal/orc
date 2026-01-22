@@ -5,6 +5,7 @@
  */
 
 import { forwardRef, useCallback, type HTMLAttributes, type KeyboardEvent } from 'react';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { Initiative, InitiativeStatus } from '../../lib/types';
 import './InitiativeCard.css';
 
@@ -274,9 +275,13 @@ export const InitiativeCard = forwardRef<HTMLDivElement, InitiativeCardProps>(
 						{emoji}
 					</div>
 					<div className="initiative-card-info">
-						<h3 className="initiative-card-name">{initiative.title}</h3>
+						<Tooltip content={initiative.title} side="top">
+							<h3 className="initiative-card-name">{initiative.title}</h3>
+						</Tooltip>
 						{initiative.vision && (
-							<p className="initiative-card-desc">{initiative.vision}</p>
+							<Tooltip content={initiative.vision} side="top">
+								<p className="initiative-card-desc">{initiative.vision}</p>
+							</Tooltip>
 						)}
 					</div>
 					<StatusBadge status={initiative.status} />

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -190,6 +192,24 @@ See also:
 			p, err := backend.LoadPlan(id)
 			if err != nil {
 				return fmt.Errorf("load plan: %w", err)
+			}
+
+			// Check if plan needs migration and migrate if stale
+			migrated, migrationReason, err := checkAndMigrateStalePlan(backend, t)
+			if err != nil {
+				return fmt.Errorf("check plan migration: %w", err)
+			}
+			if migrated {
+				// Reload plan after migration
+				p, err = backend.LoadPlan(id)
+				if err != nil {
+					return fmt.Errorf("reload migrated plan: %w", err)
+				}
+
+				// Log migration (simple message)
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "\n🔄 Plan migrated for %s: %s\n\n", id, migrationReason)
+				}
 			}
 
 			// Load or create state
@@ -460,4 +480,49 @@ func parseConflictFilesFromError(errStr string) []string {
 	}
 
 	return files
+}
+
+// checkAndMigrateStalePlan checks if a plan is stale and migrates it if needed.
+// Returns (migrated, reason, error) where:
+//   - migrated is true if migration occurred
+//   - reason explains why migration was needed (empty if not migrated)
+//   - error is non-nil if migration failed
+func checkAndMigrateStalePlan(backend storage.Backend, t *task.Task) (bool, string, error) {
+	// Load current plan
+	p, err := backend.LoadPlan(t.ID)
+	if err != nil {
+		// If plan doesn't exist, nothing to migrate
+		if errors.Is(err, plan.ErrNotFound) {
+			return false, "", nil
+		}
+		return false, "", fmt.Errorf("load plan: %w", err)
+	}
+
+	// Check if plan is stale
+	stale, reason := plan.IsPlanStale(p, t)
+	if !stale {
+		return false, "", nil
+	}
+
+	// Migrate the plan
+	result, err := plan.MigratePlan(t, p)
+	if err != nil {
+		return false, "", fmt.Errorf("migrate plan: %w", err)
+	}
+
+	// Save the migrated plan
+	if err := backend.SavePlan(result.NewPlan, t.ID); err != nil {
+		return false, "", fmt.Errorf("save migrated plan: %w", err)
+	}
+
+	return true, reason, nil
+}
+
+// logMigrationResult outputs the migration result to the user.
+func logMigrationResult(w io.Writer, taskID string, result *plan.MigrationResult) {
+	fmt.Fprintf(w, "\n🔄 Plan migrated for %s\n", taskID)
+	fmt.Fprintf(w, "   Reason: %s\n", result.Reason)
+	fmt.Fprintf(w, "   Old phases: %s\n", strings.Join(result.OldPhases, ", "))
+	fmt.Fprintf(w, "   New phases: %s\n", strings.Join(result.NewPhases, ", "))
+	fmt.Fprintf(w, "   Preserved: %d phase(s), Reset: %d phase(s)\n\n", result.PreservedCount, result.ResetCount)
 }

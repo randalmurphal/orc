@@ -9,6 +9,7 @@ import (
 
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -84,6 +85,25 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.jsonError(w, "plan not found", http.StatusNotFound)
 		return
+	}
+
+	// Check if plan needs migration and migrate if stale
+	if stale, reason := plan.IsPlanStale(p, t); stale {
+		result, err := plan.MigratePlan(t, p)
+		if err != nil {
+			s.logger.Error("plan migration failed", "task", id, "error", err)
+			s.jsonError(w, fmt.Sprintf("plan migration failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+		if err := s.backend.SavePlan(result.NewPlan, id); err != nil {
+			s.logger.Error("failed to save migrated plan", "task", id, "error", err)
+			s.jsonError(w, fmt.Sprintf("failed to save migrated plan: %v", err), http.StatusInternalServerError)
+			return
+		}
+		p = result.NewPlan
+		s.logger.Info("plan migrated", "task", id, "reason", reason,
+			"old_phases", result.OldPhases, "new_phases", result.NewPhases,
+			"preserved", result.PreservedCount, "reset", result.ResetCount)
 	}
 
 	st, err := s.backend.LoadState(id)

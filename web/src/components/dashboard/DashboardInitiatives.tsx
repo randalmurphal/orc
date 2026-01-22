@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Initiative } from '@/lib/types';
 import { useTaskStore, useInitiativeStore } from '@/stores';
 import { Button } from '@/components/ui/Button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import './DashboardInitiatives.css';
 
 interface DashboardInitiativesProps {
@@ -90,13 +91,13 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 						: initiative.title;
 
 					return (
-						<button
-							key={initiative.id}
-							className="initiative-row"
-							onClick={() => handleInitiativeClick(initiative.id)}
-							title={tooltip}
-						>
-							<span className="initiative-title">{truncateTitle(initiative.title)}</span>
+						<Tooltip content={tooltip} side="top">
+							<button
+								key={initiative.id}
+								className="initiative-row"
+								onClick={() => handleInitiativeClick(initiative.id)}
+							>
+								<span className="initiative-title">{truncateTitle(initiative.title)}</span>
 							{initiative.status !== 'active' ? (
 								<span className={`initiative-status status-${initiative.status}`}>
 									{initiative.status}
@@ -114,7 +115,8 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 									</span>
 								</div>
 							)}
-						</button>
+							</button>
+						</Tooltip>
 					);
 				})}
 			</div>
