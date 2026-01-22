@@ -45,8 +45,9 @@ const PhaseCompletionSchema = `{
 }`
 
 // PhaseCompletionWithArtifactSchema is the JSON schema for phases that produce artifacts.
-// Used by: spec, design, research, docs
+// Used by: spec, tiny_spec, research, tdd_write, breakdown, docs
 // The artifact field contains the full artifact content (spec, design doc, etc.)
+// The quality_checklist field is required for spec/tiny_spec phases.
 const PhaseCompletionWithArtifactSchema = `{
 	"type": "object",
 	"properties": {
@@ -66,6 +67,19 @@ const PhaseCompletionWithArtifactSchema = `{
 		"artifact": {
 			"type": "string",
 			"description": "The full artifact content (spec, design doc, research notes, etc.). REQUIRED when status is complete."
+		},
+		"quality_checklist": {
+			"type": "array",
+			"description": "Quality self-assessment checklist. REQUIRED for spec/tiny_spec phases.",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {"type": "string", "description": "Check ID (e.g., all_criteria_verifiable)"},
+					"check": {"type": "string", "description": "What was checked"},
+					"passed": {"type": "boolean", "description": "Whether check passed"}
+				},
+				"required": ["id", "check", "passed"]
+			}
 		}
 	},
 	"required": ["status"]
