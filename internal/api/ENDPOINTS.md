@@ -136,6 +136,13 @@ All support `?scope=global` for user-level config (`~/.claude/`):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/stats/activity` | Get activity data for heatmap (`?weeks=16`) |
+| GET | `/api/stats/per-day` | Get daily task counts for bar chart (`?days=7`) |
+| GET | `/api/stats/outcomes` | Get task outcome distribution for donut chart (`?period=all`) |
+
+**Stats query parameters:**
+- `/api/stats/activity`: `weeks` (1-52, default: 16)
+- `/api/stats/per-day`: `days` (1-30, default: 7)
+- `/api/stats/outcomes`: `period` (24h, 7d, 30d, all; default: all)
 
 ## Events Endpoints
 
