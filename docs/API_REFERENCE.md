@@ -12,6 +12,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
 | [Integration](#integration) | `/api/github/*`, `/api/mcp/*`, `/api/plugins/*` | External integrations |
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
+| [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics and activity data |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
 ---
@@ -1183,6 +1184,7 @@ Endpoints for Playwright test results, screenshots, and traces. Test results are
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/dashboard/stats` | Get dashboard statistics |
+| GET | `/api/stats/activity` | Get task activity data for heatmap |
 
 **Dashboard stats response:**
 ```json
@@ -1207,6 +1209,54 @@ Endpoints for Playwright test results, screenshots, and traces. Test results are
 | `cache_creation_input_tokens` | Tokens written to prompt cache (aggregated) |
 | `cache_read_input_tokens` | Tokens served from prompt cache (aggregated) |
 | `cost` | Estimated cost in USD |
+
+**Activity data response (GET `/api/stats/activity`):**
+
+Query parameters:
+- `weeks` - Number of weeks to return (default: 16, min: 1, max: 52)
+
+```json
+{
+  "start_date": "2025-09-23",
+  "end_date": "2026-01-16",
+  "data": [
+    {"date": "2025-09-23", "count": 5, "level": 2},
+    {"date": "2025-09-24", "count": 0, "level": 0}
+  ],
+  "stats": {
+    "total_tasks": 247,
+    "current_streak": 12,
+    "longest_streak": 45,
+    "busiest_day": {"date": "2025-12-15", "count": 23}
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `start_date` | First date in range (YYYY-MM-DD) |
+| `end_date` | Last date in range (YYYY-MM-DD) |
+| `data` | Array of `weeks * 7` daily activity entries |
+| `data[].date` | Date in YYYY-MM-DD format |
+| `data[].count` | Number of tasks completed on this date |
+| `data[].level` | Activity level 0-4 for heatmap coloring |
+| `stats.total_tasks` | Total completed tasks in range |
+| `stats.current_streak` | Consecutive days ending today/yesterday |
+| `stats.longest_streak` | Longest consecutive days in range |
+| `stats.busiest_day` | Day with most completions (null if none) |
+
+**Activity level thresholds:**
+
+| Level | Task Count | Description |
+|-------|------------|-------------|
+| 0 | 0 | No activity |
+| 1 | 1-2 | Light activity |
+| 2 | 3-5 | Moderate activity |
+| 3 | 6-10 | High activity |
+| 4 | 11+ | Very high activity |
+
+**Error responses:**
+- 400: `weeks` parameter invalid (not a number, < 1, or > 52)
 
 ### Cost Tracking
 
