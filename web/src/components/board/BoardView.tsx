@@ -88,7 +88,9 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		new Set()
 	);
 	const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
-	const [configStats, setConfigStats] = useState<ConfigStats>({ loading: true });
+	const [configStats, setConfigStats] = useState<ConfigStats | undefined>(undefined);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [_configLoading, setConfigLoading] = useState(true);
 	const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
 
 	// Derived state: filter tasks by status
@@ -309,13 +311,14 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		getConfigStats()
 			.then((stats) => {
 				if (mounted) {
-					setConfigStats({ ...stats, loading: false });
+					setConfigStats(stats);
+					setConfigLoading(false);
 				}
 			})
 			.catch((error) => {
 				console.error('Failed to fetch config stats:', error);
 				if (mounted) {
-					setConfigStats({ loading: false });
+					setConfigLoading(false);
 				}
 			});
 
