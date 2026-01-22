@@ -6,7 +6,7 @@ REST API server with WebSocket support for real-time updates.
 
 ```
 Server
-├── Routes (chi router) → handlers_*.go (19 handler files)
+├── Routes (chi router) → handlers_*.go (20 handler files)
 ├── WebSocket Hub → Client connections, subscriptions
 ├── PR Poller → Background PR status updates
 ├── Finalize Tracker → In-memory state + cancellation
@@ -83,6 +83,10 @@ Claude Code endpoints support `?scope=global` for `~/.claude/`:
 | `task_deleted` | `{task_id: string}` |
 | `state` | `{raw: string}` |
 | `finalize` | `{task_id, status, step}` |
+| `decision_required` | `{decision_id, task_id, phase, gate_type, question}` |
+| `decision_resolved` | `{decision_id, task_id, approved, reason}` |
+| `files_changed` | `{files: [], total_additions, total_deletions}` |
+| `session_update` | `{duration_seconds, total_tokens, tasks_running, ...}` |
 
 ## PR Status Polling
 
@@ -117,4 +121,4 @@ Or use `make test` which handles prerequisites.
 
 ## Reference
 
-See [ENDPOINTS.md](ENDPOINTS.md) for full endpoint documentation.
+See [docs/API_REFERENCE.md](/docs/API_REFERENCE.md) for full endpoint documentation.
