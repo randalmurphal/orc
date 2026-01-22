@@ -35,22 +35,22 @@ Check recent progress to understand momentum:
 orc list --status completed --limit 5 --plain 2>/dev/null
 ```
 
-If tasks belong to an initiative, read it:
+If tasks belong to an initiative, view it:
 ```bash
-cat .orc/initiatives/INIT-XXX.yaml 2>/dev/null
+orc initiative show INIT-XXX --plain 2>/dev/null
 ```
 
 ## Step 2: Identify Work
 
-From status output, identify READY tasks. Check their specs to understand scope:
+From status output, identify READY tasks. Check their details to understand scope:
 ```bash
-cat .orc/tasks/TASK-XXX/task.yaml 2>/dev/null
-cat .orc/tasks/TASK-XXX/spec.md 2>/dev/null
+orc show TASK-XXX --plain 2>/dev/null        # Task details and description
+orc show TASK-XXX --spec --plain 2>/dev/null # Spec content (if exists)
 ```
 
-If no spec exists, check if the task belongs to an initiative - the initiative file often contains the task context:
+If no spec exists, check if the task belongs to an initiative - the initiative's vision often contains the context:
 ```bash
-cat .orc/initiatives/INIT-XXX.yaml 2>/dev/null
+orc initiative show INIT-XXX --plain 2>/dev/null
 ```
 
 ### Orc-Specific Priorities
@@ -187,7 +187,8 @@ Then decide:
 | Test | `make test` |
 | Diff | `orc diff TASK-XXX --stat` |
 | Show task | `orc show TASK-XXX --plain` |
-| Read spec | `cat .orc/tasks/TASK-XXX/spec.md` |
+| Read spec | `orc show TASK-XXX --spec --plain` |
+| Show initiative | `orc initiative show INIT-XXX --plain` |
 
 ## The Discovery Mindset (Always On)
 
