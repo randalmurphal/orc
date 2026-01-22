@@ -422,7 +422,7 @@ func TestRunCmd_OutputShowsMigration(t *testing.T) {
 	}
 
 	// Output should show preserved count
-	if !hasSubstring(output, "preserved") || !hasSubstring(output, "Preserved") {
+	if !hasSubstring(output, "preserved") && !hasSubstring(output, "Preserved") {
 		t.Error("migration output should mention preserved phases")
 	}
 }
