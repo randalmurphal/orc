@@ -262,6 +262,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/resume", cors(s.handleResumeTask))
 
 	// Gate decisions (human approval in headless mode)
+	s.mux.HandleFunc("GET /api/decisions", cors(s.handleListDecisions))
 	s.mux.HandleFunc("POST /api/decisions/{id}", cors(s.handlePostDecision))
 
 	// Task retry (fresh session with context injection)
