@@ -1435,6 +1435,55 @@ model: claude-sonnet
 	}
 }
 
+func TestGetConfigStatsEndpoint(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	// Create .orc directory
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+
+	// Create config file
+	configYAML := `
+profile: auto
+model: claude-sonnet-4
+`
+	_ = os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte(configYAML), 0644)
+
+	// Create CLAUDE.md
+	_ = os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte("# Test\n\nTest content"), 0644)
+
+	srv := New(&Config{WorkDir: tmpDir})
+
+	req := httptest.NewRequest("GET", "/api/config/stats", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Parse response
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Should have all required fields
+	if _, ok := resp["slashCommandsCount"]; !ok {
+		t.Error("expected slashCommandsCount in response")
+	}
+	if _, ok := resp["claudeMdSize"]; !ok {
+		t.Error("expected claudeMdSize in response")
+	}
+	if _, ok := resp["mcpServersCount"]; !ok {
+		t.Error("expected mcpServersCount in response")
+	}
+	if profile, ok := resp["permissionsProfile"].(string); !ok || profile == "" {
+		t.Error("expected non-empty permissionsProfile in response")
+	}
+}
+
 func TestGetSettingsHierarchyEndpoint(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
