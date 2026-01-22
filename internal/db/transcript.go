@@ -127,6 +127,148 @@ func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 	return scanTranscripts(rows)
 }
 
+// GetTranscriptsPaginated retrieves paginated transcripts with filtering.
+func (p *ProjectDB) GetTranscriptsPaginated(taskID string, opts TranscriptPaginationOpts) ([]Transcript, PaginationResult, error) {
+	// Apply defaults (validation is done at API layer)
+	if opts.Limit == 0 {
+		opts.Limit = 50
+	}
+	if opts.Direction == "" || (opts.Direction != "asc" && opts.Direction != "desc") {
+		opts.Direction = "asc"
+	}
+
+	// Build base WHERE clause (for count query - excludes cursor)
+	baseWhereClauses := []string{"task_id = ?"}
+	baseArgs := []any{taskID}
+	if opts.Phase != "" {
+		baseWhereClauses = append(baseWhereClauses, "phase = ?")
+		baseArgs = append(baseArgs, opts.Phase)
+	}
+	baseWhereClause := strings.Join(baseWhereClauses, " AND ")
+
+	// Build full WHERE clause (includes cursor for pagination)
+	whereClauses := append([]string{}, baseWhereClauses...)
+	args := append([]any{}, baseArgs...)
+
+	// Cursor-based pagination
+	if opts.Cursor > 0 {
+		if opts.Direction == "asc" {
+			whereClauses = append(whereClauses, "id > ?")
+		} else {
+			whereClauses = append(whereClauses, "id < ?")
+		}
+		args = append(args, opts.Cursor)
+	}
+
+	whereClause := strings.Join(whereClauses, " AND ")
+
+	// Build ORDER BY clause
+	orderBy := "id ASC"
+	if opts.Direction == "desc" {
+		orderBy = "id DESC"
+	}
+
+	// Fetch one extra to detect if there are more results
+	fetchLimit := opts.Limit + 1
+
+	// Execute query
+	query := fmt.Sprintf(`
+		SELECT id, task_id, phase, session_id, message_uuid, parent_uuid,
+			   type, role, content, model,
+			   input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens,
+			   tool_calls, tool_results, timestamp
+		FROM transcripts
+		WHERE %s
+		ORDER BY %s
+		LIMIT ?
+	`, whereClause, orderBy)
+
+	args = append(args, fetchLimit)
+	rows, err := p.Query(query, args...)
+	if err != nil {
+		return nil, PaginationResult{}, fmt.Errorf("get paginated transcripts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	transcripts, err := scanTranscripts(rows)
+	if err != nil {
+		return nil, PaginationResult{}, err
+	}
+
+	// Build pagination result
+	var result PaginationResult
+	result.HasMore = len(transcripts) > opts.Limit
+	if result.HasMore {
+		transcripts = transcripts[:opts.Limit]
+	}
+
+	// Get total count (using base WHERE without cursor filter)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM transcripts WHERE %s", baseWhereClause)
+	var totalCount int
+	err = p.QueryRow(countQuery, baseArgs...).Scan(&totalCount)
+	if err != nil {
+		return nil, PaginationResult{}, fmt.Errorf("count transcripts: %w", err)
+	}
+	result.TotalCount = totalCount
+
+	// Set cursors
+	if len(transcripts) > 0 {
+		if opts.Direction == "asc" {
+			// Next cursor is the last ID
+			if result.HasMore {
+				lastID := transcripts[len(transcripts)-1].ID
+				result.NextCursor = &lastID
+			}
+			// Prev cursor is the first ID (if we're not at the start)
+			if opts.Cursor > 0 {
+				firstID := transcripts[0].ID
+				result.PrevCursor = &firstID
+			}
+		} else {
+			// For desc order, reverse the logic
+			if result.HasMore {
+				lastID := transcripts[len(transcripts)-1].ID
+				result.NextCursor = &lastID
+			}
+			if opts.Cursor > 0 {
+				firstID := transcripts[0].ID
+				result.PrevCursor = &firstID
+			}
+		}
+	}
+
+	return transcripts, result, nil
+}
+
+// GetPhaseSummary returns transcript counts grouped by phase.
+func (p *ProjectDB) GetPhaseSummary(taskID string) ([]PhaseSummary, error) {
+	rows, err := p.Query(`
+		SELECT phase, COUNT(*) as count
+		FROM transcripts
+		WHERE task_id = ?
+		GROUP BY phase
+		ORDER BY MIN(timestamp)
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get phase summary: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var summaries []PhaseSummary
+	for rows.Next() {
+		var s PhaseSummary
+		if err := rows.Scan(&s.Phase, &s.TranscriptCount); err != nil {
+			return nil, fmt.Errorf("scan phase summary: %w", err)
+		}
+		summaries = append(summaries, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate phase summaries: %w", err)
+	}
+
+	return summaries, nil
+}
+
 // GetTranscriptsByPhase retrieves transcripts for a specific task and phase.
 func (p *ProjectDB) GetTranscriptsByPhase(taskID, phase string) ([]Transcript, error) {
 	rows, err := p.Query(`
@@ -682,6 +824,28 @@ func scanUsageMetrics(rows *sql.Rows) ([]UsageMetric, error) {
 		return nil, fmt.Errorf("iterate usage metrics: %w", err)
 	}
 	return metrics, nil
+}
+
+// TranscriptPaginationOpts configures transcript pagination and filtering.
+type TranscriptPaginationOpts struct {
+	Phase     string // Filter by phase (optional)
+	Cursor    int64  // Cursor for pagination (transcript ID, 0 = start)
+	Limit     int    // Max results (default: 50, max: 200)
+	Direction string // 'asc' | 'desc' (default: asc)
+}
+
+// PaginationResult contains pagination metadata.
+type PaginationResult struct {
+	NextCursor *int64 `json:"next_cursor,omitempty"`
+	PrevCursor *int64 `json:"prev_cursor,omitempty"`
+	HasMore    bool   `json:"has_more"`
+	TotalCount int    `json:"total_count"`
+}
+
+// PhaseSummary contains transcript count for a single phase.
+type PhaseSummary struct {
+	Phase           string `json:"phase"`
+	TranscriptCount int    `json:"transcript_count"`
 }
 
 // AgentStats contains per-agent statistics.

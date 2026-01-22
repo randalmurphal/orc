@@ -240,6 +240,10 @@ func (b *emptyBackend) AddTranscriptBatch(context.Context, []storage.Transcript)
 	return nil
 }
 func (b *emptyBackend) GetTranscripts(string) ([]storage.Transcript, error)   { return nil, nil }
+func (b *emptyBackend) GetTranscriptsPaginated(string, storage.TranscriptPaginationOpts) ([]storage.Transcript, storage.PaginationResult, error) {
+	return nil, storage.PaginationResult{}, nil
+}
+func (b *emptyBackend) GetPhaseSummary(string) ([]storage.PhaseSummary, error) { return nil, nil }
 func (b *emptyBackend) SearchTranscripts(string) ([]storage.TranscriptMatch, error) {
 	return nil, nil
 }
