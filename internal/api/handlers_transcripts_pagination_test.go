@@ -54,14 +54,14 @@ func setupTranscriptAPITest(t *testing.T) (*storage.DatabaseBackend, string) {
 	return backend, tmpDir
 }
 
-func TestHandleGetTranscripts_Legacy(t *testing.T) {
+func TestHandleGetTranscripts_DefaultPagination(t *testing.T) {
 	t.Parallel()
 	backend, tmpDir := setupTranscriptAPITest(t)
 	defer func() { _ = backend.Close() }()
 
 	srv := New(&Config{WorkDir: tmpDir})
 
-	// Request without pagination params should return array (legacy)
+	// Request without pagination params should return paginated format with defaults
 	req := httptest.NewRequest("GET", "/api/tasks/TASK-TEST/transcripts", nil)
 	w := httptest.NewRecorder()
 
@@ -71,14 +71,24 @@ func TestHandleGetTranscripts_Legacy(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Should be an array
-	var response []map[string]any
+	// Should be a paginated object (not array)
+	var response struct {
+		Transcripts []map[string]any `json:"transcripts"`
+		Pagination  struct {
+			TotalCount int  `json:"total_count"`
+			HasMore    bool `json:"has_more"`
+		} `json:"pagination"`
+		Phases []map[string]any `json:"phases"`
+	}
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("failed to decode response as array: %v", err)
+		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(response) != 5 {
-		t.Errorf("expected 5 transcripts, got %d", len(response))
+	if len(response.Transcripts) != 5 {
+		t.Errorf("expected 5 transcripts, got %d", len(response.Transcripts))
+	}
+	if response.Pagination.TotalCount != 5 {
+		t.Errorf("expected total_count 5, got %d", response.Pagination.TotalCount)
 	}
 }
 
