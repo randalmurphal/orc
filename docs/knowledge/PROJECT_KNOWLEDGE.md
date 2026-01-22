@@ -128,6 +128,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Task left in 'running' after spec extraction fails | Fixed: `ExecuteTask()` now calls `failTask()` before returning errors for all three spec extraction failure paths (empty output, extraction error, database save error); task status correctly becomes `StatusFailed` instead of orphaned in `StatusRunning` | TASK-438 |
 | `orc log --follow` says "may not be running" for active tasks | Fixed: JSONLPath now persisted immediately after executor sets it (not just at phase end); fallback path construction added when JSONLPath empty; error messages now show actual task status with actionable guidance | TASK-460 |
 | Worktree on wrong branch causes infinite review loop | Fixed: `cleanWorktreeState()` now verifies and corrects branch on worktree reuse; post-creation validation added to `SetupWorktreeForTask()`; logs warning when switching branches; verifies expected branch exists before checkout | TASK-392 |
+| `orc log` shows "No transcripts found" when database empty | Fixed: Added filesystem fallback via `readFilesystemTranscripts()` that reads markdown files from `.orc/tasks/{taskID}/transcripts/`; parses filenames in formats `{seq}-{phase}-{iter}.md` and `{phase}-{seq}.md`; enables viewing transcripts even when database sync didn't run | TASK-481 |
 
 ## Decisions
 
