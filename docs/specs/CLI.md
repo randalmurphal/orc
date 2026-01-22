@@ -576,35 +576,39 @@ Rewinds to phase start and pauses.
 Show task transcripts.
 
 ```bash
-orc log <task-id> [--phase <phase>] [--tail <n>] [--follow] [--list] [--all]
+orc log <task-id> [--phase <phase>] [--tail <n>] [--follow] [--all] [--response-only] [--prompt-only] [--raw] [--no-color]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--phase`, `-p` | Filter to specific phase (e.g., 'implement', 'test') | all |
-| `--tail`, `-n` | Number of lines to show (0 for all) | 100 |
-| `--follow`, `-f` | Stream new lines in real-time (like tail -f) | false |
-| `--list`, `-l` | List transcript files only (no content) | false |
+| `--tail`, `-n` | Number of entries to show (0 for all) | 100 |
+| `--follow`, `-f` | Stream new messages in real-time (tails JSONL file) | false |
 | `--all`, `-a` | Show all transcripts (not just latest) | false |
+| `--response-only`, `-r` | Show only Claude's responses (assistant messages) | false |
+| `--prompt-only`, `-P` | Show only the prompts (user messages) | false |
+| `--raw` | Show raw JSON content (unformatted) | false |
+| `--no-color` | Disable color output | false |
+
+**Data Sources:**
+
+Transcripts are loaded from the database first. If no database transcripts exist, orc falls back to reading markdown files from `.orc/tasks/{taskID}/transcripts/`. This enables viewing transcripts even when the database wasn't synced.
 
 **Real-time Streaming** (`--follow`):
 
-Uses filesystem notifications (fsnotify) for instant updates—no polling delay. Automatically falls back to polling (100ms interval) if filesystem watching is unavailable.
-
-Features:
-- Starts from end of file, showing only new content
-- Handles file truncation gracefully (resets to beginning)
-- Clean shutdown with Ctrl+C (prints any partial line before exit)
+Streams from Claude's live JSONL session file during task execution. Requires an active task (use without `--follow` for completed tasks).
 
 **Examples**:
 ```bash
-orc log TASK-001              # Show latest transcript (last 100 lines)
+orc log TASK-001              # Show latest transcript (last 100 entries)
 orc log TASK-001 --all        # Show all transcripts
 orc log TASK-001 --phase test # Show specific phase transcript
-orc log TASK-001 --list       # List transcript files only
-orc log TASK-001 --tail 50    # Show last 50 lines
+orc log TASK-001 --tail 50    # Show last 50 entries
 orc log TASK-001 --tail 0     # Show entire transcript
-orc log TASK-001 --follow     # Stream new lines in real-time
+orc log TASK-001 --follow     # Stream new messages in real-time
+orc log TASK-001 -r           # Show only Claude's responses
+orc log TASK-001 --prompt-only # Show only the prompts
+orc log TASK-001 --raw        # Show raw JSON content
 ```
 
 ---

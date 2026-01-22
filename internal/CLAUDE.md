@@ -22,7 +22,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `llmutil/` | **Shared LLM utilities - schema execution** | `ExecuteWithSchema[T]()` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `github/` | GitHub API client, PR operations, status detection | `Client`, `PR`, `PRStatusSummary` |
-| `plan/` | Plan generation, regeneration on weight change | `Plan`, `Phase`, `RegeneratePlan` |
+| `plan/` | Plan generation, regeneration, staleness detection, migration | `Plan`, `Phase`, `IsPlanStale`, `MigratePlan` |
 | `progress/` | Progress tracking and display | `Tracker` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
