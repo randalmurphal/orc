@@ -527,3 +527,372 @@ func TestConstructJSONLPathFallback_WorktreeExists(t *testing.T) {
 		t.Errorf("got path %q, want %q", path, jsonlFile)
 	}
 }
+
+func TestParseTranscriptFilename(t *testing.T) {
+	tests := []struct {
+		name        string
+		filename    string
+		wantPhase   string
+		wantSeq     int
+		expectError bool
+	}{
+		{
+			name:        "sequence-phase-iteration format",
+			filename:    "02-implement-003.md",
+			wantPhase:   "implement",
+			wantSeq:     2,
+			expectError: false,
+		},
+		{
+			name:        "phase-sequence format",
+			filename:    "spec-001.md",
+			wantPhase:   "spec",
+			wantSeq:     1,
+			expectError: false,
+		},
+		{
+			name:        "review with high iteration",
+			filename:    "03-review-030.md",
+			wantPhase:   "review",
+			wantSeq:     3,
+			expectError: false,
+		},
+		{
+			name:        "test phase simple format",
+			filename:    "test-005.md",
+			wantPhase:   "test",
+			wantSeq:     5,
+			expectError: false,
+		},
+		{
+			name:        "too few parts",
+			filename:    "spec.md",
+			expectError: true,
+		},
+		{
+			name:        "sequence format with too few parts",
+			filename:    "01-implement.md",
+			expectError: true,
+		},
+		{
+			name:        "phase format with non-numeric sequence",
+			filename:    "spec-abc.md",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			phase, seq, err := parseTranscriptFilename(tt.filename)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error, got phase=%q seq=%d", phase, seq)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if phase != tt.wantPhase {
+				t.Errorf("phase = %q, want %q", phase, tt.wantPhase)
+			}
+			if seq != tt.wantSeq {
+				t.Errorf("sequence = %d, want %d", seq, tt.wantSeq)
+			}
+		})
+	}
+}
+
+func TestReadFilesystemTranscripts_NoDirectory(t *testing.T) {
+	// Create temp orc root
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create .orc but not transcripts directory
+	orcDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-001")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	transcripts, err := readFilesystemTranscripts("TASK-001")
+	if err != nil {
+		t.Errorf("unexpected error when directory doesn't exist: %v", err)
+	}
+	if len(transcripts) != 0 {
+		t.Errorf("expected empty slice, got %d transcripts", len(transcripts))
+	}
+}
+
+func TestReadFilesystemTranscripts_EmptyDirectory(t *testing.T) {
+	// Create temp orc root with empty transcripts directory
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	transcriptDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-002", "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript dir: %v", err)
+	}
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	transcripts, err := readFilesystemTranscripts("TASK-002")
+	if err != nil {
+		t.Errorf("unexpected error for empty directory: %v", err)
+	}
+	if len(transcripts) != 0 {
+		t.Errorf("expected empty slice for empty directory, got %d transcripts", len(transcripts))
+	}
+}
+
+func TestReadFilesystemTranscripts_ValidFiles(t *testing.T) {
+	// Create temp orc root with transcript files
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	transcriptDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-003", "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript dir: %v", err)
+	}
+
+	// Create test transcript files
+	testFiles := map[string]string{
+		"spec-001.md":         "# Specification\n\nThis is the spec phase transcript.",
+		"02-implement-001.md": "# Implementation\n\nImplementing the feature.",
+		"03-review-030.md":    "# Review Round 30\n\nFinal review comments.",
+	}
+
+	for filename, content := range testFiles {
+		filePath := filepath.Join(transcriptDir, filename)
+		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+			t.Fatalf("failed to write test file %s: %v", filename, err)
+		}
+	}
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	transcripts, err := readFilesystemTranscripts("TASK-003")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have 3 transcripts
+	if len(transcripts) != 3 {
+		t.Fatalf("expected 3 transcripts, got %d", len(transcripts))
+	}
+
+	// Verify sorting (spec-001 has seq=1, 02-implement-001 has seq=2, 03-review-030 has seq=3)
+	if transcripts[0].Phase != "spec" {
+		t.Errorf("first transcript phase = %q, want 'spec'", transcripts[0].Phase)
+	}
+	if transcripts[1].Phase != "implement" {
+		t.Errorf("second transcript phase = %q, want 'implement'", transcripts[1].Phase)
+	}
+	if transcripts[2].Phase != "review" {
+		t.Errorf("third transcript phase = %q, want 'review'", transcripts[2].Phase)
+	}
+
+	// Verify content
+	if !strings.Contains(transcripts[0].Content, "Specification") {
+		t.Errorf("spec transcript content missing expected text")
+	}
+	if !strings.Contains(transcripts[1].Content, "Implementation") {
+		t.Errorf("implement transcript content missing expected text")
+	}
+	if !strings.Contains(transcripts[2].Content, "Review Round 30") {
+		t.Errorf("review transcript content missing expected text")
+	}
+
+	// Verify metadata
+	if transcripts[0].TaskID != "TASK-003" {
+		t.Errorf("task ID = %q, want 'TASK-003'", transcripts[0].TaskID)
+	}
+	if transcripts[0].Type != "assistant" {
+		t.Errorf("type = %q, want 'assistant'", transcripts[0].Type)
+	}
+}
+
+func TestReadFilesystemTranscripts_IgnoreNonMd(t *testing.T) {
+	// Create temp orc root with mixed files
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	transcriptDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-004", "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript dir: %v", err)
+	}
+
+	// Create valid .md file
+	mdFile := filepath.Join(transcriptDir, "spec-001.md")
+	if err := os.WriteFile(mdFile, []byte("# Spec"), 0644); err != nil {
+		t.Fatalf("failed to write md file: %v", err)
+	}
+
+	// Create non-.md files (should be ignored)
+	txtFile := filepath.Join(transcriptDir, "notes.txt")
+	if err := os.WriteFile(txtFile, []byte("notes"), 0644); err != nil {
+		t.Fatalf("failed to write txt file: %v", err)
+	}
+
+	// Create subdirectory (should be ignored)
+	subDir := filepath.Join(transcriptDir, "subdir")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	transcripts, err := readFilesystemTranscripts("TASK-004")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should only have 1 transcript (the .md file)
+	if len(transcripts) != 1 {
+		t.Errorf("expected 1 transcript, got %d", len(transcripts))
+	}
+
+	if transcripts[0].Phase != "spec" {
+		t.Errorf("phase = %q, want 'spec'", transcripts[0].Phase)
+	}
+}
+
+func TestReadFilesystemTranscripts_MalformedFilename(t *testing.T) {
+	// Create temp orc root with malformed filename
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	transcriptDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-005", "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript dir: %v", err)
+	}
+
+	// Create valid file
+	validFile := filepath.Join(transcriptDir, "spec-001.md")
+	if err := os.WriteFile(validFile, []byte("# Valid"), 0644); err != nil {
+		t.Fatalf("failed to write valid file: %v", err)
+	}
+
+	// Create malformed filename (should be skipped with warning)
+	malformedFile := filepath.Join(transcriptDir, "invalid.md")
+	if err := os.WriteFile(malformedFile, []byte("# Malformed"), 0644); err != nil {
+		t.Fatalf("failed to write malformed file: %v", err)
+	}
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// Capture stderr to verify warning
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	transcripts, err := readFilesystemTranscripts("TASK-005")
+
+	_ = w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	stderrOutput := buf.String()
+
+	// Should not error
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have 1 valid transcript (malformed file skipped)
+	if len(transcripts) != 1 {
+		t.Errorf("expected 1 transcript (malformed skipped), got %d", len(transcripts))
+	}
+
+	// Should have warning in stderr
+	if !strings.Contains(stderrOutput, "Warning") || !strings.Contains(stderrOutput, "invalid.md") {
+		t.Errorf("expected warning about malformed file in stderr, got: %q", stderrOutput)
+	}
+}
+
+func TestReadFilesystemTranscripts_PermissionDenied(t *testing.T) {
+	// Skip on Windows (permissions work differently)
+	if strings.Contains(strings.ToLower(os.Getenv("OS")), "windows") {
+		t.Skip("skipping permission test on Windows")
+	}
+
+	// Create temp orc root
+	tmpDir, err := os.MkdirTemp("", "orc-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	transcriptDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-006", "transcripts")
+	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
+		t.Fatalf("failed to create transcript dir: %v", err)
+	}
+
+	// Remove read permissions
+	if err := os.Chmod(transcriptDir, 0000); err != nil {
+		t.Fatalf("failed to chmod: %v", err)
+	}
+	// Restore permissions in cleanup
+	defer func() { _ = os.Chmod(transcriptDir, 0755) }()
+
+	// Change directory to tmpDir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	_, err = readFilesystemTranscripts("TASK-006")
+	if err == nil {
+		t.Error("expected permission error, got nil")
+	}
+	if !strings.Contains(err.Error(), "read transcripts directory") {
+		t.Errorf("error should mention 'read transcripts directory', got: %q", err.Error())
+	}
+}
