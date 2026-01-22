@@ -487,6 +487,20 @@ func TestComputeJSONLPath_EmptySessionID(t *testing.T) {
 	}
 }
 
+func TestComputeJSONLPath_DotInPath(t *testing.T) {
+	t.Parallel()
+	// Claude Code converts dots to dashes in paths (e.g., .orc -> -orc)
+	path, err := ComputeJSONLPath("/home/user/repos/orc/.orc/worktrees/orc-TASK-123", "session-abc")
+	if err != nil {
+		t.Fatalf("ComputeJSONLPath failed: %v", err)
+	}
+
+	// .orc should become -orc, resulting in double dash after "orc"
+	if !strings.Contains(path, "-home-user-repos-orc--orc-worktrees-orc-TASK-123") {
+		t.Errorf("path should have dots converted to dashes, got: %s", path)
+	}
+}
+
 func TestNormalizeProjectPath(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

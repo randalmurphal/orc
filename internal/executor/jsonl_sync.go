@@ -398,10 +398,13 @@ func ComputeJSONLPath(workdir, sessionID string) (string, error) {
 
 // normalizeProjectPath converts an absolute path to Claude Code's normalized format.
 // Example: /home/user/repos/project -> -home-user-repos-project
+// Example: /home/user/repos/orc/.orc/worktrees -> -home-user-repos-orc--orc-worktrees
 func normalizeProjectPath(path string) string {
 	// Remove leading slash and replace remaining slashes with dashes
 	normalized := strings.TrimPrefix(path, "/")
 	normalized = strings.ReplaceAll(normalized, "/", "-")
+	// Claude also replaces dots with dashes (e.g., .orc -> -orc)
+	normalized = strings.ReplaceAll(normalized, ".", "-")
 	// Prepend dash to match Claude Code's format
 	return "-" + normalized
 }
