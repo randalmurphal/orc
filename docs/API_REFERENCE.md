@@ -14,6 +14,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
 | [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics and activity data |
+| [Events](#events) | `/api/events` | Timeline event queries |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
 ---
@@ -1381,6 +1382,82 @@ Query parameters:
 ```
 
 **Note:** The database layer for cost tracking with model identification is implemented (TASK-406). API endpoint handlers are pending future work.
+
+---
+
+## Events
+
+Query historical events for timeline display. Events are persisted via the event publisher and can be filtered by task, initiative, time range, and event types.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/events` | List events with optional filters |
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `task_id` | string | - | Filter events by task ID |
+| `initiative_id` | string | - | Filter events by initiative (joins with tasks table) |
+| `since` | string | - | Start of time range (ISO8601/RFC3339) |
+| `until` | string | - | End of time range (ISO8601/RFC3339) |
+| `types` | string | - | Comma-separated event types to include |
+| `limit` | number | 100 | Max events to return (1-1000) |
+| `offset` | number | 0 | Offset for pagination |
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "id": 123,
+      "task_id": "TASK-001",
+      "task_title": "Implement login flow",
+      "phase": "implement",
+      "iteration": 2,
+      "event_type": "phase_completed",
+      "data": {"duration_ms": 45000},
+      "source": "executor",
+      "created_at": "2026-01-10T10:35:00Z"
+    }
+  ],
+  "total": 150,
+  "limit": 100,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `events` | Array of events (empty array if no matches) |
+| `events[].id` | Unique event ID |
+| `events[].task_id` | Associated task ID |
+| `events[].task_title` | Task title (from tasks table join) |
+| `events[].phase` | Phase name (optional) |
+| `events[].iteration` | Phase iteration (optional) |
+| `events[].event_type` | Event type (e.g., `phase_completed`, `task_started`) |
+| `events[].data` | Event-specific data (optional) |
+| `events[].source` | Event source (e.g., `executor`, `api`, `cli`) |
+| `events[].created_at` | Event timestamp (ISO8601) |
+| `total` | Total matching events (for pagination) |
+| `limit` | Applied limit |
+| `offset` | Applied offset |
+| `has_more` | True if more events exist beyond current page |
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | Invalid `since`/`until` timestamp format |
+| 400 | `limit` < 1 or > 1000 |
+| 400 | `offset` < 0 |
+| 500 | Database error |
+
+**Notes:**
+- Invalid `task_id` or `initiative_id` returns empty results (not an error)
+- `initiative_id` filter works by joining with the tasks table
+- Events are sorted by `created_at` descending (newest first)
 
 ---
 
