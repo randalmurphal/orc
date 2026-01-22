@@ -251,6 +251,10 @@ func (p *ProjectDB) DeletePhaseTemplate(id string) error {
 
 // SaveWorkflow creates or updates a workflow.
 func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
+	// Use sqlNullString for BasedOn to convert empty string to NULL
+	// This is required because BasedOn has a foreign key constraint
+	basedOn := sqlNullString(w.BasedOn)
+
 	_, err := p.Exec(`
 		INSERT INTO workflows (id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -263,7 +267,7 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 			based_on = excluded.based_on,
 			updated_at = excluded.updated_at
 	`, w.ID, w.Name, w.Description, w.WorkflowType, w.DefaultModel, w.DefaultThinking,
-		w.IsBuiltin, w.BasedOn, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+		w.IsBuiltin, basedOn, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save workflow: %w", err)
 	}
@@ -701,6 +705,15 @@ func nullIntToPtr(ni sql.NullInt64) *int {
 	}
 	i := int(ni.Int64)
 	return &i
+}
+
+// sqlNullString converts a string to sql.NullString, treating empty strings as NULL.
+// This is important for foreign key fields where empty string != NULL.
+func sqlNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
 }
 
 // --------- Scanners ---------
