@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -42,8 +43,8 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 	// Load all tasks
 	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
-		s.logger.Warn("failed to load tasks for session metrics", "error", err)
-		tasks = []*task.Task{} // Use empty slice on error
+		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	// Count tasks by status
@@ -60,8 +61,8 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 	// Load all states for token/cost aggregation
 	states, err := s.backend.LoadAllStates()
 	if err != nil {
-		s.logger.Warn("failed to load states for session metrics", "error", err)
-		states = nil // Use nil on error, will result in zero values
+		s.jsonError(w, fmt.Sprintf("failed to load states: %v", err), http.StatusInternalServerError)
+		return
 	}
 
 	// Aggregate today's token/cost data

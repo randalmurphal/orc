@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +74,7 @@ func TestGetTranscriptsPaginated_DefaultLimit(t *testing.T) {
 			TaskID:      "TASK-002",
 			Phase:       "implement",
 			SessionID:   "sess2",
-			MessageUUID: "msg-" + string(rune(i)),
+			MessageUUID: fmt.Sprintf("msg-%d", i),
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message",

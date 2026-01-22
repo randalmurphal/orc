@@ -12,6 +12,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestHandleGetEvents_NoFilters(t *testing.T) {
@@ -485,5 +486,149 @@ func TestHandleGetEvents_EmptyResults(t *testing.T) {
 	}
 	if response.HasMore {
 		t.Error("expected has_more=false")
+	}
+}
+
+func TestHandleGetEvents_CombinedFilters(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create tasks
+	task1 := task.New("TASK-001", "Task 1")
+	task1.Status = task.StatusCompleted
+	task2 := task.New("TASK-002", "Task 2")
+	task2.Status = task.StatusRunning
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	if err := backend.SaveTask(task2); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create events with different tasks, types, and times
+	baseTime := time.Now().UTC()
+	testEvents := []*db.EventLog{
+		{TaskID: "TASK-001", EventType: "phase", Source: "executor", CreatedAt: baseTime.Add(-5 * time.Hour)},
+		{TaskID: "TASK-001", EventType: "transcript", Source: "executor", CreatedAt: baseTime.Add(-4 * time.Hour)},
+		{TaskID: "TASK-001", EventType: "phase", Source: "executor", CreatedAt: baseTime.Add(-3 * time.Hour)},
+		{TaskID: "TASK-002", EventType: "phase", Source: "executor", CreatedAt: baseTime.Add(-2 * time.Hour)},
+		{TaskID: "TASK-001", EventType: "activity", Source: "executor", CreatedAt: baseTime.Add(-1 * time.Hour)},
+	}
+
+	for _, ev := range testEvents {
+		if err := backend.SaveEvent(ev); err != nil {
+			t.Fatalf("failed to save event: %v", err)
+		}
+	}
+
+	server := &Server{
+		backend: backend,
+		logger:  testLogger(),
+	}
+
+	// Test combining task_id + event types + since
+	sinceTime := baseTime.Add(-4 * time.Hour).Format(time.RFC3339)
+	req := httptest.NewRequest("GET", "/api/events?task_id=TASK-001&types=phase,activity&since="+sinceTime, nil)
+	w := httptest.NewRecorder()
+
+	server.handleGetEvents(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response EventsListResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should match: TASK-001 + (phase OR activity) + after sinceTime
+	// That's the phase at -3h and activity at -1h (2 events)
+	if len(response.Events) != 2 {
+		t.Errorf("expected 2 events with combined filters, got %d", len(response.Events))
+	}
+
+	// Verify all returned events match our filters
+	for _, ev := range response.Events {
+		if ev.TaskID != "TASK-001" {
+			t.Errorf("expected task_id TASK-001, got %s", ev.TaskID)
+		}
+		if ev.EventType != "phase" && ev.EventType != "activity" {
+			t.Errorf("expected event type 'phase' or 'activity', got %s", ev.EventType)
+		}
+	}
+}
+
+func TestHandleGetEvents_UnknownEventTypes(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, cfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create task
+	task1 := task.New("TASK-001", "Task 1")
+	task1.Status = task.StatusRunning
+	if err := backend.SaveTask(task1); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create events with known types
+	testEvents := []*db.EventLog{
+		{TaskID: "TASK-001", EventType: "phase", Source: "executor", CreatedAt: time.Now()},
+		{TaskID: "TASK-001", EventType: "transcript", Source: "executor", CreatedAt: time.Now()},
+	}
+	for _, ev := range testEvents {
+		if err := backend.SaveEvent(ev); err != nil {
+			t.Fatalf("failed to save event: %v", err)
+		}
+	}
+
+	server := &Server{
+		backend: backend,
+		logger:  testLogger(),
+	}
+
+	// Query with unknown event types - should return empty results (not error)
+	req := httptest.NewRequest("GET", "/api/events?types=nonexistent_type,another_fake_type", nil)
+	w := httptest.NewRecorder()
+
+	server.handleGetEvents(w, req)
+
+	// Should succeed with 200 OK but return no results
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var response EventsListResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// No events should match unknown types
+	if len(response.Events) != 0 {
+		t.Errorf("expected 0 events for unknown types, got %d", len(response.Events))
+	}
+	if response.Total != 0 {
+		t.Errorf("expected total=0, got %d", response.Total)
 	}
 }
