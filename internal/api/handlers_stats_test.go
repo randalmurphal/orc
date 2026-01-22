@@ -435,3 +435,296 @@ func TestHandleGetActivityStats_EmptyDatabase(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Per-Day Stats Tests
+// ============================================================================
+
+func TestHandleGetPerDayStats_DefaultDays(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/per-day", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPerDayStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response PerDayResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have exactly 7 days
+	if len(response.Data) != 7 {
+		t.Errorf("expected 7 days, got %d", len(response.Data))
+	}
+
+	// Period should be "7d"
+	if response.Period != "7d" {
+		t.Errorf("expected period=7d, got %s", response.Period)
+	}
+
+	// All should have count 0 (empty database)
+	for i, day := range response.Data {
+		if day.Count != 0 {
+			t.Errorf("day %d: expected count 0, got %d", i, day.Count)
+		}
+		if day.Date == "" {
+			t.Errorf("day %d: date is empty", i)
+		}
+		if day.Day == "" {
+			t.Errorf("day %d: day name is empty", i)
+		}
+	}
+
+	// Max and average should be zero
+	if response.Max != 0 {
+		t.Errorf("expected max=0, got %d", response.Max)
+	}
+	if response.Average != 0.0 {
+		t.Errorf("expected average=0.0, got %f", response.Average)
+	}
+}
+
+func TestHandleGetPerDayStats_CustomDays(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Request 14 days
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/per-day?days=14", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPerDayStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response PerDayResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have exactly 14 days
+	if len(response.Data) != 14 {
+		t.Errorf("expected 14 days, got %d", len(response.Data))
+	}
+
+	// Period should be "14d"
+	if response.Period != "14d" {
+		t.Errorf("expected period=14d, got %s", response.Period)
+	}
+}
+
+func TestHandleGetPerDayStats_InvalidDays(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name string
+		days string
+	}{
+		{"zero", "0"},
+		{"negative", "-1"},
+		{"too large", "100"},
+		{"non-numeric", "abc"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/per-day?days="+tc.days, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetPerDayStats(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleGetPerDayStats_WithTasks(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Create tasks with different completion dates
+	testData := []struct {
+		daysAgo int
+		count   int
+	}{
+		{0, 5},  // today: 5 tasks
+		{1, 3},  // yesterday: 3 tasks
+		{2, 0},  // 2 days ago: 0 tasks
+		{3, 8},  // 3 days ago: 8 tasks
+		{4, 2},  // 4 days ago: 2 tasks
+		{5, 12}, // 5 days ago: 12 tasks
+		{6, 7},  // 6 days ago: 7 tasks
+	}
+
+	taskNum := 1
+	for _, td := range testData {
+		for i := 0; i < td.count; i++ {
+			taskID := "TASK-" + fmt.Sprintf("%03d", taskNum)
+			tsk := task.New(taskID, "Task "+fmt.Sprintf("%d", taskNum))
+			tsk.Status = task.StatusCompleted
+			// Set time to avoid any day boundary issues - use minutes instead of hours
+			completedAt := today.AddDate(0, 0, -td.daysAgo).Add(time.Duration(i) * time.Minute)
+			tsk.CompletedAt = &completedAt
+			if err := backend.SaveTask(tsk); err != nil {
+				t.Fatalf("failed to save task: %v", err)
+			}
+			taskNum++
+		}
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/per-day?days=7", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPerDayStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response PerDayResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have 7 days
+	if len(response.Data) != 7 {
+		t.Errorf("expected 7 days, got %d", len(response.Data))
+	}
+
+	// Check max count (should be 12 from 5 days ago)
+	if response.Max != 12 {
+		t.Errorf("expected max=12, got %d", response.Max)
+	}
+
+	// Check average (5+3+0+8+2+12+7 = 37 / 7 = 5.285...)
+	expectedAverage := 37.0 / 7.0
+	if response.Average < expectedAverage-0.01 || response.Average > expectedAverage+0.01 {
+		t.Errorf("expected average≈%.2f, got %.2f", expectedAverage, response.Average)
+	}
+
+	// Verify the most recent day is today
+	lastDay := response.Data[len(response.Data)-1]
+	todayStr := today.Format("2006-01-02")
+	if lastDay.Date != todayStr {
+		t.Errorf("expected last day to be today (%s), got %s", todayStr, lastDay.Date)
+	}
+	if lastDay.Count != 5 {
+		t.Errorf("expected today count=5, got %d", lastDay.Count)
+	}
+
+	// Verify day names are correct
+	for i, day := range response.Data {
+		date := today.AddDate(0, 0, -6+i)
+		expectedDayName := date.Format("Mon")
+		if day.Day != expectedDayName {
+			t.Errorf("day %d: expected day name=%s, got %s", i, expectedDayName, day.Day)
+		}
+	}
+}
+
+func TestHandleGetPerDayStats_EmptyDatabase(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/per-day", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetPerDayStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response PerDayResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should return valid response with zeros
+	if response.Max != 0 {
+		t.Errorf("expected max=0, got %d", response.Max)
+	}
+	if response.Average != 0.0 {
+		t.Errorf("expected average=0.0, got %f", response.Average)
+	}
+
+	// All days should have zero counts
+	for _, day := range response.Data {
+		if day.Count != 0 {
+			t.Errorf("expected count=0, got %d", day.Count)
+		}
+	}
+}
