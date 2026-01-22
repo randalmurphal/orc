@@ -2543,6 +2543,14 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 
 	t.Setenv("HOME", tmpDir)
 
+	// Track server for cleanup
+	var srv *Server
+	t.Cleanup(func() {
+		if srv != nil {
+			srv.CancelAllRunningTasks()
+		}
+	})
+
 	// Create global .orc directory where project registry lives
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
 	_ = os.MkdirAll(globalOrcDir, 0755)
@@ -2583,7 +2591,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	srv := New(nil)
+	srv = New(nil)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/run", projectID, taskID), nil)
 	w := httptest.NewRecorder()

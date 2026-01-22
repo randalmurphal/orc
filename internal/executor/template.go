@@ -85,6 +85,23 @@ type TemplateVars struct {
 	RecentChangedFiles   string // List of files changed in recent tasks
 	ChangelogContent     string // Current CHANGELOG.md content
 	ClaudeMDContent      string // Current CLAUDE.md content
+
+	// Project detection variables (from detect.Detect())
+	Language    string   // Primary language (go, typescript, python, etc.)
+	HasFrontend bool     // Whether project has a frontend
+	HasTests    bool     // Whether project has existing tests
+	TestCommand string   // Command to run tests (e.g., "go test ./...")
+	LintCommand string   // Command to run linting
+	BuildCommand string  // Command to build project
+	Frameworks  []string // Detected frameworks
+
+	// Constitution content (project principles)
+	ConstitutionContent string
+
+	// TDD phase artifacts
+	TDDTestsContent string // Content from tdd_write phase (tests written)
+	TDDTestPlan     string // Manual UI test plan for Playwright MCP
+	TasksContent    string // Task breakdown content from tasks phase
 }
 
 // UITestingContext holds UI testing-specific context for template rendering.
@@ -206,6 +223,19 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		requiresUITesting = "true"
 	}
 
+	// Format booleans as strings
+	hasFrontend := ""
+	if vars.HasFrontend {
+		hasFrontend = "true"
+	}
+	hasTests := ""
+	if vars.HasTests {
+		hasTests = "true"
+	}
+
+	// Format frameworks as comma-separated string
+	frameworks := strings.Join(vars.Frameworks, ", ")
+
 	replacements := map[string]string{
 		"{{TASK_ID}}":                vars.TaskID,
 		"{{TASK_TITLE}}":             vars.TaskTitle,
@@ -251,6 +281,23 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		// Review phase context variables
 		"{{REVIEW_ROUND}}":    fmt.Sprintf("%d", vars.ReviewRound),
 		"{{REVIEW_FINDINGS}}": vars.ReviewFindings,
+
+		// Project detection variables
+		"{{LANGUAGE}}":      vars.Language,
+		"{{HAS_FRONTEND}}":  hasFrontend,
+		"{{HAS_TESTS}}":     hasTests,
+		"{{TEST_COMMAND}}":  vars.TestCommand,
+		"{{LINT_COMMAND}}":  vars.LintCommand,
+		"{{BUILD_COMMAND}}": vars.BuildCommand,
+		"{{FRAMEWORKS}}":    frameworks,
+
+		// Constitution content
+		"{{CONSTITUTION_CONTENT}}": vars.ConstitutionContent,
+
+		// TDD phase artifacts
+		"{{TDD_TESTS_CONTENT}}": vars.TDDTestsContent,
+		"{{TDD_TEST_PLAN}}":     vars.TDDTestPlan,
+		"{{TASKS_CONTENT}}":     vars.TasksContent,
 	}
 
 	result := tmpl
@@ -260,6 +307,12 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 
 	// Process conditional blocks for review rounds
 	result = processReviewConditionals(result, vars.ReviewRound)
+
+	// Process conditional blocks for frontend/non-frontend
+	result = processFrontendConditionals(result, vars.HasFrontend)
+
+	// Process conditional blocks for TDD test plan
+	result = processTDDTestPlanConditional(result, vars.TDDTestPlan)
 
 	return result
 }
@@ -287,6 +340,46 @@ func processReviewConditionals(content string, reviewRound int) string {
 		content = round2Pattern.ReplaceAllString(content, "")
 	}
 
+	return content
+}
+
+// processFrontendConditionals handles {{#if HAS_FRONTEND}} and {{#if NOT_HAS_FRONTEND}} blocks.
+// Used for UI-aware TDD test generation.
+func processFrontendConditionals(content string, hasFrontend bool) string {
+	// Process HAS_FRONTEND blocks
+	frontendPattern := regexp.MustCompile(`(?s)\{\{#if HAS_FRONTEND\}\}(.*?)\{\{/if\}\}`)
+	if hasFrontend {
+		// Keep the content inside the block
+		content = frontendPattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = frontendPattern.ReplaceAllString(content, "")
+	}
+
+	// Process NOT_HAS_FRONTEND blocks
+	noFrontendPattern := regexp.MustCompile(`(?s)\{\{#if NOT_HAS_FRONTEND\}\}(.*?)\{\{/if\}\}`)
+	if !hasFrontend {
+		// Keep the content inside the block
+		content = noFrontendPattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = noFrontendPattern.ReplaceAllString(content, "")
+	}
+
+	return content
+}
+
+// processTDDTestPlanConditional handles {{#if TDD_TEST_PLAN}} blocks.
+// Used to include manual UI testing instructions when a test plan exists.
+func processTDDTestPlanConditional(content string, testPlan string) string {
+	pattern := regexp.MustCompile(`(?s)\{\{#if TDD_TEST_PLAN\}\}(.*?)\{\{/if\}\}`)
+	if testPlan != "" {
+		// Keep the content inside the block
+		content = pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = pattern.ReplaceAllString(content, "")
+	}
 	return content
 }
 
@@ -347,8 +440,20 @@ func BuildTemplateVars(
 	taskDir := task.TaskDir(t.ID)
 	vars.ResearchContent = loadPriorContent(taskDir, s, "research")
 	vars.SpecContent = loadPriorContent(taskDir, s, "spec")
+	// Also check for tiny_spec (combined spec+TDD for trivial/small tasks)
+	if vars.SpecContent == "" {
+		vars.SpecContent = loadPriorContent(taskDir, s, "tiny_spec")
+	}
 	vars.DesignContent = loadPriorContent(taskDir, s, "design")
 	vars.ImplementContent = loadPriorContent(taskDir, s, "implement")
+
+	// Load TDD phase content for implement phase
+	vars.TDDTestsContent = loadPriorContent(taskDir, s, "tdd_write")
+	// Also check tiny_spec for TDD content (combined spec+TDD)
+	if vars.TDDTestsContent == "" {
+		vars.TDDTestsContent = loadPriorContent(taskDir, s, "tiny_spec")
+	}
+	vars.TasksContent = loadPriorContent(taskDir, s, "tasks")
 
 	// Extract verification results from implement content
 	if vars.ImplementContent != "" {

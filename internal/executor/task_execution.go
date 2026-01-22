@@ -232,10 +232,10 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("phase %s failed: %w", phase.ID, err)
 		}
 
-		// Save spec content to database for spec phase BEFORE marking complete.
+		// Save spec content to database for spec/tiny_spec phases BEFORE marking complete.
 		// This ensures we fail-fast if spec phase produces invalid output.
-		// Pass worktree path so we can check for spec files if agent didn't use artifact tags.
-		if phase.ID == "spec" {
+		// tiny_spec is the combined spec+TDD phase for trivial/small tasks.
+		if phase.ID == "spec" || phase.ID == "tiny_spec" {
 			requiresSpec := t.Weight != task.WeightTrivial && t.Weight != task.WeightSmall
 
 			// Check for empty output first
@@ -282,6 +282,59 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 					}
 				} else if saved {
 					e.logger.Info("saved spec to database", "task", t.ID)
+				}
+			}
+		}
+
+		// Validate quality checklist for spec phases (gates implementation)
+		if phase.ID == "spec" || phase.ID == "tiny_spec" {
+			checklist := ExtractChecklistFromOutput(result.Output)
+			if checklist != nil { // Only validate if checklist was included
+				passed, failures := ValidateSpecChecklist(checklist)
+				if !passed {
+					// Check if we can retry (before incrementing)
+					if retryCounts[phase.ID] < e.orcConfig.EffectiveMaxRetries() {
+						retryCounts[phase.ID]++
+						feedback := FormatChecklistFeedback(failures)
+						e.logger.Info("checklist validation failed, retrying spec phase",
+							"task", t.ID,
+							"phase", phase.ID,
+							"attempt", retryCounts[phase.ID],
+							"failures", len(failures),
+						)
+
+						// Set retry context following established pattern
+						s.SetRetryContext(phase.ID, phase.ID, feedback, result.Output, retryCounts[phase.ID])
+
+						// Save retry context file
+						contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, phase.ID,
+							"Checklist validation failed", result.Output, retryCounts[phase.ID])
+						if saveErr != nil {
+							e.logger.Warn("failed to save retry context file", "error", saveErr)
+						} else {
+							s.SetRetryContextFile(contextFile)
+						}
+
+						// Reset the phase for retry
+						s.ResetPhase(phase.ID)
+						if saveErr := e.backend.SaveState(s); saveErr != nil {
+							e.logger.Error("failed to save state for checklist retry", "error", saveErr)
+						}
+
+						// Track quality metrics (same pattern as other retries)
+						t.RecordPhaseRetry(phase.ID)
+						if saveErr := e.backend.SaveTask(t); saveErr != nil {
+							e.logger.Warn("failed to save quality metrics", "error", saveErr)
+						}
+
+						continue // Retry same phase (don't increment i)
+					}
+
+					// Out of retries - fail the task
+					failureMsg := FormatChecklistFeedback(failures)
+					checklistErr := fmt.Errorf("checklist validation failed after %d attempts: %s", retryCounts[phase.ID]+1, failureMsg)
+					e.failTask(t, phase, s, checklistErr)
+					return checklistErr
 				}
 			}
 		}
@@ -908,21 +961,6 @@ func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 				}
 				return fmt.Errorf("task %s spec quality is insufficient for execution:%s\n\nRun 'orc plan %s' to improve the spec", t.ID, suggestionText, t.ID)
 			}
-		}
-	} else if e.orcConfig.Plan.WarnOnMissingSpec {
-		// Only warn for weights that semantically require specs (large, greenfield)
-		// Trivial/small/medium tasks don't benefit from spec warnings - they're simple enough
-		// to implement directly without upfront planning
-		requiresSpec := t.Weight == task.WeightLarge || t.Weight == task.WeightGreenfield
-
-		// Just warn, don't block
-		specExists, _ := e.backend.SpecExists(t.ID)
-		if requiresSpec && !specExists {
-			e.logger.Warn("task has no spec (execution will continue)",
-				"task", t.ID,
-				"weight", t.Weight,
-				"hint", "run 'orc plan "+t.ID+"' to create a spec",
-			)
 		}
 	}
 

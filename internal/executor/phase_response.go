@@ -73,10 +73,13 @@ const PhaseCompletionWithArtifactSchema = `{
 
 // PhasesWithArtifacts lists phases that produce artifacts and should use PhaseCompletionWithArtifactSchema
 var PhasesWithArtifacts = map[string]bool{
-	"spec":     true,
-	"design":   true,
-	"research": true,
-	"docs":     true,
+	"spec":      true,
+	"tiny_spec": true, // Combined spec+TDD for trivial/small tasks
+	"design":    true,
+	"research":  true,
+	"tdd_write": true, // TDD test-writing phase for medium+
+	"tasks":     true, // Task breakdown for large/greenfield
+	"docs":      true,
 }
 
 // GetSchemaForPhase returns the appropriate JSON schema for a phase.
