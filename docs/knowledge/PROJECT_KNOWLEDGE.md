@@ -89,6 +89,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Hook injection failure is fatal | `InjectWorktreeHooks()` failure now returns error instead of warning; worktrees without safety hooks lack branch protection; error message: "failed to inject worktree safety hooks (worktree not safe to use without branch protection)" | TASK-392 |
 | No silent failures in git state checks | `IsRebaseInProgress()` and `IsMergeInProgress()` errors logged at WARN level instead of silently swallowed; `IsClean()` errors logged at DEBUG and original error included if `DiscardChanges()` also fails | TASK-392 |
 | Event persistence with PersistentPublisher | `PersistentPublisher` wraps `MemoryPublisher` using composition pattern; broadcasts to WebSocket first (real-time), buffers events (10 or 5s), flushes to `event_log` table in batch transaction; phase completion triggers immediate flush; tracks phase start times for `duration_ms` calculation; DB failures logged but don't block WebSocket broadcast | TASK-393 |
+| Cost tracking with model differentiation | `recordCostToGlobal()` called after each phase completion logs to global database with model (opus/sonnet/haiku), cache tokens, iteration, duration_ms; `DetectModel()` normalizes model IDs; `GetCostByModel()` and `GetCostTimeseries()` for analytics; budget tracking via `GetBudget()`/`SetBudget()`/`GetBudgetStatus()` | TASK-406 |
 
 ## Known Gotchas
 
