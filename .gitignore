@@ -49,7 +49,8 @@ web/test-results/
 # Go workspace (local development only)
 go.work
 go.work.sum
-internal/api/static/
+internal/api/static/*
+!internal/api/static/.gitkeep
 .orc/orc.db
 
 # orc - Claude Code Task Orchestrator
