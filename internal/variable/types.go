@@ -206,6 +206,10 @@ type ResolutionContext struct {
 	// Environment provides access to environment variables.
 	// If nil, os.Getenv is used.
 	Environment map[string]string
+
+	// ConstitutionContent is the project constitution content.
+	// Used to inject project-level principles into phase prompts.
+	ConstitutionContent string
 }
 
 // VariableSet is a map of variable name to resolved value.

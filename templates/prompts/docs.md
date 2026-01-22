@@ -107,13 +107,41 @@ Staleness audit:
 - [file:line] - [what was stale] → [what it was changed to]
 ```
 
-### Step 1.5: Project Standards Check
+### Step 1.5: Invariants Update (CRITICAL for bug fixes)
 
-If the project has an `INVARIANTS.md` or similar standards file:
-- Check if any new invariants were established during this task
-- Update if a bug was caused by violating an implicit rule
+**This creates a feedback loop: bugs → invariants → prevention.**
 
-If testing commands or patterns changed:
+If this task fixed a bug caused by violating an implicit rule, capture the invariant:
+
+1. **Check if INVARIANTS.md exists:**
+   ```bash
+   ls docs/INVARIANTS.md INVARIANTS.md 2>/dev/null
+   ```
+
+2. **If bug was caused by pattern violation, ADD the invariant:**
+
+   Open INVARIANTS.md and add a row to the Invariants table:
+   ```markdown
+   | INV-XX | [Rule that was violated] | [How to verify] | [Why it matters] |
+   ```
+   Include reference: `(from {{TASK_ID}})`
+
+   **Examples of bugs → invariants:**
+   - Silent error swallowing → `INV: All errors must be logged or returned`
+   - Race condition → `INV: Shared state requires mutex protection`
+   - Missing validation → `INV: All user input validated at boundary`
+
+3. **If feature established new pattern, consider if it should be a default:**
+   - Does this pattern apply broadly across the codebase?
+   - Would violating it cause bugs or confusion?
+   - Add to Defaults table if yes
+
+4. **Update constitution if INVARIANTS.md changed:**
+   ```bash
+   orc constitution set -f docs/INVARIANTS.md
+   ```
+
+**If testing commands or patterns changed:**
 - Update the test command in CLAUDE.md/README.md
 - Note any new test fixtures or mocking patterns in knowledge section
 
@@ -268,6 +296,11 @@ If any file exceeds threshold + tolerance (BLOCK status):
 - [ ] No references to removed packages/frameworks
 - [ ] All ADRs have correct status (Accepted/Superseded)
 - [ ] Code examples match current implementation
+
+### Invariants (for bug fixes)
+- [ ] If bug was caused by pattern violation, invariant added to INVARIANTS.md
+- [ ] If new pattern established, considered for Defaults table
+- [ ] If INVARIANTS.md updated, `orc constitution set -f` run
 
 ### Line Counts
 - [ ] Root CLAUDE.md ≤ 180 lines (excluding knowledge tables)

@@ -26,6 +26,7 @@ func newShowCmd() *cobra.Command {
 	var showCost bool
 	var showFull bool
 	var showSpec bool
+	var showReview bool
 	var period string
 
 	cmd := &cobra.Command{
@@ -37,13 +38,15 @@ Optional flags to include additional information:
   --session    Include Claude session info (session ID, model, turn count)
   --cost       Include cost breakdown (tokens, per-phase costs)
   --spec       Show the task specification content
-  --full       Include everything (session + cost)
+  --review     Show review findings (issues, positives, constitution violations)
+  --full       Include everything (session + cost + review)
 
 Examples:
   orc show TASK-001              # Basic task info
   orc show TASK-001 --session    # Include session info
   orc show TASK-001 --cost       # Include cost breakdown
   orc show TASK-001 --spec       # View the spec content
+  orc show TASK-001 --review     # View review findings
   orc show TASK-001 --full       # Everything`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -72,12 +75,19 @@ Examples:
 			if showFull {
 				showSession = true
 				showCost = true
+				showReview = true
 			}
 
 			// Load spec if requested
 			var spec *storage.SpecInfo
 			if showSpec {
 				spec, _ = backend.LoadFullSpec(id)
+			}
+
+			// Load review findings if requested
+			var reviewFindings []*storage.ReviewFindings
+			if showReview {
+				reviewFindings, _ = backend.LoadAllReviewFindings(id)
 			}
 
 			// JSON output
@@ -111,6 +121,9 @@ Examples:
 					} else {
 						result["spec"] = nil
 					}
+				}
+				if showReview {
+					result["review_findings"] = reviewFindings
 				}
 				data, _ := json.MarshalIndent(result, "", "  ")
 				fmt.Println(string(data))
@@ -169,6 +182,11 @@ Examples:
 				printSpecInfo(spec)
 			}
 
+			// Print review findings if requested
+			if showReview {
+				printReviewFindings(reviewFindings)
+			}
+
 			return nil
 		},
 	}
@@ -176,7 +194,8 @@ Examples:
 	cmd.Flags().BoolVar(&showSession, "session", false, "include session information")
 	cmd.Flags().BoolVar(&showCost, "cost", false, "include cost breakdown")
 	cmd.Flags().BoolVar(&showSpec, "spec", false, "show specification content")
-	cmd.Flags().BoolVar(&showFull, "full", false, "include all details (session + cost)")
+	cmd.Flags().BoolVar(&showReview, "review", false, "show review findings")
+	cmd.Flags().BoolVar(&showFull, "full", false, "include all details (session + cost + review)")
 	cmd.Flags().StringVarP(&period, "period", "p", "", "cost period filter (day, week, month) - only with --cost")
 
 	return cmd
@@ -278,6 +297,77 @@ func printSpecInfo(spec *storage.SpecInfo) {
 	fmt.Print(spec.Content)
 	if !strings.HasSuffix(spec.Content, "\n") {
 		fmt.Println()
+	}
+}
+
+// printReviewFindings displays review findings for a task.
+func printReviewFindings(findings []*storage.ReviewFindings) {
+	fmt.Printf("\nReview Findings\n")
+	fmt.Printf("─────────────────────────\n")
+
+	if len(findings) == 0 {
+		fmt.Printf("No review findings recorded.\n")
+		fmt.Println("Review findings are generated during the 'review' phase.")
+		return
+	}
+
+	for _, f := range findings {
+		fmt.Printf("\nRound %d: %s\n", f.Round, f.Summary)
+
+		if len(f.Issues) > 0 {
+			fmt.Printf("\nIssues:\n")
+			for _, issue := range f.Issues {
+				icon := severityIcon(issue.Severity)
+				fmt.Printf("  %s [%s] %s\n", icon, issue.Severity, issue.Description)
+				if issue.File != "" {
+					if issue.Line > 0 {
+						fmt.Printf("      %s:%d\n", issue.File, issue.Line)
+					} else {
+						fmt.Printf("      %s\n", issue.File)
+					}
+				}
+				if issue.Suggestion != "" {
+					fmt.Printf("      💡 %s\n", issue.Suggestion)
+				}
+				if issue.ConstitutionViolation != "" {
+					if issue.ConstitutionViolation == "invariant" {
+						fmt.Printf("      ⚠️  Constitution: INVARIANT (must fix)\n")
+					} else {
+						fmt.Printf("      ⚠️  Constitution: %s\n", issue.ConstitutionViolation)
+					}
+				}
+			}
+		}
+
+		if len(f.Positives) > 0 {
+			fmt.Printf("\nPositives:\n")
+			for _, p := range f.Positives {
+				fmt.Printf("  ✓ %s\n", p)
+			}
+		}
+
+		if len(f.Questions) > 0 {
+			fmt.Printf("\nQuestions:\n")
+			for _, q := range f.Questions {
+				fmt.Printf("  ? %s\n", q)
+			}
+		}
+	}
+}
+
+// severityIcon returns an emoji for the severity level.
+func severityIcon(severity string) string {
+	switch severity {
+	case "critical":
+		return "🔴"
+	case "high":
+		return "🟠"
+	case "medium":
+		return "🟡"
+	case "low":
+		return "🔵"
+	default:
+		return "⚪"
 	}
 }
 

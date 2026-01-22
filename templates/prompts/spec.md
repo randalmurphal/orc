@@ -141,6 +141,32 @@ Create specific, testable criteria with **explicit verification methods**:
 - Focus on user-visible behavior, not implementation details
 </success_criteria>
 
+<behavioral_specs>
+## Step 4b: Behavioral Specifications (Optional)
+
+For complex user interactions or state-dependent behavior, use Given/When/Then format to make success criteria unambiguous:
+
+| ID | Scenario |
+|----|----------|
+| BDD-1 | **Given** user is logged in with admin role<br>**When** they click "Delete User" button<br>**Then** confirmation modal shows user's name and requires explicit confirmation<br>**Maps to:** SC-3 |
+| BDD-2 | **Given** no internet connection<br>**When** user attempts to sync data<br>**Then** app shows "Offline mode - changes saved locally" message<br>**Error:** If local storage fails, show "Could not save changes" with retry option<br>**Maps to:** SC-5, SC-6 |
+
+### When to Use Given/When/Then
+- Multi-step user flows with specific sequences
+- State-dependent behavior (logged in/out, online/offline, permissions)
+- Edge cases with specific preconditions
+- Complex validation logic with multiple outcomes
+
+### Format
+- **Given** - Initial state/preconditions (what must be true before the action)
+- **When** - Action/trigger (what the user does)
+- **Then** - Expected outcome (observable result)
+- **Error** - (optional) What happens on failure
+- **Maps to** - (required) Links to SC-X criteria for traceability
+
+**Each BDD scenario MUST map to one or more Success Criteria (SC-X).**
+</behavioral_specs>
+
 ## Step 5: Define Testing Requirements (REQUIRED)
 
 Specify what tests must pass to consider the work complete:
@@ -341,6 +367,12 @@ If blocked (requirements genuinely unclear - max 3 items):
 | ID | Criterion | Verification Method | Expected Result | Error Path |
 |----|-----------|---------------------|-----------------|------------|
 | SC-1 | [Criterion] | [Command/test] | [Result] | [Error behavior] |
+
+## Behavioral Specifications (if applicable)
+
+| ID | Scenario |
+|----|----------|
+| BDD-1 | **Given** [precondition]<br>**When** [action]<br>**Then** [outcome]<br>**Maps to:** SC-X |
 
 ## Project Context
 

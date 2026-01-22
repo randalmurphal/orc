@@ -61,12 +61,13 @@ func DefaultReviewPerspectives() []ReviewerPerspective {
 
 // ReviewFinding represents a single issue found during review.
 type ReviewFinding struct {
-	Severity    string              `json:"severity"` // high, medium, low
-	File        string              `json:"file,omitempty"`
-	Line        int                 `json:"line,omitempty"`
-	Description string              `json:"description"`
-	Suggestion  string              `json:"suggestion,omitempty"`
-	Perspective ReviewerPerspective `json:"perspective,omitempty"` // Which reviewer found this
+	Severity              string              `json:"severity"` // high, medium, low
+	File                  string              `json:"file,omitempty"`
+	Line                  int                 `json:"line,omitempty"`
+	Description           string              `json:"description"`
+	Suggestion            string              `json:"suggestion,omitempty"`
+	Perspective           ReviewerPerspective `json:"perspective,omitempty"`           // Which reviewer found this
+	ConstitutionViolation string              `json:"constitution_violation,omitempty"` // "invariant" (blocker) or "default" (warning)
 }
 
 // ReviewFindings represents the output of a review round.

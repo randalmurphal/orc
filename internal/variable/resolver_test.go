@@ -311,6 +311,90 @@ func TestRenderTemplateStrict(t *testing.T) {
 	}
 }
 
+func TestRenderTemplateConditionals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		vars     VariableSet
+		template string
+		expected string
+	}{
+		{
+			name: "conditional with content present",
+			vars: VariableSet{
+				"CONSTITUTION_CONTENT": "Rule 1: Never panic\nRule 2: Test everything",
+			},
+			template: `Start
+{{#if CONSTITUTION_CONTENT}}
+Constitution:
+{{CONSTITUTION_CONTENT}}
+{{/if}}
+End`,
+			expected: `Start
+
+Constitution:
+Rule 1: Never panic
+Rule 2: Test everything
+
+End`,
+		},
+		{
+			name:     "conditional with content empty",
+			vars:     VariableSet{},
+			template: `Start
+{{#if CONSTITUTION_CONTENT}}
+Constitution:
+{{CONSTITUTION_CONTENT}}
+{{/if}}
+End`,
+			expected: `Start
+
+End`,
+		},
+		{
+			name: "conditional with empty string value",
+			vars: VariableSet{
+				"CONSTITUTION_CONTENT": "",
+			},
+			template: `Before{{#if CONSTITUTION_CONTENT}} - Has constitution{{/if}} - After`,
+			expected: `Before - After`,
+		},
+		{
+			name: "multiple conditionals",
+			vars: VariableSet{
+				"HAS_TESTS": "true",
+			},
+			template: `{{#if HAS_TESTS}}Has tests{{/if}}{{#if MISSING_VAR}}Missing{{/if}}`,
+			expected: `Has tests`,
+		},
+		{
+			name: "nested content with vars",
+			vars: VariableSet{
+				"TASK_ID":              "TASK-001",
+				"CONSTITUTION_CONTENT": "Important rules",
+			},
+			template: `Task: {{TASK_ID}}
+{{#if CONSTITUTION_CONTENT}}
+Rules: {{CONSTITUTION_CONTENT}}
+{{/if}}`,
+			expected: `Task: TASK-001
+
+Rules: Important rules
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RenderTemplate(tt.template, tt.vars)
+			if result != tt.expected {
+				t.Errorf("expected:\n%q\n\ngot:\n%q", tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestVariableSetMerge(t *testing.T) {
 	t.Parallel()
 

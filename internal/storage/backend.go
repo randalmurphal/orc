@@ -117,12 +117,13 @@ type GateDecision struct {
 
 // ReviewFinding represents a single issue found during review.
 type ReviewFinding struct {
-	Severity    string `json:"severity"` // high, medium, low
-	File        string `json:"file,omitempty"`
-	Line        int    `json:"line,omitempty"`
-	Description string `json:"description"`
-	Suggestion  string `json:"suggestion,omitempty"`
-	Perspective string `json:"perspective,omitempty"`
+	Severity              string `json:"severity"` // high, medium, low
+	File                  string `json:"file,omitempty"`
+	Line                  int    `json:"line,omitempty"`
+	Description           string `json:"description"`
+	Suggestion            string `json:"suggestion,omitempty"`
+	Perspective           string `json:"perspective,omitempty"`
+	ConstitutionViolation string `json:"constitution_violation,omitempty"` // "invariant" (blocker) or "default" (warning)
 }
 
 // ReviewFindings represents the structured output from a review round.
