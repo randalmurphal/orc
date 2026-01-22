@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ANSI color codes for transcript display
@@ -124,11 +127,33 @@ See also:
 				return fmt.Errorf("get transcripts: %w", err)
 			}
 
+			// Track whether we loaded from filesystem for source indicator
+			fromFilesystem := false
+
+			// If database has no transcripts, try filesystem fallback
+			if len(transcripts) == 0 {
+				transcripts, err = readFilesystemTranscripts(id)
+				if err != nil {
+					return fmt.Errorf("read filesystem transcripts: %w", err)
+				}
+				fromFilesystem = len(transcripts) > 0
+			}
+
 			if len(transcripts) == 0 {
 				fmt.Printf("No transcripts found for task %s\n", id)
 				fmt.Println("\nThe task may not have run yet, or transcripts were not synced.")
 				fmt.Printf("Try: orc run %s\n", id)
 				return nil
+			}
+
+			// Show source indicator if loaded from filesystem
+			if fromFilesystem {
+				if opts.useColor {
+					fmt.Printf("%s(Loaded from filesystem transcripts)%s\n\n", ansiDim, ansiReset)
+				} else {
+					fmt.Println("(Loaded from filesystem transcripts)")
+					fmt.Println()
+				}
 			}
 
 			// Filter by phase if specified
@@ -564,4 +589,116 @@ func formatFollowError(taskID string, st *state.State, constructErr error) error
 	default:
 		return fmt.Errorf("no JSONL file available for task %s (task status: %s)", taskID, st.Status)
 	}
+}
+
+// readFilesystemTranscripts reads markdown transcript files from the task directory.
+// Returns empty slice if directory doesn't exist or has no .md files.
+// Files are expected to be in .orc/tasks/{taskID}/transcripts/ directory.
+func readFilesystemTranscripts(taskID string) ([]storage.Transcript, error) {
+	// Compute transcript directory path
+	transcriptDir := filepath.Join(task.TaskDir(taskID), "transcripts")
+
+	// Check if directory exists
+	if _, err := os.Stat(transcriptDir); os.IsNotExist(err) {
+		return []storage.Transcript{}, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("stat transcripts directory: %w", err)
+	}
+
+	// Read directory contents
+	entries, err := os.ReadDir(transcriptDir)
+	if err != nil {
+		return nil, fmt.Errorf("read transcripts directory: %w", err)
+	}
+
+	var transcripts []storage.Transcript
+	for _, entry := range entries {
+		// Skip non-.md files
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+
+		// Parse filename to extract phase and sequence
+		phase, sequence, err := parseTranscriptFilename(entry.Name())
+		if err != nil {
+			// Log warning but continue with other files
+			fmt.Fprintf(os.Stderr, "Warning: skipping malformed transcript filename %s: %v\n", entry.Name(), err)
+			continue
+		}
+
+		// Read file content
+		filePath := filepath.Join(transcriptDir, entry.Name())
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			// Log warning but continue with other files
+			fmt.Fprintf(os.Stderr, "Warning: failed to read transcript file %s: %v\n", entry.Name(), err)
+			continue
+		}
+
+		// Get file modification time for timestamp
+		info, err := entry.Info()
+		if err != nil {
+			// Use current time as fallback
+			info = nil
+		}
+		timestamp := time.Now().UnixMilli()
+		if info != nil {
+			timestamp = info.ModTime().UnixMilli()
+		}
+
+		// Create transcript entry
+		// Content is stored as plain markdown text (not JSON array)
+		// Type is "assistant" since these are typically full conversation dumps
+		transcripts = append(transcripts, storage.Transcript{
+			TaskID:    taskID,
+			Phase:     phase,
+			Type:      "assistant", // Markdown files are typically full responses
+			Content:   string(content),
+			Timestamp: timestamp,
+			ID:        int64(sequence), // Use sequence as pseudo-ID for sorting
+		})
+	}
+
+	// Sort by sequence (stored in ID field)
+	sort.Slice(transcripts, func(i, j int) bool {
+		return transcripts[i].ID < transcripts[j].ID
+	})
+
+	return transcripts, nil
+}
+
+// parseTranscriptFilename extracts phase and sequence from filename.
+// Supported formats:
+//   - {sequence}-{phase}-{iteration}.md (e.g., "02-implement-003.md")
+//   - {phase}-{sequence}.md (e.g., "spec-001.md")
+func parseTranscriptFilename(filename string) (phase string, sequence int, err error) {
+	// Remove .md extension
+	name := strings.TrimSuffix(filename, ".md")
+
+	// Split by dashes
+	parts := strings.Split(name, "-")
+	if len(parts) < 2 {
+		return "", 0, fmt.Errorf("expected at least 2 parts separated by dashes, got %d", len(parts))
+	}
+
+	// Try parsing first part as sequence number
+	if seq, err := strconv.Atoi(parts[0]); err == nil {
+		// Format: {sequence}-{phase}-{iteration}.md
+		if len(parts) < 3 {
+			return "", 0, fmt.Errorf("sequence format requires 3 parts (seq-phase-iter), got %d", len(parts))
+		}
+		phase = parts[1]
+		sequence = seq
+		return phase, sequence, nil
+	}
+
+	// First part is not a number, assume format: {phase}-{sequence}.md
+	phase = parts[0]
+	seqStr := parts[len(parts)-1] // Last part should be sequence
+	seq, err := strconv.Atoi(seqStr)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to parse sequence from last part %q: %w", seqStr, err)
+	}
+	sequence = seq
+	return phase, sequence, nil
 }
