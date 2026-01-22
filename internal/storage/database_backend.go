@@ -632,12 +632,10 @@ func (d *DatabaseBackend) GetTranscriptsPaginated(taskID string, opts Transcript
 
 	// Convert storage opts to db opts
 	dbOpts := db.TranscriptPaginationOpts{
-		Phase:        opts.Phase,
-		IterationMin: opts.IterationMin,
-		IterationMax: opts.IterationMax,
-		Cursor:       opts.Cursor,
-		Limit:        opts.Limit,
-		Direction:    opts.Direction,
+		Phase:     opts.Phase,
+		Cursor:    opts.Cursor,
+		Limit:     opts.Limit,
+		Direction: opts.Direction,
 	}
 
 	dbTranscripts, dbPagination, err := d.db.GetTranscriptsPaginated(taskID, dbOpts)

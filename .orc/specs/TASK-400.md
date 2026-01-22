@@ -17,13 +17,8 @@ The current `GET /api/tasks/:id/transcripts` endpoint loads ALL transcripts into
   - [ ] `direction=asc` (default) returns oldest first
   - [ ] `direction=desc` returns newest first
 - [ ] Phase filter works: `?phase=implement` returns only implement phase transcripts
-- [ ] Iteration range filters work:
-  - [ ] `?iteration_min=5` returns transcripts from iteration >= 5
-  - [ ] `?iteration_max=10` returns transcripts from iteration <= 10
-  - [ ] Can combine both for a range
 - [ ] `phases` summary included in response showing all phases with counts
-- [ ] `total_count` in pagination shows total matching transcripts (uses COUNT query)
-- [ ] Backward compatible: existing clients receiving array-only response still work (response wraps array in object with `transcripts` key)
+- [ ] `total_count` in pagination shows total matching transcripts (uses COUNT query, excludes cursor filter)
 - [ ] Query uses indexes, no full table scans (verified via EXPLAIN QUERY PLAN)
 - [ ] Response time < 100ms for any page (tested with 1000+ transcripts)
 
@@ -33,7 +28,6 @@ The current `GET /api/tasks/:id/transcripts` endpoint loads ALL transcripts into
 - [ ] Unit test: `TestGetTranscriptsPaginated_CustomLimit` - verifies limit 1-200 range
 - [ ] Unit test: `TestGetTranscriptsPaginated_CursorNavigation` - verifies cursor-based pagination forward and backward
 - [ ] Unit test: `TestGetTranscriptsPaginated_PhaseFilter` - verifies phase filtering
-- [ ] Unit test: `TestGetTranscriptsPaginated_IterationRange` - verifies iteration_min/iteration_max filtering
 - [ ] Unit test: `TestGetTranscriptsPaginated_Direction` - verifies asc/desc ordering
 - [ ] Unit test: `TestGetTranscriptsPaginated_PhaseSummary` - verifies phases array in response
 - [ ] Unit test: `TestGetTranscriptsPaginated_TotalCount` - verifies total_count accuracy
@@ -45,10 +39,9 @@ The current `GET /api/tasks/:id/transcripts` endpoint loads ALL transcripts into
 ### In Scope
 - Cursor-based pagination with configurable limit
 - Phase filter (single phase)
-- Iteration range filter (min/max)
 - Direction parameter (asc/desc)
 - Phases summary in response
-- Total count for filtered results
+- Total count for filtered results (excludes cursor position)
 - Index creation for new queries
 - Handler updates for query parameter parsing
 - Database layer pagination method
@@ -59,7 +52,7 @@ The current `GET /api/tasks/:id/transcripts` endpoint loads ALL transcripts into
 - Streaming/infinite scroll implementation
 - Frontend changes (separate task)
 - Multiple phase filter (array of phases)
-- Iteration exact match (only range supported)
+- Iteration filters (transcripts don't track iteration number)
 
 ## Technical Approach
 
@@ -67,13 +60,10 @@ The current `GET /api/tasks/:id/transcripts` endpoint loads ALL transcripts into
 
 ```go
 type TranscriptPaginationOpts struct {
-    Phase        string // Filter by phase (optional)
-    IterationMin *int   // Minimum iteration (optional)
-    IterationMax *int   // Maximum iteration (optional)
-    SectionType  string // Filter by section type (future, TASK-399)
-    Cursor       int64  // Cursor for pagination (transcript ID, 0 = start)
-    Limit        int    // Max results (default: 50, max: 200)
-    Direction    string // 'asc' | 'desc' (default: asc)
+    Phase     string // Filter by phase (optional)
+    Cursor    int64  // Cursor for pagination (transcript ID, 0 = start)
+    Limit     int    // Max results (default: 50, max: 200)
+    Direction string // 'asc' | 'desc' (default: asc)
 }
 ```
 

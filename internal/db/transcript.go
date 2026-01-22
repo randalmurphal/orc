@@ -129,40 +129,35 @@ func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 
 // GetTranscriptsPaginated retrieves paginated transcripts with filtering.
 func (p *ProjectDB) GetTranscriptsPaginated(taskID string, opts TranscriptPaginationOpts) ([]Transcript, PaginationResult, error) {
-	// Apply defaults
+	// Apply defaults (validation is done at API layer)
 	if opts.Limit == 0 {
 		opts.Limit = 50
 	}
-	if opts.Limit > 200 {
-		opts.Limit = 200
-	}
-	if opts.Direction == "" {
+	if opts.Direction == "" || (opts.Direction != "asc" && opts.Direction != "desc") {
 		opts.Direction = "asc"
 	}
 
-	// Build WHERE clause
-	var whereClauses []string
-	var args []any
-	whereClauses = append(whereClauses, "task_id = ?")
-	args = append(args, taskID)
-
-	// Phase filter
+	// Build base WHERE clause (for count query - excludes cursor)
+	baseWhereClauses := []string{"task_id = ?"}
+	baseArgs := []any{taskID}
 	if opts.Phase != "" {
-		whereClauses = append(whereClauses, "phase = ?")
-		args = append(args, opts.Phase)
+		baseWhereClauses = append(baseWhereClauses, "phase = ?")
+		baseArgs = append(baseArgs, opts.Phase)
 	}
+	baseWhereClause := strings.Join(baseWhereClauses, " AND ")
+
+	// Build full WHERE clause (includes cursor for pagination)
+	whereClauses := append([]string{}, baseWhereClauses...)
+	args := append([]any{}, baseArgs...)
 
 	// Cursor-based pagination
-	if opts.Direction == "asc" {
-		if opts.Cursor > 0 {
+	if opts.Cursor > 0 {
+		if opts.Direction == "asc" {
 			whereClauses = append(whereClauses, "id > ?")
-			args = append(args, opts.Cursor)
-		}
-	} else {
-		if opts.Cursor > 0 {
+		} else {
 			whereClauses = append(whereClauses, "id < ?")
-			args = append(args, opts.Cursor)
 		}
+		args = append(args, opts.Cursor)
 	}
 
 	whereClause := strings.Join(whereClauses, " AND ")
@@ -207,11 +202,10 @@ func (p *ProjectDB) GetTranscriptsPaginated(taskID string, opts TranscriptPagina
 		transcripts = transcripts[:opts.Limit]
 	}
 
-	// Get total count (separate query)
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM transcripts WHERE %s", whereClause)
-	countArgs := args[:len(args)-1] // Remove limit arg
+	// Get total count (using base WHERE without cursor filter)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM transcripts WHERE %s", baseWhereClause)
 	var totalCount int
-	err = p.QueryRow(countQuery, countArgs...).Scan(&totalCount)
+	err = p.QueryRow(countQuery, baseArgs...).Scan(&totalCount)
 	if err != nil {
 		return nil, PaginationResult{}, fmt.Errorf("count transcripts: %w", err)
 	}
@@ -834,12 +828,10 @@ func scanUsageMetrics(rows *sql.Rows) ([]UsageMetric, error) {
 
 // TranscriptPaginationOpts configures transcript pagination and filtering.
 type TranscriptPaginationOpts struct {
-	Phase        string // Filter by phase (optional)
-	IterationMin *int   // Minimum iteration (optional)
-	IterationMax *int   // Maximum iteration (optional)
-	Cursor       int64  // Cursor for pagination (transcript ID, 0 = start)
-	Limit        int    // Max results (default: 50, max: 200)
-	Direction    string // 'asc' | 'desc' (default: asc)
+	Phase     string // Filter by phase (optional)
+	Cursor    int64  // Cursor for pagination (transcript ID, 0 = start)
+	Limit     int    // Max results (default: 50, max: 200)
+	Direction string // 'asc' | 'desc' (default: asc)
 }
 
 // PaginationResult contains pagination metadata.

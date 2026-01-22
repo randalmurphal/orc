@@ -56,12 +56,10 @@ type ActivityCount struct {
 
 // TranscriptPaginationOpts configures transcript pagination and filtering.
 type TranscriptPaginationOpts struct {
-	Phase        string // Filter by phase (optional)
-	IterationMin *int   // Minimum iteration (optional)
-	IterationMax *int   // Maximum iteration (optional)
-	Cursor       int64  // Cursor for pagination (transcript ID, 0 = start)
-	Limit        int    // Max results (default: 50, max: 200)
-	Direction    string // 'asc' | 'desc' (default: asc)
+	Phase     string // Filter by phase (optional)
+	Cursor    int64  // Cursor for pagination (transcript ID, 0 = start)
+	Limit     int    // Max results (default: 50, max: 200)
+	Direction string // 'asc' | 'desc' (default: asc)
 }
 
 // PaginationResult contains pagination metadata.

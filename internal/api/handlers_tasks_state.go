@@ -263,28 +263,7 @@ func (s *Server) handleGetTranscripts(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters
 	query := r.URL.Query()
 
-	// Check if any pagination parameters are present
-	usePagination := query.Has("limit") || query.Has("cursor") || query.Has("direction") || query.Has("phase")
-
-	if !usePagination {
-		// Legacy behavior: return all transcripts
-		transcripts, err := s.backend.GetTranscripts(id)
-		if err != nil {
-			s.jsonError(w, "failed to load transcripts: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Transform to API response format (backward compatible)
-		response := make([]map[string]any, len(transcripts))
-		for i, t := range transcripts {
-			response[i] = s.transcriptToMap(t)
-		}
-
-		s.jsonResponse(w, response)
-		return
-	}
-
-	// Parse pagination options
+	// Parse pagination options (defaults applied by DB layer)
 	opts := storage.TranscriptPaginationOpts{
 		Phase:     query.Get("phase"),
 		Direction: query.Get("direction"),

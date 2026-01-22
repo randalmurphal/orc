@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -482,18 +483,21 @@ func TestGetTranscriptsPaginated_IndexUsage(t *testing.T) {
 		plan = append(plan, detail)
 	}
 
-	// Verify that an index is used (should mention idx_transcripts_task_id)
+	// Verify that an index is used
 	foundIndex := false
 	for _, detail := range plan {
 		t.Logf("Query plan: %s", detail)
-		if detail != "" && (len(detail) > 5) {
-			// SQLite query plans mention "USING INDEX" when an index is used
-			// We're looking for our composite index
-			foundIndex = true // Simplified check - just verify plan was retrieved
+		// SQLite query plans contain "USING INDEX" or "USING COVERING INDEX" when an index is used
+		// Also check for our specific indexes
+		if strings.Contains(detail, "USING INDEX") ||
+			strings.Contains(detail, "USING COVERING INDEX") ||
+			strings.Contains(detail, "idx_transcripts_task_id") ||
+			strings.Contains(detail, "idx_transcripts_task") {
+			foundIndex = true
 		}
 	}
 
 	if !foundIndex {
-		t.Error("Query plan not retrieved - index usage cannot be verified")
+		t.Errorf("Expected query to use an index, but query plan shows: %v", plan)
 	}
 }
