@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueueColumn, type QueueColumnProps } from './QueueColumn';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task, Initiative } from '@/lib/types';
 
 // Sample task factory
@@ -39,7 +40,11 @@ function renderQueueColumn(props: Partial<QueueColumnProps> = {}) {
 		initiatives: [],
 		...props,
 	};
-	return render(<QueueColumn {...defaultProps} />);
+	return render(
+		<TooltipProvider>
+			<QueueColumn {...defaultProps} />
+		</TooltipProvider>
+	);
 }
 
 describe('QueueColumn', () => {
