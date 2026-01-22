@@ -240,7 +240,8 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				s.SetPhaseSessionID(p.ID, turnResult.SessionID)
 			}
 			// Compute and store JSONL path for transcript sync and --follow mode
-			if s != nil && s.JSONLPath == "" {
+			// Update for every phase since each phase has its own JSONL file
+			if s != nil {
 				if jsonlPath, pathErr := ComputeJSONLPath(e.workingDir, turnResult.SessionID); pathErr == nil {
 					s.JSONLPath = jsonlPath
 					// Persist immediately so --follow can find it

@@ -530,6 +530,72 @@ func (v TemplateVars) WithAutomationContext(ctx AutomationContext) TemplateVars 
 	return v
 }
 
+// ProjectDetectionContext holds project detection results for template rendering.
+type ProjectDetectionContext struct {
+	Language     string
+	HasFrontend  bool
+	HasTests     bool
+	TestCommand  string
+	LintCommand  string
+	BuildCommand string
+	Frameworks   []string
+}
+
+// WithProjectDetection returns a copy of the vars with project detection context applied.
+func (v TemplateVars) WithProjectDetection(ctx ProjectDetectionContext) TemplateVars {
+	v.Language = ctx.Language
+	v.HasFrontend = ctx.HasFrontend
+	v.HasTests = ctx.HasTests
+	v.TestCommand = ctx.TestCommand
+	v.LintCommand = ctx.LintCommand
+	v.BuildCommand = ctx.BuildCommand
+	v.Frameworks = ctx.Frameworks
+	return v
+}
+
+// WithProjectDetectionFromDatabase returns a copy of the vars with project detection loaded
+// from the database. This loads the detection results stored during project initialization.
+func (v TemplateVars) WithProjectDetectionFromDatabase(backend storage.Backend) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	// Type assert to get access to the underlying database
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
+	if !ok {
+		slog.Debug("backend is not DatabaseBackend, skipping project detection")
+		return v
+	}
+
+	detection, err := dbBackend.DB().LoadDetection()
+	if err != nil {
+		slog.Debug("failed to load project detection from database", "error", err)
+		return v
+	}
+	if detection == nil {
+		slog.Debug("no project detection found in database")
+		return v
+	}
+
+	// Determine HasFrontend from frameworks (look for frontend-related frameworks)
+	hasFrontend := false
+	for _, f := range detection.Frameworks {
+		switch f {
+		case "react", "vue", "angular", "svelte", "nextjs", "nuxt", "gatsby", "astro":
+			hasFrontend = true
+		}
+	}
+
+	return v.WithProjectDetection(ProjectDetectionContext{
+		Language:    detection.Language,
+		HasFrontend: hasFrontend,
+		HasTests:    detection.HasTests,
+		TestCommand: detection.TestCommand,
+		LintCommand: detection.LintCommand,
+		Frameworks:  detection.Frameworks,
+	})
+}
+
 // WithSpecFromDatabase returns a copy of the vars with spec content loaded from the database.
 // This is the preferred method for loading spec content, as specs are stored exclusively
 // in the database (not as file artifacts) to avoid merge conflicts in worktrees.
