@@ -188,12 +188,28 @@ events, err := pdb.QueryEvents(db.QueryEventsOptions{
 
 | Field | Purpose |
 |-------|---------|
-| `TaskID` | Filter by task (required for most queries) |
+| `TaskID` | Filter by task |
+| `InitiativeID` | Filter by initiative (joins with tasks table) |
 | `Since` | Events after this time |
 | `Until` | Events before this time |
 | `EventTypes` | Filter to specific event types |
 | `Limit` | Max results (0 = unlimited) |
 | `Offset` | Skip first N results |
+
+### Event Queries with Titles
+
+For timeline display, use `QueryEventsWithTitles` which joins with the tasks table:
+
+```go
+events, err := pdb.QueryEventsWithTitles(db.QueryEventsOptions{
+    InitiativeID: "INIT-001",  // Filter by initiative
+    Limit:        100,
+})
+// Returns: []EventLogWithTitle (includes TaskTitle field)
+
+// Get total count for pagination
+count, err := pdb.CountEvents(opts)
+```
 
 ## Cost Tracking
 
