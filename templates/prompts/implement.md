@@ -33,9 +33,9 @@ DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
 {{DESIGN_CONTENT}}
 </design>
 
-<task_breakdown>
-{{TASKS_CONTENT}}
-</task_breakdown>
+<breakdown>
+{{BREAKDOWN_CONTENT}}
+</breakdown>
 
 {{RETRY_CONTEXT}}
 </context>
@@ -118,16 +118,16 @@ Cross-check against the spec's Preservation Requirements table:
 
 **Do NOT proceed to Step 3 until you've mapped dependencies.**
 
-## Step 3: Follow Task Breakdown
+## Step 3: Follow Breakdown
 
-{{#if TASKS_CONTENT}}
-**MANDATORY:** Complete tasks in the order specified in the task breakdown above.
+{{#if BREAKDOWN_CONTENT}}
+**MANDATORY:** Complete items in the order specified in the breakdown above.
 
-For each task:
+For each item:
 1. Implement the specific changes listed
 2. Verify the linked TDD test now passes
-3. Check off the task (mentally track progress)
-4. Do NOT skip tasks or combine them arbitrarily
+3. Check off the item (mentally track progress)
+4. Do NOT skip items or combine them arbitrarily
 {{else}}
 Plan your changes based on impact analysis:
 - New files to create
@@ -167,8 +167,8 @@ Every error path should:
 Before completing:
 - [ ] All success criteria addressed
 - [ ] All TDD tests pass
-- [ ] All tasks from task breakdown completed (if provided)
-- [ ] Tasks completed in dependency order (if provided)
+- [ ] All breakdown items completed (if provided)
+- [ ] Items completed in dependency order (if provided)
 - [ ] All dependents from impact analysis updated
 - [ ] Preservation requirements verified (nothing accidentally removed)
 - [ ] Scope boundaries respected

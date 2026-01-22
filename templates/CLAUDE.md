@@ -10,9 +10,9 @@ templates/
 ├── plans/            # Weight-based plan templates
 │   ├── trivial.yaml, small.yaml, medium.yaml, large.yaml
 ├── prompts/          # ALL prompts (phase, validation, gates)
-│   ├── [phase prompts] classify, research, spec, tiny_spec, design, tdd_write, tasks, implement, review, docs, finalize
+│   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
 │   ├── [validation] haiku_iteration_progress, haiku_task_readiness, haiku_success_criteria
-│   ├── [gates] gate_evaluation, conflict_resolution
+│   ├── [gates] conflict_resolution
 │   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
 │   ├── [review] review_round1, review_round2, qa
 │   └── [automation] automation/*.md
@@ -46,9 +46,9 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}` | Task context |
 | `{{TASK_CATEGORY}}` | feature/bug/refactor/etc |
 | `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
-| `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}` | Phase artifacts |
+| `{{SPEC_CONTENT}}` | Spec phase artifact |
 | `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD phase output |
-| `{{TASKS_CONTENT}}` | Task breakdown output |
+| `{{BREAKDOWN_CONTENT}}` | Task breakdown output |
 | `{{RETRY_CONTEXT}}` | Failure info on retry |
 | `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git context |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details |
@@ -67,9 +67,8 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `research.md` | Pattern research |
 | `spec.md` | Technical specification with user stories and quality checklist |
 | `tiny_spec.md` | Combined spec+TDD for trivial/small tasks |
-| `design.md` | Architecture (optional, agent decides) |
 | `tdd_write.md` | Write failing tests before implementation |
-| `tasks.md` | Break spec into checkboxed implementation tasks |
+| `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review |
 | `docs.md` | Documentation |
@@ -104,10 +103,9 @@ Phases that produce artifacts use `--json-schema` constrained output with an `ar
 |-------|-------------------|---------|
 | spec | Yes | Technical specification |
 | tiny_spec | Yes | Combined spec + TDD tests |
-| design | Yes | Architecture document |
 | research | Yes | Research findings |
 | tdd_write | Yes | Test files and test plan |
-| tasks | Yes | Checkboxed implementation tasks |
+| breakdown | Yes | Checkboxed implementation tasks |
 | docs | Yes | Documentation summary |
 | implement | No | Code changes only |
 | review | No | Review findings only |
@@ -148,7 +146,6 @@ if content == nil { return "" }  // Lost error!
 |---------|--------------|
 | `executor/haiku_validation.go` | `haiku_iteration_progress.md`, `haiku_task_readiness.md`, `haiku_success_criteria.md` |
 | `executor/conflict_resolver.go` | `conflict_resolution.md` |
-| `gate/gate.go` | `gate_evaluation.md` |
 | `spec/prompt.go` | `spec_session.md` |
 | `plan_session/prompt.go` | `plan_session.md` |
 | `planner/prompt.go` | `plan_from_spec.md` |

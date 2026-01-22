@@ -51,7 +51,6 @@ type TemplateVars struct {
 	RetryContext     string
 	ResearchContent  string
 	SpecContent      string
-	DesignContent    string
 	ImplementContent string
 
 	// Verification results from implement phase (extracted from artifact)
@@ -99,9 +98,9 @@ type TemplateVars struct {
 	ConstitutionContent string
 
 	// TDD phase artifacts
-	TDDTestsContent string // Content from tdd_write phase (tests written)
-	TDDTestPlan     string // Manual UI test plan for Playwright MCP
-	TasksContent    string // Task breakdown content from tasks phase
+	TDDTestsContent  string // Content from tdd_write phase (tests written)
+	TDDTestPlan      string // Manual UI test plan for Playwright MCP
+	BreakdownContent string // Breakdown content from breakdown phase
 }
 
 // UITestingContext holds UI testing-specific context for template rendering.
@@ -247,7 +246,6 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{RETRY_CONTEXT}}":          vars.RetryContext,
 		"{{RESEARCH_CONTENT}}":       vars.ResearchContent,
 		"{{SPEC_CONTENT}}":           specContent,
-		"{{DESIGN_CONTENT}}":         vars.DesignContent,
 		"{{IMPLEMENT_CONTENT}}":      vars.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
 		"{{VERIFICATION_RESULTS}}":   vars.VerificationResults,
@@ -295,9 +293,9 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{CONSTITUTION_CONTENT}}": vars.ConstitutionContent,
 
 		// TDD phase artifacts
-		"{{TDD_TESTS_CONTENT}}": vars.TDDTestsContent,
-		"{{TDD_TEST_PLAN}}":     vars.TDDTestPlan,
-		"{{TASKS_CONTENT}}":     vars.TasksContent,
+		"{{TDD_TESTS_CONTENT}}":  vars.TDDTestsContent,
+		"{{TDD_TEST_PLAN}}":      vars.TDDTestPlan,
+		"{{BREAKDOWN_CONTENT}}":  vars.BreakdownContent,
 	}
 
 	result := tmpl
@@ -313,6 +311,9 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 
 	// Process conditional blocks for TDD test plan
 	result = processTDDTestPlanConditional(result, vars.TDDTestPlan)
+
+	// Process conditional blocks for breakdown content
+	result = processBreakdownContentConditional(result, vars.BreakdownContent)
 
 	return result
 }
@@ -383,6 +384,20 @@ func processTDDTestPlanConditional(content string, testPlan string) string {
 	return content
 }
 
+// processBreakdownContentConditional handles {{#if BREAKDOWN_CONTENT}} blocks.
+// Used to include breakdown-specific instructions when breakdown content exists.
+func processBreakdownContentConditional(content string, breakdownContent string) string {
+	pattern := regexp.MustCompile(`(?s)\{\{#if BREAKDOWN_CONTENT\}\}(.*?)\{\{/if\}\}`)
+	if breakdownContent != "" {
+		// Keep the content inside the block
+		content = pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = pattern.ReplaceAllString(content, "")
+	}
+	return content
+}
+
 // LoadPromptTemplate loads a prompt template for a phase.
 // If the phase has an inline prompt, it returns that.
 // Otherwise, it loads from the embedded templates.
@@ -444,7 +459,6 @@ func BuildTemplateVars(
 	if vars.SpecContent == "" {
 		vars.SpecContent = loadPriorContent(taskDir, s, "tiny_spec")
 	}
-	vars.DesignContent = loadPriorContent(taskDir, s, "design")
 	vars.ImplementContent = loadPriorContent(taskDir, s, "implement")
 
 	// Load TDD phase content for implement phase
@@ -453,7 +467,7 @@ func BuildTemplateVars(
 	if vars.TDDTestsContent == "" {
 		vars.TDDTestsContent = loadPriorContent(taskDir, s, "tiny_spec")
 	}
-	vars.TasksContent = loadPriorContent(taskDir, s, "tasks")
+	vars.BreakdownContent = loadPriorContent(taskDir, s, "breakdown")
 
 	// Extract verification results from implement content
 	if vars.ImplementContent != "" {
@@ -535,6 +549,45 @@ func (v TemplateVars) WithSpecFromDatabase(backend storage.Backend, taskID strin
 	if specContent != "" {
 		v.SpecContent = specContent
 	}
+	return v
+}
+
+// WithArtifactsFromDatabase returns a copy of the vars with artifact content loaded
+// from the database. This includes: ResearchContent, TDDTestsContent, BreakdownContent.
+// SpecContent is loaded separately via WithSpecFromDatabase.
+// If the backend is nil or loading fails, the original content is preserved.
+func (v TemplateVars) WithArtifactsFromDatabase(backend storage.Backend, taskID string) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	// Load all artifacts for this task from the database
+	artifacts, err := backend.LoadAllArtifacts(taskID)
+	if err != nil {
+		slog.Debug("failed to load artifacts from database",
+			"task_id", taskID,
+			"error", err,
+		)
+		return v
+	}
+
+	// Apply each artifact if present (DB takes precedence over file-based)
+	if content, ok := artifacts["research"]; ok && content != "" {
+		v.ResearchContent = content
+	}
+	if content, ok := artifacts["tdd_write"]; ok && content != "" {
+		v.TDDTestsContent = content
+	}
+	if content, ok := artifacts["breakdown"]; ok && content != "" {
+		v.BreakdownContent = content
+	}
+	// tiny_spec can also contain TDD content (combined spec+TDD for trivial/small)
+	if v.TDDTestsContent == "" {
+		if content, ok := artifacts["tiny_spec"]; ok && content != "" {
+			v.TDDTestsContent = content
+		}
+	}
+
 	return v
 }
 

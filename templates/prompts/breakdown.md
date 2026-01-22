@@ -1,5 +1,5 @@
 <context>
-# Task Breakdown Phase
+# Breakdown Phase
 
 <task>
 ID: {{TASK_ID}}
@@ -35,7 +35,7 @@ Generate a checkboxed task list from the spec, design, and TDD tests. This break
 Group tasks by user story (from spec's Prioritized User Stories):
 
 ```markdown
-# Implementation Tasks
+# Implementation Breakdown
 
 ## User Story 1: [Title from P1]
 - [ ] T001 [P] Create database schema
@@ -79,13 +79,13 @@ Each task MUST include:
 </instructions>
 
 <output_format>
-Output a JSON object with the task breakdown:
+Output a JSON object with the breakdown:
 
 ```json
 {
   "status": "complete",
   "summary": "Generated N tasks across M user stories",
-  "artifact": "# Implementation Tasks\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
+  "artifact": "# Implementation Breakdown\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
 }
 ```
 

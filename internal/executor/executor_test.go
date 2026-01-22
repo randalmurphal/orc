@@ -410,7 +410,6 @@ func TestPhaseStateWithAllFields(t *testing.T) {
 		Blocked:         false,
 		ResearchContent: "Research",
 		SpecContent:     "Spec",
-		DesignContent:   "Design",
 		RetryContext:    "Retry info",
 	}
 

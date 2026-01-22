@@ -1,6 +1,6 @@
 version: 1
 weight: large
-description: Large task - spec, TDD, tasks, implement, review, docs (same as medium, weight provides context)
+description: Large task - spec, TDD, breakdown, implement, review, docs (same as medium, weight provides context)
 
 phases:
   - id: spec
@@ -20,9 +20,9 @@ phases:
       type: auto
     checkpoint: true
 
-  - id: tasks
-    name: tasks
-    # Uses templates/prompts/tasks.md
+  - id: breakdown
+    name: breakdown
+    # Uses templates/prompts/breakdown.md
     # Break down into checkboxed implementation tasks
     depends_on: [tdd_write]
     gate:
@@ -32,8 +32,8 @@ phases:
   - id: implement
     name: implement
     # Uses templates/prompts/implement.md
-    # Implementation guided by task breakdown, must make TDD tests pass
-    depends_on: [tasks]
+    # Implementation guided by breakdown, must make TDD tests pass
+    depends_on: [breakdown]
     gate:
       type: auto
     checkpoint: true
