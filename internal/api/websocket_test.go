@@ -680,3 +680,243 @@ func TestWSHandler_GlobalSubscription_FileWatcherEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestWSHandler_DecisionRequired(t *testing.T) {
+	t.Parallel()
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer func() { _ = ws.Close() }()
+
+	// Subscribe to specific task
+	msg := WSMessage{Type: "subscribe", TaskID: "TASK-001"}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Publish decision_required event
+	decisionData := events.DecisionRequiredData{
+		DecisionID:  "gate_TASK-001_review_12345",
+		TaskID:      "TASK-001",
+		TaskTitle:   "Test Task",
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve this code?",
+		RequestedAt: time.Now(),
+	}
+	pub.Publish(events.NewEvent(events.EventDecisionRequired, "TASK-001", decisionData))
+
+	// Read event (deadline handles timeout)
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, data, err := ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read event: %v", err)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("failed to parse event: %v", err)
+	}
+
+	if resp["type"] != "event" {
+		t.Errorf("expected type 'event', got %v", resp["type"])
+	}
+	if resp["event"] != string(events.EventDecisionRequired) {
+		t.Errorf("expected event '%s', got %v", events.EventDecisionRequired, resp["event"])
+	}
+	if resp["task_id"] != "TASK-001" {
+		t.Errorf("expected task_id 'TASK-001', got %v", resp["task_id"])
+	}
+
+	// Verify decision data
+	eventData, ok := resp["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", resp["data"])
+	}
+	if eventData["decision_id"] != "gate_TASK-001_review_12345" {
+		t.Errorf("expected decision_id 'gate_TASK-001_review_12345', got %v", eventData["decision_id"])
+	}
+	if eventData["phase"] != "review" {
+		t.Errorf("expected phase 'review', got %v", eventData["phase"])
+	}
+	if eventData["gate_type"] != "human" {
+		t.Errorf("expected gate_type 'human', got %v", eventData["gate_type"])
+	}
+}
+
+func TestWSHandler_DecisionResolved(t *testing.T) {
+	t.Parallel()
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer func() { _ = ws.Close() }()
+
+	// Subscribe globally to receive decision events
+	msg := WSMessage{Type: "subscribe", TaskID: events.GlobalTaskID}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Read initial session_update event
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read initial session_update: %v", err)
+	}
+
+	// Publish decision_resolved event
+	resolvedData := events.DecisionResolvedData{
+		DecisionID: "gate_TASK-001_review_12345",
+		TaskID:     "TASK-001",
+		Phase:      "review",
+		Approved:   true,
+		Reason:     "LGTM",
+		ResolvedAt: time.Now(),
+	}
+	pub.Publish(events.NewEvent(events.EventDecisionResolved, "TASK-001", resolvedData))
+
+	// Read event (deadline handles timeout)
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, data, err := ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read event: %v", err)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("failed to parse event: %v", err)
+	}
+
+	if resp["type"] != "event" {
+		t.Errorf("expected type 'event', got %v", resp["type"])
+	}
+	if resp["event"] != string(events.EventDecisionResolved) {
+		t.Errorf("expected event '%s', got %v", events.EventDecisionResolved, resp["event"])
+	}
+
+	// Verify resolved data
+	eventData, ok := resp["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", resp["data"])
+	}
+	if eventData["approved"] != true {
+		t.Errorf("expected approved true, got %v", eventData["approved"])
+	}
+	if eventData["reason"] != "LGTM" {
+		t.Errorf("expected reason 'LGTM', got %v", eventData["reason"])
+	}
+}
+
+func TestWSHandler_FilesChanged(t *testing.T) {
+	t.Parallel()
+	pub := events.NewMemoryPublisher()
+	server := &Server{runningTasks: make(map[string]context.CancelFunc)}
+	handler := NewWSHandler(pub, server, nil)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer func() { _ = ws.Close() }()
+
+	// Subscribe to specific task
+	msg := WSMessage{Type: "subscribe", TaskID: "TASK-001"}
+	if err := ws.WriteJSON(msg); err != nil {
+		t.Fatalf("failed to send subscribe: %v", err)
+	}
+
+	// Read subscription confirmation
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read subscription response: %v", err)
+	}
+
+	// Publish files_changed event
+	filesData := events.FilesChangedUpdate{
+		Files: []events.ChangedFile{
+			{Path: "src/main.go", Status: "modified", Additions: 10, Deletions: 5},
+			{Path: "src/util.go", Status: "added", Additions: 50, Deletions: 0},
+		},
+		TotalAdditions: 60,
+		TotalDeletions: 5,
+	}
+	pub.Publish(events.NewEvent(events.EventFilesChanged, "TASK-001", filesData))
+
+	// Read event (deadline handles timeout)
+	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, data, err := ws.ReadMessage()
+	if err != nil {
+		t.Fatalf("failed to read event: %v", err)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(data, &resp); err != nil {
+		t.Fatalf("failed to parse event: %v", err)
+	}
+
+	if resp["type"] != "event" {
+		t.Errorf("expected type 'event', got %v", resp["type"])
+	}
+	if resp["event"] != string(events.EventFilesChanged) {
+		t.Errorf("expected event '%s', got %v", events.EventFilesChanged, resp["event"])
+	}
+	if resp["task_id"] != "TASK-001" {
+		t.Errorf("expected task_id 'TASK-001', got %v", resp["task_id"])
+	}
+
+	// Verify files data
+	eventData, ok := resp["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected data to be map, got %T", resp["data"])
+	}
+	files, ok := eventData["files"].([]any)
+	if !ok {
+		t.Fatalf("expected files to be array, got %T", eventData["files"])
+	}
+	if len(files) != 2 {
+		t.Errorf("expected 2 files, got %d", len(files))
+	}
+	if eventData["total_additions"].(float64) != 60 {
+		t.Errorf("expected total_additions 60, got %v", eventData["total_additions"])
+	}
+	if eventData["total_deletions"].(float64) != 5 {
+		t.Errorf("expected total_deletions 5, got %v", eventData["total_deletions"])
+	}
+}

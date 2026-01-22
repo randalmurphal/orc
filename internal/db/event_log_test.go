@@ -809,6 +809,109 @@ func TestProjectDB_QueryEvents_NoFilters(t *testing.T) {
 	}
 }
 
+func TestProjectDB_QueryEvents_InitiativeFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks with different initiatives
+	task1 := &Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-001"}
+	_ = pdb.SaveTask(task1)
+
+	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-002"}
+	_ = pdb.SaveTask(task2)
+
+	task3 := &Task{ID: "TASK-003", Title: "Task 3", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-001"}
+	_ = pdb.SaveTask(task3)
+
+	// Add events
+	now := time.Now().UTC()
+	events := []EventLog{
+		{TaskID: "TASK-001", EventType: "state", Source: "test", CreatedAt: now},
+		{TaskID: "TASK-002", EventType: "phase", Source: "test", CreatedAt: now.Add(time.Second)},
+		{TaskID: "TASK-003", EventType: "complete", Source: "test", CreatedAt: now.Add(2 * time.Second)},
+		{TaskID: "TASK-001", EventType: "error", Source: "test", CreatedAt: now.Add(3 * time.Second)},
+	}
+
+	for i := range events {
+		if err := pdb.SaveEvent(&events[i]); err != nil {
+			t.Fatalf("SaveEvent failed: %v", err)
+		}
+	}
+
+	// Query events for INIT-001 only (should get TASK-001 and TASK-003 events)
+	results, err := pdb.QueryEvents(QueryEventsOptions{InitiativeID: "INIT-001"})
+	if err != nil {
+		t.Fatalf("QueryEvents with InitiativeID failed: %v", err)
+	}
+	if len(results) != 3 {
+		t.Errorf("expected 3 events for INIT-001, got %d", len(results))
+	}
+
+	// Verify only INIT-001 tasks are returned
+	for _, e := range results {
+		if e.TaskID != "TASK-001" && e.TaskID != "TASK-003" {
+			t.Errorf("unexpected task %s in INIT-001 results", e.TaskID)
+		}
+	}
+
+	// Query events for INIT-002 only
+	results2, err := pdb.QueryEvents(QueryEventsOptions{InitiativeID: "INIT-002"})
+	if err != nil {
+		t.Fatalf("QueryEvents with InitiativeID failed: %v", err)
+	}
+	if len(results2) != 1 {
+		t.Errorf("expected 1 event for INIT-002, got %d", len(results2))
+	}
+	if len(results2) > 0 && results2[0].TaskID != "TASK-002" {
+		t.Errorf("expected TASK-002 for INIT-002, got %s", results2[0].TaskID)
+	}
+
+	// Query events for non-existent initiative
+	results3, err := pdb.QueryEvents(QueryEventsOptions{InitiativeID: "INIT-999"})
+	if err != nil {
+		t.Fatalf("QueryEvents with non-existent InitiativeID failed: %v", err)
+	}
+	if len(results3) != 0 {
+		t.Errorf("expected 0 events for INIT-999, got %d", len(results3))
+	}
+
+	// Query with both InitiativeID and TaskID filter
+	results4, err := pdb.QueryEvents(QueryEventsOptions{
+		InitiativeID: "INIT-001",
+		TaskID:       "TASK-001",
+	})
+	if err != nil {
+		t.Fatalf("QueryEvents with InitiativeID and TaskID failed: %v", err)
+	}
+	if len(results4) != 2 {
+		t.Errorf("expected 2 events for INIT-001/TASK-001, got %d", len(results4))
+	}
+
+	// Query with InitiativeID and EventTypes filter
+	results5, err := pdb.QueryEvents(QueryEventsOptions{
+		InitiativeID: "INIT-001",
+		EventTypes:   []string{"state", "complete"},
+	})
+	if err != nil {
+		t.Fatalf("QueryEvents with InitiativeID and EventTypes failed: %v", err)
+	}
+	if len(results5) != 2 {
+		t.Errorf("expected 2 events for INIT-001 with state/complete types, got %d", len(results5))
+	}
+}
+
 func TestProjectDB_QueryEventsWithTitles(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")

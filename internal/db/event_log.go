@@ -117,27 +117,55 @@ func (p *ProjectDB) QueryEvents(opts QueryEventsOptions) ([]EventLog, error) {
 	var query strings.Builder
 	var args []any
 
-	query.WriteString(`
-		SELECT id, task_id, phase, iteration, event_type, data, source, created_at, duration_ms
-		FROM event_log
-		WHERE 1=1
-	`)
+	// Base SELECT - add task join only if filtering by initiative
+	if opts.InitiativeID != "" {
+		query.WriteString(`
+			SELECT e.id, e.task_id, e.phase, e.iteration, e.event_type, e.data, e.source, e.created_at, e.duration_ms
+			FROM event_log e
+			LEFT JOIN tasks t ON e.task_id = t.id
+			WHERE 1=1
+		`)
+	} else {
+		query.WriteString(`
+			SELECT id, task_id, phase, iteration, event_type, data, source, created_at, duration_ms
+			FROM event_log
+			WHERE 1=1
+		`)
+	}
 
 	// Filter by task_id
 	if opts.TaskID != "" {
-		query.WriteString(" AND task_id = ?")
+		if opts.InitiativeID != "" {
+			query.WriteString(" AND e.task_id = ?")
+		} else {
+			query.WriteString(" AND task_id = ?")
+		}
 		args = append(args, opts.TaskID)
+	}
+
+	// Filter by initiative_id (requires task join)
+	if opts.InitiativeID != "" {
+		query.WriteString(" AND t.initiative_id = ?")
+		args = append(args, opts.InitiativeID)
+	}
+
+	// Column prefix for when using join
+	col := func(name string) string {
+		if opts.InitiativeID != "" {
+			return "e." + name
+		}
+		return name
 	}
 
 	// Filter by time range (since)
 	if opts.Since != nil {
-		query.WriteString(" AND created_at >= ?")
+		query.WriteString(" AND " + col("created_at") + " >= ?")
 		args = append(args, opts.Since.UTC().Format("2006-01-02 15:04:05"))
 	}
 
 	// Filter by time range (until)
 	if opts.Until != nil {
-		query.WriteString(" AND created_at <= ?")
+		query.WriteString(" AND " + col("created_at") + " <= ?")
 		args = append(args, opts.Until.UTC().Format("2006-01-02 15:04:05"))
 	}
 
@@ -148,13 +176,13 @@ func (p *ProjectDB) QueryEvents(opts QueryEventsOptions) ([]EventLog, error) {
 			placeholders[i] = "?"
 			args = append(args, et)
 		}
-		query.WriteString(" AND event_type IN (")
+		query.WriteString(" AND " + col("event_type") + " IN (")
 		query.WriteString(strings.Join(placeholders, ", "))
 		query.WriteString(")")
 	}
 
 	// Order by created_at descending
-	query.WriteString(" ORDER BY created_at DESC, id DESC")
+	query.WriteString(" ORDER BY " + col("created_at") + " DESC, " + col("id") + " DESC")
 
 	// Apply pagination
 	if opts.Limit > 0 {

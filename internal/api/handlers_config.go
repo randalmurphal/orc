@@ -386,7 +386,7 @@ func (s *Server) handleGetConfigStats(w http.ResponseWriter, r *http.Request) {
 	var stats ConfigStatsResponse
 
 	// Get permissions profile from config
-	cfg, err := config.LoadFrom(s.workDir)
+	cfg, err := config.LoadFrom(filepath.Join(s.workDir, ".orc", "config.yaml"))
 	if err != nil {
 		cfg = config.Default()
 	}
