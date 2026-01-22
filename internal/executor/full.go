@@ -260,6 +260,10 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		// Update session ID from response for subsequent calls
 		if turnResult != nil && turnResult.SessionID != "" {
 			turnExec.UpdateSessionID(turnResult.SessionID)
+			// Store session ID per-phase for correct resume behavior
+			if s != nil {
+				s.SetPhaseSessionID(p.ID, turnResult.SessionID)
+			}
 			// Compute and store JSONL path for transcript sync and --follow mode
 			if s != nil && s.JSONLPath == "" {
 				if jsonlPath, pathErr := ComputeJSONLPath(e.workingDir, turnResult.SessionID); pathErr == nil {

@@ -87,6 +87,8 @@ type PhaseState struct {
 	Error             string            `yaml:"error,omitempty" json:"error,omitempty"`
 	Tokens            TokenUsage        `yaml:"tokens" json:"tokens"`
 	ValidationHistory []ValidationEntry `yaml:"validation_history,omitempty" json:"validation_history,omitempty"`
+	// SessionID is the Claude CLI session UUID for this phase (for --resume)
+	SessionID string `yaml:"session_id,omitempty" json:"session_id,omitempty"`
 }
 
 // GateDecision records a gate evaluation result.
@@ -421,12 +423,34 @@ func (s *State) AddCost(costUSD float64) {
 	s.UpdatedAt = time.Now()
 }
 
-// GetSessionID returns the session ID if available.
+// GetSessionID returns the global session ID if available.
+// Deprecated: Use GetPhaseSessionID for phase-specific session tracking.
 func (s *State) GetSessionID() string {
 	if s.Session != nil {
 		return s.Session.ID
 	}
 	return ""
+}
+
+// GetPhaseSessionID returns the session ID for a specific phase.
+// This enables resuming the correct Claude session when retrying from an earlier phase.
+func (s *State) GetPhaseSessionID(phaseID string) string {
+	if ps, ok := s.Phases[phaseID]; ok && ps.SessionID != "" {
+		return ps.SessionID
+	}
+	return ""
+}
+
+// SetPhaseSessionID stores the session ID for a specific phase.
+func (s *State) SetPhaseSessionID(phaseID, sessionID string) {
+	if s.Phases == nil {
+		s.Phases = make(map[string]*PhaseState)
+	}
+	if s.Phases[phaseID] == nil {
+		s.Phases[phaseID] = &PhaseState{}
+	}
+	s.Phases[phaseID].SessionID = sessionID
+	s.UpdatedAt = time.Now()
 }
 
 // RecordValidation records a validation decision for the specified phase.

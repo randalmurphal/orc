@@ -178,18 +178,6 @@ Use --force to resume a task even if it appears to still be running.`,
 			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
 			exec.SetBackend(backend)
 
-			// Check for session ID and pass to executor for --resume flag
-			if sessionID := s.GetSessionID(); sessionID != "" {
-				// Check if session is from this machine
-				currentHost, _ := os.Hostname()
-				if s.Execution != nil && s.Execution.Hostname != "" && s.Execution.Hostname != currentHost {
-					disp.Warning(fmt.Sprintf("Task ran on different machine (%s), starting fresh session", s.Execution.Hostname))
-				} else {
-					disp.Info(fmt.Sprintf("Resuming Claude session: %s", sessionID))
-					exec.SetResumeSessionID(sessionID)
-				}
-			}
-
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")
 			if verbose || stream {
@@ -227,6 +215,19 @@ Use --force to resume a task even if it appears to still be running.`,
 
 			if resumePhase == "" {
 				return fmt.Errorf("no phase to resume from")
+			}
+
+			// Check for phase-specific session ID and pass to executor for --resume flag
+			// Session IDs are tracked per-phase to ensure correct Claude context on resume
+			if sessionID := s.GetPhaseSessionID(resumePhase); sessionID != "" {
+				// Check if session is from this machine
+				currentHost, _ := os.Hostname()
+				if s.Execution != nil && s.Execution.Hostname != "" && s.Execution.Hostname != currentHost {
+					disp.Warning(fmt.Sprintf("Task ran on different machine (%s), starting fresh session", s.Execution.Hostname))
+				} else {
+					disp.Info(fmt.Sprintf("Resuming Claude session for %s: %s", resumePhase, sessionID))
+					exec.SetResumeSessionID(sessionID)
+				}
 			}
 
 			err = exec.ResumeFromPhase(ctx, t, p, s, resumePhase)
