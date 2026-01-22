@@ -296,6 +296,7 @@ func (d *DatabaseBackend) SaveStateCtx(ctx context.Context, s *state.State) erro
 				CostUSD:      0, // Cost is tracked at state level, not phase level
 				ErrorMessage: ps.Error,
 				CommitSHA:    ps.CommitSHA,
+				SessionID:    ps.SessionID,
 			}
 			if err := db.SavePhaseTx(tx, dbPhase); err != nil {
 				return fmt.Errorf("save phase %s: %w", phaseID, err)
@@ -395,6 +396,7 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 			CompletedAt: dbPhase.CompletedAt,
 			Error:       dbPhase.ErrorMessage,
 			CommitSHA:   dbPhase.CommitSHA,
+			SessionID:   dbPhase.SessionID,
 			Tokens: state.TokenUsage{
 				InputTokens:  dbPhase.InputTokens,
 				OutputTokens: dbPhase.OutputTokens,
