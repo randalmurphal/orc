@@ -1714,26 +1714,48 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 	}
 }
 
-// Load loads the config from the default location.
+// Load loads the config using the full loader with proper path expansion.
+// This is the recommended way to load config - it handles:
+// - Multiple config sources (project, local, user, env)
+// - Path expansion (~ to home directory)
+// - Config hierarchy merging
 func Load() (*Config, error) {
-	return LoadFrom(filepath.Join(OrcDir, ConfigFileName))
+	tc, err := LoadWithSources()
+	if err != nil {
+		return nil, err
+	}
+	return tc.Config, nil
 }
 
-// LoadFrom loads the config from a specific path.
-func LoadFrom(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+// LoadFrom loads the config from a specific project directory.
+// Uses the full config hierarchy loader with path expansion.
+func LoadFrom(projectDir string) (*Config, error) {
+	tc, err := LoadWithSourcesFrom(projectDir)
+	if err != nil {
+		return nil, err
+	}
+	return tc.Config, nil
+}
+
+// LoadFile loads config from a specific file path (for config editing).
+// Unlike Load/LoadFrom, this does NOT merge from multiple sources.
+// Use this when you need to read and modify a single config file.
+func LoadFile(filePath string) (*Config, error) {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Return default config if file doesn't exist
 			return Default(), nil
 		}
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	cfg := Default() // Start with defaults
+	cfg := Default()
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
+
+	// Expand paths
+	cfg.ClaudePath = ExpandPath(cfg.ClaudePath)
 
 	return cfg, nil
 }
