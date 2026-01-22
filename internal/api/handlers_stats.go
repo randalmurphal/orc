@@ -945,8 +945,34 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 	}
 
 	// Calculate stats for both periods
-	currentStats := s.calculatePeriodStats(allTasks, currentStart, currentEnd)
-	previousStats := s.calculatePeriodStats(allTasks, previousStart, previousEnd)
+	// Use calculatePeriodStats from handlers_dashboard.go (requires 4 params: tasks, periodStart, periodEnd, today)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	currentDashStats := s.calculatePeriodStats(allTasks, currentStart, currentEnd, today)
+	previousDashStats := s.calculatePeriodStats(allTasks, previousStart, previousEnd, today)
+
+	// Convert DashboardStats to PeriodStats for response
+	currentStats := PeriodStats{
+		Tasks:       currentDashStats.Completed,
+		Tokens:      int(currentDashStats.Tokens),
+		Cost:        currentDashStats.Cost,
+		SuccessRate: 0, // Will calculate below
+	}
+	previousStats := PeriodStats{
+		Tasks:       previousDashStats.Completed,
+		Tokens:      int(previousDashStats.Tokens),
+		Cost:        previousDashStats.Cost,
+		SuccessRate: 0, // Will calculate below
+	}
+
+	// Calculate success rates: completed / (completed + failed) * 100
+	currentTotal := currentDashStats.Completed + currentDashStats.Failed
+	if currentTotal > 0 {
+		currentStats.SuccessRate = (float64(currentDashStats.Completed) / float64(currentTotal)) * 100
+	}
+	previousTotal := previousDashStats.Completed + previousDashStats.Failed
+	if previousTotal > 0 {
+		previousStats.SuccessRate = (float64(previousDashStats.Completed) / float64(previousTotal)) * 100
+	}
 
 	// Calculate percentage changes
 	changes := ChangeStats{
@@ -963,66 +989,6 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 	}
 
 	s.jsonResponse(w, response)
-}
-
-// calculatePeriodStats computes statistics for tasks completed within a period.
-func (s *Server) calculatePeriodStats(allTasks []*task.Task, startTime, endTime time.Time) PeriodStats {
-	var completedCount, failedCount, totalTokens int
-	var totalCost float64
-
-	for _, t := range allTasks {
-		// Include both completed and failed tasks within the period
-		// Completed tasks: use CompletedAt
-		// Failed tasks: use UpdatedAt as proxy for when they failed
-		var taskTime *time.Time
-
-		if t.Status == task.StatusCompleted {
-			taskTime = t.CompletedAt
-		} else if t.Status == task.StatusFailed {
-			taskTime = &t.UpdatedAt
-		} else {
-			// Skip tasks that are not completed or failed
-			continue
-		}
-
-		if taskTime == nil {
-			continue
-		}
-		if taskTime.Before(startTime) || taskTime.After(endTime) {
-			continue
-		}
-
-		// Count by status
-		if t.Status == task.StatusCompleted {
-			completedCount++
-
-			// Load state to get token and cost data (only for completed tasks)
-			st, err := s.backend.LoadState(t.ID)
-			if err != nil {
-				s.logger.Warn("failed to load state for comparison stats", "task", t.ID, "error", err)
-				continue
-			}
-
-			totalTokens += st.Tokens.TotalTokens
-			totalCost += st.Cost.TotalCostUSD
-		} else if t.Status == task.StatusFailed {
-			failedCount++
-		}
-	}
-
-	// Calculate success rate: completed / (completed + failed) * 100
-	totalTasks := completedCount + failedCount
-	successRate := 0.0
-	if totalTasks > 0 {
-		successRate = (float64(completedCount) / float64(totalTasks)) * 100
-	}
-
-	return PeriodStats{
-		Tasks:       completedCount, // Report completed tasks count
-		Tokens:      totalTokens,
-		Cost:        totalCost,
-		SuccessRate: successRate,
-	}
 }
 
 // calculatePercentageChange computes percentage change from previous to current.
