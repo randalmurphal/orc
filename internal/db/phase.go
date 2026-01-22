@@ -20,6 +20,7 @@ type Phase struct {
 	ErrorMessage string
 	CommitSHA    string
 	SkipReason   string
+	SessionID    string // Claude session UUID for transcript sync
 }
 
 // SavePhase creates or updates a phase.
@@ -35,8 +36,8 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -47,9 +48,10 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			cost_usd = excluded.cost_usd,
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
-			skip_reason = excluded.skip_reason
+			skip_reason = excluded.skip_reason,
+			session_id = COALESCE(excluded.session_id, phases.session_id)
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason)
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
@@ -59,7 +61,7 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 // GetPhases retrieves all phases for a task.
 func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	rows, err := p.Query(`
-		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason
+		SELECT task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id
 		FROM phases WHERE task_id = ?
 	`, taskID)
 	if err != nil {
@@ -70,9 +72,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 	var phases []Phase
 	for rows.Next() {
 		var ph Phase
-		var startedAt, completedAt, errorMsg, commitSHA, skipReason sql.NullString
+		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID sql.NullString
 		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
-			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason); err != nil {
+			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID); err != nil {
 			return nil, fmt.Errorf("scan phase: %w", err)
 		}
 		if startedAt.Valid {
@@ -93,6 +95,9 @@ func (p *ProjectDB) GetPhases(taskID string) ([]Phase, error) {
 		}
 		if skipReason.Valid {
 			ph.SkipReason = skipReason.String
+		}
+		if sessionID.Valid {
+			ph.SessionID = sessionID.String
 		}
 		phases = append(phases, ph)
 	}
@@ -134,8 +139,8 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO phases (task_id, phase_id, status, iterations, started_at, completed_at, input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, phase_id) DO UPDATE SET
 			status = excluded.status,
 			iterations = excluded.iterations,
@@ -146,9 +151,10 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 			cost_usd = excluded.cost_usd,
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
-			skip_reason = excluded.skip_reason
+			skip_reason = excluded.skip_reason,
+			session_id = COALESCE(excluded.session_id, phases.session_id)
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
-		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason)
+		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
 	if err != nil {
 		return fmt.Errorf("save phase: %w", err)
 	}
