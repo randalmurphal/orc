@@ -90,21 +90,21 @@ func newResolveCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "resolve <task-id>",
-		Short: "Mark failed task as resolved without re-running",
-		Long: `Mark a failed task as resolved/acknowledged without re-running it.
+		Short: "Acknowledge failed task and clear error state for retry",
+		Long: `Acknowledge a failed task without re-running it, clearing the error state so it can be retried.
 
 This is useful when:
-  - The issue was fixed manually outside of orc
-  - The failure is no longer relevant (e.g., requirements changed)
-  - You want to acknowledge and close out a failed task
+  - The issue was fixed manually outside of orc and you want to retry phases
+  - The failure is transient and you want to acknowledge it before retrying
+  - You want to clear a stuck/failed state while preserving execution history
   - A task is stuck in 'running' status but its PR was already merged
 
-The task will be marked as completed with metadata indicating it was resolved
-rather than executed to completion. This preserves the failure context in the
-execution history.
+The task will be marked as 'failed' with metadata indicating it was manually resolved.
+This clears the error state while preserving execution history, allowing the task to be
+resumed or restarted.
 
-Unlike 'reset' which clears progress and allows retry, 'resolve' closes the
-task without clearing its execution state.
+Unlike 'reset' which clears progress completely, 'resolve' keeps execution context
+but clears the stuck/error state.
 
 Force resolving non-failed tasks:
   By default, resolve only works on failed tasks. Use --force to resolve tasks
@@ -178,7 +178,7 @@ For blocked tasks, use one of these commands instead:
   orc approve %s   Approve a gate and mark task ready to run
   orc resume %s    Resume execution (for paused/blocked/failed tasks)
 
-The 'resolve' command is for marking failed tasks as complete without re-running.
+The 'resolve' command is for clearing error state on failed tasks to allow retry.
 Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 					}
 					return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks (use --force to override)", id, t.Status)
@@ -315,9 +315,9 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 
 			// Confirmation prompt
 			if !force && !quiet {
-				fmt.Printf("⚠️  Resolve task %s as completed?\n", id)
-				fmt.Println("   The task will be marked as completed (resolved).")
-				fmt.Println("   Execution state will be preserved for reference.")
+				fmt.Printf("⚠️  Resolve task %s?\n", id)
+				fmt.Println("   The task will be marked as 'failed' with resolved metadata.")
+				fmt.Println("   This clears the error state and allows resume/restart.")
 				if wtStatus != nil && wtStatus.exists && !cleanupPerformed {
 					fmt.Println("   The worktree will be preserved.")
 				}
@@ -331,8 +331,9 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				}
 			}
 
-			// Update task status to resolved (distinct from completed to indicate no actual work done)
-			t.Status = task.StatusResolved
+			// Update task status to failed so it can be resumed/restarted
+			// (resolved means "acknowledged failure, ready to retry")
+			t.Status = task.StatusFailed
 			now := time.Now()
 
 			// Track manual intervention in quality metrics

@@ -128,8 +128,8 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify metadata (resolved_at is stored in metadata, not as a separate field)
@@ -274,8 +274,8 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 	}
 
 	// Verify error message explains what resolve is for
-	if !strings.Contains(errMsg, "marking failed tasks") {
-		t.Errorf("error message should explain resolve is for failed tasks, got: %s", errMsg)
+	if !strings.Contains(errMsg, "clearing error state") {
+		t.Errorf("error message should explain resolve is for clearing error state, got: %s", errMsg)
 	}
 
 	// Verify error message mentions using --force
@@ -988,8 +988,8 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 	if reloaded.Metadata["resolved"] != "true" {
 		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
@@ -1066,8 +1066,8 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify dirty file still exists (--force doesn't clean up)
@@ -1151,8 +1151,8 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify no worktree issues recorded in metadata
@@ -1200,8 +1200,8 @@ func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify force_resolved metadata
@@ -1242,8 +1242,8 @@ func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify force_resolved metadata
@@ -1285,8 +1285,8 @@ func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify force_resolved metadata
@@ -1327,8 +1327,8 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify force_resolved metadata
@@ -1416,8 +1416,8 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// Verify pr_was_merged is NOT set (because there was no merged PR)
@@ -1500,8 +1500,8 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != task.StatusFailed {
+		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusFailed)
 	}
 
 	// force_resolved should NOT be set for failed tasks (they don't need forcing)
