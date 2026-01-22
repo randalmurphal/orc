@@ -76,7 +76,7 @@ All items must be completed before merge.
 - **File:** `internal/api/handlers_session.go:46-47`
 - **Problem:** Returns HTTP 200 with zeros on DB failure (violates "NO Fallbacks" rule)
 - **Fix:** Return 500 error or include error field in response
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 9. Add State Update When Task Becomes Blocked
 - **File:** `internal/executor/task_execution.go:708-716`
@@ -126,53 +126,53 @@ All items must be completed before merge.
 - **File:** `internal/executor/publish.go`
 - **Problem:** Inconsistent API - most events have wrappers but decision events don't
 - **Fix:** Add `DecisionRequired()` and `DecisionResolved()` methods
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 15. Add InitiativeID Support to QueryEvents
 - **File:** `internal/db/event_log.go:116-177`
 - **Problem:** `QueryEvents` doesn't support InitiativeID but `QueryEventsWithTitles` and `CountEvents` do
 - **Fix:** Add initiative join to `QueryEvents` or document limitation
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 16. Add Covering Index for Event Pagination
 - **File:** New migration file needed
 - **Problem:** `ORDER BY created_at DESC, id DESC` not fully indexed
 - **Fix:** Add `CREATE INDEX idx_event_log_created_id ON event_log(created_at DESC, id DESC)`
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed (internal/db/schema/project_027.sql)
 
 ### 17. Add WebSocket Tests for Decision and Files Changed Events
 - **File:** `internal/api/websocket_test.go` (new tests)
 - **Problem:** No integration tests for `decision_required`, `decision_resolved`, `files_changed` delivery
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 18. Add Tests for Top-Initiatives Period Filtering
 - **File:** `internal/api/handlers_stats_test.go`
 - **Problem:** No test verifies period filter works for top-initiatives
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 19. Fix Percentage Change Edge Case (0 to N)
 - **File:** `internal/api/handlers_stats.go:1030-1038`
 - **Problem:** 0→1 returns same 100% as 0→1000
 - **Fix:** Document behavior or return special value
-- **Status:** [ ] Not started
+- **Status:** [x] Already documented in API_REFERENCE.md at line 1642
 
 ### 20. Fix Timezone Mismatch in Stats Tests
 - **File:** `internal/api/handlers_stats_test.go`
 - **Problem:** Tests use `time.UTC` but handler uses local timezone
 - **Fix:** Use consistent timezone (prefer UTC)
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 21. Remove Redundant phase_artifacts Index
 - **File:** `internal/db/schema/project_026.sql:22-23`
 - **Problem:** `idx_phase_artifacts_task` is redundant - covered by composite `idx_phase_artifacts_task_phase`
 - **Fix:** Remove the redundant index
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed (internal/db/schema/project_027.sql)
 
 ### 22. Fix Test MessageUUID Generation
 - **File:** `internal/db/transcript_pagination_test.go:76-77`
 - **Problem:** `string(rune(i))` produces control characters for i > 127
 - **Fix:** Use `fmt.Sprintf("msg-%d", i)`
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 23. Document Undocumented Endpoints (~12)
 - **File:** `docs/API_REFERENCE.md`
@@ -209,17 +209,17 @@ All items must be completed before merge.
 ### 26. Add Combined Filter Tests for Events API
 - **File:** `internal/api/handlers_events_test.go`
 - **Problem:** No test combines multiple filters (task_id + types + since)
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 27. Add Invalid Event Types Test
 - **File:** `internal/api/handlers_events_test.go`
 - **Problem:** No test for behavior with unknown event types
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed
 
 ### 28. Document Top Initiatives Period Filter Behavior
 - **File:** `docs/API_REFERENCE.md` or code comments
 - **Problem:** Period filter only counts completed tasks - might be intentional but undocumented
-- **Status:** [ ] Not started
+- **Status:** [x] Fixed (added code comment and test verifies behavior)
 
 ---
 
@@ -241,9 +241,9 @@ After all fixes:
 | Category | Total | Completed |
 |----------|-------|-----------|
 | Critical | 12 | 12 |
-| Important | 12 | 4 |
-| Minor | 4 | 2 |
-| **Total** | **28** | **18** |
+| Important | 12 | 12 |
+| Minor | 4 | 4 |
+| **Total** | **28** | **28** |
 
 ---
 
