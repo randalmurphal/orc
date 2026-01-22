@@ -9,6 +9,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Tasks](#tasks-global) | `/api/tasks/*` | Task CRUD and execution |
 | [Projects](#projects) | `/api/projects/*` | Multi-project task operations |
 | [Initiatives](#initiatives) | `/api/initiatives/*` | Task grouping and decisions |
+| [Decisions](#decisions) | `/api/decisions/*` | Gate approval/rejection |
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
 | [Integration](#integration) | `/api/github/*`, `/api/mcp/*`, `/api/plugins/*` | External integrations |
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
@@ -644,6 +645,74 @@ All fields are optional. Setting `blocked_by` replaces the entire list.
 - Referenced initiative IDs must exist
 - Self-references are rejected
 - Circular dependencies are detected and rejected
+
+---
+
+## Decisions
+
+Gate approval/rejection for human gates in headless (API/WebSocket) mode. When a task hits a human gate during API-driven execution, a `decision_required` WebSocket event is emitted and the decision is stored for resolution.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/decisions/:id` | Approve or reject a pending gate decision |
+
+### Resolve Decision
+
+**POST `/api/decisions/:id`**
+
+Resolves a pending gate decision by approving or rejecting it.
+
+**Request body:**
+```json
+{
+  "approved": true,
+  "reason": "LGTM, all issues addressed"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `approved` | boolean | Yes | `true` to approve, `false` to reject |
+| `reason` | string | No | Optional explanation for the decision |
+
+**Success response (200):**
+```json
+{
+  "decision_id": "gate_TASK-001_review",
+  "task_id": "TASK-001",
+  "approved": true,
+  "new_status": "planned"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `decision_id` | The resolved decision ID |
+| `task_id` | Associated task ID |
+| `approved` | Whether the decision was approved |
+| `new_status` | New task status: `planned` (approved) or `failed` (rejected) |
+
+**Error responses:**
+
+| Status | Condition |
+|--------|-----------|
+| 400 | Invalid request body |
+| 400 | Task is not in blocked status |
+| 404 | Decision not found (already resolved or never existed) |
+| 404 | Associated task not found |
+| 500 | Failed to save task or state |
+
+**Side effects:**
+- Task status changes to `planned` (approved) or `failed` (rejected)
+- Gate decision is recorded in task state and database
+- `decision_resolved` WebSocket event is emitted
+- Decision is removed from pending store (subsequent POSTs return 404)
+
+**Notes:**
+- Pending decisions are stored in-memory; server restart clears them
+- Multiple concurrent pending decisions can exist for different tasks
+- The task does NOT auto-resume after approval; use `POST /api/tasks/:id/resume` or `orc resume` CLI
+- CLI approval via `orc approve` continues to work independently
 
 ---
 
@@ -1523,6 +1592,70 @@ Connect to `/api/ws` for real-time updates.
 | `initiative_created` | `{initiative: Initiative}` | Initiative created via CLI/filesystem |
 | `initiative_updated` | `{initiative: Initiative}` | Initiative modified via CLI/filesystem |
 | `initiative_deleted` | `{initiative_id: string}` | Initiative deleted via CLI/filesystem |
+| `decision_required` | `DecisionRequiredData` | Human gate requires approval (see below) |
+| `decision_resolved` | `DecisionResolvedData` | Gate decision was resolved (see below) |
+
+### Decision Event Data
+
+Decision events enable real-time gate approval in headless mode. When a task hits a human gate during API execution, a `decision_required` event is broadcast. When resolved via `POST /api/decisions/:id`, a `decision_resolved` event is broadcast.
+
+**decision_required:**
+```json
+{
+  "decision_id": "gate_TASK-001_review",
+  "task_id": "TASK-001",
+  "task_title": "Add user authentication",
+  "phase": "review",
+  "gate_type": "human",
+  "question": "Please verify the following criteria:",
+  "context": "Code review passes\nTests pass",
+  "requested_at": "2026-01-10T10:30:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `decision_id` | Unique ID for this decision (format: `gate_{task_id}_{phase}`) |
+| `task_id` | Associated task ID |
+| `task_title` | Task title for display |
+| `phase` | Phase awaiting approval |
+| `gate_type` | Always `"human"` for these events |
+| `question` | Prompt to show the user |
+| `context` | Gate criteria (newline-separated) |
+| `requested_at` | When the decision was requested (ISO8601) |
+
+**decision_resolved:**
+```json
+{
+  "decision_id": "gate_TASK-001_review",
+  "task_id": "TASK-001",
+  "phase": "review",
+  "approved": true,
+  "reason": "LGTM",
+  "resolved_by": "api",
+  "resolved_at": "2026-01-10T10:35:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `decision_id` | The resolved decision ID |
+| `task_id` | Associated task ID |
+| `phase` | Phase that was approved/rejected |
+| `approved` | Whether the decision was approved |
+| `reason` | Optional reason provided during resolution |
+| `resolved_by` | Resolution source: `"api"` or `"cli"` |
+| `resolved_at` | When the decision was resolved (ISO8601) |
+
+**Workflow:**
+1. Task hits human gate during API execution
+2. Task status changes to `blocked`
+3. `decision_required` event is broadcast to WebSocket subscribers
+4. UI displays approval prompt
+5. User clicks approve/reject, frontend calls `POST /api/decisions/:id`
+6. Task status changes to `planned` (approved) or `failed` (rejected)
+7. `decision_resolved` event is broadcast
+8. User explicitly resumes task via `POST /api/tasks/:id/resume`
 
 ### Finalize Event Data
 
