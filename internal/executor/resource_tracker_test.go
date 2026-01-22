@@ -85,8 +85,8 @@ func TestOrphanDetection(t *testing.T) {
 			{PID: 100, PPID: 1, Command: "init"},
 			{PID: 200, PPID: 100, Command: "parent-process"},
 			{PID: 300, PPID: 200, Command: "child-process"},
-			{PID: 400, PPID: 1, Command: "orphaned-process", IsMCP: false},     // New, PPID=1 = orphan
-			{PID: 500, PPID: 200, Command: "new-child-process", IsMCP: false},  // New, has parent = not orphan
+			{PID: 400, PPID: 1, Command: "orphaned-process", IsMCP: false},        // New, PPID=1 = orphan
+			{PID: 500, PPID: 200, Command: "new-child-process", IsMCP: false},     // New, has parent = not orphan
 			{PID: 600, PPID: 999, Command: "orphan-missing-parent", IsMCP: false}, // New, parent doesn't exist = orphan
 		},
 		ProcessCount: 6,
@@ -485,8 +485,8 @@ func TestOrphanDetectionPriorityFilterSystemOverMCPOnly(t *testing.T) {
 	config := ResourceTrackerConfig{
 		Enabled:               true,
 		MemoryThresholdMB:     100,
-		LogOrphanedMCPOnly:    true,  // Old option (would only show MCP)
-		FilterSystemProcesses: true,  // New option takes priority (shows all orc-related)
+		LogOrphanedMCPOnly:    true, // Old option (would only show MCP)
+		FilterSystemProcesses: true, // New option takes priority (shows all orc-related)
 	}
 	tracker := NewResourceTracker(config, slog.Default())
 

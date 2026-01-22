@@ -273,4 +273,3 @@ func newCommentDeleteCmd() *cobra.Command {
 		},
 	}
 }
-

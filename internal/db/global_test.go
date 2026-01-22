@@ -226,10 +226,10 @@ func TestRecordCostExtended_AllFields(t *testing.T) {
 
 	// Verify all fields were stored
 	var (
-		model, phase, initID                            string
-		iteration, cacheCreate, cacheRead, total        int
-		durationMs                                      int64
-		cost                                            float64
+		model, phase, initID                     string
+		iteration, cacheCreate, cacheRead, total int
+		durationMs                               int64
+		cost                                     float64
 	)
 	err = db.QueryRow(`
 		SELECT model, phase, iteration, cost_usd, cache_creation_tokens,

@@ -129,6 +129,8 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
 		exec.SetAutomationService(s.automationSvc)
+		exec.SetPendingDecisionStore(s.pendingDecisions)
+		exec.SetHeadless(true)
 
 		// Execute with event publishing
 		err := exec.ExecuteTask(ctx, t, p, st)

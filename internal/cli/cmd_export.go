@@ -34,15 +34,15 @@ const maxImportFileSize = 100 * 1024 * 1024
 
 // ExportManifest contains metadata about an export archive.
 type ExportManifest struct {
-	Version          int       `yaml:"version"`
-	ExportedAt       time.Time `yaml:"exported_at"`
-	SourceHostname   string    `yaml:"source_hostname"`
-	SourceProject    string    `yaml:"source_project,omitempty"`
-	OrcVersion       string    `yaml:"orc_version,omitempty"`
-	TaskCount        int       `yaml:"task_count"`
-	InitiativeCount  int       `yaml:"initiative_count"`
-	IncludesState    bool      `yaml:"includes_state"`
-	IncludesTranscripts bool   `yaml:"includes_transcripts"`
+	Version             int       `yaml:"version"`
+	ExportedAt          time.Time `yaml:"exported_at"`
+	SourceHostname      string    `yaml:"source_hostname"`
+	SourceProject       string    `yaml:"source_project,omitempty"`
+	OrcVersion          string    `yaml:"orc_version,omitempty"`
+	TaskCount           int       `yaml:"task_count"`
+	InitiativeCount     int       `yaml:"initiative_count"`
+	IncludesState       bool      `yaml:"includes_state"`
+	IncludesTranscripts bool      `yaml:"includes_transcripts"`
 }
 
 // ExportData contains all data for a task export.
@@ -1615,4 +1615,3 @@ func exportInitiative(initID, outputFile string, withState bool) error {
 
 	return nil
 }
-

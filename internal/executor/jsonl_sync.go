@@ -36,9 +36,9 @@ func NewJSONLSyncer(backend storage.Backend, logger *slog.Logger) *JSONLSyncer {
 
 // SyncOptions configures the sync behavior.
 type SyncOptions struct {
-	TaskID  string // Task ID for these transcripts
-	Phase   string // Phase ID
-	Append  bool   // If true, only sync messages not already in DB
+	TaskID string // Task ID for these transcripts
+	Phase  string // Phase ID
+	Append bool   // If true, only sync messages not already in DB
 }
 
 // SyncFromFile reads a JSONL file and syncs all messages to the database.
@@ -60,11 +60,11 @@ func (s *JSONLSyncer) SyncFromFile(ctx context.Context, jsonlPath string, opts S
 // Uses file watching (fsnotify with polling fallback) to sync new messages
 // as they are written by Claude.
 type TranscriptStreamer struct {
-	syncer   *JSONLSyncer
-	opts     SyncOptions
-	cancel   context.CancelFunc
-	done     chan struct{}
-	logger   *slog.Logger
+	syncer *JSONLSyncer
+	opts   SyncOptions
+	cancel context.CancelFunc
+	done   chan struct{}
+	logger *slog.Logger
 }
 
 // StartStreaming begins watching a JSONL file and streaming new messages to the database.

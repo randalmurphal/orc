@@ -212,12 +212,12 @@ func ptrTime(t time.Time) *time.Time {
 // Used for testing the poller's stop behavior without real task data.
 type emptyBackend struct{}
 
-func (b *emptyBackend) LoadAllTasks() ([]*task.Task, error)                   { return nil, nil }
-func (b *emptyBackend) SaveTask(*task.Task) error                             { return nil }
-func (b *emptyBackend) LoadTask(string) (*task.Task, error)                   { return nil, nil }
-func (b *emptyBackend) DeleteTask(string) error                               { return nil }
-func (b *emptyBackend) TaskExists(string) (bool, error)                       { return false, nil }
-func (b *emptyBackend) GetNextTaskID() (string, error)                        { return "", nil }
+func (b *emptyBackend) LoadAllTasks() ([]*task.Task, error) { return nil, nil }
+func (b *emptyBackend) SaveTask(*task.Task) error           { return nil }
+func (b *emptyBackend) LoadTask(string) (*task.Task, error) { return nil, nil }
+func (b *emptyBackend) DeleteTask(string) error             { return nil }
+func (b *emptyBackend) TaskExists(string) (bool, error)     { return false, nil }
+func (b *emptyBackend) GetNextTaskID() (string, error)      { return "", nil }
 func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
 	return nil, nil
 }
@@ -226,9 +226,9 @@ func (b *emptyBackend) LoadState(string) (*state.State, error)                { 
 func (b *emptyBackend) LoadAllStates() ([]*state.State, error)                { return nil, nil }
 func (b *emptyBackend) SavePlan(*plan.Plan, string) error                     { return nil }
 func (b *emptyBackend) LoadPlan(string) (*plan.Plan, error)                   { return nil, nil }
-func (b *emptyBackend) SaveSpec(string, string, string) error        { return nil }
-func (b *emptyBackend) LoadSpec(string) (string, error)              { return "", nil }
-func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error) { return nil, nil }
+func (b *emptyBackend) SaveSpec(string, string, string) error                 { return nil }
+func (b *emptyBackend) LoadSpec(string) (string, error)                       { return "", nil }
+func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error)        { return nil, nil }
 func (b *emptyBackend) SpecExists(string) (bool, error)                       { return false, nil }
 func (b *emptyBackend) SaveArtifact(string, string, string, string) error     { return nil }
 func (b *emptyBackend) LoadArtifact(string, string) (string, error)           { return "", nil }
@@ -240,11 +240,11 @@ func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { 
 func (b *emptyBackend) DeleteInitiative(string) error                         { return nil }
 func (b *emptyBackend) InitiativeExists(string) (bool, error)                 { return false, nil }
 func (b *emptyBackend) GetNextInitiativeID() (string, error)                  { return "", nil }
-func (b *emptyBackend) AddTranscript(*storage.Transcript) error { return nil }
+func (b *emptyBackend) AddTranscript(*storage.Transcript) error               { return nil }
 func (b *emptyBackend) AddTranscriptBatch(context.Context, []storage.Transcript) error {
 	return nil
 }
-func (b *emptyBackend) GetTranscripts(string) ([]storage.Transcript, error)   { return nil, nil }
+func (b *emptyBackend) GetTranscripts(string) ([]storage.Transcript, error) { return nil, nil }
 func (b *emptyBackend) GetTranscriptsPaginated(string, storage.TranscriptPaginationOpts) ([]storage.Transcript, storage.PaginationResult, error) {
 	return nil, storage.PaginationResult{}, nil
 }
@@ -260,12 +260,12 @@ func (b *emptyBackend) GetAttachment(string, string) (*task.Attachment, []byte, 
 }
 func (b *emptyBackend) ListAttachments(string) ([]*task.Attachment, error) { return nil, nil }
 func (b *emptyBackend) DeleteAttachment(string, string) error              { return nil }
-func (b *emptyBackend) MaterializeContext(string, string) error { return nil }
-func (b *emptyBackend) NeedsMaterialization() bool              { return false }
-func (b *emptyBackend) Sync() error                             { return nil }
-func (b *emptyBackend) Cleanup() error                          { return nil }
-func (b *emptyBackend) Close() error                            { return nil }
-func (b *emptyBackend) SaveBranch(*storage.Branch) error        { return nil }
+func (b *emptyBackend) MaterializeContext(string, string) error            { return nil }
+func (b *emptyBackend) NeedsMaterialization() bool                         { return false }
+func (b *emptyBackend) Sync() error                                        { return nil }
+func (b *emptyBackend) Cleanup() error                                     { return nil }
+func (b *emptyBackend) Close() error                                       { return nil }
+func (b *emptyBackend) SaveBranch(*storage.Branch) error                   { return nil }
 func (b *emptyBackend) LoadBranch(string) (*storage.Branch, error) {
 	return nil, nil
 }
@@ -294,12 +294,12 @@ func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings,
 func (b *emptyBackend) LoadAllReviewFindings(string) ([]*storage.ReviewFindings, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveQAResult(*storage.QAResult) error            { return nil }
-func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error)  { return nil, nil }
-func (b *emptyBackend) SaveConstitution(string, string) error           { return nil }
-func (b *emptyBackend) LoadConstitution() (string, string, error)       { return "", "", nil }
-func (b *emptyBackend) ConstitutionExists() (bool, error)               { return false, nil }
-func (b *emptyBackend) DeleteConstitution() error                       { return nil }
+func (b *emptyBackend) SaveQAResult(*storage.QAResult) error           { return nil }
+func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
+func (b *emptyBackend) SaveConstitution(string, string) error          { return nil }
+func (b *emptyBackend) LoadConstitution() (string, string, error)      { return "", "", nil }
+func (b *emptyBackend) ConstitutionExists() (bool, error)              { return false, nil }
+func (b *emptyBackend) DeleteConstitution() error                      { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

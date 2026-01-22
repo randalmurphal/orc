@@ -987,7 +987,7 @@ All done.`,
 			want: "",
 		},
 		{
-			name: "empty content returns empty",
+			name:    "empty content returns empty",
 			content: "",
 			want:    "",
 		},

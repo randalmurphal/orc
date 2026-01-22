@@ -80,6 +80,8 @@ web/src/
 | `activity` | `{ phase, activity }` - see `ActivityState` in types.ts |
 | `heartbeat` | `{ phase, iteration, timestamp }` |
 | `finalize` | `{ task_id, status, step }` |
+| `decision_required` | `{ decision_id, task_id, task_title, phase, gate_type, question, context, requested_at }` |
+| `decision_resolved` | `{ decision_id, task_id, phase, approved, reason, resolved_by, resolved_at }` |
 
 ### Keyboard Shortcuts
 
