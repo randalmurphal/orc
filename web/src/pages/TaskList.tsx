@@ -64,7 +64,7 @@ const STATUS_ORDER = [
 ];
 
 // Available weights
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large', 'greenfield'];
+const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
