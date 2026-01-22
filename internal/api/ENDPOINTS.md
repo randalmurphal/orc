@@ -1,6 +1,9 @@
 # API Endpoints
 
-Full endpoint reference for the REST API.
+> **⚠️ DEPRECATED:** This file is outdated and maintained for quick reference only.
+> For complete, up-to-date API documentation, see [docs/API_REFERENCE.md](/docs/API_REFERENCE.md).
+
+Quick endpoint reference for the REST API.
 
 ## Handler Files
 

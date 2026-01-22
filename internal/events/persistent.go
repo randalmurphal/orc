@@ -197,6 +197,15 @@ func (p *PersistentPublisher) eventToLog(e Event) *db.EventLog {
 	case HeartbeatData:
 		phase = &data.Phase
 		iteration = &data.Iteration
+
+	case DecisionRequiredData:
+		phase = &data.Phase
+
+	case DecisionResolvedData:
+		phase = &data.Phase
+
+	case FilesChangedUpdate:
+		// FilesChangedUpdate doesn't have phase info, just persist as-is
 	}
 
 	return &db.EventLog{

@@ -89,8 +89,9 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create simple state without phases (we don't actually need phase data for this test)
+	// Create state with current phase set to match the decision
 	st := state.New("TASK-001")
+	st.CurrentPhase = "review"
 	if err := srv.backend.SaveState(st); err != nil {
 		t.Fatal(err)
 	}
@@ -184,8 +185,9 @@ func TestHandlePostDecision_Reject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create simple state
+	// Create state with current phase set to match the decision
 	st := state.New("TASK-002")
+	st.CurrentPhase = "implement"
 	if err := srv.backend.SaveState(st); err != nil {
 		t.Fatal(err)
 	}
