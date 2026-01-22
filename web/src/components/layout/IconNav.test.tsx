@@ -177,4 +177,13 @@ describe('IconNav', () => {
 			expect(nav).toHaveClass('custom-class');
 		});
 	});
+
+	describe('skip link support', () => {
+		it('should have id="main-nav" for skip link targeting', () => {
+			renderWithProviders(<IconNav />);
+
+			const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+			expect(nav).toHaveAttribute('id', 'main-nav');
+		});
+	});
 });

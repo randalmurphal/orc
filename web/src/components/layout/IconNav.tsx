@@ -140,6 +140,7 @@ export function IconNav({ className = '' }: IconNavProps) {
 
 	return (
 		<nav
+			id="main-nav"
 			className={navClasses}
 			role="navigation"
 			aria-label="Main navigation"
