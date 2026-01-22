@@ -684,10 +684,21 @@ func (e *Executor) interruptTask(t *task.Task, phaseID string, s *state.State, e
 // handleGateEvaluation evaluates a phase gate and handles potential retry.
 // Returns (shouldRetry, retryIndex) where retryIndex is the phase index to jump to.
 func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, result *Result, t *task.Task, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
-	decision, gateErr := e.evaluateGate(ctx, phase, result.Output, string(t.Weight))
+	decision, gateErr := e.evaluateGateWithTask(ctx, phase, result.Output, string(t.Weight), t)
 	if gateErr != nil {
 		e.logger.Warn("gate evaluation failed", "error", gateErr)
 		// Continue on gate error - don't block automation
+		return false, 0
+	}
+
+	// If decision is pending (headless mode), mark task as blocked and return
+	if decision.Pending {
+		e.logger.Info("gate decision pending", "task", t.ID, "phase", phase.ID)
+		t.Status = task.StatusBlocked
+		if err := e.backend.SaveTask(t); err != nil {
+			e.logger.Error("failed to save blocked task", "error", err)
+		}
+		// Return false to stop execution - task will resume when decision is resolved
 		return false, 0
 	}
 
@@ -852,6 +863,13 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 
 // evaluateGate evaluates a phase gate using configured gate type.
 func (e *Executor) evaluateGate(ctx context.Context, phase *plan.Phase, output string, weight string) (*gate.Decision, error) {
+	// For this signature without task info, call the version with task info
+	// This is used by tests - in production, evaluateGateWithTask is called
+	return e.evaluateGateWithTask(ctx, phase, output, weight, nil)
+}
+
+// evaluateGateWithTask evaluates a phase gate with full task context.
+func (e *Executor) evaluateGateWithTask(ctx context.Context, phase *plan.Phase, output string, weight string, t *task.Task) (*gate.Decision, error) {
 	// Resolve effective gate type from config
 	gateType := e.orcConfig.ResolveGateType(phase.ID, weight)
 
@@ -869,6 +887,20 @@ func (e *Executor) evaluateGate(ctx context.Context, phase *plan.Phase, output s
 		Criteria: phase.Gate.Criteria,
 	}
 
+	// If running in headless mode and gate is human, use EvaluateWithOptions
+	if e.headless && gateType == "human" && e.publisher != nil && e.pendingDecisions != nil && t != nil {
+		opts := &gate.EvaluateOptions{
+			TaskID:        t.ID,
+			TaskTitle:     t.Title,
+			Phase:         phase.ID,
+			Headless:      true,
+			Publisher:     e.publisher,
+			DecisionStore: e.pendingDecisions,
+		}
+		return e.gateEvaluator.EvaluateWithOptions(ctx, effectiveGate, output, opts)
+	}
+
+	// CLI mode or auto gate
 	return e.gateEvaluator.Evaluate(ctx, effectiveGate, output)
 }
 

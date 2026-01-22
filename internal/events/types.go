@@ -53,6 +53,13 @@ const (
 
 	// EventSessionUpdate indicates session metrics changed (tokens, cost, duration, running tasks).
 	EventSessionUpdate EventType = "session_update"
+
+	// Gate decision events (for human approval gates in headless mode)
+
+	// EventDecisionRequired indicates a human gate requires approval.
+	EventDecisionRequired EventType = "decision_required"
+	// EventDecisionResolved indicates a gate decision was approved or rejected.
+	EventDecisionResolved EventType = "decision_resolved"
 )
 
 // Event represents a published event.
@@ -160,4 +167,27 @@ type SessionUpdate struct {
 	TasksRunning int `json:"tasks_running"`
 	// IsPaused indicates whether the executor is in a paused state.
 	IsPaused bool `json:"is_paused"`
+}
+
+// DecisionRequiredData represents a pending gate decision.
+type DecisionRequiredData struct {
+	DecisionID  string    `json:"decision_id"`  // e.g., "gate_TASK-001_review"
+	TaskID      string    `json:"task_id"`
+	TaskTitle   string    `json:"task_title"`
+	Phase       string    `json:"phase"`
+	GateType    string    `json:"gate_type"` // Always "human" for these events
+	Question    string    `json:"question"`
+	Context     string    `json:"context"`
+	RequestedAt time.Time `json:"requested_at"`
+}
+
+// DecisionResolvedData represents a resolved gate decision.
+type DecisionResolvedData struct {
+	DecisionID string    `json:"decision_id"`
+	TaskID     string    `json:"task_id"`
+	Phase      string    `json:"phase"`
+	Approved   bool      `json:"approved"`
+	Reason     string    `json:"reason,omitempty"`
+	ResolvedBy string    `json:"resolved_by"` // "api" or "cli"
+	ResolvedAt time.Time `json:"resolved_at"`
 }

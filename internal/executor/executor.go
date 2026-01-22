@@ -203,6 +203,10 @@ type Executor struct {
 	publisher     events.Publisher
 	backend       storage.Backend
 
+	// Pending gate decisions (for headless mode)
+	pendingDecisions *gate.PendingDecisionStore
+	headless         bool // True if running in API/headless mode
+
 	// Token pool for automatic account switching (nil if disabled)
 	tokenPool *tokenpool.Pool
 
@@ -380,6 +384,16 @@ func (e *Executor) SetBackend(b storage.Backend) {
 // SetAutomationService sets the automation service for trigger-based automation.
 func (e *Executor) SetAutomationService(svc *automation.Service) {
 	e.automationSvc = svc
+}
+
+// SetPendingDecisionStore sets the pending decision store for headless mode.
+func (e *Executor) SetPendingDecisionStore(store *gate.PendingDecisionStore) {
+	e.pendingDecisions = store
+}
+
+// SetHeadless sets the headless flag for API/non-interactive mode.
+func (e *Executor) SetHeadless(headless bool) {
+	e.headless = headless
 }
 
 // taskDir returns the directory for a task's files.
