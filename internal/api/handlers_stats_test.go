@@ -728,3 +728,331 @@ func TestHandleGetPerDayStats_EmptyDatabase(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Outcomes Endpoint Tests
+// ============================================================================
+
+func TestHandleGetOutcomesStats_DefaultPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Create request without period param
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response OutcomesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should default to "all" period
+	if response.Period != "all" {
+		t.Errorf("expected period=all, got %s", response.Period)
+	}
+
+	// Empty database should return zeros
+	if response.Total != 0 {
+		t.Errorf("expected total=0, got %d", response.Total)
+	}
+
+	// Should have all three outcome categories with zeros
+	if response.Outcomes["completed"].Count != 0 {
+		t.Errorf("expected completed count=0, got %d", response.Outcomes["completed"].Count)
+	}
+	if response.Outcomes["with_retries"].Count != 0 {
+		t.Errorf("expected with_retries count=0, got %d", response.Outcomes["with_retries"].Count)
+	}
+	if response.Outcomes["failed"].Count != 0 {
+		t.Errorf("expected failed count=0, got %d", response.Outcomes["failed"].Count)
+	}
+}
+
+func TestHandleGetOutcomesStats_InvalidPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name   string
+		period string
+	}{
+		{"invalid", "invalid"},
+		{"1h", "1h"},
+		{"90d", "90d"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes?period="+tc.period, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetOutcomesStats(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleGetOutcomesStats_WithTasks(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Create 3 completed tasks (no retries)
+	for i := 1; i <= 3; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", i)
+		tsk := task.New(taskID, "Completed task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusCompleted
+		completedAt := now.Add(-time.Hour)
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+		// Save state without retry context
+		st := &storage.SpecInfo{
+			TaskID:    taskID,
+			Content:   "test spec",
+			Source:    "test",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		_ = st // Not needed for this test
+	}
+
+	// Create 2 failed tasks
+	for i := 1; i <= 2; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
+		tsk := task.New(taskID, "Failed task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusFailed
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response OutcomesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have 5 total tasks
+	if response.Total != 5 {
+		t.Errorf("expected total=5, got %d", response.Total)
+	}
+
+	// Check counts
+	if response.Outcomes["completed"].Count != 3 {
+		t.Errorf("expected completed count=3, got %d", response.Outcomes["completed"].Count)
+	}
+	if response.Outcomes["with_retries"].Count != 0 {
+		t.Errorf("expected with_retries count=0, got %d", response.Outcomes["with_retries"].Count)
+	}
+	if response.Outcomes["failed"].Count != 2 {
+		t.Errorf("expected failed count=2, got %d", response.Outcomes["failed"].Count)
+	}
+
+	// Check percentages (60% completed, 0% retries, 40% failed)
+	if response.Outcomes["completed"].Percentage < 59.9 || response.Outcomes["completed"].Percentage > 60.1 {
+		t.Errorf("expected completed percentage≈60, got %.2f", response.Outcomes["completed"].Percentage)
+	}
+	if response.Outcomes["failed"].Percentage < 39.9 || response.Outcomes["failed"].Percentage > 40.1 {
+		t.Errorf("expected failed percentage≈40, got %.2f", response.Outcomes["failed"].Percentage)
+	}
+}
+
+func TestHandleGetOutcomesStats_PeriodFilter(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Create task completed 25 hours ago (outside 24h window)
+	tsk1 := task.New("TASK-001", "Old completed task")
+	tsk1.Status = task.StatusCompleted
+	completedAt1 := now.Add(-25 * time.Hour)
+	tsk1.CompletedAt = &completedAt1
+	if err := backend.SaveTask(tsk1); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create task completed 1 hour ago (within 24h window)
+	tsk2 := task.New("TASK-002", "Recent completed task")
+	tsk2.Status = task.StatusCompleted
+	completedAt2 := now.Add(-1 * time.Hour)
+	tsk2.CompletedAt = &completedAt2
+	if err := backend.SaveTask(tsk2); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Test 24h period - should only see TASK-002
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes?period=24h", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response OutcomesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response.Period != "24h" {
+		t.Errorf("expected period=24h, got %s", response.Period)
+	}
+
+	// Should only count TASK-002
+	if response.Total != 1 {
+		t.Errorf("expected total=1, got %d", response.Total)
+	}
+	if response.Outcomes["completed"].Count != 1 {
+		t.Errorf("expected completed count=1, got %d", response.Outcomes["completed"].Count)
+	}
+}
+
+func TestHandleGetOutcomesStats_PercentageSum(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+	completedAt := now.Add(-time.Hour)
+
+	// Create 10 completed, 3 failed
+	for i := 1; i <= 10; i++ {
+		tsk := task.New("TASK-"+fmt.Sprintf("%03d", i), "Completed")
+		tsk.Status = task.StatusCompleted
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	for i := 1; i <= 3; i++ {
+		tsk := task.New("TASK-"+fmt.Sprintf("%03d", 100+i), "Failed")
+		tsk.Status = task.StatusFailed
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response OutcomesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Percentages should sum to approximately 100%
+	total := response.Outcomes["completed"].Percentage +
+		response.Outcomes["with_retries"].Percentage +
+		response.Outcomes["failed"].Percentage
+
+	if total < 99.9 || total > 100.1 {
+		t.Errorf("percentages should sum to ≈100%%, got %.2f", total)
+	}
+}

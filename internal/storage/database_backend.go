@@ -396,6 +396,7 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 			CompletedAt: dbPhase.CompletedAt,
 			Error:       dbPhase.ErrorMessage,
 			CommitSHA:   dbPhase.CommitSHA,
+			SessionID:   dbPhase.SessionID,
 			Tokens: state.TokenUsage{
 				InputTokens:  dbPhase.InputTokens,
 				OutputTokens: dbPhase.OutputTokens,

@@ -808,3 +808,212 @@ func TestProjectDB_QueryEvents_NoFilters(t *testing.T) {
 		t.Errorf("expected 3 events total, got %d", len(results))
 	}
 }
+
+func TestProjectDB_QueryEventsWithTitles(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks
+	_ = pdb.SaveTask(&Task{ID: "TASK-001", Title: "First Task", Status: "running", CreatedAt: time.Now()})
+	_ = pdb.SaveTask(&Task{ID: "TASK-002", Title: "Second Task", Status: "running", CreatedAt: time.Now()})
+
+	// Add events
+	now := time.Now().UTC()
+	events := []EventLog{
+		{TaskID: "TASK-001", EventType: "state", Source: "test", CreatedAt: now},
+		{TaskID: "TASK-002", EventType: "phase", Source: "test", CreatedAt: now.Add(time.Second)},
+		{TaskID: "TASK-001", EventType: "complete", Source: "test", CreatedAt: now.Add(2 * time.Second)},
+	}
+
+	for i := range events {
+		if err := pdb.SaveEvent(&events[i]); err != nil {
+			t.Fatalf("SaveEvent failed: %v", err)
+		}
+	}
+
+	// Query events with titles
+	results, err := pdb.QueryEventsWithTitles(QueryEventsOptions{})
+	if err != nil {
+		t.Fatalf("QueryEventsWithTitles failed: %v", err)
+	}
+	if len(results) != 3 {
+		t.Errorf("expected 3 events, got %d", len(results))
+	}
+
+	// Verify task titles are populated
+	for _, e := range results {
+		if e.TaskID == "TASK-001" && e.TaskTitle != "First Task" {
+			t.Errorf("expected title 'First Task', got '%s'", e.TaskTitle)
+		}
+		if e.TaskID == "TASK-002" && e.TaskTitle != "Second Task" {
+			t.Errorf("expected title 'Second Task', got '%s'", e.TaskTitle)
+		}
+	}
+}
+
+func TestProjectDB_QueryEventsWithTitles_InitiativeFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks with different initiatives
+	task1 := &Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-001"}
+	_ = pdb.SaveTask(task1)
+
+	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-002"}
+	_ = pdb.SaveTask(task2)
+
+	task3 := &Task{ID: "TASK-003", Title: "Task 3", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-001"}
+	_ = pdb.SaveTask(task3)
+
+	// Add events
+	now := time.Now().UTC()
+	events := []EventLog{
+		{TaskID: "TASK-001", EventType: "state", Source: "test", CreatedAt: now},
+		{TaskID: "TASK-002", EventType: "phase", Source: "test", CreatedAt: now.Add(time.Second)},
+		{TaskID: "TASK-003", EventType: "complete", Source: "test", CreatedAt: now.Add(2 * time.Second)},
+	}
+
+	for i := range events {
+		if err := pdb.SaveEvent(&events[i]); err != nil {
+			t.Fatalf("SaveEvent failed: %v", err)
+		}
+	}
+
+	// Query events for INIT-001 only
+	results, err := pdb.QueryEventsWithTitles(QueryEventsOptions{InitiativeID: "INIT-001"})
+	if err != nil {
+		t.Fatalf("QueryEventsWithTitles failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 events for INIT-001, got %d", len(results))
+	}
+
+	// Verify only INIT-001 tasks are returned
+	for _, e := range results {
+		if e.TaskID != "TASK-001" && e.TaskID != "TASK-003" {
+			t.Errorf("unexpected task %s in INIT-001 results", e.TaskID)
+		}
+	}
+}
+
+func TestProjectDB_CountEvents(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create task
+	_ = pdb.SaveTask(&Task{ID: "TASK-001", Title: "Test", Status: "running", CreatedAt: time.Now()})
+
+	// Add 10 events
+	now := time.Now().UTC()
+	for i := 0; i < 10; i++ {
+		event := EventLog{
+			TaskID:    "TASK-001",
+			EventType: "test",
+			Source:    "test",
+			CreatedAt: now.Add(time.Duration(i) * time.Minute),
+		}
+		if err := pdb.SaveEvent(&event); err != nil {
+			t.Fatalf("SaveEvent failed: %v", err)
+		}
+	}
+
+	// Count all events
+	count, err := pdb.CountEvents(QueryEventsOptions{TaskID: "TASK-001"})
+	if err != nil {
+		t.Fatalf("CountEvents failed: %v", err)
+	}
+	if count != 10 {
+		t.Errorf("expected count=10, got %d", count)
+	}
+
+	// Count with time filter
+	since := now.Add(5 * time.Minute)
+	count2, err := pdb.CountEvents(QueryEventsOptions{
+		TaskID: "TASK-001",
+		Since:  &since,
+	})
+	if err != nil {
+		t.Fatalf("CountEvents with since failed: %v", err)
+	}
+	if count2 != 5 {
+		t.Errorf("expected count=5 with since filter, got %d", count2)
+	}
+}
+
+func TestProjectDB_CountEvents_InitiativeFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".orc", "orc.db")
+
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Migrate("project"); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	pdb := &ProjectDB{DB: db}
+
+	// Create tasks with initiatives
+	task1 := &Task{ID: "TASK-001", Title: "Task 1", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-001"}
+	_ = pdb.SaveTask(task1)
+
+	task2 := &Task{ID: "TASK-002", Title: "Task 2", Status: "running", CreatedAt: time.Now(), InitiativeID: "INIT-002"}
+	_ = pdb.SaveTask(task2)
+
+	// Add events
+	now := time.Now().UTC()
+	for i := 0; i < 3; i++ {
+		_ = pdb.SaveEvent(&EventLog{TaskID: "TASK-001", EventType: "test", Source: "test", CreatedAt: now.Add(time.Duration(i) * time.Second)})
+	}
+	for i := 0; i < 2; i++ {
+		_ = pdb.SaveEvent(&EventLog{TaskID: "TASK-002", EventType: "test", Source: "test", CreatedAt: now.Add(time.Duration(i) * time.Second)})
+	}
+
+	// Count events for INIT-001
+	count, err := pdb.CountEvents(QueryEventsOptions{InitiativeID: "INIT-001"})
+	if err != nil {
+		t.Fatalf("CountEvents failed: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected count=3 for INIT-001, got %d", count)
+	}
+}

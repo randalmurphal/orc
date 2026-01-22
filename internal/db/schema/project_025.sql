@@ -26,3 +26,7 @@ CREATE TABLE IF NOT EXISTS constitution_checks (
 
 -- Index for querying checks by task
 CREATE INDEX IF NOT EXISTS idx_constitution_checks_task ON constitution_checks(task_id);
+
+-- Add session_id column to phases table
+-- Stores Claude CLI session UUID for --resume support per phase
+ALTER TABLE phases ADD COLUMN session_id TEXT;
