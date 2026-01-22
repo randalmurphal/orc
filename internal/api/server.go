@@ -473,6 +473,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/stats/per-day", cors(s.handleGetPerDayStats))
 	s.mux.HandleFunc("GET /api/stats/outcomes", cors(s.handleGetOutcomesStats))
 	s.mux.HandleFunc("GET /api/stats/top-initiatives", cors(s.handleGetTopInitiatives))
+	s.mux.HandleFunc("GET /api/stats/top-files", cors(s.handleGetTopFiles))
 
 	// Events (timeline queries)
 	s.mux.HandleFunc("GET /api/events", cors(s.handleGetEvents))
