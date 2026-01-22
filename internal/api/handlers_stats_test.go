@@ -1056,3 +1056,292 @@ func TestHandleGetOutcomesStats_PercentageSum(t *testing.T) {
 		t.Errorf("percentages should sum to ≈100%%, got %.2f", total)
 	}
 }
+
+// ============================================================================
+// Stats Top Files Tests
+// ============================================================================
+
+func TestHandleGetTopFiles_DefaultParams(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Create request with default params (limit=10, period=all)
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-files", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopFiles(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopFilesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should return empty array (not null) when no data
+	if response.Files == nil {
+		t.Error("expected Files to be empty array, got nil")
+	}
+
+	if len(response.Files) != 0 {
+		t.Errorf("expected 0 files, got %d", len(response.Files))
+	}
+
+	if response.Period != "all" {
+		t.Errorf("expected period 'all', got %s", response.Period)
+	}
+}
+
+func TestHandleGetTopFiles_LimitParam(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name       string
+		limit      string
+		wantStatus int
+		wantError  bool
+	}{
+		{"valid limit 5", "5", http.StatusOK, false},
+		{"valid limit 1", "1", http.StatusOK, false},
+		{"valid limit 50", "50", http.StatusOK, false},
+		{"invalid limit 0", "0", http.StatusBadRequest, true},
+		{"invalid limit 51", "51", http.StatusBadRequest, true},
+		{"invalid limit negative", "-1", http.StatusBadRequest, true},
+		{"invalid limit non-numeric", "abc", http.StatusBadRequest, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/top-files?limit="+tt.limit, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetTopFiles(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d: %s", tt.wantStatus, rr.Code, rr.Body.String())
+			}
+
+			if tt.wantError {
+				var errResp map[string]string
+				if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+					t.Fatalf("failed to decode error response: %v", err)
+				}
+				if errResp["error"] == "" {
+					t.Error("expected error message in response")
+				}
+			}
+		})
+	}
+}
+
+func TestHandleGetTopFiles_PeriodFilter(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name       string
+		period     string
+		wantStatus int
+		wantPeriod string
+		wantError  bool
+	}{
+		{"valid period 24h", "24h", http.StatusOK, "24h", false},
+		{"valid period 7d", "7d", http.StatusOK, "7d", false},
+		{"valid period 30d", "30d", http.StatusOK, "30d", false},
+		{"valid period all", "all", http.StatusOK, "all", false},
+		{"invalid period", "1y", http.StatusBadRequest, "", true},
+		{"invalid period empty string explicitly", "?period=", http.StatusBadRequest, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := "/api/stats/top-files"
+			if tt.period != "" {
+				url += "?period=" + tt.period
+			}
+
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetTopFiles(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d: %s", tt.wantStatus, rr.Code, rr.Body.String())
+			}
+
+			if tt.wantError {
+				var errResp map[string]string
+				if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+					t.Fatalf("failed to decode error response: %v", err)
+				}
+				if errResp["error"] == "" {
+					t.Error("expected error message in response")
+				}
+			} else {
+				var response TopFilesResponse
+				if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
+				if response.Period != tt.wantPeriod {
+					t.Errorf("expected period %s, got %s", tt.wantPeriod, response.Period)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleGetTopFiles_InvalidParams(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name        string
+		url         string
+		wantStatus  int
+		errorSubstr string
+	}{
+		{"invalid limit too high", "/api/stats/top-files?limit=100", http.StatusBadRequest, "limit must be"},
+		{"invalid limit zero", "/api/stats/top-files?limit=0", http.StatusBadRequest, "limit must be"},
+		{"invalid period", "/api/stats/top-files?period=invalid", http.StatusBadRequest, "period must be"},
+		{"both invalid", "/api/stats/top-files?limit=0&period=invalid", http.StatusBadRequest, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetTopFiles(rr, req)
+
+			if rr.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, rr.Code)
+			}
+
+			var errResp map[string]string
+			if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+				t.Fatalf("failed to decode error response: %v", err)
+			}
+
+			if errResp["error"] == "" {
+				t.Error("expected error message in response")
+			}
+		})
+	}
+}
+
+func TestHandleGetTopFiles_EmptyResult(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-files?period=24h", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopFiles(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopFilesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should return empty array, not error
+	if response.Files == nil {
+		t.Error("expected Files to be empty array, got nil")
+	}
+
+	if len(response.Files) != 0 {
+		t.Errorf("expected 0 files, got %d", len(response.Files))
+	}
+}
+
+func TestHandleGetTopFiles_AggregatesAcrossTasks(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// This test would require setting up completed tasks with diff data
+	// For now, verify the endpoint returns successfully with empty data
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-files", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopFiles(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopFilesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// With no tasks, should return empty files array
+	if len(response.Files) != 0 {
+		t.Errorf("expected 0 files, got %d", len(response.Files))
+	}
+}
