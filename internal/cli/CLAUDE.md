@@ -12,6 +12,8 @@ Command-line interface using Cobra. Each command is in its own file.
 | `session.go` | Interactive session handling |
 | `signals.go` | Signal handling (SIGINT, SIGTERM) |
 | `cmd_export.go` | Export/import with tar.gz/zip/dir formats |
+| `cmd_migrate.go` | Plan migration commands (`orc migrate plans`) |
+| `cmd_run.go` | Task execution with auto-migration |
 
 ## Command Pattern
 
@@ -38,7 +40,7 @@ Creates task with AI weight classification. Flags: `--weight`, `--category`, `--
 
 ### `orc run TASK-ID`
 
-Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Flags: `--force`, `--profile`, `--auto-skip`
+Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Auto-migrates stale plans before execution. Flags: `--force`, `--profile`, `--auto-skip`
 
 ### `orc resume TASK-ID`
 
@@ -61,6 +63,10 @@ Real-time streaming via fsnotify with polling fallback.
 ### `orc export/import`
 
 Data portability with tar.gz archives. Export defaults include state and transcripts. Import auto-detects format and handles running→interrupted transformation. See [COMMANDS.md](COMMANDS.md) for full flag reference.
+
+### `orc migrate plans`
+
+Migrates stale task plans to current templates. Staleness detected via version mismatch, phase sequence change, or inline prompts. Preserves completed/skipped phase statuses. Flags: `--all`, `--dry-run`
 
 ## Global Flags
 
