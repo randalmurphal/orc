@@ -1750,3 +1750,362 @@ func TestHandleGetTopFiles_AggregatesAcrossTasks(t *testing.T) {
 		t.Errorf("expected 0 files, got %d", len(response.Files))
 	}
 }
+
+// ============================================================================
+// Stats Comparison Endpoint Tests
+// ============================================================================
+
+func TestHandleGetComparisonStats_DefaultPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Create request without period param
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/comparison", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetComparisonStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ComparisonResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Empty database should return zeros
+	if response.Current.Tasks != 0 {
+		t.Errorf("expected current.tasks=0, got %d", response.Current.Tasks)
+	}
+	if response.Previous.Tasks != 0 {
+		t.Errorf("expected previous.tasks=0, got %d", response.Previous.Tasks)
+	}
+	if response.Changes.Tasks != 0 {
+		t.Errorf("expected changes.tasks=0, got %.2f", response.Changes.Tasks)
+	}
+}
+
+func TestHandleGetComparisonStats_InvalidPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name   string
+		period string
+	}{
+		{"invalid", "invalid"},
+		{"1h", "1h"},
+		{"90d", "90d"},
+		{"24h", "24h"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/comparison?period="+tc.period, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetComparisonStats(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleGetComparisonStats_7DayPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+	currentPeriod := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	previousPeriod := currentPeriod.AddDate(0, 0, -7)
+
+	// Create 3 completed tasks in current period (last 7 days)
+	for i := 1; i <= 3; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", i)
+		tsk := task.New(taskID, "Current task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusCompleted
+		completedAt := currentPeriod.Add(-time.Duration(i) * 24 * time.Hour)
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Create 2 completed tasks in previous period (7-14 days ago)
+	for i := 1; i <= 2; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
+		tsk := task.New(taskID, "Previous task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusCompleted
+		completedAt := previousPeriod.Add(-time.Duration(i) * 24 * time.Hour)
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/comparison?period=7d", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetComparisonStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ComparisonResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Check counts
+	if response.Current.Tasks != 3 {
+		t.Errorf("expected current.tasks=3, got %d", response.Current.Tasks)
+	}
+	if response.Previous.Tasks != 2 {
+		t.Errorf("expected previous.tasks=2, got %d", response.Previous.Tasks)
+	}
+
+	// Check percentage change: ((3 - 2) / 2) * 100 = 50%
+	expectedChange := 50.0
+	if response.Changes.Tasks < expectedChange-0.1 || response.Changes.Tasks > expectedChange+0.1 {
+		t.Errorf("expected changes.tasks≈%.2f%%, got %.2f%%", expectedChange, response.Changes.Tasks)
+	}
+}
+
+func TestHandleGetComparisonStats_30DayPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+	currentPeriod := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	previousPeriod := currentPeriod.AddDate(0, 0, -30)
+
+	// Create 5 completed tasks in current period (last 30 days)
+	for i := 1; i <= 5; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", i)
+		tsk := task.New(taskID, "Current task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusCompleted
+		completedAt := currentPeriod.Add(-time.Duration(i) * 24 * time.Hour)
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Create 3 completed tasks in previous period (30-60 days ago)
+	for i := 1; i <= 3; i++ {
+		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
+		tsk := task.New(taskID, "Previous task "+fmt.Sprintf("%d", i))
+		tsk.Status = task.StatusCompleted
+		completedAt := previousPeriod.Add(-time.Duration(i) * 24 * time.Hour)
+		tsk.CompletedAt = &completedAt
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/comparison?period=30d", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetComparisonStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ComparisonResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Check counts
+	if response.Current.Tasks != 5 {
+		t.Errorf("expected current.tasks=5, got %d", response.Current.Tasks)
+	}
+	if response.Previous.Tasks != 3 {
+		t.Errorf("expected previous.tasks=3, got %d", response.Previous.Tasks)
+	}
+
+	// Check percentage change: ((5 - 3) / 3) * 100 = 66.67%
+	expectedChange := 66.67
+	if response.Changes.Tasks < expectedChange-0.1 || response.Changes.Tasks > expectedChange+0.1 {
+		t.Errorf("expected changes.tasks≈%.2f%%, got %.2f%%", expectedChange, response.Changes.Tasks)
+	}
+}
+
+func TestHandleGetComparisonStats_EmptyDatabase(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/comparison?period=7d", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetComparisonStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ComparisonResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// All values should be zero
+	if response.Current.Tasks != 0 || response.Previous.Tasks != 0 {
+		t.Errorf("expected all task counts=0, got current=%d, previous=%d", response.Current.Tasks, response.Previous.Tasks)
+	}
+	if response.Changes.Tasks != 0 {
+		t.Errorf("expected changes.tasks=0, got %.2f", response.Changes.Tasks)
+	}
+}
+
+
+func TestCalculatePercentageChange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		previous float64
+		current  float64
+		expected float64
+	}{
+		{
+			name:     "increase from 100 to 150",
+			previous: 100,
+			current:  150,
+			expected: 50.0,
+		},
+		{
+			name:     "decrease from 100 to 50",
+			previous: 100,
+			current:  50,
+			expected: -50.0,
+		},
+		{
+			name:     "no change",
+			previous: 100,
+			current:  100,
+			expected: 0.0,
+		},
+		{
+			name:     "increase from 0 to 100",
+			previous: 0,
+			current:  100,
+			expected: 100.0,
+		},
+		{
+			name:     "both zero",
+			previous: 0,
+			current:  0,
+			expected: 0.0,
+		},
+		{
+			name:     "previous zero, current non-zero",
+			previous: 0,
+			current:  50,
+			expected: 100.0,
+		},
+		{
+			name:     "small increase",
+			previous: 100,
+			current:  101,
+			expected: 1.0,
+		},
+		{
+			name:     "large increase",
+			previous: 10,
+			current:  100,
+			expected: 900.0,
+		},
+		{
+			name:     "fractional values",
+			previous: 33.33,
+			current:  66.66,
+			expected: 99.99,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := calculatePercentageChange(tc.previous, tc.current)
+			if result < tc.expected-0.1 || result > tc.expected+0.1 {
+				t.Errorf("calculatePercentageChange(%.2f, %.2f) = %.2f, expected %.2f",
+					tc.previous, tc.current, result, tc.expected)
+			}
+		})
+	}
+}
