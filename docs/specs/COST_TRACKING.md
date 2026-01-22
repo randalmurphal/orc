@@ -1,8 +1,8 @@
 # Cost Tracking
 
-**Status**: Database Layer Implemented (TASK-406)
+**Status**: Database Layer + Executor Integration Implemented (TASK-406)
 **Priority**: P1
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-21
 
 ---
 
@@ -12,7 +12,8 @@
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| Schema Migration | ✅ Done | `internal/db/schema/global_002.sql` |
+| Schema Migration (model, cache tokens) | ✅ Done | `internal/db/schema/global_002.sql` |
+| Schema Migration (duration_ms) | ✅ Done | `internal/db/schema/global_003.sql` |
 | CostEntry struct | ✅ Done | `internal/db/global.go` |
 | CostAggregate struct | ✅ Done | `internal/db/global.go` |
 | CostBudget struct | ✅ Done | `internal/db/global.go` |
@@ -25,13 +26,14 @@
 | GetBudget() / SetBudget() | ✅ Done | `internal/db/global.go` |
 | GetBudgetStatus() | ✅ Done | `internal/db/global.go` |
 | DetectModel() utility | ✅ Done | `internal/db/global.go` |
+| Executor integration | ✅ Done | `internal/executor/cost_tracking.go` |
+| CostMetadata struct | ✅ Done | `internal/executor/cost_tracking.go` |
 | Test coverage | ✅ Done | `internal/db/global_test.go` |
 
 ### Pending (Future Tasks)
 
 | Component | Depends On |
 |-----------|------------|
-| Executor integration (call RecordCostExtended) | TASK-407 |
 | API endpoints (`/api/cost/*`) | TASK-406 complete |
 | CLI command (`orc cost`) | TASK-406 complete |
 | Web dashboard cost widget | API endpoints |
@@ -455,6 +457,7 @@ The cost tracking schema is added via `internal/db/schema/global_002.sql`:
 | `cache_read_tokens` | INTEGER | `0` | Tokens served from cache (90% cheaper) |
 | `total_tokens` | INTEGER | `0` | Effective total for analytics |
 | `initiative_id` | TEXT | `''` | Links costs to initiative |
+| `duration_ms` | INTEGER | `0` | Phase execution duration in milliseconds |
 
 **New indexes on cost_log:**
 
@@ -464,6 +467,7 @@ The cost tracking schema is added via `internal/db/schema/global_002.sql`:
 | `idx_cost_model_timestamp` | `model, timestamp` | Time-range queries by model |
 | `idx_cost_initiative` | `initiative_id` | Initiative cost analysis |
 | `idx_cost_project_timestamp` | `project_id, timestamp` | Project timeline queries |
+| `idx_cost_duration` | `duration_ms` | Duration-based queries (slow phase detection) |
 
 **cost_aggregates table:**
 
@@ -522,6 +526,7 @@ type CostEntry struct {
     CacheReadTokens     int
     TotalTokens         int
     InitiativeID        string
+    DurationMs          int64     // Phase execution duration in milliseconds
     Timestamp           time.Time
 }
 
