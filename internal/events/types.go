@@ -53,6 +53,11 @@ const (
 
 	// EventSessionUpdate indicates session metrics changed (tokens, cost, duration, running tasks).
 	EventSessionUpdate EventType = "session_update"
+
+	// File change events (during task execution)
+
+	// EventFilesChanged indicates files were modified during task execution.
+	EventFilesChanged EventType = "files_changed"
 )
 
 // Event represents a published event.
@@ -160,4 +165,20 @@ type SessionUpdate struct {
 	TasksRunning int `json:"tasks_running"`
 	// IsPaused indicates whether the executor is in a paused state.
 	IsPaused bool `json:"is_paused"`
+}
+
+// FilesChangedUpdate represents file changes detected during task execution.
+type FilesChangedUpdate struct {
+	Files          []ChangedFile `json:"files"`
+	TotalAdditions int           `json:"total_additions"`
+	TotalDeletions int           `json:"total_deletions"`
+	Timestamp      time.Time     `json:"timestamp"`
+}
+
+// ChangedFile represents a single changed file.
+type ChangedFile struct {
+	Path      string `json:"path"`
+	Status    string `json:"status"` // added, modified, deleted, renamed
+	Additions int    `json:"additions"`
+	Deletions int    `json:"deletions"`
 }
