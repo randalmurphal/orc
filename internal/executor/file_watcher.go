@@ -193,7 +193,7 @@ func (w *FileWatcher) hashFileState(files []events.ChangedFile) string {
 	// Create hash from sorted file list
 	h := sha256.New()
 	for _, f := range sorted {
-		fmt.Fprintf(h, "%s:%s:%d:%d\n", f.Path, f.Status, f.Additions, f.Deletions)
+		_, _ = fmt.Fprintf(h, "%s:%s:%d:%d\n", f.Path, f.Status, f.Additions, f.Deletions)
 	}
 
 	return hex.EncodeToString(h.Sum(nil))
