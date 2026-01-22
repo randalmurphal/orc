@@ -24,6 +24,7 @@ Full endpoint reference for the REST API.
 | `handlers_templates.go` | `/api/templates/*` | Templates |
 | `handlers_config.go` | `/api/config/*` | Orc config |
 | `handlers_dashboard.go` | `/api/dashboard/*` | Dashboard stats |
+| `handlers_stats.go` | `/api/stats/*` | Activity heatmap data |
 | `handlers_metrics.go` | `/api/metrics/*` | JSONL-based analytics |
 | `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diffs |
 | `handlers_github.go` | `/api/tasks/:id/github/*` | GitHub PRs |
@@ -121,6 +122,12 @@ All support `?scope=global` for user-level config (`~/.claude/`):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/dashboard/stats` | Get dashboard stats |
+
+## Stats Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/stats/activity` | Get activity data for heatmap (`?weeks=16`) |
 
 ## Metrics Endpoints
 

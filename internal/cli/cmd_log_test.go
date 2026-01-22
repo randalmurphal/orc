@@ -336,28 +336,34 @@ func TestConstructJSONLPathFallback_WithCurrentPhase(t *testing.T) {
 	st := &state.State{
 		TaskID:       "TASK-001",
 		CurrentPhase: "implement",
-		Session:      nil,
+		Phases: map[string]*state.PhaseState{
+			"implement": {
+				SessionID: "test-session-id",
+			},
+		},
 	}
 
 	// This will try to construct a path but it won't exist, so it will error
-	// We're testing the session ID construction logic
+	// We're testing the session ID retrieval logic
 	_, err := constructJSONLPathFallback("TASK-001", st)
 
-	// Should not error with "no session ID" since we have CurrentPhase
+	// Should not error with "no session ID" since we have phase session ID
 	if err != nil && strings.Contains(err.Error(), "no session ID") {
-		t.Errorf("should be able to construct session ID from current phase, got error: %q", err.Error())
+		t.Errorf("should be able to use phase session ID, got error: %q", err.Error())
 	}
 	// Expected error is "constructed JSONL path does not exist" or similar
 	// because the test path won't exist on disk
 }
 
 func TestConstructJSONLPathFallback_WithExplicitSessionID(t *testing.T) {
-	// Test with explicit session ID in state
+	// Test with explicit session ID in phase state
 	st := &state.State{
 		TaskID:       "TASK-001",
 		CurrentPhase: "implement",
-		Session: &state.SessionInfo{
-			ID: "explicit-session-id",
+		Phases: map[string]*state.PhaseState{
+			"implement": {
+				SessionID: "explicit-session-id",
+			},
 		},
 	}
 
@@ -367,7 +373,7 @@ func TestConstructJSONLPathFallback_WithExplicitSessionID(t *testing.T) {
 
 	// Should not error with "no session ID"
 	if err != nil && strings.Contains(err.Error(), "no session ID") {
-		t.Errorf("should use explicit session ID from state, got error: %q", err.Error())
+		t.Errorf("should use explicit session ID from phase state, got error: %q", err.Error())
 	}
 }
 
@@ -438,10 +444,15 @@ func TestConstructJSONLPathFallback_PathConstruction(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(origDir) }()
 
-	// Test with state that has CurrentPhase set
+	// Test with state that has CurrentPhase and session ID set
 	st := &state.State{
 		TaskID:       "TASK-TEST",
 		CurrentPhase: "implement",
+		Phases: map[string]*state.PhaseState{
+			"implement": {
+				SessionID: sessionID,
+			},
+		},
 	}
 
 	path, err := constructJSONLPathFallback("TASK-TEST", st)
@@ -496,10 +507,15 @@ func TestConstructJSONLPathFallback_WorktreeExists(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(origDir) }()
 
-	// Test with state that has CurrentPhase set
+	// Test with state that has CurrentPhase and session ID set
 	st := &state.State{
 		TaskID:       "TASK-WT",
 		CurrentPhase: "implement",
+		Phases: map[string]*state.PhaseState{
+			"implement": {
+				SessionID: sessionID,
+			},
+		},
 	}
 
 	// This should find the worktree and construct path using worktree path
