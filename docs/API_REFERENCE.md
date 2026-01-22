@@ -654,7 +654,45 @@ Gate approval/rejection for human gates in headless (API/WebSocket) mode. When a
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/decisions` | List all pending gate decisions |
 | POST | `/api/decisions/:id` | Approve or reject a pending gate decision |
+
+### List Pending Decisions
+
+**GET `/api/decisions`**
+
+Returns all pending gate decisions awaiting resolution. Use this endpoint to load pending decisions on page refresh. For real-time updates, subscribe to WebSocket `decision_required` events.
+
+**Response (200):**
+```json
+[
+  {
+    "decision_id": "gate_TASK-001_review_1737504000000000000",
+    "task_id": "TASK-001",
+    "task_title": "Add user authentication",
+    "phase": "review",
+    "gate_type": "human",
+    "question": "Please verify the following criteria:",
+    "context": "Code review passes\nTests pass",
+    "requested_at": "2026-01-22T10:00:00Z"
+  }
+]
+```
+
+| Field | Description |
+|-------|-------------|
+| `decision_id` | Unique ID for this decision |
+| `task_id` | Associated task ID |
+| `task_title` | Task title for display |
+| `phase` | Phase awaiting approval |
+| `gate_type` | Gate type (`human` or `ai`) |
+| `question` | Prompt to show the user |
+| `context` | Additional context (may be empty) |
+| `requested_at` | When the decision was requested (ISO8601) |
+
+**Notes:**
+- Returns empty array `[]` if no decisions are pending
+- Decisions are removed from the list when resolved via POST
 
 ### Resolve Decision
 
