@@ -351,17 +351,8 @@ func SaveFromTask(taskID, name, description string, global bool, backend storage
 		return nil, fmt.Errorf("load task: %w", err)
 	}
 
-	// Load the plan to get phases
-	p, err := backend.LoadPlan(taskID)
-	if err != nil {
-		return nil, fmt.Errorf("load plan: %w", err)
-	}
-
-	// Extract phases from plan
-	var phases []string
-	for _, phase := range p.Phases {
-		phases = append(phases, phase.ID)
-	}
+	// Derive phases from task weight
+	phases := phasesForWeight(t.Weight)
 
 	template := &Template{
 		Name:        name,
@@ -466,4 +457,20 @@ func GlobalTemplatesDir() string {
 func Exists(name string) bool {
 	_, err := Load(name)
 	return err == nil
+}
+
+// phasesForWeight returns the phase IDs for a given task weight.
+func phasesForWeight(weight task.Weight) []string {
+	switch weight {
+	case task.WeightTrivial:
+		return []string{"tiny_spec", "implement"}
+	case task.WeightSmall:
+		return []string{"tiny_spec", "implement", "review"}
+	case task.WeightMedium:
+		return []string{"spec", "tdd_write", "implement", "review", "docs"}
+	case task.WeightLarge:
+		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs", "validate"}
+	default:
+		return []string{"spec", "implement", "review"}
+	}
 }

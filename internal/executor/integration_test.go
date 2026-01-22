@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -162,7 +161,7 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 		Weight: task.WeightTrivial,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: `Just respond with JSON: {"status": "complete", "summary": "Done"}`,
@@ -183,7 +182,7 @@ func TestIntegration_ExecutePhase_Complete(t *testing.T) {
 
 	costs.Add(t.Name(), result.InputTokens, result.OutputTokens, duration)
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 
@@ -225,11 +224,9 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version:     1,
-		Weight:      "trivial",
-		Description: "Integration test",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "INT-002",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
@@ -237,10 +234,6 @@ func TestIntegration_ExecuteTask_SinglePhase(t *testing.T) {
 			},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "INT-002"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("INT-002")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -317,10 +310,9 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "INT-003",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
@@ -333,10 +325,6 @@ func TestIntegration_ExecuteTask_MultiPhase(t *testing.T) {
 			},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "INT-003"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("INT-003")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
@@ -400,10 +388,9 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "INT-004",
+		Phases: []Phase{
 			{
 				ID:     "phase1",
 				Prompt: `Respond only with JSON: {"status": "complete", "summary": "Done"}`,
@@ -414,10 +401,6 @@ func TestIntegration_Pause_Resume(t *testing.T) {
 			},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "INT-004"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("INT-004")
 
 	// Execute first phase
@@ -498,7 +481,7 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Prompt: "Test prompt",
 	}
@@ -512,7 +495,7 @@ func TestMock_ExecutePhase_Complete(t *testing.T) {
 		t.Fatalf("ExecutePhase failed: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 }
@@ -554,16 +537,12 @@ func TestMock_ExecuteTask_WithEvents(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "MOCK-002",
+		Phases: []Phase{
 			{ID: "implement", Prompt: "Test"},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "MOCK-002"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("MOCK-002")
 
 	// Collect events
@@ -648,16 +627,12 @@ func TestMock_ExecuteTask_SetsStartedAt(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "MOCK-ELAPSED",
+		Phases: []Phase{
 			{ID: "implement", Prompt: "Test"},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "MOCK-ELAPSED"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	// CRITICAL: Create a state with zero StartedAt to simulate a loaded state
 	// from the database. This is the bug scenario - states loaded from DB
 	// may have zero StartedAt if the task hasn't started yet.
@@ -745,10 +720,9 @@ func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "INT-TIMEOUT",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
@@ -756,10 +730,6 @@ func TestIntegration_PhaseTimeout_EnforcesLimit(t *testing.T) {
 			},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "INT-TIMEOUT"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("INT-TIMEOUT")
 
 	// Execute - should timeout
@@ -849,10 +819,9 @@ func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "INT-NO-TIMEOUT",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
@@ -860,10 +829,6 @@ func TestIntegration_PhaseTimeout_Disabled(t *testing.T) {
 			},
 		},
 	}
-	if err := backend.SavePlan(testPlan, "INT-NO-TIMEOUT"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	testState := state.New("INT-NO-TIMEOUT")
 
 	ctx := context.Background()

@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
@@ -44,42 +43,27 @@ Example:
 				return fmt.Errorf("--phase flag is required")
 			}
 
-			// Load plan
-			p, err := backend.LoadPlan(id)
+			// Load state
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load plan: %w", err)
+				// State might not exist, create new one
+				s = state.New(id)
 			}
 
-			// Find and skip the phase
-			phase := p.GetPhase(phaseID)
-			if phase == nil {
-				return fmt.Errorf("phase %s not found", phaseID)
-			}
-
-			if phase.Status == plan.PhaseCompleted {
+			// Check if phase is already completed
+			if ps := s.Phases[phaseID]; ps != nil && ps.Status == state.StatusCompleted {
 				return fmt.Errorf("phase %s is already completed", phaseID)
 			}
 
-			phase.Status = plan.PhaseSkipped
+			// Skip the phase
+			s.SkipPhase(phaseID, reason)
 
-			// Save plan
-			if err := backend.SavePlan(p, id); err != nil {
-				return fmt.Errorf("save plan: %w", err)
+			// Save state
+			if err := backend.SaveState(s); err != nil {
+				return fmt.Errorf("save state: %w", err)
 			}
 
-			// Load and update state
-			s, err := backend.LoadState(id)
-			if err == nil && s != nil {
-				s.SkipPhase(phaseID, reason)
-				_ = backend.SaveState(s)
-			} else {
-				// State might not exist, create new one
-				s = state.New(id)
-				s.SkipPhase(phaseID, reason)
-				_ = backend.SaveState(s)
-			}
-
-			fmt.Printf("⊘ Phase %s skipped", phaseID)
+			fmt.Printf("Phase %s skipped", phaseID)
 			if reason != "" {
 				fmt.Printf(": %s", reason)
 			}

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
@@ -54,34 +53,34 @@ func (m *mockPublisher) lastEvent() *events.Event {
 	return &ev
 }
 
-func TestNewEventPublisher_NilPublisher_DoesNotPanic(t *testing.T) {
+func TestNewPublishHelper_NilPublisher_DoesNotPanic(t *testing.T) {
 	t.Parallel()
 
 	// Should not panic when creating with nil
-	ep := NewEventPublisher(nil)
+	ep := NewPublishHelper(nil)
 	if ep == nil {
-		t.Fatal("expected non-nil EventPublisher")
+		t.Fatal("expected non-nil PublishHelper")
 	}
 }
 
-func TestEventPublisher_Publish_NilPublisher_NoOp(t *testing.T) {
+func TestPublishHelper_Publish_NilPublisher_NoOp(t *testing.T) {
 	t.Parallel()
 
-	ep := NewEventPublisher(nil)
+	ep := NewPublishHelper(nil)
 
 	// Should not panic when publishing with nil publisher
 	ep.Publish(events.NewEvent(events.EventState, "TASK-001", nil))
 
-	// Also test when the EventPublisher itself is nil
-	var nilEP *EventPublisher
+	// Also test when the PublishHelper itself is nil
+	var nilEP *PublishHelper
 	nilEP.Publish(events.NewEvent(events.EventState, "TASK-001", nil))
 }
 
-func TestEventPublisher_PhaseStart_PublishesCorrectEvent(t *testing.T) {
+func TestPublishHelper_PhaseStart_PublishesCorrectEvent(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	ep.PhaseStart("TASK-001", "implement")
 
@@ -104,16 +103,16 @@ func TestEventPublisher_PhaseStart_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "implement" {
 		t.Errorf("expected phase implement, got %s", update.Phase)
 	}
-	if update.Status != string(plan.PhaseRunning) {
+	if update.Status != string(PhaseRunning) {
 		t.Errorf("expected status running, got %s", update.Status)
 	}
 }
 
-func TestEventPublisher_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
+func TestPublishHelper_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	ep.PhaseComplete("TASK-002", "test", "abc123")
 
@@ -129,7 +128,7 @@ func TestEventPublisher_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "test" {
 		t.Errorf("expected phase test, got %s", update.Phase)
 	}
-	if update.Status != string(plan.PhaseCompleted) {
+	if update.Status != string(PhaseCompleted) {
 		t.Errorf("expected status completed, got %s", update.Status)
 	}
 	if update.CommitSHA != "abc123" {
@@ -137,7 +136,7 @@ func TestEventPublisher_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_PhaseFailed_IncludesErrorMessage(t *testing.T) {
+func TestPublishHelper_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -162,7 +161,7 @@ func TestEventPublisher_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 			t.Parallel()
 
 			mock := newMockPublisher()
-			ep := NewEventPublisher(mock)
+			ep := NewPublishHelper(mock)
 
 			ep.PhaseFailed("TASK-003", "validate", tt.err)
 
@@ -175,7 +174,7 @@ func TestEventPublisher_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 			}
-			if update.Status != string(plan.PhaseFailed) {
+			if update.Status != string(PhaseFailed) {
 				t.Errorf("expected status failed, got %s", update.Status)
 			}
 			if update.Error != tt.wantMsg {
@@ -185,7 +184,7 @@ func TestEventPublisher_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_Transcript_AllFieldsSet(t *testing.T) {
+func TestPublishHelper_Transcript_AllFieldsSet(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -227,7 +226,7 @@ func TestEventPublisher_Transcript_AllFieldsSet(t *testing.T) {
 			t.Parallel()
 
 			mock := newMockPublisher()
-			ep := NewEventPublisher(mock)
+			ep := NewPublishHelper(mock)
 
 			ep.Transcript(tt.taskID, tt.phase, tt.iteration, tt.msgType, tt.content)
 
@@ -266,11 +265,11 @@ func TestEventPublisher_Transcript_AllFieldsSet(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_TranscriptChunk_SetsChunkType(t *testing.T) {
+func TestPublishHelper_TranscriptChunk_SetsChunkType(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	ep.TranscriptChunk("TASK-001", "implement", 1, "partial output...")
 
@@ -291,11 +290,11 @@ func TestEventPublisher_TranscriptChunk_SetsChunkType(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_Tokens_AllFieldsSet(t *testing.T) {
+func TestPublishHelper_Tokens_AllFieldsSet(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	ep.Tokens("TASK-001", "implement", 1000, 500, 0, 0, 1500)
 
@@ -326,7 +325,7 @@ func TestEventPublisher_Tokens_AllFieldsSet(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_Error_FatalFlag(t *testing.T) {
+func TestPublishHelper_Error_FatalFlag(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -342,7 +341,7 @@ func TestEventPublisher_Error_FatalFlag(t *testing.T) {
 			t.Parallel()
 
 			mock := newMockPublisher()
-			ep := NewEventPublisher(mock)
+			ep := NewPublishHelper(mock)
 
 			ep.Error("TASK-001", "implement", "something went wrong", tt.fatal)
 
@@ -372,11 +371,11 @@ func TestEventPublisher_Error_FatalFlag(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_State_PublishesState(t *testing.T) {
+func TestPublishHelper_State_PublishesState(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	s := state.New("TASK-001")
 	s.CurrentPhase = "implement"
@@ -404,11 +403,11 @@ func TestEventPublisher_State_PublishesState(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_State_NilState_NoOp(t *testing.T) {
+func TestPublishHelper_State_NilState_NoOp(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	// Should not panic or publish anything
 	ep.State("TASK-001", nil)
@@ -419,11 +418,11 @@ func TestEventPublisher_State_NilState_NoOp(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_ConcurrentPublish_Safe(t *testing.T) {
+func TestPublishHelper_ConcurrentPublish_Safe(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	const numGoroutines = 100
 	const numPublishesPerGoroutine = 10
@@ -462,11 +461,11 @@ func TestEventPublisher_ConcurrentPublish_Safe(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_Session_PublishesSessionUpdate(t *testing.T) {
+func TestPublishHelper_Session_PublishesSessionUpdate(t *testing.T) {
 	t.Parallel()
 
 	mock := newMockPublisher()
-	ep := NewEventPublisher(mock)
+	ep := NewPublishHelper(mock)
 
 	update := events.SessionUpdate{
 		DurationSeconds:  3650,
@@ -522,10 +521,10 @@ func TestEventPublisher_Session_PublishesSessionUpdate(t *testing.T) {
 	}
 }
 
-func TestEventPublisher_Session_NilPublisher_NoOp(t *testing.T) {
+func TestPublishHelper_Session_NilPublisher_NoOp(t *testing.T) {
 	t.Parallel()
 
-	ep := NewEventPublisher(nil)
+	ep := NewPublishHelper(nil)
 
 	// Should not panic when publishing with nil publisher
 	ep.Session(events.SessionUpdate{

@@ -14,7 +14,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -243,26 +243,7 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create plan from template
-	p, err := plan.CreateFromTemplate(t)
-	if err != nil {
-		p = &plan.Plan{
-			Version:     1,
-			TaskID:      id,
-			Weight:      t.Weight,
-			Description: "Default plan",
-			Phases: []plan.Phase{
-				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-			},
-		}
-	}
-
-	// Save plan
-	if err := backend.SavePlan(p, id); err != nil {
-		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
-		return
-	}
-
+	// Task is now created - mark as planned (execution will determine phases)
 	t.Status = task.StatusPlanned
 	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
@@ -402,12 +383,8 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load plan
-	p, err := backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
+	// Create plan based on task weight
+	p := createPlanForWeight(taskID, t.Weight)
 
 	// Load or create state
 	st, err := backend.LoadState(taskID)
@@ -571,12 +548,8 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Load plan
-	p, err := backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
+	// Create plan based on task weight
+	p := createPlanForWeight(taskID, t.Weight)
 
 	// Load state
 	st, err := backend.LoadState(taskID)
@@ -690,12 +663,8 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Load plan
-	p, err := backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
+	// Create plan based on task weight to validate phase exists
+	p := createPlanForWeight(taskID, t.Weight)
 
 	// Find target phase
 	targetPhase := p.GetPhase(req.Phase)
@@ -713,15 +682,13 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Mark target and all later phases as pending
+	// Mark target and all later phases as pending in state
 	foundTarget := false
 	for i := range p.Phases {
 		if p.Phases[i].ID == req.Phase {
 			foundTarget = true
 		}
 		if foundTarget {
-			p.Phases[i].Status = plan.PhasePending
-			p.Phases[i].CommitSHA = ""
 			if st.Phases[p.Phases[i].ID] != nil {
 				st.Phases[p.Phases[i].ID].Status = state.StatusPending
 				st.Phases[p.Phases[i].ID].CompletedAt = nil
@@ -740,10 +707,6 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	t.CompletedAt = nil
 
 	// Save all updates
-	if err := backend.SavePlan(p, taskID); err != nil {
-		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
-		return
-	}
 	if err := backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
 		return
@@ -807,12 +770,8 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Load plan
-	p, err := backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "failed to load plan", http.StatusInternalServerError)
-		return
-	}
+	// Create plan based on task weight
+	p := createPlanForWeight(taskID, t.Weight)
 
 	// Find implement phase - this is always where we escalate to
 	targetPhase := p.GetPhase("implement")
@@ -860,15 +819,13 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	// Set retry context in state
 	st.SetRetryContext(currentPhase, "implement", req.Reason, "", attempt)
 
-	// Mark implement and all later phases as pending
+	// Mark implement and all later phases as pending in state
 	foundTarget := false
 	for i := range p.Phases {
 		if p.Phases[i].ID == "implement" {
 			foundTarget = true
 		}
 		if foundTarget {
-			p.Phases[i].Status = plan.PhasePending
-			p.Phases[i].CommitSHA = ""
 			if st.Phases[p.Phases[i].ID] != nil {
 				st.Phases[p.Phases[i].ID].Status = state.StatusPending
 				st.Phases[p.Phases[i].ID].CompletedAt = nil
@@ -887,10 +844,6 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	t.CompletedAt = nil
 
 	// Save all updates
-	if err := backend.SavePlan(p, taskID); err != nil {
-		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
-		return
-	}
 	if err := backend.SaveState(st); err != nil {
 		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
 		return
@@ -956,11 +909,14 @@ func (s *Server) handleGetProjectTaskPlan(w http.ResponseWriter, r *http.Request
 	}
 	defer func() { _ = backend.Close() }()
 
-	p, err := backend.LoadPlan(taskID)
-	if err != nil || p == nil {
-		s.jsonError(w, "plan not found", http.StatusNotFound)
+	t, err := backend.LoadTask(taskID)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
+
+	// Create plan based on task weight (plans are no longer stored)
+	p := createPlanForWeight(taskID, t.Weight)
 
 	s.jsonResponse(w, p)
 }
@@ -1041,4 +997,54 @@ func (s *Server) loadProjectTask(projectPath, taskID string) (*task.Task, error)
 	defer func() { _ = backend.Close() }()
 
 	return backend.LoadTask(taskID)
+}
+
+// createPlanForWeight creates an execution plan based on task weight.
+// Plans are no longer stored - they are created dynamically for execution.
+func createPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
+	var phases []executor.Phase
+
+	switch weight {
+	case task.WeightTrivial:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightSmall:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightMedium:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightLarge:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	default:
+		// Default to medium weight phases
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
+	}
 }

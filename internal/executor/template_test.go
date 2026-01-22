@@ -3,7 +3,6 @@ package executor
 import (
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -122,7 +121,7 @@ func TestBuildTemplateVars(t *testing.T) {
 	tests := []struct {
 		name         string
 		task         *task.Task
-		phase        *plan.Phase
+		phase        *Phase
 		state        *state.State
 		iteration    int
 		retryContext string
@@ -141,7 +140,7 @@ func TestBuildTemplateVars(t *testing.T) {
 				Description: "Test description",
 				Weight:      task.WeightSmall,
 			},
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID:   "implement",
 				Name: "Implementation",
 			},
@@ -162,7 +161,7 @@ func TestBuildTemplateVars(t *testing.T) {
 				Title:  "Retry Task",
 				Weight: task.WeightMedium,
 			},
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID: "test",
 			},
 			state:        state.New("TASK-002"),
@@ -182,7 +181,7 @@ func TestBuildTemplateVars(t *testing.T) {
 				Title:  "No State Task",
 				Weight: task.WeightLarge,
 			},
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID: "spec",
 			},
 			state:        nil,
@@ -202,7 +201,7 @@ func TestBuildTemplateVars(t *testing.T) {
 				Title:  "Stateful Task",
 				Weight: task.WeightLarge,
 			},
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID: "implement",
 			},
 			state:        createStateWithCompletedPhases("TASK-004"),
@@ -247,14 +246,14 @@ func TestLoadPromptTemplate(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name      string
-		phase     *plan.Phase
+		phase     *Phase
 		wantErr   bool
 		wantInErr string
 		checkFunc func(string) bool
 	}{
 		{
 			name: "inline prompt returns inline",
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID:     "custom",
 				Prompt: "This is an inline prompt for {{TASK_TITLE}}",
 			},
@@ -265,7 +264,7 @@ func TestLoadPromptTemplate(t *testing.T) {
 		},
 		{
 			name: "empty inline loads from template",
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID:     "implement",
 				Prompt: "", // Will try to load from templates
 			},
@@ -283,7 +282,7 @@ func TestLoadPromptTemplate(t *testing.T) {
 		},
 		{
 			name: "missing phase template returns error",
-			phase: &plan.Phase{
+			phase: &Phase{
 				ID:     "nonexistent-phase-that-does-not-exist",
 				Prompt: "",
 			},
@@ -425,7 +424,7 @@ func TestBuildTemplateVarsWithWorktree(t *testing.T) {
 		Description: "Test description",
 		Weight:      task.WeightMedium,
 	}
-	phaseObj := &plan.Phase{
+	phaseObj := &Phase{
 		ID:   "implement",
 		Name: "Implementation",
 	}

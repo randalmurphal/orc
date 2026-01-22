@@ -24,6 +24,13 @@ import type {
 	InitiativeTaskRef,
 	InitiativeDecision,
 	Branch,
+	Workflow,
+	WorkflowWithDetails,
+	PhaseTemplate,
+	WorkflowRun,
+	WorkflowRunWithDetails,
+	WorkflowPhase,
+	WorkflowVariable,
 } from './types';
 
 const API_BASE = '/api';
@@ -2120,4 +2127,227 @@ export async function deleteBranch(name: string): Promise<void> {
 		const error = await res.json().catch(() => ({ error: res.statusText }));
 		throw new Error(error.error || 'Failed to delete branch');
 	}
+}
+
+// Workflows
+export async function listWorkflows(options?: {
+	builtin?: boolean;
+	custom?: boolean;
+}): Promise<Workflow[]> {
+	const params = new URLSearchParams();
+	if (options?.builtin) params.set('builtin', 'true');
+	if (options?.custom) params.set('custom', 'true');
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<Workflow[]>(`/workflows${query}`);
+}
+
+export async function getWorkflow(id: string): Promise<WorkflowWithDetails> {
+	return fetchJSON<WorkflowWithDetails>(`/workflows/${id}`);
+}
+
+export interface CreateWorkflowRequest {
+	id: string;
+	name?: string;
+	description?: string;
+	workflow_type?: string;
+	default_model?: string;
+	default_thinking?: boolean;
+	based_on?: string;
+}
+
+export async function createWorkflow(req: CreateWorkflowRequest): Promise<Workflow> {
+	return fetchJSON<Workflow>('/workflows', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export interface UpdateWorkflowRequest {
+	name?: string;
+	description?: string;
+	default_model?: string;
+	default_thinking?: boolean;
+}
+
+export async function updateWorkflow(id: string, req: UpdateWorkflowRequest): Promise<Workflow> {
+	return fetchJSON<Workflow>(`/workflows/${id}`, {
+		method: 'PUT',
+		body: JSON.stringify(req),
+	});
+}
+
+export async function deleteWorkflow(id: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/workflows/${id}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete workflow');
+	}
+}
+
+export interface CloneWorkflowRequest {
+	new_id: string;
+	name?: string;
+	description?: string;
+}
+
+export async function cloneWorkflow(id: string, req: CloneWorkflowRequest): Promise<Workflow> {
+	return fetchJSON<Workflow>(`/workflows/${id}/clone`, {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+// Workflow Phases
+export interface AddWorkflowPhaseRequest {
+	phase_template_id: string;
+	sequence: number;
+	max_iterations_override?: number;
+	model_override?: string;
+	gate_type_override?: string;
+}
+
+export async function addWorkflowPhase(
+	workflowId: string,
+	req: AddWorkflowPhaseRequest
+): Promise<WorkflowPhase> {
+	return fetchJSON<WorkflowPhase>(`/workflows/${workflowId}/phases`, {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export async function removeWorkflowPhase(
+	workflowId: string,
+	phaseTemplateId: string
+): Promise<void> {
+	const res = await fetch(`${API_BASE}/workflows/${workflowId}/phases/${phaseTemplateId}`, {
+		method: 'DELETE',
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to remove phase');
+	}
+}
+
+// Workflow Variables
+export interface AddWorkflowVariableRequest {
+	name: string;
+	description?: string;
+	source_type: string;
+	source_config: Record<string, unknown>;
+	required?: boolean;
+	default_value?: string;
+	cache_ttl_seconds?: number;
+}
+
+export async function addWorkflowVariable(
+	workflowId: string,
+	req: AddWorkflowVariableRequest
+): Promise<WorkflowVariable> {
+	return fetchJSON<WorkflowVariable>(`/workflows/${workflowId}/variables`, {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export async function removeWorkflowVariable(workflowId: string, name: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/workflows/${workflowId}/variables/${name}`, {
+		method: 'DELETE',
+	});
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to remove variable');
+	}
+}
+
+// Phase Templates
+export async function listPhaseTemplates(options?: {
+	builtin?: boolean;
+	custom?: boolean;
+}): Promise<PhaseTemplate[]> {
+	const params = new URLSearchParams();
+	if (options?.builtin) params.set('builtin', 'true');
+	if (options?.custom) params.set('custom', 'true');
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<PhaseTemplate[]>(`/phase-templates${query}`);
+}
+
+export async function getPhaseTemplate(id: string): Promise<PhaseTemplate> {
+	return fetchJSON<PhaseTemplate>(`/phase-templates/${id}`);
+}
+
+export interface CreatePhaseTemplateRequest {
+	id: string;
+	name?: string;
+	description?: string;
+	prompt_source?: string;
+	prompt_content?: string;
+	prompt_path?: string;
+	max_iterations?: number;
+	model_override?: string;
+	gate_type?: string;
+	produces_artifact?: boolean;
+	artifact_type?: string;
+}
+
+export async function createPhaseTemplate(
+	req: CreatePhaseTemplateRequest
+): Promise<PhaseTemplate> {
+	return fetchJSON<PhaseTemplate>('/phase-templates', {
+		method: 'POST',
+		body: JSON.stringify(req),
+	});
+}
+
+export interface UpdatePhaseTemplateRequest {
+	name?: string;
+	description?: string;
+	prompt_content?: string;
+	max_iterations?: number;
+	model_override?: string;
+	gate_type?: string;
+}
+
+export async function updatePhaseTemplate(
+	id: string,
+	req: UpdatePhaseTemplateRequest
+): Promise<PhaseTemplate> {
+	return fetchJSON<PhaseTemplate>(`/phase-templates/${id}`, {
+		method: 'PUT',
+		body: JSON.stringify(req),
+	});
+}
+
+export async function deletePhaseTemplate(id: string): Promise<void> {
+	const res = await fetch(`${API_BASE}/phase-templates/${id}`, { method: 'DELETE' });
+	if (!res.ok && res.status !== 204) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Failed to delete phase template');
+	}
+}
+
+// Workflow Runs
+export async function listWorkflowRuns(options?: {
+	status?: string;
+	workflow_id?: string;
+	task_id?: string;
+	limit?: number;
+}): Promise<WorkflowRun[]> {
+	const params = new URLSearchParams();
+	if (options?.status) params.set('status', options.status);
+	if (options?.workflow_id) params.set('workflow_id', options.workflow_id);
+	if (options?.task_id) params.set('task_id', options.task_id);
+	if (options?.limit) params.set('limit', String(options.limit));
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<WorkflowRun[]>(`/workflow-runs${query}`);
+}
+
+export async function getWorkflowRun(id: string): Promise<WorkflowRunWithDetails> {
+	return fetchJSON<WorkflowRunWithDetails>(`/workflow-runs/${id}`);
+}
+
+export async function cancelWorkflowRun(id: string): Promise<{ status: string }> {
+	return fetchJSON<{ status: string }>(`/workflow-runs/${id}/cancel`, {
+		method: 'POST',
+	});
 }

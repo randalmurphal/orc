@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -20,7 +19,7 @@ import (
 type ExecutionContext struct {
 	// Task and phase info
 	Task       *task.Task
-	Phase      *plan.Phase
+	Phase      *Phase
 	State      *state.State
 	PromptText string
 
@@ -47,7 +46,7 @@ type ExecutionContext struct {
 type ExecutionContextConfig struct {
 	// Required
 	Task    *task.Task
-	Phase   *plan.Phase
+	Phase   *Phase
 	State   *state.State
 	Backend storage.Backend
 

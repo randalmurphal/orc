@@ -13,7 +13,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -461,62 +460,6 @@ func (d *DatabaseBackend) LoadAllStates() ([]*state.State, error) {
 	}
 
 	return states, nil
-}
-
-// SavePlan saves a plan to the database.
-func (d *DatabaseBackend) SavePlan(p *plan.Plan, taskID string) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	// Serialize phases to JSON
-	phasesJSON, err := json.Marshal(p.Phases)
-	if err != nil {
-		return fmt.Errorf("marshal phases: %w", err)
-	}
-
-	dbPlan := &db.Plan{
-		TaskID:      taskID,
-		Version:     p.Version,
-		Weight:      string(p.Weight),
-		Description: p.Description,
-		Phases:      string(phasesJSON),
-	}
-
-	if err := d.db.SavePlan(dbPlan); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-
-	return nil
-}
-
-// LoadPlan loads a plan from the database.
-func (d *DatabaseBackend) LoadPlan(taskID string) (*plan.Plan, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	dbPlan, err := d.db.GetPlan(taskID)
-	if err != nil {
-		return nil, fmt.Errorf("get plan: %w", err)
-	}
-	if dbPlan == nil {
-		return nil, fmt.Errorf("plan for %s not found", taskID)
-	}
-
-	// Deserialize phases from JSON
-	var phases []plan.Phase
-	if err := json.Unmarshal([]byte(dbPlan.Phases), &phases); err != nil {
-		return nil, fmt.Errorf("unmarshal phases: %w", err)
-	}
-
-	p := &plan.Plan{
-		Version:     dbPlan.Version,
-		TaskID:      dbPlan.TaskID,
-		Weight:      task.Weight(dbPlan.Weight),
-		Description: dbPlan.Description,
-		Phases:      phases,
-	}
-
-	return p, nil
 }
 
 // AddTranscript adds a transcript to database (for FTS).
@@ -2012,6 +1955,180 @@ func (d *DatabaseBackend) DeleteConstitution() error {
 	defer d.mu.Unlock()
 
 	return d.db.DeleteConstitution()
+}
+
+// --------- Phase Template Operations ---------
+
+// SavePhaseTemplate creates or updates a phase template.
+func (d *DatabaseBackend) SavePhaseTemplate(pt *db.PhaseTemplate) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SavePhaseTemplate(pt)
+}
+
+// GetPhaseTemplate retrieves a phase template by ID.
+func (d *DatabaseBackend) GetPhaseTemplate(id string) (*db.PhaseTemplate, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetPhaseTemplate(id)
+}
+
+// ListPhaseTemplates returns all phase templates.
+func (d *DatabaseBackend) ListPhaseTemplates() ([]*db.PhaseTemplate, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ListPhaseTemplates()
+}
+
+// DeletePhaseTemplate removes a phase template (built-ins cannot be deleted).
+func (d *DatabaseBackend) DeletePhaseTemplate(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeletePhaseTemplate(id)
+}
+
+// --------- Workflow Operations ---------
+
+// SaveWorkflow creates or updates a workflow.
+func (d *DatabaseBackend) SaveWorkflow(w *db.Workflow) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveWorkflow(w)
+}
+
+// GetWorkflow retrieves a workflow by ID.
+func (d *DatabaseBackend) GetWorkflow(id string) (*db.Workflow, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetWorkflow(id)
+}
+
+// ListWorkflows returns all workflows.
+func (d *DatabaseBackend) ListWorkflows() ([]*db.Workflow, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ListWorkflows()
+}
+
+// DeleteWorkflow removes a workflow (built-ins cannot be deleted).
+func (d *DatabaseBackend) DeleteWorkflow(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteWorkflow(id)
+}
+
+// GetWorkflowPhases returns all phases for a workflow in sequence order.
+func (d *DatabaseBackend) GetWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetWorkflowPhases(workflowID)
+}
+
+// SaveWorkflowPhase creates or updates a workflow-phase link.
+func (d *DatabaseBackend) SaveWorkflowPhase(wp *db.WorkflowPhase) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveWorkflowPhase(wp)
+}
+
+// DeleteWorkflowPhase removes a phase from a workflow.
+func (d *DatabaseBackend) DeleteWorkflowPhase(workflowID, phaseTemplateID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteWorkflowPhase(workflowID, phaseTemplateID)
+}
+
+// GetWorkflowVariables returns all variables for a workflow.
+func (d *DatabaseBackend) GetWorkflowVariables(workflowID string) ([]*db.WorkflowVariable, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetWorkflowVariables(workflowID)
+}
+
+// SaveWorkflowVariable creates or updates a workflow variable.
+func (d *DatabaseBackend) SaveWorkflowVariable(wv *db.WorkflowVariable) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveWorkflowVariable(wv)
+}
+
+// DeleteWorkflowVariable removes a variable from a workflow.
+func (d *DatabaseBackend) DeleteWorkflowVariable(workflowID, name string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteWorkflowVariable(workflowID, name)
+}
+
+// --------- Workflow Run Operations ---------
+
+// SaveWorkflowRun creates or updates a workflow run.
+func (d *DatabaseBackend) SaveWorkflowRun(wr *db.WorkflowRun) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveWorkflowRun(wr)
+}
+
+// GetWorkflowRun retrieves a workflow run by ID.
+func (d *DatabaseBackend) GetWorkflowRun(id string) (*db.WorkflowRun, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetWorkflowRun(id)
+}
+
+// ListWorkflowRuns returns workflow runs with optional filtering.
+func (d *DatabaseBackend) ListWorkflowRuns(opts db.WorkflowRunListOpts) ([]*db.WorkflowRun, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ListWorkflowRuns(opts)
+}
+
+// DeleteWorkflowRun removes a workflow run and its phases.
+func (d *DatabaseBackend) DeleteWorkflowRun(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteWorkflowRun(id)
+}
+
+// GetNextWorkflowRunID generates the next run ID.
+func (d *DatabaseBackend) GetNextWorkflowRunID() (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.GetNextWorkflowRunID()
+}
+
+// GetWorkflowRunPhases returns all phases for a workflow run.
+func (d *DatabaseBackend) GetWorkflowRunPhases(runID string) ([]*db.WorkflowRunPhase, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetWorkflowRunPhases(runID)
+}
+
+// SaveWorkflowRunPhase creates or updates a run phase.
+func (d *DatabaseBackend) SaveWorkflowRunPhase(wrp *db.WorkflowRunPhase) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveWorkflowRunPhase(wrp)
 }
 
 // Ensure DatabaseBackend implements Backend

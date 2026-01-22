@@ -9,7 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -221,12 +220,10 @@ func (b *emptyBackend) GetNextTaskID() (string, error)      { return "", nil }
 func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveState(*state.State) error                          { return nil }
-func (b *emptyBackend) LoadState(string) (*state.State, error)                { return nil, nil }
-func (b *emptyBackend) LoadAllStates() ([]*state.State, error)                { return nil, nil }
-func (b *emptyBackend) SavePlan(*plan.Plan, string) error                     { return nil }
-func (b *emptyBackend) LoadPlan(string) (*plan.Plan, error)                   { return nil, nil }
-func (b *emptyBackend) SaveSpec(string, string, string) error                 { return nil }
+func (b *emptyBackend) SaveState(*state.State) error           { return nil }
+func (b *emptyBackend) LoadState(string) (*state.State, error) { return nil, nil }
+func (b *emptyBackend) LoadAllStates() ([]*state.State, error) { return nil, nil }
+func (b *emptyBackend) SaveSpec(string, string, string) error  { return nil }
 func (b *emptyBackend) LoadSpec(string) (string, error)                       { return "", nil }
 func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error)        { return nil, nil }
 func (b *emptyBackend) SpecExists(string) (bool, error)                       { return false, nil }
@@ -300,6 +297,35 @@ func (b *emptyBackend) SaveConstitution(string, string) error          { return 
 func (b *emptyBackend) LoadConstitution() (string, string, error)      { return "", "", nil }
 func (b *emptyBackend) ConstitutionExists() (bool, error)              { return false, nil }
 func (b *emptyBackend) DeleteConstitution() error                      { return nil }
+
+// Workflow operations (stub implementations)
+func (b *emptyBackend) SavePhaseTemplate(*db.PhaseTemplate) error              { return nil }
+func (b *emptyBackend) GetPhaseTemplate(string) (*db.PhaseTemplate, error)     { return nil, nil }
+func (b *emptyBackend) ListPhaseTemplates() ([]*db.PhaseTemplate, error)       { return nil, nil }
+func (b *emptyBackend) DeletePhaseTemplate(string) error                       { return nil }
+func (b *emptyBackend) SaveWorkflow(*db.Workflow) error                        { return nil }
+func (b *emptyBackend) GetWorkflow(string) (*db.Workflow, error)               { return nil, nil }
+func (b *emptyBackend) ListWorkflows() ([]*db.Workflow, error)                 { return nil, nil }
+func (b *emptyBackend) DeleteWorkflow(string) error                            { return nil }
+func (b *emptyBackend) GetWorkflowPhases(string) ([]*db.WorkflowPhase, error)  { return nil, nil }
+func (b *emptyBackend) SaveWorkflowPhase(*db.WorkflowPhase) error              { return nil }
+func (b *emptyBackend) DeleteWorkflowPhase(string, string) error               { return nil }
+func (b *emptyBackend) GetWorkflowVariables(string) ([]*db.WorkflowVariable, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveWorkflowVariable(*db.WorkflowVariable) error  { return nil }
+func (b *emptyBackend) DeleteWorkflowVariable(string, string) error      { return nil }
+func (b *emptyBackend) SaveWorkflowRun(*db.WorkflowRun) error            { return nil }
+func (b *emptyBackend) GetWorkflowRun(string) (*db.WorkflowRun, error)   { return nil, nil }
+func (b *emptyBackend) ListWorkflowRuns(db.WorkflowRunListOpts) ([]*db.WorkflowRun, error) {
+	return nil, nil
+}
+func (b *emptyBackend) DeleteWorkflowRun(string) error                          { return nil }
+func (b *emptyBackend) GetNextWorkflowRunID() (string, error)                   { return "", nil }
+func (b *emptyBackend) GetWorkflowRunPhases(string) ([]*db.WorkflowRunPhase, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

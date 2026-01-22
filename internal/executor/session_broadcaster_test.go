@@ -9,27 +9,27 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 )
 
-// testEventPublisher captures published events for testing
-type testEventPublisher struct {
+// testPublishHelper captures published events for testing
+type testPublishHelper struct {
 	mu     sync.Mutex
 	events []events.Event
 }
 
-func (p *testEventPublisher) Publish(event events.Event) {
+func (p *testPublishHelper) Publish(event events.Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.events = append(p.events, event)
 }
 
-func (p *testEventPublisher) Subscribe(taskID string) <-chan events.Event {
+func (p *testPublishHelper) Subscribe(taskID string) <-chan events.Event {
 	return nil
 }
 
-func (p *testEventPublisher) Unsubscribe(taskID string, ch <-chan events.Event) {}
+func (p *testPublishHelper) Unsubscribe(taskID string, ch <-chan events.Event) {}
 
-func (p *testEventPublisher) Close() {}
+func (p *testPublishHelper) Close() {}
 
-func (p *testEventPublisher) getSessionUpdates() []events.SessionUpdate {
+func (p *testPublishHelper) getSessionUpdates() []events.SessionUpdate {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	var updates []events.SessionUpdate
@@ -45,8 +45,8 @@ func (p *testEventPublisher) getSessionUpdates() []events.SessionUpdate {
 
 func TestSessionBroadcaster_OnTaskStart(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -69,8 +69,8 @@ func TestSessionBroadcaster_OnTaskStart(t *testing.T) {
 
 func TestSessionBroadcaster_OnTaskComplete(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -96,8 +96,8 @@ func TestSessionBroadcaster_OnTaskComplete(t *testing.T) {
 
 func TestSessionBroadcaster_OnPauseChanged(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -132,8 +132,8 @@ func TestSessionBroadcaster_OnPauseChanged(t *testing.T) {
 
 func TestSessionBroadcaster_MultipleTasks(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -163,8 +163,8 @@ func TestSessionBroadcaster_MultipleTasks(t *testing.T) {
 
 func TestSessionBroadcaster_TickerStopsWhenIdle(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -187,8 +187,8 @@ func TestSessionBroadcaster_TickerStopsWhenIdle(t *testing.T) {
 
 func TestSessionBroadcaster_DurationTracking(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -208,8 +208,8 @@ func TestSessionBroadcaster_DurationTracking(t *testing.T) {
 
 func TestSessionBroadcaster_GetCurrentMetrics(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -233,8 +233,8 @@ func TestSessionBroadcaster_GetCurrentMetrics(t *testing.T) {
 
 func TestSessionBroadcaster_Stop(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -261,8 +261,8 @@ func TestSessionBroadcaster_Stop(t *testing.T) {
 
 func TestSessionBroadcaster_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
-	pub := &testEventPublisher{}
-	ep := NewEventPublisher(pub)
+	pub := &testPublishHelper{}
+	ep := NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -292,7 +292,7 @@ func TestSessionBroadcaster_ConcurrentAccess(t *testing.T) {
 
 func TestSessionBroadcaster_NilPublisher(t *testing.T) {
 	t.Parallel()
-	// Should not panic with nil EventPublisher
+	// Should not panic with nil PublishHelper
 	sb := NewSessionBroadcaster(nil, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()

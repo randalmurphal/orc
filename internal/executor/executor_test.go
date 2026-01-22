@@ -12,7 +12,7 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -611,8 +611,8 @@ func TestPublishHelpers(t *testing.T) {
 		if data.Phase != "implement" {
 			t.Errorf("expected phase implement, got %s", data.Phase)
 		}
-		if data.Status != string(plan.PhaseRunning) {
-			t.Errorf("expected status %s, got %s", plan.PhaseRunning, data.Status)
+		if data.Status != string(PhaseRunning) {
+			t.Errorf("expected status %s, got %s", PhaseRunning, data.Status)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for event")
@@ -814,7 +814,7 @@ func TestExecutePhase_Complete(t *testing.T) {
 	}
 
 	// Create test phase
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement the feature: {{TASK_TITLE}}",
@@ -830,7 +830,7 @@ func TestExecutePhase_Complete(t *testing.T) {
 		t.Fatalf("ExecutePhase failed: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 
@@ -865,7 +865,7 @@ func TestExecutePhase_MaxIterations(t *testing.T) {
 		Weight: task.WeightTrivial, // Trivial has max 5 iterations (lowest)
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -904,7 +904,7 @@ func TestExecutePhase_Blocked(t *testing.T) {
 		Weight: task.WeightMedium,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "spec",
 		Name:   "Specification",
 		Prompt: "Write spec for: {{TASK_TITLE}}",
@@ -916,7 +916,7 @@ func TestExecutePhase_Blocked(t *testing.T) {
 	result, _ := e.ExecutePhase(ctx, testTask, testPhase, testState)
 
 	// When blocked, status becomes PhaseFailed with specific error
-	if result.Status != plan.PhaseFailed {
+	if result.Status != PhaseFailed {
 		t.Errorf("expected status Failed (blocked), got %v", result.Status)
 	}
 	if result.Error == nil || !strings.Contains(result.Error.Error(), "blocked") {
@@ -943,7 +943,7 @@ func TestExecutePhase_ContextCancellation(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -992,7 +992,7 @@ func TestExecutePhase_WithPublisher(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -1062,10 +1062,10 @@ func TestEvaluateGate_AutoApprove(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID: "implement",
-		Gate: plan.Gate{
-			Type:     plan.GateAuto,
+		Gate: gate.Gate{
+			Type:     gate.GateAuto,
 			Criteria: []string{"has_output"},
 		},
 	}
@@ -1098,10 +1098,10 @@ func TestEvaluateGate_WithCriteria(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID: "implement",
-		Gate: plan.Gate{
-			Type:     plan.GateAuto,
+		Gate: gate.Gate{
+			Type:     gate.GateAuto,
 			Criteria: []string{"has_output"},
 		},
 	}
@@ -1142,10 +1142,10 @@ func TestEvaluateGate_PhaseOverride(t *testing.T) {
 
 	e := NewWithConfig(cfg, orcCfg)
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID: "spec",
-		Gate: plan.Gate{
-			Type: plan.GateHuman, // This will be overridden
+		Gate: gate.Gate{
+			Type: gate.GateHuman, // This will be overridden
 		},
 	}
 
@@ -1274,7 +1274,7 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -1289,7 +1289,7 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 		t.Fatalf("ExecuteWithRetry failed: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 }
@@ -1313,7 +1313,7 @@ func TestExecuteWithRetry_ContextCancelled(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Prompt: "Do work",
 	}
@@ -1348,20 +1348,15 @@ func TestExecuteTask_SinglePhaseSuccess(t *testing.T) {
 	}
 
 	// Create plan with single phase that uses inline prompt
-	testPlan := &plan.Plan{
-		Version:     1,
-		Weight:      "small",
-		Description: "Test plan",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-EXEC-001",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-EXEC-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state
@@ -1410,19 +1405,15 @@ func TestExecuteTask_ContextCancelled(t *testing.T) {
 	}
 
 	// Create plan
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-CANCEL-001",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Do work",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-CANCEL-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state
@@ -1466,10 +1457,9 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 	}
 
 	// Create plan with two phases
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-SKIP-001",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
@@ -1481,9 +1471,6 @@ func TestExecuteTask_SkipCompletedPhase(t *testing.T) {
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-SKIP-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state with first phase already completed
@@ -1541,19 +1528,15 @@ func TestExecuteTask_WithPublisher(t *testing.T) {
 	}
 
 	// Create plan
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-PUB-001",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-PUB-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-PUB-001")
@@ -1643,10 +1626,9 @@ func TestResumeFromPhase_Success(t *testing.T) {
 	}
 
 	// Create plan with two phases
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-RESUME-001",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
@@ -1658,9 +1640,6 @@ func TestResumeFromPhase_Success(t *testing.T) {
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-RESUME-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state with first phase completed, second interrupted
@@ -1710,17 +1689,14 @@ func TestResumeFromPhase_PhaseNotFound(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-RESUME-002",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Prompt: "Do work",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-RESUME-002"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-RESUME-002")
@@ -1763,7 +1739,7 @@ func TestExecuteWithRetry_RetryOnTransientError(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -1881,19 +1857,15 @@ func TestExecuteTask_UpdatesTaskCurrentPhase(t *testing.T) {
 	}
 
 	// Create plan with inline prompt (not template file)
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-PHASE-001",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-PHASE-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-PHASE-001")
@@ -1951,10 +1923,9 @@ func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
 	}
 
 	// Create a plan with implement and review phases
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-HANDLE-001",
+		Phases: []Phase{
 			{ID: "implement", Name: "Implementation"},
 			{ID: "review", Name: "Review"},
 		},
@@ -1966,7 +1937,7 @@ func TestHandlePhaseFailure_BlockedReview_TriggersRetry(t *testing.T) {
 	blockError := fmt.Errorf("phase blocked: Review found 3 issues")
 	blockResult := &Result{
 		Phase:  "review",
-		Status: plan.PhaseFailed,
+		Status: PhaseFailed,
 		Output: `{"status": "blocked", "reason": "Review found 3 issues that need fixing"}`,
 		Error:  blockError,
 	}
@@ -2016,10 +1987,9 @@ func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-TEST-RETRY-001",
+		Phases: []Phase{
 			{ID: "implement", Name: "Implementation"},
 			{ID: "test", Name: "Test"},
 		},
@@ -2030,7 +2000,7 @@ func TestHandlePhaseFailure_BlockedTest_TriggersRetry(t *testing.T) {
 	blockError := fmt.Errorf("phase blocked: Tests failed")
 	blockResult := &Result{
 		Phase:  "test",
-		Status: plan.PhaseFailed,
+		Status: PhaseFailed,
 		Output: `{"status": "blocked", "reason": "Tests failed - 5 tests need fixing"}`,
 		Error:  blockError,
 	}
@@ -2065,10 +2035,9 @@ func TestHandlePhaseFailure_NoRetryForSpec(t *testing.T) {
 		t.Fatalf("expected spec to NOT be in retry map, got %q", retryFrom)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-HANDLE-003",
+		Phases: []Phase{
 			{ID: "spec", Name: "Specification"},
 		},
 	}
@@ -2078,7 +2047,7 @@ func TestHandlePhaseFailure_NoRetryForSpec(t *testing.T) {
 	specError := fmt.Errorf("phase blocked: Need clarification")
 	specResult := &Result{
 		Phase:  "spec",
-		Status: plan.PhaseFailed,
+		Status: PhaseFailed,
 		Output: "Need more details",
 		Error:  specError,
 	}
@@ -2105,10 +2074,9 @@ func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
 	cfg.Backend = backend
 	e := New(cfg)
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-HANDLE-004",
+		Phases: []Phase{
 			{ID: "implement", Name: "Implementation"},
 			{ID: "review", Name: "Review"},
 		},
@@ -2119,7 +2087,7 @@ func TestHandlePhaseFailure_MaxRetriesExceeded(t *testing.T) {
 	blockError := fmt.Errorf("phase blocked: Review found issues")
 	blockResult := &Result{
 		Phase:  "review",
-		Status: plan.PhaseFailed,
+		Status: PhaseFailed,
 		Output: "Issues found",
 		Error:  blockError,
 	}
@@ -2176,7 +2144,7 @@ func TestExecutePhase_PhaseTimeout(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -2193,7 +2161,7 @@ func TestExecutePhase_PhaseTimeout(t *testing.T) {
 		t.Fatalf("executePhaseWithTimeout failed unexpectedly: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 }
@@ -2229,7 +2197,7 @@ func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -2245,7 +2213,7 @@ func TestExecutePhase_PhaseTimeoutDisabled(t *testing.T) {
 		t.Fatalf("executePhaseWithTimeout failed: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 }
@@ -2265,19 +2233,15 @@ func TestExecutePhase_TimeoutProducesInterruptedState(t *testing.T) {
 	}
 
 	// Create plan
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-TIMEOUT-STATE",
+		Phases: []Phase{
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Implement: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-TIMEOUT-STATE"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-TIMEOUT-STATE")
@@ -2426,7 +2390,7 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 		Weight: task.WeightSmall,
 	}
 
-	testPhase := &plan.Phase{
+	testPhase := &Phase{
 		ID:     "implement",
 		Name:   "Implementation",
 		Prompt: "Implement: {{TASK_TITLE}}",
@@ -2442,7 +2406,7 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 		t.Fatalf("executePhaseWithTimeout failed: %v", err)
 	}
 
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status Completed, got %v", result.Status)
 	}
 }
@@ -2517,19 +2481,15 @@ func TestExecuteTask_SpecExtractionFailure(t *testing.T) {
 	}
 
 	// Create plan with spec phase
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-SPEC-FAIL-001",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
 				Prompt: "Write spec for: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-SPEC-FAIL-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-SPEC-FAIL-001")
@@ -2634,19 +2594,15 @@ func TestExecuteTask_EmptySpecOutput(t *testing.T) {
 	}
 
 	// Create plan with spec phase
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-EMPTY-SPEC-001",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
 				Prompt: "Write spec for: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-EMPTY-SPEC-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-EMPTY-SPEC-001")
@@ -2716,19 +2672,15 @@ func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "medium",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-SPEC-EXEC-001",
+		Phases: []Phase{
 			{
 				ID:     "spec",
 				Name:   "Specification",
 				Prompt: "Write spec",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-SPEC-EXEC-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-SPEC-EXEC-001")
@@ -2773,10 +2725,9 @@ func TestExecuteTask_SmallWeight_WithTinySpec(t *testing.T) {
 	}
 
 	// Create plan with tiny_spec phase (new TDD-first workflow)
-	testPlan := &plan.Plan{
-		Version: 1,
-		Weight:  "small",
-		Phases: []plan.Phase{
+	testPlan := &Plan{
+		TaskID: "TASK-SMALL-001",
+		Phases: []Phase{
 			{
 				ID:     "tiny_spec",
 				Name:   "TinySpec",
@@ -2793,9 +2744,6 @@ func TestExecuteTask_SmallWeight_WithTinySpec(t *testing.T) {
 				Prompt: "Review: {{TASK_TITLE}}",
 			},
 		},
-	}
-	if err := backend.SavePlan(testPlan, "TASK-SMALL-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	testState := state.New("TASK-SMALL-001")

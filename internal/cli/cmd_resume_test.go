@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -48,7 +47,7 @@ func createResumeTestBackend(t *testing.T, dir string) storage.Backend {
 	return backend
 }
 
-// createTaskWithStatus creates a task with the given status and sets up plan/state
+// createTaskWithStatus creates a task with the given status and sets up state
 func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *task.Task {
 	t.Helper()
 
@@ -61,21 +60,6 @@ func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *
 
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create plan
-	p := &plan.Plan{
-		Version:     1,
-		TaskID:      id,
-		Weight:      task.WeightSmall,
-		Description: "Test plan",
-		Phases: []plan.Phase{
-			{ID: "implement", Name: "implement", Status: plan.PhasePending},
-			{ID: "test", Name: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, id); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state with a current phase
@@ -276,20 +260,6 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 	tk.Weight = task.WeightSmall
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	p := &plan.Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightSmall,
-		Description: "Test plan",
-		Phases: []plan.Phase{
-			{ID: "implement", Name: "implement", Status: plan.PhasePending},
-			{ID: "test", Name: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-001"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	s := state.New("TASK-001")

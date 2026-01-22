@@ -1,0 +1,460 @@
+/* WorkflowsView container styles */
+.workflows-view {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	padding: var(--space-6);
+	max-width: 1400px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.workflows-view-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-4);
+}
+
+.workflows-view-header-text {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.workflows-view-title {
+	font-size: var(--text-2xl);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.workflows-view-subtitle {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin: 0;
+}
+
+.workflows-view-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-8);
+}
+
+.workflows-view-section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.workflows-view-section-header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.workflows-view-section-header .section-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	margin: 0;
+}
+
+.workflows-view-section-header .section-subtitle {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin: 0;
+}
+
+.workflows-view-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+	gap: var(--space-4);
+}
+
+.workflows-view-grid-small {
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Empty state */
+.workflows-view-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-12) var(--space-6);
+	text-align: center;
+	background: var(--bg-secondary);
+	border-radius: var(--radius-lg);
+	border: 1px dashed var(--border-secondary);
+}
+
+.workflows-view-empty-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 64px;
+	height: 64px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-full);
+	color: var(--text-muted);
+	margin-bottom: var(--space-4);
+}
+
+.workflows-view-empty-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	margin: 0 0 var(--space-2);
+}
+
+.workflows-view-empty-desc {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin: 0;
+	max-width: 400px;
+}
+
+/* Error state */
+.workflows-view-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-12) var(--space-6);
+	text-align: center;
+	background: var(--bg-secondary);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--status-error);
+}
+
+.workflows-view-error-icon {
+	color: var(--status-error);
+	margin-bottom: var(--space-4);
+}
+
+.workflows-view-error-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	margin: 0 0 var(--space-2);
+}
+
+.workflows-view-error-desc {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin: 0 0 var(--space-4);
+}
+
+/* Skeleton styles */
+.workflow-card-skeleton {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--bg-secondary);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border-secondary);
+}
+
+.workflow-card-skeleton-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.workflow-card-skeleton-icon {
+	width: 40px;
+	height: 40px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.workflow-card-skeleton-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.workflow-card-skeleton-title {
+	height: 16px;
+	width: 120px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.workflow-card-skeleton-id {
+	height: 12px;
+	width: 80px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.workflow-card-skeleton-badge {
+	width: 60px;
+	height: 20px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-full);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.workflow-card-skeleton-description {
+	height: 32px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.workflow-card-skeleton-stats {
+	display: flex;
+	gap: var(--space-3);
+}
+
+.workflow-card-skeleton-stat {
+	height: 16px;
+	width: 80px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Workflow Card styles */
+.workflow-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--bg-secondary);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border-secondary);
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.workflow-card:hover {
+	border-color: var(--border-hover);
+	box-shadow: var(--shadow-sm);
+}
+
+.workflow-card:focus-visible {
+	outline: 2px solid var(--focus-ring);
+	outline-offset: 2px;
+}
+
+.workflow-card-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.workflow-card-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+	color: var(--text-secondary);
+}
+
+.workflow-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.workflow-card-name {
+	font-size: var(--text-base);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	margin: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.workflow-card-id {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+}
+
+.workflow-card-description {
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	margin: 0;
+	line-height: 1.5;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.workflow-card-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+}
+
+.workflow-card-stat {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+.workflow-card-type {
+	text-transform: capitalize;
+}
+
+.workflow-card-actions {
+	display: flex;
+	gap: var(--space-2);
+	margin-top: var(--space-1);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--border-secondary);
+}
+
+.workflow-card-action {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-xs);
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.workflow-card-action:hover {
+	background: var(--bg-tertiary);
+	color: var(--text-primary);
+}
+
+/* Phase Template Card styles */
+.phase-template-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	background: var(--bg-secondary);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border-secondary);
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.phase-template-card:hover {
+	border-color: var(--border-hover);
+	box-shadow: var(--shadow-sm);
+}
+
+.phase-template-card:focus-visible {
+	outline: 2px solid var(--focus-ring);
+	outline-offset: 2px;
+}
+
+.phase-template-card-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.phase-template-card-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+	color: var(--text-secondary);
+}
+
+.phase-template-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.phase-template-card-name {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+	margin: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.phase-template-card-id {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+}
+
+.phase-template-card-description {
+	font-size: var(--text-xs);
+	color: var(--text-secondary);
+	margin: 0;
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.phase-template-card-config {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.phase-template-card-config-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-xs);
+}
+
+.phase-template-card-config-label {
+	color: var(--text-muted);
+}
+
+.phase-template-card-config-value {
+	color: var(--text-secondary);
+	font-weight: var(--font-medium);
+}
+
+.phase-template-card-footer {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding-top: var(--space-2);
+	border-top: 1px solid var(--border-secondary);
+}
+
+.phase-template-card-prompt-source,
+.phase-template-card-model {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}

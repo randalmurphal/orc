@@ -22,8 +22,9 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `llmutil/` | **Shared LLM utilities - schema execution** | `ExecuteWithSchema[T]()` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `github/` | GitHub API client, PR operations, status detection | `Client`, `PR`, `PRStatusSummary` |
-| `plan/` | Plan generation, regeneration, staleness detection, migration | `Plan`, `Phase`, `IsPlanStale`, `MigratePlan` |
 | `progress/` | Progress tracking and display | `Tracker` |
+| `variable/` | Workflow variable resolution (static, env, script, API) | `Resolver`, `Definition` |
+| `workflow/` | Workflow definitions, phase templates, seeding | `Workflow`, `PhaseTemplate`, `WorkflowRun` |
 | `project/` | Multi-project registry | `Registry`, `Project` |
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence, auto-commit helpers | `State`, `CommitTaskState`, `CommitPhaseTransition` |
@@ -45,11 +46,12 @@ cmd/orc
         │   │   ├── events/
         │   │   ├── git/
         │   │   ├── github/     # PR creation
-        │   │   ├── plan/
         │   │   ├── prompt/
         │   │   ├── state/
         │   │   ├── storage/
         │   │   ├── task/
+        │   │   ├── variable/   # Variable resolution
+        │   │   ├── workflow/   # Workflow definitions
         │   │   └── tokenpool/
         │   ├── github/         # PR status polling
         │   ├── project/
@@ -58,9 +60,9 @@ cmd/orc
         │   └── task/
         ├── executor/
         ├── git/
-        ├── plan/
         ├── state/
         ├── storage/
+        ├── workflow/
         └── task/
 ```
 

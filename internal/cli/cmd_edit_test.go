@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -39,21 +38,6 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Create initial plan
-	initialPlan := &plan.Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightSmall,
-		Description: "Initial plan",
-		Phases: []plan.Phase{
-			{ID: "implement", Name: "implement", Status: plan.PhasePending},
-			{ID: "test", Name: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(initialPlan, "TASK-001"); err != nil {
-		t.Fatalf("failed to save initial plan: %v", err)
-	}
-
 	// Create initial state with some progress
 	initialState := state.New("TASK-001")
 	initialState.CurrentPhase = "implement"
@@ -65,25 +49,10 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 		t.Fatalf("failed to save initial state: %v", err)
 	}
 
-	// Regenerate plan for weight change
+	// Regenerate plan for weight change (resets state)
 	oldWeight := task.WeightSmall
 	if err := regeneratePlanForWeight(backend, tk, oldWeight); err != nil {
 		t.Fatalf("regeneratePlanForWeight() error = %v", err)
-	}
-
-	// Verify plan was regenerated
-	newPlan, err := backend.LoadPlan("TASK-001")
-	if err != nil {
-		t.Fatalf("failed to load new plan: %v", err)
-	}
-
-	if newPlan.Weight != task.WeightLarge {
-		t.Errorf("plan weight = %s, want %s", newPlan.Weight, task.WeightLarge)
-	}
-
-	// Large weight should have more phases than small
-	if len(newPlan.Phases) <= 2 {
-		t.Errorf("plan phases = %d, expected more than 2 for large weight", len(newPlan.Phases))
 	}
 
 	// Verify state was reset

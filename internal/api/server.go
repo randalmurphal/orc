@@ -297,6 +297,33 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/initiatives/{id}/ready", cors(s.handleGetReadyTasks))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/dependency-graph", cors(s.handleGetInitiativeDependencyGraph))
 
+	// Workflows
+	s.mux.HandleFunc("GET /api/workflows", cors(s.handleListWorkflows))
+	s.mux.HandleFunc("POST /api/workflows", cors(s.handleCreateWorkflow))
+	s.mux.HandleFunc("GET /api/workflows/{id}", cors(s.handleGetWorkflow))
+	s.mux.HandleFunc("PUT /api/workflows/{id}", cors(s.handleUpdateWorkflow))
+	s.mux.HandleFunc("DELETE /api/workflows/{id}", cors(s.handleDeleteWorkflow))
+	s.mux.HandleFunc("POST /api/workflows/{id}/clone", cors(s.handleCloneWorkflow))
+	s.mux.HandleFunc("POST /api/workflows/{id}/phases", cors(s.handleAddWorkflowPhase))
+	s.mux.HandleFunc("DELETE /api/workflows/{id}/phases/{phaseId}", cors(s.handleRemoveWorkflowPhase))
+	s.mux.HandleFunc("POST /api/workflows/{id}/variables", cors(s.handleAddWorkflowVariable))
+	s.mux.HandleFunc("DELETE /api/workflows/{id}/variables/{name}", cors(s.handleRemoveWorkflowVariable))
+
+	// Phase Templates
+	s.mux.HandleFunc("GET /api/phase-templates", cors(s.handleListPhaseTemplates))
+	s.mux.HandleFunc("POST /api/phase-templates", cors(s.handleCreatePhaseTemplate))
+	s.mux.HandleFunc("GET /api/phase-templates/{id}", cors(s.handleGetPhaseTemplate))
+	s.mux.HandleFunc("PUT /api/phase-templates/{id}", cors(s.handleUpdatePhaseTemplate))
+	s.mux.HandleFunc("DELETE /api/phase-templates/{id}", cors(s.handleDeletePhaseTemplate))
+	s.mux.HandleFunc("GET /api/phase-templates/{id}/prompt", cors(s.handleGetPhaseTemplatePrompt))
+
+	// Workflow Runs
+	s.mux.HandleFunc("GET /api/workflow-runs", cors(s.handleListWorkflowRuns))
+	s.mux.HandleFunc("POST /api/workflow-runs", cors(s.handleTriggerWorkflowRun))
+	s.mux.HandleFunc("GET /api/workflow-runs/{id}", cors(s.handleGetWorkflowRun))
+	s.mux.HandleFunc("POST /api/workflow-runs/{id}/cancel", cors(s.handleCancelWorkflowRun))
+	s.mux.HandleFunc("GET /api/workflow-runs/{id}/transcript", cors(s.handleGetWorkflowRunTranscript))
+
 	// Task dependency graph (for arbitrary set of tasks)
 	s.mux.HandleFunc("GET /api/tasks/dependency-graph", cors(s.handleGetTasksDependencyGraph))
 
@@ -752,11 +779,8 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 	}
 
-	// Load plan and state
-	p, err := s.backend.LoadPlan(id)
-	if err != nil {
-		return nil, fmt.Errorf("plan not found")
-	}
+	// Create plan dynamically from task weight
+	p := createPlanForWeightServer(id, t.Weight)
 
 	st, err := s.backend.LoadState(id)
 	if err != nil {
@@ -969,5 +993,54 @@ func (s *Server) pruneStaleWorktrees() {
 		s.logger.Warn("failed to prune stale worktrees", "error", err)
 	} else {
 		s.logger.Debug("pruned stale worktree entries")
+	}
+}
+
+// createPlanForWeightServer creates an execution plan based on task weight.
+// Plans are created dynamically for execution, not stored.
+func createPlanForWeightServer(taskID string, weight task.Weight) *executor.Plan {
+	var phases []executor.Phase
+
+	switch weight {
+	case task.WeightTrivial:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightSmall:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightMedium:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightLarge:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	default:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
 	}
 }

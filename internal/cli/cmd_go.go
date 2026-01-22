@@ -16,7 +16,7 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -233,36 +233,14 @@ func runQuickMode(ctx context.Context, backend storage.Backend, cfg *config.Conf
 	// Set weight (flag has default "medium", so always set)
 	t.Weight = task.Weight(weight)
 
-	// Save task
+	// Save task - status will be set to planned
+	t.Status = task.StatusPlanned
 	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
-	// Generate plan from weight template
-	p, err := plan.CreateFromTemplate(t)
-	if err != nil {
-		// If template not found, use default plan
-		fmt.Printf("Warning: No template for weight %s, using default plan\n", t.Weight)
-		p = &plan.Plan{
-			Version:     1,
-			TaskID:      id,
-			Weight:      t.Weight,
-			Description: "Default plan",
-			Phases: []plan.Phase{
-				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-			},
-		}
-	}
-
-	if err := backend.SavePlan(p, id); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-
-	// Update task status
-	t.Status = task.StatusPlanned
-	if err := backend.SaveTask(t); err != nil {
-		return fmt.Errorf("update task: %w", err)
-	}
+	// Create plan dynamically from task weight
+	p := createGoPlanForWeight(id, t.Weight)
 
 	// Create state
 	s := state.New(id)
@@ -308,11 +286,8 @@ func runHeadlessMode(ctx context.Context, backend storage.Backend, cfg *config.C
 
 	// Execute tasks in order
 	for _, t := range runnable {
-		p, err := backend.LoadPlan(t.ID)
-		if err != nil {
-			fmt.Printf("Warning: Skipping %s: could not load plan: %v\n", t.ID, err)
-			continue
-		}
+		// Create plan dynamically from task weight
+		p := createGoPlanForWeight(t.ID, t.Weight)
 
 		s, err := backend.LoadState(t.ID)
 		if err != nil {
@@ -381,7 +356,7 @@ func runInteractiveMode(ctx context.Context, backend storage.Backend, cfg *confi
 }
 
 // executeTaskWithBackend runs a single task through all phases
-func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *config.Config, t *task.Task, p *plan.Plan, s *state.State, stream bool) error {
+func executeTaskWithBackend(ctx context.Context, backend storage.Backend, cfg *config.Config, t *task.Task, p *executor.Plan, s *state.State, stream bool) error {
 	// Create progress display
 	disp := progress.New(t.ID, quiet)
 	disp.Info(fmt.Sprintf("Executing %s (%s)", t.ID, t.Weight))
@@ -468,5 +443,54 @@ func getGoFileChangeStats(ctx context.Context, taskBranch string, cfg *config.Co
 		FilesChanged: stats.FilesChanged,
 		Additions:    stats.Additions,
 		Deletions:    stats.Deletions,
+	}
+}
+
+// createGoPlanForWeight creates an execution plan based on task weight.
+// Plans are created dynamically for execution, not stored.
+func createGoPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
+	var phases []executor.Phase
+
+	switch weight {
+	case task.WeightTrivial:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightSmall:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightMedium:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightLarge:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	default:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
 	}
 }

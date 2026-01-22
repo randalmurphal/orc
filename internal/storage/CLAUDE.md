@@ -19,9 +19,12 @@ All storage operations are defined by the `Backend` interface:
 |----------|------------|
 | Task | `SaveTask`, `LoadTask`, `LoadAllTasks`, `DeleteTask`, `TaskExists`, `GetNextTaskID` |
 | State | `SaveState`, `LoadState`, `LoadAllStates` |
-| Plan | `SavePlan`, `LoadPlan` |
-| Spec | `SaveSpec`, `LoadSpec`, `SpecExists` |
+| Spec | `SaveSpec`, `LoadSpec`, `LoadFullSpec`, `SpecExists` |
+| Artifact | `SaveArtifact`, `LoadArtifact`, `LoadAllArtifacts`, `ArtifactExists` |
 | Initiative | `SaveInitiative`, `LoadInitiative`, `LoadAllInitiatives`, `DeleteInitiative`, `InitiativeExists`, `GetNextInitiativeID` |
+| Phase Template | `SavePhaseTemplate`, `GetPhaseTemplate`, `ListPhaseTemplates`, `DeletePhaseTemplate` |
+| Workflow | `SaveWorkflow`, `GetWorkflow`, `ListWorkflows`, `DeleteWorkflow`, workflow phases/variables operations |
+| Workflow Run | `SaveWorkflowRun`, `GetWorkflowRun`, `ListWorkflowRuns`, `DeleteWorkflowRun`, `GetNextWorkflowRunID` |
 | Transcript | `AddTranscript`, `AddTranscriptBatch`, `GetTranscripts`, `SearchTranscripts` |
 | Attachment | `SaveAttachment`, `GetAttachment`, `ListAttachments`, `DeleteAttachment` |
 | Comments | `ListTaskComments`, `SaveTaskComment`, `ListReviewComments`, `SaveReviewComment` |

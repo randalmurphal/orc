@@ -128,7 +128,6 @@ func init() {
 	// Import/Export
 	addCmd(newExportCmd(), groupImportExport)
 	addCmd(newImportCmd(), groupImportExport)
-	addCmd(newMigrateCmd(), groupImportExport)
 
 	// Team & Advanced
 	addCmd(newTeamCmd(), groupAdvanced)

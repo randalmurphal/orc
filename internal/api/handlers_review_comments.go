@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,10 +8,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/internal/state"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // createReviewCommentRequest is the request body for creating a review comment.
@@ -262,157 +257,9 @@ func (s *Server) handleDeleteReviewComment(w http.ResponseWriter, r *http.Reques
 }
 
 // handleReviewRetry triggers a retry with all open review comments.
+// TODO: This feature requires the workflow system to be fully implemented.
 func (s *Server) handleReviewRetry(w http.ResponseWriter, r *http.Request) {
-	taskID := r.PathValue("id")
-	if taskID == "" {
-		s.jsonError(w, "task_id required", http.StatusBadRequest)
-		return
-	}
-
-	pdb, err := db.OpenProject(s.getProjectRoot())
-	if err != nil {
-		s.jsonError(w, "failed to open database: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer func() { _ = pdb.Close() }()
-
-	// Get all open comments
-	comments, err := pdb.ListReviewComments(taskID, "open")
-	if err != nil {
-		s.jsonError(w, "failed to list review comments: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(comments) == 0 {
-		s.jsonError(w, "no open comments to address", http.StatusBadRequest)
-		return
-	}
-
-	// Load task
-	t, err := s.backend.LoadTask(taskID)
-	if err != nil {
-		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Load plan
-	p, err := s.backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Load or create state
-	st, err := s.backend.LoadState(taskID)
-	if err != nil || st == nil {
-		st = state.New(taskID)
-	}
-
-	// Build retry context from comments
-	retryContext := buildReviewRetryContext(comments)
-
-	// Set retry context in state - use "review" as the from phase
-	st.SetRetryContext("review", "implement", "Review comments require fixes", retryContext, 1)
-
-	// Reset implement phase and all later phases to pending (like rewind does)
-	foundTarget := false
-	for i := range p.Phases {
-		if p.Phases[i].ID == "implement" {
-			foundTarget = true
-		}
-		if foundTarget {
-			p.Phases[i].Status = plan.PhasePending
-			p.Phases[i].CommitSHA = ""
-			if st.Phases[p.Phases[i].ID] != nil {
-				st.Phases[p.Phases[i].ID].Status = state.StatusPending
-				st.Phases[p.Phases[i].ID].CompletedAt = nil
-			}
-		}
-	}
-
-	// Update state to point to implement phase
-	st.Status = state.StatusRunning
-	st.CurrentPhase = "implement"
-	st.CurrentIteration = 1
-	st.CompletedAt = nil
-
-	// Save plan and state
-	if err := s.backend.SavePlan(p, taskID); err != nil {
-		s.jsonError(w, "failed to save plan: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := s.backend.SaveState(st); err != nil {
-		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Reset task status to allow re-running
-	t.Status = task.StatusRunning
-	t.CompletedAt = nil
-	if err := s.backend.SaveTask(t); err != nil {
-		s.jsonError(w, "failed to update task: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Create cancellable context
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Store cancel function for later cancellation
-	s.runningTasksMu.Lock()
-	s.runningTasks[taskID] = cancel
-	s.runningTasksMu.Unlock()
-
-	// Start execution in background goroutine
-	go func() {
-		defer func() {
-			s.runningTasksMu.Lock()
-			delete(s.runningTasks, taskID)
-			s.runningTasksMu.Unlock()
-		}()
-
-		execCfg := executor.ConfigFromOrc(s.orcConfig)
-		execCfg.WorkDir = s.workDir
-		exec := executor.NewWithConfig(execCfg, s.orcConfig)
-		exec.SetBackend(s.backend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
-
-		// Execute with event publishing
-		execErr := exec.ExecuteTask(ctx, t, p, st)
-		if execErr != nil {
-			s.logger.Error("task execution failed", "task", taskID, "error", execErr)
-			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": execErr.Error()}})
-		} else {
-			s.logger.Info("task execution completed", "task", taskID)
-			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
-
-			// Auto-resolve all open comments that were sent to the agent
-			if pdb, dbErr := db.OpenProject(s.getProjectRoot()); dbErr == nil {
-				defer func() { _ = pdb.Close() }()
-				for _, comment := range comments {
-					if updateErr := pdb.ResolveReviewComment(comment.ID, "agent", db.CommentStatusResolved); updateErr != nil {
-						s.logger.Warn("failed to auto-resolve comment", "comment_id", comment.ID, "error", updateErr)
-					} else {
-						s.logger.Info("auto-resolved review comment", "comment_id", comment.ID)
-					}
-				}
-			}
-		}
-
-		// Reload and publish final state
-		if finalState, loadErr := s.backend.LoadState(taskID); loadErr == nil && finalState != nil {
-			s.Publish(taskID, Event{Type: "state", Data: finalState})
-		}
-	}()
-
-	resp := reviewRetryResponse{
-		TaskID:       taskID,
-		CommentCount: len(comments),
-		RetryContext: retryContext,
-		Status:       "started",
-	}
-
-	s.jsonResponse(w, resp)
+	s.jsonError(w, "review retry is temporarily unavailable during workflow migration", http.StatusNotImplemented)
 }
 
 // handleGetReviewStats returns statistics about review comments for a task.

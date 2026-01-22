@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -27,7 +26,7 @@ import (
 type FullExecutor struct {
 	claudePath   string // Path to claude binary
 	gitSvc       *git.Git
-	publisher    *EventPublisher
+	publisher    *PublishHelper
 	logger       *slog.Logger
 	config       ExecutorConfig
 	workingDir   string
@@ -59,7 +58,7 @@ func WithFullGitSvc(svc *git.Git) FullExecutorOption {
 
 // WithFullPublisher sets the event publisher.
 func WithFullPublisher(p events.Publisher) FullExecutorOption {
-	return func(e *FullExecutor) { e.publisher = NewEventPublisher(p) }
+	return func(e *FullExecutor) { e.publisher = NewPublishHelper(p) }
 }
 
 // WithFullLogger sets the logger.
@@ -128,7 +127,7 @@ func NewFullExecutor(opts ...FullExecutorOption) *FullExecutor {
 	e := &FullExecutor{
 		claudePath: "claude",
 		logger:     slog.Default(),
-		publisher:  NewEventPublisher(nil), // Initialize with nil-safe wrapper
+		publisher:  NewPublishHelper(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      30,
 			CheckpointInterval: 1, // Checkpoint every iteration
@@ -151,11 +150,11 @@ func (e *FullExecutor) Name() string {
 }
 
 // Execute runs a phase with persistent session and per-iteration checkpointing.
-func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: plan.PhaseRunning,
+		Status: PhaseRunning,
 	}
 
 	// Transcript streamer for real-time DB sync (started when JSONL path is known)
@@ -195,7 +194,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 		Logger:          e.logger,
 	})
 	if err != nil {
-		result.Status = plan.PhaseFailed
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("build execution context: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
@@ -288,7 +287,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				e.logger.Error("failed to save checkpoint", "error", cpErr)
 			}
 
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
 			result.Output = lastResponse // Preserve any previous response for debugging
 			goto done
@@ -362,7 +361,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				)
 			}
 
-			result.Status = plan.PhaseCompleted
+			result.Status = PhaseCompleted
 			result.Output = turnResult.Content
 
 			// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
@@ -401,7 +400,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				e.logger.Error("failed to save checkpoint on block", "error", cpErr)
 			}
 
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Output = lastResponse // Preserve output for retry context
 			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
 			e.logger.Warn("phase blocked (full)", "task", t.ID, "phase", p.ID, "reason", turnResult.Reason)
@@ -424,14 +423,14 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 				e.logger.Error("failed to save checkpoint on error", "error", cpErr)
 			}
 
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
 			result.Output = lastResponse
 			goto done
 		}
 	}
 
-	if result.Status == plan.PhaseRunning {
+	if result.Status == PhaseRunning {
 		// Save checkpoint for max iterations case
 		if cpErr := e.saveCheckpoint(t.ID, p.ID, &iterationCheckpoint{
 			Iteration:    e.config.MaxIterations,
@@ -442,7 +441,7 @@ func (e *FullExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase,
 			e.logger.Error("failed to save checkpoint on max iterations", "error", cpErr)
 		}
 
-		result.Status = plan.PhaseFailed
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached", e.config.MaxIterations)
 		result.Output = lastResponse // Preserve last response for debugging
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -262,40 +261,13 @@ Examples:
 					return fmt.Errorf("save task %s: %w", taskID, err)
 				}
 
-				// Create plan
-				p, err := plan.CreateFromTemplate(t)
-				if err != nil {
-					// Use default plan if template not found
-					p = &plan.Plan{
-						Version:     1,
-						TaskID:      taskID,
-						Weight:      t.Weight,
-						Description: "Default plan",
-						Phases: []plan.Phase{
-							{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-						},
-					}
-				}
-
-				// If spec is provided, skip spec phase and mark as complete
+				// If spec is provided, save it to database
+				// The executor will create the plan dynamically at runtime
+				// and skip the spec phase since a spec already exists
 				if mt.Spec != "" {
-					// Save spec
 					if err := backend.SaveSpec(taskID, mt.Spec, "manifest"); err != nil {
 						return fmt.Errorf("save spec for %s: %w", taskID, err)
 					}
-
-					// Mark spec phase as skipped/completed if present
-					for i, phase := range p.Phases {
-						if phase.ID == "spec" {
-							p.Phases[i].Status = plan.PhaseSkipped
-							break
-						}
-					}
-				}
-
-				// Save plan
-				if err := backend.SavePlan(p, taskID); err != nil {
-					return fmt.Errorf("save plan for %s: %w", taskID, err)
 				}
 
 				// Update task status to planned

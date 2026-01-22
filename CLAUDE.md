@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite)
 
 ## Task Model
 
@@ -215,18 +215,6 @@ Run `orc initiative --help` for full subcommand list.
 | `orc import --dry-run` | Preview import without changes |
 
 **Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
-
-### Plan Migration
-
-Plans auto-migrate when `orc run` detects staleness (template version change, phase sequence change, inline prompts). Manual migration available:
-
-| Command | Purpose |
-|---------|---------|
-| `orc migrate plans TASK-ID` | Migrate single task plan |
-| `orc migrate plans --all` | Migrate all stale plans |
-| `orc migrate plans --all --dry-run` | Preview migrations |
-
-Migration preserves completed/skipped phase statuses.
 
 ### Key Insight: Help Text = Documentation
 

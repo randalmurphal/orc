@@ -56,7 +56,7 @@ type CICheckResult struct {
 // CIMerger handles CI polling and auto-merge operations.
 type CIMerger struct {
 	config    *config.Config
-	publisher *EventPublisher
+	publisher *PublishHelper
 	logger    *slog.Logger
 	workDir   string
 	backend   storage.Backend
@@ -67,7 +67,7 @@ type CIMergerOption func(*CIMerger)
 
 // WithCIMergerPublisher sets the event publisher.
 func WithCIMergerPublisher(p events.Publisher) CIMergerOption {
-	return func(m *CIMerger) { m.publisher = NewEventPublisher(p) }
+	return func(m *CIMerger) { m.publisher = NewPublishHelper(p) }
 }
 
 // WithCIMergerLogger sets the logger.
@@ -89,7 +89,7 @@ func WithCIMergerBackend(b storage.Backend) CIMergerOption {
 func NewCIMerger(cfg *config.Config, opts ...CIMergerOption) *CIMerger {
 	m := &CIMerger{
 		config:    cfg,
-		publisher: NewEventPublisher(nil),
+		publisher: NewPublishHelper(nil),
 		logger:    slog.Default(),
 	}
 	for _, opt := range opts {

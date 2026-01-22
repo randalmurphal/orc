@@ -111,3 +111,18 @@ export {
 	type WeeklyChanges,
 	type StatsStore,
 } from './statsStore';
+
+// Workflow store
+export {
+	useWorkflowStore,
+	useWorkflows,
+	usePhaseTemplates,
+	useWorkflowRuns,
+	useBuiltinWorkflows,
+	useCustomWorkflows,
+	useBuiltinPhases,
+	useCustomPhases,
+	useRunningRuns,
+	useSelectedWorkflow,
+	useSelectedRun,
+} from './workflowStore';

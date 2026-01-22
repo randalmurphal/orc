@@ -8,7 +8,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -250,10 +249,6 @@ type Backend interface {
 	LoadState(taskID string) (*state.State, error)
 	LoadAllStates() ([]*state.State, error)
 
-	// Plan operations
-	SavePlan(p *plan.Plan, taskID string) error
-	LoadPlan(taskID string) (*plan.Plan, error)
-
 	// Spec operations
 	SaveSpec(taskID, content, source string) error
 	LoadSpec(taskID string) (string, error)
@@ -274,6 +269,33 @@ type Backend interface {
 	DeleteInitiative(id string) error
 	InitiativeExists(id string) (bool, error)
 	GetNextInitiativeID() (string, error)
+
+	// Phase template operations
+	SavePhaseTemplate(pt *db.PhaseTemplate) error
+	GetPhaseTemplate(id string) (*db.PhaseTemplate, error)
+	ListPhaseTemplates() ([]*db.PhaseTemplate, error)
+	DeletePhaseTemplate(id string) error
+
+	// Workflow operations
+	SaveWorkflow(w *db.Workflow) error
+	GetWorkflow(id string) (*db.Workflow, error)
+	ListWorkflows() ([]*db.Workflow, error)
+	DeleteWorkflow(id string) error
+	GetWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, error)
+	SaveWorkflowPhase(wp *db.WorkflowPhase) error
+	DeleteWorkflowPhase(workflowID, phaseTemplateID string) error
+	GetWorkflowVariables(workflowID string) ([]*db.WorkflowVariable, error)
+	SaveWorkflowVariable(wv *db.WorkflowVariable) error
+	DeleteWorkflowVariable(workflowID, name string) error
+
+	// Workflow run operations
+	SaveWorkflowRun(wr *db.WorkflowRun) error
+	GetWorkflowRun(id string) (*db.WorkflowRun, error)
+	ListWorkflowRuns(opts db.WorkflowRunListOpts) ([]*db.WorkflowRun, error)
+	DeleteWorkflowRun(id string) error
+	GetNextWorkflowRunID() (string, error)
+	GetWorkflowRunPhases(runID string) ([]*db.WorkflowRunPhase, error)
+	SaveWorkflowRunPhase(wrp *db.WorkflowRunPhase) error
 
 	// Transcript operations
 	AddTranscript(t *Transcript) error
@@ -344,7 +366,7 @@ type Backend interface {
 
 // ExportOptions configures what to export to a branch.
 type ExportOptions struct {
-	TaskDefinition bool // task.yaml, plan.yaml
+	TaskDefinition bool // task.yaml
 	FinalState     bool // state.yaml
 	Transcripts    bool // Full transcript files
 	ContextSummary bool // context.md

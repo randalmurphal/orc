@@ -19,6 +19,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `phase.go` | Phase CRUD, Tx variants |
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
 | `plan.go` | Plan CRUD |
+| `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD |
 | `spec.go` | Spec CRUD, FTS search |
 | `event_log.go` | EventLog CRUD, batch insert, time/type filtering for timeline |
 | `gate_decision.go` | GateDecision CRUD, Tx variants |
@@ -284,6 +285,51 @@ model := db.DetectModel("claude-sonnet-4-20250514")  // "sonnet"
 model := db.DetectModel("claude-3-5-haiku-20241022") // "haiku"
 model := db.DetectModel("unknown-model")             // "unknown"
 ```
+
+## Workflow System
+
+Workflow operations in `workflow.go` manage the configurable workflow system:
+
+### Types
+
+| Type | Purpose |
+|------|---------|
+| `PhaseTemplate` | Reusable phase definitions with prompt config |
+| `Workflow` | Composed execution plans from phase templates |
+| `WorkflowPhase` | Phase sequence within a workflow |
+| `WorkflowVariable` | Custom variable definitions |
+| `WorkflowRun` | Execution instance tracking |
+| `WorkflowRunPhase` | Phase execution within a run |
+
+### Operations
+
+```go
+// Phase templates
+pdb.SavePhaseTemplate(pt)
+pdb.GetPhaseTemplate(id)
+pdb.ListPhaseTemplates()
+pdb.DeletePhaseTemplate(id)
+
+// Workflows
+pdb.SaveWorkflow(w)
+pdb.GetWorkflow(id)
+pdb.ListWorkflows()
+pdb.DeleteWorkflow(id)
+pdb.GetWorkflowPhases(workflowID)
+pdb.SaveWorkflowPhase(wp)
+pdb.GetWorkflowVariables(workflowID)
+pdb.SaveWorkflowVariable(wv)
+
+// Workflow runs
+pdb.SaveWorkflowRun(wr)
+pdb.GetWorkflowRun(id)
+pdb.ListWorkflowRuns(opts)
+pdb.GetNextWorkflowRunID()
+pdb.GetWorkflowRunPhases(runID)
+pdb.SaveWorkflowRunPhase(wrp)
+```
+
+See `internal/workflow/CLAUDE.md` for built-in workflows and seeding.
 
 ## Testing
 

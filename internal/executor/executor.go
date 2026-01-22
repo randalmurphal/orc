@@ -16,7 +16,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -175,7 +174,7 @@ func findClaudeInCommonLocations() string {
 // Result represents the result of a phase execution.
 type Result struct {
 	Phase        string
-	Status       plan.PhaseStatus
+	Status       PhaseStatus
 	Iterations   int
 	Duration     time.Duration
 	Output       string
@@ -367,7 +366,7 @@ func (e *Executor) SetPublisher(p events.Publisher) {
 	// Initialize session broadcaster when publisher is set
 	if p != nil {
 		e.sessionBroadcaster = NewSessionBroadcaster(
-			NewEventPublisher(p),
+			NewPublishHelper(p),
 			e.backend,
 			e.globalDB,
 			e.config.WorkDir,
@@ -582,11 +581,11 @@ func (e *Executor) resetPhaseExecutors() {
 
 // LoadProjectToolPermissions and rebuildClient are defined in permissions.go
 
-// Event publishing convenience methods - thin wrappers around EventPublisher.
+// Event publishing convenience methods - thin wrappers around PublishHelper.
 // These provide backwards-compatible method signatures on Executor.
 
-func (e *Executor) eventPublisher() *EventPublisher {
-	return NewEventPublisher(e.publisher)
+func (e *Executor) eventPublisher() *PublishHelper {
+	return NewPublishHelper(e.publisher)
 }
 
 func (e *Executor) publish(ev events.Event) {

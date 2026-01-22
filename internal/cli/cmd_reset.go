@@ -86,23 +86,8 @@ Examples:
 				s = state.New(id)
 			}
 
-			// Load plan (may not exist)
-			p, err := backend.LoadPlan(id)
-			if err != nil {
-				// Plan might not exist yet, that's okay
-				p = nil
-			}
-
-			// Reset state
+			// Reset state (plans are created dynamically, no need to reset them)
 			s.Reset()
-
-			// Reset plan if it exists
-			if p != nil {
-				p.Reset()
-				if err := backend.SavePlan(p, id); err != nil {
-					return fmt.Errorf("save plan: %w", err)
-				}
-			}
 
 			// Save state
 			if err := backend.SaveState(s); err != nil {

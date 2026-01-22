@@ -5,14 +5,13 @@ package executor
 import (
 	"context"
 
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ExecutePhase runs a single phase using session-based execution.
 // Delegates to the weight-appropriate executor (trivial, standard, or full).
-func (e *Executor) ExecutePhase(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+func (e *Executor) ExecutePhase(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
 	// Get the appropriate executor for this task's weight
 	executor := e.getPhaseExecutor(t.Weight)
 

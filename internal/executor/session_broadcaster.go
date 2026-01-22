@@ -24,7 +24,7 @@ const (
 //
 // Thread-safe: All methods can be called concurrently.
 type SessionBroadcaster struct {
-	publisher *EventPublisher
+	publisher *PublishHelper
 	backend   storage.Backend
 	globalDB  *db.GlobalDB
 	logger    *slog.Logger
@@ -49,7 +49,7 @@ type SessionBroadcaster struct {
 
 // NewSessionBroadcaster creates a new session broadcaster.
 func NewSessionBroadcaster(
-	publisher *EventPublisher,
+	publisher *PublishHelper,
 	backend storage.Backend,
 	globalDB *db.GlobalDB,
 	workDir string,

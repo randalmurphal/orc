@@ -8,6 +8,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 |------|---------|
 | `executor.go` | Main orchestrator, `getPhaseExecutor()` |
 | `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()` |
+| `workflow_execution.go` | `WorkflowExecutor.Run()` for workflow-based execution |
 | `phase.go` | `ExecutePhase()`, executor dispatch |
 | `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
 
@@ -34,7 +35,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
 | `haiku_validation.go` | Haiku-based spec and criteria validation |
 | `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
-| `publish.go` | `EventPublisher` for real-time events |
+| `publish.go` | `PublishHelper` for real-time events |
 | `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
 | `file_watcher.go` | `FileWatcher` for real-time file change detection |
 

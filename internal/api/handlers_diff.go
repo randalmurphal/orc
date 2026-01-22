@@ -191,25 +191,23 @@ func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit stri
 		return "", ""
 	}
 
-	// If we have commits, we need them in execution order.
-	// Since map iteration order is undefined, we also load the plan
-	// to get the correct phase ordering.
-	plan, err := s.backend.LoadPlan(taskID)
-	if err != nil || plan == nil {
+	// Load task to get weight for phase ordering
+	t, err := s.backend.LoadTask(taskID)
+	if err != nil || t == nil {
 		// Fallback: just use the commits we found (might not be in order)
-		// This still works for single-commit tasks
 		if len(commits) == 1 {
 			return commits[0], commits[0]
 		}
-		// For multiple commits without order info, return empty
-		// to fall back to branch comparison
 		return "", ""
 	}
 
-	// Build ordered commit list based on plan's phase order
+	// Get phase order from task weight
+	phaseOrder := phasesForWeight(t.Weight)
+
+	// Build ordered commit list based on phase order
 	var orderedCommits []string
-	for _, phase := range plan.Phases {
-		if phaseState, ok := taskState.Phases[phase.ID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
+	for _, phaseID := range phaseOrder {
+		if phaseState, ok := taskState.Phases[phaseID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
 			orderedCommits = append(orderedCommits, phaseState.CommitSHA)
 		}
 	}
@@ -384,4 +382,20 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, stats)
+}
+
+// phasesForWeight returns the phase IDs for a given task weight.
+func phasesForWeight(weight task.Weight) []string {
+	switch weight {
+	case task.WeightTrivial:
+		return []string{"tiny_spec", "implement"}
+	case task.WeightSmall:
+		return []string{"tiny_spec", "implement", "review"}
+	case task.WeightMedium:
+		return []string{"spec", "tdd_write", "implement", "review", "docs"}
+	case task.WeightLarge:
+		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs", "validate"}
+	default:
+		return []string{"spec", "implement", "review"}
+	}
 }

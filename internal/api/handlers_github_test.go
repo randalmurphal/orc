@@ -13,7 +13,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -57,17 +56,6 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 	tsk.StartedAt = &startTime
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create and save plan
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhaseRunning},
-			{ID: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create and save state
@@ -992,12 +980,6 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	// Verify plan is loadable
-	_, err := srv.Backend().LoadPlan(taskID)
-	if err != nil {
-		t.Errorf("expected plan to be loadable: %v", err)
 	}
 
 	// Verify state has retry context

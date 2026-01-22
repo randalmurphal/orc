@@ -14,7 +14,6 @@ import (
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -1685,18 +1684,6 @@ func TestGetPlanEndpoint_Success(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-
-	p := &plan.Plan{
-		Version:     1,
-		Weight:      "medium",
-		Description: "Test plan",
-		Phases: []plan.Phase{
-			{ID: "implement", Name: "Implementation", Prompt: "Do the work"},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-010"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
 	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -1732,16 +1719,6 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	tsk.Weight = task.WeightMedium
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create plan (required for run)
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-RUN"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 	_ = backend.Close()
 
@@ -1813,18 +1790,6 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-
-	// Create plan with spec as first phase
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "spec", Status: plan.PhasePending},
-			{ID: "implement", Status: plan.PhasePending},
-			{ID: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-PHASE"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
 	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -1895,37 +1860,6 @@ func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 	}
 }
 
-func TestRunTaskEndpoint_NoPlan(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	// Create backend and task without plan (status must allow running)
-	storageCfg := &config.StorageConfig{Mode: "database"}
-	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
-	if err != nil {
-		t.Fatalf("failed to create backend: %v", err)
-	}
-
-	tsk := task.New("TASK-012", "No Plan Task")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-	_ = backend.Close()
-
-	srv := New(&Config{WorkDir: tmpDir})
-
-	req := httptest.NewRequest("POST", "/api/tasks/TASK-012/run", nil)
-	w := httptest.NewRecorder()
-
-	srv.mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
 // === Blocking Enforcement Tests ===
 
 func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
@@ -1954,16 +1888,6 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 	blocked.BlockedBy = []string{"TASK-BLOCKER"}
 	if err := backend.SaveTask(blocked); err != nil {
 		t.Fatalf("failed to save blocked task: %v", err)
-	}
-
-	// Create plan for blocked task
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-BLOCKED"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 	_ = backend.Close()
 
@@ -2037,16 +1961,6 @@ func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
 	if err := backend.SaveTask(ready); err != nil {
 		t.Fatalf("failed to save ready task: %v", err)
 	}
-
-	// Create plan for blocked task
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-READY"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
 	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -2089,16 +2003,6 @@ func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
 	if err := backend.SaveTask(forced); err != nil {
 		t.Fatalf("failed to save forced task: %v", err)
 	}
-
-	// Create plan
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-FORCE"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
 	_ = backend.Close()
 
 	srv := New(&Config{WorkDir: tmpDir})
@@ -2131,16 +2035,6 @@ func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
 	tsk.Weight = "medium"
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create plan
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-FREE"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 	_ = backend.Close()
 
@@ -2231,18 +2125,6 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 	tsk.Weight = "medium"
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create a plan with an implement phase
-	p := &plan.Plan{
-		TaskID: "TASK-014",
-		Weight: "medium",
-		Phases: []plan.Phase{
-			{ID: "implement", Name: "implement", Status: plan.PhaseRunning},
-		},
-	}
-	if err := backend.SavePlan(p, "TASK-014"); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state with a paused implement phase
@@ -2555,17 +2437,6 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Create plan
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhaseRunning},
-			{ID: "test", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
-	}
-
 	// Create state
 	st := state.New(taskID)
 	st.CurrentPhase = "implement"
@@ -2627,16 +2498,6 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	tsk.Status = task.StatusPlanned
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create plan
-	p := &plan.Plan{
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 	_ = backend.Close()
 
