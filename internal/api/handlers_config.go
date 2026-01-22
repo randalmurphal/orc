@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 )
@@ -368,4 +370,60 @@ func (s *Server) autoCommitConfig(description string) {
 	if err := commitCmd.Run(); err != nil {
 		s.logger.Warn("failed to auto-commit config change", "error", err)
 	}
+}
+
+// ConfigStatsResponse represents configuration statistics for the ConfigPanel.
+type ConfigStatsResponse struct {
+	SlashCommandsCount int    `json:"slashCommandsCount"`
+	ClaudeMdSize       int    `json:"claudeMdSize"`
+	McpServersCount    int    `json:"mcpServersCount"`
+	PermissionsProfile string `json:"permissionsProfile"`
+}
+
+// handleGetConfigStats returns statistics about Claude Code configuration.
+// GET /api/config/stats
+func (s *Server) handleGetConfigStats(w http.ResponseWriter, r *http.Request) {
+	var stats ConfigStatsResponse
+
+	// Get permissions profile from config
+	cfg, err := config.LoadFrom(s.workDir)
+	if err != nil {
+		cfg = config.Default()
+	}
+	stats.PermissionsProfile = string(cfg.Profile)
+
+	// Count slash commands from both global and project .claude directories
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		globalSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(homeDir, ".claude"))
+		stats.SlashCommandsCount += len(globalSkills)
+	}
+	projectSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(s.getProjectRoot(), ".claude"))
+	stats.SlashCommandsCount += len(projectSkills)
+
+	// Get CLAUDE.md size (check project root first)
+	claudeMdPath := filepath.Join(s.getProjectRoot(), "CLAUDE.md")
+	if fileInfo, err := os.Stat(claudeMdPath); err == nil {
+		stats.ClaudeMdSize = int(fileInfo.Size())
+	} else if homeDir != "" {
+		// Try global CLAUDE.md
+		claudeMdPath = filepath.Join(homeDir, "CLAUDE.md")
+		if fileInfo, err := os.Stat(claudeMdPath); err == nil {
+			stats.ClaudeMdSize = int(fileInfo.Size())
+		}
+	}
+
+	// Count MCP servers from both global and project configs
+	if homeDir != "" {
+		globalMCP, _ := claudeconfig.LoadProjectMCPConfig(filepath.Join(homeDir, ".claude"))
+		if globalMCP != nil {
+			stats.McpServersCount += len(globalMCP.MCPServers)
+		}
+	}
+	projectMCP, _ := claudeconfig.LoadProjectMCPConfig(s.getProjectRoot())
+	if projectMCP != nil {
+		stats.McpServersCount += len(projectMCP.MCPServers)
+	}
+
+	s.jsonResponse(w, stats)
 }
