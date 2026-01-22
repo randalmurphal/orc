@@ -26,7 +26,7 @@ Run anyway? [y/N]:
 orc show TASK-XXX
 
 # Check which tasks are blocking
-cat .orc/tasks/TASK-XXX/task.yaml | grep -A5 "blocked_by:"
+orc show TASK-XXX | grep -A5 "blocked_by:"
 
 # See dependency graph via API
 curl http://localhost:8080/api/tasks/TASK-XXX/dependencies
@@ -159,12 +159,12 @@ orc pause TASK-XXX --reason "Investigating infinite loop"
 orc status
 
 # View execution info
-cat .orc/tasks/TASK-XXX/state.yaml | grep -A5 "execution:"
+orc show TASK-XXX --state
 ```
 
 **How Orphan Detection Works**:
 
-Orc tracks executor process information in `state.yaml`:
+Orc tracks executor process information in the database:
 - **PID**: Process ID of the executor
 - **Hostname**: Machine running the executor
 - **Heartbeat**: Last time executor updated state (updated every 2 minutes during execution)
@@ -193,9 +193,8 @@ A task is considered orphaned when:
 
 **Manual Recovery** (if auto-detection fails):
 ```bash
-# Mark task as blocked (so it can be resumed)
-# Edit .orc/tasks/TASK-XXX/task.yaml: change status to "blocked"
-# Edit .orc/tasks/TASK-XXX/state.yaml: change status to "interrupted", remove execution block
+# Force reset the task to allow resuming
+orc reset TASK-XXX --force
 orc resume TASK-XXX
 ```
 
@@ -1198,9 +1197,8 @@ Orc's auto-merge handles most cases automatically. If you're seeing manual resol
 
 | File | Purpose |
 |------|---------|
-| `.orc/tasks/TASK-XXX/state.yaml` | Current task state |
-| `.orc/tasks/TASK-XXX/transcripts/` | All Claude I/O |
-| `.orc/tasks/TASK-XXX/.stuck.md` | Stuck analysis (if stuck) |
+| `.orc/orc.db` | SQLite database (source of truth) |
+| `.orc/tasks/TASK-XXX/transcripts/` | Claude session logs (markdown exports) |
 | `orc.yaml` | Project configuration |
 
 ---

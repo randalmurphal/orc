@@ -12,7 +12,7 @@
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌───────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐        │
-│  │ Svelte 5  │◄─►│  Go API  │◄─►│ Planner │◄─►│ Executor │        │
+│  │ React 19  │◄─►│  Go API  │◄─►│ Planner │◄─►│ Executor │        │
 │  │ Frontend  │   │  Server  │   │         │   │ (Ralph)  │        │
 │  └───────────┘   └──────────┘   └─────────┘   └──────────┘        │
 │       │               │              │              │              │
@@ -52,7 +52,7 @@
 
 ```
 1. USER CREATES TASK
-   └─► Task stored in .orc/tasks/TASK-ID/task.yaml
+   └─► Task stored in SQLite (.orc/orc.db)
        └─► Git branch created: orc/TASK-ID
 
 2. WEIGHT CLASSIFICATION (AI)
@@ -61,7 +61,7 @@
 
 3. PLAN GENERATION
    └─► Template selected based on weight
-       └─► Phase sequence stored in .orc/tasks/TASK-ID/plan.yaml
+       └─► Phase sequence stored in database
 
 4. PHASE EXECUTION (Ralph loop)
    └─► Phase prompt constructed
@@ -84,14 +84,12 @@
 
 ```
 project/
-├── .orc/                      # All orc state (git-tracked)
+├── .orc/                      # All orc state
+│   ├── orc.db                # SQLite database (source of truth)
 │   ├── config.yaml           # Project configuration
 │   ├── tasks/
 │   │   └── TASK-001/
-│   │       ├── task.yaml     # Task definition
-│   │       ├── state.yaml    # Current execution state
-│   │       ├── plan.yaml     # Generated plan
-│   │       └── transcripts/  # Claude session logs
+│   │       └── transcripts/  # Claude session logs (markdown exports)
 │   ├── prompts/              # Prompt template overrides
 │   └── worktrees/            # Git worktrees (gitignored)
 ├── .git/
