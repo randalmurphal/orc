@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
@@ -45,6 +46,9 @@ type Server struct {
 
 	// Storage backend
 	backend storage.Backend
+
+	// Global database for cost tracking and cross-project data
+	globalDB *db.GlobalDB
 
 	// SSE subscribers per task (legacy, kept for compatibility)
 	subscribers   map[string][]chan Event
@@ -142,6 +146,14 @@ func New(cfg *Config) *Server {
 	// Create event publisher with persistence
 	pub := events.NewPersistentPublisher(backend, "executor", logger)
 
+	// Open global database for cost tracking
+	globalDB, err := db.OpenGlobal()
+	if err != nil {
+		logger.Warn("failed to open global database, cost analytics disabled", "error", err)
+		// Continue without GlobalDB - cost endpoints will return 503
+		globalDB = nil
+	}
+
 	// Create a background context for the server - will be replaced by StartContext
 	serverCtx, serverCtxCancel := context.WithCancel(context.Background())
 
@@ -174,6 +186,7 @@ func New(cfg *Config) *Server {
 		orcConfig:       orcCfg,
 		publisher:       pub,
 		backend:         backend,
+		globalDB:        globalDB,
 		subscribers:     make(map[string][]chan Event),
 		runningTasks:    make(map[string]context.CancelFunc),
 		diffCache:       diff.NewCache(100), // Cache up to 100 file diffs
@@ -287,6 +300,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/initiatives/{id}/decisions", cors(s.handleAddInitiativeDecision))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/ready", cors(s.handleGetReadyTasks))
 	s.mux.HandleFunc("GET /api/initiatives/{id}/dependency-graph", cors(s.handleGetInitiativeDependencyGraph))
+	s.mux.HandleFunc("GET /api/initiatives/{id}/cost", cors(s.handleInitiativeCost))
 
 	// Task dependency graph (for arbitrary set of tasks)
 	s.mux.HandleFunc("GET /api/tasks/dependency-graph", cors(s.handleGetTasksDependencyGraph))
@@ -345,6 +359,12 @@ func (s *Server) registerRoutes() {
 
 	// Cost aggregation
 	s.mux.HandleFunc("GET /api/cost/summary", cors(s.handleGetCostSummary))
+
+	// Cost analytics
+	s.mux.HandleFunc("GET /api/cost/breakdown", cors(s.handleCostBreakdown))
+	s.mux.HandleFunc("GET /api/cost/timeseries", cors(s.handleCostTimeseries))
+	s.mux.HandleFunc("GET /api/cost/budget", cors(s.handleCostBudget))
+	s.mux.HandleFunc("PUT /api/cost/budget", cors(s.handleUpdateCostBudget))
 
 	// Metrics (JSONL-based analytics)
 	s.mux.HandleFunc("GET /api/metrics/summary", cors(s.handleGetMetricsSummary))
