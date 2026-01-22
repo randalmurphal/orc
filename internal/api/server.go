@@ -810,9 +810,9 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}()
 
 	return map[string]any{
-		"status":      "resumed",
-		"task_id":     id,
-		"from_phase":  resumePhase,
+		"status":     "resumed",
+		"task_id":    id,
+		"from_phase": resumePhase,
 	}, nil
 }
 

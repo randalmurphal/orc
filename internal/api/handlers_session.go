@@ -9,16 +9,16 @@ import (
 
 // SessionMetricsResponse represents the response for GET /api/session.
 type SessionMetricsResponse struct {
-	SessionID        string  `json:"session_id"`
+	SessionID        string    `json:"session_id"`
 	StartedAt        time.Time `json:"started_at"`
-	DurationSeconds  int64   `json:"duration_seconds"`
-	TotalTokens      int     `json:"total_tokens"`
-	InputTokens      int     `json:"input_tokens"`
-	OutputTokens     int     `json:"output_tokens"`
-	EstimatedCostUSD float64 `json:"estimated_cost_usd"`
-	TasksCompleted   int     `json:"tasks_completed"`
-	TasksRunning     int     `json:"tasks_running"`
-	IsPaused         bool    `json:"is_paused"`
+	DurationSeconds  int64     `json:"duration_seconds"`
+	TotalTokens      int       `json:"total_tokens"`
+	InputTokens      int       `json:"input_tokens"`
+	OutputTokens     int       `json:"output_tokens"`
+	EstimatedCostUSD float64   `json:"estimated_cost_usd"`
+	TasksCompleted   int       `json:"tasks_completed"`
+	TasksRunning     int       `json:"tasks_running"`
+	IsPaused         bool      `json:"is_paused"`
 }
 
 // handleGetSessionMetrics returns current session metrics for the TopBar.
