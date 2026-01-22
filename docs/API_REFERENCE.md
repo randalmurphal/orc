@@ -1523,6 +1523,7 @@ Connect to `/api/ws` for real-time updates.
 | `initiative_created` | `{initiative: Initiative}` | Initiative created via CLI/filesystem |
 | `initiative_updated` | `{initiative: Initiative}` | Initiative modified via CLI/filesystem |
 | `initiative_deleted` | `{initiative_id: string}` | Initiative deleted via CLI/filesystem |
+| `files_changed` | `FilesChangedUpdate` | Files modified during task execution (see below) |
 
 ### Finalize Event Data
 
@@ -1584,6 +1585,40 @@ The `spec_analyzing` and `spec_writing` states are specific to the spec phase an
 **Web UI handling:**
 
 TaskCard shows the activity state as subtext under the phase name for running tasks. The `ACTIVITY_CONFIG` map in `web/src/lib/types.ts` provides display labels.
+
+### Files Changed Event Data
+
+Files changed events report real-time file modifications during task execution. Emitted every 10 seconds when files change.
+
+```json
+{
+  "files": [
+    {"path": "internal/api/handlers.go", "status": "modified", "additions": 45, "deletions": 12},
+    {"path": "internal/api/handlers_test.go", "status": "added", "additions": 120, "deletions": 0}
+  ],
+  "total_additions": 165,
+  "total_deletions": 12,
+  "timestamp": "2026-01-10T10:31:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `files` | Array of changed files with per-file stats |
+| `files[].path` | Relative file path from worktree root |
+| `files[].status` | Change type: `added`, `modified`, `deleted`, `renamed` |
+| `files[].additions` | Lines added in this file |
+| `files[].deletions` | Lines removed from this file |
+| `total_additions` | Sum of additions across all files |
+| `total_deletions` | Sum of deletions across all files |
+| `timestamp` | When this snapshot was taken |
+
+**Behavior:**
+- Polls git diff every 10 seconds during task execution
+- Only committed/staged changes are reported (not untracked files)
+- Compares HEAD against the target branch merge-base
+- Deduplicates: only emits when file state actually changes
+- Useful for progress indicators showing lines changed during implementation
 
 ### Heartbeat Event Data
 

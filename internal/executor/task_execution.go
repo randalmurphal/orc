@@ -86,6 +86,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 	heartbeat.Start(ctx)
 	defer heartbeat.Stop()
 
+	// File watcher will be started after worktree setup so we know the correct path and target branch
+	var fileWatcher *FileWatcher
+
 	// Set up SIGUSR1 handler for external pause requests (orc pause).
 	// When received, triggers graceful pause: commits WIP, saves state, exits cleanly.
 	pauseCh := make(chan os.Signal, 1)
@@ -122,6 +125,17 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		}
 		// Cleanup worktree on exit based on config and success
 		defer e.cleanupWorktreeForTask(t)
+
+		// Start file watcher after worktree setup so we have the correct path and target branch
+		if e.publisher != nil && e.worktreePath != "" {
+			// Resolve target branch using the same logic as worktree setup
+			baseRef := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
+
+			detector := NewGitDiffDetector(e.worktreePath)
+			fileWatcher = NewFileWatcher(detector, e.eventPublisher(), t.ID, e.worktreePath, baseRef, e.logger)
+			fileWatcher.Start(execCtx)
+			defer fileWatcher.Stop()
+		}
 	}
 
 	// Sync with target branch before execution starts (catches stale worktrees)

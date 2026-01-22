@@ -36,6 +36,7 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
 | `publish.go` | `EventPublisher` for real-time events |
 | `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
+| `file_watcher.go` | `FileWatcher` for real-time file change detection |
 
 ## Architecture
 
