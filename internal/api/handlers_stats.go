@@ -945,8 +945,8 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 	}
 
 	// Calculate stats for both periods
-	currentStats := s.calculatePeriodStats(allTasks, currentStart, currentEnd)
-	previousStats := s.calculatePeriodStats(allTasks, previousStart, previousEnd)
+	currentStats := s.calculateComparisonPeriodStats(allTasks, currentStart, currentEnd)
+	previousStats := s.calculateComparisonPeriodStats(allTasks, previousStart, previousEnd)
 
 	// Calculate percentage changes
 	changes := ChangeStats{
@@ -965,8 +965,10 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 	s.jsonResponse(w, response)
 }
 
-// calculatePeriodStats computes statistics for tasks completed within a period.
-func (s *Server) calculatePeriodStats(allTasks []*task.Task, startTime, endTime time.Time) PeriodStats {
+// calculateComparisonPeriodStats computes statistics for tasks completed within a period.
+// This is used by the comparison endpoint and differs from calculatePeriodStats in handlers_dashboard.go
+// which calculates detailed dashboard stats with current status counts.
+func (s *Server) calculateComparisonPeriodStats(allTasks []*task.Task, startTime, endTime time.Time) PeriodStats {
 	var completedCount, failedCount, totalTokens int
 	var totalCost float64
 
