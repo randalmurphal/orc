@@ -118,6 +118,14 @@ func ResolveClaudePath(path string) string {
 	if path == "" {
 		return path
 	}
+
+	// Expand tilde to home directory first
+	if strings.HasPrefix(path, "~/") {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			path = filepath.Join(homeDir, path[2:])
+		}
+	}
+
 	if filepath.IsAbs(path) {
 		return path
 	}
