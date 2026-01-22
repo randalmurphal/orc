@@ -75,10 +75,9 @@ const PhaseCompletionWithArtifactSchema = `{
 var PhasesWithArtifacts = map[string]bool{
 	"spec":      true,
 	"tiny_spec": true, // Combined spec+TDD for trivial/small tasks
-	"design":    true,
 	"research":  true,
 	"tdd_write": true, // TDD test-writing phase for medium+
-	"tasks":     true, // Task breakdown for large/greenfield
+	"breakdown": true, // Implementation breakdown for medium/large
 	"docs":      true,
 }
 

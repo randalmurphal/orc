@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
@@ -39,9 +38,8 @@ type StandardExecutor struct {
 	resumeSessionID string
 
 	// Validation components (optional)
-	backpressure    *BackpressureRunner // Deterministic quality checks
-	validationModel string              // Model for validation (empty = disabled)
-	orcConfig       *config.Config      // Config for validation settings
+	backpressure *BackpressureRunner // Deterministic quality checks
+	orcConfig    *config.Config      // Config for validation settings
 
 	// turnExecutor allows injection of a mock for testing.
 	// If nil, a real ClaudeExecutor is created during Execute.
@@ -84,12 +82,6 @@ func WithStandardBackend(b storage.Backend) StandardExecutorOption {
 // WithStandardBackpressure sets the backpressure runner for quality checks.
 func WithStandardBackpressure(bp *BackpressureRunner) StandardExecutorOption {
 	return func(e *StandardExecutor) { e.backpressure = bp }
-}
-
-// WithStandardValidationModel sets the model for progress validation.
-// The validation client is created dynamically with the correct workdir.
-func WithStandardValidationModel(model string) StandardExecutorOption {
-	return func(e *StandardExecutor) { e.validationModel = model }
 }
 
 // WithStandardOrcConfig sets the orc config for validation settings.
@@ -146,22 +138,6 @@ func (e *StandardExecutor) Name() string {
 	return "standard"
 }
 
-// createValidationClient creates a validation client for the current working directory.
-// Returns nil if validation is disabled.
-func (e *StandardExecutor) createValidationClient() claude.Client {
-	if e.validationModel == "" {
-		return nil
-	}
-	opts := []claude.ClaudeOption{
-		claude.WithModel(e.validationModel),
-		claude.WithWorkdir(e.workingDir),
-	}
-	if e.claudePath != "" {
-		opts = append(opts, claude.WithClaudePath(e.claudePath))
-	}
-	return claude.NewClaudeCLI(opts...)
-}
-
 // Execute runs a phase to completion using ClaudeCLI with JSON schema.
 func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
 	start := time.Now()
@@ -195,7 +171,6 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 	result.Model = execCtx.ModelSetting.Model
 	promptText := execCtx.PromptText
-	specContent := execCtx.SpecContent
 
 	// Use injected TurnExecutor if available (for testing), otherwise create real ClaudeExecutor
 	var turnExec TurnExecutor
@@ -328,55 +303,6 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 				)
 			}
 
-			// Criteria validation: check if success criteria from spec are met
-			// This runs after backpressure (tests pass) but before accepting completion
-			if e.validationModel != "" && e.orcConfig != nil && specContent != "" && p.ID == "implement" &&
-				e.orcConfig.ShouldValidateCriteria(string(t.Weight)) {
-				valClient := e.createValidationClient()
-				criteriaResult, valErr := ValidateSuccessCriteria(ctx, valClient, specContent, turnResult.Content)
-				if valErr != nil {
-					if e.orcConfig.Validation.FailOnAPIError {
-						// Fail properly - task is resumable from this phase
-						e.logger.Error("criteria validation API error - failing task",
-							"task", t.ID,
-							"phase", p.ID,
-							"error", valErr,
-							"hint", "Task can be resumed with 'orc resume'",
-						)
-						result.Status = plan.PhaseFailed
-						result.Error = fmt.Errorf("criteria validation API error (resumable): %w", valErr)
-						result.Output = turnResult.Content
-						result.Duration = time.Since(start)
-						if transcriptStreamer != nil {
-							transcriptStreamer.Stop()
-						}
-						return result, result.Error
-					}
-					// Fail open (legacy behavior for fast profile)
-					e.logger.Warn("criteria validation error (continuing)",
-						"task", t.ID,
-						"phase", p.ID,
-						"error", valErr,
-					)
-				} else if !criteriaResult.AllMet {
-					// Not all criteria met - inject feedback and continue iteration
-					e.logger.Info("criteria validation failed, continuing iteration",
-						"task", t.ID,
-						"phase", p.ID,
-						"missing", criteriaResult.MissingSummary,
-					)
-					e.publisher.Warning(t.ID, p.ID, "Criteria check: "+criteriaResult.MissingSummary)
-
-					// Inject criteria feedback into next prompt
-					promptText = FormatCriteriaFeedback(criteriaResult)
-					continue // Don't accept completion, iterate again
-				}
-				e.logger.Info("criteria validation passed",
-					"task", t.ID,
-					"phase", p.ID,
-				)
-			}
-
 			result.Status = plan.PhaseCompleted
 			result.Output = turnResult.Content
 			e.logger.Info("phase complete", "task", t.ID, "phase", p.ID, "iterations", iteration)
@@ -421,11 +347,10 @@ done:
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
 	if result.Status == plan.PhaseCompleted && result.Output != "" {
-		if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
-			e.logger.Warn("failed to save phase artifact", "error", err)
-		} else if artifactPath != "" {
-			result.Artifacts = append(result.Artifacts, artifactPath)
-			e.logger.Info("saved phase artifact", "path", artifactPath)
+		if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
+			e.logger.Warn("failed to save phase artifact to database", "error", err)
+		} else if saved {
+			e.logger.Info("saved phase artifact to database", "phase", p.ID)
 		}
 	}
 

@@ -327,10 +327,10 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	)
 
 	// Save artifact
-	if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
-		e.logger.Warn("failed to save finalize artifact", "error", err)
-	} else if artifactPath != "" {
-		result.Artifacts = append(result.Artifacts, artifactPath)
+	if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
+		e.logger.Warn("failed to save finalize artifact to database", "error", err)
+	} else if saved {
+		e.logger.Info("saved finalize artifact to database", "phase", p.ID)
 	}
 
 	return result, nil

@@ -260,6 +260,13 @@ type Backend interface {
 	LoadFullSpec(taskID string) (*SpecInfo, error)
 	SpecExists(taskID string) (bool, error)
 
+	// Phase artifact operations (for design, tdd_write, breakdown, research, docs)
+	// Specs use the separate Spec operations above
+	SaveArtifact(taskID, phaseID, content, source string) error
+	LoadArtifact(taskID, phaseID string) (string, error)
+	LoadAllArtifacts(taskID string) (map[string]string, error)
+	ArtifactExists(taskID, phaseID string) (bool, error)
+
 	// Initiative operations
 	SaveInitiative(i *initiative.Initiative) error
 	LoadInitiative(id string) (*initiative.Initiative, error)

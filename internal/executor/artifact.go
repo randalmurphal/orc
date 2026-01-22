@@ -11,12 +11,42 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// SavePhaseArtifact extracts artifact content from JSON output and saves to file.
-// For artifact-producing phases (spec, design, research, docs, tdd_write, tasks), agents output
+// SaveArtifactToDatabase extracts artifact content from JSON output and saves to database.
+// For artifact-producing phases (design, research, docs, tdd_write, breakdown), agents output
 // structured JSON with an "artifact" field containing the full content.
 //
-// NOTE: For "spec" and "tiny_spec" phases, this function returns early - use SaveSpecToDatabase instead.
-// Spec content is saved to the database to avoid merge conflicts in worktrees.
+// NOTE: For "spec" and "tiny_spec" phases, use SaveSpecToDatabase instead.
+// Returns true if an artifact was saved, false if the phase doesn't produce artifacts or no content.
+func SaveArtifactToDatabase(backend storage.Backend, taskID, phaseID, output string) (bool, error) {
+	// Skip for spec phases - use SaveSpecToDatabase instead
+	if phaseID == "spec" || phaseID == "tiny_spec" {
+		return false, nil
+	}
+
+	// Only artifact-producing phases need artifact extraction
+	if !PhasesWithArtifacts[phaseID] {
+		return false, nil
+	}
+
+	// Extract artifact from JSON output
+	artifact := ExtractArtifactFromOutput(output)
+	if artifact == "" {
+		return false, nil // No artifact in output
+	}
+
+	artifact = strings.TrimSpace(artifact)
+
+	// Save to database
+	if err := backend.SaveArtifact(taskID, phaseID, artifact, "executor"); err != nil {
+		return false, fmt.Errorf("save artifact to database: %w", err)
+	}
+
+	return true, nil
+}
+
+// SavePhaseArtifact extracts artifact content from JSON output and saves to file.
+// DEPRECATED: Use SaveArtifactToDatabase instead for new code.
+// This function is kept for backward compatibility during the transition.
 func SavePhaseArtifact(taskID, phaseID, output string) (string, error) {
 	// Skip for spec phases - use database only via SaveSpecToDatabase
 	// tiny_spec is the combined spec+TDD phase for trivial/small tasks

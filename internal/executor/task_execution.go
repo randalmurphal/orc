@@ -939,39 +939,6 @@ func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
 
-		// Haiku validation for spec quality (if enabled)
-		if e.validationModel != "" && e.orcConfig.ShouldValidateSpec(string(t.Weight)) {
-			ctx := context.Background()
-			valClient := e.CreateValidationClient(e.config.WorkDir)
-			ready, suggestions, valErr := ValidateTaskReadiness(ctx, valClient, t.Description, specContent, string(t.Weight))
-			if valErr != nil {
-				if e.orcConfig.Validation.FailOnAPIError {
-					// Fail properly - task is resumable from spec phase
-					e.logger.Error("spec validation API error - failing task",
-						"task", t.ID,
-						"error", valErr,
-						"hint", "Task can be resumed with 'orc resume'",
-					)
-					return fmt.Errorf("spec validation API error (resumable): %w", valErr)
-				}
-				// Fail open (legacy behavior for fast profile)
-				e.logger.Warn("haiku spec validation error (continuing)",
-					"task", t.ID,
-					"error", valErr,
-				)
-			} else if !ready && len(suggestions) > 0 {
-				// Block execution on poor spec quality
-				e.logger.Error("spec quality validation failed - blocking execution",
-					"task", t.ID,
-					"suggestions", suggestions,
-				)
-				suggestionText := ""
-				for i, s := range suggestions {
-					suggestionText += fmt.Sprintf("\n  %d. %s", i+1, s)
-				}
-				return fmt.Errorf("task %s spec quality is insufficient for execution:%s\n\nRun 'orc plan %s' to improve the spec", t.ID, suggestionText, t.ID)
-			}
-		}
 	}
 
 	return nil

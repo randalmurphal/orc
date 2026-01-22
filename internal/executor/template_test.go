@@ -56,13 +56,12 @@ func TestRenderTemplateFunc(t *testing.T) {
 		},
 		{
 			name:     "prior content variables",
-			template: "Research: {{RESEARCH_CONTENT}}\nSpec: {{SPEC_CONTENT}}\nDesign: {{DESIGN_CONTENT}}",
+			template: "Research: {{RESEARCH_CONTENT}}\nSpec: {{SPEC_CONTENT}}",
 			vars: TemplateVars{
 				ResearchContent: "Research findings here",
 				SpecContent:     "Spec document here",
-				DesignContent:   "Design document here",
 			},
-			want: "Research: Research findings here\nSpec: Spec document here\nDesign: Design document here",
+			want: "Research: Research findings here\nSpec: Spec document here",
 		},
 		{
 			name:     "task description",

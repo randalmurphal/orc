@@ -32,12 +32,6 @@ func TestSavePhaseArtifact(t *testing.T) {
 			wantPath: false,
 		},
 		{
-			name:     "design phase extracts artifact from JSON",
-			phaseID:  "design",
-			output:   `{"status": "complete", "artifact": "# Design Document\n\nThis is the design."}`,
-			wantPath: true, // design produces artifacts
-		},
-		{
 			name:     "research phase extracts artifact from JSON",
 			phaseID:  "research",
 			output:   `{"status": "complete", "artifact": "# Research Findings\n\nRelevant code found."}`,
@@ -51,7 +45,7 @@ func TestSavePhaseArtifact(t *testing.T) {
 		},
 		{
 			name:     "returns empty when no artifact in JSON",
-			phaseID:  "design",
+			phaseID:  "docs",
 			output:   `{"status": "complete", "summary": "Done but no artifact"}`,
 			wantPath: false,
 		},
@@ -392,7 +386,7 @@ func TestLoadPriorContent(t *testing.T) {
 
 	// Create transcript file (should be ignored - no extraction from transcripts)
 	transcriptContent := "<artifact>Transcript artifact</artifact>"
-	if err := os.WriteFile(filepath.Join(transcriptsDir, "design-001.md"), []byte(transcriptContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(transcriptsDir, "research-001.md"), []byte(transcriptContent), 0644); err != nil {
 		t.Fatalf("failed to write transcript: %v", err)
 	}
 
@@ -408,7 +402,7 @@ func TestLoadPriorContent(t *testing.T) {
 		},
 		{
 			name:    "returns empty for transcript fallback (no extraction)",
-			phaseID: "design",
+			phaseID: "research",
 			want:    "", // No longer extracts from transcripts
 		},
 		{
@@ -607,8 +601,8 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 func TestPhasesWithArtifacts(t *testing.T) {
 	t.Parallel()
 
-	// Includes new TDD phases: tiny_spec (combined spec+TDD), tdd_write, tasks
-	artifactPhases := []string{"spec", "tiny_spec", "design", "research", "tdd_write", "tasks", "docs"}
+	// Includes new TDD phases: tiny_spec (combined spec+TDD), tdd_write, breakdown
+	artifactPhases := []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"}
 	nonArtifactPhases := []string{"implement", "test", "review", "validate", "finalize"}
 
 	for _, phase := range artifactPhases {
@@ -629,7 +623,7 @@ func TestGetSchemaForPhase(t *testing.T) {
 	t.Parallel()
 
 	t.Run("artifact phases get artifact schema", func(t *testing.T) {
-		for _, phase := range []string{"spec", "tiny_spec", "design", "research", "tdd_write", "tasks", "docs"} {
+		for _, phase := range []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"} {
 			schema := GetSchemaForPhase(phase)
 			if !strings.Contains(schema, `"artifact"`) {
 				t.Errorf("GetSchemaForPhase(%q) should return schema with artifact field", phase)
