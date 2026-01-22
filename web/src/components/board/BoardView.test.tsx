@@ -3,6 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView, type BoardViewProps } from './BoardView';
 import { AppShellProvider } from '@/components/layout/AppShellContext';
+import { WebSocketProvider } from '@/hooks/useWebSocket';
 import type { Task, Initiative } from '@/lib/types';
 
 // Mock stores
@@ -92,9 +93,11 @@ function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
 function renderBoardView(props: Partial<BoardViewProps> = {}) {
 	return render(
 		<MemoryRouter>
-			<AppShellProvider>
-				<BoardView {...props} />
-			</AppShellProvider>
+			<WebSocketProvider autoConnect={false}>
+				<AppShellProvider>
+					<BoardView {...props} />
+				</AppShellProvider>
+			</WebSocketProvider>
 		</MemoryRouter>
 	);
 }
