@@ -137,11 +137,18 @@ Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
 {"status": "continue", "reason": "In progress"}   // More work needed
 ```
 
-### Extraction Function
+### Extraction Functions
 
 | Function | Use Case |
 |----------|----------|
-| `CheckPhaseCompletionJSON()` | Parse pure JSON from `--json-schema` output |
+| `ParsePhaseSpecificResponse()` | Route to correct parser based on phase type (review/QA use different schemas) |
+| `CheckPhaseCompletionJSON()` | Parse standard phase completion JSON (`complete/blocked/continue`) |
+
+**Phase-specific schemas:** Different phases use different JSON schemas:
+- `review` round 1: `ReviewFindingsSchema` (no status field, valid JSON = complete)
+- `review` round 2: `ReviewDecisionSchema` (status: `pass/fail/needs_user_input`)
+- `qa`: `QAResultSchema` (status: `pass/fail/needs_attention`)
+- Other phases: `PhaseCompletionSchema` (status: `complete/blocked/continue`)
 
 The executors use `ClaudeExecutor` with `--json-schema` in headless mode, which guarantees pure JSON output.
 
@@ -353,7 +360,7 @@ if err != nil {
 // schemaResult.Data is already typed and parsed
 ```
 
-**Phase completion parsing** uses `CheckPhaseCompletionJSON()` which returns `(status, reason, error)` - the error MUST be handled.
+**Phase completion parsing** uses `ParsePhaseSpecificResponse()` which routes to the correct parser based on phase type. Returns `(status, reason, error)` - the error MUST be handled.
 
 ## Transcript Persistence (JSONL Sync)
 

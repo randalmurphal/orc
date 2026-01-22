@@ -313,3 +313,149 @@ func TestTruncateForPrompt(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePhaseSpecificResponse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		phaseID     string
+		reviewRound int
+		content     string
+		wantStatus  PhaseCompletionStatus
+		wantReason  string
+		wantErr     bool
+	}{
+		// Standard phase completion schema
+		{
+			name:       "standard phase - complete",
+			phaseID:    "implement",
+			content:    `{"status": "complete", "summary": "Done"}`,
+			wantStatus: PhaseStatusComplete,
+			wantReason: "Done",
+		},
+		{
+			name:       "standard phase - blocked",
+			phaseID:    "implement",
+			content:    `{"status": "blocked", "reason": "Missing deps"}`,
+			wantStatus: PhaseStatusBlocked,
+			wantReason: "Missing deps",
+		},
+		{
+			name:       "standard phase - continue",
+			phaseID:    "implement",
+			content:    `{"status": "continue", "reason": "In progress"}`,
+			wantStatus: PhaseStatusContinue,
+			wantReason: "In progress",
+		},
+
+		// Review round 1 - ReviewFindingsSchema (no status field)
+		{
+			name:        "review round 1 - valid findings",
+			phaseID:     "review",
+			reviewRound: 1,
+			content:     `{"round": 1, "summary": "Review complete", "issues": []}`,
+			wantStatus:  PhaseStatusComplete,
+			wantReason:  "Review complete",
+		},
+		{
+			name:        "review round 1 - findings with issues",
+			phaseID:     "review",
+			reviewRound: 1,
+			content:     `{"round": 1, "summary": "Found issues", "issues": [{"severity": "high", "description": "Bug found"}]}`,
+			wantStatus:  PhaseStatusComplete,
+			wantReason:  "Found issues",
+		},
+		{
+			name:        "review round 1 - invalid JSON",
+			phaseID:     "review",
+			reviewRound: 1,
+			content:     `not valid json`,
+			wantStatus:  PhaseStatusContinue,
+			wantErr:     true,
+		},
+
+		// Review round 2 - ReviewDecisionSchema (pass/fail/needs_user_input)
+		{
+			name:        "review round 2 - pass",
+			phaseID:     "review",
+			reviewRound: 2,
+			content:     `{"status": "pass", "summary": "All good", "gaps_addressed": true, "recommendation": "Merge it"}`,
+			wantStatus:  PhaseStatusComplete,
+			wantReason:  "All good",
+		},
+		{
+			name:        "review round 2 - fail",
+			phaseID:     "review",
+			reviewRound: 2,
+			content:     `{"status": "fail", "summary": "Needs work", "recommendation": "Fix the bugs"}`,
+			wantStatus:  PhaseStatusBlocked,
+			wantReason:  "Fix the bugs",
+		},
+		{
+			name:        "review round 2 - needs_user_input",
+			phaseID:     "review",
+			reviewRound: 2,
+			content:     `{"status": "needs_user_input", "summary": "Question", "recommendation": "Ask about X"}`,
+			wantStatus:  PhaseStatusBlocked,
+			wantReason:  "Ask about X",
+		},
+
+		// QA phase - QAResultSchema (pass/fail/needs_attention)
+		{
+			name:       "qa - pass",
+			phaseID:    "qa",
+			content:    `{"status": "pass", "summary": "All tests pass", "recommendation": "Ship it"}`,
+			wantStatus: PhaseStatusComplete,
+			wantReason: "All tests pass",
+		},
+		{
+			name:       "qa - fail",
+			phaseID:    "qa",
+			content:    `{"status": "fail", "summary": "Tests failed", "recommendation": "Fix tests"}`,
+			wantStatus: PhaseStatusBlocked,
+			wantReason: "Fix tests",
+		},
+		{
+			name:       "qa - needs_attention",
+			phaseID:    "qa",
+			content:    `{"status": "needs_attention", "summary": "Low coverage", "recommendation": "Add tests"}`,
+			wantStatus: PhaseStatusBlocked,
+			wantReason: "Add tests",
+		},
+
+		// Unknown/empty phase falls through to standard parsing
+		{
+			name:       "empty phase - uses standard parsing",
+			phaseID:    "",
+			content:    `{"status": "complete", "summary": "Done"}`,
+			wantStatus: PhaseStatusComplete,
+			wantReason: "Done",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, reason, err := ParsePhaseSpecificResponse(tt.phaseID, tt.reviewRound, tt.content)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ParsePhaseSpecificResponse() expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ParsePhaseSpecificResponse() unexpected error: %v", err)
+				return
+			}
+
+			if status != tt.wantStatus {
+				t.Errorf("ParsePhaseSpecificResponse() status = %v, want %v", status, tt.wantStatus)
+			}
+			if reason != tt.wantReason {
+				t.Errorf("ParsePhaseSpecificResponse() reason = %q, want %q", reason, tt.wantReason)
+			}
+		})
+	}
+}

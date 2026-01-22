@@ -217,3 +217,74 @@ func ExtractArtifactFromOutput(content string) string {
 	}
 	return resp.Artifact
 }
+
+// ParsePhaseSpecificResponse parses JSON response using the appropriate parser
+// for the given phase. Different phases use different schemas:
+//   - review round 1: ReviewFindingsSchema (no status field, valid JSON = complete)
+//   - review round 2: ReviewDecisionSchema (status: pass/fail/needs_user_input)
+//   - qa: QAResultSchema (status: pass/fail/needs_attention)
+//   - other phases: PhaseCompletionSchema (status: complete/blocked/continue)
+//
+// Returns (status, reason, error) similar to CheckPhaseCompletionJSON.
+func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string) (PhaseCompletionStatus, string, error) {
+	content = strings.TrimSpace(content)
+
+	// Review phase uses specialized schemas
+	if phaseID == "review" {
+		if reviewRound == 2 {
+			// Round 2: ReviewDecisionSchema with pass/fail/needs_user_input
+			decision, err := ParseReviewDecision(content)
+			if err != nil {
+				return PhaseStatusContinue, "", fmt.Errorf("invalid review decision JSON: %w (content=%q)",
+					err, truncateForPrompt(content, 200))
+			}
+			// Map review decision status to phase completion status
+			switch decision.Status {
+			case ReviewStatusPass:
+				return PhaseStatusComplete, decision.Summary, nil
+			case ReviewStatusFail, ReviewStatusNeedsUserInput:
+				reason := decision.Recommendation
+				if reason == "" {
+					reason = decision.Summary
+				}
+				return PhaseStatusBlocked, reason, nil
+			default:
+				return PhaseStatusBlocked, decision.Summary, nil
+			}
+		}
+		// Round 1: ReviewFindingsSchema (no status field)
+		// Valid JSON with findings = complete
+		findings, err := ParseReviewFindings(content)
+		if err != nil {
+			return PhaseStatusContinue, "", fmt.Errorf("invalid review findings JSON: %w (content=%q)",
+				err, truncateForPrompt(content, 200))
+		}
+		// Valid findings response means review round 1 is complete
+		return PhaseStatusComplete, findings.Summary, nil
+	}
+
+	// QA phase uses QAResultSchema
+	if phaseID == "qa" {
+		result, err := ParseQAResult(content)
+		if err != nil {
+			return PhaseStatusContinue, "", fmt.Errorf("invalid QA result JSON: %w (content=%q)",
+				err, truncateForPrompt(content, 200))
+		}
+		// Map QA status to phase completion status
+		switch result.Status {
+		case QAStatusPass:
+			return PhaseStatusComplete, result.Summary, nil
+		case QAStatusFail, QAStatusNeedsAttention:
+			reason := result.Recommendation
+			if reason == "" {
+				reason = result.Summary
+			}
+			return PhaseStatusBlocked, reason, nil
+		default:
+			return PhaseStatusBlocked, result.Summary, nil
+		}
+	}
+
+	// All other phases use standard PhaseCompletionSchema
+	return CheckPhaseCompletionJSON(content)
+}

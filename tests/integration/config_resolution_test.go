@@ -17,8 +17,12 @@ func TestConfigResolutionShared(t *testing.T) {
 	// Set value in shared config
 	repo.SetSharedConfig("profile", "safe")
 
-	// Create loader pointing to test repo
+	// Create empty user dir to isolate from real ~/.orc/config.yaml
+	emptyUserDir := t.TempDir()
+
+	// Create loader pointing to test repo with empty user dir
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(emptyUserDir)
 
 	tc, err := loader.Load()
 	if err != nil {
@@ -176,7 +180,11 @@ func TestConfigResolutionDefaults(t *testing.T) {
 	// Remove the project config to ensure defaults are used
 	_ = os.Remove(filepath.Join(repo.OrcDir, "config.yaml"))
 
+	// Create empty user dir to isolate from real ~/.orc/config.yaml
+	emptyUserDir := t.TempDir()
+
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(emptyUserDir)
 
 	tc, err := loader.Load()
 	if err != nil {
@@ -253,7 +261,11 @@ func TestConfigResolutionNestedValues(t *testing.T) {
 	}
 	testutil.WriteYAML(t, filepath.Join(repo.OrcDir, "shared", "config.yaml"), sharedConfig)
 
+	// Create empty user dir to isolate from real ~/.orc/config.yaml
+	emptyUserDir := t.TempDir()
+
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(emptyUserDir)
 
 	tc, err := loader.Load()
 	if err != nil {

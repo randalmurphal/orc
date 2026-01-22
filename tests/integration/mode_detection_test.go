@@ -36,8 +36,12 @@ func TestModeDetectionP2P(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
 	repo.InitSharedDir()
 
+	// Create empty user dir to isolate from real ~/.orc/config.yaml
+	emptyUserDir := t.TempDir()
+
 	// Shared config should have set P2P mode
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(emptyUserDir)
 	tc, err := loader.Load()
 	if err != nil {
 		t.Fatalf("load config: %v", err)
@@ -56,7 +60,11 @@ func TestModeDetectionTeam(t *testing.T) {
 	repo.SetConfig("task_id.mode", "team")
 	repo.SetConfig("team.server_url", "https://team.example.com")
 
+	// Create empty user dir to isolate from real ~/.orc/config.yaml
+	emptyUserDir := t.TempDir()
+
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(emptyUserDir)
 	tc, err := loader.Load()
 	if err != nil {
 		t.Fatalf("load config: %v", err)

@@ -8,6 +8,25 @@ import (
 	"time"
 )
 
+// normalizePath resolves symlinks to get canonical path for comparison.
+// On macOS, /var is a symlink to /private/var, which causes path comparison
+// issues between t.TempDir() and paths returned by functions that resolve symlinks.
+func normalizePath(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		// If we can't resolve, return original (might not exist yet)
+		return path
+	}
+	return resolved
+}
+
+// pathsEqual compares two paths after normalizing symlinks.
+func pathsEqual(t *testing.T, got, want string) bool {
+	t.Helper()
+	return normalizePath(t, got) == normalizePath(t, want)
+}
+
 func TestDefault(t *testing.T) {
 	cfg := Default()
 
@@ -1088,7 +1107,7 @@ func TestFindProjectRoot_CurrentDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindProjectRoot() failed: %v", err)
 	}
-	if root != tmpDir {
+	if !pathsEqual(t, root, tmpDir) {
 		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
 	}
 }
@@ -1151,7 +1170,7 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindProjectRoot() failed: %v", err)
 	}
-	if root != tmpDir {
+	if !pathsEqual(t, root, tmpDir) {
 		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
 	}
 }
@@ -1196,7 +1215,7 @@ func TestFindProjectRoot_WorktreePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindProjectRoot() failed: %v", err)
 	}
-	if root != tmpDir {
+	if !pathsEqual(t, root, tmpDir) {
 		t.Errorf("FindProjectRoot() = %s, want %s (main project, not worktree)", root, tmpDir)
 	}
 }
@@ -1260,7 +1279,7 @@ func TestFindProjectRoot_WalkUpDirectories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindProjectRoot() failed: %v", err)
 	}
-	if root != tmpDir {
+	if !pathsEqual(t, root, tmpDir) {
 		t.Errorf("FindProjectRoot() = %s, want %s", root, tmpDir)
 	}
 }
