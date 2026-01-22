@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ============================================================================
@@ -295,6 +298,145 @@ func (s *Server) handleGetPerDayStats(w http.ResponseWriter, r *http.Request) {
 		Data:    data,
 		Max:     maxCount,
 		Average: average,
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// ============================================================================
+// Stats Outcomes Endpoint Types
+// ============================================================================
+
+// OutcomeCount represents a single outcome category with count and percentage.
+type OutcomeCount struct {
+	Count      int     `json:"count"`
+	Percentage float64 `json:"percentage"`
+}
+
+// OutcomesResponse is the response for GET /api/stats/outcomes.
+type OutcomesResponse struct {
+	Period   string                  `json:"period"`
+	Total    int                     `json:"total"`
+	Outcomes map[string]OutcomeCount `json:"outcomes"`
+}
+
+// ============================================================================
+// Stats Outcomes Handler
+// ============================================================================
+
+// handleGetOutcomesStats returns task outcome distribution for donut chart.
+// GET /api/stats/outcomes?period=30d
+func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) {
+	// Parse period parameter (24h, 7d, 30d, all) - default: all
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+
+	// Validate period
+	var cutoffTime *time.Time
+	now := time.Now()
+	switch period {
+	case "24h":
+		t := now.Add(-24 * time.Hour)
+		cutoffTime = &t
+	case "7d":
+		t := now.AddDate(0, 0, -7)
+		cutoffTime = &t
+	case "30d":
+		t := now.AddDate(0, 0, -30)
+		cutoffTime = &t
+	case "all":
+		// No cutoff
+		cutoffTime = nil
+	default:
+		s.jsonError(w, "period must be one of: 24h, 7d, 30d, all", http.StatusBadRequest)
+		return
+	}
+
+	// Load all tasks
+	allTasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Filter tasks by completion time and count outcomes
+	var completed, withRetries, failed int
+
+	for _, t := range allTasks {
+		// Apply time filter
+		if cutoffTime != nil && t.CompletedAt != nil && t.CompletedAt.Before(*cutoffTime) {
+			continue
+		}
+
+		// Categorize by outcome
+		switch t.Status {
+		case task.StatusCompleted:
+			// Load state to check for retries
+			st, err := s.backend.LoadState(t.ID)
+			if err != nil {
+				// Can't determine retry status, count as completed
+				s.logger.Warn("failed to load state for outcome check", "task", t.ID, "error", err)
+				completed++
+				continue
+			}
+
+			// Check if any phase has status "failed" (indicating a retry occurred)
+			hasRetry := false
+			for _, ps := range st.Phases {
+				// A phase that failed and was later retried will have status "failed"
+				// in the phase history even if task ultimately completed
+				if ps.Status == state.StatusFailed && ps.Error != "" {
+					hasRetry = true
+					break
+				}
+			}
+
+			// Also check if there's retry context
+			if st.RetryContext != nil {
+				hasRetry = true
+			}
+
+			if hasRetry {
+				withRetries++
+			} else {
+				completed++
+			}
+
+		case task.StatusFailed:
+			failed++
+		}
+	}
+
+	// Calculate total and percentages
+	total := completed + withRetries + failed
+	outcomes := make(map[string]OutcomeCount)
+
+	if total > 0 {
+		outcomes["completed"] = OutcomeCount{
+			Count:      completed,
+			Percentage: float64(completed) / float64(total) * 100,
+		}
+		outcomes["with_retries"] = OutcomeCount{
+			Count:      withRetries,
+			Percentage: float64(withRetries) / float64(total) * 100,
+		}
+		outcomes["failed"] = OutcomeCount{
+			Count:      failed,
+			Percentage: float64(failed) / float64(total) * 100,
+		}
+	} else {
+		// Return zeros gracefully
+		outcomes["completed"] = OutcomeCount{Count: 0, Percentage: 0}
+		outcomes["with_retries"] = OutcomeCount{Count: 0, Percentage: 0}
+		outcomes["failed"] = OutcomeCount{Count: 0, Percentage: 0}
+	}
+
+	response := OutcomesResponse{
+		Period:   period,
+		Total:    total,
+		Outcomes: outcomes,
 	}
 
 	s.jsonResponse(w, response)

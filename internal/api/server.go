@@ -468,9 +468,10 @@ func (s *Server) registerRoutes() {
 	// Dashboard
 	s.mux.HandleFunc("GET /api/dashboard/stats", cors(s.handleGetDashboardStats))
 
-	// Stats (activity heatmap, metrics)
+	// Stats (activity heatmap, outcomes donut, metrics)
 	s.mux.HandleFunc("GET /api/stats/activity", cors(s.handleGetActivityStats))
 	s.mux.HandleFunc("GET /api/stats/per-day", cors(s.handleGetPerDayStats))
+	s.mux.HandleFunc("GET /api/stats/outcomes", cors(s.handleGetOutcomesStats))
 
 	// Events (timeline queries)
 	s.mux.HandleFunc("GET /api/events", cors(s.handleGetEvents))
