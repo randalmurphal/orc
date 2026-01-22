@@ -10,7 +10,16 @@ import {
 	formatCostDisplay,
 	isPaused,
 } from './InitiativeCard';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Initiative, InitiativeStatus } from '../../lib/types';
+
+// =============================================================================
+// Test Helpers
+// =============================================================================
+
+function renderWithTooltips(ui: React.ReactElement) {
+	return render(<TooltipProvider>{ui}</TooltipProvider>);
+}
 
 // =============================================================================
 // Test Fixtures
@@ -151,7 +160,7 @@ describe('isPaused', () => {
 describe('InitiativeCard', () => {
 	describe('rendering', () => {
 		it('renders an article element with initiative-card class', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const card = container.querySelector('article');
@@ -160,7 +169,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders initiative title', () => {
-			render(<InitiativeCard initiative={mockInitiative} />);
+			renderWithTooltips(<InitiativeCard initiative={mockInitiative} />);
 			expect(
 				screen.getByRole('heading', {
 					name: '🎨 Frontend Polish & UX Audit',
@@ -169,7 +178,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders initiative description (vision)', () => {
-			render(<InitiativeCard initiative={mockInitiative} />);
+			renderWithTooltips(<InitiativeCard initiative={mockInitiative} />);
 			expect(
 				screen.getByText(
 					'Comprehensive UI refresh including component library documentation and accessibility improvements'
@@ -178,12 +187,12 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders status badge', () => {
-			render(<InitiativeCard initiative={mockInitiative} />);
+			renderWithTooltips(<InitiativeCard initiative={mockInitiative} />);
 			expect(screen.getByText('Active')).toBeInTheDocument();
 		});
 
 		it('renders status badge with correct color class', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const badge = container.querySelector('.initiative-card-status');
@@ -193,7 +202,7 @@ describe('InitiativeCard', () => {
 
 	describe('progress section', () => {
 		it('displays correct progress fraction', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={15}
@@ -204,7 +213,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('displays zero progress when no tasks', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={0}
@@ -215,7 +224,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders progress bar with correct width', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={15}
@@ -229,7 +238,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders progress bar at 0% when no tasks', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={0}
@@ -245,7 +254,7 @@ describe('InitiativeCard', () => {
 
 	describe('paused state', () => {
 		it('applies paused opacity when status is archived', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockPausedInitiative} />
 			);
 			const card = container.querySelector('.initiative-card');
@@ -257,7 +266,7 @@ describe('InitiativeCard', () => {
 				...mockInitiative,
 				status: 'draft',
 			};
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={draftInitiative} />
 			);
 			const card = container.querySelector('.initiative-card');
@@ -265,7 +274,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('does not apply paused class for active initiatives', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const card = container.querySelector('.initiative-card');
@@ -275,7 +284,7 @@ describe('InitiativeCard', () => {
 
 	describe('description truncation', () => {
 		it('applies line-clamp CSS class to description', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const desc = container.querySelector('.initiative-card-desc');
@@ -288,7 +297,7 @@ describe('InitiativeCard', () => {
 				...mockInitiative,
 				vision: undefined,
 			};
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={initiativeWithoutVision} />
 			);
 			const desc = container.querySelector('.initiative-card-desc');
@@ -303,7 +312,7 @@ describe('InitiativeCard', () => {
 				title: 'Frontend Polish',
 				vision: 'Some description without emoji',
 			};
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={initiativeNoEmoji} />
 			);
 			const icon = container.querySelector('.initiative-card-icon');
@@ -311,7 +320,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('extracts emoji from title', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const icon = container.querySelector('.initiative-card-icon');
@@ -340,7 +349,7 @@ describe('InitiativeCard', () => {
 			'displays $expectedClass for $status status',
 			({ status, expectedClass }) => {
 				const initiative: Initiative = { ...mockInitiative, status };
-				const { container } = render(
+				const { container } = renderWithTooltips(
 					<InitiativeCard initiative={initiative} />
 				);
 				const badge = container.querySelector('.initiative-card-status');
@@ -352,7 +361,7 @@ describe('InitiativeCard', () => {
 	describe('onClick behavior', () => {
 		it('calls onClick when card is clicked', () => {
 			const handleClick = vi.fn();
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={handleClick}
@@ -364,7 +373,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('has button role when onClick is provided', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={() => {}}
@@ -374,12 +383,12 @@ describe('InitiativeCard', () => {
 		});
 
 		it('does not have button role when onClick is not provided', () => {
-			render(<InitiativeCard initiative={mockInitiative} />);
+			renderWithTooltips(<InitiativeCard initiative={mockInitiative} />);
 			expect(screen.queryByRole('button')).not.toBeInTheDocument();
 		});
 
 		it('is focusable when onClick is provided', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={() => {}}
@@ -391,7 +400,7 @@ describe('InitiativeCard', () => {
 
 		it('calls onClick when Enter is pressed', () => {
 			const handleClick = vi.fn();
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={handleClick}
@@ -404,7 +413,7 @@ describe('InitiativeCard', () => {
 
 		it('calls onClick when Space is pressed', () => {
 			const handleClick = vi.fn();
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={handleClick}
@@ -416,7 +425,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('has clickable class when onClick is provided', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					onClick={() => {}}
@@ -429,7 +438,7 @@ describe('InitiativeCard', () => {
 
 	describe('meta items', () => {
 		it('renders time remaining when provided', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					estimatedTimeRemaining="Est. 2h remaining"
@@ -439,14 +448,14 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders cost when provided', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} costSpent={18.45} />
 			);
 			expect(screen.getByText('$18.45 spent')).toBeInTheDocument();
 		});
 
 		it('renders tokens when provided', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					tokensUsed={542000}
@@ -456,7 +465,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('does not render meta row when no meta items provided', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const meta = container.querySelector('.initiative-card-meta');
@@ -464,7 +473,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('renders all meta items together', () => {
-			render(
+			renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					estimatedTimeRemaining="Est. 8h remaining"
@@ -480,7 +489,7 @@ describe('InitiativeCard', () => {
 
 	describe('accessibility', () => {
 		it('has appropriate aria-label', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={15}
@@ -495,7 +504,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('progress bar has correct ARIA attributes', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={15}
@@ -512,7 +521,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('status badge has role="status"', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const badge = container.querySelector('.initiative-card-status');
@@ -523,7 +532,7 @@ describe('InitiativeCard', () => {
 	describe('ref forwarding', () => {
 		it('forwards ref correctly', () => {
 			const ref = createRef<HTMLDivElement>();
-			render(<InitiativeCard ref={ref} initiative={mockInitiative} />);
+			renderWithTooltips(<InitiativeCard ref={ref} initiative={mockInitiative} />);
 			expect(ref.current).toBeInstanceOf(HTMLElement);
 			expect(ref.current?.tagName).toBe('ARTICLE');
 		});
@@ -531,7 +540,7 @@ describe('InitiativeCard', () => {
 
 	describe('custom className', () => {
 		it('applies custom className', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					className="custom-class"
@@ -545,7 +554,7 @@ describe('InitiativeCard', () => {
 
 	describe('icon color variants', () => {
 		it('applies correct icon color for active status', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockInitiative} />
 			);
 			const icon = container.querySelector('.initiative-card-icon');
@@ -553,7 +562,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('applies correct icon color for completed status', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockCompletedInitiative} />
 			);
 			const icon = container.querySelector('.initiative-card-icon');
@@ -561,7 +570,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('applies correct icon color for archived status', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={mockPausedInitiative} />
 			);
 			const icon = container.querySelector('.initiative-card-icon');
@@ -571,7 +580,7 @@ describe('InitiativeCard', () => {
 
 	describe('progress bar color variants', () => {
 		it('uses green progress fill for active initiative', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockInitiative}
 					completedTasks={5}
@@ -585,7 +594,7 @@ describe('InitiativeCard', () => {
 		});
 
 		it('uses purple progress fill for completed initiative', () => {
-			const { container } = render(
+			const { container } = renderWithTooltips(
 				<InitiativeCard
 					initiative={mockCompletedInitiative}
 					completedTasks={10}

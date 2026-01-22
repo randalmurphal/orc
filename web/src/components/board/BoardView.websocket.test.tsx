@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView } from './BoardView';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import { AppShellProvider } from '@/components/layout/AppShellContext';
 import { WebSocketProvider } from '@/hooks/useWebSocket';
 import type { Task, Initiative } from '@/lib/types';
@@ -124,13 +125,15 @@ function createTask(overrides: Partial<Task> = {}): Task {
 // Helper to render BoardView with WebSocket provider
 function renderBoardViewWithWS() {
 	return render(
-		<MemoryRouter>
-			<WebSocketProvider autoConnect={false}>
-				<AppShellProvider>
-					<BoardView />
-				</AppShellProvider>
-			</WebSocketProvider>
-		</MemoryRouter>
+		<TooltipProvider>
+			<MemoryRouter>
+				<WebSocketProvider autoConnect={false}>
+					<AppShellProvider>
+						<BoardView />
+					</AppShellProvider>
+				</WebSocketProvider>
+			</MemoryRouter>
+		</TooltipProvider>
 	);
 }
 

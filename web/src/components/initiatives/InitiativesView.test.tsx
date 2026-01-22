@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import { InitiativesView } from './InitiativesView';
 import * as api from '@/lib/api';
 import { useTaskStore } from '@/stores';
@@ -124,9 +125,11 @@ describe('InitiativesView', () => {
 
 	const renderInitiativesView = () => {
 		return render(
-			<MemoryRouter>
-				<InitiativesView />
-			</MemoryRouter>
+			<TooltipProvider>
+				<MemoryRouter>
+					<InitiativesView />
+				</MemoryRouter>
+			</TooltipProvider>
 		);
 	};
 
