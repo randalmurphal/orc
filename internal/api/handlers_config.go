@@ -150,7 +150,7 @@ func (s *Server) handleUpdateConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Load existing config from workDir
 	configPath := filepath.Join(s.workDir, ".orc", "config.yaml")
-	cfg, err := config.LoadFrom(configPath)
+	cfg, err := config.LoadFrom(s.workDir)
 	if err != nil {
 		cfg = config.Default()
 	}
@@ -386,7 +386,7 @@ func (s *Server) handleGetConfigStats(w http.ResponseWriter, r *http.Request) {
 	var stats ConfigStatsResponse
 
 	// Get permissions profile from config
-	cfg, err := config.LoadFrom(filepath.Join(s.workDir, ".orc", "config.yaml"))
+	cfg, err := config.LoadFrom(s.workDir)
 	if err != nil {
 		cfg = config.Default()
 	}

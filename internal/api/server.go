@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -129,8 +128,7 @@ func New(cfg *Config) *Server {
 	}
 
 	// Load orc configuration from the work directory
-	configPath := filepath.Join(workDir, ".orc", "config.yaml")
-	orcCfg, err := config.LoadFrom(configPath)
+	orcCfg, err := config.LoadFrom(workDir)
 	if err != nil {
 		logger.Warn("failed to load orc config, using defaults", "error", err)
 		orcCfg = config.Default()

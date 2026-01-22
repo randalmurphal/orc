@@ -186,7 +186,7 @@ Examples:
 			}
 
 			// Load existing config from target file or create new
-			cfg, err := config.LoadFrom(targetPath)
+			cfg, err := config.LoadFile(targetPath)
 			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("load config from %s: %w", targetPath, err)
 			}

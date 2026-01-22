@@ -176,9 +176,9 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 
 	// Load config
-	loaded, err := LoadFrom(configPath)
+	loaded, err := LoadFile(configPath)
 	if err != nil {
-		t.Fatalf("LoadFrom() failed: %v", err)
+		t.Fatalf("LoadFile() failed: %v", err)
 	}
 
 	if loaded.Model != cfg.Model {
@@ -602,7 +602,7 @@ func TestApplyProfile(t *testing.T) {
 	}
 }
 
-func TestLoadFrom_InvalidYAML(t *testing.T) {
+func TestLoadFile_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Write invalid YAML
@@ -612,24 +612,24 @@ func TestLoadFrom_InvalidYAML(t *testing.T) {
 		t.Fatalf("failed to write invalid yaml: %v", err)
 	}
 
-	_, err = LoadFrom(tmpDir + "/invalid.yaml")
+	_, err = LoadFile(tmpDir + "/invalid.yaml")
 	if err == nil {
-		t.Error("LoadFrom() should fail with invalid YAML")
+		t.Error("LoadFile() should fail with invalid YAML")
 	}
 }
 
-func TestLoadFrom_NonExistent(t *testing.T) {
-	// LoadFrom returns default config when file doesn't exist
-	cfg, err := LoadFrom("/nonexistent/path/config.yaml")
+func TestLoadFile_NonExistent(t *testing.T) {
+	// LoadFile returns default config when file doesn't exist
+	cfg, err := LoadFile("/nonexistent/path/config.yaml")
 	if err != nil {
-		t.Errorf("LoadFrom() should not error with non-existent file: %v", err)
+		t.Errorf("LoadFile() should not error with non-existent file: %v", err)
 	}
 	// Should return default config
 	if cfg == nil {
-		t.Fatal("LoadFrom() should return default config for non-existent file")
+		t.Fatal("LoadFile() should return default config for non-existent file")
 	}
 	if cfg.Version != 1 {
-		t.Errorf("LoadFrom() default config should have Version=1, got %d", cfg.Version)
+		t.Errorf("LoadFile() default config should have Version=1, got %d", cfg.Version)
 	}
 }
 

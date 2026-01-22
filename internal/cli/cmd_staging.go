@@ -307,7 +307,7 @@ func setStagingConfig(cmd *cobra.Command, key, value string) error {
 	targetPath := filepath.Join(home, ".orc", config.ConfigFileName)
 
 	// Load existing config or create new
-	cfg, err := config.LoadFrom(targetPath)
+	cfg, err := config.LoadFile(targetPath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("load config from %s: %w", targetPath, err)
 	}
