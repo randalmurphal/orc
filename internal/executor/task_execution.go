@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -29,8 +30,9 @@ var ErrTaskBlocked = errors.New("task blocked")
 
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
 func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
-	// Set current task directory for saving files
+	// Set current task context for hooks (e.g., TDD enforcement)
 	e.currentTaskDir = e.taskDir(t.ID)
+	e.currentTaskID = t.ID
 
 	// Take process snapshot before task execution (for orphan detection)
 	if e.resourceTracker != nil {
@@ -462,6 +464,10 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		// error when running go commands in worktrees. The parent repo's go.work has relative
 		// paths that don't work from the worktree location.
 		claude.WithEnvVar("GOWORK", "off"),
+		// Pass task context for hooks (e.g., TDD enforcement)
+		// Hooks can query the database to get current phase and apply restrictions
+		claude.WithEnvVar("ORC_TASK_ID", t.ID),
+		claude.WithEnvVar("ORC_DB_PATH", filepath.Join(e.config.WorkDir, ".orc", "orc.db")),
 	}
 	// Resolve Claude path to absolute to ensure it works with worktree cmd.Dir
 	claudePath := ResolveClaudePath(e.config.ClaudePath)

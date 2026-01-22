@@ -149,6 +149,16 @@ Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blo
 
 See `docs/specs/CONFIG_HIERARCHY.md` for all options.
 
+### Constitution
+
+Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`:
+
+```bash
+orc constitution set --file INVARIANTS.md   # Set from file
+orc constitution show                        # View current
+orc constitution delete                      # Remove
+```
+
 ## File Layout
 
 ```
@@ -256,6 +266,7 @@ make e2e        # E2E (Playwright)
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
+| Invariants | `docs/INVARIANTS.md` |
 | Web Components | `web/CLAUDE.md` |
 
 <!-- orc:begin -->

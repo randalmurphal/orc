@@ -16,6 +16,8 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 | `InjectKnowledgeSection(projectDir string) error` | Add knowledge section to CLAUDE.md |
 | `HasKnowledgeSection(projectDir string) bool` | Check if knowledge section exists |
 | `ShouldSuggestSplit(projectDir string) (bool, int, error)` | Check if CLAUDE.md exceeds 200 lines |
+| `InstallHooks(projectDir string) error` | Install Claude Code hooks (orc-stop.sh, tdd-discipline.sh) |
+| `IsTestFile(path string) bool` | Check if file matches test file patterns (used by TDD hook) |
 
 ## Initialization Steps
 
@@ -25,7 +27,7 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 4. Run project detection, store in SQLite
 5. Register project in global registry (`~/.orc/projects.yaml`)
 6. Update `.gitignore` with orc patterns
-7. Install hooks (orc-stop.sh)
+7. Install hooks (orc-stop.sh, tdd-discipline.sh)
 8. Install plugins (slash commands)
 9. Inject orc section into CLAUDE.md
 10. Inject knowledge section into CLAUDE.md
@@ -77,6 +79,18 @@ Added automatically:
 ```
 
 **Why .orc/tasks/ is ignored:** Task runtime state should not be in git (same pattern as Terraform state files). Use `orc export/import` for sharing tasks between machines or team members.
+
+## TDD Enforcement Hook
+
+The `tdd-discipline.sh` PreToolUse hook enforces TDD during `tdd_write` phase:
+
+| Behavior | Details |
+|----------|---------|
+| Phase check | Queries SQLite via `ORC_TASK_ID` and `ORC_DB_PATH` env vars |
+| Blocked tools | `Write`, `Edit`, `MultiEdit` on non-test files |
+| Allowed patterns | `*_test.go`, `*.test.ts`, `*.spec.ts`, `test_*.py`, `/tests/`, `/__tests__/`, etc. |
+
+See `hooks/tdd-discipline.sh` for full pattern list. Go implementation in `tdd_patterns.go` mirrors the bash patterns for testing.
 
 ## Performance
 

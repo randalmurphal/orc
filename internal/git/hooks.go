@@ -296,7 +296,7 @@ func InjectClaudeCodeHooks(cfg ClaudeCodeHookConfig) error {
 }
 
 // generateClaudeCodeSettings generates the .claude/settings.json content
-// with PreToolUse hooks for worktree isolation.
+// with PreToolUse hooks for worktree isolation and TDD discipline.
 func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) string {
 	// Escape paths for JSON
 	escapedHookPath := strings.ReplaceAll(hookPath, `\`, `\\`)
@@ -307,6 +307,11 @@ func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) strin
 
 	escapedMainRepo := strings.ReplaceAll(cfg.MainRepoPath, `\`, `\\`)
 	escapedMainRepo = strings.ReplaceAll(escapedMainRepo, `"`, `\"`)
+
+	// TDD discipline hook path (installed by bootstrap to project's .claude/hooks/)
+	tddHookPath := filepath.Join(cfg.MainRepoPath, ".claude", "hooks", "tdd-discipline.sh")
+	escapedTddHook := strings.ReplaceAll(tddHookPath, `\`, `\\`)
+	escapedTddHook = strings.ReplaceAll(escapedTddHook, `"`, `\"`)
 
 	return fmt.Sprintf(`{
   "hooks": {
@@ -319,11 +324,20 @@ func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) strin
             "command": "ORC_WORKTREE_PATH=\"%s\" ORC_MAIN_REPO_PATH=\"%s\" python3 \"%s\""
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"%s\""
+          }
+        ]
       }
     ]
   }
 }
-`, escapedWorktree, escapedMainRepo, escapedHookPath)
+`, escapedWorktree, escapedMainRepo, escapedHookPath, escapedTddHook)
 }
 
 // generateWorktreeIsolationHook returns the Python script content for the

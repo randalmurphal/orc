@@ -1973,5 +1973,45 @@ func (d *DatabaseBackend) QueryEvents(opts db.QueryEventsOptions) ([]db.EventLog
 	return d.db.QueryEvents(opts)
 }
 
+// SaveConstitution saves or updates the project's constitution.
+func (d *DatabaseBackend) SaveConstitution(content, version string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	c := &db.Constitution{
+		Content: content,
+		Version: version,
+	}
+	return d.db.SaveConstitution(c)
+}
+
+// LoadConstitution loads the project's constitution content and version.
+func (d *DatabaseBackend) LoadConstitution() (content string, version string, err error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	c, err := d.db.LoadConstitution()
+	if err != nil {
+		return "", "", err
+	}
+	return c.Content, c.Version, nil
+}
+
+// ConstitutionExists checks if a constitution is configured for the project.
+func (d *DatabaseBackend) ConstitutionExists() (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ConstitutionExists()
+}
+
+// DeleteConstitution removes the project's constitution.
+func (d *DatabaseBackend) DeleteConstitution() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteConstitution()
+}
+
 // Ensure DatabaseBackend implements Backend
 var _ Backend = (*DatabaseBackend)(nil)
