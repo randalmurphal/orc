@@ -201,7 +201,7 @@ func TestBuildTemplateVars(t *testing.T) {
 			task: &task.Task{
 				ID:     "TASK-004",
 				Title:  "Stateful Task",
-				Weight: task.WeightGreenfield,
+				Weight: task.WeightLarge,
 			},
 			phase: &plan.Phase{
 				ID: "implement",
@@ -212,7 +212,7 @@ func TestBuildTemplateVars(t *testing.T) {
 			wantID:       "TASK-004",
 			wantTitle:    "Stateful Task",
 			wantPhase:    "implement",
-			wantWeight:   "greenfield",
+			wantWeight:   "large",
 			wantIter:     5,
 			wantRetry:    "",
 		},
@@ -549,7 +549,6 @@ func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
 		task.WeightSmall,
 		task.WeightMedium,
 		task.WeightLarge,
-		task.WeightGreenfield,
 	}
 
 	for _, w := range weights {

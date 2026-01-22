@@ -51,22 +51,21 @@ func ExportPath(projectDir string) string {
 type Weight string
 
 const (
-	WeightTrivial    Weight = "trivial"
-	WeightSmall      Weight = "small"
-	WeightMedium     Weight = "medium"
-	WeightLarge      Weight = "large"
-	WeightGreenfield Weight = "greenfield"
+	WeightTrivial Weight = "trivial"
+	WeightSmall   Weight = "small"
+	WeightMedium  Weight = "medium"
+	WeightLarge   Weight = "large"
 )
 
 // ValidWeights returns all valid weight values.
 func ValidWeights() []Weight {
-	return []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield}
+	return []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge}
 }
 
 // IsValidWeight returns true if the weight is a valid weight value.
 func IsValidWeight(w Weight) bool {
 	switch w {
-	case WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield:
+	case WeightTrivial, WeightSmall, WeightMedium, WeightLarge:
 		return true
 	default:
 		return false

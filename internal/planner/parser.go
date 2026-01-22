@@ -138,8 +138,6 @@ func normalizeWeight(s string) task.Weight {
 		return task.WeightMedium
 	case "large":
 		return task.WeightLarge
-	case "greenfield":
-		return task.WeightGreenfield
 	default:
 		// Default to medium for unknown weights
 		return task.WeightMedium

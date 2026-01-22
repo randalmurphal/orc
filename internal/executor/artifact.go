@@ -12,14 +12,15 @@ import (
 )
 
 // SavePhaseArtifact extracts artifact content from JSON output and saves to file.
-// For artifact-producing phases (spec, design, research, docs), agents output
+// For artifact-producing phases (spec, design, research, docs, tdd_write, tasks), agents output
 // structured JSON with an "artifact" field containing the full content.
 //
-// NOTE: For the "spec" phase, this function returns early - use SaveSpecToDatabase instead.
+// NOTE: For "spec" and "tiny_spec" phases, this function returns early - use SaveSpecToDatabase instead.
 // Spec content is saved to the database to avoid merge conflicts in worktrees.
 func SavePhaseArtifact(taskID, phaseID, output string) (string, error) {
-	// Skip for spec phase - use database only via SaveSpecToDatabase
-	if phaseID == "spec" {
+	// Skip for spec phases - use database only via SaveSpecToDatabase
+	// tiny_spec is the combined spec+TDD phase for trivial/small tasks
+	if phaseID == "spec" || phaseID == "tiny_spec" {
 		return "", nil
 	}
 

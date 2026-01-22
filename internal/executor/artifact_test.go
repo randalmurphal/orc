@@ -607,7 +607,8 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 func TestPhasesWithArtifacts(t *testing.T) {
 	t.Parallel()
 
-	artifactPhases := []string{"spec", "design", "research", "docs"}
+	// Includes new TDD phases: tiny_spec (combined spec+TDD), tdd_write, tasks
+	artifactPhases := []string{"spec", "tiny_spec", "design", "research", "tdd_write", "tasks", "docs"}
 	nonArtifactPhases := []string{"implement", "test", "review", "validate", "finalize"}
 
 	for _, phase := range artifactPhases {
@@ -628,7 +629,7 @@ func TestGetSchemaForPhase(t *testing.T) {
 	t.Parallel()
 
 	t.Run("artifact phases get artifact schema", func(t *testing.T) {
-		for _, phase := range []string{"spec", "design", "research", "docs"} {
+		for _, phase := range []string{"spec", "tiny_spec", "design", "research", "tdd_write", "tasks", "docs"} {
 			schema := GetSchemaForPhase(phase)
 			if !strings.Contains(schema, `"artifact"`) {
 				t.Errorf("GetSchemaForPhase(%q) should return schema with artifact field", phase)

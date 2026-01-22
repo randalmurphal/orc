@@ -22,6 +22,7 @@ Embedded via `//go:embed schema/*.sql`:
 | `schema/project_010.sql` | Task category field (feature/bug/refactor/chore/docs/test) |
 | `schema/project_011.sql` | Initiative dependencies (blocked_by relationships) |
 | `schema/project_012.sql` | Pure SQL storage: plans, specs, gate_decisions, attachments, sync_state |
+| `schema/project_025.sql` | Constitution tables for project principles and spec validation |
 
 ## Global Tables
 
