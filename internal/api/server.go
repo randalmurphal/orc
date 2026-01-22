@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/diff"
@@ -65,6 +66,10 @@ type Server struct {
 	// Server context for graceful shutdown of background goroutines
 	serverCtx       context.Context
 	serverCtxCancel context.CancelFunc
+
+	// Session tracking
+	sessionID    string
+	sessionStart time.Time
 }
 
 // Event represents an SSE event.
@@ -175,6 +180,8 @@ func New(cfg *Config) *Server {
 		automationSvc:   automationSvc,
 		serverCtx:       serverCtx,
 		serverCtxCancel: serverCtxCancel,
+		sessionID:       uuid.New().String(),
+		sessionStart:    time.Now(),
 	}
 
 	// Create WebSocket handler
@@ -202,6 +209,9 @@ func (s *Server) registerRoutes() {
 
 	// Health check
 	s.mux.HandleFunc("GET /api/health", cors(s.handleHealth))
+
+	// Session metrics
+	s.mux.HandleFunc("GET /api/session", cors(s.handleGetSessionMetrics))
 
 	// Tasks
 	s.mux.HandleFunc("GET /api/tasks", cors(s.handleListTasks))
@@ -800,9 +810,9 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}()
 
 	return map[string]any{
-		"status":      "resumed",
-		"task_id":     id,
-		"from_phase":  resumePhase,
+		"status":     "resumed",
+		"task_id":    id,
+		"from_phase": resumePhase,
 	}, nil
 }
 

@@ -12,6 +12,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
 | [Integration](#integration) | `/api/github/*`, `/api/mcp/*`, `/api/plugins/*` | External integrations |
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
+| [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics and activity data |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
@@ -1178,6 +1179,48 @@ Endpoints for Playwright test results, screenshots, and traces. Test results are
 ```
 
 **Screenshot upload:** Use `multipart/form-data` with file in the `file` field. Optional `filename` field overrides original filename.
+
+### Session
+
+Current session metrics for the TopBar component. Session data is scoped to the server instance (not persisted across restarts).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/session` | Get session metrics (duration, tokens, cost, task counts) |
+
+**Session metrics response:**
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "started_at": "2026-01-21T10:30:00Z",
+  "duration_seconds": 3600,
+  "total_tokens": 125000,
+  "input_tokens": 45000,
+  "output_tokens": 80000,
+  "estimated_cost_usd": 2.45,
+  "tasks_completed": 5,
+  "tasks_running": 2,
+  "is_paused": false
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `session_id` | UUID generated at server startup |
+| `started_at` | Server start time (RFC3339) |
+| `duration_seconds` | Seconds elapsed since server start |
+| `total_tokens` | Sum of input + output tokens for today |
+| `input_tokens` | Input tokens consumed today |
+| `output_tokens` | Output tokens generated today |
+| `estimated_cost_usd` | Total cost for today's activity |
+| `tasks_completed` | Count of tasks with `completed` status |
+| `tasks_running` | Count of tasks with `running` status |
+| `is_paused` | Always `false` (executor-level pause not exposed) |
+
+**Notes:**
+- Token counts aggregate from today's phase-level activity (UTC day boundary)
+- Returns zeros for all numeric fields when no tasks exist (graceful empty state)
+- Response time target: < 100ms for typical projects (< 100 tasks)
 
 ### Dashboard
 

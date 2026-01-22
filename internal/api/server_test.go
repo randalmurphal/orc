@@ -3565,3 +3565,46 @@ func TestSetDefaultProjectEndpoint_InvalidBody(t *testing.T) {
 		t.Errorf("expected status 400, got %d", w.Code)
 	}
 }
+
+func TestSessionEndpoint(t *testing.T) {
+	t.Parallel()
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/session", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var resp SessionMetricsResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Verify all required fields are present (non-zero values not required for empty state)
+	if resp.SessionID == "" {
+		t.Error("expected session_id to be non-empty")
+	}
+	if resp.StartedAt.IsZero() {
+		t.Error("expected started_at to be non-zero")
+	}
+	// duration_seconds, tokens, cost can be zero for empty state
+	// just verify they exist in the response (already validated by successful decode)
+}
+
+func TestSessionEndpointCORS(t *testing.T) {
+	t.Parallel()
+	srv := New(nil)
+
+	req := httptest.NewRequest("GET", "/api/session", nil)
+	w := httptest.NewRecorder()
+
+	srv.mux.ServeHTTP(w, req)
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Error("expected CORS header to be set on /api/session endpoint")
+	}
+}
