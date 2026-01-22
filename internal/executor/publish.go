@@ -150,3 +150,8 @@ func (ep *EventPublisher) Session(update events.SessionUpdate) {
 	// Use GlobalTaskID so all subscribers receive session updates
 	ep.Publish(events.NewEvent(events.EventSessionUpdate, events.GlobalTaskID, update))
 }
+
+// FilesChanged publishes a files changed event with file change details.
+func (ep *EventPublisher) FilesChanged(taskID string, update events.FilesChangedUpdate) {
+	ep.Publish(events.NewEvent(events.EventFilesChanged, taskID, update))
+}

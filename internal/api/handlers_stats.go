@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/diff"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -440,4 +443,437 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 	}
 
 	s.jsonResponse(w, response)
+}
+
+// ============================================================================
+// Stats Top Initiatives Endpoint Types
+// ============================================================================
+
+// TopInitiativeData represents a single initiative in the leaderboard.
+type TopInitiativeData struct {
+	Rank           int     `json:"rank"`
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	TaskCount      int     `json:"task_count"`
+	CompletedCount int     `json:"completed_count"`
+	CompletionRate float64 `json:"completion_rate"`
+	TotalTokens    int     `json:"total_tokens"`
+	TotalCostUSD   float64 `json:"total_cost_usd"`
+}
+
+// TopInitiativesResponse is the response for GET /api/stats/top-initiatives.
+type TopInitiativesResponse struct {
+	Period      string              `json:"period"`
+	Initiatives []TopInitiativeData `json:"initiatives"`
+}
+
+// ============================================================================
+// Stats Top Initiatives Handler
+// ============================================================================
+
+// handleGetTopInitiatives returns most active initiatives for leaderboard.
+// GET /api/stats/top-initiatives?limit=10&period=all
+func (s *Server) handleGetTopInitiatives(w http.ResponseWriter, r *http.Request) {
+	// Parse limit parameter (default: 10, max: 25)
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10
+	if limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil || parsed < 1 || parsed > 25 {
+			s.jsonError(w, "limit must be a number between 1 and 25", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+
+	// Parse period parameter (24h, 7d, 30d, all) - default: all
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+
+	// Validate period
+	var cutoffTime *time.Time
+	now := time.Now()
+	switch period {
+	case "24h":
+		t := now.Add(-24 * time.Hour)
+		cutoffTime = &t
+	case "7d":
+		t := now.AddDate(0, 0, -7)
+		cutoffTime = &t
+	case "30d":
+		t := now.AddDate(0, 0, -30)
+		cutoffTime = &t
+	case "all":
+		// No cutoff
+		cutoffTime = nil
+	default:
+		s.jsonError(w, "period must be one of: 24h, 7d, 30d, all", http.StatusBadRequest)
+		return
+	}
+
+	// Load all initiatives
+	initiatives, err := s.backend.LoadAllInitiatives()
+	if err != nil {
+		s.jsonError(w, "failed to load initiatives: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Load all tasks to build the statistics
+	allTasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Build map of task stats
+	taskStatsMap := make(map[string]struct {
+		totalTokens  int
+		totalCostUSD float64
+		isCompleted  bool
+		completedAt  *time.Time
+	})
+
+	for _, t := range allTasks {
+		// Load state to get token and cost data
+		st, err := s.backend.LoadState(t.ID)
+		if err != nil {
+			s.logger.Warn("failed to load state for top initiatives", "task", t.ID, "error", err)
+			// Continue without token/cost data for this task
+			taskStatsMap[t.ID] = struct {
+				totalTokens  int
+				totalCostUSD float64
+				isCompleted  bool
+				completedAt  *time.Time
+			}{
+				totalTokens:  0,
+				totalCostUSD: 0,
+				isCompleted:  t.Status == task.StatusCompleted,
+				completedAt:  t.CompletedAt,
+			}
+			continue
+		}
+
+		taskStatsMap[t.ID] = struct {
+			totalTokens  int
+			totalCostUSD float64
+			isCompleted  bool
+			completedAt  *time.Time
+		}{
+			totalTokens:  st.Tokens.TotalTokens,
+			totalCostUSD: st.Cost.TotalCostUSD,
+			isCompleted:  t.Status == task.StatusCompleted,
+			completedAt:  t.CompletedAt,
+		}
+	}
+
+	// Calculate stats for each initiative
+	type initiativeStats struct {
+		initiative     *initiative.Initiative
+		taskCount      int
+		completedCount int
+		totalTokens    int
+		totalCostUSD   float64
+	}
+
+	var stats []initiativeStats
+
+	for _, init := range initiatives {
+		var taskCount, completedCount, totalTokens int
+		var totalCostUSD float64
+
+		for _, taskRef := range init.Tasks {
+			taskStat, exists := taskStatsMap[taskRef.ID]
+			if !exists {
+				continue
+			}
+
+			// Apply period filter to task completion dates
+			if cutoffTime != nil {
+				if !taskStat.isCompleted || taskStat.completedAt == nil || taskStat.completedAt.Before(*cutoffTime) {
+					continue
+				}
+			}
+
+			taskCount++
+			totalTokens += taskStat.totalTokens
+			totalCostUSD += taskStat.totalCostUSD
+
+			if taskStat.isCompleted {
+				completedCount++
+			}
+		}
+
+		// Skip initiatives with 0 tasks (after period filter)
+		if taskCount == 0 {
+			continue
+		}
+
+		stats = append(stats, initiativeStats{
+			initiative:     init,
+			taskCount:      taskCount,
+			completedCount: completedCount,
+			totalTokens:    totalTokens,
+			totalCostUSD:   totalCostUSD,
+		})
+	}
+
+	// Sort by task count descending
+	for i := 0; i < len(stats); i++ {
+		for j := i + 1; j < len(stats); j++ {
+			if stats[j].taskCount > stats[i].taskCount {
+				stats[i], stats[j] = stats[j], stats[i]
+			}
+		}
+	}
+
+	// Take top N initiatives (up to limit)
+	if len(stats) > limit {
+		stats = stats[:limit]
+	}
+
+	// Build response
+	initiativesData := make([]TopInitiativeData, len(stats))
+	for i, stat := range stats {
+		completionRate := 0.0
+		if stat.taskCount > 0 {
+			completionRate = float64(stat.completedCount) / float64(stat.taskCount) * 100
+		}
+
+		initiativesData[i] = TopInitiativeData{
+			Rank:           i + 1,
+			ID:             stat.initiative.ID,
+			Title:          stat.initiative.Title,
+			TaskCount:      stat.taskCount,
+			CompletedCount: stat.completedCount,
+			CompletionRate: completionRate,
+			TotalTokens:    stat.totalTokens,
+			TotalCostUSD:   stat.totalCostUSD,
+		}
+	}
+
+	response := TopInitiativesResponse{
+		Period:      period,
+		Initiatives: initiativesData,
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// ============================================================================
+// Stats Top Files Endpoint Types
+// ============================================================================
+
+// TopFile represents a single file in the leaderboard.
+type TopFile struct {
+	Rank              int       `json:"rank"`
+	Path              string    `json:"path"`
+	ModificationCount int       `json:"modification_count"`
+	LastModified      time.Time `json:"last_modified"`
+	Tasks             []string  `json:"tasks"`
+}
+
+// TopFilesResponse is the response for GET /api/stats/top-files.
+type TopFilesResponse struct {
+	Period string    `json:"period"`
+	Files  []TopFile `json:"files"`
+}
+
+// ============================================================================
+// Stats Top Files Handler
+// ============================================================================
+
+// handleGetTopFiles returns ranked list of most frequently modified files.
+// GET /api/stats/top-files?limit=10&period=all
+func (s *Server) handleGetTopFiles(w http.ResponseWriter, r *http.Request) {
+	// Parse limit parameter (default: 10, max: 50)
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10
+	if limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil || parsed < 1 || parsed > 50 {
+			s.jsonError(w, "limit must be a number between 1 and 50", http.StatusBadRequest)
+			return
+		}
+		limit = parsed
+	}
+
+	// Parse period parameter (24h, 7d, 30d, all) - default: all
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+
+	// Validate period
+	var cutoffTime *time.Time
+	now := time.Now()
+	switch period {
+	case "24h":
+		t := now.Add(-24 * time.Hour)
+		cutoffTime = &t
+	case "7d":
+		t := now.AddDate(0, 0, -7)
+		cutoffTime = &t
+	case "30d":
+		t := now.AddDate(0, 0, -30)
+		cutoffTime = &t
+	case "all":
+		// No cutoff
+		cutoffTime = nil
+	default:
+		s.jsonError(w, "period must be one of: 24h, 7d, 30d, all", http.StatusBadRequest)
+		return
+	}
+
+	// Load all tasks
+	allTasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Filter to completed tasks within period and aggregate file modifications
+	fileAgg := s.aggregateFileModifications(r.Context(), allTasks, cutoffTime)
+
+	// Convert to slice and sort by modification count
+	files := make([]TopFile, 0, len(fileAgg))
+	for path, info := range fileAgg {
+		files = append(files, TopFile{
+			Path:              path,
+			ModificationCount: info.count,
+			LastModified:      info.lastModified,
+			Tasks:             info.tasks,
+		})
+	}
+
+	// Sort by modification count descending
+	sortTopFiles(files)
+
+	// Take top N
+	if len(files) > limit {
+		files = files[:limit]
+	}
+
+	// Assign ranks
+	for i := range files {
+		files[i].Rank = i + 1
+	}
+
+	response := TopFilesResponse{
+		Period: period,
+		Files:  files,
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// ============================================================================
+// Stats Top Files Helpers
+// ============================================================================
+
+// fileModInfo tracks aggregation info for a single file.
+type fileModInfo struct {
+	count        int
+	tasks        []string
+	lastModified time.Time
+}
+
+// aggregateFileModifications aggregates file modification data across tasks.
+// Returns a map of file path -> modification info.
+func (s *Server) aggregateFileModifications(ctx context.Context, allTasks []*task.Task, cutoffTime *time.Time) map[string]*fileModInfo {
+	fileMap := make(map[string]*fileModInfo)
+
+	for _, t := range allTasks {
+		// Only include completed tasks
+		if t.Status != task.StatusCompleted {
+			continue
+		}
+
+		// Apply time filter
+		if cutoffTime != nil && t.CompletedAt != nil && t.CompletedAt.Before(*cutoffTime) {
+			continue
+		}
+
+		// Get file list for this task
+		files, err := s.getTaskFileList(ctx, t)
+		if err != nil {
+			// Log and skip tasks where we can't get diff data
+			s.logger.Debug("failed to get file list for task", "task", t.ID, "error", err)
+			continue
+		}
+
+		// Aggregate each file
+		for _, file := range files {
+			info, exists := fileMap[file.Path]
+			if !exists {
+				info = &fileModInfo{
+					tasks: make([]string, 0, 1),
+				}
+				fileMap[file.Path] = info
+			}
+
+			info.count++
+			info.tasks = append(info.tasks, t.ID)
+
+			// Update last modified time
+			if t.CompletedAt != nil && (info.lastModified.IsZero() || t.CompletedAt.After(info.lastModified)) {
+				info.lastModified = *t.CompletedAt
+			}
+		}
+	}
+
+	return fileMap
+}
+
+// getTaskFileList gets the file list for a task using the appropriate diff strategy.
+// Consolidates the three diff strategies from handlers_diff.go.
+func (s *Server) getTaskFileList(ctx context.Context, t *task.Task) ([]diff.FileDiff, error) {
+	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
+
+	// Strategy 1: Merged PR with merge commit SHA
+	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
+		files, _, err := diffSvc.GetMergeCommitFileList(ctx, t.PR.MergeCommitSHA)
+		return files, err
+	}
+
+	// Strategy 2: Use commit SHAs from task state if available
+	firstCommit, lastCommit := s.getTaskCommitRange(t.ID)
+	if firstCommit != "" && lastCommit != "" {
+		files, _, err := diffSvc.GetCommitRangeFileList(ctx, firstCommit, lastCommit)
+		return files, err
+	}
+
+	// Strategy 3: Fall back to branch comparison
+	base := "main"
+	head := t.Branch
+	if head == "" {
+		head = "HEAD"
+	}
+
+	// Resolve refs (handles remote-only branches)
+	base = diffSvc.ResolveRef(ctx, base)
+	head = diffSvc.ResolveRef(ctx, head)
+
+	// Check if we should include uncommitted working tree changes
+	useWorkingTree, effectiveHead := diffSvc.ShouldIncludeWorkingTree(ctx, base, head)
+	if useWorkingTree {
+		head = effectiveHead // Will be "" to indicate working tree comparison
+	}
+
+	return diffSvc.GetFileList(ctx, base, head)
+}
+
+// sortTopFiles sorts files by modification count descending, then by path ascending (for stability).
+func sortTopFiles(files []TopFile) {
+	// Simple bubble sort is fine for typical sizes (10-50 files)
+	for i := 0; i < len(files); i++ {
+		for j := i + 1; j < len(files); j++ {
+			// Sort by count descending, then path ascending
+			if files[j].ModificationCount > files[i].ModificationCount ||
+				(files[j].ModificationCount == files[i].ModificationCount && files[j].Path < files[i].Path) {
+				files[i], files[j] = files[j], files[i]
+			}
+		}
+	}
 }
