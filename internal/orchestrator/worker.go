@@ -14,7 +14,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -76,7 +75,7 @@ func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Confi
 }
 
 // SpawnWorker creates and starts a worker for a task.
-func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *plan.Plan, st *state.State) (*Worker, error) {
+func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executor.Plan, st *state.State) (*Worker, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -120,7 +119,7 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *plan.Pl
 
 // run executes the task in the worktree.
 // Iterates through all phases until completion, failure, or cancellation.
-func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.State) {
+func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan, st *state.State) {
 	defer func() {
 		w.mu.Lock()
 		if w.Status == WorkerStatusRunning {
@@ -220,10 +219,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *plan.Plan, st *state.S
 			})
 
 			// Mark phase as completed in plan
-			pln.GetPhase(currentPhase.ID).Status = plan.PhaseCompleted
-			if pool.backend != nil {
-				_ = pool.backend.SavePlan(pln, t.ID)
-			}
+			pln.GetPhase(currentPhase.ID).Status = executor.PhaseCompleted
 
 			// Check if more phases - loop continues with next iteration
 			nextPhase := pln.CurrentPhase()

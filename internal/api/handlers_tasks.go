@@ -11,7 +11,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -360,36 +359,10 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		t.RelatedTo = req.RelatedTo
 	}
 
-	if err := s.backend.SaveTask(t); err != nil {
-		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
-		return
-	}
-
-	// Create plan from template
-	p, err := plan.CreateFromTemplate(t)
-	if err != nil {
-		// If template not found, use default plan
-		p = &plan.Plan{
-			Version:     1,
-			TaskID:      id,
-			Weight:      t.Weight,
-			Description: "Default plan",
-			Phases: []plan.Phase{
-				{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-			},
-		}
-	}
-
-	// Save plan
-	if err := s.backend.SavePlan(p, id); err != nil {
-		s.jsonError(w, "failed to save plan", http.StatusInternalServerError)
-		return
-	}
-
-	// Update task status to planned
+	// Task is ready to run - executor will create execution plan from weight
 	t.Status = task.StatusPlanned
 	if err := s.backend.SaveTask(t); err != nil {
-		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
+		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
 
@@ -552,10 +525,6 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Track if weight changed
-	oldWeight := t.Weight
-	weightChanged := false
-
 	// Apply updates (only update fields that are provided)
 	if req.Title != nil {
 		if *req.Title == "" {
@@ -575,10 +544,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			s.jsonError(w, fmt.Sprintf("invalid weight: %s", *req.Weight), http.StatusBadRequest)
 			return
 		}
-		if t.Weight != weight {
-			t.Weight = weight
-			weightChanged = true
-		}
+		t.Weight = weight
 	}
 
 	if req.Queue != nil {
@@ -686,44 +652,6 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
-	}
-
-	// Regenerate plan if weight changed
-	if weightChanged {
-		oldPlan, err := s.backend.LoadPlan(id)
-		if err != nil {
-			s.logger.Warn("failed to load existing plan for regeneration", "taskID", id, "error", err)
-			oldPlan = nil
-		}
-		result, err := plan.RegeneratePlan(t, oldPlan)
-		if err != nil {
-			// Plan regeneration failed - return error to client
-			// The task has been saved with new weight, but plan is stale
-			s.logger.Error("failed to regenerate plan for weight change",
-				"taskID", id,
-				"oldWeight", oldWeight,
-				"newWeight", t.Weight,
-				"error", err,
-			)
-			s.jsonError(w, fmt.Sprintf("task updated but plan regeneration failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-		// Save the regenerated plan
-		if err := s.backend.SavePlan(result.NewPlan, id); err != nil {
-			s.logger.Error("failed to save regenerated plan",
-				"taskID", id,
-				"error", err,
-			)
-			s.jsonError(w, fmt.Sprintf("task updated but failed to save plan: %v", err), http.StatusInternalServerError)
-			return
-		}
-		s.logger.Info("plan regenerated for weight change",
-			"taskID", id,
-			"oldWeight", oldWeight,
-			"newWeight", t.Weight,
-			"preservedPhases", result.PreservedPhases,
-			"resetPhases", result.ResetPhases,
-		)
 	}
 
 	// Handle initiative change - sync bidirectionally

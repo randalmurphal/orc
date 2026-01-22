@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -156,19 +155,11 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 		t := task.New(id, proposed.Title)
 		t.Description = proposed.Description
 		t.Weight = proposed.Weight
+		t.Status = task.StatusPlanned // Plans are created dynamically at runtime
 
 		// Save task
 		if err := p.opts.Backend.SaveTask(t); err != nil {
 			return nil, fmt.Errorf("save task %s: %w", id, err)
-		}
-
-		// Create plan from weight template
-		pln, err := plan.CreateFromTemplate(t)
-		if err != nil {
-			return nil, fmt.Errorf("create plan for %s: %w", id, err)
-		}
-		if err := p.opts.Backend.SavePlan(pln, id); err != nil {
-			return nil, fmt.Errorf("save plan for %s: %w", id, err)
 		}
 
 		// Map dependency indices to IDs

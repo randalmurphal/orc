@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
@@ -41,7 +40,7 @@ func DefaultRetryConfig() RetryConfig {
 }
 
 // ExecuteWithRetry wraps phase execution with retry logic
-func (e *Executor) ExecuteWithRetry(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+func (e *Executor) ExecuteWithRetry(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
 	cfg := DefaultRetryConfig()
 	backoff := cfg.InitialBackoff
 

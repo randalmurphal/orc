@@ -8,6 +8,8 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
+	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -24,15 +26,19 @@ func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, st)
 }
 
-// handleGetPlan returns task plan.
+// handleGetPlan returns task plan (dynamically generated from task weight).
 func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	p, err := s.backend.LoadPlan(id)
+
+	// Load task to get weight
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
-		s.jsonError(w, "plan not found", http.StatusNotFound)
+		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
+	// Create plan dynamically from task weight
+	p := createPlanForWeightState(id, t.Weight)
 	s.jsonResponse(w, p)
 }
 
@@ -354,5 +360,54 @@ func (s *Server) transcriptToMap(t storage.Transcript) map[string]any {
 		"tool_calls":            t.ToolCalls,
 		"tool_results":          t.ToolResults,
 		"timestamp":             t.Timestamp,
+	}
+}
+
+// createPlanForWeightState creates an execution plan based on task weight.
+// Plans are created dynamically for execution, not stored.
+func createPlanForWeightState(taskID string, weight task.Weight) *executor.Plan {
+	var phases []executor.Phase
+
+	switch weight {
+	case task.WeightTrivial:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightSmall:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightMedium:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightLarge:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	default:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
 	}
 }

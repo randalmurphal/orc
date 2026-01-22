@@ -5,30 +5,29 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
-// EventPublisher wraps event publishing with nil-safety and convenience methods.
+// PublishHelper wraps event publishing with nil-safety and convenience methods.
 // All methods are safe to call even when the underlying publisher is nil.
 //
 // Transcript persistence is handled separately via JSONL sync from Claude Code's
 // session files, not through this publisher.
 //
 // Thread-safe: All methods can be called concurrently.
-type EventPublisher struct {
+type PublishHelper struct {
 	publisher events.Publisher
 }
 
-// NewEventPublisher creates a new EventPublisher wrapping the given publisher.
+// NewPublishHelper creates a new PublishHelper wrapping the given publisher.
 // If p is nil, all publish operations become no-ops.
-func NewEventPublisher(p events.Publisher) *EventPublisher {
-	return &EventPublisher{publisher: p}
+func NewPublishHelper(p events.Publisher) *PublishHelper {
+	return &PublishHelper{publisher: p}
 }
 
 // Publish sends an event to the underlying publisher.
 // Safe to call with nil publisher (no-op).
-func (ep *EventPublisher) Publish(ev events.Event) {
+func (ep *PublishHelper) Publish(ev events.Event) {
 	if ep == nil || ep.publisher == nil {
 		return
 	}
@@ -36,38 +35,38 @@ func (ep *EventPublisher) Publish(ev events.Event) {
 }
 
 // PhaseStart publishes a phase start event.
-func (ep *EventPublisher) PhaseStart(taskID, phase string) {
+func (ep *PublishHelper) PhaseStart(taskID, phase string) {
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:  phase,
-		Status: string(plan.PhaseRunning),
+		Status: string(PhaseRunning),
 	}))
 }
 
 // PhaseComplete publishes a phase completion event with optional commit SHA.
-func (ep *EventPublisher) PhaseComplete(taskID, phase, commitSHA string) {
+func (ep *PublishHelper) PhaseComplete(taskID, phase, commitSHA string) {
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:     phase,
-		Status:    string(plan.PhaseCompleted),
+		Status:    string(PhaseCompleted),
 		CommitSHA: commitSHA,
 	}))
 }
 
 // PhaseFailed publishes a phase failure event with the error message.
-func (ep *EventPublisher) PhaseFailed(taskID, phase string, err error) {
+func (ep *PublishHelper) PhaseFailed(taskID, phase string, err error) {
 	errMsg := ""
 	if err != nil {
 		errMsg = err.Error()
 	}
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:  phase,
-		Status: string(plan.PhaseFailed),
+		Status: string(PhaseFailed),
 		Error:  errMsg,
 	}))
 }
 
 // Transcript publishes a transcript line event (prompt, response, tool, error).
 // Database persistence is handled separately via JSONL sync.
-func (ep *EventPublisher) Transcript(taskID, phase string, iteration int, msgType, content string) {
+func (ep *PublishHelper) Transcript(taskID, phase string, iteration int, msgType, content string) {
 	ep.Publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
 		Phase:     phase,
 		Iteration: iteration,
@@ -79,7 +78,7 @@ func (ep *EventPublisher) Transcript(taskID, phase string, iteration int, msgTyp
 
 // TranscriptChunk publishes a streaming transcript chunk event.
 // Database persistence is handled separately via JSONL sync.
-func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, chunk string) {
+func (ep *PublishHelper) TranscriptChunk(taskID, phase string, iteration int, chunk string) {
 	ep.Publish(events.NewEvent(events.EventTranscript, taskID, events.TranscriptLine{
 		Phase:     phase,
 		Iteration: iteration,
@@ -90,7 +89,7 @@ func (ep *EventPublisher) TranscriptChunk(taskID, phase string, iteration int, c
 }
 
 // Tokens publishes a token usage update event.
-func (ep *EventPublisher) Tokens(taskID, phase string, input, output, cacheCreation, cacheRead, total int) {
+func (ep *PublishHelper) Tokens(taskID, phase string, input, output, cacheCreation, cacheRead, total int) {
 	ep.Publish(events.NewEvent(events.EventTokens, taskID, events.TokenUpdate{
 		Phase:                    phase,
 		InputTokens:              input,
@@ -103,7 +102,7 @@ func (ep *EventPublisher) Tokens(taskID, phase string, input, output, cacheCreat
 
 // Error publishes an error event.
 // Set fatal to true if this error will cause task termination.
-func (ep *EventPublisher) Error(taskID, phase, message string, fatal bool) {
+func (ep *PublishHelper) Error(taskID, phase, message string, fatal bool) {
 	ep.Publish(events.NewEvent(events.EventError, taskID, events.ErrorData{
 		Phase:   phase,
 		Message: message,
@@ -112,7 +111,7 @@ func (ep *EventPublisher) Error(taskID, phase, message string, fatal bool) {
 }
 
 // State publishes a full state update event.
-func (ep *EventPublisher) State(taskID string, s *state.State) {
+func (ep *PublishHelper) State(taskID string, s *state.State) {
 	if s == nil {
 		return
 	}
@@ -120,7 +119,7 @@ func (ep *EventPublisher) State(taskID string, s *state.State) {
 }
 
 // Activity publishes an activity state change event.
-func (ep *EventPublisher) Activity(taskID, phase, activity string) {
+func (ep *PublishHelper) Activity(taskID, phase, activity string) {
 	ep.Publish(events.NewEvent(events.EventActivity, taskID, events.ActivityUpdate{
 		Phase:    phase,
 		Activity: activity,
@@ -128,7 +127,7 @@ func (ep *EventPublisher) Activity(taskID, phase, activity string) {
 }
 
 // Heartbeat publishes a heartbeat event indicating the task is still running.
-func (ep *EventPublisher) Heartbeat(taskID, phase string, iteration int) {
+func (ep *PublishHelper) Heartbeat(taskID, phase string, iteration int) {
 	ep.Publish(events.NewEvent(events.EventHeartbeat, taskID, events.HeartbeatData{
 		Phase:     phase,
 		Iteration: iteration,
@@ -137,7 +136,7 @@ func (ep *EventPublisher) Heartbeat(taskID, phase string, iteration int) {
 }
 
 // Warning publishes a warning event (non-fatal).
-func (ep *EventPublisher) Warning(taskID, phase, message string) {
+func (ep *PublishHelper) Warning(taskID, phase, message string) {
 	ep.Publish(events.NewEvent(events.EventWarning, taskID, events.WarningData{
 		Phase:   phase,
 		Message: message,
@@ -146,22 +145,22 @@ func (ep *EventPublisher) Warning(taskID, phase, message string) {
 
 // Session publishes a session update event with aggregate metrics.
 // Session events use an empty task ID as they represent session-level state.
-func (ep *EventPublisher) Session(update events.SessionUpdate) {
+func (ep *PublishHelper) Session(update events.SessionUpdate) {
 	// Use GlobalTaskID so all subscribers receive session updates
 	ep.Publish(events.NewEvent(events.EventSessionUpdate, events.GlobalTaskID, update))
 }
 
 // FilesChanged publishes a files changed event with file change details.
-func (ep *EventPublisher) FilesChanged(taskID string, update events.FilesChangedUpdate) {
+func (ep *PublishHelper) FilesChanged(taskID string, update events.FilesChangedUpdate) {
 	ep.Publish(events.NewEvent(events.EventFilesChanged, taskID, update))
 }
 
 // DecisionRequired publishes a decision_required event for human gates.
-func (ep *EventPublisher) DecisionRequired(taskID string, data events.DecisionRequiredData) {
+func (ep *PublishHelper) DecisionRequired(taskID string, data events.DecisionRequiredData) {
 	ep.Publish(events.NewEvent(events.EventDecisionRequired, taskID, data))
 }
 
 // DecisionResolved publishes a decision_resolved event after gate resolution.
-func (ep *EventPublisher) DecisionResolved(taskID string, data events.DecisionResolvedData) {
+func (ep *PublishHelper) DecisionResolved(taskID string, data events.DecisionResolvedData) {
 	ep.Publish(events.NewEvent(events.EventDecisionResolved, taskID, data))
 }

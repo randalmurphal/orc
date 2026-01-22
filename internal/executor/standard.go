@@ -9,7 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -25,7 +24,7 @@ import (
 type StandardExecutor struct {
 	claudePath string // Path to claude binary
 	gitSvc     *git.Git
-	publisher  *EventPublisher
+	publisher  *PublishHelper
 	logger     *slog.Logger
 	config     ExecutorConfig
 	workingDir string
@@ -56,7 +55,7 @@ func WithGitSvc(svc *git.Git) StandardExecutorOption {
 
 // WithPublisher sets the event publisher for real-time updates.
 func WithPublisher(p events.Publisher) StandardExecutorOption {
-	return func(e *StandardExecutor) { e.publisher = NewEventPublisher(p) }
+	return func(e *StandardExecutor) { e.publisher = NewPublishHelper(p) }
 }
 
 // WithExecutorLogger sets the logger.
@@ -116,7 +115,7 @@ func NewStandardExecutor(opts ...StandardExecutorOption) *StandardExecutor {
 	e := &StandardExecutor{
 		claudePath: "claude",
 		logger:     slog.Default(),
-		publisher:  NewEventPublisher(nil), // Initialize with nil-safe wrapper
+		publisher:  NewPublishHelper(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      20,
 			CheckpointInterval: 0,
@@ -139,11 +138,11 @@ func (e *StandardExecutor) Name() string {
 }
 
 // Execute runs a phase to completion using ClaudeCLI with JSON schema.
-func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: plan.PhaseRunning,
+		Status: PhaseRunning,
 	}
 
 	// Transcript streamer for real-time DB sync (started when JSONL path is known)
@@ -163,7 +162,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 		Logger:          e.logger,
 	})
 	if err != nil {
-		result.Status = plan.PhaseFailed
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("build execution context: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
@@ -252,7 +251,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 				// For timeout errors, we can try to continue if we got partial content
 				lastResponse = turnResult.Content
 			}
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
 			result.Output = lastResponse // Preserve any previous response for debugging
 			goto done
@@ -304,13 +303,13 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 				)
 			}
 
-			result.Status = plan.PhaseCompleted
+			result.Status = PhaseCompleted
 			result.Output = turnResult.Content
 			e.logger.Info("phase complete", "task", t.ID, "phase", p.ID, "iterations", iteration)
 			goto done
 
 		case PhaseStatusBlocked:
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Output = turnResult.Content // Preserve output for retry context
 			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
 			e.logger.Warn("phase blocked", "task", t.ID, "phase", p.ID, "reason", turnResult.Reason)
@@ -323,7 +322,7 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 
 		// Check for errors
 		if turnResult.IsError {
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
 			result.Output = lastResponse
 			goto done
@@ -331,8 +330,8 @@ func (e *StandardExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Ph
 	}
 
 	// If we exhausted iterations without completion
-	if result.Status == plan.PhaseRunning {
-		result.Status = plan.PhaseFailed
+	if result.Status == PhaseRunning {
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached without completion", e.config.MaxIterations)
 		result.Output = lastResponse // Preserve last response for debugging
 	}
@@ -347,7 +346,7 @@ done:
 	}
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
-	if result.Status == plan.PhaseCompleted && result.Output != "" {
+	if result.Status == PhaseCompleted && result.Output != "" {
 		if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
 			e.logger.Warn("failed to save phase artifact to database", "error", err)
 		} else if saved {
@@ -356,7 +355,7 @@ done:
 	}
 
 	// Commit on success if git service available
-	if result.Status == plan.PhaseCompleted && e.gitSvc != nil {
+	if result.Status == PhaseCompleted && e.gitSvc != nil {
 		checkpoint, err := e.gitSvc.CreateCheckpoint(t.ID, p.ID, "completed")
 		if err != nil {
 			e.logger.Warn("failed to create checkpoint", "error", err)

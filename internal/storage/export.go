@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 	"gopkg.in/yaml.v3"
@@ -124,14 +123,9 @@ func (e *ExportService) ExportToBranch(taskID, branch string, opts *ExportOption
 	return nil
 }
 
-// exportTaskDefinition exports task.yaml and plan.yaml.
+// exportTaskDefinition exports task.yaml.
 func (e *ExportService) exportTaskDefinition(taskID, exportDir string) error {
 	t, err := e.backend.LoadTask(taskID)
-	if err != nil {
-		return err
-	}
-
-	p, err := e.backend.LoadPlan(taskID)
 	if err != nil {
 		return err
 	}
@@ -143,15 +137,6 @@ func (e *ExportService) exportTaskDefinition(taskID, exportDir string) error {
 	}
 	if err := os.WriteFile(filepath.Join(exportDir, "task.yaml"), taskData, 0644); err != nil {
 		return fmt.Errorf("write task.yaml: %w", err)
-	}
-
-	// Write plan.yaml
-	planData, err := yaml.Marshal(p)
-	if err != nil {
-		return fmt.Errorf("marshal plan: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(exportDir, "plan.yaml"), planData, 0644); err != nil {
-		return fmt.Errorf("write plan.yaml: %w", err)
 	}
 
 	return nil
@@ -187,13 +172,8 @@ func (e *ExportService) exportContextSummary(taskID, exportDir string) error {
 		return err
 	}
 
-	p, err := e.backend.LoadPlan(taskID)
-	if err != nil {
-		return err
-	}
-
 	// Generate context.md content
-	content, err := generateContextSummary(t, s, p)
+	content, err := generateContextSummary(t, s)
 	if err != nil {
 		return fmt.Errorf("generate context summary: %w", err)
 	}
@@ -228,7 +208,7 @@ func (e *ExportService) exportTranscripts(taskID, exportDir string) error {
 }
 
 // generateContextSummary creates a markdown summary of the task context.
-func generateContextSummary(t *task.Task, s *state.State, p *plan.Plan) (string, error) {
+func generateContextSummary(t *task.Task, s *state.State) (string, error) {
 	tmpl := `# Task Context: {{.Task.ID}}
 
 ## Overview
@@ -254,8 +234,8 @@ func generateContextSummary(t *task.Task, s *state.State, p *plan.Plan) (string,
 
 | Phase | Status | Tokens |
 |-------|--------|--------|
-{{- range .Plan.Phases}}
-| {{.Name}} | {{.Status}} | {{with index $.State.Phases .ID}}{{.Tokens.TotalTokens}}{{else}}-{{end}} |
+{{- range $id, $phase := .State.Phases}}
+| {{$id}} | {{$phase.Status}} | {{$phase.Tokens.TotalTokens}} |
 {{- end}}
 
 ## Token Usage
@@ -284,12 +264,10 @@ func generateContextSummary(t *task.Task, s *state.State, p *plan.Plan) (string,
 	data := struct {
 		Task        *task.Task
 		State       *state.State
-		Plan        *plan.Plan
 		GeneratedAt time.Time
 	}{
 		Task:        t,
 		State:       s,
-		Plan:        p,
 		GeneratedAt: time.Now(),
 	}
 

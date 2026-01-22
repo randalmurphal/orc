@@ -16,7 +16,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -55,19 +54,6 @@ func TestHandleFinalizeTask(t *testing.T) {
 	}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
-	}
-
-	// Create a plan with finalize phase
-	p := &plan.Plan{
-		TaskID: taskID,
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhaseCompleted},
-			{ID: "test", Status: plan.PhaseCompleted},
-			{ID: "finalize", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("save plan: %v", err)
 	}
 
 	// Create default config
@@ -1060,18 +1046,6 @@ func TestHandleFinalizeTask_ConcurrentRequests(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	// Create plan
-	p := &plan.Plan{
-		TaskID: taskID,
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhaseCompleted},
-			{ID: "finalize", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("save plan: %v", err)
-	}
-
 	orcCfg := config.Default()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
@@ -1159,18 +1133,6 @@ func TestTriggerFinalizeOnApproval_ConcurrentCalls(t *testing.T) {
 	}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
-	}
-
-	// Create plan
-	p := &plan.Plan{
-		TaskID: taskID,
-		Phases: []plan.Phase{
-			{ID: "implement", Status: plan.PhaseCompleted},
-			{ID: "finalize", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, taskID); err != nil {
-		t.Fatalf("save plan: %v", err)
 	}
 
 	orcCfg := config.Default()
@@ -1432,18 +1394,6 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		}
 		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
-		}
-
-		// Create plan
-		p := &plan.Plan{
-			TaskID: taskID,
-			Phases: []plan.Phase{
-				{ID: "implement", Status: plan.PhaseCompleted},
-				{ID: "finalize", Status: plan.PhasePending},
-			},
-		}
-		if err := backend.SavePlan(p, taskID); err != nil {
-			t.Fatalf("save plan: %v", err)
 		}
 
 		// Ensure no prior finalize tracker state

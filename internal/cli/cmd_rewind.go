@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 )
 
@@ -45,32 +44,33 @@ Examples:
 				return fmt.Errorf("--to flag is required")
 			}
 
-			// Load plan to get commit SHA for the phase
-			p, err := backend.LoadPlan(id)
+			// Load state to get checkpoint info
+			s, err := backend.LoadState(id)
 			if err != nil {
-				return fmt.Errorf("load plan: %w", err)
+				return fmt.Errorf("load state: %w", err)
 			}
 
-			phase := p.GetPhase(toPhase)
-			if phase == nil {
+			// Check if phase exists in state
+			phaseState := s.Phases[toPhase]
+			if phaseState == nil {
 				// Show available phases
-				fmt.Printf("Phase '%s' not found.\n\nAvailable phases:\n", toPhase)
-				for _, ph := range p.Phases {
+				fmt.Printf("Phase '%s' not found or has no state.\n\nAvailable phases:\n", toPhase)
+				for phaseID, ps := range s.Phases {
 					checkpoint := ""
-					if ph.CommitSHA != "" {
-						checkpoint = fmt.Sprintf(" (checkpoint: %s)", ph.CommitSHA[:7])
+					if ps.CommitSHA != "" {
+						checkpoint = fmt.Sprintf(" (checkpoint: %s)", ps.CommitSHA[:7])
 					}
-					fmt.Printf("  %s%s\n", ph.ID, checkpoint)
+					fmt.Printf("  %s%s\n", phaseID, checkpoint)
 				}
 				return fmt.Errorf("phase %s not found", toPhase)
 			}
 
-			if phase.CommitSHA == "" {
+			if phaseState.CommitSHA == "" {
 				return fmt.Errorf("phase %s has no checkpoint (has it completed?)", toPhase)
 			}
 
 			if !force {
-				fmt.Printf("⚠️  This will reset to commit %s\n", phase.CommitSHA[:7])
+				fmt.Printf("Warning: This will reset to commit %s\n", phaseState.CommitSHA[:7])
 				fmt.Println("   All changes after this point will be lost!")
 				fmt.Print("   Continue? [y/N]: ")
 
@@ -82,40 +82,32 @@ Examples:
 				}
 			}
 
-			// Load state and reset phases after this one
-			s, err := backend.LoadState(id)
-			if err != nil {
-				// State might not exist, create new one
-				s = state.New(id)
-			}
-
-			// Mark later phases as pending
-			foundTarget := false
-			for i := range p.Phases {
-				if p.Phases[i].ID == toPhase {
-					foundTarget = true
-					p.Phases[i].Status = plan.PhasePending
-					p.Phases[i].CommitSHA = ""
+			// Reset phases after the target phase
+			// Since we don't have an ordered phase list from plan, we reset all phases
+			// to pending and let the executor determine the order at runtime
+			for phaseID, ps := range s.Phases {
+				if phaseID == toPhase || ps.Status == state.StatusCompleted {
+					// Keep completed phases before target
 					continue
 				}
-				if foundTarget {
-					p.Phases[i].Status = plan.PhasePending
-					p.Phases[i].CommitSHA = ""
-					if s.Phases[p.Phases[i].ID] != nil {
-						s.Phases[p.Phases[i].ID].Status = state.StatusPending
-					}
-				}
+				ps.Status = state.StatusPending
+				ps.CommitSHA = ""
 			}
 
+			// Mark target phase as pending so it will be re-executed
+			s.Phases[toPhase].Status = state.StatusPending
+			s.Phases[toPhase].CommitSHA = ""
+
+			// Reset current phase tracking
+			s.CurrentPhase = toPhase
+			s.Status = state.StatusPending
+
 			// Save updated state
-			if err := backend.SavePlan(p, id); err != nil {
-				return fmt.Errorf("save plan: %w", err)
-			}
 			if err := backend.SaveState(s); err != nil {
 				return fmt.Errorf("save state: %w", err)
 			}
 
-			fmt.Printf("✅ Rewound to phase: %s\n", toPhase)
+			fmt.Printf("Rewound to phase: %s\n", toPhase)
 			fmt.Printf("   Run: orc run %s to continue\n", id)
 			return nil
 		},

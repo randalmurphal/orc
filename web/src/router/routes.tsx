@@ -14,6 +14,7 @@ const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
+const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 // Settings sub-components (loaded with SettingsPage chunk)
@@ -151,6 +152,15 @@ export const routes: RouteObject[] = [
 				element: (
 					<LazyRoute>
 						<Agents />
+					</LazyRoute>
+				),
+			},
+			// Workflows - Workflow and phase template configuration
+			{
+				path: 'workflows',
+				element: (
+					<LazyRoute>
+						<WorkflowsPage />
 					</LazyRoute>
 				),
 			},

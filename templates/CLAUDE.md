@@ -1,14 +1,12 @@
 # Templates
 
-Embedded templates for plans and prompts.
+Embedded prompt templates for phase execution.
 
 ## Directory Structure
 
 ```
 templates/
 ├── embed.go          # Go embed directives
-├── plans/            # Weight-based plan templates
-│   ├── trivial.yaml, small.yaml, medium.yaml, large.yaml
 ├── prompts/          # ALL prompts (phase, validation, gates)
 │   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
 │   ├── [validation] haiku_iteration_progress, haiku_task_readiness, haiku_success_criteria
@@ -19,20 +17,22 @@ templates/
 └── pr-body.md        # PR description template
 ```
 
-## Plan Templates (TDD-First Workflow)
+## Workflows (Database-First)
 
-| Weight | Phases |
-|--------|--------|
+Workflows are now stored in the database, not YAML files. Use `workflow.SeedBuiltins()` to populate built-in workflows.
+
+| Workflow | Phases |
+|----------|--------|
 | `trivial` | tiny_spec → implement |
 | `small` | tiny_spec → implement → review |
-| `medium` | spec → tdd_write → tasks → implement → review → docs |
-| `large` | spec → tdd_write → tasks → implement → review → docs |
+| `medium` | spec → tdd_write → breakdown → implement → review → docs |
+| `large` | spec → tdd_write → breakdown → implement → review → docs |
 
 **Key concepts:**
 - **TDD-first**: Tests written before implementation (tdd_write phase)
 - **All weights get specs**: trivial/small use lightweight `tiny_spec`
 - **No separate test phase**: TDD handles testing upfront
-- **Medium = Large phases**: Weight provides context, agents adapt accordingly
+- **Composable phases**: Each phase is a reusable template in `phase_templates` table
 
 **Review phase** (small+): Multi-agent code review with 5 specialized reviewers.
 
@@ -119,9 +119,6 @@ Artifact content is extracted from the JSON `artifact` field by `ExtractArtifact
 ```go
 //go:embed prompts/*.md
 var Prompts embed.FS
-
-//go:embed plans/*.yaml
-var Plans embed.FS
 
 // Standard loading pattern (with template execution)
 tmplContent, err := templates.Prompts.ReadFile("prompts/implement.md")

@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
 )
@@ -320,57 +319,11 @@ See also:
 				t.RelatedTo = relatedTo
 			}
 
-			// Save task
-			if err := backend.SaveTask(t); err != nil {
-				return fmt.Errorf("save task: %w", err)
-			}
-
-			// Create plan
-			var p *plan.Plan
-			if tpl != nil {
-				// Create plan from task template
-				p = &plan.Plan{
-					Version:     1,
-					TaskID:      id,
-					Weight:      t.Weight,
-					Description: fmt.Sprintf("From template: %s", tpl.Name),
-					Phases:      make([]plan.Phase, 0, len(tpl.Phases)),
-				}
-				for _, phaseID := range tpl.Phases {
-					p.Phases = append(p.Phases, plan.Phase{
-						ID:     phaseID,
-						Name:   phaseID,
-						Gate:   plan.Gate{Type: plan.GateAuto},
-						Status: plan.PhasePending,
-					})
-				}
-			} else {
-				// Create plan from weight template
-				p, err = plan.CreateFromTemplate(t)
-				if err != nil {
-					// If template not found, use default plan
-					fmt.Printf("Warning: No template for weight %s, using default plan\n", t.Weight)
-					p = &plan.Plan{
-						Version:     1,
-						TaskID:      id,
-						Weight:      t.Weight,
-						Description: "Default plan",
-						Phases: []plan.Phase{
-							{ID: "implement", Name: "implement", Gate: plan.Gate{Type: plan.GateAuto}, Status: plan.PhasePending},
-						},
-					}
-				}
-			}
-
-			// Save plan
-			if err := backend.SavePlan(p, id); err != nil {
-				return fmt.Errorf("save plan: %w", err)
-			}
-
-			// Update task status
+			// Save task with planned status
+			// Plans are created dynamically at runtime based on task weight
 			t.Status = task.StatusPlanned
 			if err := backend.SaveTask(t); err != nil {
-				return fmt.Errorf("update task: %w", err)
+				return fmt.Errorf("save task: %w", err)
 			}
 
 			// Sync task to initiative if linked
@@ -392,7 +345,6 @@ See also:
 			fmt.Printf("   Weight:   %s\n", t.Weight)
 			fmt.Printf("   Category: %s\n", t.GetCategory())
 			fmt.Printf("   Priority: %s\n", t.GetPriority())
-			fmt.Printf("   Phases:   %d\n", len(p.Phases))
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
 			}

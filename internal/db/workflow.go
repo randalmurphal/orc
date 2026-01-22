@@ -1,0 +1,889 @@
+package db
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+)
+
+// PhaseTemplate represents a reusable phase definition.
+type PhaseTemplate struct {
+	ID          string
+	Name        string
+	Description string
+
+	// Prompt configuration
+	PromptSource  string // 'embedded', 'db', 'file'
+	PromptContent string
+	PromptPath    string
+
+	// Contract
+	InputVariables   string // JSON array
+	OutputSchema     string
+	ProducesArtifact bool
+	ArtifactType     string
+
+	// Execution config
+	MaxIterations   int
+	ModelOverride   string
+	ThinkingEnabled *bool
+	GateType        string
+	Checkpoint      bool
+
+	// Retry configuration
+	RetryFromPhase  string
+	RetryPromptPath string
+
+	// Metadata
+	IsBuiltin bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// Workflow represents a composed execution plan.
+type Workflow struct {
+	ID              string
+	Name            string
+	Description     string
+	WorkflowType    string // 'task', 'branch', 'standalone'
+	DefaultModel    string
+	DefaultThinking bool
+	IsBuiltin       bool
+	BasedOn         string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// WorkflowPhase links a phase template to a workflow.
+type WorkflowPhase struct {
+	ID              int
+	WorkflowID      string
+	PhaseTemplateID string
+	Sequence        int
+	DependsOn       string // JSON array
+
+	// Per-workflow overrides
+	MaxIterationsOverride *int
+	ModelOverride         string
+	ThinkingOverride      *bool
+	GateTypeOverride      string
+	Condition             string // JSON
+}
+
+// WorkflowVariable defines a custom variable for a workflow.
+type WorkflowVariable struct {
+	ID              int
+	WorkflowID      string
+	Name            string
+	Description     string
+	SourceType      string // 'static', 'script', 'api', 'phase_output', 'env', 'prompt_fragment'
+	SourceConfig    string // JSON
+	Required        bool
+	DefaultValue    string
+	CacheTTLSeconds int
+	ScriptContent   string
+}
+
+// WorkflowRun represents an execution instance of a workflow.
+type WorkflowRun struct {
+	ID         string
+	WorkflowID string
+
+	// Context
+	ContextType string // 'task', 'branch', 'pr', 'standalone', 'tag'
+	ContextData string // JSON
+	TaskID      *string
+
+	// User inputs
+	Prompt       string
+	Instructions string
+
+	// Status
+	Status       string // 'pending', 'running', 'paused', 'completed', 'failed', 'cancelled'
+	CurrentPhase string
+	StartedAt    *time.Time
+	CompletedAt  *time.Time
+
+	// Runtime
+	VariablesSnapshot string // JSON
+
+	// Metrics
+	TotalCostUSD      float64
+	TotalInputTokens  int
+	TotalOutputTokens int
+
+	// Error
+	Error string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// WorkflowRunPhase tracks execution of a phase within a run.
+type WorkflowRunPhase struct {
+	ID              int
+	WorkflowRunID   string
+	PhaseTemplateID string
+
+	// Status
+	Status     string // 'pending', 'running', 'completed', 'failed', 'skipped'
+	Iterations int
+
+	// Timing
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+
+	// Git
+	CommitSHA string
+
+	// Metrics
+	InputTokens  int
+	OutputTokens int
+	CostUSD      float64
+
+	// Output
+	Artifact string
+
+	// Error
+	Error string
+
+	// Session
+	SessionID string
+}
+
+// --------- PhaseTemplate CRUD ---------
+
+// SavePhaseTemplate creates or updates a phase template.
+func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
+	thinkingEnabled := sqlNullBool(pt.ThinkingEnabled)
+
+	_, err := p.Exec(`
+		INSERT INTO phase_templates (id, name, description, prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type,
+			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			prompt_source = excluded.prompt_source,
+			prompt_content = excluded.prompt_content,
+			prompt_path = excluded.prompt_path,
+			input_variables = excluded.input_variables,
+			output_schema = excluded.output_schema,
+			produces_artifact = excluded.produces_artifact,
+			artifact_type = excluded.artifact_type,
+			max_iterations = excluded.max_iterations,
+			model_override = excluded.model_override,
+			thinking_enabled = excluded.thinking_enabled,
+			gate_type = excluded.gate_type,
+			checkpoint = excluded.checkpoint,
+			retry_from_phase = excluded.retry_from_phase,
+			retry_prompt_path = excluded.retry_prompt_path,
+			updated_at = excluded.updated_at
+	`, pt.ID, pt.Name, pt.Description, pt.PromptSource, pt.PromptContent, pt.PromptPath,
+		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType,
+		pt.MaxIterations, pt.ModelOverride, thinkingEnabled, pt.GateType, pt.Checkpoint,
+		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
+		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save phase template: %w", err)
+	}
+	return nil
+}
+
+// GetPhaseTemplate retrieves a phase template by ID.
+func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
+	row := p.QueryRow(`
+		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type,
+			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+		FROM phase_templates WHERE id = ?
+	`, id)
+
+	pt, err := scanPhaseTemplate(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get phase template %s: %w", id, err)
+	}
+	return pt, nil
+}
+
+// ListPhaseTemplates returns all phase templates.
+func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
+	rows, err := p.Query(`
+		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type,
+			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+		FROM phase_templates
+		ORDER BY is_builtin DESC, name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list phase templates: %w", err)
+	}
+	defer rows.Close()
+
+	var templates []*PhaseTemplate
+	for rows.Next() {
+		pt, err := scanPhaseTemplateRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan phase template: %w", err)
+		}
+		templates = append(templates, pt)
+	}
+	return templates, rows.Err()
+}
+
+// DeletePhaseTemplate removes a phase template.
+func (p *ProjectDB) DeletePhaseTemplate(id string) error {
+	_, err := p.Exec("DELETE FROM phase_templates WHERE id = ? AND is_builtin = FALSE", id)
+	if err != nil {
+		return fmt.Errorf("delete phase template: %w", err)
+	}
+	return nil
+}
+
+// --------- Workflow CRUD ---------
+
+// SaveWorkflow creates or updates a workflow.
+func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
+	_, err := p.Exec(`
+		INSERT INTO workflows (id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			workflow_type = excluded.workflow_type,
+			default_model = excluded.default_model,
+			default_thinking = excluded.default_thinking,
+			based_on = excluded.based_on,
+			updated_at = excluded.updated_at
+	`, w.ID, w.Name, w.Description, w.WorkflowType, w.DefaultModel, w.DefaultThinking,
+		w.IsBuiltin, w.BasedOn, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save workflow: %w", err)
+	}
+	return nil
+}
+
+// GetWorkflow retrieves a workflow by ID.
+func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
+	row := p.QueryRow(`
+		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at
+		FROM workflows WHERE id = ?
+	`, id)
+
+	w, err := scanWorkflow(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get workflow %s: %w", id, err)
+	}
+	return w, nil
+}
+
+// ListWorkflows returns all workflows.
+func (p *ProjectDB) ListWorkflows() ([]*Workflow, error) {
+	rows, err := p.Query(`
+		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at
+		FROM workflows
+		ORDER BY is_builtin DESC, name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list workflows: %w", err)
+	}
+	defer rows.Close()
+
+	var workflows []*Workflow
+	for rows.Next() {
+		w, err := scanWorkflowRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow: %w", err)
+		}
+		workflows = append(workflows, w)
+	}
+	return workflows, rows.Err()
+}
+
+// DeleteWorkflow removes a workflow and cascades to phases/variables/runs.
+func (p *ProjectDB) DeleteWorkflow(id string) error {
+	_, err := p.Exec("DELETE FROM workflows WHERE id = ? AND is_builtin = FALSE", id)
+	if err != nil {
+		return fmt.Errorf("delete workflow: %w", err)
+	}
+	return nil
+}
+
+// --------- WorkflowPhase CRUD ---------
+
+// SaveWorkflowPhase creates or updates a workflow-phase link.
+func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
+	thinkingOverride := sqlNullBool(wp.ThinkingOverride)
+	maxIterOverride := sqlNullInt(wp.MaxIterationsOverride)
+
+	res, err := p.Exec(`
+		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
+			sequence = excluded.sequence,
+			depends_on = excluded.depends_on,
+			max_iterations_override = excluded.max_iterations_override,
+			model_override = excluded.model_override,
+			thinking_override = excluded.thinking_override,
+			gate_type_override = excluded.gate_type_override,
+			condition = excluded.condition
+	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
+		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition)
+	if err != nil {
+		return fmt.Errorf("save workflow phase: %w", err)
+	}
+
+	// Get the inserted/updated ID
+	if wp.ID == 0 {
+		id, _ := res.LastInsertId()
+		wp.ID = int(id)
+	}
+	return nil
+}
+
+// GetWorkflowPhases returns all phases for a workflow in sequence order.
+func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error) {
+	rows, err := p.Query(`
+		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition
+		FROM workflow_phases
+		WHERE workflow_id = ?
+		ORDER BY sequence ASC
+	`, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("get workflow phases: %w", err)
+	}
+	defer rows.Close()
+
+	var phases []*WorkflowPhase
+	for rows.Next() {
+		wp, err := scanWorkflowPhaseRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow phase: %w", err)
+		}
+		phases = append(phases, wp)
+	}
+	return phases, rows.Err()
+}
+
+// DeleteWorkflowPhase removes a phase from a workflow.
+func (p *ProjectDB) DeleteWorkflowPhase(workflowID, phaseTemplateID string) error {
+	_, err := p.Exec("DELETE FROM workflow_phases WHERE workflow_id = ? AND phase_template_id = ?",
+		workflowID, phaseTemplateID)
+	if err != nil {
+		return fmt.Errorf("delete workflow phase: %w", err)
+	}
+	return nil
+}
+
+// --------- WorkflowVariable CRUD ---------
+
+// SaveWorkflowVariable creates or updates a workflow variable.
+func (p *ProjectDB) SaveWorkflowVariable(wv *WorkflowVariable) error {
+	res, err := p.Exec(`
+		INSERT INTO workflow_variables (workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(workflow_id, name) DO UPDATE SET
+			description = excluded.description,
+			source_type = excluded.source_type,
+			source_config = excluded.source_config,
+			required = excluded.required,
+			default_value = excluded.default_value,
+			cache_ttl_seconds = excluded.cache_ttl_seconds,
+			script_content = excluded.script_content
+	`, wv.WorkflowID, wv.Name, wv.Description, wv.SourceType, wv.SourceConfig,
+		wv.Required, wv.DefaultValue, wv.CacheTTLSeconds, wv.ScriptContent)
+	if err != nil {
+		return fmt.Errorf("save workflow variable: %w", err)
+	}
+
+	if wv.ID == 0 {
+		id, _ := res.LastInsertId()
+		wv.ID = int(id)
+	}
+	return nil
+}
+
+// GetWorkflowVariables returns all variables for a workflow.
+func (p *ProjectDB) GetWorkflowVariables(workflowID string) ([]*WorkflowVariable, error) {
+	rows, err := p.Query(`
+		SELECT id, workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content
+		FROM workflow_variables
+		WHERE workflow_id = ?
+		ORDER BY name ASC
+	`, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("get workflow variables: %w", err)
+	}
+	defer rows.Close()
+
+	var vars []*WorkflowVariable
+	for rows.Next() {
+		wv, err := scanWorkflowVariableRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow variable: %w", err)
+		}
+		vars = append(vars, wv)
+	}
+	return vars, rows.Err()
+}
+
+// DeleteWorkflowVariable removes a variable from a workflow.
+func (p *ProjectDB) DeleteWorkflowVariable(workflowID, name string) error {
+	_, err := p.Exec("DELETE FROM workflow_variables WHERE workflow_id = ? AND name = ?",
+		workflowID, name)
+	if err != nil {
+		return fmt.Errorf("delete workflow variable: %w", err)
+	}
+	return nil
+}
+
+// --------- WorkflowRun CRUD ---------
+
+// SaveWorkflowRun creates or updates a workflow run.
+func (p *ProjectDB) SaveWorkflowRun(wr *WorkflowRun) error {
+	var startedAt, completedAt *string
+	if wr.StartedAt != nil {
+		s := wr.StartedAt.Format(time.RFC3339)
+		startedAt = &s
+	}
+	if wr.CompletedAt != nil {
+		s := wr.CompletedAt.Format(time.RFC3339)
+		completedAt = &s
+	}
+
+	_, err := p.Exec(`
+		INSERT INTO workflow_runs (id, workflow_id, context_type, context_data, task_id,
+			prompt, instructions, status, current_phase, started_at, completed_at,
+			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
+			error, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			workflow_id = excluded.workflow_id,
+			context_type = excluded.context_type,
+			context_data = excluded.context_data,
+			task_id = excluded.task_id,
+			prompt = excluded.prompt,
+			instructions = excluded.instructions,
+			status = excluded.status,
+			current_phase = excluded.current_phase,
+			started_at = excluded.started_at,
+			completed_at = excluded.completed_at,
+			variables_snapshot = excluded.variables_snapshot,
+			total_cost_usd = excluded.total_cost_usd,
+			total_input_tokens = excluded.total_input_tokens,
+			total_output_tokens = excluded.total_output_tokens,
+			error = excluded.error,
+			updated_at = excluded.updated_at
+	`, wr.ID, wr.WorkflowID, wr.ContextType, wr.ContextData, wr.TaskID,
+		wr.Prompt, wr.Instructions, wr.Status, wr.CurrentPhase, startedAt, completedAt,
+		wr.VariablesSnapshot, wr.TotalCostUSD, wr.TotalInputTokens, wr.TotalOutputTokens,
+		wr.Error, wr.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save workflow run: %w", err)
+	}
+	return nil
+}
+
+// GetWorkflowRun retrieves a workflow run by ID.
+func (p *ProjectDB) GetWorkflowRun(id string) (*WorkflowRun, error) {
+	row := p.QueryRow(`
+		SELECT id, workflow_id, context_type, context_data, task_id,
+			prompt, instructions, status, current_phase, started_at, completed_at,
+			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
+			error, created_at, updated_at
+		FROM workflow_runs WHERE id = ?
+	`, id)
+
+	wr, err := scanWorkflowRun(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get workflow run %s: %w", id, err)
+	}
+	return wr, nil
+}
+
+// WorkflowRunListOpts specifies filtering options for listing workflow runs.
+type WorkflowRunListOpts struct {
+	WorkflowID string
+	TaskID     string
+	Status     string
+	Limit      int
+	Offset     int
+}
+
+// ListWorkflowRuns returns workflow runs with optional filtering.
+func (p *ProjectDB) ListWorkflowRuns(opts WorkflowRunListOpts) ([]*WorkflowRun, error) {
+	query := `
+		SELECT id, workflow_id, context_type, context_data, task_id,
+			prompt, instructions, status, current_phase, started_at, completed_at,
+			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
+			error, created_at, updated_at
+		FROM workflow_runs
+		WHERE 1=1
+	`
+	var args []any
+
+	if opts.WorkflowID != "" {
+		query += " AND workflow_id = ?"
+		args = append(args, opts.WorkflowID)
+	}
+	if opts.TaskID != "" {
+		query += " AND task_id = ?"
+		args = append(args, opts.TaskID)
+	}
+	if opts.Status != "" {
+		query += " AND status = ?"
+		args = append(args, opts.Status)
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	if opts.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", opts.Limit)
+		if opts.Offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", opts.Offset)
+		}
+	}
+
+	rows, err := p.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list workflow runs: %w", err)
+	}
+	defer rows.Close()
+
+	var runs []*WorkflowRun
+	for rows.Next() {
+		wr, err := scanWorkflowRunRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow run: %w", err)
+		}
+		runs = append(runs, wr)
+	}
+	return runs, rows.Err()
+}
+
+// DeleteWorkflowRun removes a workflow run and its phases.
+func (p *ProjectDB) DeleteWorkflowRun(id string) error {
+	_, err := p.Exec("DELETE FROM workflow_runs WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete workflow run: %w", err)
+	}
+	return nil
+}
+
+// GetNextWorkflowRunID generates the next run ID (RUN-001, RUN-002, etc.).
+func (p *ProjectDB) GetNextWorkflowRunID() (string, error) {
+	var maxID string
+	err := p.QueryRow("SELECT COALESCE(MAX(id), 'RUN-000') FROM workflow_runs").Scan(&maxID)
+	if err != nil {
+		return "", fmt.Errorf("get max run id: %w", err)
+	}
+
+	// Parse the number from RUN-XXX
+	var num int
+	if _, err := fmt.Sscanf(maxID, "RUN-%d", &num); err != nil {
+		num = 0
+	}
+	return fmt.Sprintf("RUN-%03d", num+1), nil
+}
+
+// --------- WorkflowRunPhase CRUD ---------
+
+// SaveWorkflowRunPhase creates or updates a run phase.
+func (p *ProjectDB) SaveWorkflowRunPhase(wrp *WorkflowRunPhase) error {
+	var startedAt, completedAt *string
+	if wrp.StartedAt != nil {
+		s := wrp.StartedAt.Format(time.RFC3339)
+		startedAt = &s
+	}
+	if wrp.CompletedAt != nil {
+		s := wrp.CompletedAt.Format(time.RFC3339)
+		completedAt = &s
+	}
+
+	res, err := p.Exec(`
+		INSERT INTO workflow_run_phases (workflow_run_id, phase_template_id, status, iterations,
+			started_at, completed_at, commit_sha, input_tokens, output_tokens, cost_usd,
+			artifact, error, session_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(workflow_run_id, phase_template_id) DO UPDATE SET
+			status = excluded.status,
+			iterations = excluded.iterations,
+			started_at = excluded.started_at,
+			completed_at = excluded.completed_at,
+			commit_sha = excluded.commit_sha,
+			input_tokens = excluded.input_tokens,
+			output_tokens = excluded.output_tokens,
+			cost_usd = excluded.cost_usd,
+			artifact = excluded.artifact,
+			error = excluded.error,
+			session_id = excluded.session_id
+	`, wrp.WorkflowRunID, wrp.PhaseTemplateID, wrp.Status, wrp.Iterations,
+		startedAt, completedAt, wrp.CommitSHA, wrp.InputTokens, wrp.OutputTokens, wrp.CostUSD,
+		wrp.Artifact, wrp.Error, wrp.SessionID)
+	if err != nil {
+		return fmt.Errorf("save workflow run phase: %w", err)
+	}
+
+	if wrp.ID == 0 {
+		id, _ := res.LastInsertId()
+		wrp.ID = int(id)
+	}
+	return nil
+}
+
+// GetWorkflowRunPhases returns all phases for a workflow run.
+func (p *ProjectDB) GetWorkflowRunPhases(runID string) ([]*WorkflowRunPhase, error) {
+	rows, err := p.Query(`
+		SELECT id, workflow_run_id, phase_template_id, status, iterations,
+			started_at, completed_at, commit_sha, input_tokens, output_tokens, cost_usd,
+			artifact, error, session_id
+		FROM workflow_run_phases
+		WHERE workflow_run_id = ?
+		ORDER BY id ASC
+	`, runID)
+	if err != nil {
+		return nil, fmt.Errorf("get workflow run phases: %w", err)
+	}
+	defer rows.Close()
+
+	var phases []*WorkflowRunPhase
+	for rows.Next() {
+		wrp, err := scanWorkflowRunPhaseRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow run phase: %w", err)
+		}
+		phases = append(phases, wrp)
+	}
+	return phases, rows.Err()
+}
+
+// --------- Helper Functions ---------
+
+func sqlNullBool(b *bool) sql.NullBool {
+	if b == nil {
+		return sql.NullBool{}
+	}
+	return sql.NullBool{Bool: *b, Valid: true}
+}
+
+func sqlNullInt(i *int) sql.NullInt64 {
+	if i == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: int64(*i), Valid: true}
+}
+
+func nullBoolToPtr(nb sql.NullBool) *bool {
+	if !nb.Valid {
+		return nil
+	}
+	return &nb.Bool
+}
+
+func nullIntToPtr(ni sql.NullInt64) *int {
+	if !ni.Valid {
+		return nil
+	}
+	i := int(ni.Int64)
+	return &i
+}
+
+// --------- Scanners ---------
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
+	pt := &PhaseTemplate{}
+	var createdAt, updatedAt string
+	var thinkingEnabled sql.NullBool
+	var description, promptContent, promptPath, inputVars, outputSchema, artifactType sql.NullString
+	var modelOverride, retryFromPhase, retryPromptPath sql.NullString
+
+	err := row.Scan(
+		&pt.ID, &pt.Name, &description, &pt.PromptSource, &promptContent, &promptPath,
+		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType,
+		&pt.MaxIterations, &modelOverride, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
+		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	pt.Description = description.String
+	pt.PromptContent = promptContent.String
+	pt.PromptPath = promptPath.String
+	pt.InputVariables = inputVars.String
+	pt.OutputSchema = outputSchema.String
+	pt.ArtifactType = artifactType.String
+	pt.ModelOverride = modelOverride.String
+	pt.ThinkingEnabled = nullBoolToPtr(thinkingEnabled)
+	pt.RetryFromPhase = retryFromPhase.String
+	pt.RetryPromptPath = retryPromptPath.String
+	pt.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	pt.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+
+	return pt, nil
+}
+
+func scanPhaseTemplateRow(rows *sql.Rows) (*PhaseTemplate, error) {
+	return scanPhaseTemplate(rows)
+}
+
+func scanWorkflow(row rowScanner) (*Workflow, error) {
+	w := &Workflow{}
+	var createdAt, updatedAt string
+	var description, defaultModel, basedOn sql.NullString
+
+	err := row.Scan(
+		&w.ID, &w.Name, &description, &w.WorkflowType, &defaultModel, &w.DefaultThinking,
+		&w.IsBuiltin, &basedOn, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	w.Description = description.String
+	w.DefaultModel = defaultModel.String
+	w.BasedOn = basedOn.String
+	w.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+
+	return w, nil
+}
+
+func scanWorkflowRow(rows *sql.Rows) (*Workflow, error) {
+	return scanWorkflow(rows)
+}
+
+func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
+	wp := &WorkflowPhase{}
+	var dependsOn, modelOverride, gateTypeOverride, condition sql.NullString
+	var maxIterOverride sql.NullInt64
+	var thinkingOverride sql.NullBool
+
+	err := rows.Scan(
+		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
+		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	wp.DependsOn = dependsOn.String
+	wp.MaxIterationsOverride = nullIntToPtr(maxIterOverride)
+	wp.ModelOverride = modelOverride.String
+	wp.ThinkingOverride = nullBoolToPtr(thinkingOverride)
+	wp.GateTypeOverride = gateTypeOverride.String
+	wp.Condition = condition.String
+
+	return wp, nil
+}
+
+func scanWorkflowVariableRow(rows *sql.Rows) (*WorkflowVariable, error) {
+	wv := &WorkflowVariable{}
+	var description, defaultValue, scriptContent sql.NullString
+
+	err := rows.Scan(
+		&wv.ID, &wv.WorkflowID, &wv.Name, &description, &wv.SourceType, &wv.SourceConfig,
+		&wv.Required, &defaultValue, &wv.CacheTTLSeconds, &scriptContent,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	wv.Description = description.String
+	wv.DefaultValue = defaultValue.String
+	wv.ScriptContent = scriptContent.String
+
+	return wv, nil
+}
+
+func scanWorkflowRun(row rowScanner) (*WorkflowRun, error) {
+	wr := &WorkflowRun{}
+	var createdAt, updatedAt string
+	var startedAt, completedAt sql.NullString
+	var taskID, instructions, currentPhase, variablesSnapshot, runError sql.NullString
+
+	err := row.Scan(
+		&wr.ID, &wr.WorkflowID, &wr.ContextType, &wr.ContextData, &taskID,
+		&wr.Prompt, &instructions, &wr.Status, &currentPhase, &startedAt, &completedAt,
+		&variablesSnapshot, &wr.TotalCostUSD, &wr.TotalInputTokens, &wr.TotalOutputTokens,
+		&runError, &createdAt, &updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if taskID.Valid {
+		wr.TaskID = &taskID.String
+	}
+	wr.Instructions = instructions.String
+	wr.CurrentPhase = currentPhase.String
+	wr.VariablesSnapshot = variablesSnapshot.String
+	wr.Error = runError.String
+	wr.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	wr.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+
+	if startedAt.Valid {
+		t, _ := time.Parse(time.RFC3339, startedAt.String)
+		wr.StartedAt = &t
+	}
+	if completedAt.Valid {
+		t, _ := time.Parse(time.RFC3339, completedAt.String)
+		wr.CompletedAt = &t
+	}
+
+	return wr, nil
+}
+
+func scanWorkflowRunRow(rows *sql.Rows) (*WorkflowRun, error) {
+	return scanWorkflowRun(rows)
+}
+
+func scanWorkflowRunPhaseRow(rows *sql.Rows) (*WorkflowRunPhase, error) {
+	wrp := &WorkflowRunPhase{}
+	var startedAt, completedAt sql.NullString
+	var commitSHA, artifact, phaseError, sessionID sql.NullString
+
+	err := rows.Scan(
+		&wrp.ID, &wrp.WorkflowRunID, &wrp.PhaseTemplateID, &wrp.Status, &wrp.Iterations,
+		&startedAt, &completedAt, &commitSHA, &wrp.InputTokens, &wrp.OutputTokens, &wrp.CostUSD,
+		&artifact, &phaseError, &sessionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	wrp.CommitSHA = commitSHA.String
+	wrp.Artifact = artifact.String
+	wrp.Error = phaseError.String
+	wrp.SessionID = sessionID.String
+
+	if startedAt.Valid {
+		t, _ := time.Parse(time.RFC3339, startedAt.String)
+		wrp.StartedAt = &t
+	}
+	if completedAt.Valid {
+		t, _ := time.Parse(time.RFC3339, completedAt.String)
+		wrp.CompletedAt = &t
+	}
+
+	return wrp, nil
+}

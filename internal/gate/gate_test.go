@@ -3,8 +3,6 @@ package gate
 import (
 	"context"
 	"testing"
-
-	"github.com/randalmurphal/orc/internal/plan"
 )
 
 func TestNew(t *testing.T) {
@@ -18,8 +16,8 @@ func TestNew(t *testing.T) {
 func TestEvaluateAutoNoCriteria(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: nil,
 	}
 
@@ -36,8 +34,8 @@ func TestEvaluateAutoNoCriteria(t *testing.T) {
 func TestEvaluateAutoHasOutput(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: []string{"has_output"},
 	}
 
@@ -57,8 +55,8 @@ func TestEvaluateAutoHasOutput(t *testing.T) {
 func TestEvaluateAutoNoErrors(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: []string{"no_errors"},
 	}
 
@@ -78,8 +76,8 @@ func TestEvaluateAutoNoErrors(t *testing.T) {
 func TestEvaluateAutoHasCompletionMarker(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: []string{"has_completion_marker"},
 	}
 
@@ -99,8 +97,8 @@ func TestEvaluateAutoHasCompletionMarker(t *testing.T) {
 func TestEvaluateAutoCustomCriteria(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: []string{"func TestSomething"},
 	}
 
@@ -120,7 +118,7 @@ func TestEvaluateAutoCustomCriteria(t *testing.T) {
 func TestEvaluateUnknownType(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
+	gate := &Gate{
 		Type: "unknown",
 	}
 
@@ -153,8 +151,8 @@ func TestDecision(t *testing.T) {
 func TestEvaluateAutoMultipleCriteria(t *testing.T) {
 	e := New(nil)
 
-	gate := &plan.Gate{
-		Type:     plan.GateAuto,
+	gate := &Gate{
+		Type:     GateAuto,
 		Criteria: []string{"has_output", "no_errors", "has_completion_marker"},
 	}
 

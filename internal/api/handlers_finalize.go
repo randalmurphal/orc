@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -401,32 +400,17 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	// Load plan and state
-	p, err := s.backend.LoadPlan(taskID)
-	if err != nil {
-		s.finalizeFailed(taskID, finState, fmt.Errorf("load plan: %w", err))
-		return
-	}
-
+	// Load state
 	st, err := s.backend.LoadState(taskID)
 	if err != nil {
 		st = state.New(taskID)
 	}
 
-	// Find or create finalize phase
-	var finalizePhase *plan.Phase
-	for i := range p.Phases {
-		if p.Phases[i].ID == "finalize" {
-			finalizePhase = &p.Phases[i]
-			break
-		}
-	}
-	if finalizePhase == nil {
-		// Create finalize phase if not in plan
-		finalizePhase = &plan.Phase{
-			ID:     "finalize",
-			Status: plan.PhasePending,
-		}
+	// Create finalize phase (plans are created dynamically)
+	finalizePhase := &executor.Phase{
+		ID:     "finalize",
+		Name:   "Finalize",
+		Status: executor.PhasePending,
 	}
 
 	// Check for cancellation before creating git service
@@ -526,22 +510,22 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 
 	// Update state
 	switch result.Status {
-	case plan.PhaseCompleted:
+	case executor.PhaseCompleted:
 		st.CompletePhase("finalize", result.CommitSHA)
-	case plan.PhaseFailed:
+	case executor.PhaseFailed:
 		st.FailPhase("finalize", result.Error)
 	}
 	_ = s.backend.SaveState(st)
 
 	// Build result from executor result
 	finResult := &FinalizeResult{
-		Synced:       result.Status == plan.PhaseCompleted,
+		Synced:       result.Status == executor.PhaseCompleted,
 		CommitSHA:    result.CommitSHA,
 		TargetBranch: targetBranch,
 	}
 
 	// Wait for CI and merge if configured (auto/fast profiles only)
-	if result.Status == plan.PhaseCompleted && s.orcConfig.ShouldWaitForCI() {
+	if result.Status == executor.PhaseCompleted && s.orcConfig.ShouldWaitForCI() {
 		// Update progress
 		finState.mu.Lock()
 		finState.Step = "Waiting for CI"

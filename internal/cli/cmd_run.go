@@ -1,528 +1,388 @@
 // Package cli implements the orc command-line interface.
+// This file contains the unified workflow-based run command.
 package cli
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
-	"strings"
+	"regexp"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/diff"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
+
+// taskIDPattern matches task IDs like TASK-001, TASK-123, etc.
+var taskIDPattern = regexp.MustCompile(`^TASK-\d+$`)
 
 // newRunCmd creates the run command
 func newRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run <task-id>",
-		Short: "Execute a task through its phases",
-		Long: `Execute a task through its planned phases using Claude.
+		Use:   "run <workflow> \"<prompt>\" | run <task-id>",
+		Short: "Execute a workflow or resume a task",
+		Long: `Execute a workflow with the given prompt, or run an existing task.
 
-This is the core execution command. Claude will work through each phase
-(implement, test, docs, etc.) based on the task's weight. Each phase creates
-a git checkpoint so you can rewind if needed.
+WORKFLOW EXECUTION (primary pattern):
+  orc run <workflow> "<prompt>"
 
-EXECUTION FLOW:
-  1. Creates/switches to task worktree (isolated git branch)
-  2. Loads task plan and execution state
-  3. Executes each pending phase via Claude
-  4. Creates git checkpoints after each phase
-  5. Handles PR creation and merge (based on profile)
+  Creates a new task and executes the specified workflow. The prompt describes
+  what work to do.
 
-AUTOMATION PROFILES:
-  auto (default)  Fully automated, AI handles all gates
-  fast            Speed optimized, minimal checks
-  safe            AI reviews, requires human approval for merge
-  strict          Human gates on spec/review/merge phases
+  Built-in workflows:
+    implement         Full workflow: spec, TDD, breakdown, implement, review, docs
+    implement-small   Lightweight: tiny_spec, implement, review
+    implement-trivial Minimal: tiny_spec, implement
+    review            Code review only
+    spec              Generate specification only
+    docs              Documentation only
+    qa                QA session
 
-DEPENDENCY HANDLING:
-  If the task has incomplete blocked_by dependencies, orc will warn and ask
-  for confirmation. Use --force to run anyway (not recommended).
+TASK EXECUTION (existing task):
+  orc run <task-id>
 
-INTERRUPTION & RECOVERY:
-  • Ctrl+C saves state - use 'orc resume' to continue
-  • If task fails, use 'orc rewind TASK-XXX --phase X' to retry from checkpoint
-  • Use 'orc reset TASK-XXX' to start over completely
+  Runs an existing task using the workflow determined by its weight.
+  Equivalent to: orc run <workflow-for-weight> --task <task-id>
 
-ARTIFACT DETECTION:
-  When artifacts from previous runs exist (spec.md, etc.), orc can skip
-  phases automatically with --auto-skip or prompt for your choice.
-
-SPEC QUALITY AFFECTS RESULTS:
-  For non-trivial tasks, execution quality depends on the spec quality.
-  The spec defines Success Criteria and Testing requirements that guide
-  Claude's implementation. If the spec is vague or missing criteria,
-  Claude will guess, producing unpredictable results.
-
-  Before running, verify spec quality:
-    orc show TASK-XXX          # Check if spec exists and has clear criteria
-
-  If spec is poor, either:
-    orc reset TASK-XXX         # Clear state, fix description, re-run spec phase
-    orc edit TASK-XXX -d "..."  # Improve description for better spec generation
+CONTEXT FLAGS:
+  --task TASK-ID     Attach workflow to existing task
+  --branch NAME      Run on existing branch (no task created)
+  --pr NUMBER        Run on pull request branch
 
 Examples:
-  orc run TASK-001                    # Execute task with default profile
-  orc run TASK-001 --profile safe     # Require human merge approval
-  orc run TASK-001 --auto-skip        # Skip phases with existing artifacts
-  orc run TASK-001 --phase implement  # Run specific phase only
-  orc run TASK-001 --force            # Run despite incomplete dependencies
-  orc run TASK-001 --stream           # Stream Claude's output in real-time
+  orc run implement "Add user authentication with JWT"
+  orc run implement-small "Fix the login validation bug"
+  orc run review --branch feature/auth
+  orc run TASK-001
+  orc run implement --task TASK-001 "Continue implementation"
 
 See also:
-  orc go       - Quick task creation + execution
-  orc resume   - Continue a paused/interrupted task
-  orc rewind   - Reset to a specific phase checkpoint
-  orc log      - View Claude transcripts from execution`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Find the project root (handles worktrees)
-			projectRoot, err := config.FindProjectRoot()
-			if err != nil {
-				return err
-			}
-
-			backend, err := getBackend()
-			if err != nil {
-				return fmt.Errorf("get backend: %w", err)
-			}
-			defer func() { _ = backend.Close() }()
-
-			id := args[0]
-			profile, _ := cmd.Flags().GetString("profile")
-			force, _ := cmd.Flags().GetBool("force")
-
-			// Load task
-			t, err := backend.LoadTask(id)
-			if err != nil {
-				return fmt.Errorf("load task: %w", err)
-			}
-
-			// Check for incomplete blockers
-			if len(t.BlockedBy) > 0 {
-				// Load all tasks to check blocker status
-				allTasks, err := backend.LoadAllTasks()
-				if err != nil {
-					return fmt.Errorf("load tasks for dependency check: %w", err)
-				}
-
-				// Build task map
-				taskMap := make(map[string]*task.Task)
-				for _, tsk := range allTasks {
-					taskMap[tsk.ID] = tsk
-				}
-
-				// Get incomplete blockers
-				blockers := t.GetIncompleteBlockers(taskMap)
-				if len(blockers) > 0 {
-					if !force {
-						fmt.Printf("\n⚠️  This task is blocked by incomplete tasks:\n")
-						for _, b := range blockers {
-							fmt.Printf("    - %s: %s (%s)\n", b.ID, b.Title, b.Status)
-						}
-						fmt.Println()
-
-						if quiet {
-							// In quiet mode, refuse to run blocked tasks without --force
-							return fmt.Errorf("task is blocked by incomplete dependencies (use --force to override)")
-						}
-
-						// Prompt for confirmation
-						fmt.Print("Run anyway? [y/N]: ")
-						reader := bufio.NewReader(os.Stdin)
-						input, err := reader.ReadString('\n')
-						if err != nil {
-							return fmt.Errorf("read input: %w", err)
-						}
-						input = strings.TrimSpace(strings.ToLower(input))
-						if input != "y" && input != "yes" {
-							fmt.Println("Aborted.")
-							return nil
-						}
-						fmt.Println()
-					}
-				}
-			}
-
-			// Check if task can run
-			if !t.CanRun() && t.Status != task.StatusRunning {
-				// Provide helpful error message based on status
-				switch t.Status {
-				case task.StatusPaused:
-					fmt.Printf("Task %s is paused.\n\n", id)
-					fmt.Printf("To resume:  orc resume %s\n", id)
-					fmt.Printf("To restart: orc rewind %s --to <phase>\n", id)
-					return nil
-				case task.StatusBlocked:
-					fmt.Printf("Task %s is blocked and needs user input.\n\n", id)
-					fmt.Println("Check the task for pending questions or approvals.")
-					fmt.Printf("To view:    orc show %s\n", id)
-					return nil
-				case task.StatusCompleted:
-					fmt.Printf("Task %s is already completed.\n\n", id)
-					fmt.Printf("To rerun:   orc rewind %s --to <phase>\n", id)
-					fmt.Printf("To view:    orc show %s\n", id)
-					return nil
-				case task.StatusFailed:
-					fmt.Printf("Task %s has failed.\n\n", id)
-					fmt.Printf("To resume:  orc resume %s\n", id)
-					fmt.Printf("To restart: orc rewind %s --to <phase>\n", id)
-					fmt.Printf("To view:    orc log %s\n", id)
-					return nil
-				default:
-					return fmt.Errorf("task cannot be run (status: %s)", t.Status)
-				}
-			}
-
-			// Load plan
-			p, err := backend.LoadPlan(id)
-			if err != nil {
-				return fmt.Errorf("load plan: %w", err)
-			}
-
-			// Check if plan needs migration and migrate if stale
-			migrated, migrationReason, err := checkAndMigrateStalePlan(backend, t)
-			if err != nil {
-				return fmt.Errorf("check plan migration: %w", err)
-			}
-			if migrated {
-				// Reload plan after migration
-				p, err = backend.LoadPlan(id)
-				if err != nil {
-					return fmt.Errorf("reload migrated plan: %w", err)
-				}
-
-				// Log migration (simple message)
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "\n🔄 Plan migrated for %s: %s\n\n", id, migrationReason)
-				}
-			}
-
-			// Load or create state
-			s, err := backend.LoadState(id)
-			if err != nil {
-				// State might not exist, create new one
-				s = state.New(id)
-			}
-
-			// Load config
-			cfg, err := config.Load()
-			if err != nil {
-				return fmt.Errorf("load config: %w", err)
-			}
-
-			// Apply profile if specified
-			if profile != "" {
-				cfg.ApplyProfile(config.AutomationProfile(profile))
-			}
-
-			// Handle artifact detection and skip prompting
-			autoSkip, _ := cmd.Flags().GetBool("auto-skip")
-			if cfg.ArtifactSkip.Enabled {
-				// Override config with flag if specified
-				if autoSkip {
-					cfg.ArtifactSkip.AutoSkip = true
-				}
-
-				// Detect artifacts and prompt/skip as appropriate
-				taskDir := task.TaskDirIn(projectRoot, id)
-				detector := executor.NewArtifactDetectorWithDir(taskDir, id, t.Weight)
-
-				// Get phase IDs from plan
-				phaseIDs := make([]string, len(p.Phases))
-				for i, phase := range p.Phases {
-					phaseIDs[i] = phase.ID
-				}
-
-				// Check each configured phase for artifacts
-				for _, phaseID := range cfg.ArtifactSkip.Phases {
-					// Skip if phase not in plan or already completed
-					if !containsPhase(phaseIDs, phaseID) || s.IsPhaseCompleted(phaseID) {
-						continue
-					}
-
-					status := detector.DetectPhaseArtifacts(phaseID)
-					if status.HasArtifacts && status.CanAutoSkip {
-						shouldSkip := cfg.ArtifactSkip.AutoSkip
-
-						if !shouldSkip && !quiet {
-							// Prompt user
-							fmt.Printf("\n📄 %s already exists. Skip %s phase? [Y/n]: ",
-								strings.Join(status.Artifacts, ", "), phaseID)
-							reader := bufio.NewReader(os.Stdin)
-							input, err := reader.ReadString('\n')
-							if err != nil {
-								// On EOF or error, don't skip - safer to run the phase
-								shouldSkip = false
-							} else {
-								input = strings.TrimSpace(strings.ToLower(input))
-								shouldSkip = input == "" || input == "y" || input == "yes"
-							}
-						}
-
-						if shouldSkip {
-							reason := fmt.Sprintf("artifact exists: %s", status.Description)
-							s.SkipPhase(phaseID, reason)
-
-							// Also update plan status
-							if phase := p.GetPhase(phaseID); phase != nil {
-								phase.Status = plan.PhaseSkipped
-							}
-
-							if !quiet {
-								fmt.Printf("⊘ Skipping %s phase: %s\n", phaseID, reason)
-							}
-						}
-					}
-				}
-
-				// Save state and plan if any phases were skipped
-				if err := backend.SaveState(s); err != nil {
-					return fmt.Errorf("save state after artifact skip: %w", err)
-				}
-				if err := backend.SavePlan(p, id); err != nil {
-					return fmt.Errorf("save plan after artifact skip: %w", err)
-				}
-			}
-
-			// Set up signal handling for graceful shutdown
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-			go func() {
-				<-sigCh
-				fmt.Println("\n⚠️  Interrupt received, saving state...")
-				cancel()
-			}()
-
-			// Create progress display
-			disp := progress.New(id, quiet)
-			disp.Info(fmt.Sprintf("Starting task %s (%s) [profile: %s]", id, t.Weight, cfg.Profile))
-
-			// Create executor with config
-			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
-			exec.SetBackend(backend)
-
-			// Set up streaming publisher if verbose or --stream flag is set
-			stream, _ := cmd.Flags().GetBool("stream")
-			if verbose || stream {
-				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
-				exec.SetPublisher(publisher)
-				defer publisher.Close()
-			}
-
-			// Execute task
-			err = exec.ExecuteTask(ctx, t, p, s)
-			if err != nil {
-				if ctx.Err() != nil {
-					// Update task and state status for clean interrupt
-					s.InterruptPhase(s.CurrentPhase)
-					if saveErr := backend.SaveState(s); saveErr != nil {
-						// Log but continue - we're in cleanup mode
-						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
-					}
-					t.Status = task.StatusBlocked
-					if saveErr := backend.SaveTask(t); saveErr != nil {
-						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
-					}
-					disp.TaskInterrupted()
-					return nil // Clean interrupt
-				}
-
-				// Check if task is blocked (phases succeeded but completion failed)
-				if errors.Is(err, executor.ErrTaskBlocked) {
-					// Reload task to get updated metadata with conflict info
-					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContext(t, cfg)
-					disp.TaskBlockedWithContext(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict", blockedCtx)
-					return nil // Not a fatal error - task execution succeeded
-				}
-
-				disp.TaskFailed(err)
-				return err
-			}
-
-			// Compute file change stats for completion summary
-			var fileStats *progress.FileChangeStats
-			if t.Branch != "" {
-				fileStats = getFileChangeStats(ctx, projectRoot, t.Branch, cfg)
-			}
-
-			disp.TaskComplete(s.Tokens.TotalTokens, s.Elapsed(), fileStats)
-			return nil
-		},
+  orc workflows    - List available workflows
+  orc phases       - List phase templates
+  orc runs         - View workflow run history
+  orc show         - View task details`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: runRun,
 	}
-	cmd.Flags().String("phase", "", "run specific phase only")
-	cmd.Flags().StringP("profile", "p", "", "automation profile (auto, fast, safe, strict)")
-	cmd.Flags().Bool("continue", false, "continue from last checkpoint")
-	cmd.Flags().Bool("stream", false, "stream Claude transcript to stdout")
-	cmd.Flags().Bool("auto-skip", false, "automatically skip phases with existing artifacts")
-	cmd.Flags().BoolP("force", "f", false, "run even if task has incomplete blockers")
+
+	// Context flags
+	cmd.Flags().String("task", "", "Attach to existing task")
+	cmd.Flags().String("branch", "", "Run on existing branch (no task)")
+	cmd.Flags().Int("pr", 0, "Run on pull request branch")
+
+	// Configuration flags
+	cmd.Flags().StringP("instructions", "i", "", "Additional instructions for this run")
+	cmd.Flags().StringP("category", "c", "feature", "Task category (feature, bug, refactor, chore, docs, test)")
+	cmd.Flags().StringP("profile", "p", "", "Automation profile (auto, fast, safe, strict)")
+	cmd.Flags().Bool("stream", false, "Stream Claude output in real-time")
+	cmd.Flags().Bool("force", false, "Run despite incomplete dependencies")
+
 	return cmd
 }
 
-// containsPhase checks if a phase ID is in the list.
-func containsPhase(phases []string, phaseID string) bool {
-	for _, p := range phases {
-		if p == phaseID {
-			return true
+func runRun(cmd *cobra.Command, args []string) error {
+	// Determine execution mode based on arguments
+	var workflowID, prompt, existingTaskID string
+
+	if len(args) == 1 {
+		arg := args[0]
+		if taskIDPattern.MatchString(arg) {
+			// Legacy pattern: orc run TASK-001
+			existingTaskID = arg
+		} else {
+			// Workflow without prompt - error
+			return fmt.Errorf("missing prompt: orc run %s \"<prompt>\"", arg)
+		}
+	} else {
+		// orc run <workflow> "prompt"
+		workflowID = args[0]
+		prompt = args[1]
+	}
+
+	// Get flags
+	taskFlag, _ := cmd.Flags().GetString("task")
+	branch, _ := cmd.Flags().GetString("branch")
+	prNum, _ := cmd.Flags().GetInt("pr")
+	instructions, _ := cmd.Flags().GetString("instructions")
+	categoryStr, _ := cmd.Flags().GetString("category")
+	profile, _ := cmd.Flags().GetString("profile")
+	stream, _ := cmd.Flags().GetBool("stream")
+	force, _ := cmd.Flags().GetBool("force")
+
+	// Handle --task flag
+	if taskFlag != "" {
+		existingTaskID = taskFlag
+	}
+
+	// Find project root
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	// Load config
+	orcConfig, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	// Apply profile if specified
+	if profile != "" {
+		orcConfig.ApplyProfile(config.AutomationProfile(profile))
+	}
+
+	// Open databases
+	pdb, err := db.OpenProject(projectRoot)
+	if err != nil {
+		return fmt.Errorf("open project database: %w", err)
+	}
+	defer pdb.Close()
+
+	// Seed built-in workflows if not already seeded
+	if _, err := workflow.SeedBuiltins(pdb); err != nil {
+		return fmt.Errorf("seed workflows: %w", err)
+	}
+
+	// Get backend
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer backend.Close()
+
+	// If we have an existing task, load it and determine workflow from weight
+	var existingTask *task.Task
+	if existingTaskID != "" {
+		existingTask, err = backend.LoadTask(existingTaskID)
+		if err != nil {
+			return fmt.Errorf("load task: %w", err)
+		}
+
+		// Check task status
+		if err := checkTaskCanRun(existingTask, force); err != nil {
+			return err
+		}
+
+		// Check dependencies
+		if err := checkTaskDependencies(backend, existingTask, force); err != nil {
+			return err
+		}
+
+		// If no workflow specified, determine from task weight
+		if workflowID == "" {
+			workflowID = workflow.GetWorkflowForWeight(string(existingTask.Weight))
+		}
+
+		// Use task description as prompt if not provided
+		if prompt == "" {
+			prompt = existingTask.Description
 		}
 	}
-	return false
-}
 
-// getFileChangeStats computes diff statistics for the task branch vs target branch.
-// Returns nil if stats cannot be computed (not an error - just no stats to display).
-func getFileChangeStats(ctx context.Context, projectRoot, taskBranch string, cfg *config.Config) *progress.FileChangeStats {
-	// Determine target branch from config
-	targetBranch := "main"
-	if cfg != nil && cfg.Completion.TargetBranch != "" {
-		targetBranch = cfg.Completion.TargetBranch
+	// Verify workflow exists
+	wf, err := pdb.GetWorkflow(workflowID)
+	if err != nil {
+		return fmt.Errorf("get workflow: %w", err)
+	}
+	if wf == nil {
+		return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", workflowID)
 	}
 
-	// Create diff service to compute stats
-	diffSvc := diff.NewService(projectRoot, nil)
+	// Determine context type
+	contextType := executor.ContextDefault
+	if existingTaskID != "" {
+		contextType = executor.ContextTask
+	} else if branch != "" {
+		contextType = executor.ContextBranch
+	} else if prNum > 0 {
+		contextType = executor.ContextPR
+	}
 
-	// Resolve target branch (handles origin/main fallback)
-	resolvedBase := diffSvc.ResolveRef(ctx, targetBranch)
+	// Parse category
+	category := task.Category(categoryStr)
+	if !isValidCategory(category) {
+		return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", categoryStr)
+	}
 
-	// Get diff stats between target branch and task branch
-	stats, err := diffSvc.GetStats(ctx, resolvedBase, taskBranch)
+	// Create workflow executor
+	gitOps, err := git.New(projectRoot, git.DefaultConfig())
 	if err != nil {
-		// Diff stat computation is best-effort - don't fail task completion
+		return fmt.Errorf("init git: %w", err)
+	}
+
+	claudePath := orcConfig.ClaudePath
+	if claudePath == "" {
+		claudePath = "claude"
+	}
+
+	// Build executor options
+	execOpts := []executor.WorkflowExecutorOption{
+		executor.WithWorkflowGitOps(gitOps),
+		executor.WithWorkflowClaudePath(claudePath),
+	}
+
+	// Add streaming publisher if requested
+	if verbose || stream {
+		publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
+		execOpts = append(execOpts, executor.WithWorkflowPublisher(publisher))
+		defer publisher.Close()
+	}
+
+	we := executor.NewWorkflowExecutor(
+		backend,
+		pdb,
+		orcConfig,
+		projectRoot,
+		execOpts...,
+	)
+
+	// Build run options
+	opts := executor.WorkflowRunOptions{
+		ContextType:  contextType,
+		Prompt:       prompt,
+		Instructions: instructions,
+		TaskID:       existingTaskID,
+		Branch:       branch,
+		PRID:         prNum,
+		Category:     category,
+		Stream:       stream,
+	}
+
+	// Setup signal handling
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		if !quiet {
+			fmt.Println("\n⚠️  Interrupt received, saving state...")
+		}
+		cancel()
+	}()
+
+	// Create progress display
+	taskID := existingTaskID
+	if taskID == "" {
+		taskID = "NEW"
+	}
+	disp := progress.New(taskID, quiet)
+	disp.Info(fmt.Sprintf("Running workflow: %s [profile: %s]", workflowID, orcConfig.Profile))
+	if prompt != "" && len(prompt) <= 60 {
+		disp.Info(fmt.Sprintf("Prompt: %s", prompt))
+	}
+
+	// Execute workflow
+	result, err := we.Run(ctx, workflowID, opts)
+	if err != nil {
+		if ctx.Err() != nil {
+			disp.TaskInterrupted()
+			fmt.Println("\nUse 'orc runs' to see status, 'orc resume' to continue.")
+			return nil
+		}
+		return fmt.Errorf("workflow execution failed: %w", err)
+	}
+
+	// Display results
+	if !quiet {
+		fmt.Println()
+		fmt.Printf("✅ Workflow completed: %s\n", result.RunID)
+		fmt.Printf("  Phases completed: %d\n", len(result.PhaseResults))
+		fmt.Printf("  Total cost: $%.4f\n", result.TotalCostUSD)
+		fmt.Printf("  Total tokens: %d\n", result.TotalTokens)
+
+		if result.TaskID != "" {
+			fmt.Printf("\n  Task: %s\n", result.TaskID)
+			fmt.Println("  Use 'orc show " + result.TaskID + "' to see task details")
+		}
+	}
+
+	return nil
+}
+
+// checkTaskCanRun verifies that a task is in a runnable state.
+func checkTaskCanRun(t *task.Task, force bool) error {
+	if t.CanRun() || t.Status == task.StatusRunning {
 		return nil
 	}
 
-	return &progress.FileChangeStats{
-		FilesChanged: stats.FilesChanged,
-		Additions:    stats.Additions,
-		Deletions:    stats.Deletions,
+	switch t.Status {
+	case task.StatusPaused:
+		return fmt.Errorf("task %s is paused\n\nTo resume: orc resume %s", t.ID, t.ID)
+	case task.StatusBlocked:
+		return fmt.Errorf("task %s is blocked and needs user input\n\nTo view: orc show %s", t.ID, t.ID)
+	case task.StatusCompleted:
+		if force {
+			return nil
+		}
+		return fmt.Errorf("task %s is already completed\n\nTo rerun: use --force flag", t.ID)
+	case task.StatusFailed:
+		return fmt.Errorf("task %s has failed\n\nTo resume: orc resume %s\nTo view log: orc log %s", t.ID, t.ID, t.ID)
+	default:
+		return fmt.Errorf("task cannot be run (status: %s)", t.Status)
 	}
 }
 
-// buildBlockedContext builds a BlockedContext from the task and config for enhanced
-// conflict resolution guidance. It extracts worktree path, conflict files from task
-// metadata, and sync strategy from config.
-func buildBlockedContext(t *task.Task, cfg *config.Config) *progress.BlockedContext {
-	ctx := &progress.BlockedContext{}
-
-	// Get worktree path from task ID and config
-	if cfg != nil && cfg.Worktree.Enabled {
-		// Construct worktree path using config's worktree directory
-		worktreeDir := cfg.Worktree.Dir
-		if worktreeDir == "" {
-			worktreeDir = ".orc/worktrees"
-		}
-		ctx.WorktreePath = worktreeDir + "/orc-" + t.ID
+// checkTaskDependencies verifies that task dependencies are satisfied.
+func checkTaskDependencies(backend storage.Backend, t *task.Task, force bool) error {
+	if len(t.BlockedBy) == 0 {
+		return nil
 	}
 
-	// Extract conflict files from task metadata if available
-	if t.Metadata != nil {
-		if errStr, ok := t.Metadata["blocked_error"]; ok {
-			ctx.ConflictFiles = parseConflictFilesFromError(errStr)
-		}
+	// Load all tasks to check blocker status
+	allTasks, err := backend.LoadAllTasks()
+	if err != nil {
+		return fmt.Errorf("load tasks for dependency check: %w", err)
 	}
 
-	// Set sync strategy based on config
-	if cfg != nil {
-		if cfg.Completion.Finalize.Sync.Strategy == config.FinalizeSyncMerge {
-			ctx.SyncStrategy = progress.SyncStrategyMerge
-		} else {
-			ctx.SyncStrategy = progress.SyncStrategyRebase
-		}
-
-		// Set target branch
-		ctx.TargetBranch = cfg.Completion.TargetBranch
-		if ctx.TargetBranch == "" {
-			ctx.TargetBranch = "main"
-		}
+	// Build task map
+	taskMap := make(map[string]*task.Task)
+	for _, tsk := range allTasks {
+		taskMap[tsk.ID] = tsk
 	}
 
-	return ctx
-}
+	// Get incomplete blockers
+	blockers := t.GetIncompleteBlockers(taskMap)
+	if len(blockers) == 0 {
+		return nil
+	}
 
-// parseConflictFilesFromError extracts conflict file paths from an error message.
-// Error messages contain conflict files in format: "[file1 file2 ...]" or similar patterns.
-func parseConflictFilesFromError(errStr string) []string {
-	var files []string
-
-	// Look for file list in brackets: [file1 file2 file3]
-	// This matches the format from ErrSyncConflict error messages
-	startBracket := strings.Index(errStr, "[")
-	endBracket := strings.LastIndex(errStr, "]")
-
-	if startBracket >= 0 && endBracket > startBracket {
-		fileListStr := errStr[startBracket+1 : endBracket]
-		// Split by space, handling empty strings
-		for _, f := range strings.Fields(fileListStr) {
-			// Clean up any extra punctuation
-			f = strings.Trim(f, ",")
-			if f != "" {
-				files = append(files, f)
+	if force {
+		if !quiet {
+			fmt.Printf("\n⚠️  Running despite incomplete dependencies:\n")
+			for _, b := range blockers {
+				fmt.Printf("    - %s: %s (%s)\n", b.ID, b.Title, b.Status)
 			}
+			fmt.Println()
 		}
+		return nil
 	}
 
-	return files
+	fmt.Printf("\n⚠️  This task is blocked by incomplete tasks:\n")
+	for _, b := range blockers {
+		fmt.Printf("    - %s: %s (%s)\n", b.ID, b.Title, b.Status)
+	}
+	fmt.Println("\nUse --force to run anyway")
+	return fmt.Errorf("task is blocked by incomplete dependencies")
 }
 
-// checkAndMigrateStalePlan checks if a plan is stale and migrates it if needed.
-// Returns (migrated, reason, error) where:
-//   - migrated is true if migration occurred
-//   - reason explains why migration was needed (empty if not migrated)
-//   - error is non-nil if migration failed
-func checkAndMigrateStalePlan(backend storage.Backend, t *task.Task) (bool, string, error) {
-	// Load current plan
-	p, err := backend.LoadPlan(t.ID)
-	if err != nil {
-		// If plan doesn't exist, nothing to migrate
-		if errors.Is(err, plan.ErrNotFound) {
-			return false, "", nil
-		}
-		return false, "", fmt.Errorf("load plan: %w", err)
+// isValidCategory checks if a category is valid.
+func isValidCategory(c task.Category) bool {
+	switch c {
+	case task.CategoryFeature, task.CategoryBug, task.CategoryRefactor,
+		task.CategoryChore, task.CategoryDocs, task.CategoryTest:
+		return true
 	}
-
-	// Check if plan is stale
-	stale, reason := plan.IsPlanStale(p, t)
-	if !stale {
-		return false, "", nil
-	}
-
-	// Migrate the plan
-	result, err := plan.MigratePlan(t, p)
-	if err != nil {
-		return false, "", fmt.Errorf("migrate plan: %w", err)
-	}
-
-	// Save the migrated plan
-	if err := backend.SavePlan(result.NewPlan, t.ID); err != nil {
-		return false, "", fmt.Errorf("save migrated plan: %w", err)
-	}
-
-	return true, reason, nil
-}
-
-// logMigrationResult outputs the migration result to the user.
-func logMigrationResult(w io.Writer, taskID string, result *plan.MigrationResult) {
-	fmt.Fprintf(w, "\n🔄 Plan migrated for %s\n", taskID)
-	fmt.Fprintf(w, "   Reason: %s\n", result.Reason)
-	fmt.Fprintf(w, "   Old phases: %s\n", strings.Join(result.OldPhases, ", "))
-	fmt.Fprintf(w, "   New phases: %s\n", strings.Join(result.NewPhases, ", "))
-	fmt.Fprintf(w, "   Preserved: %d phase(s), Reset: %d phase(s)\n\n", result.PreservedCount, result.ResetCount)
+	return false
 }

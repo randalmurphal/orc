@@ -9,7 +9,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -446,50 +445,23 @@ Example:
 	return cmd
 }
 
-// regeneratePlanForWeight creates a new plan based on the task's current weight,
-// preserving completed/skipped phase statuses, and resets the state appropriately.
-func regeneratePlanForWeight(backend storage.Backend, t *task.Task, oldWeight task.Weight) error {
-	// Load current plan if it exists
-	oldPlan, _ := backend.LoadPlan(t.ID)
-
-	// Use the shared plan regeneration function
-	result, err := plan.RegeneratePlan(t, oldPlan)
-	if err != nil {
-		return err
-	}
-
-	// Save the new plan
-	if err := backend.SavePlan(result.NewPlan, t.ID); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-
-	// Reset state - but preserve phase states for preserved phases
+// regeneratePlanForWeight resets the state when task weight changes.
+// Plans are created dynamically at execution time from task weight,
+// so we only need to reset the state for re-execution.
+func regeneratePlanForWeight(backend storage.Backend, t *task.Task, _ task.Weight) error {
+	// Reset state to allow re-execution with new weight
 	s, err := backend.LoadState(t.ID)
 	if err != nil {
 		// State doesn't exist, create new one
 		s = state.New(t.ID)
 	} else {
-		// Build set of preserved phases
-		preservedSet := make(map[string]bool)
-		for _, phaseID := range result.PreservedPhases {
-			preservedSet[phaseID] = true
-		}
-
-		// Reset state but keep completed phase states for preserved phases
+		// Reset state for fresh execution
 		s.Status = state.StatusPending
 		s.CurrentPhase = ""
 		s.CurrentIteration = 0
 		s.Error = ""
 		s.RetryContext = nil
-
-		// Filter phase states: keep only preserved phases with completed/skipped status
-		newPhases := make(map[string]*state.PhaseState)
-		for phaseID, phaseState := range s.Phases {
-			if preservedSet[phaseID] && (phaseState.Status == state.StatusCompleted || phaseState.Status == state.StatusSkipped) {
-				newPhases[phaseID] = phaseState
-			}
-		}
-		s.Phases = newPhases
+		s.Phases = make(map[string]*state.PhaseState)
 	}
 
 	if err := backend.SaveState(s); err != nil {

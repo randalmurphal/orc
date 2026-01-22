@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -101,7 +102,18 @@ func TestDetectImportFormat(t *testing.T) {
 
 func TestBuildManifest(t *testing.T) {
 	t.Parallel()
-	manifest := buildManifest(10, 2, true, true)
+
+	// Create test data
+	testData := exportAllData{
+		tasks:       make([]*task.Task, 10),
+		initiatives: make([]*initiative.Initiative, 2),
+	}
+	testOpts := exportAllOptions{
+		withState:       true,
+		withTranscripts: true,
+	}
+
+	manifest := buildManifest(testData, testOpts)
 
 	if manifest.Version != ExportFormatVersion {
 		t.Errorf("expected version %d, got %d", ExportFormatVersion, manifest.Version)
@@ -244,23 +256,29 @@ func TestFindLatestExportFallsBackToDir(t *testing.T) {
 
 func TestExportDataVersion(t *testing.T) {
 	t.Parallel()
-	if ExportFormatVersion != 3 {
-		t.Errorf("expected ExportFormatVersion 3, got %d", ExportFormatVersion)
+	// Version 4: workflow system (workflows, phase templates, workflow runs)
+	if ExportFormatVersion != 4 {
+		t.Errorf("expected ExportFormatVersion 4, got %d", ExportFormatVersion)
 	}
 }
 
 func TestExportManifestStruct(t *testing.T) {
 	t.Parallel()
 	manifest := &ExportManifest{
-		Version:             3,
+		Version:             4,
 		ExportedAt:          time.Now(),
 		SourceHostname:      "test-host",
 		SourceProject:       "/path/to/project",
 		OrcVersion:          "go1.21",
 		TaskCount:           5,
 		InitiativeCount:     1,
+		WorkflowCount:       2,
+		PhaseTemplateCount:  3,
+		WorkflowRunCount:    4,
 		IncludesState:       true,
 		IncludesTranscripts: true,
+		IncludesWorkflows:   true,
+		IncludesRuns:        true,
 	}
 
 	// Test YAML marshaling
@@ -274,8 +292,8 @@ func TestExportManifestStruct(t *testing.T) {
 		t.Fatalf("unmarshal manifest: %v", err)
 	}
 
-	if unmarshaled.Version != 3 {
-		t.Errorf("expected version 3, got %d", unmarshaled.Version)
+	if unmarshaled.Version != 4 {
+		t.Errorf("expected version 4, got %d", unmarshaled.Version)
 	}
 	if unmarshaled.SourceHostname != "test-host" {
 		t.Errorf("expected hostname 'test-host', got %q", unmarshaled.SourceHostname)
@@ -286,7 +304,7 @@ func TestExportDataStruct(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
 	export := &ExportData{
-		Version:    3,
+		Version:    4,
 		ExportedAt: now,
 		Task: &task.Task{
 			ID:     "TASK-001",

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -52,25 +52,6 @@ func createFinalizeTestTask(t *testing.T, tmpDir, id string, status task.Status)
 
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create plan with finalize phase
-	p := &plan.Plan{
-		Version:     1,
-		TaskID:      id,
-		Weight:      task.WeightLarge,
-		Description: "Test plan with finalize",
-		Phases: []plan.Phase{
-			{ID: "spec", Name: "spec", Status: plan.PhaseCompleted},
-			{ID: "implement", Name: "implement", Status: plan.PhaseCompleted},
-			{ID: "test", Name: "test", Status: plan.PhaseCompleted},
-			{ID: "docs", Name: "docs", Status: plan.PhaseCompleted},
-			{ID: "validate", Name: "validate", Status: plan.PhaseCompleted},
-			{ID: "finalize", Name: "finalize", Status: plan.PhasePending},
-		},
-	}
-	if err := backend.SavePlan(p, id); err != nil {
-		t.Fatalf("failed to save plan: %v", err)
 	}
 
 	// Create state
@@ -330,10 +311,10 @@ func TestValidateFinalizeState(t *testing.T) {
 
 func TestGetFinalizePhase(t *testing.T) {
 	t.Run("returns existing phase", func(t *testing.T) {
-		p := &plan.Plan{
-			Phases: []plan.Phase{
+		p := &executor.Plan{
+			Phases: []executor.Phase{
 				{ID: "implement", Name: "Implement"},
-				{ID: "finalize", Name: "Finalize", Status: plan.PhasePending},
+				{ID: "finalize", Name: "Finalize", Status: executor.PhasePending},
 			},
 		}
 
@@ -342,14 +323,14 @@ func TestGetFinalizePhase(t *testing.T) {
 		if phase.ID != "finalize" {
 			t.Errorf("Expected finalize phase, got: %s", phase.ID)
 		}
-		if phase.Status != plan.PhasePending {
+		if phase.Status != executor.PhasePending {
 			t.Errorf("Expected pending status, got: %s", phase.Status)
 		}
 	})
 
 	t.Run("creates new phase if not present", func(t *testing.T) {
-		p := &plan.Plan{
-			Phases: []plan.Phase{
+		p := &executor.Plan{
+			Phases: []executor.Phase{
 				{ID: "implement", Name: "Implement"},
 				{ID: "test", Name: "Test"},
 			},
@@ -360,7 +341,7 @@ func TestGetFinalizePhase(t *testing.T) {
 		if phase.ID != "finalize" {
 			t.Errorf("Expected new finalize phase, got: %s", phase.ID)
 		}
-		if phase.Status != plan.PhasePending {
+		if phase.Status != executor.PhasePending {
 			t.Errorf("Expected pending status for new phase, got: %s", phase.Status)
 		}
 	})

@@ -12,6 +12,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
@@ -315,12 +316,8 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load plan and state for the rewind/retry
-	p, err := s.backend.LoadPlan(taskID)
-	if err != nil {
-		s.jsonError(w, "plan not found: "+err.Error(), http.StatusNotFound)
-		return
-	}
+	// Create plan dynamically from task weight
+	p := createPlanForWeightAPI(taskID, t.Weight)
 
 	st, err := s.backend.LoadState(taskID)
 	if err != nil {
@@ -909,4 +906,53 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 		"message": fmt.Sprintf("PR #%d status refreshed", pr.Number),
 		"task_id": taskID,
 	})
+}
+
+// createPlanForWeightAPI creates an execution plan based on task weight.
+// Plans are created dynamically for execution, not stored.
+func createPlanForWeightAPI(taskID string, weight task.Weight) *executor.Plan {
+	var phases []executor.Phase
+
+	switch weight {
+	case task.WeightTrivial:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightSmall:
+		phases = []executor.Phase{
+			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightMedium:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	case task.WeightLarge:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	default:
+		phases = []executor.Phase{
+			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		}
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
+	}
 }

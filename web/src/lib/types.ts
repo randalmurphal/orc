@@ -611,3 +611,114 @@ export interface FilesChangedData {
 	total_deletions: number;
 	timestamp: string;
 }
+
+// Workflow System Types
+
+export type WorkflowType = 'task' | 'branch' | 'standalone';
+export type WorkflowRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type VariableSourceType = 'static' | 'env' | 'script' | 'api' | 'phase_output' | 'prompt_fragment';
+
+export interface PhaseTemplate {
+	id: string;
+	name: string;
+	description?: string;
+	prompt_source: string;
+	prompt_content?: string;
+	prompt_path?: string;
+	input_variables?: string;
+	output_schema?: string;
+	produces_artifact: boolean;
+	artifact_type?: string;
+	max_iterations: number;
+	model_override?: string;
+	thinking_enabled?: boolean;
+	gate_type: string;
+	checkpoint: boolean;
+	is_builtin: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface Workflow {
+	id: string;
+	name: string;
+	description?: string;
+	workflow_type: WorkflowType;
+	default_model?: string;
+	default_thinking: boolean;
+	is_builtin: boolean;
+	based_on?: string;
+	created_at: string;
+	updated_at: string;
+	phase_count?: number;
+}
+
+export interface WorkflowPhase {
+	id: number;
+	workflow_id: string;
+	phase_template_id: string;
+	sequence: number;
+	depends_on?: string;
+	max_iterations_override?: number;
+	model_override?: string;
+	thinking_override?: boolean;
+	gate_type_override?: string;
+	condition?: string;
+}
+
+export interface WorkflowVariable {
+	id: number;
+	workflow_id: string;
+	name: string;
+	description?: string;
+	source_type: VariableSourceType;
+	source_config: string;
+	required: boolean;
+	default_value?: string;
+	cache_ttl_seconds: number;
+}
+
+export interface WorkflowWithDetails extends Workflow {
+	phases: WorkflowPhase[];
+	variables: WorkflowVariable[];
+}
+
+export interface WorkflowRun {
+	id: string;
+	workflow_id: string;
+	context_type: string;
+	context_data: string;
+	task_id?: string;
+	status: WorkflowRunStatus;
+	current_phase?: string;
+	started_at?: string;
+	completed_at?: string;
+	inputs?: string;
+	variables_snapshot?: string;
+	total_cost_usd: number;
+	total_tokens: number;
+	error?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface WorkflowRunPhase {
+	id: number;
+	workflow_run_id: string;
+	phase_template_id: string;
+	status: PhaseStatus;
+	iterations: number;
+	started_at?: string;
+	completed_at?: string;
+	commit_sha?: string;
+	input_tokens: number;
+	output_tokens: number;
+	cost_usd: number;
+	artifact?: string;
+	error?: string;
+	session_id?: string;
+}
+
+export interface WorkflowRunWithDetails extends WorkflowRun {
+	phases: WorkflowRunPhase[];
+}

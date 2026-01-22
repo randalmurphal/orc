@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -401,7 +400,7 @@ func processBreakdownContentConditional(content string, breakdownContent string)
 // LoadPromptTemplate loads a prompt template for a phase.
 // If the phase has an inline prompt, it returns that.
 // Otherwise, it loads from the embedded templates.
-func LoadPromptTemplate(phase *plan.Phase) (string, error) {
+func LoadPromptTemplate(phase *Phase) (string, error) {
 	if phase == nil {
 		return "", fmt.Errorf("phase is nil")
 	}
@@ -425,7 +424,7 @@ func LoadPromptTemplate(phase *plan.Phase) (string, error) {
 // If state is nil, prior content fields will be empty.
 func BuildTemplateVars(
 	t *task.Task,
-	p *plan.Phase,
+	p *Phase,
 	s *state.State,
 	iteration int,
 	retryContext string,
@@ -481,7 +480,7 @@ func BuildTemplateVars(
 // This is the preferred function when executing phases in a worktree.
 func BuildTemplateVarsWithWorktree(
 	t *task.Task,
-	p *plan.Phase,
+	p *Phase,
 	s *state.State,
 	iteration int,
 	retryContext string,

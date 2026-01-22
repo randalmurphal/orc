@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -89,18 +89,18 @@ func statusText(status task.Status) string {
 }
 
 // phaseStatusIcon returns an icon for phase status
-func phaseStatusIcon(status plan.PhaseStatus) string {
+func phaseStatusIcon(status executor.PhaseStatus) string {
 	// Phase status icons are already ASCII-safe, no plain mode needed
 	switch status {
-	case plan.PhasePending:
+	case executor.PhasePending:
 		return "○"
-	case plan.PhaseRunning:
+	case executor.PhaseRunning:
 		return "◐"
-	case plan.PhaseCompleted:
+	case executor.PhaseCompleted:
 		return "●"
-	case plan.PhaseFailed:
+	case executor.PhaseFailed:
 		return "✗"
-	case plan.PhaseSkipped:
+	case executor.PhaseSkipped:
 		return "⊘"
 	default:
 		return "?"

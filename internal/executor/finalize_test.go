@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -223,14 +222,14 @@ func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 		Title:  "Test task",
 		Weight: task.WeightLarge,
 	}
-	phase := &plan.Phase{ID: "finalize"}
+	phase := &Phase{ID: "finalize"}
 	s := state.New("TASK-001")
 
 	result, err := exec.Execute(context.Background(), tsk, phase, s)
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	if result.Status != plan.PhaseCompleted {
+	if result.Status != PhaseCompleted {
 		t.Errorf("expected status = completed, got %s", result.Status)
 	}
 }
@@ -244,14 +243,14 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 		Title:  "Test task",
 		Weight: task.WeightLarge,
 	}
-	phase := &plan.Phase{ID: "finalize"}
+	phase := &Phase{ID: "finalize"}
 	s := state.New("TASK-001")
 
 	result, err := exec.Execute(context.Background(), tsk, phase, s)
 	if err == nil {
 		t.Error("expected error when git service is not available")
 	}
-	if result.Status != plan.PhaseFailed {
+	if result.Status != PhaseFailed {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }
@@ -679,7 +678,7 @@ func TestWithFinalizePublisher(t *testing.T) {
 		t.Error("expected default publisher to be set")
 	}
 
-	// Apply option with nil - should still create a valid EventPublisher
+	// Apply option with nil - should still create a valid PublishHelper
 	opt := WithFinalizePublisher(nil)
 	opt(exec)
 
@@ -751,7 +750,7 @@ func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
 	result, err := exec.syncWithTarget(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&plan.Phase{ID: "finalize"},
+		&Phase{ID: "finalize"},
 		state.New("TASK-001"),
 		"main",
 		cfg,
@@ -983,7 +982,7 @@ func TestFinalizeExecutor_tryFixTests_ExecutorError(t *testing.T) {
 	fixed, err := exec.tryFixTests(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&plan.Phase{ID: "finalize"},
+		&Phase{ID: "finalize"},
 		state.New("TASK-001"),
 		testResult,
 	)
@@ -1010,7 +1009,7 @@ func TestFinalizeExecutor_resolveConflicts_ExecutorError(t *testing.T) {
 	resolved, err := exec.resolveConflicts(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&plan.Phase{ID: "finalize"},
+		&Phase{ID: "finalize"},
 		state.New("TASK-001"),
 		[]string{"conflict.go"},
 		cfg,
@@ -1138,7 +1137,7 @@ func TestSyncStrategy_DefaultMerge(t *testing.T) {
 	result, err := exec.syncWithTarget(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&plan.Phase{ID: "finalize"},
+		&Phase{ID: "finalize"},
 		state.New("TASK-001"),
 		"main",
 		cfg,
@@ -1168,7 +1167,7 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
 	tsk := &task.Task{ID: "TASK-001", Title: "Test", Weight: task.WeightLarge}
-	phase := &plan.Phase{ID: "finalize"}
+	phase := &Phase{ID: "finalize"}
 	s := state.New("TASK-001")
 
 	result, err := exec.Execute(context.Background(), tsk, phase, s)
@@ -1177,7 +1176,7 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when git service not available")
 	}
-	if result.Status != plan.PhaseFailed {
+	if result.Status != PhaseFailed {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }

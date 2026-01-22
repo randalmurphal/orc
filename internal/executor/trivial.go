@@ -8,7 +8,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events" // events.Publisher for option func
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -23,7 +22,7 @@ import (
 type TrivialExecutor struct {
 	claudePath string // Path to claude binary
 	workingDir string // Working directory for execution
-	publisher  *EventPublisher
+	publisher  *PublishHelper
 	logger     *slog.Logger
 	config     ExecutorConfig
 	backend    storage.Backend // Storage backend for loading initiatives
@@ -51,7 +50,7 @@ func WithTrivialWorkingDir(dir string) TrivialExecutorOption {
 
 // WithTrivialPublisher sets the event publisher.
 func WithTrivialPublisher(p events.Publisher) TrivialExecutorOption {
-	return func(e *TrivialExecutor) { e.publisher = NewEventPublisher(p) }
+	return func(e *TrivialExecutor) { e.publisher = NewPublishHelper(p) }
 }
 
 // WithTrivialLogger sets the logger.
@@ -89,7 +88,7 @@ func NewTrivialExecutor(opts ...TrivialExecutorOption) *TrivialExecutor {
 	e := &TrivialExecutor{
 		claudePath: "claude",
 		logger:     slog.Default(),
-		publisher:  NewEventPublisher(nil), // Initialize with nil-safe wrapper
+		publisher:  NewPublishHelper(nil), // Initialize with nil-safe wrapper
 		config: ExecutorConfig{
 			MaxIterations:      5,
 			CheckpointInterval: 0,
@@ -110,11 +109,11 @@ func (e *TrivialExecutor) Name() string {
 }
 
 // Execute runs a phase using ClaudeExecutor without session management.
-func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) (*Result, error) {
+func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: plan.PhaseRunning,
+		Status: PhaseRunning,
 	}
 
 	// Build execution context using centralized builder
@@ -130,7 +129,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		Logger:         e.logger,
 	})
 	if err != nil {
-		result.Status = plan.PhaseFailed
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("build execution context: %w", err)
 		result.Duration = time.Since(start)
 		return result, result.Error
@@ -157,7 +156,7 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		turnResult, err := turnExec.ExecuteTurn(ctx, promptText)
 
 		if err != nil {
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("execute turn %d: %w", iteration, err)
 			break
 		}
@@ -176,13 +175,13 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 		// Handle completion status
 		switch turnResult.Status {
 		case PhaseStatusComplete:
-			result.Status = plan.PhaseCompleted
+			result.Status = PhaseCompleted
 			result.Output = turnResult.Content
 			e.logger.Info("phase complete (trivial)", "task", t.ID, "phase", p.ID, "iterations", iteration)
 			goto done
 
 		case PhaseStatusBlocked:
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Output = turnResult.Content // Preserve output for retry context
 			result.Error = fmt.Errorf("phase blocked: %s", turnResult.Reason)
 			goto done
@@ -196,15 +195,15 @@ func (e *TrivialExecutor) Execute(ctx context.Context, t *task.Task, p *plan.Pha
 
 		// Check for errors
 		if turnResult.IsError {
-			result.Status = plan.PhaseFailed
+			result.Status = PhaseFailed
 			result.Error = fmt.Errorf("LLM error: %s", turnResult.ErrorText)
 			result.Output = lastResponse
 			goto done
 		}
 	}
 
-	if result.Status == plan.PhaseRunning {
-		result.Status = plan.PhaseFailed
+	if result.Status == PhaseRunning {
+		result.Status = PhaseFailed
 		result.Error = fmt.Errorf("max iterations (%d) reached", e.config.MaxIterations)
 	}
 
@@ -215,7 +214,7 @@ done:
 	result.Duration = time.Since(start)
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
-	if result.Status == plan.PhaseCompleted && result.Output != "" {
+	if result.Status == PhaseCompleted && result.Output != "" {
 		if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
 			e.logger.Warn("failed to save phase artifact to database", "error", err)
 		} else if saved {

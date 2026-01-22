@@ -11,8 +11,27 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/plan"
 )
+
+// GateType represents the type of gate.
+type GateType string
+
+const (
+	// GateAuto is an automatic gate that evaluates criteria programmatically.
+	GateAuto GateType = "auto"
+	// GateHuman requires human approval.
+	GateHuman GateType = "human"
+	// GateAI uses AI to evaluate the gate (not yet implemented).
+	GateAI GateType = "ai"
+	// GateSkip skips the gate entirely.
+	GateSkip GateType = "skip"
+)
+
+// Gate represents a gate configuration for a phase.
+type Gate struct {
+	Type     GateType `yaml:"type" json:"type"`
+	Criteria []string `yaml:"criteria,omitempty" json:"criteria,omitempty"`
+}
 
 // Decision represents a gate evaluation result.
 type Decision struct {
@@ -43,16 +62,16 @@ func New(_ any) *Evaluator {
 }
 
 // Evaluate determines if a gate passes.
-func (e *Evaluator) Evaluate(ctx context.Context, gate *plan.Gate, phaseOutput string) (*Decision, error) {
+func (e *Evaluator) Evaluate(ctx context.Context, gate *Gate, phaseOutput string) (*Decision, error) {
 	return e.EvaluateWithOptions(ctx, gate, phaseOutput, nil)
 }
 
 // EvaluateWithOptions determines if a gate passes with additional context.
-func (e *Evaluator) EvaluateWithOptions(ctx context.Context, gate *plan.Gate, phaseOutput string, opts *EvaluateOptions) (*Decision, error) {
+func (e *Evaluator) EvaluateWithOptions(ctx context.Context, gate *Gate, phaseOutput string, opts *EvaluateOptions) (*Decision, error) {
 	switch gate.Type {
-	case plan.GateAuto:
+	case GateAuto:
 		return e.evaluateAuto(gate, phaseOutput)
-	case plan.GateHuman:
+	case GateHuman:
 		return e.requestHumanApproval(gate, opts)
 	default:
 		return nil, fmt.Errorf("unknown gate type: %s", gate.Type)
@@ -60,7 +79,7 @@ func (e *Evaluator) EvaluateWithOptions(ctx context.Context, gate *plan.Gate, ph
 }
 
 // evaluateAuto evaluates an automatic gate based on criteria.
-func (e *Evaluator) evaluateAuto(gate *plan.Gate, phaseOutput string) (*Decision, error) {
+func (e *Evaluator) evaluateAuto(gate *Gate, phaseOutput string) (*Decision, error) {
 	// If no criteria, auto-approve
 	if len(gate.Criteria) == 0 {
 		return &Decision{
@@ -115,7 +134,7 @@ func (e *Evaluator) evaluateAuto(gate *plan.Gate, phaseOutput string) (*Decision
 }
 
 // requestHumanApproval prompts for human approval.
-func (e *Evaluator) requestHumanApproval(gate *plan.Gate, opts *EvaluateOptions) (*Decision, error) {
+func (e *Evaluator) requestHumanApproval(gate *Gate, opts *EvaluateOptions) (*Decision, error) {
 	// Check if running in headless mode (API/WebSocket context)
 	if opts != nil && opts.Headless && opts.Publisher != nil && opts.DecisionStore != nil {
 		return e.emitDecisionRequired(gate, opts)
@@ -178,7 +197,7 @@ func (e *Evaluator) requestHumanApproval(gate *plan.Gate, opts *EvaluateOptions)
 }
 
 // emitDecisionRequired emits a decision_required event for headless mode.
-func (e *Evaluator) emitDecisionRequired(gate *plan.Gate, opts *EvaluateOptions) (*Decision, error) {
+func (e *Evaluator) emitDecisionRequired(gate *Gate, opts *EvaluateOptions) (*Decision, error) {
 	// Generate decision ID with timestamp to prevent collision on retries
 	decisionID := fmt.Sprintf("gate_%s_%s_%d", opts.TaskID, opts.Phase, time.Now().UnixNano())
 

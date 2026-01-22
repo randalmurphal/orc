@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -20,9 +19,6 @@ type AutoTaskCreator struct {
 	cfg     *config.Config
 	backend storage.Backend
 	logger  *slog.Logger
-
-	// planGenerator is used to create plans for tasks
-	planGenerator *plan.Generator
 
 	// onTaskStart is called when a task should be started (auto mode)
 	// This allows decoupling from the executor
@@ -42,13 +38,6 @@ type AutoTaskCreatorOption func(*AutoTaskCreator)
 func WithTaskStartFunc(fn func(ctx context.Context, taskID string) error) AutoTaskCreatorOption {
 	return func(c *AutoTaskCreator) {
 		c.onTaskStart = fn
-	}
-}
-
-// WithPlanGenerator sets the plan generator for creating task plans.
-func WithPlanGenerator(g *plan.Generator) AutoTaskCreatorOption {
-	return func(c *AutoTaskCreator) {
-		c.planGenerator = g
 	}
 }
 
@@ -80,6 +69,7 @@ func NewAutoTaskCreator(cfg *config.Config, backend storage.Backend, logger *slo
 
 // CreateAutomationTask creates a new automation task from a template.
 // Returns the created task ID and any error.
+// Note: Workflow execution is handled by WorkflowExecutor when the task is run.
 func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID string, triggerID string, reason string) (string, error) {
 	// Get template from config
 	tmpl := c.cfg.GetAutomationTemplate(templateID)
@@ -115,22 +105,6 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	// Save the task
 	if err := c.backend.SaveTask(t); err != nil {
 		return "", fmt.Errorf("save automation task: %w", err)
-	}
-
-	// Generate and save plan
-	if c.planGenerator != nil {
-		p, err := c.planGenerator.Generate(t)
-		if err != nil {
-			c.logger.Warn("failed to generate plan for automation task",
-				"task", taskID,
-				"error", err)
-		} else {
-			if err := c.backend.SavePlan(p, taskID); err != nil {
-				c.logger.Warn("failed to save plan for automation task",
-					"task", taskID,
-					"error", err)
-			}
-		}
 	}
 
 	// Create initial state

@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -29,7 +28,7 @@ import (
 var ErrTaskBlocked = errors.New("task blocked")
 
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
-func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
+func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *Plan, s *state.State) error {
 	// Set current task context for hooks (e.g., TDD enforcement)
 	e.currentTaskDir = e.taskDir(t.ID)
 	e.currentTaskID = t.ID
@@ -367,7 +366,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 
 		// Complete phase
 		s.CompletePhase(phase.ID, result.CommitSHA)
-		phase.Status = plan.PhaseCompleted
+		phase.Status = PhaseCompleted
 		phase.CommitSHA = result.CommitSHA
 
 		// Transfer result tokens and cost to state (for executors that don't update state during iteration)
@@ -393,12 +392,9 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			e.tryKnowledgeExtraction(t.ID)
 		}
 
-		// Save state and plan
+		// Save state
 		if err := e.backend.SaveState(s); err != nil {
 			return fmt.Errorf("save state: %w", err)
-		}
-		if err := e.backend.SavePlan(p, t.ID); err != nil {
-			return fmt.Errorf("save plan: %w", err)
 		}
 
 		// Sync JSONL transcripts to database for persistence and querying
@@ -546,7 +542,7 @@ func (e *Executor) cleanupWorktreeForTask(t *task.Task) {
 
 // handlePhaseFailure handles a phase execution failure, potentially setting up a retry.
 // Returns (shouldRetry, retryIndex) where retryIndex is the phase index to jump to.
-func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
+func (e *Executor) handlePhaseFailure(phaseID string, err error, result *Result, p *Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
 	// Check if we should retry from an earlier phase
 	retryFrom := e.orcConfig.ShouldRetryFrom(phaseID)
 	if retryFrom != "" && retryCounts[phaseID] < e.orcConfig.EffectiveMaxRetries() {
@@ -615,7 +611,7 @@ func (e *Executor) failSetup(t *task.Task, s *state.State, err error) {
 }
 
 // failTask handles marking a task as failed.
-func (e *Executor) failTask(t *task.Task, phase *plan.Phase, s *state.State, err error) {
+func (e *Executor) failTask(t *task.Task, phase *Phase, s *state.State, err error) {
 	s.FailPhase(phase.ID, err)
 	s.ClearExecution() // Clear execution tracking on failure
 	if saveErr := e.backend.SaveState(s); saveErr != nil {
@@ -697,7 +693,7 @@ func (e *Executor) interruptTask(t *task.Task, phaseID string, s *state.State, e
 
 // handleGateEvaluation evaluates a phase gate and handles potential retry.
 // Returns (shouldRetry, retryIndex) where retryIndex is the phase index to jump to.
-func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, result *Result, t *task.Task, p *plan.Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
+func (e *Executor) handleGateEvaluation(ctx context.Context, phase *Phase, result *Result, t *task.Task, p *Plan, s *state.State, retryCounts map[string]int, currentIdx int) (bool, int) {
 	decision, gateErr := e.evaluateGateWithTask(ctx, phase, result.Output, string(t.Weight), t)
 	if gateErr != nil {
 		e.logger.Warn("gate evaluation failed", "error", gateErr)
@@ -884,14 +880,14 @@ func (e *Executor) completeTask(ctx context.Context, t *task.Task, s *state.Stat
 }
 
 // evaluateGate evaluates a phase gate using configured gate type.
-func (e *Executor) evaluateGate(ctx context.Context, phase *plan.Phase, output string, weight string) (*gate.Decision, error) {
+func (e *Executor) evaluateGate(ctx context.Context, phase *Phase, output string, weight string) (*gate.Decision, error) {
 	// For this signature without task info, call the version with task info
 	// This is used by tests - in production, evaluateGateWithTask is called
 	return e.evaluateGateWithTask(ctx, phase, output, weight, nil)
 }
 
 // evaluateGateWithTask evaluates a phase gate with full task context.
-func (e *Executor) evaluateGateWithTask(ctx context.Context, phase *plan.Phase, output string, weight string, t *task.Task) (*gate.Decision, error) {
+func (e *Executor) evaluateGateWithTask(ctx context.Context, phase *Phase, output string, weight string, t *task.Task) (*gate.Decision, error) {
 	// Resolve effective gate type from config
 	gateType := e.orcConfig.ResolveGateType(phase.ID, weight)
 
@@ -904,8 +900,8 @@ func (e *Executor) evaluateGateWithTask(ctx context.Context, phase *plan.Phase, 
 	}
 
 	// Override the gate type from config
-	effectiveGate := &plan.Gate{
-		Type:     plan.GateType(gateType),
+	effectiveGate := &gate.Gate{
+		Type:     gate.GateType(gateType),
 		Criteria: phase.Gate.Criteria,
 	}
 
@@ -927,7 +923,7 @@ func (e *Executor) evaluateGateWithTask(ctx context.Context, phase *plan.Phase, 
 }
 
 // ResumeFromPhase resumes execution from a specific phase.
-func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State, phaseID string) error {
+func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *Plan, s *state.State, phaseID string) error {
 	// Find the phase index
 	startIdx := -1
 	for i, phase := range p.Phases {
@@ -945,11 +941,9 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 	s.ResetPhase(phaseID)
 
 	// Create a sub-plan starting from the resume point
-	resumePlan := &plan.Plan{
-		Version:     p.Version,
-		Weight:      p.Weight,
-		Description: p.Description,
-		Phases:      p.Phases[startIdx:],
+	resumePlan := &Plan{
+		TaskID: p.TaskID,
+		Phases: p.Phases[startIdx:],
 	}
 
 	// Use ExecuteTask which handles gates and retry
@@ -959,7 +953,7 @@ func (e *Executor) ResumeFromPhase(ctx context.Context, t *task.Task, p *plan.Pl
 // checkSpecRequirements checks if a task has a valid spec for non-trivial weights.
 // Returns an error if spec is required but missing or invalid.
 // Skips check if the plan's first phase is "spec" (the spec will be created during execution).
-func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
+func (e *Executor) checkSpecRequirements(t *task.Task, p *Plan) error {
 	// Trivial tasks don't require specs
 	if t.Weight == task.WeightTrivial {
 		return nil
@@ -1006,7 +1000,7 @@ func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 
 // FinalizeTask executes only the finalize phase for a task.
 // This is used when manually triggering finalize via CLI.
-func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase, s *state.State) error {
+func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *Phase, s *state.State) error {
 	// Set current task directory for worktree operations
 	e.currentTaskDir = e.taskDir(t.ID)
 
@@ -1166,7 +1160,7 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 
 	// Complete phase
 	s.CompletePhase("finalize", result.CommitSHA)
-	p.Status = plan.PhaseCompleted
+	p.Status = PhaseCompleted
 	p.CommitSHA = result.CommitSHA
 
 	// Save state
@@ -1174,45 +1168,11 @@ func (e *Executor) FinalizeTask(ctx context.Context, t *task.Task, p *plan.Phase
 		return fmt.Errorf("save state: %w", err)
 	}
 
-	// Save plan to persist the phase status
-	existingPlan, loadErr := e.backend.LoadPlan(t.ID)
-	if loadErr == nil {
-		// Update finalize phase status in existing plan
-		for i := range existingPlan.Phases {
-			if existingPlan.Phases[i].ID == "finalize" {
-				existingPlan.Phases[i].Status = plan.PhaseCompleted
-				existingPlan.Phases[i].CommitSHA = result.CommitSHA
-				break
-			}
-		}
-		if saveErr := e.backend.SavePlan(existingPlan, t.ID); saveErr != nil {
-			e.logger.Warn("failed to save plan", "error", saveErr)
-		}
-	}
-
-	// If task was previously paused/blocked/failed, restore to that state
-	// Only mark complete if ALL phases are done
-	allPhasesComplete := true
-	if existingPlan != nil {
-		for _, phase := range existingPlan.Phases {
-			if phase.Status != plan.PhaseCompleted && phase.Status != plan.PhaseSkipped {
-				allPhasesComplete = false
-				break
-			}
-		}
-	}
-
-	if allPhasesComplete {
-		s.Complete()
-		t.Status = task.StatusCompleted
-		completedAt := time.Now()
-		t.CompletedAt = &completedAt
-	} else {
-		t.Status = originalStatus
-		if t.Status == task.StatusRunning {
-			t.Status = task.StatusPaused // Don't leave in running state
-		}
-	}
+	// Finalize phase completion means task is ready for completion
+	s.Complete()
+	t.Status = task.StatusCompleted
+	completedAt := time.Now()
+	t.CompletedAt = &completedAt
 	s.ClearExecution()
 
 	if saveErr := e.backend.SaveState(s); saveErr != nil {
@@ -1309,7 +1269,7 @@ func isPhaseTimeoutError(err error) bool {
 // PhaseMax=0 means unlimited (no timeout).
 // Returns a phaseTimeoutError if the phase times out due to PhaseMax.
 // Logs warnings at 50% and 75% of the timeout duration.
-func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, phase *plan.Phase, s *state.State) (*Result, error) {
+func (e *Executor) executePhaseWithTimeout(ctx context.Context, t *task.Task, phase *Phase, s *state.State) (*Result, error) {
 	phaseMax := e.orcConfig.Timeouts.PhaseMax
 	if phaseMax <= 0 {
 		// No timeout configured, execute directly

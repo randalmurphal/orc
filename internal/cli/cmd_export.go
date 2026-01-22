@@ -17,8 +17,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/plan"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -26,7 +26,8 @@ import (
 
 // ExportFormatVersion is the current version of the export format.
 // Version 3: state and transcripts included by default, tar.gz support
-const ExportFormatVersion = 3
+// Version 4: workflow system (workflows, phase templates, workflow runs)
+const ExportFormatVersion = 4
 
 // maxImportFileSize is the maximum size of a single file to import (100MB).
 // This prevents zip/tar bomb attacks that could exhaust memory.
@@ -41,8 +42,13 @@ type ExportManifest struct {
 	OrcVersion          string    `yaml:"orc_version,omitempty"`
 	TaskCount           int       `yaml:"task_count"`
 	InitiativeCount     int       `yaml:"initiative_count"`
+	WorkflowCount       int       `yaml:"workflow_count,omitempty"`
+	PhaseTemplateCount  int       `yaml:"phase_template_count,omitempty"`
+	WorkflowRunCount    int       `yaml:"workflow_run_count,omitempty"`
 	IncludesState       bool      `yaml:"includes_state"`
 	IncludesTranscripts bool      `yaml:"includes_transcripts"`
+	IncludesWorkflows   bool      `yaml:"includes_workflows,omitempty"`
+	IncludesRuns        bool      `yaml:"includes_runs,omitempty"`
 }
 
 // ExportData contains all data for a task export.
@@ -53,7 +59,6 @@ type ExportData struct {
 
 	// Core task data
 	Task  *task.Task   `yaml:"task"`
-	Plan  *plan.Plan   `yaml:"plan,omitempty"`
 	Spec  string       `yaml:"spec,omitempty"`
 	State *state.State `yaml:"state,omitempty"`
 
@@ -78,6 +83,36 @@ type AttachmentExport struct {
 	Data        []byte `yaml:"data"` // base64 encoded in YAML
 }
 
+// WorkflowExportData contains all data for a workflow export.
+type WorkflowExportData struct {
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+	Type       string    `yaml:"type"` // "workflow"
+
+	Workflow  *db.Workflow         `yaml:"workflow"`
+	Phases    []*db.WorkflowPhase  `yaml:"phases,omitempty"`
+	Variables []*db.WorkflowVariable `yaml:"variables,omitempty"`
+}
+
+// PhaseTemplateExportData contains all data for a phase template export.
+type PhaseTemplateExportData struct {
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+	Type       string    `yaml:"type"` // "phase_template"
+
+	PhaseTemplate *db.PhaseTemplate `yaml:"phase_template"`
+}
+
+// WorkflowRunExportData contains all data for a workflow run export.
+type WorkflowRunExportData struct {
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+	Type       string    `yaml:"type"` // "workflow_run"
+
+	WorkflowRun *db.WorkflowRun       `yaml:"workflow_run"`
+	Phases      []*db.WorkflowRunPhase `yaml:"phases,omitempty"`
+}
+
 // newExportCmd creates the export command
 func newExportCmd() *cobra.Command {
 	var outputFile string
@@ -88,14 +123,16 @@ func newExportCmd() *cobra.Command {
 	var allData bool
 	var allTasks bool
 	var withInitiatives bool
+	var withWorkflows bool
+	var noRuns bool
 	var minimal bool
 	var noState bool
 	var format string
 
 	cmd := &cobra.Command{
 		Use:   "export [task-id|init-id]",
-		Short: "Export task(s) and initiative(s) for cross-machine portability",
-		Long: `Export task(s) and initiative(s) with all related data.
+		Short: "Export task(s), initiative(s), and workflows for cross-machine portability",
+		Long: `Export task(s), initiative(s), and workflows with all related data.
 
 By default, exports include ALL data (state, transcripts, comments, attachments).
 This ensures in-progress tasks can be resumed on another machine.
@@ -111,14 +148,17 @@ Export modes:
    orc export TASK-001                       # YAML to stdout (full data)
    orc export TASK-001 -o task.yaml          # YAML to file
 
-3. With Initiatives:
+3. With Initiatives and Workflows:
    orc export --all-tasks --initiatives      # Tasks + initiatives
+   orc export --all-tasks --workflows        # Tasks + custom workflows + phase templates
 
 Data options:
    --minimal      Lightweight export: exclude transcripts and large attachments
    --no-state     Exclude execution state (not recommended for active tasks)
    --all          Include context.md summary (in addition to defaults)
    --initiatives  Include all initiatives with decisions and task links
+   --workflows    Include custom workflows, phase templates, and workflow runs
+   --no-runs      Exclude workflow runs (useful for smaller exports)
 
 What gets exported (by default):
   - Task definition, plan, spec
@@ -127,11 +167,14 @@ What gets exported (by default):
   - Comments (task and review)
   - Attachments (binary files)
   - Initiative vision and decisions (with --initiatives)
+  - Custom workflows and phase templates (with --workflows)
 
 Examples:
   orc export --all-tasks                      # Full backup (recommended)
   orc export --all-tasks --minimal            # Smaller backup without transcripts
   orc export --all-tasks --initiatives        # Include initiatives
+  orc export --all-tasks --workflows          # Include custom workflows
+  orc export --all-tasks --workflows --no-runs  # Workflows without run history
   orc export TASK-001 -o task.yaml            # Single task export`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -179,7 +222,14 @@ Examples:
 					}
 				}
 
-				if err := exportAllTasks(outputFile, format, withState, withTranscripts, withInitiatives); err != nil {
+				opts := exportAllOptions{
+					withState:       withState,
+					withTranscripts: withTranscripts,
+					withInitiatives: withInitiatives,
+					withWorkflows:   withWorkflows,
+					withRuns:        !noRuns, // --no-runs inverts this
+				}
+				if err := exportAllTasks(outputFile, format, opts); err != nil {
 					return err
 				}
 				return nil
@@ -215,6 +265,8 @@ Examples:
 	cmd.Flags().BoolVar(&allData, "all", false, "export all available data including context")
 	cmd.Flags().BoolVar(&allTasks, "all-tasks", false, "export all tasks")
 	cmd.Flags().BoolVar(&withInitiatives, "initiatives", false, "include initiatives (with --all-tasks)")
+	cmd.Flags().BoolVar(&withWorkflows, "workflows", false, "include custom workflows and phase templates (with --all-tasks)")
+	cmd.Flags().BoolVar(&noRuns, "no-runs", false, "exclude workflow runs (with --workflows)")
 	// Keep old flags as hidden for backwards compat
 	cmd.Flags().BoolVar(&withTranscripts, "transcripts", false, "include transcripts (default: true)")
 	cmd.Flags().BoolVar(&withState, "state", false, "include state (default: true)")
@@ -400,14 +452,23 @@ func importFileWithMerge(path string, force, skipExisting bool) error {
 	return importData(data, path, force, skipExisting)
 }
 
-// importData imports task or initiative data with smart merge logic.
+// importData imports task, initiative, or workflow data with smart merge logic.
 func importData(data []byte, sourceName string, force, skipExisting bool) error {
-	// First, try to detect if this is an initiative export
+	// First, try to detect the data type
 	var typeCheck struct {
 		Type string `yaml:"type"`
 	}
-	if err := yaml.Unmarshal(data, &typeCheck); err == nil && typeCheck.Type == "initiative" {
-		return importInitiativeData(data, sourceName, force, skipExisting)
+	if err := yaml.Unmarshal(data, &typeCheck); err == nil {
+		switch typeCheck.Type {
+		case "initiative":
+			return importInitiativeData(data, sourceName, force, skipExisting)
+		case "phase_template":
+			return importPhaseTemplateData(data, sourceName, force, skipExisting)
+		case "workflow":
+			return importWorkflowData(data, sourceName, force, skipExisting)
+		case "workflow_run":
+			return importWorkflowRunData(data, sourceName, force, skipExisting)
+		}
 	}
 
 	backend, err := getBackend()
@@ -462,14 +523,6 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	// Save task
 	if err := backend.SaveTask(export.Task); err != nil {
 		return fmt.Errorf("save task: %w", err)
-	}
-
-	// Save plan if present
-	if export.Plan != nil {
-		if err := backend.SavePlan(export.Plan, export.Task.ID); err != nil {
-			// Non-fatal
-			fmt.Fprintf(os.Stderr, "Warning: could not save plan: %v\n", err)
-		}
 	}
 
 	// Save state if present
@@ -617,6 +670,183 @@ func importInitiativeData(data []byte, sourceName string, force, skipExisting bo
 		action = "Updated"
 	}
 	fmt.Printf("%s initiative %s from %s\n", action, export.Initiative.ID, sourceName)
+	return nil
+}
+
+// importPhaseTemplateData imports a phase template with smart merge logic.
+func importPhaseTemplateData(data []byte, sourceName string, force, skipExisting bool) error {
+	var export PhaseTemplateExportData
+	if err := yaml.Unmarshal(data, &export); err != nil {
+		return fmt.Errorf("parse yaml: %w", err)
+	}
+
+	if export.PhaseTemplate == nil {
+		return fmt.Errorf("no phase template found in %s", sourceName)
+	}
+
+	// Skip built-in templates - they exist in every installation
+	if export.PhaseTemplate.IsBuiltin {
+		return fmt.Errorf("phase template %s skipped (built-in)", export.PhaseTemplate.ID)
+	}
+
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Check if phase template exists
+	existing, _ := backend.GetPhaseTemplate(export.PhaseTemplate.ID)
+	if existing != nil {
+		if skipExisting {
+			return fmt.Errorf("phase template %s skipped (--skip-existing)", export.PhaseTemplate.ID)
+		}
+
+		if !force {
+			// Smart merge: compare updated_at timestamps
+			if !export.PhaseTemplate.UpdatedAt.After(existing.UpdatedAt) {
+				return fmt.Errorf("phase template %s skipped (local version is newer or same)", export.PhaseTemplate.ID)
+			}
+		}
+	}
+
+	// Save phase template
+	if err := backend.SavePhaseTemplate(export.PhaseTemplate); err != nil {
+		return fmt.Errorf("save phase template: %w", err)
+	}
+
+	action := "Imported"
+	if existing != nil {
+		action = "Updated"
+	}
+	fmt.Printf("%s phase template %s from %s\n", action, export.PhaseTemplate.ID, sourceName)
+	return nil
+}
+
+// importWorkflowData imports a workflow with its phases and variables.
+func importWorkflowData(data []byte, sourceName string, force, skipExisting bool) error {
+	var export WorkflowExportData
+	if err := yaml.Unmarshal(data, &export); err != nil {
+		return fmt.Errorf("parse yaml: %w", err)
+	}
+
+	if export.Workflow == nil {
+		return fmt.Errorf("no workflow found in %s", sourceName)
+	}
+
+	// Skip built-in workflows - they exist in every installation
+	if export.Workflow.IsBuiltin {
+		return fmt.Errorf("workflow %s skipped (built-in)", export.Workflow.ID)
+	}
+
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Check if workflow exists
+	existing, _ := backend.GetWorkflow(export.Workflow.ID)
+	if existing != nil {
+		if skipExisting {
+			return fmt.Errorf("workflow %s skipped (--skip-existing)", export.Workflow.ID)
+		}
+
+		if !force {
+			// Smart merge: compare updated_at timestamps
+			if !export.Workflow.UpdatedAt.After(existing.UpdatedAt) {
+				return fmt.Errorf("workflow %s skipped (local version is newer or same)", export.Workflow.ID)
+			}
+		}
+	}
+
+	// Save workflow
+	if err := backend.SaveWorkflow(export.Workflow); err != nil {
+		return fmt.Errorf("save workflow: %w", err)
+	}
+
+	// Save workflow phases
+	for _, phase := range export.Phases {
+		if err := backend.SaveWorkflowPhase(phase); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save workflow phase %s: %v\n", phase.PhaseTemplateID, err)
+		}
+	}
+
+	// Save workflow variables
+	for _, variable := range export.Variables {
+		if err := backend.SaveWorkflowVariable(variable); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save workflow variable %s: %v\n", variable.Name, err)
+		}
+	}
+
+	action := "Imported"
+	if existing != nil {
+		action = "Updated"
+	}
+	fmt.Printf("%s workflow %s from %s\n", action, export.Workflow.ID, sourceName)
+	return nil
+}
+
+// importWorkflowRunData imports a workflow run with its phases.
+func importWorkflowRunData(data []byte, sourceName string, force, skipExisting bool) error {
+	var export WorkflowRunExportData
+	if err := yaml.Unmarshal(data, &export); err != nil {
+		return fmt.Errorf("parse yaml: %w", err)
+	}
+
+	if export.WorkflowRun == nil {
+		return fmt.Errorf("no workflow run found in %s", sourceName)
+	}
+
+	backend, err := getBackend()
+	if err != nil {
+		return fmt.Errorf("get backend: %w", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Check if workflow run exists
+	existing, _ := backend.GetWorkflowRun(export.WorkflowRun.ID)
+	if existing != nil {
+		if skipExisting {
+			return fmt.Errorf("workflow run %s skipped (--skip-existing)", export.WorkflowRun.ID)
+		}
+
+		if !force {
+			// Smart merge: compare updated_at timestamps
+			if !export.WorkflowRun.UpdatedAt.After(existing.UpdatedAt) {
+				return fmt.Errorf("workflow run %s skipped (local version is newer or same)", export.WorkflowRun.ID)
+			}
+		}
+	}
+
+	// Handle "running" workflow runs from another machine
+	wasRunning := false
+	if export.WorkflowRun.Status == "running" {
+		wasRunning = true
+		export.WorkflowRun.Status = "paused"
+	}
+
+	// Save workflow run
+	if err := backend.SaveWorkflowRun(export.WorkflowRun); err != nil {
+		return fmt.Errorf("save workflow run: %w", err)
+	}
+
+	// Save workflow run phases
+	for _, phase := range export.Phases {
+		if err := backend.SaveWorkflowRunPhase(phase); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save workflow run phase %s: %v\n", phase.PhaseTemplateID, err)
+		}
+	}
+
+	action := "Imported"
+	if existing != nil {
+		action = "Updated"
+	}
+	fmt.Printf("%s workflow run %s from %s", action, export.WorkflowRun.ID, sourceName)
+	if wasRunning {
+		fmt.Printf(" (was running, now paused)")
+	}
+	fmt.Println()
 	return nil
 }
 
@@ -1184,31 +1414,83 @@ func importInitiativesFromDir(dir string, force, skipExisting bool) (imported, s
 	return imported, skipped
 }
 
+// exportAllOptions contains options for the bulk export operation.
+type exportAllOptions struct {
+	withState       bool
+	withTranscripts bool
+	withInitiatives bool
+	withWorkflows   bool
+	withRuns        bool
+}
+
+// exportAllData contains all data to be exported.
+type exportAllData struct {
+	tasks          []*task.Task
+	initiatives    []*initiative.Initiative
+	phaseTemplates []*db.PhaseTemplate
+	workflows      []*db.Workflow
+	workflowRuns   []*db.WorkflowRun
+}
+
 // exportAllTasks exports all tasks to a directory, zip, or tar.gz archive.
-func exportAllTasks(outputPath, format string, withState, withTranscripts, withInitiatives bool) error {
+func exportAllTasks(outputPath, format string, opts exportAllOptions) error {
 	backend, err := getBackend()
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
 	defer func() { _ = backend.Close() }()
 
+	data := exportAllData{}
+
 	// Load all tasks
-	tasks, err := backend.LoadAllTasks()
+	data.tasks, err = backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
 
 	// Load initiatives if requested
-	var initiatives []*initiative.Initiative
-	if withInitiatives {
-		initiatives, err = backend.LoadAllInitiatives()
+	if opts.withInitiatives {
+		data.initiatives, err = backend.LoadAllInitiatives()
 		if err != nil {
 			return fmt.Errorf("load initiatives: %w", err)
 		}
 	}
 
-	if len(tasks) == 0 && len(initiatives) == 0 {
-		fmt.Println("No tasks or initiatives to export")
+	// Load workflows if requested
+	if opts.withWorkflows {
+		// Load custom phase templates (skip built-in)
+		allTemplates, err := backend.ListPhaseTemplates()
+		if err != nil {
+			return fmt.Errorf("load phase templates: %w", err)
+		}
+		for _, pt := range allTemplates {
+			if !pt.IsBuiltin {
+				data.phaseTemplates = append(data.phaseTemplates, pt)
+			}
+		}
+
+		// Load custom workflows (skip built-in)
+		allWorkflows, err := backend.ListWorkflows()
+		if err != nil {
+			return fmt.Errorf("load workflows: %w", err)
+		}
+		for _, wf := range allWorkflows {
+			if !wf.IsBuiltin {
+				data.workflows = append(data.workflows, wf)
+			}
+		}
+
+		// Load workflow runs if requested
+		if opts.withRuns {
+			data.workflowRuns, err = backend.ListWorkflowRuns(db.WorkflowRunListOpts{})
+			if err != nil {
+				return fmt.Errorf("load workflow runs: %w", err)
+			}
+		}
+	}
+
+	if len(data.tasks) == 0 && len(data.initiatives) == 0 && len(data.workflows) == 0 {
+		fmt.Println("No tasks, initiatives, or workflows to export")
 		return nil
 	}
 
@@ -1227,18 +1509,18 @@ func exportAllTasks(outputPath, format string, withState, withTranscripts, withI
 
 	switch format {
 	case "tar.gz", "tgz":
-		return exportAllToTarGz(backend, tasks, initiatives, outputPath, withState, withTranscripts)
+		return exportAllToTarGz(backend, data, outputPath, opts)
 	case "zip":
-		return exportAllToZip(backend, tasks, initiatives, outputPath, withState, withTranscripts)
+		return exportAllToZip(backend, data, outputPath, opts)
 	case "dir":
-		return exportAllToDir(backend, tasks, initiatives, outputPath, withState, withTranscripts)
+		return exportAllToDir(backend, data, outputPath, opts)
 	default:
 		return fmt.Errorf("unknown format: %s", format)
 	}
 }
 
 // buildManifest creates an export manifest with metadata.
-func buildManifest(taskCount, initCount int, withState, withTranscripts bool) *ExportManifest {
+func buildManifest(data exportAllData, opts exportAllOptions) *ExportManifest {
 	hostname, _ := os.Hostname()
 	cwd, _ := os.Getwd()
 
@@ -1248,15 +1530,20 @@ func buildManifest(taskCount, initCount int, withState, withTranscripts bool) *E
 		SourceHostname:      hostname,
 		SourceProject:       cwd,
 		OrcVersion:          runtime.Version(), // Go version as proxy for now
-		TaskCount:           taskCount,
-		InitiativeCount:     initCount,
-		IncludesState:       withState,
-		IncludesTranscripts: withTranscripts,
+		TaskCount:           len(data.tasks),
+		InitiativeCount:     len(data.initiatives),
+		WorkflowCount:       len(data.workflows),
+		PhaseTemplateCount:  len(data.phaseTemplates),
+		WorkflowRunCount:    len(data.workflowRuns),
+		IncludesState:       opts.withState,
+		IncludesTranscripts: opts.withTranscripts,
+		IncludesWorkflows:   opts.withWorkflows,
+		IncludesRuns:        opts.withRuns,
 	}
 }
 
-// exportAllToTarGz exports all tasks and initiatives to a tar.gz archive.
-func exportAllToTarGz(backend storage.Backend, tasks []*task.Task, initiatives []*initiative.Initiative, archivePath string, withState, withTranscripts bool) error {
+// exportAllToTarGz exports all data to a tar.gz archive.
+func exportAllToTarGz(backend storage.Backend, data exportAllData, archivePath string, opts exportAllOptions) error {
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
@@ -1276,7 +1563,7 @@ func exportAllToTarGz(backend storage.Backend, tasks []*task.Task, initiatives [
 	defer func() { _ = tarWriter.Close() }()
 
 	// Write manifest first
-	manifest := buildManifest(len(tasks), len(initiatives), withState, withTranscripts)
+	manifest := buildManifest(data, opts)
 	manifestData, err := yaml.Marshal(manifest)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -1286,45 +1573,128 @@ func exportAllToTarGz(backend storage.Backend, tasks []*task.Task, initiatives [
 	}
 
 	// Export tasks
-	var exported int
-	for _, t := range tasks {
-		export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
-		data, err := yaml.Marshal(export)
+	var tasksExported int
+	for _, t := range data.tasks {
+		export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
+		yamlData, err := yaml.Marshal(export)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
 			continue
 		}
-		if err := writeTarFile(tarWriter, filepath.Join("tasks", t.ID+".yaml"), data); err != nil {
+		if err := writeTarFile(tarWriter, filepath.Join("tasks", t.ID+".yaml"), yamlData); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
 			continue
 		}
-		exported++
+		tasksExported++
 	}
 
 	// Export initiatives
 	var initExported int
-	for _, init := range initiatives {
+	for _, init := range data.initiatives {
 		export := &InitiativeExportData{
 			Version:    ExportFormatVersion,
 			ExportedAt: time.Now(),
 			Type:       "initiative",
 			Initiative: init,
 		}
-		data, err := yaml.Marshal(export)
+		yamlData, err := yaml.Marshal(export)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", init.ID, err)
 			continue
 		}
-		if err := writeTarFile(tarWriter, filepath.Join("initiatives", init.ID+".yaml"), data); err != nil {
+		if err := writeTarFile(tarWriter, filepath.Join("initiatives", init.ID+".yaml"), yamlData); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", init.ID, err)
 			continue
 		}
 		initExported++
 	}
 
-	fmt.Printf("Exported %d task(s)", exported)
+	// Export phase templates
+	var templatesExported int
+	for _, pt := range data.phaseTemplates {
+		export := &PhaseTemplateExportData{
+			Version:       ExportFormatVersion,
+			ExportedAt:    time.Now(),
+			Type:          "phase_template",
+			PhaseTemplate: pt,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: phase template %s: marshal error: %v\n", pt.ID, err)
+			continue
+		}
+		if err := writeTarFile(tarWriter, filepath.Join("phase_templates", pt.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: phase template %s: write error: %v\n", pt.ID, err)
+			continue
+		}
+		templatesExported++
+	}
+
+	// Export workflows with phases and variables
+	var workflowsExported int
+	for _, wf := range data.workflows {
+		// Load phases and variables for this workflow
+		phases, _ := backend.GetWorkflowPhases(wf.ID)
+		variables, _ := backend.GetWorkflowVariables(wf.ID)
+
+		export := &WorkflowExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "workflow",
+			Workflow:   wf,
+			Phases:     phases,
+			Variables:  variables,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow %s: marshal error: %v\n", wf.ID, err)
+			continue
+		}
+		if err := writeTarFile(tarWriter, filepath.Join("workflows", wf.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow %s: write error: %v\n", wf.ID, err)
+			continue
+		}
+		workflowsExported++
+	}
+
+	// Export workflow runs with phases
+	var runsExported int
+	for _, run := range data.workflowRuns {
+		// Load phases for this run
+		phases, _ := backend.GetWorkflowRunPhases(run.ID)
+
+		export := &WorkflowRunExportData{
+			Version:     ExportFormatVersion,
+			ExportedAt:  time.Now(),
+			Type:        "workflow_run",
+			WorkflowRun: run,
+			Phases:      phases,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow run %s: marshal error: %v\n", run.ID, err)
+			continue
+		}
+		if err := writeTarFile(tarWriter, filepath.Join("workflow_runs", run.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow run %s: write error: %v\n", run.ID, err)
+			continue
+		}
+		runsExported++
+	}
+
+	// Print summary
+	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
-		fmt.Printf(" and %d initiative(s)", initExported)
+		fmt.Printf(", %d initiative(s)", initExported)
+	}
+	if templatesExported > 0 {
+		fmt.Printf(", %d phase template(s)", templatesExported)
+	}
+	if workflowsExported > 0 {
+		fmt.Printf(", %d workflow(s)", workflowsExported)
+	}
+	if runsExported > 0 {
+		fmt.Printf(", %d workflow run(s)", runsExported)
 	}
 	fmt.Printf(" to %s\n", archivePath)
 	return nil
@@ -1345,8 +1715,8 @@ func writeTarFile(tw *tar.Writer, name string, data []byte) error {
 	return err
 }
 
-// exportAllToZip exports all tasks and initiatives to a zip archive.
-func exportAllToZip(backend storage.Backend, tasks []*task.Task, initiatives []*initiative.Initiative, zipPath string, withState, withTranscripts bool) error {
+// exportAllToZip exports all data to a zip archive.
+func exportAllToZip(backend storage.Backend, data exportAllData, zipPath string, opts exportAllOptions) error {
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(zipPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
@@ -1362,7 +1732,7 @@ func exportAllToZip(backend storage.Backend, tasks []*task.Task, initiatives []*
 	defer func() { _ = zipWriter.Close() }()
 
 	// Write manifest
-	manifest := buildManifest(len(tasks), len(initiatives), withState, withTranscripts)
+	manifest := buildManifest(data, opts)
 	manifestData, err := yaml.Marshal(manifest)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -1372,45 +1742,126 @@ func exportAllToZip(backend storage.Backend, tasks []*task.Task, initiatives []*
 	}
 
 	// Export tasks
-	var exported int
-	for _, t := range tasks {
-		export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
-		data, err := yaml.Marshal(export)
+	var tasksExported int
+	for _, t := range data.tasks {
+		export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
+		yamlData, err := yaml.Marshal(export)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
 			continue
 		}
-		if err := writeZipFile(zipWriter, filepath.Join("tasks", t.ID+".yaml"), data); err != nil {
+		if err := writeZipFile(zipWriter, filepath.Join("tasks", t.ID+".yaml"), yamlData); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
 			continue
 		}
-		exported++
+		tasksExported++
 	}
 
 	// Export initiatives
 	var initExported int
-	for _, init := range initiatives {
+	for _, init := range data.initiatives {
 		export := &InitiativeExportData{
 			Version:    ExportFormatVersion,
 			ExportedAt: time.Now(),
 			Type:       "initiative",
 			Initiative: init,
 		}
-		data, err := yaml.Marshal(export)
+		yamlData, err := yaml.Marshal(export)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", init.ID, err)
 			continue
 		}
-		if err := writeZipFile(zipWriter, filepath.Join("initiatives", init.ID+".yaml"), data); err != nil {
+		if err := writeZipFile(zipWriter, filepath.Join("initiatives", init.ID+".yaml"), yamlData); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", init.ID, err)
 			continue
 		}
 		initExported++
 	}
 
-	fmt.Printf("Exported %d task(s)", exported)
+	// Export phase templates
+	var templatesExported int
+	for _, pt := range data.phaseTemplates {
+		export := &PhaseTemplateExportData{
+			Version:       ExportFormatVersion,
+			ExportedAt:    time.Now(),
+			Type:          "phase_template",
+			PhaseTemplate: pt,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: phase template %s: marshal error: %v\n", pt.ID, err)
+			continue
+		}
+		if err := writeZipFile(zipWriter, filepath.Join("phase_templates", pt.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: phase template %s: write error: %v\n", pt.ID, err)
+			continue
+		}
+		templatesExported++
+	}
+
+	// Export workflows
+	var workflowsExported int
+	for _, wf := range data.workflows {
+		phases, _ := backend.GetWorkflowPhases(wf.ID)
+		variables, _ := backend.GetWorkflowVariables(wf.ID)
+
+		export := &WorkflowExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "workflow",
+			Workflow:   wf,
+			Phases:     phases,
+			Variables:  variables,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow %s: marshal error: %v\n", wf.ID, err)
+			continue
+		}
+		if err := writeZipFile(zipWriter, filepath.Join("workflows", wf.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow %s: write error: %v\n", wf.ID, err)
+			continue
+		}
+		workflowsExported++
+	}
+
+	// Export workflow runs
+	var runsExported int
+	for _, run := range data.workflowRuns {
+		phases, _ := backend.GetWorkflowRunPhases(run.ID)
+
+		export := &WorkflowRunExportData{
+			Version:     ExportFormatVersion,
+			ExportedAt:  time.Now(),
+			Type:        "workflow_run",
+			WorkflowRun: run,
+			Phases:      phases,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow run %s: marshal error: %v\n", run.ID, err)
+			continue
+		}
+		if err := writeZipFile(zipWriter, filepath.Join("workflow_runs", run.ID+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: workflow run %s: write error: %v\n", run.ID, err)
+			continue
+		}
+		runsExported++
+	}
+
+	// Print summary
+	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
-		fmt.Printf(" and %d initiative(s)", initExported)
+		fmt.Printf(", %d initiative(s)", initExported)
+	}
+	if templatesExported > 0 {
+		fmt.Printf(", %d phase template(s)", templatesExported)
+	}
+	if workflowsExported > 0 {
+		fmt.Printf(", %d workflow(s)", workflowsExported)
+	}
+	if runsExported > 0 {
+		fmt.Printf(", %d workflow run(s)", runsExported)
 	}
 	fmt.Printf(" to %s\n", zipPath)
 	return nil
@@ -1426,15 +1877,15 @@ func writeZipFile(zw *zip.Writer, name string, data []byte) error {
 	return err
 }
 
-// exportAllToDir exports all tasks and initiatives to a directory.
-func exportAllToDir(backend storage.Backend, tasks []*task.Task, initiatives []*initiative.Initiative, dir string, withState, withTranscripts bool) error {
+// exportAllToDir exports all data to a directory.
+func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opts exportAllOptions) error {
 	// Create output directory
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
 	// Write manifest
-	manifest := buildManifest(len(tasks), len(initiatives), withState, withTranscripts)
+	manifest := buildManifest(data, opts)
 	manifestData, err := yaml.Marshal(manifest)
 	if err != nil {
 		return fmt.Errorf("marshal manifest: %w", err)
@@ -1443,48 +1894,50 @@ func exportAllToDir(backend storage.Backend, tasks []*task.Task, initiatives []*
 		return fmt.Errorf("write manifest: %w", err)
 	}
 
-	// Create tasks subdirectory
-	tasksDir := filepath.Join(dir, "tasks")
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		return fmt.Errorf("create tasks directory: %w", err)
+	// Create tasks subdirectory and export tasks
+	var tasksExported int
+	if len(data.tasks) > 0 {
+		tasksDir := filepath.Join(dir, "tasks")
+		if err := os.MkdirAll(tasksDir, 0755); err != nil {
+			return fmt.Errorf("create tasks directory: %w", err)
+		}
+
+		for _, t := range data.tasks {
+			export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
+			yamlData, err := yaml.Marshal(export)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
+				continue
+			}
+			if err := os.WriteFile(filepath.Join(tasksDir, t.ID+".yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
+				continue
+			}
+			tasksExported++
+		}
 	}
 
-	var exported int
-	for _, t := range tasks {
-		export := buildExportDataWithBackend(backend, t, withState, withTranscripts)
-		data, err := yaml.Marshal(export)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
-			continue
-		}
-		if err := os.WriteFile(filepath.Join(tasksDir, t.ID+".yaml"), data, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
-			continue
-		}
-		exported++
-	}
-
-	// Export initiatives if any
+	// Export initiatives
 	var initExported int
-	if len(initiatives) > 0 {
+	if len(data.initiatives) > 0 {
 		initDir := filepath.Join(dir, "initiatives")
 		if err := os.MkdirAll(initDir, 0755); err != nil {
 			return fmt.Errorf("create initiatives directory: %w", err)
 		}
 
-		for _, init := range initiatives {
+		for _, init := range data.initiatives {
 			export := &InitiativeExportData{
 				Version:    ExportFormatVersion,
 				ExportedAt: time.Now(),
 				Type:       "initiative",
 				Initiative: init,
 			}
-			data, err := yaml.Marshal(export)
+			yamlData, err := yaml.Marshal(export)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", init.ID, err)
 				continue
 			}
-			if err := os.WriteFile(filepath.Join(initDir, init.ID+".yaml"), data, 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(initDir, init.ID+".yaml"), yamlData, 0644); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", init.ID, err)
 				continue
 			}
@@ -1492,9 +1945,111 @@ func exportAllToDir(backend storage.Backend, tasks []*task.Task, initiatives []*
 		}
 	}
 
-	fmt.Printf("Exported %d task(s)", exported)
+	// Export phase templates
+	var templatesExported int
+	if len(data.phaseTemplates) > 0 {
+		templatesDir := filepath.Join(dir, "phase_templates")
+		if err := os.MkdirAll(templatesDir, 0755); err != nil {
+			return fmt.Errorf("create phase_templates directory: %w", err)
+		}
+
+		for _, pt := range data.phaseTemplates {
+			export := &PhaseTemplateExportData{
+				Version:       ExportFormatVersion,
+				ExportedAt:    time.Now(),
+				Type:          "phase_template",
+				PhaseTemplate: pt,
+			}
+			yamlData, err := yaml.Marshal(export)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: phase template %s: marshal error: %v\n", pt.ID, err)
+				continue
+			}
+			if err := os.WriteFile(filepath.Join(templatesDir, pt.ID+".yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: phase template %s: write error: %v\n", pt.ID, err)
+				continue
+			}
+			templatesExported++
+		}
+	}
+
+	// Export workflows
+	var workflowsExported int
+	if len(data.workflows) > 0 {
+		workflowsDir := filepath.Join(dir, "workflows")
+		if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+			return fmt.Errorf("create workflows directory: %w", err)
+		}
+
+		for _, wf := range data.workflows {
+			phases, _ := backend.GetWorkflowPhases(wf.ID)
+			variables, _ := backend.GetWorkflowVariables(wf.ID)
+
+			export := &WorkflowExportData{
+				Version:    ExportFormatVersion,
+				ExportedAt: time.Now(),
+				Type:       "workflow",
+				Workflow:   wf,
+				Phases:     phases,
+				Variables:  variables,
+			}
+			yamlData, err := yaml.Marshal(export)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: workflow %s: marshal error: %v\n", wf.ID, err)
+				continue
+			}
+			if err := os.WriteFile(filepath.Join(workflowsDir, wf.ID+".yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: workflow %s: write error: %v\n", wf.ID, err)
+				continue
+			}
+			workflowsExported++
+		}
+	}
+
+	// Export workflow runs
+	var runsExported int
+	if len(data.workflowRuns) > 0 {
+		runsDir := filepath.Join(dir, "workflow_runs")
+		if err := os.MkdirAll(runsDir, 0755); err != nil {
+			return fmt.Errorf("create workflow_runs directory: %w", err)
+		}
+
+		for _, run := range data.workflowRuns {
+			phases, _ := backend.GetWorkflowRunPhases(run.ID)
+
+			export := &WorkflowRunExportData{
+				Version:     ExportFormatVersion,
+				ExportedAt:  time.Now(),
+				Type:        "workflow_run",
+				WorkflowRun: run,
+				Phases:      phases,
+			}
+			yamlData, err := yaml.Marshal(export)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: workflow run %s: marshal error: %v\n", run.ID, err)
+				continue
+			}
+			if err := os.WriteFile(filepath.Join(runsDir, run.ID+".yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: workflow run %s: write error: %v\n", run.ID, err)
+				continue
+			}
+			runsExported++
+		}
+	}
+
+	// Print summary
+	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
-		fmt.Printf(" and %d initiative(s)", initExported)
+		fmt.Printf(", %d initiative(s)", initExported)
+	}
+	if templatesExported > 0 {
+		fmt.Printf(", %d phase template(s)", templatesExported)
+	}
+	if workflowsExported > 0 {
+		fmt.Printf(", %d workflow(s)", workflowsExported)
+	}
+	if runsExported > 0 {
+		fmt.Printf(", %d workflow run(s)", runsExported)
 	}
 	fmt.Printf(" to %s\n", dir)
 	return nil
@@ -1507,11 +2062,6 @@ func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState
 		Version:    ExportFormatVersion,
 		ExportedAt: time.Now(),
 		Task:       t,
-	}
-
-	// Always load plan
-	if p, err := backend.LoadPlan(t.ID); err == nil {
-		export.Plan = p
 	}
 
 	// Always load spec
