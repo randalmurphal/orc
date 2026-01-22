@@ -148,6 +148,23 @@ func TestValidateTaskReadiness_EdgeCases(t *testing.T) {
 			t.Error("expected error for invalid JSON")
 		}
 	})
+
+	t.Run("empty content returns error", func(t *testing.T) {
+		client := &mockValidationClient{response: ""}
+		_, _, err := ValidateTaskReadiness(
+			context.Background(),
+			client,
+			"desc",
+			"spec",
+			"medium",
+		)
+		if err == nil {
+			t.Error("expected error for empty content")
+		}
+		if !strings.Contains(err.Error(), "empty response content") {
+			t.Errorf("error should mention empty response content, got: %v", err)
+		}
+	})
 }
 
 func TestValidateSuccessCriteria_JSONParsing(t *testing.T) {
@@ -286,6 +303,22 @@ func TestValidateSuccessCriteria_EdgeCases(t *testing.T) {
 		)
 		if err == nil {
 			t.Error("expected error for invalid JSON")
+		}
+	})
+
+	t.Run("empty content returns error", func(t *testing.T) {
+		client := &mockValidationClient{response: ""}
+		_, err := ValidateSuccessCriteria(
+			context.Background(),
+			client,
+			"spec with criteria",
+			"impl",
+		)
+		if err == nil {
+			t.Error("expected error for empty content")
+		}
+		if !strings.Contains(err.Error(), "empty response content") {
+			t.Errorf("error should mention empty response content, got: %v", err)
 		}
 	})
 }

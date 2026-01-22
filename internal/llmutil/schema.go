@@ -47,6 +47,11 @@ func ExecuteWithSchema[T any](
 		return nil, fmt.Errorf("schema execution failed: %w", err)
 	}
 
+	// Check for empty content before JSON parsing
+	if resp.Content == "" {
+		return nil, fmt.Errorf("empty response content from API (model may have returned no output)")
+	}
+
 	// Strict parsing - no fallbacks
 	var result T
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
