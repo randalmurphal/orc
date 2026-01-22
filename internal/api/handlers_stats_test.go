@@ -1057,6 +1057,410 @@ func TestHandleGetOutcomesStats_PercentageSum(t *testing.T) {
 	}
 }
 
+
+// ============================================================================
+// Top Initiatives Endpoint Tests
+// ============================================================================
+
+func TestHandleGetTopInitiatives_DefaultParams(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Create request without params
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopInitiatives(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopInitiativesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should default to "all" period
+	if response.Period != "all" {
+		t.Errorf("expected period=all, got %s", response.Period)
+	}
+
+	// Empty database should return empty list
+	if len(response.Initiatives) != 0 {
+		t.Errorf("expected 0 initiatives, got %d", len(response.Initiatives))
+	}
+}
+
+func TestHandleGetTopInitiatives_InvalidLimit(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name  string
+		limit string
+	}{
+		{"zero", "0"},
+		{"negative", "-1"},
+		{"too large", "100"},
+		{"non-numeric", "abc"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives?limit="+tc.limit, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetTopInitiatives(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleGetTopInitiatives_InvalidPeriod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	tests := []struct {
+		name   string
+		period string
+	}{
+		{"invalid", "invalid"},
+		{"1h", "1h"},
+		{"90d", "90d"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives?period="+tc.period, nil)
+			rr := httptest.NewRecorder()
+
+			server.handleGetTopInitiatives(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected status 400, got %d", rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandleGetTopInitiatives_WithData(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and populate test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Create initiatives
+	init1 := &initiative.Initiative{
+		ID:     "INIT-001",
+		Title:  "UI Redesign",
+		Status: initiative.StatusActive,
+		Tasks: []initiative.TaskRef{
+			{ID: "TASK-001", Title: "Task 1", Status: "completed"},
+			{ID: "TASK-002", Title: "Task 2", Status: "completed"},
+			{ID: "TASK-003", Title: "Task 3", Status: "running"},
+		},
+	}
+
+	init2 := &initiative.Initiative{
+		ID:     "INIT-002",
+		Title:  "Backend Refactor",
+		Status: initiative.StatusActive,
+		Tasks: []initiative.TaskRef{
+			{ID: "TASK-101", Title: "Task 101", Status: "completed"},
+		},
+	}
+
+	if err := backend.SaveInitiative(init1); err != nil {
+		t.Fatalf("failed to save initiative 1: %v", err)
+	}
+	if err := backend.SaveInitiative(init2); err != nil {
+		t.Fatalf("failed to save initiative 2: %v", err)
+	}
+
+	// Create tasks
+	for i := 1; i <= 3; i++ {
+		taskID := fmt.Sprintf("TASK-%03d", i)
+		tsk := task.New(taskID, fmt.Sprintf("Task %d", i))
+		if i <= 2 {
+			tsk.Status = task.StatusCompleted
+			completedAt := now.Add(-time.Hour)
+			tsk.CompletedAt = &completedAt
+		} else {
+			tsk.Status = task.StatusRunning
+		}
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	// Create TASK-101
+	task101 := task.New("TASK-101", "Task 101")
+	task101.Status = task.StatusCompleted
+	completedAt := now.Add(-time.Hour)
+	task101.CompletedAt = &completedAt
+	if err := backend.SaveTask(task101); err != nil {
+		t.Fatalf("failed to save task 101: %v", err)
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopInitiatives(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopInitiativesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have 2 initiatives
+	if len(response.Initiatives) != 2 {
+		t.Errorf("expected 2 initiatives, got %d", len(response.Initiatives))
+	}
+
+	// First should be INIT-001 (3 tasks > 1 task)
+	if response.Initiatives[0].ID != "INIT-001" {
+		t.Errorf("expected first initiative to be INIT-001, got %s", response.Initiatives[0].ID)
+	}
+	if response.Initiatives[0].Rank != 1 {
+		t.Errorf("expected rank=1, got %d", response.Initiatives[0].Rank)
+	}
+	if response.Initiatives[0].TaskCount != 3 {
+		t.Errorf("expected task_count=3, got %d", response.Initiatives[0].TaskCount)
+	}
+	if response.Initiatives[0].CompletedCount != 2 {
+		t.Errorf("expected completed_count=2, got %d", response.Initiatives[0].CompletedCount)
+	}
+
+	// Check completion rate (2/3 = 66.67%)
+	expectedRate := 66.67
+	if response.Initiatives[0].CompletionRate < expectedRate-0.1 || response.Initiatives[0].CompletionRate > expectedRate+0.1 {
+		t.Errorf("expected completion_rate≈%.2f%%, got %.2f%%", expectedRate, response.Initiatives[0].CompletionRate)
+	}
+
+	// Second should be INIT-002 (1 task)
+	if response.Initiatives[1].ID != "INIT-002" {
+		t.Errorf("expected second initiative to be INIT-002, got %s", response.Initiatives[1].ID)
+	}
+	if response.Initiatives[1].Rank != 2 {
+		t.Errorf("expected rank=2, got %d", response.Initiatives[1].Rank)
+	}
+	if response.Initiatives[1].TaskCount != 1 {
+		t.Errorf("expected task_count=1, got %d", response.Initiatives[1].TaskCount)
+	}
+	if response.Initiatives[1].CompletedCount != 1 {
+		t.Errorf("expected completed_count=1, got %d", response.Initiatives[1].CompletedCount)
+	}
+	if response.Initiatives[1].CompletionRate != 100.0 {
+		t.Errorf("expected completion_rate=100%%, got %.2f%%", response.Initiatives[1].CompletionRate)
+	}
+}
+
+func TestHandleGetTopInitiatives_LimitWorks(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and populate test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	// Create 3 initiatives with tasks
+	for i := 1; i <= 3; i++ {
+		initID := fmt.Sprintf("INIT-%03d", i)
+		init := &initiative.Initiative{
+			ID:     initID,
+			Title:  fmt.Sprintf("Initiative %d", i),
+			Status: initiative.StatusActive,
+			Tasks: []initiative.TaskRef{
+				{ID: fmt.Sprintf("TASK-%03d", i), Title: "Task", Status: "completed"},
+			},
+		}
+		if err := backend.SaveInitiative(init); err != nil {
+			t.Fatalf("failed to save initiative: %v", err)
+		}
+
+		// Create task
+		tsk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tsk.Status = task.StatusCompleted
+		now := time.Now()
+		tsk.CompletedAt = &now
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task: %v", err)
+		}
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Request with limit=2
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives?limit=2", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopInitiatives(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopInitiativesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have only 2 initiatives despite 3 being available
+	if len(response.Initiatives) != 2 {
+		t.Errorf("expected 2 initiatives (limited), got %d", len(response.Initiatives))
+	}
+}
+
+func TestHandleGetTopInitiatives_ExcludesZeroTaskInitiatives(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and populate test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	// Create initiative with no tasks
+	init1 := &initiative.Initiative{
+		ID:     "INIT-001",
+		Title:  "Empty Initiative",
+		Status: initiative.StatusActive,
+		Tasks:  []initiative.TaskRef{},
+	}
+	if err := backend.SaveInitiative(init1); err != nil {
+		t.Fatalf("failed to save initiative: %v", err)
+	}
+
+	// Create initiative with tasks
+	init2 := &initiative.Initiative{
+		ID:     "INIT-002",
+		Title:  "Active Initiative",
+		Status: initiative.StatusActive,
+		Tasks: []initiative.TaskRef{
+			{ID: "TASK-001", Title: "Task", Status: "completed"},
+		},
+	}
+	if err := backend.SaveInitiative(init2); err != nil {
+		t.Fatalf("failed to save initiative: %v", err)
+	}
+
+	// Create task
+	tsk := task.New("TASK-001", "Task 1")
+	tsk.Status = task.StatusCompleted
+	now := time.Now()
+	tsk.CompletedAt = &now
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopInitiatives(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopInitiativesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should only have INIT-002 (INIT-001 has no tasks)
+	if len(response.Initiatives) != 1 {
+		t.Errorf("expected 1 initiative, got %d", len(response.Initiatives))
+	}
+
+	if response.Initiatives[0].ID != "INIT-002" {
+		t.Errorf("expected INIT-002, got %s", response.Initiatives[0].ID)
+	}
+}
 // ============================================================================
 // Stats Top Files Tests
 // ============================================================================
