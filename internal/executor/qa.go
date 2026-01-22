@@ -183,7 +183,6 @@ func ParseQAResult(response string) (*QAResult, error) {
 	return &result, nil
 }
 
-
 // HasHighSeverityIssues checks if there are any high-severity issues.
 func (r *QAResult) HasHighSeverityIssues() bool {
 	for _, issue := range r.Issues {

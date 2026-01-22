@@ -148,8 +148,8 @@ type AgentStatsMetrics struct {
 
 // AgentStatsSummary contains aggregate stats across all agents.
 type AgentStatsSummary struct {
-	TotalAgents     int `json:"total_agents"`
-	ActiveAgents    int `json:"active_agents"`
+	TotalAgents      int `json:"total_agents"`
+	ActiveAgents     int `json:"active_agents"`
 	TotalTokensToday int `json:"total_tokens_today"`
 	TotalTasksToday  int `json:"total_tasks_today"`
 }

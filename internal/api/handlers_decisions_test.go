@@ -97,12 +97,12 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 
 	// Add pending decision
 	decision := &gate.PendingDecision{
-		DecisionID: "gate_TASK-001_review",
-		TaskID:     "TASK-001",
-		TaskTitle:  "Test Task",
-		Phase:      "review",
-		GateType:   "human",
-		Question:   "Approve?",
+		DecisionID:  "gate_TASK-001_review",
+		TaskID:      "TASK-001",
+		TaskTitle:   "Test Task",
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve?",
 		RequestedAt: time.Now(),
 	}
 	srv.pendingDecisions.Add(decision)
@@ -192,11 +192,11 @@ func TestHandlePostDecision_Reject(t *testing.T) {
 
 	// Add pending decision
 	decision := &gate.PendingDecision{
-		DecisionID: "gate_TASK-002_implement",
-		TaskID:     "TASK-002",
-		TaskTitle:  "Test Task 2",
-		Phase:      "implement",
-		GateType:   "human",
+		DecisionID:  "gate_TASK-002_implement",
+		TaskID:      "TASK-002",
+		TaskTitle:   "Test Task 2",
+		Phase:       "implement",
+		GateType:    "human",
 		RequestedAt: time.Now(),
 	}
 	srv.pendingDecisions.Add(decision)

@@ -2451,10 +2451,10 @@ func TestExecutePhase_TurnTimeoutStillWorks(t *testing.T) {
 func TestTimeoutWarningThresholds(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name         string
-		phaseMax     time.Duration
-		expected50   time.Duration
-		expected75   time.Duration
+		name       string
+		phaseMax   time.Duration
+		expected50 time.Duration
+		expected75 time.Duration
 	}{
 		{
 			name:       "60 minute timeout",

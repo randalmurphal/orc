@@ -19,15 +19,15 @@ var (
 
 // Command group IDs
 const (
-	groupCore          = "core"
-	groupTaskMgmt      = "task"
-	groupInspection    = "inspect"
-	groupPhaseControl  = "phase"
-	groupPlanning      = "planning"
-	groupConfig        = "config"
-	groupGit           = "git"
-	groupImportExport  = "io"
-	groupAdvanced      = "advanced"
+	groupCore         = "core"
+	groupTaskMgmt     = "task"
+	groupInspection   = "inspect"
+	groupPhaseControl = "phase"
+	groupPlanning     = "planning"
+	groupConfig       = "config"
+	groupGit          = "git"
+	groupImportExport = "io"
+	groupAdvanced     = "advanced"
 )
 
 // rootCmd represents the base command when called without any subcommands

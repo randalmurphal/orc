@@ -827,5 +827,3 @@ func taskWeightFromString(s string) task.Weight {
 		return task.WeightSmall
 	}
 }
-
-

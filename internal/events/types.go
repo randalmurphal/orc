@@ -171,7 +171,7 @@ type SessionUpdate struct {
 
 // DecisionRequiredData represents a pending gate decision.
 type DecisionRequiredData struct {
-	DecisionID  string    `json:"decision_id"`  // e.g., "gate_TASK-001_review"
+	DecisionID  string    `json:"decision_id"` // e.g., "gate_TASK-001_review"
 	TaskID      string    `json:"task_id"`
 	TaskTitle   string    `json:"task_title"`
 	Phase       string    `json:"phase"`

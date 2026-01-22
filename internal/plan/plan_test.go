@@ -337,9 +337,9 @@ func TestRegeneratePlan_PreservesCompletedPhases(t *testing.T) {
 func TestRegeneratePlan_PreservesSkippedPhases(t *testing.T) {
 	// Old plan with skipped phase
 	oldPlan := &Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightMedium,
+		Version: 1,
+		TaskID:  "TASK-001",
+		Weight:  task.WeightMedium,
 		Phases: []Phase{
 			{ID: "spec", Name: "spec", Status: PhaseCompleted, CommitSHA: "spec123"},
 			{ID: "tdd_write", Name: "tdd_write", Status: PhaseCompleted, CommitSHA: "tdd123"},
@@ -382,9 +382,9 @@ func TestRegeneratePlan_PreservesSkippedPhases(t *testing.T) {
 func TestRegeneratePlan_DoesNotPreserveRunningOrFailed(t *testing.T) {
 	// Old plan with running and failed phases (no completed phases)
 	oldPlan := &Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightMedium,
+		Version: 1,
+		TaskID:  "TASK-001",
+		Weight:  task.WeightMedium,
 		Phases: []Phase{
 			{ID: "spec", Name: "spec", Status: PhaseRunning},
 			{ID: "tdd_write", Name: "tdd_write", Status: PhaseFailed},
@@ -417,9 +417,9 @@ func TestRegeneratePlan_DoesNotPreserveRunningOrFailed(t *testing.T) {
 func TestRegeneratePlan_WeightDowngrade(t *testing.T) {
 	// Old plan: large weight with some phases completed
 	oldPlan := &Plan{
-		Version:     1,
-		TaskID:      "TASK-001",
-		Weight:      task.WeightLarge,
+		Version: 1,
+		TaskID:  "TASK-001",
+		Weight:  task.WeightLarge,
 		Phases: []Phase{
 			{ID: "spec", Name: "spec", Status: PhaseCompleted, CommitSHA: "spec123"},
 			{ID: "design", Name: "design", Status: PhaseCompleted, CommitSHA: "design123"},

@@ -41,13 +41,13 @@ func TestDisplayFormattedContent(t *testing.T) {
 			expected: []string{"Tool: Read", "file"},
 		},
 		{
-			name:    "plain text fallback",
-			content: "Not JSON content",
+			name:     "plain text fallback",
+			content:  "Not JSON content",
 			expected: []string{"Not JSON content"},
 		},
 		{
-			name:    "multiple text blocks",
-			content: `[{"type": "text", "text": "First"}, {"type": "text", "text": "Second"}]`,
+			name:     "multiple text blocks",
+			content:  `[{"type": "text", "text": "First"}, {"type": "text", "text": "Second"}]`,
 			expected: []string{"First", "Second"},
 		},
 	}

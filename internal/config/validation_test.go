@@ -377,10 +377,10 @@ func TestConfig_Validate_ErrorMessages(t *testing.T) {
 
 func TestConfig_ShouldValidateForWeight(t *testing.T) {
 	tests := []struct {
-		name    string
-		cfg     *Config
-		weight  string
-		want    bool
+		name   string
+		cfg    *Config
+		weight string
+		want   bool
 	}{
 		{
 			name: "enabled, no skip weights",

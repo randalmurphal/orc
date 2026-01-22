@@ -150,7 +150,6 @@ func New(taskID string) *State {
 	}
 }
 
-
 // StartPhase marks a phase as started.
 func (s *State) StartPhase(phaseID string) {
 	now := time.Now()
@@ -525,4 +524,3 @@ func (s *State) Elapsed() time.Duration {
 	}
 	return time.Since(s.StartedAt)
 }
-

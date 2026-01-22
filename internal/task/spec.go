@@ -115,7 +115,6 @@ func ValidateSpec(content string, weight Weight) *SpecValidation {
 	return result
 }
 
-
 // hasSection checks if a markdown section with the given name exists.
 func hasSection(content, sectionName string) bool {
 	pattern := regexp.MustCompile(`(?im)^##?\s*` + regexp.QuoteMeta(sectionName))

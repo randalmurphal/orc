@@ -24,11 +24,11 @@ type Decision struct {
 
 // EvaluateOptions contains context for gate evaluation.
 type EvaluateOptions struct {
-	TaskID      string
-	TaskTitle   string
-	Phase       string
-	Headless    bool              // True if running in API/headless mode
-	Publisher   events.Publisher  // Event publisher for decision_required events
+	TaskID        string
+	TaskTitle     string
+	Phase         string
+	Headless      bool                  // True if running in API/headless mode
+	Publisher     events.Publisher      // Event publisher for decision_required events
 	DecisionStore *PendingDecisionStore // Store for pending decisions
 }
 

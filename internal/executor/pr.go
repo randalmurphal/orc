@@ -746,7 +746,7 @@ func (e *Executor) checkPRStatus(ctx context.Context, prURL string) (bool, strin
 			failedChecks = append(failedChecks, c.Name)
 		case "pending":
 			pending = true
-		// pass, skipping, cancel are all acceptable
+			// pass, skipping, cancel are all acceptable
 		}
 	}
 

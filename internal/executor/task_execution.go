@@ -1261,7 +1261,6 @@ func (e *Executor) triggerAutomationEvent(ctx context.Context, eventType string,
 	}
 }
 
-
 // phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout
 type phaseTimeoutError struct {
 	phase   string
@@ -1411,4 +1410,3 @@ func (e *Executor) syncTranscriptsFromJSONL(ctx context.Context, jsonlPath, task
 		)
 	}
 }
-

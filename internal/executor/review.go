@@ -272,7 +272,6 @@ func ParseReviewDecision(response string) (*ReviewDecision, error) {
 	return &decision, nil
 }
 
-
 // HasHighSeverityIssues checks if there are any high-severity issues.
 func (f *ReviewFindings) HasHighSeverityIssues() bool {
 	for _, issue := range f.Issues {
@@ -343,10 +342,10 @@ func FormatFindingsForRound2(findings *ReviewFindings) string {
 
 // ParallelReviewResult aggregates findings from multiple parallel reviewers.
 type ParallelReviewResult struct {
-	Perspectives []ReviewerPerspective       `json:"perspectives"` // Which perspectives were used
-	Findings     map[ReviewerPerspective]*ReviewFindings `json:"findings"` // Findings per perspective
-	Merged       *ReviewFindings             `json:"merged"`       // Deduplicated combined findings
-	Duration     int64                       `json:"duration_ms"`  // Total review duration
+	Perspectives []ReviewerPerspective                   `json:"perspectives"` // Which perspectives were used
+	Findings     map[ReviewerPerspective]*ReviewFindings `json:"findings"`     // Findings per perspective
+	Merged       *ReviewFindings                         `json:"merged"`       // Deduplicated combined findings
+	Duration     int64                                   `json:"duration_ms"`  // Total review duration
 }
 
 // NewParallelReviewResult creates a new parallel review result.

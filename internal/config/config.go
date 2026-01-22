@@ -729,9 +729,9 @@ type TriggerConditionConfig struct {
 
 // TriggerActionConfig defines what happens when a trigger fires.
 type TriggerActionConfig struct {
-	Template string `yaml:"template"`            // Template name
-	Priority string `yaml:"priority,omitempty"`  // Task priority
-	Queue    string `yaml:"queue,omitempty"`     // Task queue
+	Template string `yaml:"template"`           // Template name
+	Priority string `yaml:"priority,omitempty"` // Task priority
+	Queue    string `yaml:"queue,omitempty"`    // Task queue
 }
 
 // TriggerCooldownConfig defines the cooldown period for a trigger.
@@ -1215,7 +1215,7 @@ func Default() *Config {
 			// Review uses three-tier approach: fix in-place, block for major issues,
 			// or block with detailed context for wrong approach
 			RetryMap: map[string]string{
-				"design":    "spec",      // Design issues often stem from incomplete spec
+				"design":    "spec", // Design issues often stem from incomplete spec
 				"test":      "implement",
 				"test_unit": "implement",
 				"test_e2e":  "implement",
@@ -1244,11 +1244,11 @@ func Default() *Config {
 				AutoApprove:  true, // AI-assisted PR approval in auto mode
 			},
 			CI: CIConfig{
-				WaitForCI:     true,              // Wait for CI checks before merge
-				CITimeout:     10 * time.Minute,  // Max 10 minutes to wait
-				PollInterval:  30 * time.Second,  // Check every 30 seconds
-				MergeOnCIPass: true,              // Auto-merge when CI passes
-				MergeMethod:   "squash",          // Use squash merge by default
+				WaitForCI:     true,             // Wait for CI checks before merge
+				CITimeout:     10 * time.Minute, // Max 10 minutes to wait
+				PollInterval:  30 * time.Second, // Check every 30 seconds
+				MergeOnCIPass: true,             // Auto-merge when CI passes
+				MergeMethod:   "squash",         // Use squash merge by default
 			},
 			Sync: SyncConfig{
 				Strategy:         SyncStrategyCompletion, // Sync before PR creation by default
@@ -1258,9 +1258,9 @@ func Default() *Config {
 				SkipForWeights:   []string{"trivial"},    // Skip sync for trivial tasks
 			},
 			Finalize: FinalizeConfig{
-				Enabled:               true,  // Finalize phase enabled by default
-				AutoTrigger:           true,  // Auto-trigger after validate
-				AutoTriggerOnApproval: true,  // Auto-trigger when PR is approved (auto profile only)
+				Enabled:               true, // Finalize phase enabled by default
+				AutoTrigger:           true, // Auto-trigger after validate
+				AutoTriggerOnApproval: true, // Auto-trigger when PR is approved (auto profile only)
 				Sync: FinalizeSyncConfig{
 					Strategy: FinalizeSyncMerge, // Merge target into branch (preserves history)
 				},
@@ -1284,8 +1284,8 @@ func Default() *Config {
 		Execution: ExecutionConfig{
 			UseSessionExecution: false, // Default to flowgraph for compatibility
 			SessionPersistence:  true,
-			CheckpointInterval:  0,  // Default to phase-complete only
-			MaxRetries:          5,  // Default retry limit for phase failures
+			CheckpointInterval:  0, // Default to phase-complete only
+			MaxRetries:          5, // Default retry limit for phase failures
 		},
 		Pool: PoolConfig{
 			Enabled:    false, // Disabled by default
@@ -1330,19 +1330,19 @@ func Default() *Config {
 			ParseOutput: true,
 		},
 		Validation: ValidationConfig{
-			Enabled:          true,                           // Validation enabled by default
-			Model:            "haiku",    // Haiku for fast validation
-			SkipForWeights:   []string{"trivial"},            // Only skip for trivial tasks
-			EnforceTests:     true,                           // Run tests before accepting completion
-			EnforceLint:      true,                           // Run lint before accepting completion
-			EnforceBuild:     false,                          // Build not enforced by default
-			EnforceTypeCheck: false,                          // Type check not enforced by default
-			LintCommand:      "",                             // Auto-detect
-			BuildCommand:     "",                             // Auto-detect
-			TypeCheckCommand: "",                             // Auto-detect
-			ValidateSpecs:    true,                           // Haiku validates spec quality
-			ValidateCriteria: true,                           // Haiku validates success criteria on completion
-			FailOnAPIError:   true,                           // Fail properly on API errors (resumable)
+			Enabled:          true,                // Validation enabled by default
+			Model:            "haiku",             // Haiku for fast validation
+			SkipForWeights:   []string{"trivial"}, // Only skip for trivial tasks
+			EnforceTests:     true,                // Run tests before accepting completion
+			EnforceLint:      true,                // Run lint before accepting completion
+			EnforceBuild:     false,               // Build not enforced by default
+			EnforceTypeCheck: false,               // Type check not enforced by default
+			LintCommand:      "",                  // Auto-detect
+			BuildCommand:     "",                  // Auto-detect
+			TypeCheckCommand: "",                  // Auto-detect
+			ValidateSpecs:    true,                // Haiku validates spec quality
+			ValidateCriteria: true,                // Haiku validates success criteria on completion
+			FailOnAPIError:   true,                // Fail properly on API errors (resumable)
 		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
@@ -1370,14 +1370,14 @@ func Default() *Config {
 			RequirePass: true,
 		},
 		Plan: PlanConfig{
-			RequireSpecForExecution: true,  // Require spec for quality execution
-			WarnOnMissingSpec:       true,  // Also warn when missing
+			RequireSpecForExecution: true,                         // Require spec for quality execution
+			WarnOnMissingSpec:       true,                         // Also warn when missing
 			SkipValidationWeights:   []string{"trivial", "small"}, // Simple tasks don't need specs
 			MinimumSections:         []string{"intent", "success_criteria", "testing"},
 		},
 		ArtifactSkip: ArtifactSkipConfig{
-			Enabled:  true,                              // Check for existing artifacts
-			AutoSkip: false,                             // Prompt user by default
+			Enabled:  true,                                 // Check for existing artifacts
+			AutoSkip: false,                                // Prompt user by default
 			Phases:   []string{"spec", "research", "docs"}, // Safe phases to skip
 		},
 		Subtasks: SubtasksConfig{
@@ -1438,12 +1438,12 @@ func Default() *Config {
 			},
 		},
 		Automation: AutomationConfig{
-			Enabled:        true,                 // Automation enabled by default
-			GlobalCooldown: 30 * time.Minute,     // 30 minute global cooldown
-			MaxConcurrent:  1,                    // One automation task at a time
-			DefaultMode:    AutomationModeAuto,   // Auto mode by default
-			Triggers:       nil,                  // No triggers defined by default
-			Templates:      nil,                  // No templates defined by default
+			Enabled:        true,               // Automation enabled by default
+			GlobalCooldown: 30 * time.Minute,   // 30 minute global cooldown
+			MaxConcurrent:  1,                  // One automation task at a time
+			DefaultMode:    AutomationModeAuto, // Auto mode by default
+			Triggers:       nil,                // No triggers defined by default
+			Templates:      nil,                // No templates defined by default
 		},
 		Models: ModelsConfig{
 			// Default: opus without thinking

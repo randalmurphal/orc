@@ -780,7 +780,7 @@ func TestGetClaudeMDEndpoint_EmptyProject(t *testing.T) {
 
 	srv.mux.ServeHTTP(w, req)
 
-// Returns 200 with empty content for editing purposes (not 404)
+	// Returns 200 with empty content for editing purposes (not 404)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
@@ -1931,9 +1931,9 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 	}
 
 	var response struct {
-		Error          string `json:"error"`
-		Message        string `json:"message"`
-		BlockedBy      []struct {
+		Error     string `json:"error"`
+		Message   string `json:"message"`
+		BlockedBy []struct {
 			ID     string `json:"id"`
 			Title  string `json:"title"`
 			Status string `json:"status"`

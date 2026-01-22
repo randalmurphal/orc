@@ -11,9 +11,9 @@ import (
 
 // EventResponse represents an event in the API response.
 type EventResponse struct {
-	ID        int64  `json:"id"`
-	TaskID    string `json:"task_id"`
-	TaskTitle string `json:"task_title"`
+	ID        int64   `json:"id"`
+	TaskID    string  `json:"task_id"`
+	TaskTitle string  `json:"task_title"`
 	Phase     *string `json:"phase,omitempty"`
 	Iteration *int    `json:"iteration,omitempty"`
 	EventType string  `json:"event_type"`
