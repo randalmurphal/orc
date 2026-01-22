@@ -241,6 +241,18 @@ func (b *emptyBackend) GetAttachment(string, string) (*task.Attachment, []byte, 
 }
 func (b *emptyBackend) ListAttachments(string) ([]*task.Attachment, error) { return nil, nil }
 func (b *emptyBackend) DeleteAttachment(string, string) error              { return nil }
+func (b *emptyBackend) ListTaskComments(string) ([]storage.TaskComment, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveTaskComment(*storage.TaskComment) error { return nil }
+func (b *emptyBackend) ListReviewComments(string) ([]storage.ReviewComment, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error { return nil }
+func (b *emptyBackend) ListGateDecisions(string) ([]storage.GateDecision, error) {
+	return nil, nil
+}
+func (b *emptyBackend) SaveGateDecision(*storage.GateDecision) error { return nil }
 func (b *emptyBackend) MaterializeContext(string, string) error { return nil }
 func (b *emptyBackend) NeedsMaterialization() bool              { return false }
 func (b *emptyBackend) Sync() error                             { return nil }
