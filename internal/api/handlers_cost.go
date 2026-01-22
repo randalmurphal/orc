@@ -367,10 +367,6 @@ func (s *Server) handleCostTimeseries(w http.ResponseWriter, r *http.Request) {
 
 // fillTimeseriesGaps ensures every date bucket in the range has a data point
 func fillTimeseriesGaps(series []CostTimeseriesPoint, start, end time.Time, granularity string) []CostTimeseriesPoint {
-	if len(series) == 0 {
-		return series
-	}
-
 	// Build a map of existing dates
 	dataMap := make(map[string]CostTimeseriesPoint)
 	for _, point := range series {

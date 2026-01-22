@@ -1,0 +1,41 @@
+=== RUN   TestHandleCostBreakdown
+=== PAUSE TestHandleCostBreakdown
+=== RUN   TestHandleCostTimeseries
+=== PAUSE TestHandleCostTimeseries
+=== RUN   TestHandleCostBudget
+=== PAUSE TestHandleCostBudget
+=== CONT  TestHandleCostBreakdown
+=== CONT  TestHandleCostBudget
+=== CONT  TestHandleCostTimeseries
+2026/01/21 21:36:38 INFO automation service enabled
+=== RUN   TestHandleCostTimeseries/daily_granularity
+=== RUN   TestHandleCostTimeseries/weekly_granularity
+=== RUN   TestHandleCostTimeseries/monthly_granularity
+=== RUN   TestHandleCostTimeseries/invalid_granularity
+--- PASS: TestHandleCostTimeseries (0.27s)
+    --- PASS: TestHandleCostTimeseries/daily_granularity (0.00s)
+    --- PASS: TestHandleCostTimeseries/weekly_granularity (0.00s)
+    --- PASS: TestHandleCostTimeseries/monthly_granularity (0.00s)
+    --- PASS: TestHandleCostTimeseries/invalid_granularity (0.00s)
+2026/01/21 21:36:38 INFO automation service enabled
+=== RUN   TestHandleCostBreakdown/breakdown_by_model_all_time
+=== RUN   TestHandleCostBreakdown/breakdown_by_model_7_days
+=== RUN   TestHandleCostBreakdown/breakdown_by_phase
+=== RUN   TestHandleCostBreakdown/breakdown_by_task
+=== RUN   TestHandleCostBreakdown/breakdown_by_initiative
+=== RUN   TestHandleCostBreakdown/invalid_by_parameter
+--- PASS: TestHandleCostBreakdown (0.28s)
+    --- PASS: TestHandleCostBreakdown/breakdown_by_model_all_time (0.00s)
+    --- PASS: TestHandleCostBreakdown/breakdown_by_model_7_days (0.00s)
+    --- PASS: TestHandleCostBreakdown/breakdown_by_phase (0.00s)
+    --- PASS: TestHandleCostBreakdown/breakdown_by_task (0.00s)
+    --- PASS: TestHandleCostBreakdown/breakdown_by_initiative (0.00s)
+    --- PASS: TestHandleCostBreakdown/invalid_by_parameter (0.00s)
+2026/01/21 21:36:39 INFO automation service enabled
+=== RUN   TestHandleCostBudget/no_budget_configured
+=== RUN   TestHandleCostBudget/with_budget_configured
+--- PASS: TestHandleCostBudget (0.29s)
+    --- PASS: TestHandleCostBudget/no_budget_configured (0.00s)
+    --- PASS: TestHandleCostBudget/with_budget_configured (0.00s)
+PASS
+ok  	github.com/randalmurphal/orc/internal/api	0.305s
