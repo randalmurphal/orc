@@ -94,15 +94,56 @@ Tests SHOULD fail or not compile. This is correct - it proves tests are testing 
 If tests pass before implementation, they're testing the wrong thing.
 </instructions>
 
+<pre_output_verification>
+## Pre-Output Verification (MANDATORY)
+
+Before outputting the final JSON, STOP and verify:
+
+1. **Re-read your Success Criteria table**
+   - List each SC-X identifier you defined
+   - For each SC-X, confirm you wrote at least one test that covers it
+
+2. **Check coverage completeness**
+   - Every SC-X must appear in `coverage.covered` OR `coverage.manual_verification`
+   - If any SC-X is missing a test, write the missing test NOW before proceeding
+
+3. **Verify test correctness**
+   - Each test name accurately describes what it tests
+   - Each `covers` array only lists criteria the test actually verifies
+
+4. **Confirm tests will fail**
+   - Run `{{TEST_COMMAND}}` mentally - tests should fail or not compile
+   - If tests would pass, they're testing existing behavior, not new work
+
+**Only after completing this verification, output the StructuredOutput.**
+</pre_output_verification>
+
 <output_format>
-Output a JSON object with the spec, test information, and quality checklist:
+Output a JSON object with the spec, test information, **explicit coverage mapping**, and quality checklist:
 
 ```json
 {
   "status": "complete",
-  "summary": "Defined N criteria, wrote M failing tests",
-  "artifact": "# Tiny Spec: [Title]\n\n## Success Criteria\n\n| ID | Criterion | Verification |\n|----|-----------|-------|\n| SC-1 | ... | ... |\n\n## Tests Written\n\n- `path/to/test.ts`: Tests SC-1\n",
-  "tests_written": ["path/to/test1.ts", "path/to/test2.go"],
+  "summary": "Defined N criteria, wrote M failing tests covering all criteria",
+  "artifact": "# Tiny Spec: [Title]\n\n## Success Criteria\n\n| ID | Criterion | Verification |\n|----|-----------|-------|\n| SC-1 | ... | ... |\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestFoo | Covered |\n\n## Tests Written\n\n- `path/to/test.ts`: Tests SC-1\n",
+  "tests": [
+    {
+      "file": "path/to/test.go",
+      "name": "TestFoo",
+      "covers": ["SC-1"],
+      "type": "unit"
+    }
+  ],
+  "coverage": {
+    "covered": ["SC-1", "SC-2"],
+    "manual_verification": [
+      {
+        "criterion": "SC-3",
+        "reason": "Visual check required",
+        "steps": ["1. Open page", "2. Verify layout"]
+      }
+    ]
+  },
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
     {"id": "no_technical_metrics", "check": "SC describes behavior, not internals", "passed": true},
@@ -113,7 +154,13 @@ Output a JSON object with the spec, test information, and quality checklist:
 }
 ```
 
-**REQUIRED:** The `quality_checklist` array must be included with all 5 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
+**REQUIRED fields:**
+- `tests[].covers` - Array of SC-X IDs this test covers
+- `coverage.covered` - All criteria with automated tests
+- `coverage.manual_verification` - Criteria that can't be automated (with justification)
+- `quality_checklist` - All 5 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
+
+**Validation:** All SC-X from your Success Criteria table must appear in either `covered` or `manual_verification`.
 
 If blocked (genuinely unclear requirements):
 ```json

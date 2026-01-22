@@ -417,6 +417,11 @@ func (we *WorkflowExecutor) buildResolutionContext(
 		rctx.TaskBranch = t.Branch
 	}
 
+	// Load constitution content (project-level principles)
+	if content, _, err := we.backend.LoadConstitution(); err == nil && content != "" {
+		rctx.ConstitutionContent = content
+	}
+
 	// Merge user-provided variables
 	if opts.Variables != nil {
 		rctx.Environment = opts.Variables

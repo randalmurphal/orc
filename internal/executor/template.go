@@ -314,6 +314,9 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 	// Process conditional blocks for breakdown content
 	result = processBreakdownContentConditional(result, vars.BreakdownContent)
 
+	// Process conditional blocks for constitution content
+	result = processConstitutionConditional(result, vars.ConstitutionContent)
+
 	return result
 }
 
@@ -388,6 +391,20 @@ func processTDDTestPlanConditional(content string, testPlan string) string {
 func processBreakdownContentConditional(content string, breakdownContent string) string {
 	pattern := regexp.MustCompile(`(?s)\{\{#if BREAKDOWN_CONTENT\}\}(.*?)\{\{/if\}\}`)
 	if breakdownContent != "" {
+		// Keep the content inside the block
+		content = pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = pattern.ReplaceAllString(content, "")
+	}
+	return content
+}
+
+// processConstitutionConditional handles {{#if CONSTITUTION_CONTENT}} blocks.
+// Used to include constitution-specific instructions and checks when a constitution is configured.
+func processConstitutionConditional(content string, constitutionContent string) string {
+	pattern := regexp.MustCompile(`(?s)\{\{#if CONSTITUTION_CONTENT\}\}(.*?)\{\{/if\}\}`)
+	if constitutionContent != "" {
 		// Keep the content inside the block
 		content = pattern.ReplaceAllString(content, "$1")
 	} else {

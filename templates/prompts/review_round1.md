@@ -29,6 +29,25 @@ You are working in an **isolated git worktree**.
 
 {{SPEC_CONTENT}}
 
+{{#if CONSTITUTION_CONTENT}}
+## Constitution & Invariants
+
+The following rules govern this project. **Invariants CANNOT be ignored or overridden.**
+
+<constitution>
+{{CONSTITUTION_CONTENT}}
+</constitution>
+
+### Constitution Compliance Check
+
+For each issue you find, determine if it violates the constitution:
+- `constitution_violation: "invariant"` - **BLOCKER** - Must fix before completion
+- `constitution_violation: "default"` - Warning - Document justification if intentional deviation
+- Omit field if not a constitution violation
+
+**Any issue with `constitution_violation: "invariant"` automatically fails the review.** These are absolute rules that cannot be waived.
+{{/if}}
+
 ## Instructions
 
 As a senior engineer, examine the implemented code thoroughly:
@@ -79,13 +98,15 @@ Output JSON matching the review findings schema:
   "round": 1,
   "summary": "Brief overview of review findings",
   "issues": [
-    {"severity": "high", "file": "path/to/file.go", "line": 42, "description": "Issue description", "suggestion": "How to fix"},
+    {"severity": "high", "file": "path/to/file.go", "line": 42, "description": "Issue description", "suggestion": "How to fix", "constitution_violation": "invariant"},
     {"severity": "medium", "file": "path/to/another.go", "line": 100, "description": "Missing error handling", "suggestion": "Add retry logic"}
   ],
   "questions": ["Question requiring clarification"],
   "positives": ["Good thing noticed in the implementation"]
 }
 ```
+
+**Note:** Include `constitution_violation` field only if the issue violates a constitution rule. Value is `"invariant"` (blocker) or `"default"` (warning).
 
 ## If User Input Required
 

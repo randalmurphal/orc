@@ -303,6 +303,9 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["TASK_BRANCH"] = rctx.TaskBranch
 	vars["TARGET_BRANCH"] = rctx.TargetBranch
 
+	// Constitution content (project-level principles)
+	vars["CONSTITUTION_CONTENT"] = rctx.ConstitutionContent
+
 	// Add prior phase outputs with OUTPUT_ prefix
 	for phase, content := range rctx.PriorOutputs {
 		key := "OUTPUT_" + strings.ToUpper(phase)
@@ -333,8 +336,12 @@ func (r *Resolver) ClearCache() {
 
 // RenderTemplate applies variable substitution to a template string.
 // Variables use the {{VAR}} format. Missing variables are replaced with empty strings.
+// Also handles {{#if VAR}}...{{/if}} conditional blocks.
 func RenderTemplate(template string, vars VariableSet) string {
 	result := template
+
+	// Process conditional blocks first: {{#if VAR}}...{{/if}}
+	result = processConditionals(result, vars)
 
 	// Replace all {{VAR}} patterns
 	pattern := regexp.MustCompile(`\{\{([A-Z_][A-Z0-9_]*)\}\}`)
@@ -350,14 +357,43 @@ func RenderTemplate(template string, vars VariableSet) string {
 	return result
 }
 
+// processConditionals handles {{#if VAR}}...{{/if}} conditional blocks.
+// If the variable exists and is non-empty, the content is kept; otherwise removed.
+func processConditionals(content string, vars VariableSet) string {
+	// Pattern matches {{#if VAR}}...{{/if}} with the variable name
+	pattern := regexp.MustCompile(`(?s)\{\{#if ([A-Z_][A-Z0-9_]*)\}\}(.*?)\{\{/if\}\}`)
+
+	return pattern.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract variable name
+		submatches := pattern.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return ""
+		}
+
+		varName := submatches[1]
+		blockContent := submatches[2]
+
+		// Check if variable exists and is non-empty
+		if value, ok := vars[varName]; ok && value != "" {
+			return blockContent
+		}
+
+		// Variable missing or empty - remove entire block
+		return ""
+	})
+}
+
 // RenderTemplateStrict is like RenderTemplate but returns an error for missing variables.
 func RenderTemplateStrict(template string, vars VariableSet) (string, []string) {
 	var missing []string
 	result := template
 
-	// Find all variables in template
+	// Process conditional blocks first
+	result = processConditionals(result, vars)
+
+	// Find all variables in template (after conditionals processed)
 	pattern := regexp.MustCompile(`\{\{([A-Z_][A-Z0-9_]*)\}\}`)
-	matches := pattern.FindAllStringSubmatch(template, -1)
+	matches := pattern.FindAllStringSubmatch(result, -1)
 
 	// Track which ones are missing
 	for _, match := range matches {

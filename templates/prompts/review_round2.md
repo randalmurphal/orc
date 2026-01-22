@@ -29,6 +29,25 @@ You are working in an **isolated git worktree**.
 
 {{REVIEW_FINDINGS}}
 
+{{#if CONSTITUTION_CONTENT}}
+## Constitution & Invariants
+
+The following rules govern this project. **Invariants CANNOT be ignored or overridden.**
+
+<constitution>
+{{CONSTITUTION_CONTENT}}
+</constitution>
+
+### Constitution Compliance Validation
+
+**CRITICAL**: Any `constitution_violation: "invariant"` issues from Round 1 MUST be resolved. These are absolute rules that cannot be waived or deferred.
+
+When validating fixes:
+- Verify invariant violations were actually fixed, not just acknowledged
+- Check that fixes didn't introduce new invariant violations
+- `constitution_violation: "default"` issues can be deferred with documented justification
+{{/if}}
+
 ## Instructions
 
 With fresh perspective, validate that all identified issues were addressed:
@@ -67,6 +86,7 @@ Based on your validation:
 - All high-severity issues resolved
 - All medium-severity issues resolved or explicitly deferred
 - No new high/medium issues found
+- **No invariant violations remain** (constitution_violation: "invariant")
 - Code is ready for production
 
 **FAIL** if:
@@ -74,6 +94,7 @@ Based on your validation:
 - Critical medium-severity issues remain
 - New significant issues discovered
 - Fixes introduced regressions
+- **Any invariant violation remains unresolved** (these cannot be deferred)
 
 **NEEDS_USER_INPUT** if:
 - Architecture decisions are unclear
@@ -91,12 +112,14 @@ Output JSON matching the review decision schema:
   "summary": "Overall assessment of the implementation",
   "issues_resolved": ["Resolved issue 1 from Round 1", "Resolved issue 2"],
   "remaining_issues": [
-    {"severity": "medium", "description": "Remaining issue description"}
+    {"severity": "medium", "description": "Remaining issue description", "constitution_violation": "default"}
   ],
   "user_questions": ["Question requiring user decision (if needs_user_input)"],
   "recommendation": "What should happen next"
 }
 ```
+
+**Note:** Include `constitution_violation` field in remaining_issues only if applicable. Value is `"invariant"` (must fix, cannot pass) or `"default"` (can defer with justification).
 
 ## Phase Completion
 

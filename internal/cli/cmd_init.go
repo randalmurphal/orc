@@ -2,10 +2,16 @@
 package cli
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/bootstrap"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // newInitCmd creates the init command
@@ -46,6 +52,39 @@ Example:
 			}
 
 			bootstrap.PrintResult(result)
+
+			// Offer to set INVARIANTS.md as constitution if found
+			if result.FoundInvariants {
+				fmt.Printf("\nFound invariants at %s\n", result.InvariantsPath)
+				fmt.Print("Set as project constitution? [Y/n] ")
+
+				reader := bufio.NewReader(os.Stdin)
+				response, _ := reader.ReadString('\n')
+				response = strings.TrimSpace(strings.ToLower(response))
+
+				if response == "" || response == "y" || response == "yes" {
+					// Load and save as constitution
+					content, err := os.ReadFile(result.InvariantsPath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: could not read invariants: %v\n", err)
+					} else {
+						backend, err := storage.NewBackend(".", &config.StorageConfig{})
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: could not open storage: %v\n", err)
+						} else {
+							defer backend.Close()
+							if err := backend.SaveConstitution(string(content), "1.0.0"); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: could not save constitution: %v\n", err)
+							} else {
+								fmt.Printf("Constitution set from %s\n", result.InvariantsPath)
+							}
+						}
+					}
+				} else {
+					fmt.Println("Skipped. You can set it later with: orc constitution set --file INVARIANTS.md")
+				}
+			}
+
 			return nil
 		},
 	}

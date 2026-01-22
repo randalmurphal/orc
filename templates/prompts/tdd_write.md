@@ -157,21 +157,77 @@ This is correct - it proves tests are testing real behavior, not mocks or stubs.
 If any test passes before implementation, it's testing the wrong thing or the feature already exists.
 </instructions>
 
+<pre_output_verification>
+## Pre-Output Verification (MANDATORY)
+
+Before outputting the final JSON, STOP and verify:
+
+1. **Re-read the spec's Success Criteria table**
+   - List each SC-X identifier from the spec
+   - For each SC-X, confirm you have at least one test that covers it
+
+2. **Check coverage completeness**
+   - Every SC-X must appear in `coverage.covered` OR `coverage.manual_verification`
+   - If any SC-X is missing, write the missing test NOW before proceeding
+
+3. **Verify test correctness**
+   - Each test name accurately describes what it tests
+   - Each `covers` array only lists criteria the test actually verifies
+   - No test claims to cover criteria it doesn't actually test
+
+4. **Confirm tests will fail**
+   - Run `{{TEST_COMMAND}}` mentally - tests should fail or not compile
+   - If tests would pass, they're testing existing behavior, not new work
+
+**Only after completing this verification, output the StructuredOutput.**
+</pre_output_verification>
+
 <output_format>
-Output a JSON object with test information:
+Output a JSON object with test information and **explicit coverage mapping**:
 
 ```json
 {
   "status": "complete",
-  "summary": "Wrote N tests covering M success criteria. Tests correctly fail.",
-  "artifact": "# TDD Tests for {{TASK_ID}}\n\n## Test Files\n\n| File | Type | Criteria |\n|------|------|----------|\n| path/to/test.ts | e2e | SC-1 |\n| path/to/unit.go | unit | SC-2, SC-3 |\n\n## Test Descriptions\n\n### path/to/test.ts\n- `test_user_can_login` - Verifies SC-1: user can authenticate\n- `test_invalid_password_rejected` - Error path: invalid credentials\n\n### path/to/unit.go\n- `TestFeatureX` - Verifies SC-2: feature behavior\n- `TestFeatureX_ErrorCase` - Error path: handles missing data\n\n## Manual Test Plan (if applicable)\n\n[Manual steps for UI testing if automated testing not feasible]"
+  "summary": "Wrote N tests covering all M success criteria. Tests correctly fail.",
+  "artifact": "# TDD Tests for {{TASK_ID}}\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestLogin | Covered |\n| SC-2 | TestLoginError | Covered |\n\n## Test Files\n\n### path/to/test.go\n- `TestLogin` - Verifies SC-1: user can authenticate\n- `TestLoginError` - Error path: invalid credentials\n\n## Manual Test Plan (if applicable)\n\n[Manual steps for UI testing]",
+  "tests": [
+    {
+      "file": "path/to/test.go",
+      "name": "TestLogin",
+      "covers": ["SC-1"],
+      "type": "unit"
+    },
+    {
+      "file": "path/to/test.go",
+      "name": "TestLoginError",
+      "covers": ["SC-1"],
+      "type": "unit"
+    }
+  ],
+  "coverage": {
+    "covered": ["SC-1", "SC-2"],
+    "manual_verification": [
+      {
+        "criterion": "SC-3",
+        "reason": "Visual regression requires human review",
+        "steps": ["1. Open /settings", "2. Toggle dark mode", "3. Verify readability"]
+      }
+    ]
+  }
 }
 ```
 
+**REQUIRED fields:**
+- `tests[].covers` - Array of SC-X IDs this test covers
+- `coverage.covered` - All criteria with automated tests
+- `coverage.manual_verification` - Criteria that can't be automated (with justification)
+
+**Validation:** All SC-X from spec must appear in either `covered` or `manual_verification`.
+
 The `artifact` field MUST contain:
-1. Table of test files with their types and criteria coverage
+1. Coverage summary table showing each criterion and its test
 2. Description of each test and what it verifies
-3. Manual test plan section (if Option B was chosen for UI testing)
+3. Manual test plan section (if any criteria require manual verification)
 
 If blocked:
 ```json

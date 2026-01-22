@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // newConstitutionCmd creates the constitution command with subcommands.
@@ -28,8 +29,12 @@ Subcommands:
   set         Set the constitution from file or stdin
   show        Display the current constitution
   delete      Remove the constitution
+  template    Output a structured constitution template
 
 Examples:
+  # Generate a template
+  orc constitution template > CONSTITUTION.md
+
   # Set from file
   orc constitution set --file INVARIANTS.md
 
@@ -49,6 +54,7 @@ Examples:
 	cmd.AddCommand(newConstitutionSetCmd())
 	cmd.AddCommand(newConstitutionShowCmd())
 	cmd.AddCommand(newConstitutionDeleteCmd())
+	cmd.AddCommand(newConstitutionTemplateCmd())
 
 	return cmd
 }
@@ -241,4 +247,32 @@ func newConstitutionDeleteCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&force, "force", false, "Skip confirmation")
 
 	return cmd
+}
+
+// newConstitutionTemplateCmd creates the 'constitution template' subcommand.
+func newConstitutionTemplateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "template",
+		Short: "Output a structured constitution template",
+		Long: `Output a structured constitution template to stdout.
+
+The template provides a starting point for your project's constitution,
+with sections for invariants (absolute rules), defaults (flexible guidelines),
+and architectural decisions.
+
+Example:
+  # Generate template and save to file
+  orc constitution template > CONSTITUTION.md
+
+  # Edit the file, then set as constitution
+  orc constitution set --file CONSTITUTION.md`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			content, err := templates.Prompts.ReadFile("prompts/constitution_template.md")
+			if err != nil {
+				return fmt.Errorf("read constitution template: %w", err)
+			}
+			fmt.Fprint(cmd.OutOrStdout(), string(content))
+			return nil
+		},
+	}
 }
