@@ -556,6 +556,17 @@ export async function updateConfig(req: ConfigUpdateRequest): Promise<Config> {
 	});
 }
 
+export interface ConfigStats {
+	slashCommandsCount: number;
+	claudeMdSize: number;
+	mcpServersCount: number;
+	permissionsProfile: string;
+}
+
+export async function getConfigStats(): Promise<ConfigStats> {
+	return fetchJSON<ConfigStats>('/config/stats');
+}
+
 // SSE streaming
 export function subscribeToTask(
 	id: string,

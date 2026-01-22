@@ -22,7 +22,7 @@ import { QueueColumn } from './QueueColumn';
 import { RunningColumn } from './RunningColumn';
 import { BlockedPanel } from './BlockedPanel';
 import { DecisionsPanel } from './DecisionsPanel';
-import { ConfigPanel, type ConfigStats } from './ConfigPanel';
+import { ConfigPanel } from './ConfigPanel';
 import { FilesPanel, type ChangedFile } from './FilesPanel';
 import { CompletedPanel } from './CompletedPanel';
 import { useAppShell } from '@/components/layout/AppShellContext';
@@ -30,7 +30,7 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useInitiatives } from '@/stores/initiativeStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { submitDecision } from '@/lib/api';
+import { submitDecision, getConfigStats, type ConfigStats } from '@/lib/api';
 import type {
 	Task,
 	TaskState,
@@ -88,7 +88,7 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		new Set()
 	);
 	const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
-	const [configStats] = useState<ConfigStats | undefined>(undefined);
+	const [configStats, setConfigStats] = useState<ConfigStats>({ loading: true });
 	const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
 
 	// Derived state: filter tasks by status
@@ -301,6 +301,28 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 			unsubComplete();
 		};
 	}, [on]);
+
+	// Fetch config stats on mount
+	useEffect(() => {
+		let mounted = true;
+
+		getConfigStats()
+			.then((stats) => {
+				if (mounted) {
+					setConfigStats({ ...stats, loading: false });
+				}
+			})
+			.catch((error) => {
+				console.error('Failed to fetch config stats:', error);
+				if (mounted) {
+					setConfigStats({ loading: false });
+				}
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, []);
 
 	// Set right panel content on mount
 	useEffect(() => {
