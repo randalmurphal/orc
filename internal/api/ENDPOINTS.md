@@ -27,6 +27,7 @@ Full endpoint reference for the REST API.
 | `handlers_stats.go` | `/api/stats/*` | Activity heatmap data |
 | `handlers_session.go` | `/api/session` | Session metrics |
 | `handlers_metrics.go` | `/api/metrics/*` | JSONL-based analytics |
+| `handlers_events.go` | `/api/events` | Timeline event queries |
 | `handlers_diff.go` | `/api/tasks/:id/diff/*` | Git diffs |
 | `handlers_github.go` | `/api/tasks/:id/github/*` | GitHub PRs |
 | `handlers_initiatives.go` | `/api/initiatives/*` | Initiatives |
@@ -135,6 +136,21 @@ All support `?scope=global` for user-level config (`~/.claude/`):
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/stats/activity` | Get activity data for heatmap (`?weeks=16`) |
+
+## Events Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/events` | Query events for timeline display |
+
+**Query parameters:**
+- `task_id`: Filter by task
+- `initiative_id`: Filter by initiative (joins with tasks)
+- `since`: Start timestamp (ISO8601)
+- `until`: End timestamp (ISO8601)
+- `types`: Comma-separated event types
+- `limit`: Max results (default 100, max 1000)
+- `offset`: Pagination offset
 
 ## Metrics Endpoints
 
