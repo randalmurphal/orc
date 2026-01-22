@@ -1,57 +1,97 @@
+<context>
 # Implementation Phase
 
-You are implementing a task according to its specification.
+<task>
+ID: {{TASK_ID}}
+Title: {{TASK_TITLE}}
+Weight: {{WEIGHT}}
+Category: {{TASK_CATEGORY}}
+</task>
 
-## Context
+<project>
+Language: {{LANGUAGE}}
+Has Frontend: {{HAS_FRONTEND}}
+Test Command: {{TEST_COMMAND}}
+</project>
 
-**Task ID**: {{TASK_ID}}
-**Task**: {{TASK_TITLE}}
-**Weight**: {{WEIGHT}}
+<worktree_safety>
+Path: {{WORKTREE_PATH}}
+Branch: {{TASK_BRANCH}}
+Target: {{TARGET_BRANCH}}
+DO NOT push to {{TARGET_BRANCH}} or any protected branch.
+DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
+</worktree_safety>
 
 {{INITIATIVE_CONTEXT}}
+{{CONSTITUTION_CONTENT}}
 
-## Worktree Safety
-
-You are working in an **isolated git worktree**. This ensures your changes don't affect other work.
-
-| Property | Value |
-|----------|-------|
-| Worktree Path | `{{WORKTREE_PATH}}` |
-| Task Branch | `{{TASK_BRANCH}}` |
-| Target Branch | `{{TARGET_BRANCH}}` |
-
-**CRITICAL SAFETY RULES:**
-- You are on branch `{{TASK_BRANCH}}` - all commits go here
-- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch (main, master, develop, release)
-- **DO NOT** checkout `{{TARGET_BRANCH}}` - stay on your task branch
-- All merging is handled via PR after all phases complete
-- Git hooks are active to prevent accidental protected branch modifications
-
-## Specification
-
+<specification>
 {{SPEC_CONTENT}}
+</specification>
 
-## Design (if available)
-
+<design>
 {{DESIGN_CONTENT}}
+</design>
+
+<breakdown>
+{{BREAKDOWN_CONTENT}}
+</breakdown>
 
 {{RETRY_CONTEXT}}
+</context>
 
-## Instructions
+<tdd_tests>
+## Tests to Make Pass
 
-### Step 1: Review Specification
+{{TDD_TESTS_CONTENT}}
+
+Your implementation MUST make these tests pass.
+
+**Before claiming completion:**
+1. Run all tests: `{{TEST_COMMAND}}`
+2. All tests MUST pass
+
+**When tests fail:**
+1. First verify the test is correct against the spec
+2. If test matches spec: fix implementation
+3. If test contradicts spec: document as AMEND-xxx, fix BOTH spec and test
+4. NEVER delete a failing test without replacement
+5. NEVER change assertions just to make buggy code pass
+</tdd_tests>
+
+{{#if TDD_TEST_PLAN}}
+<manual_ui_testing>
+## Manual UI Testing Required
+
+{{TDD_TEST_PLAN}}
+
+Use Playwright MCP tools to execute this test plan:
+- `browser_navigate` to URLs
+- `browser_click` on elements
+- `browser_snapshot` to verify state
+- `browser_type` for form inputs
+
+Document test results in your completion output.
+</manual_ui_testing>
+{{/if}}
+
+<instructions>
+Implement the task according to its specification, making all TDD tests pass.
+
+## Step 1: Review Specification
 
 Re-read the spec. Your acceptance criteria are the success criteria listed.
 
 Pay special attention to:
 - **Preservation Requirements**: What must NOT change
 - **Feature Replacements**: What's being replaced and any migrations needed
+- **TDD Tests**: What tests must pass
 
-### Step 2: Impact Analysis (REQUIRED)
+## Step 2: Impact Analysis (REQUIRED)
 
-**Before writing any code**, analyze what will be affected by your changes.
+**Before writing any code**, analyze what will be affected.
 
-#### 2a. Find All Callers/Dependents
+### 2a. Find All Callers/Dependents
 
 For each file/function you plan to modify:
 
@@ -59,56 +99,61 @@ For each file/function you plan to modify:
 # Find who calls this function (Go)
 grep -r "FunctionName" --include="*.go" .
 
-# Find who imports this package
-grep -r "package/path" --include="*.go" .
-
 # Find references (TypeScript)
 grep -r "functionName\|ClassName" --include="*.ts" --include="*.tsx" .
 ```
 
-Or use LSP to find references if available.
-
-#### 2b. Create Dependency Map
+### 2b. Create Dependency Map
 
 | Code Being Changed | Who Uses It | Also Needs Update? |
 |--------------------|-------------|-------------------|
 | [function/file] | [list of callers] | Yes/No - [reason] |
 
-#### 2c. Verify Preservation Requirements
+### 2c. Verify Preservation Requirements
 
 Cross-check against the spec's Preservation Requirements table:
 - [ ] All preserved behaviors identified
 - [ ] Tests exist for each (or will be added)
 - [ ] No planned changes conflict with preservation requirements
 
-**Do NOT proceed to Step 3 until you've mapped dependencies.** Skipping this step leads to incomplete updates.
+**Do NOT proceed to Step 3 until you've mapped dependencies.**
 
-### Step 3: Plan Changes
+## Step 3: Follow Breakdown
 
-Based on your impact analysis, identify:
+{{#if BREAKDOWN_CONTENT}}
+**MANDATORY:** Complete items in the order specified in the breakdown above.
+
+For each item:
+1. Implement the specific changes listed
+2. Verify the linked TDD test now passes
+3. Check off the item (mentally track progress)
+4. Do NOT skip items or combine them arbitrarily
+{{else}}
+Plan your changes based on impact analysis:
 - New files to create
 - Existing files to modify (including dependents from Step 2)
 - Tests to write/update
+{{/if}}
 
-### Step 4: Implement
+## Step 4: Implement
 
-For each change:
+For each task/change:
 1. **Fully implement** all requirements - no partial solutions or TODOs
 2. **Update all dependents** identified in your impact analysis
 3. Follow existing code patterns
 4. Add appropriate error handling
 5. Include comments for non-obvious logic
 
-**Stay within scope** (don't add unrequested features), but **be thorough within that scope**.
+**Stay within scope** but **be thorough within that scope**.
 
-### Step 5: Handle Edge Cases
+## Step 5: Handle Edge Cases
 
 Check for:
 - Invalid input
 - Empty/null values
 - Boundary conditions
 
-### Step 6: Ensure Error Handling
+## Step 6: Ensure Error Handling
 
 Every error path should:
 - Have a clear error message
@@ -117,10 +162,13 @@ Every error path should:
 
 **No silent failures.**
 
-### Step 7: Self-Review
+## Step 7: Self-Review
 
 Before completing:
 - [ ] All success criteria addressed
+- [ ] All TDD tests pass
+- [ ] All breakdown items completed (if provided)
+- [ ] Items completed in dependency order (if provided)
 - [ ] All dependents from impact analysis updated
 - [ ] Preservation requirements verified (nothing accidentally removed)
 - [ ] Scope boundaries respected
@@ -132,8 +180,8 @@ Before completing:
 
 This phase is complete when:
 1. All spec success criteria are implemented
-2. Code compiles/runs without errors
-3. Basic tests pass (if tests exist)
+2. All TDD tests pass
+3. Code compiles/runs without errors
 
 ## Self-Correction
 
@@ -147,7 +195,7 @@ This phase is complete when:
 
 ## Spec Amendments
 
-If you discover the spec doesn't match reality (deprecated components, wrong assumptions, missing constraints), **do not silently adapt**. Instead, document amendments:
+If you discover the spec doesn't match reality, **document amendments**:
 
 ```markdown
 ## Amendments
@@ -157,12 +205,10 @@ If you discover the spec doesn't match reality (deprecated components, wrong ass
 **Actual:** [What you're doing instead]
 **Reason:** [Why the change is necessary]
 ```
+</instructions>
 
-Amendments preserve the original spec for audit while capturing what actually happened. Add amendments to your implementation artifact.
-
-## Phase Completion
-
-### Step 8: Verify All Criteria (REQUIRED)
+<verification>
+## Step 8: Verify All Criteria (REQUIRED)
 
 **Before claiming completion, you MUST verify each success criterion.**
 
@@ -174,43 +220,56 @@ For each criterion in the spec's Success Criteria table:
 
 **Do NOT mark phase complete until all verifications pass.**
 
-### Step 9: Quick Lint Check (Recommended)
+## Step 9: Run TDD Tests
 
-Before committing, run a quick lint check to catch obvious issues:
+```bash
+{{TEST_COMMAND}}
+```
+
+All TDD tests written in the tdd_write phase MUST pass. If any fail:
+1. Identify which test fails
+2. Fix the implementation (not the test)
+3. Re-run until all pass
+
+## Step 10: Quick Lint Check (Recommended)
+
+Before committing:
 
 ```bash
 # For Go projects
 go vet ./...
-# Or full linting if available:
-golangci-lint run ./...
 
 # For Node/TypeScript projects
-npm run typecheck   # Type check (tsc --noEmit)
-npm run lint        # ESLint
+npm run typecheck && npm run lint
 
 # For Python projects
 ruff check .
 ```
 
-**Note**: Full linting validation happens in the test phase, but catching issues early saves time.
-
 Common issues to watch for:
-- Unchecked error returns (Go errcheck)
+- Unchecked error returns
 - Unused imports/variables
-- Type errors (TypeScript)
+- Type errors
 - Formatting issues
+</verification>
 
-### Step 10: Output Completion
-
-When all success criteria pass, output JSON to signal completion:
+<output_format>
+When all success criteria and TDD tests pass, output JSON to signal completion:
 
 ```json
-{"status": "complete", "summary": "Implemented [feature]: [files changed count] files, all [criteria count] criteria verified"}
+{
+  "status": "complete",
+  "summary": "Implemented [feature]: [files changed count] files, all [criteria count] criteria verified, all tests pass"
+}
 ```
 
-**If any verification fails**, fix the implementation and re-verify. Only output completion when all criteria pass.
+**If any verification or test fails**, fix the implementation and re-verify. Only output completion when all pass.
 
-If blocked (cannot proceed), output:
+If blocked (cannot proceed):
 ```json
-{"status": "blocked", "reason": "[why blocked and what's needed]"}
+{
+  "status": "blocked",
+  "reason": "[why blocked and what's needed]"
+}
 ```
+</output_format>

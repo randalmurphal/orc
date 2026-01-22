@@ -107,6 +107,15 @@ func BuildExecutionContext(cfg ExecutionContextConfig) (*ExecutionContext, error
 	// Load spec content from database (specs are not stored as file artifacts)
 	vars = vars.WithSpecFromDatabase(cfg.Backend, t.ID)
 
+	// Load phase artifact content from database (tdd_write, breakdown, research)
+	vars = vars.WithArtifactsFromDatabase(cfg.Backend, t.ID)
+
+	// Load project detection for template variables (language, frameworks, test command, etc.)
+	vars = vars.WithProjectDetectionFromDatabase(cfg.Backend)
+
+	// Load constitution content (project-level principles that guide all tasks)
+	vars = vars.WithConstitutionFromDatabase(cfg.Backend)
+
 	// Load review context for review phases (round 2+ needs prior findings)
 	if p.ID == "review" {
 		round := 1

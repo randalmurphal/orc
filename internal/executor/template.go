@@ -51,7 +51,6 @@ type TemplateVars struct {
 	RetryContext     string
 	ResearchContent  string
 	SpecContent      string
-	DesignContent    string
 	ImplementContent string
 
 	// Verification results from implement phase (extracted from artifact)
@@ -85,6 +84,23 @@ type TemplateVars struct {
 	RecentChangedFiles   string // List of files changed in recent tasks
 	ChangelogContent     string // Current CHANGELOG.md content
 	ClaudeMDContent      string // Current CLAUDE.md content
+
+	// Project detection variables (from detect.Detect())
+	Language    string   // Primary language (go, typescript, python, etc.)
+	HasFrontend bool     // Whether project has a frontend
+	HasTests    bool     // Whether project has existing tests
+	TestCommand string   // Command to run tests (e.g., "go test ./...")
+	LintCommand string   // Command to run linting
+	BuildCommand string  // Command to build project
+	Frameworks  []string // Detected frameworks
+
+	// Constitution content (project principles)
+	ConstitutionContent string
+
+	// TDD phase artifacts
+	TDDTestsContent  string // Content from tdd_write phase (tests written)
+	TDDTestPlan      string // Manual UI test plan for Playwright MCP
+	BreakdownContent string // Breakdown content from breakdown phase
 }
 
 // UITestingContext holds UI testing-specific context for template rendering.
@@ -206,6 +222,19 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		requiresUITesting = "true"
 	}
 
+	// Format booleans as strings
+	hasFrontend := ""
+	if vars.HasFrontend {
+		hasFrontend = "true"
+	}
+	hasTests := ""
+	if vars.HasTests {
+		hasTests = "true"
+	}
+
+	// Format frameworks as comma-separated string
+	frameworks := strings.Join(vars.Frameworks, ", ")
+
 	replacements := map[string]string{
 		"{{TASK_ID}}":                vars.TaskID,
 		"{{TASK_TITLE}}":             vars.TaskTitle,
@@ -217,7 +246,6 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{RETRY_CONTEXT}}":          vars.RetryContext,
 		"{{RESEARCH_CONTENT}}":       vars.ResearchContent,
 		"{{SPEC_CONTENT}}":           specContent,
-		"{{DESIGN_CONTENT}}":         vars.DesignContent,
 		"{{IMPLEMENT_CONTENT}}":      vars.ImplementContent,
 		"{{IMPLEMENTATION_SUMMARY}}": vars.ImplementContent, // Alias for template compatibility
 		"{{VERIFICATION_RESULTS}}":   vars.VerificationResults,
@@ -251,6 +279,23 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		// Review phase context variables
 		"{{REVIEW_ROUND}}":    fmt.Sprintf("%d", vars.ReviewRound),
 		"{{REVIEW_FINDINGS}}": vars.ReviewFindings,
+
+		// Project detection variables
+		"{{LANGUAGE}}":      vars.Language,
+		"{{HAS_FRONTEND}}":  hasFrontend,
+		"{{HAS_TESTS}}":     hasTests,
+		"{{TEST_COMMAND}}":  vars.TestCommand,
+		"{{LINT_COMMAND}}":  vars.LintCommand,
+		"{{BUILD_COMMAND}}": vars.BuildCommand,
+		"{{FRAMEWORKS}}":    frameworks,
+
+		// Constitution content
+		"{{CONSTITUTION_CONTENT}}": vars.ConstitutionContent,
+
+		// TDD phase artifacts
+		"{{TDD_TESTS_CONTENT}}":  vars.TDDTestsContent,
+		"{{TDD_TEST_PLAN}}":      vars.TDDTestPlan,
+		"{{BREAKDOWN_CONTENT}}":  vars.BreakdownContent,
 	}
 
 	result := tmpl
@@ -260,6 +305,15 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 
 	// Process conditional blocks for review rounds
 	result = processReviewConditionals(result, vars.ReviewRound)
+
+	// Process conditional blocks for frontend/non-frontend
+	result = processFrontendConditionals(result, vars.HasFrontend)
+
+	// Process conditional blocks for TDD test plan
+	result = processTDDTestPlanConditional(result, vars.TDDTestPlan)
+
+	// Process conditional blocks for breakdown content
+	result = processBreakdownContentConditional(result, vars.BreakdownContent)
 
 	return result
 }
@@ -287,6 +341,60 @@ func processReviewConditionals(content string, reviewRound int) string {
 		content = round2Pattern.ReplaceAllString(content, "")
 	}
 
+	return content
+}
+
+// processFrontendConditionals handles {{#if HAS_FRONTEND}} and {{#if NOT_HAS_FRONTEND}} blocks.
+// Used for UI-aware TDD test generation.
+func processFrontendConditionals(content string, hasFrontend bool) string {
+	// Process HAS_FRONTEND blocks
+	frontendPattern := regexp.MustCompile(`(?s)\{\{#if HAS_FRONTEND\}\}(.*?)\{\{/if\}\}`)
+	if hasFrontend {
+		// Keep the content inside the block
+		content = frontendPattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = frontendPattern.ReplaceAllString(content, "")
+	}
+
+	// Process NOT_HAS_FRONTEND blocks
+	noFrontendPattern := regexp.MustCompile(`(?s)\{\{#if NOT_HAS_FRONTEND\}\}(.*?)\{\{/if\}\}`)
+	if !hasFrontend {
+		// Keep the content inside the block
+		content = noFrontendPattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = noFrontendPattern.ReplaceAllString(content, "")
+	}
+
+	return content
+}
+
+// processTDDTestPlanConditional handles {{#if TDD_TEST_PLAN}} blocks.
+// Used to include manual UI testing instructions when a test plan exists.
+func processTDDTestPlanConditional(content string, testPlan string) string {
+	pattern := regexp.MustCompile(`(?s)\{\{#if TDD_TEST_PLAN\}\}(.*?)\{\{/if\}\}`)
+	if testPlan != "" {
+		// Keep the content inside the block
+		content = pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = pattern.ReplaceAllString(content, "")
+	}
+	return content
+}
+
+// processBreakdownContentConditional handles {{#if BREAKDOWN_CONTENT}} blocks.
+// Used to include breakdown-specific instructions when breakdown content exists.
+func processBreakdownContentConditional(content string, breakdownContent string) string {
+	pattern := regexp.MustCompile(`(?s)\{\{#if BREAKDOWN_CONTENT\}\}(.*?)\{\{/if\}\}`)
+	if breakdownContent != "" {
+		// Keep the content inside the block
+		content = pattern.ReplaceAllString(content, "$1")
+	} else {
+		// Remove the entire block
+		content = pattern.ReplaceAllString(content, "")
+	}
 	return content
 }
 
@@ -347,8 +455,19 @@ func BuildTemplateVars(
 	taskDir := task.TaskDir(t.ID)
 	vars.ResearchContent = loadPriorContent(taskDir, s, "research")
 	vars.SpecContent = loadPriorContent(taskDir, s, "spec")
-	vars.DesignContent = loadPriorContent(taskDir, s, "design")
+	// Also check for tiny_spec (combined spec+TDD for trivial/small tasks)
+	if vars.SpecContent == "" {
+		vars.SpecContent = loadPriorContent(taskDir, s, "tiny_spec")
+	}
 	vars.ImplementContent = loadPriorContent(taskDir, s, "implement")
+
+	// Load TDD phase content for implement phase
+	vars.TDDTestsContent = loadPriorContent(taskDir, s, "tdd_write")
+	// Also check tiny_spec for TDD content (combined spec+TDD)
+	if vars.TDDTestsContent == "" {
+		vars.TDDTestsContent = loadPriorContent(taskDir, s, "tiny_spec")
+	}
+	vars.BreakdownContent = loadPriorContent(taskDir, s, "breakdown")
 
 	// Extract verification results from implement content
 	if vars.ImplementContent != "" {
@@ -411,6 +530,72 @@ func (v TemplateVars) WithAutomationContext(ctx AutomationContext) TemplateVars 
 	return v
 }
 
+// ProjectDetectionContext holds project detection results for template rendering.
+type ProjectDetectionContext struct {
+	Language     string
+	HasFrontend  bool
+	HasTests     bool
+	TestCommand  string
+	LintCommand  string
+	BuildCommand string
+	Frameworks   []string
+}
+
+// WithProjectDetection returns a copy of the vars with project detection context applied.
+func (v TemplateVars) WithProjectDetection(ctx ProjectDetectionContext) TemplateVars {
+	v.Language = ctx.Language
+	v.HasFrontend = ctx.HasFrontend
+	v.HasTests = ctx.HasTests
+	v.TestCommand = ctx.TestCommand
+	v.LintCommand = ctx.LintCommand
+	v.BuildCommand = ctx.BuildCommand
+	v.Frameworks = ctx.Frameworks
+	return v
+}
+
+// WithProjectDetectionFromDatabase returns a copy of the vars with project detection loaded
+// from the database. This loads the detection results stored during project initialization.
+func (v TemplateVars) WithProjectDetectionFromDatabase(backend storage.Backend) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	// Type assert to get access to the underlying database
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
+	if !ok {
+		slog.Debug("backend is not DatabaseBackend, skipping project detection")
+		return v
+	}
+
+	detection, err := dbBackend.DB().LoadDetection()
+	if err != nil {
+		slog.Debug("failed to load project detection from database", "error", err)
+		return v
+	}
+	if detection == nil {
+		slog.Debug("no project detection found in database")
+		return v
+	}
+
+	// Determine HasFrontend from frameworks (look for frontend-related frameworks)
+	hasFrontend := false
+	for _, f := range detection.Frameworks {
+		switch f {
+		case "react", "vue", "angular", "svelte", "nextjs", "nuxt", "gatsby", "astro":
+			hasFrontend = true
+		}
+	}
+
+	return v.WithProjectDetection(ProjectDetectionContext{
+		Language:    detection.Language,
+		HasFrontend: hasFrontend,
+		HasTests:    detection.HasTests,
+		TestCommand: detection.TestCommand,
+		LintCommand: detection.LintCommand,
+		Frameworks:  detection.Frameworks,
+	})
+}
+
 // WithSpecFromDatabase returns a copy of the vars with spec content loaded from the database.
 // This is the preferred method for loading spec content, as specs are stored exclusively
 // in the database (not as file artifacts) to avoid merge conflicts in worktrees.
@@ -429,6 +614,64 @@ func (v TemplateVars) WithSpecFromDatabase(backend storage.Backend, taskID strin
 	}
 	if specContent != "" {
 		v.SpecContent = specContent
+	}
+	return v
+}
+
+// WithArtifactsFromDatabase returns a copy of the vars with artifact content loaded
+// from the database. This includes: ResearchContent, TDDTestsContent, BreakdownContent.
+// SpecContent is loaded separately via WithSpecFromDatabase.
+// If the backend is nil or loading fails, the original content is preserved.
+func (v TemplateVars) WithArtifactsFromDatabase(backend storage.Backend, taskID string) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	// Load all artifacts for this task from the database
+	artifacts, err := backend.LoadAllArtifacts(taskID)
+	if err != nil {
+		slog.Debug("failed to load artifacts from database",
+			"task_id", taskID,
+			"error", err,
+		)
+		return v
+	}
+
+	// Apply each artifact if present (DB takes precedence over file-based)
+	if content, ok := artifacts["research"]; ok && content != "" {
+		v.ResearchContent = content
+	}
+	if content, ok := artifacts["tdd_write"]; ok && content != "" {
+		v.TDDTestsContent = content
+	}
+	if content, ok := artifacts["breakdown"]; ok && content != "" {
+		v.BreakdownContent = content
+	}
+	// tiny_spec can also contain TDD content (combined spec+TDD for trivial/small)
+	if v.TDDTestsContent == "" {
+		if content, ok := artifacts["tiny_spec"]; ok && content != "" {
+			v.TDDTestsContent = content
+		}
+	}
+
+	return v
+}
+
+// WithConstitutionFromDatabase returns a copy of the vars with constitution content loaded
+// from the database. The constitution contains project-level principles that guide all tasks.
+// If no constitution is configured or loading fails, the original content is preserved.
+func (v TemplateVars) WithConstitutionFromDatabase(backend storage.Backend) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	content, _, err := backend.LoadConstitution()
+	if err != nil {
+		// Don't log for ErrNoConstitution - that's expected when not configured
+		return v
+	}
+	if content != "" {
+		v.ConstitutionContent = content
 	}
 	return v
 }

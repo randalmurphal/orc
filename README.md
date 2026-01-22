@@ -45,11 +45,10 @@ Not all tasks deserve the same process. Orc classifies tasks into weights, and w
 
 | Weight | What It Means | Phases |
 |--------|---------------|--------|
-| **trivial** | Typo fix, one-liner | implement |
-| **small** | Single component change | implement → test |
-| **medium** | Multiple files, clear scope | spec → implement → review → test → docs |
-| **large** | Cross-cutting, needs design | research → spec → design → implement → review → test → docs → validate |
-| **greenfield** | New system from scratch | Full lifecycle with architecture |
+| **trivial** | Typo fix, one-liner | tiny_spec → implement |
+| **small** | Single component change | tiny_spec → implement → review |
+| **medium** | Multiple files, clear scope | spec → tdd_write → implement → review → docs |
+| **large** | Complex, cross-cutting, new systems | spec → tdd_write → breakdown → implement → review → docs → validate |
 
 AI classifies automatically. Override when you know better:
 

@@ -3,18 +3,13 @@ package gate
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
-	"text/template"
 
-	"github.com/randalmurphal/llmkit/claude"
-	"github.com/randalmurphal/orc/internal/llmutil"
 	"github.com/randalmurphal/orc/internal/plan"
-	"github.com/randalmurphal/orc/templates"
 )
 
 // Decision represents a gate evaluation result.
@@ -25,42 +20,13 @@ type Decision struct {
 }
 
 // Evaluator evaluates gates between phases.
-type Evaluator struct {
-	client claude.Client
-}
+// Note: The struct is kept for API compatibility but no longer requires a client.
+type Evaluator struct{}
 
 // New creates a new gate evaluator.
-func New(client claude.Client) *Evaluator {
-	return &Evaluator{client: client}
-}
-
-// JSON schema for AI gate evaluation response.
-const gateDecisionSchema = `{
-	"type": "object",
-	"properties": {
-		"decision": {
-			"type": "string",
-			"enum": ["APPROVED", "REJECTED", "NEEDS_CLARIFICATION"],
-			"description": "The evaluation decision"
-		},
-		"reason": {
-			"type": "string",
-			"description": "Explanation for the decision"
-		},
-		"questions": {
-			"type": "array",
-			"items": {"type": "string"},
-			"description": "Questions if clarification is needed (empty otherwise)"
-		}
-	},
-	"required": ["decision", "reason", "questions"]
-}`
-
-// gateResponse is the JSON structure for AI gate evaluation.
-type gateResponse struct {
-	Decision  string   `json:"decision"`
-	Reason    string   `json:"reason"`
-	Questions []string `json:"questions"`
+// Note: Client parameter kept for API compatibility but is no longer used.
+func New(_ any) *Evaluator {
+	return &Evaluator{}
 }
 
 // Evaluate determines if a gate passes.
@@ -68,8 +34,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, gate *plan.Gate, phaseOutput s
 	switch gate.Type {
 	case plan.GateAuto:
 		return e.evaluateAuto(gate, phaseOutput)
-	case plan.GateAI:
-		return e.evaluateAI(ctx, gate, phaseOutput)
 	case plan.GateHuman:
 		return e.requestHumanApproval(gate)
 	default:
@@ -132,64 +96,6 @@ func (e *Evaluator) evaluateAuto(gate *plan.Gate, phaseOutput string) (*Decision
 	}, nil
 }
 
-// evaluateAI uses Claude to evaluate the gate.
-func (e *Evaluator) evaluateAI(ctx context.Context, gate *plan.Gate, phaseOutput string) (*Decision, error) {
-	if e.client == nil {
-		return nil, fmt.Errorf("AI gate requires LLM client")
-	}
-
-	// Load template from centralized templates
-	tmplContent, err := templates.Prompts.ReadFile("prompts/gate_evaluation.md")
-	if err != nil {
-		return nil, fmt.Errorf("read gate evaluation template: %w", err)
-	}
-
-	tmpl, err := template.New("gate_evaluation").Parse(string(tmplContent))
-	if err != nil {
-		return nil, fmt.Errorf("parse gate evaluation template: %w", err)
-	}
-
-	data := map[string]any{
-		"Criteria":    formatCriteria(gate.Criteria),
-		"PhaseOutput": truncateOutput(phaseOutput, 4000),
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return nil, fmt.Errorf("execute gate evaluation template: %w", err)
-	}
-
-	prompt := buf.String()
-
-	// Use consolidated schema executor - no fallbacks, explicit errors
-	schemaResult, err := llmutil.ExecuteWithSchema[gateResponse](ctx, e.client, prompt, gateDecisionSchema)
-	if err != nil {
-		return nil, fmt.Errorf("AI evaluation failed: %w", err)
-	}
-
-	decision := strings.ToUpper(schemaResult.Data.Decision)
-	switch decision {
-	case "APPROVED":
-		return &Decision{
-			Approved: true,
-			Reason:   schemaResult.Data.Reason,
-		}, nil
-	case "REJECTED":
-		return &Decision{
-			Approved: false,
-			Reason:   schemaResult.Data.Reason,
-		}, nil
-	case "NEEDS_CLARIFICATION":
-		return &Decision{
-			Approved:  false,
-			Reason:    schemaResult.Data.Reason,
-			Questions: schemaResult.Data.Questions,
-		}, nil
-	default:
-		return nil, fmt.Errorf("unexpected decision: %s", schemaResult.Data.Decision)
-	}
-}
-
 // requestHumanApproval prompts for human approval.
 func (e *Evaluator) requestHumanApproval(gate *plan.Gate) (*Decision, error) {
 	fmt.Println("\n👤 Human approval required")
@@ -245,25 +151,4 @@ func (e *Evaluator) requestHumanApproval(gate *plan.Gate) (*Decision, error) {
 			Reason:   "invalid input",
 		}, nil
 	}
-}
-
-// formatCriteria formats criteria for the AI prompt.
-func formatCriteria(criteria []string) string {
-	if len(criteria) == 0 {
-		return "- General quality and completeness"
-	}
-
-	var lines []string
-	for _, c := range criteria {
-		lines = append(lines, "- "+c)
-	}
-	return strings.Join(lines, "\n")
-}
-
-// truncateOutput truncates output to a maximum length.
-func truncateOutput(output string, maxLen int) string {
-	if len(output) <= maxLen {
-		return output
-	}
-	return output[:maxLen] + "\n... (truncated)"
 }

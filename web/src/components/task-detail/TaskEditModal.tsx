@@ -8,7 +8,7 @@ import { useInitiatives } from '@/stores';
 import type { Task, TaskWeight, TaskPriority, TaskCategory, TaskQueue } from '@/lib/types';
 import './TaskEditModal.css';
 
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large', 'greenfield'];
+const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
 const PRIORITIES: TaskPriority[] = ['critical', 'high', 'normal', 'low'];
 const CATEGORIES: TaskCategory[] = ['feature', 'bug', 'refactor', 'chore', 'docs', 'test'];
 const QUEUES: TaskQueue[] = ['active', 'backlog'];

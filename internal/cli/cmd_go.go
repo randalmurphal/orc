@@ -56,23 +56,20 @@ WEIGHT SELECTION (Critical for quality)
 
 Weight determines which phases run. Default is 'medium'.
 
-  trivial    → implement only (NO spec, NO tests)
+  trivial    → tiny_spec → implement
              Use for: typos, config tweaks, one-liners
 
-  small      → implement → test
+  small      → tiny_spec → implement → review
              Use for: bug fixes, isolated changes
 
-  medium     → spec → implement → review → test → docs (DEFAULT)
-             Use for: features needing design thought
+  medium     → spec → tdd_write → implement → review → docs (DEFAULT)
+             Use for: features needing thought
 
-  large      → spec → design → implement → review → test → docs → validate
-             Use for: complex multi-file features
+  large      → spec → tdd_write → breakdown → implement → review → docs → validate
+             Use for: complex multi-file features, new systems
 
-  greenfield → research → spec → design → implement → review → test → docs → validate
-             Use for: new systems, major features
-
-The 'spec' phase generates Success Criteria and Testing requirements - this is what
-makes non-trivial tasks succeed. The 'review' phase runs 5 specialized code reviewers.
+The 'spec/tiny_spec' phase generates Success Criteria. The 'tdd_write' phase writes
+failing tests BEFORE implementation. The 'review' phase runs 5 specialized code reviewers.
 
 ⚠️  Under-weighting is the #1 cause of poor results.
     A "medium" task run as "small" skips spec → Claude guesses → poor results.

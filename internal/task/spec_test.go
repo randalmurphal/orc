@@ -83,7 +83,6 @@ Unit tests cover all public functions. Integration tests verify end-to-end behav
 		{"small weight", WeightSmall},
 		{"medium weight", WeightMedium},
 		{"large weight", WeightLarge},
-		{"greenfield weight", WeightGreenfield},
 	}
 
 	for _, tt := range tests {

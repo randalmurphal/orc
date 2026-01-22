@@ -652,16 +652,6 @@ func TestShouldRunParallelReview(t *testing.T) {
 			weight:   "large",
 			expected: true,
 		},
-		{
-			name: "greenfield weight with parallel enabled returns true",
-			cfg: &config.Config{
-				Review: config.ReviewConfig{
-					Parallel: config.ParallelReviewConfig{Enabled: true},
-				},
-			},
-			weight:   "greenfield",
-			expected: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -833,8 +823,6 @@ func taskWeightFromString(s string) task.Weight {
 		return task.WeightMedium
 	case "large":
 		return task.WeightLarge
-	case "greenfield":
-		return task.WeightGreenfield
 	default:
 		return task.WeightSmall
 	}

@@ -52,30 +52,27 @@ WEIGHT SELECTION (Determines phases & quality gates)
 Weight determines which phases run. Choose based on COMPLEXITY, not time:
 
   trivial    One-liner fixes, typos, config tweaks
-             → implement only (NO spec required)
+             → tiny_spec → implement
              Example: "Fix typo in error message"
 
   small      Bug fixes, small features, isolated changes
-             → implement → test
+             → tiny_spec → implement → review
              Example: "Add validation for email field"
 
   medium     Features requiring design thought (DEFAULT)
-             → spec → implement → review → test → docs
+             → spec → tdd_write → implement → review → docs
              Example: "Add password reset flow"
 
-  large      Complex features, multi-file changes, architecture decisions
-             → spec → design → implement → review → test → docs → validate
+  large      Complex features, multi-file changes, new systems
+             → spec → tdd_write → breakdown → implement → review → docs → validate
              Example: "Implement caching layer for API"
 
-  greenfield New systems, major features requiring research
-             → research → spec → design → implement → review → test → docs → validate
-             Example: "Design and implement plugin system"
-
 Key phases:
-  • spec      Creates Success Criteria + Testing requirements (REQUIRED for quality)
-  • design    Architecture decisions for large/complex work
-  • review    Multi-agent code review (5 specialized reviewers)
-  • validate  Final verification against all success criteria
+  • spec/tiny_spec  Creates Success Criteria + Testing requirements (REQUIRED for quality)
+  • tdd_write       Writes failing tests BEFORE implementation (context isolation)
+  • breakdown       Decomposes large tasks into checkboxed steps
+  • review          Multi-agent code review (5 specialized reviewers)
+  • validate        Final verification against all success criteria
 
 Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 

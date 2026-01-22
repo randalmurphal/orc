@@ -46,7 +46,7 @@ const (
 	ProfileAuto AutomationProfile = "auto"
 	// ProfileFast - minimal gates, speed over safety
 	ProfileFast AutomationProfile = "fast"
-	// ProfileSafe - AI gates for review phases, human for merge only
+	// ProfileSafe - auto gates with human approval for merge
 	ProfileSafe AutomationProfile = "safe"
 	// ProfileStrict - human gates on spec/review/merge for critical projects
 	ProfileStrict AutomationProfile = "strict"
@@ -869,9 +869,6 @@ type ModelsConfig struct {
 
 	// Large overrides for large weight tasks.
 	Large WeightModelConfig `yaml:"large,omitempty"`
-
-	// Greenfield overrides for greenfield weight tasks.
-	Greenfield WeightModelConfig `yaml:"greenfield,omitempty"`
 }
 
 // DatabaseConfig defines database connection settings.
@@ -1143,8 +1140,6 @@ func (c *Config) ResolveModelSetting(weight, phase string) PhaseModelSetting {
 		weightConfig = c.Models.Medium
 	case "large":
 		weightConfig = c.Models.Large
-	case "greenfield":
-		weightConfig = c.Models.Greenfield
 	}
 
 	// Check weight-specific phase setting
@@ -1482,16 +1477,6 @@ func Default() *Config {
 				"test":      {Model: "sonnet", Thinking: false},
 				"validate":  {Model: "opus", Thinking: true},
 			},
-			// Greenfield: thinking for research/spec/design/review, sonnet for test
-			Greenfield: WeightModelConfig{
-				"research":  {Model: "opus", Thinking: true},
-				"spec":      {Model: "opus", Thinking: true},
-				"design":    {Model: "opus", Thinking: true},
-				"implement": {Model: "opus", Thinking: false},
-				"review":    {Model: "opus", Thinking: true},
-				"test":      {Model: "sonnet", Thinking: false},
-				"validate":  {Model: "opus", Thinking: true},
-			},
 		},
 		Model:                      "opus",
 		MaxIterations:              30,
@@ -1602,7 +1587,7 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 			},
 		}
 	case ProfileSafe:
-		// Safe: AI reviews, merge strategy (preserves history), risk assessment
+		// Safe: auto gates, human approval for merge
 		// No auto-trigger on approval - wait for human decision
 		return FinalizeConfig{
 			Enabled:               true,
@@ -1619,7 +1604,7 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 				ReReviewThreshold: "medium", // Lower threshold for safety
 			},
 			Gates: FinalizeGatesConfig{
-				PreMerge: "ai", // AI gate before merge
+				PreMerge: "human", // Human approval before merge
 			},
 		}
 	case ProfileStrict:
@@ -2374,7 +2359,7 @@ var (
 	ValidRiskLevels = []string{"low", "medium", "high", "critical", ""}
 
 	// ValidGateTypes are the allowed values for gate types
-	ValidGateTypes = []string{"auto", "ai", "human", "none", ""}
+	ValidGateTypes = []string{"auto", "human", "none", ""}
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}

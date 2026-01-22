@@ -48,8 +48,7 @@ func (e *CountEvaluator) Evaluate(ctx context.Context, trigger *Trigger, event *
 	case "tasks_completed":
 		shouldCount = event.Type == EventTaskCompleted
 	case "large_tasks_completed":
-		shouldCount = event.Type == EventTaskCompleted &&
-			(event.Weight == "large" || event.Weight == "greenfield")
+		shouldCount = event.Type == EventTaskCompleted && event.Weight == "large"
 	case "phases_completed":
 		shouldCount = event.Type == EventPhaseCompleted
 	}
