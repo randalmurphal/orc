@@ -216,6 +216,18 @@ Run `orc initiative --help` for full subcommand list.
 
 **Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
 
+### Plan Migration
+
+Plans auto-migrate when `orc run` detects staleness (template version change, phase sequence change, inline prompts). Manual migration available:
+
+| Command | Purpose |
+|---------|---------|
+| `orc migrate plans TASK-ID` | Migrate single task plan |
+| `orc migrate plans --all` | Migrate all stale plans |
+| `orc migrate plans --all --dry-run` | Preview migrations |
+
+Migration preserves completed/skipped phase statuses.
+
 ### Key Insight: Help Text = Documentation
 
 Each command's `--help` contains detailed guidance on:
