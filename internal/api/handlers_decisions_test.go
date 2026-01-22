@@ -171,6 +171,104 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 	}
 }
 
+func TestHandleListDecisions(t *testing.T) {
+	srv, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Empty list initially
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/decisions", nil)
+
+	srv.handleListDecisions(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var resp []PendingDecisionItem
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp) != 0 {
+		t.Errorf("expected 0 decisions, got %d", len(resp))
+	}
+
+	// Add pending decisions
+	now := time.Now()
+	decision1 := &gate.PendingDecision{
+		DecisionID:  "gate_TASK-001_review_123",
+		TaskID:      "TASK-001",
+		TaskTitle:   "First Task",
+		Phase:       "review",
+		GateType:    "human",
+		Question:    "Approve first?",
+		RequestedAt: now,
+	}
+	srv.pendingDecisions.Add(decision1)
+
+	decision2 := &gate.PendingDecision{
+		DecisionID:  "gate_TASK-002_implement_456",
+		TaskID:      "TASK-002",
+		TaskTitle:   "Second Task",
+		Phase:       "implement",
+		GateType:    "ai",
+		Question:    "Approve second?",
+		Context:     "Some context here",
+		RequestedAt: now.Add(time.Minute),
+	}
+	srv.pendingDecisions.Add(decision2)
+
+	// List decisions
+	w2 := httptest.NewRecorder()
+	r2 := httptest.NewRequest("GET", "/api/decisions", nil)
+
+	srv.handleListDecisions(w2, r2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w2.Code)
+	}
+
+	var resp2 []PendingDecisionItem
+	if err := json.NewDecoder(w2.Body).Decode(&resp2); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp2) != 2 {
+		t.Errorf("expected 2 decisions, got %d", len(resp2))
+	}
+
+	// Verify decision fields are populated correctly
+	found := make(map[string]bool)
+	for _, d := range resp2 {
+		found[d.DecisionID] = true
+		if d.DecisionID == "gate_TASK-001_review_123" {
+			if d.TaskID != "TASK-001" {
+				t.Errorf("expected TaskID TASK-001, got %s", d.TaskID)
+			}
+			if d.TaskTitle != "First Task" {
+				t.Errorf("expected TaskTitle 'First Task', got %s", d.TaskTitle)
+			}
+			if d.Phase != "review" {
+				t.Errorf("expected Phase 'review', got %s", d.Phase)
+			}
+			if d.GateType != "human" {
+				t.Errorf("expected GateType 'human', got %s", d.GateType)
+			}
+			if d.Question != "Approve first?" {
+				t.Errorf("expected Question 'Approve first?', got %s", d.Question)
+			}
+		}
+		if d.DecisionID == "gate_TASK-002_implement_456" {
+			if d.Context != "Some context here" {
+				t.Errorf("expected Context 'Some context here', got %s", d.Context)
+			}
+		}
+	}
+
+	if !found["gate_TASK-001_review_123"] || !found["gate_TASK-002_implement_456"] {
+		t.Error("missing expected decision IDs")
+	}
+}
+
 func TestHandlePostDecision_Reject(t *testing.T) {
 	srv, cleanup := setupTestServer(t)
 	defer cleanup()

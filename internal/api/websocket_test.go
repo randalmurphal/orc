@@ -722,10 +722,7 @@ func TestWSHandler_DecisionRequired(t *testing.T) {
 	}
 	pub.Publish(events.NewEvent(events.EventDecisionRequired, "TASK-001", decisionData))
 
-	// Give time for event to be forwarded
-	time.Sleep(100 * time.Millisecond)
-
-	// Read event
+	// Read event (deadline handles timeout)
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
@@ -810,10 +807,7 @@ func TestWSHandler_DecisionResolved(t *testing.T) {
 	}
 	pub.Publish(events.NewEvent(events.EventDecisionResolved, "TASK-001", resolvedData))
 
-	// Give time for event to be forwarded
-	time.Sleep(100 * time.Millisecond)
-
-	// Read event
+	// Read event (deadline handles timeout)
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
@@ -885,10 +879,7 @@ func TestWSHandler_FilesChanged(t *testing.T) {
 	}
 	pub.Publish(events.NewEvent(events.EventFilesChanged, "TASK-001", filesData))
 
-	// Give time for event to be forwarded
-	time.Sleep(100 * time.Millisecond)
-
-	// Read event
+	// Read event (deadline handles timeout)
 	_ = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := ws.ReadMessage()
 	if err != nil {
