@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -272,8 +273,7 @@ func TestHandleGetTranscripts_CursorNavigation(t *testing.T) {
 	}
 
 	// Get second page using cursor
-	req2 := httptest.NewRequest("GET", "/api/tasks/TASK-TEST/transcripts?limit=2&cursor="+
-		string(rune(*page1.Pagination.NextCursor)), nil)
+	req2 := httptest.NewRequest("GET", fmt.Sprintf("/api/tasks/TASK-TEST/transcripts?limit=2&cursor=%d", *page1.Pagination.NextCursor), nil)
 	w2 := httptest.NewRecorder()
 	srv.mux.ServeHTTP(w2, req2)
 
