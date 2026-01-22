@@ -23,14 +23,21 @@ type EventLog struct {
 	DurationMs *int64 // nullable
 }
 
+// EventLogWithTitle extends EventLog with task title for API responses.
+type EventLogWithTitle struct {
+	EventLog
+	TaskTitle string
+}
+
 // QueryEventsOptions specifies filters for querying events.
 type QueryEventsOptions struct {
-	TaskID     string
-	Since      *time.Time
-	Until      *time.Time
-	EventTypes []string
-	Limit      int
-	Offset     int
+	TaskID       string
+	InitiativeID string
+	Since        *time.Time
+	Until        *time.Time
+	EventTypes   []string
+	Limit        int
+	Offset       int
 }
 
 // SaveEvent inserts an event into the event_log table.
@@ -220,4 +227,191 @@ func scanEventLogs(rows *sql.Rows) ([]EventLog, error) {
 	}
 
 	return events, nil
+}
+
+// QueryEventsWithTitles retrieves events with task titles joined from tasks table.
+// This is used for API responses where task titles are needed for display.
+// Results are returned in descending created_at order (newest first).
+func (p *ProjectDB) QueryEventsWithTitles(opts QueryEventsOptions) ([]EventLogWithTitle, error) {
+	var query strings.Builder
+	var args []any
+
+	query.WriteString(`
+		SELECT
+			e.id, e.task_id, e.phase, e.iteration, e.event_type, e.data, e.source, e.created_at, e.duration_ms,
+			COALESCE(t.title, '') as task_title
+		FROM event_log e
+		LEFT JOIN tasks t ON e.task_id = t.id
+		WHERE 1=1
+	`)
+
+	// Filter by task_id
+	if opts.TaskID != "" {
+		query.WriteString(" AND e.task_id = ?")
+		args = append(args, opts.TaskID)
+	}
+
+	// Filter by initiative_id (requires task join)
+	if opts.InitiativeID != "" {
+		query.WriteString(" AND t.initiative_id = ?")
+		args = append(args, opts.InitiativeID)
+	}
+
+	// Filter by time range (since)
+	if opts.Since != nil {
+		query.WriteString(" AND e.created_at >= ?")
+		args = append(args, opts.Since.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	// Filter by time range (until)
+	if opts.Until != nil {
+		query.WriteString(" AND e.created_at <= ?")
+		args = append(args, opts.Until.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	// Filter by event types
+	if len(opts.EventTypes) > 0 {
+		placeholders := make([]string, len(opts.EventTypes))
+		for i, et := range opts.EventTypes {
+			placeholders[i] = "?"
+			args = append(args, et)
+		}
+		query.WriteString(" AND e.event_type IN (")
+		query.WriteString(strings.Join(placeholders, ", "))
+		query.WriteString(")")
+	}
+
+	// Order by created_at descending
+	query.WriteString(" ORDER BY e.created_at DESC, e.id DESC")
+
+	// Apply pagination
+	if opts.Limit > 0 {
+		query.WriteString(" LIMIT ?")
+		args = append(args, opts.Limit)
+
+		if opts.Offset > 0 {
+			query.WriteString(" OFFSET ?")
+			args = append(args, opts.Offset)
+		}
+	}
+
+	rows, err := p.Query(query.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("query events with titles: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var events []EventLogWithTitle
+	for rows.Next() {
+		var e EventLogWithTitle
+		var phase, dataJSON sql.NullString
+		var iteration sql.NullInt64
+		var durationMs sql.NullInt64
+		var createdAt string
+
+		if err := rows.Scan(
+			&e.ID, &e.TaskID, &phase, &iteration, &e.EventType,
+			&dataJSON, &e.Source, &createdAt, &durationMs,
+			&e.TaskTitle,
+		); err != nil {
+			return nil, fmt.Errorf("scan event with title: %w", err)
+		}
+
+		if phase.Valid {
+			e.Phase = &phase.String
+		}
+		if iteration.Valid {
+			i := int(iteration.Int64)
+			e.Iteration = &i
+		}
+		if durationMs.Valid {
+			e.DurationMs = &durationMs.Int64
+		}
+
+		// Parse created_at timestamp
+		if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			e.CreatedAt = t.UTC()
+		}
+
+		// Parse JSON data
+		if dataJSON.Valid && dataJSON.String != "" {
+			var data any
+			if err := json.Unmarshal([]byte(dataJSON.String), &data); err == nil {
+				e.Data = data
+			} else {
+				// Store as raw string if not valid JSON
+				e.Data = dataJSON.String
+			}
+		}
+
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate events with titles: %w", err)
+	}
+
+	return events, nil
+}
+
+// CountEvents returns the total count of events matching the specified filters.
+// Used for pagination metadata.
+func (p *ProjectDB) CountEvents(opts QueryEventsOptions) (int, error) {
+	var query strings.Builder
+	var args []any
+
+	query.WriteString(`
+		SELECT COUNT(*)
+		FROM event_log e
+	`)
+
+	// Add task join if needed for initiative filter
+	if opts.InitiativeID != "" {
+		query.WriteString(" LEFT JOIN tasks t ON e.task_id = t.id")
+	}
+
+	query.WriteString(" WHERE 1=1")
+
+	// Filter by task_id
+	if opts.TaskID != "" {
+		query.WriteString(" AND e.task_id = ?")
+		args = append(args, opts.TaskID)
+	}
+
+	// Filter by initiative_id (requires task join)
+	if opts.InitiativeID != "" {
+		query.WriteString(" AND t.initiative_id = ?")
+		args = append(args, opts.InitiativeID)
+	}
+
+	// Filter by time range (since)
+	if opts.Since != nil {
+		query.WriteString(" AND e.created_at >= ?")
+		args = append(args, opts.Since.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	// Filter by time range (until)
+	if opts.Until != nil {
+		query.WriteString(" AND e.created_at <= ?")
+		args = append(args, opts.Until.UTC().Format("2006-01-02 15:04:05"))
+	}
+
+	// Filter by event types
+	if len(opts.EventTypes) > 0 {
+		placeholders := make([]string, len(opts.EventTypes))
+		for i, et := range opts.EventTypes {
+			placeholders[i] = "?"
+			args = append(args, et)
+		}
+		query.WriteString(" AND e.event_type IN (")
+		query.WriteString(strings.Join(placeholders, ", "))
+		query.WriteString(")")
+	}
+
+	var count int
+	err := p.QueryRow(query.String(), args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count events: %w", err)
+	}
+
+	return count, nil
 }
