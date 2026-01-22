@@ -2364,22 +2364,28 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var result []map[string]interface{}
+	var result struct {
+		Transcripts []map[string]interface{} `json:"transcripts"`
+		Pagination  struct {
+			TotalCount int  `json:"total_count"`
+			HasMore    bool `json:"has_more"`
+		} `json:"pagination"`
+	}
 	_ = json.NewDecoder(w.Body).Decode(&result)
-	if len(result) != 2 {
-		t.Errorf("expected 2 transcripts, got %d", len(result))
+	if len(result.Transcripts) != 2 {
+		t.Errorf("expected 2 transcripts, got %d", len(result.Transcripts))
 	}
 
 	// Verify transcript content from database (new JSONL-based schema)
-	if len(result) > 0 {
-		if result[0]["phase"] != "implement" {
-			t.Errorf("expected phase 'implement', got %v", result[0]["phase"])
+	if len(result.Transcripts) > 0 {
+		if result.Transcripts[0]["phase"] != "implement" {
+			t.Errorf("expected phase 'implement', got %v", result.Transcripts[0]["phase"])
 		}
-		if result[0]["role"] != "user" {
-			t.Errorf("expected role 'user', got %v", result[0]["role"])
+		if result.Transcripts[0]["role"] != "user" {
+			t.Errorf("expected role 'user', got %v", result.Transcripts[0]["role"])
 		}
-		if result[0]["type"] != "user" {
-			t.Errorf("expected type 'user', got %v", result[0]["type"])
+		if result.Transcripts[0]["type"] != "user" {
+			t.Errorf("expected type 'user', got %v", result.Transcripts[0]["type"])
 		}
 	}
 }
