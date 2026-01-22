@@ -487,17 +487,15 @@ func displayJSONLMessage(msg session.JSONLMessage, opts transcriptDisplayOptions
 // when the path wasn't persisted to state. This uses the same path format as llmkit:
 // ~/.claude/projects/{normalized-workdir}/{sessionId}.jsonl
 func constructJSONLPathFallback(taskID string, st *state.State) (string, error) {
-	// Check for session ID in state
-	sessionID := st.GetSessionID()
-
-	// If no explicit session ID, try constructing from current phase
-	// Session IDs for orc tasks are typically: {taskID}-{phaseID}
-	if sessionID == "" && st.CurrentPhase != "" {
-		sessionID = fmt.Sprintf("%s-%s", taskID, st.CurrentPhase)
+	// Get session ID for the current phase
+	var sessionID string
+	if st.CurrentPhase != "" {
+		sessionID = st.GetPhaseSessionID(st.CurrentPhase)
 	}
 
+	// If no session ID stored, the phase hasn't run yet or state wasn't persisted
 	if sessionID == "" {
-		return "", fmt.Errorf("no session ID available")
+		return "", fmt.Errorf("no session ID for phase %s", st.CurrentPhase)
 	}
 
 	// Get home directory for ~/.claude location
