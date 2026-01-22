@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +74,7 @@ func TestGetTranscriptsPaginated_DefaultLimit(t *testing.T) {
 			TaskID:      "TASK-002",
 			Phase:       "implement",
 			SessionID:   "sess2",
-			MessageUUID: "msg-" + string(rune(i)),
+			MessageUUID: fmt.Sprintf("msg-%d", i),
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message",
@@ -371,7 +372,7 @@ func TestGetTranscriptsPaginated_Performance(t *testing.T) {
 			TaskID:      "TASK-PERF",
 			Phase:       "implement",
 			SessionID:   "sess-perf",
-			MessageUUID: "msg-" + string(rune(i)),
+			MessageUUID: fmt.Sprintf("msg-perf-%d", i),
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message content",
@@ -441,7 +442,7 @@ func TestGetTranscriptsPaginated_IndexUsage(t *testing.T) {
 			TaskID:      "TASK-INDEX",
 			Phase:       "implement",
 			SessionID:   "sess-idx",
-			MessageUUID: "msg-" + string(rune(i)),
+			MessageUUID: fmt.Sprintf("msg-idx-%d", i),
 			Type:        "assistant",
 			Role:        "assistant",
 			Content:     "Message",

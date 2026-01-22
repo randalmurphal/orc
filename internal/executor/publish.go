@@ -155,3 +155,13 @@ func (ep *EventPublisher) Session(update events.SessionUpdate) {
 func (ep *EventPublisher) FilesChanged(taskID string, update events.FilesChangedUpdate) {
 	ep.Publish(events.NewEvent(events.EventFilesChanged, taskID, update))
 }
+
+// DecisionRequired publishes a decision_required event for human gates.
+func (ep *EventPublisher) DecisionRequired(taskID string, data events.DecisionRequiredData) {
+	ep.Publish(events.NewEvent(events.EventDecisionRequired, taskID, data))
+}
+
+// DecisionResolved publishes a decision_resolved event after gate resolution.
+func (ep *EventPublisher) DecisionResolved(taskID string, data events.DecisionResolvedData) {
+	ep.Publish(events.NewEvent(events.EventDecisionResolved, taskID, data))
+}

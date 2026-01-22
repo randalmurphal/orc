@@ -129,9 +129,13 @@ func (p *ProjectDB) GetTranscripts(taskID string) ([]Transcript, error) {
 
 // GetTranscriptsPaginated retrieves paginated transcripts with filtering.
 func (p *ProjectDB) GetTranscriptsPaginated(taskID string, opts TranscriptPaginationOpts) ([]Transcript, PaginationResult, error) {
-	// Apply defaults (validation is done at API layer)
+	// Apply defaults and enforce limits
 	if opts.Limit == 0 {
 		opts.Limit = 50
+	}
+	// Cap limit to prevent DoS via unbounded queries
+	if opts.Limit > 200 {
+		opts.Limit = 200
 	}
 	if opts.Direction == "" || (opts.Direction != "asc" && opts.Direction != "desc") {
 		opts.Direction = "asc"

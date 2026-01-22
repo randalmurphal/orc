@@ -179,8 +179,8 @@ func (e *Evaluator) requestHumanApproval(gate *plan.Gate, opts *EvaluateOptions)
 
 // emitDecisionRequired emits a decision_required event for headless mode.
 func (e *Evaluator) emitDecisionRequired(gate *plan.Gate, opts *EvaluateOptions) (*Decision, error) {
-	// Generate decision ID
-	decisionID := fmt.Sprintf("gate_%s_%s", opts.TaskID, opts.Phase)
+	// Generate decision ID with timestamp to prevent collision on retries
+	decisionID := fmt.Sprintf("gate_%s_%s_%d", opts.TaskID, opts.Phase, time.Now().UnixNano())
 
 	// Build question and context from gate criteria
 	question := "Approve phase transition?"

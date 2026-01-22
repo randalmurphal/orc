@@ -440,7 +440,7 @@ Comments and notes on tasks from humans, agents, or system.
 | POST | `/api/tasks/:id/comments` | Create comment |
 | GET | `/api/tasks/:id/comments/stats` | Get comment statistics |
 | GET | `/api/tasks/:id/comments/:commentId` | Get single comment |
-| PUT | `/api/tasks/:id/comments/:commentId` | Update comment |
+| PATCH | `/api/tasks/:id/comments/:commentId` | Update comment |
 | DELETE | `/api/tasks/:id/comments/:commentId` | Delete comment |
 
 **Create comment body:**
@@ -654,7 +654,45 @@ Gate approval/rejection for human gates in headless (API/WebSocket) mode. When a
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/decisions` | List all pending gate decisions |
 | POST | `/api/decisions/:id` | Approve or reject a pending gate decision |
+
+### List Pending Decisions
+
+**GET `/api/decisions`**
+
+Returns all pending gate decisions awaiting resolution. Use this endpoint to load pending decisions on page refresh. For real-time updates, subscribe to WebSocket `decision_required` events.
+
+**Response (200):**
+```json
+[
+  {
+    "decision_id": "gate_TASK-001_review_1737504000000000000",
+    "task_id": "TASK-001",
+    "task_title": "Add user authentication",
+    "phase": "review",
+    "gate_type": "human",
+    "question": "Please verify the following criteria:",
+    "context": "Code review passes\nTests pass",
+    "requested_at": "2026-01-22T10:00:00Z"
+  }
+]
+```
+
+| Field | Description |
+|-------|-------------|
+| `decision_id` | Unique ID for this decision |
+| `task_id` | Associated task ID |
+| `task_title` | Task title for display |
+| `phase` | Phase awaiting approval |
+| `gate_type` | Gate type (`human` or `ai`) |
+| `question` | Prompt to show the user |
+| `context` | Additional context (may be empty) |
+| `requested_at` | When the decision was requested (ISO8601) |
+
+**Notes:**
+- Returns empty array `[]` if no decisions are pending
+- Decisions are removed from the list when resolved via POST
 
 ### Resolve Decision
 
@@ -1298,12 +1336,22 @@ Current session metrics for the TopBar component. Session data is scoped to the 
 |--------|----------|-------------|
 | GET | `/api/dashboard/stats` | Get dashboard statistics |
 | GET | `/api/stats/activity` | Get task activity data for heatmap |
+| GET | `/api/stats/per-day` | Get daily task counts for bar chart (`?days=7`) |
+| GET | `/api/stats/outcomes` | Get task outcome distribution for donut chart (`?period=30d`) |
+| GET | `/api/stats/top-initiatives` | Get most active initiatives (`?limit=10&period=all`) |
 | GET | `/api/stats/top-files` | Get most frequently modified files (`?limit=N&period=30d`) |
+| GET | `/api/stats/comparison` | Get period comparison stats (`?period=7d`) |
 
 **Dashboard stats response:**
+
+Query parameters:
+- `period` - Time period: `24h`, `7d`, `30d`, `all` (default: `all`)
+- When period is set, returns period comparison data
+
 ```json
 {
   "running": 1,
+  "orphaned": 0,
   "paused": 0,
   "blocked": 2,
   "completed": 15,
@@ -1313,16 +1361,44 @@ Current session metrics for the TopBar component. Session data is scoped to the 
   "tokens": 245000,
   "cache_creation_input_tokens": 5000,
   "cache_read_input_tokens": 120000,
-  "cost": 12.50
+  "cost": 12.50,
+  "avg_task_time_seconds": 3420.5,
+  "success_rate": 93.75,
+  "period": "7d",
+  "previous_period": {
+    "completed": 12,
+    "tokens": 198000,
+    "cost": 9.80,
+    "avg_task_time_seconds": 3100.2,
+    "success_rate": 85.7
+  },
+  "changes": {
+    "completed": 25.0,
+    "tokens": 23.7,
+    "cost": 27.6
+  }
 }
 ```
 
 | Field | Description |
 |-------|-------------|
+| `running` | Tasks currently executing |
+| `orphaned` | Running tasks with stale heartbeat (potential orphans) |
+| `paused` | Tasks paused by user |
+| `blocked` | Tasks waiting for gate approval |
+| `completed` | Total completed tasks (or within period if specified) |
+| `failed` | Tasks that failed |
+| `today` | Tasks completed today |
+| `total` | Total tasks across all statuses |
 | `tokens` | Total input + output tokens |
 | `cache_creation_input_tokens` | Tokens written to prompt cache (aggregated) |
 | `cache_read_input_tokens` | Tokens served from prompt cache (aggregated) |
 | `cost` | Estimated cost in USD |
+| `avg_task_time_seconds` | Average task completion time (only present when period specified) |
+| `success_rate` | Percentage of completed vs completed+failed (only present when period specified) |
+| `period` | Applied time filter (only present when period specified) |
+| `previous_period` | Stats from the equivalent previous period (for comparison) |
+| `changes` | Percentage changes from previous period |
 
 **Activity data response (GET `/api/stats/activity`):**
 
@@ -1371,6 +1447,128 @@ Query parameters:
 
 **Error responses:**
 - 400: `weeks` parameter invalid (not a number, < 1, or > 52)
+
+### Per-Day Stats
+
+Returns daily task completion counts for bar chart visualization.
+
+**GET `/api/stats/per-day`**
+
+Query parameters:
+- `days` - Number of days to return (default: 7, min: 1, max: 30)
+
+**Response:**
+```json
+{
+  "days": 7,
+  "data": [
+    {"date": "2026-01-16", "day": "Thu", "count": 5},
+    {"date": "2026-01-17", "day": "Fri", "count": 3},
+    {"date": "2026-01-18", "day": "Sat", "count": 0}
+  ],
+  "summary": {
+    "total": 15,
+    "average": 2.1,
+    "max": {"date": "2026-01-16", "count": 5}
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `days` | Number of days in response |
+| `data` | Array of exactly N daily entries |
+| `data[].date` | Date in YYYY-MM-DD format |
+| `data[].day` | Short day name (Mon, Tue, etc.) |
+| `data[].count` | Number of tasks completed on this date |
+| `summary.total` | Total completions in period |
+| `summary.average` | Average completions per day |
+| `summary.max` | Day with most completions |
+
+**Error responses:**
+- 400: `days must be a number between 1 and 30`
+
+### Task Outcomes
+
+Returns task outcome distribution for donut chart visualization.
+
+**GET `/api/stats/outcomes`**
+
+Query parameters:
+- `period` - Time filter: `24h`, `7d`, `30d`, `all` (default: `all`)
+
+**Response:**
+```json
+{
+  "period": "30d",
+  "outcomes": {
+    "completed": 45,
+    "with_retries": 8,
+    "failed": 3
+  },
+  "total": 56,
+  "success_rate": 94.6
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `period` | Applied time filter |
+| `outcomes.completed` | Tasks completed on first attempt |
+| `outcomes.with_retries` | Tasks completed after retry attempts |
+| `outcomes.failed` | Tasks that failed |
+| `total` | Total tasks with a final outcome |
+| `success_rate` | Percentage of successful completions |
+
+**Note:** The period filter applies to task completion time. Only completed or failed tasks are included.
+
+**Error responses:**
+- 400: `period must be one of: 24h, 7d, 30d, all`
+
+### Top Initiatives
+
+Returns most active initiatives ranked by task count.
+
+**GET `/api/stats/top-initiatives`**
+
+Query parameters:
+- `limit` - Maximum initiatives to return (default: 10, min: 1, max: 25)
+- `period` - Time filter: `24h`, `7d`, `30d`, `all` (default: `all`)
+
+**Response:**
+```json
+{
+  "period": "all",
+  "initiatives": [
+    {
+      "id": "INIT-001",
+      "title": "User Authentication",
+      "task_count": 12,
+      "completed_count": 10,
+      "completion_rate": 83.3,
+      "total_tokens": 450000,
+      "total_cost_usd": 18.50
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `period` | Applied time filter |
+| `initiatives[].id` | Initiative ID |
+| `initiatives[].title` | Initiative title |
+| `initiatives[].task_count` | Total tasks linked to this initiative |
+| `initiatives[].completed_count` | Completed tasks (subject to period filter) |
+| `initiatives[].completion_rate` | Percentage of tasks completed |
+| `initiatives[].total_tokens` | Total token usage |
+| `initiatives[].total_cost_usd` | Total cost in USD |
+
+**Note:** When period filter is applied, only tasks completed within that period count toward `completed_count` and derived metrics. The `task_count` shows total linked tasks regardless of period.
+
+**Error responses:**
+- 400: `limit must be a number between 1 and 25`
+- 400: `period must be one of: 24h, 7d, 30d, all`
 
 ### Top Files Leaderboard
 
@@ -1432,6 +1630,57 @@ The endpoint uses three strategies to determine which files a task modified:
 **Error responses:**
 - 400: `limit must be a number between 1 and 50`
 - 400: `period must be one of: 24h, 7d, 30d, all`
+
+### Stats Comparison
+
+Returns comparison between current and previous period.
+
+**GET `/api/stats/comparison`**
+
+Query parameters:
+- `period` - Comparison period: `7d`, `30d` (default: `7d`)
+
+**Response:**
+```json
+{
+  "current": {
+    "tasks_completed": 15,
+    "total_tokens": 245000,
+    "total_cost_usd": 12.50,
+    "success_rate": 93.8
+  },
+  "previous": {
+    "tasks_completed": 12,
+    "total_tokens": 198000,
+    "total_cost_usd": 9.80,
+    "success_rate": 85.7
+  },
+  "changes": {
+    "tasks": 25.0,
+    "tokens": 23.7,
+    "cost": 27.6,
+    "success_rate": 9.5
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `current` | Stats for the current period (last N days) |
+| `previous` | Stats for the equivalent previous period (N to 2N days ago) |
+| `current/previous.tasks_completed` | Number of completed tasks |
+| `current/previous.total_tokens` | Total token usage |
+| `current/previous.total_cost_usd` | Total cost in USD |
+| `current/previous.success_rate` | Percentage of successful completions |
+| `changes.tasks` | Percentage change in task count |
+| `changes.tokens` | Percentage change in token usage |
+| `changes.cost` | Percentage change in cost |
+| `changes.success_rate` | Percentage change in success rate |
+
+**Note:** Percentage changes are calculated as `(current - previous) / previous * 100`. When previous is 0, returns 100% if current > 0.
+
+**Error responses:**
+- 400: `period must be one of: 7d, 30d`
 
 ### Cost Tracking
 
@@ -1654,6 +1903,7 @@ Connect to `/api/ws` for real-time updates.
 | `initiative_created` | `{initiative: Initiative}` | Initiative created via CLI/filesystem |
 | `initiative_updated` | `{initiative: Initiative}` | Initiative modified via CLI/filesystem |
 | `initiative_deleted` | `{initiative_id: string}` | Initiative deleted via CLI/filesystem |
+| `session_update` | `SessionUpdate` | Session-level metrics update (see below) |
 | `files_changed` | `FilesChangedUpdate` | Files modified during task execution (see below) |
 | `decision_required` | `DecisionRequiredData` | Human gate requires approval (see below) |
 | `decision_resolved` | `DecisionResolvedData` | Gate decision was resolved (see below) |
@@ -1719,6 +1969,35 @@ Decision events enable real-time gate approval in headless mode. When a task hit
 6. Task status changes to `planned` (approved) or `failed` (rejected)
 7. `decision_resolved` event is broadcast
 8. User explicitly resumes task via `POST /api/tasks/:id/resume`
+
+### Session Update Event Data
+
+Session update events provide aggregate metrics across all tasks. They use `task_id: "*"` (GlobalTaskID) so all WebSocket subscribers receive them. A `session_update` is automatically sent when:
+- A client subscribes to all tasks (`{"type": "subscribe", "task_id": "*"}`)
+- Session metrics change (task starts/completes, tokens accumulate, etc.)
+
+**session_update:**
+```json
+{
+  "duration_seconds": 3420,
+  "total_tokens": 245000,
+  "estimated_cost_usd": 12.50,
+  "input_tokens": 180000,
+  "output_tokens": 65000,
+  "tasks_running": 2,
+  "is_paused": false
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `duration_seconds` | Session uptime in seconds |
+| `total_tokens` | Aggregate input + output tokens |
+| `estimated_cost_usd` | Estimated cost in USD |
+| `input_tokens` | Total input tokens |
+| `output_tokens` | Total output tokens |
+| `tasks_running` | Number of currently executing tasks |
+| `is_paused` | Whether the session is globally paused |
 
 ### Finalize Event Data
 

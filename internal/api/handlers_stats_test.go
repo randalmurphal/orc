@@ -594,7 +594,7 @@ func TestHandleGetPerDayStats_WithTasks(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 	// Create tasks with different completion dates
@@ -1462,6 +1462,103 @@ func TestHandleGetTopInitiatives_ExcludesZeroTaskInitiatives(t *testing.T) {
 		t.Errorf("expected INIT-002, got %s", response.Initiatives[0].ID)
 	}
 }
+
+func TestHandleGetTopInitiatives_PeriodFilterWorks(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and populate test data
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now().UTC()
+
+	// Create initiative with tasks
+	init1 := &initiative.Initiative{
+		ID:     "INIT-001",
+		Title:  "Test Initiative",
+		Status: initiative.StatusActive,
+		Tasks: []initiative.TaskRef{
+			{ID: "TASK-001", Title: "Recent Task", Status: "completed"},
+			{ID: "TASK-002", Title: "Old Task", Status: "completed"},
+		},
+	}
+	if err := backend.SaveInitiative(init1); err != nil {
+		t.Fatalf("failed to save initiative: %v", err)
+	}
+
+	// Create task completed recently (within 7 days)
+	recentTask := task.New("TASK-001", "Recent Task")
+	recentTask.Status = task.StatusCompleted
+	recentTime := now.Add(-1 * time.Hour)
+	recentTask.CompletedAt = &recentTime
+	if err := backend.SaveTask(recentTask); err != nil {
+		t.Fatalf("failed to save recent task: %v", err)
+	}
+
+	// Create task completed long ago (30 days ago - outside 7d period)
+	oldTask := task.New("TASK-002", "Old Task")
+	oldTask.Status = task.StatusCompleted
+	oldTime := now.Add(-30 * 24 * time.Hour)
+	oldTask.CompletedAt = &oldTime
+	if err := backend.SaveTask(oldTask); err != nil {
+		t.Fatalf("failed to save old task: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Test with period=7d - should only count the recent task
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/top-initiatives?period=7d", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetTopInitiatives(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response TopInitiativesResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Should have 1 initiative
+	if len(response.Initiatives) != 1 {
+		t.Errorf("expected 1 initiative, got %d", len(response.Initiatives))
+	}
+
+	// When period filter is applied, BOTH task_count and completed_count reflect only
+	// tasks completed within that period. The old task (30 days ago) is excluded entirely.
+	// So task_count=1 (only the recent task), completed_count=1
+	if response.Initiatives[0].CompletedCount != 1 {
+		t.Errorf("expected completed_count=1 (only recent task), got %d", response.Initiatives[0].CompletedCount)
+	}
+
+	// task_count also only includes tasks completed within the period
+	if response.Initiatives[0].TaskCount != 1 {
+		t.Errorf("expected task_count=1 (only tasks in period), got %d", response.Initiatives[0].TaskCount)
+	}
+
+	// Completion rate should be 100% (1 completed out of 1 counted in period)
+	expectedRate := 100.0
+	if response.Initiatives[0].CompletionRate < expectedRate-0.1 || response.Initiatives[0].CompletionRate > expectedRate+0.1 {
+		t.Errorf("expected completion_rate≈%.2f%%, got %.2f%%", expectedRate, response.Initiatives[0].CompletionRate)
+	}
+}
+
 // ============================================================================
 // Stats Top Files Tests
 // ============================================================================

@@ -712,6 +712,14 @@ func (e *Executor) handleGateEvaluation(ctx context.Context, phase *plan.Phase, 
 		if err := e.backend.SaveTask(t); err != nil {
 			e.logger.Error("failed to save blocked task", "error", err)
 		}
+
+		// Update state with blocked reason and publish event
+		s.Error = fmt.Sprintf("blocked at gate: %s (phase %s)", decision.Reason, phase.ID)
+		if err := e.backend.SaveState(s); err != nil {
+			e.logger.Error("failed to save blocked state", "error", err)
+		}
+		e.publishState(t.ID, s)
+
 		// Return false to stop execution - task will resume when decision is resolved
 		return false, 0
 	}

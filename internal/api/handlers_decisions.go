@@ -27,6 +27,39 @@ type DecisionResponse struct {
 	NewStatus  string `json:"new_status"`
 }
 
+// PendingDecisionItem represents a pending decision in the list response.
+type PendingDecisionItem struct {
+	DecisionID  string    `json:"decision_id"`
+	TaskID      string    `json:"task_id"`
+	TaskTitle   string    `json:"task_title"`
+	Phase       string    `json:"phase"`
+	GateType    string    `json:"gate_type"`
+	Question    string    `json:"question"`
+	Context     string    `json:"context,omitempty"`
+	RequestedAt time.Time `json:"requested_at"`
+}
+
+// handleListDecisions handles GET /api/decisions
+func (s *Server) handleListDecisions(w http.ResponseWriter, r *http.Request) {
+	decisions := s.pendingDecisions.List()
+
+	items := make([]PendingDecisionItem, len(decisions))
+	for i, d := range decisions {
+		items[i] = PendingDecisionItem{
+			DecisionID:  d.DecisionID,
+			TaskID:      d.TaskID,
+			TaskTitle:   d.TaskTitle,
+			Phase:       d.Phase,
+			GateType:    d.GateType,
+			Question:    d.Question,
+			Context:     d.Context,
+			RequestedAt: d.RequestedAt,
+		}
+	}
+
+	s.jsonResponse(w, items)
+}
+
 // handlePostDecision handles POST /api/decisions/{id}
 func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 	decisionID := r.PathValue("id")
@@ -62,6 +95,12 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 	st, err := s.backend.LoadState(decision.TaskID)
 	if err != nil {
 		s.jsonError(w, "state not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify phase matches current state to prevent stale decisions
+	if st.CurrentPhase != decision.Phase {
+		s.jsonError(w, fmt.Sprintf("decision phase mismatch: task is at phase %q, decision is for phase %q", st.CurrentPhase, decision.Phase), http.StatusConflict)
 		return
 	}
 

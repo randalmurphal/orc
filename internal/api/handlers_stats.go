@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -368,8 +369,9 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 	var completed, withRetries, failed int
 
 	for _, t := range allTasks {
-		// Apply time filter
-		if cutoffTime != nil && t.CompletedAt != nil && t.CompletedAt.Before(*cutoffTime) {
+		// Apply time filter - only include tasks completed within the period
+		// Skip tasks with no completion time or completed before the cutoff
+		if cutoffTime != nil && (t.CompletedAt == nil || t.CompletedAt.Before(*cutoffTime)) {
 			continue
 		}
 
@@ -619,14 +621,10 @@ func (s *Server) handleGetTopInitiatives(w http.ResponseWriter, r *http.Request)
 		})
 	}
 
-	// Sort by task count descending
-	for i := 0; i < len(stats); i++ {
-		for j := i + 1; j < len(stats); j++ {
-			if stats[j].taskCount > stats[i].taskCount {
-				stats[i], stats[j] = stats[j], stats[i]
-			}
-		}
-	}
+	// Sort by task count descending (O(n log n))
+	sort.Slice(stats, func(i, j int) bool {
+		return stats[i].taskCount > stats[j].taskCount
+	})
 
 	// Take top N initiatives (up to limit)
 	if len(stats) > limit {
