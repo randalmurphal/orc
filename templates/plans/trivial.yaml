@@ -1,13 +1,22 @@
 version: 1
 weight: trivial
-description: Trivial task - single implement phase, fully automated
+description: Trivial task - tiny spec then implement, fully automated
 
 phases:
+  - id: tiny_spec
+    name: tiny_spec
+    # Uses templates/prompts/tiny_spec.md
+    # Lightweight combined spec + TDD for simple tasks
+    depends_on: []
+    gate:
+      type: auto
+    checkpoint: true
+
   - id: implement
     name: implement
-    # Uses templates/prompts/implement.md (no inline prompt)
-    # For trivial tasks, spec_content falls back to task_description
-    depends_on: []
+    # Uses templates/prompts/implement.md
+    # Implementation guided by tiny spec and TDD tests
+    depends_on: [tiny_spec]
     gate:
       type: auto
     checkpoint: true

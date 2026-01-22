@@ -128,15 +128,6 @@ func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        3 * time.Minute,
 		}
-	case task.WeightGreenfield:
-		return ExecutorConfig{
-			MaxIterations:      50,
-			CheckpointInterval: 1,
-			SessionPersistence: true,
-			TurnTimeout:        20 * time.Minute, // Longest for greenfield
-			HeartbeatInterval:  baseHeartbeat,
-			IdleTimeout:        3 * time.Minute,
-		}
 	default:
 		// Default to medium config
 		return ExecutorConfig{
@@ -166,7 +157,7 @@ func ExecutorTypeForWeight(weight task.Weight) ExecutorType {
 		return ExecutorTypeTrivial
 	case task.WeightSmall, task.WeightMedium:
 		return ExecutorTypeStandard
-	case task.WeightLarge, task.WeightGreenfield:
+	case task.WeightLarge:
 		return ExecutorTypeFull
 	default:
 		return ExecutorTypeStandard

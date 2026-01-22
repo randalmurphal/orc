@@ -97,8 +97,8 @@ func TestConfig_SetValue(t *testing.T) {
 		{
 			name:  "set nested string",
 			path:  "gates.default_type",
-			value: "ai",
-			check: func(c *Config) bool { return c.Gates.DefaultType == "ai" },
+			value: "human",
+			check: func(c *Config) bool { return c.Gates.DefaultType == "human" },
 		},
 		{
 			name:  "set nested int",

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -29,8 +30,9 @@ var ErrTaskBlocked = errors.New("task blocked")
 
 // ExecuteTask runs all phases of a task with gate evaluation and cross-phase retry.
 func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, s *state.State) error {
-	// Set current task directory for saving files
+	// Set current task context for hooks (e.g., TDD enforcement)
 	e.currentTaskDir = e.taskDir(t.ID)
+	e.currentTaskID = t.ID
 
 	// Take process snapshot before task execution (for orphan detection)
 	if e.resourceTracker != nil {
@@ -232,10 +234,10 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 			return fmt.Errorf("phase %s failed: %w", phase.ID, err)
 		}
 
-		// Save spec content to database for spec phase BEFORE marking complete.
+		// Save spec content to database for spec/tiny_spec phases BEFORE marking complete.
 		// This ensures we fail-fast if spec phase produces invalid output.
-		// Pass worktree path so we can check for spec files if agent didn't use artifact tags.
-		if phase.ID == "spec" {
+		// tiny_spec is the combined spec+TDD phase for trivial/small tasks.
+		if phase.ID == "spec" || phase.ID == "tiny_spec" {
 			requiresSpec := t.Weight != task.WeightTrivial && t.Weight != task.WeightSmall
 
 			// Check for empty output first
@@ -283,6 +285,69 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 				} else if saved {
 					e.logger.Info("saved spec to database", "task", t.ID)
 				}
+			}
+		}
+
+		// Validate quality checklist for spec phases (gates implementation)
+		if phase.ID == "spec" || phase.ID == "tiny_spec" {
+			checklist := ExtractChecklistFromOutput(result.Output)
+			if checklist == nil {
+				// Checklist is REQUIRED - fail if missing or unparseable
+				checklistErr := fmt.Errorf("spec phase missing quality_checklist in output - agent must include self-assessment checklist")
+				e.logger.Error("spec phase missing required checklist",
+					"task", t.ID,
+					"phase", phase.ID,
+					"output_preview", truncateForLog(result.Output, 200),
+				)
+				e.failTask(t, phase, s, checklistErr)
+				return checklistErr
+			}
+
+			passed, failures := ValidateSpecChecklist(checklist)
+			if !passed {
+				// Check if we can retry (before incrementing)
+				if retryCounts[phase.ID] < e.orcConfig.EffectiveMaxRetries() {
+					retryCounts[phase.ID]++
+					feedback := FormatChecklistFeedback(failures)
+					e.logger.Info("checklist validation failed, retrying spec phase",
+						"task", t.ID,
+						"phase", phase.ID,
+						"attempt", retryCounts[phase.ID],
+						"failures", len(failures),
+					)
+
+					// Set retry context following established pattern
+					s.SetRetryContext(phase.ID, phase.ID, feedback, result.Output, retryCounts[phase.ID])
+
+					// Save retry context file
+					contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, phase.ID,
+						"Checklist validation failed", result.Output, retryCounts[phase.ID])
+					if saveErr != nil {
+						e.logger.Warn("failed to save retry context file", "error", saveErr)
+					} else {
+						s.SetRetryContextFile(contextFile)
+					}
+
+					// Reset the phase for retry
+					s.ResetPhase(phase.ID)
+					if saveErr := e.backend.SaveState(s); saveErr != nil {
+						e.logger.Error("failed to save state for checklist retry", "error", saveErr)
+					}
+
+					// Track quality metrics (same pattern as other retries)
+					t.RecordPhaseRetry(phase.ID)
+					if saveErr := e.backend.SaveTask(t); saveErr != nil {
+						e.logger.Warn("failed to save quality metrics", "error", saveErr)
+					}
+
+					continue // Retry same phase (don't increment i)
+				}
+
+				// Out of retries - fail the task
+				failureMsg := FormatChecklistFeedback(failures)
+				checklistErr := fmt.Errorf("checklist validation failed after %d attempts: %s", retryCounts[phase.ID]+1, failureMsg)
+				e.failTask(t, phase, s, checklistErr)
+				return checklistErr
 			}
 		}
 
@@ -399,6 +464,10 @@ func (e *Executor) setupWorktreeForTask(t *task.Task) error {
 		// error when running go commands in worktrees. The parent repo's go.work has relative
 		// paths that don't work from the worktree location.
 		claude.WithEnvVar("GOWORK", "off"),
+		// Pass task context for hooks (e.g., TDD enforcement)
+		// Hooks can query the database to get current phase and apply restrictions
+		claude.WithEnvVar("ORC_TASK_ID", t.ID),
+		claude.WithEnvVar("ORC_DB_PATH", filepath.Join(e.config.WorkDir, ".orc", "orc.db")),
 	}
 	// Resolve Claude path to absolute to ensure it works with worktree cmd.Dir
 	claudePath := ResolveClaudePath(e.config.ClaudePath)
@@ -876,54 +945,6 @@ func (e *Executor) checkSpecRequirements(t *task.Task, p *plan.Plan) error {
 			return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 		}
 
-		// Haiku validation for spec quality (if enabled)
-		if e.validationModel != "" && e.orcConfig.ShouldValidateSpec(string(t.Weight)) {
-			ctx := context.Background()
-			valClient := e.CreateValidationClient(e.config.WorkDir)
-			ready, suggestions, valErr := ValidateTaskReadiness(ctx, valClient, t.Description, specContent, string(t.Weight))
-			if valErr != nil {
-				if e.orcConfig.Validation.FailOnAPIError {
-					// Fail properly - task is resumable from spec phase
-					e.logger.Error("spec validation API error - failing task",
-						"task", t.ID,
-						"error", valErr,
-						"hint", "Task can be resumed with 'orc resume'",
-					)
-					return fmt.Errorf("spec validation API error (resumable): %w", valErr)
-				}
-				// Fail open (legacy behavior for fast profile)
-				e.logger.Warn("haiku spec validation error (continuing)",
-					"task", t.ID,
-					"error", valErr,
-				)
-			} else if !ready && len(suggestions) > 0 {
-				// Block execution on poor spec quality
-				e.logger.Error("spec quality validation failed - blocking execution",
-					"task", t.ID,
-					"suggestions", suggestions,
-				)
-				suggestionText := ""
-				for i, s := range suggestions {
-					suggestionText += fmt.Sprintf("\n  %d. %s", i+1, s)
-				}
-				return fmt.Errorf("task %s spec quality is insufficient for execution:%s\n\nRun 'orc plan %s' to improve the spec", t.ID, suggestionText, t.ID)
-			}
-		}
-	} else if e.orcConfig.Plan.WarnOnMissingSpec {
-		// Only warn for weights that semantically require specs (large, greenfield)
-		// Trivial/small/medium tasks don't benefit from spec warnings - they're simple enough
-		// to implement directly without upfront planning
-		requiresSpec := t.Weight == task.WeightLarge || t.Weight == task.WeightGreenfield
-
-		// Just warn, don't block
-		specExists, _ := e.backend.SpecExists(t.ID)
-		if requiresSpec && !specExists {
-			e.logger.Warn("task has no spec (execution will continue)",
-				"task", t.ID,
-				"weight", t.Weight,
-				"hint", "run 'orc plan "+t.ID+"' to create a spec",
-			)
-		}
 	}
 
 	return nil

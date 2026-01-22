@@ -1229,6 +1229,64 @@ func (d *DatabaseBackend) SpecExists(taskID string) (bool, error) {
 }
 
 // ============================================================================
+// Phase artifact operations (design, tdd_write, breakdown, research, docs)
+// ============================================================================
+
+// SaveArtifact saves a phase artifact to the database.
+func (d *DatabaseBackend) SaveArtifact(taskID, phaseID, content, source string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	artifact := &db.PhaseArtifact{
+		TaskID:  taskID,
+		PhaseID: phaseID,
+		Content: content,
+		Source:  source,
+	}
+	return d.db.SavePhaseArtifact(artifact)
+}
+
+// LoadArtifact loads a phase artifact from the database.
+func (d *DatabaseBackend) LoadArtifact(taskID, phaseID string) (string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	artifact, err := d.db.GetPhaseArtifact(taskID, phaseID)
+	if err != nil {
+		return "", err
+	}
+	if artifact == nil {
+		return "", nil
+	}
+	return artifact.Content, nil
+}
+
+// LoadAllArtifacts loads all phase artifacts for a task as a map of phaseID -> content.
+func (d *DatabaseBackend) LoadAllArtifacts(taskID string) (map[string]string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	artifacts, err := d.db.GetAllPhaseArtifacts(taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]string)
+	for _, a := range artifacts {
+		result[a.PhaseID] = a.Content
+	}
+	return result, nil
+}
+
+// ArtifactExists checks if an artifact exists for a task and phase.
+func (d *DatabaseBackend) ArtifactExists(taskID, phaseID string) (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.PhaseArtifactExists(taskID, phaseID)
+}
+
+// ============================================================================
 // Attachment operations
 // ============================================================================
 
@@ -1914,6 +1972,46 @@ func (d *DatabaseBackend) QueryEvents(opts db.QueryEventsOptions) ([]db.EventLog
 	defer d.mu.RUnlock()
 
 	return d.db.QueryEvents(opts)
+}
+
+// SaveConstitution saves or updates the project's constitution.
+func (d *DatabaseBackend) SaveConstitution(content, version string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	c := &db.Constitution{
+		Content: content,
+		Version: version,
+	}
+	return d.db.SaveConstitution(c)
+}
+
+// LoadConstitution loads the project's constitution content and version.
+func (d *DatabaseBackend) LoadConstitution() (content string, version string, err error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	c, err := d.db.LoadConstitution()
+	if err != nil {
+		return "", "", err
+	}
+	return c.Content, c.Version, nil
+}
+
+// ConstitutionExists checks if a constitution is configured for the project.
+func (d *DatabaseBackend) ConstitutionExists() (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ConstitutionExists()
+}
+
+// DeleteConstitution removes the project's constitution.
+func (d *DatabaseBackend) DeleteConstitution() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteConstitution()
 }
 
 // Ensure DatabaseBackend implements Backend

@@ -8,6 +8,8 @@
 
 Orc defaults to **fully automated gates** - the system runs without human intervention by default. Human gates are opt-in for workflows that require oversight.
 
+**Quality assurance is handled by backpressure** (tests, lint, build), not LLM-based evaluation. This provides deterministic, repeatable quality checks.
+
 ---
 
 ## Gate Types
@@ -15,8 +17,8 @@ Orc defaults to **fully automated gates** - the system runs without human interv
 | Type | Description | Use Case |
 |------|-------------|----------|
 | `auto` | Proceed immediately if criteria met | Default for all phases |
-| `ai` | Claude evaluates whether to proceed | When judgment needed |
 | `human` | Requires manual approval | Critical decisions |
+| `none` | Skip gate entirely | Fast iteration |
 
 ---
 
@@ -25,7 +27,7 @@ Orc defaults to **fully automated gates** - the system runs without human interv
 | Profile | Default Gate | Description |
 |---------|--------------|-------------|
 | `auto` | All auto | Default - Full automation, no human approval |
-| `fast` | All auto | Maximum speed, no retry on failure |
+| `fast` | All auto + no pre-merge | Maximum speed, no retry on failure |
 | `safe` | Auto + human merge | Balanced - Automatic until final merge |
 | `strict` | Human on spec/merge | Full oversight for critical phases |
 
@@ -98,58 +100,26 @@ This enables the agent to fix the root cause rather than just re-running blindly
 
 ---
 
-## AI Gate Evaluation
+## Auto Gate Criteria
 
-```go
-func EvaluateAIGate(task *Task, phase *Phase) (Decision, error) {
-    prompt := fmt.Sprintf(`
-Review the output of phase "%s" for task "%s".
+Auto gates check deterministic criteria against phase output:
 
-Phase Output Summary:
-%s
-
-Criteria for approval:
-%s
-
-Respond with:
-- APPROVED: If all criteria are met
-- REJECTED: If criteria not met, with specific issues
-- NEEDS_CLARIFICATION: If you need more information
-
-Decision:
-`, phase.Name, task.Title, phase.Summary, phase.GateCriteria)
-    
-    result := RunClaudeSession(prompt)
-    return ParseGateDecision(result.Output)
-}
-```
-
-### AI Gate Decision Outcomes
-
-| Decision | Behavior |
-|----------|----------|
-| `APPROVED` | Proceed to next phase immediately |
-| `REJECTED` | Rewind to phase start, set status to `failed`, create rejection report |
-| `NEEDS_CLARIFICATION` | Escalate to human gate with AI's questions attached |
-
-**NEEDS_CLARIFICATION flow**:
-1. AI identifies ambiguity or missing information
-2. Gate escalates to human with AI's specific questions
-3. Human provides clarification (via `orc approve --clarify`)
-4. Clarification added to task context
-5. Phase re-runs with additional context
+| Criterion | Description |
+|-----------|-------------|
+| `has_output` | Phase produced non-empty output |
+| `no_errors` | Output doesn't contain "error" |
+| `has_completion_marker` | JSON response has `{"status": "complete"}` |
+| Custom string | Check if string appears in output |
 
 ```yaml
-# state.yaml when clarification pending
-gates:
-  - phase: review
-    type: ai
-    decision: needs_clarification
-    timestamp: 2026-01-10T10:45:00Z
-    questions:
-      - "Should the OAuth tokens be stored in session or database?"
-      - "Is MFA a hard requirement or nice-to-have?"
-    status: pending_human
+# Plan YAML - auto gate with criteria
+phases:
+  - id: implement
+    gate:
+      type: auto
+      criteria:
+        - has_output
+        - has_completion_marker
 ```
 
 ---
@@ -161,12 +131,12 @@ gates:
 1. **Terminal** (if interactive):
    ```
    [GATE] Human approval required for merge
-   
+
    Task: TASK-001 - Add user authentication
    Phase: merge
    Files changed: 8
    Tests: 24 passing
-   
+
    orc approve TASK-001    # Approve
    orc reject TASK-001     # Reject with reason
    orc diff TASK-001       # View changes
@@ -200,11 +170,10 @@ orc status --waiting
 # .orc/tasks/TASK-001/state.yaml
 gates:
   - phase: spec
-    type: ai
+    type: auto
     decision: approved
     timestamp: 2026-01-10T10:45:00Z
-    rationale: "Spec covers all requirements"
-    
+
   - phase: merge
     type: human
     decision: approved
@@ -215,30 +184,20 @@ gates:
 
 ---
 
-## Gate Criteria
+## Backpressure (Quality Checks)
 
-### Built-in Criteria
+Quality is validated through **backpressure** - deterministic checks that run after a phase claims completion:
 
-| Criterion | Description |
-|-----------|-------------|
-| `tests_pass` | All tests pass |
-| `lint_clean` | No linting errors |
-| `type_check` | Type checker passes |
-| `coverage: N` | Coverage >= N% |
-| `no_todos` | No TODO comments in new code |
-| `docs_updated` | Documentation files touched |
+| Check | Description |
+|-------|-------------|
+| Tests | Run test suite, fail if tests fail |
+| Lint | Run linter, fail if errors |
+| Build | Run build, fail if errors |
+| Type check | Run type checker, fail if errors |
 
-### Custom Criteria
+Backpressure provides objective, repeatable quality validation without LLM judgment calls.
 
-```yaml
-gates:
-  implement:
-    type: ai
-    criteria:
-      - tests_pass
-      - lint_clean
-      - custom: "./scripts/validate-api.sh"
-```
+See `internal/executor/backpressure.go` for implementation.
 
 ---
 

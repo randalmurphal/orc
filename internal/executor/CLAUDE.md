@@ -17,8 +17,8 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 |------|----------|--------|
 | `trivial.go` | ClaudeExecutor, no session persistence | trivial |
 | `standard.go` | ClaudeExecutor per phase | small/medium |
-| `full.go` | ClaudeExecutor with checkpointing | large/greenfield |
-| `finalize.go` | Branch sync, conflict resolution | large/greenfield |
+| `full.go` | ClaudeExecutor with checkpointing | large |
+| `finalize.go` | Branch sync, conflict resolution | large |
 
 ### Support Modules
 

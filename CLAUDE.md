@@ -88,15 +88,15 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 
 | Weight | Phases | Spec? | When to Use |
 |--------|--------|-------|-------------|
-| trivial | implement | NO | One-liner fixes, typos |
-| small | implement → test | NO | Bug fixes, isolated changes |
-| medium | spec → implement → review → test → docs | YES | Features needing design thought |
-| large | spec → design → implement → review → test → docs → validate | YES | Complex multi-file features |
-| greenfield | research → spec → design → implement → review → test → docs → validate | YES | New systems, major features |
+| trivial | tiny_spec → implement | YES | One-liner fixes, typos |
+| small | tiny_spec → implement → review | YES | Bug fixes, isolated changes |
+| medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
+| large | spec → tdd_write → breakdown → implement → review → docs → validate | YES | Complex multi-file features |
 
 Key phases:
-- **spec**: Generates Success Criteria + Testing requirements (foundation for quality)
-- **design**: Architecture decisions for large/complex work
+- **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
+- **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
+- **breakdown**: Decomposes large tasks into checkboxed implementation steps
 - **review**: Multi-agent code review with 5 specialized reviewers
 - **validate**: Final verification against all success criteria
 
@@ -148,6 +148,16 @@ Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blo
 | `strict` | Human gates throughout | Human required |
 
 See `docs/specs/CONFIG_HIERARCHY.md` for all options.
+
+### Constitution
+
+Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`:
+
+```bash
+orc constitution set --file INVARIANTS.md   # Set from file
+orc constitution show                        # View current
+orc constitution delete                      # Remove
+```
 
 ## File Layout
 
@@ -256,6 +266,7 @@ make e2e        # E2E (Playwright)
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
+| Invariants | `docs/INVARIANTS.md` |
 | Web Components | `web/CLAUDE.md` |
 
 <!-- orc:begin -->

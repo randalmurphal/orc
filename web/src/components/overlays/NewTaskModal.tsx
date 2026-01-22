@@ -6,7 +6,7 @@ import { useCurrentProjectId } from '@/stores';
 import type { Task, TaskWeight, TaskCategory } from '@/lib/types';
 import '../task-detail/TaskEditModal.css';
 
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large', 'greenfield'];
+const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
 const CATEGORIES: TaskCategory[] = ['feature', 'bug', 'refactor', 'chore', 'docs', 'test'];
 
 interface NewTaskModalProps {

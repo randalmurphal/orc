@@ -216,11 +216,10 @@ done:
 
 	// Save artifact on success (spec is saved centrally in task_execution.go with fail-fast logic)
 	if result.Status == plan.PhaseCompleted && result.Output != "" {
-		if artifactPath, err := SavePhaseArtifact(t.ID, p.ID, result.Output); err != nil {
-			e.logger.Warn("failed to save phase artifact", "error", err)
-		} else if artifactPath != "" {
-			result.Artifacts = append(result.Artifacts, artifactPath)
-			e.logger.Info("saved phase artifact", "path", artifactPath)
+		if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
+			e.logger.Warn("failed to save phase artifact to database", "error", err)
+		} else if saved {
+			e.logger.Info("saved phase artifact to database", "phase", p.ID)
 		}
 	}
 

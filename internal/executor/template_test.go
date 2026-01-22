@@ -56,13 +56,12 @@ func TestRenderTemplateFunc(t *testing.T) {
 		},
 		{
 			name:     "prior content variables",
-			template: "Research: {{RESEARCH_CONTENT}}\nSpec: {{SPEC_CONTENT}}\nDesign: {{DESIGN_CONTENT}}",
+			template: "Research: {{RESEARCH_CONTENT}}\nSpec: {{SPEC_CONTENT}}",
 			vars: TemplateVars{
 				ResearchContent: "Research findings here",
 				SpecContent:     "Spec document here",
-				DesignContent:   "Design document here",
 			},
-			want: "Research: Research findings here\nSpec: Spec document here\nDesign: Design document here",
+			want: "Research: Research findings here\nSpec: Spec document here",
 		},
 		{
 			name:     "task description",
@@ -201,7 +200,7 @@ func TestBuildTemplateVars(t *testing.T) {
 			task: &task.Task{
 				ID:     "TASK-004",
 				Title:  "Stateful Task",
-				Weight: task.WeightGreenfield,
+				Weight: task.WeightLarge,
 			},
 			phase: &plan.Phase{
 				ID: "implement",
@@ -212,7 +211,7 @@ func TestBuildTemplateVars(t *testing.T) {
 			wantID:       "TASK-004",
 			wantTitle:    "Stateful Task",
 			wantPhase:    "implement",
-			wantWeight:   "greenfield",
+			wantWeight:   "large",
 			wantIter:     5,
 			wantRetry:    "",
 		},
@@ -549,7 +548,6 @@ func TestDefaultConfigForWeight_TargetBranch(t *testing.T) {
 		task.WeightSmall,
 		task.WeightMedium,
 		task.WeightLarge,
-		task.WeightGreenfield,
 	}
 
 	for _, w := range weights {

@@ -410,7 +410,6 @@ func TestPhaseStateWithAllFields(t *testing.T) {
 		Blocked:         false,
 		ResearchContent: "Research",
 		SpecContent:     "Spec",
-		DesignContent:   "Design",
 		RetryContext:    "Retry info",
 	}
 
@@ -2759,34 +2758,39 @@ func TestExecuteTask_SpecFailure_ClearsExecution(t *testing.T) {
 	}
 }
 
-// TestExecuteTask_SmallWeight_NoSpecRequired verifies that small/trivial weight tasks
-// don't fail when spec extraction fails (they don't require specs).
-func TestExecuteTask_SmallWeight_NoSpecRequired(t *testing.T) {
+// TestExecuteTask_SmallWeight_WithTinySpec verifies that small weight tasks
+// use tiny_spec phase (combined spec+TDD) and complete successfully with valid checklist.
+func TestExecuteTask_SmallWeight_WithTinySpec(t *testing.T) {
 	t.Parallel()
 	backend := newTestBackend(t)
 
-	// Create a small-weight task (does NOT require spec)
-	testTask := task.New("TASK-SMALL-001", "Small Weight No Spec Test")
-	testTask.Weight = task.WeightSmall // Small weight doesn't require spec
+	// Create a small-weight task (uses tiny_spec)
+	testTask := task.New("TASK-SMALL-001", "Small Weight With TinySpec Test")
+	testTask.Weight = task.WeightSmall
 	testTask.Status = task.StatusPlanned
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Create plan with spec phase (even though small weight)
+	// Create plan with tiny_spec phase (new TDD-first workflow)
 	testPlan := &plan.Plan{
 		Version: 1,
 		Weight:  "small",
 		Phases: []plan.Phase{
 			{
-				ID:     "spec",
-				Name:   "Specification",
-				Prompt: "Write spec for: {{TASK_TITLE}}",
+				ID:     "tiny_spec",
+				Name:   "TinySpec",
+				Prompt: "Write tiny spec for: {{TASK_TITLE}}",
 			},
 			{
 				ID:     "implement",
 				Name:   "Implementation",
 				Prompt: "Implement: {{TASK_TITLE}}",
+			},
+			{
+				ID:     "review",
+				Name:   "Review",
+				Prompt: "Review: {{TASK_TITLE}}",
 			},
 		},
 	}
@@ -2804,19 +2808,20 @@ func TestExecuteTask_SmallWeight_NoSpecRequired(t *testing.T) {
 	// Disable validation/backpressure for testing
 	e.SetOrcConfig(&config.Config{Validation: config.ValidationConfig{Enabled: false}})
 
-	// Mock TurnExecutor returns output without artifact tags for spec, then completes implement
+	// Mock TurnExecutor returns valid tiny_spec with checklist, then implement, then review
 	mockExecutor := NewMockTurnExecutorWithResponses(
-		`{"status": "complete", "summary": "Spec done but no tags"}`,
+		`{"status": "complete", "summary": "TinySpec done", "artifact": "# Spec\n\nIntent: Test\n\n## Success Criteria\n- SC-1: Works", "quality_checklist": [{"id": "all_criteria_verifiable", "passed": true}, {"id": "no_technical_metrics", "passed": true}, {"id": "p1_stories_independent", "passed": true}, {"id": "scope_explicit", "passed": true}, {"id": "max_3_clarifications", "passed": true}]}`,
 		`{"status": "complete", "summary": "Implementation done!"}`,
+		`{"status": "complete", "summary": "Review passed!"}`,
 	)
 	e.SetTurnExecutor(mockExecutor)
 
 	ctx := context.Background()
 	err := e.ExecuteTask(ctx, testTask, testPlan, testState)
 
-	// Should succeed because small weight doesn't require spec
+	// Should succeed with valid tiny_spec including checklist
 	if err != nil {
-		t.Fatalf("small weight task should not fail on spec extraction, got: %v", err)
+		t.Fatalf("small weight task with valid tiny_spec should succeed, got: %v", err)
 	}
 
 	// Task should be completed

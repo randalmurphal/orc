@@ -185,7 +185,6 @@ func TestNormalizeWeight(t *testing.T) {
 		{"small", task.WeightSmall},
 		{"medium", task.WeightMedium},
 		{"large", task.WeightLarge},
-		{"greenfield", task.WeightGreenfield},
 		{"unknown", task.WeightMedium}, // default
 		{"", task.WeightMedium},
 	}

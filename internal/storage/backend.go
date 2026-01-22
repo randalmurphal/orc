@@ -260,6 +260,13 @@ type Backend interface {
 	LoadFullSpec(taskID string) (*SpecInfo, error)
 	SpecExists(taskID string) (bool, error)
 
+	// Phase artifact operations (for design, tdd_write, breakdown, research, docs)
+	// Specs use the separate Spec operations above
+	SaveArtifact(taskID, phaseID, content, source string) error
+	LoadArtifact(taskID, phaseID string) (string, error)
+	LoadAllArtifacts(taskID string) (map[string]string, error)
+	ArtifactExists(taskID, phaseID string) (bool, error)
+
 	// Initiative operations
 	SaveInitiative(i *initiative.Initiative) error
 	LoadInitiative(id string) (*initiative.Initiative, error)
@@ -322,6 +329,12 @@ type Backend interface {
 	UpdateBranchActivity(name string) error
 	DeleteBranch(name string) error
 	GetStaleBranches(since time.Time) ([]*Branch, error)
+
+	// Constitution operations (project-level principles)
+	SaveConstitution(content, version string) error
+	LoadConstitution() (content string, version string, err error)
+	ConstitutionExists() (bool, error)
+	DeleteConstitution() error
 
 	// Lifecycle
 	Sync() error    // Flush caches to disk

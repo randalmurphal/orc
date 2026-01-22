@@ -1,45 +1,56 @@
 version: 1
 weight: medium
-description: Medium task - spec, implement, review, test, docs with criteria validation
+description: Medium task - spec, TDD, breakdown, implement, review, docs (TDD-first workflow)
 
 phases:
   - id: spec
     name: spec
-    # Uses templates/prompts/spec.md (no inline prompt)
+    # Uses templates/prompts/spec.md
     depends_on: []
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: tdd_write
+    name: tdd_write
+    # Uses templates/prompts/tdd_write.md
+    # Write failing tests before implementation (context isolation)
+    depends_on: [spec]
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: breakdown
+    name: breakdown
+    # Uses templates/prompts/breakdown.md
+    # Break down into checkboxed implementation tasks
+    depends_on: [tdd_write]
     gate:
       type: auto
     checkpoint: true
 
   - id: implement
     name: implement
-    # Uses templates/prompts/implement.md (no inline prompt)
-    depends_on: [spec]
+    # Uses templates/prompts/implement.md
+    # Implementation guided by breakdown, must make TDD tests pass
+    depends_on: [breakdown]
     gate:
       type: auto
     checkpoint: true
 
   - id: review
     name: review
-    # Uses templates/prompts/review.md (no inline prompt)
+    # Uses templates/prompts/review.md
     depends_on: [implement]
     gate:
       type: auto
     checkpoint: true
     max_iterations: 3
 
-  - id: test
-    name: test
-    # Uses templates/prompts/test.md (no inline prompt)
-    depends_on: [review]
-    gate:
-      type: auto
-    checkpoint: true
-
   - id: docs
     name: docs
-    # Uses templates/prompts/docs.md (no inline prompt)
-    depends_on: [test]
+    # Uses templates/prompts/docs.md
+    depends_on: [review]
     gate:
       type: auto
     checkpoint: true

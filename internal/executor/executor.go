@@ -52,7 +52,6 @@ type PhaseState struct {
 	// Prior phase content (for template rendering)
 	ResearchContent  string
 	SpecContent      string
-	DesignContent    string
 	ImplementContent string
 
 	// Retry context (populated when retrying from a failed phase)
@@ -216,6 +215,7 @@ type Executor struct {
 	worktreePath   string   // Path to worktree if enabled
 	worktreeGit    *git.Git // Git operations for worktree
 	currentTaskDir string   // Directory for current task's files
+	currentTaskID  string   // Task ID for hooks (e.g., TDD enforcement)
 
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
@@ -225,10 +225,6 @@ type Executor struct {
 
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
-
-	// Validation model for creating validation clients in worktree context
-	// Client is created dynamically per-phase with correct workdir
-	validationModel string
 
 	// Global database for cross-project cost tracking
 	globalDB *db.GlobalDB
@@ -328,12 +324,6 @@ func New(cfg *Config) *Executor {
 	}
 	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
 
-	// Store validation model for dynamic client creation in worktree context
-	var validationModel string
-	if orcCfg.Validation.Enabled {
-		validationModel = orcCfg.Validation.Model
-	}
-
 	// Open global database for cross-project cost tracking
 	// Cost tracking is optional - failures are logged but don't block execution
 	globalDB, err := db.OpenGlobal()
@@ -351,7 +341,6 @@ func New(cfg *Config) *Executor {
 		tokenPool:       pool,
 		backend:         cfg.Backend,
 		resourceTracker: resourceTracker,
-		validationModel: validationModel,
 		globalDB:        globalDB,
 		claudePath:      claudePath,
 	}
@@ -417,31 +406,6 @@ func (e *Executor) SetOrcConfig(cfg *config.Config) {
 	e.orcConfig = cfg
 	// Reset cached executors so they pick up the new config
 	e.resetPhaseExecutors()
-}
-
-// ValidationModel returns the model to use for validation, or empty if validation is disabled.
-func (e *Executor) ValidationModel() string {
-	return e.validationModel
-}
-
-// CreateValidationClient creates a validation client for the given working directory.
-// This should be called by sub-executors with their worktree path to ensure
-// validation runs in the correct directory context.
-func (e *Executor) CreateValidationClient(workdir string) claude.Client {
-	if e.validationModel == "" {
-		return nil
-	}
-	opts := []claude.ClaudeOption{
-		claude.WithModel(e.validationModel),
-		claude.WithWorkdir(workdir),
-	}
-	if e.claudePath != "" {
-		opts = append(opts, claude.WithClaudePath(e.claudePath))
-	}
-	if e.config.DangerouslySkipPermissions {
-		opts = append(opts, claude.WithDangerouslySkipPermissions())
-	}
-	return claude.NewClaudeCLI(opts...)
 }
 
 // getPhaseExecutor returns the appropriate phase executor for the given weight.
@@ -520,10 +484,6 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithFullBackpressure(bp))
 			}
 
-			// Pass validation model for progress validation (client created dynamically with worktree workdir)
-			if e.validationModel != "" {
-				opts = append(opts, WithFullValidationModel(e.validationModel))
-			}
 			if e.orcConfig != nil {
 				opts = append(opts, WithFullOrcConfig(e.orcConfig))
 			}
@@ -574,10 +534,6 @@ func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
 				opts = append(opts, WithStandardBackpressure(bp))
 			}
 
-			// Pass validation model for progress validation (client created dynamically with worktree workdir)
-			if e.validationModel != "" {
-				opts = append(opts, WithStandardValidationModel(e.validationModel))
-			}
 			if e.orcConfig != nil {
 				opts = append(opts, WithStandardOrcConfig(e.orcConfig))
 			}
@@ -728,6 +684,13 @@ func (e *Executor) rebuildClientWithToken(token string) {
 	// Disable go.work in worktree context to avoid path resolution issues
 	if e.worktreePath != "" {
 		clientOpts = append(clientOpts, claude.WithEnvVar("GOWORK", "off"))
+	}
+
+	// Pass task context for hooks (e.g., TDD enforcement)
+	// Hooks can query the database to get current phase and apply restrictions
+	if e.currentTaskID != "" {
+		clientOpts = append(clientOpts, claude.WithEnvVar("ORC_TASK_ID", e.currentTaskID))
+		clientOpts = append(clientOpts, claude.WithEnvVar("ORC_DB_PATH", filepath.Join(e.config.WorkDir, ".orc", "orc.db")))
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees

@@ -1,21 +1,31 @@
 version: 1
 weight: small
-description: Small task - implement with tests, fully automated
+description: Small task - tiny spec, implement, review (TDD-first, no separate test phase)
 
 phases:
-  - id: implement
-    name: implement
-    # Uses templates/prompts/implement.md (no inline prompt)
-    # For small tasks, spec_content falls back to task_description
+  - id: tiny_spec
+    name: tiny_spec
+    # Uses templates/prompts/tiny_spec.md
+    # Lightweight combined spec + TDD for simple tasks
     depends_on: []
     gate:
       type: auto
     checkpoint: true
 
-  - id: test
-    name: test
-    # Uses templates/prompts/test.md (no inline prompt)
+  - id: implement
+    name: implement
+    # Uses templates/prompts/implement.md
+    # Implementation must make TDD tests pass
+    depends_on: [tiny_spec]
+    gate:
+      type: auto
+    checkpoint: true
+
+  - id: review
+    name: review
+    # Uses templates/prompts/review.md
     depends_on: [implement]
     gate:
       type: auto
     checkpoint: true
+    max_iterations: 3

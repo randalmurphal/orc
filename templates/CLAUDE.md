@@ -8,28 +8,33 @@ Embedded templates for plans and prompts.
 templates/
 ├── embed.go          # Go embed directives
 ├── plans/            # Weight-based plan templates
-│   ├── trivial.yaml, small.yaml, medium.yaml, large.yaml, greenfield.yaml
+│   ├── trivial.yaml, small.yaml, medium.yaml, large.yaml
 ├── prompts/          # ALL prompts (phase, validation, gates)
-│   ├── [phase prompts] classify, research, spec, design, implement, review, test, docs, validate, finalize
+│   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
 │   ├── [validation] haiku_iteration_progress, haiku_task_readiness, haiku_success_criteria
-│   ├── [gates] gate_evaluation, conflict_resolution
+│   ├── [gates] conflict_resolution
 │   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
 │   ├── [review] review_round1, review_round2, qa
 │   └── [automation] automation/*.md
 └── pr-body.md        # PR description template
 ```
 
-## Plan Templates
+## Plan Templates (TDD-First Workflow)
 
 | Weight | Phases |
 |--------|--------|
-| `trivial` | implement |
-| `small` | implement → test |
-| `medium` | spec → implement → review → test → docs |
-| `large` | spec → design → implement → review → test → docs → validate |
-| `greenfield` | research → spec → design → implement → review → test → docs → validate |
+| `trivial` | tiny_spec → implement |
+| `small` | tiny_spec → implement → review |
+| `medium` | spec → tdd_write → tasks → implement → review → docs |
+| `large` | spec → tdd_write → tasks → implement → review → docs |
 
-**Review phase** (medium+): Multi-agent code review with 5 specialized reviewers.
+**Key concepts:**
+- **TDD-first**: Tests written before implementation (tdd_write phase)
+- **All weights get specs**: trivial/small use lightweight `tiny_spec`
+- **No separate test phase**: TDD handles testing upfront
+- **Medium = Large phases**: Weight provides context, agents adapt accordingly
+
+**Review phase** (small+): Multi-agent code review with 5 specialized reviewers.
 
 **Note**: `finalize` is a manual command (`orc finalize TASK-XXX`), not an automatic phase.
 Use it to sync with target branch and resolve conflicts before merge.
@@ -41,13 +46,18 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}` | Task context |
 | `{{TASK_CATEGORY}}` | feature/bug/refactor/etc |
 | `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
-| `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}` | Phase artifacts |
+| `{{SPEC_CONTENT}}` | Spec phase artifact |
+| `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD phase output |
+| `{{BREAKDOWN_CONTENT}}` | Task breakdown output |
 | `{{RETRY_CONTEXT}}` | Failure info on retry |
 | `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git context |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details |
+| `{{LANGUAGE}}`, `{{HAS_FRONTEND}}`, `{{HAS_TESTS}}` | Project detection |
+| `{{TEST_COMMAND}}`, `{{LINT_COMMAND}}`, `{{BUILD_COMMAND}}` | Project commands |
 | `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing |
 | `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}` | Review phase |
 | `{{VERIFICATION_RESULTS}}` | Implement verification |
+| `{{CONSTITUTION_CONTENT}}` | Project principles |
 
 ## Phase Prompts
 
@@ -55,13 +65,13 @@ Use it to sync with target branch and resolve conflicts before merge.
 |-------|---------|
 | `classify.md` | Weight classification |
 | `research.md` | Pattern research |
-| `spec.md` | Technical specification with verification criteria (database-only, not written to filesystem) |
-| `design.md` | Architecture (large/greenfield) |
-| `implement.md` | Implementation with criterion verification |
+| `spec.md` | Technical specification with user stories and quality checklist |
+| `tiny_spec.md` | Combined spec+TDD for trivial/small tasks |
+| `tdd_write.md` | Write failing tests before implementation |
+| `breakdown.md` | Break spec into checkboxed implementation tasks |
+| `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review |
-| `test.md` | Tests (includes Playwright E2E for UI) |
 | `docs.md` | Documentation |
-| `validate.md` | E2E validation |
 | `finalize.md` | Branch sync, conflict resolution |
 
 ## Prompt Structure
@@ -92,13 +102,13 @@ Phases that produce artifacts use `--json-schema` constrained output with an `ar
 | Phase | Produces Artifact | Content |
 |-------|-------------------|---------|
 | spec | Yes | Technical specification |
-| design | Yes | Architecture document |
+| tiny_spec | Yes | Combined spec + TDD tests |
 | research | Yes | Research findings |
+| tdd_write | Yes | Test files and test plan |
+| breakdown | Yes | Checkboxed implementation tasks |
 | docs | Yes | Documentation summary |
 | implement | No | Code changes only |
-| test | No | Test execution only |
 | review | No | Review findings only |
-| validate | No | Validation results only |
 
 Artifact content is extracted from the JSON `artifact` field by `ExtractArtifactFromOutput()`.
 
@@ -136,7 +146,6 @@ if content == nil { return "" }  // Lost error!
 |---------|--------------|
 | `executor/haiku_validation.go` | `haiku_iteration_progress.md`, `haiku_task_readiness.md`, `haiku_success_criteria.md` |
 | `executor/conflict_resolver.go` | `conflict_resolution.md` |
-| `gate/gate.go` | `gate_evaluation.md` |
 | `spec/prompt.go` | `spec_session.md` |
 | `plan_session/prompt.go` | `plan_session.md` |
 | `planner/prompt.go` | `plan_from_spec.md` |
@@ -152,17 +161,19 @@ Projects can override prompts in `.orc/prompts/`:
 
 Prompt service checks overrides first, falls back to embedded.
 
-## Verification Criteria
+## Quality Checklist Gates
 
-Spec phase defines criteria with verification methods. Implement phase must verify all before completion:
+Spec phases include a quality checklist that must pass before implementation:
 
-```markdown
-| ID | Criterion | Method | Result |
-|----|-----------|--------|--------|
-| SC-1 | User can log out | `npm test` | ✅ PASS |
-```
+| Check | Requirement |
+|-------|-------------|
+| `all_criteria_verifiable` | Every success criterion has executable verification |
+| `no_technical_metrics` | SC describes user behavior, not internals |
+| `p1_stories_independent` | P1 stories can ship alone |
+| `scope_explicit` | In/out scope listed |
+| `max_3_clarifications` | ≤3 clarifications, rest are assumptions |
 
-Completion blocked until all criteria pass.
+Failed checklist triggers retry with feedback.
 
 ## Review Conditionals
 

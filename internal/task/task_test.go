@@ -171,7 +171,6 @@ func TestIsValidWeight(t *testing.T) {
 		{WeightSmall, true},
 		{WeightMedium, true},
 		{WeightLarge, true},
-		{WeightGreenfield, true},
 		{Weight("invalid"), false},
 		{Weight(""), false},
 		{Weight("huge"), false},
@@ -188,11 +187,11 @@ func TestIsValidWeight(t *testing.T) {
 func TestValidWeights(t *testing.T) {
 	weights := ValidWeights()
 
-	if len(weights) != 5 {
-		t.Errorf("ValidWeights() returned %d weights, want 5", len(weights))
+	if len(weights) != 4 {
+		t.Errorf("ValidWeights() returned %d weights, want 4", len(weights))
 	}
 
-	expected := []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge, WeightGreenfield}
+	expected := []Weight{WeightTrivial, WeightSmall, WeightMedium, WeightLarge}
 	for i, w := range expected {
 		if weights[i] != w {
 			t.Errorf("ValidWeights()[%d] = %s, want %s", i, weights[i], w)

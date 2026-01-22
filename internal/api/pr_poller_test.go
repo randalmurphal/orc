@@ -229,7 +229,11 @@ func (b *emptyBackend) LoadPlan(string) (*plan.Plan, error)                   { 
 func (b *emptyBackend) SaveSpec(string, string, string) error        { return nil }
 func (b *emptyBackend) LoadSpec(string) (string, error)              { return "", nil }
 func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error) { return nil, nil }
-func (b *emptyBackend) SpecExists(string) (bool, error)              { return false, nil }
+func (b *emptyBackend) SpecExists(string) (bool, error)                       { return false, nil }
+func (b *emptyBackend) SaveArtifact(string, string, string, string) error     { return nil }
+func (b *emptyBackend) LoadArtifact(string, string) (string, error)           { return "", nil }
+func (b *emptyBackend) LoadAllArtifacts(string) (map[string]string, error)    { return nil, nil }
+func (b *emptyBackend) ArtifactExists(string, string) (bool, error)           { return false, nil }
 func (b *emptyBackend) SaveInitiative(*initiative.Initiative) error           { return nil }
 func (b *emptyBackend) LoadInitiative(string) (*initiative.Initiative, error) { return nil, nil }
 func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { return nil, nil }
@@ -290,8 +294,12 @@ func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings,
 func (b *emptyBackend) LoadAllReviewFindings(string) ([]*storage.ReviewFindings, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveQAResult(*storage.QAResult) error     { return nil }
-func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
+func (b *emptyBackend) SaveQAResult(*storage.QAResult) error            { return nil }
+func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error)  { return nil, nil }
+func (b *emptyBackend) SaveConstitution(string, string) error           { return nil }
+func (b *emptyBackend) LoadConstitution() (string, string, error)       { return "", "", nil }
+func (b *emptyBackend) ConstitutionExists() (bool, error)               { return false, nil }
+func (b *emptyBackend) DeleteConstitution() error                       { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

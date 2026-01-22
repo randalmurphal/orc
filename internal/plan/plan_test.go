@@ -270,19 +270,20 @@ func TestRegeneratePlan_NoOldPlan(t *testing.T) {
 }
 
 func TestRegeneratePlan_PreservesCompletedPhases(t *testing.T) {
-	// Old plan: small weight (implement, test) with implement completed
+	// Old plan: small weight (tiny_spec, implement, review) with implement completed
 	oldPlan := &Plan{
 		Version:     1,
 		TaskID:      "TASK-001",
 		Weight:      task.WeightSmall,
 		Description: "Small task",
 		Phases: []Phase{
+			{ID: "tiny_spec", Name: "tiny_spec", Status: PhaseCompleted, CommitSHA: "spec123"},
 			{ID: "implement", Name: "implement", Status: PhaseCompleted, CommitSHA: "abc123"},
-			{ID: "test", Name: "test", Status: PhasePending},
+			{ID: "review", Name: "review", Status: PhasePending},
 		},
 	}
 
-	// Change to medium weight (implement, test, docs) - implement and test exist in both
+	// Change to medium weight (spec, tdd_write, implement, review, docs) - implement and review exist in both
 	tsk := &task.Task{ID: "TASK-001", Weight: task.WeightMedium}
 
 	result, err := RegeneratePlan(tsk, oldPlan)
@@ -302,13 +303,13 @@ func TestRegeneratePlan_PreservesCompletedPhases(t *testing.T) {
 		t.Errorf("implement CommitSHA = %s, want abc123", implementPhase.CommitSHA)
 	}
 
-	// Check test phase was reset (was pending, stays pending)
-	testPhase := result.NewPlan.GetPhase("test")
-	if testPhase == nil {
-		t.Fatal("test phase not found")
+	// Check review phase was reset (was pending, stays pending)
+	reviewPhase := result.NewPlan.GetPhase("review")
+	if reviewPhase == nil {
+		t.Fatal("review phase not found")
 	}
-	if testPhase.Status != PhasePending {
-		t.Errorf("test status = %s, want pending", testPhase.Status)
+	if reviewPhase.Status != PhasePending {
+		t.Errorf("review status = %s, want pending", reviewPhase.Status)
 	}
 
 	// Check docs phase exists (new in medium) and is pending
@@ -340,8 +341,10 @@ func TestRegeneratePlan_PreservesSkippedPhases(t *testing.T) {
 		TaskID:      "TASK-001",
 		Weight:      task.WeightMedium,
 		Phases: []Phase{
+			{ID: "spec", Name: "spec", Status: PhaseCompleted, CommitSHA: "spec123"},
+			{ID: "tdd_write", Name: "tdd_write", Status: PhaseCompleted, CommitSHA: "tdd123"},
 			{ID: "implement", Name: "implement", Status: PhaseCompleted, CommitSHA: "abc123"},
-			{ID: "test", Name: "test", Status: PhaseSkipped},
+			{ID: "review", Name: "review", Status: PhaseSkipped},
 			{ID: "docs", Name: "docs", Status: PhasePending},
 		},
 	}
@@ -354,16 +357,16 @@ func TestRegeneratePlan_PreservesSkippedPhases(t *testing.T) {
 		t.Fatalf("RegeneratePlan() failed: %v", err)
 	}
 
-	// Check test phase status (skipped) was preserved
-	testPhase := result.NewPlan.GetPhase("test")
-	if testPhase == nil {
-		t.Fatal("test phase not found")
+	// Check review phase status (skipped) was preserved
+	reviewPhase := result.NewPlan.GetPhase("review")
+	if reviewPhase == nil {
+		t.Fatal("review phase not found")
 	}
-	if testPhase.Status != PhaseSkipped {
-		t.Errorf("test status = %s, want skipped", testPhase.Status)
+	if reviewPhase.Status != PhaseSkipped {
+		t.Errorf("review status = %s, want skipped", reviewPhase.Status)
 	}
 
-	// Verify both implement and test are in PreservedPhases
+	// Verify both implement and review are in PreservedPhases
 	preservedSet := make(map[string]bool)
 	for _, p := range result.PreservedPhases {
 		preservedSet[p] = true
@@ -371,20 +374,22 @@ func TestRegeneratePlan_PreservesSkippedPhases(t *testing.T) {
 	if !preservedSet["implement"] {
 		t.Error("PreservedPhases should contain 'implement'")
 	}
-	if !preservedSet["test"] {
-		t.Error("PreservedPhases should contain 'test'")
+	if !preservedSet["review"] {
+		t.Error("PreservedPhases should contain 'review'")
 	}
 }
 
 func TestRegeneratePlan_DoesNotPreserveRunningOrFailed(t *testing.T) {
-	// Old plan with running and failed phases
+	// Old plan with running and failed phases (no completed phases)
 	oldPlan := &Plan{
 		Version:     1,
 		TaskID:      "TASK-001",
 		Weight:      task.WeightMedium,
 		Phases: []Phase{
-			{ID: "implement", Name: "implement", Status: PhaseRunning},
-			{ID: "test", Name: "test", Status: PhaseFailed},
+			{ID: "spec", Name: "spec", Status: PhaseRunning},
+			{ID: "tdd_write", Name: "tdd_write", Status: PhaseFailed},
+			{ID: "implement", Name: "implement", Status: PhasePending},
+			{ID: "review", Name: "review", Status: PhasePending},
 			{ID: "docs", Name: "docs", Status: PhasePending},
 		},
 	}
@@ -417,14 +422,17 @@ func TestRegeneratePlan_WeightDowngrade(t *testing.T) {
 		Weight:      task.WeightLarge,
 		Phases: []Phase{
 			{ID: "spec", Name: "spec", Status: PhaseCompleted, CommitSHA: "spec123"},
+			{ID: "design", Name: "design", Status: PhaseCompleted, CommitSHA: "design123"},
+			{ID: "tdd_write", Name: "tdd_write", Status: PhaseCompleted, CommitSHA: "tdd123"},
+			{ID: "tasks", Name: "tasks", Status: PhaseCompleted, CommitSHA: "tasks123"},
 			{ID: "implement", Name: "implement", Status: PhaseCompleted, CommitSHA: "impl123"},
-			{ID: "test", Name: "test", Status: PhasePending},
+			{ID: "review", Name: "review", Status: PhasePending},
 			{ID: "docs", Name: "docs", Status: PhasePending},
 			{ID: "validate", Name: "validate", Status: PhasePending},
 		},
 	}
 
-	// Downgrade to small weight (implement, test) - spec, docs, validate don't exist
+	// Downgrade to small weight (tiny_spec, implement, review) - spec, design, tdd_write, tasks, docs, validate don't exist
 	tsk := &task.Task{ID: "TASK-001", Weight: task.WeightSmall}
 
 	result, err := RegeneratePlan(tsk, oldPlan)
@@ -432,9 +440,9 @@ func TestRegeneratePlan_WeightDowngrade(t *testing.T) {
 		t.Fatalf("RegeneratePlan() failed: %v", err)
 	}
 
-	// Small weight should have 2 phases
-	if len(result.NewPlan.Phases) != 2 {
-		t.Errorf("NewPlan phases = %d, want 2", len(result.NewPlan.Phases))
+	// Small weight should have 3 phases (tiny_spec, implement, review)
+	if len(result.NewPlan.Phases) != 3 {
+		t.Errorf("NewPlan phases = %d, want 3", len(result.NewPlan.Phases))
 	}
 
 	// implement should be preserved (completed in old, exists in new)
@@ -446,7 +454,7 @@ func TestRegeneratePlan_WeightDowngrade(t *testing.T) {
 		t.Errorf("implement status = %s, want completed", implementPhase.Status)
 	}
 
-	// spec should not exist in new plan
+	// spec should not exist in new plan (small uses tiny_spec instead)
 	specPhase := result.NewPlan.GetPhase("spec")
 	if specPhase != nil {
 		t.Error("spec phase should not exist in small weight plan")

@@ -397,14 +397,6 @@ func TestResolveModelSetting(t *testing.T) {
 			wantThinking: true,
 		},
 		{
-			name:         "greenfield research uses opus with thinking",
-			cfg:          Default(),
-			weight:       "greenfield",
-			phase:        "research",
-			wantModel:    "opus",
-			wantThinking: true,
-		},
-		{
 			name: "custom config overrides defaults",
 			cfg: &Config{
 				Models: ModelsConfig{
@@ -1366,9 +1358,9 @@ func TestFinalizePresets_ProfileSafe(t *testing.T) {
 			finalize.RiskAssessment.ReReviewThreshold)
 	}
 
-	// Safe should have AI pre-merge gate
-	if finalize.Gates.PreMerge != "ai" {
-		t.Errorf("FinalizePresets(safe).Gates.PreMerge = %s, want ai", finalize.Gates.PreMerge)
+	// Safe should have human pre-merge gate
+	if finalize.Gates.PreMerge != "human" {
+		t.Errorf("FinalizePresets(safe).Gates.PreMerge = %s, want human", finalize.Gates.PreMerge)
 	}
 }
 
@@ -1643,11 +1635,12 @@ func TestValidate_FinalizeConfig(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "valid ai gate",
+			name: "invalid ai gate",
 			setup: func(c *Config) {
 				c.Completion.Finalize.Gates.PreMerge = "ai"
 			},
-			expectError: false,
+			expectError: true,
+			errContains: "pre_merge",
 		},
 		{
 			name: "valid none gate",

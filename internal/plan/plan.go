@@ -22,7 +22,6 @@ type GateType string
 
 const (
 	GateAuto  GateType = "auto"
-	GateAI    GateType = "ai"
 	GateHuman GateType = "human"
 )
 

@@ -500,9 +500,9 @@ func ShouldRunParallelReview(cfg *config.Config, weight task.Weight) bool {
 		return false
 	}
 
-	// Only use parallel review for medium/large/greenfield tasks
+	// Only use parallel review for medium/large tasks
 	switch weight {
-	case task.WeightMedium, task.WeightLarge, task.WeightGreenfield:
+	case task.WeightMedium, task.WeightLarge:
 		return true
 	default:
 		return false
