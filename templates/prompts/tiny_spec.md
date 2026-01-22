@@ -95,16 +95,25 @@ If tests pass before implementation, they're testing the wrong thing.
 </instructions>
 
 <output_format>
-Output a JSON object with the spec and test information:
+Output a JSON object with the spec, test information, and quality checklist:
 
 ```json
 {
   "status": "complete",
   "summary": "Defined N criteria, wrote M failing tests",
   "artifact": "# Tiny Spec: [Title]\n\n## Success Criteria\n\n| ID | Criterion | Verification |\n|----|-----------|-------|\n| SC-1 | ... | ... |\n\n## Tests Written\n\n- `path/to/test.ts`: Tests SC-1\n",
-  "tests_written": ["path/to/test1.ts", "path/to/test2.go"]
+  "tests_written": ["path/to/test1.ts", "path/to/test2.go"],
+  "quality_checklist": [
+    {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
+    {"id": "no_technical_metrics", "check": "SC describes behavior, not internals", "passed": true},
+    {"id": "p1_stories_independent", "check": "Task can be completed independently", "passed": true},
+    {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
+    {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true}
+  ]
 }
 ```
+
+**REQUIRED:** The `quality_checklist` array must be included with all 5 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
 
 If blocked (genuinely unclear requirements):
 ```json
