@@ -289,53 +289,63 @@ func (e *Executor) ExecuteTask(ctx context.Context, t *task.Task, p *plan.Plan, 
 		// Validate quality checklist for spec phases (gates implementation)
 		if phase.ID == "spec" || phase.ID == "tiny_spec" {
 			checklist := ExtractChecklistFromOutput(result.Output)
-			if checklist != nil { // Only validate if checklist was included
-				passed, failures := ValidateSpecChecklist(checklist)
-				if !passed {
-					// Check if we can retry (before incrementing)
-					if retryCounts[phase.ID] < e.orcConfig.EffectiveMaxRetries() {
-						retryCounts[phase.ID]++
-						feedback := FormatChecklistFeedback(failures)
-						e.logger.Info("checklist validation failed, retrying spec phase",
-							"task", t.ID,
-							"phase", phase.ID,
-							"attempt", retryCounts[phase.ID],
-							"failures", len(failures),
-						)
+			if checklist == nil {
+				// Checklist is REQUIRED - fail if missing or unparseable
+				checklistErr := fmt.Errorf("spec phase missing quality_checklist in output - agent must include self-assessment checklist")
+				e.logger.Error("spec phase missing required checklist",
+					"task", t.ID,
+					"phase", phase.ID,
+					"output_preview", truncateForLog(result.Output, 200),
+				)
+				e.failTask(t, phase, s, checklistErr)
+				return checklistErr
+			}
 
-						// Set retry context following established pattern
-						s.SetRetryContext(phase.ID, phase.ID, feedback, result.Output, retryCounts[phase.ID])
+			passed, failures := ValidateSpecChecklist(checklist)
+			if !passed {
+				// Check if we can retry (before incrementing)
+				if retryCounts[phase.ID] < e.orcConfig.EffectiveMaxRetries() {
+					retryCounts[phase.ID]++
+					feedback := FormatChecklistFeedback(failures)
+					e.logger.Info("checklist validation failed, retrying spec phase",
+						"task", t.ID,
+						"phase", phase.ID,
+						"attempt", retryCounts[phase.ID],
+						"failures", len(failures),
+					)
 
-						// Save retry context file
-						contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, phase.ID,
-							"Checklist validation failed", result.Output, retryCounts[phase.ID])
-						if saveErr != nil {
-							e.logger.Warn("failed to save retry context file", "error", saveErr)
-						} else {
-							s.SetRetryContextFile(contextFile)
-						}
+					// Set retry context following established pattern
+					s.SetRetryContext(phase.ID, phase.ID, feedback, result.Output, retryCounts[phase.ID])
 
-						// Reset the phase for retry
-						s.ResetPhase(phase.ID)
-						if saveErr := e.backend.SaveState(s); saveErr != nil {
-							e.logger.Error("failed to save state for checklist retry", "error", saveErr)
-						}
-
-						// Track quality metrics (same pattern as other retries)
-						t.RecordPhaseRetry(phase.ID)
-						if saveErr := e.backend.SaveTask(t); saveErr != nil {
-							e.logger.Warn("failed to save quality metrics", "error", saveErr)
-						}
-
-						continue // Retry same phase (don't increment i)
+					// Save retry context file
+					contextFile, saveErr := SaveRetryContextFile(e.config.WorkDir, t.ID, phase.ID, phase.ID,
+						"Checklist validation failed", result.Output, retryCounts[phase.ID])
+					if saveErr != nil {
+						e.logger.Warn("failed to save retry context file", "error", saveErr)
+					} else {
+						s.SetRetryContextFile(contextFile)
 					}
 
-					// Out of retries - fail the task
-					failureMsg := FormatChecklistFeedback(failures)
-					checklistErr := fmt.Errorf("checklist validation failed after %d attempts: %s", retryCounts[phase.ID]+1, failureMsg)
-					e.failTask(t, phase, s, checklistErr)
-					return checklistErr
+					// Reset the phase for retry
+					s.ResetPhase(phase.ID)
+					if saveErr := e.backend.SaveState(s); saveErr != nil {
+						e.logger.Error("failed to save state for checklist retry", "error", saveErr)
+					}
+
+					// Track quality metrics (same pattern as other retries)
+					t.RecordPhaseRetry(phase.ID)
+					if saveErr := e.backend.SaveTask(t); saveErr != nil {
+						e.logger.Warn("failed to save quality metrics", "error", saveErr)
+					}
+
+					continue // Retry same phase (don't increment i)
 				}
+
+				// Out of retries - fail the task
+				failureMsg := FormatChecklistFeedback(failures)
+				checklistErr := fmt.Errorf("checklist validation failed after %d attempts: %s", retryCounts[phase.ID]+1, failureMsg)
+				e.failTask(t, phase, s, checklistErr)
+				return checklistErr
 			}
 		}
 

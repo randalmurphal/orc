@@ -50,7 +50,13 @@ Your implementation MUST make these tests pass.
 **Before claiming completion:**
 1. Run all tests: `{{TEST_COMMAND}}`
 2. All tests MUST pass
-3. If any fail, fix implementation (NOT the test)
+
+**When tests fail:**
+1. First verify the test is correct against the spec
+2. If test matches spec: fix implementation
+3. If test contradicts spec: document as AMEND-xxx, fix BOTH spec and test
+4. NEVER delete a failing test without replacement
+5. NEVER change assertions just to make buggy code pass
 </tdd_tests>
 
 {{#if TDD_TEST_PLAN}}
@@ -112,16 +118,26 @@ Cross-check against the spec's Preservation Requirements table:
 
 **Do NOT proceed to Step 3 until you've mapped dependencies.**
 
-## Step 3: Plan Changes
+## Step 3: Follow Task Breakdown
 
-Based on your impact analysis and task breakdown (if available), identify:
+{{#if TASKS_CONTENT}}
+**MANDATORY:** Complete tasks in the order specified in the task breakdown above.
+
+For each task:
+1. Implement the specific changes listed
+2. Verify the linked TDD test now passes
+3. Check off the task (mentally track progress)
+4. Do NOT skip tasks or combine them arbitrarily
+{{else}}
+Plan your changes based on impact analysis:
 - New files to create
 - Existing files to modify (including dependents from Step 2)
 - Tests to write/update
+{{/if}}
 
 ## Step 4: Implement
 
-For each change:
+For each task/change:
 1. **Fully implement** all requirements - no partial solutions or TODOs
 2. **Update all dependents** identified in your impact analysis
 3. Follow existing code patterns
@@ -151,6 +167,8 @@ Every error path should:
 Before completing:
 - [ ] All success criteria addressed
 - [ ] All TDD tests pass
+- [ ] All tasks from task breakdown completed (if provided)
+- [ ] Tasks completed in dependency order (if provided)
 - [ ] All dependents from impact analysis updated
 - [ ] Preservation requirements verified (nothing accidentally removed)
 - [ ] Scope boundaries respected

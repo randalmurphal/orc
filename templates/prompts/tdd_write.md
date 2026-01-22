@@ -46,13 +46,45 @@ You are writing tests for code that DOES NOT YET EXIST.
 - Write tests that pass with empty implementations
 - Create mock implementations
 - Look at how similar features are currently implemented (context isolation)
+- Test internal function signatures - test public interfaces only
+- Hard-code specific return values - test behavior patterns
 
 **DO:**
 - Test all success criteria from the spec
 - Test all edge cases and error conditions listed in the spec
 - Write tests that will FAIL until implemented
 - Follow existing test patterns in the codebase
+- Test observable outcomes (return values, side effects, state changes)
+- Test WHAT it does, not HOW it does it
 </critical_mindset>
+
+<test_isolation>
+**Mocking Guidelines:**
+- Mock external services (HTTP APIs, databases, file systems) at boundaries
+- Never mock the code you're testing
+- Prefer real implementations when fast enough (<100ms)
+- If you need >3 mocks in a unit test, the test is likely too coupled
+
+**Test Independence:**
+- Each test must be runnable in isolation
+- No shared mutable state between tests
+- Use setup/teardown for database cleanup
+- Don't rely on test execution order
+</test_isolation>
+
+<error_path_testing>
+**Required Error Path Tests:**
+For each operation, test:
+1. **Invalid input** - wrong types, missing required fields, out-of-range values
+2. **Resource not found** - what happens when expected data doesn't exist
+3. **Permission denied** - unauthorized access attempts (if applicable)
+4. **External failure** - service unavailable, timeout (if external dependencies)
+
+Each error test should verify:
+- Appropriate error message returned
+- No partial state changes (atomicity)
+- User receives actionable guidance
+</error_path_testing>
 
 ## Step 1: Analyze Success Criteria
 
@@ -132,15 +164,14 @@ Output a JSON object with test information:
 {
   "status": "complete",
   "summary": "Wrote N tests covering M success criteria. Tests correctly fail.",
-  "tests_written": [
-    {"path": "path/to/test.ts", "type": "e2e", "criteria": ["SC-1"]},
-    {"path": "path/to/unit.go", "type": "unit", "criteria": ["SC-2", "SC-3"]}
-  ],
-  "manual_test_plan": "## Manual UI Test Plan\n..."
+  "artifact": "# TDD Tests for {{TASK_ID}}\n\n## Test Files\n\n| File | Type | Criteria |\n|------|------|----------|\n| path/to/test.ts | e2e | SC-1 |\n| path/to/unit.go | unit | SC-2, SC-3 |\n\n## Test Descriptions\n\n### path/to/test.ts\n- `test_user_can_login` - Verifies SC-1: user can authenticate\n- `test_invalid_password_rejected` - Error path: invalid credentials\n\n### path/to/unit.go\n- `TestFeatureX` - Verifies SC-2: feature behavior\n- `TestFeatureX_ErrorCase` - Error path: handles missing data\n\n## Manual Test Plan (if applicable)\n\n[Manual steps for UI testing if automated testing not feasible]"
 }
 ```
 
-The `manual_test_plan` field is only included if Option B (manual testing) was chosen for UI testing.
+The `artifact` field MUST contain:
+1. Table of test files with their types and criteria coverage
+2. Description of each test and what it verifies
+3. Manual test plan section (if Option B was chosen for UI testing)
 
 If blocked:
 ```json

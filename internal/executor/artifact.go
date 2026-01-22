@@ -95,8 +95,8 @@ func (e *SpecExtractionError) Error() string {
 // SaveSpecToDatabase extracts spec from JSON output and saves to database.
 // The worktreePath parameter is deprecated and ignored - specs come from JSON output only.
 func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, _ ...string) (bool, error) {
-	// Only save for spec phase
-	if phaseID != "spec" {
+	// Only save for spec phases (spec and tiny_spec)
+	if phaseID != "spec" && phaseID != "tiny_spec" {
 		return false, nil
 	}
 
