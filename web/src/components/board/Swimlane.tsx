@@ -26,6 +26,8 @@ export interface SwimlaneProps {
 	onTaskClick?: (task: Task) => void;
 	/** Optional callback for task context menu */
 	onContextMenu?: (task: Task, e: React.MouseEvent) => void;
+	/** Map of task ID to pending decision count */
+	taskDecisionCounts?: Map<string, number>;
 }
 
 /** Color themes for initiative icons and progress bars */
@@ -57,6 +59,7 @@ export function Swimlane({
 	onToggle,
 	onTaskClick,
 	onContextMenu,
+	taskDecisionCounts,
 }: SwimlaneProps) {
 	// Calculate progress
 	const completedCount = tasks.filter((t) => t.status === 'completed').length;
@@ -157,6 +160,7 @@ export function Swimlane({
 							task={task}
 							onClick={() => onTaskClick?.(task)}
 							onContextMenu={(e) => onContextMenu?.(task, e)}
+							pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
 						/>
 					))
 				)}

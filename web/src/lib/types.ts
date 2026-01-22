@@ -464,7 +464,12 @@ export type WSEventType =
 	// Initiative events (triggered by initiative file changes)
 	| 'initiative_created'
 	| 'initiative_updated'
-	| 'initiative_deleted';
+	| 'initiative_deleted'
+	// Decision events (headless gate approval)
+	| 'decision_required'
+	| 'decision_resolved'
+	// Files changed events (real-time file modification tracking)
+	| 'files_changed';
 
 // Activity update event data (from EventActivity events)
 export interface ActivityUpdate {
@@ -568,4 +573,41 @@ export interface PendingDecision {
 	question: string;
 	options: DecisionOption[];
 	created_at: string;
+}
+
+// WebSocket event data types for decisions
+export interface DecisionRequiredData {
+	decision_id: string;
+	task_id: string;
+	task_title: string;
+	phase: string;
+	gate_type: string;
+	question: string;
+	context: string;
+	requested_at: string;
+}
+
+export interface DecisionResolvedData {
+	decision_id: string;
+	task_id: string;
+	phase: string;
+	approved: boolean;
+	reason?: string;
+	resolved_by: string;
+	resolved_at: string;
+}
+
+// WebSocket event data types for files changed
+export interface FileChangedInfo {
+	path: string;
+	status: 'added' | 'modified' | 'deleted' | 'renamed';
+	additions: number;
+	deletions: number;
+}
+
+export interface FilesChangedData {
+	files: FileChangedInfo[];
+	total_additions: number;
+	total_deletions: number;
+	timestamp: string;
 }

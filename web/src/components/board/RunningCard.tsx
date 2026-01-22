@@ -26,6 +26,8 @@ export interface RunningCardProps {
 	outputLines?: string[];
 	/** Additional CSS class names */
 	className?: string;
+	/** Number of pending decisions for this task */
+	pendingDecisionCount?: number;
 }
 
 /** Output line with type for color coding */
@@ -138,6 +140,7 @@ export function RunningCard({
 	onToggleExpand,
 	outputLines: rawOutputLines = [],
 	className = '',
+	pendingDecisionCount = 0,
 }: RunningCardProps) {
 	// Elapsed time with live updates
 	const [elapsedTime, setElapsedTime] = useState(() =>
@@ -191,7 +194,13 @@ export function RunningCard({
 	);
 
 	// Build class names
-	const cardClasses = ['running-card', expanded && 'expanded', className].filter(Boolean).join(' ');
+	const hasPendingDecision = pendingDecisionCount > 0;
+	const cardClasses = [
+		'running-card',
+		expanded && 'expanded',
+		hasPendingDecision && 'has-pending-decision',
+		className
+	].filter(Boolean).join(' ');
 
 	return (
 		<article

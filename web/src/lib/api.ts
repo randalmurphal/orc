@@ -2056,6 +2056,29 @@ export async function getTasksDependencyGraph(taskIds: string[]): Promise<Depend
 	return fetchJSON<DependencyGraphData>(`/tasks/dependency-graph?ids=${encodeURIComponent(ids)}`);
 }
 
+// Decisions (gate approval in headless mode)
+export interface SubmitDecisionRequest {
+	approved: boolean;
+	reason?: string;
+}
+
+export interface SubmitDecisionResponse {
+	decision_id: string;
+	task_id: string;
+	approved: boolean;
+	new_status: string;
+}
+
+export async function submitDecision(
+	decisionId: string,
+	request: SubmitDecisionRequest
+): Promise<SubmitDecisionResponse> {
+	return fetchJSON<SubmitDecisionResponse>(`/decisions/${decisionId}`, {
+		method: 'POST',
+		body: JSON.stringify(request),
+	});
+}
+
 // Branch Registry Operations
 export interface BranchListOptions {
 	type?: 'initiative' | 'staging' | 'task';
