@@ -94,6 +94,7 @@ export function SettingsLayout() {
 						<NavItem to="/settings/projects" icon="folder" label="Projects" />
 						<NavItem to="/settings/billing" icon="dollar" label="Billing & Usage" />
 						<NavItem to="/settings/import-export" icon="export" label="Import / Export" />
+						<NavItem to="/settings/constitution" icon="shield" label="Constitution" />
 					</NavGroup>
 
 					<NavGroup title="ACCOUNT">

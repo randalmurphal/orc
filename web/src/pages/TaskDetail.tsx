@@ -9,6 +9,7 @@ import { TranscriptTab } from '@/components/task-detail/TranscriptTab';
 import { TestResultsTab } from '@/components/task-detail/TestResultsTab';
 import { AttachmentsTab } from '@/components/task-detail/AttachmentsTab';
 import { CommentsTab } from '@/components/task-detail/CommentsTab';
+import { ReviewFindingsTab } from '@/components/task-detail/ReviewFindingsTab';
 import { Icon } from '@/components/ui/Icon';
 import { getTask, getTaskPlan } from '@/lib/api';
 import { useTaskSubscription } from '@/hooks';
@@ -17,7 +18,7 @@ import type { Task, Plan } from '@/lib/types';
 import './TaskDetail.css';
 
 // Valid tab IDs
-const VALID_TABS: TabId[] = ['timeline', 'changes', 'transcript', 'test-results', 'attachments', 'comments'];
+const VALID_TABS: TabId[] = ['timeline', 'changes', 'transcript', 'test-results', 'review-findings', 'attachments', 'comments'];
 
 /**
  * Task detail page (/tasks/:id)
@@ -175,6 +176,8 @@ export function TaskDetail() {
 									return <TranscriptTab taskId={task.id} streamingLines={streamingTranscript} />;
 								case 'test-results':
 									return <TestResultsTab taskId={task.id} />;
+								case 'review-findings':
+									return <ReviewFindingsTab taskId={task.id} />;
 								case 'attachments':
 									return <AttachmentsTab taskId={task.id} />;
 								case 'comments':

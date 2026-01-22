@@ -20,6 +20,7 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ defa
 // Settings sub-components (loaded with SettingsPage chunk)
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
 const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
+const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
 
 // Legacy pages (lower priority, separate chunks)
 const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
@@ -269,6 +270,14 @@ export const routes: RouteObject[] = [
 									description="Import and export tasks, initiatives, and settings"
 									icon="export"
 								/>
+							</LazyRoute>
+						),
+					},
+					{
+						path: 'constitution',
+						element: (
+							<LazyRoute>
+								<ConstitutionPage />
 							</LazyRoute>
 						),
 					},

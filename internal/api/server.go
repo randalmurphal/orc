@@ -364,6 +364,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("DELETE /api/tasks/{id}/review/comments/{commentId}", cors(s.handleDeleteReviewComment))
 	s.mux.HandleFunc("POST /api/tasks/{id}/review/retry", cors(s.handleReviewRetry))
 	s.mux.HandleFunc("GET /api/tasks/{id}/review/stats", cors(s.handleGetReviewStats))
+	s.mux.HandleFunc("GET /api/tasks/{id}/review/findings", cors(s.handleGetReviewFindings))
 
 	// Task comments (general notes/discussion)
 	s.mux.HandleFunc("GET /api/tasks/{id}/comments", cors(s.handleListTaskComments))
@@ -456,6 +457,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/claudemd", cors(s.handleGetClaudeMD))
 	s.mux.HandleFunc("PUT /api/claudemd", cors(s.handleUpdateClaudeMD))
 	s.mux.HandleFunc("GET /api/claudemd/hierarchy", cors(s.handleGetClaudeMDHierarchy))
+
+	// Constitution (project principles/invariants)
+	s.mux.HandleFunc("GET /api/constitution", cors(s.handleGetConstitution))
+	s.mux.HandleFunc("PUT /api/constitution", cors(s.handleUpdateConstitution))
+	s.mux.HandleFunc("DELETE /api/constitution", cors(s.handleDeleteConstitution))
 
 	// MCP Servers (.mcp.json)
 	s.mux.HandleFunc("GET /api/mcp", cors(s.handleListMCPServers))
