@@ -199,10 +199,10 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		},
 	}
 
-	// Parse completion status from JSON response
-	// Since we use --json-schema, response MUST be pure JSON matching the phase-appropriate schema
+	// Parse completion status from JSON response using phase-specific parser
+	// Different phases use different schemas (review has findings/decision, QA has its own, etc.)
 	// Error on parse failure - no silent continue
-	status, reason, parseErr := CheckPhaseCompletionJSON(resp.Content)
+	status, reason, parseErr := ParsePhaseSpecificResponse(e.phaseID, e.reviewRound, resp.Content)
 	result.Status = status
 	result.Reason = reason
 
@@ -370,6 +370,10 @@ type MockTurnExecutor struct {
 	Error error
 	// Delay is how long to wait before returning. If set, respects context cancellation.
 	Delay time.Duration
+	// PhaseID for phase-specific response parsing (review, qa use different schemas)
+	PhaseID string
+	// ReviewRound for review phase (1 = findings, 2 = decision)
+	ReviewRound int
 }
 
 // Ensure MockTurnExecutor implements TurnExecutor
@@ -418,8 +422,8 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		content = m.DefaultResponse
 	}
 
-	// Parse status from content (same as real executor)
-	status, reason, parseErr := CheckPhaseCompletionJSON(content)
+	// Parse status from content using phase-specific parser (same as real executor)
+	status, reason, parseErr := ParsePhaseSpecificResponse(m.PhaseID, m.ReviewRound, content)
 
 	result := &TurnResult{
 		Content:   content,

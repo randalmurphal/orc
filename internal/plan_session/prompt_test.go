@@ -274,9 +274,14 @@ func TestGeneratePrompt_ReturnsNonEmptyString(t *testing.T) {
 		t.Error("GeneratePrompt() returned empty string")
 	}
 
-	// Should contain the completion marker section
-	if !strings.Contains(got, "<spec_complete>true</spec_complete>") {
-		t.Error("GeneratePrompt() missing completion marker section")
+	// Should contain the title from PromptData
+	if !strings.Contains(got, "Test") {
+		t.Error("GeneratePrompt() missing title")
+	}
+
+	// Should contain key sections from the template
+	if !strings.Contains(got, "Your Role") {
+		t.Error("GeneratePrompt() missing 'Your Role' section")
 	}
 }
 

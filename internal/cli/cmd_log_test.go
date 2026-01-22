@@ -4,12 +4,25 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 )
+
+// resolveSymlinks returns the canonical path with symlinks resolved.
+// On macOS, /var is a symlink to /private/var, which causes path
+// comparison issues between temp directories and os.Getwd().
+func resolveSymlinks(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return path
+	}
+	return resolved
+}
 
 func TestDisplayFormattedContent(t *testing.T) {
 	tests := []struct {
@@ -392,6 +405,10 @@ func TestConstructJSONLPathFallback_PathConstruction(t *testing.T) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
+	// Resolve symlinks in tmpDir - on macOS /var -> /private/var
+	// os.Getwd() after chdir returns resolved paths, so we need to match
+	tmpDir = resolveSymlinks(t, tmpDir)
+
 	// Get home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -443,6 +460,10 @@ func TestConstructJSONLPathFallback_WorktreeExists(t *testing.T) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Resolve symlinks in tmpDir - on macOS /var -> /private/var
+	// os.Getwd() after chdir returns resolved paths, so we need to match
+	tmpDir = resolveSymlinks(t, tmpDir)
 
 	// Create worktree directory structure: .orc/worktrees/orc-TASK-WT
 	worktreeDir := fmt.Sprintf("%s/.orc/worktrees/orc-TASK-WT", tmpDir)
