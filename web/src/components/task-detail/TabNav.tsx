@@ -2,7 +2,7 @@ import * as Tabs from '@radix-ui/react-tabs';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import './TabNav.css';
 
-export type TabId = 'timeline' | 'changes' | 'transcript' | 'test-results' | 'attachments' | 'comments';
+export type TabId = 'timeline' | 'changes' | 'transcript' | 'test-results' | 'attachments' | 'comments' | 'review-findings';
 
 interface TabConfig {
 	id: TabId;
@@ -15,6 +15,7 @@ const TABS: TabConfig[] = [
 	{ id: 'changes', label: 'Changes', icon: 'branch' },
 	{ id: 'transcript', label: 'Transcript', icon: 'file-text' },
 	{ id: 'test-results', label: 'Test Results', icon: 'check-circle' },
+	{ id: 'review-findings', label: 'Review', icon: 'search' },
 	{ id: 'attachments', label: 'Attachments', icon: 'folder' },
 	{ id: 'comments', label: 'Comments', icon: 'message-circle' },
 ];

@@ -916,6 +916,38 @@ export async function getClaudeMDHierarchy(): Promise<ClaudeMDHierarchy> {
 	return fetchJSON<ClaudeMDHierarchy>('/claudemd/hierarchy');
 }
 
+// Constitution (project principles/invariants)
+export interface Constitution {
+	content: string;
+	version: string;
+	exists: boolean;
+}
+
+export async function getConstitution(): Promise<Constitution> {
+	return fetchJSON<Constitution>('/constitution');
+}
+
+export async function updateConstitution(content: string, version?: string): Promise<Constitution> {
+	const res = await fetch(`${API_BASE}/constitution`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ content, version: version || '1.0.0' }),
+	});
+	if (!res.ok) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+	return res.json();
+}
+
+export async function deleteConstitution(): Promise<void> {
+	const res = await fetch(`${API_BASE}/constitution`, { method: 'DELETE' });
+	if (!res.ok) {
+		const error = await res.json().catch(() => ({ error: res.statusText }));
+		throw new Error(error.error || 'Request failed');
+	}
+}
+
 // MCP Servers (.mcp.json)
 export interface MCPServerInfo {
 	name: string;
@@ -1365,6 +1397,32 @@ export async function triggerReviewRetry(taskId: string): Promise<void> {
 		method: 'POST',
 		body: JSON.stringify({ include_comments: true }),
 	});
+}
+
+// Review Findings (structured review phase output)
+export interface ReviewFinding {
+	severity: string;
+	file?: string;
+	line?: number;
+	description: string;
+	suggestion?: string;
+	perspective?: string;
+	constitution_violation?: string;
+}
+
+export interface ReviewFindings {
+	task_id: string;
+	round: number;
+	summary: string;
+	issues: ReviewFinding[];
+	questions?: string[];
+	positives?: string[];
+	perspective?: string;
+	created_at: string;
+}
+
+export async function getReviewFindings(taskId: string): Promise<ReviewFindings[]> {
+	return fetchJSON<ReviewFindings[]>(`/tasks/${taskId}/review/findings`);
 }
 
 // Diff Stats
