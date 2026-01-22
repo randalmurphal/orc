@@ -877,3 +877,163 @@ func sortTopFiles(files []TopFile) {
 		}
 	}
 }
+
+// ============================================================================
+// Stats Comparison Endpoint Types
+// ============================================================================
+
+// PeriodStats represents statistics for a single period.
+type PeriodStats struct {
+	Tasks       int     `json:"tasks"`
+	Tokens      int     `json:"tokens"`
+	Cost        float64 `json:"cost"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
+// ChangeStats represents percentage changes between periods.
+type ChangeStats struct {
+	Tasks       float64 `json:"tasks"`
+	Tokens      float64 `json:"tokens"`
+	Cost        float64 `json:"cost"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
+// ComparisonResponse is the response for GET /api/stats/comparison.
+type ComparisonResponse struct {
+	Current  PeriodStats `json:"current"`
+	Previous PeriodStats `json:"previous"`
+	Changes  ChangeStats `json:"changes"`
+}
+
+// ============================================================================
+// Stats Comparison Handler
+// ============================================================================
+
+// handleGetComparisonStats returns comparison between current and previous period.
+// GET /api/stats/comparison?period=7d
+func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request) {
+	// Parse period parameter (7d, 30d) - default: 7d
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "7d"
+	}
+
+	// Calculate period duration in days
+	var days int
+	switch period {
+	case "7d":
+		days = 7
+	case "30d":
+		days = 30
+	default:
+		s.jsonError(w, "period must be one of: 7d, 30d", http.StatusBadRequest)
+		return
+	}
+
+	// Calculate date ranges
+	now := time.Now()
+	currentEnd := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, 1)
+	currentStart := currentEnd.AddDate(0, 0, -days)
+	previousEnd := currentStart
+	previousStart := previousEnd.AddDate(0, 0, -days)
+
+	// Load all tasks
+	allTasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Calculate stats for both periods
+	currentStats := s.calculatePeriodStats(allTasks, currentStart, currentEnd)
+	previousStats := s.calculatePeriodStats(allTasks, previousStart, previousEnd)
+
+	// Calculate percentage changes
+	changes := ChangeStats{
+		Tasks:       calculatePercentageChange(float64(previousStats.Tasks), float64(currentStats.Tasks)),
+		Tokens:      calculatePercentageChange(float64(previousStats.Tokens), float64(currentStats.Tokens)),
+		Cost:        calculatePercentageChange(previousStats.Cost, currentStats.Cost),
+		SuccessRate: calculatePercentageChange(previousStats.SuccessRate, currentStats.SuccessRate),
+	}
+
+	response := ComparisonResponse{
+		Current:  currentStats,
+		Previous: previousStats,
+		Changes:  changes,
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// calculatePeriodStats computes statistics for tasks completed within a period.
+func (s *Server) calculatePeriodStats(allTasks []*task.Task, startTime, endTime time.Time) PeriodStats {
+	var completedCount, failedCount, totalTokens int
+	var totalCost float64
+
+	for _, t := range allTasks {
+		// Include both completed and failed tasks within the period
+		// Completed tasks: use CompletedAt
+		// Failed tasks: use UpdatedAt as proxy for when they failed
+		var taskTime *time.Time
+
+		if t.Status == task.StatusCompleted {
+			taskTime = t.CompletedAt
+		} else if t.Status == task.StatusFailed {
+			taskTime = &t.UpdatedAt
+		} else {
+			// Skip tasks that are not completed or failed
+			continue
+		}
+
+		if taskTime == nil {
+			continue
+		}
+		if taskTime.Before(startTime) || taskTime.After(endTime) {
+			continue
+		}
+
+		// Count by status
+		if t.Status == task.StatusCompleted {
+			completedCount++
+
+			// Load state to get token and cost data (only for completed tasks)
+			st, err := s.backend.LoadState(t.ID)
+			if err != nil {
+				s.logger.Warn("failed to load state for comparison stats", "task", t.ID, "error", err)
+				continue
+			}
+
+			totalTokens += st.Tokens.TotalTokens
+			totalCost += st.Cost.TotalCostUSD
+		} else if t.Status == task.StatusFailed {
+			failedCount++
+		}
+	}
+
+	// Calculate success rate: completed / (completed + failed) * 100
+	totalTasks := completedCount + failedCount
+	successRate := 0.0
+	if totalTasks > 0 {
+		successRate = (float64(completedCount) / float64(totalTasks)) * 100
+	}
+
+	return PeriodStats{
+		Tasks:       completedCount, // Report completed tasks count
+		Tokens:      totalTokens,
+		Cost:        totalCost,
+		SuccessRate: successRate,
+	}
+}
+
+// calculatePercentageChange computes percentage change from previous to current.
+// Returns ((current - previous) / previous) * 100
+func calculatePercentageChange(previous, current float64) float64 {
+	if previous == 0 {
+		if current == 0 {
+			return 0
+		}
+		// Previous was 0, current is non-zero: treat as 100% increase
+		return 100
+	}
+	return ((current - previous) / previous) * 100
+}
