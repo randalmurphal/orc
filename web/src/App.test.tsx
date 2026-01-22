@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import { useProjectStore, useTaskStore, useInitiativeStore } from '@/stores';
 
 // Mock WebSocket to prevent actual connections

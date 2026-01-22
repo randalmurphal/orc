@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Icon } from '@/components/ui/Icon';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { useInitiatives, UNASSIGNED_INITIATIVE } from '@/stores';
 import type { Task } from '@/lib/types';
 import './InitiativeDropdown.css';
@@ -67,6 +68,14 @@ export function InitiativeDropdown({
 		return init ? truncateTitle(init.title, 24) : currentInitiativeId;
 	}, [currentInitiativeId, initiatives]);
 
+	// Get full title for tooltip
+	const fullTitle = useMemo(() => {
+		if (!currentInitiativeId) return 'All initiatives';
+		if (currentInitiativeId === UNASSIGNED_INITIATIVE) return 'Unassigned';
+		const init = initiatives.find((i) => i.id === currentInitiativeId);
+		return init ? init.title : currentInitiativeId;
+	}, [currentInitiativeId, initiatives]);
+
 	// Handle selection change
 	const handleValueChange = (value: string) => {
 		if (value === ALL_INITIATIVES_VALUE) {
@@ -81,16 +90,18 @@ export function InitiativeDropdown({
 	return (
 		<div className="initiative-dropdown">
 			<Select.Root value={selectValue} onValueChange={handleValueChange}>
-				<Select.Trigger
-					className={`dropdown-trigger ${isActive ? 'active' : ''}`}
-					aria-label="Filter by initiative"
-				>
-					<Icon name="layers" size={16} />
-					<span className="trigger-text">{displayLabel}</span>
-					<Select.Icon className="chevron">
-						<Icon name="chevron-down" size={14} />
-					</Select.Icon>
-				</Select.Trigger>
+				<Tooltip content={fullTitle} side="bottom">
+					<Select.Trigger
+						className={`dropdown-trigger ${isActive ? 'active' : ''}`}
+						aria-label="Filter by initiative"
+					>
+						<Icon name="layers" size={16} />
+						<span className="trigger-text">{displayLabel}</span>
+						<Select.Icon className="chevron">
+							<Icon name="chevron-down" size={14} />
+						</Select.Icon>
+					</Select.Trigger>
+				</Tooltip>
 
 				<Select.Portal>
 					<Select.Content className="dropdown-menu" position="popper" sideOffset={4}>

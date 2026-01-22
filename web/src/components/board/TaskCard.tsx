@@ -11,6 +11,7 @@
 
 import { useCallback } from 'react';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { Task, TaskPriority, TaskCategory } from '@/lib/types';
 import { CATEGORY_CONFIG } from '@/lib/types';
 import './TaskCard.css';
@@ -144,7 +145,9 @@ export function TaskCard({
 						<span className="task-card-initiative">{task.initiative_id}</span>
 					)}
 				</div>
-				<h3 className="task-card-title">{task.title}</h3>
+				<Tooltip content={task.title} side="top">
+					<h3 className="task-card-title">{task.title}</h3>
+				</Tooltip>
 			</div>
 
 			{/* Status indicators */}

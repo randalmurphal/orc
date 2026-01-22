@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskCard } from './TaskCard';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/lib/types';
 
 // Sample task for testing
@@ -19,7 +20,11 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 });
 
 function renderTaskCard(task: Task, props: Partial<Parameters<typeof TaskCard>[0]> = {}) {
-	return render(<TaskCard task={task} {...props} />);
+	return render(
+		<TooltipProvider>
+			<TaskCard task={task} {...props} />
+		</TooltipProvider>
+	);
 }
 
 describe('TaskCard', () => {

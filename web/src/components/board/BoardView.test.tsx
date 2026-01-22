@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView, type BoardViewProps } from './BoardView';
+import { TooltipProvider } from '@/components/ui/Tooltip';
 import { AppShellProvider } from '@/components/layout/AppShellContext';
 import { WebSocketProvider } from '@/hooks/useWebSocket';
 import type { Task, Initiative } from '@/lib/types';
@@ -92,13 +93,15 @@ function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
 // Helper to render with required providers
 function renderBoardView(props: Partial<BoardViewProps> = {}) {
 	return render(
-		<MemoryRouter>
-			<WebSocketProvider autoConnect={false}>
-				<AppShellProvider>
-					<BoardView {...props} />
-				</AppShellProvider>
-			</WebSocketProvider>
-		</MemoryRouter>
+		<TooltipProvider>
+			<MemoryRouter>
+				<WebSocketProvider autoConnect={false}>
+					<AppShellProvider>
+						<BoardView {...props} />
+					</AppShellProvider>
+				</WebSocketProvider>
+			</MemoryRouter>
+		</TooltipProvider>
 	);
 }
 
