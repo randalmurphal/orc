@@ -330,6 +330,12 @@ type Backend interface {
 	DeleteBranch(name string) error
 	GetStaleBranches(since time.Time) ([]*Branch, error)
 
+	// Constitution operations (project-level principles)
+	SaveConstitution(content, version string) error
+	LoadConstitution() (content string, version string, err error)
+	ConstitutionExists() (bool, error)
+	DeleteConstitution() error
+
 	// Lifecycle
 	Sync() error    // Flush caches to disk
 	Cleanup() error // Remove old data per retention policy

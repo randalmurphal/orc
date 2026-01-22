@@ -294,8 +294,12 @@ func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings,
 func (b *emptyBackend) LoadAllReviewFindings(string) ([]*storage.ReviewFindings, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveQAResult(*storage.QAResult) error     { return nil }
-func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
+func (b *emptyBackend) SaveQAResult(*storage.QAResult) error            { return nil }
+func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error)  { return nil, nil }
+func (b *emptyBackend) SaveConstitution(string, string) error           { return nil }
+func (b *emptyBackend) LoadConstitution() (string, string, error)       { return "", "", nil }
+func (b *emptyBackend) ConstitutionExists() (bool, error)               { return false, nil }
+func (b *emptyBackend) DeleteConstitution() error                       { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

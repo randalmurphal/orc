@@ -657,6 +657,25 @@ func (v TemplateVars) WithArtifactsFromDatabase(backend storage.Backend, taskID 
 	return v
 }
 
+// WithConstitutionFromDatabase returns a copy of the vars with constitution content loaded
+// from the database. The constitution contains project-level principles that guide all tasks.
+// If no constitution is configured or loading fails, the original content is preserved.
+func (v TemplateVars) WithConstitutionFromDatabase(backend storage.Backend) TemplateVars {
+	if backend == nil {
+		return v
+	}
+
+	content, _, err := backend.LoadConstitution()
+	if err != nil {
+		// Don't log for ErrNoConstitution - that's expected when not configured
+		return v
+	}
+	if content != "" {
+		v.ConstitutionContent = content
+	}
+	return v
+}
+
 // WithReviewContext returns a copy of the vars with review context applied.
 // For round 2+, it loads the previous round's findings from the database and formats
 // them for injection into the prompt template via {{REVIEW_FINDINGS}}.

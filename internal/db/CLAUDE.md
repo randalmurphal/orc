@@ -31,6 +31,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `task_comment.go` | Task comment CRUD |
 | `team.go` | Team members, claims, activity |
 | `knowledge.go` | Knowledge queue operations |
+| `constitution.go` | Constitution CRUD, validation checks |
 
 ## Key Types
 

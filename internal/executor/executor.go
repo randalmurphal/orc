@@ -215,6 +215,7 @@ type Executor struct {
 	worktreePath   string   // Path to worktree if enabled
 	worktreeGit    *git.Git // Git operations for worktree
 	currentTaskDir string   // Directory for current task's files
+	currentTaskID  string   // Task ID for hooks (e.g., TDD enforcement)
 
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
@@ -683,6 +684,13 @@ func (e *Executor) rebuildClientWithToken(token string) {
 	// Disable go.work in worktree context to avoid path resolution issues
 	if e.worktreePath != "" {
 		clientOpts = append(clientOpts, claude.WithEnvVar("GOWORK", "off"))
+	}
+
+	// Pass task context for hooks (e.g., TDD enforcement)
+	// Hooks can query the database to get current phase and apply restrictions
+	if e.currentTaskID != "" {
+		clientOpts = append(clientOpts, claude.WithEnvVar("ORC_TASK_ID", e.currentTaskID))
+		clientOpts = append(clientOpts, claude.WithEnvVar("ORC_DB_PATH", filepath.Join(e.config.WorkDir, ".orc", "orc.db")))
 	}
 
 	// Resolve Claude path to absolute to ensure it works with worktrees

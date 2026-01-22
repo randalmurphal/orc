@@ -16,6 +16,10 @@ const (
 
 	// OrcStopHook is the name of the orc stop hook.
 	OrcStopHook = "orc-stop.sh"
+
+	// TDDDisciplineHook is the name of the TDD discipline hook.
+	// It blocks non-test file modifications during tdd_write phase.
+	TDDDisciplineHook = "tdd-discipline.sh"
 )
 
 // InstallHooks installs orc hooks into the project's .claude/hooks directory.
@@ -27,18 +31,21 @@ func InstallHooks(projectDir string) error {
 		return fmt.Errorf("create hooks directory: %w", err)
 	}
 
-	// Install orc stop hook
-	hookPath := filepath.Join(hooksDir, OrcStopHook)
+	// Install all hooks
+	hooks := []string{OrcStopHook, TDDDisciplineHook}
+	for _, hookName := range hooks {
+		hookPath := filepath.Join(hooksDir, hookName)
 
-	// Read embedded hook
-	content, err := embeddedHooks.ReadFile("hooks/" + OrcStopHook)
-	if err != nil {
-		return fmt.Errorf("read embedded hook: %w", err)
-	}
+		// Read embedded hook
+		content, err := embeddedHooks.ReadFile("hooks/" + hookName)
+		if err != nil {
+			return fmt.Errorf("read embedded hook %s: %w", hookName, err)
+		}
 
-	// Write hook file
-	if err := os.WriteFile(hookPath, content, 0755); err != nil {
-		return fmt.Errorf("write hook file: %w", err)
+		// Write hook file
+		if err := os.WriteFile(hookPath, content, 0755); err != nil {
+			return fmt.Errorf("write hook file %s: %w", hookName, err)
+		}
 	}
 
 	return nil

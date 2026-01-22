@@ -107,6 +107,16 @@ Staleness audit:
 - [file:line] - [what was stale] → [what it was changed to]
 ```
 
+### Step 1.5: Project Standards Check
+
+If the project has an `INVARIANTS.md` or similar standards file:
+- Check if any new invariants were established during this task
+- Update if a bug was caused by violating an implicit rule
+
+If testing commands or patterns changed:
+- Update the test command in CLAUDE.md/README.md
+- Note any new test fixtures or mocking patterns in knowledge section
+
 ### Step 2: Audit Missing Documentation
 
 Check what exists and what's missing:

@@ -113,6 +113,9 @@ func BuildExecutionContext(cfg ExecutionContextConfig) (*ExecutionContext, error
 	// Load project detection for template variables (language, frameworks, test command, etc.)
 	vars = vars.WithProjectDetectionFromDatabase(cfg.Backend)
 
+	// Load constitution content (project-level principles that guide all tasks)
+	vars = vars.WithConstitutionFromDatabase(cfg.Backend)
+
 	// Load review context for review phases (round 2+ needs prior findings)
 	if p.ID == "review" {
 		round := 1
