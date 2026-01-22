@@ -49,11 +49,7 @@ func (p *ProjectDB) SavePhase(ph *Phase) error {
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
 			skip_reason = excluded.skip_reason,
-<<<<<<< HEAD
 			session_id = COALESCE(excluded.session_id, phases.session_id)
-=======
-			session_id = excluded.session_id
->>>>>>> origin/main
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
 		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
 	if err != nil {
@@ -156,11 +152,7 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 			error_message = excluded.error_message,
 			commit_sha = excluded.commit_sha,
 			skip_reason = excluded.skip_reason,
-<<<<<<< HEAD
 			session_id = COALESCE(excluded.session_id, phases.session_id)
-=======
-			session_id = excluded.session_id
->>>>>>> origin/main
 	`, ph.TaskID, ph.PhaseID, ph.Status, ph.Iterations, startedAt, completedAt,
 		ph.InputTokens, ph.OutputTokens, ph.CostUSD, ph.ErrorMessage, ph.CommitSHA, ph.SkipReason, ph.SessionID)
 	if err != nil {
