@@ -31,6 +31,7 @@ Commands:
 
 	cmd.AddCommand(newMigrateYAMLToDBCmd())
 	cmd.AddCommand(newMigrateDBToYAMLCmd())
+	cmd.AddCommand(newMigratePlansCmd())
 
 	return cmd
 }
@@ -375,4 +376,150 @@ func runMigrateDBToYAML(outputDir string) error {
 	fmt.Printf("\nFiles written to: %s\n", outputDir)
 
 	return nil
+}
+
+// newMigratePlansCmd creates the plans migration subcommand
+func newMigratePlansCmd() *cobra.Command {
+	var allFlag bool
+	var dryRun bool
+
+	cmd := &cobra.Command{
+		Use:   "plans [task-id...]",
+		Short: "Migrate stale task plans to current templates",
+		Long: `Migrate stale task plans to use current phase templates.
+
+Plans become stale when:
+- Template version changes
+- Phase sequence differs from current weight template
+- Plan contains inline prompts (legacy format)
+
+Migration preserves completed and skipped phase statuses.
+
+Examples:
+  orc migrate plans TASK-001              # Migrate single task
+  orc migrate plans TASK-001 TASK-002    # Migrate specific tasks
+  orc migrate plans --all                 # Migrate all stale plans
+  orc migrate plans --all --dry-run       # Preview migrations without changing`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Must provide task IDs or --all flag
+			if len(args) == 0 && !allFlag {
+				return fmt.Errorf("must provide task IDs or use --all flag")
+			}
+			if len(args) > 0 && allFlag {
+				return fmt.Errorf("cannot specify both task IDs and --all flag")
+			}
+
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer func() { _ = backend.Close() }()
+
+			var taskIDs []string
+
+			// Get task IDs to process
+			if allFlag {
+				// Load all tasks
+				tasks, err := backend.LoadAllTasks()
+				if err != nil {
+					return fmt.Errorf("load tasks: %w", err)
+				}
+				for _, t := range tasks {
+					taskIDs = append(taskIDs, t.ID)
+				}
+			} else {
+				taskIDs = args
+			}
+
+			// Get output writers from cobra
+			out := cmd.OutOrStdout()
+			errOut := cmd.ErrOrStderr()
+
+			// Migrate each task
+			var migrated, skipped, failed int
+			for _, taskID := range taskIDs {
+				// Load task
+				t, err := backend.LoadTask(taskID)
+				if err != nil {
+					// If explicitly specified (not --all), error out
+					if !allFlag {
+						return fmt.Errorf("load task %s: %w", taskID, err)
+					}
+					fmt.Fprintf(errOut, "⚠️  Skip %s: load task failed: %v\n", taskID, err)
+					failed++
+					continue
+				}
+
+				// Load plan
+				p, err := backend.LoadPlan(taskID)
+				if err != nil {
+					// No plan - skip
+					if err == plan.ErrNotFound {
+						skipped++
+						continue
+					}
+					fmt.Fprintf(errOut, "⚠️  Skip %s: load plan failed: %v\n", taskID, err)
+					failed++
+					continue
+				}
+
+				// Check if stale
+				stale, reason := plan.IsPlanStale(p, t)
+				if !stale {
+					skipped++
+					continue
+				}
+
+				// Migrate
+				result, err := plan.MigratePlan(t, p)
+				if err != nil {
+					fmt.Fprintf(errOut, "⚠️  Skip %s: migration failed: %v\n", taskID, err)
+					failed++
+					continue
+				}
+
+				// Save if not dry-run
+				if !dryRun {
+					if err := backend.SavePlan(result.NewPlan, taskID); err != nil {
+						fmt.Fprintf(errOut, "⚠️  Skip %s: save failed: %v\n", taskID, err)
+						failed++
+						continue
+					}
+				}
+
+				// Report migration
+				if dryRun {
+					fmt.Fprintf(out, "🔍 Would migrate %s: %s\n", taskID, reason)
+				} else {
+					fmt.Fprintf(out, "✅ Migrated %s: %s\n", taskID, reason)
+				}
+				fmt.Fprintf(out, "   Old: %s\n", result.OldPhases)
+				fmt.Fprintf(out, "   New: %s\n", result.NewPhases)
+				fmt.Fprintf(out, "   Preserved: %d, Reset: %d\n", result.PreservedCount, result.ResetCount)
+
+				migrated++
+			}
+
+			// Summary
+			fmt.Fprintf(out, "\n")
+			if dryRun {
+				fmt.Fprintf(out, "Dry run summary:\n")
+			} else {
+				fmt.Fprintf(out, "Migration summary:\n")
+			}
+			fmt.Fprintf(out, "  Total tasks: %d\n", len(taskIDs))
+			fmt.Fprintf(out, "  Migrated: %d\n", migrated)
+			fmt.Fprintf(out, "  Skipped (current): %d\n", skipped)
+			if failed > 0 {
+				fmt.Fprintf(out, "  Failed: %d\n", failed)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().BoolVar(&allFlag, "all", false, "Migrate all tasks with stale plans")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview migrations without saving")
+
+	return cmd
 }
