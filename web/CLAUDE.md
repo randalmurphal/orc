@@ -44,6 +44,7 @@ web/src/
 │   ├── task-detail/      # TaskHeader, TabNav, tabs
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
 │   ├── settings/         # Settings components (SettingsLayout, SettingsView, CommandList, CommandEditor, ConfigEditor)
+│   ├── workflows/        # Workflow config (WorkflowsView, WorkflowCard, WorkflowDetailPanel, CloneWorkflowModal, CreateWorkflowModal)
 │   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
 ├── pages/                # Route pages
 ├── stores/               # Zustand stores
@@ -69,6 +70,7 @@ web/src/
 | `initiativeStore` | Initiative filter |
 | `sessionStore` | Session metrics (duration, tokens, cost), pause/resume |
 | `uiStore` | Sidebar, toasts, WebSocket status |
+| `workflowStore` | Workflows and phase templates |
 
 ### WebSocket Events
 
@@ -115,6 +117,7 @@ See [docs/components.md](docs/components.md) for full API.
 | `/board` | Board (flat/swimlane views) |
 | `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
 | `/initiatives/:id` | InitiativeDetail |
+| `/workflows` | WorkflowsPage (workflow cards, phase templates, create/clone modals) |
 | `/agents` | AgentsPage (agent cards, execution settings, tool permissions) |
 | `/stats` | StatsPage (StatsView with summary cards, charts, leaderboards) |
 | `/tasks/:id` | TaskDetail (6 tabs) |

@@ -1,0 +1,120 @@
+/* CloneWorkflowModal styles */
+
+.clone-workflow-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+/* Source workflow reference */
+.clone-workflow-source {
+	padding: var(--space-3);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border);
+}
+
+.clone-workflow-source-label {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	margin-bottom: var(--space-2);
+}
+
+.clone-workflow-source-info {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--text-secondary);
+}
+
+.clone-workflow-source-name {
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+.clone-workflow-source-id {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	font-family: var(--font-mono);
+}
+
+.clone-workflow-source-badge {
+	font-size: var(--text-xs);
+	padding: var(--space-0-5) var(--space-1);
+	background: var(--cyan-subtle);
+	color: var(--cyan);
+	border-radius: var(--radius-sm);
+}
+
+/* Form groups */
+.form-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.form-label {
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+.form-required {
+	color: var(--status-error);
+}
+
+.form-input,
+.form-textarea {
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	font-family: inherit;
+	transition: border-color 0.15s ease;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+	outline: none;
+	border-color: var(--primary);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+	color: var(--text-muted);
+}
+
+.form-textarea {
+	resize: vertical;
+	min-height: 80px;
+}
+
+.form-help {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+/* Error message */
+.clone-workflow-error {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	background: var(--status-error-subtle);
+	border: 1px solid var(--status-error);
+	border-radius: var(--radius-md);
+	color: var(--status-error);
+	font-size: var(--text-sm);
+}
+
+/* Form actions */
+.form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--border);
+	margin-top: var(--space-2);
+}

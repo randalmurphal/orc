@@ -27,6 +27,7 @@ import (
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // Server is the orc API server.
@@ -141,6 +142,13 @@ func New(cfg *Config) *Server {
 	if err != nil {
 		// Fatal error - server cannot function without storage backend
 		panic(fmt.Sprintf("failed to create storage backend: %v", err))
+	}
+
+	// Seed built-in workflows and phase templates
+	if seeded, err := workflow.SeedBuiltins(backend.DB()); err != nil {
+		logger.Error("failed to seed built-in workflows", "error", err)
+	} else if seeded > 0 {
+		logger.Info("seeded built-in workflows", "count", seeded)
 	}
 
 	// Create event publisher with persistence
