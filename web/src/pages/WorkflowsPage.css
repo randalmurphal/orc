@@ -1,0 +1,13 @@
+/* WorkflowsPage layout */
+
+.workflows-page {
+	display: flex;
+	width: 100%;
+	height: 100%;
+}
+
+.workflows-page-content {
+	flex: 1;
+	min-width: 0;
+	overflow: auto;
+}

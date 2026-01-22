@@ -8,147 +8,147 @@ import (
 
 // PhaseTemplate represents a reusable phase definition.
 type PhaseTemplate struct {
-	ID          string
-	Name        string
-	Description string
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 
 	// Prompt configuration
-	PromptSource  string // 'embedded', 'db', 'file'
-	PromptContent string
-	PromptPath    string
+	PromptSource  string `json:"prompt_source"`  // 'embedded', 'db', 'file'
+	PromptContent string `json:"prompt_content,omitempty"`
+	PromptPath    string `json:"prompt_path,omitempty"`
 
 	// Contract
-	InputVariables   string // JSON array
-	OutputSchema     string
-	ProducesArtifact bool
-	ArtifactType     string
+	InputVariables   string `json:"input_variables,omitempty"` // JSON array
+	OutputSchema     string `json:"output_schema,omitempty"`
+	ProducesArtifact bool   `json:"produces_artifact"`
+	ArtifactType     string `json:"artifact_type,omitempty"`
 
 	// Execution config
-	MaxIterations   int
-	ModelOverride   string
-	ThinkingEnabled *bool
-	GateType        string
-	Checkpoint      bool
+	MaxIterations   int    `json:"max_iterations"`
+	ModelOverride   string `json:"model_override,omitempty"`
+	ThinkingEnabled *bool  `json:"thinking_enabled,omitempty"`
+	GateType        string `json:"gate_type"`
+	Checkpoint      bool   `json:"checkpoint"`
 
 	// Retry configuration
-	RetryFromPhase  string
-	RetryPromptPath string
+	RetryFromPhase  string `json:"retry_from_phase,omitempty"`
+	RetryPromptPath string `json:"retry_prompt_path,omitempty"`
 
 	// Metadata
-	IsBuiltin bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	IsBuiltin bool      `json:"is_builtin"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Workflow represents a composed execution plan.
 type Workflow struct {
-	ID              string
-	Name            string
-	Description     string
-	WorkflowType    string // 'task', 'branch', 'standalone'
-	DefaultModel    string
-	DefaultThinking bool
-	IsBuiltin       bool
-	BasedOn         string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description,omitempty"`
+	WorkflowType    string    `json:"workflow_type"` // 'task', 'branch', 'standalone'
+	DefaultModel    string    `json:"default_model,omitempty"`
+	DefaultThinking bool      `json:"default_thinking"`
+	IsBuiltin       bool      `json:"is_builtin"`
+	BasedOn         string    `json:"based_on,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // WorkflowPhase links a phase template to a workflow.
 type WorkflowPhase struct {
-	ID              int
-	WorkflowID      string
-	PhaseTemplateID string
-	Sequence        int
-	DependsOn       string // JSON array
+	ID              int    `json:"id"`
+	WorkflowID      string `json:"workflow_id"`
+	PhaseTemplateID string `json:"phase_template_id"`
+	Sequence        int    `json:"sequence"`
+	DependsOn       string `json:"depends_on,omitempty"` // JSON array
 
 	// Per-workflow overrides
-	MaxIterationsOverride *int
-	ModelOverride         string
-	ThinkingOverride      *bool
-	GateTypeOverride      string
-	Condition             string // JSON
+	MaxIterationsOverride *int   `json:"max_iterations_override,omitempty"`
+	ModelOverride         string `json:"model_override,omitempty"`
+	ThinkingOverride      *bool  `json:"thinking_override,omitempty"`
+	GateTypeOverride      string `json:"gate_type_override,omitempty"`
+	Condition             string `json:"condition,omitempty"` // JSON
 }
 
 // WorkflowVariable defines a custom variable for a workflow.
 type WorkflowVariable struct {
-	ID              int
-	WorkflowID      string
-	Name            string
-	Description     string
-	SourceType      string // 'static', 'script', 'api', 'phase_output', 'env', 'prompt_fragment'
-	SourceConfig    string // JSON
-	Required        bool
-	DefaultValue    string
-	CacheTTLSeconds int
-	ScriptContent   string
+	ID              int    `json:"id"`
+	WorkflowID      string `json:"workflow_id"`
+	Name            string `json:"name"`
+	Description     string `json:"description,omitempty"`
+	SourceType      string `json:"source_type"` // 'static', 'script', 'api', 'phase_output', 'env', 'prompt_fragment'
+	SourceConfig    string `json:"source_config"` // JSON
+	Required        bool   `json:"required"`
+	DefaultValue    string `json:"default_value,omitempty"`
+	CacheTTLSeconds int    `json:"cache_ttl_seconds"`
+	ScriptContent   string `json:"script_content,omitempty"`
 }
 
 // WorkflowRun represents an execution instance of a workflow.
 type WorkflowRun struct {
-	ID         string
-	WorkflowID string
+	ID         string `json:"id"`
+	WorkflowID string `json:"workflow_id"`
 
 	// Context
-	ContextType string // 'task', 'branch', 'pr', 'standalone', 'tag'
-	ContextData string // JSON
-	TaskID      *string
+	ContextType string  `json:"context_type"` // 'task', 'branch', 'pr', 'standalone', 'tag'
+	ContextData string  `json:"context_data,omitempty"` // JSON
+	TaskID      *string `json:"task_id,omitempty"`
 
 	// User inputs
-	Prompt       string
-	Instructions string
+	Prompt       string `json:"prompt"`
+	Instructions string `json:"instructions,omitempty"`
 
 	// Status
-	Status       string // 'pending', 'running', 'paused', 'completed', 'failed', 'cancelled'
-	CurrentPhase string
-	StartedAt    *time.Time
-	CompletedAt  *time.Time
+	Status       string     `json:"status"` // 'pending', 'running', 'paused', 'completed', 'failed', 'cancelled'
+	CurrentPhase string     `json:"current_phase,omitempty"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
 
 	// Runtime
-	VariablesSnapshot string // JSON
+	VariablesSnapshot string `json:"variables_snapshot,omitempty"` // JSON
 
 	// Metrics
-	TotalCostUSD      float64
-	TotalInputTokens  int
-	TotalOutputTokens int
+	TotalCostUSD      float64 `json:"total_cost_usd"`
+	TotalInputTokens  int     `json:"total_input_tokens"`
+	TotalOutputTokens int     `json:"total_output_tokens"`
 
 	// Error
-	Error string
+	Error string `json:"error,omitempty"`
 
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // WorkflowRunPhase tracks execution of a phase within a run.
 type WorkflowRunPhase struct {
-	ID              int
-	WorkflowRunID   string
-	PhaseTemplateID string
+	ID              int    `json:"id"`
+	WorkflowRunID   string `json:"workflow_run_id"`
+	PhaseTemplateID string `json:"phase_template_id"`
 
 	// Status
-	Status     string // 'pending', 'running', 'completed', 'failed', 'skipped'
-	Iterations int
+	Status     string `json:"status"` // 'pending', 'running', 'completed', 'failed', 'skipped'
+	Iterations int    `json:"iterations"`
 
 	// Timing
-	StartedAt   *time.Time
-	CompletedAt *time.Time
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
 	// Git
-	CommitSHA string
+	CommitSHA string `json:"commit_sha,omitempty"`
 
 	// Metrics
-	InputTokens  int
-	OutputTokens int
-	CostUSD      float64
+	InputTokens  int     `json:"input_tokens"`
+	OutputTokens int     `json:"output_tokens"`
+	CostUSD      float64 `json:"cost_usd"`
 
 	// Output
-	Artifact string
+	Artifact string `json:"artifact,omitempty"`
 
 	// Error
-	Error string
+	Error string `json:"error,omitempty"`
 
 	// Session
-	SessionID string
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // --------- PhaseTemplate CRUD ---------

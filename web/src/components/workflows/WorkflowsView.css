@@ -84,9 +84,9 @@
 	justify-content: center;
 	padding: var(--space-12) var(--space-6);
 	text-align: center;
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-lg);
-	border: 1px dashed var(--border-secondary);
+	border: 1px dashed var(--border);
 }
 
 .workflows-view-empty-icon {
@@ -123,7 +123,7 @@
 	justify-content: center;
 	padding: var(--space-12) var(--space-6);
 	text-align: center;
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-lg);
 	border: 1px solid var(--status-error);
 }
@@ -152,9 +152,9 @@
 	flex-direction: column;
 	gap: var(--space-3);
 	padding: var(--space-4);
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-lg);
-	border: 1px solid var(--border-secondary);
+	border: 1px solid var(--border);
 }
 
 .workflow-card-skeleton-header {
@@ -237,9 +237,9 @@
 	flex-direction: column;
 	gap: var(--space-3);
 	padding: var(--space-4);
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-lg);
-	border: 1px solid var(--border-secondary);
+	border: 1px solid var(--border);
 	cursor: pointer;
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -250,7 +250,7 @@
 }
 
 .workflow-card:focus-visible {
-	outline: 2px solid var(--focus-ring);
+	outline: 2px solid var(--primary);
 	outline-offset: 2px;
 }
 
@@ -326,7 +326,7 @@
 	gap: var(--space-2);
 	margin-top: var(--space-1);
 	padding-top: var(--space-3);
-	border-top: 1px solid var(--border-secondary);
+	border-top: 1px solid var(--border);
 }
 
 .workflow-card-action {
@@ -354,9 +354,9 @@
 	flex-direction: column;
 	gap: var(--space-2);
 	padding: var(--space-3);
-	background: var(--bg-secondary);
+	background: var(--bg-surface);
 	border-radius: var(--radius-md);
-	border: 1px solid var(--border-secondary);
+	border: 1px solid var(--border);
 	cursor: pointer;
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -367,7 +367,7 @@
 }
 
 .phase-template-card:focus-visible {
-	outline: 2px solid var(--focus-ring);
+	outline: 2px solid var(--primary);
 	outline-offset: 2px;
 }
 
@@ -447,7 +447,7 @@
 	align-items: center;
 	gap: var(--space-3);
 	padding-top: var(--space-2);
-	border-top: 1px solid var(--border-secondary);
+	border-top: 1px solid var(--border);
 }
 
 .phase-template-card-prompt-source,

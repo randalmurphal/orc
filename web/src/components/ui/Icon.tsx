@@ -124,8 +124,14 @@ export type IconName =
 	// IconNav specific icons
 	| 'help'
 	| 'bar-chart'
+	| 'workflow'
 	// File operation icons
-	| 'save';
+	| 'save'
+	// Additional workflow icons
+	| 'brain'
+	| 'copy'
+	| 'loader'
+	| 'file-code';
 
 // Icon paths organized by category
 // All icons use viewBox="0 0 24 24" with stroke-based rendering
@@ -274,9 +280,16 @@ const icons: Record<IconName, string> = {
 	// IconNav specific icons
 	help: `<circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />`,
 	'bar-chart': `<path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />`,
+	workflow: `<circle cx="5" cy="6" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path d="M7 6h5M14 6h5" /><path d="M5 8v2a2 2 0 0 0 2 2h3" /><path d="M19 8v2a2 2 0 0 1-2 2h-3" /><path d="M12 14v2" />`,
 
 	// File operation icons
 	save: `<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />`,
+
+	// Additional workflow icons
+	brain: `<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v.5a2.5 2.5 0 0 1 2.5-2.5A2.5 2.5 0 0 1 17 5a2.5 2.5 0 0 1-1 2 2.5 2.5 0 0 1 1 2 2.5 2.5 0 0 1-1 2 2.5 2.5 0 0 1 1 2 2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 12 13v.5a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 13.5 2.5 2.5 0 0 1 8 11.5 2.5 2.5 0 0 1 7 9.5 2.5 2.5 0 0 1 8 7.5 2.5 2.5 0 0 1 7 5.5 2.5 2.5 0 0 1 9.5 3v-.5A2.5 2.5 0 0 1 9.5 2z" /><path d="M12 4.5v9" />`,
+	copy: `<rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />`,
+	loader: `<line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="19.07" y2="19.07" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" /><line x1="4.93" y1="19.07" x2="7.76" y2="16.24" /><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />`,
+	'file-code': `<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><path d="m10 13-2 2 2 2" /><path d="m14 17 2-2-2-2" />`,
 };
 
 interface IconProps {

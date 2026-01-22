@@ -16,6 +16,8 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics, activity, and file analytics |
 | [Events](#events) | `/api/events` | Timeline event queries |
+| [Workflows](#workflows) | `/api/workflows/*`, `/api/phase-templates/*` | Workflow and phase template configuration |
+| [Workflow Runs](#workflow-runs) | `/api/workflow-runs/*` | Workflow execution instances |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
 ---
@@ -1857,6 +1859,144 @@ Project knowledge queue (patterns, gotchas, decisions).
 | POST | `/api/knowledge/:id/validate` | Validate (reset staleness) |
 | DELETE | `/api/knowledge/:id` | Delete entry |
 | POST | `/api/knowledge/approve-all` | Approve all pending |
+
+---
+
+## Workflows
+
+Configurable workflow definitions with composable phases.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/workflows` | List all workflows |
+| POST | `/api/workflows` | Create workflow |
+| GET | `/api/workflows/:id` | Get workflow with phases and variables |
+| PUT | `/api/workflows/:id` | Update workflow |
+| DELETE | `/api/workflows/:id` | Delete workflow (custom only) |
+| POST | `/api/workflows/:id/clone` | Clone workflow |
+| POST | `/api/workflows/:id/phases` | Add phase to workflow |
+| DELETE | `/api/workflows/:id/phases/:phaseId` | Remove phase from workflow |
+| POST | `/api/workflows/:id/variables` | Add variable to workflow |
+| DELETE | `/api/workflows/:id/variables/:name` | Remove variable from workflow |
+
+**Create workflow body:**
+```json
+{
+  "id": "my-custom-workflow",
+  "name": "My Custom Workflow",
+  "description": "Custom workflow for specific task type",
+  "workflow_type": "task",
+  "default_model": "sonnet",
+  "default_thinking": false
+}
+```
+
+| Field | Values | Default |
+|-------|--------|---------|
+| `id` | Unique identifier (lowercase, hyphens) | Required |
+| `name` | Display name | Required |
+| `workflow_type` | `task`, `branch`, `standalone` | `task` |
+| `default_model` | `sonnet`, `opus`, `haiku` | (inherit) |
+| `default_thinking` | `true`, `false` | `false` |
+
+**Clone workflow body:**
+```json
+{
+  "new_id": "my-cloned-workflow",
+  "new_name": "My Cloned Workflow"
+}
+```
+
+### Phase Templates
+
+Reusable phase definitions with prompts and configuration.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/phase-templates` | List all phase templates |
+| POST | `/api/phase-templates` | Create phase template |
+| GET | `/api/phase-templates/:id` | Get phase template |
+| PUT | `/api/phase-templates/:id` | Update phase template |
+| DELETE | `/api/phase-templates/:id` | Delete phase template (custom only) |
+| GET | `/api/phase-templates/:id/prompt` | Get phase template prompt content |
+
+**Phase template response:**
+```json
+{
+  "id": "implement",
+  "name": "Implementation",
+  "description": "Write code guided by breakdown",
+  "prompt_source": "embedded",
+  "max_iterations": 50,
+  "gate_type": "auto",
+  "produces_artifact": false,
+  "is_builtin": true
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `prompt_source` | `embedded` (bundled), `db` (stored in DB), `file` (external file) |
+| `gate_type` | `auto` (AI-approved), `human` (requires manual approval) |
+| `produces_artifact` | Whether phase generates artifact (spec, tests, etc.) |
+| `artifact_type` | Artifact type: `spec`, `tests`, `breakdown`, `docs`, etc. |
+| `is_builtin` | Built-in templates cannot be modified |
+
+---
+
+## Workflow Runs
+
+Execution instances of workflows.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/workflow-runs` | List workflow runs (`?status=running`, `?workflow_id=implement`) |
+| POST | `/api/workflow-runs` | Trigger new workflow run |
+| GET | `/api/workflow-runs/:id` | Get workflow run details |
+| POST | `/api/workflow-runs/:id/cancel` | Cancel running workflow |
+| GET | `/api/workflow-runs/:id/transcript` | Get workflow run transcript |
+
+**Trigger workflow run body:**
+```json
+{
+  "workflow_id": "implement",
+  "prompt": "Add user authentication",
+  "instructions": "Use JWT tokens",
+  "context_type": "task",
+  "task_id": "TASK-001"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `workflow_id` | Which workflow to execute |
+| `prompt` | Task description (becomes `TASK_DESCRIPTION`) |
+| `instructions` | Additional guidance (optional) |
+| `context_type` | `task`, `branch`, `pr`, `standalone` |
+| `task_id` | Link to existing task (optional) |
+
+**Workflow run response:**
+```json
+{
+  "id": "WRUN-001",
+  "workflow_id": "implement",
+  "status": "running",
+  "current_phase": "spec",
+  "context_type": "task",
+  "task_id": "TASK-001",
+  "total_cost_usd": 0.45,
+  "total_tokens": 12500,
+  "started_at": "2026-01-22T10:30:00Z"
+}
+```
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Queued, not yet started |
+| `running` | Currently executing phases |
+| `completed` | All phases finished successfully |
+| `failed` | Execution failed |
+| `cancelled` | Cancelled by user |
 
 ---
 
