@@ -65,13 +65,21 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Aggregate today's token/cost data
+	// Note: Tokens are stored at the phase level in the database, not at the state level.
+	// We aggregate from phases for token counts, and from state for cost.
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	var totalInput, totalOutput int
 	var totalCost float64
 	for _, st := range states {
+		// Aggregate tokens from phases that started today
+		for _, ps := range st.Phases {
+			if !ps.StartedAt.IsZero() && (ps.StartedAt.After(today) || ps.StartedAt.Equal(today)) {
+				totalInput += ps.Tokens.InputTokens
+				totalOutput += ps.Tokens.OutputTokens
+			}
+		}
+		// Cost is tracked at the state level
 		if st.StartedAt.After(today) || st.StartedAt.Equal(today) {
-			totalInput += st.Tokens.InputTokens
-			totalOutput += st.Tokens.OutputTokens
 			totalCost += st.Cost.TotalCostUSD
 		}
 	}

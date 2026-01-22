@@ -161,62 +161,79 @@ func TestHandleGetSessionMetrics_WithRunningTasks(t *testing.T) {
 }
 
 func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
-	t.Skip("TODO: Database not persisting state fields properly - needs investigation")
 	t.Parallel()
 	backend := createTestBackend(t)
 
-	// Create tasks
-	taskIDs := []string{"TASK-001", "TASK-002", "TASK-003"}
-	for _, id := range taskIDs {
-		tsk := &task.Task{
-			ID:     id,
-			Title:  "Test task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
-		}
+	// Create states with token usage (some today, some yesterday)
+	// Note: Tokens are stored at the PHASE level in the database, not state level.
+	// Note: Cost filtering uses state.StartedAt which comes from dbTask.StartedAt,
+	// so we need to set task StartedAt when creating tasks.
+	now := time.Now().UTC()
+	startedToday := now.Add(-1 * time.Hour)
+	startedYesterday := now.Add(-25 * time.Hour)
+
+	// Create tasks with proper StartedAt times
+	tasks := []*task.Task{
+		{ID: "TASK-001", Title: "Test task 1", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday},
+		{ID: "TASK-002", Title: "Test task 2", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday},
+		{ID: "TASK-003", Title: "Test task 3", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedYesterday},
+	}
+	for _, tsk := range tasks {
 		if err := backend.SaveTask(tsk); err != nil {
-			t.Fatalf("save task %s: %v", id, err)
+			t.Fatalf("save task %s: %v", tsk.ID, err)
 		}
 	}
 
-	// Create states with token usage (some today, some yesterday)
-	now := time.Now().UTC()
-
-	// Create properly initialized states
+	// Create properly initialized states with phase-level tokens
 	st1 := state.New("TASK-001")
 	st1.Status = state.StatusCompleted
 	st1.StartedAt = now.Add(-1 * time.Hour) // 1 hour ago (today)
 	st1.UpdatedAt = now.Add(-1 * time.Hour)
-	st1.Tokens = state.TokenUsage{
-		InputTokens:  1000,
-		OutputTokens: 2000,
-	}
 	st1.Cost = state.CostTracking{
 		TotalCostUSD: 0.50,
+	}
+	// Add a phase with tokens (this is where tokens are actually stored)
+	st1.Phases["implement"] = &state.PhaseState{
+		Status:    state.StatusCompleted,
+		StartedAt: now.Add(-1 * time.Hour),
+		Tokens: state.TokenUsage{
+			InputTokens:  1000,
+			OutputTokens: 2000,
+		},
 	}
 
 	st2 := state.New("TASK-002")
 	st2.Status = state.StatusCompleted
 	st2.StartedAt = now.Add(-2 * time.Hour) // 2 hours ago (today)
 	st2.UpdatedAt = now.Add(-2 * time.Hour)
-	st2.Tokens = state.TokenUsage{
-		InputTokens:  1500,
-		OutputTokens: 2500,
-	}
 	st2.Cost = state.CostTracking{
 		TotalCostUSD: 0.75,
+	}
+	// Add a phase with tokens
+	st2.Phases["implement"] = &state.PhaseState{
+		Status:    state.StatusCompleted,
+		StartedAt: now.Add(-2 * time.Hour),
+		Tokens: state.TokenUsage{
+			InputTokens:  1500,
+			OutputTokens: 2500,
+		},
 	}
 
 	st3 := state.New("TASK-003")
 	st3.Status = state.StatusCompleted
 	st3.StartedAt = now.Add(-25 * time.Hour) // 25 hours ago (yesterday, should not be counted)
 	st3.UpdatedAt = now.Add(-25 * time.Hour)
-	st3.Tokens = state.TokenUsage{
-		InputTokens:  5000,
-		OutputTokens: 5000,
-	}
 	st3.Cost = state.CostTracking{
 		TotalCostUSD: 2.00,
+	}
+	// Add a phase with tokens - yesterday's phase should not be counted
+	st3.Phases["implement"] = &state.PhaseState{
+		Status:    state.StatusCompleted,
+		StartedAt: now.Add(-25 * time.Hour),
+		Tokens: state.TokenUsage{
+			InputTokens:  5000,
+			OutputTokens: 5000,
+		},
 	}
 
 	states := []*state.State{st1, st2, st3}
@@ -234,13 +251,6 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	}
 	if len(loadedStates) != 3 {
 		t.Fatalf("expected 3 states, got %d", len(loadedStates))
-	}
-
-	// Debug: check loaded state values
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	for _, st := range loadedStates {
-		t.Logf("State %s: StartedAt=%v, After(today)=%v, Equal(today)=%v, InputTokens=%d",
-			st.TaskID, st.StartedAt, st.StartedAt.After(today), st.StartedAt.Equal(today), st.Tokens.InputTokens)
 	}
 
 	sessionID := uuid.New().String()
@@ -274,11 +284,11 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 
-	// Verify token aggregation (only today's tasks)
+	// Verify token aggregation (only today's phases - TASK-001 and TASK-002)
 	expectedInput := 1000 + 1500  // TASK-001 + TASK-002
 	expectedOutput := 2000 + 2500 // TASK-001 + TASK-002
 	expectedTotal := expectedInput + expectedOutput
-	expectedCost := 0.50 + 0.75 // TASK-001 + TASK-002
+	expectedCost := 0.50 + 0.75 // TASK-001 + TASK-002 (state-level cost)
 
 	if response.InputTokens != expectedInput {
 		t.Errorf("expected input_tokens %d, got %d", expectedInput, response.InputTokens)
