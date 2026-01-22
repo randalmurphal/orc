@@ -26,10 +26,10 @@ type Transcript struct {
 	Model       string  // Model used (assistant messages only)
 
 	// Per-message token tracking
-	InputTokens           int
-	OutputTokens          int
-	CacheCreationTokens   int
-	CacheReadTokens       int
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
 
 	// Tool information
 	ToolCalls   string // JSON array of tool_use blocks
@@ -442,13 +442,13 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 
 // TokenUsageSummary contains aggregated token usage for a task or phase.
 type TokenUsageSummary struct {
-	TaskID              string
-	Phase               string
-	TotalInput          int
-	TotalOutput         int
-	TotalCacheCreation  int
-	TotalCacheRead      int
-	MessageCount        int
+	TaskID             string
+	Phase              string
+	TotalInput         int
+	TotalOutput        int
+	TotalCacheCreation int
+	TotalCacheRead     int
+	MessageCount       int
 }
 
 // GetTaskTokenUsage returns aggregated token usage for a task.
@@ -512,7 +512,7 @@ type TodoSnapshot struct {
 	ID          int64
 	TaskID      string
 	Phase       string
-	MessageUUID string    // Links to the transcript that triggered this
+	MessageUUID string // Links to the transcript that triggered this
 	Items       []TodoItem
 	Timestamp   time.Time
 }
@@ -520,7 +520,7 @@ type TodoSnapshot struct {
 // TodoItem represents a single item from Claude's TodoWrite tool.
 type TodoItem struct {
 	Content    string `json:"content"`
-	Status     string `json:"status"`      // "pending", "in_progress", "completed"
+	Status     string `json:"status"` // "pending", "in_progress", "completed"
 	ActiveForm string `json:"active_form"`
 }
 
@@ -628,13 +628,13 @@ type UsageMetric struct {
 	Model       string
 	ProjectPath string
 
-	InputTokens           int
-	OutputTokens          int
-	CacheCreationTokens   int
-	CacheReadTokens       int
-	CostUSD               float64
-	DurationMs            int64
-	Timestamp             time.Time
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	CostUSD             float64
+	DurationMs          int64
+	Timestamp           time.Time
 }
 
 // AddUsageMetric inserts a usage metric entry.
@@ -660,20 +660,20 @@ func (p *ProjectDB) AddUsageMetric(m *UsageMetric) error {
 
 // MetricsSummary contains aggregated metrics for a time period.
 type MetricsSummary struct {
-	TotalCost    float64
-	TotalInput   int
-	TotalOutput  int
-	TaskCount    int
-	ByModel      map[string]ModelMetrics
+	TotalCost   float64
+	TotalInput  int
+	TotalOutput int
+	TaskCount   int
+	ByModel     map[string]ModelMetrics
 }
 
 // ModelMetrics contains per-model aggregated metrics.
 type ModelMetrics struct {
-	Model       string
-	Cost        float64
-	InputTokens int
+	Model        string
+	Cost         float64
+	InputTokens  int
 	OutputTokens int
-	TaskCount   int
+	TaskCount    int
 }
 
 // GetMetricsSummary returns aggregated metrics since the given time.

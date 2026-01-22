@@ -67,10 +67,10 @@ type ActivityTracker struct {
 	maxIterations    int
 
 	// Callbacks for state changes
-	onStateChange   func(ActivityState)
-	onIdleWarning   func(time.Duration)
-	onHeartbeat     func()
-	onTurnTimeout   func()
+	onStateChange func(ActivityState)
+	onIdleWarning func(time.Duration)
+	onHeartbeat   func()
+	onTurnTimeout func()
 
 	// Configuration
 	heartbeatInterval time.Duration

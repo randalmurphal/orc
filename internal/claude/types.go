@@ -112,9 +112,9 @@ var (
 	NewScriptService = claudeconfig.NewScriptService
 
 	// Plugins
-	ParsePluginJSON    = claudeconfig.ParsePluginJSON
-	DiscoverPlugins    = claudeconfig.DiscoverPlugins
-	NewPluginService   = claudeconfig.NewPluginService
-	GlobalPluginsDir   = claudeconfig.GlobalPluginsDir
-	ProjectPluginsDir  = claudeconfig.ProjectPluginsDir
+	ParsePluginJSON   = claudeconfig.ParsePluginJSON
+	DiscoverPlugins   = claudeconfig.DiscoverPlugins
+	NewPluginService  = claudeconfig.NewPluginService
+	GlobalPluginsDir  = claudeconfig.GlobalPluginsDir
+	ProjectPluginsDir = claudeconfig.ProjectPluginsDir
 )

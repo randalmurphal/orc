@@ -347,7 +347,6 @@ func setTriggerEnabled(triggerID string, enabled bool) error {
 	return nil
 }
 
-
 func newAutomationRunCmd() *cobra.Command {
 	var branch string
 
@@ -715,4 +714,3 @@ Example:
 
 	return cmd
 }
-

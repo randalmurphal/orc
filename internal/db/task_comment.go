@@ -12,8 +12,8 @@ import (
 type AuthorType string
 
 const (
-	AuthorTypeHuman AuthorType = "human"
-	AuthorTypeAgent AuthorType = "agent"
+	AuthorTypeHuman  AuthorType = "human"
+	AuthorTypeAgent  AuthorType = "agent"
 	AuthorTypeSystem AuthorType = "system"
 )
 

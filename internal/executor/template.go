@@ -86,13 +86,13 @@ type TemplateVars struct {
 	ClaudeMDContent      string // Current CLAUDE.md content
 
 	// Project detection variables (from detect.Detect())
-	Language    string   // Primary language (go, typescript, python, etc.)
-	HasFrontend bool     // Whether project has a frontend
-	HasTests    bool     // Whether project has existing tests
-	TestCommand string   // Command to run tests (e.g., "go test ./...")
-	LintCommand string   // Command to run linting
-	BuildCommand string  // Command to build project
-	Frameworks  []string // Detected frameworks
+	Language     string   // Primary language (go, typescript, python, etc.)
+	HasFrontend  bool     // Whether project has a frontend
+	HasTests     bool     // Whether project has existing tests
+	TestCommand  string   // Command to run tests (e.g., "go test ./...")
+	LintCommand  string   // Command to run linting
+	BuildCommand string   // Command to build project
+	Frameworks   []string // Detected frameworks
 
 	// Constitution content (project principles)
 	ConstitutionContent string
@@ -293,9 +293,9 @@ func RenderTemplate(tmpl string, vars TemplateVars) string {
 		"{{CONSTITUTION_CONTENT}}": vars.ConstitutionContent,
 
 		// TDD phase artifacts
-		"{{TDD_TESTS_CONTENT}}":  vars.TDDTestsContent,
-		"{{TDD_TEST_PLAN}}":      vars.TDDTestPlan,
-		"{{BREAKDOWN_CONTENT}}":  vars.BreakdownContent,
+		"{{TDD_TESTS_CONTENT}}": vars.TDDTestsContent,
+		"{{TDD_TEST_PLAN}}":     vars.TDDTestPlan,
+		"{{BREAKDOWN_CONTENT}}": vars.BreakdownContent,
 	}
 
 	result := tmpl

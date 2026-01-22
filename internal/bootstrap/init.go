@@ -230,4 +230,3 @@ func PrintResult(r *Result) {
 	fmt.Printf("  orc serve                    # Start web UI at localhost:8080\n")
 	fmt.Printf("  orc setup                    # (Optional) Configure with Claude\n")
 }
-

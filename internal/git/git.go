@@ -28,7 +28,7 @@ type Checkpoint struct {
 // worktree creation with cleanup). Individual git commands don't need locking
 // as they are atomic at the process level.
 type Git struct {
-	mu                sync.Mutex       // Protects compound operations that must be atomic
+	mu                sync.Mutex // Protects compound operations that must be atomic
 	ctx               *devgit.Context
 	branchPrefix      string
 	commitPrefix      string

@@ -54,8 +54,8 @@ func TestSaveAndGetReviewFindings(t *testing.T) {
 			{Severity: "medium", File: "utils.go", Line: 100, Description: "Error not handled"},
 			{Severity: "low", File: "config.go", Line: 5, Description: "Magic number"},
 		},
-		Questions: []string{"Why is this implemented synchronously?"},
-		Positives: []string{"Good test coverage"},
+		Questions:   []string{"Why is this implemented synchronously?"},
+		Positives:   []string{"Good test coverage"},
 		Perspective: "security",
 	}
 

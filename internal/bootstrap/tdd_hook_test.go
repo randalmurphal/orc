@@ -205,7 +205,6 @@ func TestTDDHookIntegration(t *testing.T) {
 	}
 }
 
-
 // TestTDDHookNoDatabase tests that the hook gracefully handles missing database.
 func TestTDDHookNoDatabase(t *testing.T) {
 	tmpDir := t.TempDir()

@@ -127,10 +127,10 @@ func TestResolveTargetBranch(t *testing.T) {
 			expectedBranch: "develop",
 		},
 		{
-			name:       "level 5: fallback to main when config has no target",
-			task:       &task.Task{ID: "TASK-001"},
-			initiative: nil,
-			config:     &config.Config{},
+			name:           "level 5: fallback to main when config has no target",
+			task:           &task.Task{ID: "TASK-001"},
+			initiative:     nil,
+			config:         &config.Config{},
 			expectedBranch: "main",
 		},
 		{

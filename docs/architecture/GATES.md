@@ -126,6 +126,59 @@ phases:
 
 ## Human Gate Workflow
 
+Human gates work differently depending on whether the task is running interactively (CLI) or headlessly (API/WebSocket).
+
+### Interactive Mode (CLI)
+
+When running via `orc run` in a terminal:
+
+```
+[GATE] Human approval required for merge
+
+Task: TASK-001 - Add user authentication
+Phase: merge
+Files changed: 8
+Tests: 24 passing
+
+Approve? [y/n/q(questions)]: _
+```
+
+The CLI blocks and waits for input. Enter `y` to approve, `n` to reject with reason, or `q` to ask clarifying questions.
+
+### Headless Mode (API/WebSocket)
+
+When running via the API (e.g., from the web UI), gates don't block:
+
+1. **Task hits human gate** - Gate evaluator detects headless mode
+2. **Task blocked** - Status changes to `blocked`
+3. **Event emitted** - `decision_required` WebSocket event broadcast
+4. **User notified** - Web UI shows approval prompt
+5. **User decides** - Frontend calls `POST /api/decisions/:id`
+6. **Decision recorded** - State and database updated
+7. **Status updated** - Task becomes `planned` (approved) or `failed` (rejected)
+8. **Resume required** - User must explicitly resume the task
+
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────────────┐
+│  Executor   │───▶│   Gate       │───▶│ PendingDecisionStore│
+│ (phase run) │    │ (human gate) │    │ (in-memory map)     │
+└─────────────┘    └──────────────┘    └─────────────────────┘
+                          │                      │
+                          ▼                      ▼
+                   ┌──────────────┐    ┌─────────────────────┐
+                   │  Publisher   │    │  POST /decisions/:id│
+                   │ (emit event) │    │  (resolve decision) │
+                   └──────────────┘    └─────────────────────┘
+                          │                      │
+                          ▼                      ▼
+                   ┌───────────────────────────────────────────┐
+                   │         WebSocket Subscribers             │
+                   │  (receive decision_required/resolved)     │
+                   └───────────────────────────────────────────┘
+```
+
+**Note:** Pending decisions are stored in-memory. Server restart clears them; tasks remain blocked and can be resolved via `orc approve` CLI.
+
 ### Notification Channels
 
 1. **Terminal** (if interactive):
@@ -142,8 +195,25 @@ phases:
    orc diff TASK-001       # View changes
    ```
 
-2. **Desktop Notification** (if configured)
-3. **Web UI** (banner, one-click approve/reject)
+2. **WebSocket Event** (if headless):
+   ```json
+   {
+     "type": "event",
+     "event_type": "decision_required",
+     "data": {
+       "decision_id": "gate_TASK-001_merge",
+       "task_id": "TASK-001",
+       "task_title": "Add user authentication",
+       "phase": "merge",
+       "gate_type": "human",
+       "question": "Please verify the following criteria:",
+       "context": "Code review passes\nTests pass",
+       "requested_at": "2026-01-10T10:30:00Z"
+     }
+   }
+   ```
+
+3. **Desktop Notification** (if configured)
 4. **Webhook** (Slack, email, etc.)
 
 ### Approval Commands

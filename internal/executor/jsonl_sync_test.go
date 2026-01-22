@@ -50,10 +50,10 @@ func TestJSONLSyncer_SyncMessages(t *testing.T) {
 			},
 		},
 		{
-			Type:      "assistant",
-			Timestamp: "2024-01-15T10:00:01.000Z",
-			SessionID: "sess-test-001",
-			UUID:      "msg-002",
+			Type:       "assistant",
+			Timestamp:  "2024-01-15T10:00:01.000Z",
+			SessionID:  "sess-test-001",
+			UUID:       "msg-002",
 			ParentUUID: strPtr("msg-001"),
 			Message: &session.JSONLMessageBody{
 				Role:    "assistant",

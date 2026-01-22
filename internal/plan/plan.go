@@ -171,7 +171,6 @@ type planError string
 
 func (e planError) Error() string { return string(e) }
 
-
 // LoadTemplate loads a plan template for a given weight class from embedded files.
 func LoadTemplate(weight task.Weight) (*PlanTemplate, error) {
 	filename := "plans/" + string(weight) + ".yaml"
@@ -279,4 +278,3 @@ func RegeneratePlan(t *task.Task, oldPlan *Plan) (*RegenerateResult, error) {
 
 	return result, nil
 }
-

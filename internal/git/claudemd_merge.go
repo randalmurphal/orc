@@ -25,22 +25,22 @@ type TableSection struct {
 
 // ClaudeMDConflict represents a conflict in CLAUDE.md
 type ClaudeMDConflict struct {
-	FilePath      string
-	IsKnowledge   bool                     // True if conflict is in knowledge section
-	Tables        map[string]*TableConflict // Table name -> conflict details
+	FilePath       string
+	IsKnowledge    bool                      // True if conflict is in knowledge section
+	Tables         map[string]*TableConflict // Table name -> conflict details
 	CanAutoResolve bool
-	ResolutionLog []string
+	ResolutionLog  []string
 }
 
 // TableConflict represents a conflict in a specific table
 type TableConflict struct {
-	TableName    string
-	OursRows     []string // Rows from our version
-	TheirsRows   []string // Rows from their version
-	CommonRows   []string // Rows in both versions
-	AddedByOurs  []string // New rows added by ours (not in common)
+	TableName     string
+	OursRows      []string // Rows from our version
+	TheirsRows    []string // Rows from their version
+	CommonRows    []string // Rows in both versions
+	AddedByOurs   []string // New rows added by ours (not in common)
 	AddedByTheirs []string // New rows added by theirs (not in common)
-	CanMerge     bool      // True if purely additive
+	CanMerge      bool     // True if purely additive
 }
 
 // MergeResult contains the result of attempting to auto-merge
@@ -363,7 +363,7 @@ func extractKnowledgeSection(content string) (string, error) {
 		return "", fmt.Errorf("knowledge section markers in wrong order")
 	}
 
-	return content[startIdx:endIdx+len(KnowledgeSectionEnd)], nil
+	return content[startIdx : endIdx+len(KnowledgeSectionEnd)], nil
 }
 
 // parseTableRows extracts table rows from content

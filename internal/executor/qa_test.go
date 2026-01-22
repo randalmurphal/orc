@@ -400,4 +400,3 @@ func TestFormatQAResultSummary(t *testing.T) {
 		}
 	})
 }
-

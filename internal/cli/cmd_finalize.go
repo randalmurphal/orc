@@ -23,10 +23,10 @@ import (
 // newFinalizeCmd creates the finalize command
 func newFinalizeCmd() *cobra.Command {
 	var (
-		force     bool
-		gateType  string
-		stream    bool
-		skipRisk  bool
+		force    bool
+		gateType string
+		stream   bool
+		skipRisk bool
 	)
 
 	cmd := &cobra.Command{

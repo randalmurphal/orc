@@ -861,4 +861,3 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 
 	s.jsonResponse(w, graph)
 }
-

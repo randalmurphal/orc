@@ -347,20 +347,20 @@ func TestCIMerger_WaitForCIAndMerge_CIDisabled(t *testing.T) {
 func TestParseChecksJSON(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name           string
-		jsonStr        string
-		expectStatus   CIStatus
-		expectPassed   int
-		expectPending  int
-		expectFailed   int
+		name          string
+		jsonStr       string
+		expectStatus  CIStatus
+		expectPassed  int
+		expectPending int
+		expectFailed  int
 	}{
 		{
-			name:           "empty array",
-			jsonStr:        "[]",
-			expectStatus:   CIStatusNoChecks,
-			expectPassed:   0,
-			expectPending:  0,
-			expectFailed:   0,
+			name:          "empty array",
+			jsonStr:       "[]",
+			expectStatus:  CIStatusNoChecks,
+			expectPassed:  0,
+			expectPending: 0,
+			expectFailed:  0,
 		},
 		{
 			name: "all passed",
@@ -914,10 +914,10 @@ func TestMergePR_ExponentialBackoffValues(t *testing.T) {
 		attempt  int
 		expected time.Duration
 	}{
-		{1, 2 * time.Second},  // 2^1 = 2s
-		{2, 4 * time.Second},  // 2^2 = 4s
-		{3, 8 * time.Second},  // 2^3 = 8s, capped
-		{4, 8 * time.Second},  // would be 16s, but capped at 8s
+		{1, 2 * time.Second}, // 2^1 = 2s
+		{2, 4 * time.Second}, // 2^2 = 4s
+		{3, 8 * time.Second}, // 2^3 = 8s, capped
+		{4, 8 * time.Second}, // would be 16s, but capped at 8s
 	}
 
 	for _, tt := range tests {

@@ -17,14 +17,14 @@ import (
 
 // DepsOutput represents the JSON output structure for dependencies.
 type DepsOutput struct {
-	TaskID       string           `json:"task_id"`
-	Title        string           `json:"title"`
-	Status       task.Status      `json:"status"`
-	BlockedBy    []DepsTaskInfo   `json:"blocked_by,omitempty"`
-	Blocks       []DepsTaskInfo   `json:"blocks,omitempty"`
-	RelatedTo    []DepsTaskInfo   `json:"related_to,omitempty"`
-	ReferencedBy []DepsTaskInfo   `json:"referenced_by,omitempty"`
-	Summary      DepsSummary      `json:"summary"`
+	TaskID       string         `json:"task_id"`
+	Title        string         `json:"title"`
+	Status       task.Status    `json:"status"`
+	BlockedBy    []DepsTaskInfo `json:"blocked_by,omitempty"`
+	Blocks       []DepsTaskInfo `json:"blocks,omitempty"`
+	RelatedTo    []DepsTaskInfo `json:"related_to,omitempty"`
+	ReferencedBy []DepsTaskInfo `json:"referenced_by,omitempty"`
+	Summary      DepsSummary    `json:"summary"`
 }
 
 // DepsTaskInfo contains information about a related task.
@@ -36,12 +36,12 @@ type DepsTaskInfo struct {
 
 // DepsSummary provides a status summary.
 type DepsSummary struct {
-	IsBlocked        bool `json:"is_blocked"`
-	UnmetBlockers    int  `json:"unmet_blockers"`
-	TotalBlockers    int  `json:"total_blockers"`
-	TasksBlocking    int  `json:"tasks_blocking"`
-	RelatedCount     int  `json:"related_count"`
-	ReferencedCount  int  `json:"referenced_count"`
+	IsBlocked       bool `json:"is_blocked"`
+	UnmetBlockers   int  `json:"unmet_blockers"`
+	TotalBlockers   int  `json:"total_blockers"`
+	TasksBlocking   int  `json:"tasks_blocking"`
+	RelatedCount    int  `json:"related_count"`
+	ReferencedCount int  `json:"referenced_count"`
 }
 
 func newDepsCmd() *cobra.Command {

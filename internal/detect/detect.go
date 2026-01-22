@@ -63,13 +63,13 @@ const (
 
 // Detection contains the results of project detection.
 type Detection struct {
-	Language   ProjectType `yaml:"language" json:"language"`
-	Frameworks []Framework `yaml:"frameworks,omitempty" json:"frameworks,omitempty"`
-	BuildTools []BuildTool `yaml:"build_tools,omitempty" json:"build_tools,omitempty"`
-	HasDocker  bool        `yaml:"has_docker" json:"has_docker"`
-	HasCI      bool        `yaml:"has_ci" json:"has_ci"`
-	HasTests   bool        `yaml:"has_tests" json:"has_tests"`
-	HasFrontend bool       `yaml:"has_frontend" json:"has_frontend"`
+	Language    ProjectType `yaml:"language" json:"language"`
+	Frameworks  []Framework `yaml:"frameworks,omitempty" json:"frameworks,omitempty"`
+	BuildTools  []BuildTool `yaml:"build_tools,omitempty" json:"build_tools,omitempty"`
+	HasDocker   bool        `yaml:"has_docker" json:"has_docker"`
+	HasCI       bool        `yaml:"has_ci" json:"has_ci"`
+	HasTests    bool        `yaml:"has_tests" json:"has_tests"`
+	HasFrontend bool        `yaml:"has_frontend" json:"has_frontend"`
 
 	// Inferred commands
 	TestCommand  string `yaml:"test_command,omitempty" json:"test_command,omitempty"`
@@ -301,8 +301,8 @@ func detectFrontend(path string, frameworks []Framework) bool {
 		"src/components",
 		"src/pages",
 		"src/views",
-		"app",      // Next.js app router
-		"pages",    // Next.js pages router
+		"app",   // Next.js app router
+		"pages", // Next.js pages router
 		"components",
 	}
 	for _, dir := range frontendDirs {

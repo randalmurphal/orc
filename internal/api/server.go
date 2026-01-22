@@ -22,6 +22,7 @@ import (
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -62,6 +63,9 @@ type Server struct {
 
 	// Automation service for trigger-based automation
 	automationSvc *automation.Service
+
+	// Pending gate decisions (for human approval gates in API mode)
+	pendingDecisions *gate.PendingDecisionStore
 
 	// Server context for graceful shutdown of background goroutines
 	serverCtx       context.Context
@@ -166,22 +170,23 @@ func New(cfg *Config) *Server {
 	}
 
 	s := &Server{
-		addr:            cfg.Addr,
-		workDir:         workDir,
-		maxPortAttempts: maxPortAttempts,
-		mux:             http.NewServeMux(),
-		logger:          logger,
-		orcConfig:       orcCfg,
-		publisher:       pub,
-		backend:         backend,
-		subscribers:     make(map[string][]chan Event),
-		runningTasks:    make(map[string]context.CancelFunc),
-		diffCache:       diff.NewCache(100), // Cache up to 100 file diffs
-		automationSvc:   automationSvc,
-		serverCtx:       serverCtx,
-		serverCtxCancel: serverCtxCancel,
-		sessionID:       uuid.New().String(),
-		sessionStart:    time.Now(),
+		addr:             cfg.Addr,
+		workDir:          workDir,
+		maxPortAttempts:  maxPortAttempts,
+		mux:              http.NewServeMux(),
+		logger:           logger,
+		orcConfig:        orcCfg,
+		publisher:        pub,
+		backend:          backend,
+		subscribers:      make(map[string][]chan Event),
+		runningTasks:     make(map[string]context.CancelFunc),
+		diffCache:        diff.NewCache(100), // Cache up to 100 file diffs
+		automationSvc:    automationSvc,
+		pendingDecisions: gate.NewPendingDecisionStore(),
+		serverCtx:        serverCtx,
+		serverCtxCancel:  serverCtxCancel,
+		sessionID:        uuid.New().String(),
+		sessionStart:     time.Now(),
 	}
 
 	// Create WebSocket handler
@@ -255,6 +260,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", cors(s.handleRunTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/pause", cors(s.handlePauseTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/resume", cors(s.handleResumeTask))
+
+	// Gate decisions (human approval in headless mode)
+	s.mux.HandleFunc("POST /api/decisions/{id}", cors(s.handlePostDecision))
 
 	// Task retry (fresh session with context injection)
 	s.mux.HandleFunc("POST /api/tasks/{id}/retry", cors(s.handleRetryTask))
@@ -809,6 +817,8 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		exec.SetBackend(s.backend)
 		exec.SetPublisher(s.publisher)
 		exec.SetAutomationService(s.automationSvc)
+		exec.SetPendingDecisionStore(s.pendingDecisions)
+		exec.SetHeadless(true)
 		err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
 		if err != nil {
 			s.logger.Error("task resume failed", "task", id, "error", err)

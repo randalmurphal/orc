@@ -17,7 +17,7 @@ type EventLog struct {
 	Phase      *string // nullable for task-level events
 	Iteration  *int    // nullable for task-level events
 	EventType  string
-	Data       any     // JSON marshaled to TEXT
+	Data       any // JSON marshaled to TEXT
 	Source     string
 	CreatedAt  time.Time
 	DurationMs *int64 // nullable

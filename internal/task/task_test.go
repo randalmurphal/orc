@@ -273,15 +273,15 @@ func TestDetectUITesting(t *testing.T) {
 		{"Refactor auth service", "", false},
 		{"Add logging", "", false},
 		{"Fix memory leak in worker", "", false},
-		{"Give users quick visibility into changes", "", false},    // "quick" should not match "click"
-		{"Transform data before saving", "", false},                // "transform" should not match "form"
-		{"Perform data transformation", "", false},                 // "perform" should not match "form"
-		{"Display output information", "", false},                  // generic words
-		{"Built-in feature for users", "", false},                  // "built" should not match "ui"
-		{"Required functionality", "", false},                      // "required" should not match "ui"
-		{"Add scrolling behavior to list", "", false},              // "scrolling" is not a keyword
-		{"Page load optimization", "", false},                      // "page" removed (too generic)
-		{"", "clicking saves the configuration", false},            // "clicking" != "click"
+		{"Give users quick visibility into changes", "", false}, // "quick" should not match "click"
+		{"Transform data before saving", "", false},             // "transform" should not match "form"
+		{"Perform data transformation", "", false},              // "perform" should not match "form"
+		{"Display output information", "", false},               // generic words
+		{"Built-in feature for users", "", false},               // "built" should not match "ui"
+		{"Required functionality", "", false},                   // "required" should not match "ui"
+		{"Add scrolling behavior to list", "", false},           // "scrolling" is not a keyword
+		{"Page load optimization", "", false},                   // "page" removed (too generic)
+		{"", "clicking saves the configuration", false},         // "clicking" != "click"
 	}
 
 	for _, tt := range tests {

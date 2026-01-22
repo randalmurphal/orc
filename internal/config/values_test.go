@@ -540,7 +540,9 @@ func TestConfig_SetValue_Finalize(t *testing.T) {
 			name:  "set conflict resolution instructions",
 			path:  "completion.finalize.conflict_resolution.instructions",
 			value: "Custom instructions here",
-			check: func(c *Config) bool { return c.Completion.Finalize.ConflictResolution.Instructions == "Custom instructions here" },
+			check: func(c *Config) bool {
+				return c.Completion.Finalize.ConflictResolution.Instructions == "Custom instructions here"
+			},
 		},
 		{
 			name:  "set risk assessment enabled",

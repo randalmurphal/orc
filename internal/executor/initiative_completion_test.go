@@ -388,4 +388,3 @@ func TestInitiativeCompletionResult(t *testing.T) {
 		t.Errorf("PRNumber = %d, want %d", result.PRNumber, 42)
 	}
 }
-

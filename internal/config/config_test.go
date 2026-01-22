@@ -444,7 +444,7 @@ func TestResolveModelSetting(t *testing.T) {
 		{
 			name: "falls back to legacy Model field",
 			cfg: &Config{
-				Model: "legacy-model",
+				Model:  "legacy-model",
 				Models: ModelsConfig{
 					// Default.Model empty
 				},
@@ -522,12 +522,12 @@ func TestDefaultConfigRetryMap(t *testing.T) {
 		phase    string
 		wantFrom string
 	}{
-		{"design", "spec"},       // Design issues often stem from incomplete spec
+		{"design", "spec"}, // Design issues often stem from incomplete spec
 		{"test", "implement"},
 		{"test_unit", "implement"},
 		{"test_e2e", "implement"},
 		{"validate", "implement"},
-		{"review", "implement"},  // Critical: prevents review-resume loop
+		{"review", "implement"}, // Critical: prevents review-resume loop
 	}
 
 	for _, tt := range retryTests {
@@ -1759,9 +1759,9 @@ func TestFinalizePresets_AutoTriggerOnApproval(t *testing.T) {
 		profile  AutomationProfile
 		expected bool
 	}{
-		{ProfileAuto, true},   // Auto profile enables auto-trigger on approval
-		{ProfileFast, true},   // Fast profile enables auto-trigger on approval
-		{ProfileSafe, false},  // Safe profile disables auto-trigger (human review)
+		{ProfileAuto, true},    // Auto profile enables auto-trigger on approval
+		{ProfileFast, true},    // Fast profile enables auto-trigger on approval
+		{ProfileSafe, false},   // Safe profile disables auto-trigger (human review)
 		{ProfileStrict, false}, // Strict profile disables auto-trigger (human decision)
 	}
 
@@ -1818,7 +1818,7 @@ func TestShouldAutoApprovePR(t *testing.T) {
 		{"auto profile without auto-approve", ProfileAuto, false, false},
 		{"fast profile with auto-approve", ProfileFast, true, true},
 		{"fast profile without auto-approve", ProfileFast, false, false},
-		{"safe profile with auto-approve", ProfileSafe, true, false},   // Safe always returns false
+		{"safe profile with auto-approve", ProfileSafe, true, false}, // Safe always returns false
 		{"safe profile without auto-approve", ProfileSafe, false, false},
 		{"strict profile with auto-approve", ProfileStrict, true, false}, // Strict always returns false
 		{"strict profile without auto-approve", ProfileStrict, false, false},
@@ -1843,9 +1843,9 @@ func TestPRAutoApprovePreset(t *testing.T) {
 		profile  AutomationProfile
 		expected bool
 	}{
-		{ProfileAuto, true},   // Auto profile enables auto-approve
-		{ProfileFast, true},   // Fast profile enables auto-approve
-		{ProfileSafe, false},  // Safe profile disables auto-approve (human review)
+		{ProfileAuto, true},    // Auto profile enables auto-approve
+		{ProfileFast, true},    // Fast profile enables auto-approve
+		{ProfileSafe, false},   // Safe profile disables auto-approve (human review)
 		{ProfileStrict, false}, // Strict profile disables auto-approve (human decision)
 	}
 
@@ -1920,7 +1920,7 @@ func TestShouldWaitForCI(t *testing.T) {
 		{"auto profile without wait_for_ci", ProfileAuto, false, false},
 		{"fast profile with wait_for_ci", ProfileFast, true, true},
 		{"fast profile without wait_for_ci", ProfileFast, false, false},
-		{"safe profile with wait_for_ci", ProfileSafe, true, false},     // Safe always returns false
+		{"safe profile with wait_for_ci", ProfileSafe, true, false}, // Safe always returns false
 		{"safe profile without wait_for_ci", ProfileSafe, false, false},
 		{"strict profile with wait_for_ci", ProfileStrict, true, false}, // Strict always returns false
 		{"strict profile without wait_for_ci", ProfileStrict, false, false},

@@ -63,4 +63,3 @@ func (e *Executor) recordCostToGlobal(t *task.Task, phaseID string, result *Resu
 		)
 	}
 }
-

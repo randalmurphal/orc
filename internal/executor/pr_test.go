@@ -448,11 +448,11 @@ func TestParsePRChecks_UsesCorrectFields(t *testing.T) {
 	// not conclusion field (which was the old expected format)
 
 	tests := []struct {
-		name           string
-		jsonOutput     string
-		expectPassed   bool
-		expectDetails  string
-		expectErr      bool
+		name          string
+		jsonOutput    string
+		expectPassed  bool
+		expectDetails string
+		expectErr     bool
 	}{
 		{
 			name: "all checks pass",

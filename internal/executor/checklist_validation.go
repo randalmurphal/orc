@@ -9,9 +9,9 @@ import (
 
 // ChecklistItem represents a single item in the quality checklist.
 type ChecklistItem struct {
-	ID      string `json:"id"`
-	Check   string `json:"check"`
-	Passed  bool   `json:"passed"`
+	ID     string `json:"id"`
+	Check  string `json:"check"`
+	Passed bool   `json:"passed"`
 }
 
 // SpecCompletionWithChecklist represents the spec phase output with quality checklist.
