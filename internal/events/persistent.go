@@ -221,13 +221,15 @@ func (p *PersistentPublisher) trackPhaseStart(e Event) {
 	}
 }
 
-// getPhaseStart retrieves the start time for a phase.
+// getPhaseStart retrieves the start time for a phase and cleans it up.
 func (p *PersistentPublisher) getPhaseStart(taskID, phase string) *time.Time {
 	key := taskID + ":" + phase
-	p.startsMu.RLock()
-	defer p.startsMu.RUnlock()
+	p.startsMu.Lock()
+	defer p.startsMu.Unlock()
 
 	if t, ok := p.phaseStarts[key]; ok {
+		// Clean up the entry to prevent memory leak
+		delete(p.phaseStarts, key)
 		return &t
 	}
 	return nil
