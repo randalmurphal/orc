@@ -12,6 +12,7 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
 | [Integration](#integration) | `/api/github/*`, `/api/mcp/*`, `/api/plugins/*` | External integrations |
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
+| [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics and activity data |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
 
