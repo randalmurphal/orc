@@ -32,12 +32,14 @@ type PhaseExecutionConfig struct {
 
 // PhaseExecutionResult holds the result of a phase execution.
 type PhaseExecutionResult struct {
-	Iterations   int
-	InputTokens  int
-	OutputTokens int
-	CostUSD      float64
-	Artifact     string
-	SessionID    string
+	Iterations          int
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	CostUSD             float64
+	Artifact            string
+	SessionID           string
 }
 
 // executePhase runs a single phase of the workflow.
@@ -131,6 +133,8 @@ func (we *WorkflowExecutor) executePhase(
 	result.DurationMS = time.Since(startTime).Milliseconds()
 	result.InputTokens = execResult.InputTokens
 	result.OutputTokens = execResult.OutputTokens
+	result.CacheCreationTokens = execResult.CacheCreationTokens
+	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
 
 	// Extract artifact if phase produces one
@@ -144,6 +148,16 @@ func (we *WorkflowExecutor) executePhase(
 					"phase", tmpl.ID,
 					"error", err,
 				)
+			}
+			// Also save to specs table for spec phases (for CLI compatibility)
+			if tmpl.ID == "spec" || tmpl.ID == "tiny_spec" {
+				if err := we.backend.SaveSpec(t.ID, result.Artifact, "workflow"); err != nil {
+					we.logger.Warn("failed to save spec to specs table",
+						"task", t.ID,
+						"phase", tmpl.ID,
+						"error", err,
+					)
+				}
 			}
 		}
 	}
@@ -180,11 +194,6 @@ func (we *WorkflowExecutor) executePhase(
 	// Record cost to global database for cross-project analytics
 	phaseModel := we.resolvePhaseModel(tmpl, phase)
 	we.recordCostToGlobal(t, tmpl.ID, result, phaseModel, time.Since(startTime))
-
-	// Sync transcripts to database
-	if execResult.SessionID != "" && t != nil {
-		we.syncTranscripts(ctx, execResult.SessionID, t.ID, tmpl.ID)
-	}
 
 	// Update execution state if available
 	if we.execState != nil {
@@ -255,6 +264,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		// Accumulate tokens
 		result.InputTokens += turnResult.Usage.InputTokens
 		result.OutputTokens += turnResult.Usage.OutputTokens
+		result.CacheCreationTokens += turnResult.Usage.CacheCreationInputTokens
+		result.CacheReadTokens += turnResult.Usage.CacheReadInputTokens
 		result.CostUSD += turnResult.CostUSD
 
 		// Check for completion

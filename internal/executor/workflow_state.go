@@ -5,8 +5,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/automation"
@@ -172,67 +170,22 @@ func (we *WorkflowExecutor) recordCostToGlobal(t *task.Task, phaseID string, res
 	}
 
 	entry := db.CostEntry{
-		ProjectID:    projectPath,
-		TaskID:       taskID,
-		Phase:        phaseID,
-		Model:        db.DetectModel(model),
-		Iteration:    result.Iterations,
-		CostUSD:      result.CostUSD,
-		InputTokens:  result.InputTokens,
-		OutputTokens: result.OutputTokens,
-		TotalTokens:  result.InputTokens + result.OutputTokens,
-		InitiativeID: initiativeID,
-		DurationMs:   duration.Milliseconds(),
-		Timestamp:    time.Now(),
+		ProjectID:           projectPath,
+		TaskID:              taskID,
+		Phase:               phaseID,
+		Model:               db.DetectModel(model),
+		Iteration:           result.Iterations,
+		CostUSD:             result.CostUSD,
+		InputTokens:         result.InputTokens,
+		OutputTokens:        result.OutputTokens,
+		CacheCreationTokens: result.CacheCreationTokens,
+		CacheReadTokens:     result.CacheReadTokens,
+		TotalTokens:         result.InputTokens + result.OutputTokens,
+		InitiativeID:        initiativeID,
+		DurationMs:          duration.Milliseconds(),
+		Timestamp:           time.Now(),
 	}
 
 	RecordCostEntry(we.globalDB, entry, we.logger)
 }
 
-// syncTranscripts syncs Claude JSONL transcripts to the database.
-func (we *WorkflowExecutor) syncTranscripts(ctx context.Context, sessionID, taskID, phaseID string) {
-	if we.backend == nil || sessionID == "" {
-		return
-	}
-
-	// Determine JSONL path from session ID
-	// Claude Code stores sessions in ~/.claude/projects/{project-hash}/
-	homeDir, _ := os.UserHomeDir()
-	if homeDir == "" {
-		return
-	}
-
-	// Session files are stored under the project path hash
-	projectHash := hashString(we.workingDir)
-	jsonlPath := filepath.Join(homeDir, ".claude", "projects", projectHash, sessionID+".jsonl")
-
-	// Check if file exists
-	if _, err := os.Stat(jsonlPath); os.IsNotExist(err) {
-		we.logger.Debug("no JSONL file found for session", "session", sessionID, "path", jsonlPath)
-		return
-	}
-
-	syncer := NewJSONLSyncer(we.backend, we.logger)
-	if err := syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
-		TaskID: taskID,
-		Phase:  phaseID,
-		Append: true, // Always append, dedup by UUID
-	}); err != nil {
-		we.logger.Warn("failed to sync transcripts",
-			"session", sessionID,
-			"task", taskID,
-			"phase", phaseID,
-			"error", err,
-		)
-	}
-}
-
-// hashString creates a simple hash of a string for directory naming.
-func hashString(s string) string {
-	// Use a simple approach matching Claude Code's behavior
-	var hash uint32
-	for _, c := range s {
-		hash = hash*31 + uint32(c)
-	}
-	return fmt.Sprintf("%x", hash)
-}
