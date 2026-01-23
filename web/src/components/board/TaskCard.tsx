@@ -121,6 +121,7 @@ export function TaskCard({
 	return (
 		<article
 			className={cardClasses}
+			data-task-id={task.id}
 			onClick={handleClick}
 			onContextMenu={handleContextMenu}
 			onKeyDown={handleKeyDown}

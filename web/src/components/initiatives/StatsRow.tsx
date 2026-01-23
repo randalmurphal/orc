@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * StatsRow component - displays key initiative statistics in a horizontal row.
  * Shows Active Initiatives, Total Tasks, Completion Rate, and Total Cost.

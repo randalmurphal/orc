@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useCallback, lazy, Suspense } from 'react';
 import { RouteObject, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';

@@ -95,7 +95,7 @@ describe('InitiativeDetailPage', () => {
 		});
 
 		it('shows 404 when initiative not found', async () => {
-			vi.mocked(api.getInitiative).mockResolvedValue(null as any);
+			vi.mocked(api.getInitiative).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof api.getInitiative>>);
 
 			renderInitiativeDetailPage();
 

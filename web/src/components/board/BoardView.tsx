@@ -80,8 +80,8 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const totalTokens = useSessionStore((state) => state.totalTokens);
 	const totalCost = useSessionStore((state) => state.totalCost);
 
-	// WebSocket hook
-	const { on } = useWebSocket();
+	// WebSocket hook - also get status to re-subscribe when connection is ready
+	const { on, status: wsStatus } = useWebSocket();
 
 	// Local state
 	const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<Set<string>>(
@@ -89,8 +89,7 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	);
 	const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
 	const [configStats, setConfigStats] = useState<ConfigStats | undefined>(undefined);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const [_configLoading, setConfigLoading] = useState(true);
+	const [, setConfigLoading] = useState(true);
 	const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
 
 	// Derived state: filter tasks by status
@@ -216,7 +215,13 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	);
 
 	// Subscribe to WebSocket events for decisions and files
+	// Depend on wsStatus to re-subscribe when connection becomes ready
 	useEffect(() => {
+		// Wait for WebSocket to be connected before subscribing
+		if (wsStatus !== 'connected') {
+			return;
+		}
+
 		// Subscribe to decision_required events
 		const unsubDecisionRequired = on('decision_required', (event) => {
 			if ('event' in event && event.event === 'decision_required') {
@@ -302,7 +307,7 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 			unsubFilesChanged();
 			unsubComplete();
 		};
-	}, [on]);
+	}, [on, wsStatus]);
 
 	// Fetch config stats on mount
 	useEffect(() => {

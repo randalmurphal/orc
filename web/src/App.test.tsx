@@ -46,6 +46,13 @@ vi.mock('@/lib/api', () => ({
 	escalateProjectTask: vi.fn(),
 	updateTask: vi.fn(),
 	deleteProjectTask: vi.fn(),
+	// Config stats for TopBar
+	getConfigStats: vi.fn().mockResolvedValue({
+		slashCommandsCount: 0,
+		claudeMdSize: 0,
+		mcpServersCount: 0,
+		permissionsProfile: 'default',
+	}),
 }));
 
 function renderApp(initialPath: string = '/') {
