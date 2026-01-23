@@ -486,7 +486,7 @@ func (d *DatabaseBackend) AddTranscript(t *Transcript) error {
 		Timestamp:           time.UnixMilli(t.Timestamp),
 	}
 	if err := d.db.AddTranscript(dbTranscript); err != nil {
-		return fmt.Errorf("add transcript: %w", err)
+		return err // db layer already wraps with context
 	}
 	t.ID = dbTranscript.ID
 	return nil

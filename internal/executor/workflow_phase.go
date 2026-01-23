@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -646,13 +647,14 @@ func (we *WorkflowExecutor) storeTranscripts(taskID, phaseID, sessionID, model, 
 
 	// Store user prompt
 	userTranscript := &storage.Transcript{
-		TaskID:    taskID,
-		Phase:     phaseID,
-		SessionID: sessionID,
-		Type:      "user",
-		Role:      "user",
-		Content:   prompt,
-		Timestamp: now,
+		TaskID:      taskID,
+		Phase:       phaseID,
+		SessionID:   sessionID,
+		MessageUUID: uuid.NewString(),
+		Type:        "user",
+		Role:        "user",
+		Content:     prompt,
+		Timestamp:   now,
 	}
 	if err := we.backend.AddTranscript(userTranscript); err != nil {
 		we.logger.Warn("failed to store user transcript", "task", taskID, "phase", phaseID, "error", err)
@@ -663,6 +665,7 @@ func (we *WorkflowExecutor) storeTranscripts(taskID, phaseID, sessionID, model, 
 		TaskID:              taskID,
 		Phase:               phaseID,
 		SessionID:           sessionID,
+		MessageUUID:         uuid.NewString(),
 		Type:                "assistant",
 		Role:                "assistant",
 		Content:             result.Content,
