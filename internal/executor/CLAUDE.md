@@ -4,9 +4,21 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 ## File Structure
 
+### Workflow Executor (Split into 6 files)
+
 | File | Purpose |
 |------|---------|
-| `workflow_execution.go` | **THE** executor: `WorkflowExecutor.Run()` for all execution |
+| `workflow_executor.go` | Core types, options, `NewWorkflowExecutor()`, `Run()` entry point, result types |
+| `workflow_context.go` | Context building: `buildResolutionContext()`, initiative/project loading, variable conversion |
+| `workflow_phase.go` | Phase execution: `executePhase()`, `executeWithClaude()`, timeout handling, spec requirements |
+| `workflow_completion.go` | Completion actions: PR creation, merge, worktree setup/cleanup, sync operations |
+| `workflow_state.go` | State management: failure handling, interrupts, cost tracking, transcript sync |
+| `workflow_gates.go` | Gate evaluation, event publishing, resource tracking, automation triggers |
+
+### Legacy/Support Files
+
+| File | Purpose |
+|------|---------|
 | `executor.go` | Shared utilities, `ExecutorConfig`, model resolution |
 | `phase.go` | `ExecutePhase()`, executor dispatch |
 | `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
