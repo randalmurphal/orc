@@ -17,6 +17,17 @@ export interface SessionMetrics {
 	outputTokens: number;
 }
 
+// WebSocket session_update event data
+export interface SessionUpdateData {
+	duration_seconds: number;
+	total_tokens: number;
+	estimated_cost_usd: number;
+	input_tokens: number;
+	output_tokens: number;
+	tasks_running: number;
+	is_paused: boolean;
+}
+
 export interface SessionState extends SessionMetrics {
 	// Session identity
 	sessionId: string | null;
@@ -44,6 +55,7 @@ export interface SessionActions {
 	// Updates
 	updateMetrics: (metrics: Partial<SessionMetrics>) => void;
 	addTokens: (input: number, output: number, cost: number) => void;
+	updateFromSessionEvent: (data: SessionUpdateData) => void;
 
 	// Task tracking
 	incrementActiveTask: () => void;
@@ -305,6 +317,34 @@ export const useSessionStore = create<SessionStore>()(
 						totalCost: newTotalCost,
 						formattedCost: formatCost(newTotalCost),
 						formattedTokens: formatTokens(newTotalTokens),
+					};
+				});
+			},
+
+			updateFromSessionEvent: (data: SessionUpdateData) => {
+				set((state) => {
+					// Compute startTime from duration_seconds if no session exists
+					let newStartTime = state.startTime;
+					if (!newStartTime) {
+						const now = new Date();
+						newStartTime = new Date(now.getTime() - data.duration_seconds * 1000);
+					}
+					// If startTime exists, preserve it (local time reference wins)
+
+					const newState = {
+						...state,
+						startTime: newStartTime,
+						totalTokens: data.total_tokens,
+						totalCost: data.estimated_cost_usd,
+						inputTokens: data.input_tokens,
+						outputTokens: data.output_tokens,
+						activeTaskCount: data.tasks_running,
+						isPaused: data.is_paused,
+					};
+
+					return {
+						...newState,
+						...computeDerivedState(newState),
 					};
 				});
 			},

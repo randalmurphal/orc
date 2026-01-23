@@ -469,7 +469,9 @@ export type WSEventType =
 	| 'decision_required'
 	| 'decision_resolved'
 	// Files changed events (real-time file modification tracking)
-	| 'files_changed';
+	| 'files_changed'
+	// Session metrics events (real-time session metrics updates)
+	| 'session_update';
 
 // Activity update event data (from EventActivity events)
 export interface ActivityUpdate {
