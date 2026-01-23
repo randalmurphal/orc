@@ -4,42 +4,33 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 ## File Structure
 
-### Workflow Executor (Split into 6 files)
+### WorkflowExecutor (Split into 6 files)
+
+| File | Lines | Key Functions | Purpose |
+|------|-------|---------------|---------|
+| `workflow_executor.go` | ~740 | `NewWorkflowExecutor()`, `Run()`, `applyArtifactToVars()` | Core types, options, entry point, result types |
+| `workflow_context.go` | ~430 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
+| `workflow_phase.go` | ~580 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
+| `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
+| `workflow_state.go` | ~240 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
+| `workflow_gates.go` | ~100 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
+
+### Support Files
 
 | File | Purpose |
 |------|---------|
-| `workflow_executor.go` | Core types, options, `NewWorkflowExecutor()`, `Run()` entry point, result types |
-| `workflow_context.go` | Context building: `buildResolutionContext()`, initiative/project loading, variable conversion |
-| `workflow_phase.go` | Phase execution: `executePhase()`, `executeWithClaude()`, timeout handling, spec requirements |
-| `workflow_completion.go` | Completion actions: PR creation, merge, worktree setup/cleanup, sync operations |
-| `workflow_state.go` | State management: failure handling, interrupts, cost tracking, transcript sync |
-| `workflow_gates.go` | Gate evaluation, event publishing, resource tracking, automation triggers |
-
-### Legacy/Support Files
-
-| File | Purpose |
-|------|---------|
-| `executor.go` | Shared utilities, `ExecutorConfig`, model resolution |
-| `phase.go` | `ExecutePhase()`, executor dispatch |
-| `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
-| `finalize.go` | Branch sync, conflict resolution |
-
-### Support Modules
-
-| File | Purpose |
-|------|---------|
+| `executor.go` | `PhaseState`, model resolution, Claude path detection |
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
-| `phase_response.go` | JSON schema for phase completion |
-| `ci_merge.go` | CI polling and auto-merge |
-| `resource_tracker.go` | Orphan process detection |
-| `heartbeat.go` | Periodic heartbeat updates during execution |
+| `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
+| `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
+| `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
+| `ci_merge.go` | CI polling and auto-merge with retry logic |
+| `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
+| `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
-| `haiku_validation.go` | Haiku-based spec and criteria validation |
-| `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL → DB sync |
-| `publish.go` | `PublishHelper` for real-time events |
-| `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
-| `file_watcher.go` | `FileWatcher` for real-time file change detection |
-| `worktree.go` | Git worktree setup/cleanup utilities |
+| `haiku_validation.go` | Spec and criteria validation |
+| `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL to DB sync |
+| `heartbeat.go` | Periodic heartbeat updates during execution |
 
 ## Architecture
 
@@ -47,185 +38,60 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 WorkflowExecutor.Run()
 ├── setupForContext()          # Task/branch/standalone setup
 ├── loadWorkflow()             # Get phases from database
-├── buildResolutionContext()   # Create variable context (initiative, project detection, etc.)
+├── checkSpecRequirements()    # Validate spec exists for non-trivial weights
+├── buildResolutionContext()   # Create variable context
 ├── for each phase:
-│   ├── enrichContextForPhase()    # Add phase-specific context (review findings, etc.)
-│   ├── resolver.ResolveAll()      # Resolve all variables
-│   ├── evaluateGate()             # Check conditions
-│   ├── executePhase()             # Run with ClaudeExecutor
-│   │   └── ResolveModelSetting()  # Get model + thinking
-│   └── saveArtifact()             # Store output for subsequent phases
+│   ├── enrichContextForPhase()       # Add phase-specific context
+│   ├── resolver.ResolveAll()         # Resolve all variables
+│   ├── evaluateGate()                # Check conditions
+│   ├── executePhaseWithTimeout()     # Run with timeout
+│   │   └── executeWithClaude()       # ClaudeExecutor
+│   ├── applyArtifactToVars()         # Store output for subsequent phases
+│   └── recordCostToGlobal()          # Track costs
 └── completeRun()              # Finalization, cleanup
 ```
 
+## Key Functions
+
+### Shared Utilities
+
+| Function | File:Line | Purpose |
+|----------|-----------|---------|
+| `RecordCostEntry()` | `cost_tracking.go:22` | Records phase costs to global DB |
+| `RunResourceAnalysis()` | `resource_tracker.go:538` | Detects orphaned MCP processes |
+| `applyArtifactToVars()` | `workflow_executor.go:703` | Propagates phase artifacts to subsequent phases |
+
+### Phase Execution
+
+| Function | File:Line | Purpose |
+|----------|-----------|---------|
+| `executePhaseWithTimeout()` | `workflow_phase.go:421` | Wraps `executePhase()` with PhaseMax timeout |
+| `checkSpecRequirements()` | `workflow_phase.go:535` | Validates spec exists for non-trivial weights |
+| `IsPhaseTimeoutError()` | `workflow_phase.go:412` | Checks if error is `phaseTimeoutError` |
+
+### Context Building
+
+| Function | File:Line | Purpose |
+|----------|-----------|---------|
+| `buildResolutionContext()` | `workflow_context.go:71` | Creates initial variable context |
+| `enrichContextForPhase()` | `workflow_context.go:198` | Adds phase-specific context |
+| `loadInitiativeContext()` | `workflow_context.go:135` | Loads initiative vision/decisions |
+
 ## Variable Resolution
 
-All template variables are resolved via `internal/variable/Resolver`. The resolution context includes:
+All template variables resolved via `internal/variable/Resolver`. Resolution context includes:
 
 | Category | Variables |
 |----------|-----------|
 | Task | TASK_ID, TASK_TITLE, TASK_DESCRIPTION, TASK_CATEGORY, WEIGHT |
 | Phase | PHASE, ITERATION, RETRY_CONTEXT |
 | Git | WORKTREE_PATH, PROJECT_ROOT, TASK_BRANCH, TARGET_BRANCH |
-| Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS, INITIATIVE_CONTEXT |
+| Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS |
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS |
-| Testing | COVERAGE_THRESHOLD, REQUIRES_UI_TESTING, SCREENSHOT_DIR, TEST_RESULTS |
-| Automation | RECENT_COMPLETED_TASKS, RECENT_CHANGED_FILES, CHANGELOG_CONTENT, CLAUDEMD_CONTENT |
-| Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT, IMPLEMENT_CONTENT |
+| Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT |
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
-
-## Model Configuration
-
-Per-phase, per-weight model selection (`config.go`, `phase_executor.go`):
-
-```
-ResolveModelSetting(weight, phase)
-├── config.OrcConfig.Models[weight][phase]  # Phase-specific
-├── config.OrcConfig.Models.Default         # Global default
-└── config.Model                            # Legacy fallback
-```
-
-**Default matrix:**
-- Decision phases (spec, review, validate): opus + thinking
-- Execution phases (implement, test, docs): sonnet
-
-**Extended thinking:** When `modelSetting.Thinking == true`, prepend `ultrathink\n\n` to prompt text.
-
-## Execution Flow
-
-WorkflowExecutor handles all context building internally:
-
-1. **buildResolutionContext()** - Creates initial context with task, workflow, constitution, project detection
-2. **enrichContextForPhase()** - Adds phase-specific context (review findings, test results, automation context)
-3. **resolver.ResolveAll()** - Resolves all variables including custom workflow variables
-4. **variable.RenderTemplate()** - Applies variables to prompt template
-
-**ClaudeExecutor creation:**
-```go
-turnExec := NewClaudeExecutor(
-    WithClaudePath(claudePath),
-    WithClaudeWorkdir(workingDir),
-    WithClaudeModel(model),
-    WithClaudeSessionID(sessionID),
-    WithClaudeMaxTurns(maxIterations),
-    WithClaudeLogger(logger),
-    WithClaudePhaseID(phaseID),
-)
-```
-
-**Spec content loading:** Spec content is loaded from the database via `backend.LoadSpec(taskID)` and added to `rctx.PriorOutputs["spec"]`. Specs are stored exclusively in the database (not as file artifacts) to avoid merge conflicts in worktrees.
-
-## Session Configuration
-
-Sessions need user source for agents in headless mode:
-
-```go
-session.WithSettingSources([]string{"project", "local", "user"})
-```
-
-Sources: `project` (.claude/), `local` (worktree .claude/), `user` (~/.claude/)
-
-## Completion Detection
-
-```json
-{"status": "complete", "summary": "Work done"}    // Success
-{"status": "blocked", "reason": "Need X"}         // Needs help
-{"status": "continue", "reason": "In progress"}   // More work needed
-```
-
-### Extraction Functions
-
-| Function | Use Case |
-|----------|----------|
-| `ParsePhaseSpecificResponse()` | Route to correct parser based on phase type (review/QA use different schemas) |
-| `CheckPhaseCompletionJSON()` | Parse standard phase completion JSON (`complete/blocked/continue`) |
-
-**Phase-specific schemas:** Different phases use different JSON schemas:
-- `review` round 1: `ReviewFindingsSchema` (no status field, valid JSON = complete)
-- `review` round 2: `ReviewDecisionSchema` (status: `pass/fail/needs_user_input`)
-- `qa`: `QAResultSchema` (status: `pass/fail/needs_attention`)
-- Other phases: `PhaseCompletionSchema` (status: `complete/blocked/continue`)
-
-The executors use `ClaudeExecutor` with `--json-schema` in headless mode, which guarantees pure JSON output.
-
-## Phase Retry Map
-
-When phases fail or output `{"status": "blocked"}`, they retry from an earlier phase:
-
-| Failed Phase | Retries From | Reason |
-|--------------|--------------|--------|
-| design | spec | Design issues often stem from incomplete spec |
-| review | implement | Review findings need code changes |
-| test, test_unit, test_e2e | implement | Test failures need code fixes |
-| validate | implement | Validation issues need code changes |
-
-**Not in map:** `spec`, `implement`, `docs`, `research` - these either have no upstream phase or retry wouldn't help.
-
-**Blocked output preservation:** When `PhaseStatusBlocked` is detected, executors preserve `result.Output` with the response content so retry context includes what the agent reported as blocking.
-
-## FinalizeExecutor
-
-Steps: fetchTarget → checkDivergence → syncWithTarget → resolveConflicts → runTests → assessRisk
-
-**Escalation:** >10 conflicts or >5 test failures → retry from implement phase
-
-See `docs/architecture/FINALIZE.md` for detailed flow.
-
-## CI Merger
-
-`ci_merge.go` handles CI polling and auto-merge after finalize.
-
-**Profiles:** `auto`/`fast` auto-merge on CI pass; `safe`/`strict` require human approval.
-
-**Merge retry logic:** `MergePR()` handles HTTP 405 "Base branch was modified" errors from GitHub (race condition when parallel tasks merge):
-- Detects retryable error via `isRetryableMergeError()`
-- Retries up to 3 times with exponential backoff (2s, 4s, 8s)
-- Rebases branch onto target via `rebaseOnTarget()` before each retry
-- Returns `ErrMergeFailed` if retries exhausted or rebase conflicts
-
-**Error handling in completeTask():**
-- `ErrMergeFailed` blocks task with `blocked_reason=merge_failed`
-- Returns `ErrTaskBlocked` so CLI shows blocked message instead of celebration
-- User runs `orc resume TASK-XXX` after resolving
-
-## Resource Tracker
-
-`resource_tracker.go` detects orphaned MCP processes after task execution.
-
-## Heartbeat Runner
-
-`heartbeat.go` provides periodic heartbeat updates during phase execution to support orphan detection.
-
-**Purpose:** Long-running phases (especially `implement`) can take hours. Without periodic heartbeats, the heartbeat would become stale even though the task is healthy.
-
-**Key constants:**
-- `DefaultHeartbeatInterval`: 2 minutes between heartbeat updates
-
-**Integration:**
-```go
-// In ExecuteTask, heartbeat runner starts before phases
-heartbeatRunner := NewHeartbeatRunner(e.Backend, state, e.Logger)
-heartbeatRunner.Start(ctx)
-defer heartbeatRunner.Stop()
-```
-
-**Orphan detection priority:** The state package's `CheckOrphaned()` prioritizes PID check over heartbeat staleness. A live PID always indicates a healthy task - heartbeat staleness is only used as additional context when PID is dead. This prevents false positives during long-running phases.
-
-## Testing
-
-```bash
-go test ./internal/executor/... -v
-```
-
-| Test File | Coverage |
-|-----------|----------|
-| `executor_test.go` | Integration |
-| `template_test.go` | Variable substitution |
-| `finalize_test.go` | Sync, risk assessment |
-| `ci_merge_test.go` | CI polling, merge |
-| `heartbeat_test.go` | Heartbeat updates, stop/cancel |
 
 ## Artifact Storage
 
@@ -235,88 +101,22 @@ go test ./internal/executor/... -v
 | implement, test, validate | Code changes only | No artifact extraction |
 
 **JSON-based artifact extraction:**
-- Phase prompts use `--json-schema` for constrained JSON output
-- `GetSchemaForPhase()` returns appropriate schema (with or without `artifact` field)
-- `ExtractArtifactFromOutput()` parses JSON and extracts `artifact` field
+- `GetSchemaForPhase()` returns schema with or without `artifact` field
+- `ExtractArtifactFromOutput()` parses JSON and extracts `artifact`
 - `SaveSpecToDatabase()` extracts spec from JSON and saves to database
-- **Failure handling:** Extraction failures call `failTask()` to ensure task status becomes `StatusFailed`
+- **Failure handling:** Extraction failures call `failRun()` to ensure task status becomes `StatusFailed`
 
-## Backpressure & Haiku Validation
+## Completion Detection
 
-Objective quality checks run after agent claims completion. See `docs/research/EXECUTION_PHILOSOPHY.md` for design rationale.
+Claude outputs completion via `--json-schema`:
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| Backpressure | `backpressure.go:146` | Runs tests/lint/build after `{"status": "complete"}` |
-| Haiku Spec Validation | `haiku_validation.go` | Validates spec quality before execution (pre-gate) |
-| Haiku Criteria Validation | `haiku_validation.go` | Validates success criteria on completion claim |
-| Config Helpers | `config.go:2138` | `ShouldRunBackpressure()`, `ShouldValidateSpec()`, `ShouldValidateCriteria()` |
-
-**Flow:** Agent outputs `{"status": "complete"}` → Backpressure runs → Criteria validation runs → If any fail, inject context and continue iteration.
-
-**API Error Handling:** Controlled by `config.Validation.FailOnAPIError`:
-- `true` (default for auto/safe/strict): Fail task properly (resumable via `orc resume`)
-- `false` (fast profile): Fail open, continue execution without validation
-
-**Validation Client Creation:** Validation clients are created **dynamically per-call** with the correct workdir:
-- `Executor.CreateValidationClient(workdir)` creates a client for a given directory
-- Sub-executors use their `workingDir` field (the worktree path) for client creation
-- This ensures validation runs in the worktree context where task files exist
-- **CRITICAL:** Never store a pre-created validation client - always create dynamically with correct workdir
-
-## Claude Call Patterns (CRITICAL)
-
-**All Claude calls MUST follow these consolidated patterns. Deviating causes bugs.**
-
-### Pattern 1: TurnExecutor for Phase Execution
-
-```go
-// Phase execution - model from ResolveModelSetting()
-turnExec := NewClaudeExecutor(
-    WithClaudePath(claudePath),
-    WithClaudeWorkdir(workingDir),
-    WithClaudeModel(model),
-    WithClaudeSessionID(sessionID),
-    WithClaudeMaxTurns(maxIterations),
-    WithClaudeLogger(logger),
-    WithClaudePhaseID(phaseID),
-)
-result, err := turnExec.ExecuteTurn(ctx, prompt)              // With JSON schema
-result, err := turnExec.ExecuteTurnWithoutSchema(ctx, prompt) // Freeform output
+```json
+{"status": "complete", "summary": "Work done"}
+{"status": "blocked", "reason": "Need X"}
+{"status": "continue", "reason": "In progress"}
 ```
 
-### Pattern 2: Schema-Constrained Validation (ONE WAY)
-
-**Use `llmutil.ExecuteWithSchema[T]()` for ALL schema-constrained LLM calls.**
-
-```go
-// The ONLY way to do schema-constrained calls - no exceptions
-schemaResult, err := llmutil.ExecuteWithSchema[responseType](ctx, client, prompt, schema)
-if err != nil {
-    return nil, fmt.Errorf("validation failed: %w", err)  // ALWAYS propagate error
-}
-// Use schemaResult.Data (typed) - no manual json.Unmarshal needed
-```
-
-**Why this is the only pattern:**
-- Enforces `--output-format json` when schema specified
-- Errors if `structured_output` is empty (no silent fallback to `result`)
-- Handles JSON parsing with proper error propagation
-- Generic type `[T]` provides compile-time type safety
-
-### Model Configuration
-
-| Call Type | Model Source | Config Key |
-|-----------|--------------|------------|
-| Phase execution | `ResolveModelSetting(weight, phase)` | `config.Models[weight][phase]` |
-| Haiku validation | Client configured at creation | `config.Validation.Model` |
-| Gate evaluation | Main executor client | `executor.Config.Model` |
-
-**NEVER hardcode model in CompletionRequest** - model is set when creating the client.
-
-### Schema Routing (`phase_response.go`)
-
-`GetSchemaForPhaseWithRound(phaseID, round)` returns the correct schema:
+### Schema Selection (`phase_response.go`)
 
 | Phase | Round | Schema |
 |-------|-------|--------|
@@ -326,176 +126,139 @@ if err != nil {
 | qa | - | `QAResultSchema` |
 | other | - | `PhaseCompletionSchema` |
 
-### ExecuteTurn vs ExecuteTurnWithoutSchema
+### Parsing Functions
 
-| Method | When to Use | Example |
-|--------|-------------|---------|
-| `ExecuteTurn()` | Need completion detection from JSON | Phase execution |
-| `ExecuteTurnWithoutSchema()` | Verify success externally | `conflict_resolver.go` (checks git status) |
+| Function | Use Case |
+|----------|----------|
+| `ParsePhaseSpecificResponse()` | Route to correct parser by phase type |
+| `CheckPhaseCompletionJSON()` | Parse standard completion (returns error - MUST handle) |
 
-## Structured Output (JSON Schema)
+## Phase Retry
 
-**ALL LLM output is pure JSON via `--json-schema`.** No mixed text/JSON. No extraction needed.
+When phases fail or output `{"status": "blocked"}`:
 
-### Schema Definitions
+| Failed Phase | Retries From | Reason |
+|--------------|--------------|--------|
+| design | spec | Design issues from incomplete spec |
+| review | implement | Review findings need code changes |
+| test, test_unit, test_e2e | implement | Test failures need code fixes |
+| validate | implement | Validation issues need code changes |
 
-| File | Schema Constant | Purpose |
-|------|-----------------|---------|
-| `phase_response.go` | `PhaseCompletionSchema`, `PhaseCompletionWithArtifactSchema` | Phase completion |
-| `haiku_validation.go` | `taskReadinessSchema`, `criteriaCompletionSchema` | Validation |
-| `review.go` | `ReviewFindingsSchema`, `ReviewDecisionSchema` | Code review |
-| `qa.go` | `QAResultSchema` | QA session |
-| `../gate/gate.go` | `gateDecisionSchema` | Gate decisions |
+## Model Configuration
 
-### Parsing (via ExecuteWithSchema)
+Per-phase, per-weight model selection via `ResolveModelSetting(weight, phase)`:
 
-**DO NOT manually parse JSON.** Use `llmutil.ExecuteWithSchema[T]()` which handles parsing internally.
+```
+config.OrcConfig.Models[weight][phase]  # Phase-specific
+config.OrcConfig.Models.Default         # Global default
+config.Model                            # Legacy fallback
+```
+
+**Default matrix:** Decision phases (spec, review, validate) use opus + thinking; execution phases (implement, test, docs) use sonnet.
+
+## Claude Call Patterns
+
+### Pattern 1: TurnExecutor for Phase Execution
 
 ```go
-// ❌ WRONG - manual parsing with silent failure risk
-var result readinessResponse
-if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-    return true, nil, nil  // BUG: silent success on parse error!
-}
+turnExec := NewClaudeExecutor(
+    WithClaudePath(claudePath),
+    WithClaudeWorkdir(workingDir),
+    WithClaudeModel(model),
+    WithClaudeSessionID(sessionID),
+    WithClaudeMaxTurns(maxIterations),
+)
+result, err := turnExec.ExecuteTurn(ctx, prompt)              // With JSON schema
+result, err := turnExec.ExecuteTurnWithoutSchema(ctx, prompt) // Freeform output
+```
 
-// ✅ CORRECT - use ExecuteWithSchema which returns error
-schemaResult, err := llmutil.ExecuteWithSchema[readinessResponse](ctx, client, prompt, schema)
+### Pattern 2: Schema-Constrained Validation
+
+**Use `llmutil.ExecuteWithSchema[T]()` for ALL schema-constrained LLM calls:**
+
+```go
+schemaResult, err := llmutil.ExecuteWithSchema[responseType](ctx, client, prompt, schema)
 if err != nil {
-    return true, nil, err  // Error propagated to caller
+    return nil, fmt.Errorf("validation failed: %w", err)  // ALWAYS propagate error
 }
-// schemaResult.Data is already typed and parsed
 ```
 
-**Phase completion parsing** uses `ParsePhaseSpecificResponse()` which routes to the correct parser based on phase type. Returns `(status, reason, error)` - the error MUST be handled.
+## Transcript Sync (JSONL)
 
-## Transcript Persistence (JSONL Sync)
+`jsonl_sync.go` syncs Claude JSONL session files to DB:
 
-`jsonl_sync.go` syncs Claude Code JSONL session files to the database in real-time and as a final catchup.
-
-**Key features:**
-- Reads JSONL files written by Claude Code (`~/.claude/projects/`)
-- Extracts: messages, tool calls, token usage, todos
-- Deduplicates via `MessageUUID` (append mode)
-- Filters out `queue-operation` messages (internal bookkeeping)
-- Real-time streaming via `TranscriptStreamer` (fsnotify-based file watcher)
-
-**Two-phase sync strategy:**
-
-1. **Real-time streaming** (during execution): `TranscriptStreamer` watches the JSONL file using fsnotify and syncs new messages to DB in batches (every 100ms or 10 messages)
-2. **Post-phase catchup** (after completion): `SyncFromFile()` runs as a final sweep to ensure no messages were missed
-
-**Integration:**
-```go
-// Real-time streaming (in standard.go/full.go)
-syncer := NewJSONLSyncer(backend, logger)
-streamer, _ := syncer.StartStreaming(jsonlPath, SyncOptions{
-    TaskID: task.ID,
-    Phase:  phase.ID,
-    Append: true,
-})
-// ... phase executes ...
-streamer.Stop()  // Flushes remaining messages
-
-// Post-phase catchup (in task_execution.go)
-syncer.SyncFromFile(ctx, jsonlPath, SyncOptions{
-    TaskID: task.ID,
-    Phase:  phase.ID,
-    Append: true,  // Deduplicates by UUID
-})
-```
-
-**What gets synced:**
+1. **Real-time streaming**: `TranscriptStreamer` watches JSONL via fsnotify, batches to DB
+2. **Post-phase catchup**: `SyncFromFile()` ensures no messages missed
 
 | Data | Source | DB Table |
 |------|--------|----------|
 | Messages | `message.content` | `transcripts` |
 | Tokens | `message.usage` | `transcripts` (per-message) |
 | Tool calls | `content[type=tool_use]` | `transcripts.tool_calls` |
-| Todos | `TodoWrite` tool results | `todo_snapshots` |
-
-**Token aggregation:** DB views compute per-task/phase totals from per-message tokens. See `db/CLAUDE.md`.
 
 ## Cost Tracking
 
-`cost_tracking.go` records phase costs to the global database (`~/.orc/orc.db`) after each phase completion.
-
-**Data flow:**
+Data flow:
 ```
-TurnResult.Usage (llmkit/claude, via claude_executor.go)
-    ↓ accumulated per iteration
-Result{InputTokens, OutputTokens, CacheCreation/ReadTokens, CostUSD} (executor.go:180-187)
-    ↓ after phase completion
-recordCostToGlobal() (cost_tracking.go:21)
-    ↓
-GlobalDB.RecordCostExtended() (db/global.go:340)
+TurnResult.Usage → Result{InputTokens, OutputTokens, CostUSD} → recordCostToGlobal() → GlobalDB.RecordCostExtended()
 ```
 
-**What gets recorded:**
+**Note:** Use `EffectiveInputTokens()` not raw `InputTokens` (includes cache tokens).
 
-| Field | Source | Purpose |
-|-------|--------|---------|
-| `CostUSD` | `TurnResult.CostUSD` from Claude CLI | Actual cost from API |
-| `InputTokens` | `TurnResult.Usage.EffectiveInputTokens()` | Includes cache tokens |
-| `OutputTokens` | `TurnResult.Usage.OutputTokens` | Response tokens |
-| `CacheCreationTokens` | `TurnResult.Usage.CacheCreationInputTokens` | New cache entries |
-| `CacheReadTokens` | `TurnResult.Usage.CacheReadInputTokens` | Cache hits |
-| `DurationMs` | `Result.Duration.Milliseconds()` | Phase execution time |
-| `Model` | `DetectModel(modelSetting.Model)` | opus/sonnet/haiku/unknown |
+## Backpressure & Validation
 
-**Integration point:** `workflow_executor.go` calls `recordCostToGlobal()` after phase completion.
+| Component | File | Purpose |
+|-----------|------|---------|
+| Backpressure | `backpressure.go:146` | Runs tests/lint/build after completion claim |
+| Haiku Validation | `haiku_validation.go` | Validates spec/criteria quality |
 
-## Testing with TurnExecutor
+**Flow:** Agent outputs `{"status": "complete"}` -> Backpressure runs -> Criteria validation -> If any fail, inject context and continue.
 
-Executors accept a `TurnExecutor` interface for testing without spawning real Claude CLI:
+**API Error Handling:** `config.Validation.FailOnAPIError` - `true` fails task properly (resumable), `false` continues without validation.
+
+## Heartbeat Runner
+
+`heartbeat.go` provides periodic updates during long-running phases to prevent false orphan detection.
+
+- **Interval:** 2 minutes between heartbeat updates
+- **Purpose:** Long implement phases can take hours; without heartbeats, task appears orphaned
+- **Priority:** PID check takes precedence over heartbeat staleness (live PID = healthy task)
 
 ```go
-// Create mock executor
-mock := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+heartbeatRunner := NewHeartbeatRunner(e.Backend, state, e.Logger)
+heartbeatRunner.Start(ctx)
+defer heartbeatRunner.Stop()
+```
 
-// Inject via option
+## Testing
+
+```bash
+go test ./internal/executor/... -v
+```
+
+**Mock injection:**
+```go
+mock := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
     WithWorkflowTurnExecutor(mock),
 )
 ```
 
-**TurnExecutor interface:**
-```go
-type TurnExecutor interface {
-    ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error)
-    ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error)
-    UpdateSessionID(id string)
-    SessionID() string
-}
-```
-
-**Executor-specific injection:**
-
-| Executor | Option Function |
-|----------|-----------------|
+| Executor | Option |
+|----------|--------|
 | `WorkflowExecutor` | `WithWorkflowTurnExecutor(mock)` |
 | `FinalizeExecutor` | `WithFinalizeTurnExecutor(mock)` |
 | `ConflictResolver` | `WithResolverTurnExecutor(mock)` |
 
-**Available mocks:** `MockTurnExecutor` with configurable responses, delays, and errors. Use `NewMockTurnExecutorWithResponses(...)` for multi-turn sequences.
-
-**In-memory backends for fast tests:**
-
-```go
-backend := storage.NewTestBackend(t)  // Auto-cleanup via t.Cleanup()
-```
-
-**Test parallelization:**
-- Most tests use `t.Parallel()` for concurrent execution
-- Tests using `t.Setenv()` or `os.Chdir()` CANNOT use `t.Parallel()` (process-wide state)
-
 ## Common Gotchas
 
-1. **Raw InputTokens misleading** - Use `EffectiveInputTokens()`
-2. **Ultrathink in system prompt** - Doesn't work; must be user message
-3. **User agents unavailable** - Need `WithSettingSources` with "user"
-4. **Worktree cleanup by path** - Use `CleanupWorktreeAtPath(e.worktreePath)` not `CleanupWorktree(taskID)` to handle initiative-prefixed worktrees correctly
-5. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
-6. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
-7. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path
-8. **Testing real Claude CLI** - Use `WithWorkflowTurnExecutor(mock)` to inject test doubles; avoids real API calls
-9. **Validation can't see worktree files** - Validation clients must be created dynamically with correct workdir; never store a pre-created client at executor startup
+| Issue | Solution |
+|-------|----------|
+| Raw InputTokens misleading | Use `EffectiveInputTokens()` |
+| Ultrathink in system prompt | Must be user message |
+| User agents unavailable | Need `WithSettingSources` with "user" |
+| Worktree cleanup by path | Use `CleanupWorktreeAtPath(e.worktreePath)` |
+| Spec not found in templates | Use `WithSpecFromDatabase()` |
+| Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
+| Transcripts not persisting | Ensure `SyncFromFile()` called after phase |
+| Validation can't see files | Create clients dynamically with correct workdir |
