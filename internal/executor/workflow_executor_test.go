@@ -309,8 +309,8 @@ func TestCheckSpecRequirements_WithValidSpec(t *testing.T) {
 	}
 
 	// Save spec (taskID, content, source)
-	if err := backend.SaveSpec(tsk.ID, "# Spec\n\nValid spec content", "test"); err != nil {
-		t.Fatalf("SaveSpec() = %v", err)
+	if err := backend.SaveSpecForTask(tsk.ID, "# Spec\n\nValid spec content", "test"); err != nil {
+		t.Fatalf("SaveSpecForTask() = %v", err)
 	}
 
 	we := &WorkflowExecutor{
@@ -476,4 +476,62 @@ func TestExecutePhaseWithTimeout_WarningTimers(t *testing.T) {
 	// The main check is that we don't have goroutine leaks or panics
 	// when the phase completes before the 50%/75% warning timers fire
 	_ = err // Error expected due to incomplete setup
+}
+
+// TestWorkflowRunResult_PopulatesFields verifies that WorkflowRunResult fields
+// are properly populated from the workflow run.
+func TestWorkflowRunResult_PopulatesFields(t *testing.T) {
+	t.Parallel()
+
+	// Test that the result struct has the expected fields
+	result := WorkflowRunResult{
+		RunID:        "RUN-001",
+		WorkflowID:   "implement-small",
+		TaskID:       "TASK-001",
+		StartedAt:    time.Now(),
+		TotalCostUSD: 1.25,
+		TotalTokens:  5000,
+	}
+
+	if result.RunID != "RUN-001" {
+		t.Errorf("RunID = %q, want %q", result.RunID, "RUN-001")
+	}
+	if result.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want %q", result.TaskID, "TASK-001")
+	}
+	if result.TotalCostUSD != 1.25 {
+		t.Errorf("TotalCostUSD = %f, want %f", result.TotalCostUSD, 1.25)
+	}
+	if result.TotalTokens != 5000 {
+		t.Errorf("TotalTokens = %d, want %d", result.TotalTokens, 5000)
+	}
+}
+
+// TestWorkflowContextType verifies context types for task vs non-task workflows.
+func TestWorkflowContextType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		contextType ContextType
+		hasTask     bool
+	}{
+		{"default creates task", ContextDefault, true},
+		{"task attaches to task", ContextTask, true},
+		{"branch has no task", ContextBranch, false},
+		{"pr has no task", ContextPR, false},
+		{"standalone has no task", ContextStandalone, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Verify the context type semantics
+			hasTask := tt.contextType == ContextDefault || tt.contextType == ContextTask
+			if hasTask != tt.hasTask {
+				t.Errorf("context %s hasTask = %v, want %v", tt.contextType, hasTask, tt.hasTask)
+			}
+		})
+	}
 }

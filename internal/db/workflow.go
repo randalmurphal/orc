@@ -22,6 +22,7 @@ type PhaseTemplate struct {
 	OutputSchema     string `json:"output_schema,omitempty"`
 	ProducesArtifact bool   `json:"produces_artifact"`
 	ArtifactType     string `json:"artifact_type,omitempty"`
+	OutputVarName    string `json:"output_var_name,omitempty"` // Variable name for output (e.g., 'SPEC_CONTENT')
 
 	// Execution config
 	MaxIterations   int    `json:"max_iterations"`
@@ -159,10 +160,10 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 
 	_, err := p.Exec(`
 		INSERT INTO phase_templates (id, name, description, prompt_source, prompt_content, prompt_path,
-			input_variables, output_schema, produces_artifact, artifact_type,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -173,6 +174,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			output_schema = excluded.output_schema,
 			produces_artifact = excluded.produces_artifact,
 			artifact_type = excluded.artifact_type,
+			output_var_name = excluded.output_var_name,
 			max_iterations = excluded.max_iterations,
 			model_override = excluded.model_override,
 			thinking_enabled = excluded.thinking_enabled,
@@ -182,7 +184,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			retry_prompt_path = excluded.retry_prompt_path,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, pt.PromptSource, pt.PromptContent, pt.PromptPath,
-		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType,
+		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.MaxIterations, pt.ModelOverride, thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
@@ -196,7 +198,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 	row := p.QueryRow(`
 		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
-			input_variables, output_schema, produces_artifact, artifact_type,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
 		FROM phase_templates WHERE id = ?
@@ -216,7 +218,7 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 	rows, err := p.Query(`
 		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
-			input_variables, output_schema, produces_artifact, artifact_type,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
 		FROM phase_templates
@@ -726,12 +728,12 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt := &PhaseTemplate{}
 	var createdAt, updatedAt string
 	var thinkingEnabled sql.NullBool
-	var description, promptContent, promptPath, inputVars, outputSchema, artifactType sql.NullString
+	var description, promptContent, promptPath, inputVars, outputSchema, artifactType, outputVarName sql.NullString
 	var modelOverride, retryFromPhase, retryPromptPath sql.NullString
 
 	err := row.Scan(
 		&pt.ID, &pt.Name, &description, &pt.PromptSource, &promptContent, &promptPath,
-		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType,
+		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType, &outputVarName,
 		&pt.MaxIterations, &modelOverride, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
 		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
 	)
@@ -745,6 +747,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt.InputVariables = inputVars.String
 	pt.OutputSchema = outputSchema.String
 	pt.ArtifactType = artifactType.String
+	pt.OutputVarName = outputVarName.String
 	pt.ModelOverride = modelOverride.String
 	pt.ThinkingEnabled = nullBoolToPtr(thinkingEnabled)
 	pt.RetryFromPhase = retryFromPhase.String

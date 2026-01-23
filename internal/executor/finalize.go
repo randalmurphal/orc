@@ -325,12 +325,8 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 		"duration", result.Duration,
 	)
 
-	// Save artifact
-	if saved, err := SaveArtifactToDatabase(e.backend, t.ID, p.ID, result.Output); err != nil {
-		e.logger.Warn("failed to save finalize artifact to database", "error", err)
-	} else if saved {
-		e.logger.Info("saved finalize artifact to database", "phase", p.ID)
-	}
+	// Note: Finalize report is logged but not saved to phase_outputs
+	// since finalize runs outside the normal workflow run context
 
 	return result, nil
 }

@@ -125,7 +125,7 @@ This is a test specification for the show command.
 - The spec should be displayed when --spec flag is used
 - Source and length should be shown`
 
-	if err := backend.SaveSpec("TASK-002", specContent, "generated"); err != nil {
+	if err := backend.SaveSpecForTask("TASK-002", specContent, "generated"); err != nil {
 		t.Fatalf("save spec: %v", err)
 	}
 
@@ -152,7 +152,7 @@ func TestShowCommand_SpecFlag_JSON(t *testing.T) {
 	}
 
 	specContent := "## Intent\nTest spec content for JSON"
-	if err := backend.SaveSpec("TASK-003", specContent, "db"); err != nil {
+	if err := backend.SaveSpecForTask("TASK-003", specContent, "db"); err != nil {
 		t.Fatalf("save spec: %v", err)
 	}
 
@@ -263,13 +263,13 @@ func TestLoadFullSpec(t *testing.T) {
 	}
 	defer func() { _ = backend.Close() }()
 
-	// Test LoadFullSpec for non-existent spec
-	spec, err := backend.LoadFullSpec("NONEXISTENT")
+	// Test GetFullSpecForTask for non-existent spec
+	spec, err := backend.GetFullSpecForTask("NONEXISTENT")
 	if err != nil {
-		t.Fatalf("LoadFullSpec error: %v", err)
+		t.Fatalf("GetFullSpecForTask error: %v", err)
 	}
 	if spec != nil {
-		t.Error("LoadFullSpec should return nil for non-existent spec")
+		t.Error("GetFullSpecForTask should return nil for non-existent spec")
 	}
 
 	// Create a task first (specs have foreign key to tasks)
@@ -280,22 +280,22 @@ func TestLoadFullSpec(t *testing.T) {
 
 	// Save a spec
 	content := "# Test Spec\n\nSome content here"
-	if err := backend.SaveSpec("TASK-001", content, "generated"); err != nil {
+	if err := backend.SaveSpecForTask("TASK-001", content, "generated"); err != nil {
 		t.Fatalf("save spec: %v", err)
 	}
 
-	// Test LoadFullSpec for existing spec
-	spec, err = backend.LoadFullSpec("TASK-001")
+	// Test GetFullSpecForTask for existing spec
+	spec, err = backend.GetFullSpecForTask("TASK-001")
 	if err != nil {
-		t.Fatalf("LoadFullSpec error: %v", err)
+		t.Fatalf("GetFullSpecForTask error: %v", err)
 	}
 	if spec == nil {
-		t.Fatal("LoadFullSpec should return non-nil for existing spec")
+		t.Fatal("GetFullSpecForTask should return non-nil for existing spec")
 	}
 
 	// Verify fields
-	if spec.TaskID != "TASK-001" {
-		t.Errorf("TaskID = %q, want 'TASK-001'", spec.TaskID)
+	if spec.TaskID == nil || *spec.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %v, want 'TASK-001'", spec.TaskID)
 	}
 	if spec.Content != content {
 		t.Errorf("Content = %q, want %q", spec.Content, content)
@@ -332,8 +332,9 @@ func TestPrintSpecInfo_NilSpec(t *testing.T) {
 }
 
 func TestPrintSpecInfo_WithSpec(t *testing.T) {
-	spec := &storage.SpecInfo{
-		TaskID:  "TASK-001",
+	taskID := "TASK-001"
+	spec := &storage.PhaseOutputInfo{
+		TaskID:  &taskID,
 		Content: "Line 1\nLine 2\nLine 3",
 		Source:  "generated",
 	}

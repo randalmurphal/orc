@@ -147,6 +147,36 @@ func TestGetWorkflowForWeight(t *testing.T) {
 	}
 }
 
+func TestGetWeightForWorkflow(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		workflowID string
+		expected   string
+	}{
+		{"implement-trivial", "trivial"},
+		{"implement-small", "small"},
+		{"implement-medium", "medium"},
+		{"implement-large", "large"},
+		{"implement", "large"},         // Full implement is large
+		{"review", ""},                 // Non-implement workflow
+		{"spec", ""},                   // Non-implement workflow
+		{"docs", ""},                   // Non-implement workflow
+		{"unknown", ""},                // Unknown workflow
+		{"", ""},                       // Empty workflow ID
+		{"custom-workflow", ""},        // Custom workflow
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.workflowID, func(t *testing.T) {
+			result := GetWeightForWorkflow(tc.workflowID)
+			if result != tc.expected {
+				t.Errorf("GetWeightForWorkflow(%q) = %q, want %q", tc.workflowID, result, tc.expected)
+			}
+		})
+	}
+}
+
 func TestListBuiltinWorkflowIDs(t *testing.T) {
 	t.Parallel()
 

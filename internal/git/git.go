@@ -341,7 +341,12 @@ func (g *Git) IsInWorktreeContext() bool {
 //
 // This is a compound operation (stage + commit) protected by mutex to ensure
 // atomicity when multiple goroutines might be creating checkpoints.
+// SAFETY: Requires worktree context - commits should only happen in worktrees.
 func (g *Git) CreateCheckpoint(taskID, phase, message string) (*Checkpoint, error) {
+	if err := g.RequireWorktreeContext("git commit (checkpoint)"); err != nil {
+		return nil, err
+	}
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -573,7 +578,11 @@ var ErrProtectedBranch = errors.New("push to protected branch blocked")
 
 // Push pushes the current branch to remote.
 // Returns ErrProtectedBranch if attempting to push to a protected branch.
+// SAFETY: Requires worktree context - automated pushes should only happen from worktrees.
 func (g *Git) Push(remote, branch string, setUpstream bool) error {
+	if err := g.RequireWorktreeContext("git push"); err != nil {
+		return err
+	}
 	if IsProtectedBranch(branch, g.protectedBranches) {
 		return fmt.Errorf("%w: cannot push to '%s' - use PR workflow instead", ErrProtectedBranch, branch)
 	}
@@ -583,8 +592,11 @@ func (g *Git) Push(remote, branch string, setUpstream bool) error {
 // PushForce pushes with --force-with-lease for safety.
 // This is safer than --force as it fails if the remote has unexpected commits
 // (i.e., commits that weren't fetched yet).
-// SAFETY: This will NOT push to protected branches.
+// SAFETY: Requires worktree context and will NOT push to protected branches.
 func (g *Git) PushForce(remote, branch string, setUpstream bool) error {
+	if err := g.RequireWorktreeContext("git push --force"); err != nil {
+		return err
+	}
 	if IsProtectedBranch(branch, g.protectedBranches) {
 		return fmt.Errorf("%w: cannot force push to '%s'", ErrProtectedBranch, branch)
 	}
@@ -607,13 +619,6 @@ func (g *Git) RemoteBranchExists(remote, branch string) (bool, error) {
 	}
 	// If output is non-empty, the branch exists
 	return strings.TrimSpace(output) != "", nil
-}
-
-// PushUnsafe pushes to remote without branch protection checks.
-// This should only be used by PR merge operations that have explicit user approval.
-// DANGER: Use with caution - this bypasses safety checks.
-func (g *Git) PushUnsafe(remote, branch string, setUpstream bool) error {
-	return g.ctx.Push(remote, branch, setUpstream)
 }
 
 // ProtectedBranches returns the list of protected branch names.
@@ -873,13 +878,21 @@ func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
 }
 
 // AbortRebase aborts any in-progress rebase.
+// SAFETY: Requires worktree context - rebase operations should only happen in worktrees.
 func (g *Git) AbortRebase() error {
+	if err := g.RequireWorktreeContext("git rebase --abort"); err != nil {
+		return err
+	}
 	_, err := g.ctx.RunGit("rebase", "--abort")
 	return err
 }
 
 // AbortMerge aborts any in-progress merge.
+// SAFETY: Requires worktree context - merge operations should only happen in worktrees.
 func (g *Git) AbortMerge() error {
+	if err := g.RequireWorktreeContext("git merge --abort"); err != nil {
+		return err
+	}
 	_, err := g.ctx.RunGit("merge", "--abort")
 	return err
 }
@@ -1002,6 +1015,11 @@ func (g *Git) DiscardChanges() error {
 // This is a compound operation (diff + rm + checkout + add + commit) protected by
 // mutex to ensure atomicity.
 func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
+	// CRITICAL: Prevent restore operations on main repo
+	if err := g.RequireWorktreeContext("restore .orc/"); err != nil {
+		return false, err
+	}
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -1082,6 +1100,11 @@ func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
 // This is a compound operation (diff + checkout/rm + add + commit) protected by
 // mutex to ensure atomicity.
 func (g *Git) RestoreClaudeSettings(target string, taskID string) (bool, error) {
+	// CRITICAL: Prevent restore operations on main repo
+	if err := g.RequireWorktreeContext("restore .claude/settings.json"); err != nil {
+		return false, err
+	}
+
 	g.mu.Lock()
 	defer g.mu.Unlock()
 

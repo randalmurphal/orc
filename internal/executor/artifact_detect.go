@@ -132,7 +132,7 @@ func (d *ArtifactDetector) detectSpecArtifacts() *ArtifactStatus {
 
 	// Try to load spec from database (preferred source)
 	if d.backend != nil && d.taskID != "" {
-		specContent, err := d.backend.LoadSpec(d.taskID)
+		specContent, err := d.backend.GetSpecForTask(d.taskID)
 		if err == nil && specContent != "" {
 			// Check if spec has meaningful content
 			if len(strings.TrimSpace(specContent)) < minMeaningfulContent {

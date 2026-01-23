@@ -18,6 +18,10 @@ func init() {
 	workflowsCmd.AddCommand(workflowNewCmd)
 	workflowsCmd.AddCommand(workflowEditCmd)
 	workflowsCmd.AddCommand(workflowDeleteCmd)
+	workflowsCmd.AddCommand(workflowAddPhaseCmd)
+	workflowsCmd.AddCommand(workflowRemovePhaseCmd)
+	workflowsCmd.AddCommand(workflowAddVariableCmd)
+	workflowsCmd.AddCommand(workflowRemoveVariableCmd)
 
 	// List flags
 	workflowsCmd.Flags().Bool("custom", false, "Show only custom workflows")
@@ -27,6 +31,24 @@ func init() {
 	workflowNewCmd.Flags().String("from", "", "Clone from existing workflow")
 	workflowNewCmd.Flags().String("description", "", "Workflow description")
 	workflowNewCmd.Flags().String("type", "task", "Workflow type (task, branch, standalone)")
+
+	// Edit flags
+	workflowEditCmd.Flags().String("name", "", "New workflow name")
+	workflowEditCmd.Flags().String("description", "", "New description")
+	workflowEditCmd.Flags().String("model", "", "Default model")
+	workflowEditCmd.Flags().Bool("thinking", false, "Enable extended thinking")
+
+	// Add-phase flags
+	workflowAddPhaseCmd.Flags().Int("sequence", 0, "Position in workflow (0 = append at end)")
+	workflowAddPhaseCmd.Flags().Int("max-iterations", 0, "Override max iterations")
+	workflowAddPhaseCmd.Flags().String("model", "", "Override model")
+	workflowAddPhaseCmd.Flags().String("gate-type", "", "Override gate type (auto, human)")
+
+	// Add-variable flags
+	workflowAddVariableCmd.Flags().String("source-type", "static", "Variable source (static, env, script, api)")
+	workflowAddVariableCmd.Flags().String("value", "", "Value for static variables")
+	workflowAddVariableCmd.Flags().String("description", "", "Variable description")
+	workflowAddVariableCmd.Flags().Bool("required", false, "Whether variable is required")
 }
 
 var workflowsCmd = &cobra.Command{
@@ -346,18 +368,18 @@ Examples:
 
 var workflowEditCmd = &cobra.Command{
 	Use:   "edit <workflow-id>",
-	Short: "Edit a workflow",
-	Long: `Edit a workflow's configuration.
+	Short: "Edit a workflow's properties",
+	Long: `Edit a custom workflow's name, description, or defaults.
 
-Use the web UI for full workflow editing, or modify individual properties
-using the subcommands.
+For phase management, use 'add-phase' and 'remove-phase' subcommands.
+For variable management, use 'add-variable' and 'remove-variable' subcommands.
 
-Note: Built-in workflows cannot be edited directly. Use --from to
-create a custom copy first.
+Built-in workflows cannot be edited directly.
 
 Examples:
   orc workflow edit my-review --description "Updated description"
-  orc workflow edit my-review --model sonnet`,
+  orc workflow edit my-review --model sonnet
+  orc workflow edit my-review --name "My Review Workflow"`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
@@ -386,10 +408,34 @@ Examples:
 				workflowID, workflowID)
 		}
 
-		// TODO: Add edit flags and implementation
-		// For now, direct users to the web UI
-		fmt.Println("Workflow editing via CLI is coming soon.")
-		fmt.Println("Use the web UI to edit workflows: orc serve")
+		// Update fields if flags provided
+		updated := false
+		if cmd.Flags().Changed("name") {
+			wf.Name, _ = cmd.Flags().GetString("name")
+			updated = true
+		}
+		if cmd.Flags().Changed("description") {
+			wf.Description, _ = cmd.Flags().GetString("description")
+			updated = true
+		}
+		if cmd.Flags().Changed("model") {
+			wf.DefaultModel, _ = cmd.Flags().GetString("model")
+			updated = true
+		}
+		if cmd.Flags().Changed("thinking") {
+			wf.DefaultThinking, _ = cmd.Flags().GetBool("thinking")
+			updated = true
+		}
+
+		if !updated {
+			return fmt.Errorf("no changes specified. Use --name, --description, --model, or --thinking")
+		}
+
+		if err := pdb.SaveWorkflow(wf); err != nil {
+			return fmt.Errorf("save workflow: %w", err)
+		}
+
+		fmt.Printf("Updated workflow '%s'\n", workflowID)
 		return nil
 	},
 }
@@ -435,6 +481,319 @@ Examples:
 		}
 
 		fmt.Printf("Deleted workflow '%s'\n", workflowID)
+		return nil
+	},
+}
+
+var workflowAddPhaseCmd = &cobra.Command{
+	Use:   "add-phase <workflow-id> <phase-template-id>",
+	Short: "Add a phase to a custom workflow",
+	Long: `Add a phase template to a custom workflow.
+
+The phase is appended at the end by default. Use --sequence to insert at a
+specific position.
+
+Built-in workflows cannot be modified. Create a custom copy first with
+'orc workflow new <name> --from <builtin>'.
+
+Examples:
+  orc workflow add-phase my-review docs                    # Append docs phase
+  orc workflow add-phase my-impl implement --sequence 2   # Insert at position 2
+  orc workflow add-phase my-impl review --model opus      # Override model`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		workflowID := args[0]
+		phaseTemplateID := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer pdb.Close()
+
+		// Check workflow exists and is not builtin
+		wf, err := pdb.GetWorkflow(workflowID)
+		if err != nil {
+			return fmt.Errorf("get workflow: %w", err)
+		}
+		if wf == nil {
+			return fmt.Errorf("workflow not found: %s", workflowID)
+		}
+		if wf.IsBuiltin {
+			return fmt.Errorf("cannot modify built-in workflow '%s' - use 'orc workflow new <name> --from %s' to create a custom copy",
+				workflowID, workflowID)
+		}
+
+		// Check phase template exists
+		pt, err := pdb.GetPhaseTemplate(phaseTemplateID)
+		if err != nil {
+			return fmt.Errorf("get phase template: %w", err)
+		}
+		if pt == nil {
+			return fmt.Errorf("phase template not found: %s", phaseTemplateID)
+		}
+
+		// Get existing phases to determine sequence
+		phases, err := pdb.GetWorkflowPhases(workflowID)
+		if err != nil {
+			return fmt.Errorf("get phases: %w", err)
+		}
+
+		seq, _ := cmd.Flags().GetInt("sequence")
+		if seq <= 0 {
+			// Append at end
+			seq = len(phases)
+		} else {
+			// Adjust sequences for existing phases that need to move
+			for _, p := range phases {
+				if p.Sequence >= seq {
+					p.Sequence++
+					if err := pdb.SaveWorkflowPhase(p); err != nil {
+						return fmt.Errorf("update phase sequence: %w", err)
+					}
+				}
+			}
+		}
+
+		// Create new phase
+		newPhase := &db.WorkflowPhase{
+			WorkflowID:      workflowID,
+			PhaseTemplateID: phaseTemplateID,
+			Sequence:        seq,
+		}
+
+		// Apply overrides from flags
+		if cmd.Flags().Changed("max-iterations") {
+			maxIter, _ := cmd.Flags().GetInt("max-iterations")
+			newPhase.MaxIterationsOverride = &maxIter
+		}
+		if cmd.Flags().Changed("model") {
+			newPhase.ModelOverride, _ = cmd.Flags().GetString("model")
+		}
+		if cmd.Flags().Changed("gate-type") {
+			newPhase.GateTypeOverride, _ = cmd.Flags().GetString("gate-type")
+		}
+
+		if err := pdb.SaveWorkflowPhase(newPhase); err != nil {
+			return fmt.Errorf("save phase: %w", err)
+		}
+
+		fmt.Printf("Added phase '%s' to workflow '%s' at sequence %d\n",
+			phaseTemplateID, workflowID, seq)
+		return nil
+	},
+}
+
+var workflowRemovePhaseCmd = &cobra.Command{
+	Use:   "remove-phase <workflow-id> <phase-template-id>",
+	Short: "Remove a phase from a custom workflow",
+	Long: `Remove a phase from a custom workflow.
+
+If the phase appears multiple times, the first occurrence is removed.
+Built-in workflows cannot be modified.
+
+Examples:
+  orc workflow remove-phase my-review docs
+  orc workflow remove-phase my-impl validate`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		workflowID := args[0]
+		phaseTemplateID := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer pdb.Close()
+
+		// Check workflow exists and is not builtin
+		wf, err := pdb.GetWorkflow(workflowID)
+		if err != nil {
+			return fmt.Errorf("get workflow: %w", err)
+		}
+		if wf == nil {
+			return fmt.Errorf("workflow not found: %s", workflowID)
+		}
+		if wf.IsBuiltin {
+			return fmt.Errorf("cannot modify built-in workflow '%s' - use 'orc workflow new <name> --from %s' to create a custom copy",
+				workflowID, workflowID)
+		}
+
+		// Get existing phases
+		phases, err := pdb.GetWorkflowPhases(workflowID)
+		if err != nil {
+			return fmt.Errorf("get phases: %w", err)
+		}
+
+		// Find the phase to get its sequence
+		var removedSeq int = -1
+		for _, p := range phases {
+			if p.PhaseTemplateID == phaseTemplateID {
+				removedSeq = p.Sequence
+				break
+			}
+		}
+
+		if removedSeq == -1 {
+			return fmt.Errorf("phase '%s' not found in workflow '%s'", phaseTemplateID, workflowID)
+		}
+
+		// Delete the phase
+		if err := pdb.DeleteWorkflowPhase(workflowID, phaseTemplateID); err != nil {
+			return fmt.Errorf("delete phase: %w", err)
+		}
+
+		// Re-sequence remaining phases
+		for _, p := range phases {
+			if p.Sequence > removedSeq {
+				p.Sequence--
+				if err := pdb.SaveWorkflowPhase(p); err != nil {
+					return fmt.Errorf("update phase sequence: %w", err)
+				}
+			}
+		}
+
+		fmt.Printf("Removed phase '%s' from workflow '%s'\n", phaseTemplateID, workflowID)
+		return nil
+	},
+}
+
+var workflowAddVariableCmd = &cobra.Command{
+	Use:   "add-variable <workflow-id> <variable-name>",
+	Short: "Add a variable to a custom workflow",
+	Long: `Add a workflow variable with a specified source type.
+
+Variable sources:
+  static   - Fixed value (use --value)
+  env      - Environment variable
+  script   - Script output
+  api      - HTTP API response
+
+Examples:
+  orc workflow add-variable my-wf API_KEY --source-type env --required
+  orc workflow add-variable my-wf VERSION --source-type static --value "1.0.0"
+  orc workflow add-variable my-wf CONTEXT --description "Extra context"`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		workflowID := args[0]
+		varName := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer pdb.Close()
+
+		// Check workflow exists and is not builtin
+		wf, err := pdb.GetWorkflow(workflowID)
+		if err != nil {
+			return fmt.Errorf("get workflow: %w", err)
+		}
+		if wf == nil {
+			return fmt.Errorf("workflow not found: %s", workflowID)
+		}
+		if wf.IsBuiltin {
+			return fmt.Errorf("cannot modify built-in workflow '%s' - use 'orc workflow new <name> --from %s' to create a custom copy",
+				workflowID, workflowID)
+		}
+
+		sourceType, _ := cmd.Flags().GetString("source-type")
+		value, _ := cmd.Flags().GetString("value")
+		desc, _ := cmd.Flags().GetString("description")
+		required, _ := cmd.Flags().GetBool("required")
+
+		// Build source config based on type
+		var sourceConfig string
+		switch sourceType {
+		case "static":
+			if value == "" {
+				return fmt.Errorf("--value is required for static source type")
+			}
+			sourceConfig = fmt.Sprintf(`{"value": %q}`, value)
+		case "env":
+			sourceConfig = fmt.Sprintf(`{"var": %q}`, varName)
+		default:
+			sourceConfig = "{}"
+		}
+
+		newVar := &db.WorkflowVariable{
+			WorkflowID:   workflowID,
+			Name:         varName,
+			Description:  desc,
+			SourceType:   sourceType,
+			SourceConfig: sourceConfig,
+			Required:     required,
+		}
+
+		if err := pdb.SaveWorkflowVariable(newVar); err != nil {
+			return fmt.Errorf("save variable: %w", err)
+		}
+
+		fmt.Printf("Added variable '%s' to workflow '%s' (source: %s)\n",
+			varName, workflowID, sourceType)
+		return nil
+	},
+}
+
+var workflowRemoveVariableCmd = &cobra.Command{
+	Use:   "remove-variable <workflow-id> <variable-name>",
+	Short: "Remove a variable from a custom workflow",
+	Long: `Remove a workflow variable.
+
+Built-in workflows cannot be modified.
+
+Examples:
+  orc workflow remove-variable my-wf API_KEY
+  orc workflow remove-variable my-impl EXTRA_CONTEXT`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		workflowID := args[0]
+		varName := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer pdb.Close()
+
+		// Check workflow exists and is not builtin
+		wf, err := pdb.GetWorkflow(workflowID)
+		if err != nil {
+			return fmt.Errorf("get workflow: %w", err)
+		}
+		if wf == nil {
+			return fmt.Errorf("workflow not found: %s", workflowID)
+		}
+		if wf.IsBuiltin {
+			return fmt.Errorf("cannot modify built-in workflow '%s' - use 'orc workflow new <name> --from %s' to create a custom copy",
+				workflowID, workflowID)
+		}
+
+		if err := pdb.DeleteWorkflowVariable(workflowID, varName); err != nil {
+			return fmt.Errorf("delete variable: %w", err)
+		}
+
+		fmt.Printf("Removed variable '%s' from workflow '%s'\n", varName, workflowID)
 		return nil
 	},
 }

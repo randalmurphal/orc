@@ -265,7 +265,7 @@ Examples:
 				// The executor will create the plan dynamically at runtime
 				// and skip the spec phase since a spec already exists
 				if mt.Spec != "" {
-					if err := backend.SaveSpec(taskID, mt.Spec, "manifest"); err != nil {
+					if err := backend.SaveSpecForTask(taskID, mt.Spec, "manifest"); err != nil {
 						return fmt.Errorf("save spec for %s: %w", taskID, err)
 					}
 				}

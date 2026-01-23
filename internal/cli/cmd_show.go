@@ -71,6 +71,9 @@ Examples:
 			p := createShowPlanForWeight(id, t.Weight)
 			s, _ := backend.LoadState(id)
 
+			// Merge phase states from execution state into the plan
+			mergePhaseStates(p, s)
+
 			// --full enables everything
 			if showFull {
 				showSession = true
@@ -79,9 +82,9 @@ Examples:
 			}
 
 			// Load spec if requested
-			var spec *storage.SpecInfo
+			var spec *storage.PhaseOutputInfo
 			if showSpec {
-				spec, _ = backend.LoadFullSpec(id)
+				spec, _ = backend.GetFullSpecForTask(id)
 			}
 
 			// Load review findings if requested
@@ -253,7 +256,7 @@ func printCostInfo(s *state.State, id string, _ string) {
 }
 
 // printSpecInfo displays specification content for a task.
-func printSpecInfo(spec *storage.SpecInfo) {
+func printSpecInfo(spec *storage.PhaseOutputInfo) {
 	fmt.Printf("\nSpecification\n")
 	fmt.Printf("─────────────────────────\n")
 
@@ -440,5 +443,31 @@ func createShowPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
 	return &executor.Plan{
 		TaskID: taskID,
 		Phases: phases,
+	}
+}
+
+// mergePhaseStates updates plan phase statuses from the execution state.
+func mergePhaseStates(p *executor.Plan, s *state.State) {
+	if s == nil || s.Phases == nil {
+		return
+	}
+	for i := range p.Phases {
+		ps, ok := s.Phases[p.Phases[i].ID]
+		if !ok {
+			continue
+		}
+		switch ps.Status {
+		case state.StatusCompleted:
+			p.Phases[i].Status = executor.PhaseCompleted
+			p.Phases[i].CommitSHA = ps.CommitSHA
+		case state.StatusFailed:
+			p.Phases[i].Status = executor.PhaseFailed
+		case state.StatusSkipped:
+			p.Phases[i].Status = executor.PhaseSkipped
+		case state.StatusRunning:
+			p.Phases[i].Status = executor.PhaseRunning
+		case state.StatusPaused, state.StatusInterrupted:
+			p.Phases[i].Status = executor.PhasePending // Show as pending when interrupted/paused
+		}
 	}
 }
