@@ -181,6 +181,8 @@ func (s *Server) handleTriggerWorkflowRun(w http.ResponseWriter, r *http.Request
 		executor.WithWorkflowGitOps(gitOps),
 		executor.WithWorkflowClaudePath(claudePath),
 		executor.WithWorkflowPublisher(s.publisher),
+		executor.WithWorkflowLogger(s.logger),
+		executor.WithWorkflowAutomationService(s.automationSvc),
 	)
 
 	// Build options

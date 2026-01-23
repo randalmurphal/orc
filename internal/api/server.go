@@ -863,6 +863,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			s.workDir,
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
 		)
 
 		opts := executor.WorkflowRunOptions{

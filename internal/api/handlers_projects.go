@@ -442,6 +442,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
 		)
 
 		// Build run options
@@ -619,6 +620,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
 		)
 
 		// Build run options for resume

@@ -121,6 +121,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			executor.WithWorkflowGitOps(gitOps),
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
 		)
 
 		// Build run options

@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -24,6 +25,7 @@ import (
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/tokenpool"
 	"github.com/randalmurphal/orc/internal/variable"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
@@ -91,8 +93,12 @@ type WorkflowExecutor struct {
 	claudePath    string
 
 	// Optional components
-	gitOps    *git.Git
-	publisher *PublishHelper
+	gitOps             *git.Git
+	publisher          *PublishHelper
+	tokenPool          *tokenpool.Pool          // For automatic account switching on rate limits
+	automationSvc      *automation.Service      // For automation event triggers
+	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
+	resourceTracker    *ResourceTracker         // For orphan process detection
 
 	// Per-run state (set during Run)
 	worktreePath string        // Path to worktree (if created)
@@ -149,6 +155,34 @@ func WithWorkflowGlobalDB(gdb *db.GlobalDB) WorkflowExecutorOption {
 func WithWorkflowTurnExecutor(te TurnExecutor) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.turnExecutor = te
+	}
+}
+
+// WithWorkflowTokenPool sets the token pool for automatic account switching on rate limits.
+func WithWorkflowTokenPool(pool *tokenpool.Pool) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.tokenPool = pool
+	}
+}
+
+// WithWorkflowAutomationService sets the automation service for event triggers.
+func WithWorkflowAutomationService(svc *automation.Service) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.automationSvc = svc
+	}
+}
+
+// WithWorkflowSessionBroadcaster sets the session broadcaster for real-time metrics.
+func WithWorkflowSessionBroadcaster(sb *SessionBroadcaster) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.sessionBroadcaster = sb
+	}
+}
+
+// WithWorkflowResourceTracker sets the resource tracker for orphan process detection.
+func WithWorkflowResourceTracker(rt *ResourceTracker) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.resourceTracker = rt
 	}
 }
 
@@ -264,6 +298,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.heartbeat = NewHeartbeatRunner(we.backend, we.execState, we.logger)
 		we.heartbeat.Start(ctx)
 		defer we.heartbeat.Stop()
+
+		// Take resource snapshot before execution (for orphan process detection)
+		if we.resourceTracker != nil {
+			if err := we.resourceTracker.SnapshotBefore(); err != nil {
+				we.logger.Warn("failed to take resource snapshot", "error", err)
+			}
+			defer we.runResourceAnalysis()
+		}
+
+		// Notify session broadcaster that a task has started
+		if we.sessionBroadcaster != nil {
+			we.sessionBroadcaster.OnTaskStart(ctx)
+			defer we.sessionBroadcaster.OnTaskComplete(ctx)
+		}
 	}
 
 	// Set up SIGUSR1 handler for external pause requests
@@ -628,6 +676,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
+		// Trigger automation event for task completion
+		we.triggerAutomationEvent(execCtx, automation.EventTaskCompleted, t, "")
 	}
 
 	// Clear execution state
@@ -1209,6 +1259,8 @@ func (we *WorkflowExecutor) executePhase(
 	// Publish phase complete event for real-time UI updates
 	if t != nil {
 		we.publisher.PhaseComplete(t.ID, tmpl.ID, "")
+		// Trigger automation event for phase completion
+		we.triggerAutomationEvent(ctx, automation.EventPhaseCompleted, t, tmpl.ID)
 	}
 
 	// Update run totals
@@ -1473,6 +1525,8 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
+		// Trigger automation event for task failure
+		we.triggerAutomationEvent(context.Background(), automation.EventTaskFailed, t, "")
 	}
 }
 
@@ -2076,4 +2130,59 @@ func (we *WorkflowExecutor) publishTaskUpdated(t *task.Task) {
 		return
 	}
 	we.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+}
+
+// runResourceAnalysis runs the resource tracker analysis after task completion.
+// Called via defer in Run() to run regardless of success or failure.
+func (we *WorkflowExecutor) runResourceAnalysis() {
+	if we.resourceTracker == nil {
+		return
+	}
+
+	if err := we.resourceTracker.SnapshotAfter(); err != nil {
+		we.logger.Warn("failed to take after snapshot", "error", err)
+		return
+	}
+
+	orphans := we.resourceTracker.DetectOrphans()
+	if len(orphans) > 0 {
+		we.logger.Warn("detected potential orphaned processes",
+			"count", len(orphans),
+			"processes", formatOrphanedProcesses(orphans),
+		)
+	}
+}
+
+// triggerAutomationEvent sends an event to the automation service if configured.
+func (we *WorkflowExecutor) triggerAutomationEvent(ctx context.Context, eventType string, t *task.Task, phase string) {
+	if we.automationSvc == nil || t == nil {
+		return
+	}
+
+	event := &automation.Event{
+		Type:     eventType,
+		TaskID:   t.ID,
+		Weight:   string(t.Weight),
+		Category: string(t.Category),
+		Phase:    phase,
+	}
+
+	if err := we.automationSvc.HandleEvent(ctx, event); err != nil {
+		we.logger.Warn("automation event handling failed",
+			"event", eventType,
+			"task", t.ID,
+			"error", err)
+	}
+}
+
+// formatOrphanedProcesses formats orphaned process info for logging.
+func formatOrphanedProcesses(processes []ProcessInfo) string {
+	if len(processes) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, p := range processes {
+		parts = append(parts, fmt.Sprintf("%d:%s", p.PID, p.Command))
+	}
+	return strings.Join(parts, ", ")
 }
