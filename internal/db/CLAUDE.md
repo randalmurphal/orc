@@ -20,7 +20,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
 | `plan.go` | Plan CRUD |
 | `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD |
-| `spec.go` | Spec CRUD, FTS search |
+| `phase_output.go` | Phase output CRUD (unified specs + artifacts) |
 | `event_log.go` | EventLog CRUD, batch insert, time/type filtering for timeline |
 | `gate_decision.go` | GateDecision CRUD, Tx variants |
 | `attachment.go` | Attachment CRUD |
@@ -87,9 +87,9 @@ deps := allDeps[task.ID]                    // Map lookup
 
 **Batch functions:** `GetAllTaskDependencies()`, `GetAllInitiativeDecisions()`, `GetAllInitiativeTaskRefs()`, `GetAllInitiativeDependencies()`, `GetAllInitiativeDependents()`
 
-## Transcript System (JSONL-Based)
+## Transcript System
 
-Transcripts store Claude Code session messages synced from JSONL files. `transcript.go:42-667`
+Transcripts store Claude Code session messages. `transcript.go:42-667`
 
 ### Transcript Schema
 

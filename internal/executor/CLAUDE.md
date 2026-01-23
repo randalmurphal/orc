@@ -29,7 +29,6 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `backpressure.go` | Deterministic quality checks (tests, lint, build) |
 | `haiku_validation.go` | Spec and criteria validation |
-| `jsonl_sync.go` | `JSONLSyncer` for Claude JSONL to DB sync |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 
 ## Architecture
@@ -183,18 +182,21 @@ if err != nil {
 }
 ```
 
-## Transcript Sync (JSONL)
+## Transcript Storage
 
-`jsonl_sync.go` syncs Claude JSONL session files to DB:
+Transcripts are stored directly to the database during phase execution via `ClaudeExecutor`:
 
-1. **Real-time streaming**: `TranscriptStreamer` watches JSONL via fsnotify, batches to DB
-2. **Post-phase catchup**: `SyncFromFile()` ensures no messages missed
+1. **User prompts**: Stored before sending to Claude
+2. **Assistant responses**: Stored after receiving from Claude
 
-| Data | Source | DB Table |
-|------|--------|----------|
-| Messages | `message.content` | `transcripts` |
-| Tokens | `message.usage` | `transcripts` (per-message) |
-| Tool calls | `content[type=tool_use]` | `transcripts.tool_calls` |
+| Role | Content | Stored |
+|------|---------|--------|
+| `"prompt"` | User/system prompts | Before Claude call |
+| `"response"` | Model responses | After Claude call |
+| `"chunk"` | Aggregated streaming chunks | During streaming |
+| `"combined"` | Full transcript for phase | On phase completion |
+
+**Note:** Direct database storage replaced JSONL file syncing. No filesystem-based transcript reading.
 
 ## Cost Tracking
 
@@ -260,5 +262,4 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 | Worktree cleanup by path | Use `CleanupWorktreeAtPath(e.worktreePath)` |
 | Spec not found in templates | Use `WithSpecFromDatabase()` |
 | Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
-| Transcripts not persisting | Ensure `SyncFromFile()` called after phase |
 | Validation can't see files | Create clients dynamically with correct workdir |

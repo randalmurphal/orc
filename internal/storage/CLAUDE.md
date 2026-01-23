@@ -19,8 +19,8 @@ All storage operations are defined by the `Backend` interface:
 |----------|------------|
 | Task | `SaveTask`, `LoadTask`, `LoadAllTasks`, `DeleteTask`, `TaskExists`, `GetNextTaskID` |
 | State | `SaveState`, `LoadState`, `LoadAllStates` |
-| Spec | `SaveSpec`, `LoadSpec`, `LoadFullSpec`, `SpecExists` |
-| Artifact | `SaveArtifact`, `LoadArtifact`, `LoadAllArtifacts`, `ArtifactExists` |
+| Phase Output | `SavePhaseOutput`, `GetPhaseOutput`, `GetPhaseOutputByVarName`, `GetAllPhaseOutputs`, `LoadPhaseOutputsAsMap`, `GetPhaseOutputsForTask`, `DeletePhaseOutput`, `PhaseOutputExists` |
+| Spec (via Phase Output) | `GetSpecForTask`, `GetFullSpecForTask`, `SpecExistsForTask`, `SaveSpecForTask` |
 | Initiative | `SaveInitiative`, `LoadInitiative`, `LoadAllInitiatives`, `DeleteInitiative`, `InitiativeExists`, `GetNextInitiativeID` |
 | Phase Template | `SavePhaseTemplate`, `GetPhaseTemplate`, `ListPhaseTemplates`, `DeletePhaseTemplate` |
 | Workflow | `SaveWorkflow`, `GetWorkflow`, `ListWorkflows`, `DeleteWorkflow`, workflow phases/variables operations |
