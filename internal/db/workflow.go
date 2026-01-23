@@ -13,6 +13,7 @@ type QualityCheck struct {
 	Type      string `json:"type"`                 // "code" (uses project_commands) or "custom"
 	Name      string `json:"name"`                 // For "code": 'tests', 'lint', 'build', 'typecheck'. For "custom": user-defined name
 	Enabled   bool   `json:"enabled"`              // Whether this check is active
+	UseShort  bool   `json:"use_short,omitempty"`  // For "code" type: use short_command if available
 	Command   string `json:"command,omitempty"`    // For "custom" type or to override project command
 	OnFailure string `json:"on_failure,omitempty"` // "block" (default), "warn", "skip"
 	TimeoutMs int    `json:"timeout_ms,omitempty"` // 0 = use default (2 minutes)
@@ -701,6 +702,20 @@ func (p *ProjectDB) SaveWorkflowRunPhase(wrp *WorkflowRunPhase) error {
 	if wrp.ID == 0 {
 		id, _ := res.LastInsertId()
 		wrp.ID = int(id)
+	}
+	return nil
+}
+
+// UpdatePhaseIterations updates only the iterations count for a running phase.
+// This is a lightweight update for real-time progress tracking during execution.
+func (p *ProjectDB) UpdatePhaseIterations(runID, phaseID string, iterations int) error {
+	_, err := p.Exec(`
+		UPDATE workflow_run_phases
+		SET iterations = ?
+		WHERE workflow_run_id = ? AND phase_template_id = ?
+	`, iterations, runID, phaseID)
+	if err != nil {
+		return fmt.Errorf("update phase iterations: %w", err)
 	}
 	return nil
 }

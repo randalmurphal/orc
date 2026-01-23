@@ -306,6 +306,7 @@ type Backend interface {
 	GetNextWorkflowRunID() (string, error)
 	GetWorkflowRunPhases(runID string) ([]*db.WorkflowRunPhase, error)
 	SaveWorkflowRunPhase(wrp *db.WorkflowRunPhase) error
+	UpdatePhaseIterations(runID, phaseID string, iterations int) error
 
 	// Transcript operations
 	AddTranscript(t *Transcript) error

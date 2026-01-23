@@ -287,6 +287,11 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 
 		result.Iterations++
 
+		// Update iteration count in database for real-time monitoring
+		if cfg.RunID != "" && cfg.PhaseID != "" {
+			we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, result.Iterations)
+		}
+
 		// Execute turn
 		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 		if err != nil {

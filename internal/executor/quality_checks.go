@@ -223,7 +223,12 @@ func (r *QualityCheckRunner) runCheck(ctx context.Context, check db.QualityCheck
 		// Look up command from project commands
 		if projCmd, ok := r.commands[check.Name]; ok {
 			if projCmd.Enabled {
-				command = projCmd.Command
+				// Use short_command if UseShort is set and short_command exists
+				if check.UseShort && projCmd.ShortCommand != "" {
+					command = projCmd.ShortCommand
+				} else {
+					command = projCmd.Command
+				}
 			}
 		}
 	}

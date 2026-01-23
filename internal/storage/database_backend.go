@@ -2261,6 +2261,15 @@ func (d *DatabaseBackend) SaveWorkflowRunPhase(wrp *db.WorkflowRunPhase) error {
 	return d.db.SaveWorkflowRunPhase(wrp)
 }
 
+// UpdatePhaseIterations updates only the iterations count for a running phase.
+// This is a lightweight update for real-time progress tracking during execution.
+func (d *DatabaseBackend) UpdatePhaseIterations(runID, phaseID string, iterations int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.UpdatePhaseIterations(runID, phaseID, iterations)
+}
+
 // SaveProjectCommand creates or updates a project command.
 func (d *DatabaseBackend) SaveProjectCommand(cmd *db.ProjectCommand) error {
 	d.mu.Lock()
