@@ -231,11 +231,22 @@ func runRun(cmd *cobra.Command, args []string) error {
 		executor.WithWorkflowClaudePath(claudePath),
 	}
 
-	// Add streaming publisher if requested
+	// Create persistent publisher for database event logging
+	// CLI always persists events to enable `orc log` and event history
+	persistentPub := events.NewPersistentPublisher(backend, "cli", nil)
+	defer persistentPub.Close()
+
+	// Add streaming CLI output if requested, wrapping persistent publisher
 	if verbose || stream {
-		publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
-		execOpts = append(execOpts, executor.WithWorkflowPublisher(publisher))
-		defer publisher.Close()
+		cliPub := events.NewCLIPublisher(os.Stdout,
+			events.WithStreamMode(true),
+			events.WithInnerPublisher(persistentPub),
+		)
+		execOpts = append(execOpts, executor.WithWorkflowPublisher(cliPub))
+		defer cliPub.Close()
+	} else {
+		// No streaming output, but still persist events
+		execOpts = append(execOpts, executor.WithWorkflowPublisher(persistentPub))
 	}
 
 	we := executor.NewWorkflowExecutor(

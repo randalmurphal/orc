@@ -211,12 +211,21 @@ Use --force to resume a task even if it appears to still be running.`,
 				executor.WithWorkflowGitOps(gitOps),
 			}
 
+			// Create persistent publisher for database event logging
+			persistentPub := events.NewPersistentPublisher(backend, "cli", nil)
+			defer persistentPub.Close()
+
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")
 			if verbose || stream {
-				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
-				execOpts = append(execOpts, executor.WithWorkflowPublisher(publisher))
-				defer publisher.Close()
+				cliPub := events.NewCLIPublisher(os.Stdout,
+					events.WithStreamMode(true),
+					events.WithInnerPublisher(persistentPub),
+				)
+				execOpts = append(execOpts, executor.WithWorkflowPublisher(cliPub))
+				defer cliPub.Close()
+			} else {
+				execOpts = append(execOpts, executor.WithWorkflowPublisher(persistentPub))
 			}
 
 			we := executor.NewWorkflowExecutor(
