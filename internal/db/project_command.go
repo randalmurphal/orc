@@ -77,7 +77,7 @@ func (p *ProjectDB) ListProjectCommands() ([]*ProjectCommand, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list project commands: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var commands []*ProjectCommand
 	for rows.Next() {
@@ -102,7 +102,7 @@ func (p *ProjectDB) ListProjectCommandsByDomain(domain string) ([]*ProjectComman
 	if err != nil {
 		return nil, fmt.Errorf("list project commands by domain %s: %w", domain, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var commands []*ProjectCommand
 	for rows.Next() {
@@ -127,7 +127,7 @@ func (p *ProjectDB) ListEnabledProjectCommands() ([]*ProjectCommand, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list enabled project commands: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var commands []*ProjectCommand
 	for rows.Next() {

@@ -132,7 +132,9 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *task.Task, gitOp
 	t.Status = task.StatusResolved
 	now := time.Now()
 	t.CompletedAt = &now
-	we.backend.SaveTask(t)
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save task after direct merge", "task", t.ID, "error", err)
+	}
 
 	we.logger.Info("direct merge completed", "task", t.ID, "target", targetBranch)
 	return nil
@@ -169,7 +171,9 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *task.Task, gitOps *
 		URL:    prURL,
 		Status: task.PRStatusPendingReview,
 	}
-	we.backend.SaveTask(t)
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save task with PR info", "task", t.ID, "error", err)
+	}
 
 	we.logger.Info("PR created", "url", prURL)
 	return nil

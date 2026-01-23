@@ -279,43 +279,6 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// tryKnowledgeExtraction attempts to extract knowledge from the docs phase transcript
-// if Claude didn't update the CLAUDE.md knowledge section directly.
-// This is a fallback mechanism - the primary method is Claude editing CLAUDE.md.
-func (e *Executor) tryKnowledgeExtraction(taskID string) {
-	projectDir := e.config.WorkDir
-
-	// Load the docs phase transcript
-	transcript, err := LoadDocsPhaseTranscript(projectDir, taskID)
-	if err != nil {
-		e.logger.Debug("failed to load docs transcript", "error", err)
-		return
-	}
-
-	if transcript == "" {
-		e.logger.Debug("no docs transcript found, skipping extraction")
-		return
-	}
-
-	// Extract knowledge from transcript
-	capture := ExtractKnowledgeFromTranscript(transcript, taskID)
-	if !capture.HasEntries() {
-		e.logger.Debug("no knowledge extracted from transcript")
-		return
-	}
-
-	// Append to CLAUDE.md
-	if err := AppendKnowledgeToClaudeMD(projectDir, capture); err != nil {
-		e.logger.Warn("failed to append knowledge to CLAUDE.md", "error", err)
-		return
-	}
-
-	e.logger.Info("extracted knowledge from docs transcript",
-		"patterns", len(capture.Patterns),
-		"gotchas", len(capture.Gotchas),
-		"decisions", len(capture.Decisions),
-	)
-}
 
 // LoadDocsPhaseTranscript loads the transcript content from the docs phase.
 func LoadDocsPhaseTranscript(projectDir, taskID string) (string, error) {

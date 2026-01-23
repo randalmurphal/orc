@@ -178,7 +178,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			if err != nil {
 				return fmt.Errorf("open project database: %w", err)
 			}
-			defer pdb.Close()
+			defer func() { _ = pdb.Close() }()
 
 			// Seed built-in workflows if not already seeded
 			if _, err := workflow.SeedBuiltins(pdb); err != nil {

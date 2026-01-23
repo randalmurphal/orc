@@ -47,31 +47,6 @@ func createResumeTestBackend(t *testing.T, dir string) storage.Backend {
 	return backend
 }
 
-// createTaskWithStatus creates a task with the given status and sets up state
-func createTaskWithStatus(t *testing.T, tmpDir, id string, status task.Status) *task.Task {
-	t.Helper()
-
-	backend := createResumeTestBackend(t, tmpDir)
-	defer func() { _ = backend.Close() }()
-
-	tk := task.New(id, "Test task")
-	tk.Status = status
-	tk.Weight = task.WeightSmall
-
-	if err := backend.SaveTask(tk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create state with a current phase
-	s := state.New(id)
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
-
-	return tk
-}
-
 func TestResumeCommand_TaskNotFound(t *testing.T) {
 	withResumeTestDir(t)
 

@@ -61,7 +61,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		templates, err := pdb.ListPhaseTemplates()
 		if err != nil {
@@ -90,7 +90,7 @@ Examples:
 
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tNAME\tSOURCE\tMAX ITER\tGATE\tARTIFACT\tBUILT-IN")
+		_, _ = fmt.Fprintln(w, "ID\tNAME\tSOURCE\tMAX ITER\tGATE\tARTIFACT\tBUILT-IN")
 		for _, t := range filtered {
 			artifact := ""
 			if t.ProducesArtifact {
@@ -100,10 +100,10 @@ Examples:
 			if t.IsBuiltin {
 				builtin = "yes"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
 				t.ID, t.Name, t.PromptSource, t.MaxIterations, t.GateType, artifact, builtin)
 		}
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},
@@ -131,7 +131,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		t, err := pdb.GetPhaseTemplate(phaseID)
 		if err != nil {
@@ -218,7 +218,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check if template already exists
 		existing, err := pdb.GetPhaseTemplate(phaseID)
@@ -298,7 +298,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		tmpl, err := pdb.GetPhaseTemplate(phaseID)
 		if err != nil {

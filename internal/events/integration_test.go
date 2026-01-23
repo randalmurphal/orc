@@ -17,7 +17,7 @@ func TestEventPersistence_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task to satisfy foreign key constraint
 	taskID := "TASK-001"

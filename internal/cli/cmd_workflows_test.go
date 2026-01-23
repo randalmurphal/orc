@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -30,7 +28,7 @@ func setupWorkflowTestDB(t *testing.T) (*db.ProjectDB, string) {
 
 func TestWorkflowNew_FromExisting(t *testing.T) {
 	pdb, tmpDir := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create .orc directory to satisfy FindProjectRoot
 	orcDir := filepath.Join(tmpDir, ".orc")
@@ -113,7 +111,7 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 
 func TestWorkflowAddPhase_Success(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create a custom workflow first
 	wf := &db.Workflow{
@@ -163,7 +161,7 @@ func TestWorkflowAddPhase_Success(t *testing.T) {
 
 func TestWorkflowAddPhase_BuiltinFails(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Try to add phase to builtin workflow
 	wf, err := pdb.GetWorkflow("implement-medium")
@@ -185,7 +183,7 @@ func TestWorkflowAddPhase_BuiltinFails(t *testing.T) {
 
 func TestWorkflowRemovePhase_Success(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create custom workflow with phases
 	wf := &db.Workflow{
@@ -248,7 +246,7 @@ func TestWorkflowRemovePhase_Success(t *testing.T) {
 
 func TestWorkflowAddVariable_Success(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -291,7 +289,7 @@ func TestWorkflowAddVariable_Success(t *testing.T) {
 
 func TestWorkflowRemoveVariable_Success(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create custom workflow with variable
 	wf := &db.Workflow{
@@ -339,7 +337,7 @@ func TestWorkflowRemoveVariable_Success(t *testing.T) {
 
 func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -383,7 +381,7 @@ func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
 
 func TestWorkflowEdit_BuiltinFails(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get builtin workflow
 	wf, err := pdb.GetWorkflow("implement-medium")
@@ -405,7 +403,7 @@ func TestWorkflowEdit_BuiltinFails(t *testing.T) {
 
 func TestWorkflowDelete_Success(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -453,7 +451,7 @@ func TestWorkflowDelete_Success(t *testing.T) {
 
 func TestWorkflowShow_DisplaysPhases(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Get builtin workflow
 	wf, err := pdb.GetWorkflow("implement-medium")
@@ -483,7 +481,7 @@ func TestWorkflowShow_DisplaysPhases(t *testing.T) {
 
 func TestWorkflowList_FiltersCorrectly(t *testing.T) {
 	pdb, _ := setupWorkflowTestDB(t)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Add custom workflow
 	wf := &db.Workflow{
@@ -540,20 +538,3 @@ func TestWorkflowList_FiltersCorrectly(t *testing.T) {
 	}
 }
 
-// Helper to capture stdout from cobra commands (for future use)
-func captureOutput(f func()) string {
-	var buf bytes.Buffer
-	old := rootCmd.OutOrStdout()
-	rootCmd.SetOut(&buf)
-	defer rootCmd.SetOut(old)
-	f()
-	return buf.String()
-}
-
-// Helper to check if string contains substring
-func assertContains(t *testing.T, s, substr string) {
-	t.Helper()
-	if !strings.Contains(s, substr) {
-		t.Errorf("expected %q to contain %q", s, substr)
-	}
-}

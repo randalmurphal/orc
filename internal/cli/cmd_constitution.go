@@ -96,7 +96,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open storage: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			// Read content
 			var content string
@@ -118,7 +118,7 @@ Examples:
 					content = string(data)
 				} else {
 					// Interactive mode
-					fmt.Fprintln(cmd.ErrOrStderr(), "Enter constitution content (Ctrl+D when done):")
+					_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Enter constitution content (Ctrl+D when done):")
 					scanner := bufio.NewScanner(os.Stdin)
 					var lines []string
 					for scanner.Scan() {
@@ -146,7 +146,7 @@ Examples:
 				return fmt.Errorf("save constitution: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Constitution saved (version %s, %d bytes)\n", version, len(content))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Constitution saved (version %s, %d bytes)\n", version, len(content))
 			return nil
 		},
 	}
@@ -176,7 +176,7 @@ Use --meta to see version and hash information.`,
 			if err != nil {
 				return fmt.Errorf("open storage: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			content, version, err := backend.LoadConstitution()
 			if err != nil {
@@ -185,9 +185,9 @@ Use --meta to see version and hash information.`,
 
 			out := cmd.OutOrStdout()
 			if showMeta {
-				fmt.Fprintf(out, "# Constitution (version: %s)\n\n", version)
+				_, _ = fmt.Fprintf(out, "# Constitution (version: %s)\n\n", version)
 			}
-			fmt.Fprintln(out, content)
+			_, _ = fmt.Fprintln(out, content)
 			return nil
 		},
 	}
@@ -214,23 +214,23 @@ func newConstitutionDeleteCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("open storage: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			exists, err := backend.ConstitutionExists()
 			if err != nil {
 				return fmt.Errorf("check constitution: %w", err)
 			}
 			if !exists {
-				fmt.Fprintln(cmd.OutOrStdout(), "No constitution configured")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No constitution configured")
 				return nil
 			}
 
 			if !force {
-				fmt.Fprint(cmd.ErrOrStderr(), "Delete constitution? [y/N] ")
+				_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Delete constitution? [y/N] ")
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response)
 				if strings.ToLower(strings.TrimSpace(response)) != "y" {
-					fmt.Fprintln(cmd.OutOrStdout(), "Cancelled")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Cancelled")
 					return nil
 				}
 			}
@@ -239,7 +239,7 @@ func newConstitutionDeleteCmd() *cobra.Command {
 				return fmt.Errorf("delete constitution: %w", err)
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "Constitution deleted")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Constitution deleted")
 			return nil
 		},
 	}
@@ -271,7 +271,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("read constitution template: %w", err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), string(content))
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), string(content))
 			return nil
 		},
 	}

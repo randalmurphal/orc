@@ -72,7 +72,7 @@ Example:
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "Warning: could not open storage: %v\n", err)
 						} else {
-							defer backend.Close()
+							defer func() { _ = backend.Close() }()
 							if err := backend.SaveConstitution(string(content), "1.0.0"); err != nil {
 								fmt.Fprintf(os.Stderr, "Warning: could not save constitution: %v\n", err)
 							} else {

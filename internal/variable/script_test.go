@@ -257,11 +257,11 @@ echo "$ORC_PROJECT_ROOT"
 		t.Fatalf("create script: %v", err)
 	}
 	if _, err := f.WriteString(scriptContent); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatalf("write script: %v", err)
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatalf("sync script: %v", err)
 	}
 	if err := f.Close(); err != nil {

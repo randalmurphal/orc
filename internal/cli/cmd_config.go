@@ -691,7 +691,7 @@ func runConfigCommandsList(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	cmds, err := backend.ListProjectCommands()
 	if err != nil {
@@ -752,7 +752,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			projectCmd := &db.ProjectCommand{
 				Name:    name,
@@ -793,7 +793,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			if err := backend.SetProjectCommandEnabled(name, true); err != nil {
 				return fmt.Errorf("enable command: %w", err)
@@ -825,7 +825,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			if err := backend.SetProjectCommandEnabled(name, false); err != nil {
 				return fmt.Errorf("disable command: %w", err)
@@ -857,7 +857,7 @@ Example:
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			if err := backend.DeleteProjectCommand(name); err != nil {
 				return fmt.Errorf("delete command: %w", err)

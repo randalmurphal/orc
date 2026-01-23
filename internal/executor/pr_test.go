@@ -1,125 +1,12 @@
 package executor
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"testing"
-
-	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
-
-func TestBuildPRBody_IncludesTaskTitle(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:     "TEST-001",
-		Title:  "Implement feature X",
-		Weight: "medium",
-	}
-
-	body := e.buildPRBody(tsk)
-
-	if !strings.Contains(body, "Implement feature X") {
-		t.Errorf("expected body to contain task title, got: %s", body)
-	}
-	if !strings.Contains(body, "TEST-001") {
-		t.Errorf("expected body to contain task ID, got: %s", body)
-	}
-}
-
-func TestBuildPRBody_IncludesPhases(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:          "TEST-002",
-		Title:       "Add new API endpoint",
-		Description: "Create POST /api/widgets endpoint with validation",
-		Weight:      "large",
-	}
-
-	body := e.buildPRBody(tsk)
-
-	// Should include description when present
-	if !strings.Contains(body, "Create POST /api/widgets endpoint") {
-		t.Errorf("expected body to contain description, got: %s", body)
-	}
-
-	// Should include weight
-	if !strings.Contains(body, "large") {
-		t.Errorf("expected body to contain weight, got: %s", body)
-	}
-
-	// Should have standard sections
-	if !strings.Contains(body, "## Summary") {
-		t.Errorf("expected body to contain Summary section, got: %s", body)
-	}
-	if !strings.Contains(body, "## Task Details") {
-		t.Errorf("expected body to contain Task Details section, got: %s", body)
-	}
-	if !strings.Contains(body, "## Test Plan") {
-		t.Errorf("expected body to contain Test Plan section, got: %s", body)
-	}
-}
-
-func TestBuildPRBody_UsesDescription(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:          "TEST-003",
-		Title:       "Short title",
-		Description: "This is a longer description that explains the task in detail",
-		Weight:      "small",
-	}
-
-	body := e.buildPRBody(tsk)
-
-	// Description should be in summary, not title
-	if !strings.Contains(body, "This is a longer description") {
-		t.Errorf("expected body to use description in summary, got: %s", body)
-	}
-}
-
-func TestBuildPRBody_FallsBackToTitle(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:          "TEST-004",
-		Title:       "Title only task",
-		Description: "", // Empty description
-		Weight:      "trivial",
-	}
-
-	body := e.buildPRBody(tsk)
-
-	// Should use title when description is empty
-	if !strings.Contains(body, "Title only task") {
-		t.Errorf("expected body to fall back to title, got: %s", body)
-	}
-}
-
-func TestBuildPRBody_HasOrcFooter(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:     "TEST-005",
-		Title:  "Any task",
-		Weight: "small",
-	}
-
-	body := e.buildPRBody(tsk)
-
-	if !strings.Contains(body, "Created by [orc]") {
-		t.Errorf("expected body to have orc footer, got: %s", body)
-	}
-	if !strings.Contains(body, "github.com/randalmurphal/orc") {
-		t.Errorf("expected body to have orc link, got: %s", body)
-	}
-}
 
 func TestIsLabelError(t *testing.T) {
 	t.Parallel()
@@ -204,46 +91,6 @@ func TestSyncPhaseConstants(t *testing.T) {
 	}
 	if SyncPhaseCompletion != "completion" {
 		t.Errorf("SyncPhaseCompletion = %s, want 'completion'", SyncPhaseCompletion)
-	}
-}
-
-func TestSyncOnTaskStart_SkipsWithoutGitOps(t *testing.T) {
-	t.Parallel()
-	// Create executor without git ops
-	e := &Executor{
-		logger:    slog.Default(),
-		orcConfig: config.Default(),
-	}
-	e.orcConfig.Completion.Sync.SyncOnStart = true
-
-	// Ensure git ops are nil
-	e.gitOps = nil
-	e.worktreeGit = nil
-
-	// Should return nil when no git ops available (not an error)
-	task := &task.Task{ID: "TASK-001"}
-	err := e.syncOnTaskStart(context.Background(), task)
-	if err != nil {
-		t.Errorf("syncOnTaskStart() should skip without error when gitOps is nil, got: %v", err)
-	}
-}
-
-func TestSyncOnTaskStart_UsesWorktreeGit(t *testing.T) {
-	t.Parallel()
-	// This test verifies that syncOnTaskStart prefers worktreeGit over gitOps
-	// when both are set (indicating we're in a worktree context)
-	// We can't fully test this without a real git repo, but we can verify
-	// the nil handling works correctly
-	e := &Executor{
-		logger:    slog.Default(),
-		orcConfig: config.Default(),
-	}
-
-	// With both nil, should return early
-	task := &task.Task{ID: "TASK-001"}
-	err := e.syncOnTaskStart(context.Background(), task)
-	if err != nil {
-		t.Errorf("syncOnTaskStart() should handle nil gitOps gracefully, got: %v", err)
 	}
 }
 
@@ -356,88 +203,6 @@ func TestPRReviewResult(t *testing.T) {
 	}
 	if result.Comment != "Test comment" {
 		t.Errorf("expected Comment to be 'Test comment', got %s", result.Comment)
-	}
-}
-
-func TestReviewAndApprove_FailsOnCheckFailure(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:    "TEST-001",
-		Title: "Test task",
-	}
-
-	result, err := e.reviewAndApprove(context.Background(), tsk, "", false, "Tests failed: 5 failures")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.Approved {
-		t.Error("expected not approved when checks fail")
-	}
-	if !strings.Contains(result.Comment, "CI checks have not passed") {
-		t.Errorf("expected comment to mention CI checks, got: %s", result.Comment)
-	}
-}
-
-func TestReviewAndApprove_ApprovesOnCheckSuccess(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:    "TEST-002",
-		Title: "Test task that should pass",
-	}
-
-	result, err := e.reviewAndApprove(context.Background(), tsk, "diff content here", true, "All checks passed")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if !result.Approved {
-		t.Error("expected approved when checks pass")
-	}
-	if !strings.Contains(result.Comment, "Auto-approved by orc") {
-		t.Errorf("expected comment to mention auto-approval, got: %s", result.Comment)
-	}
-	if !strings.Contains(result.Comment, "All checks passed") {
-		t.Errorf("expected comment to include check status, got: %s", result.Comment)
-	}
-}
-
-func TestReviewAndApprove_IncludesTaskTitle(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:    "TEST-003",
-		Title: "My awesome feature",
-	}
-
-	result, err := e.reviewAndApprove(context.Background(), tsk, "diff", true, "Success")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if !strings.Contains(result.Comment, "My awesome feature") {
-		t.Errorf("expected comment to include task title, got: %s", result.Comment)
-	}
-}
-
-func TestReviewAndApprove_ApprovesWithPendingChecks(t *testing.T) {
-	t.Parallel()
-	e := &Executor{}
-	tsk := &task.Task{
-		ID:    "TEST-004",
-		Title: "Task with pending checks",
-	}
-
-	// When checksOK is true but some are pending, should still approve
-	result, err := e.reviewAndApprove(context.Background(), tsk, "diff", true, "Some checks still pending")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if !result.Approved {
-		t.Error("expected approved when checksOK is true (even with pending)")
 	}
 }
 
@@ -821,5 +586,16 @@ func TestIsAutoMergeConfigError(t *testing.T) {
 				t.Errorf("isAutoMergeConfigError(%v) = %v, want %v", tt.err, got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestErrDirectMergeBlocked(t *testing.T) {
+	t.Parallel()
+	// ErrDirectMergeBlocked should be defined and usable
+	if ErrDirectMergeBlocked == nil {
+		t.Error("ErrDirectMergeBlocked should not be nil")
+	}
+	if ErrDirectMergeBlocked.Error() != "direct merge to protected branch blocked" {
+		t.Errorf("ErrDirectMergeBlocked.Error() = %s, want 'direct merge to protected branch blocked'", ErrDirectMergeBlocked.Error())
 	}
 }

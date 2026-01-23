@@ -426,10 +426,8 @@ func TestExecutePhaseWithTimeout_TimeoutReached(t *testing.T) {
 	_, err := we.executePhaseWithTimeout(ctx, tmpl, phase, map[string]string{}, nil, run, runPhase, tsk)
 
 	// Should get a timeout error (or context deadline exceeded)
-	if err != nil && !errors.Is(err, context.DeadlineExceeded) && !IsPhaseTimeoutError(err) {
-		// We might get other errors from incomplete setup, that's OK
-		// The key test is that timeout machinery doesn't panic
-	}
+	// Other errors from incomplete setup are OK - the key test is that timeout machinery doesn't panic
+	_ = err
 }
 
 func TestExecutePhaseWithTimeout_WarningTimers(t *testing.T) {
