@@ -245,23 +245,22 @@ var builtinWorkflows = []struct {
 		},
 	},
 	{
-		// Trivial weight: tiny_spec, implement (short tests, no lint)
+		// Trivial weight: implement only (no spec, no TDD - just do the work)
 		Workflow: db.Workflow{
 			ID:           "implement-trivial",
 			Name:         "Implement (Trivial)",
-			Description:  "Minimal workflow: tiny_spec, implement with short tests",
+			Description:  "Direct implementation: short tests + build, no spec overhead",
 			WorkflowType: "task",
 			IsBuiltin:    true,
 		},
 		Phases: []db.WorkflowPhase{
-			{PhaseTemplateID: "tiny_spec", Sequence: 0, DependsOn: "[]"},
 			{
 				PhaseTemplateID: "implement",
-				Sequence:        1,
-				DependsOn:       `["tiny_spec"]`,
-				// Trivial tasks use short tests and build only (no lint)
+				Sequence:        0,
+				DependsOn:       "[]",
+				// Trivial tasks use short tests, lint, and build
 				// use_short uses project_commands.short_command which is language-agnostic
-				QualityChecksOverride: `[{"type":"code","name":"tests","enabled":true,"use_short":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"}]`,
+				QualityChecksOverride: `[{"type":"code","name":"tests","enabled":true,"use_short":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"}]`,
 			},
 		},
 	},

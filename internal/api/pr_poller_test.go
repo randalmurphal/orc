@@ -331,7 +331,8 @@ func (b *emptyBackend) GetNextWorkflowRunID() (string, error)                   
 func (b *emptyBackend) GetWorkflowRunPhases(string) ([]*db.WorkflowRunPhase, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error { return nil }
+func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error  { return nil }
+func (b *emptyBackend) UpdatePhaseIterations(string, string, int) error { return nil }
 func (b *emptyBackend) TryClaimTaskExecution(context.Context, string, int, string) error {
 	return nil
 }
