@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -17,12 +14,8 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/llmkit/claude/jsonl"
-	"github.com/randalmurphal/llmkit/claude/session"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ANSI color codes for transcript display
@@ -51,7 +44,7 @@ Viewing modes:
   Default     Shows the most recent transcript entries
   --all       Shows all transcripts for all phases
   --phase     Filter to a specific phase (implement, test, etc.)
-  --follow    Real-time streaming during execution (tails JSONL file)
+  --follow    Real-time streaming during execution (polls database)
 
 Content filtering:
   --response-only   Show only Claude's responses (assistant messages)
@@ -63,7 +56,7 @@ Quality tips:
   * When debugging a failed task, start with the latest transcript
   * Use --phase to find specific work (e.g., --phase test for test phase)
   * Use --follow during execution to watch Claude work in real-time
-  * Transcripts are stored in the database and synced from Claude's JSONL files
+  * Transcripts are stored directly in the database during execution
 
 Examples:
   orc log TASK-001              # Latest transcript entries
@@ -109,9 +102,9 @@ See also:
 				phase:        phase,
 			}
 
-			// Follow mode - stream from live JSONL file
+			// Follow mode - poll database for new transcripts
 			if follow {
-				return followLiveJSONL(id, opts)
+				return followTranscripts(id, opts)
 			}
 
 			// Create storage backend to query database
@@ -127,33 +120,11 @@ See also:
 				return fmt.Errorf("get transcripts: %w", err)
 			}
 
-			// Track whether we loaded from filesystem for source indicator
-			fromFilesystem := false
-
-			// If database has no transcripts, try filesystem fallback
-			if len(transcripts) == 0 {
-				transcripts, err = readFilesystemTranscripts(id)
-				if err != nil {
-					return fmt.Errorf("read filesystem transcripts: %w", err)
-				}
-				fromFilesystem = len(transcripts) > 0
-			}
-
 			if len(transcripts) == 0 {
 				fmt.Printf("No transcripts found for task %s\n", id)
-				fmt.Println("\nThe task may not have run yet, or transcripts were not synced.")
+				fmt.Println("\nThe task may not have run yet.")
 				fmt.Printf("Try: orc run %s\n", id)
 				return nil
-			}
-
-			// Show source indicator if loaded from filesystem
-			if fromFilesystem {
-				if opts.useColor {
-					fmt.Printf("%s(Loaded from filesystem transcripts)%s\n\n", ansiDim, ansiReset)
-				} else {
-					fmt.Println("(Loaded from filesystem transcripts)")
-					fmt.Println()
-				}
 			}
 
 			// Filter by phase if specified
@@ -365,46 +336,20 @@ func collectPhases(transcripts []storage.Transcript) []string {
 	return phases
 }
 
-// followLiveJSONL streams messages from the live JSONL file during task execution
-func followLiveJSONL(taskID string, opts transcriptDisplayOptions) error {
-	// Create storage backend to load state
+// followTranscripts polls the database for new transcripts during task execution.
+// This provides real-time streaming without relying on filesystem-based JSONL files.
+func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 	backend, err := getBackend()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = backend.Close() }()
 
-	// Load task state to get JSONL path
-	st, err := backend.LoadState(taskID)
-	if err != nil {
-		return fmt.Errorf("load task state: %w", err)
-	}
-	if st == nil {
-		return fmt.Errorf("no state found for task %s", taskID)
-	}
-
-	// Get JSONL path from state (if available)
-	jsonlPath := st.JSONLPath
-
-	// If JSONLPath is empty, try to construct it as a fallback
-	if jsonlPath == "" {
-		// Try to construct path from session ID and worktree
-		constructedPath, constructErr := constructJSONLPathFallback(taskID, st)
-		if constructErr == nil && constructedPath != "" {
-			jsonlPath = constructedPath
-		} else {
-			// Provide accurate error message based on task status
-			return formatFollowError(taskID, st, constructErr)
-		}
-	}
-
-	// Check file exists
-	if _, err := os.Stat(jsonlPath); os.IsNotExist(err) {
-		// File doesn't exist yet - check if task is still starting up
-		if st.Status == state.StatusRunning {
-			return fmt.Errorf("JSONL file not yet created at %s (session may still be starting)", jsonlPath)
-		}
-		return fmt.Errorf("JSONL file not found: %s", jsonlPath)
+	// Verify task exists
+	if exists, err := backend.TaskExists(taskID); err != nil {
+		return fmt.Errorf("check task: %w", err)
+	} else if !exists {
+		return fmt.Errorf("task %s not found", taskID)
 	}
 
 	// Set up context with signal handling
@@ -419,286 +364,75 @@ func followLiveJSONL(taskID string, opts transcriptDisplayOptions) error {
 		cancel()
 	}()
 
-	fmt.Printf("Following %s (Ctrl+C to stop)...\n\n", jsonlPath)
+	fmt.Printf("Following transcripts for %s (Ctrl+C to stop)...\n\n", taskID)
 
-	// Create JSONL reader and tail
-	reader, err := jsonl.NewReader(jsonlPath)
-	if err != nil {
-		return fmt.Errorf("create JSONL reader: %w", err)
-	}
-	defer func() { _ = reader.Close() }()
+	// Track last seen transcript ID
+	var lastSeenID int64
+	var currentPhase string
+	pollInterval := 500 * time.Millisecond
 
-	// Stream new messages
-	msgCh := reader.Tail(ctx)
-	for msg := range msgCh {
-		// Filter by type if needed
-		if opts.responseOnly && msg.Type != "assistant" {
-			continue
-		}
-		if opts.promptOnly && msg.Type != "user" {
-			continue
-		}
-
-		// Note: Phase filtering is not supported in follow mode since
-		// JSONL messages don't contain phase information.
-		// TODO(future): Could match by session ID patterns if needed.
-
-		// Display the message
-		displayJSONLMessage(msg, opts)
-	}
-
-	return nil
-}
-
-// displayJSONLMessage renders a JSONL message during live streaming
-func displayJSONLMessage(msg session.JSONLMessage, opts transcriptDisplayOptions) {
-	// Parse timestamp
-	ts, err := time.Parse(time.RFC3339Nano, msg.Timestamp)
-	if err != nil {
-		ts = time.Now()
-	}
-	timeStr := ts.Format("15:04:05")
-
-	// Type indicator
-	typeIndicator := strings.ToUpper(msg.Type)
-	typeColor := ""
-	switch msg.Type {
-	case "user":
-		typeColor = ansiCyan
-	case "assistant":
-		typeColor = ansiGreen
-	}
-
-	// Header
-	if opts.useColor {
-		fmt.Printf("%s[%s]%s %s%s%s", ansiDim, timeStr, ansiReset, typeColor, typeIndicator, ansiReset)
-	} else {
-		fmt.Printf("[%s] %s", timeStr, typeIndicator)
-	}
-
-	// Model and tokens for assistant
-	if msg.Message != nil {
-		if msg.Message.Model != "" {
-			if opts.useColor {
-				fmt.Printf(" %s(%s)%s", ansiMagenta, msg.Message.Model, ansiReset)
-			} else {
-				fmt.Printf(" (%s)", msg.Message.Model)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(pollInterval):
+			// Get all transcripts and filter to new ones
+			transcripts, err := backend.GetTranscripts(taskID)
+			if err != nil {
+				// Log but continue polling
+				fmt.Fprintf(os.Stderr, "Warning: failed to get transcripts: %v\n", err)
+				continue
 			}
-		}
-		if msg.Message.Usage != nil {
-			if opts.useColor {
-				fmt.Printf(" %s[in:%d out:%d]%s", ansiDim, msg.Message.Usage.InputTokens, msg.Message.Usage.OutputTokens, ansiReset)
-			} else {
-				fmt.Printf(" [in:%d out:%d]", msg.Message.Usage.InputTokens, msg.Message.Usage.OutputTokens)
+
+			// Filter to only new transcripts
+			for _, t := range transcripts {
+				if t.ID <= lastSeenID {
+					continue
+				}
+
+				// Apply type filter
+				if opts.responseOnly && t.Type != "assistant" {
+					continue
+				}
+				if opts.promptOnly && t.Type != "user" {
+					continue
+				}
+
+				// Apply phase filter
+				if opts.phase != "" && !strings.EqualFold(t.Phase, opts.phase) {
+					continue
+				}
+
+				// Show phase header when phase changes
+				if t.Phase != currentPhase {
+					currentPhase = t.Phase
+					if opts.useColor {
+						fmt.Printf("\n%s─── %s ───%s\n\n", ansiBold, currentPhase, ansiReset)
+					} else {
+						fmt.Printf("\n─── %s ───\n\n", currentPhase)
+					}
+				}
+
+				// Display the transcript
+				displaySingleTranscript(t, opts)
+
+				lastSeenID = t.ID
+			}
+
+			// Check if task is still running
+			st, err := backend.LoadState(taskID)
+			if err == nil && st != nil {
+				// If task completed/failed/paused, show message and exit
+				switch st.Status {
+				case "completed", "failed", "paused", "interrupted":
+					if opts.useColor {
+						fmt.Printf("\n%sTask %s (status: %s)%s\n", ansiDim, taskID, st.Status, ansiReset)
+					} else {
+						fmt.Printf("\nTask %s (status: %s)\n", taskID, st.Status)
+					}
+					return nil
+				}
 			}
 		}
 	}
-
-	fmt.Println()
-
-	// Content
-	if msg.Message != nil && len(msg.Message.Content) > 0 {
-		if opts.raw {
-			fmt.Println(string(msg.Message.Content))
-		} else {
-			displayFormattedContent(string(msg.Message.Content), opts)
-		}
-	}
-
-	fmt.Println()
-}
-
-// constructJSONLPathFallback attempts to construct the JSONL path from task state
-// when the path wasn't persisted to state. This uses the same path format as llmkit:
-// ~/.claude/projects/{normalized-workdir}/{sessionId}.jsonl
-func constructJSONLPathFallback(taskID string, st *state.State) (string, error) {
-	// Get session ID for the current phase
-	var sessionID string
-	if st.CurrentPhase != "" {
-		sessionID = st.GetPhaseSessionID(st.CurrentPhase)
-	}
-
-	// If no session ID stored, the phase hasn't run yet or state wasn't persisted
-	if sessionID == "" {
-		return "", fmt.Errorf("no session ID for phase %s", st.CurrentPhase)
-	}
-
-	// Get home directory for ~/.claude location
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("get home directory: %w", err)
-	}
-
-	// Try to find the worktree path
-	// First, check common worktree location relative to current directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("get working directory: %w", err)
-	}
-
-	// Look for worktree pattern: .orc/worktrees/orc-{TASK-ID}
-	worktreePath := filepath.Join(cwd, ".orc", "worktrees", "orc-"+taskID)
-	if _, err := os.Stat(worktreePath); err == nil {
-		// Worktree exists, construct JSONL path using worktree as workdir
-		normalizedPath := normalizeProjectPath(worktreePath)
-		return fmt.Sprintf("%s/.claude/projects/%s/%s.jsonl", homeDir, normalizedPath, sessionID), nil
-	}
-
-	// Fallback: use current directory as workdir (non-worktree execution)
-	normalizedPath := normalizeProjectPath(cwd)
-	jsonlPath := fmt.Sprintf("%s/.claude/projects/%s/%s.jsonl", homeDir, normalizedPath, sessionID)
-
-	// Verify the constructed path exists before returning
-	if _, err := os.Stat(jsonlPath); err != nil {
-		return "", fmt.Errorf("constructed JSONL path does not exist")
-	}
-
-	return jsonlPath, nil
-}
-
-// normalizeProjectPath converts an absolute path to Claude Code's normalized format.
-// Example: /home/user/repos/project -> -home-user-repos-project
-func normalizeProjectPath(path string) string {
-	// Remove leading slash and replace remaining slashes with dashes
-	normalized := strings.TrimPrefix(path, "/")
-	normalized = strings.ReplaceAll(normalized, "/", "-")
-	// Prepend dash to match Claude Code's format
-	return "-" + normalized
-}
-
-// formatFollowError returns an appropriate error message based on task status
-// when --follow cannot find a JSONL file.
-func formatFollowError(taskID string, st *state.State, constructErr error) error {
-	switch st.Status {
-	case state.StatusPending:
-		return fmt.Errorf("task %s has not started yet (status: pending)", taskID)
-	case state.StatusCompleted:
-		return fmt.Errorf("task %s has already completed - use 'orc log %s' without --follow to view transcripts", taskID, taskID)
-	case state.StatusFailed:
-		return fmt.Errorf("task %s has failed - use 'orc log %s' without --follow to view transcripts", taskID, taskID)
-	case state.StatusPaused:
-		return fmt.Errorf("task %s is paused (not actively running) - use 'orc resume %s' to continue", taskID, taskID)
-	case state.StatusInterrupted:
-		return fmt.Errorf("task %s was interrupted - use 'orc resume %s' to continue", taskID, taskID)
-	case state.StatusRunning:
-		// Task claims to be running but no JSONL - might be starting up or executor died
-		if constructErr != nil {
-			return fmt.Errorf("task %s is running but JSONL file not yet available (session may still be starting): %w", taskID, constructErr)
-		}
-		return fmt.Errorf("task %s is running but JSONL file not yet available (session may still be starting)", taskID)
-	default:
-		return fmt.Errorf("no JSONL file available for task %s (task status: %s)", taskID, st.Status)
-	}
-}
-
-// readFilesystemTranscripts reads markdown transcript files from the task directory.
-// Returns empty slice if directory doesn't exist or has no .md files.
-// Files are expected to be in .orc/tasks/{taskID}/transcripts/ directory.
-func readFilesystemTranscripts(taskID string) ([]storage.Transcript, error) {
-	// Compute transcript directory path
-	transcriptDir := filepath.Join(task.TaskDir(taskID), "transcripts")
-
-	// Check if directory exists
-	if _, err := os.Stat(transcriptDir); os.IsNotExist(err) {
-		return []storage.Transcript{}, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("stat transcripts directory: %w", err)
-	}
-
-	// Read directory contents
-	entries, err := os.ReadDir(transcriptDir)
-	if err != nil {
-		return nil, fmt.Errorf("read transcripts directory: %w", err)
-	}
-
-	var transcripts []storage.Transcript
-	for _, entry := range entries {
-		// Skip non-.md files
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-
-		// Parse filename to extract phase and sequence
-		phase, sequence, err := parseTranscriptFilename(entry.Name())
-		if err != nil {
-			// Log warning but continue with other files
-			fmt.Fprintf(os.Stderr, "Warning: skipping malformed transcript filename %s: %v\n", entry.Name(), err)
-			continue
-		}
-
-		// Read file content
-		filePath := filepath.Join(transcriptDir, entry.Name())
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			// Log warning but continue with other files
-			fmt.Fprintf(os.Stderr, "Warning: failed to read transcript file %s: %v\n", entry.Name(), err)
-			continue
-		}
-
-		// Get file modification time for timestamp
-		info, err := entry.Info()
-		if err != nil {
-			// Use current time as fallback
-			info = nil
-		}
-		timestamp := time.Now().UnixMilli()
-		if info != nil {
-			timestamp = info.ModTime().UnixMilli()
-		}
-
-		// Create transcript entry
-		// Content is stored as plain markdown text (not JSON array)
-		// Type is "assistant" since these are typically full conversation dumps
-		transcripts = append(transcripts, storage.Transcript{
-			TaskID:    taskID,
-			Phase:     phase,
-			Type:      "assistant", // Markdown files are typically full responses
-			Content:   string(content),
-			Timestamp: timestamp,
-			ID:        int64(sequence), // Use sequence as pseudo-ID for sorting
-		})
-	}
-
-	// Sort by sequence (stored in ID field)
-	sort.Slice(transcripts, func(i, j int) bool {
-		return transcripts[i].ID < transcripts[j].ID
-	})
-
-	return transcripts, nil
-}
-
-// parseTranscriptFilename extracts phase and sequence from filename.
-// Supported formats:
-//   - {sequence}-{phase}-{iteration}.md (e.g., "02-implement-003.md")
-//   - {phase}-{sequence}.md (e.g., "spec-001.md")
-func parseTranscriptFilename(filename string) (phase string, sequence int, err error) {
-	// Remove .md extension
-	name := strings.TrimSuffix(filename, ".md")
-
-	// Split by dashes
-	parts := strings.Split(name, "-")
-	if len(parts) < 2 {
-		return "", 0, fmt.Errorf("expected at least 2 parts separated by dashes, got %d", len(parts))
-	}
-
-	// Try parsing first part as sequence number
-	if seq, err := strconv.Atoi(parts[0]); err == nil {
-		// Format: {sequence}-{phase}-{iteration}.md
-		if len(parts) < 3 {
-			return "", 0, fmt.Errorf("sequence format requires 3 parts (seq-phase-iter), got %d", len(parts))
-		}
-		phase = parts[1]
-		sequence = seq
-		return phase, sequence, nil
-	}
-
-	// First part is not a number, assume format: {phase}-{sequence}.md
-	phase = parts[0]
-	seqStr := parts[len(parts)-1] // Last part should be sequence
-	seq, err := strconv.Atoi(seqStr)
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to parse sequence from last part %q: %w", seqStr, err)
-	}
-	sequence = seq
-	return phase, sequence, nil
 }
