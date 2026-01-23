@@ -455,10 +455,15 @@ type TestingConfig struct {
 	ParseOutput bool `yaml:"parse_output"`
 }
 
-// ValidationConfig defines Haiku validation and backpressure settings.
+// ValidationConfig defines Haiku validation settings.
 // This enables objective quality checks that don't rely on LLM self-assessment.
+//
+// NOTE: Quality checks (tests, lint, build, typecheck) are now defined at the
+// phase template level via quality_checks JSON. Project commands are stored in
+// the database and seeded during `orc init`. The Enforce* and *Command fields
+// below are deprecated and retained only for config file compatibility.
 type ValidationConfig struct {
-	// Enabled enables validation and backpressure checks (default: true)
+	// Enabled enables validation checks (default: true)
 	Enabled bool `yaml:"enabled"`
 
 	// Model is the model to use for validation calls (default: haiku)
@@ -467,25 +472,32 @@ type ValidationConfig struct {
 	// SkipForWeights skips validation for these task weights (default: [trivial, small])
 	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
 
-	// EnforceTests runs unit tests as backpressure before accepting phase completion (default: true)
+	// Deprecated: Quality checks are now defined in phase templates.
+	// Retained for config file compatibility.
 	EnforceTests bool `yaml:"enforce_tests"`
 
-	// EnforceLint runs linting as backpressure before accepting phase completion (default: true)
+	// Deprecated: Quality checks are now defined in phase templates.
+	// Retained for config file compatibility.
 	EnforceLint bool `yaml:"enforce_lint"`
 
-	// EnforceBuild runs build as backpressure before accepting phase completion (default: false)
+	// Deprecated: Quality checks are now defined in phase templates.
+	// Retained for config file compatibility.
 	EnforceBuild bool `yaml:"enforce_build"`
 
-	// EnforceTypeCheck runs type checking as backpressure (default: false)
+	// Deprecated: Quality checks are now defined in phase templates.
+	// Retained for config file compatibility.
 	EnforceTypeCheck bool `yaml:"enforce_typecheck"`
 
-	// LintCommand is the lint command to run (auto-detected if empty)
+	// Deprecated: Commands are now stored in the project_commands database table.
+	// Retained for config file compatibility.
 	LintCommand string `yaml:"lint_command,omitempty"`
 
-	// BuildCommand is the build command to run (auto-detected if empty)
+	// Deprecated: Commands are now stored in the project_commands database table.
+	// Retained for config file compatibility.
 	BuildCommand string `yaml:"build_command,omitempty"`
 
-	// TypeCheckCommand is the type check command to run (auto-detected if empty)
+	// Deprecated: Commands are now stored in the project_commands database table.
+	// Retained for config file compatibility.
 	TypeCheckCommand string `yaml:"typecheck_command,omitempty"`
 
 	// ValidateSpecs enables Haiku-based spec quality validation before execution (default: true)
@@ -1333,16 +1345,11 @@ func Default() *Config {
 			Enabled:          true,                // Validation enabled by default
 			Model:            "haiku",             // Haiku for fast validation
 			SkipForWeights:   []string{"trivial"}, // Only skip for trivial tasks
-			EnforceTests:     true,                // Run tests before accepting completion
-			EnforceLint:      true,                // Run lint before accepting completion
-			EnforceBuild:     false,               // Build not enforced by default
-			EnforceTypeCheck: false,               // Type check not enforced by default
-			LintCommand:      "",                  // Auto-detect
-			BuildCommand:     "",                  // Auto-detect
-			TypeCheckCommand: "",                  // Auto-detect
 			ValidateSpecs:    true,                // Haiku validates spec quality
 			ValidateCriteria: true,                // Haiku validates success criteria on completion
 			FailOnAPIError:   true,                // Fail properly on API errors (resumable)
+			// Note: EnforceTests/Lint/Build/TypeCheck moved to phase-level quality_checks
+			// Note: Commands moved to project_commands table (use orc config commands)
 		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
@@ -1653,6 +1660,7 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 }
 
 // ValidationPresets returns validation configuration for a given automation profile.
+// Note: EnforceTests/Lint/Build/TypeCheck are deprecated - quality checks are now phase-level.
 func ValidationPresets(profile AutomationProfile) ValidationConfig {
 	switch profile {
 	case ProfileFast:
@@ -1661,10 +1669,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			Enabled:          true,
 			Model:            "haiku",
 			SkipForWeights:   []string{"trivial", "small"},
-			EnforceTests:     true,
-			EnforceLint:      false,
-			EnforceBuild:     false,
-			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateCriteria: false, // Fast: skip criteria validation for speed
 			FailOnAPIError:   false, // Fast: fail open for speed
@@ -1675,10 +1679,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			Enabled:          true,
 			Model:            "haiku",
 			SkipForWeights:   []string{"trivial"},
-			EnforceTests:     true,
-			EnforceLint:      true,
-			EnforceBuild:     true,
-			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateCriteria: true, // Safe: validate criteria
 			FailOnAPIError:   true, // Safe: fail properly on API errors
@@ -1689,10 +1689,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			Enabled:          true,
 			Model:            "haiku",
 			SkipForWeights:   []string{}, // No skipping
-			EnforceTests:     true,
-			EnforceLint:      true,
-			EnforceBuild:     true,
-			EnforceTypeCheck: true,
 			ValidateSpecs:    true,
 			ValidateCriteria: true, // Strict: always validate criteria
 			FailOnAPIError:   true, // Strict: always fail properly on API errors
@@ -1703,10 +1699,6 @@ func ValidationPresets(profile AutomationProfile) ValidationConfig {
 			Enabled:          true,
 			Model:            "haiku",
 			SkipForWeights:   []string{"trivial"},
-			EnforceTests:     true,
-			EnforceLint:      true,
-			EnforceBuild:     false,
-			EnforceTypeCheck: false,
 			ValidateSpecs:    true,
 			ValidateCriteria: true, // Auto: validate criteria
 			FailOnAPIError:   true, // Auto: fail properly on API errors (quality-first)
@@ -2239,20 +2231,6 @@ func (c *Config) ShouldValidateForWeight(weight string) bool {
 		}
 	}
 	return true
-}
-
-// ShouldRunBackpressure returns true if backpressure checks should run for this weight.
-func (c *Config) ShouldRunBackpressure(weight string) bool {
-	if !c.Validation.Enabled {
-		return false
-	}
-	// At least one check must be enabled
-	hasCheck := c.Validation.EnforceTests || c.Validation.EnforceLint ||
-		c.Validation.EnforceBuild || c.Validation.EnforceTypeCheck
-	if !hasCheck {
-		return false
-	}
-	return c.ShouldValidateForWeight(weight)
 }
 
 // ShouldValidateSpec returns true if Haiku spec validation should run.

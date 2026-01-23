@@ -254,20 +254,45 @@ gates:
 
 ---
 
-## Backpressure (Quality Checks)
+## Quality Checks (Phase-Level)
 
-Quality is validated through **backpressure** - deterministic checks that run after a phase claims completion:
+Quality is validated through **phase-level quality checks** - deterministic checks that run after a phase claims completion.
 
-| Check | Description |
-|-------|-------------|
-| Tests | Run test suite, fail if tests fail |
-| Lint | Run linter, fail if errors |
-| Build | Run build, fail if errors |
-| Type check | Run type checker, fail if errors |
+### Configuration
 
-Backpressure provides objective, repeatable quality validation without LLM judgment calls.
+Quality checks are defined per phase template in the database:
 
-See `internal/executor/backpressure.go` for implementation.
+```json
+[
+  {"type": "code", "name": "tests", "enabled": true, "on_failure": "block"},
+  {"type": "code", "name": "lint", "enabled": true, "on_failure": "block"},
+  {"type": "code", "name": "build", "enabled": true, "on_failure": "block"},
+  {"type": "code", "name": "typecheck", "enabled": true, "on_failure": "block"}
+]
+```
+
+### Check Types
+
+| Type | Behavior |
+|------|----------|
+| `code` | Looks up command from `project_commands` table by name |
+| `custom` | Uses the `command` field directly |
+
+### On-Failure Modes
+
+| Mode | Behavior |
+|------|----------|
+| `block` | Phase fails, context injected for retry |
+| `warn` | Warning logged, completion accepted |
+| `skip` | Check disabled |
+
+### Project Commands
+
+Commands are seeded during `orc init` based on project detection and stored in the `project_commands` database table. Manage with `orc config commands`.
+
+Quality checks provide objective, repeatable quality validation without LLM judgment calls.
+
+See `internal/executor/quality_checks.go` for implementation.
 
 ---
 

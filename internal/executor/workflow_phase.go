@@ -30,6 +30,10 @@ type PhaseExecutionConfig struct {
 	PhaseID       string
 	RunID         string
 	Thinking      bool
+
+	// For quality checks
+	PhaseTemplate *db.PhaseTemplate
+	WorkflowPhase *db.WorkflowPhase
 }
 
 // PhaseExecutionResult holds the result of a phase execution.
@@ -111,6 +115,8 @@ func (we *WorkflowExecutor) executePhase(
 		PhaseID:       tmpl.ID,
 		RunID:         run.ID,
 		Thinking:      we.shouldUseThinking(tmpl, phase),
+		PhaseTemplate: tmpl,
+		WorkflowPhase: phase,
 	}
 
 	// Execute with ClaudeExecutor
@@ -311,19 +317,26 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 
 		switch status {
 		case PhaseStatusComplete:
-			// Run backpressure checks for implement phase before accepting completion
-			if we.backpressure != nil && !ShouldSkipBackpressure(cfg.PhaseID) {
-				bpResult := we.backpressure.Run(ctx)
-				if bpResult.HasFailures() {
-					we.logger.Info("backpressure failed, continuing iteration",
+			// Run quality checks if configured for this phase
+			if checkResult := we.runQualityChecks(ctx, cfg); checkResult != nil {
+				if checkResult.HasBlocks {
+					we.logger.Info("quality checks failed, continuing iteration",
 						"phase", cfg.PhaseID,
-						"failures", bpResult.FailureSummary(),
+						"failures", checkResult.FailureSummary(),
 					)
-					// Continue with backpressure context
-					prompt = FormatBackpressureForPrompt(bpResult)
+					// Continue with quality check failure context
+					prompt = FormatQualityChecksForPrompt(checkResult)
 					continue
 				}
-				we.logger.Info("backpressure passed", "phase", cfg.PhaseID)
+				// Warnings only - log but continue
+				if !checkResult.AllPassed {
+					we.logger.Warn("quality checks had warnings",
+						"phase", cfg.PhaseID,
+						"failures", checkResult.FailureSummary(),
+					)
+				} else {
+					we.logger.Info("quality checks passed", "phase", cfg.PhaseID)
+				}
 			}
 
 			// Extract artifact if present
@@ -663,4 +676,49 @@ func (we *WorkflowExecutor) storeTranscripts(taskID, phaseID, sessionID, model, 
 	if err := we.backend.AddTranscript(assistantTranscript); err != nil {
 		we.logger.Warn("failed to store assistant transcript", "task", taskID, "phase", phaseID, "error", err)
 	}
+}
+
+// runQualityChecks runs quality checks configured for the phase.
+// Returns nil if no checks are configured.
+func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecutionConfig) *QualityCheckResult {
+	// Load quality checks from phase template (with workflow override)
+	checks, err := LoadQualityChecksForPhase(cfg.PhaseTemplate, cfg.WorkflowPhase)
+	if err != nil {
+		we.logger.Warn("failed to load quality checks - continuing without checks",
+			"phase", cfg.PhaseID,
+			"error", err,
+			"note", "check phase_templates.quality_checks JSON format",
+		)
+		return nil
+	}
+
+	if len(checks) == 0 {
+		// No checks configured for this phase
+		we.logger.Debug("no quality checks configured for phase", "phase", cfg.PhaseID)
+		return nil
+	}
+
+	we.logger.Info("running quality checks", "phase", cfg.PhaseID, "check_count", len(checks))
+
+	// Load project commands from database
+	commands, err := we.projectDB.GetProjectCommandsMap()
+	if err != nil {
+		we.logger.Warn("failed to load project commands - code checks may not run",
+			"phase", cfg.PhaseID,
+			"error", err,
+			"hint", "run 'orc config commands' to view/configure",
+		)
+		// Continue with empty commands - custom checks may still work
+		commands = make(map[string]*db.ProjectCommand)
+	}
+
+	// Create and run the quality check runner
+	runner := NewQualityCheckRunner(
+		cfg.WorkingDir,
+		checks,
+		commands,
+		we.logger,
+	)
+
+	return runner.Run(ctx)
 }

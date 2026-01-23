@@ -132,6 +132,12 @@ func Run(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("store detection: %w", err)
 	}
 
+	// 4b. Seed project commands for quality checks
+	if err := seedProjectCommands(pdb, detection); err != nil {
+		// Non-fatal - just warn
+		fmt.Fprintf(os.Stderr, "Warning: could not seed project commands: %v\n", err)
+	}
+
 	// 5. Register in global registry (YAML - for backwards compat during migration)
 	proj, err := project.RegisterProject(opts.WorkDir)
 	if err != nil {
@@ -234,6 +240,102 @@ func buildToolsToStrings(tools []detect.BuildTool) []string {
 		result[i] = string(t)
 	}
 	return result
+}
+
+// seedProjectCommands creates default project commands based on detection results.
+// These commands are used by quality checks during phase execution.
+func seedProjectCommands(pdb *db.ProjectDB, detection *detect.Detection) error {
+	if detection == nil {
+		return nil
+	}
+
+	commands := []*db.ProjectCommand{}
+
+	// Test command
+	if detection.TestCommand != "" {
+		cmd := &db.ProjectCommand{
+			Name:        "tests",
+			Domain:      "code",
+			Command:     detection.TestCommand,
+			Enabled:     true,
+			Description: "Run project tests",
+		}
+		// Add short command variant for Go
+		if detection.Language == detect.ProjectTypeGo {
+			cmd.ShortCommand = "go test -short ./..."
+		}
+		commands = append(commands, cmd)
+	}
+
+	// Lint command
+	if detection.LintCommand != "" {
+		commands = append(commands, &db.ProjectCommand{
+			Name:        "lint",
+			Domain:      "code",
+			Command:     detection.LintCommand,
+			Enabled:     true,
+			Description: "Run linter",
+		})
+	}
+
+	// Build command
+	if detection.BuildCommand != "" {
+		commands = append(commands, &db.ProjectCommand{
+			Name:        "build",
+			Domain:      "code",
+			Command:     detection.BuildCommand,
+			Enabled:     true,
+			Description: "Build project",
+		})
+	}
+
+	// Typecheck command (inferred by language)
+	typecheckCmd := inferTypecheckCommand(detection)
+	if typecheckCmd != "" {
+		commands = append(commands, &db.ProjectCommand{
+			Name:        "typecheck",
+			Domain:      "code",
+			Command:     typecheckCmd,
+			Enabled:     true,
+			Description: "Run type checker",
+		})
+	}
+
+	// Save all commands
+	for _, cmd := range commands {
+		if err := pdb.SaveProjectCommand(cmd); err != nil {
+			return fmt.Errorf("save project command %s: %w", cmd.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// inferTypecheckCommand returns the typecheck command based on language.
+func inferTypecheckCommand(d *detect.Detection) string {
+	switch d.Language {
+	case detect.ProjectTypeGo:
+		return "go build -o /dev/null ./..."
+	case detect.ProjectTypeTypeScript:
+		// Check for common package managers
+		for _, tool := range d.BuildTools {
+			switch tool {
+			case detect.BuildToolPnpm:
+				return "pnpm exec tsc --noEmit"
+			case detect.BuildToolYarn:
+				return "yarn tsc --noEmit"
+			case detect.BuildToolBun:
+				return "bun tsc --noEmit"
+			}
+		}
+		return "npx tsc --noEmit"
+	case detect.ProjectTypePython:
+		return "pyright"
+	case detect.ProjectTypeRust:
+		return "cargo check"
+	default:
+		return ""
+	}
 }
 
 // PrintResult prints a summary of the initialization.

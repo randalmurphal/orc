@@ -19,8 +19,9 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `phase.go` | Phase CRUD, Tx variants |
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
 | `plan.go` | Plan CRUD |
-| `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD |
+| `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD, QualityCheck type |
 | `phase_output.go` | Phase output CRUD (unified specs + artifacts) |
+| `project_command.go` | ProjectCommand CRUD (quality check commands) |
 | `event_log.go` | EventLog CRUD, batch insert, time/type filtering for timeline |
 | `gate_decision.go` | GateDecision CRUD, Tx variants |
 | `attachment.go` | Attachment CRUD |

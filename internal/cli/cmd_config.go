@@ -14,6 +14,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // newConfigCmd creates the config command with subcommands.
@@ -56,6 +58,7 @@ Examples:
 	cmd.AddCommand(newConfigResolutionCmd())
 	cmd.AddCommand(newConfigEditCmd())
 	cmd.AddCommand(newConfigDocsCmd())
+	cmd.AddCommand(newConfigCommandsCmd())
 
 	return cmd
 }
@@ -627,4 +630,241 @@ Examples:
 	cmd.Flags().StringVarP(&search, "search", "s", "", "Search for options")
 
 	return cmd
+}
+
+// newConfigCommandsCmd creates the 'config commands' subcommand.
+func newConfigCommandsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "commands",
+		Short: "Manage project commands for quality checks",
+		Long: `Manage project commands used by quality checks.
+
+Project commands (tests, lint, build, typecheck) are used by phase-level
+quality checks to validate work. Commands are stored in the database and
+seeded during 'orc init' based on project type detection.
+
+Subcommands:
+  list      List all project commands (default)
+  set       Set or update a command
+  enable    Enable a disabled command
+  disable   Disable a command
+  delete    Delete a command
+
+Examples:
+  orc config commands                           # List all commands
+  orc config commands list                      # Same as above
+  orc config commands set tests "npm test"      # Set test command
+  orc config commands set lint "golangci-lint run" --domain go
+  orc config commands enable typecheck          # Enable a command
+  orc config commands disable build             # Disable a command
+  orc config commands delete custom_check       # Delete a command`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Default to list
+			return runConfigCommandsList(cmd)
+		},
+	}
+
+	cmd.AddCommand(newConfigCommandsListCmd())
+	cmd.AddCommand(newConfigCommandsSetCmd())
+	cmd.AddCommand(newConfigCommandsEnableCmd())
+	cmd.AddCommand(newConfigCommandsDisableCmd())
+	cmd.AddCommand(newConfigCommandsDeleteCmd())
+
+	return cmd
+}
+
+// newConfigCommandsListCmd creates the 'config commands list' subcommand.
+func newConfigCommandsListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List all project commands",
+		Long:  `List all project commands with their status and command strings.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runConfigCommandsList(cmd)
+		},
+	}
+}
+
+func runConfigCommandsList(cmd *cobra.Command) error {
+	cfg := config.Default()
+	backend, err := storage.NewBackend(".", &cfg.Storage)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer backend.Close()
+
+	cmds, err := backend.ListProjectCommands()
+	if err != nil {
+		return fmt.Errorf("list commands: %w", err)
+	}
+
+	out := cmd.OutOrStdout()
+	if len(cmds) == 0 {
+		_, _ = fmt.Fprintln(out, "No project commands configured.")
+		_, _ = fmt.Fprintln(out, "Run 'orc init' to detect and configure commands for your project.")
+		return nil
+	}
+
+	_, _ = fmt.Fprintln(out, "Project Commands:")
+	_, _ = fmt.Fprintln(out, "")
+
+	for _, c := range cmds {
+		status := "✓"
+		if !c.Enabled {
+			status = "✗"
+		}
+		domain := ""
+		if c.Domain != "" {
+			domain = fmt.Sprintf(" [%s]", c.Domain)
+		}
+		_, _ = fmt.Fprintf(out, "  %s %-12s%s: %s\n", status, c.Name, domain, c.Command)
+	}
+
+	_, _ = fmt.Fprintln(out, "")
+	_, _ = fmt.Fprintln(out, "Use 'orc config commands set NAME \"command\"' to modify.")
+
+	return nil
+}
+
+// newConfigCommandsSetCmd creates the 'config commands set' subcommand.
+func newConfigCommandsSetCmd() *cobra.Command {
+	var domain string
+
+	cmd := &cobra.Command{
+		Use:   "set <name> <command>",
+		Short: "Set or update a project command",
+		Long: `Set or update a project command.
+
+Standard command names: tests, lint, build, typecheck
+Custom commands can also be created for use with custom quality checks.
+
+Examples:
+  orc config commands set tests "npm test"
+  orc config commands set lint "golangci-lint run ./..."
+  orc config commands set typecheck "npx tsc --noEmit"
+  orc config commands set custom_check "./scripts/validate.sh" --domain scripts`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name, command := args[0], args[1]
+
+			cfg := config.Default()
+			backend, err := storage.NewBackend(".", &cfg.Storage)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer backend.Close()
+
+			projectCmd := &db.ProjectCommand{
+				Name:    name,
+				Command: command,
+				Domain:  domain,
+				Enabled: true,
+			}
+
+			if err := backend.SaveProjectCommand(projectCmd); err != nil {
+				return fmt.Errorf("save command: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Set command '%s' = %s\n", name, command)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&domain, "domain", "", "Optional domain for the command (e.g., go, node, python)")
+
+	return cmd
+}
+
+// newConfigCommandsEnableCmd creates the 'config commands enable' subcommand.
+func newConfigCommandsEnableCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "enable <name>",
+		Short: "Enable a project command",
+		Long: `Enable a previously disabled project command.
+
+Example:
+  orc config commands enable typecheck`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+
+			cfg := config.Default()
+			backend, err := storage.NewBackend(".", &cfg.Storage)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer backend.Close()
+
+			if err := backend.SetProjectCommandEnabled(name, true); err != nil {
+				return fmt.Errorf("enable command: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Enabled command '%s'\n", name)
+			return nil
+		},
+	}
+}
+
+// newConfigCommandsDisableCmd creates the 'config commands disable' subcommand.
+func newConfigCommandsDisableCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "disable <name>",
+		Short: "Disable a project command",
+		Long: `Disable a project command without deleting it.
+
+Disabled commands are skipped by quality checks.
+
+Example:
+  orc config commands disable build`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+
+			cfg := config.Default()
+			backend, err := storage.NewBackend(".", &cfg.Storage)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer backend.Close()
+
+			if err := backend.SetProjectCommandEnabled(name, false); err != nil {
+				return fmt.Errorf("disable command: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Disabled command '%s'\n", name)
+			return nil
+		},
+	}
+}
+
+// newConfigCommandsDeleteCmd creates the 'config commands delete' subcommand.
+func newConfigCommandsDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a project command",
+		Long: `Delete a project command from the database.
+
+This removes the command entirely. To temporarily disable, use 'disable' instead.
+
+Example:
+  orc config commands delete custom_check`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name := args[0]
+
+			cfg := config.Default()
+			backend, err := storage.NewBackend(".", &cfg.Storage)
+			if err != nil {
+				return fmt.Errorf("open database: %w", err)
+			}
+			defer backend.Close()
+
+			if err := backend.DeleteProjectCommand(name); err != nil {
+				return fmt.Errorf("delete command: %w", err)
+			}
+
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deleted command '%s'\n", name)
+			return nil
+		},
+	}
 }

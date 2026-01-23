@@ -198,21 +198,6 @@ func (we *WorkflowExecutor) runGHCreatePR(ctx context.Context, title, body, targ
 	return prURL, nil
 }
 
-// initBackpressure initializes the backpressure runner if configured.
-func (we *WorkflowExecutor) initBackpressure() {
-	if we.orcConfig == nil || !we.orcConfig.Validation.Enabled {
-		return
-	}
-
-	workDir := we.effectiveWorkingDir()
-	we.backpressure = NewBackpressureRunner(
-		workDir,
-		&we.orcConfig.Validation,
-		&we.orcConfig.Testing,
-		we.logger,
-	)
-}
-
 // setupWorktree creates or reuses an isolated worktree for the given task.
 func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
 	result, err := SetupWorktreeForTask(t, we.orcConfig, we.gitOps, we.backend)

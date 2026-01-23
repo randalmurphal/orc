@@ -27,8 +27,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `ci_merge.go` | CI polling and auto-merge with retry logic |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
-| `backpressure.go` | Deterministic quality checks (tests, lint, build) |
-| `haiku_validation.go` | Spec and criteria validation |
+| `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |
+| `checklist_validation.go` | Spec and criteria validation |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 
 ## Architecture
@@ -207,14 +207,54 @@ TurnResult.Usage → Result{InputTokens, OutputTokens, CostUSD} → recordCostTo
 
 **Note:** Use `EffectiveInputTokens()` not raw `InputTokens` (includes cache tokens).
 
-## Backpressure & Validation
+## Quality Checks & Validation
+
+Quality checks are defined at the **phase template level**, not globally. Each phase template can specify which checks to run via the `quality_checks` JSON field.
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| Backpressure | `backpressure.go:146` | Runs tests/lint/build after completion claim |
-| Haiku Validation | `haiku_validation.go` | Validates spec/criteria quality |
+| QualityCheckRunner | `quality_checks.go` | Runs phase-level quality checks after completion claim |
+| Haiku Validation | `checklist_validation.go` | Validates spec/criteria quality |
 
-**Flow:** Agent outputs `{"status": "complete"}` -> Backpressure runs -> Criteria validation -> If any fail, inject context and continue.
+### Quality Check Types
+
+| Type | Behavior |
+|------|----------|
+| `code` | Looks up command from `project_commands` table by name (tests, lint, build, typecheck) |
+| `custom` | Uses the `command` field directly |
+
+### Quality Check Configuration
+
+Phase templates define checks in `quality_checks` JSON:
+```json
+[
+  {"type": "code", "name": "tests", "enabled": true, "on_failure": "block"},
+  {"type": "code", "name": "lint", "enabled": true, "on_failure": "warn"}
+]
+```
+
+Workflow phases can override via `quality_checks_override`.
+
+### On Failure Modes
+
+| Mode | Behavior |
+|------|----------|
+| `block` | Fails the phase, injects context for retry |
+| `warn` | Logs warning but allows completion |
+| `skip` | Skips the check entirely |
+
+**Flow:** Agent outputs `{"status": "complete"}` -> Quality checks run -> Criteria validation -> If any blocking checks fail, inject context and continue.
+
+### Project Commands
+
+Commands are stored in `project_commands` table and seeded during `orc init` based on project detection:
+
+| Name | Example Command |
+|------|-----------------|
+| tests | `go test ./...` |
+| lint | `golangci-lint run` |
+| build | `go build ./...` |
+| typecheck | `go build -o /dev/null ./...` |
 
 **API Error Handling:** `config.Validation.FailOnAPIError` - `true` fails task properly (resumable), `false` continues without validation.
 

@@ -2261,5 +2261,53 @@ func (d *DatabaseBackend) SaveWorkflowRunPhase(wrp *db.WorkflowRunPhase) error {
 	return d.db.SaveWorkflowRunPhase(wrp)
 }
 
+// SaveProjectCommand creates or updates a project command.
+func (d *DatabaseBackend) SaveProjectCommand(cmd *db.ProjectCommand) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SaveProjectCommand(cmd)
+}
+
+// GetProjectCommand retrieves a project command by name.
+func (d *DatabaseBackend) GetProjectCommand(name string) (*db.ProjectCommand, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetProjectCommand(name)
+}
+
+// ListProjectCommands returns all project commands.
+func (d *DatabaseBackend) ListProjectCommands() ([]*db.ProjectCommand, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.ListProjectCommands()
+}
+
+// GetProjectCommandsMap returns all enabled project commands as a map by name.
+func (d *DatabaseBackend) GetProjectCommandsMap() (map[string]*db.ProjectCommand, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetProjectCommandsMap()
+}
+
+// DeleteProjectCommand removes a project command by name.
+func (d *DatabaseBackend) DeleteProjectCommand(name string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeleteProjectCommand(name)
+}
+
+// SetProjectCommandEnabled enables or disables a project command.
+func (d *DatabaseBackend) SetProjectCommandEnabled(name string, enabled bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.SetProjectCommandEnabled(name, enabled)
+}
+
 // Ensure DatabaseBackend implements Backend
 var _ Backend = (*DatabaseBackend)(nil)

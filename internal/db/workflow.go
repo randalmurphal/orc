@@ -2,9 +2,47 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
+
+// QualityCheck defines a single quality check to run after phase completion.
+// These are configured at the phase template level and can be overridden per workflow.
+type QualityCheck struct {
+	Type      string `json:"type"`                 // "code" (uses project_commands) or "custom"
+	Name      string `json:"name"`                 // For "code": 'tests', 'lint', 'build', 'typecheck'. For "custom": user-defined name
+	Enabled   bool   `json:"enabled"`              // Whether this check is active
+	Command   string `json:"command,omitempty"`    // For "custom" type or to override project command
+	OnFailure string `json:"on_failure,omitempty"` // "block" (default), "warn", "skip"
+	TimeoutMs int    `json:"timeout_ms,omitempty"` // 0 = use default (2 minutes)
+}
+
+// ParseQualityChecks parses a JSON string into a slice of QualityCheck.
+// Returns nil for empty/null input.
+func ParseQualityChecks(jsonStr string) ([]QualityCheck, error) {
+	if jsonStr == "" || jsonStr == "null" {
+		return nil, nil
+	}
+	var checks []QualityCheck
+	if err := json.Unmarshal([]byte(jsonStr), &checks); err != nil {
+		return nil, fmt.Errorf("parse quality checks: %w", err)
+	}
+	return checks, nil
+}
+
+// MarshalQualityChecks serializes quality checks to JSON string.
+// Returns empty string for nil/empty slice.
+func MarshalQualityChecks(checks []QualityCheck) (string, error) {
+	if len(checks) == 0 {
+		return "", nil
+	}
+	data, err := json.Marshal(checks)
+	if err != nil {
+		return "", fmt.Errorf("marshal quality checks: %w", err)
+	}
+	return string(data), nil
+}
 
 // PhaseTemplate represents a reusable phase definition.
 type PhaseTemplate struct {
@@ -23,6 +61,10 @@ type PhaseTemplate struct {
 	ProducesArtifact bool   `json:"produces_artifact"`
 	ArtifactType     string `json:"artifact_type,omitempty"`
 	OutputVarName    string `json:"output_var_name,omitempty"` // Variable name for output (e.g., 'SPEC_CONTENT')
+
+	// Quality checks
+	OutputType    string `json:"output_type,omitempty"`    // 'code', 'tests', 'document', 'data', 'research', 'none'
+	QualityChecks string `json:"quality_checks,omitempty"` // JSON array of QualityCheck
 
 	// Execution config
 	MaxIterations   int    `json:"max_iterations"`
@@ -68,7 +110,8 @@ type WorkflowPhase struct {
 	ModelOverride         string `json:"model_override,omitempty"`
 	ThinkingOverride      *bool  `json:"thinking_override,omitempty"`
 	GateTypeOverride      string `json:"gate_type_override,omitempty"`
-	Condition             string `json:"condition,omitempty"` // JSON
+	Condition             string `json:"condition,omitempty"`              // JSON
+	QualityChecksOverride string `json:"quality_checks_override,omitempty"` // JSON array, NULL=use template, []=disable all
 }
 
 // WorkflowVariable defines a custom variable for a workflow.
@@ -161,9 +204,10 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 	_, err := p.Exec(`
 		INSERT INTO phase_templates (id, name, description, prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -175,6 +219,8 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			produces_artifact = excluded.produces_artifact,
 			artifact_type = excluded.artifact_type,
 			output_var_name = excluded.output_var_name,
+			output_type = excluded.output_type,
+			quality_checks = excluded.quality_checks,
 			max_iterations = excluded.max_iterations,
 			model_override = excluded.model_override,
 			thinking_enabled = excluded.thinking_enabled,
@@ -185,6 +231,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, pt.PromptSource, pt.PromptContent, pt.PromptPath,
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
+		pt.OutputType, pt.QualityChecks,
 		pt.MaxIterations, pt.ModelOverride, thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
@@ -199,6 +246,7 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 	row := p.QueryRow(`
 		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
 		FROM phase_templates WHERE id = ?
@@ -219,6 +267,7 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 	rows, err := p.Query(`
 		SELECT id, name, description, prompt_source, prompt_content, prompt_path,
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
 		FROM phase_templates
@@ -334,8 +383,9 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 
 	res, err := p.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
-			max_iterations_override, model_override, thinking_override, gate_type_override, condition)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			quality_checks_override)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
@@ -343,9 +393,11 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			model_override = excluded.model_override,
 			thinking_override = excluded.thinking_override,
 			gate_type_override = excluded.gate_type_override,
-			condition = excluded.condition
+			condition = excluded.condition,
+			quality_checks_override = excluded.quality_checks_override
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
-		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition)
+		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
+		wp.QualityChecksOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -362,7 +414,8 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error) {
 	rows, err := p.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
-			max_iterations_override, model_override, thinking_override, gate_type_override, condition
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			quality_checks_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
@@ -729,11 +782,13 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	var createdAt, updatedAt string
 	var thinkingEnabled sql.NullBool
 	var description, promptContent, promptPath, inputVars, outputSchema, artifactType, outputVarName sql.NullString
+	var outputType, qualityChecks sql.NullString
 	var modelOverride, retryFromPhase, retryPromptPath sql.NullString
 
 	err := row.Scan(
 		&pt.ID, &pt.Name, &description, &pt.PromptSource, &promptContent, &promptPath,
 		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType, &outputVarName,
+		&outputType, &qualityChecks,
 		&pt.MaxIterations, &modelOverride, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
 		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
 	)
@@ -748,6 +803,8 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt.OutputSchema = outputSchema.String
 	pt.ArtifactType = artifactType.String
 	pt.OutputVarName = outputVarName.String
+	pt.OutputType = outputType.String
+	pt.QualityChecks = qualityChecks.String
 	pt.ModelOverride = modelOverride.String
 	pt.ThinkingEnabled = nullBoolToPtr(thinkingEnabled)
 	pt.RetryFromPhase = retryFromPhase.String
@@ -790,13 +847,14 @@ func scanWorkflowRow(rows *sql.Rows) (*Workflow, error) {
 
 func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp := &WorkflowPhase{}
-	var dependsOn, modelOverride, gateTypeOverride, condition sql.NullString
+	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride sql.NullString
 	var maxIterOverride sql.NullInt64
 	var thinkingOverride sql.NullBool
 
 	err := rows.Scan(
 		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
 		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
+		&qualityChecksOverride,
 	)
 	if err != nil {
 		return nil, err
@@ -808,6 +866,7 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp.ThinkingOverride = nullBoolToPtr(thinkingOverride)
 	wp.GateTypeOverride = gateTypeOverride.String
 	wp.Condition = condition.String
+	wp.QualityChecksOverride = qualityChecksOverride.String
 
 	return wp, nil
 }
