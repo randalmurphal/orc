@@ -515,9 +515,17 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 		isAutomation = 1
 	}
 
+	// Format updated_at
+	var updatedAt string
+	if !t.UpdatedAt.IsZero() {
+		updatedAt = t.UpdatedAt.Format(time.RFC3339)
+	} else {
+		updatedAt = time.Now().Format(time.RFC3339)
+	}
+
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -533,6 +541,7 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			initiative_id = excluded.initiative_id,
 			started_at = excluded.started_at,
 			completed_at = excluded.completed_at,
+			updated_at = excluded.updated_at,
 			total_cost_usd = excluded.total_cost_usd,
 			metadata = excluded.metadata,
 			retry_context = excluded.retry_context,
@@ -543,7 +552,7 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			last_heartbeat = excluded.last_heartbeat,
 			is_automation = excluded.is_automation
 	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
-		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
+		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, updatedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)

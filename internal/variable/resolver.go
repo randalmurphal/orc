@@ -287,6 +287,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["TASK_TITLE"] = rctx.TaskTitle
 	vars["TASK_DESCRIPTION"] = rctx.TaskDescription
 	vars["TASK_CATEGORY"] = rctx.TaskCategory
+	vars["WEIGHT"] = rctx.TaskWeight
 
 	// Run context
 	vars["RUN_ID"] = rctx.WorkflowRunID
@@ -297,14 +298,65 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	// Phase context
 	vars["PHASE"] = rctx.Phase
 	vars["ITERATION"] = fmt.Sprintf("%d", rctx.Iteration)
+	vars["RETRY_CONTEXT"] = rctx.RetryContext
 
 	// Git context
 	vars["WORKTREE_PATH"] = rctx.WorkingDir
+	vars["PROJECT_ROOT"] = rctx.ProjectRoot
 	vars["TASK_BRANCH"] = rctx.TaskBranch
 	vars["TARGET_BRANCH"] = rctx.TargetBranch
 
 	// Constitution content (project-level principles)
 	vars["CONSTITUTION_CONTENT"] = rctx.ConstitutionContent
+
+	// Initiative context
+	vars["INITIATIVE_ID"] = rctx.InitiativeID
+	vars["INITIATIVE_TITLE"] = rctx.InitiativeTitle
+	vars["INITIATIVE_VISION"] = rctx.InitiativeVision
+	vars["INITIATIVE_DECISIONS"] = rctx.InitiativeDecisions
+	vars["INITIATIVE_TASKS"] = rctx.InitiativeTasks
+	// Format full initiative context section if initiative is set
+	if rctx.InitiativeID != "" {
+		vars["INITIATIVE_CONTEXT"] = formatInitiativeContext(rctx)
+	}
+
+	// Review context
+	vars["REVIEW_ROUND"] = fmt.Sprintf("%d", rctx.ReviewRound)
+	vars["REVIEW_FINDINGS"] = rctx.ReviewFindings
+
+	// Project detection context
+	vars["LANGUAGE"] = rctx.Language
+	if rctx.HasFrontend {
+		vars["HAS_FRONTEND"] = "true"
+	}
+	if rctx.HasTests {
+		vars["HAS_TESTS"] = "true"
+	}
+	vars["TEST_COMMAND"] = rctx.TestCommand
+	vars["LINT_COMMAND"] = rctx.LintCommand
+	vars["BUILD_COMMAND"] = rctx.BuildCommand
+	vars["FRAMEWORKS"] = strings.Join(rctx.Frameworks, ", ")
+
+	// Testing configuration
+	if rctx.CoverageThreshold > 0 {
+		vars["COVERAGE_THRESHOLD"] = fmt.Sprintf("%d", rctx.CoverageThreshold)
+	} else {
+		vars["COVERAGE_THRESHOLD"] = "85" // Default
+	}
+
+	// UI testing context
+	if rctx.RequiresUITesting {
+		vars["REQUIRES_UI_TESTING"] = "true"
+	}
+	vars["SCREENSHOT_DIR"] = rctx.ScreenshotDir
+	vars["TEST_RESULTS"] = rctx.TestResults
+	vars["TDD_TEST_PLAN"] = rctx.TDDTestPlan
+
+	// Automation context
+	vars["RECENT_COMPLETED_TASKS"] = rctx.RecentCompletedTasks
+	vars["RECENT_CHANGED_FILES"] = rctx.RecentChangedFiles
+	vars["CHANGELOG_CONTENT"] = rctx.ChangelogContent
+	vars["CLAUDEMD_CONTENT"] = rctx.ClaudeMDContent
 
 	// Add prior phase outputs with OUTPUT_ prefix
 	for phase, content := range rctx.PriorOutputs {
@@ -325,8 +377,37 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 			vars["BREAKDOWN_CONTENT"] = content
 		case "implement":
 			vars["IMPLEMENT_CONTENT"] = content
+			vars["IMPLEMENTATION_SUMMARY"] = content // Alias for template compatibility
 		}
 	}
+}
+
+// formatInitiativeContext builds a complete initiative context section for templates.
+func formatInitiativeContext(rctx *ResolutionContext) string {
+	if rctx.InitiativeID == "" {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("## Initiative Context\n\n")
+	fmt.Fprintf(&sb, "This task is part of **%s** (%s).\n", rctx.InitiativeTitle, rctx.InitiativeID)
+
+	if rctx.InitiativeVision != "" {
+		sb.WriteString("\n### Vision\n\n")
+		sb.WriteString(rctx.InitiativeVision)
+		sb.WriteString("\n")
+	}
+
+	if rctx.InitiativeDecisions != "" {
+		sb.WriteString("\n### Decisions\n\n")
+		sb.WriteString("The following decisions have been made for this initiative:\n\n")
+		sb.WriteString(rctx.InitiativeDecisions)
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("\n**Alignment**: Ensure your work aligns with the initiative vision and respects prior decisions.\n")
+
+	return sb.String()
 }
 
 // ClearCache clears the resolver's cache.

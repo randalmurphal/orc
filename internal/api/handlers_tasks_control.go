@@ -9,9 +9,9 @@ import (
 
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // truncate truncates a string for logging purposes.
@@ -22,7 +22,7 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// handleRunTask starts task execution.
+// handleRunTask starts task execution using WorkflowExecutor.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	t, err := s.backend.LoadTask(id)
@@ -31,7 +31,6 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Debug: log task fields to trace description injection
 	s.logger.Debug("handleRunTask: task loaded",
 		"task_id", t.ID,
 		"title", t.Title,
@@ -46,26 +45,18 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 
 	// Check for incomplete blockers
 	if len(t.BlockedBy) > 0 {
-		// Check if force=true query param is set
 		force := r.URL.Query().Get("force") == "true"
-
 		if !force {
-			// Load all tasks to check blocker status
 			allTasks, err := s.backend.LoadAllTasks()
 			if err != nil {
 				s.logger.Warn("failed to load tasks for dependency check", "error", err)
-				// Continue anyway - don't block on dependency check failure
 			} else {
-				// Build task map
 				taskMap := make(map[string]*task.Task)
 				for _, tsk := range allTasks {
 					taskMap[tsk.ID] = tsk
 				}
-
-				// Get incomplete blockers
 				blockers := t.GetIncompleteBlockers(taskMap)
 				if len(blockers) > 0 {
-					// Return 409 Conflict with blocker details
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusConflict)
 					_ = json.NewEncoder(w).Encode(map[string]any{
@@ -80,25 +71,17 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create execution plan from task weight
-	p := createPlanForWeightLocal(id, t.Weight)
+	// Get workflow ID from task weight
+	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
 
-	st, err := s.backend.LoadState(id)
-	if err != nil || st == nil {
-		// Create new state if it doesn't exist
-		st = state.New(id)
+	// Get first phase of workflow to set current_phase
+	phases, err := s.backend.GetWorkflowPhases(workflowID)
+	if err == nil && len(phases) > 0 {
+		t.CurrentPhase = phases[0].PhaseTemplateID
 	}
 
-	// Update task status and phase to running BEFORE spawning executor.
-	// This ensures:
-	// 1. The UI sees the correct status immediately when it reloads
-	// 2. The file watcher broadcasts task_updated (not task_deleted)
-	// 3. No race condition where the task appears deleted during executor startup
-	// 4. Task shows in the correct column based on current_phase (not stuck in Queued)
+	// Update task status to running BEFORE spawning executor
 	t.Status = task.StatusRunning
-	if len(p.Phases) > 0 {
-		t.CurrentPhase = p.Phases[0].ID
-	}
 	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
@@ -120,32 +103,48 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		execCfg := executor.ConfigFromOrc(s.orcConfig)
-		execCfg.WorkDir = s.workDir
-		exec := executor.NewWithConfig(execCfg, s.orcConfig)
-		exec.SetBackend(s.backend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
-		exec.SetPendingDecisionStore(s.pendingDecisions)
-		exec.SetHeadless(true)
+		// Create git operations
+		gitOps, err := git.New(s.workDir, git.DefaultConfig())
+		if err != nil {
+			s.logger.Error("failed to create git ops", "error", err)
+			s.Publish(id, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			s.ensureTaskStatusConsistent(id, err)
+			return
+		}
 
-		// Execute with event publishing
-		err := exec.ExecuteTask(ctx, t, p, st)
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			s.backend,
+			s.projectDB,
+			s.orcConfig,
+			s.workDir,
+			executor.WithWorkflowGitOps(gitOps),
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+		)
+
+		// Build run options
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      id,
+			Prompt:      t.Description,
+			Category:    t.Category,
+		}
+
+		// Execute workflow
+		result, err := we.Run(ctx, workflowID, opts)
 		if err != nil {
 			s.logger.Error("task execution failed", "task", id, "error", err)
 			s.Publish(id, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 		} else {
-			s.logger.Info("task execution completed", "task", id)
+			s.logger.Info("task execution completed", "task", id, "run_id", result.RunID)
 			s.Publish(id, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
 		}
 
-		// Safety net: ensure task status is consistent with execution result.
-		// The executor should have updated task status, but we verify here to
-		// prevent orphaned "running" tasks if something was missed.
 		s.ensureTaskStatusConsistent(id, err)
 	}()
 
-	// Return task with updated status so frontend can update store immediately
+	// Return task with updated status
 	s.jsonResponse(w, map[string]any{"status": "started", "task_id": id, "task": t})
 }
 
@@ -248,52 +247,3 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// createPlanForWeightLocal creates an execution plan based on task weight.
-// Plans are created dynamically for execution, not stored.
-func createPlanForWeightLocal(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
-
-	switch weight {
-	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	default:
-		// Default to medium weight phases
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	}
-
-	return &executor.Plan{
-		TaskID: taskID,
-		Phases: phases,
-	}
-}

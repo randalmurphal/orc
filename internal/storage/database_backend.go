@@ -1893,6 +1893,81 @@ func (d *DatabaseBackend) GetStaleBranches(since time.Time) ([]*Branch, error) {
 	return branches, nil
 }
 
+// TryClaimTaskExecution atomically claims a task for execution.
+// Returns error if task is already claimed by another running process.
+// This prevents race conditions when multiple resume attempts occur simultaneously.
+func (d *DatabaseBackend) TryClaimTaskExecution(ctx context.Context, taskID string, pid int, hostname string) error {
+	// Use write lock for entire operation to ensure true atomicity
+	// We need read+write to be atomic, not just the SQL UPDATE
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Check if task exists and get current state
+	task, err := d.db.GetTask(taskID)
+	if err != nil {
+		return fmt.Errorf("get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task %s not found", taskID)
+	}
+
+	// Validate task is in a resumable state
+	if !isResumableStatus(task.StateStatus) {
+		return fmt.Errorf("task cannot be claimed (status: %s)", task.StateStatus)
+	}
+
+	// Store the current PID for atomic comparison in WHERE clause
+	currentPID := task.ExecutorPID
+
+	// If task has a PID, check if it's alive
+	if currentPID > 0 {
+		if state.IsPIDAlive(currentPID) {
+			return fmt.Errorf("task execution already claimed by process %d", currentPID)
+		}
+		// PID is dead, we can claim it
+	}
+
+	// Atomic CAS update: claim the task
+	// The WHERE clause ensures state hasn't changed since we read it
+	now := time.Now()
+	heartbeat := now.Format(time.RFC3339)
+	result, err := d.db.DB.ExecContext(ctx, `
+		UPDATE tasks
+		SET state_status = 'running',
+		    executor_pid = ?,
+		    executor_hostname = ?,
+		    last_heartbeat = ?
+		WHERE id = ?
+		  AND state_status IN ('failed', 'paused', 'blocked', 'running', 'interrupted')
+		  AND executor_pid = ?
+	`, pid, hostname, heartbeat, taskID, currentPID)
+	if err != nil {
+		return fmt.Errorf("claim task execution: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check claim result: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		// Task was claimed by another process between our check and update
+		return fmt.Errorf("task claimed by another process (race condition)")
+	}
+
+	return nil
+}
+
+// isResumableStatus checks if a task status allows claiming for execution.
+func isResumableStatus(status string) bool {
+	switch status {
+	case "failed", "paused", "blocked", "running", "interrupted":
+		return true
+	default:
+		return false
+	}
+}
+
 // SaveEvent saves a single event to the event log.
 func (d *DatabaseBackend) SaveEvent(e *db.EventLog) error {
 	d.mu.Lock()

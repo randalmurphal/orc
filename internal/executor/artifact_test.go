@@ -1,8 +1,6 @@
 package executor
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -115,35 +113,6 @@ func TestExtractArtifactContent(t *testing.T) {
 				t.Errorf("ExtractArtifactContent() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestLoadFromTranscript_NoOp(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "TASK-TRANS-001")
-	transcriptsDir := filepath.Join(taskDir, "transcripts")
-	if err := os.MkdirAll(transcriptsDir, 0755); err != nil {
-		t.Fatalf("failed to create transcripts dir: %v", err)
-	}
-
-	// Create transcript files (should be ignored now)
-	files := map[string]string{
-		"spec-001.md": "<artifact>content from transcript</artifact>",
-		"spec-002.md": "<artifact>more content</artifact>",
-	}
-
-	for name, content := range files {
-		path := filepath.Join(transcriptsDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			t.Fatalf("failed to write file %s: %v", name, err)
-		}
-	}
-
-	// loadFromTranscript should always return empty now
-	result := loadFromTranscript(taskDir, "spec")
-	if result != "" {
-		t.Errorf("loadFromTranscript() should return empty (no-op), got %q", result)
 	}
 }
 
@@ -359,64 +328,6 @@ func TestIsValidSpecContent(t *testing.T) {
 			got := isValidSpecContent(tt.content)
 			if got != tt.want {
 				t.Errorf("isValidSpecContent() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLoadPriorContent(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "TASK-PRIOR-001")
-	artifactsDir := filepath.Join(taskDir, "artifacts")
-	transcriptsDir := filepath.Join(taskDir, "transcripts")
-
-	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
-		t.Fatalf("failed to create artifacts dir: %v", err)
-	}
-	if err := os.MkdirAll(transcriptsDir, 0755); err != nil {
-		t.Fatalf("failed to create transcripts dir: %v", err)
-	}
-
-	// Create artifact file
-	artifactContent := "This is the saved artifact"
-	if err := os.WriteFile(filepath.Join(artifactsDir, "spec.md"), []byte(artifactContent), 0644); err != nil {
-		t.Fatalf("failed to write artifact: %v", err)
-	}
-
-	// Create transcript file (should be ignored - no extraction from transcripts)
-	transcriptContent := "<artifact>Transcript artifact</artifact>"
-	if err := os.WriteFile(filepath.Join(transcriptsDir, "research-001.md"), []byte(transcriptContent), 0644); err != nil {
-		t.Fatalf("failed to write transcript: %v", err)
-	}
-
-	tests := []struct {
-		name    string
-		phaseID string
-		want    string
-	}{
-		{
-			name:    "loads from artifact file",
-			phaseID: "spec",
-			want:    artifactContent,
-		},
-		{
-			name:    "returns empty for transcript fallback (no extraction)",
-			phaseID: "research",
-			want:    "", // No longer extracts from transcripts
-		},
-		{
-			name:    "returns empty for missing phase",
-			phaseID: "missing",
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := loadPriorContent(taskDir, nil, tt.phaseID)
-			if got != tt.want {
-				t.Errorf("loadPriorContent() = %q, want %q", got, tt.want)
 			}
 		})
 	}

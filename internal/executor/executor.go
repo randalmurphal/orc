@@ -18,7 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
 )
 
@@ -208,11 +207,6 @@ type Executor struct {
 
 	// Token pool for automatic account switching (nil if disabled)
 	tokenPool *tokenpool.Pool
-
-	// Phase executors by type (created lazily)
-	trivialExecutor  *TrivialExecutor
-	standardExecutor *StandardExecutor
-	fullExecutor     *FullExecutor
 
 	// Runtime state for current task
 	worktreePath   string   // Path to worktree if enabled
@@ -406,177 +400,14 @@ func (e *Executor) SetClient(c claude.Client) {
 }
 
 // SetTurnExecutor sets a mock TurnExecutor for testing.
-// When set, sub-executors use this instead of spawning real Claude CLI.
 func (e *Executor) SetTurnExecutor(te TurnExecutor) {
 	e.turnExecutor = te
-	// Reset cached executors so they pick up the new TurnExecutor
-	e.resetPhaseExecutors()
 }
 
 // SetOrcConfig sets a custom orc config (for testing).
 // This controls validation, backpressure, and other behavior.
 func (e *Executor) SetOrcConfig(cfg *config.Config) {
 	e.orcConfig = cfg
-	// Reset cached executors so they pick up the new config
-	e.resetPhaseExecutors()
-}
-
-// getPhaseExecutor returns the appropriate phase executor for the given weight.
-// Executors are created lazily and cached for reuse.
-func (e *Executor) getPhaseExecutor(weight task.Weight) PhaseExecutor {
-	execType := ExecutorTypeForWeight(weight)
-	workingDir := e.config.WorkDir
-	if e.worktreePath != "" {
-		workingDir = e.worktreePath
-	}
-
-	// Use worktree git if available, otherwise fall back to main repo git
-	gitSvc := e.gitOps
-	if e.worktreeGit != nil {
-		gitSvc = e.worktreeGit
-	}
-
-	// Create executor config with OrcConfig for model resolution
-	execCfg := DefaultConfigForWeight(weight)
-	execCfg.OrcConfig = e.orcConfig
-
-	switch execType {
-	case ExecutorTypeTrivial:
-		if e.trivialExecutor == nil {
-			opts := []TrivialExecutorOption{
-				WithTrivialClaudePath(e.claudePath),
-				WithTrivialWorkingDir(workingDir),
-				WithTrivialPublisher(e.publisher),
-				WithTrivialLogger(e.logger),
-				WithTrivialConfig(execCfg),
-				WithTrivialBackend(e.backend),
-				WithTrivialOrcConfig(e.orcConfig),
-			}
-			if e.mcpConfigPath != "" {
-				opts = append(opts, WithTrivialMCPConfig(e.mcpConfigPath))
-			}
-			// Pass injected TurnExecutor for testing
-			if e.turnExecutor != nil {
-				opts = append(opts, WithTrivialTurnExecutor(e.turnExecutor))
-			}
-			e.trivialExecutor = NewTrivialExecutor(opts...)
-		}
-		return e.trivialExecutor
-
-	case ExecutorTypeFull:
-		if e.fullExecutor == nil {
-			opts := []FullExecutorOption{
-				WithFullGitSvc(gitSvc),
-				WithFullPublisher(e.publisher),
-				WithFullLogger(e.logger),
-				WithFullConfig(execCfg),
-				WithFullWorkingDir(workingDir),
-				WithTaskDir(e.currentTaskDir),
-				WithFullBackend(e.backend),
-				// State updater for persisting state changes (e.g., JSONLPath for --follow)
-				WithStateUpdater(func(s *state.State) {
-					if err := e.backend.SaveState(s); err != nil {
-						e.logger.Warn("failed to persist state in full executor", "error", err)
-					}
-				}),
-			}
-
-			// Pass resume session ID if set
-			if e.resumeSessionID != "" {
-				opts = append(opts, WithFullResumeSessionID(e.resumeSessionID))
-			}
-
-			// Create backpressure runner with the correct working directory
-			if e.orcConfig.Validation.Enabled && e.orcConfig.ShouldRunBackpressure(string(weight)) {
-				bp := NewBackpressureRunner(
-					workingDir,
-					&e.orcConfig.Validation,
-					&e.orcConfig.Testing,
-					e.logger,
-				)
-				opts = append(opts, WithFullBackpressure(bp))
-			}
-
-			if e.orcConfig != nil {
-				opts = append(opts, WithFullOrcConfig(e.orcConfig))
-			}
-
-			// Pass claude path for ClaudeExecutor
-			if e.claudePath != "" {
-				opts = append(opts, WithFullClaudePath(e.claudePath))
-			}
-
-			// Pass MCP config path for worktree isolation
-			if e.mcpConfigPath != "" {
-				opts = append(opts, WithFullMCPConfig(e.mcpConfigPath))
-			}
-
-			// Pass injected TurnExecutor for testing
-			if e.turnExecutor != nil {
-				opts = append(opts, WithFullTurnExecutor(e.turnExecutor))
-			}
-
-			e.fullExecutor = NewFullExecutor(opts...)
-		}
-		return e.fullExecutor
-
-	default: // ExecutorTypeStandard
-		if e.standardExecutor == nil {
-			opts := []StandardExecutorOption{
-				WithGitSvc(gitSvc),
-				WithPublisher(e.publisher),
-				WithExecutorLogger(e.logger),
-				WithExecutorConfig(execCfg),
-				WithWorkingDir(workingDir),
-				WithStandardBackend(e.backend),
-			}
-
-			// Pass resume session ID if set
-			if e.resumeSessionID != "" {
-				opts = append(opts, WithStandardResumeSessionID(e.resumeSessionID))
-			}
-
-			// Create backpressure runner with the correct working directory
-			if e.orcConfig.Validation.Enabled && e.orcConfig.ShouldRunBackpressure(string(weight)) {
-				bp := NewBackpressureRunner(
-					workingDir,
-					&e.orcConfig.Validation,
-					&e.orcConfig.Testing,
-					e.logger,
-				)
-				opts = append(opts, WithStandardBackpressure(bp))
-			}
-
-			if e.orcConfig != nil {
-				opts = append(opts, WithStandardOrcConfig(e.orcConfig))
-			}
-
-			// Pass claude path for ClaudeExecutor
-			if e.claudePath != "" {
-				opts = append(opts, WithStandardClaudePath(e.claudePath))
-			}
-
-			// Pass MCP config path for worktree isolation
-			if e.mcpConfigPath != "" {
-				opts = append(opts, WithStandardMCPConfig(e.mcpConfigPath))
-			}
-
-			// Pass injected TurnExecutor for testing
-			if e.turnExecutor != nil {
-				opts = append(opts, WithStandardTurnExecutor(e.turnExecutor))
-			}
-
-			e.standardExecutor = NewStandardExecutor(opts...)
-		}
-		return e.standardExecutor
-	}
-}
-
-// resetPhaseExecutors clears cached executors (called when context changes, e.g., worktree).
-func (e *Executor) resetPhaseExecutors() {
-	e.trivialExecutor = nil
-	e.standardExecutor = nil
-	e.fullExecutor = nil
 }
 
 // LoadProjectToolPermissions and rebuildClient are defined in permissions.go
@@ -644,8 +475,6 @@ func (e *Executor) SetTokenPool(pool *tokenpool.Pool) {
 // previous session instead of starting fresh.
 func (e *Executor) SetResumeSessionID(sessionID string) {
 	e.resumeSessionID = sessionID
-	// Reset phase executors so they're recreated with the new session ID
-	e.resetPhaseExecutors()
 }
 
 // GetResumeSessionID returns the current resume session ID.
@@ -729,9 +558,6 @@ func (e *Executor) rebuildClientWithToken(token string) {
 	}
 
 	e.client = claude.NewClaudeCLI(clientOpts...)
-
-	// Reset phase executors so they pick up the new client
-	e.resetPhaseExecutors()
 }
 
 // MarkCurrentAccountExhausted marks the current account as exhausted due to rate limiting.

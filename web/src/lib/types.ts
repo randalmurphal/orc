@@ -615,7 +615,7 @@ export interface FilesChangedData {
 // Workflow System Types
 
 export type WorkflowType = 'task' | 'branch' | 'standalone';
-export type WorkflowRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type WorkflowRunStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 export type VariableSourceType = 'static' | 'env' | 'script' | 'api' | 'phase_output' | 'prompt_fragment';
 
 export interface PhaseTemplate {

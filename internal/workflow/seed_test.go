@@ -64,7 +64,7 @@ func TestSeedBuiltins(t *testing.T) {
 	}
 
 	// Check specific built-in workflows
-	expectedWorkflows := []string{"implement", "implement-small", "implement-trivial", "review", "spec", "docs", "qa"}
+	expectedWorkflows := []string{"implement-large", "implement-medium", "implement-small", "implement-trivial", "review", "spec", "docs", "qa"}
 	for _, id := range expectedWorkflows {
 		wf, err := pdb.GetWorkflow(id)
 		if err != nil {
@@ -81,12 +81,12 @@ func TestSeedBuiltins(t *testing.T) {
 	}
 
 	// Verify workflow phases exist
-	phases, err := pdb.GetWorkflowPhases("implement")
+	phases, err := pdb.GetWorkflowPhases("implement-medium")
 	if err != nil {
-		t.Fatalf("GetWorkflowPhases(implement) failed: %v", err)
+		t.Fatalf("GetWorkflowPhases(implement-medium) failed: %v", err)
 	}
 	if len(phases) == 0 {
-		t.Error("expected implement workflow to have phases")
+		t.Error("expected implement-medium workflow to have phases")
 	}
 }
 
@@ -131,10 +131,10 @@ func TestGetWorkflowForWeight(t *testing.T) {
 	}{
 		{"trivial", "implement-trivial"},
 		{"small", "implement-small"},
-		{"medium", "implement"},
-		{"large", "implement"},
-		{"unknown", "implement"}, // Default
-		{"", "implement"},        // Empty defaults
+		{"medium", "implement-medium"},
+		{"large", "implement-large"},
+		{"unknown", "implement-medium"}, // Default to medium
+		{"", "implement-medium"},        // Empty defaults to medium
 	}
 
 	for _, tc := range tests {
@@ -157,7 +157,8 @@ func TestListBuiltinWorkflowIDs(t *testing.T) {
 
 	// Check expected workflows are in the list
 	expected := map[string]bool{
-		"implement":         false,
+		"implement-large":   false,
+		"implement-medium":  false,
 		"implement-small":   false,
 		"implement-trivial": false,
 		"review":            false,

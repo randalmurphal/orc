@@ -169,6 +169,9 @@ type ResolutionContext struct {
 	// TaskCategory is the task category.
 	TaskCategory string
 
+	// TaskWeight is the task weight (trivial, small, medium, large).
+	TaskWeight string
+
 	// Phase is the current phase ID.
 	Phase string
 
@@ -180,6 +183,9 @@ type ResolutionContext struct {
 
 	// Iteration is the current phase iteration.
 	Iteration int
+
+	// RetryContext contains context from a previous failed attempt.
+	RetryContext string
 
 	// WorkingDir is the current working directory (worktree or project root).
 	WorkingDir string
@@ -210,6 +216,41 @@ type ResolutionContext struct {
 	// ConstitutionContent is the project constitution content.
 	// Used to inject project-level principles into phase prompts.
 	ConstitutionContent string
+
+	// Initiative context (when task belongs to an initiative)
+	InitiativeID        string
+	InitiativeTitle     string
+	InitiativeVision    string
+	InitiativeDecisions string // Formatted decision list
+	InitiativeTasks     string // Formatted task list for automation
+
+	// Review context
+	ReviewRound    int    // Current review round (1 or 2)
+	ReviewFindings string // Previous round's findings (for round 2+)
+
+	// Project detection context
+	Language     string   // Primary language (go, typescript, python, etc.)
+	HasFrontend  bool     // Whether project has a frontend
+	HasTests     bool     // Whether project has existing tests
+	TestCommand  string   // Command to run tests
+	LintCommand  string   // Command to run linting
+	BuildCommand string   // Command to build project
+	Frameworks   []string // Detected frameworks
+
+	// Testing configuration
+	CoverageThreshold int // Minimum test coverage percentage (default: 85)
+
+	// UI testing context
+	RequiresUITesting bool   // Whether task requires UI testing
+	ScreenshotDir     string // Directory for saving screenshots
+	TestResults       string // Test results from previous test phase
+	TDDTestPlan       string // Manual UI test plan for Playwright MCP
+
+	// Automation context (for automation tasks like changelog generation)
+	RecentCompletedTasks string // Formatted list of recently completed tasks
+	RecentChangedFiles   string // List of files changed in recent tasks
+	ChangelogContent     string // Current CHANGELOG.md content
+	ClaudeMDContent      string // Current CLAUDE.md content
 }
 
 // VariableSet is a map of variable name to resolved value.

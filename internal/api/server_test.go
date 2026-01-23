@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -2427,6 +2428,11 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 	backend, err := storage.NewDatabaseBackend(projectDir, storageCfg)
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	// Seed built-in workflows so phase lookups work
+	if _, err := workflow.SeedBuiltins(backend.DB()); err != nil {
+		t.Fatalf("failed to seed workflows: %v", err)
 	}
 
 	tsk := task.New(taskID, "Test Task")

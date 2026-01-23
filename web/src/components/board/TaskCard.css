@@ -2,7 +2,7 @@
  *
  * Matches mockup design from example_ui/board.html
  * Exact CSS values from spec:
- * - padding: 10px 12px
+ * - padding: 8px 10px
  * - border-radius: 8px
  * - gap: 10px
  */
@@ -15,7 +15,7 @@
 	background: var(--bg-surface);
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	padding: 10px 12px;
+	padding: 8px 10px;
 	cursor: pointer;
 	transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 	min-height: 44px; /* Touch target minimum */

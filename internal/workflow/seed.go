@@ -165,15 +165,17 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 }
 
 // Built-in workflow definitions.
+// These match the phase sequences expected by each task weight.
 var builtinWorkflows = []struct {
 	Workflow db.Workflow
 	Phases   []db.WorkflowPhase
 }{
 	{
+		// Large weight: full workflow with breakdown and validate
 		Workflow: db.Workflow{
-			ID:           "implement",
-			Name:         "Implement",
-			Description:  "Full implementation workflow: spec, TDD, breakdown, implement, review, docs",
+			ID:           "implement-large",
+			Name:         "Implement (Large)",
+			Description:  "Full implementation workflow: spec, TDD, breakdown, implement, review, docs, validate",
 			WorkflowType: "task",
 			IsBuiltin:    true,
 		},
@@ -184,9 +186,28 @@ var builtinWorkflows = []struct {
 			{PhaseTemplateID: "implement", Sequence: 3, DependsOn: `["breakdown"]`},
 			{PhaseTemplateID: "review", Sequence: 4, DependsOn: `["implement"]`},
 			{PhaseTemplateID: "docs", Sequence: 5, DependsOn: `["review"]`},
+			{PhaseTemplateID: "validate", Sequence: 6, DependsOn: `["docs"]`},
 		},
 	},
 	{
+		// Medium weight: spec, TDD, implement, review, docs (no breakdown, no validate)
+		Workflow: db.Workflow{
+			ID:           "implement-medium",
+			Name:         "Implement (Medium)",
+			Description:  "Standard implementation workflow: spec, TDD, implement, review, docs",
+			WorkflowType: "task",
+			IsBuiltin:    true,
+		},
+		Phases: []db.WorkflowPhase{
+			{PhaseTemplateID: "spec", Sequence: 0, DependsOn: "[]"},
+			{PhaseTemplateID: "tdd_write", Sequence: 1, DependsOn: `["spec"]`},
+			{PhaseTemplateID: "implement", Sequence: 2, DependsOn: `["tdd_write"]`},
+			{PhaseTemplateID: "review", Sequence: 3, DependsOn: `["implement"]`},
+			{PhaseTemplateID: "docs", Sequence: 4, DependsOn: `["review"]`},
+		},
+	},
+	{
+		// Small weight: tiny_spec, implement, review
 		Workflow: db.Workflow{
 			ID:           "implement-small",
 			Name:         "Implement (Small)",
@@ -201,6 +222,7 @@ var builtinWorkflows = []struct {
 		},
 	},
 	{
+		// Trivial weight: tiny_spec, implement
 		Workflow: db.Workflow{
 			ID:           "implement-trivial",
 			Name:         "Implement (Trivial)",
@@ -322,17 +344,18 @@ func SeedBuiltins(pdb *db.ProjectDB) (int, error) {
 }
 
 // GetWorkflowForWeight returns the appropriate built-in workflow for a task weight.
-// This provides backward compatibility during migration.
 func GetWorkflowForWeight(weight string) string {
 	switch weight {
 	case "trivial":
 		return "implement-trivial"
 	case "small":
 		return "implement-small"
-	case "medium", "large":
-		return "implement"
+	case "medium":
+		return "implement-medium"
+	case "large":
+		return "implement-large"
 	default:
-		return "implement" // Default to full workflow
+		return "implement-medium" // Default to medium workflow
 	}
 }
 

@@ -61,14 +61,21 @@ prompt := variable.RenderTemplate(template, vars)
 
 These are automatically populated from `ResolutionContext`:
 
-| Variable | Source |
-|----------|--------|
-| `TASK_ID`, `TASK_TITLE`, `TASK_DESCRIPTION`, `TASK_CATEGORY` | Task |
-| `RUN_ID`, `WORKFLOW_ID`, `PROMPT`, `INSTRUCTIONS` | Workflow run |
-| `PHASE`, `ITERATION` | Current phase |
-| `WORKTREE_PATH`, `TASK_BRANCH`, `TARGET_BRANCH` | Git context |
-| `SPEC_CONTENT`, `RESEARCH_CONTENT`, `TDD_TESTS_CONTENT`, etc. | Prior outputs |
-| `OUTPUT_{PHASE}` | Any prior phase output |
+| Category | Variables |
+|----------|-----------|
+| Task | `TASK_ID`, `TASK_TITLE`, `TASK_DESCRIPTION`, `TASK_CATEGORY`, `WEIGHT` |
+| Workflow | `RUN_ID`, `WORKFLOW_ID`, `PROMPT`, `INSTRUCTIONS` |
+| Phase | `PHASE`, `ITERATION`, `RETRY_CONTEXT` |
+| Git | `WORKTREE_PATH`, `PROJECT_ROOT`, `TASK_BRANCH`, `TARGET_BRANCH` |
+| Constitution | `CONSTITUTION_CONTENT` |
+| Initiative | `INITIATIVE_ID`, `INITIATIVE_TITLE`, `INITIATIVE_VISION`, `INITIATIVE_DECISIONS`, `INITIATIVE_CONTEXT`, `INITIATIVE_TASKS` |
+| Review | `REVIEW_ROUND`, `REVIEW_FINDINGS` |
+| Project Detection | `LANGUAGE`, `HAS_FRONTEND`, `HAS_TESTS`, `TEST_COMMAND`, `LINT_COMMAND`, `BUILD_COMMAND`, `FRAMEWORKS` |
+| Testing | `COVERAGE_THRESHOLD`, `REQUIRES_UI_TESTING`, `SCREENSHOT_DIR`, `TEST_RESULTS`, `TDD_TEST_PLAN` |
+| Automation | `RECENT_COMPLETED_TASKS`, `RECENT_CHANGED_FILES`, `CHANGELOG_CONTENT`, `CLAUDEMD_CONTENT` |
+| Prior Outputs | `SPEC_CONTENT`, `RESEARCH_CONTENT`, `DESIGN_CONTENT`, `TDD_TESTS_CONTENT`, `BREAKDOWN_CONTENT`, `IMPLEMENT_CONTENT`, `IMPLEMENTATION_SUMMARY`, `OUTPUT_{PHASE}` |
+
+**Context enrichment:** The executor calls `enrichContextForPhase()` before each phase to load phase-specific data (review findings, test results, etc.) into the resolution context.
 
 ## Script Security
 
@@ -102,14 +109,7 @@ Cache keys include context (task ID for phase outputs) to prevent cross-task con
 ## Integration Points
 
 This package is used by:
-- `internal/executor/` - Replaces `BuildTemplateVars()` and `RenderTemplate()`
-- `internal/workflow/` - Resolves workflow-defined variables before phase execution
+- `internal/executor/workflow_execution.go` - THE executor, uses `Resolver.ResolveAll()` and `RenderTemplate()`
+- `internal/workflow/` - Defines workflow variables stored in database
 
-## Migration from Existing Code
-
-| Old Pattern | New Pattern |
-|-------------|-------------|
-| `BuildTemplateVars(t, p, s, iter, retry)` | `resolver.ResolveAll(ctx, defs, rctx)` |
-| `vars.WithSpecFromDatabase(...)` | Prior outputs in `ResolutionContext.PriorOutputs` |
-| `RenderTemplate(tmpl, vars)` | `variable.RenderTemplate(tmpl, vars)` |
-| Scattered `With*` methods | Single `ResolutionContext` struct |
+All template rendering goes through this package. The executor populates `ResolutionContext` via `buildResolutionContext()` and `enrichContextForPhase()`.

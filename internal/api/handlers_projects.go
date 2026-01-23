@@ -14,11 +14,12 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/gate"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // handleListProjects returns all registered projects.
@@ -383,21 +384,8 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create plan based on task weight
-	p := createPlanForWeight(taskID, t.Weight)
-
-	// Load or create state
-	st, err := backend.LoadState(taskID)
-	if err != nil || st == nil {
-		st = &state.State{
-			TaskID:           taskID,
-			CurrentPhase:     p.Phases[0].ID,
-			Status:           state.StatusRunning,
-			CurrentIteration: 1,
-			StartedAt:        time.Now(),
-			Phases:           make(map[string]*state.PhaseState),
-		}
-	}
+	// Get workflow ID from task weight
+	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
 
 	// Mark task as running
 	t.Status = task.StatusRunning
@@ -431,24 +419,50 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.logger.Error("failed to create executor backend", "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			s.ensureTaskStatusConsistent(taskID, err)
 			return
 		}
 		defer func() { _ = execBackend.Close() }()
 
-		cfg := executor.ConfigFromOrc(s.orcConfig)
-		cfg.WorkDir = projectPath
-		exec := executor.NewWithConfig(cfg, s.orcConfig)
-		exec.SetBackend(execBackend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
+		// Create git operations
+		gitOps, err := git.New(projectPath, git.DefaultConfig())
+		if err != nil {
+			s.logger.Error("failed to create git ops", "error", err)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			s.ensureTaskStatusConsistent(taskID, err)
+			return
+		}
 
-		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			execBackend,
+			execBackend.DB(),
+			s.orcConfig,
+			projectPath,
+			executor.WithWorkflowGitOps(gitOps),
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+		)
+
+		// Build run options
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      taskID,
+			Prompt:      t.Description,
+			Category:    t.Category,
+		}
+
+		// Execute workflow
+		result, err := we.Run(ctx, workflowID, opts)
+		if err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 		} else {
-			s.logger.Info("task execution completed", "task", taskID)
+			s.logger.Info("task execution completed", "task", taskID, "run_id", result.RunID)
 			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
 		}
+
+		s.ensureTaskStatusConsistent(taskID, err)
 	}()
 
 	// Return task with updated status so frontend can update store immediately
@@ -542,37 +556,19 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Task must be paused to resume
-	if t.Status != task.StatusPaused {
-		s.jsonError(w, "task is not paused", http.StatusBadRequest)
+	// Task must be paused or failed to resume
+	if t.Status != task.StatusPaused && t.Status != task.StatusFailed {
+		s.jsonError(w, "task is not paused or failed", http.StatusBadRequest)
 		return
 	}
 
-	// Create plan based on task weight
-	p := createPlanForWeight(taskID, t.Weight)
-
-	// Load state
-	st, err := backend.LoadState(taskID)
-	if err != nil || st == nil {
-		s.jsonError(w, "failed to load state", http.StatusInternalServerError)
-		return
-	}
+	// Get workflow ID from task weight
+	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
 
 	// Update task status
 	t.Status = task.StatusRunning
 	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
-		return
-	}
-
-	// Update state status
-	st.Status = state.StatusRunning
-	if st.Phases[st.CurrentPhase] != nil {
-		st.Phases[st.CurrentPhase].Status = state.StatusRunning
-		st.Phases[st.CurrentPhase].InterruptedAt = nil
-	}
-	if err := backend.SaveState(st); err != nil {
-		s.jsonError(w, "failed to update state", http.StatusInternalServerError)
 		return
 	}
 
@@ -585,7 +581,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 	// Capture project path for goroutine
 	projectPath := proj.Path
 
-	s.logger.Info("resuming task execution", "task", taskID, "phase", st.CurrentPhase)
+	s.logger.Info("resuming task execution", "task", taskID)
 
 	// Start execution in background
 	go func() {
@@ -600,24 +596,50 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		if err != nil {
 			s.logger.Error("failed to create executor backend", "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			s.ensureTaskStatusConsistent(taskID, err)
 			return
 		}
 		defer func() { _ = execBackend.Close() }()
 
-		cfg := executor.ConfigFromOrc(s.orcConfig)
-		cfg.WorkDir = projectPath
-		exec := executor.NewWithConfig(cfg, s.orcConfig)
-		exec.SetBackend(execBackend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
+		// Create git operations
+		gitOps, err := git.New(projectPath, git.DefaultConfig())
+		if err != nil {
+			s.logger.Error("failed to create git ops", "error", err)
+			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
+			s.ensureTaskStatusConsistent(taskID, err)
+			return
+		}
 
-		if err := exec.ExecuteTask(ctx, t, p, st); err != nil {
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			execBackend,
+			execBackend.DB(),
+			s.orcConfig,
+			projectPath,
+			executor.WithWorkflowGitOps(gitOps),
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+		)
+
+		// Build run options for resume
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      taskID,
+			Prompt:      t.Description,
+			Category:    t.Category,
+		}
+
+		// Execute workflow (WorkflowExecutor handles resume internally)
+		result, err := we.Run(ctx, workflowID, opts)
+		if err != nil {
 			s.logger.Error("task execution failed", "task", taskID, "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
 		} else {
-			s.logger.Info("task execution completed", "task", taskID)
+			s.logger.Info("task execution completed", "task", taskID, "run_id", result.RunID)
 			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
 		}
+
+		s.ensureTaskStatusConsistent(taskID, err)
 	}()
 
 	s.jsonResponse(w, map[string]any{
@@ -663,12 +685,22 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create plan based on task weight to validate phase exists
-	p := createPlanForWeight(taskID, t.Weight)
+	// Get workflow phases from database to validate phase exists
+	phases, err := s.getWorkflowPhases(backend, t.Weight)
+	if err != nil {
+		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
+		return
+	}
 
 	// Find target phase
-	targetPhase := p.GetPhase(req.Phase)
-	if targetPhase == nil {
+	targetFound := false
+	for _, p := range phases {
+		if p.ID == req.Phase {
+			targetFound = true
+			break
+		}
+	}
+	if !targetFound {
 		s.jsonError(w, "phase not found", http.StatusBadRequest)
 		return
 	}
@@ -684,14 +716,14 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 
 	// Mark target and all later phases as pending in state
 	foundTarget := false
-	for i := range p.Phases {
-		if p.Phases[i].ID == req.Phase {
+	for _, phase := range phases {
+		if phase.ID == req.Phase {
 			foundTarget = true
 		}
 		if foundTarget {
-			if st.Phases[p.Phases[i].ID] != nil {
-				st.Phases[p.Phases[i].ID].Status = state.StatusPending
-				st.Phases[p.Phases[i].ID].CompletedAt = nil
+			if st.Phases[phase.ID] != nil {
+				st.Phases[phase.ID].Status = state.StatusPending
+				st.Phases[phase.ID].CompletedAt = nil
 			}
 		}
 	}
@@ -770,12 +802,22 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Create plan based on task weight
-	p := createPlanForWeight(taskID, t.Weight)
+	// Get workflow phases from database
+	phases, err := s.getWorkflowPhases(backend, t.Weight)
+	if err != nil {
+		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
+		return
+	}
 
 	// Find implement phase - this is always where we escalate to
-	targetPhase := p.GetPhase("implement")
-	if targetPhase == nil {
+	implementFound := false
+	for _, p := range phases {
+		if p.ID == "implement" {
+			implementFound = true
+			break
+		}
+	}
+	if !implementFound {
 		s.jsonError(w, "implement phase not found", http.StatusBadRequest)
 		return
 	}
@@ -821,14 +863,14 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 
 	// Mark implement and all later phases as pending in state
 	foundTarget := false
-	for i := range p.Phases {
-		if p.Phases[i].ID == "implement" {
+	for _, phase := range phases {
+		if phase.ID == "implement" {
 			foundTarget = true
 		}
 		if foundTarget {
-			if st.Phases[p.Phases[i].ID] != nil {
-				st.Phases[p.Phases[i].ID].Status = state.StatusPending
-				st.Phases[p.Phases[i].ID].CompletedAt = nil
+			if st.Phases[phase.ID] != nil {
+				st.Phases[phase.ID].Status = state.StatusPending
+				st.Phases[phase.ID].CompletedAt = nil
 			}
 		}
 	}
@@ -915,8 +957,12 @@ func (s *Server) handleGetProjectTaskPlan(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create plan based on task weight (plans are no longer stored)
-	p := createPlanForWeight(taskID, t.Weight)
+	// Get plan from database workflow phases
+	p, err := s.getWorkflowPhasesWithPlan(backend, taskID, t.Weight)
+	if err != nil {
+		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
+		return
+	}
 
 	s.jsonResponse(w, p)
 }
@@ -999,52 +1045,53 @@ func (s *Server) loadProjectTask(projectPath, taskID string) (*task.Task, error)
 	return backend.LoadTask(taskID)
 }
 
-// createPlanForWeight creates an execution plan based on task weight.
-// Plans are no longer stored - they are created dynamically for execution.
-func createPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
+// phaseInfo represents basic phase information for API responses.
+type phaseInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
 
-	switch weight {
-	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+// getWorkflowPhases returns the phase IDs for a workflow from the database.
+func (s *Server) getWorkflowPhases(backend storage.Backend, weight task.Weight) ([]phaseInfo, error) {
+	workflowID := workflow.GetWorkflowForWeight(string(weight))
+
+	dbPhases, err := backend.GetWorkflowPhases(workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	phases := make([]phaseInfo, len(dbPhases))
+	for i, p := range dbPhases {
+		// Get phase template for name
+		template, err := backend.GetPhaseTemplate(p.PhaseTemplateID)
+		if err != nil || template == nil {
+			phases[i] = phaseInfo{ID: p.PhaseTemplateID, Name: p.PhaseTemplateID}
+		} else {
+			phases[i] = phaseInfo{ID: p.PhaseTemplateID, Name: template.Name}
 		}
-	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	default:
-		// Default to medium weight phases
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+	}
+
+	return phases, nil
+}
+
+// getWorkflowPhasesWithPlan returns phases as an executor.Plan for API compatibility.
+func (s *Server) getWorkflowPhasesWithPlan(backend storage.Backend, taskID string, weight task.Weight) (*executor.Plan, error) {
+	phases, err := s.getWorkflowPhases(backend, weight)
+	if err != nil {
+		return nil, err
+	}
+
+	planPhases := make([]executor.Phase, len(phases))
+	for i, p := range phases {
+		planPhases[i] = executor.Phase{
+			ID:     p.ID,
+			Name:   p.Name,
+			Status: executor.PhasePending,
 		}
 	}
 
 	return &executor.Plan{
 		TaskID: taskID,
-		Phases: phases,
-	}
+		Phases: planPhases,
+	}, nil
 }

@@ -7,19 +7,22 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/gate"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // ResumeValidationResult contains the result of validating a task for resume.
@@ -151,12 +154,35 @@ Use --force to resume a task even if it appears to still be running.`,
 				return err
 			}
 
-			// Create plan dynamically from task weight
-			p := createResumePlanForWeight(id, t.Weight)
+			// Atomically claim task execution to prevent race conditions
+			hostname, _ := os.Hostname()
+			ctx := context.Background()
+			if err := backend.TryClaimTaskExecution(ctx, id, os.Getpid(), hostname); err != nil {
+				// Check if this is a "already claimed" error
+				if strings.Contains(err.Error(), "already claimed") {
+					return fmt.Errorf("task is already being executed by another process")
+				}
+				return fmt.Errorf("claim task execution: %w", err)
+			}
+
+			// Get workflow ID from task weight
+			workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
 
 			cfg, err := config.Load()
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
+			}
+
+			// Open project database for workflows
+			pdb, err := db.OpenProject(projectRoot)
+			if err != nil {
+				return fmt.Errorf("open project database: %w", err)
+			}
+			defer pdb.Close()
+
+			// Seed built-in workflows if not already seeded
+			if _, err := workflow.SeedBuiltins(pdb); err != nil {
+				return fmt.Errorf("seed workflows: %w", err)
 			}
 
 			// Set up signal handling
@@ -174,62 +200,43 @@ Use --force to resume a task even if it appears to still be running.`,
 			disp := progress.New(id, quiet)
 			disp.Info(fmt.Sprintf("Resuming task %s", id))
 
-			exec := executor.NewWithConfig(executor.ConfigFromOrc(cfg), cfg)
-			exec.SetBackend(backend)
+			// Create WorkflowExecutor
+			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			if err != nil {
+				return fmt.Errorf("init git: %w", err)
+			}
+
+			// Build executor options
+			execOpts := []executor.WorkflowExecutorOption{
+				executor.WithWorkflowGitOps(gitOps),
+			}
 
 			// Set up streaming publisher if verbose or --stream flag is set
 			stream, _ := cmd.Flags().GetBool("stream")
 			if verbose || stream {
 				publisher := events.NewCLIPublisher(os.Stdout, events.WithStreamMode(true))
-				exec.SetPublisher(publisher)
+				execOpts = append(execOpts, executor.WithWorkflowPublisher(publisher))
 				defer publisher.Close()
 			}
 
-			// Find resume phase with smart retry handling
-			resumePhase := s.GetResumePhase()
+			we := executor.NewWorkflowExecutor(
+				backend,
+				pdb,
+				cfg,
+				projectRoot,
+				execOpts...,
+			)
 
-			// If no interrupted/running phase, check retry context
-			if resumePhase == "" {
-				if rc := s.GetRetryContext(); rc != nil && rc.ToPhase != "" {
-					resumePhase = rc.ToPhase
-					fmt.Printf("Resuming from retry target: %s (failed at %s)\n", rc.ToPhase, rc.FromPhase)
-				}
+			// Build run options
+			opts := executor.WorkflowRunOptions{
+				ContextType: executor.ContextTask,
+				TaskID:      id,
+				Prompt:      t.Description,
+				Category:    t.Category,
 			}
 
-			// For failed phases (e.g., review, test), use retry map to go back to earlier phase
-			// This prevents loops where failed phases keep restarting from the failed phase
-			if resumePhase == "" && s.CurrentPhase != "" {
-				if ps, ok := s.Phases[s.CurrentPhase]; ok && ps.Status == state.StatusFailed {
-					if retryFrom := cfg.ShouldRetryFrom(s.CurrentPhase); retryFrom != "" {
-						resumePhase = retryFrom
-						fmt.Printf("Using retry map: %s -> %s (retrying from earlier phase)\n", s.CurrentPhase, retryFrom)
-					}
-				}
-			}
-
-			// Final fallback to current phase
-			if resumePhase == "" {
-				resumePhase = s.CurrentPhase
-			}
-
-			if resumePhase == "" {
-				return fmt.Errorf("no phase to resume from")
-			}
-
-			// Check for phase-specific session ID and pass to executor for --resume flag
-			// Session IDs are tracked per-phase to ensure correct Claude context on resume
-			if sessionID := s.GetPhaseSessionID(resumePhase); sessionID != "" {
-				// Check if session is from this machine
-				currentHost, _ := os.Hostname()
-				if s.Execution != nil && s.Execution.Hostname != "" && s.Execution.Hostname != currentHost {
-					disp.Warning(fmt.Sprintf("Task ran on different machine (%s), starting fresh session", s.Execution.Hostname))
-				} else {
-					disp.Info(fmt.Sprintf("Resuming Claude session for %s: %s", resumePhase, sessionID))
-					exec.SetResumeSessionID(sessionID)
-				}
-			}
-
-			err = exec.ResumeFromPhase(ctx, t, p, s, resumePhase)
+			// Execute workflow (WorkflowExecutor handles resume internally via state)
+			result, err := we.Run(ctx, workflowID, opts)
 			if err != nil {
 				if ctx.Err() != nil {
 					disp.TaskInterrupted()
@@ -238,10 +245,15 @@ Use --force to resume a task even if it appears to still be running.`,
 
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
-					// Reload task to get updated metadata with conflict info
+					// Reload task and state for summary
 					t, _ = backend.LoadTask(id)
+					s, _ = backend.LoadState(id)
 					blockedCtx := buildBlockedContext(t, cfg)
-					disp.TaskBlockedWithContext(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict", blockedCtx)
+					var tokens int
+					if s != nil {
+						tokens = s.Tokens.TotalTokens
+					}
+					disp.TaskBlockedWithContext(tokens, s.Elapsed(), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -249,13 +261,21 @@ Use --force to resume a task even if it appears to still be running.`,
 				return err
 			}
 
+			// Reload state for summary
+			s, _ = backend.LoadState(id)
+
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
 			if t.Branch != "" {
 				fileStats = getResumeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
-			disp.TaskComplete(s.Tokens.TotalTokens, s.Elapsed(), fileStats)
+			var tokens int
+			if s != nil {
+				tokens = s.Tokens.TotalTokens
+			}
+			_ = result // Result contains run details but we use state for tokens
+			disp.TaskComplete(tokens, s.Elapsed(), fileStats)
 			return nil
 		},
 	}
@@ -293,51 +313,3 @@ func getResumeFileChangeStats(ctx context.Context, projectRoot, taskBranch strin
 	}
 }
 
-// createResumePlanForWeight creates an execution plan based on task weight.
-// Plans are created dynamically for execution, not stored.
-func createResumePlanForWeight(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
-
-	switch weight {
-	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	default:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	}
-
-	return &executor.Plan{
-		TaskID: taskID,
-		Phases: phases,
-	}
-}
