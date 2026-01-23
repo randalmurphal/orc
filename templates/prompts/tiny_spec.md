@@ -28,7 +28,7 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 </context>
 
 <instructions>
-Create a minimal spec AND write failing tests in one pass. This is for trivial/small tasks where a full spec is overkill, but explicit goals and tests still improve quality.
+Create a minimal spec AND write failing tests in one pass. This is for small tasks where a full spec is overkill, but explicit goals and TDD still improve quality.
 
 ## Step 1: Define Success (2-3 criteria max)
 
@@ -37,9 +37,10 @@ Create a minimal spec AND write failing tests in one pass. This is for trivial/s
 | SC-1 | [What must be true when done] | [Test command or file check] |
 
 **Rules:**
-- Maximum 3 criteria for trivial/small tasks
+- Maximum 3 criteria for small tasks
 - Each must have executable verification
 - Focus on user-visible behavior, not implementation details
+- If the task description is brief, infer reasonable scope from context
 
 ## Step 2: Write Failing Tests
 
