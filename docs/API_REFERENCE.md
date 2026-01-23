@@ -966,7 +966,7 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 **PR Status Polling:**
 - PRs are automatically polled every 60 seconds for tasks with open PRs
 - Status includes: review state (pending_review, changes_requested, approved), CI checks, mergeability
-- PR status is stored in `task.yaml` under the `pr` field
+- PR status is stored in database under the task's `pr` field
 - Manual refresh via `POST /api/tasks/:id/github/pr/refresh`
 - 30 second rate limit between polls for the same task
 
