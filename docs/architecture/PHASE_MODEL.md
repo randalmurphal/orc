@@ -33,7 +33,7 @@ Plan regeneration can be triggered by:
 
 1. **CLI**: `orc edit TASK-001 --weight large`
 2. **API**: PATCH `/api/tasks/{id}` with `{"weight": "large"}`
-3. **File watcher**: Manual edit of `task.yaml` weight field
+3. **Manual edit**: Update task weight via CLI/API
 
 All three methods produce identical results.
 

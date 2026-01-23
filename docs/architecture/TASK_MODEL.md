@@ -6,8 +6,9 @@
 
 ## Task Definition
 
+Tasks are stored in the SQLite database (`tasks` table). Example:
+
 ```yaml
-# .orc/tasks/TASK-001/task.yaml
 id: TASK-001
 title: "Add user authentication"
 description: |
@@ -128,13 +129,13 @@ Tasks support dependency relationships for ordering work and tracking relationsh
 ### Stored vs Computed
 
 **Stored fields** (`blocked_by`, `related_to`):
-- Saved to task.yaml
+- Saved to database
 - User-editable via CLI or API
 - Persist across sessions
 
 **Computed fields** (`blocks`, `referenced_by`):
 - Calculated when tasks are loaded
-- Not stored in task.yaml
+- Not stored in database
 - Derived from scanning all tasks
 
 ### Validation
@@ -222,8 +223,9 @@ created ──► classifying ──► planned ──► running ◄─┐
 
 ## Task State
 
+State is stored in the SQLite database (`states` table). Example:
+
 ```yaml
-# .orc/tasks/TASK-001/state.yaml
 current_phase: implement
 current_iteration: 3
 status: running
@@ -307,7 +309,7 @@ Task created: TASK-042
 
 | Operation | Command | Effect |
 |-----------|---------|--------|
-| Create | `orc new "title"` | Creates task.yaml, branch |
+| Create | `orc new "title"` | Creates task in database, branch |
 | Run | `orc run TASK-001` | Starts/resumes execution |
 | Pause | `orc pause TASK-001` | Checkpoints, stops execution |
 | Rewind | `orc rewind TASK-001 --to spec` | Resets to checkpoint |

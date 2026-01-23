@@ -237,7 +237,7 @@ orc status --waiting
 ## Gate Audit Trail
 
 ```yaml
-# .orc/tasks/TASK-001/state.yaml
+# Database: states table
 gates:
   - phase: spec
     type: auto

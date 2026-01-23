@@ -131,6 +131,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Worktree on wrong branch causes infinite review loop | Fixed: `cleanWorktreeState()` now verifies and corrects branch on worktree reuse; post-creation validation added to `SetupWorktreeForTask()`; logs warning when switching branches; verifies expected branch exists before checkout | TASK-392 |
 | `orc log` shows "No transcripts found" when database empty | Fixed: Added filesystem fallback via `readFilesystemTranscripts()` that reads markdown files from `.orc/tasks/{taskID}/transcripts/`; parses filenames in formats `{seq}-{phase}-{iter}.md` and `{phase}-{seq}.md`; enables viewing transcripts even when database sync didn't run | TASK-481 |
 | Old tasks run with outdated phases after template update | Fixed: `orc run` now auto-detects stale plans via `IsPlanStale()` (checks version, phase sequence, inline prompts) and auto-migrates before execution; completed/skipped phases preserved; bulk migration via `orc migrate plans --all` | TASK-498 |
+| PR creation fails with 'No commits between branches' | Fixed: `WorkflowExecutor.autoCommitBeforeCompletion()` now auto-commits uncommitted changes before PR/merge if Claude didn't commit during implement phase; uses `HasUncommittedChanges()` to detect dirty worktree, stages with `git add -A`, commits with message "[orc] TASK-XXX: Auto-commit before PR creation" | TASK-512 |
 
 ## Decisions
 
