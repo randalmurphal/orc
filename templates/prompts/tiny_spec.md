@@ -30,6 +30,20 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 <instructions>
 Create a minimal spec AND write failing tests in one pass. This is for small tasks where a full spec is overkill, but explicit goals and TDD still improve quality.
 
+## Step 0: Initiative Alignment (if initiative context exists above)
+
+**Before defining success criteria, cross-reference the initiative vision:**
+
+1. Read the Initiative Context section above
+2. List ALL requirements/features/behaviors mentioned in the vision that relate to this task
+3. Ensure your success criteria below capture EVERY relevant initiative requirement
+
+**The task description may be incomplete. The initiative vision is the source of truth.**
+
+Example failure: Task says "add Pause and New Task buttons" but initiative vision says "Actions: Pause, New Task, Panel toggle" → You MUST include Panel toggle in your criteria.
+
+---
+
 ## Step 1: Define Success (2-3 criteria max)
 
 | ID | Criterion | Verification |
@@ -40,7 +54,7 @@ Create a minimal spec AND write failing tests in one pass. This is for small tas
 - Maximum 3 criteria for small tasks
 - Each must have executable verification
 - Focus on user-visible behavior, not implementation details
-- If the task description is brief, infer reasonable scope from context
+- If task belongs to initiative: criteria MUST cover all relevant vision requirements
 
 ## Step 2: Write Failing Tests
 
@@ -150,7 +164,8 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
     {"id": "no_technical_metrics", "check": "SC describes behavior, not internals", "passed": true},
     {"id": "p1_stories_independent", "check": "Task can be completed independently", "passed": true},
     {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
-    {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true}
+    {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},
+    {"id": "initiative_aligned", "check": "All initiative vision requirements captured", "passed": true}
   ]
 }
 ```
