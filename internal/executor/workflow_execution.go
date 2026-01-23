@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -370,6 +371,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	// Initialize backpressure runner (needs worktree path)
 	we.initBackpressure()
 
+	// Check spec requirements for non-trivial tasks
+	if err := we.checkSpecRequirements(t, phases); err != nil {
+		we.failSetup(run, t, err)
+		return nil, err
+	}
+
 	// Save run
 	if err := we.backend.SaveWorkflowRun(run); err != nil {
 		return nil, fmt.Errorf("save workflow run: %w", err)
@@ -473,7 +480,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Check for context cancellation
 		if ctx.Err() != nil {
-			we.interruptRun(run, t, ctx.Err())
+			we.interruptRun(run, t, phase.PhaseTemplateID, ctx.Err())
 			return result, ctx.Err()
 		}
 
@@ -506,8 +513,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return result, err
 		}
 
-		// Execute the phase
-		phaseResult, err := we.executePhase(ctx, tmpl, phase, vars, rctx, run, runPhase, t)
+		// Execute the phase with timeout support (PhaseMax config)
+		phaseResult, err := we.executePhaseWithTimeout(ctx, tmpl, phase, vars, rctx, run, runPhase, t)
 		result.PhaseResults = append(result.PhaseResults, phaseResult)
 
 		if err != nil {
@@ -1531,12 +1538,29 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error
 }
 
 // interruptRun marks a run as cancelled (interrupted by context cancellation) and syncs task status.
-func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, err error) {
+// Commits work-in-progress before updating status to preserve changes.
+func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, currentPhase string, err error) {
+	we.logger.Info("run interrupted", "run_id", run.ID, "phase", currentPhase, "reason", err.Error())
+
+	// Commit work-in-progress before updating state
+	if t != nil {
+		we.commitWIPOnInterrupt(t, currentPhase)
+	}
+
 	run.Status = string(workflow.RunStatusCancelled)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())
 	if saveErr := we.backend.SaveWorkflowRun(run); saveErr != nil {
 		we.logger.Error("failed to save run interruption", "error", saveErr)
+	}
+
+	// Update execution state
+	if we.execState != nil {
+		we.execState.InterruptPhase(currentPhase)
+		we.execState.Error = fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error())
+		if saveErr := we.backend.SaveState(we.execState); saveErr != nil {
+			we.logger.Error("failed to save state on interrupt", "error", saveErr)
+		}
 	}
 
 	// Sync task status to Paused (can be resumed)
@@ -1547,6 +1571,54 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, err 
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
+	}
+}
+
+// commitWIPOnInterrupt commits any work-in-progress and pushes to remote.
+func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
+	gitSvc := we.worktreeGit
+	if gitSvc == nil {
+		gitSvc = we.gitOps
+	}
+	if gitSvc == nil {
+		return
+	}
+
+	// Use CreateCheckpoint which handles staging and committing
+	checkpoint, err := gitSvc.CreateCheckpoint(t.ID, phaseID, "interrupted (work in progress)")
+	if err != nil {
+		// Log but don't fail - checkpoint is best effort
+		we.logger.Debug("no checkpoint created on interrupt", "reason", err)
+		return
+	}
+	if checkpoint == nil {
+		return
+	}
+
+	we.logger.Info("committed WIP on interrupt", "sha", checkpoint.CommitSHA[:min(8, len(checkpoint.CommitSHA))])
+
+	// Store commit SHA in state
+	if we.execState != nil && we.execState.Phases != nil {
+		if ps := we.execState.Phases[phaseID]; ps != nil {
+			ps.CommitSHA = checkpoint.CommitSHA
+		}
+	}
+
+	// Push to remote with timeout to avoid blocking interrupt
+	pushDone := make(chan error, 1)
+	go func() {
+		pushDone <- gitSvc.Push("origin", t.Branch, false)
+	}()
+
+	select {
+	case pushErr := <-pushDone:
+		if pushErr != nil {
+			we.logger.Warn("failed to push on interrupt", "error", pushErr)
+		} else {
+			we.logger.Info("pushed WIP to remote", "branch", t.Branch)
+		}
+	case <-time.After(30 * time.Second):
+		we.logger.Warn("push timed out on interrupt")
 	}
 }
 
@@ -2185,4 +2257,195 @@ func formatOrphanedProcesses(processes []ProcessInfo) string {
 		parts = append(parts, fmt.Sprintf("%d:%s", p.PID, p.Command))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout.
+type phaseTimeoutError struct {
+	phase   string
+	timeout time.Duration
+	taskID  string
+	err     error
+}
+
+func (e *phaseTimeoutError) Error() string {
+	return fmt.Sprintf("phase %s exceeded timeout (%v). Run 'orc resume %s' to retry.", e.phase, e.timeout, e.taskID)
+}
+
+func (e *phaseTimeoutError) Unwrap() error {
+	return e.err
+}
+
+// IsPhaseTimeoutError returns true if the error is a phase timeout error.
+func IsPhaseTimeoutError(err error) bool {
+	var pte *phaseTimeoutError
+	return errors.As(err, &pte)
+}
+
+// executePhaseWithTimeout wraps executePhase with PhaseMax timeout if configured.
+// PhaseMax=0 means unlimited (no timeout).
+// Returns a phaseTimeoutError if the phase times out due to PhaseMax.
+// Logs warnings at 50% and 75% of the timeout duration.
+func (we *WorkflowExecutor) executePhaseWithTimeout(
+	ctx context.Context,
+	tmpl *db.PhaseTemplate,
+	phase *db.WorkflowPhase,
+	vars map[string]string,
+	rctx *variable.ResolutionContext,
+	run *db.WorkflowRun,
+	runPhase *db.WorkflowRunPhase,
+	t *task.Task,
+) (PhaseResult, error) {
+	phaseMax := time.Duration(0)
+	if we.orcConfig != nil {
+		phaseMax = we.orcConfig.Timeouts.PhaseMax
+	}
+
+	if phaseMax <= 0 {
+		// No timeout configured, execute directly
+		return we.executePhase(ctx, tmpl, phase, vars, rctx, run, runPhase, t)
+	}
+
+	// Create timeout context for this phase
+	phaseCtx, cancel := context.WithTimeout(ctx, phaseMax)
+	defer cancel()
+
+	// Get task ID for logging
+	taskID := ""
+	if t != nil {
+		taskID = t.ID
+	}
+
+	// Start timeout monitoring goroutine for warnings at 50% and 75%
+	startTime := time.Now()
+	warningDone := make(chan struct{})
+	go func() {
+		defer close(warningDone)
+
+		threshold50 := phaseMax / 2
+		threshold75 := phaseMax * 3 / 4
+
+		timer50 := time.NewTimer(threshold50)
+		defer timer50.Stop()
+
+		select {
+		case <-phaseCtx.Done():
+			return
+		case <-timer50.C:
+			elapsed := time.Since(startTime)
+			remaining := phaseMax - elapsed
+			we.logger.Warn("phase_max 50% elapsed",
+				"phase", tmpl.ID,
+				"task", taskID,
+				"elapsed", elapsed.Round(time.Second),
+				"timeout", phaseMax,
+				"remaining", remaining.Round(time.Second),
+			)
+		}
+
+		timer75 := time.NewTimer(threshold75 - threshold50)
+		defer timer75.Stop()
+
+		select {
+		case <-phaseCtx.Done():
+			return
+		case <-timer75.C:
+			elapsed := time.Since(startTime)
+			remaining := phaseMax - elapsed
+			we.logger.Warn("phase_max 75% elapsed",
+				"phase", tmpl.ID,
+				"task", taskID,
+				"elapsed", elapsed.Round(time.Second),
+				"timeout", phaseMax,
+				"remaining", remaining.Round(time.Second),
+			)
+		}
+
+		// Wait for context to complete
+		<-phaseCtx.Done()
+	}()
+
+	result, err := we.executePhase(phaseCtx, tmpl, phase, vars, rctx, run, runPhase, t)
+
+	// Capture the phase context error before canceling.
+	// This determines if the timeout was reached (DeadlineExceeded) vs normal completion.
+	phaseCtxErr := phaseCtx.Err()
+
+	// Cancel the phase context to signal the warning goroutine to exit.
+	// This must be called before waiting on warningDone to avoid deadlock.
+	cancel()
+
+	// Wait for warning goroutine to finish
+	<-warningDone
+
+	if err != nil {
+		// Check if phase context timed out (but parent context is still alive)
+		if phaseCtxErr == context.DeadlineExceeded && ctx.Err() == nil {
+			we.logger.Error("phase timeout exceeded",
+				"phase", tmpl.ID,
+				"timeout", phaseMax,
+				"task", taskID,
+			)
+			return result, &phaseTimeoutError{
+				phase:   tmpl.ID,
+				timeout: phaseMax,
+				taskID:  taskID,
+				err:     err,
+			}
+		}
+	}
+	return result, err
+}
+
+// checkSpecRequirements checks if a task has a valid spec for non-trivial weights.
+// Returns an error if spec is required but missing or invalid.
+// Skips check if the workflow's first phase is "spec" or "tiny_spec" (the spec will be created during execution).
+func (we *WorkflowExecutor) checkSpecRequirements(t *task.Task, phases []*db.WorkflowPhase) error {
+	if t == nil {
+		return nil
+	}
+
+	// Trivial tasks don't require specs
+	if t.Weight == task.WeightTrivial {
+		return nil
+	}
+
+	// Skip if workflow starts with spec phase - it will create the spec
+	if len(phases) > 0 {
+		firstPhase := phases[0].PhaseTemplateID
+		if firstPhase == "spec" || firstPhase == "tiny_spec" {
+			we.logger.Debug("skipping spec requirement check - workflow starts with spec phase",
+				"task", t.ID)
+			return nil
+		}
+	}
+
+	// Check if spec validation is enabled in config
+	if we.orcConfig == nil || !we.orcConfig.Plan.RequireSpecForExecution {
+		return nil
+	}
+
+	// Check if this weight should skip validation
+	if slices.Contains(we.orcConfig.Plan.SkipValidationWeights, string(t.Weight)) {
+		return nil
+	}
+
+	// Check if spec exists using backend
+	specExists, err := we.backend.SpecExists(t.ID)
+	if err != nil {
+		we.logger.Warn("failed to check spec existence", "task", t.ID, "error", err)
+		specExists = false
+	}
+	if !specExists {
+		we.logger.Warn("task has no spec", "task", t.ID, "weight", t.Weight)
+		return fmt.Errorf("task %s requires a spec for weight '%s' - run 'orc plan %s' to create one", t.ID, t.Weight, t.ID)
+	}
+
+	// Load spec content to validate
+	specContent, err := we.backend.LoadSpec(t.ID)
+	if err != nil || specContent == "" {
+		we.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
+		return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
+	}
+
+	return nil
 }
