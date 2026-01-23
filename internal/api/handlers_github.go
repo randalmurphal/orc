@@ -399,6 +399,7 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 			s.workDir,
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
 		)
 
 		opts := executor.WorkflowRunOptions{
