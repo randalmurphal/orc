@@ -371,6 +371,14 @@ type Backend interface {
 	// Task execution claim operations (for resume race condition prevention)
 	TryClaimTaskExecution(ctx context.Context, taskID string, pid int, hostname string) error
 
+	// Project command operations (for quality checks)
+	SaveProjectCommand(cmd *db.ProjectCommand) error
+	GetProjectCommand(name string) (*db.ProjectCommand, error)
+	ListProjectCommands() ([]*db.ProjectCommand, error)
+	GetProjectCommandsMap() (map[string]*db.ProjectCommand, error)
+	DeleteProjectCommand(name string) error
+	SetProjectCommandEnabled(name string, enabled bool) error
+
 	// Database access (for WorkflowExecutor which needs ProjectDB directly)
 	DB() *db.ProjectDB
 

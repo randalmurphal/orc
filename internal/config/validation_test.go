@@ -426,65 +426,6 @@ func TestConfig_ShouldValidateForWeight(t *testing.T) {
 	}
 }
 
-func TestConfig_ShouldRunBackpressure(t *testing.T) {
-	tests := []struct {
-		name   string
-		cfg    *Config
-		weight string
-		want   bool
-	}{
-		{
-			name: "enabled with tests enforced",
-			cfg: &Config{
-				Validation: ValidationConfig{Enabled: true, EnforceTests: true},
-			},
-			weight: "medium",
-			want:   true,
-		},
-		{
-			name: "enabled with lint enforced",
-			cfg: &Config{
-				Validation: ValidationConfig{Enabled: true, EnforceLint: true},
-			},
-			weight: "medium",
-			want:   true,
-		},
-		{
-			name: "enabled but no checks enforced",
-			cfg: &Config{
-				Validation: ValidationConfig{Enabled: true},
-			},
-			weight: "medium",
-			want:   false,
-		},
-		{
-			name: "disabled",
-			cfg: &Config{
-				Validation: ValidationConfig{Enabled: false, EnforceTests: true},
-			},
-			weight: "medium",
-			want:   false,
-		},
-		{
-			name: "enabled but weight skipped",
-			cfg: &Config{
-				Validation: ValidationConfig{Enabled: true, EnforceTests: true, SkipForWeights: []string{"trivial"}},
-			},
-			weight: "trivial",
-			want:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.cfg.ShouldRunBackpressure(tt.weight)
-			if got != tt.want {
-				t.Errorf("ShouldRunBackpressure(%q) = %v, want %v", tt.weight, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestConfig_ShouldValidateSpec(t *testing.T) {
 	tests := []struct {
 		name   string

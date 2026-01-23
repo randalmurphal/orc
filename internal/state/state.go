@@ -131,7 +131,7 @@ type TokenUsage struct {
 // This is used to track Haiku validation results for pause/resume.
 type ValidationEntry struct {
 	Iteration int       `yaml:"iteration" json:"iteration"`
-	Type      string    `yaml:"type" json:"type"`                         // "progress", "criteria", "backpressure"
+	Type      string    `yaml:"type" json:"type"`                         // "progress", "criteria", "quality_check"
 	Decision  string    `yaml:"decision" json:"decision"`                 // "CONTINUE", "RETRY", "STOP"
 	Reason    string    `yaml:"reason,omitempty" json:"reason,omitempty"` // Optional explanation
 	Timestamp time.Time `yaml:"timestamp" json:"timestamp"`

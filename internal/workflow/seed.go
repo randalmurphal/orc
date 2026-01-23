@@ -7,6 +7,10 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
+// DefaultCodeQualityChecks is the JSON for standard code quality checks.
+// Applied to the implement phase to run tests, lint, build, and typecheck after code changes.
+const DefaultCodeQualityChecks = `[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]`
+
 // Built-in phase template definitions.
 // These are seeded into the database on first run.
 var builtinPhaseTemplates = []db.PhaseTemplate{
@@ -19,6 +23,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["TASK_DESCRIPTION", "TASK_CATEGORY", "INITIATIVE_CONTEXT"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "spec",
+		OutputVarName:    "SPEC_CONTENT",
+		OutputType:       "document",
 		MaxIterations:    20,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -33,6 +39,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["TASK_DESCRIPTION", "TASK_CATEGORY"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "spec",
+		OutputVarName:    "SPEC_CONTENT",
+		OutputType:       "document",
 		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -47,6 +55,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["SPEC_CONTENT"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "tests",
+		OutputVarName:    "TDD_TESTS_CONTENT",
+		OutputType:       "tests",
 		MaxIterations:    20,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -62,6 +72,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["SPEC_CONTENT", "TDD_TESTS_CONTENT"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "breakdown",
+		OutputVarName:    "BREAKDOWN_CONTENT",
+		OutputType:       "document",
 		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -75,6 +87,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		PromptPath:       "prompts/implement.md",
 		InputVariables:   `["SPEC_CONTENT", "TDD_TESTS_CONTENT", "BREAKDOWN_CONTENT"]`,
 		ProducesArtifact: false,
+		OutputType:       "code",
+		QualityChecks:    DefaultCodeQualityChecks,
 		MaxIterations:    50,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -89,6 +103,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		PromptPath:       "prompts/review.md",
 		InputVariables:   `["SPEC_CONTENT", "REVIEW_ROUND", "REVIEW_FINDINGS"]`,
 		ProducesArtifact: false,
+		OutputType:       "none",
 		MaxIterations:    3,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -103,6 +118,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["SPEC_CONTENT"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "docs",
+		OutputVarName:    "DOCS_CONTENT",
+		OutputType:       "document",
 		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -116,6 +133,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		PromptPath:       "prompts/validate.md",
 		InputVariables:   `["SPEC_CONTENT"]`,
 		ProducesArtifact: false,
+		OutputType:       "none",
 		MaxIterations:    5,
 		GateType:         "auto",
 		Checkpoint:       false,
@@ -129,6 +147,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		PromptPath:       "prompts/qa.md",
 		InputVariables:   `["SPEC_CONTENT"]`,
 		ProducesArtifact: false,
+		OutputType:       "none",
 		MaxIterations:    10,
 		GateType:         "human",
 		Checkpoint:       false,
@@ -143,6 +162,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["TASK_DESCRIPTION"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "research",
+		OutputVarName:    "RESEARCH_CONTENT",
+		OutputType:       "research",
 		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,
@@ -157,6 +178,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		InputVariables:   `["SPEC_CONTENT"]`,
 		ProducesArtifact: true,
 		ArtifactType:     "design",
+		OutputVarName:    "DESIGN_CONTENT",
+		OutputType:       "document",
 		MaxIterations:    10,
 		GateType:         "auto",
 		Checkpoint:       true,

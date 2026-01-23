@@ -25,6 +25,7 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 2. Write minimal `config.yaml` (profile: auto, version: 1)
 3. Create and migrate SQLite database (`.orc/orc.db`)
 4. Run project detection, store in SQLite
+4b. Seed project commands (tests, lint, build, typecheck) based on detection
 5. Register project in global registry (`~/.orc/projects.yaml`)
 6. Update `.gitignore` with orc patterns
 7. Install hooks (orc-stop.sh, tdd-discipline.sh)

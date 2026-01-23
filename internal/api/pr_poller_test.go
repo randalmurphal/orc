@@ -335,7 +335,17 @@ func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error { return
 func (b *emptyBackend) TryClaimTaskExecution(context.Context, string, int, string) error {
 	return nil
 }
-func (b *emptyBackend) DB() *db.ProjectDB { return nil }
+func (b *emptyBackend) SaveProjectCommand(*db.ProjectCommand) error { return nil }
+func (b *emptyBackend) GetProjectCommand(string) (*db.ProjectCommand, error) {
+	return nil, nil
+}
+func (b *emptyBackend) ListProjectCommands() ([]*db.ProjectCommand, error) { return nil, nil }
+func (b *emptyBackend) GetProjectCommandsMap() (map[string]*db.ProjectCommand, error) {
+	return nil, nil
+}
+func (b *emptyBackend) DeleteProjectCommand(string) error            { return nil }
+func (b *emptyBackend) SetProjectCommandEnabled(string, bool) error  { return nil }
+func (b *emptyBackend) DB() *db.ProjectDB                            { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

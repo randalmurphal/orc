@@ -35,20 +35,21 @@ const maxImportFileSize = 100 * 1024 * 1024
 
 // ExportManifest contains metadata about an export archive.
 type ExportManifest struct {
-	Version             int       `yaml:"version"`
-	ExportedAt          time.Time `yaml:"exported_at"`
-	SourceHostname      string    `yaml:"source_hostname"`
-	SourceProject       string    `yaml:"source_project,omitempty"`
-	OrcVersion          string    `yaml:"orc_version,omitempty"`
-	TaskCount           int       `yaml:"task_count"`
-	InitiativeCount     int       `yaml:"initiative_count"`
-	WorkflowCount       int       `yaml:"workflow_count,omitempty"`
-	PhaseTemplateCount  int       `yaml:"phase_template_count,omitempty"`
-	WorkflowRunCount    int       `yaml:"workflow_run_count,omitempty"`
-	IncludesState       bool      `yaml:"includes_state"`
-	IncludesTranscripts bool      `yaml:"includes_transcripts"`
-	IncludesWorkflows   bool      `yaml:"includes_workflows,omitempty"`
-	IncludesRuns        bool      `yaml:"includes_runs,omitempty"`
+	Version              int       `yaml:"version"`
+	ExportedAt           time.Time `yaml:"exported_at"`
+	SourceHostname       string    `yaml:"source_hostname"`
+	SourceProject        string    `yaml:"source_project,omitempty"`
+	OrcVersion           string    `yaml:"orc_version,omitempty"`
+	TaskCount            int       `yaml:"task_count"`
+	InitiativeCount      int       `yaml:"initiative_count"`
+	WorkflowCount        int       `yaml:"workflow_count,omitempty"`
+	PhaseTemplateCount   int       `yaml:"phase_template_count,omitempty"`
+	WorkflowRunCount     int       `yaml:"workflow_run_count,omitempty"`
+	ProjectCommandCount  int       `yaml:"project_command_count,omitempty"`
+	IncludesState        bool      `yaml:"includes_state"`
+	IncludesTranscripts  bool      `yaml:"includes_transcripts"`
+	IncludesWorkflows    bool      `yaml:"includes_workflows,omitempty"`
+	IncludesRuns         bool      `yaml:"includes_runs,omitempty"`
 }
 
 // ExportData contains all data for a task export.
@@ -111,6 +112,15 @@ type WorkflowRunExportData struct {
 
 	WorkflowRun *db.WorkflowRun       `yaml:"workflow_run"`
 	Phases      []*db.WorkflowRunPhase `yaml:"phases,omitempty"`
+}
+
+// ProjectCommandsExportData contains project commands for export.
+type ProjectCommandsExportData struct {
+	Version    int       `yaml:"version"`
+	ExportedAt time.Time `yaml:"exported_at"`
+	Type       string    `yaml:"type"` // "project_commands"
+
+	Commands []*db.ProjectCommand `yaml:"commands"`
 }
 
 // newExportCmd creates the export command
@@ -1425,11 +1435,12 @@ type exportAllOptions struct {
 
 // exportAllData contains all data to be exported.
 type exportAllData struct {
-	tasks          []*task.Task
-	initiatives    []*initiative.Initiative
-	phaseTemplates []*db.PhaseTemplate
-	workflows      []*db.Workflow
-	workflowRuns   []*db.WorkflowRun
+	tasks           []*task.Task
+	initiatives     []*initiative.Initiative
+	phaseTemplates  []*db.PhaseTemplate
+	workflows       []*db.Workflow
+	workflowRuns    []*db.WorkflowRun
+	projectCommands []*db.ProjectCommand
 }
 
 // exportAllTasks exports all tasks to a directory, zip, or tar.gz archive.
@@ -1489,6 +1500,13 @@ func exportAllTasks(outputPath, format string, opts exportAllOptions) error {
 		}
 	}
 
+	// Always load project commands (they're configuration, not optional)
+	data.projectCommands, err = backend.ListProjectCommands()
+	if err != nil {
+		// Non-fatal - just log and continue
+		fmt.Fprintf(os.Stderr, "Warning: could not load project commands: %v\n", err)
+	}
+
 	if len(data.tasks) == 0 && len(data.initiatives) == 0 && len(data.workflows) == 0 {
 		fmt.Println("No tasks, initiatives, or workflows to export")
 		return nil
@@ -1525,20 +1543,21 @@ func buildManifest(data exportAllData, opts exportAllOptions) *ExportManifest {
 	cwd, _ := os.Getwd()
 
 	return &ExportManifest{
-		Version:             ExportFormatVersion,
-		ExportedAt:          time.Now(),
-		SourceHostname:      hostname,
-		SourceProject:       cwd,
-		OrcVersion:          runtime.Version(), // Go version as proxy for now
-		TaskCount:           len(data.tasks),
-		InitiativeCount:     len(data.initiatives),
-		WorkflowCount:       len(data.workflows),
-		PhaseTemplateCount:  len(data.phaseTemplates),
-		WorkflowRunCount:    len(data.workflowRuns),
-		IncludesState:       opts.withState,
-		IncludesTranscripts: opts.withTranscripts,
-		IncludesWorkflows:   opts.withWorkflows,
-		IncludesRuns:        opts.withRuns,
+		Version:              ExportFormatVersion,
+		ExportedAt:           time.Now(),
+		SourceHostname:       hostname,
+		SourceProject:        cwd,
+		OrcVersion:           runtime.Version(), // Go version as proxy for now
+		TaskCount:            len(data.tasks),
+		InitiativeCount:      len(data.initiatives),
+		WorkflowCount:        len(data.workflows),
+		PhaseTemplateCount:   len(data.phaseTemplates),
+		WorkflowRunCount:     len(data.workflowRuns),
+		ProjectCommandCount:  len(data.projectCommands),
+		IncludesState:        opts.withState,
+		IncludesTranscripts:  opts.withTranscripts,
+		IncludesWorkflows:    opts.withWorkflows,
+		IncludesRuns:         opts.withRuns,
 	}
 }
 
@@ -1682,6 +1701,27 @@ func exportAllToTarGz(backend storage.Backend, data exportAllData, archivePath s
 		runsExported++
 	}
 
+	// Export project commands (single file with all commands)
+	var commandsExported int
+	if len(data.projectCommands) > 0 {
+		export := &ProjectCommandsExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "project_commands",
+			Commands:   data.projectCommands,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: project commands: marshal error: %v\n", err)
+		} else {
+			if err := writeTarFile(tarWriter, "project_commands.yaml", yamlData); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: project commands: write error: %v\n", err)
+			} else {
+				commandsExported = len(data.projectCommands)
+			}
+		}
+	}
+
 	// Print summary
 	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
@@ -1695,6 +1735,9 @@ func exportAllToTarGz(backend storage.Backend, data exportAllData, archivePath s
 	}
 	if runsExported > 0 {
 		fmt.Printf(", %d workflow run(s)", runsExported)
+	}
+	if commandsExported > 0 {
+		fmt.Printf(", %d project command(s)", commandsExported)
 	}
 	fmt.Printf(" to %s\n", archivePath)
 	return nil
@@ -1849,6 +1892,27 @@ func exportAllToZip(backend storage.Backend, data exportAllData, zipPath string,
 		runsExported++
 	}
 
+	// Export project commands
+	var commandsExported int
+	if len(data.projectCommands) > 0 {
+		export := &ProjectCommandsExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "project_commands",
+			Commands:   data.projectCommands,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: project commands: marshal error: %v\n", err)
+		} else {
+			if err := writeZipFile(zipWriter, "project_commands.yaml", yamlData); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: project commands: write error: %v\n", err)
+			} else {
+				commandsExported = len(data.projectCommands)
+			}
+		}
+	}
+
 	// Print summary
 	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
@@ -1862,6 +1926,9 @@ func exportAllToZip(backend storage.Backend, data exportAllData, zipPath string,
 	}
 	if runsExported > 0 {
 		fmt.Printf(", %d workflow run(s)", runsExported)
+	}
+	if commandsExported > 0 {
+		fmt.Printf(", %d project command(s)", commandsExported)
 	}
 	fmt.Printf(" to %s\n", zipPath)
 	return nil
@@ -2037,6 +2104,27 @@ func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opt
 		}
 	}
 
+	// Export project commands (single file)
+	var commandsExported int
+	if len(data.projectCommands) > 0 {
+		export := &ProjectCommandsExportData{
+			Version:    ExportFormatVersion,
+			ExportedAt: time.Now(),
+			Type:       "project_commands",
+			Commands:   data.projectCommands,
+		}
+		yamlData, err := yaml.Marshal(export)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: project commands: marshal error: %v\n", err)
+		} else {
+			if err := os.WriteFile(filepath.Join(dir, "project_commands.yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: project commands: write error: %v\n", err)
+			} else {
+				commandsExported = len(data.projectCommands)
+			}
+		}
+	}
+
 	// Print summary
 	fmt.Printf("Exported %d task(s)", tasksExported)
 	if initExported > 0 {
@@ -2050,6 +2138,9 @@ func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opt
 	}
 	if runsExported > 0 {
 		fmt.Printf(", %d workflow run(s)", runsExported)
+	}
+	if commandsExported > 0 {
+		fmt.Printf(", %d project command(s)", commandsExported)
 	}
 	fmt.Printf(" to %s\n", dir)
 	return nil

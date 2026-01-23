@@ -103,7 +103,6 @@ type WorkflowExecutor struct {
 	execState    *state.State  // Execution state (for task-based contexts)
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
-	backpressure *BackpressureRunner // For deterministic quality checks
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
@@ -383,9 +382,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return nil, fmt.Errorf("sync on start: %w", err)
 		}
 	}
-
-	// Initialize backpressure runner (needs worktree path)
-	we.initBackpressure()
 
 	// Check spec requirements for non-trivial tasks
 	if err := we.checkSpecRequirements(t, phases); err != nil {

@@ -7,9 +7,8 @@ Embedded prompt templates for phase execution.
 ```
 templates/
 ├── embed.go          # Go embed directives
-├── prompts/          # ALL prompts (phase, validation, gates)
+├── prompts/          # ALL prompts (phase, gates, sessions)
 │   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
-│   ├── [validation] haiku_iteration_progress, haiku_task_readiness, haiku_success_criteria
 │   ├── [gates] conflict_resolution
 │   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
 │   ├── [review] review_round1, review_round2, qa
@@ -141,7 +140,6 @@ if content == nil { return "" }  // Lost error!
 
 | Package | Prompt Files |
 |---------|--------------|
-| `executor/haiku_validation.go` | `haiku_iteration_progress.md`, `haiku_task_readiness.md`, `haiku_success_criteria.md` |
 | `executor/conflict_resolver.go` | `conflict_resolution.md` |
 | `spec/prompt.go` | `spec_session.md` |
 | `plan_session/prompt.go` | `plan_session.md` |
