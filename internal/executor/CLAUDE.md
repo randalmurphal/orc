@@ -442,7 +442,7 @@ GlobalDB.RecordCostExtended() (db/global.go:340)
 | `DurationMs` | `Result.Duration.Milliseconds()` | Phase execution time |
 | `Model` | `DetectModel(modelSetting.Model)` | opus/sonnet/haiku/unknown |
 
-**Integration point:** `workflow_execution.go` calls `recordCostToGlobal()` after phase completion.
+**Integration point:** `workflow_executor.go` calls `recordCostToGlobal()` after phase completion.
 
 ## Testing with TurnExecutor
 
