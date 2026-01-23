@@ -359,7 +359,7 @@ This resolves the task without touching the worktree at all. Useful if you want 
 orc show TASK-XXX --gates
 
 # Read rejection rationale
-grep -A10 "decision: rejected" .orc/tasks/TASK-XXX/state.yaml
+orc show TASK-XXX --state | grep -A10 "decision: rejected"
 ```
 
 **Solutions**:
@@ -683,7 +683,7 @@ orc log TASK-XXX | grep -i "memory growth"
 | Approach | Command | When to Use |
 |----------|---------|-------------|
 | Manual cleanup | `pkill -f playwright && pkill -f chromium` | Immediate relief when system is slow |
-| Disable UI testing | Set `requires_ui_testing: false` in task.yaml | If not actually doing UI tests |
+| Disable UI testing | `orc update TASK-XXX --requires-ui-testing=false` | If not actually doing UI tests |
 | Monitor logs | Watch for orphan warnings after tasks | Identify which tasks cause issues |
 
 **Understanding the Logs**:
