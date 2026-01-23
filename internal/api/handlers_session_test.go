@@ -168,14 +168,20 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	// Note: Tokens are stored at the PHASE level in the database, not state level.
 	// Note: Cost filtering uses state.StartedAt which comes from dbTask.StartedAt,
 	// so we need to set task StartedAt when creating tasks.
+	//
+	// IMPORTANT: Use times relative to "today at midnight" to avoid day boundary issues.
+	// The handler calculates "today" as time.Now().UTC().Truncate(24 * time.Hour), so we
+	// must use times that are clearly within today (after midnight) or yesterday (before).
 	now := time.Now().UTC()
-	startedToday := now.Add(-1 * time.Hour)
-	startedYesterday := now.Add(-25 * time.Hour)
+	today := now.Truncate(24 * time.Hour)
+	startedToday := today.Add(2 * time.Hour)                   // 2am today (clearly within today)
+	startedToday2 := today.Add(4 * time.Hour)                  // 4am today (clearly within today)
+	startedYesterday := today.Add(-1 * time.Hour)              // 11pm yesterday (clearly before today)
 
 	// Create tasks with proper StartedAt times
 	tasks := []*task.Task{
 		{ID: "TASK-001", Title: "Test task 1", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday},
-		{ID: "TASK-002", Title: "Test task 2", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday},
+		{ID: "TASK-002", Title: "Test task 2", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday2},
 		{ID: "TASK-003", Title: "Test task 3", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedYesterday},
 	}
 	for _, tsk := range tasks {
@@ -187,15 +193,15 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	// Create properly initialized states with phase-level tokens
 	st1 := state.New("TASK-001")
 	st1.Status = state.StatusCompleted
-	st1.StartedAt = now.Add(-1 * time.Hour) // 1 hour ago (today)
-	st1.UpdatedAt = now.Add(-1 * time.Hour)
+	st1.StartedAt = startedToday
+	st1.UpdatedAt = startedToday
 	st1.Cost = state.CostTracking{
 		TotalCostUSD: 0.50,
 	}
 	// Add a phase with tokens (this is where tokens are actually stored)
 	st1.Phases["implement"] = &state.PhaseState{
 		Status:    state.StatusCompleted,
-		StartedAt: now.Add(-1 * time.Hour),
+		StartedAt: startedToday,
 		Tokens: state.TokenUsage{
 			InputTokens:  1000,
 			OutputTokens: 2000,
@@ -204,15 +210,15 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 
 	st2 := state.New("TASK-002")
 	st2.Status = state.StatusCompleted
-	st2.StartedAt = now.Add(-2 * time.Hour) // 2 hours ago (today)
-	st2.UpdatedAt = now.Add(-2 * time.Hour)
+	st2.StartedAt = startedToday2
+	st2.UpdatedAt = startedToday2
 	st2.Cost = state.CostTracking{
 		TotalCostUSD: 0.75,
 	}
 	// Add a phase with tokens
 	st2.Phases["implement"] = &state.PhaseState{
 		Status:    state.StatusCompleted,
-		StartedAt: now.Add(-2 * time.Hour),
+		StartedAt: startedToday2,
 		Tokens: state.TokenUsage{
 			InputTokens:  1500,
 			OutputTokens: 2500,
@@ -221,15 +227,15 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 
 	st3 := state.New("TASK-003")
 	st3.Status = state.StatusCompleted
-	st3.StartedAt = now.Add(-25 * time.Hour) // 25 hours ago (yesterday, should not be counted)
-	st3.UpdatedAt = now.Add(-25 * time.Hour)
+	st3.StartedAt = startedYesterday
+	st3.UpdatedAt = startedYesterday
 	st3.Cost = state.CostTracking{
 		TotalCostUSD: 2.00,
 	}
 	// Add a phase with tokens - yesterday's phase should not be counted
 	st3.Phases["implement"] = &state.PhaseState{
 		Status:    state.StatusCompleted,
-		StartedAt: now.Add(-25 * time.Hour),
+		StartedAt: startedYesterday,
 		Tokens: state.TokenUsage{
 			InputTokens:  5000,
 			OutputTokens: 5000,

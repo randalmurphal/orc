@@ -3,7 +3,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -66,45 +65,105 @@ See also:
 			watch, _ := cmd.Flags().GetBool("watch")
 
 			if watch {
-				return watchStatus(all)
+				return watchStatus(cmd, all)
 			}
 
-			return showStatus(all)
+			return showStatus(cmd, all)
 		},
 	}
 
 	cmd.Flags().BoolP("all", "a", false, "show all tasks including completed")
 	cmd.Flags().BoolP("watch", "w", false, "refresh status every 5 seconds")
+	cmd.Flags().StringP("initiative", "i", "", "filter by initiative ID (use 'unassigned' or '' for tasks without initiative)")
+
+	// Register completion function for initiative flag
+	_ = cmd.RegisterFlagCompletionFunc("initiative", completeInitiativeIDs)
 
 	return cmd
 }
 
-func showStatus(showAll bool) error {
+func showStatus(cmd *cobra.Command, showAll bool) error {
 	backend, err := getBackend()
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
 	defer func() { _ = backend.Close() }()
 
-	tasks, err := backend.LoadAllTasks()
+	out := cmd.OutOrStdout()
+
+	// Extract initiative filter
+	initiativeFilter, _ := cmd.Flags().GetString("initiative")
+	initiativeFilterActive := cmd.Flags().Changed("initiative")
+
+	// Validate initiative filter if provided (unless it's "unassigned" or empty)
+	if initiativeFilterActive && initiativeFilter != "" && strings.ToLower(initiativeFilter) != "unassigned" {
+		exists, err := backend.InitiativeExists(initiativeFilter)
+		if err != nil {
+			return fmt.Errorf("check initiative: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("initiative %s not found", initiativeFilter)
+		}
+	}
+
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
 
-	if len(tasks) == 0 {
-		fmt.Println("No tasks found.")
-		fmt.Println("\nGet started:")
-		fmt.Println("  orc new \"Your task description\"")
+	if len(allTasks) == 0 {
+		_, _ = fmt.Fprintln(out, "No tasks found.")
+		_, _ = fmt.Fprintln(out, "\nGet started:")
+		_, _ = fmt.Fprintln(out, "  orc new \"Your task description\"")
 		return nil
 	}
 
-	// Populate computed fields for dependency tracking
-	task.PopulateComputedFields(tasks)
+	// Populate computed fields for dependency tracking (on ALL tasks)
+	task.PopulateComputedFields(allTasks)
 
-	// Build task map for dependency checks
+	// Build task map for dependency checks (using ALL tasks, not filtered)
+	// This ensures dependencies work correctly even when blocker is outside initiative
 	taskMap := make(map[string]*task.Task)
-	for _, t := range tasks {
+	for _, t := range allTasks {
 		taskMap[t.ID] = t
+	}
+
+	// Apply initiative filter after loading but before categorization
+	var tasks []*task.Task
+	for _, t := range allTasks {
+		// Initiative filter
+		if initiativeFilterActive {
+			// Empty string or "unassigned" means show tasks without initiative
+			if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
+				if t.InitiativeID != "" {
+					continue
+				}
+			} else {
+				if t.InitiativeID != initiativeFilter {
+					continue
+				}
+			}
+		}
+		tasks = append(tasks, t)
+	}
+
+	if len(tasks) == 0 {
+		var filterDesc []string
+		if initiativeFilterActive {
+			if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
+				filterDesc = append(filterDesc, "unassigned to any initiative")
+			} else {
+				filterDesc = append(filterDesc, fmt.Sprintf("in initiative %s", initiativeFilter))
+			}
+		}
+		if len(filterDesc) > 0 {
+			_, _ = fmt.Fprintf(out, "No tasks found %s.\n", strings.Join(filterDesc, " "))
+		} else {
+			_, _ = fmt.Fprintln(out, "No tasks found.")
+		}
+		_, _ = fmt.Fprintln(out, "\nGet started:")
+		_, _ = fmt.Fprintln(out, "  orc new \"Your task description\"")
+		return nil
 	}
 
 	// Check for orphaned tasks by loading states
@@ -179,16 +238,16 @@ func showStatus(showAll bool) error {
 	})
 
 	// Print sections with priority ordering
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 
 	// Orphaned tasks (highest priority - executor died)
 	if len(orphaned) > 0 {
 		if plain {
-			fmt.Println("ORPHANED (executor died)")
+			_, _ = fmt.Fprintln(out, "ORPHANED (executor died)")
 		} else {
-			fmt.Println("\u26a0\ufe0f  ORPHANED (executor died)")
+			_, _ = fmt.Fprintln(out, "\u26a0\ufe0f  ORPHANED (executor died)")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 		for _, t := range orphaned {
 			info := orphanedIDs[t.ID]
 			reason := info.Reason
@@ -198,18 +257,18 @@ func showStatus(showAll bool) error {
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.ID, truncate(t.Title, 35), reason)
 		}
 		_ = w.Flush()
-		fmt.Println("  Use 'orc resume <task-id>' to continue these tasks")
-		fmt.Println()
+		_, _ = fmt.Fprintln(out, "  Use 'orc resume <task-id>' to continue these tasks")
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Attention needed (system blocked - needs human input)
 	if len(systemBlocked) > 0 {
 		if plain {
-			fmt.Println("ATTENTION NEEDED")
+			_, _ = fmt.Fprintln(out, "ATTENTION NEEDED")
 		} else {
-			fmt.Println("\u26a0\ufe0f  ATTENTION NEEDED")
+			_, _ = fmt.Fprintln(out, "\u26a0\ufe0f  ATTENTION NEEDED")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 		for _, t := range systemBlocked {
 			// Show detailed info for blocked tasks with conflict metadata
 			blockedReason := "(blocked - needs input)"
@@ -230,22 +289,22 @@ func showStatus(showAll bool) error {
 			}
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), blockedReason)
 			if worktreePath != "" {
-				fmt.Printf("      Worktree: %s\n", worktreePath)
-				fmt.Printf("      → orc resume %s (after resolving conflicts)\n", t.ID)
+				_, _ = fmt.Fprintf(out, "      Worktree: %s\n", worktreePath)
+				_, _ = fmt.Fprintf(out, "      → orc resume %s (after resolving conflicts)\n", t.ID)
 			}
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// In progress (running)
 	if len(running) > 0 {
 		if plain {
-			fmt.Println("RUNNING")
+			_, _ = fmt.Fprintln(out, "RUNNING")
 		} else {
-			fmt.Println("\u23f3 RUNNING")
+			_, _ = fmt.Fprintln(out, "\u23f3 RUNNING")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 		for _, t := range running {
 			phase := t.CurrentPhase
 			if phase == "" {
@@ -254,79 +313,99 @@ func showStatus(showAll bool) error {
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Dependency blocked (waiting on other tasks)
 	if len(depBlocked) > 0 {
 		if plain {
-			fmt.Println("BLOCKED")
+			_, _ = fmt.Fprintln(out, "BLOCKED")
 		} else {
-			fmt.Println("🚫 BLOCKED")
+			_, _ = fmt.Fprintln(out, "🚫 BLOCKED")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
+
+		// Build set of task IDs that are being displayed (for filtering blocker IDs)
+		displayedTaskIDs := make(map[string]bool)
+		for _, t := range tasks {
+			displayedTaskIDs[t.ID] = true
+		}
+
 		for _, t := range depBlocked {
 			unmet := t.GetUnmetDependencies(taskMap)
-			blockerStr := formatBlockerList(unmet)
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
+			// Filter unmet dependencies to only show blockers that are in the displayed task list
+			var filteredUnmet []string
+			for _, blockerID := range unmet {
+				if displayedTaskIDs[blockerID] {
+					filteredUnmet = append(filteredUnmet, blockerID)
+				}
+			}
+			// Only show "(by ...)" if there are displayed blockers
+			if len(filteredUnmet) > 0 {
+				blockerStr := formatBlockerList(filteredUnmet)
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
+			} else {
+				// No displayed blockers - just show the task without blocker info
+				_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 35))
+			}
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Ready (can run now - dependencies satisfied)
 	if len(ready) > 0 {
 		if plain {
-			fmt.Println("READY")
+			_, _ = fmt.Fprintln(out, "READY")
 		} else {
-			fmt.Println("📋 READY")
+			_, _ = fmt.Fprintln(out, "📋 READY")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 		for _, t := range ready {
 			_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 45))
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Paused (can resume)
 	if len(paused) > 0 {
 		if plain {
-			fmt.Println("PAUSED")
+			_, _ = fmt.Fprintln(out, "PAUSED")
 		} else {
-			fmt.Println("⏸️  PAUSED")
+			_, _ = fmt.Fprintln(out, "⏸️  PAUSED")
 		}
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 		for _, t := range paused {
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ orc resume %s\n", t.ID, truncate(t.Title, 40), t.ID)
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Recent activity (completed/failed in last 24h)
 	if len(recent) > 0 {
-		fmt.Println("RECENT (24h)")
-		fmt.Println()
+		_, _ = fmt.Fprintln(out, "RECENT (24h)")
+		_, _ = fmt.Fprintln(out)
 		for _, t := range recent {
 			icon := statusIcon(t.Status)
 			ago := formatTimeAgo(t.UpdatedAt)
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 35), ago)
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Other tasks (if --all)
 	if showAll && len(other) > 0 {
-		fmt.Println("OTHER")
-		fmt.Println()
+		_, _ = fmt.Fprintln(out, "OTHER")
+		_, _ = fmt.Fprintln(out)
 		for _, t := range other {
 			icon := statusIcon(t.Status)
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 40))
 		}
 		_ = w.Flush()
-		fmt.Println()
+		_, _ = fmt.Fprintln(out)
 	}
 
 	// Quick stats summary
@@ -351,7 +430,7 @@ func showStatus(showAll bool) error {
 	}
 	summaryParts = append(summaryParts, fmt.Sprintf("%d completed", completed))
 
-	fmt.Printf("─── %d tasks (%s) ───\n", total, strings.Join(summaryParts, ", "))
+	_, _ = fmt.Fprintf(out, "─── %d tasks (%s) ───\n", total, strings.Join(summaryParts, ", "))
 
 	return nil
 }
@@ -367,13 +446,13 @@ func formatBlockerList(blockerIDs []string) string {
 	return strings.Join(blockerIDs[:3], ", ") + fmt.Sprintf(" +%d more", len(blockerIDs)-3)
 }
 
-func watchStatus(showAll bool) error {
+func watchStatus(cmd *cobra.Command, showAll bool) error {
 	fmt.Println("Watching status (Ctrl+C to stop)...")
 	for {
 		// Clear screen
 		fmt.Print("\033[H\033[2J")
 		fmt.Printf("orc status (updated %s)\n\n", time.Now().Format("15:04:05"))
-		if err := showStatus(showAll); err != nil {
+		if err := showStatus(cmd, showAll); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 		time.Sleep(5 * time.Second)

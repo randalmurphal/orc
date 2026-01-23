@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -307,44 +306,6 @@ func TestValidateFinalizeState(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetFinalizePhase(t *testing.T) {
-	t.Run("returns existing phase", func(t *testing.T) {
-		p := &executor.Plan{
-			Phases: []executor.Phase{
-				{ID: "implement", Name: "Implement"},
-				{ID: "finalize", Name: "Finalize", Status: executor.PhasePending},
-			},
-		}
-
-		phase := getFinalizePhase(p)
-
-		if phase.ID != "finalize" {
-			t.Errorf("Expected finalize phase, got: %s", phase.ID)
-		}
-		if phase.Status != executor.PhasePending {
-			t.Errorf("Expected pending status, got: %s", phase.Status)
-		}
-	})
-
-	t.Run("creates new phase if not present", func(t *testing.T) {
-		p := &executor.Plan{
-			Phases: []executor.Phase{
-				{ID: "implement", Name: "Implement"},
-				{ID: "test", Name: "Test"},
-			},
-		}
-
-		phase := getFinalizePhase(p)
-
-		if phase.ID != "finalize" {
-			t.Errorf("Expected new finalize phase, got: %s", phase.ID)
-		}
-		if phase.Status != executor.PhasePending {
-			t.Errorf("Expected pending status for new phase, got: %s", phase.Status)
-		}
-	})
 }
 
 // containsSubstr checks if a string contains a substring

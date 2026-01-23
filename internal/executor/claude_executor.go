@@ -322,36 +322,6 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 	return opts
 }
 
-// NewClaudeExecutorFromContext creates a ClaudeExecutor configured from an ExecutionContext.
-// This is the recommended way to create an executor for phase execution.
-func NewClaudeExecutorFromContext(ctx *ExecutionContext, claudePath string, maxIterations int, logger *slog.Logger) *ClaudeExecutor {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
-	// Get phase ID for schema selection
-	phaseID := ""
-	if ctx.Phase != nil {
-		phaseID = ctx.Phase.ID
-	}
-
-	// Get review round for review phase schema selection
-	reviewRound := ctx.TemplateVars.ReviewRound
-
-	return NewClaudeExecutor(
-		WithClaudePath(claudePath),
-		WithClaudeWorkdir(ctx.WorkingDir),
-		WithClaudeModel(ctx.ModelSetting.Model),
-		WithClaudeSessionID(ctx.SessionID),
-		WithClaudeResume(ctx.IsResume),
-		WithClaudeMaxTurns(maxIterations),
-		WithClaudeLogger(logger),
-		WithClaudeMCPConfig(ctx.MCPConfigPath),
-		WithClaudePhaseID(phaseID),
-		WithClaudeReviewRound(reviewRound),
-	)
-}
-
 // MockTurnExecutor is a test double for TurnExecutor that returns configurable responses.
 // Use this in tests to avoid spawning real Claude CLI processes.
 type MockTurnExecutor struct {

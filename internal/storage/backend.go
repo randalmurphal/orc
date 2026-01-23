@@ -359,6 +359,12 @@ type Backend interface {
 	ConstitutionExists() (bool, error)
 	DeleteConstitution() error
 
+	// Task execution claim operations (for resume race condition prevention)
+	TryClaimTaskExecution(ctx context.Context, taskID string, pid int, hostname string) error
+
+	// Database access (for WorkflowExecutor which needs ProjectDB directly)
+	DB() *db.ProjectDB
+
 	// Lifecycle
 	Sync() error    // Flush caches to disk
 	Cleanup() error // Remove old data per retention policy

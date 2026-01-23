@@ -46,6 +46,10 @@ func (e *Executor) runCompletion(ctx context.Context, t *task.Task) error {
 // ErrSyncConflict is returned when sync encounters merge conflicts.
 var ErrSyncConflict = errors.New("sync conflict detected")
 
+// ErrTaskBlocked is returned when task execution completes but requires
+// user intervention (e.g., sync conflicts, merge failures).
+var ErrTaskBlocked = errors.New("task blocked")
+
 // SyncPhase indicates when sync is being performed.
 type SyncPhase string
 

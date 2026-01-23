@@ -12,10 +12,10 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // createPRRequest is the request body for creating a PR.
@@ -316,9 +316,6 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create plan dynamically from task weight
-	p := createPlanForWeightAPI(taskID, t.Weight)
-
 	st, err := s.backend.LoadState(taskID)
 	if err != nil {
 		// Create new state if it doesn't exist
@@ -391,15 +388,28 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		execCfg := executor.ConfigFromOrc(s.orcConfig)
-		execCfg.WorkDir = s.workDir
-		exec := executor.NewWithConfig(execCfg, s.orcConfig)
-		exec.SetBackend(s.backend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
+		// Get workflow ID from task weight
+		workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
 
-		// Resume from implement phase with retry context
-		err := exec.ResumeFromPhase(ctx, t, p, st, "implement")
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			s.backend,
+			s.backend.DB(),
+			s.orcConfig,
+			s.workDir,
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+		)
+
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      taskID,
+			Prompt:      t.Description,
+			Category:    t.Category,
+		}
+
+		// Run workflow (WorkflowExecutor handles resume internally via state)
+		_, err := we.Run(ctx, workflowID, opts)
 		if err != nil {
 			s.logger.Error("auto-fix execution failed", "task", taskID, "error", err)
 			s.Publish(taskID, Event{Type: "error", Data: map[string]string{"error": err.Error()}})
@@ -906,53 +916,4 @@ func (s *Server) handleRefreshPRStatus(w http.ResponseWriter, r *http.Request) {
 		"message": fmt.Sprintf("PR #%d status refreshed", pr.Number),
 		"task_id": taskID,
 	})
-}
-
-// createPlanForWeightAPI creates an execution plan based on task weight.
-// Plans are created dynamically for execution, not stored.
-func createPlanForWeightAPI(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
-
-	switch weight {
-	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	default:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	}
-
-	return &executor.Plan{
-		TaskID: taskID,
-		Phases: phases,
-	}
 }

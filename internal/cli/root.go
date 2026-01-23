@@ -111,7 +111,6 @@ func init() {
 	addCmd(newRejectCmd(), groupPhaseControl)
 
 	// Planning & Orchestration
-	addCmd(newGoCmd(), groupPlanning)
 	addCmd(newSetupCmd(), groupPlanning)
 	addCmd(newInitiativeCmd(), groupPlanning)
 

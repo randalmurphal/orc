@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
@@ -46,6 +47,9 @@ type Server struct {
 
 	// Storage backend
 	backend storage.Backend
+
+	// Project database for workflow execution
+	projectDB *db.ProjectDB
 
 	// SSE subscribers per task (legacy, kept for compatibility)
 	subscribers   map[string][]chan Event
@@ -184,6 +188,7 @@ func New(cfg *Config) *Server {
 		orcConfig:        orcCfg,
 		publisher:        pub,
 		backend:          backend,
+		projectDB:        backend.DB(),
 		subscribers:      make(map[string][]chan Event),
 		runningTasks:     make(map[string]context.CancelFunc),
 		diffCache:        diff.NewCache(100), // Cache up to 100 file diffs
@@ -791,9 +796,6 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 	}
 
-	// Create plan dynamically from task weight
-	p := createPlanForWeightServer(id, t.Weight)
-
 	st, err := s.backend.LoadState(id)
 	if err != nil {
 		return nil, fmt.Errorf("state not found")
@@ -850,15 +852,28 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		execCfg := executor.ConfigFromOrc(s.orcConfig)
-		execCfg.WorkDir = s.workDir
-		exec := executor.NewWithConfig(execCfg, s.orcConfig)
-		exec.SetBackend(s.backend)
-		exec.SetPublisher(s.publisher)
-		exec.SetAutomationService(s.automationSvc)
-		exec.SetPendingDecisionStore(s.pendingDecisions)
-		exec.SetHeadless(true)
-		err := exec.ResumeFromPhase(ctx, t, p, st, resumePhase)
+		// Get workflow ID from task weight
+		workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			s.backend,
+			s.backend.DB(),
+			s.orcConfig,
+			s.workDir,
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+		)
+
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      id,
+			Prompt:      t.Description,
+			Category:    t.Category,
+		}
+
+		// Run workflow (WorkflowExecutor handles resume internally via state)
+		_, err := we.Run(ctx, workflowID, opts)
 		if err != nil {
 			s.logger.Error("task resume failed", "task", id, "error", err)
 		}
@@ -1005,54 +1020,5 @@ func (s *Server) pruneStaleWorktrees() {
 		s.logger.Warn("failed to prune stale worktrees", "error", err)
 	} else {
 		s.logger.Debug("pruned stale worktree entries")
-	}
-}
-
-// createPlanForWeightServer creates an execution plan based on task weight.
-// Plans are created dynamically for execution, not stored.
-func createPlanForWeightServer(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
-
-	switch weight {
-	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "validate", Name: "Validation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	default:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-		}
-	}
-
-	return &executor.Plan{
-		TaskID: taskID,
-		Phases: phases,
 	}
 }

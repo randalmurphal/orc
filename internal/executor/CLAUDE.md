@@ -1,33 +1,22 @@
 # Executor Package
 
-Phase execution engine with Ralph-style iteration loops and weight-based executor strategies.
+Unified workflow execution engine. All execution goes through `WorkflowExecutor` which uses database-first workflows and the variable resolution system.
 
 ## File Structure
 
 | File | Purpose |
 |------|---------|
-| `executor.go` | Main orchestrator, `getPhaseExecutor()` |
-| `task_execution.go` | `ExecuteTask()`, `ResumeFromPhase()` |
-| `workflow_execution.go` | `WorkflowExecutor.Run()` for workflow-based execution |
+| `workflow_execution.go` | **THE** executor: `WorkflowExecutor.Run()` for all execution |
+| `executor.go` | Shared utilities, `ExecutorConfig`, model resolution |
 | `phase.go` | `ExecutePhase()`, executor dispatch |
 | `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
-
-### Executor Types
-
-| File | Strategy | Weight |
-|------|----------|--------|
-| `trivial.go` | ClaudeExecutor, no session persistence | trivial |
-| `standard.go` | ClaudeExecutor per phase | small/medium |
-| `full.go` | ClaudeExecutor with checkpointing | large |
-| `finalize.go` | Branch sync, conflict resolution | large |
+| `finalize.go` | Branch sync, conflict resolution |
 
 ### Support Modules
 
 | File | Purpose |
 |------|---------|
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
-| `execution_context.go` | `BuildExecutionContext()` - centralized context building |
-| `template.go` | `BuildTemplateVars()`, `RenderTemplate()` |
 | `phase_response.go` | JSON schema for phase completion |
 | `ci_merge.go` | CI polling and auto-merge |
 | `resource_tracker.go` | Orphan process detection |
@@ -38,30 +27,42 @@ Phase execution engine with Ralph-style iteration loops and weight-based executo
 | `publish.go` | `PublishHelper` for real-time events |
 | `cost_tracking.go` | Global cost recording to `~/.orc/orc.db` |
 | `file_watcher.go` | `FileWatcher` for real-time file change detection |
+| `worktree.go` | Git worktree setup/cleanup utilities |
 
 ## Architecture
 
 ```
-Executor.ExecuteTask()
-├── setupWorktree()           # Isolate in git worktree
-├── loadPlan()                # Get phases for weight
+WorkflowExecutor.Run()
+├── setupForContext()          # Task/branch/standalone setup
+├── loadWorkflow()             # Get phases from database
+├── buildResolutionContext()   # Create variable context (initiative, project detection, etc.)
 ├── for each phase:
-│   ├── evaluateGate()        # Check conditions
-│   ├── getPhaseExecutor()    # Select by weight
+│   ├── enrichContextForPhase()    # Add phase-specific context (review findings, etc.)
+│   ├── resolver.ResolveAll()      # Resolve all variables
+│   ├── evaluateGate()             # Check conditions
+│   ├── executePhase()             # Run with ClaudeExecutor
 │   │   └── ResolveModelSetting()  # Get model + thinking
-│   ├── ExecutePhase()        # Run
-│   └── checkpoint()          # Git commit
-└── cleanupWorktreeForTask()  # Remove worktree (if configured)
+│   └── saveArtifact()             # Store output for subsequent phases
+└── completeRun()              # Finalization, cleanup
 ```
 
-## Executor Strategies
+## Variable Resolution
 
-| Executor | Session | Checkpoints | Max Iters |
-|----------|---------|-------------|-----------|
-| Trivial | None | None | 5 |
-| Standard | Per-phase | On complete | 20 |
-| Full | Persistent | Per-iteration | 30-50 |
-| Finalize | Per-phase | On complete | 10 |
+All template variables are resolved via `internal/variable/Resolver`. The resolution context includes:
+
+| Category | Variables |
+|----------|-----------|
+| Task | TASK_ID, TASK_TITLE, TASK_DESCRIPTION, TASK_CATEGORY, WEIGHT |
+| Phase | PHASE, ITERATION, RETRY_CONTEXT |
+| Git | WORKTREE_PATH, PROJECT_ROOT, TASK_BRANCH, TARGET_BRANCH |
+| Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS, INITIATIVE_CONTEXT |
+| Review | REVIEW_ROUND, REVIEW_FINDINGS |
+| Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS |
+| Testing | COVERAGE_THRESHOLD, REQUIRES_UI_TESTING, SCREENSHOT_DIR, TEST_RESULTS |
+| Automation | RECENT_COMPLETED_TASKS, RECENT_CHANGED_FILES, CHANGELOG_CONTENT, CLAUDEMD_CONTENT |
+| Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT, IMPLEMENT_CONTENT |
+
+See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
 
 ## Model Configuration
 
@@ -80,46 +81,29 @@ ResolveModelSetting(weight, phase)
 
 **Extended thinking:** When `modelSetting.Thinking == true`, prepend `ultrathink\n\n` to prompt text.
 
-## Unified Execution Context
+## Execution Flow
 
-All executors (trivial, standard, full) use the same context building via `BuildExecutionContext()`:
+WorkflowExecutor handles all context building internally:
 
-```go
-execCtx, err := BuildExecutionContext(ExecutionContextConfig{
-    Task:            t,
-    Phase:           p,
-    State:           s,
-    Backend:         backend,
-    WorkingDir:      workingDir,
-    MCPConfigPath:   mcpConfigPath,
-    ExecutorConfig:  config,
-    OrcConfig:       orcConfig,
-    ResumeSessionID: resumeSessionID,
-    Logger:          logger,
-})
-```
-
-**What it handles:**
-- Template loading and rendering
-- Spec content from database
-- Review context (round, findings)
-- Initiative context
-- Automation context
-- UI testing context
-- Ultrathink injection
-- Model resolution
-- Session ID generation
+1. **buildResolutionContext()** - Creates initial context with task, workflow, constitution, project detection
+2. **enrichContextForPhase()** - Adds phase-specific context (review findings, test results, automation context)
+3. **resolver.ResolveAll()** - Resolves all variables including custom workflow variables
+4. **variable.RenderTemplate()** - Applies variables to prompt template
 
 **ClaudeExecutor creation:**
 ```go
-turnExec := NewClaudeExecutorFromContext(execCtx, claudePath, maxIterations, logger)
+turnExec := NewClaudeExecutor(
+    WithClaudePath(claudePath),
+    WithClaudeWorkdir(workingDir),
+    WithClaudeModel(model),
+    WithClaudeSessionID(sessionID),
+    WithClaudeMaxTurns(maxIterations),
+    WithClaudeLogger(logger),
+    WithClaudePhaseID(phaseID),
+)
 ```
 
-## Template Variables
-
-Key variables: `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}`, `{{TASK_CATEGORY}}`, `{{SPEC_CONTENT}}`, `{{DESIGN_CONTENT}}`, `{{RETRY_CONTEXT}}`, `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}`, `{{INITIATIVE_CONTEXT}}`, `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}`, `{{VERIFICATION_RESULTS}}`
-
-**Spec content loading:** `{{SPEC_CONTENT}}` is populated via `WithSpecFromDatabase()` from the storage backend. Specs are stored exclusively in the database (not as file artifacts) to avoid merge conflicts in worktrees.
+**Spec content loading:** Spec content is loaded from the database via `backend.LoadSpec(taskID)` and added to `rctx.PriorOutputs["spec"]`. Specs are stored exclusively in the database (not as file artifacts) to avoid merge conflicts in worktrees.
 
 ## Session Configuration
 
@@ -275,8 +259,16 @@ Objective quality checks run after agent claims completion. See `docs/research/E
 ### Pattern 1: TurnExecutor for Phase Execution
 
 ```go
-// Phase execution with sessions - model from ResolveModelSetting()
-turnExec := NewClaudeExecutorFromContext(execCtx, claudePath, maxIterations, logger)
+// Phase execution - model from ResolveModelSetting()
+turnExec := NewClaudeExecutor(
+    WithClaudePath(claudePath),
+    WithClaudeWorkdir(workingDir),
+    WithClaudeModel(model),
+    WithClaudeSessionID(sessionID),
+    WithClaudeMaxTurns(maxIterations),
+    WithClaudeLogger(logger),
+    WithClaudePhaseID(phaseID),
+)
 result, err := turnExec.ExecuteTurn(ctx, prompt)              // With JSON schema
 result, err := turnExec.ExecuteTurnWithoutSchema(ctx, prompt) // Freeform output
 ```
@@ -438,20 +430,19 @@ GlobalDB.RecordCostExtended() (db/global.go:340)
 | `DurationMs` | `Result.Duration.Milliseconds()` | Phase execution time |
 | `Model` | `DetectModel(modelSetting.Model)` | opus/sonnet/haiku/unknown |
 
-**Integration point:** `task_execution.go:~280` calls `recordCostToGlobal()` after phase completion.
+**Integration point:** `workflow_execution.go` calls `recordCostToGlobal()` after phase completion.
 
 ## Testing with TurnExecutor
 
-All executors accept a `TurnExecutor` interface for testing without spawning real Claude CLI:
+Executors accept a `TurnExecutor` interface for testing without spawning real Claude CLI:
 
 ```go
 // Create mock executor
 mock := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
 
 // Inject via option
-executor := NewStandardExecutor(
-    WithStandardTurnExecutor(mock),
-    // ... other options
+executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
+    WithWorkflowTurnExecutor(mock),
 )
 ```
 
@@ -465,33 +456,25 @@ type TurnExecutor interface {
 }
 ```
 
-**Available mocks:** `MockTurnExecutor` with configurable responses, delays, and errors.
-
 **Executor-specific injection:**
 
 | Executor | Option Function |
 |----------|-----------------|
-| `StandardExecutor` | `WithStandardTurnExecutor(mock)` |
-| `FullExecutor` | `WithFullTurnExecutor(mock)` |
-| `TrivialExecutor` | `WithTrivialTurnExecutor(mock)` |
+| `WorkflowExecutor` | `WithWorkflowTurnExecutor(mock)` |
 | `FinalizeExecutor` | `WithFinalizeTurnExecutor(mock)` |
 | `ConflictResolver` | `WithResolverTurnExecutor(mock)` |
+
+**Available mocks:** `MockTurnExecutor` with configurable responses, delays, and errors. Use `NewMockTurnExecutorWithResponses(...)` for multi-turn sequences.
 
 **In-memory backends for fast tests:**
 
 ```go
-// Use in-memory backend (no disk I/O)
 backend := storage.NewTestBackend(t)  // Auto-cleanup via t.Cleanup()
-
-// Or manually for more control
-backend, _ := storage.NewInMemoryBackend()
-defer backend.Close()
 ```
 
 **Test parallelization:**
 - Most tests use `t.Parallel()` for concurrent execution
 - Tests using `t.Setenv()` or `os.Chdir()` CANNOT use `t.Parallel()` (process-wide state)
-- CLI tests are mostly sequential due to chdir usage
 
 ## Common Gotchas
 
@@ -502,5 +485,5 @@ defer backend.Close()
 5. **Spec not found in templates** - Use `WithSpecFromDatabase()` to load spec content; file-based specs are legacy
 6. **Invalid session ID errors** - Only pass custom session IDs when `Persistence: true`; Claude CLI expects UUIDs it generates for ephemeral sessions
 7. **Transcripts not persisting** - Ensure `JSONLSyncer.SyncFromFile()` called after phase completion with correct JSONL path
-8. **Testing real Claude CLI** - Use `WithStandardTurnExecutor(mock)` to inject test doubles; avoids real API calls
+8. **Testing real Claude CLI** - Use `WithWorkflowTurnExecutor(mock)` to inject test doubles; avoids real API calls
 9. **Validation can't see worktree files** - Validation clients must be created dynamically with correct workdir; never store a pre-created client at executor startup

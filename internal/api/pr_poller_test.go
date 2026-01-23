@@ -326,6 +326,10 @@ func (b *emptyBackend) GetWorkflowRunPhases(string) ([]*db.WorkflowRunPhase, err
 	return nil, nil
 }
 func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error { return nil }
+func (b *emptyBackend) TryClaimTaskExecution(context.Context, string, int, string) error {
+	return nil
+}
+func (b *emptyBackend) DB() *db.ProjectDB { return nil }
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

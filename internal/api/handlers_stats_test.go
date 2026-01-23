@@ -594,8 +594,9 @@ func TestHandleGetPerDayStats_WithTasks(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	now := time.Now().UTC()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	// Use local time to match the handler (which uses time.Now() without UTC)
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	// Create tasks with different completion dates
 	testData := []struct {
