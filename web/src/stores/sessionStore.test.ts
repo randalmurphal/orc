@@ -448,4 +448,152 @@ describe('SessionStore', () => {
 			expect(isNaN(date.getTime())).toBe(true);
 		});
 	});
+
+	describe('updateFromSessionEvent', () => {
+		it('should update all metrics from session_update event', () => {
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 3650,
+				total_tokens: 127500,
+				estimated_cost_usd: 2.51,
+				input_tokens: 95000,
+				output_tokens: 32500,
+				tasks_running: 2,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.totalTokens).toBe(127500);
+			expect(state.totalCost).toBe(2.51);
+			expect(state.inputTokens).toBe(95000);
+			expect(state.outputTokens).toBe(32500);
+			expect(state.activeTaskCount).toBe(2);
+			expect(state.isPaused).toBe(false);
+		});
+
+		it('should compute startTime from duration_seconds when no session exists', () => {
+			const now = new Date();
+			vi.setSystemTime(now);
+
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 3650, // ~1h ago
+				total_tokens: 1000,
+				estimated_cost_usd: 0.01,
+				input_tokens: 500,
+				output_tokens: 500,
+				tasks_running: 1,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.startTime).not.toBeNull();
+
+			// Should compute startTime as approximately 3650 seconds ago
+			const expectedStartTime = new Date(now.getTime() - 3650 * 1000);
+			const actualStartTime = state.startTime!;
+			const diff = Math.abs(actualStartTime.getTime() - expectedStartTime.getTime());
+			expect(diff).toBeLessThan(1000); // Within 1 second tolerance
+		});
+
+		it('should preserve existing startTime when session already exists', () => {
+			useSessionStore.getState().startSession();
+			const originalStartTime = useSessionStore.getState().startTime;
+
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 100,
+				total_tokens: 5000,
+				estimated_cost_usd: 0.1,
+				input_tokens: 3000,
+				output_tokens: 2000,
+				tasks_running: 1,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.startTime).toBe(originalStartTime);
+		});
+
+		it('should update formatted values after session event', () => {
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 3650,
+				total_tokens: 127500,
+				estimated_cost_usd: 2.51,
+				input_tokens: 95000,
+				output_tokens: 32500,
+				tasks_running: 2,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.formattedTokens).toBe('128K');
+			expect(state.formattedCost).toBe('$2.51');
+			// Duration should be computed from startTime
+			expect(state.duration).toMatch(/^\d+[hms]/);
+		});
+
+		it('should handle zero values', () => {
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 0,
+				total_tokens: 0,
+				estimated_cost_usd: 0,
+				input_tokens: 0,
+				output_tokens: 0,
+				tasks_running: 0,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.totalTokens).toBe(0);
+			expect(state.totalCost).toBe(0);
+			expect(state.inputTokens).toBe(0);
+			expect(state.outputTokens).toBe(0);
+			expect(state.activeTaskCount).toBe(0);
+			expect(state.isPaused).toBe(false);
+		});
+
+		it('should handle paused state', () => {
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 100,
+				total_tokens: 1000,
+				estimated_cost_usd: 0.02,
+				input_tokens: 600,
+				output_tokens: 400,
+				tasks_running: 0,
+				is_paused: true,
+			});
+
+			const state = useSessionStore.getState();
+			expect(state.isPaused).toBe(true);
+			expect(state.activeTaskCount).toBe(0);
+		});
+
+		it('should overwrite local state with server state on reconnect', () => {
+			// Set local state
+			useSessionStore.getState().updateMetrics({
+				totalTokens: 5000,
+				totalCost: 0.1,
+				inputTokens: 3000,
+				outputTokens: 2000,
+			});
+			useSessionStore.getState().incrementActiveTask();
+
+			// Server has different state
+			useSessionStore.getState().updateFromSessionEvent({
+				duration_seconds: 200,
+				total_tokens: 10000,
+				estimated_cost_usd: 0.5,
+				input_tokens: 6000,
+				output_tokens: 4000,
+				tasks_running: 2,
+				is_paused: false,
+			});
+
+			const state = useSessionStore.getState();
+			// Server state should win
+			expect(state.totalTokens).toBe(10000);
+			expect(state.totalCost).toBe(0.5);
+			expect(state.inputTokens).toBe(6000);
+			expect(state.outputTokens).toBe(4000);
+			expect(state.activeTaskCount).toBe(2);
+		});
+	});
 });

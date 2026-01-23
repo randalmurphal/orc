@@ -28,7 +28,7 @@ import type {
 	ActivityUpdate,
 	ActivityState,
 } from '@/lib/types';
-import { useUIStore, useTaskStore, useInitiativeStore, toast } from '@/stores';
+import { useUIStore, useTaskStore, useInitiativeStore, useSessionStore, toast } from '@/stores';
 
 export { GLOBAL_TASK_ID };
 
@@ -328,6 +328,22 @@ function handleWSEvent(event: WSEvent): void {
 			// These events are informational; no state update needed
 			// Could be used for UI indicators if desired
 			break;
+
+		case 'session_update': {
+			// Session metrics update (real-time session metrics from server)
+			const sessionData = data as {
+				duration_seconds: number;
+				total_tokens: number;
+				estimated_cost_usd: number;
+				input_tokens: number;
+				output_tokens: number;
+				tasks_running: number;
+				is_paused: boolean;
+			};
+			const sessionStore = useSessionStore.getState();
+			sessionStore.updateFromSessionEvent(sessionData);
+			break;
+		}
 
 		default:
 			// Unknown event type
