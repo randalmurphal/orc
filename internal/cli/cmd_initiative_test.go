@@ -765,9 +765,9 @@ tasks:
 	}
 
 	// Verify spec was stored
-	spec, err := backend.LoadSpec(tasks[0].ID)
+	spec, err := backend.GetSpecForTask(tasks[0].ID)
 	if err != nil {
-		t.Fatalf("load spec: %v", err)
+		t.Fatalf("get spec: %v", err)
 	}
 	if spec == "" {
 		t.Error("spec should not be empty")

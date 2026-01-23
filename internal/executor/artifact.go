@@ -11,13 +11,14 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// SaveArtifactToDatabase extracts artifact content from JSON output and saves to database.
+// SaveArtifactToDatabase extracts artifact content from JSON output and saves to phase_outputs table.
 // For artifact-producing phases (design, research, docs, tdd_write, breakdown), agents output
 // structured JSON with an "artifact" field containing the full content.
 //
-// NOTE: For "spec" and "tiny_spec" phases, use SaveSpecToDatabase instead.
+// NOTE: This function requires a workflow run ID. For direct execution from workflow_phase.go,
+// use backend.SavePhaseOutput() directly which is the preferred approach.
 // Returns true if an artifact was saved, false if the phase doesn't produce artifacts or no content.
-func SaveArtifactToDatabase(backend storage.Backend, taskID, phaseID, output string) (bool, error) {
+func SaveArtifactToDatabase(backend storage.Backend, runID, taskID, phaseID, output string) (bool, error) {
 	// Skip for spec phases - use SaveSpecToDatabase instead
 	if phaseID == "spec" || phaseID == "tiny_spec" {
 		return false, nil
@@ -36,12 +37,44 @@ func SaveArtifactToDatabase(backend storage.Backend, taskID, phaseID, output str
 
 	artifact = strings.TrimSpace(artifact)
 
-	// Save to database
-	if err := backend.SaveArtifact(taskID, phaseID, artifact, "executor"); err != nil {
+	// Determine output variable name
+	outputVarName := inferOutputVarName(phaseID)
+
+	// Save to phase_outputs table
+	phaseOutput := &storage.PhaseOutputInfo{
+		WorkflowRunID:   runID,
+		PhaseTemplateID: phaseID,
+		TaskID:          &taskID,
+		Content:         artifact,
+		OutputVarName:   outputVarName,
+		ArtifactType:    phaseID,
+		Source:          "executor",
+	}
+	if err := backend.SavePhaseOutput(phaseOutput); err != nil {
 		return false, fmt.Errorf("save artifact to database: %w", err)
 	}
 
 	return true, nil
+}
+
+// inferOutputVarName returns the standard output variable name for a phase ID.
+func inferOutputVarName(phaseID string) string {
+	switch phaseID {
+	case "spec", "tiny_spec":
+		return "SPEC_CONTENT"
+	case "design":
+		return "DESIGN_CONTENT"
+	case "tdd_write":
+		return "TDD_TESTS_CONTENT"
+	case "breakdown":
+		return "BREAKDOWN_CONTENT"
+	case "research":
+		return "RESEARCH_CONTENT"
+	case "docs":
+		return "DOCS_CONTENT"
+	default:
+		return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phaseID, "-", "_"))
+	}
 }
 
 // SavePhaseArtifact extracts artifact content from JSON output and saves to file.
@@ -122,9 +155,11 @@ func (e *SpecExtractionError) Error() string {
 	return b.String()
 }
 
-// SaveSpecToDatabase extracts spec from JSON output and saves to database.
+// SaveSpecToDatabase extracts spec from JSON output and saves to phase_outputs table.
 // The worktreePath parameter is deprecated and ignored - specs come from JSON output only.
-func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string, _ ...string) (bool, error) {
+// NOTE: This function requires a workflow run ID. For direct execution from workflow_phase.go,
+// use backend.SavePhaseOutput() directly which is the preferred approach.
+func SaveSpecToDatabase(backend storage.Backend, runID, taskID, phaseID, output string, _ ...string) (bool, error) {
 	// Only save for spec phases (spec and tiny_spec)
 	if phaseID != "spec" && phaseID != "tiny_spec" {
 		return false, nil
@@ -164,8 +199,17 @@ func SaveSpecToDatabase(backend storage.Backend, taskID, phaseID, output string,
 		}
 	}
 
-	// Save to database with source indicating it came from execution
-	if err := backend.SaveSpec(taskID, specContent, "executor"); err != nil {
+	// Save to phase_outputs table with source indicating it came from execution
+	phaseOutput := &storage.PhaseOutputInfo{
+		WorkflowRunID:   runID,
+		PhaseTemplateID: phaseID,
+		TaskID:          &taskID,
+		Content:         specContent,
+		OutputVarName:   "SPEC_CONTENT",
+		ArtifactType:    "spec",
+		Source:          "executor",
+	}
+	if err := backend.SavePhaseOutput(phaseOutput); err != nil {
 		return false, fmt.Errorf("database save failed: %w", err)
 	}
 

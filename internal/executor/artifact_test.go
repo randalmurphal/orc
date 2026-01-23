@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -136,6 +137,38 @@ func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID strin
 	}
 }
 
+// createTestWorkflowRun creates a workflow and workflow run for testing phase output operations.
+// The phase_outputs table has a foreign key constraint to workflow_runs, which needs the run to exist.
+func createTestWorkflowRun(t *testing.T, backend *storage.DatabaseBackend, runID, taskID string) {
+	t.Helper()
+	// Create a minimal test workflow first (in-memory backend doesn't seed workflows)
+	workflow := &db.Workflow{
+		ID:          "test-workflow",
+		Name:        "Test Workflow",
+		Description: "Workflow for testing",
+	}
+	if err := backend.SaveWorkflow(workflow); err != nil {
+		// Ignore duplicate key error - workflow may already exist
+		if !strings.Contains(err.Error(), "UNIQUE constraint") {
+			t.Fatalf("create test workflow: %v", err)
+		}
+	}
+
+	// Create workflow run
+	run := &db.WorkflowRun{
+		ID:          runID,
+		WorkflowID:  "test-workflow",
+		TaskID:      &taskID,
+		ContextType: "task",
+		ContextData: "{}",
+		Prompt:      "Test prompt",
+		Status:      "running",
+	}
+	if err := backend.SaveWorkflowRun(run); err != nil {
+		t.Fatalf("create test workflow run: %v", err)
+	}
+}
+
 func TestSaveSpecToDatabase(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -170,7 +203,7 @@ func TestSaveSpecToDatabase(t *testing.T) {
 			taskID := "TASK-SPEC-001"
 			createTestTask(t, backend, taskID)
 
-			saved, err := SaveSpecToDatabase(backend, taskID, tt.phaseID, tt.output)
+			saved, err := SaveSpecToDatabase(backend, "RUN-001", taskID, tt.phaseID, tt.output)
 
 			if tt.wantErr {
 				if err == nil {
@@ -191,7 +224,7 @@ func TestSaveSpecToDatabase(t *testing.T) {
 
 func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	t.Parallel()
-	saved, err := SaveSpecToDatabase(nil, "TASK-001", "spec", `{"status": "complete", "artifact": "content"}`)
+	saved, err := SaveSpecToDatabase(nil, "RUN-001", "TASK-001", "spec", `{"status": "complete", "artifact": "content"}`)
 	if err == nil {
 		t.Fatal("SaveSpecToDatabase() with nil backend should return error")
 	}
@@ -209,8 +242,10 @@ func TestSaveSpecToDatabase_ExtractsFromJSON(t *testing.T) {
 	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-JSON-001"
+	runID := "RUN-JSON-001"
 
 	createTestTask(t, backend, taskID)
+	createTestWorkflowRun(t, backend, runID, taskID)
 
 	// Output with spec in artifact field
 	specContent := `# Specification: Test Feature
@@ -224,7 +259,7 @@ This tests the JSON extraction mechanism.
 `
 	output := `{"status": "complete", "summary": "Spec completed", "artifact": ` + escapeJSONString(specContent) + `}`
 
-	saved, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+	saved, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 	if err != nil {
 		t.Fatalf("SaveSpecToDatabase() error = %v", err)
 	}
@@ -233,9 +268,9 @@ This tests the JSON extraction mechanism.
 	}
 
 	// Verify content was saved from artifact field
-	loadedSpec, err := backend.LoadSpec(taskID)
+	loadedSpec, err := backend.GetSpecForTask(taskID)
 	if err != nil {
-		t.Fatalf("LoadSpec() error = %v", err)
+		t.Fatalf("GetSpecForTask() error = %v", err)
 	}
 
 	if !strings.Contains(loadedSpec, "JSON extraction mechanism") {
@@ -458,11 +493,13 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	t.Parallel()
 	backend := newArtifactTestBackend(t)
 	taskID := "TASK-DIAG-001"
+	runID := "RUN-DIAG-001"
 	createTestTask(t, backend, taskID)
+	createTestWorkflowRun(t, backend, runID, taskID)
 
 	t.Run("no artifact includes output preview", func(t *testing.T) {
 		output := `{"status": "complete", "summary": "Done but no artifact"}`
-		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+		_, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
 		if !ok {
@@ -480,7 +517,7 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	t.Run("artifact extraction success", func(t *testing.T) {
 		specContent := "# Specification\n\n## Intent\nBuild a feature with proper error handling and tests."
 		output := `{"status": "complete", "artifact": ` + escapeJSONString(specContent) + `}`
-		saved, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+		saved, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		if err != nil {
 			t.Fatalf("SaveSpecToDatabase() unexpected error: %v", err)
@@ -492,7 +529,7 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 
 	t.Run("artifact too short returns validation failure", func(t *testing.T) {
 		output := `{"status": "complete", "artifact": "short"}`
-		_, err := SaveSpecToDatabase(backend, taskID, "spec", output)
+		_, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
 		if !ok {

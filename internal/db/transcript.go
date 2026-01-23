@@ -444,6 +444,11 @@ func (p *ProjectDB) SearchTranscripts(query string) ([]TranscriptMatch, error) {
 	return matches, nil
 }
 
+// escapeQuotes escapes double quotes for FTS5 MATCH queries.
+func escapeQuotes(s string) string {
+	return strings.ReplaceAll(s, `"`, `""`)
+}
+
 // TokenUsageSummary contains aggregated token usage for a task or phase.
 type TokenUsageSummary struct {
 	TaskID             string

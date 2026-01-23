@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -137,28 +139,51 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
 
-	// Extract artifact if phase produces one
-	if tmpl.ProducesArtifact {
+	// Extract artifact if phase produces one and save to phase_outputs
+	if tmpl.ProducesArtifact && result.Artifact == "" {
 		result.Artifact = execResult.Artifact
-		// Save artifact to database
-		if result.Artifact != "" && t != nil {
-			if err := we.backend.SaveArtifact(t.ID, tmpl.ID, result.Artifact, "workflow"); err != nil {
-				we.logger.Warn("failed to save artifact",
-					"task", t.ID,
-					"phase", tmpl.ID,
-					"error", err,
-				)
+	}
+	if result.Artifact != "" && t != nil {
+		// Determine output variable name from template or infer from phase ID
+		outputVarName := tmpl.OutputVarName
+		if outputVarName == "" {
+			// Infer standard variable names for known phase types
+			switch tmpl.ID {
+			case "spec", "tiny_spec":
+				outputVarName = "SPEC_CONTENT"
+			case "design":
+				outputVarName = "DESIGN_CONTENT"
+			case "tdd_write":
+				outputVarName = "TDD_TESTS_CONTENT"
+			case "breakdown":
+				outputVarName = "BREAKDOWN_CONTENT"
+			case "research":
+				outputVarName = "RESEARCH_CONTENT"
+			case "docs":
+				outputVarName = "DOCS_CONTENT"
+			default:
+				outputVarName = "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(tmpl.ID, "-", "_"))
 			}
-			// Also save to specs table for spec phases (for CLI compatibility)
-			if tmpl.ID == "spec" || tmpl.ID == "tiny_spec" {
-				if err := we.backend.SaveSpec(t.ID, result.Artifact, "workflow"); err != nil {
-					we.logger.Warn("failed to save spec to specs table",
-						"task", t.ID,
-						"phase", tmpl.ID,
-						"error", err,
-					)
-				}
-			}
+		}
+
+		taskID := t.ID
+		output := &storage.PhaseOutputInfo{
+			WorkflowRunID:   run.ID,
+			PhaseTemplateID: tmpl.ID,
+			TaskID:          &taskID,
+			Content:         result.Artifact,
+			OutputVarName:   outputVarName,
+			ArtifactType:    tmpl.ArtifactType,
+			Source:          "workflow",
+			Iteration:       result.Iterations,
+		}
+		if err := we.backend.SavePhaseOutput(output); err != nil {
+			we.logger.Warn("failed to save phase output",
+				"task", t.ID,
+				"phase", tmpl.ID,
+				"output_var", outputVarName,
+				"error", err,
+			)
 		}
 	}
 
@@ -260,6 +285,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		if err != nil {
 			return result, fmt.Errorf("turn %d: %w", i+1, err)
 		}
+
+		// Store transcripts to database
+		we.storeTranscripts(cfg.TaskID, cfg.PhaseID, sessionID, cfg.Model, prompt, turnResult, i+1)
 
 		// Accumulate tokens
 		result.InputTokens += turnResult.Usage.InputTokens
@@ -574,7 +602,7 @@ func (we *WorkflowExecutor) checkSpecRequirements(t *task.Task, phases []*db.Wor
 	}
 
 	// Check if spec exists using backend
-	specExists, err := we.backend.SpecExists(t.ID)
+	specExists, err := we.backend.SpecExistsForTask(t.ID)
 	if err != nil {
 		we.logger.Warn("failed to check spec existence", "task", t.ID, "error", err)
 		specExists = false
@@ -585,11 +613,54 @@ func (we *WorkflowExecutor) checkSpecRequirements(t *task.Task, phases []*db.Wor
 	}
 
 	// Load spec content to validate
-	specContent, err := we.backend.LoadSpec(t.ID)
+	specContent, err := we.backend.GetSpecForTask(t.ID)
 	if err != nil || specContent == "" {
 		we.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
 		return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
 	}
 
 	return nil
+}
+
+// storeTranscripts saves user prompt and assistant response to the database.
+// This enables transcript viewing via `orc log` without relying on JSONL files.
+func (we *WorkflowExecutor) storeTranscripts(taskID, phaseID, sessionID, model, prompt string, result *TurnResult, iteration int) {
+	if we.backend == nil || taskID == "" {
+		return
+	}
+
+	now := time.Now().UnixMilli()
+
+	// Store user prompt
+	userTranscript := &storage.Transcript{
+		TaskID:    taskID,
+		Phase:     phaseID,
+		SessionID: sessionID,
+		Type:      "user",
+		Role:      "user",
+		Content:   prompt,
+		Timestamp: now,
+	}
+	if err := we.backend.AddTranscript(userTranscript); err != nil {
+		we.logger.Warn("failed to store user transcript", "task", taskID, "phase", phaseID, "error", err)
+	}
+
+	// Store assistant response
+	assistantTranscript := &storage.Transcript{
+		TaskID:              taskID,
+		Phase:               phaseID,
+		SessionID:           sessionID,
+		Type:                "assistant",
+		Role:                "assistant",
+		Content:             result.Content,
+		Model:               model,
+		InputTokens:         result.Usage.InputTokens,
+		OutputTokens:        result.Usage.OutputTokens,
+		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:     result.Usage.CacheReadInputTokens,
+		Timestamp:           now + 1, // Ensure ordering
+	}
+	if err := we.backend.AddTranscript(assistantTranscript); err != nil {
+		we.logger.Warn("failed to store assistant transcript", "task", taskID, "phase", phaseID, "error", err)
+	}
 }

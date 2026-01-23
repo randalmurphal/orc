@@ -455,15 +455,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				if ps.Status == state.StatusCompleted {
 					we.logger.Info("skipping completed phase", "phase", phase.PhaseTemplateID)
 					// Load artifact from completed phase for variable chaining
-					// Specs are stored separately via LoadSpec, artifacts via LoadArtifact
-					var artifact string
-					if phase.PhaseTemplateID == "spec" || phase.PhaseTemplateID == "tiny_spec" {
-						artifact, _ = we.backend.LoadSpec(t.ID)
-					} else {
-						artifact, _ = we.backend.LoadArtifact(t.ID, phase.PhaseTemplateID)
-					}
-					if artifact != "" {
-						applyArtifactToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, artifact)
+					// Phase outputs are stored in unified phase_outputs table keyed by run ID
+					if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
+						applyArtifactToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, output.Content)
 					}
 					continue
 				}

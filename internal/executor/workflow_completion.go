@@ -223,11 +223,26 @@ func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
 	we.worktreePath = result.Path
 	we.worktreeGit = we.gitOps.InWorktree(result.Path)
 
+	// Calculate and set task branch for git operations (push, PR creation, etc.)
+	// Get initiative prefix for branch name calculation
+	var initiativePrefix string
+	if t.InitiativeID != "" {
+		if init, loadErr := we.backend.LoadInitiative(t.InitiativeID); loadErr == nil && init != nil {
+			initiativePrefix = init.BranchPrefix
+		}
+	}
+
+	// Set task branch before any git operations reference it
+	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.ID, initiativePrefix)
+	if err := we.backend.SaveTask(t); err != nil {
+		we.logger.Warn("failed to save task branch", "task_id", t.ID, "error", err)
+	}
+
 	logMsg := "created worktree"
 	if result.Reused {
 		logMsg = "reusing existing worktree"
 	}
-	we.logger.Info(logMsg, "task", t.ID, "path", result.Path, "target_branch", result.TargetBranch)
+	we.logger.Info(logMsg, "task", t.ID, "path", result.Path, "target_branch", result.TargetBranch, "branch", t.Branch)
 
 	// Generate per-worktree MCP config for isolated Playwright sessions
 	if ShouldGenerateMCPConfig(t, we.orcConfig) {

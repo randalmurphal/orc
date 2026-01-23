@@ -223,14 +223,20 @@ func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.Activity
 func (b *emptyBackend) SaveState(*state.State) error           { return nil }
 func (b *emptyBackend) LoadState(string) (*state.State, error) { return nil, nil }
 func (b *emptyBackend) LoadAllStates() ([]*state.State, error) { return nil, nil }
-func (b *emptyBackend) SaveSpec(string, string, string) error  { return nil }
-func (b *emptyBackend) LoadSpec(string) (string, error)                       { return "", nil }
-func (b *emptyBackend) LoadFullSpec(string) (*storage.SpecInfo, error)        { return nil, nil }
-func (b *emptyBackend) SpecExists(string) (bool, error)                       { return false, nil }
-func (b *emptyBackend) SaveArtifact(string, string, string, string) error     { return nil }
-func (b *emptyBackend) LoadArtifact(string, string) (string, error)           { return "", nil }
-func (b *emptyBackend) LoadAllArtifacts(string) (map[string]string, error)    { return nil, nil }
-func (b *emptyBackend) ArtifactExists(string, string) (bool, error)           { return false, nil }
+// Phase output methods
+func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error                     { return nil }
+func (b *emptyBackend) GetPhaseOutput(string, string) (*storage.PhaseOutputInfo, error)   { return nil, nil }
+func (b *emptyBackend) GetPhaseOutputByVarName(string, string) (*storage.PhaseOutputInfo, error) { return nil, nil }
+func (b *emptyBackend) GetAllPhaseOutputs(string) ([]*storage.PhaseOutputInfo, error)     { return nil, nil }
+func (b *emptyBackend) LoadPhaseOutputsAsMap(string) (map[string]string, error)           { return nil, nil }
+func (b *emptyBackend) GetPhaseOutputsForTask(string) ([]*storage.PhaseOutputInfo, error) { return nil, nil }
+func (b *emptyBackend) DeletePhaseOutput(string, string) error                             { return nil }
+func (b *emptyBackend) PhaseOutputExists(string, string) (bool, error)                     { return false, nil }
+// Spec methods (now backed by phase_outputs)
+func (b *emptyBackend) GetSpecForTask(string) (string, error)                              { return "", nil }
+func (b *emptyBackend) GetFullSpecForTask(string) (*storage.PhaseOutputInfo, error)       { return nil, nil }
+func (b *emptyBackend) SpecExistsForTask(string) (bool, error)                             { return false, nil }
+func (b *emptyBackend) SaveSpecForTask(string, string, string) error                       { return nil }
 func (b *emptyBackend) SaveInitiative(*initiative.Initiative) error           { return nil }
 func (b *emptyBackend) LoadInitiative(string) (*initiative.Initiative, error) { return nil, nil }
 func (b *emptyBackend) LoadAllInitiatives() ([]*initiative.Initiative, error) { return nil, nil }

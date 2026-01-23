@@ -610,7 +610,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 
 	// Import spec if present
 	if export.Spec != "" {
-		if err := backend.SaveSpec(export.Task.ID, export.Spec, "imported"); err != nil {
+		if err := backend.SaveSpecForTask(export.Task.ID, export.Spec, "imported"); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not import spec: %v\n", err)
 		}
 	}
@@ -2065,7 +2065,7 @@ func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState
 	}
 
 	// Always load spec
-	if spec, err := backend.LoadSpec(t.ID); err == nil {
+	if spec, err := backend.GetSpecForTask(t.ID); err == nil {
 		export.Spec = spec
 	}
 

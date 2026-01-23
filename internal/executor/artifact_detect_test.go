@@ -383,7 +383,7 @@ Test spec stored in database, not as file.
 ## Testing
 - Unit test verifies database loading
 `
-	if err := backend.SaveSpec(taskID, specContent, "test"); err != nil {
+	if err := backend.SaveSpecForTask(taskID, specContent, "test"); err != nil {
 		t.Fatalf("save spec: %v", err)
 	}
 
@@ -452,7 +452,7 @@ This is the spec from the database.
 ## Testing
 - Verify database spec is used
 `
-	if err := backend.SaveSpec(taskID, dbSpecContent, "test"); err != nil {
+	if err := backend.SaveSpecForTask(taskID, dbSpecContent, "test"); err != nil {
 		t.Fatalf("save spec: %v", err)
 	}
 

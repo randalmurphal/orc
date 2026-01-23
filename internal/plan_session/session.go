@@ -211,13 +211,13 @@ func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db
 	}
 
 	// Check if spec exists in database
-	specExists, _ := opts.Backend.SpecExists(taskID)
+	specExists, _ := opts.Backend.SpecExistsForTask(taskID)
 	if specExists {
 		result.SpecPath = task.SpecPathIn(opts.WorkDir, taskID)
 
 		// Validate spec if not skipped
 		if !opts.SkipValidation {
-			specContent, err := opts.Backend.LoadSpec(taskID)
+			specContent, err := opts.Backend.GetSpecForTask(taskID)
 			if err == nil && specContent != "" {
 				result.ValidationResult = ValidateSpec(specContent, t.Weight)
 			}

@@ -850,15 +850,6 @@ func TestHandleGetOutcomesStats_WithTasks(t *testing.T) {
 		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
-		// Save state without retry context
-		st := &storage.SpecInfo{
-			TaskID:    taskID,
-			Content:   "test spec",
-			Source:    "test",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-		_ = st // Not needed for this test
 	}
 
 	// Create 2 failed tasks

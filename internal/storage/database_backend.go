@@ -1110,123 +1110,178 @@ func (d *DatabaseBackend) GetTaskActivityByDate(startDate, endDate string) ([]Ac
 }
 
 // ============================================================================
-// Spec operations
+// Phase output operations (unified storage for all phase artifacts)
 // ============================================================================
 
-// SaveSpec saves a spec to the database.
-func (d *DatabaseBackend) SaveSpec(taskID, content, source string) error {
+// SavePhaseOutput saves a phase output to the database.
+func (d *DatabaseBackend) SavePhaseOutput(output *PhaseOutputInfo) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	spec := &db.Spec{
-		TaskID:  taskID,
-		Content: content,
-		Source:  source,
+	dbOutput := &db.PhaseOutput{
+		ID:              output.ID,
+		WorkflowRunID:   output.WorkflowRunID,
+		PhaseTemplateID: output.PhaseTemplateID,
+		TaskID:          output.TaskID,
+		Content:         output.Content,
+		ContentHash:     output.ContentHash,
+		OutputVarName:   output.OutputVarName,
+		ArtifactType:    output.ArtifactType,
+		Source:          output.Source,
+		Iteration:       output.Iteration,
+		CreatedAt:       output.CreatedAt,
+		UpdatedAt:       output.UpdatedAt,
 	}
-	return d.db.SaveSpec(spec)
+	if err := d.db.SavePhaseOutput(dbOutput); err != nil {
+		return fmt.Errorf("save phase output: %w", err)
+	}
+	output.ID = dbOutput.ID
+	return nil
 }
 
-// LoadSpec loads a spec from the database.
-func (d *DatabaseBackend) LoadSpec(taskID string) (string, error) {
+// GetPhaseOutput retrieves a phase output by run ID and phase template ID.
+func (d *DatabaseBackend) GetPhaseOutput(runID, phaseTemplateID string) (*PhaseOutputInfo, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	spec, err := d.db.GetSpec(taskID)
+	dbOutput, err := d.db.GetPhaseOutput(runID, phaseTemplateID)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("get phase output: %w", err)
 	}
-	if spec == nil {
-		return "", nil
-	}
-	return spec.Content, nil
-}
-
-// LoadFullSpec loads a spec with all metadata from the database.
-func (d *DatabaseBackend) LoadFullSpec(taskID string) (*SpecInfo, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	spec, err := d.db.GetSpec(taskID)
-	if err != nil {
-		return nil, err
-	}
-	if spec == nil {
+	if dbOutput == nil {
 		return nil, nil
 	}
-	return &SpecInfo{
-		TaskID:      spec.TaskID,
-		Content:     spec.Content,
-		ContentHash: spec.ContentHash,
-		Source:      spec.Source,
-		CreatedAt:   spec.CreatedAt,
-		UpdatedAt:   spec.UpdatedAt,
-	}, nil
+	return dbPhaseOutputToInfo(dbOutput), nil
 }
 
-// SpecExists checks if a spec exists for a task.
-func (d *DatabaseBackend) SpecExists(taskID string) (bool, error) {
+// GetPhaseOutputByVarName retrieves a phase output by run ID and variable name.
+func (d *DatabaseBackend) GetPhaseOutputByVarName(runID, varName string) (*PhaseOutputInfo, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	return d.db.SpecExists(taskID)
+	dbOutput, err := d.db.GetPhaseOutputByVarName(runID, varName)
+	if err != nil {
+		return nil, fmt.Errorf("get phase output by var name: %w", err)
+	}
+	if dbOutput == nil {
+		return nil, nil
+	}
+	return dbPhaseOutputToInfo(dbOutput), nil
 }
 
-// ============================================================================
-// Phase artifact operations (design, tdd_write, breakdown, research, docs)
-// ============================================================================
+// GetAllPhaseOutputs retrieves all phase outputs for a run.
+func (d *DatabaseBackend) GetAllPhaseOutputs(runID string) ([]*PhaseOutputInfo, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
-// SaveArtifact saves a phase artifact to the database.
-func (d *DatabaseBackend) SaveArtifact(taskID, phaseID, content, source string) error {
+	dbOutputs, err := d.db.GetAllPhaseOutputs(runID)
+	if err != nil {
+		return nil, fmt.Errorf("get all phase outputs: %w", err)
+	}
+
+	outputs := make([]*PhaseOutputInfo, len(dbOutputs))
+	for i, dbOutput := range dbOutputs {
+		outputs[i] = dbPhaseOutputToInfo(dbOutput)
+	}
+	return outputs, nil
+}
+
+// LoadPhaseOutputsAsMap returns all phase outputs for a run as a map of varName -> content.
+func (d *DatabaseBackend) LoadPhaseOutputsAsMap(runID string) (map[string]string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.LoadPhaseOutputsAsMap(runID)
+}
+
+// GetSpecForTask retrieves the spec content for a task.
+func (d *DatabaseBackend) GetSpecForTask(taskID string) (string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetSpecForTask(taskID)
+}
+
+// GetFullSpecForTask retrieves the full spec phase output for a task.
+func (d *DatabaseBackend) GetFullSpecForTask(taskID string) (*PhaseOutputInfo, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbOutput, err := d.db.GetFullSpecForTask(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("get full spec for task: %w", err)
+	}
+	if dbOutput == nil {
+		return nil, nil
+	}
+	return dbPhaseOutputToInfo(dbOutput), nil
+}
+
+// SpecExistsForTask checks if a spec exists for a task.
+func (d *DatabaseBackend) SpecExistsForTask(taskID string) (bool, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.SpecExistsForTask(taskID)
+}
+
+// SaveSpecForTask saves a spec for a task (for import compatibility).
+func (d *DatabaseBackend) SaveSpecForTask(taskID, content, source string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	artifact := &db.PhaseArtifact{
-		TaskID:  taskID,
-		PhaseID: phaseID,
-		Content: content,
-		Source:  source,
-	}
-	return d.db.SavePhaseArtifact(artifact)
+	return d.db.SaveSpecForTask(taskID, content, source)
 }
 
-// LoadArtifact loads a phase artifact from the database.
-func (d *DatabaseBackend) LoadArtifact(taskID, phaseID string) (string, error) {
+// GetPhaseOutputsForTask retrieves all phase outputs for a task (across all runs).
+func (d *DatabaseBackend) GetPhaseOutputsForTask(taskID string) ([]*PhaseOutputInfo, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	artifact, err := d.db.GetPhaseArtifact(taskID, phaseID)
+	dbOutputs, err := d.db.GetPhaseOutputsForTask(taskID)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("get phase outputs for task: %w", err)
 	}
-	if artifact == nil {
-		return "", nil
+
+	outputs := make([]*PhaseOutputInfo, len(dbOutputs))
+	for i, dbOutput := range dbOutputs {
+		outputs[i] = dbPhaseOutputToInfo(dbOutput)
 	}
-	return artifact.Content, nil
+	return outputs, nil
 }
 
-// LoadAllArtifacts loads all phase artifacts for a task as a map of phaseID -> content.
-func (d *DatabaseBackend) LoadAllArtifacts(taskID string) (map[string]string, error) {
+// DeletePhaseOutput removes a phase output.
+func (d *DatabaseBackend) DeletePhaseOutput(runID, phaseTemplateID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.db.DeletePhaseOutput(runID, phaseTemplateID)
+}
+
+// PhaseOutputExists checks if a phase output exists.
+func (d *DatabaseBackend) PhaseOutputExists(runID, phaseTemplateID string) (bool, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	artifacts, err := d.db.GetAllPhaseArtifacts(taskID)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[string]string)
-	for _, a := range artifacts {
-		result[a.PhaseID] = a.Content
-	}
-	return result, nil
+	return d.db.PhaseOutputExists(runID, phaseTemplateID)
 }
 
-// ArtifactExists checks if an artifact exists for a task and phase.
-func (d *DatabaseBackend) ArtifactExists(taskID, phaseID string) (bool, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	return d.db.PhaseArtifactExists(taskID, phaseID)
+// dbPhaseOutputToInfo converts db.PhaseOutput to storage.PhaseOutputInfo.
+func dbPhaseOutputToInfo(dbOutput *db.PhaseOutput) *PhaseOutputInfo {
+	return &PhaseOutputInfo{
+		ID:              dbOutput.ID,
+		WorkflowRunID:   dbOutput.WorkflowRunID,
+		PhaseTemplateID: dbOutput.PhaseTemplateID,
+		TaskID:          dbOutput.TaskID,
+		Content:         dbOutput.Content,
+		ContentHash:     dbOutput.ContentHash,
+		OutputVarName:   dbOutput.OutputVarName,
+		ArtifactType:    dbOutput.ArtifactType,
+		Source:          dbOutput.Source,
+		Iteration:       dbOutput.Iteration,
+		CreatedAt:       dbOutput.CreatedAt,
+		UpdatedAt:       dbOutput.UpdatedAt,
+	}
 }
 
 // ============================================================================

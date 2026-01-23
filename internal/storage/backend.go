@@ -221,14 +221,20 @@ type BranchListOpts struct {
 	Status BranchStatus // Filter by status (empty = all)
 }
 
-// SpecInfo represents full spec metadata for display purposes.
-type SpecInfo struct {
-	TaskID      string
-	Content     string
-	ContentHash string
-	Source      string // 'file', 'db', 'generated', 'migrated'
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+// PhaseOutputInfo represents phase output metadata for display purposes.
+type PhaseOutputInfo struct {
+	ID              int64
+	WorkflowRunID   string
+	PhaseTemplateID string
+	TaskID          *string
+	Content         string
+	ContentHash     string
+	OutputVarName   string
+	ArtifactType    string
+	Source          string
+	Iteration       int
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // Backend defines the storage operations for orc.
@@ -250,18 +256,21 @@ type Backend interface {
 	LoadState(taskID string) (*state.State, error)
 	LoadAllStates() ([]*state.State, error)
 
-	// Spec operations
-	SaveSpec(taskID, content, source string) error
-	LoadSpec(taskID string) (string, error)
-	LoadFullSpec(taskID string) (*SpecInfo, error)
-	SpecExists(taskID string) (bool, error)
+	// Phase output operations (unified storage for all phase artifacts)
+	SavePhaseOutput(output *PhaseOutputInfo) error
+	GetPhaseOutput(runID, phaseTemplateID string) (*PhaseOutputInfo, error)
+	GetPhaseOutputByVarName(runID, varName string) (*PhaseOutputInfo, error)
+	GetAllPhaseOutputs(runID string) ([]*PhaseOutputInfo, error)
+	LoadPhaseOutputsAsMap(runID string) (map[string]string, error)
+	GetPhaseOutputsForTask(taskID string) ([]*PhaseOutputInfo, error)
+	DeletePhaseOutput(runID, phaseTemplateID string) error
+	PhaseOutputExists(runID, phaseTemplateID string) (bool, error)
 
-	// Phase artifact operations (for design, tdd_write, breakdown, research, docs)
-	// Specs use the separate Spec operations above
-	SaveArtifact(taskID, phaseID, content, source string) error
-	LoadArtifact(taskID, phaseID string) (string, error)
-	LoadAllArtifacts(taskID string) (map[string]string, error)
-	ArtifactExists(taskID, phaseID string) (bool, error)
+	// Task-level spec convenience methods (queries phase_outputs via workflow_runs)
+	GetSpecForTask(taskID string) (string, error)
+	GetFullSpecForTask(taskID string) (*PhaseOutputInfo, error)
+	SpecExistsForTask(taskID string) (bool, error)
+	SaveSpecForTask(taskID, content, source string) error // For import compatibility
 
 	// Initiative operations
 	SaveInitiative(i *initiative.Initiative) error
