@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * CompletedPanel component for right panel showing completed tasks summary
  *

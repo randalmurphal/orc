@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * RunningCard - Expanded card component for actively executing tasks.
  *
@@ -205,6 +206,7 @@ export function RunningCard({
 	return (
 		<article
 			className={cardClasses}
+			data-task-id={task.id}
 			onClick={handleClick}
 			onKeyDown={handleKeyDown}
 			tabIndex={0}

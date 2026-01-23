@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * InitiativeCard component - displays individual initiative information in a card layout.
  * Shows initiative metadata (icon, title, description, status), progress tracking,

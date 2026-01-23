@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * AppShellContext - Context provider for AppShell state management.
  *

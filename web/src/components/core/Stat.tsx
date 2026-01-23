@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Stat component - displays large numeric values with labels and trend indicators.
  * Used for dashboard statistics like task counts, token usage, costs, etc.

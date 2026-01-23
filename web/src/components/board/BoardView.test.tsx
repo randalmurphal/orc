@@ -60,6 +60,16 @@ vi.mock('@/stores/sessionStore', () => ({
 	},
 }));
 
+// Mock API to prevent actual fetch calls
+vi.mock('@/lib/api', () => ({
+	getConfigStats: vi.fn().mockResolvedValue({
+		slashCommandsCount: 0,
+		claudeMdSize: 0,
+		mcpServersCount: 0,
+		permissionsProfile: 'default',
+	}),
+}));
+
 // Sample task factory
 function createTask(overrides: Partial<Task> = {}): Task {
 	return {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * React hooks and context for keyboard shortcuts
  *

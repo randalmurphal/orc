@@ -134,6 +134,13 @@ vi.mock('@/lib/api', () => ({
 	getToolPermissions: vi.fn().mockResolvedValue({ allow: [], deny: [] }),
 	listAgents: vi.fn().mockResolvedValue([]),
 	getAgent: vi.fn().mockResolvedValue({ name: 'test', description: '' }),
+	// Config stats for TopBar
+	getConfigStats: vi.fn().mockResolvedValue({
+		slashCommandsCount: 0,
+		claudeMdSize: 0,
+		mcpServersCount: 0,
+		permissionsProfile: 'default',
+	}),
 }));
 
 // Test wrapper component
