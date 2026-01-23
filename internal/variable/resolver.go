@@ -204,7 +204,7 @@ func (r *Resolver) resolveAPI(ctx context.Context, def *Definition) (string, err
 	if err != nil {
 		return "", fmt.Errorf("execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check status
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

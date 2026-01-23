@@ -258,9 +258,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		UpdatedAt:    time.Now(),
 	}
 
-	// Handle task creation for default context
+	// Handle task creation/loading based on context type
 	var t *task.Task
-	if opts.ContextType == ContextDefault {
+	switch opts.ContextType {
+	case ContextDefault:
 		t, err = we.createTaskForRun(opts)
 		if err != nil {
 			return nil, fmt.Errorf("create task: %w", err)
@@ -276,7 +277,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				}
 			}
 		}
-	} else if opts.ContextType == ContextTask {
+	case ContextTask:
 		// Load existing task
 		t, err = we.backend.LoadTask(opts.TaskID)
 		if err != nil {
@@ -538,7 +539,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				}
 				if we.execState != nil {
 					we.execState.Error = fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
-					we.backend.SaveState(we.execState)
+					if err := we.backend.SaveState(we.execState); err != nil {
+						we.logger.Warn("failed to save blocked state", "error", err)
+					}
 				}
 				return result, fmt.Errorf("blocked at gate: %s", gateResult.Reason)
 			}
@@ -570,14 +573,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							if tmpl.ID == "review" {
 								t.RecordReviewRejection()
 							}
-							we.backend.SaveTask(t)
+							if err := we.backend.SaveTask(t); err != nil {
+								we.logger.Warn("failed to save task after retry", "task", t.ID, "error", err)
+							}
 						}
 
 						// Save retry context
 						if we.execState != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
 							we.execState.SetRetryContext(tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Artifact, retryCounts[tmpl.ID])
-							we.backend.SaveState(we.execState)
+							if err := we.backend.SaveState(we.execState); err != nil {
+								we.logger.Warn("failed to save retry state", "error", err)
+							}
 						}
 
 						// Jump back to retry phase
@@ -596,7 +603,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Record gate decision in state
 			if we.execState != nil {
 				we.execState.RecordGateDecision(tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
-				we.backend.SaveState(we.execState)
+				if err := we.backend.SaveState(we.execState); err != nil {
+					we.logger.Warn("failed to save gate decision state", "error", err)
+				}
 			}
 		}
 	}
@@ -625,14 +634,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 				if we.execState != nil {
 					we.execState.ClearExecution()
-					we.backend.SaveState(we.execState)
+					if err := we.backend.SaveState(we.execState); err != nil {
+						we.logger.Warn("failed to save cleared execution state", "error", err)
+					}
 				}
-				we.backend.SaveTask(t)
+				if err := we.backend.SaveTask(t); err != nil {
+					we.logger.Warn("failed to save blocked task", "task", t.ID, "error", err)
+				}
 
 				// Run is completed but task is blocked
 				run.Status = string(workflow.RunStatusCompleted)
 				run.CompletedAt = timePtr(time.Now())
-				we.backend.SaveWorkflowRun(run)
+				if err := we.backend.SaveWorkflowRun(run); err != nil {
+					we.logger.Warn("failed to save workflow run", "run", run.ID, "error", err)
+				}
 
 				result.CompletedAt = run.CompletedAt
 				result.Success = false
@@ -670,7 +685,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if we.execState != nil {
 		we.execState.Complete()
 		we.execState.ClearExecution()
-		we.backend.SaveState(we.execState)
+		if err := we.backend.SaveState(we.execState); err != nil {
+			we.logger.Warn("failed to save completed execution state", "error", err)
+		}
 	}
 
 	// Populate result fields from run

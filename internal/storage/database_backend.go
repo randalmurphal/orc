@@ -1986,7 +1986,7 @@ func (d *DatabaseBackend) TryClaimTaskExecution(ctx context.Context, taskID stri
 	// The WHERE clause ensures state hasn't changed since we read it
 	now := time.Now()
 	heartbeat := now.Format(time.RFC3339)
-	result, err := d.db.DB.ExecContext(ctx, `
+	result, err := d.db.ExecContext(ctx, `
 		UPDATE tasks
 		SET state_status = 'running',
 		    executor_pid = ?,

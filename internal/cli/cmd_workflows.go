@@ -75,7 +75,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		workflows, err := pdb.ListWorkflows()
 		if err != nil {
@@ -104,17 +104,17 @@ Examples:
 
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tBUILT-IN")
+		_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tBUILT-IN")
 		for _, wf := range filtered {
 			phases, _ := pdb.GetWorkflowPhases(wf.ID)
 			builtinStr := ""
 			if wf.IsBuiltin {
 				builtinStr = "yes"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
 				wf.ID, wf.Name, wf.WorkflowType, len(phases), builtinStr)
 		}
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},
@@ -142,7 +142,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		wf, err := pdb.GetWorkflow(workflowID)
 		if err != nil {
@@ -181,7 +181,7 @@ Examples:
 		if len(phases) > 0 {
 			fmt.Println("\nPhases:")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "  SEQ\tPHASE\tMAX ITER\tMODEL\tGATE")
+			_, _ = fmt.Fprintln(w, "  SEQ\tPHASE\tMAX ITER\tMODEL\tGATE")
 			for _, p := range phases {
 				maxIter := "-"
 				if p.MaxIterationsOverride != nil {
@@ -195,10 +195,10 @@ Examples:
 				if p.GateTypeOverride != "" {
 					gate = p.GateTypeOverride
 				}
-				fmt.Fprintf(w, "  %d\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "  %d\t%s\t%s\t%s\t%s\n",
 					p.Sequence, p.PhaseTemplateID, maxIter, model, gate)
 			}
-			w.Flush()
+			_ = w.Flush()
 		}
 
 		// Display variables
@@ -210,7 +210,7 @@ Examples:
 		if len(vars) > 0 {
 			fmt.Println("\nVariables:")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "  NAME\tSOURCE\tREQUIRED\tDESCRIPTION")
+			_, _ = fmt.Fprintln(w, "  NAME\tSOURCE\tREQUIRED\tDESCRIPTION")
 			for _, v := range vars {
 				required := ""
 				if v.Required {
@@ -220,10 +220,10 @@ Examples:
 				if len(desc) > 40 {
 					desc = desc[:37] + "..."
 				}
-				fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n",
 					v.Name, v.SourceType, required, desc)
 			}
-			w.Flush()
+			_ = w.Flush()
 		}
 
 		return nil
@@ -255,7 +255,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check if workflow already exists
 		existing, err := pdb.GetWorkflow(workflowID)
@@ -393,7 +393,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		wf, err := pdb.GetWorkflow(workflowID)
 		if err != nil {
@@ -462,7 +462,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		wf, err := pdb.GetWorkflow(workflowID)
 		if err != nil {
@@ -514,7 +514,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check workflow exists and is not builtin
 		wf, err := pdb.GetWorkflow(workflowID)
@@ -614,7 +614,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check workflow exists and is not builtin
 		wf, err := pdb.GetWorkflow(workflowID)
@@ -636,7 +636,7 @@ Examples:
 		}
 
 		// Find the phase to get its sequence
-		var removedSeq int = -1
+		removedSeq := -1
 		for _, p := range phases {
 			if p.PhaseTemplateID == phaseTemplateID {
 				removedSeq = p.Sequence
@@ -697,7 +697,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check workflow exists and is not builtin
 		wf, err := pdb.GetWorkflow(workflowID)
@@ -774,7 +774,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		// Check workflow exists and is not builtin
 		wf, err := pdb.GetWorkflow(workflowID)

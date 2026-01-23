@@ -15,7 +15,7 @@ func TestSeedBuiltins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Seed built-ins
 	seeded, err := SeedBuiltins(pdb)
@@ -98,7 +98,7 @@ func TestSeedBuiltinsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Seed twice
 	seeded1, err := SeedBuiltins(pdb)
@@ -244,7 +244,7 @@ func TestBuiltinPhaseTemplatesHaveRequiredFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	_, err = SeedBuiltins(pdb)
 	if err != nil {
@@ -284,7 +284,7 @@ func TestBuiltinWorkflowsHavePhases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	_, err = SeedBuiltins(pdb)
 	if err != nil {

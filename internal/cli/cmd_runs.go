@@ -49,7 +49,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		runningOnly, _ := cmd.Flags().GetBool("running")
 		workflowFilter, _ := cmd.Flags().GetString("workflow")
@@ -81,7 +81,7 @@ Examples:
 
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "RUN ID\tWORKFLOW\tSTATUS\tTASK\tSTARTED\tCOST")
+		_, _ = fmt.Fprintln(w, "RUN ID\tWORKFLOW\tSTATUS\tTASK\tSTARTED\tCOST")
 		for _, run := range runs {
 			taskID := "-"
 			if run.TaskID != nil {
@@ -92,10 +92,10 @@ Examples:
 				started = formatRelativeTime(*run.StartedAt)
 			}
 			cost := fmt.Sprintf("$%.4f", run.TotalCostUSD)
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 				run.ID, run.WorkflowID, run.Status, taskID, started, cost)
 		}
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},
@@ -122,7 +122,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		run, err := pdb.GetWorkflowRun(runID)
 		if err != nil {
@@ -186,17 +186,17 @@ Examples:
 		if len(phases) > 0 {
 			fmt.Println("\nPhases:")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "  PHASE\tSTATUS\tITER\tCOST\tDURATION")
+			_, _ = fmt.Fprintln(w, "  PHASE\tSTATUS\tITER\tCOST\tDURATION")
 			for _, p := range phases {
 				duration := "-"
 				if p.StartedAt != nil && p.CompletedAt != nil {
 					duration = p.CompletedAt.Sub(*p.StartedAt).Round(time.Second).String()
 				}
 				cost := fmt.Sprintf("$%.4f", p.CostUSD)
-				fmt.Fprintf(w, "  %s\t%s\t%d\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t%d\t%s\t%s\n",
 					p.PhaseTemplateID, p.Status, p.Iterations, cost, duration)
 			}
-			w.Flush()
+			_ = w.Flush()
 		}
 
 		return nil
@@ -225,7 +225,7 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("open database: %w", err)
 		}
-		defer pdb.Close()
+		defer func() { _ = pdb.Close() }()
 
 		run, err := pdb.GetWorkflowRun(runID)
 		if err != nil {

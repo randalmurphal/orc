@@ -186,7 +186,10 @@ func (s *Server) handleCreateWorkflow(w http.ResponseWriter, r *http.Request) {
 				GateTypeOverride:      p.GateTypeOverride,
 				Condition:             p.Condition,
 			}
-			s.backend.SaveWorkflowPhase(newPhase)
+			if err := s.backend.SaveWorkflowPhase(newPhase); err != nil {
+				s.jsonError(w, "failed to clone phase", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Clone variables
@@ -202,7 +205,10 @@ func (s *Server) handleCreateWorkflow(w http.ResponseWriter, r *http.Request) {
 				DefaultValue:    v.DefaultValue,
 				CacheTTLSeconds: v.CacheTTLSeconds,
 			}
-			s.backend.SaveWorkflowVariable(newVar)
+			if err := s.backend.SaveWorkflowVariable(newVar); err != nil {
+				s.jsonError(w, "failed to clone variable", http.StatusInternalServerError)
+				return
+			}
 		}
 	} else {
 		if err := s.backend.SaveWorkflow(wf); err != nil {
@@ -368,7 +374,10 @@ func (s *Server) handleCloneWorkflow(w http.ResponseWriter, r *http.Request) {
 			GateTypeOverride:      p.GateTypeOverride,
 			Condition:             p.Condition,
 		}
-		s.backend.SaveWorkflowPhase(newPhase)
+		if err := s.backend.SaveWorkflowPhase(newPhase); err != nil {
+			s.jsonError(w, "failed to clone phase", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Clone variables
@@ -384,7 +393,10 @@ func (s *Server) handleCloneWorkflow(w http.ResponseWriter, r *http.Request) {
 			DefaultValue:    v.DefaultValue,
 			CacheTTLSeconds: v.CacheTTLSeconds,
 		}
-		s.backend.SaveWorkflowVariable(newVar)
+		if err := s.backend.SaveWorkflowVariable(newVar); err != nil {
+			s.jsonError(w, "failed to clone variable", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	s.jsonResponse(w, clone)

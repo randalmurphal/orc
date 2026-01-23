@@ -128,7 +128,9 @@ func (we *WorkflowExecutor) executePhase(
 		runPhase.Status = string(workflow.PhaseStatusFailed)
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
-		we.backend.SaveWorkflowRunPhase(runPhase)
+		if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
+			we.logger.Warn("failed to save failed phase state", "phase", tmpl.ID, "error", saveErr)
+		}
 		// Publish phase failed event for real-time UI updates
 		if t != nil {
 			we.publisher.PhaseFailed(t.ID, tmpl.ID, err)
@@ -273,10 +275,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		)
 	}
 
-	// Set the schema
-	if schema != "" {
-		// Schema is set via phaseID, which GetSchemaForPhaseWithRound uses
-	}
+	// Schema is set via phaseID, which GetSchemaForPhaseWithRound uses
+	_ = schema // Mark as intentionally unused here
 
 	// Execute turns until completion
 	for i := 0; i < cfg.MaxIterations; i++ {
@@ -289,7 +289,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 
 		// Update iteration count in database for real-time monitoring
 		if cfg.RunID != "" && cfg.PhaseID != "" {
-			we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, result.Iterations)
+			if err := we.backend.UpdatePhaseIterations(cfg.RunID, cfg.PhaseID, result.Iterations); err != nil {
+				we.logger.Warn("failed to update phase iterations", "phase", cfg.PhaseID, "error", err)
+			}
 		}
 
 		// Execute turn

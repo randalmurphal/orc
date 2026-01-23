@@ -37,7 +37,11 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error
 
 // failSetup handles failures during setup phase (before any phase runs).
 func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *task.Task, err error) {
-	we.logger.Error("task setup failed", "task", t.ID, "error", err)
+	taskID := ""
+	if t != nil {
+		taskID = t.ID
+	}
+	we.logger.Error("task setup failed", "task", taskID, "error", err)
 
 	// Clear execution tracking and set error in state
 	if we.execState != nil {

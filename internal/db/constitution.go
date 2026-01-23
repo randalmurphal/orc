@@ -162,7 +162,7 @@ func (p *ProjectDB) GetConstitutionChecks(taskID string) ([]ConstitutionCheck, e
 	if err != nil {
 		return nil, fmt.Errorf("query constitution checks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var checks []ConstitutionCheck
 	for rows.Next() {

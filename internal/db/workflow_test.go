@@ -13,7 +13,7 @@ func TestPhaseTemplateCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -109,7 +109,7 @@ func TestWorkflowCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -191,7 +191,7 @@ func TestWorkflowPhases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -295,7 +295,7 @@ func TestWorkflowVariables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -388,7 +388,7 @@ func TestWorkflowRunCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -501,7 +501,7 @@ func TestWorkflowRunPhases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -638,7 +638,7 @@ func TestListWorkflowRunsFiltering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open project db: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	now := time.Now()
 
@@ -704,9 +704,4 @@ func TestListWorkflowRunsFiltering(t *testing.T) {
 	if len(result) != 4 {
 		t.Errorf("expected 4 runs total, got %d", len(result))
 	}
-}
-
-// Helper function
-func strPtr(s string) *string {
-	return &s
 }

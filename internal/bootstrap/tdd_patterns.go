@@ -100,9 +100,5 @@ func IsTestFile(filePath string) bool {
 
 	// Mock/stub/fake files by convention
 	mockPattern := regexp.MustCompile(`\.(mock|stub|fake)\.(ts|js|go|py|tsx|jsx)$`)
-	if mockPattern.MatchString(baseName) {
-		return true
-	}
-
-	return false
+	return mockPattern.MatchString(baseName)
 }

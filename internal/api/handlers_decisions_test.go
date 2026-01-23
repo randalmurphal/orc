@@ -50,7 +50,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	srv.publisher = pub
 
 	cleanup := func() {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return srv, cleanup

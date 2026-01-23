@@ -158,7 +158,7 @@ func (s *Server) handleTriggerWorkflowRun(w http.ResponseWriter, r *http.Request
 		s.jsonError(w, "failed to open project database", http.StatusInternalServerError)
 		return
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Create git operations
 	gitOps, err := git.New(s.workDir, git.DefaultConfig())

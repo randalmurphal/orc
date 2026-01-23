@@ -277,7 +277,7 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list phase templates: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var templates []*PhaseTemplate
 	for rows.Next() {
@@ -353,7 +353,7 @@ func (p *ProjectDB) ListWorkflows() ([]*Workflow, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list workflows: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var workflows []*Workflow
 	for rows.Next() {
@@ -424,7 +424,7 @@ func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, erro
 	if err != nil {
 		return nil, fmt.Errorf("get workflow phases: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var phases []*WorkflowPhase
 	for rows.Next() {
@@ -486,7 +486,7 @@ func (p *ProjectDB) GetWorkflowVariables(workflowID string) ([]*WorkflowVariable
 	if err != nil {
 		return nil, fmt.Errorf("get workflow variables: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var vars []*WorkflowVariable
 	for rows.Next() {
@@ -623,7 +623,7 @@ func (p *ProjectDB) ListWorkflowRuns(opts WorkflowRunListOpts) ([]*WorkflowRun, 
 	if err != nil {
 		return nil, fmt.Errorf("list workflow runs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var runs []*WorkflowRun
 	for rows.Next() {
@@ -733,7 +733,7 @@ func (p *ProjectDB) GetWorkflowRunPhases(runID string) ([]*WorkflowRunPhase, err
 	if err != nil {
 		return nil, fmt.Errorf("get workflow run phases: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var phases []*WorkflowRunPhase
 	for rows.Next() {

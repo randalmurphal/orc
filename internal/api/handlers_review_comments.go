@@ -2,9 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -25,14 +23,6 @@ type updateReviewCommentRequest struct {
 	Severity   string `json:"severity,omitempty"`
 	Status     string `json:"status,omitempty"`
 	ResolvedBy string `json:"resolved_by,omitempty"`
-}
-
-// reviewRetryResponse is the response for the review retry endpoint.
-type reviewRetryResponse struct {
-	TaskID       string `json:"task_id"`
-	CommentCount int    `json:"comment_count"`
-	RetryContext string `json:"retry_context"`
-	Status       string `json:"status"`
 }
 
 // handleListReviewComments returns all review comments for a task.
@@ -312,45 +302,4 @@ func (s *Server) handleGetReviewStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, stats)
-}
-
-// buildReviewRetryContext formats review comments into a context string for retry.
-func buildReviewRetryContext(comments []db.ReviewComment) string {
-	var sb strings.Builder
-	sb.WriteString("## Review Feedback\n\n")
-	sb.WriteString("The following issues were identified during code review:\n\n")
-
-	// Group by file
-	byFile := make(map[string][]db.ReviewComment)
-	for _, c := range comments {
-		key := c.FilePath
-		if key == "" {
-			key = "General"
-		}
-		byFile[key] = append(byFile[key], c)
-	}
-
-	// Sort files for consistent output
-	var files []string
-	for file := range byFile {
-		files = append(files, file)
-	}
-
-	for _, file := range files {
-		fileComments := byFile[file]
-		sb.WriteString(fmt.Sprintf("### %s\n\n", file))
-		for _, c := range fileComments {
-			if c.LineNumber > 0 {
-				sb.WriteString(fmt.Sprintf("- **Line %d** [%s]: %s\n",
-					c.LineNumber, c.Severity, c.Content))
-			} else {
-				sb.WriteString(fmt.Sprintf("- [%s]: %s\n",
-					c.Severity, c.Content))
-			}
-		}
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString("\nPlease address all issues above and make the necessary changes.\n")
-	return sb.String()
 }

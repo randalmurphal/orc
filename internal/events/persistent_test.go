@@ -33,7 +33,7 @@ func setupTestBackend(t *testing.T, taskID string) storage.Backend {
 // TestPersistentPublisher_PersistsEvents verifies events are written to the database.
 func TestPersistentPublisher_PersistsEvents(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)
@@ -93,7 +93,7 @@ func TestPersistentPublisher_PersistsEvents(t *testing.T) {
 // TestPersistentPublisher_WebSocketBroadcast verifies wrapped MemoryPublisher still broadcasts.
 func TestPersistentPublisher_WebSocketBroadcast(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)
@@ -123,7 +123,7 @@ func TestPersistentPublisher_WebSocketBroadcast(t *testing.T) {
 // TestPersistentPublisher_BatchFlush verifies buffer flushes at threshold.
 func TestPersistentPublisher_BatchFlush(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)
@@ -158,7 +158,7 @@ func TestPersistentPublisher_BatchFlush(t *testing.T) {
 // TestPersistentPublisher_TimeFlush verifies buffer flushes after 5 seconds.
 func TestPersistentPublisher_TimeFlush(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)
@@ -190,7 +190,7 @@ func TestPersistentPublisher_TimeFlush(t *testing.T) {
 // TestPersistentPublisher_PhaseCompletionFlush verifies flush on phase complete event.
 func TestPersistentPublisher_PhaseCompletionFlush(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)
@@ -226,7 +226,7 @@ func TestPersistentPublisher_PhaseCompletionFlush(t *testing.T) {
 // TestPersistentPublisher_DurationCalculation verifies duration_ms calculated correctly.
 func TestPersistentPublisher_DurationCalculation(t *testing.T) {
 	backend := setupTestBackend(t, "TASK-001")
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	logger := slog.Default()
 	pub := NewPersistentPublisher(backend, "test", logger)

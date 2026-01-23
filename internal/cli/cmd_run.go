@@ -146,7 +146,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("open project database: %w", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Seed built-in workflows if not already seeded
 	if _, err := workflow.SeedBuiltins(pdb); err != nil {
@@ -158,7 +158,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("get backend: %w", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// If we have an existing task, load it and determine workflow from weight
 	var existingTask *task.Task

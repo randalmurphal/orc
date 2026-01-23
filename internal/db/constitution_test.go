@@ -9,7 +9,7 @@ func TestConstitution(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProjectInMemory: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	t.Run("SaveAndLoad", func(t *testing.T) {
 		c := &Constitution{
@@ -104,7 +104,7 @@ func TestConstitutionCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProjectInMemory: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a task first (constitution checks have FK constraint)
 	task := &Task{

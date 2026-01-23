@@ -36,7 +36,7 @@ func TestTDDHookIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create tasks table with just the fields we need
 	_, err = db.Exec(`
