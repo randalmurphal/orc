@@ -44,6 +44,13 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *task.Task) err
 		return nil
 	}
 
+	// Auto-commit any uncommitted changes before PR/merge
+	// This prevents work loss when Claude forgets to commit
+	if err := we.autoCommitBeforeCompletion(gitOps, t); err != nil {
+		we.logger.Warn("auto-commit failed, continuing anyway", "error", err)
+		// Non-fatal: PR might still succeed if changes were committed by Claude
+	}
+
 	// Sync with target branch before completion
 	targetBranch := we.orcConfig.Completion.TargetBranch
 	if targetBranch == "" {
@@ -381,5 +388,36 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) e
 		"target", targetBranch,
 		"commits_behind", result.CommitsBehind)
 
+	return nil
+}
+
+// autoCommitBeforeCompletion commits any uncommitted changes before PR/merge.
+// This is a safety net for when Claude doesn't commit during implement phase.
+func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *task.Task) error {
+	hasChanges, err := gitOps.HasUncommittedChanges()
+	if err != nil {
+		return fmt.Errorf("check uncommitted changes: %w", err)
+	}
+
+	if !hasChanges {
+		return nil // Clean worktree, nothing to commit
+	}
+
+	we.logger.Info("uncommitted changes detected, auto-committing",
+		"task", t.ID)
+
+	// Stage all changes
+	ctx := gitOps.Context()
+	if _, err := ctx.RunGit("add", "-A"); err != nil {
+		return fmt.Errorf("stage changes: %w", err)
+	}
+
+	// Commit with standard message format
+	msg := fmt.Sprintf("[orc] %s: Auto-commit before PR creation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>", t.ID)
+	if _, err := ctx.RunGit("commit", "-m", msg); err != nil {
+		return fmt.Errorf("commit changes: %w", err)
+	}
+
+	we.logger.Info("auto-committed changes", "task", t.ID)
 	return nil
 }

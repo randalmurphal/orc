@@ -556,6 +556,17 @@ func (g *Git) IsClean() (bool, error) {
 	return g.ctx.IsClean()
 }
 
+// HasUncommittedChanges returns true if there are uncommitted changes
+// (staged or unstaged) in the working directory.
+func (g *Git) HasUncommittedChanges() (bool, error) {
+	out, err := g.ctx.RunGit("status", "--porcelain")
+	if err != nil {
+		return false, fmt.Errorf("git status: %w", err)
+	}
+	// Empty output means clean worktree
+	return strings.TrimSpace(out) != "", nil
+}
+
 // Fetch fetches from the remote.
 func (g *Git) Fetch(remote string) error {
 	return g.ctx.Fetch(remote)
