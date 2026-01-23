@@ -909,4 +909,4 @@ func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
 // Note: TestBuildPromptNode*, TestExecutePhase*, TestEvaluateGate*, TestExecuteWithRetry*,
 // TestExecuteTask*, TestResumeFromPhase*, TestFailSetup*, TestHandlePhaseFailure* tests removed -
 // those methods were deleted during executor consolidation.
-// See internal/executor/workflow_execution_test.go for tests of the new WorkflowExecutor.
+// See internal/executor/workflow_executor_test.go for tests of the new WorkflowExecutor.

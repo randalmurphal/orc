@@ -186,20 +186,7 @@ func (we *WorkflowExecutor) recordCostToGlobal(t *task.Task, phaseID string, res
 		Timestamp:    time.Now(),
 	}
 
-	if err := we.globalDB.RecordCostExtended(entry); err != nil {
-		we.logger.Warn("failed to record cost to global database",
-			"task", taskID,
-			"phase", phaseID,
-			"error", err,
-		)
-	} else {
-		we.logger.Debug("recorded cost to global database",
-			"task", taskID,
-			"phase", phaseID,
-			"cost_usd", result.CostUSD,
-			"model", model,
-		)
-	}
+	RecordCostEntry(we.globalDB, entry, we.logger)
 }
 
 // syncTranscripts syncs Claude JSONL transcripts to the database.

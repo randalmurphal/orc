@@ -109,7 +109,7 @@ Cache keys include context (task ID for phase outputs) to prevent cross-task con
 ## Integration Points
 
 This package is used by:
-- `internal/executor/workflow_execution.go` - THE executor, uses `Resolver.ResolveAll()` and `RenderTemplate()`
+- `internal/executor/workflow_executor.go` - THE executor, uses `Resolver.ResolveAll()` and `RenderTemplate()`
 - `internal/workflow/` - Defines workflow variables stored in database
 
 All template rendering goes through this package. The executor populates `ResolutionContext` via `buildResolutionContext()` and `enrichContextForPhase()`.

@@ -531,3 +531,27 @@ func IsMCPProcess(command string) bool {
 func IsOrcRelatedProcess(command string) bool {
 	return orcRelatedProcessPattern.MatchString(command)
 }
+
+// RunResourceAnalysis performs resource tracking analysis.
+// Takes an after snapshot, detects orphans, checks memory growth, and resets the tracker.
+// Safe to call with nil tracker (no-op).
+func RunResourceAnalysis(tracker *ResourceTracker, logger *slog.Logger) {
+	if tracker == nil {
+		return
+	}
+
+	// Take after snapshot
+	if err := tracker.SnapshotAfter(); err != nil {
+		logger.Warn("failed to take resource snapshot after task", "error", err)
+		return
+	}
+
+	// Detect orphaned processes (logs warnings for any found)
+	tracker.DetectOrphans()
+
+	// Check memory growth against threshold (logs warning if exceeded)
+	tracker.CheckMemoryGrowth()
+
+	// Reset tracker for next task
+	tracker.Reset()
+}

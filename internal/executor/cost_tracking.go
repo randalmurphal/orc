@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -13,6 +14,32 @@ type CostMetadata struct {
 	Iteration   int           // Iteration count for the phase
 	Duration    time.Duration // Phase execution duration
 	ProjectPath string        // Normalized project path
+}
+
+// RecordCostEntry records a cost entry to the global database.
+// Used by both WorkflowExecutor and Executor for cross-project analytics.
+// Failures are logged but don't interrupt execution.
+func RecordCostEntry(globalDB *db.GlobalDB, entry db.CostEntry, logger *slog.Logger) {
+	if globalDB == nil {
+		return // Global DB not available, skip silently
+	}
+
+	if err := globalDB.RecordCostExtended(entry); err != nil {
+		logger.Warn("failed to record cost to global database",
+			"task", entry.TaskID,
+			"phase", entry.Phase,
+			"error", err,
+		)
+	} else {
+		logger.Debug("recorded cost to global database",
+			"task", entry.TaskID,
+			"phase", entry.Phase,
+			"cost_usd", entry.CostUSD,
+			"model", entry.Model,
+			"input_tokens", entry.InputTokens,
+			"output_tokens", entry.OutputTokens,
+		)
+	}
 }
 
 // recordCostToGlobal logs cost and token usage to the global database for cross-project analytics.
@@ -46,20 +73,5 @@ func (e *Executor) recordCostToGlobal(t *task.Task, phaseID string, result *Resu
 		Timestamp:           time.Now(),
 	}
 
-	if err := e.globalDB.RecordCostExtended(entry); err != nil {
-		e.logger.Warn("failed to record cost to global database",
-			"task", t.ID,
-			"phase", phaseID,
-			"error", err,
-		)
-	} else {
-		e.logger.Debug("recorded cost to global database",
-			"task", t.ID,
-			"phase", phaseID,
-			"cost_usd", result.CostUSD,
-			"model", meta.Model,
-			"input_tokens", result.InputTokens,
-			"output_tokens", result.OutputTokens,
-		)
-	}
+	RecordCostEntry(e.globalDB, entry, e.logger)
 }

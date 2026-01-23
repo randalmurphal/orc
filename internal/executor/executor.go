@@ -570,22 +570,5 @@ func (e *Executor) MarkCurrentAccountExhausted(reason string) {
 // runResourceAnalysis takes the after-snapshot and analyzes resource usage.
 // Called via defer in ExecuteTask to run regardless of success or failure.
 func (e *Executor) runResourceAnalysis() {
-	if e.resourceTracker == nil {
-		return
-	}
-
-	// Take after snapshot
-	if err := e.resourceTracker.SnapshotAfter(); err != nil {
-		e.logger.Warn("failed to take resource snapshot after task", "error", err)
-		return
-	}
-
-	// Detect orphaned processes (logs warnings for any found)
-	e.resourceTracker.DetectOrphans()
-
-	// Check memory growth against threshold (logs warning if exceeded)
-	e.resourceTracker.CheckMemoryGrowth()
-
-	// Reset tracker for next task
-	e.resourceTracker.Reset()
+	RunResourceAnalysis(e.resourceTracker, e.logger)
 }

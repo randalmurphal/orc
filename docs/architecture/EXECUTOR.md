@@ -12,8 +12,8 @@ The executor package uses a unified execution model:
 
 | Module | File | Responsibility |
 |--------|------|----------------|
-| **WorkflowExecutor** | `workflow_execution.go` | THE executor - all execution goes through `Run()` |
-| **Phase Execution** | `workflow_execution.go:executePhase()` | Single phase execution with ClaudeExecutor |
+| **WorkflowExecutor** | `workflow_executor.go` | THE executor - all execution goes through `Run()` |
+| **Phase Execution** | `workflow_phase.go:executePhase()` | Single phase execution with ClaudeExecutor |
 | **Claude Executor** | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | **Phase Response** | `phase_response.go` | JSON schemas for phase completion |
 | **Finalize Executor** | `finalize.go` | Explicit branch sync, conflict resolution, risk assessment |
@@ -63,7 +63,7 @@ The executor package uses a unified execution model:
 ## Phase Execution Flow
 
 ```go
-// Simplified flow - see workflow_execution.go for full implementation
+// Simplified flow - see workflow_executor.go for full implementation
 func (we *WorkflowExecutor) Run(ctx, workflowID, opts) {
     // 1. Setup context (worktree, task status, heartbeat)
     we.setupForContext(ctx, opts)

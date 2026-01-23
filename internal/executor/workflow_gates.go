@@ -5,7 +5,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -81,22 +80,7 @@ func (we *WorkflowExecutor) publishTaskUpdated(t *task.Task) {
 // runResourceAnalysis runs the resource tracker analysis after task completion.
 // Called via defer in Run() to run regardless of success or failure.
 func (we *WorkflowExecutor) runResourceAnalysis() {
-	if we.resourceTracker == nil {
-		return
-	}
-
-	if err := we.resourceTracker.SnapshotAfter(); err != nil {
-		we.logger.Warn("failed to take after snapshot", "error", err)
-		return
-	}
-
-	orphans := we.resourceTracker.DetectOrphans()
-	if len(orphans) > 0 {
-		we.logger.Warn("detected potential orphaned processes",
-			"count", len(orphans),
-			"processes", formatOrphanedProcesses(orphans),
-		)
-	}
+	RunResourceAnalysis(we.resourceTracker, we.logger)
 }
 
 // triggerAutomationEvent sends an event to the automation service if configured.
@@ -119,16 +103,4 @@ func (we *WorkflowExecutor) triggerAutomationEvent(ctx context.Context, eventTyp
 			"task", t.ID,
 			"error", err)
 	}
-}
-
-// formatOrphanedProcesses formats orphaned process info for logging.
-func formatOrphanedProcesses(processes []ProcessInfo) string {
-	if len(processes) == 0 {
-		return ""
-	}
-	var parts []string
-	for _, p := range processes {
-		parts = append(parts, fmt.Sprintf("%d:%s", p.PID, p.Command))
-	}
-	return strings.Join(parts, ", ")
 }

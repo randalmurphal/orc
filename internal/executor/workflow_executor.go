@@ -443,20 +443,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						artifact, _ = we.backend.LoadArtifact(t.ID, phase.PhaseTemplateID)
 					}
 					if artifact != "" {
-						vars["OUTPUT_"+phase.PhaseTemplateID] = artifact
-						switch phase.PhaseTemplateID {
-						case "spec", "tiny_spec":
-							vars["SPEC_CONTENT"] = artifact
-						case "design":
-							vars["DESIGN_CONTENT"] = artifact
-						case "tdd_write":
-							vars["TDD_TESTS_CONTENT"] = artifact
-						case "breakdown":
-							vars["BREAKDOWN_CONTENT"] = artifact
-						case "research":
-							vars["RESEARCH_CONTENT"] = artifact
-						}
-						rctx.PriorOutputs[phase.PhaseTemplateID] = artifact
+						applyArtifactToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, artifact)
 					}
 					continue
 				}
@@ -520,21 +507,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update variables with phase output if artifact was produced
 		if phaseResult.Artifact != "" {
-			vars["OUTPUT_"+phaseResult.PhaseID] = phaseResult.Artifact
-			// Update common aliases
-			switch phaseResult.PhaseID {
-			case "spec", "tiny_spec":
-				vars["SPEC_CONTENT"] = phaseResult.Artifact
-			case "design":
-				vars["DESIGN_CONTENT"] = phaseResult.Artifact
-			case "tdd_write":
-				vars["TDD_TESTS_CONTENT"] = phaseResult.Artifact
-			case "breakdown":
-				vars["BREAKDOWN_CONTENT"] = phaseResult.Artifact
-			case "research":
-				vars["RESEARCH_CONTENT"] = phaseResult.Artifact
-			}
-			rctx.PriorOutputs[phaseResult.PhaseID] = phaseResult.Artifact
+			applyArtifactToVars(vars, rctx.PriorOutputs, phaseResult.PhaseID, phaseResult.Artifact)
 		}
 
 		// Evaluate phase gate
@@ -724,6 +697,27 @@ type PhaseResult struct {
 }
 
 // Helper functions
+
+// applyArtifactToVars updates variable maps with phase output artifacts.
+// Called both when resuming from completed phases and after phase completion.
+func applyArtifactToVars(vars map[string]string, priorOutputs map[string]string, phaseID, artifact string) {
+	vars["OUTPUT_"+phaseID] = artifact
+	switch phaseID {
+	case "spec", "tiny_spec":
+		vars["SPEC_CONTENT"] = artifact
+	case "design":
+		vars["DESIGN_CONTENT"] = artifact
+	case "tdd_write":
+		vars["TDD_TESTS_CONTENT"] = artifact
+	case "breakdown":
+		vars["BREAKDOWN_CONTENT"] = artifact
+	case "research":
+		vars["RESEARCH_CONTENT"] = artifact
+	}
+	if priorOutputs != nil {
+		priorOutputs[phaseID] = artifact
+	}
+}
 
 func timePtr(t time.Time) *time.Time {
 	return &t
