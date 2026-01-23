@@ -100,7 +100,13 @@ Key phases:
 - **review**: Multi-agent code review with 5 specialized reviewers
 - **validate**: Final verification against all success criteria
 
-Use `orc finalize TASK-XXX` to manually sync with target branch before merge.
+### Task Completion Flow
+
+1. **Task completes** → PR created (if `completion.action: pr`)
+2. **Review PR** → Manual review opportunity
+3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, triggers auto-merge (if `auto_merge: true`)
+
+**Note:** `auto_merge: true` in config means "merge after finalize", not "merge immediately after task completion". This gives you a chance to review the PR before merging.
 
 ⚠️ **Common mistake**: Under-weighting tasks. A "medium" task run as "small" skips the spec phase, causing Claude to guess requirements.
 
