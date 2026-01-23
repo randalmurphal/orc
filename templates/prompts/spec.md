@@ -35,6 +35,23 @@ DO NOT write spec.md files to filesystem - specs are captured via JSON output.
 <instructions>
 Create a clear, actionable specification with prioritized user stories and explicit verification methods.
 
+<initiative_alignment>
+**CRITICAL: If this task belongs to an initiative, your spec MUST capture ALL requirements from the initiative vision.**
+
+Before defining success criteria:
+1. Re-read the Initiative Context section above (if present)
+2. Extract every requirement, feature, and behavior mentioned in the vision
+3. Cross-reference against your planned success criteria
+4. Add missing criteria for any initiative requirements not covered
+
+**Common failures to avoid:**
+- Task description says "Pause, New Task" but initiative vision says "Pause, New Task, Panel toggle" → You MUST include Panel toggle
+- Vision mentions specific UI elements → They MUST appear in success criteria
+- Vision lists exact behaviors → They MUST be testable in your spec
+
+The task description is a starting point. The initiative vision is the source of truth.
+</initiative_alignment>
+
 <clarification_rules>
 **Maximum 3 [NEEDS CLARIFICATION] items.** For everything else:
 - Make an informed assumption
@@ -284,6 +301,7 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 | p1_stories_independent | P1 stories can ship alone | |
 | scope_explicit | In/out scope clearly listed | |
 | max_3_clarifications | ≤3 clarifications, rest are assumptions | |
+| initiative_aligned | All initiative vision requirements captured in SC | |
 
 Include in JSON output.
 </quality_checklist>
