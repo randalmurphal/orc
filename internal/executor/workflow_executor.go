@@ -267,6 +267,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return nil, fmt.Errorf("create task: %w", err)
 		}
 		run.TaskID = &t.ID
+
+		// Infer weight from workflow ID for newly created tasks
+		if t.Weight == "" {
+			if inferred := workflow.GetWeightForWorkflow(workflowID); inferred != "" {
+				t.Weight = task.Weight(inferred)
+				if err := we.backend.SaveTask(t); err != nil {
+					we.logger.Warn("failed to save inferred weight", "task_id", t.ID, "error", err)
+				}
+			}
+		}
 	} else if opts.ContextType == ContextTask {
 		// Load existing task
 		t, err = we.backend.LoadTask(opts.TaskID)
@@ -274,6 +284,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return nil, fmt.Errorf("load task %s: %w", opts.TaskID, err)
 		}
 		run.TaskID = &t.ID
+
+		// Infer weight if not set on existing task
+		if t.Weight == "" {
+			if inferred := workflow.GetWeightForWorkflow(workflowID); inferred != "" {
+				t.Weight = task.Weight(inferred)
+				if err := we.backend.SaveTask(t); err != nil {
+					we.logger.Warn("failed to save inferred weight", "task_id", t.ID, "error", err)
+				}
+			}
+		}
 	}
 
 	// Initialize execution state for task-based contexts
@@ -663,6 +683,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.backend.SaveState(we.execState)
 	}
 
+	// Populate result fields from run
+	if t != nil {
+		result.TaskID = t.ID
+	}
+	result.TotalCostUSD = run.TotalCostUSD
+	result.TotalTokens = run.TotalInputTokens + run.TotalOutputTokens
 	result.CompletedAt = run.CompletedAt
 	result.Success = true
 
@@ -685,15 +711,17 @@ type WorkflowRunResult struct {
 
 // PhaseResult contains the result of a phase execution.
 type PhaseResult struct {
-	PhaseID      string
-	Status       string
-	Iterations   int
-	DurationMS   int64
-	Artifact     string
-	Error        string
-	InputTokens  int
-	OutputTokens int
-	CostUSD      float64
+	PhaseID             string
+	Status              string
+	Iterations          int
+	DurationMS          int64
+	Artifact            string
+	Error               string
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	CostUSD             float64
 }
 
 // Helper functions
