@@ -107,7 +107,7 @@ export function SettingsView() {
 				<div className="settings-view__header-content">
 					<h2 className="settings-view__title">Slash Commands</h2>
 					<p className="settings-view__subtitle">
-						Create and manage custom slash commands for Claude
+						Custom commands for Claude Code (~/.claude/commands)
 					</p>
 				</div>
 				<Button
