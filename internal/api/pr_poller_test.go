@@ -333,6 +333,9 @@ func (b *emptyBackend) GetWorkflowRunPhases(string) ([]*db.WorkflowRunPhase, err
 }
 func (b *emptyBackend) SaveWorkflowRunPhase(*db.WorkflowRunPhase) error  { return nil }
 func (b *emptyBackend) UpdatePhaseIterations(string, string, int) error { return nil }
+func (b *emptyBackend) GetRunningWorkflowsByTask() (map[string]*db.WorkflowRun, error) {
+	return nil, nil
+}
 func (b *emptyBackend) TryClaimTaskExecution(context.Context, string, int, string) error {
 	return nil
 }
