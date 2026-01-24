@@ -581,24 +581,6 @@ func TestDSN_Postgres(t *testing.T) {
 func TestDefault_PlanConfig(t *testing.T) {
 	cfg := Default()
 
-	// RequireSpecForExecution should default to true (quality-first)
-	if !cfg.Plan.RequireSpecForExecution {
-		t.Error("Plan.RequireSpecForExecution should default to true")
-	}
-
-	// WarnOnMissingSpec should default to true
-	if !cfg.Plan.WarnOnMissingSpec {
-		t.Error("Plan.WarnOnMissingSpec should default to true")
-	}
-
-	// SkipValidationWeights should default to [trivial, small]
-	expectedWeights := []string{"trivial", "small"}
-	if len(cfg.Plan.SkipValidationWeights) != 2 ||
-		cfg.Plan.SkipValidationWeights[0] != "trivial" ||
-		cfg.Plan.SkipValidationWeights[1] != "small" {
-		t.Errorf("Plan.SkipValidationWeights = %v, want %v", cfg.Plan.SkipValidationWeights, expectedWeights)
-	}
-
 	// MinimumSections should default to intent, success_criteria, testing
 	expected := []string{"intent", "success_criteria", "testing"}
 	if len(cfg.Plan.MinimumSections) != 3 {

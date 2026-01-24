@@ -9,7 +9,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -685,60 +684,6 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 		}
 	}
 	return result, err
-}
-
-// checkSpecRequirements checks if a task has a valid spec for non-trivial weights.
-// Returns an error if spec is required but missing or invalid.
-// Skips check if the workflow's first phase is "spec" or "tiny_spec" (the spec will be created during execution).
-func (we *WorkflowExecutor) checkSpecRequirements(t *task.Task, phases []*db.WorkflowPhase) error {
-	if t == nil {
-		return nil
-	}
-
-	// Trivial tasks don't require specs
-	if t.Weight == task.WeightTrivial {
-		return nil
-	}
-
-	// Skip if workflow starts with spec phase - it will create the spec
-	if len(phases) > 0 {
-		firstPhase := phases[0].PhaseTemplateID
-		if firstPhase == "spec" || firstPhase == "tiny_spec" {
-			we.logger.Debug("skipping spec requirement check - workflow starts with spec phase",
-				"task", t.ID)
-			return nil
-		}
-	}
-
-	// Check if spec validation is enabled in config
-	if we.orcConfig == nil || !we.orcConfig.Plan.RequireSpecForExecution {
-		return nil
-	}
-
-	// Check if this weight should skip validation
-	if slices.Contains(we.orcConfig.Plan.SkipValidationWeights, string(t.Weight)) {
-		return nil
-	}
-
-	// Check if spec exists using backend
-	specExists, err := we.backend.SpecExistsForTask(t.ID)
-	if err != nil {
-		we.logger.Warn("failed to check spec existence", "task", t.ID, "error", err)
-		specExists = false
-	}
-	if !specExists {
-		we.logger.Warn("task has no spec", "task", t.ID, "weight", t.Weight)
-		return fmt.Errorf("task %s requires a spec for weight '%s' - run 'orc plan %s' to create one", t.ID, t.Weight, t.ID)
-	}
-
-	// Load spec content to validate
-	specContent, err := we.backend.GetSpecForTask(t.ID)
-	if err != nil || specContent == "" {
-		we.logger.Warn("task spec is invalid", "task", t.ID, "weight", t.Weight)
-		return fmt.Errorf("task %s has an incomplete spec - run 'orc plan %s' to update it", t.ID, t.ID)
-	}
-
-	return nil
 }
 
 // runQualityChecks runs quality checks configured for the phase.

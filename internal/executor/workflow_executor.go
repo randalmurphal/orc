@@ -385,12 +385,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 	}
 
-	// Check spec requirements for non-trivial tasks
-	if err := we.checkSpecRequirements(t, phases); err != nil {
-		we.failSetup(run, t, err)
-		return nil, err
-	}
-
 	// Save run
 	if err := we.backend.SaveWorkflowRun(run); err != nil {
 		return nil, fmt.Errorf("save workflow run: %w", err)
