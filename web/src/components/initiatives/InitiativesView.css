@@ -330,7 +330,11 @@
 /* Mobile: single column */
 @media (max-width: 480px) {
 	.initiatives-view-grid {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.initiatives-view-grid > * {
+		min-width: 0;
 	}
 
 	.initiatives-view-header {
