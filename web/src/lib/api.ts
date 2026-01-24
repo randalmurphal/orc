@@ -173,6 +173,28 @@ export async function deleteTask(id: string): Promise<void> {
 	}
 }
 
+// Blocked task actions
+export interface SkipBlockResponse {
+	status: string;
+	task_id: string;
+	message: string;
+	cleared_blockers: string[];
+}
+
+export async function skipBlock(id: string): Promise<SkipBlockResponse> {
+	return fetchJSON(`/tasks/${id}/skip-block`, { method: 'POST' });
+}
+
+export interface ForceBlockResponse {
+	status: string;
+	task_id: string;
+	task?: Task;
+}
+
+export async function forceBlock(id: string): Promise<ForceBlockResponse> {
+	return fetchJSON(`/tasks/${id}/run?force=true`, { method: 'POST' });
+}
+
 // Transcripts (JSONL-based from Claude Code sessions)
 export interface Transcript {
 	id: number;
