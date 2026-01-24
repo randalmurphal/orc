@@ -2,6 +2,7 @@
 package git
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -253,6 +254,14 @@ type ClaudeCodeHookConfig struct {
 
 	// TaskID is the task identifier for logging purposes.
 	TaskID string
+
+	// InjectUserEnv loads and injects environment variables from user's ~/.claude/settings.json.
+	// This ensures worktree agents have access to user's PATH, VIRTUAL_ENV, etc.
+	InjectUserEnv bool
+
+	// AdditionalEnv are extra environment variables to inject (e.g., MAX_THINKING_TOKENS).
+	// These are merged with user env vars, with AdditionalEnv taking precedence.
+	AdditionalEnv map[string]string
 }
 
 // InjectClaudeCodeHooks injects Claude Code PreToolUse hooks into the worktree.
@@ -295,49 +304,113 @@ func InjectClaudeCodeHooks(cfg ClaudeCodeHookConfig) error {
 	return nil
 }
 
+// worktreeSettings represents the settings.json structure for worktrees.
+// Uses proper JSON marshaling instead of string formatting.
+type worktreeSettings struct {
+	Env   map[string]string     `json:"env,omitempty"`
+	Hooks map[string][]hookDef  `json:"hooks"`
+}
+
+type hookDef struct {
+	Matcher string      `json:"matcher"`
+	Hooks   []hookEntry `json:"hooks"`
+}
+
+type hookEntry struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+}
+
 // generateClaudeCodeSettings generates the .claude/settings.json content
 // with PreToolUse hooks for worktree isolation and TDD discipline.
+// Also includes environment variables from user settings if configured.
 func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) string {
-	// Escape paths for JSON
-	escapedHookPath := strings.ReplaceAll(hookPath, `\`, `\\`)
-	escapedHookPath = strings.ReplaceAll(escapedHookPath, `"`, `\"`)
-
-	escapedWorktree := strings.ReplaceAll(cfg.WorktreePath, `\`, `\\`)
-	escapedWorktree = strings.ReplaceAll(escapedWorktree, `"`, `\"`)
-
-	escapedMainRepo := strings.ReplaceAll(cfg.MainRepoPath, `\`, `\\`)
-	escapedMainRepo = strings.ReplaceAll(escapedMainRepo, `"`, `\"`)
-
 	// TDD discipline hook path (installed by bootstrap to project's .claude/hooks/)
 	tddHookPath := filepath.Join(cfg.MainRepoPath, ".claude", "hooks", "tdd-discipline.sh")
-	escapedTddHook := strings.ReplaceAll(tddHookPath, `\`, `\\`)
-	escapedTddHook = strings.ReplaceAll(escapedTddHook, `"`, `\"`)
 
-	return fmt.Sprintf(`{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|Read|Glob|Grep|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ORC_WORKTREE_PATH=\"%s\" ORC_MAIN_REPO_PATH=\"%s\" python3 \"%s\""
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"%s\""
-          }
-        ]
-      }
-    ]
-  }
+	// Build hooks
+	settings := worktreeSettings{
+		Hooks: map[string][]hookDef{
+			"PreToolUse": {
+				{
+					Matcher: "Edit|Write|Read|Glob|Grep|MultiEdit",
+					Hooks: []hookEntry{
+						{
+							Type:    "command",
+							Command: fmt.Sprintf(`ORC_WORKTREE_PATH="%s" ORC_MAIN_REPO_PATH="%s" python3 "%s"`, cfg.WorktreePath, cfg.MainRepoPath, hookPath),
+						},
+					},
+				},
+				{
+					Matcher: "Edit|Write|MultiEdit",
+					Hooks: []hookEntry{
+						{
+							Type:    "command",
+							Command: fmt.Sprintf(`bash "%s"`, tddHookPath),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Build environment variables
+	envVars := make(map[string]string)
+
+	// Load user env vars if configured
+	if cfg.InjectUserEnv {
+		userSettings, err := loadUserClaudeSettings()
+		if err == nil && userSettings != nil {
+			for k, v := range userSettings.Env {
+				envVars[k] = v
+			}
+		}
+		// Silently ignore errors - user might not have settings.json
+	}
+
+	// Merge additional env vars (these take precedence)
+	for k, v := range cfg.AdditionalEnv {
+		envVars[k] = v
+	}
+
+	// Only include env section if we have variables
+	if len(envVars) > 0 {
+		settings.Env = envVars
+	}
+
+	// Marshal to JSON with indentation
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		// Fallback to basic hooks-only if marshaling fails (shouldn't happen)
+		return `{"hooks":{"PreToolUse":[]}}`
+	}
+	return string(data)
 }
-`, escapedWorktree, escapedMainRepo, escapedHookPath, escapedTddHook)
+
+// loadUserClaudeSettings loads the user's ~/.claude/settings.json.
+func loadUserClaudeSettings() (*userSettings, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	settingsPath := filepath.Join(homeDir, ".claude", "settings.json")
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var settings userSettings
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return nil, err
+	}
+	return &settings, nil
+}
+
+// userSettings is a minimal representation of ~/.claude/settings.json
+// We only care about fields we want to inject into worktrees.
+type userSettings struct {
+	Env map[string]string `json:"env,omitempty"`
 }
 
 // generateWorktreeIsolationHook returns the Python script content for the
