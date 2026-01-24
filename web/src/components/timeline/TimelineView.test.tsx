@@ -33,6 +33,8 @@ import type { TimelineEventData } from './TimelineEvent';
 // Mock the API module
 vi.mock('@/lib/api', () => ({
 	getEvents: vi.fn(),
+	listTasks: vi.fn(() => Promise.resolve([])),
+	listInitiatives: vi.fn(() => Promise.resolve([])),
 }));
 
 // Mock WebSocket hook
@@ -225,9 +227,12 @@ describe('TimelineView', () => {
 			renderTimelineView();
 
 			await waitFor(() => {
-				// Should see "Today" and "Yesterday" group headers
-				expect(screen.getByText(/today/i)).toBeInTheDocument();
-				expect(screen.getByText(/yesterday/i)).toBeInTheDocument();
+				// Should see "Today" and "Yesterday" group headers in region elements
+				// (not the time range selector buttons)
+				const todayGroup = screen.getByRole('region', { name: /today.*event/i });
+				const yesterdayGroup = screen.getByRole('region', { name: /yesterday.*event/i });
+				expect(todayGroup).toBeInTheDocument();
+				expect(yesterdayGroup).toBeInTheDocument();
 			});
 		});
 

@@ -11,17 +11,45 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getEvents } from '@/lib/api';
+import { getEvents, listTasks, listInitiatives } from '@/lib/api';
 import { useWebSocket } from '@/hooks';
 import { TimelineGroup } from './TimelineGroup';
 import { type TimelineEventData } from './TimelineEvent';
 import { TimelineEmptyState } from './TimelineEmptyState';
+import { TimelineFilters } from './TimelineFilters';
+import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
 import { groupEventsByDate, getDateGroupLabel } from './utils';
 import './TimelineView.css';
 
 const PAGE_SIZE = 50;
 
-// Calculate 24 hours ago in ISO format
+// Calculate date for preset time ranges
+function getPresetSince(preset: string): string | undefined {
+	const now = new Date();
+	switch (preset) {
+		case 'today': {
+			const today = new Date(now);
+			today.setHours(0, 0, 0, 0);
+			return today.toISOString();
+		}
+		case 'this_week': {
+			const weekAgo = new Date(now);
+			weekAgo.setDate(weekAgo.getDate() - 7);
+			return weekAgo.toISOString();
+		}
+		case 'this_month': {
+			const monthAgo = new Date(now);
+			monthAgo.setMonth(monthAgo.getMonth() - 1);
+			return monthAgo.toISOString();
+		}
+		case 'all':
+			return undefined;
+		default:
+			return undefined;
+	}
+}
+
+// Calculate 24 hours ago in ISO format (default)
 function get24HoursAgo(): string {
 	const date = new Date();
 	date.setHours(date.getHours() - 24);
@@ -29,7 +57,7 @@ function get24HoursAgo(): string {
 }
 
 export function TimelineView() {
-	const [searchParams] = useSearchParams();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const { on, status: wsStatus } = useWebSocket();
 
 	// State
@@ -41,6 +69,10 @@ export function TimelineView() {
 	const [hasMore, setHasMore] = useState(false);
 	const [offset, setOffset] = useState(0);
 
+	// Filter dropdown data
+	const [tasks, setTasks] = useState<Array<{ id: string; title: string }>>([]);
+	const [initiatives, setInitiatives] = useState<Array<{ id: string; title: string }>>([]);
+
 	// Refs for infinite scroll
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -48,12 +80,31 @@ export function TimelineView() {
 
 	// Parse URL params for filters
 	const filters = useMemo(() => {
-		const types = searchParams.get('types')?.split(',').filter(Boolean);
+		const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
 		const taskId = searchParams.get('task_id') || undefined;
 		const initiativeId = searchParams.get('initiative_id') || undefined;
 		const since = searchParams.get('since') || get24HoursAgo();
 		const until = searchParams.get('until') || undefined;
 		return { types, taskId, initiativeId, since, until };
+	}, [searchParams]);
+
+	// Determine current time range from URL params
+	const timeRange = useMemo<TimeRange>(() => {
+		const since = searchParams.get('since');
+		const until = searchParams.get('until');
+		
+		if (since && until) {
+			return { type: 'custom', since, until };
+		}
+		
+		// Try to match against preset ranges
+		const range = searchParams.get('range');
+		if (range && ['today', 'this_week', 'this_month', 'all'].includes(range)) {
+			return range as TimeRange;
+		}
+		
+		// Default to today
+		return 'today';
 	}, [searchParams]);
 
 	// Check if any filters are active
@@ -66,6 +117,26 @@ export function TimelineView() {
 			searchParams.has('until')
 		);
 	}, [filters, searchParams]);
+
+	// Fetch tasks and initiatives for filter dropdowns
+	useEffect(() => {
+		async function loadFilterData() {
+			try {
+				const [tasksRes, initiativesRes] = await Promise.all([
+					listTasks(),
+					listInitiatives()
+				]);
+				
+				// Handle paginated or array response for tasks
+				const tasksList = Array.isArray(tasksRes) ? tasksRes : tasksRes.tasks;
+				setTasks(tasksList.map(t => ({ id: t.id, title: t.title })));
+				setInitiatives(initiativesRes.map(i => ({ id: i.id, title: i.title })));
+			} catch {
+				// Silently fail - filter dropdowns will just be empty
+			}
+		}
+		loadFilterData();
+	}, []);
 
 	// Fetch events
 	const fetchEvents = useCallback(async (reset = false) => {
@@ -83,7 +154,7 @@ export function TimelineView() {
 
 		try {
 			const response = await getEvents({
-				types: filters.types,
+				types: filters.types.length > 0 ? filters.types : undefined,
 				task_id: filters.taskId,
 				initiative_id: filters.initiativeId,
 				since: filters.since,
@@ -214,20 +285,112 @@ export function TimelineView() {
 		return groupEventsByDate(events);
 	}, [events]);
 
+	// Filter handlers
+	const handleTypesChange = useCallback((types: string[]) => {
+		const newParams = new URLSearchParams(searchParams);
+		if (types.length > 0) {
+			newParams.set('types', types.join(','));
+		} else {
+			newParams.delete('types');
+		}
+		setSearchParams(newParams);
+	}, [searchParams, setSearchParams]);
+
+	const handleTaskChange = useCallback((taskId: string | undefined) => {
+		const newParams = new URLSearchParams(searchParams);
+		if (taskId) {
+			newParams.set('task_id', taskId);
+		} else {
+			newParams.delete('task_id');
+		}
+		setSearchParams(newParams);
+	}, [searchParams, setSearchParams]);
+
+	const handleInitiativeChange = useCallback((initiativeId: string | undefined) => {
+		const newParams = new URLSearchParams(searchParams);
+		if (initiativeId) {
+			newParams.set('initiative_id', initiativeId);
+		} else {
+			newParams.delete('initiative_id');
+		}
+		setSearchParams(newParams);
+	}, [searchParams, setSearchParams]);
+
+	const handleClearAllFilters = useCallback(() => {
+		const newParams = new URLSearchParams(searchParams);
+		newParams.delete('types');
+		newParams.delete('task_id');
+		newParams.delete('initiative_id');
+		setSearchParams(newParams);
+	}, [searchParams, setSearchParams]);
+
+	const handleTimeRangeChange = useCallback((range: TimeRange) => {
+		const newParams = new URLSearchParams(searchParams);
+		
+		// Clear old range params
+		newParams.delete('since');
+		newParams.delete('until');
+		newParams.delete('range');
+		
+		if (typeof range === 'object' && range.type === 'custom') {
+			newParams.set('since', range.since);
+			newParams.set('until', range.until);
+		} else {
+			// Preset range (TypeScript knows it's a string here)
+			const presetRange = range as string;
+			newParams.set('range', presetRange);
+			const since = getPresetSince(presetRange);
+			if (since) {
+				newParams.set('since', since);
+			}
+		}
+		
+		setSearchParams(newParams);
+	}, [searchParams, setSearchParams]);
+
 	// Clear filters handler (passed to empty state)
 	const handleClearFilters = useCallback(() => {
 		// Navigate to timeline without filters
-		window.location.href = '/timeline';
-	}, []);
+		setSearchParams(new URLSearchParams());
+	}, [setSearchParams]);
+
+	// Header content with filters (reused across all states)
+	const headerContent = (
+		<header className="timeline-view-header">
+			<div className="timeline-view-header-title">
+				<h1>Timeline</h1>
+				{wsStatus !== 'connected' && (
+					<span className="timeline-view-ws-status ws-status">
+						Reconnecting...
+					</span>
+				)}
+			</div>
+			<div className="timeline-view-header-controls">
+				<TimeRangeSelector
+					value={timeRange}
+					onChange={handleTimeRangeChange}
+				/>
+				<TimelineFilters
+					selectedTypes={filters.types}
+					selectedTaskId={filters.taskId}
+					selectedInitiativeId={filters.initiativeId}
+					tasks={tasks}
+					initiatives={initiatives}
+					onTypesChange={handleTypesChange}
+					onTaskChange={handleTaskChange}
+					onInitiativeChange={handleInitiativeChange}
+					onClearAll={handleClearAllFilters}
+				/>
+			</div>
+		</header>
+	);
 
 	// Render loading state
 	if (isLoading) {
 		return (
-			<div className="timeline-view">
-				<header className="timeline-view-header">
-					<h1>Timeline</h1>
-				</header>
-				<div className="timeline-view-loading" data-testid="timeline-loading">
+			<div className="timeline-view timeline-page">
+				{headerContent}
+				<div className="timeline-view-loading timeline-loading" data-testid="timeline-loading">
 					<div className="timeline-loading-spinner" />
 					<span>Loading events...</span>
 				</div>
@@ -238,10 +401,8 @@ export function TimelineView() {
 	// Render error state
 	if (error) {
 		return (
-			<div className="timeline-view">
-				<header className="timeline-view-header">
-					<h1>Timeline</h1>
-				</header>
+			<div className="timeline-view timeline-page timeline-error">
+				{headerContent}
 				<div className="timeline-view-error">
 					<p>Failed to load events: {error}</p>
 					<button type="button" onClick={handleRetry}>
@@ -255,10 +416,8 @@ export function TimelineView() {
 	// Render empty state
 	if (events.length === 0) {
 		return (
-			<div className="timeline-view">
-				<header className="timeline-view-header">
-					<h1>Timeline</h1>
-				</header>
+			<div className="timeline-view timeline-page">
+				{headerContent}
 				<TimelineEmptyState
 					hasFilters={hasActiveFilters}
 					onClearFilters={handleClearFilters}
@@ -268,15 +427,8 @@ export function TimelineView() {
 	}
 
 	return (
-		<div className="timeline-view" ref={scrollContainerRef}>
-			<header className="timeline-view-header">
-				<h1>Timeline</h1>
-				{wsStatus !== 'connected' && (
-					<span className="timeline-view-ws-status">
-						Reconnecting...
-					</span>
-				)}
-			</header>
+		<div className="timeline-view timeline-page" ref={scrollContainerRef}>
+			{headerContent}
 
 			<div className="timeline-view-content">
 				{/* Render grouped events */}
@@ -292,7 +444,7 @@ export function TimelineView() {
 
 				{/* Loading more indicator */}
 				{isLoadingMore && (
-					<div className="timeline-view-loading-more">
+					<div className="timeline-view-loading-more timeline-loading-more">
 						Loading more...
 					</div>
 				)}
@@ -309,7 +461,7 @@ export function TimelineView() {
 
 				{/* No more events indicator */}
 				{!hasMore && events.length > 0 && !isLoadingMore && (
-					<div className="timeline-view-end">
+					<div className="timeline-view-end timeline-no-more">
 						No more events
 					</div>
 				)}

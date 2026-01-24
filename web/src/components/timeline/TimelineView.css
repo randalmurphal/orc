@@ -138,3 +138,48 @@
 	color: var(--text-muted, #888);
 	font-size: var(--font-size-sm, 14px);
 }
+
+/* Header layout with controls */
+.timeline-view-header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-3, 12px);
+	margin-bottom: var(--spacing-4, 16px);
+}
+
+.timeline-view-header-title {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-3, 12px);
+}
+
+.timeline-view-header-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-3, 12px);
+	flex-wrap: wrap;
+}
+
+/* Responsive: stack controls below title on narrow screens */
+@media (min-width: 768px) {
+	.timeline-view-header {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+}
+
+/* Filter badge for E2E test */
+.filter-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 var(--spacing-1, 4px);
+	border-radius: 9px;
+	background: var(--ring, rgba(100, 150, 255, 0.8));
+	color: var(--text-primary, #fff);
+	font-size: 11px;
+	font-weight: 600;
+}

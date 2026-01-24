@@ -166,7 +166,7 @@ export function TimelineFilters({
 				<Icon name="sliders" size={16} />
 				<span>Filter</span>
 				{hasFilters && (
-					<span className="timeline-filters-badge">{activeFilterCount}</span>
+					<span className="timeline-filters-badge filter-badge">{activeFilterCount}</span>
 				)}
 			</button>
 
