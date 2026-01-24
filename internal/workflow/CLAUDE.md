@@ -38,9 +38,10 @@ Execution instances:
 
 | ID | Phases | Use Case |
 |----|--------|----------|
-| `implement` | spec → tdd_write → breakdown → implement → review → docs | Full implementation |
+| `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Large tasks (complex, multi-file) |
+| `implement-medium` | spec → tdd_write → implement → review → docs | Medium tasks (standard features) |
 | `implement-small` | tiny_spec → implement → review | Small changes |
-| `implement-trivial` | tiny_spec → implement | Trivial fixes |
+| `implement-trivial` | implement | Trivial fixes (no spec) |
 | `review` | review | Review existing changes |
 | `spec` | spec | Generate spec only |
 | `docs` | docs | Documentation |
@@ -55,9 +56,8 @@ Execution instances:
 | `tdd_write` | Write failing tests | Yes (tests) |
 | `breakdown` | Implementation tasks | Yes (breakdown) |
 | `implement` | Write code | No |
-| `review` | Code review | No |
+| `review` | Multi-agent code review with verification | No |
 | `docs` | Documentation | Yes (docs) |
-| `validate` | Verify criteria | No |
 | `qa` | Manual QA | No |
 | `research` | Research patterns | Yes (research) |
 | `design` | Design document | Yes (design) |
@@ -114,11 +114,11 @@ Workflows can define custom variables with different sources:
 
 ## Migration from Weight-Based System
 
-The `GetWorkflowForWeight()` function maps old weights to new workflows:
+The `GetWorkflowForWeight()` function maps weights to workflows:
 
 | Weight | Workflow |
 |--------|----------|
 | trivial | implement-trivial |
 | small | implement-small |
-| medium | implement |
-| large | implement |
+| medium | implement-medium |
+| large | implement-large |

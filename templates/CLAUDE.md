@@ -6,14 +6,14 @@ Embedded prompt templates for phase execution.
 
 ```
 templates/
-├── embed.go          # Go embed directives
-├── prompts/          # ALL prompts (phase, gates, sessions)
-│   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
-│   ├── [gates] conflict_resolution
-│   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
-│   ├── [review] review_round1, review_round2, qa
-│   └── [automation] automation/*.md
-└── pr-body.md        # PR description template
+├── embed.go              # Go embed directives
+├── prompts/              # ALL prompt templates
+│   ├── *.md              # Phase and session prompts (21 files)
+│   └── automation/*.md   # Maintenance automation templates (9 files)
+├── agents/               # Sub-agent definitions
+├── docs/                 # Documentation templates
+├── scripts/              # Helper scripts
+└── pr-body.md            # PR description template
 ```
 
 ## Workflows (Database-First)
@@ -22,20 +22,20 @@ Workflows are now stored in the database, not YAML files. Use `workflow.SeedBuil
 
 | Workflow | Phases |
 |----------|--------|
-| `trivial` | tiny_spec → implement |
+| `trivial` | implement (short tests + build only) |
 | `small` | tiny_spec → implement → review |
-| `medium` | spec → tdd_write → breakdown → implement → review → docs |
+| `medium` | spec → tdd_write → implement → review → docs |
 | `large` | spec → tdd_write → breakdown → implement → review → docs |
 
 **Key concepts:**
-- **TDD-first**: Tests written before implementation (tdd_write phase)
-- **All weights get specs**: trivial/small use lightweight `tiny_spec`
+- **TDD-first**: Tests written before implementation (medium/large via tdd_write phase)
+- **Review includes verification**: The review phase handles success criteria verification
 - **No separate test phase**: TDD handles testing upfront
 - **Composable phases**: Each phase is a reusable template in `phase_templates` table
 
-**Review phase** (small+): Multi-agent code review with 5 specialized reviewers.
+**Review phase** (small+): Multi-agent code review with specialized reviewers.
 
-**Note**: `finalize` is a manual command (`orc finalize TASK-XXX`), not an automatic phase.
+**Note**: `finalize` is a manual command (`orc finalize TASK-XXX`), not an automatic workflow phase.
 Use it to sync with target branch and resolve conflicts before merge.
 
 ## Template Variables
@@ -60,18 +60,29 @@ Use it to sync with target branch and resolve conflicts before merge.
 
 ## Phase Prompts
 
-| Phase | Purpose |
-|-------|---------|
+| File | Purpose |
+|------|---------|
 | `classify.md` | Weight classification |
 | `research.md` | Pattern research |
 | `spec.md` | Technical specification with user stories and quality checklist |
 | `tiny_spec.md` | Combined spec+TDD for trivial/small tasks |
+| `design.md` | Create design document |
 | `tdd_write.md` | Write failing tests before implementation |
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
-| `review.md` | Multi-agent code review |
+| `review.md` | Multi-agent code review with verification |
 | `docs.md` | Documentation |
-| `finalize.md` | Branch sync, conflict resolution |
+| `qa.md` | Manual QA verification session |
+| `test.md` | Test execution template |
+| `finalize.md` | Branch sync, conflict resolution (manual command) |
+
+**Session prompts:** `spec_session.md`, `plan_session.md`, `plan_from_spec.md`, `setup.md`
+
+**Review rounds:** `review_round1.md`, `review_round2.md`
+
+**Gates:** `conflict_resolution.md`
+
+**Automation:** `automation/*.md` (9 maintenance templates)
 
 ## Prompt Structure
 
@@ -103,11 +114,13 @@ Phases that produce artifacts use `--json-schema` constrained output with an `ar
 | spec | Yes | Technical specification |
 | tiny_spec | Yes | Combined spec + TDD tests |
 | research | Yes | Research findings |
+| design | Yes | Design document |
 | tdd_write | Yes | Test files and test plan |
 | breakdown | Yes | Checkboxed implementation tasks |
 | docs | Yes | Documentation summary |
 | implement | No | Code changes only |
 | review | No | Review findings only |
+| qa | No | Manual QA results only |
 
 Artifact content is extracted from the JSON `artifact` field by `ExtractArtifactFromOutput()`.
 
