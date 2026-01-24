@@ -503,6 +503,35 @@ func (p *ProjectDB) GetAllInitiativeDependencies() (map[string][]string, error) 
 	return deps, nil
 }
 
+// GetNextInitiativeID generates the next initiative ID.
+// Uses ORDER BY LIMIT 1 instead of full table scan for efficiency.
+func (p *ProjectDB) GetNextInitiativeID() (string, error) {
+	var maxID sql.NullString
+	err := p.QueryRow(`
+		SELECT id FROM initiatives
+		WHERE id LIKE 'INIT-%'
+		ORDER BY CAST(SUBSTR(id, 6) AS INTEGER) DESC
+		LIMIT 1
+	`).Scan(&maxID)
+
+	if err != nil && err != sql.ErrNoRows {
+		return "", fmt.Errorf("get max initiative id: %w", err)
+	}
+
+	if !maxID.Valid || maxID.String == "" {
+		return "INIT-001", nil
+	}
+
+	// Extract number and increment
+	var num int
+	_, err = fmt.Sscanf(maxID.String, "INIT-%d", &num)
+	if err != nil {
+		return "INIT-001", nil
+	}
+
+	return fmt.Sprintf("INIT-%03d", num+1), nil
+}
+
 // GetAllInitiativeDependents retrieves all initiative dependents in one query.
 // Returns a map from initiative_id to list of initiative IDs that depend on it (blocks).
 func (p *ProjectDB) GetAllInitiativeDependents() (map[string][]string, error) {

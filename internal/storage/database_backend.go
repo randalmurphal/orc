@@ -1875,27 +1875,12 @@ func (d *DatabaseBackend) InitiativeExists(id string) (bool, error) {
 }
 
 // GetNextInitiativeID generates the next initiative ID from the database.
+// Uses efficient SQL query (ORDER BY LIMIT 1) instead of full table scan.
 func (d *DatabaseBackend) GetNextInitiativeID() (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Get all initiatives and find the max numeric ID
-	dbInits, err := d.db.ListInitiatives(db.ListOpts{})
-	if err != nil {
-		return "", fmt.Errorf("list initiatives: %w", err)
-	}
-
-	maxNum := 0
-	for _, init := range dbInits {
-		var num int
-		if _, err := fmt.Sscanf(init.ID, "INIT-%d", &num); err == nil {
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return fmt.Sprintf("INIT-%03d", maxNum+1), nil
+	return d.db.GetNextInitiativeID()
 }
 
 // ============================================================================

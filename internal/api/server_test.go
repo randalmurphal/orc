@@ -21,9 +21,18 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
+// newTestServer creates a server with an isolated temp database.
+// Use this for parallel tests that don't need a specific project setup.
+func newTestServer(t *testing.T) *Server {
+	t.Helper()
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	return New(&Config{WorkDir: tmpDir})
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/health", nil)
 	w := httptest.NewRecorder()
@@ -46,7 +55,7 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// CORS headers are set on actual requests, not just OPTIONS
 	req := httptest.NewRequest("GET", "/api/health", nil)
@@ -61,7 +70,7 @@ func TestCORSHeaders(t *testing.T) {
 
 func TestListPromptsEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts", nil)
 	w := httptest.NewRecorder()
@@ -97,7 +106,7 @@ func TestListPromptsEndpoint(t *testing.T) {
 
 func TestGetPromptVariablesEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts/variables", nil)
 	w := httptest.NewRecorder()
@@ -121,7 +130,7 @@ func TestGetPromptVariablesEndpoint(t *testing.T) {
 
 func TestGetPromptEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts/implement", nil)
 	w := httptest.NewRecorder()
@@ -148,7 +157,7 @@ func TestGetPromptEndpoint(t *testing.T) {
 
 func TestGetPromptEndpoint_NotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -162,7 +171,7 @@ func TestGetPromptEndpoint_NotFound(t *testing.T) {
 
 func TestGetPromptDefaultEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts/implement/default", nil)
 	w := httptest.NewRecorder()
@@ -185,7 +194,7 @@ func TestGetPromptDefaultEndpoint(t *testing.T) {
 
 func TestSavePromptEndpoint_EmptyContent(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`{"content":""}`)
 	req := httptest.NewRequest("PUT", "/api/prompts/test", body)
@@ -201,7 +210,7 @@ func TestSavePromptEndpoint_EmptyContent(t *testing.T) {
 
 func TestDeletePromptEndpoint_NoOverride(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// Try to delete a prompt that has no override
 	req := httptest.NewRequest("DELETE", "/api/prompts/implement", nil)
@@ -248,7 +257,7 @@ func TestListHooksEndpoint(t *testing.T) {
 
 func TestGetHookTypesEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/hooks/types", nil)
 	w := httptest.NewRecorder()
@@ -291,7 +300,7 @@ func TestGetHookEndpoint_NotFound(t *testing.T) {
 
 func TestCreateHookEndpoint_InvalidBody(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`invalid json`)
 	req := httptest.NewRequest("POST", "/api/hooks", body)
@@ -398,7 +407,7 @@ func TestGetSkillEndpoint_NotFound(t *testing.T) {
 
 func TestCreateSkillEndpoint_InvalidBody(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`invalid json`)
 	req := httptest.NewRequest("POST", "/api/skills", body)
@@ -414,7 +423,7 @@ func TestCreateSkillEndpoint_InvalidBody(t *testing.T) {
 
 func TestCreateSkillEndpoint_MissingName(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`{"description":"Something"}`)
 	req := httptest.NewRequest("POST", "/api/skills", body)
@@ -549,7 +558,7 @@ func TestUpdateSettingsEndpoint(t *testing.T) {
 
 func TestListToolsEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/tools", nil)
 	w := httptest.NewRecorder()
@@ -572,7 +581,7 @@ func TestListToolsEndpoint(t *testing.T) {
 
 func TestListToolsByCategory(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/tools?by_category=true", nil)
 	w := httptest.NewRecorder()
@@ -1140,7 +1149,7 @@ func TestCreateTaskEndpoint_MissingTitle(t *testing.T) {
 
 func TestCreateTaskEndpoint_InvalidJSON(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`invalid json`)
 	req := httptest.NewRequest("POST", "/api/tasks", body)
@@ -1376,7 +1385,7 @@ func TestUpdateConfigEndpoint(t *testing.T) {
 
 func TestUpdateConfigEndpoint_InvalidBody(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`{invalid json}`)
 	req := httptest.NewRequest("PUT", "/api/config", body)
@@ -1540,7 +1549,7 @@ func TestGetSettingsHierarchyEndpoint(t *testing.T) {
 
 func TestServerPublisher(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// Publisher method should return the internal publisher
 	pub := srv.Publisher()
@@ -1553,7 +1562,7 @@ func TestServerPublisher(t *testing.T) {
 
 func TestPublishWithSubscribers(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// Manually add a subscriber
 	ch := make(chan Event, 10)
@@ -1577,7 +1586,7 @@ func TestPublishWithSubscribers(t *testing.T) {
 
 func TestPublishWithFullChannel(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// Create a full channel (capacity 0)
 	ch := make(chan Event)
@@ -1603,7 +1612,7 @@ func TestPublishWithFullChannel(t *testing.T) {
 
 func TestPublishNoSubscribers(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	// Publish should not panic with no subscribers
 	srv.Publish("NONEXISTENT", Event{Type: "test", Data: "hello"})
@@ -2380,7 +2389,7 @@ func TestCreateTaskEndpoint_WithDescription(t *testing.T) {
 
 func TestGetPromptDefaultEndpoint_NotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/prompts/nonexistent/default", nil)
 	w := httptest.NewRecorder()
@@ -2457,7 +2466,8 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 
 	_ = backend.Close()
 
-	srv = New(nil)
+	// Use the test project directory, not the real one
+	srv = New(&Config{WorkDir: projectDir})
 
 	return srv, projectID, taskID, projectDir
 }
@@ -2507,7 +2517,8 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	}
 	_ = backend.Close()
 
-	srv = New(nil)
+	// Use the test project directory, not the real one
+	srv = New(&Config{WorkDir: projectDir})
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/projects/%s/tasks/%s/run", projectID, taskID), nil)
 	w := httptest.NewRecorder()
@@ -2726,7 +2737,7 @@ func TestProjectTaskNotFound(t *testing.T) {
 
 func TestProjectNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/projects/invalid-project/tasks/TASK-001", nil)
 	w := httptest.NewRecorder()
@@ -3353,7 +3364,9 @@ func TestGetDefaultProjectEndpoint_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	srv := New(nil)
+	// Create .orc dir so server can initialize its backend
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	req := httptest.NewRequest("GET", "/api/projects/default", nil)
 	w := httptest.NewRecorder()
@@ -3395,7 +3408,7 @@ func TestSetDefaultProjectEndpoint_Success(t *testing.T) {
 `
 	_ = os.WriteFile(filepath.Join(globalOrcDir, "projects.yaml"), []byte(projectsYAML), 0644)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Set the default project
 	body := bytes.NewBufferString(`{"project_id": "test-proj-123"}`)
@@ -3437,7 +3450,9 @@ func TestSetDefaultProjectEndpoint_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	srv := New(nil)
+	// Create .orc dir so server can initialize its backend
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	body := bytes.NewBufferString(`{"project_id": "nonexistent-id"}`)
 	req := httptest.NewRequest("PUT", "/api/projects/default", body)
@@ -3459,7 +3474,7 @@ func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
 	globalOrcDir := filepath.Join(tmpDir, ".orc")
 	_ = os.MkdirAll(globalOrcDir, 0755)
 
-	srv := New(nil)
+	srv := New(&Config{WorkDir: tmpDir})
 
 	// Setting empty project_id clears the default
 	body := bytes.NewBufferString(`{"project_id": ""}`)
@@ -3476,7 +3491,7 @@ func TestSetDefaultProjectEndpoint_ClearDefault(t *testing.T) {
 
 func TestSetDefaultProjectEndpoint_InvalidBody(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`invalid json`)
 	req := httptest.NewRequest("PUT", "/api/projects/default", body)
@@ -3492,7 +3507,7 @@ func TestSetDefaultProjectEndpoint_InvalidBody(t *testing.T) {
 
 func TestSessionEndpoint(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/session", nil)
 	w := httptest.NewRecorder()
@@ -3521,7 +3536,7 @@ func TestSessionEndpoint(t *testing.T) {
 
 func TestSessionEndpointCORS(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/session", nil)
 	w := httptest.NewRecorder()
