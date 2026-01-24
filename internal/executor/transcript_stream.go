@@ -5,6 +5,7 @@ package executor
 import (
 	"encoding/json"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -28,6 +29,11 @@ type TranscriptStreamHandler struct {
 	// storedMessageIDs tracks which messages we've already stored to avoid duplicates.
 	// Claude streams multiple events with the same message ID as content is generated.
 	storedMessageIDs map[string]bool
+
+	// captureHookEvents filters which hook events to store.
+	// If empty, ALL hook events are captured for debugging.
+	// If set, only matching hook event types are stored (e.g., "PreToolUse", "PostToolUse").
+	captureHookEvents []string
 }
 
 // NewTranscriptStreamHandler creates a handler for streaming transcript capture.
@@ -35,16 +41,18 @@ func NewTranscriptStreamHandler(
 	backend storage.Backend,
 	logger *slog.Logger,
 	taskID, phaseID, sessionID, runID, model string,
+	captureHookEvents []string,
 ) *TranscriptStreamHandler {
 	return &TranscriptStreamHandler{
-		backend:          backend,
-		logger:           logger,
-		taskID:           taskID,
-		phaseID:          phaseID,
-		sessionID:        sessionID,
-		runID:            runID,
-		model:            model,
-		storedMessageIDs: make(map[string]bool),
+		backend:           backend,
+		logger:            logger,
+		taskID:            taskID,
+		phaseID:           phaseID,
+		sessionID:         sessionID,
+		runID:             runID,
+		model:             model,
+		storedMessageIDs:  make(map[string]bool),
+		captureHookEvents: captureHookEvents,
 	}
 }
 
@@ -106,9 +114,11 @@ func (h *TranscriptStreamHandler) OnEvent(event claude.StreamEvent) {
 			"cost_usd", event.Result.TotalCostUSD,
 		)
 	case claude.StreamEventHook:
-		// Hook execution - store for debugging
+		// Hook execution - store based on captureHookEvents config
 		if event.Hook != nil {
-			h.storeHookEvent(event)
+			if h.shouldCaptureHook(event.Hook.HookEvent) {
+				h.storeHookEvent(event)
+			}
 		}
 	case claude.StreamEventError:
 		h.logger.Error("claude streaming error",
@@ -183,6 +193,16 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 			"error", err,
 		)
 	}
+}
+
+// shouldCaptureHook checks if a hook event should be captured based on config.
+// If captureHookEvents is empty, all hook events are captured (for debugging).
+// If set, only events matching the list are captured.
+func (h *TranscriptStreamHandler) shouldCaptureHook(hookEvent string) bool {
+	if len(h.captureHookEvents) == 0 {
+		return true // Capture all if not specified
+	}
+	return slices.Contains(h.captureHookEvents, hookEvent)
 }
 
 // storeHookEvent stores hook execution details for debugging.

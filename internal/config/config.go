@@ -630,10 +630,6 @@ type ResourceTrackingConfig struct {
 	// MemoryThresholdMB is the memory growth threshold that triggers warnings (default: 500)
 	MemoryThresholdMB int `yaml:"memory_threshold_mb"`
 
-	// LogOrphanedMCPOnly limits orphan logging to MCP-related processes (playwright, browsers)
-	// Deprecated: use FilterSystemProcesses instead. When true, only MCP processes are logged.
-	LogOrphanedMCPOnly bool `yaml:"log_orphaned_mcp_only"`
-
 	// FilterSystemProcesses controls whether to filter out system processes from orphan detection.
 	// When true (default), only processes that match orc-related patterns (claude, node, playwright,
 	// chromium, etc.) are flagged as potential orphans. System processes like systemd-timedated,
@@ -845,44 +841,6 @@ type AutomationConfig struct {
 	Templates map[string]AutomationTemplateConfig `yaml:"templates,omitempty"`
 }
 
-// PhaseModelSetting defines model and thinking configuration for a phase.
-type PhaseModelSetting struct {
-	// Model is the model to use for this phase.
-	// Can be an alias (opus, sonnet, haiku) or full model ID.
-	// Empty string means use the default model.
-	Model string `yaml:"model,omitempty"`
-
-	// Thinking enables extended thinking mode for this phase.
-	// When true, "ultrathink" is injected into the prompt to activate
-	// maximum thinking budget (31,999 tokens).
-	Thinking bool `yaml:"thinking,omitempty"`
-}
-
-// WeightModelConfig maps phase names to model settings for a specific weight tier.
-// Phase names: research, spec, design, implement, test, review, docs, validate, finalize
-type WeightModelConfig map[string]PhaseModelSetting
-
-// ModelsConfig defines model selection and thinking mode per weight tier and phase.
-// This allows optimizing model usage: opus for decisions, sonnet for execution,
-// thinking mode for spec/design/review phases where deep reasoning helps.
-type ModelsConfig struct {
-	// Default is the fallback model setting when no specific config exists.
-	// Default: {Model: "opus", Thinking: false}
-	Default PhaseModelSetting `yaml:"default"`
-
-	// Trivial overrides for trivial weight tasks.
-	Trivial WeightModelConfig `yaml:"trivial,omitempty"`
-
-	// Small overrides for small weight tasks.
-	Small WeightModelConfig `yaml:"small,omitempty"`
-
-	// Medium overrides for medium weight tasks.
-	Medium WeightModelConfig `yaml:"medium,omitempty"`
-
-	// Large overrides for large weight tasks.
-	Large WeightModelConfig `yaml:"large,omitempty"`
-}
-
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"
@@ -1082,13 +1040,10 @@ type Config struct {
 	// Storage configuration
 	Storage StorageConfig `yaml:"storage"`
 
-	// Models configuration for per-weight, per-phase model selection
-	Models ModelsConfig `yaml:"models"`
-
 	// Automation configuration for triggers and templates
 	Automation AutomationConfig `yaml:"automation"`
 
-	// Model settings (legacy - used as fallback if Models.Default.Model is empty)
+	// Model is the default model for all phases (unless overridden in phase templates)
 	Model         string `yaml:"model"`
 	FallbackModel string `yaml:"fallback_model,omitempty"`
 
@@ -1136,52 +1091,6 @@ func (c *Config) ResolveGateType(phase string, weight string) string {
 	}
 
 	return "auto"
-}
-
-// ResolveModelSetting returns the effective model setting for a phase given task weight.
-// Priority: weight-specific phase setting > weight default > global default > legacy Model field
-func (c *Config) ResolveModelSetting(weight, phase string) PhaseModelSetting {
-	// Get the weight-specific config
-	var weightConfig WeightModelConfig
-	switch weight {
-	case "trivial":
-		weightConfig = c.Models.Trivial
-	case "small":
-		weightConfig = c.Models.Small
-	case "medium":
-		weightConfig = c.Models.Medium
-	case "large":
-		weightConfig = c.Models.Large
-	}
-
-	// Check weight-specific phase setting
-	if weightConfig != nil {
-		if setting, ok := weightConfig[phase]; ok {
-			// Fill in missing model from default
-			if setting.Model == "" {
-				setting.Model = c.effectiveDefaultModel()
-			}
-			return setting
-		}
-	}
-
-	// Return default with effective model
-	result := c.Models.Default
-	if result.Model == "" {
-		result.Model = c.effectiveDefaultModel()
-	}
-	return result
-}
-
-// effectiveDefaultModel returns the default model, falling back to legacy Model field.
-func (c *Config) effectiveDefaultModel() string {
-	if c.Models.Default.Model != "" {
-		return c.Models.Default.Model
-	}
-	if c.Model != "" {
-		return c.Model
-	}
-	return "opus" // Ultimate fallback
 }
 
 // ShouldRetryFrom returns the phase to retry from if the given phase fails.
@@ -1397,10 +1306,9 @@ func Default() *Config {
 		},
 		Diagnostics: DiagnosticsConfig{
 			ResourceTracking: ResourceTrackingConfig{
-				Enabled:               true,  // Enabled by default to detect orphaned processes
-				MemoryThresholdMB:     500,   // Warn if memory grows by >500MB
-				LogOrphanedMCPOnly:    false, // Deprecated: use FilterSystemProcesses instead
-				FilterSystemProcesses: true,  // Filter system processes to avoid false positives
+				Enabled:               true, // Enabled by default to detect orphaned processes
+				MemoryThresholdMB:     500,  // Warn if memory grows by >500MB
+				FilterSystemProcesses: true, // Filter system processes to avoid false positives
 			},
 		},
 		MCP: MCPConfig{
@@ -1451,39 +1359,6 @@ func Default() *Config {
 			DefaultMode:    AutomationModeAuto, // Auto mode by default
 			Triggers:       nil,                // No triggers defined by default
 			Templates:      nil,                // No templates defined by default
-		},
-		Models: ModelsConfig{
-			// Default: opus without thinking
-			Default: PhaseModelSetting{
-				Model:    "opus",
-				Thinking: false,
-			},
-			// Trivial: sonnet for implement (fast, cheap)
-			Trivial: WeightModelConfig{
-				"implement": {Model: "sonnet", Thinking: false},
-			},
-			// Small: sonnet for implement/test (execution phases)
-			Small: WeightModelConfig{
-				"implement": {Model: "sonnet", Thinking: false},
-				"test":      {Model: "sonnet", Thinking: false},
-			},
-			// Medium: thinking for spec/design/review (decision phases)
-			Medium: WeightModelConfig{
-				"spec":      {Model: "opus", Thinking: true},
-				"design":    {Model: "opus", Thinking: true},
-				"implement": {Model: "sonnet", Thinking: false},
-				"review":    {Model: "opus", Thinking: true},
-				"test":      {Model: "sonnet", Thinking: false},
-			},
-			// Large: thinking for decision phases, sonnet for test
-			Large: WeightModelConfig{
-				"spec":      {Model: "opus", Thinking: true},
-				"design":    {Model: "opus", Thinking: true},
-				"implement": {Model: "opus", Thinking: false},
-				"review":    {Model: "opus", Thinking: true},
-				"test":      {Model: "sonnet", Thinking: false},
-				"validate":  {Model: "opus", Thinking: true},
-			},
 		},
 		Model:                      "opus",
 		MaxIterations:              30,
@@ -1825,6 +1700,10 @@ func IsInitializedAt(basePath string) bool {
 
 // RequireInit returns an error if orc is not initialized in the current directory.
 func RequireInit() error {
+	// Allow override via environment variable (for testing)
+	if envRoot := os.Getenv("ORC_PROJECT_ROOT"); envRoot != "" {
+		return RequireInitAt(envRoot)
+	}
 	return RequireInitAt(".")
 }
 
@@ -1845,6 +1724,11 @@ func RequireInitAt(basePath string) error {
 // 3. Walk up directories looking for .orc/tasks
 // 4. If still not found, return current directory as fallback
 func FindProjectRoot() (string, error) {
+	// Allow override via environment variable (for testing)
+	if envRoot := os.Getenv("ORC_PROJECT_ROOT"); envRoot != "" {
+		return envRoot, nil
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get working directory: %w", err)

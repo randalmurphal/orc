@@ -1,7 +1,7 @@
 package cli
 
-// NOTE: Tests in this file use os.Chdir() which is process-wide and not goroutine-safe.
-// These tests MUST NOT use t.Parallel() and run sequentially within this package.
+// NOTE: Tests in this file use ORC_PROJECT_ROOT environment variable for test isolation.
+// This avoids os.Chdir() which is process-wide and not goroutine-safe.
 
 import (
 	"bytes"
@@ -16,8 +16,9 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// withListTestDir creates a temp directory with task structure, changes to it,
-// and restores the original working directory when the test completes.
+// withListTestDir creates a temp directory with task structure and sets
+// ORC_PROJECT_ROOT to point to it. This avoids os.Chdir() which causes
+// race conditions when tests run in parallel across packages.
 func withListTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
@@ -28,16 +29,17 @@ func withListTestDir(t *testing.T) string {
 		t.Fatalf("create .orc directory: %v", err)
 	}
 
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working directory: %v", err)
-	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("chdir to temp dir: %v", err)
+	// Set ORC_PROJECT_ROOT instead of using os.Chdir()
+	// This is respected by config.RequireInit() and config.FindProjectRoot()
+	origRoot := os.Getenv("ORC_PROJECT_ROOT")
+	if err := os.Setenv("ORC_PROJECT_ROOT", tmpDir); err != nil {
+		t.Fatalf("set ORC_PROJECT_ROOT: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Errorf("restore working directory: %v", err)
+		if origRoot == "" {
+			os.Unsetenv("ORC_PROJECT_ROOT")
+		} else {
+			os.Setenv("ORC_PROJECT_ROOT", origRoot)
 		}
 	})
 	return tmpDir

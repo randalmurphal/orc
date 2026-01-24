@@ -185,6 +185,7 @@ func (s *Server) handleCreateWorkflow(w http.ResponseWriter, r *http.Request) {
 				ThinkingOverride:      p.ThinkingOverride,
 				GateTypeOverride:      p.GateTypeOverride,
 				Condition:             p.Condition,
+				ClaudeConfigOverride:  p.ClaudeConfigOverride,
 			}
 			if err := s.backend.SaveWorkflowPhase(newPhase); err != nil {
 				s.jsonError(w, "failed to clone phase", http.StatusInternalServerError)
@@ -373,6 +374,7 @@ func (s *Server) handleCloneWorkflow(w http.ResponseWriter, r *http.Request) {
 			ThinkingOverride:      p.ThinkingOverride,
 			GateTypeOverride:      p.GateTypeOverride,
 			Condition:             p.Condition,
+			ClaudeConfigOverride:  p.ClaudeConfigOverride,
 		}
 		if err := s.backend.SaveWorkflowPhase(newPhase); err != nil {
 			s.jsonError(w, "failed to clone phase", http.StatusInternalServerError)
@@ -423,6 +425,7 @@ func (s *Server) handleAddWorkflowPhase(w http.ResponseWriter, r *http.Request) 
 		MaxIterationsOverride *int   `json:"max_iterations_override,omitempty"`
 		ModelOverride         string `json:"model_override,omitempty"`
 		GateTypeOverride      string `json:"gate_type_override,omitempty"`
+		ClaudeConfigOverride  string `json:"claude_config_override,omitempty"` // JSON config override
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -449,6 +452,7 @@ func (s *Server) handleAddWorkflowPhase(w http.ResponseWriter, r *http.Request) 
 		MaxIterationsOverride: req.MaxIterationsOverride,
 		ModelOverride:         req.ModelOverride,
 		GateTypeOverride:      req.GateTypeOverride,
+		ClaudeConfigOverride:  req.ClaudeConfigOverride,
 	}
 
 	if err := s.backend.SaveWorkflowPhase(phase); err != nil {
@@ -481,6 +485,88 @@ func (s *Server) handleRemoveWorkflowPhase(w http.ResponseWriter, r *http.Reques
 	}
 
 	s.jsonResponse(w, map[string]string{"status": "removed"})
+}
+
+// handleUpdateWorkflowPhase updates a phase in a workflow.
+func (s *Server) handleUpdateWorkflowPhase(w http.ResponseWriter, r *http.Request) {
+	workflowID := r.PathValue("id")
+	phaseTemplateID := r.PathValue("phaseId")
+
+	wf, err := s.backend.GetWorkflow(workflowID)
+	if err != nil || wf == nil {
+		s.jsonError(w, "workflow not found", http.StatusNotFound)
+		return
+	}
+
+	if wf.IsBuiltin {
+		s.jsonError(w, "cannot modify built-in workflow", http.StatusForbidden)
+		return
+	}
+
+	// Get existing phase
+	phases, err := s.backend.GetWorkflowPhases(workflowID)
+	if err != nil {
+		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
+		return
+	}
+
+	var existingPhase *db.WorkflowPhase
+	for _, p := range phases {
+		if p.PhaseTemplateID == phaseTemplateID {
+			existingPhase = p
+			break
+		}
+	}
+
+	if existingPhase == nil {
+		s.jsonError(w, "phase not found in workflow", http.StatusNotFound)
+		return
+	}
+
+	var req struct {
+		Sequence              *int    `json:"sequence,omitempty"`
+		MaxIterationsOverride *int    `json:"max_iterations_override,omitempty"`
+		ModelOverride         *string `json:"model_override,omitempty"`
+		ThinkingOverride      *bool   `json:"thinking_override,omitempty"`
+		GateTypeOverride      *string `json:"gate_type_override,omitempty"`
+		Condition             *string `json:"condition,omitempty"`
+		ClaudeConfigOverride  *string `json:"claude_config_override,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Apply updates
+	if req.Sequence != nil {
+		existingPhase.Sequence = *req.Sequence
+	}
+	if req.MaxIterationsOverride != nil {
+		existingPhase.MaxIterationsOverride = req.MaxIterationsOverride
+	}
+	if req.ModelOverride != nil {
+		existingPhase.ModelOverride = *req.ModelOverride
+	}
+	if req.ThinkingOverride != nil {
+		existingPhase.ThinkingOverride = req.ThinkingOverride
+	}
+	if req.GateTypeOverride != nil {
+		existingPhase.GateTypeOverride = *req.GateTypeOverride
+	}
+	if req.Condition != nil {
+		existingPhase.Condition = *req.Condition
+	}
+	if req.ClaudeConfigOverride != nil {
+		existingPhase.ClaudeConfigOverride = *req.ClaudeConfigOverride
+	}
+
+	if err := s.backend.SaveWorkflowPhase(existingPhase); err != nil {
+		s.jsonError(w, "failed to update phase", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, existingPhase)
 }
 
 // handleAddWorkflowVariable adds a variable to a workflow.

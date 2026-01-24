@@ -14,6 +14,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -34,6 +35,9 @@ type PhaseExecutionConfig struct {
 	// For quality checks
 	PhaseTemplate *db.PhaseTemplate
 	WorkflowPhase *db.WorkflowPhase
+
+	// Claude CLI configuration (resolved from template + override + agent + skills)
+	ClaudeConfig *PhaseClaudeConfig
 }
 
 // PhaseExecutionResult holds the result of a phase execution.
@@ -101,8 +105,11 @@ func (we *WorkflowExecutor) executePhase(
 		maxIter = *phase.MaxIterationsOverride
 	}
 
-	// Determine model (phase override or template default or global)
+	// Determine model (workflow phase override > template default > config default)
 	model := we.resolvePhaseModel(tmpl, phase)
+
+	// Resolve effective Claude configuration for this phase
+	claudeConfig, _ := we.getEffectivePhaseClaudeConfig(tmpl, phase)
 
 	// Build execution context for ClaudeExecutor
 	// Use worktree path if available, otherwise fall back to original working dir
@@ -117,6 +124,7 @@ func (we *WorkflowExecutor) executePhase(
 		Thinking:      we.shouldUseThinking(tmpl, phase),
 		PhaseTemplate: tmpl,
 		WorkflowPhase: phase,
+		ClaudeConfig:  claudeConfig,
 	}
 
 	// Execute with ClaudeExecutor
@@ -254,6 +262,26 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	sessionID := fmt.Sprintf("%s-%s-%s", cfg.RunID, cfg.TaskID, cfg.PhaseID)
 	result.SessionID = sessionID
 
+	// Check if we're resuming an interrupted phase
+	// If the phase was interrupted/running and has a stored session ID,
+	// we should resume that session instead of starting fresh
+	shouldResume := false
+	if we.execState != nil {
+		if ps, ok := we.execState.Phases[cfg.PhaseID]; ok {
+			if ps.Status == state.StatusInterrupted || ps.Status == state.StatusRunning {
+				// Use the stored session ID if available for proper resume
+				if ps.SessionID != "" {
+					sessionID = ps.SessionID
+					shouldResume = true
+					we.logger.Info("resuming interrupted phase",
+						"phase", cfg.PhaseID,
+						"session_id", sessionID,
+					)
+				}
+			}
+		}
+	}
+
 	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
 	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
@@ -261,7 +289,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnExec = we.turnExecutor
 		turnExec.UpdateSessionID(sessionID)
 	} else {
-		turnExec = NewClaudeExecutor(
+		// Build executor options
+		execOpts := []ClaudeExecutorOption{
 			WithClaudePath(we.claudePath),
 			WithClaudeWorkdir(cfg.WorkingDir),
 			WithClaudeModel(cfg.Model),
@@ -273,7 +302,19 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			WithClaudeBackend(we.backend),
 			WithClaudeTaskID(cfg.TaskID),
 			WithClaudeRunID(cfg.RunID),
-		)
+		}
+
+		// Add phase-specific Claude configuration if set
+		if cfg.ClaudeConfig != nil {
+			execOpts = append(execOpts, WithPhaseClaudeConfig(cfg.ClaudeConfig))
+		}
+
+		// Enable resume mode if we're continuing an interrupted phase
+		if shouldResume {
+			execOpts = append(execOpts, WithClaudeResume(true))
+		}
+
+		turnExec = NewClaudeExecutor(execOpts...)
 	}
 
 	// Execute turns until completion
@@ -411,19 +452,25 @@ func (we *WorkflowExecutor) loadFilePrompt(path string) (string, error) {
 }
 
 // resolvePhaseModel determines which model to use for a phase.
+// Priority: workflow phase override > phase template default > config default
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
-	// Phase override takes precedence
+	// Workflow phase override takes precedence (per-workflow customization)
 	if phase.ModelOverride != "" {
 		return phase.ModelOverride
 	}
 
-	// Template override
+	// Phase template default (defined in seed.go, stored in database)
 	if tmpl.ModelOverride != "" {
 		return tmpl.ModelOverride
 	}
 
-	// Default to sonnet
-	return "sonnet"
+	// Config default model
+	if we.orcConfig != nil && we.orcConfig.Model != "" {
+		return we.orcConfig.Model
+	}
+
+	// Ultimate fallback
+	return "opus"
 }
 
 // shouldUseThinking determines if extended thinking should be enabled.
@@ -681,4 +728,79 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 	)
 
 	return runner.Run(ctx)
+}
+
+// getEffectivePhaseClaudeConfig resolves the effective Claude configuration for a phase.
+// Priority order:
+//  1. workflow_phases.claude_config_override (per-workflow override)
+//  2. phase_templates.claude_config (template default)
+//
+// After merging, it also:
+//  3. Resolves agent_ref to merge agent configuration
+//  4. Loads skill_refs to inject skill content into AppendSystemPrompt
+func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) (*PhaseClaudeConfig, error) {
+	var cfg *PhaseClaudeConfig
+
+	// 1. Load from phase template
+	if tmpl != nil && tmpl.ClaudeConfig != "" {
+		base, err := ParsePhaseClaudeConfig(tmpl.ClaudeConfig)
+		if err != nil {
+			we.logger.Warn("failed to parse phase template claude_config",
+				"phase", tmpl.ID,
+				"error", err,
+			)
+		} else if base != nil {
+			cfg = base
+		}
+	}
+
+	// 2. Merge workflow phase override
+	if phase != nil && phase.ClaudeConfigOverride != "" {
+		override, err := ParsePhaseClaudeConfig(phase.ClaudeConfigOverride)
+		if err != nil {
+			we.logger.Warn("failed to parse workflow phase claude_config_override",
+				"phase", phase.PhaseTemplateID,
+				"error", err,
+			)
+		} else if override != nil {
+			if cfg == nil {
+				cfg = override
+			} else {
+				cfg = cfg.Merge(override)
+			}
+		}
+	}
+
+	// If no config at all, return nil (no special configuration)
+	if cfg == nil || cfg.IsEmpty() {
+		return nil, nil
+	}
+
+	// 3. Resolve agent reference
+	if cfg.AgentRef != "" {
+		claudeDir := filepath.Join(we.workingDir, ".claude")
+		resolver := NewAgentResolver(we.workingDir, claudeDir)
+		if err := resolver.ResolveAgentConfig(cfg); err != nil {
+			we.logger.Warn("failed to resolve agent reference",
+				"agent_ref", cfg.AgentRef,
+				"error", err,
+			)
+			// Continue without agent config - it's not fatal
+		}
+	}
+
+	// 4. Load skills and inject content
+	if len(cfg.SkillRefs) > 0 {
+		claudeDir := filepath.Join(we.workingDir, ".claude")
+		loader := NewSkillLoader(claudeDir)
+		if err := loader.LoadSkillsForConfig(cfg); err != nil {
+			we.logger.Warn("failed to load skills",
+				"skill_refs", cfg.SkillRefs,
+				"error", err,
+			)
+			// Continue without skills - it's not fatal
+		}
+	}
+
+	return cfg, nil
 }

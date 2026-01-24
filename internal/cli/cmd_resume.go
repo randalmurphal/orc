@@ -185,6 +185,11 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("seed workflows: %w", err)
 			}
 
+			// Migrate phase template model settings
+			if _, err := workflow.MigratePhaseTemplateModels(pdb); err != nil {
+				return fmt.Errorf("migrate phase templates: %w", err)
+			}
+
 			// Set up signal handling
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

@@ -88,9 +88,9 @@ if err != nil {
 // ✅ Use helper for both task+state
 e.failTask(t, phase, s, err)  // Updates task.Status, state.Error, state.Status, saves both
 
-// ✅ Model from config
-modelSetting := cfg.ResolveModelSetting(weight, phase)
-client := claude.NewClient(claude.WithModel(modelSetting.Model))
+// ✅ Model from workflow (phase template > config default)
+model := resolvePhaseModel(tmpl, phase)  // workflow phase override > template default > config.Model
+client := claude.NewClient(claude.WithModel(model))
 
 // ✅ Spec in database
 backend.SaveSpec(taskID, content, "spec")

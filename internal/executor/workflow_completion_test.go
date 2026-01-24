@@ -67,7 +67,8 @@ func setupWorkflowExecutorTest(t *testing.T) (*WorkflowExecutor, *git.Git, strin
 	}
 
 	// Add a fake remote (required for runCompletion to proceed)
-	cmd = exec.Command("git", "remote", "add", "origin", "https://github.com/test/test.git")
+	// Use file:// protocol to avoid triggering HTTPS auth prompts (askpass)
+	cmd = exec.Command("git", "remote", "add", "origin", "file:///tmp/fake-remote.git")
 	cmd.Dir = tmpDir
 	_ = cmd.Run()
 

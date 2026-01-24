@@ -53,8 +53,8 @@ type ExecutorConfig struct {
 	// 0 means no idle warnings.
 	IdleTimeout time.Duration
 
-	// OrcConfig is a reference to the full orc config for model resolution.
-	// When set, ResolveModelSetting uses this to get phase-specific model settings.
+	// OrcConfig is a reference to the full orc config.
+	// Used for default model and other global settings.
 	OrcConfig *config.Config
 }
 
@@ -64,23 +64,6 @@ func (c ExecutorConfig) GetTargetBranch() string {
 		return "main"
 	}
 	return c.TargetBranch
-}
-
-// ResolveModelSetting returns the model and thinking settings for a specific phase and weight.
-// Falls back to the default Model field if no orc config is set.
-func (c ExecutorConfig) ResolveModelSetting(weight, phase string) config.PhaseModelSetting {
-	if c.OrcConfig != nil {
-		return c.OrcConfig.ResolveModelSetting(weight, phase)
-	}
-	// Fallback to legacy behavior
-	model := c.Model
-	if model == "" {
-		model = "opus"
-	}
-	return config.PhaseModelSetting{
-		Model:    model,
-		Thinking: false,
-	}
 }
 
 // DefaultConfigForWeight returns the recommended configuration for a task weight.

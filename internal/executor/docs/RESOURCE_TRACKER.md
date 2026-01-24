@@ -34,9 +34,9 @@ type ProcessSnapshot struct {
 }
 
 type ResourceTrackerConfig struct {
-    Enabled            bool  // Enable tracking (default: true)
-    MemoryThresholdMB  int   // Warn if growth > threshold (default: 500)
-    LogOrphanedMCPOnly bool  // Only log MCP-related orphans (default: false)
+    Enabled               bool  // Enable tracking (default: true)
+    MemoryThresholdMB     int   // Warn if growth > threshold (default: 500)
+    FilterSystemProcesses bool  // Filter non-orc processes (default: true)
 }
 ```
 

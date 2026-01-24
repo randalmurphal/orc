@@ -110,6 +110,10 @@ type PhaseTemplate struct {
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`
 
+	// Claude CLI configuration (JSON)
+	// See executor.PhaseClaudeConfig for structure
+	ClaudeConfig string `json:"claude_config,omitempty" db:"claude_config"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin" db:"is_builtin"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -150,6 +154,10 @@ type WorkflowPhase struct {
 	ThinkingOverride      *bool    `json:"thinking_override,omitempty" db:"thinking_override"`
 	GateTypeOverride      GateType `json:"gate_type_override,omitempty" db:"gate_type_override"`
 	Condition             string   `json:"condition,omitempty" db:"condition"` // JSON skip conditions
+
+	// Claude CLI configuration override (JSON)
+	// Merged with PhaseTemplate.ClaudeConfig, with this taking precedence
+	ClaudeConfigOverride string `json:"claude_config_override,omitempty" db:"claude_config_override"`
 
 	// Loaded relation (not stored directly)
 	Template *PhaseTemplate `json:"template,omitempty"`

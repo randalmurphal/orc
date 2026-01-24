@@ -282,11 +282,22 @@ func (we *WorkflowExecutor) loadPriorPhaseContent(taskID string, s *state.State,
 		}
 	}
 
-	// Try to load from artifact storage
-	taskDir := task.TaskDir(taskID)
-	artifactPath := filepath.Join(taskDir, "artifacts", phaseID+".md")
-	if content, err := os.ReadFile(artifactPath); err == nil {
-		return strings.TrimSpace(string(content))
+	// Load from database - phase outputs are stored there, not as files
+	outputs, err := we.backend.GetPhaseOutputsForTask(taskID)
+	if err != nil {
+		we.logger.Debug("failed to load phase outputs for task",
+			"task_id", taskID,
+			"phase_id", phaseID,
+			"error", err,
+		)
+		return ""
+	}
+
+	// Find the output for this phase
+	for _, output := range outputs {
+		if output.PhaseTemplateID == phaseID {
+			return strings.TrimSpace(output.Content)
+		}
 	}
 
 	return ""

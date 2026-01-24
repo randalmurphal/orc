@@ -74,15 +74,3 @@ func ConfigFromOrc(cfg *config.Config) *Config {
 	}
 }
 
-// ResolveModelSetting returns the model and thinking settings for a specific phase and weight.
-// Falls back to the default Model field if no orc config is set.
-func (c *Config) ResolveModelSetting(weight, phase string) config.PhaseModelSetting {
-	if c.OrcConfig != nil {
-		return c.OrcConfig.ResolveModelSetting(weight, phase)
-	}
-	// Fallback to legacy behavior
-	return config.PhaseModelSetting{
-		Model:    c.Model,
-		Thinking: false,
-	}
-}

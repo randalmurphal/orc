@@ -1883,8 +1883,8 @@ func TestHasRemote_WithRemote(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
 
-	// Add a remote
-	cmd := exec.Command("git", "remote", "add", "origin", "https://github.com/test/test.git")
+	// Add a remote (use file:// to avoid HTTPS auth prompts in CI/tests)
+	cmd := exec.Command("git", "remote", "add", "origin", "file:///tmp/fake-remote.git")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to add remote: %v", err)
@@ -1908,8 +1908,8 @@ func TestHasRemote_InWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
 
-	// Add a remote to main repo
-	cmd := exec.Command("git", "remote", "add", "origin", "https://github.com/test/test.git")
+	// Add a remote to main repo (use file:// to avoid HTTPS auth prompts)
+	cmd := exec.Command("git", "remote", "add", "origin", "file:///tmp/fake-remote.git")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to add remote: %v", err)

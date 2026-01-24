@@ -3,12 +3,9 @@ package executor
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // SaveArtifactToDatabase extracts artifact content from JSON output and saves to phase_outputs table.
@@ -75,42 +72,6 @@ func inferOutputVarName(phaseID string) string {
 	default:
 		return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phaseID, "-", "_"))
 	}
-}
-
-// SavePhaseArtifact extracts artifact content from JSON output and saves to file.
-// DEPRECATED: Use SaveArtifactToDatabase instead for new code.
-// This function is kept for backward compatibility during the transition.
-func SavePhaseArtifact(taskID, phaseID, output string) (string, error) {
-	// Skip for spec phases - use database only via SaveSpecToDatabase
-	// tiny_spec is the combined spec+TDD phase for trivial/small tasks
-	if phaseID == "spec" || phaseID == "tiny_spec" {
-		return "", nil
-	}
-
-	// Only artifact-producing phases need artifact extraction
-	if !PhasesWithArtifacts[phaseID] {
-		return "", nil
-	}
-
-	// Extract artifact from JSON output
-	artifact := ExtractArtifactFromOutput(output)
-	if artifact == "" {
-		return "", nil // No artifact in output
-	}
-
-	// Write artifact to file
-	taskDir := task.TaskDir(taskID)
-	artifactsDir := filepath.Join(taskDir, "artifacts")
-	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
-		return "", fmt.Errorf("create artifacts dir: %w", err)
-	}
-
-	artifactPath := filepath.Join(artifactsDir, phaseID+".md")
-	if err := os.WriteFile(artifactPath, []byte(artifact), 0644); err != nil {
-		return "", fmt.Errorf("write artifact: %w", err)
-	}
-
-	return artifactPath, nil
 }
 
 // ExtractArtifactContent extracts artifact from JSON output.

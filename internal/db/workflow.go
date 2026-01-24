@@ -78,6 +78,9 @@ type PhaseTemplate struct {
 	RetryFromPhase  string `json:"retry_from_phase,omitempty"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty"`
 
+	// Claude configuration (JSON)
+	ClaudeConfig string `json:"claude_config,omitempty"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin"`
 	CreatedAt time.Time `json:"created_at"`
@@ -113,6 +116,9 @@ type WorkflowPhase struct {
 	GateTypeOverride      string `json:"gate_type_override,omitempty"`
 	Condition             string `json:"condition,omitempty"`              // JSON
 	QualityChecksOverride string `json:"quality_checks_override,omitempty"` // JSON array, NULL=use template, []=disable all
+
+	// Claude configuration override (JSON) - merged with template config
+	ClaudeConfigOverride string `json:"claude_config_override,omitempty"`
 }
 
 // WorkflowVariable defines a custom variable for a workflow.
@@ -207,8 +213,8 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -229,12 +235,13 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			checkpoint = excluded.checkpoint,
 			retry_from_phase = excluded.retry_from_phase,
 			retry_prompt_path = excluded.retry_prompt_path,
+			claude_config = excluded.claude_config,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, pt.PromptSource, pt.PromptContent, pt.PromptPath,
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.OutputType, pt.QualityChecks,
 		pt.MaxIterations, pt.ModelOverride, thinkingEnabled, pt.GateType, pt.Checkpoint,
-		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
+		pt.RetryFromPhase, pt.RetryPromptPath, pt.ClaudeConfig, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save phase template: %w", err)
@@ -249,7 +256,7 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -270,7 +277,7 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -385,8 +392,8 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	res, err := p.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			quality_checks_override, claude_config_override)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
@@ -395,10 +402,11 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			thinking_override = excluded.thinking_override,
 			gate_type_override = excluded.gate_type_override,
 			condition = excluded.condition,
-			quality_checks_override = excluded.quality_checks_override
+			quality_checks_override = excluded.quality_checks_override,
+			claude_config_override = excluded.claude_config_override
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride)
+		wp.QualityChecksOverride, wp.ClaudeConfigOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -416,7 +424,7 @@ func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, erro
 	rows, err := p.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override
+			quality_checks_override, claude_config_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
@@ -798,14 +806,14 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	var thinkingEnabled sql.NullBool
 	var description, promptContent, promptPath, inputVars, outputSchema, artifactType, outputVarName sql.NullString
 	var outputType, qualityChecks sql.NullString
-	var modelOverride, retryFromPhase, retryPromptPath sql.NullString
+	var modelOverride, retryFromPhase, retryPromptPath, claudeConfig sql.NullString
 
 	err := row.Scan(
 		&pt.ID, &pt.Name, &description, &pt.PromptSource, &promptContent, &promptPath,
 		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType, &outputVarName,
 		&outputType, &qualityChecks,
 		&pt.MaxIterations, &modelOverride, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
-		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
+		&retryFromPhase, &retryPromptPath, &claudeConfig, &pt.IsBuiltin, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -824,6 +832,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt.ThinkingEnabled = nullBoolToPtr(thinkingEnabled)
 	pt.RetryFromPhase = retryFromPhase.String
 	pt.RetryPromptPath = retryPromptPath.String
+	pt.ClaudeConfig = claudeConfig.String
 	pt.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	pt.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 
@@ -862,14 +871,14 @@ func scanWorkflowRow(rows *sql.Rows) (*Workflow, error) {
 
 func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp := &WorkflowPhase{}
-	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride sql.NullString
+	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride, claudeConfigOverride sql.NullString
 	var maxIterOverride sql.NullInt64
 	var thinkingOverride sql.NullBool
 
 	err := rows.Scan(
 		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
 		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
-		&qualityChecksOverride,
+		&qualityChecksOverride, &claudeConfigOverride,
 	)
 	if err != nil {
 		return nil, err
@@ -882,6 +891,7 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp.GateTypeOverride = gateTypeOverride.String
 	wp.Condition = condition.String
 	wp.QualityChecksOverride = qualityChecksOverride.String
+	wp.ClaudeConfigOverride = claudeConfigOverride.String
 
 	return wp, nil
 }
