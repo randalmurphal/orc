@@ -724,3 +724,82 @@ export interface WorkflowRunPhase {
 export interface WorkflowRunWithDetails extends WorkflowRun {
 	phases: WorkflowRunPhase[];
 }
+
+// Timeline Event types for activity feed
+export interface TimelineEvent {
+	id: number;
+	task_id: string;
+	task_title: string;
+	phase?: string;
+	iteration?: number;
+	event_type: string;
+	data?: unknown;
+	source: string;
+	created_at: string;
+}
+
+export interface EventsListResponse {
+	events: TimelineEvent[];
+	total: number;
+	limit: number;
+	offset: number;
+	has_more: boolean;
+}
+
+export interface GetEventsOptions {
+	task_id?: string;
+	initiative_id?: string;
+	since?: string;
+	until?: string;
+	types?: string[];
+	limit?: number;
+	offset?: number;
+}
+
+// Timeline event type display configuration
+export type TimelineEventType =
+	| 'phase_started'
+	| 'phase_completed'
+	| 'phase_failed'
+	| 'task_created'
+	| 'task_started'
+	| 'task_paused'
+	| 'task_completed'
+	| 'task_deleted'
+	| 'activity_changed'
+	| 'error_occurred'
+	| 'warning_issued'
+	| 'token_update'
+	| 'gate_decision';
+
+export const TIMELINE_EVENT_TYPES: TimelineEventType[] = [
+	'phase_started',
+	'phase_completed',
+	'phase_failed',
+	'task_created',
+	'task_started',
+	'task_paused',
+	'task_completed',
+	'task_deleted',
+	'activity_changed',
+	'error_occurred',
+	'warning_issued',
+	'token_update',
+	'gate_decision',
+];
+
+export const TIMELINE_EVENT_CONFIG: Record<string, { label: string; icon: string; color: string; category: string }> = {
+	phase_started: { label: 'Phase started', icon: 'play', color: 'var(--status-info)', category: 'phase' },
+	phase_completed: { label: 'Phase completed', icon: 'check-circle', color: 'var(--status-success)', category: 'phase' },
+	phase_failed: { label: 'Phase failed', icon: 'x-circle', color: 'var(--status-error)', category: 'phase' },
+	task_created: { label: 'Task created', icon: 'plus-circle', color: 'var(--status-info)', category: 'task' },
+	task_started: { label: 'Task started', icon: 'play', color: 'var(--status-info)', category: 'task' },
+	task_paused: { label: 'Task paused', icon: 'pause', color: 'var(--status-warning)', category: 'task' },
+	task_completed: { label: 'Task completed', icon: 'check', color: 'var(--status-success)', category: 'task' },
+	task_deleted: { label: 'Task deleted', icon: 'trash', color: 'var(--status-error)', category: 'task' },
+	activity_changed: { label: 'Activity update', icon: 'activity', color: 'var(--text-muted)', category: 'activity' },
+	error_occurred: { label: 'Error occurred', icon: 'alert-triangle', color: 'var(--status-error)', category: 'error' },
+	warning_issued: { label: 'Warning', icon: 'alert-circle', color: 'var(--status-warning)', category: 'error' },
+	token_update: { label: 'Token usage', icon: 'dollar', color: 'var(--text-muted)', category: 'metrics' },
+	gate_decision: { label: 'Gate decision', icon: 'shield', color: 'var(--cyan)', category: 'gate' },
+};

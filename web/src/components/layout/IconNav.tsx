@@ -39,6 +39,12 @@ const mainNavItems: NavItemConfig[] = [
 		description: 'View and manage initiatives',
 	},
 	{
+		icon: 'activity',
+		label: 'Timeline',
+		path: '/timeline',
+		description: 'Activity timeline',
+	},
+	{
 		icon: 'bar-chart',
 		label: 'Stats',
 		path: '/stats',

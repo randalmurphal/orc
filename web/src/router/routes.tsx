@@ -12,6 +12,7 @@ const Board = lazy(() => import('@/pages/Board').then(m => ({ default: m.Board }
 const InitiativesPage = lazy(() => import('@/pages/InitiativesPage').then(m => ({ default: m.InitiativesPage })));
 const InitiativeDetailPage = lazy(() => import('@/pages/InitiativeDetailPage').then(m => ({ default: m.InitiativeDetailPage })));
 const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m.StatsPage })));
+const TimelinePage = lazy(() => import('@/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
@@ -136,6 +137,15 @@ export const routes: RouteObject[] = [
 				element: (
 					<LazyRoute>
 						<InitiativeDetailPage />
+					</LazyRoute>
+				),
+			},
+			// Timeline - Activity timeline feed
+			{
+				path: 'timeline',
+				element: (
+					<LazyRoute>
+						<TimelinePage />
 					</LazyRoute>
 				),
 			},

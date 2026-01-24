@@ -118,7 +118,7 @@ describe('IconNav', () => {
 			renderWithProviders(<IconNav />);
 
 			const links = screen.getAllByRole('link');
-			expect(links.length).toBe(7); // 7 nav items (Board, Initiatives, Stats, Workflows, Agents, Settings, Help)
+			expect(links.length).toBe(8); // 8 nav items (Board, Initiatives, Timeline, Stats, Workflows, Agents, Settings, Help)
 
 			// All links should be focusable (tabindex not -1)
 			links.forEach((link) => {
