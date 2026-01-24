@@ -70,75 +70,21 @@ make dev-full               # API (:8080) + frontend (:5173)
 
 ## Task Model
 
-### What Makes Tasks Succeed
+Tasks have weight (trivial/small/medium/large) determining phase workflow. All tasks require a spec (tiny_spec or spec phase). See `orc new --help` for guidance.
 
-**For non-trivial tasks, orc REQUIRES a specification with:**
+**Weight determines phases:**
+- **trivial**: tiny_spec → implement
+- **small**: tiny_spec → implement → review
+- **medium**: spec → tdd_write → implement → review → docs
+- **large**: spec → tdd_write → breakdown → implement → review → docs → validate
 
-| Section | Purpose | Validation |
-|---------|---------|------------|
-| **Intent** | Why this work matters, what problem it solves | Must have meaningful content |
-| **Success Criteria** | Testable conditions proving the work is done | Must have specific, verifiable items |
-| **Testing** | How to verify the implementation works | Must define test types and acceptance criteria |
+**Key insight**: Vague task description → vague spec → poor results. Be specific in task descriptions.
 
-The spec phase generates these from your task description. **Vague input → vague spec → poor results.**
+**Task properties**: Queue (active/backlog), Priority, Category (feature/bug/refactor/chore/docs/test), Initiative (group related tasks), Dependencies (blocked_by, related_to).
 
-Run `orc new --help` for detailed guidance on creating tasks that execute well.
+**Completion flow**: Task completes → PR created → Review → `orc finalize TASK-XXX` → Auto-merge (if configured).
 
-### Weight Classification (Determines Required Phases)
-
-| Weight | Phases | Spec? | When to Use |
-|--------|--------|-------|-------------|
-| trivial | tiny_spec → implement | YES | One-liner fixes, typos |
-| small | tiny_spec → implement → review | YES | Bug fixes, isolated changes |
-| medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
-| large | spec → tdd_write → breakdown → implement → review → docs → validate | YES | Complex multi-file features |
-
-Key phases:
-- **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
-- **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
-- **breakdown**: Decomposes large tasks into checkboxed implementation steps
-- **review**: Multi-agent code review with 5 specialized reviewers
-- **validate**: Final verification against all success criteria
-
-### Task Completion Flow
-
-1. **Task completes** → PR created (if `completion.action: pr`)
-2. **Review PR** → Manual review opportunity
-3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, triggers auto-merge (if `auto_merge: true`)
-
-**Note:** `auto_merge: true` in config means "merge after finalize", not "merge immediately after task completion". This gives you a chance to review the PR before merging.
-
-⚠️ **Common mistake**: Under-weighting tasks. A "medium" task run as "small" skips the spec phase, causing Claude to guess requirements.
-
-### Task Properties
-
-| Property | Values | Purpose |
-|----------|--------|---------|
-| Queue | `active`, `backlog` | Current work vs "someday" |
-| Priority | `critical`, `high`, `normal`, `low` | Urgency |
-| Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Affects how Claude approaches work |
-| Initiative | Initiative ID | Groups tasks with shared vision/decisions |
-| Description | Free text | **Flows into every phase prompt** - be specific! |
-
-### Dependencies
-
-Tasks support `blocked_by` (must complete first) and `related_to` (informational). CLI: `orc new "Part 2" --blocked-by TASK-001`. Initiatives also support `blocked_by` for ordering.
-
-### Initiatives (Shared Context)
-
-When tasks are part of a larger feature, link them to an initiative:
-
-```bash
-orc initiative new "User Auth" -V "JWT-based auth with refresh tokens"
-orc initiative decide INIT-001 "Use bcrypt for passwords" -r "Industry standard"
-orc new "Login endpoint" -i INIT-001 -w medium
-```
-
-The initiative's **Vision** and **Decisions** flow into every linked task's prompts, keeping Claude aligned across multiple tasks.
-
-### Completion Detection
-
-Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blocked phases output `{"status": "blocked", "reason": "..."}`. Failed phases trigger retry from earlier phase with `{{RETRY_CONTEXT}}`.
+See `docs/architecture/PHASE_MODEL.md` for phase details.
 
 ## Configuration
 
@@ -177,91 +123,31 @@ Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for fu
 
 ## Commands
 
-**Always run `orc <command> --help` for detailed usage with quality guidance.**
+**Run `orc --help` or `orc <command> --help` for detailed usage.** Help text includes quality guidance and common mistakes.
 
-### Core Workflow
+**Core**: `new` (create), `run` (execute), `go` (create+run), `status` (dashboard), `resume` (continue paused/failed)
 
-| Command | Purpose | Key Flags |
-|---------|---------|-----------|
-| `orc go "description"` | Quick: create + execute task | `--weight`, `--profile`, `--stream` |
-| `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative` |
-| `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream` |
-| `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
+**Management**: `show`, `deps`, `log`, `approve`, `resolve`, `finalize`
 
-### Task Management
+**Initiatives**: `initiative new/decide/link/run` - group related tasks with shared vision
 
-| Command | Purpose |
-|---------|---------|
-| `orc show TASK-ID` | View task details, spec, state |
-| `orc deps TASK-ID` | Show dependencies (`--tree`, `--graph`) |
-| `orc log TASK-ID` | View Claude transcripts (`--follow` for streaming) |
-| `orc resume TASK-ID` | Continue paused/failed/orphaned task |
-| `orc approve TASK-ID` | Approve blocked gate |
-| `orc resolve TASK-ID` | Mark failed task as resolved |
+**Data**: `export/import` - portable tar.gz backups with auto-migration
 
-### Initiatives
-
-| Command | Purpose |
-|---------|---------|
-| `orc initiative new "title"` | Create initiative with `--vision` |
-| `orc initiative decide ID "decision"` | Record decision with `--rationale` |
-| `orc initiative link ID TASK...` | Batch link tasks |
-| `orc initiative run ID` | Run all ready tasks in order |
-
-Run `orc initiative --help` for full subcommand list.
-
-### Data Portability
-
-| Command | Purpose |
-|---------|---------|
-| `orc export --all-tasks` | Full backup (tar.gz) to `.orc/exports/` |
-| `orc export --all-tasks --initiatives` | Include initiatives |
-| `orc export --all-tasks --minimal` | Smaller backup (no transcripts) |
-| `orc import` | Restore from `.orc/exports/` (auto-detect format) |
-| `orc import --dry-run` | Preview import without changes |
-
-**Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
-
-### Key Insight: Help Text = Documentation
-
-Each command's `--help` contains detailed guidance on:
-- What makes the command succeed
-- Common mistakes to avoid
-- How data flows through the system
-- Quality tips for best results
-
-**When in doubt, run `--help` first.**
+See `internal/cli/COMMANDS.md` for complete reference.
 
 ## Key Patterns
 
-**Error handling:** Always wrap with context
-```go
-return fmt.Errorf("load task %s: %w", id, err)
-```
-
-**Git commits:** After every phase: `[orc] TASK-001: implement - completed`
-
-## Dependencies
-
-Go modules: `llmkit` (Claude wrapper), `flowgraph` (execution), `devflow` (git ops). For local dev: `make setup` creates `go.work`.
+**Error handling**: `fmt.Errorf("load task %s: %w", id, err)`
+**Git commits**: `[orc] TASK-001: implement - completed`
+**Dependencies**: `llmkit`, `flowgraph`, `devflow`. Local dev: `make setup`
 
 ## Web UI
 
-Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
-
-Features: Live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor.
-
-See `web/CLAUDE.md` for component library and architecture.
+`make dev-full` (dev) or `orc serve` (prod). React 19, WebSocket live updates. See `web/CLAUDE.md`.
 
 ## Testing
 
-```bash
-make test       # Backend (Go)
-make web-test   # Frontend (Vitest)
-make e2e        # E2E (Playwright)
-```
-
-**E2E tests run in isolated sandbox** (`/tmp`), not production. Import from `./fixtures` for automatic sandbox selection.
+`make test` (Go), `make web-test` (Vitest), `make e2e` (Playwright). E2E uses isolated `/tmp` sandbox.
 
 ## Documentation Reference
 
@@ -278,47 +164,13 @@ make e2e        # E2E (Playwright)
 <!-- orc:begin -->
 ## Orc Orchestration
 
-This project uses [orc](https://github.com/randalmurphal/orc) for task orchestration.
+This project uses orc for task orchestration. Use for multi-step work, parallel tasks, or when you need spec → implement → test → review flow.
 
-### When to Use Orc
+**Workflow**: `orc new "title"` → `orc run TASK-XXX` → validate → `orc status`
 
-Use orc when:
-- **Multi-step work**: Features, refactors, or fixes requiring multiple phases
-- **Parallel tasks**: Running multiple independent tasks simultaneously
-- **Complex changes**: Work that benefits from spec → implement → test → review flow
-- **Tracked progress**: When you need visibility into what's done/remaining
+**Slash commands**: `/orc:continue` (Tech Lead session), `/orc:status`, `/orc:init`, `/orc:review`, `/orc:qa`
 
-**Key principle**: Delegate implementation to `orc run`. Don't implement tasks directly - create them and let orc execute them.
-
-### Workflow
-
-1. `orc new "task title"` - Create a task
-2. `orc run TASK-XXX` - Execute it (runs in background)
-3. Validate results when complete
-4. `orc status` - Check what's next
-
-### Slash Commands
-
-| Command | Purpose |
-|---------|---------|
-| `/orc:continue` | Tech Lead session - run tasks, validate, keep moving |
-| `/orc:status` | Show progress and next steps |
-| `/orc:init` | Initialize project or create spec |
-| `/orc:review` | Multi-round code review |
-| `/orc:qa` | E2E tests and documentation |
-
-### CLI Commands
-
-```bash
-orc status           # View active tasks
-orc new "title"      # Create task
-orc run TASK-001     # Execute task
-orc show TASK-001    # Task details
-orc diff TASK-001    # What changed
-```
-
-See `.orc/` for configuration and task details.
-
+See `.orc/` for configuration.
 <!-- orc:end -->
 
 ## Project Knowledge

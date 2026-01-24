@@ -2,61 +2,21 @@
 
 Embedded prompt templates for phase execution.
 
-## Directory Structure
+## Structure
 
-```
-templates/
-├── embed.go          # Go embed directives
-├── prompts/          # ALL prompts (phase, gates, sessions)
-│   ├── [phase prompts] classify, research, spec, tiny_spec, tdd_write, breakdown, implement, review, docs, finalize
-│   ├── [gates] conflict_resolution
-│   ├── [sessions] spec_session, plan_session, plan_from_spec, setup
-│   ├── [review] review_round1, review_round2, qa
-│   └── [automation] automation/*.md
-└── pr-body.md        # PR description template
-```
+All prompts in `templates/prompts/`: phase prompts (spec, tdd_write, implement, review, docs), gates (conflict_resolution), sessions (setup, plan_session), automation, PR template.
 
 ## Workflows (Database-First)
 
-Workflows are now stored in the database, not YAML files. Use `workflow.SeedBuiltins()` to populate built-in workflows.
+Stored in database via `workflow.SeedBuiltins()`. Phases: trivial (tiny_spec → implement), small (+review), medium (spec → tdd_write → breakdown → implement → review → docs), large (same as medium).
 
-| Workflow | Phases |
-|----------|--------|
-| `trivial` | tiny_spec → implement |
-| `small` | tiny_spec → implement → review |
-| `medium` | spec → tdd_write → breakdown → implement → review → docs |
-| `large` | spec → tdd_write → breakdown → implement → review → docs |
-
-**Key concepts:**
-- **TDD-first**: Tests written before implementation (tdd_write phase)
-- **All weights get specs**: trivial/small use lightweight `tiny_spec`
-- **No separate test phase**: TDD handles testing upfront
-- **Composable phases**: Each phase is a reusable template in `phase_templates` table
-
-**Review phase** (small+): Multi-agent code review with 5 specialized reviewers.
-
-**Note**: `finalize` is a manual command (`orc finalize TASK-XXX`), not an automatic phase.
-Use it to sync with target branch and resolve conflicts before merge.
+**Key**: TDD-first (tests before code), all weights get specs, composable phase templates, multi-agent review.
 
 ## Template Variables
 
-| Variable | Description |
-|----------|-------------|
-| `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_DESCRIPTION}}` | Task context |
-| `{{TASK_CATEGORY}}` | feature/bug/refactor/etc |
-| `{{PHASE}}`, `{{WEIGHT}}`, `{{ITERATION}}` | Execution context |
-| `{{SPEC_CONTENT}}` | Spec phase artifact |
-| `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD phase output |
-| `{{BREAKDOWN_CONTENT}}` | Task breakdown output |
-| `{{RETRY_CONTEXT}}` | Failure info on retry |
-| `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git context |
-| `{{INITIATIVE_CONTEXT}}` | Initiative details |
-| `{{LANGUAGE}}`, `{{HAS_FRONTEND}}`, `{{HAS_TESTS}}` | Project detection |
-| `{{TEST_COMMAND}}`, `{{LINT_COMMAND}}`, `{{BUILD_COMMAND}}` | Project commands |
-| `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing |
-| `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}` | Review phase |
-| `{{VERIFICATION_RESULTS}}` | Implement verification |
-| `{{CONSTITUTION_CONTENT}}` | Project principles |
+Task (ID, TITLE, DESCRIPTION, CATEGORY), Phase (PHASE, WEIGHT, ITERATION, RETRY_CONTEXT), Git (WORKTREE_PATH, TASK_BRANCH, TARGET_BRANCH), Initiative (INITIATIVE_CONTEXT), Project (LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST/LINT/BUILD_COMMAND), Prior Outputs (SPEC_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT), Review (REVIEW_ROUND, REVIEW_FINDINGS), Constitution (CONSTITUTION_CONTENT)
+
+See `internal/variable/CLAUDE.md` for resolution.
 
 ## Phase Prompts
 

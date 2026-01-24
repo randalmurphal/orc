@@ -4,32 +4,9 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 ## File Structure
 
-### WorkflowExecutor (Split into 6 files)
+**WorkflowExecutor** (split into 6 modules): `workflow_executor.go` (core), `workflow_context.go` (variable resolution), `workflow_phase.go` (execution), `workflow_completion.go` (PR/merge), `workflow_state.go` (failure handling), `workflow_gates.go` (gate evaluation)
 
-| File | Lines | Key Functions | Purpose |
-|------|-------|---------------|---------|
-| `workflow_executor.go` | ~740 | `NewWorkflowExecutor()`, `Run()`, `applyArtifactToVars()` | Core types, options, entry point, result types |
-| `workflow_context.go` | ~430 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
-| `workflow_phase.go` | ~580 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
-| `workflow_state.go` | ~240 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
-| `workflow_gates.go` | ~100 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
-
-### Support Files
-
-| File | Purpose |
-|------|---------|
-| `executor.go` | `PhaseState`, model resolution, Claude path detection |
-| `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
-| `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
-| `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
-| `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
-| `ci_merge.go` | CI polling and auto-merge with retry logic |
-| `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
-| `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
-| `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |
-| `checklist_validation.go` | Spec and criteria validation |
-| `heartbeat.go` | Periodic heartbeat updates during execution |
+**Support**: `claude_executor.go` (`TurnExecutor`, `--json-schema`), `phase_response.go` (completion schemas), `finalize.go` (sync/conflicts), `ci_merge.go` (auto-merge), `cost_tracking.go`, `quality_checks.go`
 
 ## Architecture
 
@@ -52,45 +29,17 @@ WorkflowExecutor.Run()
 
 ## Key Functions
 
-### Shared Utilities
+**Phase execution**: `executePhaseWithTimeout()` (timeout wrapper), `checkSpecRequirements()` (validation), `executeWithClaude()` (Claude CLI)
 
-| Function | File:Line | Purpose |
-|----------|-----------|---------|
-| `RecordCostEntry()` | `cost_tracking.go:22` | Records phase costs to global DB |
-| `RunResourceAnalysis()` | `resource_tracker.go:538` | Detects orphaned MCP processes |
-| `applyArtifactToVars()` | `workflow_executor.go:703` | Propagates phase artifacts to subsequent phases |
+**Context**: `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()`
 
-### Phase Execution
-
-| Function | File:Line | Purpose |
-|----------|-----------|---------|
-| `executePhaseWithTimeout()` | `workflow_phase.go:421` | Wraps `executePhase()` with PhaseMax timeout |
-| `checkSpecRequirements()` | `workflow_phase.go:535` | Validates spec exists for non-trivial weights |
-| `IsPhaseTimeoutError()` | `workflow_phase.go:412` | Checks if error is `phaseTimeoutError` |
-
-### Context Building
-
-| Function | File:Line | Purpose |
-|----------|-----------|---------|
-| `buildResolutionContext()` | `workflow_context.go:71` | Creates initial variable context |
-| `enrichContextForPhase()` | `workflow_context.go:198` | Adds phase-specific context |
-| `loadInitiativeContext()` | `workflow_context.go:135` | Loads initiative vision/decisions |
+**Utilities**: `RecordCostEntry()`, `RunResourceAnalysis()` (orphan detection), `applyArtifactToVars()` (artifact propagation)
 
 ## Variable Resolution
 
-All template variables resolved via `internal/variable/Resolver`. Resolution context includes:
+All templates use `internal/variable/Resolver`. Context includes: Task (ID, title, description, category, weight), Phase (name, iteration, retry context), Git (worktree, branches), Initiative (vision, decisions), Project (language, frameworks, tests), Prior Outputs (spec, research, tdd, breakdown).
 
-| Category | Variables |
-|----------|-----------|
-| Task | TASK_ID, TASK_TITLE, TASK_DESCRIPTION, TASK_CATEGORY, WEIGHT |
-| Phase | PHASE, ITERATION, RETRY_CONTEXT |
-| Git | WORKTREE_PATH, PROJECT_ROOT, TASK_BRANCH, TARGET_BRANCH |
-| Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS |
-| Review | REVIEW_ROUND, REVIEW_FINDINGS |
-| Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS |
-| Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT |
-
-See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
+See `internal/variable/CLAUDE.md` for sources.
 
 ## Artifact Storage
 
@@ -225,38 +174,9 @@ Quality checks are defined at the **phase template level**, not globally. Each p
 
 ### Quality Check Configuration
 
-Phase templates define checks in `quality_checks` JSON:
-```json
-[
-  {"type": "code", "name": "tests", "enabled": true, "on_failure": "block"},
-  {"type": "code", "name": "lint", "enabled": true, "on_failure": "warn"}
-]
-```
+Phase templates define checks (tests, lint, build, typecheck). On failure modes: `block` (fails phase, retries with context), `warn` (log only), `skip` (disabled).
 
-Workflow phases can override via `quality_checks_override`.
-
-### On Failure Modes
-
-| Mode | Behavior |
-|------|----------|
-| `block` | Fails the phase, injects context for retry |
-| `warn` | Logs warning but allows completion |
-| `skip` | Skips the check entirely |
-
-**Flow:** Agent outputs `{"status": "complete"}` -> Quality checks run -> Criteria validation -> If any blocking checks fail, inject context and continue.
-
-### Project Commands
-
-Commands are stored in `project_commands` table and seeded during `orc init` based on project detection:
-
-| Name | Example Command |
-|------|-----------------|
-| tests | `go test ./...` |
-| lint | `golangci-lint run` |
-| build | `go build ./...` |
-| typecheck | `go build -o /dev/null ./...` |
-
-**API Error Handling:** `config.Validation.FailOnAPIError` - `true` fails task properly (resumable), `false` continues without validation.
+Project commands seeded during `orc init` and stored in `project_commands` table.
 
 ## Heartbeat Runner
 

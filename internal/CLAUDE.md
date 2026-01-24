@@ -70,95 +70,14 @@ cmd/orc
 
 ### Error Handling
 
-**Philosophy:** Fail loud. Silent failures are bugs. Every error path must be handled explicitly.
+**Philosophy**: Fail loud. No silent failures. Always wrap with context: `fmt.Errorf("load task %s: %w", id, err)`
 
-All errors wrap context for traceability:
-```go
-return fmt.Errorf("load task %s: %w", id, err)
-```
+**Task/State Consistency** (see `docs/INVARIANTS.md`):
+- On failure/interrupt: Update BOTH `task.Status` AND `state.Error`
+- Use helpers: `failTask()`, `interruptTask()` - they handle both sides
+- Orphaned tasks happen when status isn't updated
 
-#### Task/State Consistency
-
-**CRITICAL:** When execution fails or is interrupted, BOTH task and state must be updated:
-
-| Component | Field | Must Update |
-|-----------|-------|-------------|
-| Task | `Status` | Set to `Failed`, `Paused`, or `Blocked` |
-| State | `Status` | Set to `StatusFailed` or `StatusInterrupted` |
-| State | `Error` | Store error message for user visibility |
-
-**Why this matters:** If task.Status stays "running" but the executor dies, the task becomes orphaned - it appears running but has no active process. Users can't tell what went wrong.
-
-#### Executor Error Handling Checklist
-
-When adding new error paths in executor code:
-
-1. **Store the error:** `s.Error = err.Error()` or `s.Error = fmt.Sprintf("context: %s", err)`
-2. **Update state status:** `s.FailPhase(phaseID, err)` or `s.InterruptPhase(phaseID)`
-3. **Save state:** `e.backend.SaveState(s)` with error logging if save fails
-4. **Update task status:** `t.Status = task.StatusFailed` (or `StatusPaused` for interrupts)
-5. **Save task:** `e.backend.SaveTask(t)` with error logging if save fails
-6. **Publish events:** `e.publishError()` and `e.publishState()` so UI updates
-
-Example - handling context cancellation (interrupt):
-```go
-if ctx.Err() != nil {
-    // Use interruptTask helper which handles all the above
-    e.interruptTask(t, phaseID, s, ctx.Err())
-    return ctx.Err()
-}
-```
-
-Example - handling phase failure:
-```go
-// failTask handles all cleanup
-e.failTask(t, phase, s, err)
-return fmt.Errorf("phase %s failed: %w", phase.ID, err)
-```
-
-#### API Handler Error Handling
-
-API handlers that spawn executor goroutines must verify task status after execution:
-
-```go
-go func() {
-    err := exec.ExecuteTask(ctx, t, p, st)
-    // ... handle err ...
-
-    // Safety net: ensure task status is consistent
-    s.ensureTaskStatusConsistent(id, err)
-}()
-```
-
-This prevents orphaned tasks if the executor fails to update status due to panic or unexpected error path.
-
-#### Anti-Patterns
-
-❌ **Never swallow errors:**
-```go
-// BAD - error lost
-if err != nil {
-    return err  // Task still shows "running"!
-}
-```
-
-❌ **Never update only state or only task:**
-```go
-// BAD - task/state out of sync
-s.FailPhase(phaseID, err)
-e.backend.SaveState(s)
-return err  // Task.Status not updated!
-```
-
-❌ **Never skip error storage:**
-```go
-// BAD - user can't see what went wrong
-t.Status = task.StatusFailed
-e.backend.SaveTask(t)
-// Missing: s.Error = err.Error()
-```
-
-✅ **Always use helper functions** (`failTask`, `failSetup`, `interruptTask`) which handle all cleanup consistently.
+See `docs/INVARIANTS.md` for complete error handling rules and anti-patterns.
 
 ### Functional Options
 Constructors use functional options pattern:
@@ -180,64 +99,13 @@ type Publisher interface {
 
 ## Testing
 
-Each package has comprehensive tests. Use `make test` to run all tests with proper setup:
-```bash
-make test           # Handles prerequisites, runs with race detector
-make test-short     # Without race detector (faster)
-```
+`make test` (with race detector), `make test-short` (faster). API tests need `internal/api/static/.gitkeep`.
 
-Or run directly (requires prerequisites):
-```bash
-go test ./internal/... -v
-```
+**NEVER use `os.Chdir()` in tests** - use `t.TempDir()` and path-aware functions:
+- `task.LoadFrom(projectDir, id)`, `state.LoadFrom(projectDir, taskID)`
+- `config.InitAt(basePath, force)`, `template.SaveTo(baseDir)`
 
-### Test Prerequisites
-
-The API package uses `go:embed` for static frontend files. Tests require a placeholder:
-```bash
-mkdir -p internal/api/static
-echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
-```
-
-When using `go.work` for local dependency development, use `GOWORK=off` for test isolation:
-```bash
-GOWORK=off go test -v ./...
-```
-
-The Makefile handles both automatically.
-
-### Test Isolation Pattern
-
-**NEVER use `os.Chdir()` in tests** - it's process-wide and not goroutine-safe.
-
-Instead, use explicit path parameters with `t.TempDir()`:
-
-```go
-func TestSomething(t *testing.T) {
-    tmpDir := t.TempDir()
-
-    // Initialize in temp directory
-    err := config.InitAt(tmpDir, false)
-
-    // Load from temp directory
-    task, err := task.LoadFrom(tmpDir, "TASK-001")
-
-    // Save to temp directory
-    err = task.SaveTo(filepath.Join(tmpDir, ".orc", "tasks", task.ID))
-}
-```
-
-**Path-aware function variants:**
-
-| Package | Functions |
-|---------|-----------|
-| `task` | `LoadFrom(projectDir, id)`, `LoadAllFrom(tasksDir)`, `TaskDirIn(projectDir, id)`, `ExistsIn(projectDir, id)`, `DeleteIn(projectDir, id)`, `NextIDIn(tasksDir)`, `ListAttachments(taskDir)`, `SaveAttachment(taskDir, filename, reader)`, `GetAttachment(taskDir, filename)`, `DeleteAttachment(taskDir, filename)` |
-| `state` | `LoadFrom(projectDir, taskID)`, `LoadAllStatesFrom(projectDir)` |
-| `plan` | `LoadFrom(projectDir, taskID)`, `RegeneratePlanForTask(projectDir, task)` |
-| `config` | `InitAt(basePath, force)`, `IsInitializedAt(basePath)`, `RequireInitAt(basePath)` |
-| `template` | `SaveTo(baseDir)`, `ListFrom(projectTemplatesDir)` |
-
-The API server uses `WorkDir` in its config to specify the project directory.
+See `docs/INVARIANTS.md` for testing patterns.
 
 ## Package Details
 
