@@ -136,6 +136,7 @@ func init() {
 	addCmd(newCommentCmd(), groupAdvanced)
 	addCmd(newProjectsCmd(), groupAdvanced)
 	addCmd(newVersionCmd(), groupAdvanced)
+	addCmd(newGoodbyeCmd(), groupAdvanced)
 }
 
 // addCmd adds a command to root with the specified group

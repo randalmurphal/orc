@@ -116,19 +116,31 @@ Branches are created automatically on first task run:
 
 ## Initiative Completion Flow
 
-When all tasks in an initiative complete:
+When all tasks in an initiative complete, the initiative status is updated:
+
+### With BranchBase (Feature Branch)
 
 ```
-1. Check: All tasks completed/finished?
-2. Check: Initiative has BranchBase?
-3. Create PR: feature/user-auth → main
-4. Profile-based behavior:
+1. Check: All tasks completed?
+2. Create PR: feature/user-auth → main
+3. Profile-based behavior:
    - auto/fast: Wait for CI, auto-merge
    - safe/strict: Leave PR for human review
-5. Update initiative: MergeStatus, MergeCommit
+4. Update initiative: Status=completed, MergeStatus=merged, MergeCommit
 ```
 
-**Location:** `internal/executor/initiative_completion.go`
+**Function:** `CheckAndCompleteInitiative()` in `internal/executor/initiative_completion.go`
+
+### Without BranchBase (Direct to Main)
+
+```
+1. Check: All tasks completed?
+2. Update initiative: Status=completed
+```
+
+**Function:** `CheckAndCompleteInitiativeNoBranch()` in `internal/executor/initiative_completion.go`
+
+Both functions are called automatically when tasks complete (in `WorkflowExecutor.completeTask()`).
 
 ### Merge Status
 
