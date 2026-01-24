@@ -737,6 +737,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.publishTaskUpdated(t)
 		// Trigger automation event for task completion
 		we.triggerAutomationEvent(execCtx, automation.EventTaskCompleted, t, "")
+
+		// Check if task's initiative should be auto-completed (for no-branch initiatives)
+		if t.InitiativeID != "" {
+			completer := NewInitiativeCompleter(we.gitOps, nil, we.backend, we.orcConfig, we.logger, we.workingDir)
+			if err := completer.CheckAndCompleteInitiativeNoBranch(execCtx, t.InitiativeID); err != nil {
+				// Best-effort: log error but don't fail task completion
+				we.logger.Warn("failed to check initiative completion",
+					"task", t.ID,
+					"initiative", t.InitiativeID,
+					"error", err)
+			}
+		}
 	}
 
 	// Clear execution state

@@ -4,6 +4,8 @@ package cli
 // These tests MUST NOT use t.Parallel() and run sequentially within this package.
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1044,5 +1046,272 @@ tasks:
 		if tk.InitiativeID != "INIT-001" {
 			t.Errorf("task %s InitiativeID = %q, want INIT-001", tk.ID, tk.InitiativeID)
 		}
+	}
+}
+
+// =============================================================================
+// Tests for initiative auto-completion on list/show (TASK-525)
+// =============================================================================
+
+// TestInitiativeListAutoCompletes tests that the list command triggers
+// auto-completion for eligible initiatives when all their tasks are done.
+// Covers SC-2: CheckAndCompleteInitiativeNoBranch is called when listing.
+func TestInitiativeListAutoCompletes(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative WITHOUT BranchBase, in active status
+	init := initiative.New("INIT-001", "Should Auto-Complete")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "Completed task", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create completed task
+	tk := task.New("TASK-001", "Completed task")
+	tk.Status = task.StatusCompleted
+	tk.SetInitiative("INIT-001")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run list command - this should trigger auto-completion
+	cmd := newInitiativeListCmd()
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("list command failed: %v", err)
+	}
+
+	// Re-open backend to verify status change
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+
+	// Initiative should now be completed (auto-completed by list)
+	if reloaded.Status != initiative.StatusCompleted {
+		t.Errorf("initiative Status = %q, want %q (should auto-complete on list)",
+			reloaded.Status, initiative.StatusCompleted)
+	}
+}
+
+// TestInitiativeListDoesNotAutoCompleteWithBranchBase tests that initiatives
+// with BranchBase are skipped during auto-completion (they use merge flow).
+func TestInitiativeListDoesNotAutoCompleteWithBranchBase(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative WITH BranchBase
+	init := initiative.New("INIT-001", "Feature Branch Initiative")
+	init.Status = initiative.StatusActive
+	init.BranchBase = "feature/auth" // Has branch base - should use merge flow
+	init.AddTask("TASK-001", "Task", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create completed task
+	tk := task.New("TASK-001", "Task")
+	tk.Status = task.StatusCompleted
+	tk.SetInitiative("INIT-001")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run list command
+	cmd := newInitiativeListCmd()
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("list command failed: %v", err)
+	}
+
+	// Re-open backend to verify status is unchanged
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, _ := backend.LoadInitiative("INIT-001")
+	if reloaded.Status != initiative.StatusActive {
+		t.Errorf("initiative Status = %q, want %q (BranchBase initiatives should use merge flow)",
+			reloaded.Status, initiative.StatusActive)
+	}
+}
+
+// TestInitiativeListCompletedNotShowBlocked tests that completed initiatives
+// don't show "[BLOCKED]" in the CLI output even if they have BlockedBy deps.
+// Covers SC-3: Completed initiatives don't show "[BLOCKED]" in CLI output.
+func TestInitiativeListCompletedNotShowBlocked(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create "blocker" initiative that is NOT completed
+	blocker := initiative.New("INIT-001", "Blocker Initiative")
+	blocker.Status = initiative.StatusActive // Not completed!
+	if err := backend.SaveInitiative(blocker); err != nil {
+		t.Fatalf("save blocker: %v", err)
+	}
+
+	// Create completed initiative that has BlockedBy dependency on the blocker
+	completed := initiative.New("INIT-002", "Completed With Blocker")
+	completed.Status = initiative.StatusCompleted // Already completed
+	completed.BlockedBy = []string{"INIT-001"}    // Has unmet blocker!
+	if err := backend.SaveInitiative(completed); err != nil {
+		t.Fatalf("save completed: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Capture stdout to verify output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeListCmd()
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("list command failed: %v", err)
+	}
+
+	// Restore stdout and read captured output
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// Re-open backend for verification
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify that INIT-002 is still completed
+	reloaded, _ := backend.LoadInitiative("INIT-002")
+	if reloaded.Status != initiative.StatusCompleted {
+		t.Errorf("completed initiative status changed unexpectedly to %q", reloaded.Status)
+	}
+
+	// The key test: completed initiatives should NOT show "[BLOCKED]"
+	// Note: The current implementation appends "[BLOCKED]" even for completed.
+	// After the fix, completed initiatives should NOT show "[BLOCKED]".
+	if strings.Contains(output, "completed [BLOCKED]") {
+		t.Errorf("completed initiative should not show [BLOCKED], got output:\n%s", output)
+	}
+}
+
+// TestInitiativeShowAutoCompletes tests that the show command displays
+// correct status after triggering auto-completion.
+// Covers SC-5: orc initiative show shows correct status after auto-completion.
+func TestInitiativeShowAutoCompletes(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative WITHOUT BranchBase, in active status
+	init := initiative.New("INIT-001", "Should Complete on Show")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "Done task", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create completed task
+	tk := task.New("TASK-001", "Done task")
+	tk.Status = task.StatusCompleted
+	tk.SetInitiative("INIT-001")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run show command - this should trigger auto-completion
+	cmd := newInitiativeShowCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("show command failed: %v", err)
+	}
+
+	// Re-open backend to verify status change
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadInitiative("INIT-001")
+	if err != nil {
+		t.Fatalf("reload initiative: %v", err)
+	}
+
+	// Initiative should now be completed (auto-completed by show)
+	if reloaded.Status != initiative.StatusCompleted {
+		t.Errorf("initiative Status = %q, want %q (should auto-complete on show)",
+			reloaded.Status, initiative.StatusCompleted)
+	}
+}
+
+// TestInitiativeListAutoCompleteDoesNotBreakOnError tests that auto-completion
+// errors on one initiative don't prevent listing other initiatives.
+// Failure mode: Task loader fails should skip auto-completion, log warning.
+func TestInitiativeListAutoCompleteDoesNotBreakOnError(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create first initiative with missing task (will fail auto-completion check)
+	init1 := initiative.New("INIT-001", "Has Missing Task")
+	init1.Status = initiative.StatusActive
+	init1.AddTask("TASK-MISSING", "Task doesn't exist", nil)
+	if err := backend.SaveInitiative(init1); err != nil {
+		t.Fatalf("save init1: %v", err)
+	}
+
+	// Create second initiative that should auto-complete successfully
+	init2 := initiative.New("INIT-002", "Should Complete")
+	init2.Status = initiative.StatusActive
+	init2.AddTask("TASK-001", "Completed task", nil)
+	if err := backend.SaveInitiative(init2); err != nil {
+		t.Fatalf("save init2: %v", err)
+	}
+
+	// Create the task for init2
+	tk := task.New("TASK-001", "Completed task")
+	tk.Status = task.StatusCompleted
+	tk.SetInitiative("INIT-002")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run list command - should not fail even with one problematic initiative
+	cmd := newInitiativeListCmd()
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("list command should not fail due to one initiative error: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// INIT-001 should remain active (couldn't verify tasks)
+	reloaded1, _ := backend.LoadInitiative("INIT-001")
+	if reloaded1.Status != initiative.StatusActive {
+		t.Errorf("INIT-001 Status = %q, want %q", reloaded1.Status, initiative.StatusActive)
+	}
+
+	// INIT-002 should be completed
+	reloaded2, _ := backend.LoadInitiative("INIT-002")
+	if reloaded2.Status != initiative.StatusCompleted {
+		t.Errorf("INIT-002 Status = %q, want %q", reloaded2.Status, initiative.StatusCompleted)
 	}
 }

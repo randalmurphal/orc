@@ -2,7 +2,9 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -10,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 )
@@ -262,6 +265,43 @@ func newInitiativeListCmd() *cobra.Command {
 				initMap[init.ID] = init
 			}
 
+			// Auto-complete eligible initiatives (catch-up for initiatives with all tasks completed)
+			// Best-effort: log warning on failure, don't fail list
+			logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+			completer := executor.NewInitiativeCompleter(nil, nil, backend, nil, logger, "")
+			for _, init := range initiatives {
+				// Only check active initiatives without BranchBase
+				if init.Status != initiative.StatusCompleted && !init.HasBranchBase() && len(init.Tasks) > 0 {
+					if err := completer.CheckAndCompleteInitiativeNoBranch(context.Background(), init.ID); err != nil {
+						// Best-effort: log but don't fail
+						logger.Debug("auto-completion check failed", "initiative", init.ID, "error", err)
+					}
+				}
+			}
+
+			// Reload initiatives to get updated statuses after auto-completion
+			initiatives, err = backend.LoadAllInitiatives()
+			if err != nil {
+				return fmt.Errorf("reload initiatives: %w", err)
+			}
+			// Reapply status filter if needed
+			if statusFilter != "" {
+				targetStatus := initiative.Status(statusFilter)
+				var filtered []*initiative.Initiative
+				for _, init := range initiatives {
+					if init.Status == targetStatus {
+						filtered = append(filtered, init)
+					}
+				}
+				initiatives = filtered
+			}
+			// Rebuild map with updated initiatives
+			initMap = make(map[string]*initiative.Initiative)
+			for _, init := range initiatives {
+				initMap[init.ID] = init
+			}
+			initiative.PopulateComputedFields(initiatives)
+
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			_, _ = fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tTASKS\tOWNER")
 			_, _ = fmt.Fprintln(w, "--\t-----\t------\t-----\t-----")
@@ -272,7 +312,8 @@ func newInitiativeListCmd() *cobra.Command {
 					owner = init.Owner.Initials
 				}
 				statusStr := string(init.Status)
-				if init.IsBlocked(initMap) {
+				// Only show BLOCKED for non-completed initiatives (SC-3)
+				if init.Status != initiative.StatusCompleted && init.IsBlocked(initMap) {
 					statusStr = statusStr + " [BLOCKED]"
 				}
 				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
@@ -465,6 +506,21 @@ func newInitiativeShowCmd() *cobra.Command {
 				return fmt.Errorf("load initiative: %w", err)
 			}
 
+			// Auto-complete check (catch-up for initiatives with all tasks completed)
+			// Best-effort: log warning on failure, don't fail show
+			if init.Status != initiative.StatusCompleted && !init.HasBranchBase() && len(init.Tasks) > 0 {
+				logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+				completer := executor.NewInitiativeCompleter(nil, nil, backend, nil, logger, "")
+				if err := completer.CheckAndCompleteInitiativeNoBranch(context.Background(), init.ID); err != nil {
+					logger.Debug("auto-completion check failed", "initiative", init.ID, "error", err)
+				}
+				// Reload initiative to get updated status
+				init, err = backend.LoadInitiative(id)
+				if err != nil {
+					return fmt.Errorf("reload initiative: %w", err)
+				}
+			}
+
 			// Load all initiatives for dependency info
 			allInits, err := backend.LoadAllInitiatives()
 			if err != nil {
@@ -479,8 +535,8 @@ func newInitiativeShowCmd() *cobra.Command {
 			fmt.Printf("Initiative: %s\n", init.ID)
 			fmt.Printf("Title:      %s\n", init.Title)
 
-			// Status with blocked indicator
-			if init.IsBlocked(initMap) {
+			// Status with blocked indicator (only for non-completed initiatives)
+			if init.Status != initiative.StatusCompleted && init.IsBlocked(initMap) {
 				fmt.Printf("Status:     %s (BLOCKED)\n", init.Status)
 			} else {
 				fmt.Printf("Status:     %s\n", init.Status)

@@ -516,3 +516,71 @@ func (c *InitiativeCompleter) ManualCompleteInitiative(ctx context.Context, init
 	// Force auto-merge flow
 	return c.autoMergeInitiative(ctx, init)
 }
+
+// CheckAndCompleteInitiativeNoBranch marks an initiative as completed if:
+// 1. The initiative has no BranchBase configured
+// 2. All tasks in the initiative are complete
+//
+// This is called after task completion for initiatives that don't use feature branches.
+// Initiatives with BranchBase should use CheckAndCompleteInitiative instead (merge flow).
+//
+// The function is best-effort: errors are returned but should not fail the calling task.
+func (c *InitiativeCompleter) CheckAndCompleteInitiativeNoBranch(ctx context.Context, initiativeID string) error {
+	if c.backend == nil {
+		return fmt.Errorf("storage backend is required")
+	}
+
+	// Load the initiative
+	init, err := c.backend.LoadInitiative(initiativeID)
+	if err != nil {
+		return fmt.Errorf("load initiative %s: %w", initiativeID, err)
+	}
+	if init == nil {
+		return fmt.Errorf("initiative %s not found", initiativeID)
+	}
+
+	// Skip if initiative has a branch base - those use the merge flow
+	if init.HasBranchBase() {
+		c.logger.Debug("initiative has branch base, skipping no-branch completion (use merge flow instead)",
+			"initiative", initiativeID,
+			"branch", init.BranchBase)
+		return nil
+	}
+
+	// Skip if already completed - no work to do
+	if init.Status == initiative.StatusCompleted {
+		c.logger.Debug("initiative already completed",
+			"initiative", initiativeID)
+		return nil
+	}
+
+	// Skip if no tasks - empty initiatives should not auto-complete
+	if len(init.Tasks) == 0 {
+		c.logger.Debug("initiative has no tasks, skipping auto-completion",
+			"initiative", initiativeID)
+		return nil
+	}
+
+	// Create a task loader to check actual task statuses from backend
+	taskLoader := c.createTaskLoader()
+
+	// Check if all tasks are complete
+	if !init.AllTasksCompleteWithLoader(taskLoader) {
+		c.logger.Debug("initiative has incomplete tasks",
+			"initiative", initiativeID)
+		return nil
+	}
+
+	// All tasks complete - mark initiative as completed
+	c.logger.Info("all tasks complete, marking initiative as completed",
+		"initiative", initiativeID)
+
+	init.Status = initiative.StatusCompleted
+	init.UpdatedAt = time.Now()
+
+	if err := c.backend.SaveInitiative(init); err != nil {
+		return fmt.Errorf("save initiative %s: %w", initiativeID, err)
+	}
+
+	return nil
+}

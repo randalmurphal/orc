@@ -1,9 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"os"
 
+	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -49,6 +53,29 @@ func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure we return an empty array, not null
+	if initiatives == nil {
+		initiatives = []*initiative.Initiative{}
+	}
+
+	// Auto-complete eligible initiatives (catch-up for initiatives with all tasks completed)
+	// Best-effort: log warning on failure, don't fail list
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	completer := executor.NewInitiativeCompleter(nil, nil, s.backend, nil, logger, "")
+	for _, init := range initiatives {
+		// Only check active initiatives without BranchBase
+		if init.Status != initiative.StatusCompleted && !init.HasBranchBase() && len(init.Tasks) > 0 {
+			if err := completer.CheckAndCompleteInitiativeNoBranch(context.Background(), init.ID); err != nil {
+				logger.Debug("auto-completion check failed", "initiative", init.ID, "error", err)
+			}
+		}
+	}
+
+	// Reload initiatives to get updated statuses after auto-completion
+	initiatives, err = s.backend.LoadAllInitiatives()
+	if err != nil {
+		s.jsonError(w, "failed to reload initiatives", http.StatusInternalServerError)
+		return
+	}
 	if initiatives == nil {
 		initiatives = []*initiative.Initiative{}
 	}
@@ -145,6 +172,22 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.jsonError(w, "initiative not found", http.StatusNotFound)
 		return
+	}
+
+	// Auto-complete check (catch-up for initiatives with all tasks completed)
+	// Best-effort: log warning on failure, don't fail get
+	if init.Status != initiative.StatusCompleted && !init.HasBranchBase() && len(init.Tasks) > 0 {
+		logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+		completer := executor.NewInitiativeCompleter(nil, nil, s.backend, nil, logger, "")
+		if err := completer.CheckAndCompleteInitiativeNoBranch(context.Background(), init.ID); err != nil {
+			logger.Debug("auto-completion check failed", "initiative", init.ID, "error", err)
+		}
+		// Reload initiative to get updated status
+		init, err = s.backend.LoadInitiative(id)
+		if err != nil {
+			s.jsonError(w, "initiative not found after auto-completion", http.StatusNotFound)
+			return
+		}
 	}
 
 	// Load all initiatives to populate computed fields
