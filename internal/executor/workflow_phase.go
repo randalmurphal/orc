@@ -14,6 +14,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -133,6 +134,26 @@ func (we *WorkflowExecutor) executePhase(
 	// This applies orc config settings to MCP servers defined in phase templates
 	if claudeConfig != nil && len(claudeConfig.MCPServers) > 0 {
 		claudeConfig.MCPServers = MergeMCPConfigSettings(claudeConfig.MCPServers, rctx.TaskID, we.orcConfig)
+
+		// Inject MCP servers into worktree settings.json so subagents get them too
+		if we.worktreePath != "" {
+			mcpServers := make(map[string]git.MCPServerConfig)
+			for name, server := range claudeConfig.MCPServers {
+				mcpServers[name] = git.MCPServerConfig{
+					Command: server.Command,
+					Args:    server.Args,
+					Env:     server.Env,
+				}
+			}
+			if err := git.InjectMCPServersToWorktree(we.worktreePath, mcpServers); err != nil {
+				we.logger.Warn("failed to inject MCP servers to worktree", "error", err)
+			} else {
+				we.logger.Info("injected MCP servers to worktree settings.json",
+					"phase", tmpl.ID,
+					"servers", fmt.Sprintf("%v", maps.Keys(mcpServers)),
+				)
+			}
+		}
 	}
 
 	// Build execution context for ClaudeExecutor

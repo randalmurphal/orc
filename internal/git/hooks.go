@@ -262,6 +262,17 @@ type ClaudeCodeHookConfig struct {
 	// AdditionalEnv are extra environment variables to inject (e.g., MAX_THINKING_TOKENS).
 	// These are merged with user env vars, with AdditionalEnv taking precedence.
 	AdditionalEnv map[string]string
+
+	// MCPServers defines MCP servers to inject into the worktree's settings.json.
+	// This ensures subagents spawned via Task tool have access to MCP tools.
+	MCPServers map[string]MCPServerConfig
+}
+
+// MCPServerConfig defines an MCP server configuration for settings.json.
+type MCPServerConfig struct {
+	Command string            `json:"command"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
 }
 
 // InjectClaudeCodeHooks injects Claude Code PreToolUse hooks into the worktree.
@@ -307,8 +318,9 @@ func InjectClaudeCodeHooks(cfg ClaudeCodeHookConfig) error {
 // worktreeSettings represents the settings.json structure for worktrees.
 // Uses proper JSON marshaling instead of string formatting.
 type worktreeSettings struct {
-	Env   map[string]string     `json:"env,omitempty"`
-	Hooks map[string][]hookDef  `json:"hooks"`
+	Env        map[string]string            `json:"env,omitempty"`
+	Hooks      map[string][]hookDef         `json:"hooks"`
+	MCPServers map[string]MCPServerConfig   `json:"mcpServers,omitempty"`
 }
 
 type hookDef struct {
@@ -378,6 +390,11 @@ func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) strin
 		settings.Env = envVars
 	}
 
+	// Include MCP servers if configured
+	if len(cfg.MCPServers) > 0 {
+		settings.MCPServers = cfg.MCPServers
+	}
+
 	// Marshal to JSON with indentation
 	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
@@ -385,6 +402,58 @@ func generateClaudeCodeSettings(hookPath string, cfg ClaudeCodeHookConfig) strin
 		return `{"hooks":{"PreToolUse":[]}}`
 	}
 	return string(data)
+}
+
+// InjectMCPServersToWorktree adds MCP server configuration to an existing worktree's settings.json.
+// This is called separately from InjectClaudeCodeHooks because MCP config is determined at the
+// executor layer, not the Git layer.
+//
+// The function reads the existing settings.json, adds/updates the mcpServers section, and writes it back.
+// This ensures subagents spawned via the Task tool have access to MCP tools like Playwright.
+func InjectMCPServersToWorktree(worktreePath string, servers map[string]MCPServerConfig) error {
+	if len(servers) == 0 {
+		return nil
+	}
+
+	settingsPath := filepath.Join(worktreePath, ".claude", "settings.json")
+
+	// Read existing settings
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No settings.json yet, create one with just MCP servers
+			settings := map[string]any{
+				"mcpServers": servers,
+			}
+			data, err = json.MarshalIndent(settings, "", "  ")
+			if err != nil {
+				return fmt.Errorf("marshal MCP settings: %w", err)
+			}
+			claudeDir := filepath.Join(worktreePath, ".claude")
+			if err := os.MkdirAll(claudeDir, 0755); err != nil {
+				return fmt.Errorf("create .claude dir: %w", err)
+			}
+			return os.WriteFile(settingsPath, data, 0644)
+		}
+		return fmt.Errorf("read settings.json: %w", err)
+	}
+
+	// Parse existing settings
+	var settings map[string]any
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return fmt.Errorf("parse settings.json: %w", err)
+	}
+
+	// Add/update mcpServers
+	settings["mcpServers"] = servers
+
+	// Write back
+	data, err = json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal updated settings: %w", err)
+	}
+
+	return os.WriteFile(settingsPath, data, 0644)
 }
 
 // loadUserClaudeSettings loads the user's ~/.claude/settings.json.
