@@ -942,11 +942,22 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// Batch load all states once (3 queries total instead of 3N)
+	allStates, err := s.backend.LoadAllStates()
+	if err != nil {
+		// Non-fatal: continue without token/cost data
+		allStates = nil
+	}
+	statesByID := make(map[string]*state.State, len(allStates))
+	for _, st := range allStates {
+		statesByID[st.TaskID] = st
+	}
+
 	// Calculate stats for both periods
-	// Use calculatePeriodStats from handlers_dashboard.go (requires 4 params: tasks, periodStart, periodEnd, today)
+	// Use calculatePeriodStats from handlers_dashboard.go (requires 5 params: tasks, statesByID, periodStart, periodEnd, today)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	currentDashStats := s.calculatePeriodStats(allTasks, currentStart, currentEnd, today)
-	previousDashStats := s.calculatePeriodStats(allTasks, previousStart, previousEnd, today)
+	currentDashStats := s.calculatePeriodStats(allTasks, statesByID, currentStart, currentEnd, today)
+	previousDashStats := s.calculatePeriodStats(allTasks, statesByID, previousStart, previousEnd, today)
 
 	// Convert DashboardStats to PeriodStats for response
 	currentStats := PeriodStats{

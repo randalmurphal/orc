@@ -118,7 +118,7 @@ func withReviewComments(comments []db.ReviewComment) func(*testing.T, string, st
 
 func TestHandleAutoFixComment_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/C123/autofix", nil)
 	w := httptest.NewRecorder()
@@ -293,7 +293,7 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 
 func TestHandleReplyToPRComment_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`{"body": "Reply text"}`)
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/123/reply", body)
@@ -411,7 +411,7 @@ func TestHandleReplyToPRComment_InvalidCommentID(t *testing.T) {
 
 func TestHandleImportPRComments_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/import", nil)
 	w := httptest.NewRecorder()
@@ -462,7 +462,7 @@ func TestHandleImportPRComments_NoBranch(t *testing.T) {
 
 func TestHandleListPRChecks_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/github/pr/checks", nil)
 	w := httptest.NewRecorder()
@@ -570,7 +570,7 @@ func TestCheckStatusCategorization_NeutralAndSkipped(t *testing.T) {
 
 func TestHandleCreatePR_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr", nil)
 	w := httptest.NewRecorder()
@@ -649,7 +649,7 @@ func TestHandleCreatePR_DefaultsTitle(t *testing.T) {
 
 func TestHandleGetPR_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/github/pr", nil)
 	w := httptest.NewRecorder()
@@ -700,7 +700,7 @@ func TestHandleGetPR_NoBranch(t *testing.T) {
 
 func TestHandleMergePR_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/merge", nil)
 	w := httptest.NewRecorder()
@@ -751,7 +751,7 @@ func TestHandleMergePR_NoBranch(t *testing.T) {
 
 func TestHandleSyncPRComments_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/github/pr/comments/sync", nil)
 	w := httptest.NewRecorder()

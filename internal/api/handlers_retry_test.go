@@ -163,7 +163,7 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 
 func TestHandleRetryTask_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/retry", nil)
 	w := httptest.NewRecorder()
@@ -351,7 +351,7 @@ func TestHandleRetryTask_AttemptNumberFromState(t *testing.T) {
 
 func TestHandleGetRetryPreview_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest("GET", "/api/tasks/NONEXISTENT/retry/preview", nil)
 	w := httptest.NewRecorder()
@@ -464,7 +464,7 @@ func TestHandleGetRetryPreview_AttemptNumberFromState(t *testing.T) {
 
 func TestHandleRetryWithFeedback_TaskNotFound(t *testing.T) {
 	t.Parallel()
-	srv := New(nil)
+	srv := newTestServer(t)
 
 	body := bytes.NewBufferString(`{"failure_reason": "Tests failed"}`)
 	req := httptest.NewRequest("POST", "/api/tasks/NONEXISTENT/retry/feedback", body)

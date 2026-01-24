@@ -5,17 +5,33 @@ import (
 	"net/http"
 
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
-// makeTaskLoader creates a TaskLoader that fetches task status from the database.
-func (s *Server) makeTaskLoader() initiative.TaskLoader {
-	return func(taskID string) (status string, title string, err error) {
-		t, err := s.backend.LoadTask(taskID)
-		if err != nil {
-			// Task not found or unreadable - return empty to use fallback
+// makeBatchTaskLoader creates a TaskLoader that batch-loads all tasks upfront.
+// This eliminates N+1 queries when enriching initiative task statuses.
+// Returns a closure that looks up tasks from the pre-loaded map.
+func (s *Server) makeBatchTaskLoader() initiative.TaskLoader {
+	// Load all tasks once (2 queries: tasks + dependencies)
+	allTasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		// Fallback: return empty loader that won't update any statuses
+		return func(taskID string) (string, string, error) {
 			return "", "", nil
 		}
-		return string(t.Status), t.Title, nil
+	}
+
+	// Build lookup map
+	taskMap := make(map[string]*task.Task, len(allTasks))
+	for _, t := range allTasks {
+		taskMap[t.ID] = t
+	}
+
+	return func(taskID string) (status string, title string, err error) {
+		if t, ok := taskMap[taskID]; ok {
+			return string(t.Status), t.Title, nil
+		}
+		return "", "", nil
 	}
 }
 
@@ -41,7 +57,7 @@ func (s *Server) handleListInitiatives(w http.ResponseWriter, r *http.Request) {
 	initiative.PopulateComputedFields(initiatives)
 
 	// Enrich task statuses with actual values from database
-	loader := s.makeTaskLoader()
+	loader := s.makeBatchTaskLoader()
 	for _, init := range initiatives {
 		init.EnrichTaskStatuses(loader)
 	}
@@ -145,7 +161,7 @@ func (s *Server) handleGetInitiative(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Enrich task statuses with actual values from database
-	init.EnrichTaskStatuses(s.makeTaskLoader())
+	init.EnrichTaskStatuses(s.makeBatchTaskLoader())
 
 	s.jsonResponse(w, init)
 }
@@ -235,7 +251,7 @@ func (s *Server) handleUpdateInitiative(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Enrich task statuses with actual values from database
-	init.EnrichTaskStatuses(s.makeTaskLoader())
+	init.EnrichTaskStatuses(s.makeBatchTaskLoader())
 
 	s.jsonResponse(w, init)
 }
@@ -274,7 +290,7 @@ func (s *Server) handleListInitiativeTasks(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Return tasks with actual status from database
-	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
+	tasks := init.GetTasksWithStatus(s.makeBatchTaskLoader())
 	s.jsonResponse(w, tasks)
 }
 
@@ -323,7 +339,7 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Return tasks with actual status from database
-	tasks := init.GetTasksWithStatus(s.makeTaskLoader())
+	tasks := init.GetTasksWithStatus(s.makeBatchTaskLoader())
 	s.jsonResponse(w, tasks)
 }
 
@@ -410,7 +426,7 @@ func (s *Server) handleGetReadyTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use actual task status from database
-	ready := init.GetReadyTasksWithLoader(s.makeTaskLoader())
+	ready := init.GetReadyTasksWithLoader(s.makeBatchTaskLoader())
 	if ready == nil {
 		ready = []initiative.TaskRef{}
 	}
