@@ -38,9 +38,10 @@ CWD-based task operations. These endpoints use the server's working directory as
 | GET | `/api/tasks/:id/state` | Get execution state |
 | GET | `/api/tasks/:id/plan` | Get task plan |
 | GET | `/api/tasks/:id/transcripts` | Get transcripts |
-| POST | `/api/tasks/:id/run` | Start task |
+| POST | `/api/tasks/:id/run` | Start task (`?force=true` to bypass blockers) |
 | POST | `/api/tasks/:id/pause` | Pause task |
 | POST | `/api/tasks/:id/resume` | Resume task |
+| POST | `/api/tasks/:id/skip-block` | Clear blocked_by dependencies |
 | POST | `/api/tasks/:id/rewind` | Rewind to phase (`{"phase": "implement"}`) |
 | POST | `/api/tasks/:id/finalize` | Trigger finalize phase (async) |
 | GET | `/api/tasks/:id/finalize` | Get finalize status |
@@ -170,6 +171,36 @@ Weight changes trigger automatic plan regeneration (completed/skipped phases are
 - Referenced task IDs must exist
 - Self-references are rejected
 - Circular dependencies are detected and rejected
+
+### Skip Block
+
+Clear dependency blockers to make a blocked task runnable.
+
+**POST `/api/tasks/:id/skip-block`**
+
+No request body required.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "task_id": "TASK-001",
+  "message": "Block skipped successfully",
+  "cleared_blockers": ["TASK-060", "TASK-061"]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `status` | Always `success` on 200 |
+| `task_id` | The task that was unblocked |
+| `message` | Human-readable confirmation |
+| `cleared_blockers` | Array of task IDs that were in `blocked_by` |
+
+**Side effects:**
+- Clears `blocked_by` field to empty array
+- Sets `is_blocked` to `false`
+- If task status was `blocked`, resets to `planned`
 
 ### Task Finalize
 

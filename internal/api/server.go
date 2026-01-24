@@ -278,6 +278,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tasks/{id}/run", cors(s.handleRunTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/pause", cors(s.handlePauseTask))
 	s.mux.HandleFunc("POST /api/tasks/{id}/resume", cors(s.handleResumeTask))
+	s.mux.HandleFunc("POST /api/tasks/{id}/skip-block", cors(s.handleSkipBlock))
 
 	// Gate decisions (human approval in headless mode)
 	s.mux.HandleFunc("GET /api/decisions", cors(s.handleListDecisions))
