@@ -526,12 +526,13 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
 			weight = excluded.weight,
+			workflow_id = excluded.workflow_id,
 			status = excluded.status,
 			state_status = excluded.state_status,
 			current_phase = excluded.current_phase,
@@ -553,7 +554,7 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			executor_started_at = excluded.executor_started_at,
 			last_heartbeat = excluded.last_heartbeat,
 			is_automation = excluded.is_automation
-	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
+	`, t.ID, t.Title, t.Description, t.Weight, t.WorkflowID, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, updatedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation)
 	if err != nil {
