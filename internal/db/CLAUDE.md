@@ -86,7 +86,17 @@ allDeps, _ := db.GetAllTaskDependencies()  // 1 query
 deps := allDeps[task.ID]                    // Map lookup
 ```
 
-**Batch functions:** `GetAllTaskDependencies()`, `GetAllInitiativeDecisions()`, `GetAllInitiativeTaskRefs()`, `GetAllInitiativeDependencies()`, `GetAllInitiativeDependents()`
+**Batch functions:**
+
+| Function | Returns | Used By |
+|----------|---------|---------|
+| `GetAllTaskDependencies()` | `map[string][]string` | Task loading |
+| `GetAllPhasesGrouped()` | `map[string][]Phase` | `LoadAllStates()` |
+| `GetAllGateDecisionsGrouped()` | `map[string][]GateDecision` | `LoadAllStates()` |
+| `GetAllInitiativeDecisions()` | `map[string][]InitiativeDecision` | Initiative loading |
+| `GetAllInitiativeTaskRefs()` | `map[string][]string` | Initiative loading |
+| `GetAllInitiativeDependencies()` | `map[string][]string` | Initiative loading |
+| `GetAllInitiativeDependents()` | `map[string][]string` | Initiative loading |
 
 ## Transcript System
 

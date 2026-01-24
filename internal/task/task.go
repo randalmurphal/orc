@@ -445,6 +445,14 @@ type Task struct {
 	// PR contains pull request information for this task.
 	// This is populated when a PR is created and updated via polling.
 	PR *PRInfo `yaml:"pr,omitempty" json:"pr,omitempty"`
+
+	// Executor tracking for orphan detection.
+	// These fields are loaded from the database but not serialized to YAML/JSON.
+	// Used by CheckOrphaned() to detect tasks whose executor process died.
+	ExecutorPID       int        `yaml:"-" json:"-"`
+	ExecutorHostname  string     `yaml:"-" json:"-"`
+	ExecutorStartedAt *time.Time `yaml:"-" json:"-"`
+	LastHeartbeat     *time.Time `yaml:"-" json:"-"`
 }
 
 // New creates a new task with the given title.

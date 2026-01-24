@@ -160,3 +160,56 @@ func SavePhaseTx(tx *TxOps, ph *Phase) error {
 	}
 	return nil
 }
+
+// GetAllPhasesGrouped retrieves all phases in one query, grouped by task_id.
+// Returns a map from task_id to list of phases.
+// This is used for batch loading to avoid N+1 queries.
+func (p *ProjectDB) GetAllPhasesGrouped() (map[string][]Phase, error) {
+	rows, err := p.Query(`
+		SELECT task_id, phase_id, status, iterations, started_at, completed_at,
+		       input_tokens, output_tokens, cost_usd, error_message, commit_sha, skip_reason, session_id
+		FROM phases ORDER BY task_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get all phases: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	phases := make(map[string][]Phase)
+	for rows.Next() {
+		var ph Phase
+		var startedAt, completedAt, errorMsg, commitSHA, skipReason, sessionID sql.NullString
+		if err := rows.Scan(&ph.TaskID, &ph.PhaseID, &ph.Status, &ph.Iterations, &startedAt, &completedAt,
+			&ph.InputTokens, &ph.OutputTokens, &ph.CostUSD, &errorMsg, &commitSHA, &skipReason, &sessionID); err != nil {
+			return nil, fmt.Errorf("scan phase: %w", err)
+		}
+		if startedAt.Valid {
+			if ts, err := time.Parse(time.RFC3339, startedAt.String); err == nil {
+				ph.StartedAt = &ts
+			}
+		}
+		if completedAt.Valid {
+			if ts, err := time.Parse(time.RFC3339, completedAt.String); err == nil {
+				ph.CompletedAt = &ts
+			}
+		}
+		if errorMsg.Valid {
+			ph.ErrorMessage = errorMsg.String
+		}
+		if commitSHA.Valid {
+			ph.CommitSHA = commitSHA.String
+		}
+		if skipReason.Valid {
+			ph.SkipReason = skipReason.String
+		}
+		if sessionID.Valid {
+			ph.SessionID = sessionID.String
+		}
+		phases[ph.TaskID] = append(phases[ph.TaskID], ph)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate phases: %w", err)
+	}
+
+	return phases, nil
+}

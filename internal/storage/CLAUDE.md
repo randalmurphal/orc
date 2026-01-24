@@ -47,6 +47,26 @@ Primary implementation using SQLite via the `db` package.
 - Batch loading to avoid N+1 queries
 - Foreign key cascades for deletion
 
+### LoadAllStates Optimization
+
+`LoadAllStates()` uses batch queries to avoid N+1 problem:
+
+```go
+// 3 queries total instead of 3N queries:
+dbTasks, _ := d.db.ListTasks(db.ListOpts{})       // 1 query
+allPhases, _ := d.db.GetAllPhasesGrouped()        // 1 query
+allGates, _ := d.db.GetAllGateDecisionsGrouped()  // 1 query
+
+// Build states from pre-fetched maps
+for _, dbTask := range dbTasks {
+    s := d.buildStateFromData(dbTask, allPhases[dbTask.ID], allGates[dbTask.ID])
+}
+```
+
+| Operation | Before | After |
+|-----------|--------|-------|
+| 100 tasks | 301 queries | 3 queries |
+
 ### Concurrency
 
 ```go

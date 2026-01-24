@@ -114,6 +114,7 @@ func TestHandleGetDashboardStats_BackwardCompatibility(t *testing.T) {
 	// Create tasks with different statuses
 	runningTask := task.New("TASK-001", "Running task")
 	runningTask.Status = task.StatusRunning
+	runningTask.ExecutorPID = os.Getpid() // Set PID so it's not detected as orphaned
 	if err := backend.SaveTask(runningTask); err != nil {
 		t.Fatalf("failed to save running task: %v", err)
 	}

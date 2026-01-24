@@ -98,6 +98,7 @@ func TestStatusCommand_InitiativeFilter(t *testing.T) {
 	t1.InitiativeID = "INIT-001"
 	t1.Status = task.StatusRunning
 	t1.Priority = task.PriorityHigh
+	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
@@ -462,6 +463,7 @@ func TestStatusCommand_InitiativeSummaryLine(t *testing.T) {
 	t1 := task.New("TASK-001", "Running in INIT-001")
 	t1.InitiativeID = "INIT-001"
 	t1.Status = task.StatusRunning
+	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
@@ -476,6 +478,7 @@ func TestStatusCommand_InitiativeSummaryLine(t *testing.T) {
 	// Create tasks NOT in initiative (should not affect counts)
 	t3 := task.New("TASK-003", "Running without initiative")
 	t3.Status = task.StatusRunning
+	t3.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
@@ -597,6 +600,7 @@ func TestStatusCommand_MultipleCategories(t *testing.T) {
 	t1 := task.New("TASK-001", "Running")
 	t1.InitiativeID = "INIT-001"
 	t1.Status = task.StatusRunning
+	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}

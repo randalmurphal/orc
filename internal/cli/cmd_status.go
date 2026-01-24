@@ -166,23 +166,17 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		return nil
 	}
 
-	// Check for orphaned tasks by loading states
+	// Check for orphaned tasks directly from task executor fields
+	// This is much more efficient than loading full states (no N+1 queries)
 	type orphanInfo struct {
 		TaskID string
 		Reason string
 	}
-	var orphans []orphanInfo
-	states, stateErr := backend.LoadAllStates()
-	if stateErr == nil {
-		for _, s := range states {
-			if isOrphaned, reason := s.CheckOrphaned(); isOrphaned {
-				orphans = append(orphans, orphanInfo{TaskID: s.TaskID, Reason: reason})
-			}
-		}
-	}
 	orphanedIDs := make(map[string]orphanInfo)
-	for _, o := range orphans {
-		orphanedIDs[o.TaskID] = o
+	for _, t := range tasks {
+		if isOrphaned, reason := t.CheckOrphaned(); isOrphaned {
+			orphanedIDs[t.ID] = orphanInfo{TaskID: t.ID, Reason: reason}
+		}
 	}
 
 	// Categorize tasks

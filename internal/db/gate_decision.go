@@ -137,3 +137,47 @@ func AddGateDecisionTx(tx *TxOps, d *GateDecision) error {
 	d.ID = id
 	return nil
 }
+
+// GetAllGateDecisionsGrouped retrieves all gate decisions in one query, grouped by task_id.
+// Returns a map from task_id to list of decisions.
+// This is used for batch loading to avoid N+1 queries.
+func (p *ProjectDB) GetAllGateDecisionsGrouped() (map[string][]GateDecision, error) {
+	rows, err := p.Query(`
+		SELECT id, task_id, phase, gate_type, approved, reason, decided_by, decided_at
+		FROM gate_decisions ORDER BY task_id, decided_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get all gate decisions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	decisions := make(map[string][]GateDecision)
+	for rows.Next() {
+		var d GateDecision
+		var approved int
+		var reason, decidedBy sql.NullString
+		var decidedAt string
+
+		if err := rows.Scan(&d.ID, &d.TaskID, &d.Phase, &d.GateType, &approved, &reason, &decidedBy, &decidedAt); err != nil {
+			return nil, fmt.Errorf("scan gate decision: %w", err)
+		}
+
+		d.Approved = approved == 1
+		if reason.Valid {
+			d.Reason = reason.String
+		}
+		if decidedBy.Valid {
+			d.DecidedBy = decidedBy.String
+		}
+		if ts, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+			d.DecidedAt = ts
+		}
+
+		decisions[d.TaskID] = append(decisions[d.TaskID], d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate gate decisions: %w", err)
+	}
+
+	return decisions, nil
+}

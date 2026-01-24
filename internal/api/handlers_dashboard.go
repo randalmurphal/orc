@@ -131,26 +131,15 @@ func (s *Server) calculatePeriodStats(tasks []*task.Task, periodStart, periodEnd
 	var completedTaskTimes []float64
 
 	for _, t := range tasks {
-		// Load state for token counts, cost, and orphan detection
-		st, err := s.backend.LoadState(t.ID)
-		if err != nil {
-			// State may not exist for all tasks, continue
-			st = nil
-		}
-
 		// For current period only, count current status
 		if isCurrentPeriod {
 			stats.Total++
 
 			switch t.Status {
 			case task.StatusRunning:
-				// Check if task is orphaned
-				if st != nil {
-					if isOrphaned, _ := st.CheckOrphaned(); isOrphaned {
-						stats.Orphaned++
-					} else {
-						stats.Running++
-					}
+				// Check if task is orphaned using task's executor fields (optimized)
+				if isOrphaned, _ := t.CheckOrphaned(); isOrphaned {
+					stats.Orphaned++
 				} else {
 					stats.Running++
 				}
@@ -181,8 +170,9 @@ func (s *Server) calculatePeriodStats(tasks []*task.Task, periodStart, periodEnd
 					completedTaskTimes = append(completedTaskTimes, duration)
 				}
 
-				// Add token counts and cost from state
-				if st != nil {
+				// Load state for token counts and cost (only for completed tasks)
+				st, err := s.backend.LoadState(t.ID)
+				if err == nil && st != nil {
 					// Sum tokens from all phases
 					// Note: DB only stores InputTokens and OutputTokens per phase
 					// CacheCreation and CacheRead tokens are not persisted at phase level
