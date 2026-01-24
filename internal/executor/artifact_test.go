@@ -472,7 +472,7 @@ func TestPhasesWithArtifacts(t *testing.T) {
 
 	// Includes new TDD phases: tiny_spec (combined spec+TDD), tdd_write, breakdown
 	artifactPhases := []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"}
-	nonArtifactPhases := []string{"implement", "test", "review", "validate", "finalize"}
+	nonArtifactPhases := []string{"implement", "test", "review", "finalize"}
 
 	for _, phase := range artifactPhases {
 		if !PhasesWithArtifacts[phase] {
@@ -501,7 +501,7 @@ func TestGetSchemaForPhase(t *testing.T) {
 	})
 
 	t.Run("standard phases get basic schema", func(t *testing.T) {
-		for _, phase := range []string{"implement", "test", "validate", "finalize"} {
+		for _, phase := range []string{"implement", "test", "finalize"} {
 			schema := GetSchemaForPhase(phase)
 			if strings.Contains(schema, `"artifact"`) {
 				t.Errorf("GetSchemaForPhase(%q) should return schema WITHOUT artifact field", phase)

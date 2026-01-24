@@ -939,14 +939,14 @@ func (d *DatabaseBackend) SaveReviewFindings(f *ReviewFindings) error {
 	defer d.mu.Unlock()
 
 	dbFindings := &db.ReviewFindings{
-		TaskID:      f.TaskID,
-		Round:       f.Round,
-		Summary:     f.Summary,
-		Issues:      make([]db.ReviewFinding, len(f.Issues)),
-		Questions:   f.Questions,
-		Positives:   f.Positives,
-		Perspective: f.Perspective,
-		CreatedAt:   f.CreatedAt,
+		TaskID:    f.TaskID,
+		Round:     f.Round,
+		Summary:   f.Summary,
+		Issues:    make([]db.ReviewFinding, len(f.Issues)),
+		Questions: f.Questions,
+		Positives: f.Positives,
+		AgentID:   f.AgentID,
+		CreatedAt: f.CreatedAt,
 	}
 	for i, issue := range f.Issues {
 		dbFindings.Issues[i] = db.ReviewFinding{
@@ -955,7 +955,7 @@ func (d *DatabaseBackend) SaveReviewFindings(f *ReviewFindings) error {
 			Line:        issue.Line,
 			Description: issue.Description,
 			Suggestion:  issue.Suggestion,
-			Perspective: issue.Perspective,
+			AgentID:     issue.AgentID,
 		}
 	}
 	return d.db.SaveReviewFindings(dbFindings)
@@ -995,14 +995,14 @@ func (d *DatabaseBackend) LoadAllReviewFindings(taskID string) ([]*ReviewFinding
 // convertDBReviewFindings converts db.ReviewFindings to storage.ReviewFindings.
 func convertDBReviewFindings(dbFindings *db.ReviewFindings) *ReviewFindings {
 	f := &ReviewFindings{
-		TaskID:      dbFindings.TaskID,
-		Round:       dbFindings.Round,
-		Summary:     dbFindings.Summary,
-		Issues:      make([]ReviewFinding, len(dbFindings.Issues)),
-		Questions:   dbFindings.Questions,
-		Positives:   dbFindings.Positives,
-		Perspective: dbFindings.Perspective,
-		CreatedAt:   dbFindings.CreatedAt,
+		TaskID:    dbFindings.TaskID,
+		Round:     dbFindings.Round,
+		Summary:   dbFindings.Summary,
+		Issues:    make([]ReviewFinding, len(dbFindings.Issues)),
+		Questions: dbFindings.Questions,
+		Positives: dbFindings.Positives,
+		AgentID:   dbFindings.AgentID,
+		CreatedAt: dbFindings.CreatedAt,
 	}
 	for i, issue := range dbFindings.Issues {
 		f.Issues[i] = ReviewFinding{
@@ -1011,7 +1011,7 @@ func convertDBReviewFindings(dbFindings *db.ReviewFindings) *ReviewFindings {
 			Line:        issue.Line,
 			Description: issue.Description,
 			Suggestion:  issue.Suggestion,
-			Perspective: issue.Perspective,
+			AgentID:     issue.AgentID,
 		}
 	}
 	if f.Issues == nil {

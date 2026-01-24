@@ -14,20 +14,20 @@ type ReviewFinding struct {
 	Line                  int    `json:"line,omitempty"`
 	Description           string `json:"description"`
 	Suggestion            string `json:"suggestion,omitempty"`
-	Perspective           string `json:"perspective,omitempty"`
+	AgentID               string `json:"agent_id,omitempty"` // Which agent found this (e.g., "code-reviewer")
 	ConstitutionViolation string `json:"constitution_violation,omitempty"` // "invariant" (blocker) or "default" (warning)
 }
 
 // ReviewFindings represents the structured output from a review round.
 type ReviewFindings struct {
-	TaskID      string          `json:"task_id"`
-	Round       int             `json:"round"`
-	Summary     string          `json:"summary"`
-	Issues      []ReviewFinding `json:"issues"`
-	Questions   []string        `json:"questions,omitempty"`
-	Positives   []string        `json:"positives,omitempty"`
-	Perspective string          `json:"perspective,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
+	TaskID    string          `json:"task_id"`
+	Round     int             `json:"round"`
+	Summary   string          `json:"summary"`
+	Issues    []ReviewFinding `json:"issues"`
+	Questions []string        `json:"questions,omitempty"`
+	Positives []string        `json:"positives,omitempty"`
+	AgentID   string          `json:"agent_id,omitempty"` // Which agent produced these findings
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 // SaveReviewFindings creates or updates review findings for a task/round.
@@ -49,18 +49,18 @@ func (p *ProjectDB) SaveReviewFindings(findings *ReviewFindings) error {
 	}
 
 	_, err = p.Exec(`
-		INSERT INTO review_findings (task_id, review_round, summary, issues_json, questions_json, positives_json, perspective, created_at)
+		INSERT INTO review_findings (task_id, review_round, summary, issues_json, questions_json, positives_json, agent_id, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(task_id, review_round) DO UPDATE SET
 			summary = excluded.summary,
 			issues_json = excluded.issues_json,
 			questions_json = excluded.questions_json,
 			positives_json = excluded.positives_json,
-			perspective = excluded.perspective,
+			agent_id = excluded.agent_id,
 			created_at = excluded.created_at
 	`, findings.TaskID, findings.Round, findings.Summary,
 		string(issuesJSON), string(questionsJSON), string(positivesJSON),
-		findings.Perspective, now)
+		findings.AgentID, now)
 	if err != nil {
 		return fmt.Errorf("save review findings: %w", err)
 	}
@@ -70,17 +70,17 @@ func (p *ProjectDB) SaveReviewFindings(findings *ReviewFindings) error {
 // GetReviewFindings retrieves review findings for a task and round.
 func (p *ProjectDB) GetReviewFindings(taskID string, round int) (*ReviewFindings, error) {
 	row := p.QueryRow(`
-		SELECT task_id, review_round, summary, issues_json, questions_json, positives_json, perspective, created_at
+		SELECT task_id, review_round, summary, issues_json, questions_json, positives_json, agent_id, created_at
 		FROM review_findings
 		WHERE task_id = ? AND review_round = ?
 	`, taskID, round)
 
 	var f ReviewFindings
 	var issuesJSON, questionsJSON, positivesJSON sql.NullString
-	var perspective sql.NullString
+	var agentID sql.NullString
 	var createdAt string
 
-	if err := row.Scan(&f.TaskID, &f.Round, &f.Summary, &issuesJSON, &questionsJSON, &positivesJSON, &perspective, &createdAt); err != nil {
+	if err := row.Scan(&f.TaskID, &f.Round, &f.Summary, &issuesJSON, &questionsJSON, &positivesJSON, &agentID, &createdAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -115,8 +115,8 @@ func (p *ProjectDB) GetReviewFindings(taskID string, round int) (*ReviewFindings
 		f.Positives = []string{}
 	}
 
-	if perspective.Valid {
-		f.Perspective = perspective.String
+	if agentID.Valid {
+		f.AgentID = agentID.String
 	}
 	// Parse timestamp - SQLite datetime() returns "2006-01-02 15:04:05" format
 	// Try multiple formats for compatibility
@@ -137,7 +137,7 @@ func (p *ProjectDB) GetReviewFindings(taskID string, round int) (*ReviewFindings
 // GetAllReviewFindings retrieves all review findings for a task (all rounds).
 func (p *ProjectDB) GetAllReviewFindings(taskID string) ([]*ReviewFindings, error) {
 	rows, err := p.Query(`
-		SELECT task_id, review_round, summary, issues_json, questions_json, positives_json, perspective, created_at
+		SELECT task_id, review_round, summary, issues_json, questions_json, positives_json, agent_id, created_at
 		FROM review_findings
 		WHERE task_id = ?
 		ORDER BY review_round ASC
@@ -151,10 +151,10 @@ func (p *ProjectDB) GetAllReviewFindings(taskID string) ([]*ReviewFindings, erro
 	for rows.Next() {
 		var f ReviewFindings
 		var issuesJSON, questionsJSON, positivesJSON sql.NullString
-		var perspective sql.NullString
+		var agentID sql.NullString
 		var createdAt string
 
-		if err := rows.Scan(&f.TaskID, &f.Round, &f.Summary, &issuesJSON, &questionsJSON, &positivesJSON, &perspective, &createdAt); err != nil {
+		if err := rows.Scan(&f.TaskID, &f.Round, &f.Summary, &issuesJSON, &questionsJSON, &positivesJSON, &agentID, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan review findings: %w", err)
 		}
 
@@ -186,8 +186,8 @@ func (p *ProjectDB) GetAllReviewFindings(taskID string) ([]*ReviewFindings, erro
 			f.Positives = []string{}
 		}
 
-		if perspective.Valid {
-			f.Perspective = perspective.String
+		if agentID.Valid {
+			f.AgentID = agentID.String
 		}
 		// Parse timestamp - SQLite datetime() returns "2006-01-02 15:04:05" format
 		for _, layout := range []string{

@@ -459,3 +459,140 @@ func TestParsePhaseSpecificResponse(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateImplementCompletion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		content string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid completion with all checks passing",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS", "evidence": "ok all tests pass"},
+					"success_criteria": [
+						{"id": "SC-1", "status": "PASS", "evidence": "Test passes"},
+						{"id": "SC-2", "status": "PASS", "evidence": "API returns 200"}
+					],
+					"build": {"status": "PASS"},
+					"linting": {"status": "PASS"}
+				}
+			}`,
+			wantErr: false,
+		},
+		{
+			name: "completion without verification - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature"
+			}`,
+			wantErr: true,
+			errMsg:  "completion claimed without verification evidence",
+		},
+		{
+			name: "completion with failing tests - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "FAIL", "evidence": "1 test failed"},
+					"build": {"status": "PASS"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "tests failed",
+		},
+		{
+			name: "completion with failing success criterion - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"success_criteria": [
+						{"id": "SC-1", "status": "PASS"},
+						{"id": "SC-2", "status": "FAIL"}
+					]
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "success criterion SC-2 failed",
+		},
+		{
+			name: "completion with failing build - should fail",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"build": {"status": "FAIL"}
+				}
+			}`,
+			wantErr: true,
+			errMsg:  "build failed",
+		},
+		{
+			name: "blocked status - no verification required",
+			content: `{
+				"status": "blocked",
+				"reason": "Need clarification"
+			}`,
+			wantErr: false,
+		},
+		{
+			name: "continue status - no verification required",
+			content: `{
+				"status": "continue",
+				"reason": "Still working"
+			}`,
+			wantErr: false,
+		},
+		{
+			name: "completion with skipped checks - valid",
+			content: `{
+				"status": "complete",
+				"summary": "Implemented feature",
+				"verification": {
+					"tests": {"status": "PASS"},
+					"build": {"status": "SKIPPED"},
+					"linting": {"status": "SKIPPED"}
+				}
+			}`,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateImplementCompletion(tt.content)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ValidateImplementCompletion() expected error, got nil")
+					return
+				}
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateImplementCompletion() error = %q, want to contain %q", err.Error(), tt.errMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ValidateImplementCompletion() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetSchemaForPhaseWithRound_Implement(t *testing.T) {
+	t.Parallel()
+	schema := GetSchemaForPhaseWithRound("implement", 0)
+	if schema != ImplementCompletionSchema {
+		t.Error("GetSchemaForPhaseWithRound(implement) should return ImplementCompletionSchema")
+	}
+}
