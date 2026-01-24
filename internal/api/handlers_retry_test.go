@@ -694,7 +694,6 @@ func TestDefaultRetryMap(t *testing.T) {
 		{"test", "implement", true},
 		{"test_unit", "implement", true},
 		{"test_e2e", "implement", true},
-		{"validate", "implement", true},
 		{"implement", "", false}, // No mapping - retry from same phase
 		{"spec", "", false},      // No mapping
 	}

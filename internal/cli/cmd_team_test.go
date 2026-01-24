@@ -317,7 +317,7 @@ func TestSharedConfig(t *testing.T) {
 	cfg.TaskID.PrefixSource = "initials"
 	cfg.Defaults.Profile = "safe"
 	cfg.Gates.DefaultType = "auto"
-	cfg.Gates.PhaseOverrides = map[string]string{"validate": "human"}
+	cfg.Gates.PhaseOverrides = map[string]string{"review": "human"}
 	cfg.Cost.WarnPerTask = 5.0
 
 	data, err := yaml.Marshal(cfg)
@@ -345,8 +345,8 @@ func TestSharedConfig(t *testing.T) {
 	if loaded.Gates.DefaultType != "auto" {
 		t.Errorf("expected gates.default_type auto, got %s", loaded.Gates.DefaultType)
 	}
-	if loaded.Gates.PhaseOverrides["validate"] != "human" {
-		t.Errorf("expected gates.phase_overrides[validate] human, got %s", loaded.Gates.PhaseOverrides["validate"])
+	if loaded.Gates.PhaseOverrides["review"] != "human" {
+		t.Errorf("expected gates.phase_overrides[review] human, got %s", loaded.Gates.PhaseOverrides["review"])
 	}
 	if loaded.Cost.WarnPerTask != 5.0 {
 		t.Errorf("expected cost.warn_per_task 5.0, got %f", loaded.Cost.WarnPerTask)

@@ -469,7 +469,7 @@ func phasesForWeight(weight task.Weight) []string {
 	case task.WeightMedium:
 		return []string{"spec", "tdd_write", "implement", "review", "docs"}
 	case task.WeightLarge:
-		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs", "validate"}
+		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
 	default:
 		return []string{"spec", "implement", "review"}
 	}

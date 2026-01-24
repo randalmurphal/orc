@@ -62,7 +62,7 @@ func TestSaveRetryContextFile_CreatesTaskDirectory(t *testing.T) {
 	}
 
 	// Save retry context should create directory
-	_, err := SaveRetryContextFile(tmpDir, "TASK-002", "validate", "implement", "Validation failed", "output", 2)
+	_, err := SaveRetryContextFile(tmpDir, "TASK-002", "review", "implement", "Review failed", "output", 2)
 	if err != nil {
 		t.Fatalf("SaveRetryContextFile failed: %v", err)
 	}
@@ -249,15 +249,15 @@ func TestRetryTracker_ResetAll(t *testing.T) {
 	tracker := NewRetryTracker(2)
 
 	tracker.Increment("test")
-	tracker.Increment("validate")
+	tracker.Increment("review")
 
 	tracker.ResetAll()
 
 	if count := tracker.GetCount("test"); count != 0 {
 		t.Errorf("test count after ResetAll should be 0, got %d", count)
 	}
-	if count := tracker.GetCount("validate"); count != 0 {
-		t.Errorf("validate count after ResetAll should be 0, got %d", count)
+	if count := tracker.GetCount("review"); count != 0 {
+		t.Errorf("review count after ResetAll should be 0, got %d", count)
 	}
 }
 
@@ -267,13 +267,13 @@ func TestRetryTracker_IndependentPhases(t *testing.T) {
 
 	tracker.Increment("test")
 	tracker.Increment("test")
-	tracker.Increment("validate")
+	tracker.Increment("review")
 
 	if tracker.CanRetry("test") {
 		t.Error("test should be at max")
 	}
-	if !tracker.CanRetry("validate") {
-		t.Error("validate should still have retries available")
+	if !tracker.CanRetry("review") {
+		t.Error("review should still have retries available")
 	}
 }
 
@@ -285,7 +285,6 @@ func TestDefaultRetryMap(t *testing.T) {
 		"test":      "implement",
 		"test_unit": "implement",
 		"test_e2e":  "implement",
-		"validate":  "implement",
 		"review":    "implement", // Major issues go back; small issues fixed in-place
 	}
 

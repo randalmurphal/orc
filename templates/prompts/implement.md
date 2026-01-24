@@ -254,16 +254,60 @@ Common issues to watch for:
 </verification>
 
 <output_format>
-When all success criteria and TDD tests pass, output JSON to signal completion:
+## Pre-Completion Verification (MANDATORY - DO NOT SKIP)
+
+Before outputting completion JSON, you MUST verify ALL of the following and include evidence:
+
+### 1. Tests Pass
+Run: `{{TEST_COMMAND}}`
+- **Required:** Exit code 0, all tests pass
+- **If fails:** Fix implementation and re-run
+
+### 2. Success Criteria Verified
+For each SC-X in spec's Success Criteria table:
+- Run the verification method specified
+- Record result: PASS or FAIL with evidence
+- **If any FAIL:** Fix and re-verify
+
+### 3. Build Succeeds (if applicable)
+Run: `{{BUILD_COMMAND}}`
+- **If fails:** Fix build errors
+
+### 4. Linting Passes (recommended)
+Run: `{{LINT_COMMAND}}`
+- **If fails:** Fix lint errors
+
+## Completion Output Format
+
+ONLY after ALL verifications PASS, output JSON with verification evidence:
 
 ```json
 {
   "status": "complete",
-  "summary": "Implemented [feature]: [files changed count] files, all [criteria count] criteria verified, all tests pass"
+  "summary": "Implemented [feature]: [files changed count] files, all criteria verified",
+  "verification": {
+    "tests": {
+      "command": "{{TEST_COMMAND}}",
+      "status": "PASS",
+      "evidence": "[paste test output showing pass, e.g. 'ok  package/name  0.5s']"
+    },
+    "success_criteria": [
+      {"id": "SC-1", "status": "PASS", "evidence": "[how verified, e.g. 'test X passes' or 'curl returned 200']"},
+      {"id": "SC-2", "status": "PASS", "evidence": "[verification evidence]"}
+    ],
+    "build": {
+      "status": "PASS"
+    },
+    "linting": {
+      "status": "PASS"
+    }
+  }
 }
 ```
 
-**If any verification or test fails**, fix the implementation and re-verify. Only output completion when all pass.
+**CRITICAL:** The `verification` field is MANDATORY. Completion without verification evidence will be REJECTED and you'll need to re-verify.
+
+## If Blocked
 
 If blocked (cannot proceed):
 ```json

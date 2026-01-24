@@ -204,7 +204,7 @@ func TestArtifactDetector_ImplementTestValidateNotAutoSkippable(t *testing.T) {
 	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
 
 	// These phases should never be auto-skippable
-	phases := []string{"implement", "test", "validate"}
+	phases := []string{"implement", "test"}
 	for _, phaseID := range phases {
 		status := detector.DetectPhaseArtifacts(phaseID)
 		if status.CanAutoSkip {

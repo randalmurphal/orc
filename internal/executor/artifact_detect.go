@@ -111,8 +111,6 @@ func (d *ArtifactDetector) DetectPhaseArtifacts(phaseID string) *ArtifactStatus 
 		return d.detectTestArtifacts()
 	case "docs":
 		return d.detectDocsArtifacts()
-	case "validate":
-		return d.detectValidateArtifacts()
 	default:
 		return &ArtifactStatus{
 			PhaseID:      phaseID,
@@ -256,27 +254,6 @@ func (d *ArtifactDetector) detectDocsArtifacts() *ArtifactStatus {
 	}
 
 	status.Description = "no docs artifacts found"
-	return status
-}
-
-// detectValidateArtifacts checks if validation artifacts exist.
-func (d *ArtifactDetector) detectValidateArtifacts() *ArtifactStatus {
-	status := &ArtifactStatus{
-		PhaseID: "validate",
-	}
-
-	// Check for validate artifact
-	validateArtifactPath := filepath.Join(d.taskDir, "artifacts", "validate.md")
-	if _, err := os.Stat(validateArtifactPath); err == nil {
-		status.HasArtifacts = true
-		status.Artifacts = []string{"artifacts/validate.md"}
-		status.Description = "validate phase artifact exists"
-		// Don't auto-skip validation - it should re-validate current state
-		status.CanAutoSkip = false
-		return status
-	}
-
-	status.Description = "no validation artifacts found"
 	return status
 }
 

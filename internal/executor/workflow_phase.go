@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -31,6 +32,7 @@ type PhaseExecutionConfig struct {
 	PhaseID       string
 	RunID         string
 	Thinking      bool
+	ReviewRound   int // For review phase: 1 = findings, 2 = decision
 
 	// For quality checks
 	PhaseTemplate *db.PhaseTemplate
@@ -111,6 +113,23 @@ func (we *WorkflowExecutor) executePhase(
 	// Resolve effective Claude configuration for this phase
 	claudeConfig, _ := we.getEffectivePhaseClaudeConfig(tmpl, phase)
 
+	// Load phase agents from database and add to Claude config
+	if rctx.TaskWeight != "" && we.projectDB != nil {
+		phaseAgents, err := LoadPhaseAgents(we.projectDB, tmpl.ID, rctx.TaskWeight)
+		if err != nil {
+			we.logger.Warn("failed to load phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "error", err)
+		} else if len(phaseAgents) > 0 {
+			if claudeConfig == nil {
+				claudeConfig = &PhaseClaudeConfig{}
+			}
+			if claudeConfig.InlineAgents == nil {
+				claudeConfig.InlineAgents = make(map[string]InlineAgentDef)
+			}
+			maps.Copy(claudeConfig.InlineAgents, phaseAgents)
+			we.logger.Info("loaded phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "count", len(phaseAgents))
+		}
+	}
+
 	// Build execution context for ClaudeExecutor
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
@@ -122,6 +141,7 @@ func (we *WorkflowExecutor) executePhase(
 		PhaseID:       tmpl.ID,
 		RunID:         run.ID,
 		Thinking:      we.shouldUseThinking(tmpl, phase),
+		ReviewRound:   rctx.ReviewRound, // For review phase: controls schema selection
 		PhaseTemplate: tmpl,
 		WorkflowPhase: phase,
 		ClaudeConfig:  claudeConfig,
@@ -304,6 +324,11 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			WithClaudeRunID(cfg.RunID),
 		}
 
+		// Add review round for schema selection (Round 1 = findings, Round 2 = decision)
+		if cfg.PhaseID == "review" && cfg.ReviewRound > 0 {
+			execOpts = append(execOpts, WithClaudeReviewRound(cfg.ReviewRound))
+		}
+
 		// Add phase-specific Claude configuration if set
 		if cfg.ClaudeConfig != nil {
 			execOpts = append(execOpts, WithPhaseClaudeConfig(cfg.ClaudeConfig))
@@ -347,7 +372,12 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		result.CostUSD += turnResult.CostUSD
 
 		// Check for completion
-		status, reason, err := ParsePhaseSpecificResponse(cfg.PhaseID, 1, turnResult.Content)
+		// Use cfg.ReviewRound for review phase schema selection (default to 1 if not set)
+		reviewRound := cfg.ReviewRound
+		if reviewRound == 0 {
+			reviewRound = 1
+		}
+		status, reason, err := ParsePhaseSpecificResponse(cfg.PhaseID, reviewRound, turnResult.Content)
 		if err != nil {
 			we.logger.Debug("parse phase response failed",
 				"phase", cfg.PhaseID,
@@ -361,6 +391,20 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 
 		switch status {
 		case PhaseStatusComplete:
+			// For implement phase: validate verification evidence before accepting completion
+			if cfg.PhaseID == "implement" {
+				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
+					we.logger.Info("implement verification gate failed, continuing iteration",
+						"phase", cfg.PhaseID,
+						"error", verifyErr.Error(),
+					)
+					// Continue with verification failure feedback
+					prompt = FormatVerificationFeedback(verifyErr)
+					continue
+				}
+				we.logger.Info("implement verification gate passed", "phase", cfg.PhaseID)
+			}
+
 			// Run quality checks if configured for this phase
 			if checkResult := we.runQualityChecks(ctx, cfg); checkResult != nil {
 				if checkResult.HasBlocks {
@@ -487,7 +531,7 @@ func (we *WorkflowExecutor) shouldUseThinking(tmpl *db.PhaseTemplate, phase *db.
 
 	// Decision phases default to thinking
 	switch tmpl.ID {
-	case "spec", "design", "review", "validate":
+	case "spec", "design", "review":
 		return true
 	}
 

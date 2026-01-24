@@ -1861,3 +1861,162 @@ func TestSaveInitiative_DecisionUpdate(t *testing.T) {
 		t.Errorf("expected 2 decisions after re-save, got %d", len(loaded.Decisions))
 	}
 }
+
+// TestReviewFindings_SaveAndLoad verifies ReviewFindings operations through the Backend interface.
+func TestReviewFindings_SaveAndLoad(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a task first (foreign key constraint)
+	testTask := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test Task for Review",
+		Weight:    task.WeightMedium,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create review findings with AgentID
+	findings := &ReviewFindings{
+		TaskID:  "TASK-001",
+		Round:   1,
+		Summary: "Found 2 issues in the implementation",
+		Issues: []ReviewFinding{
+			{Severity: "high", File: "main.go", Line: 42, Description: "SQL injection vulnerability", AgentID: "code-reviewer"},
+			{Severity: "medium", File: "utils.go", Line: 100, Description: "Error not handled", AgentID: "silent-failure-hunter"},
+		},
+		Questions: []string{"Why is this implemented synchronously?"},
+		Positives: []string{"Good test coverage"},
+		AgentID:   "code-reviewer",
+	}
+
+	// Save
+	if err := backend.SaveReviewFindings(findings); err != nil {
+		t.Fatalf("SaveReviewFindings: %v", err)
+	}
+
+	// Load
+	loaded, err := backend.LoadReviewFindings("TASK-001", 1)
+	if err != nil {
+		t.Fatalf("LoadReviewFindings: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("LoadReviewFindings returned nil")
+	}
+
+	// Verify fields
+	if loaded.TaskID != "TASK-001" {
+		t.Errorf("TaskID = %q, want %q", loaded.TaskID, "TASK-001")
+	}
+	if loaded.Round != 1 {
+		t.Errorf("Round = %d, want 1", loaded.Round)
+	}
+	if loaded.Summary != "Found 2 issues in the implementation" {
+		t.Errorf("Summary = %q, want %q", loaded.Summary, "Found 2 issues in the implementation")
+	}
+	if len(loaded.Issues) != 2 {
+		t.Errorf("Issues count = %d, want 2", len(loaded.Issues))
+	}
+	if loaded.Issues[0].Severity != "high" {
+		t.Errorf("Issues[0].Severity = %q, want %q", loaded.Issues[0].Severity, "high")
+	}
+	if loaded.Issues[0].AgentID != "code-reviewer" {
+		t.Errorf("Issues[0].AgentID = %q, want %q", loaded.Issues[0].AgentID, "code-reviewer")
+	}
+	if loaded.AgentID != "code-reviewer" {
+		t.Errorf("AgentID = %q, want %q", loaded.AgentID, "code-reviewer")
+	}
+	if len(loaded.Questions) != 1 {
+		t.Errorf("Questions count = %d, want 1", len(loaded.Questions))
+	}
+	if len(loaded.Positives) != 1 {
+		t.Errorf("Positives count = %d, want 1", len(loaded.Positives))
+	}
+}
+
+// TestReviewFindings_LoadAll verifies loading all review findings for a task.
+func TestReviewFindings_LoadAll(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Create a task
+	testTask := &task.Task{
+		ID:        "TASK-002",
+		Title:     "Test Task",
+		Weight:    task.WeightLarge,
+		Status:    task.StatusRunning,
+		CreatedAt: time.Now(),
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Save findings for multiple rounds
+	round1 := &ReviewFindings{
+		TaskID:  "TASK-002",
+		Round:   1,
+		Summary: "Round 1 findings",
+		Issues:  []ReviewFinding{{Severity: "high", Description: "Issue 1"}},
+		AgentID: "code-reviewer",
+	}
+	round2 := &ReviewFindings{
+		TaskID:  "TASK-002",
+		Round:   2,
+		Summary: "Round 2 findings",
+		Issues:  []ReviewFinding{{Severity: "low", Description: "Issue 2"}},
+		AgentID: "silent-failure-hunter",
+	}
+
+	if err := backend.SaveReviewFindings(round1); err != nil {
+		t.Fatalf("SaveReviewFindings round1: %v", err)
+	}
+	if err := backend.SaveReviewFindings(round2); err != nil {
+		t.Fatalf("SaveReviewFindings round2: %v", err)
+	}
+
+	// Load all
+	all, err := backend.LoadAllReviewFindings("TASK-002")
+	if err != nil {
+		t.Fatalf("LoadAllReviewFindings: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("LoadAllReviewFindings returned %d, want 2", len(all))
+	}
+
+	// Verify ordering (should be by round ascending)
+	if all[0].Round != 1 {
+		t.Errorf("First result Round = %d, want 1", all[0].Round)
+	}
+	if all[1].Round != 2 {
+		t.Errorf("Second result Round = %d, want 2", all[1].Round)
+	}
+
+	// Verify AgentID preserved
+	if all[0].AgentID != "code-reviewer" {
+		t.Errorf("First result AgentID = %q, want %q", all[0].AgentID, "code-reviewer")
+	}
+	if all[1].AgentID != "silent-failure-hunter" {
+		t.Errorf("Second result AgentID = %q, want %q", all[1].AgentID, "silent-failure-hunter")
+	}
+}
+
+// TestReviewFindings_NotFound verifies behavior when findings don't exist.
+func TestReviewFindings_NotFound(t *testing.T) {
+	t.Parallel()
+	backend, tmpDir := setupTestDB(t)
+	defer teardownTestDB(t, backend, tmpDir)
+
+	// Load non-existent findings
+	findings, err := backend.LoadReviewFindings("NONEXISTENT", 1)
+	if err != nil {
+		t.Fatalf("LoadReviewFindings should not error for missing data: %v", err)
+	}
+	if findings != nil {
+		t.Error("LoadReviewFindings should return nil for missing data")
+	}
+}

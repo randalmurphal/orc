@@ -163,7 +163,7 @@ func TestPublishHelper_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 			mock := newMockPublisher()
 			ep := NewPublishHelper(mock)
 
-			ep.PhaseFailed("TASK-003", "validate", tt.err)
+			ep.PhaseFailed("TASK-003", "review", tt.err)
 
 			ev := mock.lastEvent()
 			if ev == nil {
@@ -214,7 +214,7 @@ func TestPublishHelper_Transcript_AllFieldsSet(t *testing.T) {
 		{
 			name:      "tool message",
 			taskID:    "TASK-003",
-			phase:     "validate",
+			phase:     "review",
 			iteration: 2,
 			msgType:   "tool",
 			content:   `{"tool": "read", "path": "/foo/bar"}`,

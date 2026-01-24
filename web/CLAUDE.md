@@ -33,20 +33,22 @@ web/src/
 ├── index.css             # Global styles (imports tokens)
 ├── styles/               # Design system (tokens.css, animations.css)
 ├── router/               # Route configuration
-├── lib/                  # Utilities (types, websocket, shortcuts)
+├── lib/                  # Utilities (types, api, websocket, shortcuts)
 ├── components/           # UI components
-│   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions, AgentsView)
-│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, panels, TaskCard, etc.)
+│   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions)
+│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, TaskCard)
+│   ├── core/             # Shared primitives (Badge, Button, Card, Input, Progress, Select, Slider, Stat, Toggle, Tooltip)
 │   ├── dashboard/        # Dashboard sections
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
-│   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
-│   ├── stats/            # Statistics (StatsView, ActivityHeatmap, TasksBarChart, OutcomesDonut, LeaderboardTable)
-│   ├── task-detail/      # TaskHeader, TabNav, tabs (TranscriptTab uses transcript components)
+│   ├── layout/           # AppShell, IconNav, TopBar, RightPanel
+│   ├── overlays/         # Modal, NewTaskModal, ProjectSwitcher, KeyboardShortcutsHelp
+│   ├── settings/         # Settings (SettingsLayout, SettingsView, CommandEditor)
+│   ├── stats/            # Statistics (StatsView, ActivityHeatmap, charts)
+│   ├── task-detail/      # TaskHeader, TabNav, tabs (Transcript, Changes, Review, etc.)
+│   ├── timeline/         # TimelineView, TimelineEvent, TimelineFilters, TimelineGroup
 │   ├── transcript/       # TranscriptViewer, TranscriptNav, TranscriptSection, TranscriptSearch, TranscriptVirtualList
-│   ├── overlays/         # Modal, CommandPalette, NewTaskModal
-│   ├── settings/         # Settings components (SettingsLayout, SettingsView, CommandList, CommandEditor, ConfigEditor)
-│   ├── workflows/        # Workflow config (WorkflowsView, WorkflowCard, WorkflowDetailPanel, CloneWorkflowModal, CreateWorkflowModal)
-│   └── ui/               # Primitives (Button, Icon, Input, Tooltip)
+│   ├── ui/               # Legacy primitives (Button, Icon, Input, Tooltip, StatusIndicator)
+│   └── workflows/        # WorkflowsView, WorkflowCard, WorkflowDetailPanel
 ├── pages/                # Route pages
 ├── stores/               # Zustand stores
 └── hooks/                # Custom hooks
@@ -68,10 +70,13 @@ web/src/
 |-------|---------|
 | `taskStore` | Task data and states |
 | `projectStore` | Project selection (URL + localStorage) |
-| `initiativeStore` | Initiative filter |
+| `initiativeStore` | Initiative data and filter |
 | `sessionStore` | Session metrics (duration, tokens, cost), pause/resume |
 | `uiStore` | Sidebar, toasts, WebSocket status |
 | `workflowStore` | Workflows and phase templates |
+| `statsStore` | Statistics and analytics data |
+| `preferencesStore` | User preferences |
+| `dependencyStore` | Task dependency graph |
 
 ### WebSocket Events
 
@@ -93,7 +98,8 @@ web/src/
 | `Shift+Alt+K` | Command palette |
 | `Shift+Alt+N` | New task |
 | `Shift+Alt+P` | Project switcher |
-| `g d / g t / g b` | Go to dashboard/tasks/board |
+| `g b / g i / g s` | Go to board/initiatives/stats |
+| `g a / g ,` | Go to agents/settings |
 
 ## Component Library
 
@@ -117,14 +123,13 @@ See [docs/components.md](docs/components.md) for full API.
 | `/` | Redirects to `/board` |
 | `/board` | Board (flat/swimlane views) |
 | `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
-| `/initiatives/:id` | InitiativeDetail |
-| `/workflows` | WorkflowsPage (workflow cards, phase templates, create/clone modals) |
-| `/agents` | AgentsPage (agent cards, execution settings, tool permissions) |
-| `/stats` | StatsPage (StatsView with summary cards, charts, leaderboards) |
-| `/tasks/:id` | TaskDetail (6 tabs) |
-| `/settings` | Redirects to `/settings/commands` |
-| `/settings/commands` | SettingsView (slash commands editor) |
-| `/settings/*` | Config editors (placeholders for other sections) |
+| `/initiatives/:id` | InitiativeDetailPage |
+| `/timeline` | TimelinePage (activity feed) |
+| `/workflows` | WorkflowsPage (workflow cards, phase templates) |
+| `/agents` | Agents (agent configuration) |
+| `/stats` | StatsPage (summary cards, charts, leaderboards) |
+| `/tasks/:id` | TaskDetail (tabs: Transcript, Changes, Review, Tests, Timeline, Comments) |
+| `/settings/*` | SettingsPage with nested routes (commands, constitution, etc.) |
 
 ## Testing
 

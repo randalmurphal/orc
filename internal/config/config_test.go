@@ -345,8 +345,8 @@ func TestShouldRetryFrom(t *testing.T) {
 			Enabled:    true,
 			MaxRetries: 3,
 			RetryMap: map[string]string{
-				"test":     "implement",
-				"validate": "implement",
+				"test":   "implement",
+				"review": "implement",
 			},
 		},
 	}
@@ -356,7 +356,7 @@ func TestShouldRetryFrom(t *testing.T) {
 		wantFrom string
 	}{
 		{"test", "implement"},
-		{"validate", "implement"},
+		{"review", "implement"},
 		{"implement", ""},
 		{"spec", ""},
 	}
@@ -396,7 +396,6 @@ func TestDefaultConfigRetryMap(t *testing.T) {
 		{"test", "implement"},
 		{"test_unit", "implement"},
 		{"test_e2e", "implement"},
-		{"validate", "implement"},
 		{"review", "implement"}, // Critical: prevents review-resume loop
 	}
 

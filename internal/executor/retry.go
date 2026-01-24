@@ -31,7 +31,6 @@ func DefaultRetryMap() map[string]string {
 		"test":      "implement",
 		"test_unit": "implement",
 		"test_e2e":  "implement",
-		"validate":  "implement",
 		"review":    "implement", // Major issues go back to implement; small issues fixed in-place
 	}
 }

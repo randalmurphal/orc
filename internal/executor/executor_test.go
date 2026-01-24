@@ -654,7 +654,7 @@ func TestPublishPhaseFailed(t *testing.T) {
 	defer pub.Unsubscribe("TASK-003", ch)
 
 	testErr := fmt.Errorf("something went wrong")
-	e.publishPhaseFailed("TASK-003", "validate", testErr)
+	e.publishPhaseFailed("TASK-003", "review", testErr)
 
 	select {
 	case event := <-ch:
