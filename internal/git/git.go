@@ -186,10 +186,12 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	// Inject Claude Code hooks for worktree isolation
 	// These PreToolUse hooks block file operations outside the worktree,
 	// preventing accidental modification of the main repository.
+	// Also injects user's env vars from ~/.claude/settings.json for PATH, VIRTUAL_ENV, etc.
 	claudeHookCfg := ClaudeCodeHookConfig{
-		WorktreePath: worktreePath,
-		MainRepoPath: g.ctx.RepoPath(),
-		TaskID:       taskID,
+		WorktreePath:  worktreePath,
+		MainRepoPath:  g.ctx.RepoPath(),
+		TaskID:        taskID,
+		InjectUserEnv: true, // Load env vars from user's ~/.claude/settings.json
 	}
 	if err := InjectClaudeCodeHooks(claudeHookCfg); err != nil {
 		// Log warning but don't fail - this is defense in depth
@@ -250,10 +252,12 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 	}
 
 	// Inject Claude Code hooks for worktree isolation
+	// Also injects user's env vars from ~/.claude/settings.json for PATH, VIRTUAL_ENV, etc.
 	claudeHookCfg := ClaudeCodeHookConfig{
-		WorktreePath: worktreePath,
-		MainRepoPath: g.ctx.RepoPath(),
-		TaskID:       taskID,
+		WorktreePath:  worktreePath,
+		MainRepoPath:  g.ctx.RepoPath(),
+		TaskID:        taskID,
+		InjectUserEnv: true, // Load env vars from user's ~/.claude/settings.json
 	}
 	if err := InjectClaudeCodeHooks(claudeHookCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject Claude Code isolation hooks: %v\n", err)
