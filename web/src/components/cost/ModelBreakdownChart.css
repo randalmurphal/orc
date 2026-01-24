@@ -1,0 +1,115 @@
+/* =============================================================================
+   ModelBreakdownChart - CSS-only donut chart for model cost breakdown
+   ============================================================================= */
+
+.model-breakdown-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Donut Chart */
+.model-breakdown-donut {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--duration-slow) var(--ease-out);
+}
+
+/* Inner hole created with pseudo-element */
+.model-breakdown-donut::after {
+  content: '';
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  background: var(--bg-card);
+  border-radius: 50%;
+}
+
+/* Center text container */
+.model-breakdown-center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Total cost value */
+.model-breakdown-total {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* Period label */
+.model-breakdown-period {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Legend */
+.model-breakdown-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.model-breakdown-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* Colored dots */
+.model-breakdown-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.model-breakdown-legend-dot--opus {
+  background: var(--primary);
+}
+
+.model-breakdown-legend-dot--sonnet {
+  background: var(--cyan);
+}
+
+.model-breakdown-legend-dot--haiku {
+  background: var(--orange);
+}
+
+/* Legend label (model name) */
+.model-breakdown-legend-label {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+/* Legend cost */
+.model-breakdown-legend-cost {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+/* Legend percentage */
+.model-breakdown-legend-percent {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+}
