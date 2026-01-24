@@ -2379,6 +2379,15 @@ func (d *DatabaseBackend) UpdatePhaseIterations(runID, phaseID string, iteration
 	return d.db.UpdatePhaseIterations(runID, phaseID, iterations)
 }
 
+// GetRunningWorkflowsByTask returns a map of task_id -> current workflow run info
+// for all currently running workflow runs. Used to enrich task status display.
+func (d *DatabaseBackend) GetRunningWorkflowsByTask() (map[string]*db.WorkflowRun, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.db.GetRunningWorkflowsByTask()
+}
+
 // SaveProjectCommand creates or updates a project command.
 func (d *DatabaseBackend) SaveProjectCommand(cmd *db.ProjectCommand) error {
 	d.mu.Lock()

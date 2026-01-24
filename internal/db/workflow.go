@@ -802,6 +802,35 @@ func (p *ProjectDB) GetWorkflowRunPhases(runID string) ([]*WorkflowRunPhase, err
 	return phases, rows.Err()
 }
 
+// GetRunningWorkflowsByTask returns a map of task_id -> current workflow run info
+// for all currently running workflow runs. Used to enrich task status display.
+func (p *ProjectDB) GetRunningWorkflowsByTask() (map[string]*WorkflowRun, error) {
+	rows, err := p.Query(`
+		SELECT id, workflow_id, context_type, context_data, task_id,
+			prompt, instructions, status, current_phase, started_at, completed_at,
+			variables_snapshot, total_cost_usd, total_input_tokens, total_output_tokens,
+			error, created_at, updated_at
+		FROM workflow_runs
+		WHERE status = 'running' AND task_id IS NOT NULL
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("get running workflows: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[string]*WorkflowRun)
+	for rows.Next() {
+		wr, err := scanWorkflowRunRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow run: %w", err)
+		}
+		if wr.TaskID != nil {
+			result[*wr.TaskID] = wr
+		}
+	}
+	return result, rows.Err()
+}
+
 // --------- Helper Functions ---------
 
 func sqlNullBool(b *bool) sql.NullBool {
