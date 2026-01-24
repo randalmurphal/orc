@@ -6,6 +6,8 @@ const THEME_KEY = 'orc-theme';
 const SIDEBAR_DEFAULT_KEY = 'orc-sidebar-default';
 const BOARD_VIEW_MODE_KEY = 'orc-board-view-mode';
 const DATE_FORMAT_KEY = 'orc-date-format';
+const TRANSCRIPT_AUTO_SCROLL_KEY = 'orc-transcript-auto-scroll';
+const TRANSCRIPT_NAV_COLLAPSED_KEY = 'orc-transcript-nav-collapsed';
 
 // Types
 export type Theme = 'dark' | 'light';
@@ -18,6 +20,8 @@ export interface Preferences {
 	sidebarDefault: SidebarDefault;
 	boardViewMode: BoardViewMode;
 	dateFormat: DateFormat;
+	transcriptAutoScroll: boolean;
+	transcriptNavCollapsed: boolean;
 }
 
 export interface PreferencesStore extends Preferences {
@@ -26,6 +30,8 @@ export interface PreferencesStore extends Preferences {
 	setSidebarDefault: (sidebarDefault: SidebarDefault) => void;
 	setBoardViewMode: (boardViewMode: BoardViewMode) => void;
 	setDateFormat: (dateFormat: DateFormat) => void;
+	setTranscriptAutoScroll: (enabled: boolean) => void;
+	setTranscriptNavCollapsed: (collapsed: boolean) => void;
 	resetToDefaults: () => void;
 }
 
@@ -35,6 +41,8 @@ const defaultPreferences: Preferences = {
 	sidebarDefault: 'expanded',
 	boardViewMode: 'flat',
 	dateFormat: 'relative',
+	transcriptAutoScroll: true,
+	transcriptNavCollapsed: false,
 };
 
 // localStorage helpers
@@ -120,6 +128,48 @@ function setStoredDateFormat(dateFormat: DateFormat): void {
 	}
 }
 
+function getStoredTranscriptAutoScroll(): boolean {
+	if (typeof window === 'undefined') return defaultPreferences.transcriptAutoScroll;
+	try {
+		const stored = localStorage.getItem(TRANSCRIPT_AUTO_SCROLL_KEY);
+		if (stored === 'true') return true;
+		if (stored === 'false') return false;
+		return defaultPreferences.transcriptAutoScroll;
+	} catch {
+		return defaultPreferences.transcriptAutoScroll;
+	}
+}
+
+function setStoredTranscriptAutoScroll(enabled: boolean): void {
+	if (typeof window === 'undefined') return;
+	try {
+		localStorage.setItem(TRANSCRIPT_AUTO_SCROLL_KEY, String(enabled));
+	} catch {
+		// Ignore localStorage errors
+	}
+}
+
+function getStoredTranscriptNavCollapsed(): boolean {
+	if (typeof window === 'undefined') return defaultPreferences.transcriptNavCollapsed;
+	try {
+		const stored = localStorage.getItem(TRANSCRIPT_NAV_COLLAPSED_KEY);
+		if (stored === 'true') return true;
+		if (stored === 'false') return false;
+		return defaultPreferences.transcriptNavCollapsed;
+	} catch {
+		return defaultPreferences.transcriptNavCollapsed;
+	}
+}
+
+function setStoredTranscriptNavCollapsed(collapsed: boolean): void {
+	if (typeof window === 'undefined') return;
+	try {
+		localStorage.setItem(TRANSCRIPT_NAV_COLLAPSED_KEY, String(collapsed));
+	} catch {
+		// Ignore localStorage errors
+	}
+}
+
 // Apply theme to document
 function applyTheme(theme: Theme): void {
 	if (typeof document === 'undefined') return;
@@ -138,6 +188,8 @@ function clearStoredPreferences(): void {
 		localStorage.removeItem(SIDEBAR_DEFAULT_KEY);
 		localStorage.removeItem(BOARD_VIEW_MODE_KEY);
 		localStorage.removeItem(DATE_FORMAT_KEY);
+		localStorage.removeItem(TRANSCRIPT_AUTO_SCROLL_KEY);
+		localStorage.removeItem(TRANSCRIPT_NAV_COLLAPSED_KEY);
 	} catch {
 		// Ignore localStorage errors
 	}
@@ -155,6 +207,8 @@ export const usePreferencesStore = create<PreferencesStore>()(
 			sidebarDefault: getStoredSidebarDefault(),
 			boardViewMode: getStoredBoardViewMode(),
 			dateFormat: getStoredDateFormat(),
+			transcriptAutoScroll: getStoredTranscriptAutoScroll(),
+			transcriptNavCollapsed: getStoredTranscriptNavCollapsed(),
 
 			setTheme: (theme: Theme) => {
 				setStoredTheme(theme);
@@ -175,6 +229,16 @@ export const usePreferencesStore = create<PreferencesStore>()(
 			setDateFormat: (dateFormat: DateFormat) => {
 				setStoredDateFormat(dateFormat);
 				set({ dateFormat });
+			},
+
+			setTranscriptAutoScroll: (enabled: boolean) => {
+				setStoredTranscriptAutoScroll(enabled);
+				set({ transcriptAutoScroll: enabled });
+			},
+
+			setTranscriptNavCollapsed: (collapsed: boolean) => {
+				setStoredTranscriptNavCollapsed(collapsed);
+				set({ transcriptNavCollapsed: collapsed });
 			},
 
 			resetToDefaults: () => {
@@ -198,6 +262,8 @@ export const STORAGE_KEYS = {
 	SIDEBAR_DEFAULT: SIDEBAR_DEFAULT_KEY,
 	BOARD_VIEW_MODE: BOARD_VIEW_MODE_KEY,
 	DATE_FORMAT: DATE_FORMAT_KEY,
+	TRANSCRIPT_AUTO_SCROLL: TRANSCRIPT_AUTO_SCROLL_KEY,
+	TRANSCRIPT_NAV_COLLAPSED: TRANSCRIPT_NAV_COLLAPSED_KEY,
 } as const;
 
 // Export defaults for testing

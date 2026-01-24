@@ -173,7 +173,7 @@ export function TaskDetail() {
 								case 'changes':
 									return <ChangesTab taskId={task.id} />;
 								case 'transcript':
-									return <TranscriptTab taskId={task.id} streamingLines={streamingTranscript} />;
+									return <TranscriptTab taskId={task.id} streamingLines={streamingTranscript} isRunning={task.status === 'running'} />;
 								case 'test-results':
 									return <TestResultsTab taskId={task.id} />;
 								case 'review-findings':
