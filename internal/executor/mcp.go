@@ -2,121 +2,100 @@
 package executor
 
 import (
-	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
-	"path/filepath"
+	"slices"
 
+	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
-// MCPServerConfig represents an MCP server configuration.
-type MCPServerConfig struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
-}
-
-// MCPConfig represents the .mcp.json file structure.
-type MCPConfig struct {
-	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
-}
-
-// GenerateWorktreeMCPConfig creates a task-specific .mcp.json in the worktree.
-// It preserves non-Playwright servers from the project config and adds
-// an isolated Playwright server for UI testing tasks.
+// MergeMCPConfigSettings merges runtime orc config settings into phase MCP servers.
+// This applies settings like headless mode and task-specific user-data-dir to
+// MCP servers defined in phase templates.
 //
-// The generated config ensures each task has its own isolated browser profile,
-// preventing conflicts when multiple tasks run in parallel.
-func GenerateWorktreeMCPConfig(worktreePath, taskID string, t *task.Task, cfg *config.Config) error {
-	if worktreePath == "" {
-		return fmt.Errorf("worktree path is required")
+// The phase template defines WHICH MCP servers are available.
+// The orc config defines HOW those servers should behave at runtime.
+func MergeMCPConfigSettings(
+	mcpServers map[string]claude.MCPServerConfig,
+	taskID string,
+	cfg *config.Config,
+) map[string]claude.MCPServerConfig {
+	if mcpServers == nil || len(mcpServers) == 0 {
+		return mcpServers
 	}
 
-	// Start with empty config
-	mcpConfig := MCPConfig{
-		MCPServers: make(map[string]MCPServerConfig),
-	}
-
-	// Load project .mcp.json if it exists (preserves other MCP servers)
-	projectMCPPath := filepath.Join(filepath.Dir(worktreePath), "..", "..", ".mcp.json")
-	if data, err := os.ReadFile(projectMCPPath); err == nil {
-		if err := json.Unmarshal(data, &mcpConfig); err != nil {
-			// Invalid JSON in project config - start fresh
-			mcpConfig.MCPServers = make(map[string]MCPServerConfig)
+	// Deep copy to avoid mutating original
+	result := make(map[string]claude.MCPServerConfig, len(mcpServers))
+	for name, server := range mcpServers {
+		// Copy the server config
+		copied := claude.MCPServerConfig{
+			Command: server.Command,
 		}
+		if server.Args != nil {
+			copied.Args = make([]string, len(server.Args))
+			copy(copied.Args, server.Args)
+		}
+		if server.Env != nil {
+			copied.Env = make(map[string]string, len(server.Env))
+			maps.Copy(copied.Env, server.Env)
+		}
+		result[name] = copied
 	}
 
-	// Check if UI testing is needed
-	needsPlaywright := t != nil && t.RequiresUITesting
-	if cfg != nil && cfg.MCP.Playwright.Enabled {
-		// Global setting can override task-level setting
-		needsPlaywright = needsPlaywright || cfg.MCP.Playwright.Enabled
+	// Apply runtime settings to playwright server if present
+	if playwright, ok := result["playwright"]; ok {
+		result["playwright"] = applyPlaywrightRuntimeSettings(playwright, taskID, cfg)
 	}
 
-	if needsPlaywright {
-		// Configure isolated Playwright server for this task
-		playwrightConfig := buildPlaywrightConfig(taskID, cfg)
-		mcpConfig.MCPServers["playwright"] = playwrightConfig
-	} else {
-		// Remove playwright from config if not needed
-		delete(mcpConfig.MCPServers, "playwright")
-	}
-
-	// Only write config if there are servers to configure
-	if len(mcpConfig.MCPServers) == 0 {
-		return nil
-	}
-
-	// Write to worktree
-	worktreeMCPPath := filepath.Join(worktreePath, ".mcp.json")
-	data, err := json.MarshalIndent(mcpConfig, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal MCP config: %w", err)
-	}
-
-	if err := os.WriteFile(worktreeMCPPath, data, 0644); err != nil {
-		return fmt.Errorf("write MCP config to %s: %w", worktreeMCPPath, err)
-	}
-
-	return nil
+	return result
 }
 
-// buildPlaywrightConfig creates the Playwright MCP server configuration
-// with task-specific isolation settings.
-func buildPlaywrightConfig(taskID string, cfg *config.Config) MCPServerConfig {
-	args := []string{"@playwright/mcp@latest"}
+// applyPlaywrightRuntimeSettings adds runtime-specific settings to a Playwright MCP config.
+// - Adds --headless if configured (default: true)
+// - Adds --user-data-dir for task isolation
+// - Adds --browser if non-default browser specified
+func applyPlaywrightRuntimeSettings(
+	server claude.MCPServerConfig,
+	taskID string,
+	cfg *config.Config,
+) claude.MCPServerConfig {
+	args := server.Args
+	if args == nil {
+		args = []string{}
+	}
 
-	// Always add isolation flags
-	args = append(args, "--isolated")
+	// Add task-specific user data directory for isolation (if not already present)
+	if !slices.Contains(args, "--user-data-dir") && taskID != "" {
+		userDataDir := fmt.Sprintf("/tmp/playwright-%s", taskID)
+		args = append(args, "--user-data-dir", userDataDir)
+	}
 
-	// Task-specific user data directory
-	userDataDir := fmt.Sprintf("/tmp/playwright-%s", taskID)
-	args = append(args, "--user-data-dir", userDataDir)
-
-	// Add optional settings from config
+	// Apply config settings
 	if cfg != nil {
 		playwrightCfg := cfg.MCP.Playwright
 
-		// Headless mode (default: true)
-		if playwrightCfg.Headless {
+		// Headless mode (default: true in config)
+		if playwrightCfg.Headless && !slices.Contains(args, "--headless") {
 			args = append(args, "--headless")
 		}
 
-		// Browser selection (default: chromium)
+		// Browser selection (default: chromium, only add if non-default)
 		if playwrightCfg.Browser != "" && playwrightCfg.Browser != "chromium" {
-			args = append(args, "--browser", playwrightCfg.Browser)
+			if !slices.Contains(args, "--browser") {
+				args = append(args, "--browser", playwrightCfg.Browser)
+			}
 		}
 	} else {
 		// Default to headless when no config
-		args = append(args, "--headless")
+		if !slices.Contains(args, "--headless") {
+			args = append(args, "--headless")
+		}
 	}
 
-	return MCPServerConfig{
-		Command: "npx",
-		Args:    args,
-	}
+	server.Args = args
+	return server
 }
 
 // CleanupPlaywrightUserData removes the task-specific Playwright user data directory.
@@ -127,16 +106,4 @@ func CleanupPlaywrightUserData(taskID string) error {
 		return fmt.Errorf("cleanup playwright user data for %s: %w", taskID, err)
 	}
 	return nil
-}
-
-// ShouldGenerateMCPConfig determines if MCP config should be generated for a task.
-// Returns true if the task requires UI testing or if MCP is globally enabled.
-func ShouldGenerateMCPConfig(t *task.Task, cfg *config.Config) bool {
-	if t != nil && t.RequiresUITesting {
-		return true
-	}
-	if cfg != nil && cfg.MCP.Playwright.Enabled {
-		return true
-	}
-	return false
 }

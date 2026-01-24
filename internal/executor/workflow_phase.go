@@ -130,6 +130,12 @@ func (we *WorkflowExecutor) executePhase(
 		}
 	}
 
+	// Merge runtime MCP settings (headless mode, task-specific user-data-dir) into phase MCP config
+	// This applies orc config settings to MCP servers defined in phase templates
+	if claudeConfig != nil && len(claudeConfig.MCPServers) > 0 {
+		claudeConfig.MCPServers = MergeMCPConfigSettings(claudeConfig.MCPServers, rctx.TaskID, we.orcConfig)
+	}
+
 	// Build execution context for ClaudeExecutor
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
