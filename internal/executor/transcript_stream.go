@@ -24,6 +24,10 @@ type TranscriptStreamHandler struct {
 	runID     string // workflow run ID for linking
 	model     string
 	mu        sync.Mutex // protects writes
+
+	// storedMessageIDs tracks which messages we've already stored to avoid duplicates.
+	// Claude streams multiple events with the same message ID as content is generated.
+	storedMessageIDs map[string]bool
 }
 
 // NewTranscriptStreamHandler creates a handler for streaming transcript capture.
@@ -33,13 +37,14 @@ func NewTranscriptStreamHandler(
 	taskID, phaseID, sessionID, runID, model string,
 ) *TranscriptStreamHandler {
 	return &TranscriptStreamHandler{
-		backend:   backend,
-		logger:    logger,
-		taskID:    taskID,
-		phaseID:   phaseID,
-		sessionID: sessionID,
-		runID:     runID,
-		model:     model,
+		backend:          backend,
+		logger:           logger,
+		taskID:           taskID,
+		phaseID:          phaseID,
+		sessionID:        sessionID,
+		runID:            runID,
+		model:            model,
+		storedMessageIDs: make(map[string]bool),
 	}
 }
 
@@ -115,6 +120,8 @@ func (h *TranscriptStreamHandler) OnEvent(event claude.StreamEvent) {
 }
 
 // storeAssistantMessage stores a single assistant message from the stream.
+// Claude streams multiple events with the same message ID - we only store the first one
+// since later events for the same ID are just partial updates that we already have.
 func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent) {
 	if event.Assistant == nil {
 		return
@@ -122,6 +129,18 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Use the API message ID if available, otherwise generate one
+	messageUUID := event.Assistant.MessageID
+	if messageUUID == "" {
+		messageUUID = uuid.NewString()
+	}
+
+	// Skip if we've already stored this message (Claude streams multiple events per message)
+	if h.storedMessageIDs[messageUUID] {
+		return
+	}
+	h.storedMessageIDs[messageUUID] = true
 
 	// Serialize content blocks to JSON for storage
 	contentJSON, err := json.Marshal(event.Assistant.Content)
@@ -131,12 +150,6 @@ func (h *TranscriptStreamHandler) storeAssistantMessage(event claude.StreamEvent
 			"error", err,
 		)
 		contentJSON = []byte(event.Assistant.Text) // Fallback to text
-	}
-
-	// Use the API message ID if available, otherwise generate one
-	messageUUID := event.Assistant.MessageID
-	if messageUUID == "" {
-		messageUUID = uuid.NewString()
 	}
 
 	// Determine model - use from event if available, fall back to handler default
