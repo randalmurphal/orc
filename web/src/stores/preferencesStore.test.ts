@@ -215,3 +215,78 @@ describe('PreferencesStore', () => {
 		});
 	});
 });
+
+/**
+ * SC-2: Transcript viewer settings persistence
+ * These tests verify that transcript-specific preferences are stored and retrieved correctly.
+ */
+describe('Transcript settings (SC-2)', () => {
+	describe('transcriptAutoScroll', () => {
+		it('should default to true', () => {
+			expect(usePreferencesStore.getState().transcriptAutoScroll).toBe(true);
+		});
+
+		it('should set transcript auto-scroll preference', () => {
+			usePreferencesStore.getState().setTranscriptAutoScroll(false);
+			expect(usePreferencesStore.getState().transcriptAutoScroll).toBe(false);
+
+			usePreferencesStore.getState().setTranscriptAutoScroll(true);
+			expect(usePreferencesStore.getState().transcriptAutoScroll).toBe(true);
+		});
+
+		it('should persist to localStorage', () => {
+			usePreferencesStore.getState().setTranscriptAutoScroll(false);
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_AUTO_SCROLL)).toBe('false');
+
+			usePreferencesStore.getState().setTranscriptAutoScroll(true);
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_AUTO_SCROLL)).toBe('true');
+		});
+	});
+
+	describe('transcriptNavCollapsed', () => {
+		it('should default to false (nav expanded)', () => {
+			expect(usePreferencesStore.getState().transcriptNavCollapsed).toBe(false);
+		});
+
+		it('should set transcript nav collapsed preference', () => {
+			usePreferencesStore.getState().setTranscriptNavCollapsed(true);
+			expect(usePreferencesStore.getState().transcriptNavCollapsed).toBe(true);
+
+			usePreferencesStore.getState().setTranscriptNavCollapsed(false);
+			expect(usePreferencesStore.getState().transcriptNavCollapsed).toBe(false);
+		});
+
+		it('should persist to localStorage', () => {
+			usePreferencesStore.getState().setTranscriptNavCollapsed(true);
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_NAV_COLLAPSED)).toBe('true');
+
+			usePreferencesStore.getState().setTranscriptNavCollapsed(false);
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_NAV_COLLAPSED)).toBe('false');
+		});
+	});
+
+	describe('resetToDefaults includes transcript settings', () => {
+		it('should reset transcript settings to defaults', () => {
+			// Change transcript settings
+			usePreferencesStore.getState().setTranscriptAutoScroll(false);
+			usePreferencesStore.getState().setTranscriptNavCollapsed(true);
+
+			// Reset
+			usePreferencesStore.getState().resetToDefaults();
+
+			// Verify defaults
+			expect(usePreferencesStore.getState().transcriptAutoScroll).toBe(true);
+			expect(usePreferencesStore.getState().transcriptNavCollapsed).toBe(false);
+		});
+
+		it('should clear transcript settings from localStorage', () => {
+			usePreferencesStore.getState().setTranscriptAutoScroll(false);
+			usePreferencesStore.getState().setTranscriptNavCollapsed(true);
+
+			usePreferencesStore.getState().resetToDefaults();
+
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_AUTO_SCROLL)).toBeNull();
+			expect(localStorage.getItem(STORAGE_KEYS.TRANSCRIPT_NAV_COLLAPSED)).toBeNull();
+		});
+	});
+});

@@ -36,6 +36,19 @@ vi.mock('@/hooks', () => ({
 	})),
 }));
 
+// Track TranscriptTab props for SC-1 tests using vi.hoisted to handle mock hoisting
+const transcriptTabPropsRef = vi.hoisted(() => ({
+	current: null as { taskId: string; streamingLines?: unknown[]; isRunning?: boolean } | null,
+}));
+
+// Mock TranscriptTab to capture isRunning prop
+vi.mock('@/components/task-detail/TranscriptTab', () => ({
+	TranscriptTab: (props: { taskId: string; streamingLines?: unknown[]; isRunning?: boolean }) => {
+		transcriptTabPropsRef.current = { ...props };
+		return <div data-testid="transcript-tab" data-is-running={props.isRunning} />;
+	},
+}));
+
 // Mock the stores module for getInitiativeBadgeTitle
 vi.mock('@/stores', async () => {
 	const actual = await vi.importActual('@/stores');
@@ -63,10 +76,11 @@ function createTask(overrides: Partial<Task> = {}): Task {
 	};
 }
 
-function renderTaskDetail(taskId: string = 'TASK-001') {
+function renderTaskDetail(taskId: string = 'TASK-001', options?: { tab?: string }) {
+	const url = options?.tab ? `/tasks/${taskId}?tab=${options.tab}` : `/tasks/${taskId}`;
 	return render(
 		<TooltipProvider delayDuration={0}>
-			<MemoryRouter initialEntries={[`/tasks/${taskId}`]}>
+			<MemoryRouter initialEntries={[url]}>
 				<Routes>
 					<Route path="/tasks/:id" element={<TaskDetail />} />
 					<Route path="/board" element={<div>Board Page</div>} />
@@ -80,6 +94,7 @@ describe('TaskDetail', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useTaskStore.getState().reset();
+		transcriptTabPropsRef.current = null;
 
 		// Default mock implementations
 		(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -238,5 +253,59 @@ describe('TaskDetail', () => {
 			expect(storeTask?.status).toBe('completed');
 			expect(storeTask?.current_phase).toBe('test');
 		});
+	});
+});
+
+/**
+ * SC-1: isRunning prop chain tests
+ * Verifies that TaskDetail derives isRunning from task.status and passes it to TranscriptTab
+ */
+describe('TranscriptTab isRunning prop (SC-1)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		useTaskStore.getState().reset();
+		transcriptTabPropsRef.current = null;
+	});
+
+	it('should pass isRunning=true to TranscriptTab when task status is running', async () => {
+		const runningTask = createTask({ status: 'running' });
+		(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(runningTask);
+		(getTaskPlan as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+		// Render with transcript tab already active
+		renderTaskDetail('TASK-001', { tab: 'transcript' });
+
+		// Wait for task to load and TranscriptTab to be rendered
+		await waitFor(() => {
+			expect(screen.getByText('Test Task')).toBeInTheDocument();
+		});
+
+		await waitFor(() => {
+			expect(screen.getByTestId('transcript-tab')).toBeInTheDocument();
+		});
+
+		// Verify isRunning was passed based on task.status === 'running'
+		expect(transcriptTabPropsRef.current?.isRunning).toBe(true);
+	});
+
+	it('should pass isRunning=false to TranscriptTab when task status is completed', async () => {
+		const completedTask = createTask({ status: 'completed' });
+		(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(completedTask);
+		(getTaskPlan as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+		// Render with transcript tab already active
+		renderTaskDetail('TASK-001', { tab: 'transcript' });
+
+		// Wait for task to load and TranscriptTab to be rendered
+		await waitFor(() => {
+			expect(screen.getByText('Test Task')).toBeInTheDocument();
+		});
+
+		await waitFor(() => {
+			expect(screen.getByTestId('transcript-tab')).toBeInTheDocument();
+		});
+
+		// Verify isRunning was passed as false for completed tasks
+		expect(transcriptTabPropsRef.current?.isRunning).toBe(false);
 	});
 });
