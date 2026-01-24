@@ -306,11 +306,8 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 		_, _ = fmt.Fprintln(out)
 		for _, t := range running {
-			phase := t.CurrentPhase
-			if phase == "" {
-				phase = "starting"
-			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
+			status := formatTaskStatus(t)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), status)
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -484,4 +481,16 @@ func formatTimeAgo(t time.Time) string {
 		}
 		return fmt.Sprintf("%d days ago", days)
 	}
+}
+
+// formatTaskStatus formats a task's status string for display in the running section.
+// Shows phase and iteration (if iteration > 1).
+func formatTaskStatus(t *task.Task) string {
+	if t.CurrentPhase == "" {
+		return "starting"
+	}
+	if t.CurrentIteration > 1 {
+		return fmt.Sprintf("%s: iter %d", t.CurrentPhase, t.CurrentIteration)
+	}
+	return t.CurrentPhase
 }

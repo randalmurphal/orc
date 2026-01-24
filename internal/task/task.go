@@ -359,6 +359,9 @@ type Task struct {
 	// CurrentPhase is the phase currently being executed
 	CurrentPhase string `yaml:"current_phase,omitempty" json:"current_phase,omitempty"`
 
+	// CurrentIteration is the iteration number for the current phase (1-based)
+	CurrentIteration int `yaml:"current_iteration,omitempty" json:"current_iteration,omitempty"`
+
 	// Branch is the git branch for this task (e.g., orc/TASK-001)
 	Branch string `yaml:"branch" json:"branch"`
 
