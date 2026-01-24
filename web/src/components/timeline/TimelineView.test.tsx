@@ -135,7 +135,7 @@ describe('TimelineView', () => {
 	});
 
 	describe('event fetching (SC-2)', () => {
-		it('fetches events from last 24 hours on initial load', async () => {
+		it('fetches events from today on initial load', async () => {
 			vi.mocked(getEvents).mockResolvedValue(createMockResponse([]));
 
 			renderTimelineView();
@@ -144,17 +144,20 @@ describe('TimelineView', () => {
 				expect(getEvents).toHaveBeenCalled();
 			});
 
-			// Check that the API was called with a 'since' parameter for ~24h ago
+			// Check that the API was called with a 'since' parameter for start of today
 			const callArgs = vi.mocked(getEvents).mock.calls[0][0];
 			expect(callArgs).toHaveProperty('since');
 
 			const sinceDate = new Date(callArgs!.since!);
 			const now = new Date();
-			const hoursAgo = (now.getTime() - sinceDate.getTime()) / (1000 * 60 * 60);
-
-			// Should be roughly 24 hours (allow some margin)
-			expect(hoursAgo).toBeGreaterThan(23);
-			expect(hoursAgo).toBeLessThan(25);
+			
+			// Since should be today (midnight local time)
+			const startOfToday = new Date(now);
+			startOfToday.setHours(0, 0, 0, 0);
+			
+			// Allow some tolerance for test execution time
+			const diffMs = Math.abs(sinceDate.getTime() - startOfToday.getTime());
+			expect(diffMs).toBeLessThan(60 * 1000); // Within 1 minute
 		});
 
 		it('fetches events with limit parameter', async () => {

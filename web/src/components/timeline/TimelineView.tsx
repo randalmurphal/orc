@@ -17,44 +17,11 @@ import { TimelineGroup } from './TimelineGroup';
 import { type TimelineEventData } from './TimelineEvent';
 import { TimelineEmptyState } from './TimelineEmptyState';
 import { TimelineFilters } from './TimelineFilters';
-import { TimeRangeSelector, type TimeRange } from './TimeRangeSelector';
+import { TimeRangeSelector, getDateRange, type TimeRange, type CustomDateRange } from './TimeRangeSelector';
 import { groupEventsByDate, getDateGroupLabel } from './utils';
 import './TimelineView.css';
 
 const PAGE_SIZE = 50;
-
-// Calculate date for preset time ranges
-function getPresetSince(preset: string): string | undefined {
-	const now = new Date();
-	switch (preset) {
-		case 'today': {
-			const today = new Date(now);
-			today.setHours(0, 0, 0, 0);
-			return today.toISOString();
-		}
-		case 'this_week': {
-			const weekAgo = new Date(now);
-			weekAgo.setDate(weekAgo.getDate() - 7);
-			return weekAgo.toISOString();
-		}
-		case 'this_month': {
-			const monthAgo = new Date(now);
-			monthAgo.setMonth(monthAgo.getMonth() - 1);
-			return monthAgo.toISOString();
-		}
-		case 'all':
-			return undefined;
-		default:
-			return undefined;
-	}
-}
-
-// Calculate 24 hours ago in ISO format (default)
-function get24HoursAgo(): string {
-	const date = new Date();
-	date.setHours(date.getHours() - 24);
-	return date.toISOString();
-}
 
 export function TimelineView() {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -73,6 +40,21 @@ export function TimelineView() {
 	const [tasks, setTasks] = useState<Array<{ id: string; title: string }>>([]);
 	const [initiatives, setInitiatives] = useState<Array<{ id: string; title: string }>>([]);
 
+	// Time range state
+	const [timeRange, setTimeRange] = useState<TimeRange>(() => {
+		const range = searchParams.get('range');
+		if (range && ['today', 'yesterday', 'this_week', 'this_month', 'custom'].includes(range)) {
+			return range as TimeRange;
+		}
+		return 'today';
+	});
+	const [customRange, setCustomRange] = useState<CustomDateRange>(() => {
+		const now = new Date();
+		const weekAgo = new Date(now);
+		weekAgo.setDate(weekAgo.getDate() - 7);
+		return { start: weekAgo, end: now };
+	});
+
 	// Refs for infinite scroll
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -83,29 +65,16 @@ export function TimelineView() {
 		const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
 		const taskId = searchParams.get('task_id') || undefined;
 		const initiativeId = searchParams.get('initiative_id') || undefined;
-		const since = searchParams.get('since') || get24HoursAgo();
-		const until = searchParams.get('until') || undefined;
+		
+		// Get date range from current timeRange setting
+		const dateRange = getDateRange(timeRange, customRange);
+		const since = dateRange.since.toISOString();
+		const until = dateRange.until.toISOString();
+		
 		return { types, taskId, initiativeId, since, until };
-	}, [searchParams]);
+	}, [searchParams, timeRange, customRange]);
 
-	// Determine current time range from URL params
-	const timeRange = useMemo<TimeRange>(() => {
-		const since = searchParams.get('since');
-		const until = searchParams.get('until');
-		
-		if (since && until) {
-			return { type: 'custom', since, until };
-		}
-		
-		// Try to match against preset ranges
-		const range = searchParams.get('range');
-		if (range && ['today', 'this_week', 'this_month', 'all'].includes(range)) {
-			return range as TimeRange;
-		}
-		
-		// Default to today
-		return 'today';
-	}, [searchParams]);
+
 
 	// Check if any filters are active
 	const hasActiveFilters = useMemo(() => {
@@ -325,28 +294,17 @@ export function TimelineView() {
 	}, [searchParams, setSearchParams]);
 
 	const handleTimeRangeChange = useCallback((range: TimeRange) => {
+		setTimeRange(range);
+		
+		// Update URL params
 		const newParams = new URLSearchParams(searchParams);
-		
-		// Clear old range params
-		newParams.delete('since');
-		newParams.delete('until');
-		newParams.delete('range');
-		
-		if (typeof range === 'object' && range.type === 'custom') {
-			newParams.set('since', range.since);
-			newParams.set('until', range.until);
-		} else {
-			// Preset range (TypeScript knows it's a string here)
-			const presetRange = range as string;
-			newParams.set('range', presetRange);
-			const since = getPresetSince(presetRange);
-			if (since) {
-				newParams.set('since', since);
-			}
-		}
-		
+		newParams.set('range', range);
 		setSearchParams(newParams);
 	}, [searchParams, setSearchParams]);
+
+	const handleCustomRangeChange = useCallback((range: CustomDateRange) => {
+		setCustomRange(range);
+	}, []);
 
 	// Clear filters handler (passed to empty state)
 	const handleClearFilters = useCallback(() => {
@@ -369,6 +327,8 @@ export function TimelineView() {
 				<TimeRangeSelector
 					value={timeRange}
 					onChange={handleTimeRangeChange}
+					customRange={customRange}
+					onCustomRangeChange={handleCustomRangeChange}
 				/>
 				<TimelineFilters
 					selectedTypes={filters.types}
