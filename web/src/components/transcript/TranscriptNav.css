@@ -1,0 +1,225 @@
+/* =============================================================================
+   TranscriptNav - Phase/Iteration Navigation Sidebar
+   ============================================================================= */
+
+/* Nav Container */
+.transcript-nav {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2);
+	background: var(--bg-surface);
+	border-radius: var(--radius-md);
+	min-width: 180px;
+}
+
+/* =============================================================================
+   Phase Item
+   ============================================================================= */
+
+.nav-phase {
+	display: flex;
+	flex-direction: column;
+}
+
+/* Active phase styling */
+.nav-phase--active > .nav-phase-button {
+	background: var(--selection-bg);
+	color: var(--text-primary);
+}
+
+/* =============================================================================
+   Phase Button
+   ============================================================================= */
+
+.nav-phase-button {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1-5);
+	width: 100%;
+	padding: var(--space-1-5) var(--space-2);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	transition:
+		background-color var(--duration-fast) var(--ease-out),
+		color var(--duration-fast) var(--ease-out);
+}
+
+.nav-phase-button:hover {
+	background: var(--bg-hover);
+	color: var(--text-primary);
+}
+
+.nav-phase-button:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+/* =============================================================================
+   Phase Button Elements
+   ============================================================================= */
+
+/* Chevron for expand/collapse */
+.nav-phase-chevron {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 14px;
+	color: var(--text-muted);
+}
+
+/* Placeholder for phases without iterations (maintains alignment) */
+.nav-phase-chevron-placeholder {
+	width: 14px;
+	flex-shrink: 0;
+}
+
+/* Status indicator container */
+.nav-phase-status {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 14px;
+	height: 14px;
+}
+
+/* Status: completed (checkmark) */
+.nav-phase-status--completed {
+	color: var(--green);
+}
+
+/* Status: failed (x) */
+.nav-phase-status--failed {
+	color: var(--red);
+}
+
+/* Status: running (animated dot) */
+.nav-phase-status--running {
+	color: var(--cyan);
+}
+
+.nav-phase-status--running .nav-status-dot {
+	width: 8px;
+	height: 8px;
+	background: currentColor;
+	border-radius: 50%;
+	animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Status: pending (empty circle) */
+.nav-phase-status--pending {
+	color: var(--text-muted);
+}
+
+.nav-phase-status--pending .nav-status-circle {
+	width: 8px;
+	height: 8px;
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+}
+
+/* Phase name */
+.nav-phase-name {
+	flex: 1;
+	font-weight: var(--font-medium);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* =============================================================================
+   Iterations List
+   ============================================================================= */
+
+.nav-iterations {
+	display: flex;
+	flex-direction: column;
+	margin-left: calc(14px + var(--space-1-5)); /* Align with phase name */
+	padding-left: var(--space-2);
+	border-left: 1px solid var(--border);
+}
+
+/* =============================================================================
+   Iteration Button
+   ============================================================================= */
+
+.nav-iteration {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: var(--space-1) var(--space-2);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	transition:
+		background-color var(--duration-fast) var(--ease-out),
+		color var(--duration-fast) var(--ease-out);
+}
+
+.nav-iteration:hover {
+	background: var(--bg-hover);
+	color: var(--text-secondary);
+}
+
+.nav-iteration:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: -2px;
+}
+
+/* Active iteration */
+.nav-iteration--active {
+	background: var(--primary-dim);
+	color: var(--primary);
+	font-weight: var(--font-medium);
+}
+
+.nav-iteration--active:hover {
+	background: var(--primary-dim);
+}
+
+/* =============================================================================
+   Animation
+   ============================================================================= */
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 600px) {
+	.transcript-nav {
+		min-width: 140px;
+		padding: var(--space-1);
+	}
+
+	.nav-phase-button {
+		padding: var(--space-1) var(--space-1-5);
+		font-size: var(--text-xs);
+	}
+
+	.nav-iteration {
+		padding: var(--space-0-5) var(--space-1-5);
+	}
+}
