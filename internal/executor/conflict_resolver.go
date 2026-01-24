@@ -14,6 +14,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/templates"
 )
@@ -34,6 +35,9 @@ type ConflictResolver struct {
 	// ClaudeCLI settings
 	claudePath    string
 	mcpConfigPath string
+
+	// Transcript storage (optional - for unified Claude calling path)
+	backend storage.Backend
 
 	// turnExecutor allows injection of a mock for testing
 	turnExecutor TurnExecutor
@@ -83,6 +87,11 @@ func WithResolverModel(model string, thinking bool) ConflictResolverOption {
 // WithResolverTurnExecutor sets a TurnExecutor for testing.
 func WithResolverTurnExecutor(te TurnExecutor) ConflictResolverOption {
 	return func(r *ConflictResolver) { r.turnExecutor = te }
+}
+
+// WithResolverBackend sets the storage backend for transcript storage.
+func WithResolverBackend(b storage.Backend) ConflictResolverOption {
+	return func(r *ConflictResolver) { r.backend = b }
 }
 
 // NewConflictResolver creates a new conflict resolver.
@@ -191,6 +200,7 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
 	if r.turnExecutor != nil {
 		turnExec = r.turnExecutor
@@ -201,6 +211,10 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 			WithClaudeModel(r.model),
 			WithClaudeMaxTurns(5), // Limited turns for conflict resolution
 			WithClaudeLogger(r.logger),
+			WithClaudePhaseID("conflict-resolution"),
+			// Transcript storage options - handled internally
+			WithClaudeBackend(r.backend),
+			WithClaudeTaskID(t.ID),
 		}
 		if r.mcpConfigPath != "" {
 			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(r.mcpConfigPath))

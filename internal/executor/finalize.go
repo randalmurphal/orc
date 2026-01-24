@@ -601,7 +601,9 @@ func (e *FinalizeExecutor) resolveConflicts(
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
+	sessionID := fmt.Sprintf("%s-conflict-resolution", t.ID)
 	if e.turnExecutor != nil {
 		turnExec = e.turnExecutor
 	} else {
@@ -609,9 +611,13 @@ func (e *FinalizeExecutor) resolveConflicts(
 			WithClaudePath(e.claudePath),
 			WithClaudeWorkdir(e.workingDir),
 			WithClaudeModel(modelSetting.Model),
-			WithClaudeSessionID(fmt.Sprintf("%s-conflict-resolution", t.ID)),
+			WithClaudeSessionID(sessionID),
 			WithClaudeMaxTurns(5), // Limited turns for conflict resolution
 			WithClaudeLogger(e.logger),
+			WithClaudePhaseID(p.ID),
+			// Transcript storage options - handled internally
+			WithClaudeBackend(e.backend),
+			WithClaudeTaskID(t.ID),
 		}
 		if e.mcpConfigPath != "" {
 			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
@@ -771,7 +777,9 @@ func (e *FinalizeExecutor) tryFixTests(
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
+	sessionID := fmt.Sprintf("%s-test-fix", t.ID)
 	if e.turnExecutor != nil {
 		turnExec = e.turnExecutor
 	} else {
@@ -779,9 +787,13 @@ func (e *FinalizeExecutor) tryFixTests(
 			WithClaudePath(e.claudePath),
 			WithClaudeWorkdir(e.workingDir),
 			WithClaudeModel(modelSetting.Model),
-			WithClaudeSessionID(fmt.Sprintf("%s-test-fix", t.ID)),
+			WithClaudeSessionID(sessionID),
 			WithClaudeMaxTurns(5),
 			WithClaudeLogger(e.logger),
+			WithClaudePhaseID(p.ID),
+			// Transcript storage options - handled internally
+			WithClaudeBackend(e.backend),
+			WithClaudeTaskID(t.ID),
 		}
 		if e.mcpConfigPath != "" {
 			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
