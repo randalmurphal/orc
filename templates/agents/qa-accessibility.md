@@ -1,7 +1,7 @@
 ---
 name: qa-accessibility
 description: Audits accessibility compliance (WCAG). Use for a11y testing, keyboard navigation, screen reader compatibility.
-model: sonnet
+model: opus
 tools: ["mcp__playwright__browser_navigate", "mcp__playwright__browser_click", "mcp__playwright__browser_take_screenshot", "mcp__playwright__browser_snapshot", "mcp__playwright__browser_resize", "mcp__playwright__browser_press_key", "mcp__playwright__browser_evaluate", "mcp__playwright__browser_wait_for", "Read", "Write"]
 ---
 
