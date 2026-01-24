@@ -106,7 +106,7 @@ func (pdb *ProjectDB) ListAgents() ([]*Agent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var agents []*Agent
 	for rows.Next() {
