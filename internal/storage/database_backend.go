@@ -233,6 +233,7 @@ func (d *DatabaseBackend) SaveStateCtx(ctx context.Context, s *state.State) erro
 	// We store state status in a separate field (StateStatus)
 	dbTask.StateStatus = string(s.Status)
 	dbTask.CurrentPhase = s.CurrentPhase
+	dbTask.CurrentIteration = s.CurrentIteration
 	dbTask.TotalCostUSD = s.Cost.TotalCostUSD
 
 	// Persist execution info for orphan detection
@@ -365,11 +366,12 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 	}
 
 	s := &state.State{
-		TaskID:       taskID,
-		CurrentPhase: dbTask.CurrentPhase,
-		Status:       state.Status(stateStatus),
-		Phases:       make(map[string]*state.PhaseState),
-		StartedAt:    startedAt,
+		TaskID:           taskID,
+		CurrentPhase:     dbTask.CurrentPhase,
+		CurrentIteration: dbTask.CurrentIteration,
+		Status:           state.Status(stateStatus),
+		Phases:           make(map[string]*state.PhaseState),
+		StartedAt:        startedAt,
 	}
 
 	// Deserialize RetryContext if present
@@ -1392,13 +1394,14 @@ func taskToDBTask(t *task.Task) *db.Task {
 	}
 
 	return &db.Task{
-		ID:           t.ID,
-		Title:        t.Title,
-		Description:  t.Description,
-		Weight:       string(t.Weight),
-		Status:       string(t.Status),
-		CurrentPhase: t.CurrentPhase,
-		Branch:       t.Branch,
+		ID:               t.ID,
+		Title:            t.Title,
+		Description:      t.Description,
+		Weight:           string(t.Weight),
+		Status:           string(t.Status),
+		CurrentPhase:     t.CurrentPhase,
+		CurrentIteration: t.CurrentIteration,
+		Branch:           t.Branch,
 		TargetBranch: t.TargetBranch,
 		Queue:        string(t.GetQueue()),
 		Priority:     string(t.GetPriority()),
@@ -1430,13 +1433,14 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 	}
 
 	return &task.Task{
-		ID:           dbTask.ID,
-		Title:        dbTask.Title,
-		Description:  dbTask.Description,
-		Weight:       task.Weight(dbTask.Weight),
-		Status:       task.Status(dbTask.Status),
-		CurrentPhase: dbTask.CurrentPhase,
-		Branch:       dbTask.Branch,
+		ID:               dbTask.ID,
+		Title:            dbTask.Title,
+		Description:      dbTask.Description,
+		Weight:           task.Weight(dbTask.Weight),
+		Status:           task.Status(dbTask.Status),
+		CurrentPhase:     dbTask.CurrentPhase,
+		CurrentIteration: dbTask.CurrentIteration,
+		Branch:           dbTask.Branch,
 		TargetBranch: dbTask.TargetBranch,
 		Queue:        task.Queue(dbTask.Queue),
 		Priority:     task.Priority(dbTask.Priority),
