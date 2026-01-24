@@ -667,3 +667,58 @@ func TestEvaluateLoopCondition(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractPhaseOutput(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "extracts artifact field when present",
+			input:    `{"status": "complete", "artifact": "The spec content"}`,
+			expected: "The spec content",
+		},
+		{
+			name:     "returns full JSON for qa_e2e_test output (findings)",
+			input:    `{"status": "complete", "summary": "Tested 5 scenarios", "findings": [{"id": "QA-001", "title": "Bug found"}]}`,
+			expected: `{"status": "complete", "summary": "Tested 5 scenarios", "findings": [{"id": "QA-001", "title": "Bug found"}]}`,
+		},
+		{
+			name:     "returns full JSON for qa_e2e_fix output (fixes_applied)",
+			input:    `{"status": "complete", "summary": "Fixed 2 issues", "fixes_applied": [{"finding_id": "QA-001", "status": "fixed"}]}`,
+			expected: `{"status": "complete", "summary": "Fixed 2 issues", "fixes_applied": [{"finding_id": "QA-001", "status": "fixed"}]}`,
+		},
+		{
+			name:     "returns empty for invalid JSON",
+			input:    "not valid json",
+			expected: "",
+		},
+		{
+			name:     "returns empty for empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "handles whitespace",
+			input:    `  {"status": "complete", "findings": []}  `,
+			expected: `{"status": "complete", "findings": []}`,
+		},
+		{
+			name:     "prefers artifact field over full JSON",
+			input:    `{"status": "complete", "artifact": "The content", "findings": []}`,
+			expected: "The content",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractPhaseOutput(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractPhaseOutput() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}

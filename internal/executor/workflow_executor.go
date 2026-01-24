@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -899,13 +900,33 @@ func truncateTitle(s string) string {
 	return s[:maxLen-3] + "..."
 }
 
-// extractArtifactFromJSON extracts the artifact field from phase JSON output.
-func extractArtifactFromJSON(output string) string {
-	var data struct {
-		Artifact string `json:"artifact"`
-	}
-	if err := json.Unmarshal([]byte(output), &data); err != nil {
+// extractPhaseOutput extracts the phase output content from JSON.
+// If the JSON has an explicit "artifact" field (legacy spec/design phases), extracts that.
+// Otherwise, returns the entire JSON as the output - the structured JSON IS the phase output.
+func extractPhaseOutput(output string) string {
+	output = strings.TrimSpace(output)
+	if output == "" {
 		return ""
 	}
-	return data.Artifact
+
+	// Verify it's valid JSON
+	var generic map[string]any
+	if err := json.Unmarshal([]byte(output), &generic); err != nil {
+		return ""
+	}
+
+	// Check for legacy "artifact" field (used by spec, design, docs phases)
+	if artifact, ok := generic["artifact"].(string); ok && artifact != "" {
+		return artifact
+	}
+
+	// No artifact field - the entire JSON IS the output
+	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
+	return output
+}
+
+// extractArtifactFromJSON is deprecated, use extractPhaseOutput.
+// Kept for backward compatibility.
+func extractArtifactFromJSON(output string) string {
+	return extractPhaseOutput(output)
 }
