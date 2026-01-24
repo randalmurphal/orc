@@ -82,18 +82,19 @@ embed-frontend:
 	@echo "==> Embedding frontend..."
 	@rm -rf internal/api/static
 	@cp -r web/build internal/api/static
+	@touch internal/api/static/.gitkeep
 	@echo "    Frontend embedded to internal/api/static/"
 
 ## test: Run tests locally
 test:
 	@mkdir -p internal/api/static
-	@test -f internal/api/static/.gitkeep || echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
+	@test -f internal/api/static/.gitkeep || touch internal/api/static/.gitkeep
 	GOWORK=off go test -v -race -cover ./...
 
 ## test-short: Run tests without race detector (faster)
 test-short:
 	@mkdir -p internal/api/static
-	@test -f internal/api/static/.gitkeep || echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
+	@test -f internal/api/static/.gitkeep || touch internal/api/static/.gitkeep
 	GOWORK=off go test -v -cover ./...
 
 ## lint: Run linters locally
@@ -211,7 +212,7 @@ dev-full:
 ## coverage: Generate test coverage report
 coverage:
 	@mkdir -p internal/api/static
-	@test -f internal/api/static/.gitkeep || echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
+	@test -f internal/api/static/.gitkeep || touch internal/api/static/.gitkeep
 	GOWORK=off go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
@@ -219,7 +220,7 @@ coverage:
 ## coverage-func: Show coverage by function
 coverage-func:
 	@mkdir -p internal/api/static
-	@test -f internal/api/static/.gitkeep || echo "# Placeholder for go:embed" > internal/api/static/.gitkeep
+	@test -f internal/api/static/.gitkeep || touch internal/api/static/.gitkeep
 	GOWORK=off go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
