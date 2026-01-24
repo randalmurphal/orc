@@ -655,8 +655,20 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				return result, fmt.Errorf("%w: %v", ErrTaskBlocked, completionErr)
 			}
 
-			// Other completion errors - log warning but continue
-			we.logger.Warn("completion action failed", "error", completionErr)
+			// Other completion errors - fail the task properly
+			we.logger.Error("completion action failed", "task", t.ID, "error", completionErr)
+			t.Status = task.StatusFailed
+			if t.Metadata == nil {
+				t.Metadata = make(map[string]string)
+			}
+			t.Metadata["failed_reason"] = "completion_failed"
+			t.Metadata["failed_error"] = completionErr.Error()
+			if err := we.backend.SaveTask(t); err != nil {
+				we.logger.Warn("failed to save failed task", "task", t.ID, "error", err)
+			}
+			result.Success = false
+			result.Error = completionErr.Error()
+			return result, fmt.Errorf("completion failed: %w", completionErr)
 		}
 	}
 

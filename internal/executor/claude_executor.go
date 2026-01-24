@@ -61,6 +61,10 @@ type ClaudeExecutor struct {
 
 	// transcriptHandler is created internally when backend is provided
 	transcriptHandler *TranscriptStreamHandler
+
+	// phaseConfig contains per-phase Claude CLI configuration
+	// (system prompts, tool restrictions, MCP servers, budgets, etc.)
+	phaseConfig *PhaseClaudeConfig
 }
 
 // ClaudeExecutorOption configures a ClaudeExecutor.
@@ -138,6 +142,19 @@ func WithClaudeRunID(id string) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.runID = id }
 }
 
+// WithPhaseClaudeConfig sets the per-phase Claude configuration.
+// This enables fine-grained control over Claude's behavior per-phase including:
+// - System prompts (inline or file-based)
+// - Tool restrictions (allowed, disallowed, tools list)
+// - MCP servers (per-phase server configs)
+// - Budget and limits (max_budget_usd, max_turns)
+// - Environment variables and additional directories
+// - Agent assignment (agent_ref, inline_agents - requires llmkit support)
+// - Skill injection (skill_refs - resolved before passing to config)
+func WithPhaseClaudeConfig(cfg *PhaseClaudeConfig) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.phaseConfig = cfg }
+}
+
 // NewClaudeExecutor creates a new Claude executor.
 // If backend and taskID are provided, transcripts are stored automatically.
 func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
@@ -151,10 +168,15 @@ func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 
 	// Create transcript handler if we have backend and taskID
 	if e.backend != nil && e.taskID != "" {
+		var captureHookEvents []string
+		if e.phaseConfig != nil {
+			captureHookEvents = e.phaseConfig.CaptureHookEvents
+		}
 		e.transcriptHandler = NewTranscriptStreamHandler(
 			e.backend, e.logger,
 			e.taskID, e.phaseID, e.sessionID, e.runID,
 			e.model,
+			captureHookEvents,
 		)
 	}
 
@@ -379,6 +401,81 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 	if e.maxTurns > 0 {
 		opts = append(opts, claude.WithMaxTurns(e.maxTurns))
 	}
+
+	// Apply phase-specific Claude configuration
+	// Priority: phaseConfig overrides executor-level settings
+	if e.phaseConfig != nil {
+		opts = e.applyPhaseConfig(opts)
+	}
+
+	return opts
+}
+
+// applyPhaseConfig applies PhaseClaudeConfig options to the CLI options.
+// Returns the updated options slice.
+func (e *ClaudeExecutor) applyPhaseConfig(opts []claude.ClaudeOption) []claude.ClaudeOption {
+	cfg := e.phaseConfig
+	if cfg == nil {
+		return opts
+	}
+
+	// System prompts
+	if cfg.SystemPrompt != "" {
+		opts = append(opts, claude.WithSystemPrompt(cfg.SystemPrompt))
+	}
+	if cfg.AppendSystemPrompt != "" {
+		opts = append(opts, claude.WithAppendSystemPrompt(cfg.AppendSystemPrompt))
+	}
+	// Note: SystemPromptFile and AppendSystemPromptFile are resolved to content
+	// before being passed here (by skill_loader or workflow_phase.go)
+
+	// Tool control
+	if len(cfg.AllowedTools) > 0 {
+		opts = append(opts, claude.WithAllowedTools(cfg.AllowedTools))
+	}
+	if len(cfg.DisallowedTools) > 0 {
+		opts = append(opts, claude.WithDisallowedTools(cfg.DisallowedTools))
+	}
+	if len(cfg.Tools) > 0 {
+		opts = append(opts, claude.WithTools(cfg.Tools))
+	}
+
+	// MCP servers
+	if len(cfg.MCPServers) > 0 {
+		opts = append(opts, claude.WithMCPServers(cfg.MCPServers))
+	}
+	if cfg.StrictMCPConfig {
+		opts = append(opts, claude.WithStrictMCPConfig())
+	}
+
+	// Budget and limits - only apply if explicitly set in phase config
+	// (0 means "not set", not "unlimited")
+	if cfg.MaxBudgetUSD > 0 {
+		opts = append(opts, claude.WithMaxBudgetUSD(cfg.MaxBudgetUSD))
+	}
+	if cfg.MaxTurns > 0 {
+		// Phase config max_turns overrides executor-level maxTurns
+		opts = append(opts, claude.WithMaxTurns(cfg.MaxTurns))
+	}
+
+	// Environment
+	if len(cfg.Env) > 0 {
+		opts = append(opts, claude.WithEnv(cfg.Env))
+	}
+	if len(cfg.AddDirs) > 0 {
+		opts = append(opts, claude.WithAddDirs(cfg.AddDirs))
+	}
+
+	// Agent assignment (--agent and --agents)
+	if cfg.AgentRef != "" {
+		opts = append(opts, claude.WithAgent(cfg.AgentRef))
+	}
+	if len(cfg.InlineAgents) > 0 {
+		opts = append(opts, claude.WithAgentsJSON(cfg.InlineAgentsJSON()))
+	}
+
+	// Skills are resolved before this point - content injected into AppendSystemPrompt
+	// Hook events are handled by the transcript handler
 
 	return opts
 }

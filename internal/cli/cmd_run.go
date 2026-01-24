@@ -153,6 +153,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("seed workflows: %w", err)
 	}
 
+	// Migrate phase template model settings
+	if _, err := workflow.MigratePhaseTemplateModels(pdb); err != nil {
+		return fmt.Errorf("migrate phase templates: %w", err)
+	}
+
 	// Get backend
 	backend, err := getBackend()
 	if err != nil {

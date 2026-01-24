@@ -11,8 +11,13 @@ import (
 // Applied to the implement phase to run tests, lint, build, and typecheck after code changes.
 const DefaultCodeQualityChecks = `[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]`
 
+// boolPtr is a helper to create a pointer to a bool.
+func boolPtr(b bool) *bool { return &b }
+
 // Built-in phase template definitions.
 // These are seeded into the database on first run.
+// Model defaults: opus for most phases, sonnet for test-heavy phases.
+// Thinking enabled for decision phases that benefit from deep reasoning.
 var builtinPhaseTemplates = []db.PhaseTemplate{
 	{
 		ID:               "spec",
@@ -26,8 +31,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "SPEC_CONTENT",
 		OutputType:       "document",
 		MaxIterations:    20,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(true), // Decision phase: needs deep reasoning
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: planning, not writing
 		IsBuiltin:        true,
 	},
 	{
@@ -42,8 +50,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "SPEC_CONTENT",
 		OutputType:       "document",
 		MaxIterations:    10,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(false), // Short task, no extended thinking needed
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit"]}`, // Read-only: planning, not writing
 		IsBuiltin:        true,
 	},
 	{
@@ -58,6 +69,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "TDD_TESTS_CONTENT",
 		OutputType:       "tests",
 		MaxIterations:    20,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
 		RetryFromPhase:   "spec",
@@ -75,6 +88,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "BREAKDOWN_CONTENT",
 		OutputType:       "document",
 		MaxIterations:    10,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
 		IsBuiltin:        true,
@@ -90,6 +105,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputType:       "code",
 		QualityChecks:    DefaultCodeQualityChecks,
 		MaxIterations:    50,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
 		RetryFromPhase:   "breakdown",
@@ -105,8 +122,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ProducesArtifact: false,
 		OutputType:       "none",
 		MaxIterations:    3,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(true), // Decision phase: code quality judgment
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: review, not modify
 		IsBuiltin:        true,
 	},
 	{
@@ -121,8 +141,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "DOCS_CONTENT",
 		OutputType:       "document",
 		MaxIterations:    10,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Bash"]}`, // Docs don't need shell commands
 		IsBuiltin:        true,
 	},
 	{
@@ -135,8 +158,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ProducesArtifact: false,
 		OutputType:       "none",
 		MaxIterations:    5,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(true), // Decision phase: verification judgment
 		GateType:         "auto",
 		Checkpoint:       false,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: verification, not modification
 		IsBuiltin:        true,
 	},
 	{
@@ -149,6 +175,8 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ProducesArtifact: false,
 		OutputType:       "none",
 		MaxIterations:    10,
+		ModelOverride:    "sonnet", // QA is more mechanical, sonnet is sufficient
+		ThinkingEnabled:  boolPtr(false),
 		GateType:         "human",
 		Checkpoint:       false,
 		IsBuiltin:        true,
@@ -165,8 +193,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "RESEARCH_CONTENT",
 		OutputType:       "research",
 		MaxIterations:    10,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(true), // Research needs deep reasoning
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: research, not writing
 		IsBuiltin:        true,
 	},
 	{
@@ -181,8 +212,11 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		OutputVarName:    "DESIGN_CONTENT",
 		OutputType:       "document",
 		MaxIterations:    10,
+		ModelOverride:    "opus",
+		ThinkingEnabled:  boolPtr(true), // Decision phase: architecture decisions
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: planning, not writing
 		IsBuiltin:        true,
 	},
 }
@@ -424,4 +458,58 @@ func ListBuiltinPhaseIDs() []string {
 		ids[i] = pt.ID
 	}
 	return ids
+}
+
+// MigratePhaseTemplateModels updates existing builtin phase templates with model settings
+// and Claude configuration. This should be called on startup to ensure existing databases
+// have the latest defaults.
+// Returns the number of templates updated.
+func MigratePhaseTemplateModels(pdb *db.ProjectDB) (int, error) {
+	now := time.Now()
+	updated := 0
+
+	for _, builtin := range builtinPhaseTemplates {
+		existing, err := pdb.GetPhaseTemplate(builtin.ID)
+		if err != nil {
+			return updated, fmt.Errorf("get phase template %s: %w", builtin.ID, err)
+		}
+		if existing == nil {
+			continue // Not seeded yet, will be handled by SeedBuiltins
+		}
+
+		// Only update if this is a builtin template
+		if !existing.IsBuiltin {
+			continue // Don't touch user-created templates
+		}
+
+		needsUpdate := false
+
+		// Update model if not set (empty or different from builtin)
+		if existing.ModelOverride == "" && builtin.ModelOverride != "" {
+			existing.ModelOverride = builtin.ModelOverride
+			needsUpdate = true
+		}
+
+		// Update thinking if not set
+		if existing.ThinkingEnabled == nil && builtin.ThinkingEnabled != nil {
+			existing.ThinkingEnabled = builtin.ThinkingEnabled
+			needsUpdate = true
+		}
+
+		// Update ClaudeConfig if not set
+		if existing.ClaudeConfig == "" && builtin.ClaudeConfig != "" {
+			existing.ClaudeConfig = builtin.ClaudeConfig
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			existing.UpdatedAt = now
+			if err := pdb.SavePhaseTemplate(existing); err != nil {
+				return updated, fmt.Errorf("update phase template %s: %w", existing.ID, err)
+			}
+			updated++
+		}
+	}
+
+	return updated, nil
 }

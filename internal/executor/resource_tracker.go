@@ -35,9 +35,8 @@ type ProcessSnapshot struct {
 
 // ResourceTrackerConfig configures the resource tracker behavior.
 type ResourceTrackerConfig struct {
-	Enabled            bool
-	MemoryThresholdMB  int
-	LogOrphanedMCPOnly bool // deprecated: use FilterSystemProcesses instead
+	Enabled           bool
+	MemoryThresholdMB int
 	// FilterSystemProcesses controls whether to filter out system processes from orphan detection.
 	// When true (default), only processes that match orc-related patterns (claude, node, playwright,
 	// chromium, etc.) are flagged as potential orphans. System processes like systemd-timedated,
@@ -147,21 +146,15 @@ func (rt *ResourceTracker) DetectOrphans() []ProcessInfo {
 		isOrphan := p.PPID == 1 || !afterPIDSet[p.PPID]
 
 		if isOrphan {
-			// Filter based on configuration
-			// Priority: FilterSystemProcesses (new) > LogOrphanedMCPOnly (deprecated)
+			// Filter system processes if enabled (default)
 			if rt.config.FilterSystemProcesses {
 				// Only flag orc-related processes (claude, node, playwright, etc.)
 				// This filters out system processes like systemd-timedated, snapper, etc.
 				if !p.IsOrcRelated {
 					continue
 				}
-			} else if rt.config.LogOrphanedMCPOnly {
-				// Deprecated: only flag MCP browser processes
-				if !p.IsMCP {
-					continue
-				}
 			}
-			// If neither filter is enabled, all orphans are flagged (original behavior)
+			// If filter is disabled, all orphans are flagged (original behavior)
 			orphans = append(orphans, p)
 		}
 	}

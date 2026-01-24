@@ -591,13 +591,10 @@ func (e *FinalizeExecutor) resolveConflicts(
 	// Build conflict resolution prompt
 	prompt := buildConflictResolutionPrompt(t, conflictFiles, cfg)
 
-	// Resolve model settings for finalize phase
-	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
-
-	// Inject "ultrathink" for extended thinking mode
-	if modelSetting.Thinking {
-		prompt = "ultrathink\n\n" + prompt
-		e.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID, "phase", p.ID)
+	// Use config default model (finalize doesn't have a phase template)
+	model := e.config.Model
+	if model == "" {
+		model = "opus"
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
@@ -610,7 +607,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 		claudeOpts := []ClaudeExecutorOption{
 			WithClaudePath(e.claudePath),
 			WithClaudeWorkdir(e.workingDir),
-			WithClaudeModel(modelSetting.Model),
+			WithClaudeModel(model),
 			WithClaudeSessionID(sessionID),
 			WithClaudeMaxTurns(5), // Limited turns for conflict resolution
 			WithClaudeLogger(e.logger),
@@ -767,13 +764,10 @@ func (e *FinalizeExecutor) tryFixTests(
 	// Build fix prompt
 	prompt := buildTestFixPrompt(t, testResult)
 
-	// Resolve model settings for finalize phase
-	modelSetting := e.config.ResolveModelSetting(string(t.Weight), p.ID)
-
-	// Inject "ultrathink" for extended thinking mode
-	if modelSetting.Thinking {
-		prompt = "ultrathink\n\n" + prompt
-		e.logger.Debug("extended thinking enabled for test fix", "task", t.ID, "phase", p.ID)
+	// Use config default model (finalize doesn't have a phase template)
+	model := e.config.Model
+	if model == "" {
+		model = "opus"
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
@@ -786,7 +780,7 @@ func (e *FinalizeExecutor) tryFixTests(
 		claudeOpts := []ClaudeExecutorOption{
 			WithClaudePath(e.claudePath),
 			WithClaudeWorkdir(e.workingDir),
-			WithClaudeModel(modelSetting.Model),
+			WithClaudeModel(model),
 			WithClaudeSessionID(sessionID),
 			WithClaudeMaxTurns(5),
 			WithClaudeLogger(e.logger),

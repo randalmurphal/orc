@@ -158,39 +158,8 @@ func (d *ArtifactDetector) detectSpecArtifacts() *ArtifactStatus {
 		}
 	}
 
-	// Fallback: check for legacy spec.md file (for backward compatibility)
-	specPath := filepath.Join(d.taskDir, "spec.md")
-	content, err := readFileLimited(specPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			status.Description = "no spec found (checked database and spec.md)"
-		} else {
-			status.Description = "spec.md exists but unreadable"
-		}
-		return status
-	}
-
-	// Check if spec has meaningful content
-	contentStr := string(content)
-	if len(strings.TrimSpace(contentStr)) < minMeaningfulContent {
-		status.Description = "spec.md exists but appears empty or minimal"
-		return status
-	}
-
-	// Validate spec content based on weight
-	validation := task.ValidateSpec(contentStr, d.weight)
-	if !validation.Valid {
-		status.HasArtifacts = true
-		status.Artifacts = []string{"spec.md"}
-		status.Description = "spec.md exists but incomplete: " + strings.Join(validation.Issues, ", ")
-		status.CanAutoSkip = false // Don't auto-skip invalid specs
-		return status
-	}
-
-	status.HasArtifacts = true
-	status.Artifacts = []string{"spec.md"}
-	status.Description = "spec.md exists with valid content (legacy file)"
-	status.CanAutoSkip = true
+	// No spec found - specs must be in database
+	status.Description = "no spec found in database"
 	return status
 }
 
@@ -207,19 +176,6 @@ func (d *ArtifactDetector) detectResearchArtifacts() *ArtifactStatus {
 			status.HasArtifacts = true
 			status.Artifacts = []string{"artifacts/research.md"}
 			status.Description = "research.md artifact exists"
-			status.CanAutoSkip = true
-			return status
-		}
-	}
-
-	// Also check for research content in spec.md (sometimes embedded)
-	specPath := filepath.Join(d.taskDir, "spec.md")
-	if content, err := readFileLimited(specPath); err == nil {
-		contentStr := strings.ToLower(string(content))
-		if strings.Contains(contentStr, "## research") || strings.Contains(contentStr, "# research") {
-			status.HasArtifacts = true
-			status.Artifacts = []string{"spec.md (contains research section)"}
-			status.Description = "research content found in spec.md"
 			status.CanAutoSkip = true
 			return status
 		}

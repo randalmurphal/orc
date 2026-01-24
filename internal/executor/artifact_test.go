@@ -9,69 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-func TestSavePhaseArtifact(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		phaseID  string
-		output   string
-		wantPath bool
-	}{
-		{
-			name:     "spec phase always returns empty (database only)",
-			phaseID:  "spec",
-			output:   `{"status": "complete", "artifact": "some spec content"}`,
-			wantPath: false,
-		},
-		{
-			name:     "implement phase returns empty (no artifact field)",
-			phaseID:  "implement",
-			output:   `{"status": "complete", "summary": "Done"}`,
-			wantPath: false,
-		},
-		{
-			name:     "research phase extracts artifact from JSON",
-			phaseID:  "research",
-			output:   `{"status": "complete", "artifact": "# Research Findings\n\nRelevant code found."}`,
-			wantPath: true,
-		},
-		{
-			name:     "docs phase extracts artifact from JSON",
-			phaseID:  "docs",
-			output:   `{"status": "complete", "artifact": "# Documentation\n\nAPI docs."}`,
-			wantPath: true,
-		},
-		{
-			name:     "returns empty when no artifact in JSON",
-			phaseID:  "docs",
-			output:   `{"status": "complete", "summary": "Done but no artifact"}`,
-			wantPath: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Note: SavePhaseArtifact uses task.TaskDir which won't match our tmpDir
-			// This test verifies the logic flow for spec phase handling
-			path, err := SavePhaseArtifact("TASK-ART-TEST", tt.phaseID, tt.output)
-			if err != nil {
-				t.Fatalf("SavePhaseArtifact() error = %v", err)
-			}
-
-			// For spec phase, always empty
-			if tt.phaseID == "spec" && path != "" {
-				t.Errorf("SavePhaseArtifact(spec) should return empty path, got %q", path)
-			}
-
-			// For non-artifact phases with no artifact, should be empty
-			if !PhasesWithArtifacts[tt.phaseID] && path != "" {
-				t.Errorf("SavePhaseArtifact(%s) should return empty path for non-artifact phase, got %q", tt.phaseID, path)
-			}
-		})
-	}
-}
-
 func TestExtractArtifactContent(t *testing.T) {
 	t.Parallel()
 
@@ -286,22 +223,6 @@ func escapeJSONString(s string) string {
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	s = strings.ReplaceAll(s, "\t", "\\t")
 	return `"` + s + `"`
-}
-
-// TestSavePhaseArtifact_SkipsSpecPhase verifies that SavePhaseArtifact does NOT
-// write files for the spec phase. Spec content should only be saved to the database.
-func TestSavePhaseArtifact_SkipsSpecPhase(t *testing.T) {
-	t.Parallel()
-	// Call SavePhaseArtifact for spec phase
-	path, err := SavePhaseArtifact("TASK-SKIP-001", "spec", `{"status": "complete", "artifact": "content"}`)
-	if err != nil {
-		t.Fatalf("SavePhaseArtifact() error = %v", err)
-	}
-
-	// Should return empty path for spec phase (no file operations)
-	if path != "" {
-		t.Errorf("SavePhaseArtifact(spec) should return empty path, got %q", path)
-	}
 }
 
 func TestIsValidSpecContent(t *testing.T) {

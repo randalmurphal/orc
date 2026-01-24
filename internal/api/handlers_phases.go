@@ -78,6 +78,7 @@ func (s *Server) handleCreatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		ThinkingEnabled  *bool  `json:"thinking_enabled,omitempty"`
 		GateType         string `json:"gate_type,omitempty"`
 		Checkpoint       bool   `json:"checkpoint,omitempty"`
+		ClaudeConfig     string `json:"claude_config,omitempty"` // JSON config for Claude CLI options
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -130,6 +131,7 @@ func (s *Server) handleCreatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		ThinkingEnabled:  req.ThinkingEnabled,
 		GateType:         req.GateType,
 		Checkpoint:       req.Checkpoint,
+		ClaudeConfig:     req.ClaudeConfig,
 		IsBuiltin:        false,
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -173,6 +175,7 @@ func (s *Server) handleUpdatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		ProducesArtifact *bool   `json:"produces_artifact,omitempty"`
 		ArtifactType     *string `json:"artifact_type,omitempty"`
 		Checkpoint       *bool   `json:"checkpoint,omitempty"`
+		ClaudeConfig     *string `json:"claude_config,omitempty"` // JSON config for Claude CLI options
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -209,6 +212,9 @@ func (s *Server) handleUpdatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 	}
 	if req.Checkpoint != nil {
 		tmpl.Checkpoint = *req.Checkpoint
+	}
+	if req.ClaudeConfig != nil {
+		tmpl.ClaudeConfig = *req.ClaudeConfig
 	}
 	tmpl.UpdatedAt = time.Now()
 

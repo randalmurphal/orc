@@ -62,8 +62,7 @@ func TestOrphanDetection(t *testing.T) {
 	config := ResourceTrackerConfig{
 		Enabled:            true,
 		MemoryThresholdMB:  100,
-		LogOrphanedMCPOnly: false,
-	}
+			}
 	tracker := NewResourceTracker(config, slog.Default())
 
 	// Manually set up before/after snapshots to test detection logic
@@ -119,44 +118,6 @@ func TestOrphanDetection(t *testing.T) {
 	}
 	if !foundMissingParent {
 		t.Error("expected to find orphan-missing-parent (PID 600)")
-	}
-}
-
-// TestOrphanDetectionMCPOnly verifies MCP-only filtering works.
-func TestOrphanDetectionMCPOnly(t *testing.T) {
-	t.Parallel()
-	config := ResourceTrackerConfig{
-		Enabled:            true,
-		MemoryThresholdMB:  100,
-		LogOrphanedMCPOnly: true, // Only log MCP orphans
-	}
-	tracker := NewResourceTracker(config, slog.Default())
-
-	tracker.beforeSnapshot = &ProcessSnapshot{
-		Processes:    []ProcessInfo{},
-		ProcessCount: 0,
-	}
-
-	tracker.afterSnapshot = &ProcessSnapshot{
-		Processes: []ProcessInfo{
-			{PID: 100, PPID: 1, Command: "random-process", IsMCP: false},
-			{PID: 200, PPID: 1, Command: "chromium --headless", IsMCP: true},
-			{PID: 300, PPID: 1, Command: "playwright-server", IsMCP: true},
-		},
-		ProcessCount: 3,
-	}
-
-	orphans := tracker.DetectOrphans()
-
-	// Should only find MCP orphans (chromium and playwright)
-	if len(orphans) != 2 {
-		t.Errorf("expected 2 MCP orphans, got %d", len(orphans))
-	}
-
-	for _, o := range orphans {
-		if !o.IsMCP {
-			t.Errorf("expected only MCP orphans, got non-MCP: %s", o.Command)
-		}
 	}
 }
 
@@ -450,7 +411,6 @@ func TestOrphanDetectionFilterSystemProcessesDisabled(t *testing.T) {
 		Enabled:               true,
 		MemoryThresholdMB:     100,
 		FilterSystemProcesses: false, // Disabled - original behavior
-		LogOrphanedMCPOnly:    false,
 	}
 	tracker := NewResourceTracker(config, slog.Default())
 
@@ -475,55 +435,6 @@ func TestOrphanDetectionFilterSystemProcessesDisabled(t *testing.T) {
 	// Should find ALL orphans since filtering is disabled
 	if len(orphans) != 3 {
 		t.Errorf("expected 3 orphans (all processes), got %d", len(orphans))
-	}
-}
-
-// TestOrphanDetectionPriorityFilterSystemOverMCPOnly verifies FilterSystemProcesses takes priority over LogOrphanedMCPOnly.
-func TestOrphanDetectionPriorityFilterSystemOverMCPOnly(t *testing.T) {
-	t.Parallel()
-	// When both are set, FilterSystemProcesses should take priority
-	config := ResourceTrackerConfig{
-		Enabled:               true,
-		MemoryThresholdMB:     100,
-		LogOrphanedMCPOnly:    true, // Old option (would only show MCP)
-		FilterSystemProcesses: true, // New option takes priority (shows all orc-related)
-	}
-	tracker := NewResourceTracker(config, slog.Default())
-
-	tracker.beforeSnapshot = &ProcessSnapshot{
-		Processes:    []ProcessInfo{},
-		ProcessCount: 0,
-	}
-
-	tracker.afterSnapshot = &ProcessSnapshot{
-		Processes: []ProcessInfo{
-			// System process
-			{PID: 100, PPID: 1, Command: "systemd-timedated", IsMCP: false, IsOrcRelated: false},
-			// MCP process
-			{PID: 200, PPID: 1, Command: "chromium --headless", IsMCP: true, IsOrcRelated: true},
-			// Orc-related but not MCP (node)
-			{PID: 300, PPID: 1, Command: "node server.js", IsMCP: false, IsOrcRelated: true},
-		},
-		ProcessCount: 3,
-	}
-
-	orphans := tracker.DetectOrphans()
-
-	// FilterSystemProcesses should show both chromium AND node (not just MCP)
-	// System process should be filtered out
-	if len(orphans) != 2 {
-		t.Errorf("expected 2 orc-related orphans, got %d", len(orphans))
-	}
-
-	// Verify node was included (would be excluded if LogOrphanedMCPOnly had priority)
-	foundNode := false
-	for _, o := range orphans {
-		if strings.Contains(o.Command, "node") {
-			foundNode = true
-		}
-	}
-	if !foundNode {
-		t.Error("expected node to be included when FilterSystemProcesses takes priority over LogOrphanedMCPOnly")
 	}
 }
 
@@ -577,8 +488,7 @@ func TestResourceTrackingDuringTask(t *testing.T) {
 	config := ResourceTrackerConfig{
 		Enabled:            true,
 		MemoryThresholdMB:  100,
-		LogOrphanedMCPOnly: false,
-	}
+			}
 	tracker := NewResourceTracker(config, logger)
 
 	// Simulate: take snapshot before task execution (like ExecuteTask does)
@@ -657,8 +567,7 @@ func TestResourceTrackingLifecycleWithMockOrphans(t *testing.T) {
 	config := ResourceTrackerConfig{
 		Enabled:            true,
 		MemoryThresholdMB:  50, // Low threshold to trigger warning
-		LogOrphanedMCPOnly: false,
-	}
+			}
 	tracker := NewResourceTracker(config, logger)
 
 	// Set up mock "before" state - simulates system before task

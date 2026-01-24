@@ -22,7 +22,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `executor.go` | `PhaseState`, model resolution, Claude path detection |
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
-| `phase_executor.go` | `PhaseExecutor` interface, `ResolveModelSetting()` |
+| `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
 | `ci_merge.go` | CI polling and auto-merge with retry logic |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
@@ -145,15 +145,20 @@ When phases fail or output `{"status": "blocked"}`:
 
 ## Model Configuration
 
-Per-phase, per-weight model selection via `ResolveModelSetting(weight, phase)`:
+Model selection is workflow-based via phase templates (see `internal/workflow/seed.go`):
 
 ```
-config.OrcConfig.Models[weight][phase]  # Phase-specific
-config.OrcConfig.Models.Default         # Global default
-config.Model                            # Legacy fallback
+workflow_phases.model_override    # Workflow-specific override
+phase_templates.model_override    # Phase template default
+config.Model                      # Global fallback
 ```
 
-**Default matrix:** Decision phases (spec, review, validate) use opus + thinking; execution phases (implement, test, docs) use sonnet.
+**Default per phase template:**
+| Phase | Model | Thinking | Rationale |
+|-------|-------|----------|-----------|
+| spec, design, review, validate, research | opus | true | Decision phases need deep reasoning |
+| tiny_spec, tdd_write, breakdown, implement, docs | opus | false | Execution phases |
+| qa | sonnet | false | Test execution is mechanical |
 
 ## Claude Call Patterns
 

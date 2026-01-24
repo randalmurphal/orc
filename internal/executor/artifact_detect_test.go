@@ -13,29 +13,25 @@ import (
 
 func TestArtifactDetector_DetectSpecArtifacts(t *testing.T) {
 	t.Parallel()
-	// Create temp task directory
-	tmpDir := t.TempDir()
-	taskID := "TEST-001"
 
 	tests := []struct {
 		name         string
-		setup        func(taskDir string)
+		specContent  string // Content to save to database (empty = no spec)
 		weight       task.Weight
 		wantArtifact bool
 		wantAutoSkip bool
 		wantDescSub  string
 	}{
 		{
-			name:         "no spec file",
-			setup:        func(taskDir string) {},
+			name:         "no spec in database",
+			specContent:  "",
 			weight:       task.WeightMedium,
 			wantArtifact: false,
 			wantDescSub:  "no spec found",
 		},
 		{
-			name: "valid spec file",
-			setup: func(taskDir string) {
-				content := `# Task Specification
+			name: "valid spec in database",
+			specContent: `# Task Specification
 
 ## Intent
 This task implements a new feature for artifact detection.
@@ -47,44 +43,35 @@ This task implements a new feature for artifact detection.
 ## Testing
 - Unit tests for artifact detection
 - Integration tests for CLI
-`
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
-			},
+`,
 			weight:       task.WeightMedium,
 			wantArtifact: true,
 			wantAutoSkip: true,
 			wantDescSub:  "valid content",
 		},
 		{
-			name: "empty spec file",
-			setup: func(taskDir string) {
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(""), 0644)
-			},
+			name:         "empty spec in database",
+			specContent:  "",
 			weight:       task.WeightMedium,
 			wantArtifact: false,
-			wantDescSub:  "empty",
+			wantDescSub:  "no spec found",
 		},
 		{
-			name: "minimal spec file - too short",
-			setup: func(taskDir string) {
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte("# Title"), 0644)
-			},
+			name:         "minimal spec - too short",
+			specContent:  "# Title",
 			weight:       task.WeightMedium,
 			wantArtifact: false,
 			wantDescSub:  "empty or minimal",
 		},
 		{
-			name: "spec file missing required sections",
-			setup: func(taskDir string) {
-				content := `# Task Specification
+			name: "spec missing required sections",
+			specContent: `# Task Specification
 
 ## Intent
 This task does something.
 
 But it's missing Success Criteria and Testing sections.
-`
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
-			},
+`,
 			weight:       task.WeightMedium,
 			wantArtifact: true,
 			wantAutoSkip: false, // Should not auto-skip invalid specs
@@ -92,16 +79,11 @@ But it's missing Success Criteria and Testing sections.
 		},
 		{
 			name: "trivial weight - skip validation",
-			setup: func(taskDir string) {
-				// Trivial tasks skip validation, so content doesn't need full spec structure
-				// but needs to be more than 50 chars to pass the basic content check
-				content := `# Simple fix
+			specContent: `# Simple fix
 
 This is a trivial task to fix a small typo in the documentation.
 The fix is straightforward and doesn't need detailed specification.
-`
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
-			},
+`,
 			weight:       task.WeightTrivial,
 			wantArtifact: true,
 			wantAutoSkip: true, // Trivial tasks skip validation
@@ -111,15 +93,38 @@ The fix is straightforward and doesn't need detailed specification.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fresh task dir for each test
-			taskDir := filepath.Join(tmpDir, tt.name)
+			tmpDir := t.TempDir()
+			taskDir := filepath.Join(tmpDir, "task")
 			_ = os.MkdirAll(taskDir, 0755)
+			taskID := "TEST-001"
 
-			// Run setup
-			tt.setup(taskDir)
+			// Create database backend
+			backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+			if err != nil {
+				t.Fatalf("create backend: %v", err)
+			}
+			defer backend.Close()
 
-			// Create detector
-			detector := NewArtifactDetectorWithDir(taskDir, taskID, tt.weight)
+			// Create task first (required for spec save)
+			testTask := &task.Task{
+				ID:     taskID,
+				Title:  "Test task",
+				Status: task.StatusCreated,
+				Weight: tt.weight,
+			}
+			if err := backend.SaveTask(testTask); err != nil {
+				t.Fatalf("save task: %v", err)
+			}
+
+			// Save spec to database if provided
+			if tt.specContent != "" {
+				if err := backend.SaveSpecForTask(taskID, tt.specContent, "test"); err != nil {
+					t.Fatalf("save spec: %v", err)
+				}
+			}
+
+			// Create detector with backend
+			detector := NewArtifactDetectorWithBackend(taskDir, taskID, tt.weight, backend)
 			status := detector.DetectPhaseArtifacts("spec")
 
 			if status.HasArtifacts != tt.wantArtifact {
@@ -163,22 +168,6 @@ func TestArtifactDetector_DetectResearchArtifacts(t *testing.T) {
 This is the research content with sufficient detail to be meaningful.
 `
 				_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(content), 0644)
-			},
-			wantArtifact: true,
-			wantAutoSkip: true,
-		},
-		{
-			name: "research section in spec.md",
-			setup: func(taskDir string) {
-				content := `# Specification
-
-## Intent
-Do something.
-
-## Research
-Detailed research findings go here with lots of information.
-`
-				_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(content), 0644)
 			},
 			wantArtifact: true,
 			wantAutoSkip: true,
@@ -279,7 +268,25 @@ func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
 
-	// Create a valid spec
+	// Create database backend
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+	defer backend.Close()
+
+	// Create task first
+	testTask := &task.Task{
+		ID:     taskID,
+		Title:  "Test task",
+		Status: task.StatusCreated,
+		Weight: task.WeightMedium,
+	}
+	if err := backend.SaveTask(testTask); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Create a valid spec in database
 	specContent := `# Specification
 
 ## Intent
@@ -291,9 +298,11 @@ Implement artifact detection.
 ## Testing
 - Unit tests pass.
 `
-	_ = os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(specContent), 0644)
+	if err := backend.SaveSpecForTask(taskID, specContent, "test"); err != nil {
+		t.Fatalf("save spec: %v", err)
+	}
 
-	// Create research artifact (needs to be >50 chars)
+	// Create research artifact file (still uses file)
 	artifactDir := filepath.Join(taskDir, "artifacts")
 	_ = os.MkdirAll(artifactDir, 0755)
 	researchContent := `# Research Findings
@@ -303,7 +312,7 @@ and architectural decisions that will inform the implementation.
 `
 	_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(researchContent), 0644)
 
-	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
+	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
 
 	// Test with phases that have artifacts
 	phases := []string{"spec", "research", "implement", "test", "docs"}
@@ -488,44 +497,3 @@ This is the legacy file-based spec.
 	}
 }
 
-// TestArtifactDetector_FallsBackToFile verifies that when no database backend
-// is available, the detector falls back to file-based detection.
-func TestArtifactDetector_FallsBackToFile(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-	taskDir := filepath.Join(tmpDir, "task")
-	_ = os.MkdirAll(taskDir, 0755)
-
-	taskID := "TEST-FILE-001"
-
-	// Create legacy file-based spec (no database)
-	fileSpecContent := `# File Spec
-
-## Intent
-This is a legacy file-based spec.
-
-## Success Criteria
-- Used when no database
-
-## Testing
-- Verify file fallback works
-`
-	if err := os.WriteFile(filepath.Join(taskDir, "spec.md"), []byte(fileSpecContent), 0644); err != nil {
-		t.Fatalf("write spec file: %v", err)
-	}
-
-	// Create detector WITHOUT backend (nil)
-	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
-	status := detector.DetectPhaseArtifacts("spec")
-
-	// Should detect spec from file (fallback)
-	if !status.HasArtifacts {
-		t.Error("HasArtifacts should be true when spec file exists")
-	}
-	if !strings.Contains(status.Description, "legacy") {
-		t.Errorf("Description should mention legacy file, got: %s", status.Description)
-	}
-	if len(status.Artifacts) != 1 || status.Artifacts[0] != "spec.md" {
-		t.Errorf("Artifacts should be ['spec.md'], got: %v", status.Artifacts)
-	}
-}

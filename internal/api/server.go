@@ -153,6 +153,13 @@ func New(cfg *Config) *Server {
 		logger.Info("seeded built-in workflows", "count", seeded)
 	}
 
+	// Migrate phase template model settings (updates existing templates)
+	if migrated, err := workflow.MigratePhaseTemplateModels(backend.DB()); err != nil {
+		logger.Error("failed to migrate phase template models", "error", err)
+	} else if migrated > 0 {
+		logger.Info("migrated phase template models", "count", migrated)
+	}
+
 	// Create event publisher with persistence
 	pub := events.NewPersistentPublisher(backend, "executor", logger)
 
@@ -317,6 +324,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/workflows/{id}/clone", cors(s.handleCloneWorkflow))
 	s.mux.HandleFunc("POST /api/workflows/{id}/phases", cors(s.handleAddWorkflowPhase))
 	s.mux.HandleFunc("DELETE /api/workflows/{id}/phases/{phaseId}", cors(s.handleRemoveWorkflowPhase))
+	s.mux.HandleFunc("PATCH /api/workflows/{id}/phases/{phaseId}", cors(s.handleUpdateWorkflowPhase))
 	s.mux.HandleFunc("POST /api/workflows/{id}/variables", cors(s.handleAddWorkflowVariable))
 	s.mux.HandleFunc("DELETE /api/workflows/{id}/variables/{name}", cors(s.handleRemoveWorkflowVariable))
 

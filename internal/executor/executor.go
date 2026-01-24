@@ -311,7 +311,6 @@ func New(cfg *Config) *Executor {
 	rtConfig := ResourceTrackerConfig{
 		Enabled:               orcCfg.Diagnostics.ResourceTracking.Enabled,
 		MemoryThresholdMB:     orcCfg.Diagnostics.ResourceTracking.MemoryThresholdMB,
-		LogOrphanedMCPOnly:    orcCfg.Diagnostics.ResourceTracking.LogOrphanedMCPOnly,
 		FilterSystemProcesses: orcCfg.Diagnostics.ResourceTracking.FilterSystemProcesses,
 	}
 	resourceTracker := NewResourceTracker(rtConfig, slog.Default())
@@ -399,8 +398,6 @@ func (e *Executor) SetTurnExecutor(te TurnExecutor) {
 func (e *Executor) SetOrcConfig(cfg *config.Config) {
 	e.orcConfig = cfg
 }
-
-// LoadProjectToolPermissions and rebuildClient are defined in permissions.go
 
 // Event publishing convenience methods - thin wrappers around PublishHelper.
 // These provide backwards-compatible method signatures on Executor.
