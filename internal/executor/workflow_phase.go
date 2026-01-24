@@ -254,18 +254,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	sessionID := fmt.Sprintf("%s-%s-%s", cfg.RunID, cfg.TaskID, cfg.PhaseID)
 	result.SessionID = sessionID
 
-	// Create streaming transcript handler for real-time capture
-	transcriptHandler := NewTranscriptStreamHandler(
-		we.backend,
-		we.logger,
-		cfg.TaskID,
-		cfg.PhaseID,
-		sessionID,
-		cfg.RunID,
-		cfg.Model,
-	)
-
 	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
+	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
 	if we.turnExecutor != nil {
 		turnExec = we.turnExecutor
@@ -279,7 +269,10 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			WithClaudeMaxTurns(cfg.MaxIterations),
 			WithClaudeLogger(we.logger),
 			WithClaudePhaseID(cfg.PhaseID),
-			WithClaudeOnEvent(transcriptHandler.OnEvent), // Real-time transcript streaming
+			// Transcript storage options - handled internally
+			WithClaudeBackend(we.backend),
+			WithClaudeTaskID(cfg.TaskID),
+			WithClaudeRunID(cfg.RunID),
 		)
 	}
 
@@ -299,10 +292,7 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			}
 		}
 
-		// Store user prompt BEFORE execution (streaming only captures assistant events)
-		transcriptHandler.StoreUserPrompt(prompt)
-
-		// Execute turn - assistant transcripts captured in real-time via streaming callback
+		// Execute turn - transcripts captured automatically by ClaudeExecutor
 		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 		if err != nil {
 			return result, fmt.Errorf("turn %d: %w", i+1, err)

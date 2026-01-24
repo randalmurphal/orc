@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // TurnExecutor defines the interface for executing Claude turns.
@@ -29,8 +30,8 @@ type TurnExecutor interface {
 var _ TurnExecutor = (*ClaudeExecutor)(nil)
 
 // ClaudeExecutor wraps ClaudeCLI for phase execution with proper
-// structured output via --json-schema. This replaces the old
-// session-based approach that used stream-json mode.
+// structured output via --json-schema. Handles transcript storage
+// automatically when backend is provided.
 type ClaudeExecutor struct {
 	claudePath string
 	workdir    string
@@ -53,9 +54,13 @@ type ClaudeExecutor struct {
 	// Review round for review phase schema selection (1 = findings, 2 = decision)
 	reviewRound int
 
-	// onEvent is called for each streaming event during execution.
-	// Use this to capture transcripts in real-time, track progress, etc.
-	onEvent func(claude.StreamEvent)
+	// Transcript storage - if backend is set, transcripts are stored automatically
+	backend storage.Backend
+	taskID  string
+	runID   string // workflow run ID (optional - for linking)
+
+	// transcriptHandler is created internally when backend is provided
+	transcriptHandler *TranscriptStreamHandler
 }
 
 // ClaudeExecutorOption configures a ClaudeExecutor.
@@ -114,14 +119,27 @@ func WithClaudeReviewRound(round int) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.reviewRound = round }
 }
 
-// WithClaudeOnEvent sets a callback for streaming events.
-// Use this to capture transcripts in real-time, track progress, or log activity.
-// The callback is invoked synchronously for each event - keep handlers fast.
-func WithClaudeOnEvent(fn func(claude.StreamEvent)) ClaudeExecutorOption {
-	return func(e *ClaudeExecutor) { e.onEvent = fn }
+// WithClaudeBackend sets the storage backend for automatic transcript storage.
+// When set along with WithClaudeTaskID, transcripts are stored in real-time
+// as Claude streams responses. This is the unified path for all Claude calls.
+func WithClaudeBackend(b storage.Backend) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.backend = b }
+}
+
+// WithClaudeTaskID sets the task ID for transcript storage.
+// Required for transcript storage to work (along with backend).
+func WithClaudeTaskID(id string) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.taskID = id }
+}
+
+// WithClaudeRunID sets the workflow run ID for transcript linking.
+// Optional - transcripts are linked to runs when provided.
+func WithClaudeRunID(id string) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.runID = id }
 }
 
 // NewClaudeExecutor creates a new Claude executor.
+// If backend and taskID are provided, transcripts are stored automatically.
 func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 	e := &ClaudeExecutor{
 		claudePath: "claude",
@@ -130,6 +148,16 @@ func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 	for _, opt := range opts {
 		opt(e)
 	}
+
+	// Create transcript handler if we have backend and taskID
+	if e.backend != nil && e.taskID != "" {
+		e.transcriptHandler = NewTranscriptStreamHandler(
+			e.backend, e.logger,
+			e.taskID, e.phaseID, e.sessionID, e.runID,
+			e.model,
+		)
+	}
+
 	return e
 }
 
@@ -171,8 +199,14 @@ func (u TokenUsage) EffectiveTotalTokens() int {
 // Uses --json-schema to force structured output for completion detection.
 // The schema varies by phase: artifact-producing phases (spec, design, research, docs)
 // use a schema with an artifact field to capture output content.
+// Transcripts are stored automatically if backend was configured.
 func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
+
+	// Store prompt before execution (if transcript handler is configured)
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.StoreUserPrompt(prompt)
+	}
 
 	// Build CLI options using consolidated helper, then add JSON schema
 	cliOpts := e.buildBaseCLIOptions()
@@ -182,11 +216,15 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
-	// Execute the request with streaming event callback for real-time transcript capture
-	resp, err := cli.Complete(ctx, claude.CompletionRequest{
+	// Build completion request with streaming callback for real-time transcript capture
+	req := claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-		OnEvent:  e.onEvent,
-	})
+	}
+	if e.transcriptHandler != nil {
+		req.OnEvent = e.transcriptHandler.OnEvent
+	}
+
+	resp, err := cli.Complete(ctx, req)
 	if err != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
@@ -236,19 +274,29 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 
 // ExecuteTurnWithoutSchema sends a prompt without requiring structured output.
 // Used for phases that don't need completion detection (e.g., conflict resolution).
+// Transcripts are stored automatically if backend was configured.
 func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()
+
+	// Store prompt before execution (if transcript handler is configured)
+	if e.transcriptHandler != nil {
+		e.transcriptHandler.StoreUserPrompt(prompt)
+	}
 
 	// Build CLI options using consolidated helper (no JSON schema)
 	cliOpts := e.buildBaseCLIOptions()
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
-	// Execute the request with streaming event callback for real-time transcript capture
-	resp, err := cli.Complete(ctx, claude.CompletionRequest{
+	// Build completion request with streaming callback for real-time transcript capture
+	req := claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
-		OnEvent:  e.onEvent,
-	})
+	}
+	if e.transcriptHandler != nil {
+		req.OnEvent = e.transcriptHandler.OnEvent
+	}
+
+	resp, err := cli.Complete(ctx, req)
 	if err != nil {
 		return &TurnResult{
 			Duration:  time.Since(start),
