@@ -53,7 +53,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'terminal',
 		title: 'Slash Commands',
 		description: '~/.claude/commands',
-		route: '/settings/advanced/skills',
+		route: '/settings/commands',
 		getBadge: (config) =>
 			config?.slashCommandsCount !== undefined
 				? String(config.slashCommandsCount)
@@ -64,7 +64,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'file-text',
 		title: 'CLAUDE.md',
 		description: 'Project context',
-		route: '/settings/advanced/claudemd',
+		route: '/settings/claude-md',
 		getBadge: (config) => {
 			if (config?.claudeMdSize === undefined) return undefined;
 			if (config.claudeMdSize >= 1024) {
@@ -78,7 +78,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'server',
 		title: 'MCP Servers',
 		description: 'Integrations',
-		route: '/settings/advanced/mcp',
+		route: '/settings/mcp',
 		getBadge: (config) =>
 			config?.mcpServersCount !== undefined
 				? String(config.mcpServersCount)
@@ -89,7 +89,7 @@ const CONFIG_LINKS: ConfigLink[] = [
 		icon: 'shield',
 		title: 'Permissions',
 		description: 'Tools & actions',
-		route: '/settings/configuration/general',
+		route: '/settings/permissions',
 		getBadge: (config) => config?.permissionsProfile,
 	},
 ];

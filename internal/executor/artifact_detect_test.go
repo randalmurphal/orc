@@ -103,7 +103,7 @@ The fix is straightforward and doesn't need detailed specification.
 			if err != nil {
 				t.Fatalf("create backend: %v", err)
 			}
-			defer backend.Close()
+			defer func() { _ = backend.Close() }()
 
 			// Create task first (required for spec save)
 			testTask := &task.Task{
@@ -273,7 +273,7 @@ func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backend: %v", err)
 	}
-	defer backend.Close()
+	defer func() { _ = backend.Close() }()
 
 	// Create task first
 	testTask := &task.Task{
