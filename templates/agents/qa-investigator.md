@@ -1,7 +1,7 @@
 ---
 name: qa-investigator
 description: Investigates root causes of QA findings before fixing. Use to understand WHY bugs occur, not just WHERE.
-model: opus
+model: sonnet
 tools: ["Read", "Grep", "Glob"]
 ---
 

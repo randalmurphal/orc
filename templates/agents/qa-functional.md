@@ -1,7 +1,7 @@
 ---
 name: qa-functional
 description: Tests functional requirements through browser automation. Use for happy path, edge cases, error handling, and form validation testing.
-model: sonnet
+model: opus
 tools: ["mcp__playwright__browser_navigate", "mcp__playwright__browser_click", "mcp__playwright__browser_type", "mcp__playwright__browser_take_screenshot", "mcp__playwright__browser_snapshot", "mcp__playwright__browser_resize", "mcp__playwright__browser_console_messages", "mcp__playwright__browser_wait_for", "mcp__playwright__browser_evaluate", "mcp__playwright__browser_press_key", "Read", "Write"]
 ---
 
