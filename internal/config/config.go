@@ -567,15 +567,10 @@ type ReviewConfig struct {
 	RequirePass bool `yaml:"require_pass"`
 }
 
-// PlanConfig defines spec requirements and validation configuration.
+// PlanConfig defines spec content validation configuration.
 type PlanConfig struct {
-	// RequireSpecForExecution blocks execution if spec is missing/invalid (default: false)
-	RequireSpecForExecution bool `yaml:"require_spec_for_execution"`
-	// WarnOnMissingSpec warns but doesn't block when spec is missing (default: true)
-	WarnOnMissingSpec bool `yaml:"warn_on_missing_spec"`
-	// SkipValidationWeights skips spec validation and warnings for these weights (default: [trivial, small])
-	SkipValidationWeights []string `yaml:"skip_validation_weights,omitempty"`
 	// MinimumSections are the required sections in a spec (default: [intent, success_criteria, testing])
+	// Used by spec phase templates to validate output quality.
 	MinimumSections []string `yaml:"minimum_sections,omitempty"`
 }
 
@@ -1272,10 +1267,7 @@ func Default() *Config {
 			RequirePass: true,
 		},
 		Plan: PlanConfig{
-			RequireSpecForExecution: true,                         // Require spec for quality execution
-			WarnOnMissingSpec:       true,                         // Also warn when missing
-			SkipValidationWeights:   []string{"trivial", "small"}, // Simple tasks don't need specs
-			MinimumSections:         []string{"intent", "success_criteria", "testing"},
+			MinimumSections: []string{"intent", "success_criteria", "testing"},
 		},
 		ArtifactSkip: ArtifactSkipConfig{
 			Enabled:  true,                                 // Check for existing artifacts
