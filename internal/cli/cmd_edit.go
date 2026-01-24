@@ -466,6 +466,8 @@ Example:
 	cmd.Flags().StringP("title", "t", "", "new task title")
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
+	// workflow flag overrides the default weight-based workflow selection, allowing custom
+	// workflows like "qa-e2e" to be used instead of the standard phase sequence for a weight
 	cmd.Flags().String("workflow", "", "new task workflow (e.g., qa-e2e, implement)")
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, failed)")
