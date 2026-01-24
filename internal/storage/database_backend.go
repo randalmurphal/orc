@@ -38,6 +38,18 @@ func NewDatabaseBackend(projectPath string, cfg *config.StorageConfig) (*Databas
 	// Create a logger that discards output by default
 	logger := log.New(io.Discard, "", 0)
 
+	// Run transcript cleanup if retention is configured
+	if cfg != nil && cfg.Database.RetentionDays > 0 {
+		retention := time.Duration(cfg.Database.RetentionDays) * 24 * time.Hour
+		deleted, err := pdb.CleanupOldTranscripts(retention)
+		if err != nil {
+			// Log but don't fail - cleanup is best-effort
+			logger.Printf("transcript cleanup failed: %v", err)
+		} else if deleted > 0 {
+			logger.Printf("cleaned up %d old transcripts (older than %d days)", deleted, cfg.Database.RetentionDays)
+		}
+	}
+
 	return &DatabaseBackend{
 		projectPath: projectPath,
 		db:          pdb,

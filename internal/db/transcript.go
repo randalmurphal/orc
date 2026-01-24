@@ -810,6 +810,20 @@ func (p *ProjectDB) GetMetricsByModel(model string, since time.Time) ([]UsageMet
 	return scanUsageMetrics(rows)
 }
 
+// CleanupOldTranscripts deletes transcripts older than the given duration.
+// Returns the number of deleted rows.
+func (p *ProjectDB) CleanupOldTranscripts(olderThan time.Duration) (int64, error) {
+	cutoff := time.Now().Add(-olderThan).UnixMilli()
+
+	result, err := p.Exec(`DELETE FROM transcripts WHERE timestamp < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("cleanup old transcripts: %w", err)
+	}
+
+	deleted, _ := result.RowsAffected()
+	return deleted, nil
+}
+
 // GetTaskMetrics returns all metrics for a specific task.
 func (p *ProjectDB) GetTaskMetrics(taskID string) ([]UsageMetric, error) {
 	rows, err := p.Query(`
