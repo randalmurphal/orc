@@ -1,0 +1,140 @@
+/* TimelineView component styles */
+
+.timeline-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow-y: auto;
+	padding: var(--spacing-4, 16px);
+}
+
+.timeline-view-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--spacing-4, 16px);
+}
+
+.timeline-view-header h1 {
+	margin: 0;
+	font-size: var(--font-size-xl, 20px);
+	font-weight: 600;
+	color: var(--text-primary, #fff);
+}
+
+.timeline-view-ws-status {
+	font-size: var(--font-size-sm, 14px);
+	color: var(--status-warning, #f59e0b);
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-1, 4px);
+}
+
+.timeline-view-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-4, 16px);
+}
+
+/* Loading state */
+.timeline-view-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--spacing-8, 32px);
+	color: var(--text-muted, #888);
+	gap: var(--spacing-3, 12px);
+}
+
+.timeline-loading-spinner {
+	width: 24px;
+	height: 24px;
+	border: 2px solid var(--border-color, #333);
+	border-top-color: var(--ring, rgba(100, 150, 255, 0.8));
+	border-radius: 50%;
+	animation: timeline-spin 0.8s linear infinite;
+}
+
+@keyframes timeline-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Error state */
+.timeline-view-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: var(--spacing-8, 32px);
+	color: var(--status-error, #ef4444);
+	gap: var(--spacing-3, 12px);
+}
+
+.timeline-view-error p {
+	margin: 0;
+}
+
+.timeline-view-error button {
+	padding: var(--spacing-2, 8px) var(--spacing-4, 16px);
+	border: none;
+	border-radius: var(--radius-md, 6px);
+	background: var(--ring, rgba(100, 150, 255, 0.8));
+	color: var(--text-primary, #fff);
+	font-size: var(--font-size-sm, 14px);
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.timeline-view-error button:hover {
+	background: var(--ring-hover, rgba(100, 150, 255, 1));
+}
+
+/* Loading more indicator */
+.timeline-view-loading-more {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--spacing-4, 16px);
+	color: var(--text-muted, #888);
+	font-size: var(--font-size-sm, 14px);
+}
+
+/* Pagination error */
+.timeline-view-pagination-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--spacing-2, 8px);
+	padding: var(--spacing-3, 12px);
+	background: var(--surface-2, #1a1a1a);
+	border-radius: var(--radius-md, 6px);
+	color: var(--status-error, #ef4444);
+}
+
+.timeline-view-pagination-error p {
+	margin: 0;
+	font-size: var(--font-size-sm, 14px);
+}
+
+.timeline-view-pagination-error button {
+	padding: var(--spacing-1, 4px) var(--spacing-3, 12px);
+	border: none;
+	border-radius: var(--radius-sm, 4px);
+	background: var(--surface-3, #262626);
+	color: var(--text-primary, #fff);
+	font-size: var(--font-size-sm, 14px);
+	cursor: pointer;
+}
+
+/* No more events */
+.timeline-view-end {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--spacing-4, 16px);
+	color: var(--text-muted, #888);
+	font-size: var(--font-size-sm, 14px);
+}

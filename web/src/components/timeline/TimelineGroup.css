@@ -1,0 +1,72 @@
+/* TimelineGroup component styles */
+
+.timeline-group {
+	margin-bottom: var(--spacing-3, 12px);
+}
+
+.timeline-group-header {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-2, 8px);
+	width: 100%;
+	padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+	border: none;
+	background: var(--surface-2, #1a1a1a);
+	border-radius: var(--radius-md, 6px);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+	text-align: left;
+}
+
+.timeline-group-header:hover {
+	background: var(--surface-3, #262626);
+}
+
+.timeline-group-header:focus {
+	outline: 2px solid var(--ring, rgba(100, 150, 255, 0.5));
+	outline-offset: 2px;
+}
+
+.timeline-group-chevron {
+	color: var(--text-muted, #888);
+	flex-shrink: 0;
+	transition: transform 0.15s ease;
+}
+
+.timeline-group--expanded .timeline-group-chevron {
+	/* Already using chevron-down, no rotation needed */
+}
+
+.timeline-group-label {
+	font-size: var(--font-size-sm, 14px);
+	font-weight: 500;
+	color: var(--text-primary, #fff);
+}
+
+.timeline-group-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-1, 4px);
+	padding-left: var(--spacing-4, 16px);
+	margin-top: var(--spacing-2, 8px);
+}
+
+.timeline-group-content[aria-hidden='true'] {
+	display: none;
+}
+
+/* Animation for content reveal */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.timeline-group--expanded .timeline-group-content {
+	animation: fadeIn 0.15s ease;
+}
