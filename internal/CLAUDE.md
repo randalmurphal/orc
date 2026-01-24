@@ -29,7 +29,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `prompt/` | Prompt template management | `Service` |
 | `state/` | Execution state persistence, auto-commit helpers | `State`, `CommitTaskState`, `CommitPhaseTransition` |
 | `storage/` | Storage backend abstraction (SQLite source of truth) | `Backend`, `DatabaseBackend`, `ExportService` |
-| `task/` | Task model, attachments, testing requirements | `Task`, `TestingRequirements`, `Attachment` |
+| `task/` | Task model, attachments, orphan detection | `Task`, `CheckOrphaned()`, `Attachment` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
