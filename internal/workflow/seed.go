@@ -453,42 +453,6 @@ func SeedBuiltins(pdb *db.ProjectDB) (int, error) {
 	return seeded, nil
 }
 
-// GetWorkflowForWeight returns the appropriate built-in workflow for a task weight.
-func GetWorkflowForWeight(weight string) string {
-	switch weight {
-	case "trivial":
-		return "implement-trivial"
-	case "small":
-		return "implement-small"
-	case "medium":
-		return "implement-medium"
-	case "large":
-		return "implement-large"
-	default:
-		return "implement-medium" // Default to medium workflow
-	}
-}
-
-// GetWeightForWorkflow returns the task weight for a built-in implement workflow.
-// Returns empty string for non-implement workflows or unknown workflows.
-// This is the inverse of GetWorkflowForWeight.
-func GetWeightForWorkflow(workflowID string) string {
-	switch workflowID {
-	case "implement-trivial":
-		return "trivial"
-	case "implement-small":
-		return "small"
-	case "implement-medium":
-		return "medium"
-	case "implement-large":
-		return "large"
-	case "implement":
-		return "large" // Full implement workflow is large weight
-	default:
-		return "" // Non-implement workflows don't have a weight
-	}
-}
-
 // ListBuiltinWorkflowIDs returns all built-in workflow IDs.
 func ListBuiltinWorkflowIDs() []string {
 	ids := make([]string, len(builtinWorkflows))

@@ -188,12 +188,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// If no workflow specified, use task's workflow or fall back to weight-based
+		// If no workflow specified, use task's workflow - MUST be set
 		if workflowID == "" {
-			if existingTask.WorkflowID != "" {
-				workflowID = existingTask.WorkflowID
-			} else {
-				workflowID = workflow.GetWorkflowForWeight(string(existingTask.Weight))
+			workflowID = existingTask.WorkflowID
+			if workflowID == "" {
+				return fmt.Errorf("task %s has no workflow_id set - cannot run\n\nSet workflow with: orc edit %s --workflow <workflow-id>\nSee available workflows: orc workflows", existingTaskID, existingTaskID)
 			}
 		}
 
