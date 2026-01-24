@@ -10,10 +10,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/template"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // newNewCmd creates the new task command
@@ -77,6 +79,18 @@ Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 ⚠️  COMMON MISTAKE: Under-weighting tasks. If unsure, go ONE weight heavier.
     A "medium" task run as "small" skips the spec phase → Claude guesses
     requirements → implementation misses the mark.
+
+═══════════════════════════════════════════════════════════════════════════════
+WORKFLOW OVERRIDE (--workflow)
+═══════════════════════════════════════════════════════════════════════════════
+
+Use --workflow to assign a specific workflow instead of weight-based selection:
+
+  orc new "Verify auth flow works" --workflow qa-e2e
+  orc new "Review the refactor" --workflow review
+
+The workflow is stored with the task and used when you run 'orc run TASK-XXX'.
+List available workflows: orc workflows
 
 ═══════════════════════════════════════════════════════════════════════════════
 THE DESCRIPTION FIELD (-d) IS YOUR LEVERAGE
@@ -175,6 +189,7 @@ See also:
 
 			title := args[0]
 			weight, _ := cmd.Flags().GetString("weight")
+			workflowID, _ := cmd.Flags().GetString("workflow")
 			category, _ := cmd.Flags().GetString("category")
 			priority, _ := cmd.Flags().GetString("priority")
 			description, _ := cmd.Flags().GetString("description")
@@ -185,11 +200,42 @@ See also:
 			blockedBy, _ := cmd.Flags().GetStringSlice("blocked-by")
 			relatedTo, _ := cmd.Flags().GetStringSlice("related-to")
 			targetBranch, _ := cmd.Flags().GetString("target-branch")
+			beforeImages, _ := cmd.Flags().GetStringSlice("before-images")
+			qaMaxIterations, _ := cmd.Flags().GetInt("qa-max-iterations")
 
 			// Validate target branch if specified
 			if targetBranch != "" {
 				if err := git.ValidateBranchName(targetBranch); err != nil {
 					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
+
+			// Validate workflow if specified
+			var pdb *db.ProjectDB
+			if workflowID != "" {
+				// Need project DB to validate workflow exists
+				projectRoot, rootErr := config.FindProjectRoot()
+				if rootErr != nil {
+					return rootErr
+				}
+				pdb, err = db.OpenProject(projectRoot)
+				if err != nil {
+					return fmt.Errorf("open project database: %w", err)
+				}
+				defer func() { _ = pdb.Close() }()
+
+				// Seed built-in workflows to ensure they exist
+				if _, err := workflow.SeedBuiltins(pdb); err != nil {
+					return fmt.Errorf("seed workflows: %w", err)
+				}
+
+				// Verify workflow exists
+				wf, wfErr := pdb.GetWorkflow(workflowID)
+				if wfErr != nil {
+					return fmt.Errorf("get workflow: %w", wfErr)
+				}
+				if wf == nil {
+					return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", workflowID)
 				}
 			}
 
@@ -266,6 +312,11 @@ See also:
 				t.Priority = pri
 			}
 
+			// Set workflow if specified (already validated above)
+			if workflowID != "" {
+				t.WorkflowID = workflowID
+			}
+
 			// Link to initiative if specified
 			if initiativeID != "" {
 				// Verify initiative exists
@@ -282,6 +333,20 @@ See also:
 			// Set target branch if provided
 			if targetBranch != "" {
 				t.TargetBranch = targetBranch
+			}
+
+			// Set QA-specific task metadata
+			if len(beforeImages) > 0 || qaMaxIterations > 0 {
+				if t.Metadata == nil {
+					t.Metadata = make(map[string]string)
+				}
+				if len(beforeImages) > 0 {
+					// Join image paths with newlines for BEFORE_IMAGES variable
+					t.Metadata["before_images"] = strings.Join(beforeImages, "\n")
+				}
+				if qaMaxIterations > 0 {
+					t.Metadata["qa_max_iterations"] = fmt.Sprintf("%d", qaMaxIterations)
+				}
 			}
 
 			// Detect project characteristics for testing requirements
@@ -344,6 +409,9 @@ See also:
 			fmt.Printf("   Weight:   %s\n", t.Weight)
 			fmt.Printf("   Category: %s\n", t.GetCategory())
 			fmt.Printf("   Priority: %s\n", t.GetPriority())
+			if t.WorkflowID != "" {
+				fmt.Printf("   Workflow: %s\n", t.WorkflowID)
+			}
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
 			}
@@ -376,6 +444,12 @@ See also:
 			}
 			if len(t.RelatedTo) > 0 {
 				fmt.Printf("   Related to: %s\n", strings.Join(t.RelatedTo, ", "))
+			}
+			if len(beforeImages) > 0 {
+				fmt.Printf("   Before Images: %d file(s) for visual comparison\n", len(beforeImages))
+			}
+			if qaMaxIterations > 0 {
+				fmt.Printf("   Max QA Iterations: %d\n", qaMaxIterations)
 			}
 
 			// Upload attachments if provided
@@ -423,6 +497,7 @@ See also:
 		},
 	}
 	cmd.Flags().StringP("weight", "w", "", "task weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().String("workflow", "", "workflow to use for execution (e.g., implement, qa-e2e)")
 	cmd.Flags().StringP("category", "c", "", "task category (feature, bug, refactor, chore, docs, test)")
 	cmd.Flags().StringP("priority", "p", "", "task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("description", "d", "", "task description")
@@ -433,5 +508,7 @@ See also:
 	cmd.Flags().StringSlice("blocked-by", nil, "task IDs that must complete before this task")
 	cmd.Flags().StringSlice("related-to", nil, "task IDs related to this task")
 	cmd.Flags().String("target-branch", "", "override target branch for PR (instead of project default)")
+	cmd.Flags().StringSlice("before-images", nil, "baseline images for visual comparison (QA E2E workflow)")
+	cmd.Flags().Int("qa-max-iterations", 0, "max QA iterations before stopping (default: 3)")
 	return cmd
 }

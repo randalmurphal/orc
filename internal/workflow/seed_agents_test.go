@@ -170,17 +170,23 @@ func TestSeedAgents(t *testing.T) {
 
 func TestListBuiltinAgentIDs(t *testing.T) {
 	ids := ListBuiltinAgentIDs()
-	if len(ids) != 6 {
-		t.Errorf("ListBuiltinAgentIDs returned %d, want 6", len(ids))
+	if len(ids) != 10 {
+		t.Errorf("ListBuiltinAgentIDs returned %d, want 10", len(ids))
 	}
 
 	expected := map[string]bool{
+		// Review agents
 		"code-reviewer":         true,
 		"code-simplifier":       true,
 		"comment-analyzer":      true,
 		"pr-test-analyzer":      true,
 		"silent-failure-hunter": true,
 		"type-design-analyzer":  true,
+		// QA E2E agents
+		"qa-functional":    true,
+		"qa-visual":        true,
+		"qa-accessibility": true,
+		"qa-investigator":  true,
 	}
 
 	for _, id := range ids {

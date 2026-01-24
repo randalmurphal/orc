@@ -521,6 +521,75 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			applyArtifactToVars(vars, rctx.PriorOutputs, phaseResult.PhaseID, phaseResult.Artifact)
 		}
 
+		// Check for loop configuration and handle iterative loops
+		if phase.LoopConfig != "" {
+			loopCfg, loopErr := db.ParseLoopConfig(phase.LoopConfig)
+			if loopErr != nil {
+				we.logger.Warn("invalid loop config", "phase", tmpl.ID, "error", loopErr)
+			} else if loopCfg != nil {
+				// Initialize loop iteration tracking in resolution context
+				if rctx.QAIteration == 0 {
+					rctx.QAIteration = 1
+				}
+				if rctx.QAMaxIterations == 0 && loopCfg.MaxIterations > 0 {
+					rctx.QAMaxIterations = loopCfg.MaxIterations
+				}
+
+				// Evaluate loop condition based on prior phase output
+				shouldLoop := we.evaluateLoopCondition(loopCfg.Condition, loopCfg.LoopToPhase, vars, rctx)
+
+				if shouldLoop && rctx.QAIteration < rctx.QAMaxIterations {
+					we.logger.Info("loop condition met, looping back",
+						"phase", tmpl.ID,
+						"loop_to", loopCfg.LoopToPhase,
+						"iteration", rctx.QAIteration,
+						"max_iterations", rctx.QAMaxIterations,
+					)
+
+					// Find loop target phase index
+					loopIdx := -1
+					for j := 0; j < i; j++ {
+						if phases[j].PhaseTemplateID == loopCfg.LoopToPhase {
+							loopIdx = j
+							break
+						}
+					}
+
+					if loopIdx >= 0 {
+						rctx.QAIteration++
+						// Store previous findings for verification in next test iteration
+						if findingsContent, ok := rctx.PriorOutputs[loopCfg.LoopToPhase]; ok {
+							rctx.PreviousFindings = findingsContent
+						}
+
+						// Reset phase completion status for loop-back phases
+						if we.execState != nil {
+							for k := loopIdx; k <= i; k++ {
+								phaseID := phases[k].PhaseTemplateID
+								if ps, exists := we.execState.Phases[phaseID]; exists {
+									ps.Status = state.StatusPending
+									ps.Iterations++
+								}
+							}
+							if err := we.backend.SaveState(we.execState); err != nil {
+								we.logger.Warn("failed to save loop state", "error", err)
+							}
+						}
+
+						// Jump back to loop target phase
+						i = loopIdx - 1 // Will be incremented by loop
+						continue
+					}
+				} else if shouldLoop {
+					we.logger.Info("max loop iterations reached",
+						"phase", tmpl.ID,
+						"iteration", rctx.QAIteration,
+						"max_iterations", rctx.QAMaxIterations,
+					)
+				}
+			}
+		}
+
 		// Evaluate phase gate
 		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Artifact, t)
 		if gateErr != nil {
@@ -763,6 +832,58 @@ func applyArtifactToVars(vars map[string]string, priorOutputs map[string]string,
 	}
 	if priorOutputs != nil {
 		priorOutputs[phaseID] = artifact
+	}
+}
+
+// evaluateLoopCondition checks if a loop condition is met based on phase output.
+// Supported conditions:
+// - "has_findings": checks if the target phase output contains any findings
+// - "not_empty": checks if the target phase output is not empty
+// - "status_needs_fix": checks if the output status indicates fixes needed
+func (we *WorkflowExecutor) evaluateLoopCondition(condition, targetPhase string, vars map[string]string, rctx *variable.ResolutionContext) bool {
+	// Get the target phase output
+	output := ""
+	if o, ok := rctx.PriorOutputs[targetPhase]; ok {
+		output = o
+	} else if o, ok := vars["OUTPUT_"+targetPhase]; ok {
+		output = o
+	}
+
+	if output == "" {
+		return false
+	}
+
+	switch condition {
+	case "has_findings":
+		// Parse the QA findings and check if there are any
+		var result QAE2ETestResult
+		if err := json.Unmarshal([]byte(output), &result); err != nil {
+			we.logger.Warn("failed to parse QA findings for loop condition", "error", err)
+			return false
+		}
+		hasFindingsToFix := len(result.Findings) > 0
+		we.logger.Debug("loop condition has_findings evaluated",
+			"findings_count", len(result.Findings),
+			"should_loop", hasFindingsToFix,
+		)
+		return hasFindingsToFix
+
+	case "not_empty":
+		return output != "" && output != "{}" && output != "[]"
+
+	case "status_needs_fix":
+		// Check if the output JSON has a status indicating fixes needed
+		var statusCheck struct {
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal([]byte(output), &statusCheck); err != nil {
+			return false
+		}
+		return statusCheck.Status == "needs_fix" || statusCheck.Status == "findings"
+
+	default:
+		we.logger.Warn("unknown loop condition", "condition", condition)
+		return false
 	}
 }
 

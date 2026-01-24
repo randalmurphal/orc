@@ -15,6 +15,7 @@ type Task struct {
 	Title        string
 	Description  string
 	Weight       string
+	WorkflowID   string // Direct workflow assignment (optional, defaults based on weight when empty)
 	Status       string
 	StateStatus  string // State status: pending, running, completed, failed, paused, interrupted, skipped
 	CurrentPhase string
@@ -94,12 +95,13 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
 			weight = excluded.weight,
+			workflow_id = excluded.workflow_id,
 			status = excluded.status,
 			state_status = excluded.state_status,
 			current_phase = excluded.current_phase,
@@ -120,7 +122,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			executor_started_at = excluded.executor_started_at,
 			last_heartbeat = excluded.last_heartbeat,
 			is_automation = excluded.is_automation
-	`, t.ID, t.Title, t.Description, t.Weight, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
+	`, t.ID, t.Title, t.Description, t.Weight, t.WorkflowID, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation)
 	if err != nil {
@@ -132,7 +134,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -203,7 +205,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -593,12 +595,12 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt, updatedAt sql.NullString
-	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext, quality sql.NullString
+	var description, workflowID, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext, quality sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 	var isAutomation sql.NullInt64
 
-	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
+	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
@@ -606,6 +608,9 @@ func scanTask(row *sql.Row) (*Task, error) {
 
 	if description.Valid {
 		t.Description = description.String
+	}
+	if workflowID.Valid {
+		t.WorkflowID = workflowID.String
 	}
 	if stateStatus.Valid {
 		t.StateStatus = stateStatus.String
@@ -700,12 +705,12 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var t Task
 	var createdAt string
 	var startedAt, completedAt, updatedAt sql.NullString
-	var description, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext, quality sql.NullString
+	var description, workflowID, stateStatus, currentPhase, branch, worktreePath, queue, priority, category, initiativeID, metadata, retryContext, quality sql.NullString
 	var executorPID sql.NullInt64
 	var executorHostname, executorStartedAt, lastHeartbeat sql.NullString
 	var isAutomation sql.NullInt64
 
-	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
+	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation); err != nil {
 		return nil, err
@@ -713,6 +718,9 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 
 	if description.Valid {
 		t.Description = description.String
+	}
+	if workflowID.Valid {
+		t.WorkflowID = workflowID.String
 	}
 	if stateStatus.Valid {
 		t.StateStatus = stateStatus.String

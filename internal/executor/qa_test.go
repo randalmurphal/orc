@@ -400,3 +400,338 @@ func TestFormatQAResultSummary(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// QA E2E Tests
+// =============================================================================
+
+func TestParseQAE2ETestResult(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		response     string
+		wantErr      bool
+		wantFindings int
+	}{
+		{
+			name:     "invalid JSON",
+			response: "not valid json",
+			wantErr:  true,
+		},
+		{
+			name: "no findings",
+			response: `{
+				"status": "complete",
+				"summary": "All tests passed",
+				"findings": []
+			}`,
+			wantErr:      false,
+			wantFindings: 0,
+		},
+		{
+			name: "with findings",
+			response: `{
+				"status": "complete",
+				"summary": "Found 2 issues",
+				"findings": [
+					{
+						"id": "QA-001",
+						"severity": "high",
+						"confidence": 95,
+						"category": "functional",
+						"title": "Form validation fails",
+						"steps_to_reproduce": ["Step 1", "Step 2"],
+						"expected": "Error message",
+						"actual": "Silent failure"
+					},
+					{
+						"id": "QA-002",
+						"severity": "low",
+						"confidence": 80,
+						"category": "visual",
+						"title": "Minor spacing issue",
+						"steps_to_reproduce": ["Load page"],
+						"expected": "16px margin",
+						"actual": "12px margin"
+					}
+				],
+				"verification": {
+					"scenarios_tested": 10,
+					"viewports_tested": ["desktop", "mobile"]
+				}
+			}`,
+			wantErr:      false,
+			wantFindings: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseQAE2ETestResult(tt.response)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ParseQAE2ETestResult() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ParseQAE2ETestResult() unexpected error: %v", err)
+				return
+			}
+			if len(result.Findings) != tt.wantFindings {
+				t.Errorf("Findings count = %d, want %d", len(result.Findings), tt.wantFindings)
+			}
+		})
+	}
+}
+
+func TestParseQAE2EFixResult(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name          string
+		response      string
+		wantErr       bool
+		wantFixed     int
+		wantDeferred  int
+	}{
+		{
+			name:     "invalid JSON",
+			response: "not json",
+			wantErr:  true,
+		},
+		{
+			name: "all fixed",
+			response: `{
+				"status": "complete",
+				"summary": "Fixed 2 issues",
+				"fixes_applied": [
+					{"finding_id": "QA-001", "status": "fixed", "files_modified": ["a.go"], "change_description": "Fixed it"},
+					{"finding_id": "QA-002", "status": "fixed", "files_modified": ["b.go"], "change_description": "Fixed it too"}
+				]
+			}`,
+			wantErr:      false,
+			wantFixed:    2,
+			wantDeferred: 0,
+		},
+		{
+			name: "some deferred",
+			response: `{
+				"status": "complete",
+				"summary": "Fixed 1 of 2 issues",
+				"fixes_applied": [
+					{"finding_id": "QA-001", "status": "fixed", "files_modified": ["a.go"], "change_description": "Fixed it"}
+				],
+				"issues_deferred": [
+					{"finding_id": "QA-002", "reason": "Requires design decision"}
+				]
+			}`,
+			wantErr:      false,
+			wantFixed:    1,
+			wantDeferred: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseQAE2EFixResult(tt.response)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ParseQAE2EFixResult() expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ParseQAE2EFixResult() unexpected error: %v", err)
+				return
+			}
+			if len(result.FixesApplied) != tt.wantFixed {
+				t.Errorf("FixesApplied count = %d, want %d", len(result.FixesApplied), tt.wantFixed)
+			}
+			if len(result.IssuesDeferred) != tt.wantDeferred {
+				t.Errorf("IssuesDeferred count = %d, want %d", len(result.IssuesDeferred), tt.wantDeferred)
+			}
+		})
+	}
+}
+
+func TestQAE2ETestResult_HasFindings(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		result   *QAE2ETestResult
+		expected bool
+	}{
+		{
+			name:     "nil findings",
+			result:   &QAE2ETestResult{Findings: nil},
+			expected: false,
+		},
+		{
+			name:     "empty findings",
+			result:   &QAE2ETestResult{Findings: []QAE2EFinding{}},
+			expected: false,
+		},
+		{
+			name: "has findings",
+			result: &QAE2ETestResult{
+				Findings: []QAE2EFinding{
+					{ID: "QA-001", Title: "Test"},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.result.HasFindings()
+			if result != tt.expected {
+				t.Errorf("HasFindings() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestQAE2ETestResult_HighSeverityCount(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		result   *QAE2ETestResult
+		expected int
+	}{
+		{
+			name:     "no findings",
+			result:   &QAE2ETestResult{Findings: []QAE2EFinding{}},
+			expected: 0,
+		},
+		{
+			name: "mixed severity",
+			result: &QAE2ETestResult{
+				Findings: []QAE2EFinding{
+					{ID: "QA-001", Severity: QAE2ESeverityCritical},
+					{ID: "QA-002", Severity: QAE2ESeverityHigh},
+					{ID: "QA-003", Severity: QAE2ESeverityMedium},
+					{ID: "QA-004", Severity: QAE2ESeverityLow},
+				},
+			},
+			expected: 2, // 1 critical + 1 high
+		},
+		{
+			name: "only low/medium",
+			result: &QAE2ETestResult{
+				Findings: []QAE2EFinding{
+					{ID: "QA-001", Severity: QAE2ESeverityMedium},
+					{ID: "QA-002", Severity: QAE2ESeverityLow},
+				},
+			},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.result.HighSeverityCount()
+			if result != tt.expected {
+				t.Errorf("HighSeverityCount() = %d, want %d", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestQAE2ETestResult_FormatFindingsForFix(t *testing.T) {
+	t.Parallel()
+	t.Run("no findings", func(t *testing.T) {
+		result := &QAE2ETestResult{Findings: []QAE2EFinding{}}
+		output := result.FormatFindingsForFix()
+		if output != "No findings to fix." {
+			t.Errorf("FormatFindingsForFix() = %q, want %q", output, "No findings to fix.")
+		}
+	})
+
+	t.Run("with findings", func(t *testing.T) {
+		result := &QAE2ETestResult{
+			Findings: []QAE2EFinding{
+				{
+					ID:              "QA-001",
+					Severity:        QAE2ESeverityHigh,
+					Confidence:      95,
+					Category:        QAE2ECategoryFunctional,
+					Title:           "Form fails silently",
+					StepsToReproduce: []string{"Fill form", "Click submit"},
+					Expected:        "Success message",
+					Actual:          "Nothing happens",
+					ScreenshotPath:  "/tmp/qa/bug-001.png",
+					SuggestedFix:    "Check event handler",
+				},
+			},
+		}
+		output := result.FormatFindingsForFix()
+
+		checks := []string{
+			"QA-001",
+			"[HIGH]",
+			"Form fails silently",
+			"Category:** functional",
+			"Confidence:** 95",
+			"1. Fill form",
+			"2. Click submit",
+			"Expected:** Success message",
+			"Actual:** Nothing happens",
+			"Screenshot:** /tmp/qa/bug-001.png",
+			"Suggested Fix:** Check event handler",
+		}
+
+		for _, check := range checks {
+			if !strings.Contains(output, check) {
+				t.Errorf("Output missing %q\nGot: %s", check, output)
+			}
+		}
+	})
+}
+
+func TestFormatQAE2EResultSummary(t *testing.T) {
+	t.Parallel()
+	t.Run("nil result", func(t *testing.T) {
+		output := FormatQAE2EResultSummary(nil)
+		if output != "No QA E2E result available." {
+			t.Errorf("FormatQAE2EResultSummary(nil) = %q", output)
+		}
+	})
+
+	t.Run("no findings", func(t *testing.T) {
+		result := &QAE2ETestResult{
+			Status:   "complete",
+			Summary:  "All tests passed",
+			Findings: []QAE2EFinding{},
+			Verification: &QAE2EVerification{
+				ScenariosTested: 15,
+				ViewportsTested: []string{"desktop", "mobile"},
+			},
+		}
+		output := FormatQAE2EResultSummary(result)
+		if !strings.Contains(output, "No issues found - PASS") {
+			t.Errorf("Expected PASS message, got: %s", output)
+		}
+		if !strings.Contains(output, "Scenarios Tested: 15") {
+			t.Errorf("Expected scenario count, got: %s", output)
+		}
+	})
+
+	t.Run("with findings", func(t *testing.T) {
+		result := &QAE2ETestResult{
+			Status:  "complete",
+			Summary: "Found issues",
+			Findings: []QAE2EFinding{
+				{ID: "QA-001", Severity: QAE2ESeverityCritical, Title: "Critical bug"},
+				{ID: "QA-002", Severity: QAE2ESeverityLow, Title: "Minor issue"},
+			},
+		}
+		output := FormatQAE2EResultSummary(result)
+		if !strings.Contains(output, "Findings: 2 total (1 critical/high)") {
+			t.Errorf("Expected findings summary, got: %s", output)
+		}
+		if !strings.Contains(output, "[CRITICAL] QA-001: Critical bug") {
+			t.Errorf("Expected critical finding, got: %s", output)
+		}
+	})
+}

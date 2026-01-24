@@ -23,6 +23,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
+| `qa.go` | QA E2E types, parsing, loop condition evaluation |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
 | `ci_merge.go` | CI polling and auto-merge with retry logic |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
@@ -76,6 +77,27 @@ WorkflowExecutor.Run()
 | `enrichContextForPhase()` | `workflow_context.go:198` | Adds phase-specific context |
 | `loadInitiativeContext()` | `workflow_context.go:135` | Loads initiative vision/decisions |
 
+### QA E2E Loop Execution
+
+| Function | File:Line | Purpose |
+|----------|-----------|---------|
+| `EvaluateLoopCondition()` | `qa.go` | Evaluates loop condition against phase output |
+| `ParseQAE2ETestResult()` | `qa.go` | Parses qa_e2e_test phase JSON output |
+| `ParseQAE2EFixResult()` | `qa.go` | Parses qa_e2e_fix phase JSON output |
+
+**Loop Conditions:**
+
+| Condition | Evaluates True When |
+|-----------|---------------------|
+| `has_findings` | `findings` array is non-empty |
+| `not_empty` | Output is non-empty (trimmed) |
+| `status_needs_fix` | Status field is "needs_fix" |
+
+**Loop Flow:**
+```
+qa_e2e_test outputs findings → LoopConfig.Condition="has_findings" → true → inject qa_e2e_fix → execute fix → loop back to qa_e2e_test → repeat until no findings or MaxIterations
+```
+
 ## Variable Resolution
 
 All template variables resolved via `internal/variable/Resolver`. Resolution context includes:
@@ -88,6 +110,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS |
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS |
+| QA E2E | QA_ITERATION, QA_MAX_ITERATIONS, BEFORE_IMAGES, PREVIOUS_FINDINGS, QA_FINDINGS |
 | Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT |
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).

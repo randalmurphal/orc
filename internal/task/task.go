@@ -353,6 +353,11 @@ type Task struct {
 	// Weight is the complexity classification
 	Weight Weight `yaml:"weight" json:"weight"`
 
+	// WorkflowID specifies which workflow to use for execution.
+	// If empty, defaults to weight-based workflow selection.
+	// Set via `orc new --workflow <workflow-id>` or `orc run --workflow <workflow-id>`.
+	WorkflowID string `yaml:"workflow_id,omitempty" json:"workflow_id,omitempty"`
+
 	// Status is the current execution state
 	Status Status `yaml:"status" json:"status"`
 

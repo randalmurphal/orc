@@ -101,6 +101,50 @@ type Workflow struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
+// LoopConfig defines looping behavior for a workflow phase.
+// When configured, the phase can trigger a loop back to an earlier phase
+// based on output conditions (e.g., QA finds issues → fix → retest).
+type LoopConfig struct {
+	// Condition defines when to loop. Options:
+	// - "has_findings": loop if phase output contains findings
+	// - "not_empty": loop if phase output is not empty
+	// - "status_needs_fix": loop if status field equals "needs_fix"
+	Condition string `json:"condition"`
+
+	// LoopToPhase is the phase to loop back to (must be earlier in sequence).
+	LoopToPhase string `json:"loop_to_phase"`
+
+	// MaxIterations is the maximum number of loop iterations (default: 3).
+	// The executor tracks iterations and stops when limit is reached.
+	MaxIterations int `json:"max_iterations,omitempty"`
+}
+
+// ParseLoopConfig parses a JSON string into LoopConfig.
+// Returns nil for empty/null input.
+func ParseLoopConfig(jsonStr string) (*LoopConfig, error) {
+	if jsonStr == "" || jsonStr == "null" {
+		return nil, nil
+	}
+	var cfg LoopConfig
+	if err := json.Unmarshal([]byte(jsonStr), &cfg); err != nil {
+		return nil, fmt.Errorf("parse loop config: %w", err)
+	}
+	return &cfg, nil
+}
+
+// MarshalLoopConfig serializes LoopConfig to JSON string.
+// Returns empty string for nil.
+func MarshalLoopConfig(cfg *LoopConfig) (string, error) {
+	if cfg == nil {
+		return "", nil
+	}
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		return "", fmt.Errorf("marshal loop config: %w", err)
+	}
+	return string(data), nil
+}
+
 // WorkflowPhase links a phase template to a workflow.
 type WorkflowPhase struct {
 	ID              int    `json:"id"`
@@ -114,8 +158,11 @@ type WorkflowPhase struct {
 	ModelOverride         string `json:"model_override,omitempty"`
 	ThinkingOverride      *bool  `json:"thinking_override,omitempty"`
 	GateTypeOverride      string `json:"gate_type_override,omitempty"`
-	Condition             string `json:"condition,omitempty"`              // JSON
+	Condition             string `json:"condition,omitempty"`              // JSON - conditional execution
 	QualityChecksOverride string `json:"quality_checks_override,omitempty"` // JSON array, NULL=use template, []=disable all
+
+	// Loop configuration (JSON) - defines iterative loop behavior
+	LoopConfig string `json:"loop_config,omitempty"`
 
 	// Claude configuration override (JSON) - merged with template config
 	ClaudeConfigOverride string `json:"claude_config_override,omitempty"`
@@ -392,8 +439,8 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	res, err := p.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, claude_config_override)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			quality_checks_override, loop_config, claude_config_override)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
@@ -403,10 +450,11 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			gate_type_override = excluded.gate_type_override,
 			condition = excluded.condition,
 			quality_checks_override = excluded.quality_checks_override,
+			loop_config = excluded.loop_config,
 			claude_config_override = excluded.claude_config_override
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride, wp.ClaudeConfigOverride)
+		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -424,7 +472,7 @@ func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, erro
 	rows, err := p.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, claude_config_override
+			quality_checks_override, loop_config, claude_config_override
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
@@ -871,14 +919,14 @@ func scanWorkflowRow(rows *sql.Rows) (*Workflow, error) {
 
 func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp := &WorkflowPhase{}
-	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride, claudeConfigOverride sql.NullString
+	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride, loopConfig, claudeConfigOverride sql.NullString
 	var maxIterOverride sql.NullInt64
 	var thinkingOverride sql.NullBool
 
 	err := rows.Scan(
 		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
 		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
-		&qualityChecksOverride, &claudeConfigOverride,
+		&qualityChecksOverride, &loopConfig, &claudeConfigOverride,
 	)
 	if err != nil {
 		return nil, err
@@ -891,6 +939,7 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp.GateTypeOverride = gateTypeOverride.String
 	wp.Condition = condition.String
 	wp.QualityChecksOverride = qualityChecksOverride.String
+	wp.LoopConfig = loopConfig.String
 	wp.ClaudeConfigOverride = claudeConfigOverride.String
 
 	return wp, nil

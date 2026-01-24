@@ -188,9 +188,13 @@ func runRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// If no workflow specified, determine from task weight
+		// If no workflow specified, use task's workflow or fall back to weight-based
 		if workflowID == "" {
-			workflowID = workflow.GetWorkflowForWeight(string(existingTask.Weight))
+			if existingTask.WorkflowID != "" {
+				workflowID = existingTask.WorkflowID
+			} else {
+				workflowID = workflow.GetWorkflowForWeight(string(existingTask.Weight))
+			}
 		}
 
 		// Use task description as prompt if not provided
