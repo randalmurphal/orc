@@ -269,15 +269,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 		run.TaskID = &t.ID
 
-		// Infer weight from workflow ID for newly created tasks
-		if t.Weight == "" {
-			if inferred := workflow.GetWeightForWorkflow(workflowID); inferred != "" {
-				t.Weight = task.Weight(inferred)
-				if err := we.backend.SaveTask(t); err != nil {
-					we.logger.Warn("failed to save inferred weight", "task_id", t.ID, "error", err)
-				}
-			}
-		}
 	case ContextTask:
 		// Load existing task
 		t, err = we.backend.LoadTask(opts.TaskID)
@@ -286,15 +277,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 		run.TaskID = &t.ID
 
-		// Infer weight if not set on existing task
-		if t.Weight == "" {
-			if inferred := workflow.GetWeightForWorkflow(workflowID); inferred != "" {
-				t.Weight = task.Weight(inferred)
-				if err := we.backend.SaveTask(t); err != nil {
-					we.logger.Warn("failed to save inferred weight", "task_id", t.ID, "error", err)
-				}
-			}
-		}
 	}
 
 	// Initialize execution state for task-based contexts

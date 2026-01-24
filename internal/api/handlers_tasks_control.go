@@ -11,7 +11,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // truncate truncates a string for logging purposes.
@@ -71,8 +70,12 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get workflow ID from task weight
-	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+	// Get workflow ID from task - MUST be set
+	workflowID := t.WorkflowID
+	if workflowID == "" {
+		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot run", id), http.StatusBadRequest)
+		return
+	}
 
 	// Get first phase of workflow to set current_phase
 	phases, err := s.backend.GetWorkflowPhases(workflowID)

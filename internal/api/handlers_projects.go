@@ -4,6 +4,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // handleListProjects returns all registered projects.
@@ -384,8 +384,12 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get workflow ID from task weight
-	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+	// Get workflow ID from task - MUST be set
+	workflowID := t.WorkflowID
+	if workflowID == "" {
+		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot run", taskID), http.StatusBadRequest)
+		return
+	}
 
 	// Mark task as running
 	t.Status = task.StatusRunning
@@ -563,8 +567,12 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Get workflow ID from task weight
-	workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+	// Get workflow ID from task - MUST be set
+	workflowID := t.WorkflowID
+	if workflowID == "" {
+		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot resume", taskID), http.StatusBadRequest)
+		return
+	}
 
 	// Update task status
 	t.Status = task.StatusRunning
@@ -688,7 +696,7 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get workflow phases from database to validate phase exists
-	phases, err := s.getWorkflowPhases(backend, t.Weight)
+	phases, err := s.getWorkflowPhases(backend, t.WorkflowID)
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -805,7 +813,7 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Get workflow phases from database
-	phases, err := s.getWorkflowPhases(backend, t.Weight)
+	phases, err := s.getWorkflowPhases(backend, t.WorkflowID)
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -960,7 +968,7 @@ func (s *Server) handleGetProjectTaskPlan(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get plan from database workflow phases
-	p, err := s.getWorkflowPhasesWithPlan(backend, taskID, t.Weight)
+	p, err := s.getWorkflowPhasesWithPlan(backend, taskID, t.WorkflowID)
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -1054,8 +1062,10 @@ type phaseInfo struct {
 }
 
 // getWorkflowPhases returns the phase IDs for a workflow from the database.
-func (s *Server) getWorkflowPhases(backend storage.Backend, weight task.Weight) ([]phaseInfo, error) {
-	workflowID := workflow.GetWorkflowForWeight(string(weight))
+func (s *Server) getWorkflowPhases(backend storage.Backend, workflowID string) ([]phaseInfo, error) {
+	if workflowID == "" {
+		return nil, fmt.Errorf("workflow_id is required")
+	}
 
 	dbPhases, err := backend.GetWorkflowPhases(workflowID)
 	if err != nil {
@@ -1077,8 +1087,8 @@ func (s *Server) getWorkflowPhases(backend storage.Backend, weight task.Weight) 
 }
 
 // getWorkflowPhasesWithPlan returns phases as an executor.Plan for API compatibility.
-func (s *Server) getWorkflowPhasesWithPlan(backend storage.Backend, taskID string, weight task.Weight) (*executor.Plan, error) {
-	phases, err := s.getWorkflowPhases(backend, weight)
+func (s *Server) getWorkflowPhasesWithPlan(backend storage.Backend, taskID string, workflowID string) (*executor.Plan, error) {
+	phases, err := s.getWorkflowPhases(backend, workflowID)
 	if err != nil {
 		return nil, err
 	}

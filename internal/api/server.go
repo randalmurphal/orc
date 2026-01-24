@@ -868,8 +868,12 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		// Get workflow ID from task weight
-		workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+		// Get workflow ID from task - MUST be set
+		workflowID := t.WorkflowID
+		if workflowID == "" {
+			s.logger.Error("task has no workflow_id set", "task", id)
+			return
+		}
 
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(

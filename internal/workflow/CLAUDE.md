@@ -72,8 +72,8 @@ import "github.com/randalmurphal/orc/internal/workflow"
 // Seed built-ins on startup
 seeded, err := workflow.SeedBuiltins(pdb)
 
-// Get workflow for weight (backward compat)
-wfID := workflow.GetWorkflowForWeight("medium") // "implement"
+// List available workflows
+ids := workflow.ListBuiltinWorkflowIDs()
 ```
 
 ## Database Operations
@@ -113,17 +113,6 @@ Workflows can define custom variables with different sources:
 | `api` | `{"url": "https://..."}` | HTTP response |
 | `phase_output` | `{"phase": "spec"}` | Prior phase artifact |
 | `prompt_fragment` | `{"path": "fragments/x.md"}` | Reusable prompt snippet |
-
-## Migration from Weight-Based System
-
-The `GetWorkflowForWeight()` function maps weights to workflows:
-
-| Weight | Workflow |
-|--------|----------|
-| trivial | implement-trivial |
-| small | implement-small |
-| medium | implement-medium |
-| large | implement-large |
 
 ## QA E2E Workflow
 

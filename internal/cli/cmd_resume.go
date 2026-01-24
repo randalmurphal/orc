@@ -165,8 +165,11 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("claim task execution: %w", err)
 			}
 
-			// Get workflow ID from task weight
-			workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+			// Get workflow ID from task - MUST be set
+			workflowID := t.WorkflowID
+			if workflowID == "" {
+				return fmt.Errorf("task %s has no workflow_id set - cannot resume\n\nSet workflow with: orc edit %s --workflow <workflow-id>\nSee available workflows: orc workflows", id, id)
+			}
 
 			cfg, err := config.Load()
 			if err != nil {

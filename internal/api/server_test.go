@@ -1727,6 +1727,7 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	tsk := task.New("TASK-RUN", "Test Task")
 	tsk.Status = task.StatusPlanned
 	tsk.Weight = task.WeightMedium
+	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1797,6 +1798,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 	tsk := task.New("TASK-PHASE", "Test Task")
 	tsk.Status = task.StatusPlanned
 	tsk.Weight = task.WeightMedium
+	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1967,6 +1969,7 @@ func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
 	ready := task.New("TASK-READY", "Ready Task")
 	ready.Status = task.StatusPlanned
 	ready.Weight = "medium"
+	ready.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	ready.BlockedBy = []string{"TASK-DONE"}
 	if err := backend.SaveTask(ready); err != nil {
 		t.Fatalf("failed to save ready task: %v", err)
@@ -2009,6 +2012,7 @@ func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
 	forced := task.New("TASK-FORCE", "Force Run Task")
 	forced.Status = task.StatusPlanned
 	forced.Weight = "medium"
+	forced.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	forced.BlockedBy = []string{"TASK-BLOCK2"}
 	if err := backend.SaveTask(forced); err != nil {
 		t.Fatalf("failed to save forced task: %v", err)
@@ -2043,6 +2047,7 @@ func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
 	tsk := task.New("TASK-FREE", "Free Task")
 	tsk.Status = task.StatusPlanned
 	tsk.Weight = "medium"
+	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -2446,6 +2451,7 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 
 	tsk := task.New(taskID, "Test Task")
 	tsk.Weight = task.WeightMedium
+	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	tsk.Status = task.StatusRunning
 	tsk.Branch = "orc/" + taskID
 	if err := backend.SaveTask(tsk); err != nil {
@@ -2511,6 +2517,7 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 
 	tsk := task.New(taskID, "Test Project Task")
 	tsk.Weight = task.WeightMedium
+	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	tsk.Status = task.StatusPlanned
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)

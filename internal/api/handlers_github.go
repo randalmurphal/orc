@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // createPRRequest is the request body for creating a PR.
@@ -388,8 +387,12 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 			s.runningTasksMu.Unlock()
 		}()
 
-		// Get workflow ID from task weight
-		workflowID := workflow.GetWorkflowForWeight(string(t.Weight))
+		// Get workflow ID from task - MUST be set
+		workflowID := t.WorkflowID
+		if workflowID == "" {
+			s.logger.Error("task has no workflow_id set", "task", taskID)
+			return
+		}
 
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(
