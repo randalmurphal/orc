@@ -84,7 +84,7 @@ Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 WORKFLOW OVERRIDE (--workflow)
 ═══════════════════════════════════════════════════════════════════════════════
 
-Use --workflow to assign a specific workflow instead of weight-based selection:
+Use --workflow to assign a workflow (required for task execution):
 
   orc new "Verify auth flow works" --workflow qa-e2e
   orc new "Review the refactor" --workflow review
@@ -171,7 +171,7 @@ orc new "Implement refresh token rotation" -w medium -i INIT-001 \
 orc new "Fix typo: 'recieve' → 'receive'" -w trivial
 
 See also:
-  orc run      - Execute a task (runs the phases based on weight)
+  orc run      - Execute a task (uses assigned workflow_id)
   orc show     - View task details and spec content
   orc deps     - View task dependencies
   orc initiative - Group related tasks with shared context`,
