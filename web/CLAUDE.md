@@ -41,7 +41,8 @@ web/src/
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
 │   ├── layout/           # AppLayout, Sidebar, Header, IconNav, TopBar
 │   ├── stats/            # Statistics (StatsView, ActivityHeatmap, TasksBarChart, OutcomesDonut, LeaderboardTable)
-│   ├── task-detail/      # TaskHeader, TabNav, tabs
+│   ├── task-detail/      # TaskHeader, TabNav, tabs (TranscriptTab uses transcript components)
+│   ├── transcript/       # TranscriptViewer, TranscriptNav, TranscriptSection, TranscriptSearch, TranscriptVirtualList
 │   ├── overlays/         # Modal, CommandPalette, NewTaskModal
 │   ├── settings/         # Settings components (SettingsLayout, SettingsView, CommandList, CommandEditor, ConfigEditor)
 │   ├── workflows/        # Workflow config (WorkflowsView, WorkflowCard, WorkflowDetailPanel, CloneWorkflowModal, CreateWorkflowModal)

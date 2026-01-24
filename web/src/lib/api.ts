@@ -227,6 +227,45 @@ export async function getTranscripts(id: string): Promise<Transcript[]> {
 	return fetchJSON<Transcript[]>(`/tasks/${id}/transcripts`);
 }
 
+// Paginated transcript API
+export interface PhaseSummary {
+	phase: string;
+	transcript_count: number;
+}
+
+export interface TranscriptPaginationResult {
+	next_cursor: number | null;
+	prev_cursor: number | null;
+	has_more: boolean;
+	total_count: number;
+}
+
+export interface PaginatedTranscriptsResponse {
+	transcripts: Transcript[];
+	pagination: TranscriptPaginationResult;
+	phases: PhaseSummary[];
+}
+
+export interface GetTranscriptsOptions {
+	limit?: number;
+	cursor?: number;
+	direction?: 'asc' | 'desc';
+	phase?: string;
+}
+
+export async function getTranscriptsPaginated(
+	taskId: string,
+	options: GetTranscriptsOptions = {}
+): Promise<PaginatedTranscriptsResponse> {
+	const params = new URLSearchParams();
+	if (options.limit) params.set('limit', String(options.limit));
+	if (options.cursor) params.set('cursor', String(options.cursor));
+	if (options.direction) params.set('direction', options.direction);
+	if (options.phase) params.set('phase', options.phase);
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<PaginatedTranscriptsResponse>(`/tasks/${taskId}/transcripts${query}`);
+}
+
 // Todos (from Claude's TodoWrite tool calls)
 export interface TodoItem {
 	content: string;
