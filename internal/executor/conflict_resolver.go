@@ -33,8 +33,7 @@ type ConflictResolver struct {
 	thinking bool
 
 	// ClaudeCLI settings
-	claudePath    string
-	mcpConfigPath string
+	claudePath string
 
 	// Transcript storage (optional - for unified Claude calling path)
 	backend storage.Backend
@@ -54,11 +53,6 @@ func WithResolverGitSvc(svc *git.Git) ConflictResolverOption {
 // WithResolverClaudePath sets the path to claude binary.
 func WithResolverClaudePath(path string) ConflictResolverOption {
 	return func(r *ConflictResolver) { r.claudePath = path }
-}
-
-// WithResolverMCPConfig sets the MCP config path.
-func WithResolverMCPConfig(path string) ConflictResolverOption {
-	return func(r *ConflictResolver) { r.mcpConfigPath = path }
 }
 
 // WithResolverLogger sets the logger.
@@ -215,9 +209,6 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 			// Transcript storage options - handled internally
 			WithClaudeBackend(r.backend),
 			WithClaudeTaskID(t.ID),
-		}
-		if r.mcpConfigPath != "" {
-			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(r.mcpConfigPath))
 		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}

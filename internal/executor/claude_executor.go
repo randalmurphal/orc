@@ -42,9 +42,6 @@ type ClaudeExecutor struct {
 	sessionID string
 	resume    bool
 
-	// MCP config path (optional)
-	mcpConfigPath string
-
 	// Max turns (budget control)
 	maxTurns int
 
@@ -93,11 +90,6 @@ func WithClaudeResume(resume bool) ClaudeExecutorOption {
 // WithClaudePath sets the path to claude binary.
 func WithClaudePath(path string) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.claudePath = path }
-}
-
-// WithClaudeMCPConfig sets the MCP config path.
-func WithClaudeMCPConfig(path string) ClaudeExecutorOption {
-	return func(e *ClaudeExecutor) { e.mcpConfigPath = path }
 }
 
 // WithClaudeMaxTurns sets the maximum turns for budget control.
@@ -392,10 +384,6 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 		e.logger.Debug("using --resume with session ID", "session_id", e.sessionID)
 	} else {
 		e.logger.Debug("starting new session", "existing_session_id", e.sessionID, "resume", e.resume)
-	}
-
-	if e.mcpConfigPath != "" {
-		opts = append(opts, claude.WithMCPConfig(e.mcpConfigPath))
 	}
 
 	if e.maxTurns > 0 {

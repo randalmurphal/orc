@@ -49,9 +49,6 @@ type FinalizeExecutor struct {
 	stateUpdater func(*state.State)
 	backend      storage.Backend
 
-	// MCP config path (generated for worktree)
-	mcpConfigPath string
-
 	// turnExecutor allows injection of a mock for testing
 	turnExecutor TurnExecutor
 }
@@ -111,11 +108,6 @@ func WithFinalizeBackend(b storage.Backend) FinalizeExecutorOption {
 // WithFinalizeClaudePath sets the path to the claude binary.
 func WithFinalizeClaudePath(path string) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.claudePath = path }
-}
-
-// WithFinalizeMCPConfig sets the MCP config path.
-func WithFinalizeMCPConfig(path string) FinalizeExecutorOption {
-	return func(e *FinalizeExecutor) { e.mcpConfigPath = path }
 }
 
 // WithFinalizeTurnExecutor sets a TurnExecutor for testing.
@@ -616,9 +608,6 @@ func (e *FinalizeExecutor) resolveConflicts(
 			WithClaudeBackend(e.backend),
 			WithClaudeTaskID(t.ID),
 		}
-		if e.mcpConfigPath != "" {
-			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
-		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
 
@@ -788,9 +777,6 @@ func (e *FinalizeExecutor) tryFixTests(
 			// Transcript storage options - handled internally
 			WithClaudeBackend(e.backend),
 			WithClaudeTaskID(t.ID),
-		}
-		if e.mcpConfigPath != "" {
-			claudeOpts = append(claudeOpts, WithClaudeMCPConfig(e.mcpConfigPath))
 		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}

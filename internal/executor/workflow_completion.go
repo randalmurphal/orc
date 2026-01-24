@@ -240,16 +240,6 @@ func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
 	}
 	we.logger.Info(logMsg, "task", t.ID, "path", result.Path, "target_branch", result.TargetBranch, "branch", t.Branch)
 
-	// Generate per-worktree MCP config for isolated Playwright sessions
-	if ShouldGenerateMCPConfig(t, we.orcConfig) {
-		if err := GenerateWorktreeMCPConfig(result.Path, t.ID, t, we.orcConfig); err != nil {
-			we.logger.Warn("failed to generate MCP config", "task", t.ID, "error", err)
-			// Non-fatal: continue without MCP config
-		} else {
-			we.logger.Info("generated MCP config", "task", t.ID, "path", result.Path+"/.mcp.json")
-		}
-	}
-
 	// Update the resolver to use worktree path
 	we.resolver = variable.NewResolver(result.Path)
 
