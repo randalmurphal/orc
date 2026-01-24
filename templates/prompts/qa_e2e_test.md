@@ -184,11 +184,19 @@ Output JSON matching QAE2ETestResultSchema:
 - The QA loop will automatically trigger qa_e2e_fix phase
 - After fixes, this phase will run again to verify
 
-**BLOCKED:**
-- Cannot start application (server won't start)
-- Critical infrastructure failure
-- Missing required test data
-- Cannot access required URLs
+**BLOCKED (use sparingly - most issues are findings):**
+- Server literally won't start (build fails, port unavailable)
+- Network completely down (cannot open browser at all)
+- Missing credentials that prevent any access
+
+**NOT BLOCKED (report as findings instead):**
+- Page loads but shows infinite loading/skeleton → finding: "page stuck in loading state"
+- Page loads but crashes/shows error → finding: "page crashes on load"
+- Page loads but content is wrong/missing → finding: describe the issue
+- API returns errors → finding: "API endpoint returns 500"
+
+The qa_e2e_fix phase can investigate and fix React components, stores, API handlers, etc.
+If in doubt, report it as a finding - let the fix phase try to resolve it.
 
 ## Remember
 
