@@ -8,12 +8,12 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 | File | Lines | Key Functions | Purpose |
 |------|-------|---------------|---------|
-| `workflow_executor.go` | ~740 | `NewWorkflowExecutor()`, `Run()`, `applyArtifactToVars()` | Core types, options, entry point, result types |
-| `workflow_context.go` | ~430 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
-| `workflow_phase.go` | ~580 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
-| `workflow_state.go` | ~240 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
-| `workflow_gates.go` | ~100 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
+| `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyArtifactToVars()` | Core types, options, entry point, result types |
+| `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
+| `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
+| `workflow_completion.go` | ~420 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
+| `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
+| `workflow_gates.go` | ~105 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
 
 ### Support Files
 
@@ -56,17 +56,17 @@ WorkflowExecutor.Run()
 
 | Function | File:Line | Purpose |
 |----------|-----------|---------|
-| `RecordCostEntry()` | `cost_tracking.go:22` | Records phase costs to global DB |
-| `RunResourceAnalysis()` | `resource_tracker.go:538` | Detects orphaned MCP processes |
-| `applyArtifactToVars()` | `workflow_executor.go:703` | Propagates phase artifacts to subsequent phases |
+| `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
+| `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
+| `applyArtifactToVars()` | `workflow_executor.go:748` | Propagates phase artifacts to subsequent phases |
 
 ### Phase Execution
 
 | Function | File:Line | Purpose |
 |----------|-----------|---------|
-| `executePhaseWithTimeout()` | `workflow_phase.go:421` | Wraps `executePhase()` with PhaseMax timeout |
-| `checkSpecRequirements()` | `workflow_phase.go:535` | Validates spec exists for non-trivial weights |
-| `IsPhaseTimeoutError()` | `workflow_phase.go:412` | Checks if error is `phaseTimeoutError` |
+| `executePhaseWithTimeout()` | `workflow_phase.go:567` | Wraps `executePhase()` with PhaseMax timeout |
+| `checkSpecRequirements()` | `workflow_phase.go:681` | Validates spec exists for non-trivial weights |
+| `IsPhaseTimeoutError()` | `workflow_phase.go:558` | Checks if error is `phaseTimeoutError` |
 
 ### Context Building
 
@@ -97,7 +97,7 @@ See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, A
 | Phase | Storage | Extraction |
 |-------|---------|------------|
 | spec, design, research, docs | Database | From JSON `artifact` field via `--json-schema` |
-| implement, test, validate | Code changes only | No artifact extraction |
+| implement, test | Code changes only | No artifact extraction |
 
 **JSON-based artifact extraction:**
 - `GetSchemaForPhase()` returns schema with or without `artifact` field
@@ -141,7 +141,6 @@ When phases fail or output `{"status": "blocked"}`:
 | design | spec | Design issues from incomplete spec |
 | review | implement | Review findings need code changes |
 | test, test_unit, test_e2e | implement | Test failures need code fixes |
-| validate | implement | Validation issues need code changes |
 
 ## Model Configuration
 
@@ -156,7 +155,7 @@ config.Model                      # Global fallback
 **Default per phase template:**
 | Phase | Model | Thinking | Rationale |
 |-------|-------|----------|-----------|
-| spec, design, review, validate, research | opus | true | Decision phases need deep reasoning |
+| spec, design, review, research | opus | true | Decision phases need deep reasoning |
 | tiny_spec, tdd_write, breakdown, implement, docs | opus | false | Execution phases |
 | qa | sonnet | false | Test execution is mechanical |
 
@@ -308,3 +307,36 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 | Spec not found in templates | Use `WithSpecFromDatabase()` |
 | Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
 | Validation can't see files | Create clients dynamically with correct workdir |
+
+## Task/State Consistency
+
+**CRITICAL:** When execution fails or is interrupted, BOTH task and state must be updated:
+
+| Component | Field | Must Update |
+|-----------|-------|-------------|
+| Task | `Status` | Set to `Failed`, `Paused`, or `Blocked` |
+| State | `Status` | Set to `StatusFailed` or `StatusInterrupted` |
+| State | `Error` | Store error message for user visibility |
+
+**Why this matters:** If task.Status stays "running" but the executor dies, the task becomes orphaned - it appears running but has no active process.
+
+### Error Handling Checklist
+
+When adding new error paths:
+
+1. **Store the error:** `s.Error = err.Error()`
+2. **Update state status:** `s.FailPhase(phaseID, err)` or `s.InterruptPhase(phaseID)`
+3. **Save state:** `e.backend.SaveState(s)`
+4. **Update task status:** `t.Status = task.StatusFailed`
+5. **Save task:** `e.backend.SaveTask(t)`
+6. **Publish events:** `e.publishError()` and `e.publishState()`
+
+**Always use helper functions** (`failRun`, `failSetup`, `interruptRun`) which handle all cleanup consistently.
+
+### Anti-Patterns
+
+| Bad | Why |
+|-----|-----|
+| `if err != nil { return err }` | Task still shows "running" |
+| Update only state or only task | Task/state out of sync |
+| Skip `s.Error = err.Error()` | User can't see what went wrong |

@@ -88,17 +88,16 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 
 | Weight | Phases | Spec? | When to Use |
 |--------|--------|-------|-------------|
-| trivial | tiny_spec → implement | YES | One-liner fixes, typos |
+| trivial | implement | NO | One-liner fixes, typos |
 | small | tiny_spec → implement → review | YES | Bug fixes, isolated changes |
 | medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
-| large | spec → tdd_write → breakdown → implement → review → docs → validate | YES | Complex multi-file features |
+| large | spec → tdd_write → breakdown → implement → review → docs | YES | Complex multi-file features |
 
 Key phases:
 - **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
 - **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
 - **breakdown**: Decomposes large tasks into checkboxed implementation steps
-- **review**: Multi-agent code review with 5 specialized reviewers
-- **validate**: Final verification against all success criteria
+- **review**: Multi-agent code review with 5 specialized reviewers + success criteria verification
 
 ### Task Completion Flow
 
