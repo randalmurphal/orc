@@ -811,8 +811,13 @@ type PhaseResult struct {
 
 // applyPhaseContentToVars updates variable maps with phase output content.
 // Called both when resuming from completed phases and after phase completion.
+// For phases with structured JSON output, this formats the content appropriately
+// for injection into subsequent phase prompts.
 func applyPhaseContentToVars(vars map[string]string, priorOutputs map[string]string, phaseID, content string) {
+	// Store raw output for OUTPUT_* variable (used by loop condition evaluation)
 	vars["OUTPUT_"+phaseID] = content
+
+	// Phase-specific handling with formatting where applicable
 	switch phaseID {
 	case "spec", "tiny_spec":
 		vars["SPEC_CONTENT"] = content
@@ -822,7 +827,19 @@ func applyPhaseContentToVars(vars map[string]string, priorOutputs map[string]str
 		vars["BREAKDOWN_CONTENT"] = content
 	case "research":
 		vars["RESEARCH_CONTENT"] = content
+	case "qa_e2e_test":
+		// Parse and format findings for prompt injection
+		// Raw JSON is kept in OUTPUT_qa_e2e_test for loop condition evaluation
+		result, err := ParseQAE2ETestResult(content)
+		if err == nil {
+			vars["QA_FINDINGS"] = result.FormatFindingsForFix()
+		} else {
+			// Fallback to raw if parse fails
+			vars["QA_FINDINGS"] = content
+		}
 	}
+
+	// Store raw content in priorOutputs for loop condition evaluation
 	if priorOutputs != nil {
 		priorOutputs[phaseID] = content
 	}
