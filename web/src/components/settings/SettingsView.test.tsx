@@ -8,7 +8,7 @@ describe('SettingsView', () => {
 			render(<SettingsView />);
 
 			expect(screen.getByText('Slash Commands')).toBeInTheDocument();
-			expect(screen.getByText('Create and manage custom slash commands for Claude')).toBeInTheDocument();
+			expect(screen.getByText('Custom commands for Claude Code (~/.claude/commands)')).toBeInTheDocument();
 		});
 
 		it('renders New Command button', () => {
