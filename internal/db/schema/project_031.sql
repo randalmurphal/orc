@@ -1,8 +1,4 @@
--- Migration 031: Add claude_config to phase templates and workflow phases
--- Enables per-phase Claude CLI configuration (system prompts, tool restrictions, etc.)
+-- Add current_iteration column to tasks table
+-- Stores the iteration number for the current phase (1-based)
 
--- Add claude_config to phase_templates (base config for the template)
-ALTER TABLE phase_templates ADD COLUMN claude_config TEXT;
-
--- Add claude_config_override to workflow_phases (per-workflow override)
-ALTER TABLE workflow_phases ADD COLUMN claude_config_override TEXT;
+ALTER TABLE tasks ADD COLUMN current_iteration INTEGER DEFAULT 0;
