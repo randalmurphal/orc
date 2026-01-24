@@ -8,31 +8,31 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
-// SaveArtifactToDatabase extracts artifact content from JSON output and saves to phase_outputs table.
-// For artifact-producing phases (design, research, docs, tdd_write, breakdown), agents output
-// structured JSON with an "artifact" field containing the full content.
+// SavePhaseContentToDatabase extracts content from JSON output and saves to phase_outputs table.
+// For content-producing phases (design, research, docs, tdd_write, breakdown), agents output
+// structured JSON with a "content" field containing the full phase output.
 //
 // NOTE: This function requires a workflow run ID. For direct execution from workflow_phase.go,
 // use backend.SavePhaseOutput() directly which is the preferred approach.
-// Returns true if an artifact was saved, false if the phase doesn't produce artifacts or no content.
-func SaveArtifactToDatabase(backend storage.Backend, runID, taskID, phaseID, output string) (bool, error) {
+// Returns true if content was saved, false if the phase doesn't produce content or no content found.
+func SavePhaseContentToDatabase(backend storage.Backend, runID, taskID, phaseID, output string) (bool, error) {
 	// Skip for spec phases - use SaveSpecToDatabase instead
 	if phaseID == "spec" || phaseID == "tiny_spec" {
 		return false, nil
 	}
 
-	// Only artifact-producing phases need artifact extraction
-	if !PhasesWithArtifacts[phaseID] {
+	// Only content-producing phases need content extraction
+	if !contentProducingPhases[phaseID] {
 		return false, nil
 	}
 
-	// Extract artifact from JSON output
-	artifact := ExtractArtifactFromOutput(output)
-	if artifact == "" {
-		return false, nil // No artifact in output
+	// Extract content from JSON output
+	content := ExtractContentFromOutput(output)
+	if content == "" {
+		return false, nil // No content in output
 	}
 
-	artifact = strings.TrimSpace(artifact)
+	content = strings.TrimSpace(content)
 
 	// Determine output variable name
 	outputVarName := inferOutputVarName(phaseID)
@@ -42,25 +42,24 @@ func SaveArtifactToDatabase(backend storage.Backend, runID, taskID, phaseID, out
 		WorkflowRunID:   runID,
 		PhaseTemplateID: phaseID,
 		TaskID:          &taskID,
-		Content:         artifact,
+		Content:         content,
 		OutputVarName:   outputVarName,
 		ArtifactType:    phaseID,
 		Source:          "executor",
 	}
 	if err := backend.SavePhaseOutput(phaseOutput); err != nil {
-		return false, fmt.Errorf("save artifact to database: %w", err)
+		return false, fmt.Errorf("save phase content to database: %w", err)
 	}
 
 	return true, nil
 }
+
 
 // inferOutputVarName returns the standard output variable name for a phase ID.
 func inferOutputVarName(phaseID string) string {
 	switch phaseID {
 	case "spec", "tiny_spec":
 		return "SPEC_CONTENT"
-	case "design":
-		return "DESIGN_CONTENT"
 	case "tdd_write":
 		return "TDD_TESTS_CONTENT"
 	case "breakdown":
@@ -74,19 +73,20 @@ func inferOutputVarName(phaseID string) string {
 	}
 }
 
-// ExtractArtifactContent extracts artifact from JSON output.
-// This is the only mechanism for capturing artifact content - no file lookups or XML parsing.
-func ExtractArtifactContent(output string) string {
-	return ExtractArtifactFromOutput(output)
+// ExtractPhaseContent extracts content from JSON output.
+// This is the only mechanism for capturing phase content - no file lookups or XML parsing.
+func ExtractPhaseContent(output string) string {
+	return ExtractContentFromOutput(output)
 }
 
+
 // SaveSpecToDatabase saves spec content to the database for the spec phase.
-// This is the SOLE mechanism for saving spec content - no file artifacts are created
+// This is the SOLE mechanism for saving spec content - no files are created
 // for the spec phase to avoid merge conflicts in worktrees. The database is the source
 // of truth for spec content, which is loaded via backend.LoadSpec() to populate
 // {{SPEC_CONTENT}} in subsequent phase templates.
 //
-// Spec content is extracted from the JSON "artifact" field in the agent's output.
+// Spec content is extracted from the JSON "content" field in the agent's output.
 // The --json-schema constraint ensures reliable structured output.
 //
 // This should be called after a successful spec phase completion.
@@ -138,11 +138,11 @@ func SaveSpecToDatabase(backend storage.Backend, runID, taskID, phaseID, output 
 		return s[:maxLen] + "..."
 	}
 
-	// Extract spec from JSON artifact field
-	specContent := ExtractArtifactFromOutput(output)
+	// Extract spec from JSON content field
+	specContent := ExtractContentFromOutput(output)
 	if specContent == "" {
 		return false, &SpecExtractionError{
-			Reason:        "no artifact field in JSON output - agent must output spec in artifact field",
+			Reason:        "no content field in JSON output - agent must output spec in content field",
 			OutputLen:     len(output),
 			OutputPreview: outputPreview(output, 200),
 		}

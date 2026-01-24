@@ -63,7 +63,6 @@ Execution instances:
 | `qa_e2e_test` | Browser-based E2E testing (Playwright MCP) | Yes (findings) |
 | `qa_e2e_fix` | Fix issues from QA testing | No |
 | `research` | Research patterns | Yes (research) |
-| `design` | Design document | Yes (design) |
 
 ## Usage
 

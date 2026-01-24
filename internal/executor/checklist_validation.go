@@ -18,9 +18,18 @@ type ChecklistItem struct {
 type SpecCompletionWithChecklist struct {
 	Status           string          `json:"status"`
 	Summary          string          `json:"summary"`
-	Artifact         string          `json:"artifact"`
+	Content          string          `json:"content"`  // Preferred field for spec content
+	Artifact         string          `json:"artifact"` // Legacy field (deprecated, use Content)
 	QualityChecklist []ChecklistItem `json:"quality_checklist"`
 	Assumptions      []Assumption    `json:"assumptions"`
+}
+
+// GetContent returns the spec content, preferring Content over legacy Artifact.
+func (s *SpecCompletionWithChecklist) GetContent() string {
+	if s.Content != "" {
+		return s.Content
+	}
+	return s.Artifact
 }
 
 // Assumption represents an assumption made during spec creation.

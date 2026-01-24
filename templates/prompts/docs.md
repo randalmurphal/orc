@@ -331,7 +331,7 @@ If any file exceeds threshold + tolerance (BLOCK status):
 
 ## Output Format
 
-**CRITICAL**: Your final output MUST be a JSON object with the documentation summary in the `artifact` field.
+**CRITICAL**: Your final output MUST be a JSON object with the documentation summary in the `content` field.
 
 Create a documentation summary following this structure:
 
@@ -364,13 +364,13 @@ Look for sections marked with `<!-- orc:auto:* -->` and regenerate them:
 
 ## Phase Completion
 
-Output a JSON object with the summary in the `artifact` field:
+Output a JSON object with the summary in the `content` field:
 
 ```json
 {
   "status": "complete",
   "summary": "Documentation updated, lint passed",
-  "artifact": "## Documentation Summary\n\n**Task**: Feature X\n..."
+  "content": "## Documentation Summary\n\n**Task**: Feature X\n..."
 }
 ```
 

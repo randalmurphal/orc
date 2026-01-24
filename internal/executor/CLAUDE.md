@@ -8,7 +8,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 | File | Lines | Key Functions | Purpose |
 |------|-------|---------------|---------|
-| `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyArtifactToVars()` | Core types, options, entry point, result types |
+| `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, result types |
 | `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~420 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
@@ -46,7 +46,7 @@ WorkflowExecutor.Run()
 │   ├── evaluateGate()                # Check conditions
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
-│   ├── applyArtifactToVars()         # Store output for subsequent phases
+│   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   └── recordCostToGlobal()          # Track costs
 └── completeRun()              # Finalization, cleanup
 ```
@@ -59,7 +59,7 @@ WorkflowExecutor.Run()
 |----------|-----------|---------|
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
-| `applyArtifactToVars()` | `workflow_executor.go:748` | Propagates phase artifacts to subsequent phases |
+| `applyPhaseContentToVars()` | `workflow_executor.go:820` | Propagates phase content to subsequent phases |
 
 ### Phase Execution
 
@@ -115,16 +115,16 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
 
-## Artifact Storage
+## Phase Content Storage
 
 | Phase | Storage | Extraction |
 |-------|---------|------------|
-| spec, design, research, docs | Database | From JSON `artifact` field via `--json-schema` |
-| implement, test | Code changes only | No artifact extraction |
+| spec, research, docs | Database | From JSON `content` field via `--json-schema` |
+| implement, test | Code changes only | No content extraction |
 
-**JSON-based artifact extraction:**
-- `GetSchemaForPhase()` returns schema with or without `artifact` field
-- `ExtractArtifactFromOutput()` parses JSON and extracts `artifact`
+**JSON-based content extraction:**
+- `GetSchemaForPhase()` returns schema with or without `content` field
+- `ExtractPhaseContent()` parses JSON and extracts `content`
 - `SaveSpecToDatabase()` extracts spec from JSON and saves to database
 - **Failure handling:** Extraction failures call `failRun()` to ensure task status becomes `StatusFailed`
 
@@ -142,7 +142,7 @@ Claude outputs completion via `--json-schema`:
 
 | Phase | Round | Schema |
 |-------|-------|--------|
-| spec, design, research, docs | - | `PhaseCompletionWithArtifactSchema` |
+| spec, research, docs | - | `PhaseCompletionWithContentSchema` |
 | review | 1 | `ReviewFindingsSchema` |
 | review | 2 | `ReviewDecisionSchema` |
 | qa | - | `QAResultSchema` |
@@ -161,7 +161,6 @@ When phases fail or output `{"status": "blocked"}`:
 
 | Failed Phase | Retries From | Reason |
 |--------------|--------------|--------|
-| design | spec | Design issues from incomplete spec |
 | review | implement | Review findings need code changes |
 | test, test_unit, test_e2e | implement | Test failures need code fixes |
 
@@ -178,7 +177,7 @@ config.Model                      # Global fallback
 **Default per phase template:**
 | Phase | Model | Thinking | Rationale |
 |-------|-------|----------|-----------|
-| spec, design, review, research | opus | true | Decision phases need deep reasoning |
+| spec, review, research | opus | true | Decision phases need deep reasoning |
 | tiny_spec, tdd_write, breakdown, implement, docs | opus | false | Execution phases |
 | qa | sonnet | false | Test execution is mechanical |
 

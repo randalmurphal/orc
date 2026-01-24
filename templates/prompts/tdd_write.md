@@ -189,7 +189,7 @@ Output a JSON object with test information and **explicit coverage mapping**:
 {
   "status": "complete",
   "summary": "Wrote N tests covering all M success criteria. Tests correctly fail.",
-  "artifact": "# TDD Tests for {{TASK_ID}}\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestLogin | Covered |\n| SC-2 | TestLoginError | Covered |\n\n## Test Files\n\n### path/to/test.go\n- `TestLogin` - Verifies SC-1: user can authenticate\n- `TestLoginError` - Error path: invalid credentials\n\n## Manual Test Plan (if applicable)\n\n[Manual steps for UI testing]",
+  "content": "# TDD Tests for {{TASK_ID}}\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestLogin | Covered |\n| SC-2 | TestLoginError | Covered |\n\n## Test Files\n\n### path/to/test.go\n- `TestLogin` - Verifies SC-1: user can authenticate\n- `TestLoginError` - Error path: invalid credentials\n\n## Manual Test Plan (if applicable)\n\n[Manual steps for UI testing]",
   "tests": [
     {
       "file": "path/to/test.go",
@@ -224,7 +224,7 @@ Output a JSON object with test information and **explicit coverage mapping**:
 
 **Validation:** All SC-X from spec must appear in either `covered` or `manual_verification`.
 
-The `artifact` field MUST contain:
+The `content` field MUST contain:
 1. Coverage summary table showing each criterion and its test
 2. Description of each test and what it verifies
 3. Manual test plan section (if any criteria require manual verification)

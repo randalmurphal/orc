@@ -103,8 +103,8 @@ func WithClaudeLogger(l *slog.Logger) ClaudeExecutorOption {
 }
 
 // WithClaudePhaseID sets the phase ID for schema selection.
-// Artifact-producing phases (spec, design, research, docs) use a schema
-// that includes an artifact field for capturing output content.
+// Content-producing phases (spec, research, docs) use a schema
+// that includes a content field for capturing output.
 func WithClaudePhaseID(id string) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.phaseID = id }
 }
@@ -211,8 +211,8 @@ func (u TokenUsage) EffectiveTotalTokens() int {
 
 // ExecuteTurn sends a prompt to Claude and waits for the response.
 // Uses --json-schema to force structured output for completion detection.
-// The schema varies by phase: artifact-producing phases (spec, design, research, docs)
-// use a schema with an artifact field to capture output content.
+// The schema varies by phase: content-producing phases (spec, research, docs)
+// use a schema with a content field to capture output.
 // Transcripts are stored automatically if backend was configured.
 func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	start := time.Now()

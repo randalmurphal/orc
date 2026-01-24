@@ -338,17 +338,17 @@ func TestRetryContext(t *testing.T) {
 
 func TestSkipPhase(t *testing.T) {
 	s := New("TASK-001")
-	s.StartPhase("design")
+	s.StartPhase("research")
 
-	s.SkipPhase("design", "already have design")
+	s.SkipPhase("research", "already have research")
 
-	ps := s.Phases["design"]
+	ps := s.Phases["research"]
 	if ps.Status != StatusSkipped {
 		t.Errorf("Phase status = %s, want %s", ps.Status, StatusSkipped)
 	}
 
 	// Skip reason is stored in Error field with "skipped: " prefix
-	expectedReason := "skipped: already have design"
+	expectedReason := "skipped: already have research"
 	if ps.Error != expectedReason {
 		t.Errorf("Error = %s, want %s", ps.Error, expectedReason)
 	}

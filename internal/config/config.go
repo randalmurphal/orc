@@ -1124,7 +1124,6 @@ func Default() *Config {
 			// Review uses three-tier approach: fix in-place, block for major issues,
 			// or block with detailed context for wrong approach
 			RetryMap: map[string]string{
-				"design":    "spec", // Design issues often stem from incomplete spec
 				"test":      "implement",
 				"test_unit": "implement",
 				"test_e2e":  "implement",
@@ -1391,7 +1390,6 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 			MaxRetries:           5,
 			PhaseOverrides: map[string]string{
 				"spec":   "human",
-				"design": "human",
 				"review": "ai",
 				"merge":  "human",
 			},

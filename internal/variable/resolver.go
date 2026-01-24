@@ -379,8 +379,6 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 			vars["SPEC_CONTENT"] = content
 		case "research":
 			vars["RESEARCH_CONTENT"] = content
-		case "design":
-			vars["DESIGN_CONTENT"] = content
 		case "tdd_write":
 			vars["TDD_TESTS_CONTENT"] = content
 		case "breakdown":

@@ -338,13 +338,13 @@ Define upfront what reviewers should check.
 </instructions>
 
 <output_format>
-**CRITICAL**: Your final output MUST be a JSON object with the spec in the `artifact` field.
+**CRITICAL**: Your final output MUST be a JSON object with the spec in the `content` field.
 
 ```json
 {
   "status": "complete",
   "summary": "Spec with N success criteria, M user stories",
-  "artifact": "# Specification: [Title]\n\n## Problem Statement\n...",
+  "content": "# Specification: [Title]\n\n## Problem Statement\n...",
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
     {"id": "no_technical_metrics", "check": "SC describes user behavior, not internals", "passed": true},

@@ -85,7 +85,7 @@ Output a JSON object with the breakdown:
 {
   "status": "complete",
   "summary": "Generated N tasks across M user stories",
-  "artifact": "# Implementation Breakdown\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
+  "content": "# Implementation Breakdown\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
 }
 ```
 
