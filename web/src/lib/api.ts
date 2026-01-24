@@ -2431,3 +2431,19 @@ export async function cancelWorkflowRun(id: string): Promise<{ status: string }>
 		method: 'POST',
 	});
 }
+
+// Timeline Events
+import type { EventsListResponse, GetEventsOptions } from './types';
+
+export async function getEvents(options: GetEventsOptions = {}): Promise<EventsListResponse> {
+	const params = new URLSearchParams();
+	if (options.task_id) params.set('task_id', options.task_id);
+	if (options.initiative_id) params.set('initiative_id', options.initiative_id);
+	if (options.since) params.set('since', options.since);
+	if (options.until) params.set('until', options.until);
+	if (options.types?.length) params.set('types', options.types.join(','));
+	if (options.limit) params.set('limit', String(options.limit));
+	if (options.offset) params.set('offset', String(options.offset));
+	const query = params.toString() ? `?${params.toString()}` : '';
+	return fetchJSON<EventsListResponse>(`/events${query}`);
+}
