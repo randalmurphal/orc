@@ -51,8 +51,8 @@ WORKFLOW EXECUTION (primary pattern):
 TASK EXECUTION (existing task):
   orc run <task-id>
 
-  Runs an existing task using the workflow determined by its weight.
-  Equivalent to: orc run <workflow-for-weight> --task <task-id>
+  Runs an existing task using its assigned workflow_id.
+  Task must have workflow_id set (via orc new --workflow or orc edit --workflow).
 
 CONTEXT FLAGS:
   --task TASK-ID     Attach workflow to existing task
@@ -170,7 +170,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	defer func() { _ = backend.Close() }()
 
-	// If we have an existing task, load it and determine workflow from weight
+	// If we have an existing task, load it and use its workflow_id
 	var existingTask *task.Task
 	if existingTaskID != "" {
 		existingTask, err = backend.LoadTask(existingTaskID)

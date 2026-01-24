@@ -417,7 +417,7 @@ Example:
 								fmt.Printf("   Workflow: %s -> %s\n", oldWorkflow, t.WorkflowID)
 							}
 						} else {
-							fmt.Printf("   Workflow: cleared (was %s, will use weight-based)\n", oldWorkflow)
+							fmt.Printf("   Workflow: cleared (was %s, task cannot run without workflow_id)\n", oldWorkflow)
 						}
 					case "priority":
 						fmt.Printf("   Priority: %s -> %s\n", oldPriority, t.Priority)

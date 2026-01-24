@@ -15,7 +15,7 @@ type Task struct {
 	Title        string
 	Description  string
 	Weight       string
-	WorkflowID   string // Direct workflow assignment (optional, defaults based on weight when empty)
+	WorkflowID   string // Required workflow assignment for task execution
 	Status       string
 	StateStatus  string // State status: pending, running, completed, failed, paused, interrupted, skipped
 	CurrentPhase string

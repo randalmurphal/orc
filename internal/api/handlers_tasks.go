@@ -359,7 +359,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		t.RelatedTo = req.RelatedTo
 	}
 
-	// Task is ready to run - executor will create execution plan from weight
+	// Task is ready to run - executor will use assigned workflow_id
 	t.Status = task.StatusPlanned
 	if err := s.backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
