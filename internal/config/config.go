@@ -565,18 +565,6 @@ type ReviewConfig struct {
 	Rounds int `yaml:"rounds"`
 	// RequirePass requires review to pass before continuing (default: true)
 	RequirePass bool `yaml:"require_pass"`
-	// Parallel configures parallel reviewer agents
-	Parallel ParallelReviewConfig `yaml:"parallel,omitempty"`
-}
-
-// ParallelReviewConfig defines configuration for parallel reviewer agents.
-type ParallelReviewConfig struct {
-	// Enabled enables parallel reviewers for medium+ weight tasks (default: false)
-	Enabled bool `yaml:"enabled"`
-	// Perspectives defines which reviewer perspectives to use
-	// Valid values: correctness, architecture, security, performance
-	// Default: [correctness, architecture]
-	Perspectives []string `yaml:"perspectives,omitempty"`
 }
 
 // PlanConfig defines spec requirements and validation configuration.
@@ -1140,7 +1128,6 @@ func Default() *Config {
 				"test":      "implement",
 				"test_unit": "implement",
 				"test_e2e":  "implement",
-				"validate":  "implement",
 				"review":    "implement", // Major issues; small ones fixed in-place
 			},
 		},
@@ -1403,11 +1390,10 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 			RetryOnFailure:       true,
 			MaxRetries:           5,
 			PhaseOverrides: map[string]string{
-				"spec":     "human",
-				"design":   "human",
-				"review":   "ai",
-				"validate": "ai",
-				"merge":    "human",
+				"spec":   "human",
+				"design": "human",
+				"review": "ai",
+				"merge":  "human",
 			},
 		}
 	default: // ProfileAuto

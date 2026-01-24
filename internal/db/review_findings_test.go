@@ -54,9 +54,9 @@ func TestSaveAndGetReviewFindings(t *testing.T) {
 			{Severity: "medium", File: "utils.go", Line: 100, Description: "Error not handled"},
 			{Severity: "low", File: "config.go", Line: 5, Description: "Magic number"},
 		},
-		Questions:   []string{"Why is this implemented synchronously?"},
-		Positives:   []string{"Good test coverage"},
-		Perspective: "security",
+		Questions: []string{"Why is this implemented synchronously?"},
+		Positives: []string{"Good test coverage"},
+		AgentID:   "security-auditor",
 	}
 
 	err := db.SaveReviewFindings(findings)
@@ -98,8 +98,8 @@ func TestSaveAndGetReviewFindings(t *testing.T) {
 	if len(loaded.Positives) != 1 {
 		t.Errorf("Positives count = %d, want 1", len(loaded.Positives))
 	}
-	if loaded.Perspective != "security" {
-		t.Errorf("Perspective = %q, want %q", loaded.Perspective, "security")
+	if loaded.AgentID != "security-auditor" {
+		t.Errorf("AgentID = %q, want %q", loaded.AgentID, "security-auditor")
 	}
 	if loaded.CreatedAt.IsZero() {
 		t.Error("CreatedAt should not be zero")

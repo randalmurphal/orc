@@ -63,15 +63,14 @@ Weight determines which phases run. Choose based on COMPLEXITY, not time:
              Example: "Add password reset flow"
 
   large      Complex features, multi-file changes, new systems
-             → spec → tdd_write → breakdown → implement → review → docs → validate
+             → spec → tdd_write → breakdown → implement → review → docs
              Example: "Implement caching layer for API"
 
 Key phases:
   • spec/tiny_spec  Creates Success Criteria + Testing requirements (REQUIRED for quality)
   • tdd_write       Writes failing tests BEFORE implementation (context isolation)
   • breakdown       Decomposes large tasks into checkboxed steps
-  • review          Multi-agent code review (5 specialized reviewers)
-  • validate        Final verification against all success criteria
+  • review          Multi-agent code review with specialized reviewers (includes verification)
 
 Use 'orc finalize TASK-XXX' to manually sync with target branch before merge.
 

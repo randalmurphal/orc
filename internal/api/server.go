@@ -153,6 +153,13 @@ func New(cfg *Config) *Server {
 		logger.Info("seeded built-in workflows", "count", seeded)
 	}
 
+	// Seed built-in agents and phase-agent associations
+	if seeded, err := workflow.SeedAgents(backend.DB()); err != nil {
+		logger.Error("failed to seed built-in agents", "error", err)
+	} else if seeded > 0 {
+		logger.Info("seeded built-in agents", "count", seeded)
+	}
+
 	// Migrate phase template model settings (updates existing templates)
 	if migrated, err := workflow.MigratePhaseTemplateModels(backend.DB()); err != nil {
 		logger.Error("failed to migrate phase template models", "error", err)
