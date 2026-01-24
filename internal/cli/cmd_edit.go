@@ -25,6 +25,7 @@ Modifiable properties:
   --title         Update the task title
   --description   Update the task description (or -d)
   --weight        Change task weight (triggers plan regeneration)
+  --workflow      Change task workflow (e.g., qa-e2e, implement)
   --priority      Change task priority (critical, high, normal, low)
   --status        Change task status (for administrative corrections)
   --initiative    Link/unlink task to initiative (use "" to unlink)
@@ -47,6 +48,7 @@ Valid status values: created, classifying, planned, paused, blocked,
 Example:
   orc edit TASK-001 --title "New title"
   orc edit TASK-001 --weight large
+  orc edit TASK-001 --workflow qa-e2e       # use QA E2E workflow
   orc edit TASK-001 --priority critical
   orc edit TASK-001 --status completed      # mark task as done
   orc edit TASK-001 -d "Updated description" --title "Better title"
@@ -72,6 +74,8 @@ Example:
 			newTitle, _ := cmd.Flags().GetString("title")
 			newDescription, _ := cmd.Flags().GetString("description")
 			newWeight, _ := cmd.Flags().GetString("weight")
+			newWorkflow, _ := cmd.Flags().GetString("workflow")
+			workflowChanged := cmd.Flags().Changed("workflow")
 			newPriority, _ := cmd.Flags().GetString("priority")
 			newStatus, _ := cmd.Flags().GetString("status")
 			newInitiative, _ := cmd.Flags().GetString("initiative")
@@ -136,6 +140,29 @@ Example:
 					t.Weight = w
 					changes = append(changes, "weight")
 					weightChanged = true
+				}
+			}
+
+			// Update workflow if flag was provided (even if empty, to allow clearing)
+			oldWorkflow := t.WorkflowID
+			if workflowChanged {
+				if newWorkflow != "" {
+					// Verify workflow exists
+					dbBackend, ok := backend.(*storage.DatabaseBackend)
+					if !ok {
+						return fmt.Errorf("workflow validation requires database backend")
+					}
+					wf, err := dbBackend.DB().GetWorkflow(newWorkflow)
+					if err != nil {
+						return fmt.Errorf("check workflow: %w", err)
+					}
+					if wf == nil {
+						return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", newWorkflow)
+					}
+				}
+				if t.WorkflowID != newWorkflow {
+					t.WorkflowID = newWorkflow
+					changes = append(changes, "workflow")
 				}
 			}
 
@@ -382,6 +409,16 @@ Example:
 						fmt.Printf("   Description: %s\n", desc)
 					case "weight":
 						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", oldWeight, t.Weight)
+					case "workflow":
+						if t.WorkflowID != "" {
+							if oldWorkflow == "" {
+								fmt.Printf("   Workflow: set to %s\n", t.WorkflowID)
+							} else {
+								fmt.Printf("   Workflow: %s -> %s\n", oldWorkflow, t.WorkflowID)
+							}
+						} else {
+							fmt.Printf("   Workflow: cleared (was %s, will use weight-based)\n", oldWorkflow)
+						}
 					case "priority":
 						fmt.Printf("   Priority: %s -> %s\n", oldPriority, t.Priority)
 					case "status":
@@ -429,6 +466,7 @@ Example:
 	cmd.Flags().StringP("title", "t", "", "new task title")
 	cmd.Flags().StringP("description", "d", "", "new task description")
 	cmd.Flags().StringP("weight", "w", "", "new task weight (trivial, small, medium, large, greenfield)")
+	cmd.Flags().String("workflow", "", "new task workflow (e.g., qa-e2e, implement)")
 	cmd.Flags().StringP("priority", "p", "", "new task priority (critical, high, normal, low)")
 	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, failed)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
