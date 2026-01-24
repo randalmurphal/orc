@@ -160,7 +160,7 @@ max_iterations: 30
 timeout: 10m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
-claude_path: ~/.local/bin/claude-stable  # 2.1.7 - latest (2.1.15) hangs on exit
+claude_path: /home/randy/.local/bin/claude-stable  # 2.1.7 - latest (2.1.15) hangs on exit
 dangerously_skip_permissions: true
 templates_dir: templates
 enable_checkpoints: true
