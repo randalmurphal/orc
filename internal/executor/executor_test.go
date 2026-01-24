@@ -81,7 +81,7 @@ func TestResolveClaudePath(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// Create a temp directory with a fake claude binary
 	tmpDir := t.TempDir()
 	fakeClaude := filepath.Join(tmpDir, "claude")
@@ -106,7 +106,7 @@ func TestFindClaudeInCommonLocations(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_HomeExpansion(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// This test verifies ~ expansion works
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -138,7 +138,7 @@ func TestFindClaudeInCommonLocations_HomeExpansion(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_NoMatch(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// Save original and replace with nonexistent locations
 	originalLocations := commonClaudeLocations
 	commonClaudeLocations = []string{
@@ -154,7 +154,7 @@ func TestFindClaudeInCommonLocations_NoMatch(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_SkipsNonExecutable(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// Create a temp directory with a non-executable file
 	tmpDir := t.TempDir()
 	nonExecFile := filepath.Join(tmpDir, "claude")
@@ -176,7 +176,7 @@ func TestFindClaudeInCommonLocations_SkipsNonExecutable(t *testing.T) {
 }
 
 func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// Create a directory named "claude" (edge case: something might create a dir with this name)
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, "claude")
@@ -198,7 +198,7 @@ func TestFindClaudeInCommonLocations_SkipsDirectories(t *testing.T) {
 }
 
 func TestResolveClaudePath_WithCommonLocations(t *testing.T) {
-	t.Parallel()
+	// Note: Cannot use t.Parallel() - modifies global commonClaudeLocations
 	// Test that ResolveClaudePath falls back to common locations
 	// when PATH lookup fails
 
