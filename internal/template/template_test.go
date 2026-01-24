@@ -340,7 +340,7 @@ func TestLoad_ResolutionOrder(t *testing.T) {
 		Name:        "bugfix",
 		Description: "Custom bugfix",
 		Weight:      "large", // Different from builtin
-		Phases:      []string{"spec", "implement", "test", "validate"},
+		Phases:      []string{"spec", "implement", "test", "review"},
 	}
 	_ = template.SaveTo(templatesDir)
 

@@ -101,12 +101,79 @@ func GetSchemaForPhase(phaseID string) string {
 	return GetSchemaForPhaseWithRound(phaseID, 0)
 }
 
+// ImplementCompletionSchema is the JSON schema for implement phase.
+// Requires verification evidence when claiming completion.
+const ImplementCompletionSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["complete", "blocked", "continue"],
+			"description": "Phase status: complete (work done), blocked (cannot proceed), continue (more work needed)"
+		},
+		"reason": {
+			"type": "string",
+			"description": "Explanation for blocked status, or progress summary for continue"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Work summary for complete status"
+		},
+		"verification": {
+			"type": "object",
+			"description": "Verification evidence. REQUIRED when status is complete.",
+			"properties": {
+				"tests": {
+					"type": "object",
+					"properties": {
+						"command": {"type": "string", "description": "Test command that was run"},
+						"status": {"type": "string", "enum": ["PASS", "FAIL", "SKIPPED"], "description": "Test result"},
+						"evidence": {"type": "string", "description": "Test output showing pass (e.g., 'ok  package/name  0.5s')"}
+					},
+					"required": ["status"]
+				},
+				"success_criteria": {
+					"type": "array",
+					"description": "Verification of each success criterion from the spec",
+					"items": {
+						"type": "object",
+						"properties": {
+							"id": {"type": "string", "description": "Criterion ID (e.g., SC-1)"},
+							"status": {"type": "string", "enum": ["PASS", "FAIL"], "description": "Verification result"},
+							"evidence": {"type": "string", "description": "How the criterion was verified"}
+						},
+						"required": ["id", "status"]
+					}
+				},
+				"build": {
+					"type": "object",
+					"properties": {
+						"status": {"type": "string", "enum": ["PASS", "FAIL", "SKIPPED"]}
+					}
+				},
+				"linting": {
+					"type": "object",
+					"properties": {
+						"status": {"type": "string", "enum": ["PASS", "FAIL", "SKIPPED"]}
+					}
+				}
+			}
+		}
+	},
+	"required": ["status"]
+}`
+
 // GetSchemaForPhaseWithRound returns the appropriate JSON schema for a phase,
 // with support for round-specific schemas (e.g., review round 1 vs round 2).
 func GetSchemaForPhaseWithRound(phaseID string, round int) string {
 	// Artifact-producing phases get schema with artifact field
 	if PhasesWithArtifacts[phaseID] {
 		return PhaseCompletionWithArtifactSchema
+	}
+
+	// Implement phase uses verification schema
+	if phaseID == "implement" {
+		return ImplementCompletionSchema
 	}
 
 	// Review phase has round-specific schemas
@@ -132,6 +199,119 @@ type PhaseResponse struct {
 	Reason   string `json:"reason,omitempty"`   // Required for blocked, optional for others
 	Summary  string `json:"summary,omitempty"`  // Work summary for complete status
 	Artifact string `json:"artifact,omitempty"` // Artifact content for phases that produce them (spec, design, research, docs)
+}
+
+// ImplementVerification represents the verification evidence for implement phase completion.
+type ImplementVerification struct {
+	Tests           *VerificationStatus          `json:"tests,omitempty"`
+	SuccessCriteria []SuccessCriterionResult     `json:"success_criteria,omitempty"`
+	Build           *VerificationStatus          `json:"build,omitempty"`
+	Linting         *VerificationStatus          `json:"linting,omitempty"`
+}
+
+// VerificationStatus represents a single verification check result.
+type VerificationStatus struct {
+	Command  string `json:"command,omitempty"`
+	Status   string `json:"status"` // "PASS", "FAIL", or "SKIPPED"
+	Evidence string `json:"evidence,omitempty"`
+}
+
+// SuccessCriterionResult represents verification of a single success criterion.
+type SuccessCriterionResult struct {
+	ID       string `json:"id"`
+	Status   string `json:"status"` // "PASS" or "FAIL"
+	Evidence string `json:"evidence,omitempty"`
+}
+
+// ImplementResponse extends PhaseResponse with verification evidence.
+type ImplementResponse struct {
+	Status       string                 `json:"status"`
+	Reason       string                 `json:"reason,omitempty"`
+	Summary      string                 `json:"summary,omitempty"`
+	Verification *ImplementVerification `json:"verification,omitempty"`
+}
+
+// ParseImplementResponse parses implement phase JSON response with verification.
+func ParseImplementResponse(content string) (*ImplementResponse, error) {
+	var resp ImplementResponse
+	if err := json.Unmarshal([]byte(content), &resp); err != nil {
+		return nil, fmt.Errorf("invalid implement response JSON: %w", err)
+	}
+
+	// Validate status is one of the expected values
+	switch resp.Status {
+	case "complete", "blocked", "continue":
+		// Valid
+	default:
+		return nil, fmt.Errorf("invalid implement status: %q (expected complete, blocked, or continue)", resp.Status)
+	}
+
+	return &resp, nil
+}
+
+// ValidateImplementCompletion checks if an implement phase completion has valid verification.
+// Returns an error describing what's missing if verification is incomplete.
+func ValidateImplementCompletion(content string) error {
+	resp, err := ParseImplementResponse(strings.TrimSpace(content))
+	if err != nil {
+		return err
+	}
+
+	// Only validate completions - blocked/continue don't need verification
+	if resp.Status != "complete" {
+		return nil
+	}
+
+	// Verification is required for completion
+	if resp.Verification == nil {
+		return fmt.Errorf("completion claimed without verification evidence - please run tests and verify success criteria")
+	}
+
+	var failures []string
+
+	// Check tests passed
+	if resp.Verification.Tests != nil && resp.Verification.Tests.Status == "FAIL" {
+		failures = append(failures, "tests failed")
+	}
+
+	// Check all success criteria passed
+	for _, sc := range resp.Verification.SuccessCriteria {
+		if sc.Status == "FAIL" {
+			failures = append(failures, fmt.Sprintf("success criterion %s failed", sc.ID))
+		}
+	}
+
+	// Check build passed (if not skipped)
+	if resp.Verification.Build != nil && resp.Verification.Build.Status == "FAIL" {
+		failures = append(failures, "build failed")
+	}
+
+	// Check linting passed (if not skipped)
+	if resp.Verification.Linting != nil && resp.Verification.Linting.Status == "FAIL" {
+		failures = append(failures, "linting failed")
+	}
+
+	if len(failures) > 0 {
+		return fmt.Errorf("verification failed: %s - fix issues and re-verify", strings.Join(failures, ", "))
+	}
+
+	return nil
+}
+
+// FormatVerificationFeedback creates a prompt for the agent to fix verification failures.
+func FormatVerificationFeedback(err error) string {
+	return fmt.Sprintf(`## Verification Gate Failed
+
+%s
+
+**IMPORTANT:** You cannot claim completion until ALL verifications pass.
+
+Please:
+1. Fix the failing issues
+2. Re-run verifications
+3. Output completion JSON with updated verification evidence showing all PASS
+
+Do NOT output completion until all verifications pass.`, err.Error())
 }
 
 // ParsePhaseResponse parses a JSON response into a PhaseResponse struct.

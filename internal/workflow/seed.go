@@ -110,6 +110,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		GateType:         "auto",
 		Checkpoint:       true,
 		RetryFromPhase:   "breakdown",
+		ClaudeConfig:     `{"append_system_prompt": "Sub-agents available: code-simplifier (for medium/large tasks). After completing implementation and passing all quality checks, delegate to code-simplifier to clean up recently modified code before marking complete."}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -126,7 +127,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(true), // Decision phase: code quality judgment
 		GateType:         "auto",
 		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: review, not modify
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"], "append_system_prompt": "Sub-agents available for specialized review: code-reviewer (guidelines), silent-failure-hunter (error handling), pr-test-analyzer (test coverage), comment-analyzer (documentation), type-design-analyzer (type design). Delegate to relevant agents based on task weight - small tasks use fewer agents, large tasks use all. Synthesize findings from all agents into cohesive review output."}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -146,23 +147,6 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		GateType:         "auto",
 		Checkpoint:       true,
 		ClaudeConfig:     `{"disallowed_tools": ["Bash"]}`, // Docs don't need shell commands
-		IsBuiltin:        true,
-	},
-	{
-		ID:               "validate",
-		Name:             "Validation",
-		Description:      "Verify implementation against success criteria",
-		PromptSource:     "embedded",
-		PromptPath:       "prompts/validate.md",
-		InputVariables:   `["SPEC_CONTENT"]`,
-		ProducesArtifact: false,
-		OutputType:       "none",
-		MaxIterations:    5,
-		ModelOverride:    "opus",
-		ThinkingEnabled:  boolPtr(true), // Decision phase: verification judgment
-		GateType:         "auto",
-		Checkpoint:       false,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: verification, not modification
 		IsBuiltin:        true,
 	},
 	{
@@ -228,11 +212,11 @@ var builtinWorkflows = []struct {
 	Phases   []db.WorkflowPhase
 }{
 	{
-		// Large weight: full workflow with breakdown and validate
+		// Large weight: full workflow with breakdown and multi-agent review
 		Workflow: db.Workflow{
 			ID:           "implement-large",
 			Name:         "Implement (Large)",
-			Description:  "Full implementation workflow: spec, TDD, breakdown, implement, review, docs, validate",
+			Description:  "Full implementation workflow: spec, TDD, breakdown, implement, review, docs",
 			WorkflowType: "task",
 			IsBuiltin:    true,
 		},
@@ -243,7 +227,6 @@ var builtinWorkflows = []struct {
 			{PhaseTemplateID: "implement", Sequence: 3, DependsOn: `["breakdown"]`},
 			{PhaseTemplateID: "review", Sequence: 4, DependsOn: `["implement"]`},
 			{PhaseTemplateID: "docs", Sequence: 5, DependsOn: `["review"]`},
-			{PhaseTemplateID: "validate", Sequence: 6, DependsOn: `["docs"]`},
 		},
 	},
 	{

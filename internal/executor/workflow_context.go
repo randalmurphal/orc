@@ -206,8 +206,8 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 		we.loadReviewContext(rctx, t.ID, s)
 	}
 
-	// Load test results for validate phase
-	if (phaseID == "validate" || phaseID == "review") && t != nil {
+	// Load test results for review phase
+	if phaseID == "review" && t != nil {
 		rctx.TestResults = we.loadPriorPhaseContent(t.ID, s, "test")
 	}
 

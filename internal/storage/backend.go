@@ -123,20 +123,20 @@ type ReviewFinding struct {
 	Line                  int    `json:"line,omitempty"`
 	Description           string `json:"description"`
 	Suggestion            string `json:"suggestion,omitempty"`
-	Perspective           string `json:"perspective,omitempty"`
+	AgentID               string `json:"agent_id,omitempty"` // Which agent found this (e.g., "code-reviewer")
 	ConstitutionViolation string `json:"constitution_violation,omitempty"` // "invariant" (blocker) or "default" (warning)
 }
 
 // ReviewFindings represents the structured output from a review round.
 type ReviewFindings struct {
-	TaskID      string          `json:"task_id"`
-	Round       int             `json:"round"`
-	Summary     string          `json:"summary"`
-	Issues      []ReviewFinding `json:"issues"`
-	Questions   []string        `json:"questions,omitempty"`
-	Positives   []string        `json:"positives,omitempty"`
-	Perspective string          `json:"perspective,omitempty"`
-	CreatedAt   time.Time       `json:"created_at"`
+	TaskID    string          `json:"task_id"`
+	Round     int             `json:"round"`
+	Summary   string          `json:"summary"`
+	Issues    []ReviewFinding `json:"issues"`
+	Questions []string        `json:"questions,omitempty"`
+	Positives []string        `json:"positives,omitempty"`
+	AgentID   string          `json:"agent_id,omitempty"` // Which agent produced these findings
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 // QATest represents a test written during QA.

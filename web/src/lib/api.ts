@@ -1428,7 +1428,7 @@ export interface ReviewFinding {
 	line?: number;
 	description: string;
 	suggestion?: string;
-	perspective?: string;
+	agent_id?: string;
 	constitution_violation?: string;
 }
 
@@ -1439,7 +1439,7 @@ export interface ReviewFindings {
 	issues: ReviewFinding[];
 	questions?: string[];
 	positives?: string[];
-	perspective?: string;
+	agent_id?: string;
 	created_at: string;
 }
 

@@ -148,7 +148,7 @@
   font-weight: var(--font-semibold);
 }
 
-.round-perspective {
+.round-agent {
   font-size: var(--text-sm);
   font-weight: var(--font-normal);
   color: var(--text-muted);
@@ -330,13 +330,13 @@
   color: var(--green);
 }
 
-.finding-perspective {
+.finding-agent {
   margin-top: var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-.perspective-label {
+.agent-label {
   font-weight: var(--font-medium);
   margin-right: var(--space-1);
 }

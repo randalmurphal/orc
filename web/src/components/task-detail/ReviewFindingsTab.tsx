@@ -78,10 +78,10 @@ function FindingCard({ finding }: FindingCardProps) {
 				</div>
 			)}
 
-			{finding.perspective && (
-				<div className="finding-perspective">
-					<span className="perspective-label">Reviewer:</span>
-					<span>{finding.perspective}</span>
+			{finding.agent_id && (
+				<div className="finding-agent">
+					<span className="agent-label">Reviewer:</span>
+					<span>{finding.agent_id}</span>
 				</div>
 			)}
 		</div>
@@ -107,8 +107,8 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 				<div className="round-title">
 					<Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={16} />
 					<span>Round {findings.round}</span>
-					{findings.perspective && (
-						<span className="round-perspective">{findings.perspective}</span>
+					{findings.agent_id && (
+						<span className="round-agent">{findings.agent_id}</span>
 					)}
 				</div>
 				<div className="round-stats">
