@@ -15,16 +15,17 @@ import (
 // Transcript represents a single message from a Claude JSONL session file.
 // This stores the full message data including per-message token usage.
 type Transcript struct {
-	ID          int64
-	TaskID      string
-	Phase       string
-	SessionID   string  // Claude session UUID
-	MessageUUID string  // Individual message UUID
-	ParentUUID  *string // Links to parent message (threading)
-	Type        string  // "user", "assistant", "queue-operation"
-	Role        string  // from message.role
-	Content     string  // Full content JSON (preserves structure)
-	Model       string  // Model used (assistant messages only)
+	ID            int64
+	TaskID        string
+	Phase         string
+	SessionID     string  // Claude session UUID
+	WorkflowRunID string  // Links to workflow_runs.id for tracking
+	MessageUUID   string  // Individual message UUID
+	ParentUUID    *string // Links to parent message (threading)
+	Type          string  // "user", "assistant", "queue-operation", "hook"
+	Role          string  // from message.role
+	Content       string  // Full content JSON (preserves structure)
+	Model         string  // Model used (assistant messages only)
 
 	// Per-message token tracking
 	InputTokens         int

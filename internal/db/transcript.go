@@ -14,16 +14,17 @@ import (
 // Transcript represents a single message from a Claude JSONL session file.
 // This stores the full message data including per-message token usage.
 type Transcript struct {
-	ID          int64
-	TaskID      string
-	Phase       string
-	SessionID   string  // Claude session UUID
-	MessageUUID string  // Individual message UUID
-	ParentUUID  *string // Links to parent message (threading)
-	Type        string  // "user", "assistant", "queue-operation"
-	Role        string  // from message.role
-	Content     string  // Full content JSON (preserves structure)
-	Model       string  // Model used (assistant messages only)
+	ID            int64
+	TaskID        string
+	Phase         string
+	SessionID     string  // Claude session UUID
+	WorkflowRunID string  // Links to workflow_runs.id for tracking
+	MessageUUID   string  // Individual message UUID
+	ParentUUID    *string // Links to parent message (threading)
+	Type          string  // "user", "assistant", "queue-operation", "hook"
+	Role          string  // from message.role
+	Content       string  // Full content JSON (preserves structure)
+	Model         string  // Model used (assistant messages only)
 
 	// Per-message token tracking
 	InputTokens         int
@@ -40,15 +41,21 @@ type Transcript struct {
 
 // AddTranscript inserts a single transcript entry.
 func (p *ProjectDB) AddTranscript(t *Transcript) error {
+	// Handle empty workflow_run_id as NULL
+	var runID any = t.WorkflowRunID
+	if t.WorkflowRunID == "" {
+		runID = nil
+	}
+
 	result, err := p.Exec(`
 		INSERT INTO transcripts (
-			task_id, phase, session_id, message_uuid, parent_uuid,
+			task_id, phase, session_id, workflow_run_id, message_uuid, parent_uuid,
 			type, role, content, model,
 			input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens,
 			tool_calls, tool_results, timestamp
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		t.TaskID, t.Phase, t.SessionID, t.MessageUUID, t.ParentUUID,
+		t.TaskID, t.Phase, t.SessionID, runID, t.MessageUUID, t.ParentUUID,
 		t.Type, t.Role, t.Content, t.Model,
 		t.InputTokens, t.OutputTokens, t.CacheCreationTokens, t.CacheReadTokens,
 		t.ToolCalls, t.ToolResults, t.Timestamp.UnixMilli(),
@@ -71,20 +78,27 @@ func (p *ProjectDB) AddTranscriptBatch(ctx context.Context, transcripts []Transc
 	return p.RunInTx(ctx, func(tx *TxOps) error {
 		var query strings.Builder
 		query.WriteString(`INSERT INTO transcripts (
-			task_id, phase, session_id, message_uuid, parent_uuid,
+			task_id, phase, session_id, workflow_run_id, message_uuid, parent_uuid,
 			type, role, content, model,
 			input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens,
 			tool_calls, tool_results, timestamp
 		) VALUES `)
 
-		args := make([]any, 0, len(transcripts)*16)
+		args := make([]any, 0, len(transcripts)*17)
 		for i, t := range transcripts {
 			if i > 0 {
 				query.WriteString(", ")
 			}
-			query.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			query.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+
+			// Handle empty workflow_run_id as NULL
+			var runID any = t.WorkflowRunID
+			if t.WorkflowRunID == "" {
+				runID = nil
+			}
+
 			args = append(args,
-				t.TaskID, t.Phase, t.SessionID, t.MessageUUID, t.ParentUUID,
+				t.TaskID, t.Phase, t.SessionID, runID, t.MessageUUID, t.ParentUUID,
 				t.Type, t.Role, t.Content, t.Model,
 				t.InputTokens, t.OutputTokens, t.CacheCreationTokens, t.CacheReadTokens,
 				t.ToolCalls, t.ToolResults, t.Timestamp.UnixMilli(),
