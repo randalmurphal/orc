@@ -1,0 +1,47 @@
+/* =============================================================================
+   TranscriptVirtualList - Virtual scrolling container
+   ============================================================================= */
+
+.transcript-virtual-list {
+	position: relative;
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.virtual-list-content {
+	position: relative;
+	width: 100%;
+}
+
+.virtual-list-item {
+	padding: 0 var(--space-3);
+	padding-bottom: var(--space-2);
+}
+
+/* Search highlighting */
+.search-highlight {
+	background: var(--amber-dim);
+	color: var(--amber);
+	border-radius: var(--radius-sm);
+	padding: 0 var(--space-0-5);
+}
+
+/* Highlighted item (current search result) */
+.highlighted {
+	background: var(--primary-dim);
+	border-radius: var(--radius-sm);
+}
+
+/* Pre content styling */
+.virtual-list-item pre {
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	line-height: var(--leading-relaxed);
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: var(--text-primary);
+	margin: 0;
+	max-height: 400px;
+	overflow-y: auto;
+}
