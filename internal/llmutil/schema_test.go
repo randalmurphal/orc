@@ -23,8 +23,8 @@ func (m *mockSchemaClient) Complete(_ context.Context, _ claude.CompletionReques
 	return &claude.CompletionResponse{Content: m.response}, nil
 }
 
-func (m *mockSchemaClient) Stream(_ context.Context, _ claude.CompletionRequest) (<-chan claude.StreamChunk, error) {
-	return nil, nil
+func (m *mockSchemaClient) StreamJSON(_ context.Context, _ claude.CompletionRequest) (<-chan claude.StreamEvent, *claude.StreamResult, error) {
+	return nil, nil, nil
 }
 
 // testStruct is a simple struct for testing JSON parsing.

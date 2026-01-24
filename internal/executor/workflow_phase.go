@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -255,8 +254,16 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	sessionID := fmt.Sprintf("%s-%s-%s", cfg.RunID, cfg.TaskID, cfg.PhaseID)
 	result.SessionID = sessionID
 
-	// Get schema for this phase
-	schema := GetSchemaForPhase(cfg.PhaseID)
+	// Create streaming transcript handler for real-time capture
+	transcriptHandler := NewTranscriptStreamHandler(
+		we.backend,
+		we.logger,
+		cfg.TaskID,
+		cfg.PhaseID,
+		sessionID,
+		cfg.RunID,
+		cfg.Model,
+	)
 
 	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
 	var turnExec TurnExecutor
@@ -272,11 +279,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			WithClaudeMaxTurns(cfg.MaxIterations),
 			WithClaudeLogger(we.logger),
 			WithClaudePhaseID(cfg.PhaseID),
+			WithClaudeOnEvent(transcriptHandler.OnEvent), // Real-time transcript streaming
 		)
 	}
-
-	// Schema is set via phaseID, which GetSchemaForPhaseWithRound uses
-	_ = schema // Mark as intentionally unused here
 
 	// Execute turns until completion
 	for i := 0; i < cfg.MaxIterations; i++ {
@@ -294,14 +299,14 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			}
 		}
 
-		// Execute turn
+		// Store user prompt BEFORE execution (streaming only captures assistant events)
+		transcriptHandler.StoreUserPrompt(prompt)
+
+		// Execute turn - assistant transcripts captured in real-time via streaming callback
 		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 		if err != nil {
 			return result, fmt.Errorf("turn %d: %w", i+1, err)
 		}
-
-		// Store transcripts to database
-		we.storeTranscripts(cfg.TaskID, cfg.PhaseID, sessionID, cfg.Model, prompt, turnResult, i+1)
 
 		// Accumulate tokens
 		result.InputTokens += turnResult.Usage.InputTokens
@@ -641,51 +646,6 @@ func (we *WorkflowExecutor) checkSpecRequirements(t *task.Task, phases []*db.Wor
 	}
 
 	return nil
-}
-
-// storeTranscripts saves user prompt and assistant response to the database.
-// This enables transcript viewing via `orc log` without relying on JSONL files.
-func (we *WorkflowExecutor) storeTranscripts(taskID, phaseID, sessionID, model, prompt string, result *TurnResult, iteration int) {
-	if we.backend == nil || taskID == "" {
-		return
-	}
-
-	now := time.Now().UnixMilli()
-
-	// Store user prompt
-	userTranscript := &storage.Transcript{
-		TaskID:      taskID,
-		Phase:       phaseID,
-		SessionID:   sessionID,
-		MessageUUID: uuid.NewString(),
-		Type:        "user",
-		Role:        "user",
-		Content:     prompt,
-		Timestamp:   now,
-	}
-	if err := we.backend.AddTranscript(userTranscript); err != nil {
-		we.logger.Warn("failed to store user transcript", "task", taskID, "phase", phaseID, "error", err)
-	}
-
-	// Store assistant response
-	assistantTranscript := &storage.Transcript{
-		TaskID:              taskID,
-		Phase:               phaseID,
-		SessionID:           sessionID,
-		MessageUUID:         uuid.NewString(),
-		Type:                "assistant",
-		Role:                "assistant",
-		Content:             result.Content,
-		Model:               model,
-		InputTokens:         result.Usage.InputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		Timestamp:           now + 1, // Ensure ordering
-	}
-	if err := we.backend.AddTranscript(assistantTranscript); err != nil {
-		we.logger.Warn("failed to store assistant transcript", "task", taskID, "phase", phaseID, "error", err)
-	}
 }
 
 // runQualityChecks runs quality checks configured for the phase.

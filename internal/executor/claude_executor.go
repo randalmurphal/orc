@@ -52,6 +52,10 @@ type ClaudeExecutor struct {
 
 	// Review round for review phase schema selection (1 = findings, 2 = decision)
 	reviewRound int
+
+	// onEvent is called for each streaming event during execution.
+	// Use this to capture transcripts in real-time, track progress, etc.
+	onEvent func(claude.StreamEvent)
 }
 
 // ClaudeExecutorOption configures a ClaudeExecutor.
@@ -108,6 +112,13 @@ func WithClaudePhaseID(id string) ClaudeExecutorOption {
 // Round 1 uses ReviewFindingsSchema, Round 2 uses ReviewDecisionSchema.
 func WithClaudeReviewRound(round int) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.reviewRound = round }
+}
+
+// WithClaudeOnEvent sets a callback for streaming events.
+// Use this to capture transcripts in real-time, track progress, or log activity.
+// The callback is invoked synchronously for each event - keep handlers fast.
+func WithClaudeOnEvent(fn func(claude.StreamEvent)) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.onEvent = fn }
 }
 
 // NewClaudeExecutor creates a new Claude executor.
@@ -171,9 +182,10 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
-	// Execute the request
+	// Execute the request with streaming event callback for real-time transcript capture
 	resp, err := cli.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
+		OnEvent:  e.onEvent,
 	})
 	if err != nil {
 		return &TurnResult{
@@ -232,9 +244,10 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 
 	cli := claude.NewClaudeCLI(cliOpts...)
 
-	// Execute the request
+	// Execute the request with streaming event callback for real-time transcript capture
 	resp, err := cli.Complete(ctx, claude.CompletionRequest{
 		Messages: []claude.Message{{Role: claude.RoleUser, Content: prompt}},
+		OnEvent:  e.onEvent,
 	})
 	if err != nil {
 		return &TurnResult{
