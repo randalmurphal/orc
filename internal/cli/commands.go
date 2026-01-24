@@ -57,6 +57,8 @@ func statusIcon(status task.Status) string {
 		return "✅"
 	case task.StatusFailed:
 		return "❌"
+	case task.StatusResolved:
+		return "🔧"
 	default:
 		return "❓"
 	}
@@ -83,6 +85,8 @@ func statusText(status task.Status) string {
 		return "[OK]"
 	case task.StatusFailed:
 		return "[ERR]"
+	case task.StatusResolved:
+		return "[RSV]"
 	default:
 		return "[???]"
 	}
