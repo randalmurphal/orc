@@ -108,7 +108,7 @@ func TestSeedAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenProjectInMemory failed: %v", err)
 	}
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// First seed phase templates (required for foreign keys)
 	_, err = SeedBuiltins(pdb)

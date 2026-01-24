@@ -88,7 +88,7 @@ func (pdb *ProjectDB) GetPhaseAgents(phaseTemplateID string) ([]*PhaseAgent, err
 	if err != nil {
 		return nil, fmt.Errorf("get phase agents for %s: %w", phaseTemplateID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanPhaseAgents(rows)
 }

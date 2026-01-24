@@ -11,7 +11,7 @@ func openTestProjectDB(t *testing.T) *ProjectDB {
 	if err != nil {
 		t.Fatalf("OpenProjectInMemory failed: %v", err)
 	}
-	t.Cleanup(func() { pdb.Close() })
+	t.Cleanup(func() { _ = pdb.Close() })
 	return pdb
 }
 

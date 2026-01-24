@@ -22,7 +22,7 @@ func MergeMCPConfigSettings(
 	taskID string,
 	cfg *config.Config,
 ) map[string]claude.MCPServerConfig {
-	if mcpServers == nil || len(mcpServers) == 0 {
+	if len(mcpServers) == 0 {
 		return mcpServers
 	}
 
