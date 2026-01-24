@@ -30,7 +30,7 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useInitiatives } from '@/stores/initiativeStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { submitDecision, getConfigStats, type ConfigStats } from '@/lib/api';
+import { submitDecision, getConfigStats, skipBlock, forceBlock, type ConfigStats } from '@/lib/api';
 import type {
 	Task,
 	TaskState,
@@ -170,13 +170,48 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		[]
 	);
 
-	const handleSkipBlock = useCallback((_taskId: string) => {
-		// TODO: Call API to skip block for task
-	}, []);
+	const updateTask = useTaskStore((state) => state.updateTask);
 
-	const handleForceBlock = useCallback((_taskId: string) => {
-		// TODO: Call API to force run blocked task
-	}, []);
+	const handleSkipBlock = useCallback(
+		async (taskId: string) => {
+			try {
+				const result = await skipBlock(taskId);
+				// Update task store: clear blockers and update status
+				updateTask(taskId, {
+					blocked_by: [],
+					is_blocked: false,
+					unmet_blockers: [],
+					status: 'planned',
+				});
+				console.log('Skip block successful:', result.message);
+			} catch (error) {
+				console.error('Failed to skip block:', error);
+			}
+		},
+		[updateTask]
+	);
+
+	const handleForceBlock = useCallback(
+		async (taskId: string) => {
+			try {
+				const result = await forceBlock(taskId);
+				// Update task store with the returned task if available
+				if (result.task) {
+					updateTask(taskId, {
+						status: result.task.status,
+						current_phase: result.task.current_phase,
+					});
+				} else {
+					// Just update status to running
+					updateTask(taskId, { status: 'running' });
+				}
+				console.log('Force run started for task:', taskId);
+			} catch (error) {
+				console.error('Failed to force run task:', error);
+			}
+		},
+		[updateTask]
+	);
 
 	const handleDecide = useCallback(
 		async (decisionId: string, optionId: string) => {

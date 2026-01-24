@@ -187,6 +187,42 @@ func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, result)
 }
 
+// handleSkipBlock clears the blocked_by dependencies for a task.
+// This allows a blocked task to become ready for execution.
+func (s *Server) handleSkipBlock(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	t, err := s.backend.LoadTask(id)
+	if err != nil {
+		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
+		return
+	}
+
+	// Store the blockers we're clearing for the response
+	clearedBlockers := t.BlockedBy
+
+	// Clear blockers
+	t.BlockedBy = nil
+	t.IsBlocked = false
+	t.UnmetBlockers = nil
+
+	// If task was in blocked status, reset to planned so it can be run
+	if t.Status == task.StatusBlocked {
+		t.Status = task.StatusPlanned
+	}
+
+	if err := s.backend.SaveTask(t); err != nil {
+		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	s.jsonResponse(w, map[string]any{
+		"status":           "success",
+		"task_id":          id,
+		"message":          "Block skipped successfully",
+		"cleared_blockers": clearedBlockers,
+	})
+}
+
 // handleStream handles SSE streaming for a task.
 func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
