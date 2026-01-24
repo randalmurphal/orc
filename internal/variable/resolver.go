@@ -386,8 +386,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 		case "implement":
 			vars["IMPLEMENT_CONTENT"] = content
 			vars["IMPLEMENTATION_SUMMARY"] = content // Alias for template compatibility
-		case "qa_e2e_test":
-			vars["QA_FINDINGS"] = content // QA test findings for fix phase
+			// Note: qa_e2e_test QA_FINDINGS is set by applyPhaseContentToVars with proper formatting
 		}
 	}
 }

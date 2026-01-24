@@ -75,13 +75,15 @@ func (we *WorkflowExecutor) buildResolutionContext(
 	wf *db.Workflow,
 	run *db.WorkflowRun,
 ) *variable.ResolutionContext {
+	// Use effectiveWorkingDir() to get worktree path if one was created
+	workDir := we.effectiveWorkingDir()
 	rctx := &variable.ResolutionContext{
 		WorkflowID:    wf.ID,
 		WorkflowRunID: run.ID,
 		Prompt:        opts.Prompt,
 		Instructions:  opts.Instructions,
-		WorkingDir:    we.workingDir,
-		ProjectRoot:   we.workingDir,
+		WorkingDir:    workDir,
+		ProjectRoot:   workDir,
 		PriorOutputs:  make(map[string]string),
 	}
 
