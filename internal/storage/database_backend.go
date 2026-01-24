@@ -450,28 +450,126 @@ func (d *DatabaseBackend) loadStateUnlocked(taskID string) (*state.State, error)
 
 // LoadAllStates loads all task states from the database.
 // Note: This holds the read lock for the entire operation to ensure consistency.
+// Optimized: Uses batch queries for phases and gates (3 queries total vs N*3 queries).
 func (d *DatabaseBackend) LoadAllStates() ([]*state.State, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	// Use internal unlocked version to avoid deadlock
+	// Get all tasks in one query
 	dbTasks, _, err := d.db.ListTasks(db.ListOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
 	}
 
+	// Batch load all phases grouped by task_id (1 query)
+	allPhases, err := d.db.GetAllPhasesGrouped()
+	if err != nil {
+		return nil, fmt.Errorf("get all phases: %w", err)
+	}
+
+	// Batch load all gate decisions grouped by task_id (1 query)
+	allGates, err := d.db.GetAllGateDecisionsGrouped()
+	if err != nil {
+		d.logger.Printf("warning: failed to get all gate decisions: %v", err)
+		allGates = make(map[string][]db.GateDecision)
+	}
+
 	var states []*state.State
-	for _, dbTask := range dbTasks {
-		// Load state for each task using internal unlocked access
-		s, err := d.loadStateUnlocked(dbTask.ID)
-		if err != nil {
-			// Skip tasks without state (e.g., never started)
-			continue
-		}
+	for i := range dbTasks {
+		dbTask := &dbTasks[i]
+		// Build state from pre-fetched data
+		taskPhases := allPhases[dbTask.ID]
+		taskGates := allGates[dbTask.ID]
+		s := d.buildStateFromData(dbTask, taskPhases, taskGates)
 		states = append(states, s)
 	}
 
 	return states, nil
+}
+
+// buildStateFromData constructs a state.State from pre-fetched database data.
+// Used by LoadAllStates for batch loading.
+func (d *DatabaseBackend) buildStateFromData(dbTask *db.Task, dbPhases []db.Phase, dbGates []db.GateDecision) *state.State {
+	var startedAt time.Time
+	if dbTask.StartedAt != nil {
+		startedAt = *dbTask.StartedAt
+	}
+
+	// Get state status from StateStatus field (not Status which is task status)
+	stateStatus := dbTask.StateStatus
+	if stateStatus == "" {
+		stateStatus = "pending" // Default
+	}
+
+	s := &state.State{
+		TaskID:       dbTask.ID,
+		CurrentPhase: dbTask.CurrentPhase,
+		Status:       state.Status(stateStatus),
+		Phases:       make(map[string]*state.PhaseState),
+		StartedAt:    startedAt,
+	}
+
+	// Deserialize RetryContext if present
+	if dbTask.RetryContext != "" {
+		var retryCtx state.RetryContext
+		if err := json.Unmarshal([]byte(dbTask.RetryContext), &retryCtx); err != nil {
+			d.logger.Printf("warning: failed to deserialize retry context: %v", err)
+		} else {
+			s.RetryContext = &retryCtx
+		}
+	}
+
+	// Populate phases
+	for _, dbPhase := range dbPhases {
+		var phaseStartedAt time.Time
+		if dbPhase.StartedAt != nil {
+			phaseStartedAt = *dbPhase.StartedAt
+		}
+		s.Phases[dbPhase.PhaseID] = &state.PhaseState{
+			Status:      state.Status(dbPhase.Status),
+			Iterations:  dbPhase.Iterations,
+			StartedAt:   phaseStartedAt,
+			CompletedAt: dbPhase.CompletedAt,
+			Error:       dbPhase.ErrorMessage,
+			CommitSHA:   dbPhase.CommitSHA,
+			SessionID:   dbPhase.SessionID,
+			Tokens: state.TokenUsage{
+				InputTokens:  dbPhase.InputTokens,
+				OutputTokens: dbPhase.OutputTokens,
+			},
+		}
+	}
+
+	// Populate gates
+	for _, dbGate := range dbGates {
+		s.Gates = append(s.Gates, state.GateDecision{
+			Phase:     dbGate.Phase,
+			GateType:  dbGate.GateType,
+			Approved:  dbGate.Approved,
+			Reason:    dbGate.Reason,
+			Timestamp: dbGate.DecidedAt,
+		})
+	}
+
+	// Reconstruct ExecutionInfo for orphan detection
+	if dbTask.ExecutorPID > 0 || dbTask.ExecutorHostname != "" ||
+		dbTask.ExecutorStartedAt != nil || dbTask.LastHeartbeat != nil {
+		s.Execution = &state.ExecutionInfo{
+			PID:      dbTask.ExecutorPID,
+			Hostname: dbTask.ExecutorHostname,
+		}
+		if dbTask.ExecutorStartedAt != nil {
+			s.Execution.StartedAt = *dbTask.ExecutorStartedAt
+		}
+		if dbTask.LastHeartbeat != nil {
+			s.Execution.LastHeartbeat = *dbTask.LastHeartbeat
+		}
+	}
+
+	// Load cost from task
+	s.Cost.TotalCostUSD = dbTask.TotalCostUSD
+
+	return s
 }
 
 // AddTranscript adds a transcript to database (for FTS).
@@ -1425,6 +1523,11 @@ func taskToDBTask(t *task.Task) *db.Task {
 		Metadata:     metadataJSON,
 		Quality:      qualityJSON,
 		IsAutomation: t.IsAutomation,
+		// Executor tracking for orphan detection
+		ExecutorPID:       t.ExecutorPID,
+		ExecutorHostname:  t.ExecutorHostname,
+		ExecutorStartedAt: t.ExecutorStartedAt,
+		LastHeartbeat:     t.LastHeartbeat,
 	}
 }
 
@@ -1463,6 +1566,11 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		Metadata:     metadata,
 		Quality:      quality,
 		IsAutomation: dbTask.IsAutomation,
+		// Executor tracking for orphan detection
+		ExecutorPID:       dbTask.ExecutorPID,
+		ExecutorHostname:  dbTask.ExecutorHostname,
+		ExecutorStartedAt: dbTask.ExecutorStartedAt,
+		LastHeartbeat:     dbTask.LastHeartbeat,
 	}
 }
 
