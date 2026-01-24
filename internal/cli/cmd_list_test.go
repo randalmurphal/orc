@@ -37,9 +37,9 @@ func withListTestDir(t *testing.T) string {
 	}
 	t.Cleanup(func() {
 		if origRoot == "" {
-			os.Unsetenv("ORC_PROJECT_ROOT")
+			_ = os.Unsetenv("ORC_PROJECT_ROOT")
 		} else {
-			os.Setenv("ORC_PROJECT_ROOT", origRoot)
+			_ = os.Setenv("ORC_PROJECT_ROOT", origRoot)
 		}
 	})
 	return tmpDir
