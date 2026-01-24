@@ -244,6 +244,16 @@ return fmt.Errorf("load task %s: %w", id, err)
 
 Go modules: `llmkit` (Claude wrapper), `flowgraph` (execution), `devflow` (git ops). For local dev: `make setup` creates `go.work`.
 
+### ⚠️ llmkit Sync Requirement
+
+When adding llmkit features that orc depends on:
+
+1. **Tag and push llmkit first** - `git tag vX.Y.Z && git push origin vX.Y.Z`
+2. **Update orc's go.mod** - `GOWORK=off go get github.com/randalmurphal/llmkit@vX.Y.Z`
+3. **Run GOWORK=off tests** - `make test-short` (uses published deps, not local)
+
+**Why:** `go.work` masks version drift. Code works locally but fails in CI/production. The `GOWORK=off` test catches this.
+
 ## Web UI
 
 Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
