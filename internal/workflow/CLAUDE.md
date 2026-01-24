@@ -45,7 +45,8 @@ Execution instances:
 | `review` | review | Review existing changes |
 | `spec` | spec | Generate spec only |
 | `docs` | docs | Documentation |
-| `qa` | qa | QA session |
+| `qa` | qa | Manual QA session |
+| `qa-e2e` | qa_e2e_test ⟳ qa_e2e_fix | E2E browser testing with fix loop |
 
 ## Built-in Phase Templates
 
@@ -59,6 +60,8 @@ Execution instances:
 | `review` | Multi-agent code review with verification | No |
 | `docs` | Documentation | Yes (docs) |
 | `qa` | Manual QA | No |
+| `qa_e2e_test` | Browser-based E2E testing (Playwright MCP) | Yes (findings) |
+| `qa_e2e_fix` | Fix issues from QA testing | No |
 | `research` | Research patterns | Yes (research) |
 | `design` | Design document | Yes (design) |
 
@@ -122,3 +125,50 @@ The `GetWorkflowForWeight()` function maps weights to workflows:
 | small | implement-small |
 | medium | implement-medium |
 | large | implement-large |
+
+## QA E2E Workflow
+
+Browser-based E2E testing with iterative fix loop using Playwright MCP.
+
+### Usage
+
+```bash
+# Run QA E2E workflow on existing task
+orc new "Test feature X" --workflow qa-e2e
+orc run TASK-XXX
+
+# With before images for visual comparison
+orc new "Test feature X" --workflow qa-e2e --before-images ./before.png
+
+# Configure max iterations (default: 3)
+orc new "Test feature X" --workflow qa-e2e --qa-max-iterations 5
+```
+
+### Flow
+
+```
+qa_e2e_test → (findings?) → qa_e2e_fix → qa_e2e_test → ... → PASS/MAX_ITERATIONS
+```
+
+### Loop Condition
+
+The `qa_e2e_test` phase has `LoopConfig` with condition `has_findings`. If findings exist in the output, it loops to `qa_e2e_fix` phase. Loop continues until no findings or max iterations reached.
+
+### Specialized Agents
+
+| Agent | Role | Description |
+|-------|------|-------------|
+| `qa-functional` | Functional testing | Happy path, edge cases, error handling |
+| `qa-visual` | Visual regression | Before/after comparison, layout checks |
+| `qa-accessibility` | Accessibility audit | WCAG compliance, keyboard nav, ARIA |
+| `qa-investigator` | Root cause analysis | Traces bugs to code for fix phase |
+
+### Variables
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `BEFORE_IMAGES` | Task metadata | Baseline images for visual comparison |
+| `PREVIOUS_FINDINGS` | Prior phase | Findings from last QA iteration |
+| `QA_FINDINGS` | qa_e2e_test output | Current findings for fix phase |
+| `QA_ITERATION` | Context | Current loop iteration number |
+| `QA_MAX_ITERATIONS` | Task metadata/config | Max iterations before stopping |

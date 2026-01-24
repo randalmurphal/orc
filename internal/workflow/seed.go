@@ -203,6 +203,68 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: planning, not writing
 		IsBuiltin:        true,
 	},
+	// ==========================================================================
+	// QA E2E Testing Phases (Browser-based testing with Playwright MCP)
+	// ==========================================================================
+	{
+		ID:               "qa_e2e_test",
+		Name:             "E2E QA Testing",
+		Description:      "Browser-based E2E testing with Playwright MCP",
+		PromptSource:     "embedded",
+		PromptPath:       "prompts/qa_e2e_test.md",
+		InputVariables:   `["SPEC_CONTENT", "WORKTREE_PATH", "BEFORE_IMAGES", "PREVIOUS_FINDINGS", "QA_ITERATION", "QA_MAX_ITERATIONS"]`,
+		ProducesArtifact: true,
+		ArtifactType:     "qa_findings",
+		OutputVarName:    "QA_FINDINGS",
+		OutputType:       "findings",
+		MaxIterations:    20,
+		ModelOverride:    "sonnet", // QA is systematic, sonnet sufficient
+		ThinkingEnabled:  boolPtr(false),
+		GateType:         "auto", // Default to auto, --gate flag changes to human
+		Checkpoint:       false,
+		ClaudeConfig: `{
+			"allowed_tools": [
+				"mcp__playwright__browser_navigate",
+				"mcp__playwright__browser_click",
+				"mcp__playwright__browser_type",
+				"mcp__playwright__browser_take_screenshot",
+				"mcp__playwright__browser_snapshot",
+				"mcp__playwright__browser_resize",
+				"mcp__playwright__browser_console_messages",
+				"mcp__playwright__browser_wait_for",
+				"mcp__playwright__browser_evaluate",
+				"mcp__playwright__browser_press_key",
+				"Read", "Write", "Glob", "Grep"
+			],
+			"disallowed_tools": ["Edit", "NotebookEdit"],
+			"mcp_servers": {
+				"playwright": {
+					"command": "npx",
+					"args": ["@playwright/mcp@latest", "--isolated"]
+				}
+			},
+			"append_system_prompt": "Sub-agents available: qa-functional (happy path + edge cases), qa-visual (visual regression), qa-accessibility (a11y audit). Delegate based on test scope. Report only findings with confidence >= 80."
+		}`,
+		IsBuiltin: true,
+	},
+	{
+		ID:               "qa_e2e_fix",
+		Name:             "E2E QA Fix",
+		Description:      "Investigate and fix issues found by QA E2E testing",
+		PromptSource:     "embedded",
+		PromptPath:       "prompts/qa_e2e_fix.md",
+		InputVariables:   `["SPEC_CONTENT", "QA_FINDINGS", "QA_ITERATION", "QA_MAX_ITERATIONS"]`,
+		ProducesArtifact: false,
+		OutputType:       "code",
+		QualityChecks:    DefaultCodeQualityChecks,
+		MaxIterations:    30,
+		ModelOverride:    "opus", // Fixing requires deeper reasoning
+		ThinkingEnabled:  boolPtr(true),
+		GateType:         "auto",
+		Checkpoint:       true,
+		RetryFromPhase:   "qa_e2e_test", // On failure, re-run QA testing
+		IsBuiltin:        true,
+	},
 }
 
 // Built-in workflow definitions.
@@ -327,6 +389,27 @@ var builtinWorkflows = []struct {
 		},
 		Phases: []db.WorkflowPhase{
 			{PhaseTemplateID: "qa", Sequence: 0, DependsOn: "[]"},
+		},
+	},
+	{
+		// QA E2E: Browser-based testing with iterative fix loop
+		// Run via: orc qa TASK-XXX or orc run --workflow qa-e2e TASK-XXX
+		Workflow: db.Workflow{
+			ID:           "qa-e2e",
+			Name:         "E2E QA Testing",
+			Description:  "Browser-based E2E testing with automatic fix loop. Run via 'orc qa TASK-XXX'.",
+			WorkflowType: "branch", // Works on existing branches (task must have worktree)
+			IsBuiltin:    true,
+		},
+		Phases: []db.WorkflowPhase{
+			{PhaseTemplateID: "qa_e2e_test", Sequence: 0, DependsOn: "[]"},
+			{
+				PhaseTemplateID: "qa_e2e_fix",
+				Sequence:        1,
+				DependsOn:       `["qa_e2e_test"]`,
+				// Loop back to qa_e2e_test after fixing, max 3 iterations
+				LoopConfig: `{"condition":"has_findings","loop_to_phase":"qa_e2e_test","max_iterations":3}`,
+			},
 		},
 	},
 }

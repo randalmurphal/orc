@@ -251,6 +251,12 @@ type ResolutionContext struct {
 	RecentChangedFiles   string // List of files changed in recent tasks
 	ChangelogContent     string // Current CHANGELOG.md content
 	ClaudeMDContent      string // Current CLAUDE.md content
+
+	// QA E2E testing context
+	QAIteration      int    // Current QA iteration (1, 2, 3, ...)
+	QAMaxIterations  int    // Maximum QA iterations before stopping
+	BeforeImages     string // Newline-separated paths to baseline images for visual comparison
+	PreviousFindings string // Formatted findings from previous QA iteration (for verification)
 }
 
 // VariableSet is a map of variable name to resolved value.

@@ -247,3 +247,274 @@ func FormatQAResultSummary(result *QAResult) string {
 
 	return sb.String()
 }
+
+// =============================================================================
+// QA E2E Types and Schema (Browser-based E2E testing with Playwright MCP)
+// =============================================================================
+
+// QAE2EFindingSeverity represents the severity of a QA E2E finding.
+type QAE2EFindingSeverity string
+
+const (
+	QAE2ESeverityCritical QAE2EFindingSeverity = "critical"
+	QAE2ESeverityHigh     QAE2EFindingSeverity = "high"
+	QAE2ESeverityMedium   QAE2EFindingSeverity = "medium"
+	QAE2ESeverityLow      QAE2EFindingSeverity = "low"
+)
+
+// QAE2EFindingCategory represents the category of a QA E2E finding.
+type QAE2EFindingCategory string
+
+const (
+	QAE2ECategoryFunctional    QAE2EFindingCategory = "functional"
+	QAE2ECategoryVisual        QAE2EFindingCategory = "visual"
+	QAE2ECategoryAccessibility QAE2EFindingCategory = "accessibility"
+	QAE2ECategoryPerformance   QAE2EFindingCategory = "performance"
+)
+
+// QAE2EFinding represents a single finding from browser-based E2E testing.
+type QAE2EFinding struct {
+	ID              string               `json:"id"`                        // e.g., "QA-001"
+	Severity        QAE2EFindingSeverity `json:"severity"`                  // critical, high, medium, low
+	Confidence      int                  `json:"confidence"`                // 0-100, only report >= 80
+	Category        QAE2EFindingCategory `json:"category"`                  // functional, visual, accessibility, performance
+	Title           string               `json:"title"`                     // Brief description
+	StepsToReproduce []string            `json:"steps_to_reproduce"`        // Step-by-step reproduction
+	Expected        string               `json:"expected"`                  // Expected behavior
+	Actual          string               `json:"actual"`                    // Actual behavior
+	ScreenshotPath  string               `json:"screenshot_path,omitempty"` // Path to screenshot evidence
+	SuggestedFix    string               `json:"suggested_fix,omitempty"`   // Optional fix suggestion
+}
+
+// QAE2EVerification represents verification metadata.
+type QAE2EVerification struct {
+	ScenariosTested         int      `json:"scenarios_tested"`
+	ViewportsTested         []string `json:"viewports_tested"`           // e.g., ["desktop", "mobile"]
+	PreviousIssuesVerified  []string `json:"previous_issues_verified,omitempty"` // e.g., ["QA-001: FIXED", "QA-002: STILL_PRESENT"]
+}
+
+// QAE2ETestResult represents the complete result of a QA E2E testing session.
+type QAE2ETestResult struct {
+	Status       string            `json:"status"`  // "complete" or "blocked"
+	Summary      string            `json:"summary"` // e.g., "Tested 15 scenarios, found 3 issues"
+	Findings     []QAE2EFinding    `json:"findings"`
+	Verification *QAE2EVerification `json:"verification,omitempty"`
+}
+
+// QAE2EFixResult represents the result of a QA E2E fix session.
+type QAE2EFixResult struct {
+	Status         string           `json:"status"`  // "complete" or "blocked"
+	Summary        string           `json:"summary"` // e.g., "Fixed 2 of 3 issues"
+	FixesApplied   []QAE2EFixApplied `json:"fixes_applied"`
+	IssuesDeferred []QAE2EIssueDeferred `json:"issues_deferred,omitempty"`
+}
+
+// QAE2EFixApplied represents a single applied fix.
+type QAE2EFixApplied struct {
+	FindingID         string   `json:"finding_id"`
+	Status            string   `json:"status"` // "fixed", "partial", "unable"
+	FilesModified     []string `json:"files_modified"`
+	ChangeDescription string   `json:"change_description"`
+}
+
+// QAE2EIssueDeferred represents a deferred issue.
+type QAE2EIssueDeferred struct {
+	FindingID string `json:"finding_id"`
+	Reason    string `json:"reason"`
+}
+
+// QAE2ETestResultSchema is the JSON schema for qa_e2e_test phase output.
+const QAE2ETestResultSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["complete", "blocked"],
+			"description": "Phase status: complete (testing done), blocked (cannot test)"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Brief summary of testing session (e.g., 'Tested 15 scenarios, found 3 issues')"
+		},
+		"findings": {
+			"type": "array",
+			"description": "Issues found during testing. Only include findings with confidence >= 80.",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {"type": "string", "description": "Unique finding ID (e.g., QA-001)"},
+					"severity": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
+					"confidence": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Confidence score (0-100). Only report >= 80."},
+					"category": {"type": "string", "enum": ["functional", "visual", "accessibility", "performance"]},
+					"title": {"type": "string", "description": "Brief description of the issue"},
+					"steps_to_reproduce": {"type": "array", "items": {"type": "string"}, "description": "Step-by-step reproduction instructions"},
+					"expected": {"type": "string", "description": "Expected behavior"},
+					"actual": {"type": "string", "description": "Actual behavior observed"},
+					"screenshot_path": {"type": "string", "description": "Path to screenshot evidence"},
+					"suggested_fix": {"type": "string", "description": "Optional: where to look for the fix"}
+				},
+				"required": ["id", "severity", "confidence", "category", "title", "steps_to_reproduce", "expected", "actual"]
+			}
+		},
+		"verification": {
+			"type": "object",
+			"description": "Testing session metadata",
+			"properties": {
+				"scenarios_tested": {"type": "integer", "description": "Number of test scenarios executed"},
+				"viewports_tested": {"type": "array", "items": {"type": "string"}, "description": "Viewports tested (e.g., desktop, mobile)"},
+				"previous_issues_verified": {"type": "array", "items": {"type": "string"}, "description": "Previous findings verified (e.g., 'QA-001: FIXED')"}
+			}
+		}
+	},
+	"required": ["status", "summary", "findings"]
+}`
+
+// QAE2EFixResultSchema is the JSON schema for qa_e2e_fix phase output.
+const QAE2EFixResultSchema = `{
+	"type": "object",
+	"properties": {
+		"status": {
+			"type": "string",
+			"enum": ["complete", "blocked"],
+			"description": "Phase status"
+		},
+		"summary": {
+			"type": "string",
+			"description": "Brief summary of fixes applied (e.g., 'Fixed 2 of 3 issues')"
+		},
+		"fixes_applied": {
+			"type": "array",
+			"description": "Fixes that were applied",
+			"items": {
+				"type": "object",
+				"properties": {
+					"finding_id": {"type": "string", "description": "ID of the finding that was fixed (e.g., QA-001)"},
+					"status": {"type": "string", "enum": ["fixed", "partial", "unable"], "description": "Fix status"},
+					"files_modified": {"type": "array", "items": {"type": "string"}, "description": "Files that were modified"},
+					"change_description": {"type": "string", "description": "Description of the change made"}
+				},
+				"required": ["finding_id", "status", "files_modified", "change_description"]
+			}
+		},
+		"issues_deferred": {
+			"type": "array",
+			"description": "Issues that were deferred and not fixed",
+			"items": {
+				"type": "object",
+				"properties": {
+					"finding_id": {"type": "string", "description": "ID of the deferred finding"},
+					"reason": {"type": "string", "description": "Reason for deferring"}
+				},
+				"required": ["finding_id", "reason"]
+			}
+		}
+	},
+	"required": ["status", "summary", "fixes_applied"]
+}`
+
+// ParseQAE2ETestResult parses JSON QA E2E test result from Claude's response.
+func ParseQAE2ETestResult(response string) (*QAE2ETestResult, error) {
+	var result QAE2ETestResult
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		return nil, fmt.Errorf("parse QA E2E test result JSON: %w", err)
+	}
+
+	// Initialize nil slices to empty
+	if result.Findings == nil {
+		result.Findings = []QAE2EFinding{}
+	}
+
+	return &result, nil
+}
+
+// ParseQAE2EFixResult parses JSON QA E2E fix result from Claude's response.
+func ParseQAE2EFixResult(response string) (*QAE2EFixResult, error) {
+	var result QAE2EFixResult
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		return nil, fmt.Errorf("parse QA E2E fix result JSON: %w", err)
+	}
+
+	// Initialize nil slices to empty
+	if result.FixesApplied == nil {
+		result.FixesApplied = []QAE2EFixApplied{}
+	}
+	if result.IssuesDeferred == nil {
+		result.IssuesDeferred = []QAE2EIssueDeferred{}
+	}
+
+	return &result, nil
+}
+
+// HasFindings returns true if the QA E2E test result has any findings.
+func (r *QAE2ETestResult) HasFindings() bool {
+	return len(r.Findings) > 0
+}
+
+// HighSeverityCount returns the number of critical or high severity findings.
+func (r *QAE2ETestResult) HighSeverityCount() int {
+	count := 0
+	for _, f := range r.Findings {
+		if f.Severity == QAE2ESeverityCritical || f.Severity == QAE2ESeverityHigh {
+			count++
+		}
+	}
+	return count
+}
+
+// FormatFindingsForFix formats findings for the fix phase prompt.
+func (r *QAE2ETestResult) FormatFindingsForFix() string {
+	if len(r.Findings) == 0 {
+		return "No findings to fix."
+	}
+
+	var sb strings.Builder
+	for _, f := range r.Findings {
+		sb.WriteString(fmt.Sprintf("### %s [%s] - %s\n\n", f.ID, strings.ToUpper(string(f.Severity)), f.Title))
+		sb.WriteString(fmt.Sprintf("**Category:** %s\n", f.Category))
+		sb.WriteString(fmt.Sprintf("**Confidence:** %d\n\n", f.Confidence))
+		sb.WriteString("**Steps to Reproduce:**\n")
+		for i, step := range f.StepsToReproduce {
+			sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, step))
+		}
+		sb.WriteString(fmt.Sprintf("\n**Expected:** %s\n", f.Expected))
+		sb.WriteString(fmt.Sprintf("**Actual:** %s\n", f.Actual))
+		if f.ScreenshotPath != "" {
+			sb.WriteString(fmt.Sprintf("**Screenshot:** %s\n", f.ScreenshotPath))
+		}
+		if f.SuggestedFix != "" {
+			sb.WriteString(fmt.Sprintf("**Suggested Fix:** %s\n", f.SuggestedFix))
+		}
+		sb.WriteString("\n---\n\n")
+	}
+
+	return sb.String()
+}
+
+// FormatQAE2EResultSummary formats QA E2E test result for display.
+func FormatQAE2EResultSummary(result *QAE2ETestResult) string {
+	if result == nil {
+		return "No QA E2E result available."
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("QA E2E Status: %s\n\n", strings.ToUpper(result.Status)))
+	sb.WriteString(fmt.Sprintf("Summary: %s\n\n", result.Summary))
+
+	if result.Verification != nil {
+		sb.WriteString(fmt.Sprintf("Scenarios Tested: %d\n", result.Verification.ScenariosTested))
+		if len(result.Verification.ViewportsTested) > 0 {
+			sb.WriteString(fmt.Sprintf("Viewports: %s\n", strings.Join(result.Verification.ViewportsTested, ", ")))
+		}
+	}
+
+	if len(result.Findings) > 0 {
+		sb.WriteString(fmt.Sprintf("\nFindings: %d total (%d critical/high)\n", len(result.Findings), result.HighSeverityCount()))
+		for _, f := range result.Findings {
+			sb.WriteString(fmt.Sprintf("  - [%s] %s: %s\n", strings.ToUpper(string(f.Severity)), f.ID, f.Title))
+		}
+	} else {
+		sb.WriteString("\nNo issues found - PASS\n")
+	}
+
+	return sb.String()
+}

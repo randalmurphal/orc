@@ -533,3 +533,137 @@ func TestWorkflowContextType(t *testing.T) {
 		})
 	}
 }
+
+// TestEvaluateLoopCondition verifies the QA loop condition evaluation logic.
+func TestEvaluateLoopCondition(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.Default()
+	we := &WorkflowExecutor{logger: logger}
+
+	tests := []struct {
+		name        string
+		condition   string
+		targetPhase string
+		vars        map[string]string
+		rctx        *variable.ResolutionContext
+		expected    bool
+	}{
+		{
+			name:        "has_findings with findings",
+			condition:   "has_findings",
+			targetPhase: "qa_e2e_test",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"qa_e2e_test": `{"status":"complete","summary":"Found 2 issues","findings":[{"id":"QA-001","severity":"high","confidence":95,"category":"functional","title":"Bug","steps_to_reproduce":["1"],"expected":"A","actual":"B"}]}`,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:        "has_findings without findings",
+			condition:   "has_findings",
+			targetPhase: "qa_e2e_test",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"qa_e2e_test": `{"status":"complete","summary":"All tests passed","findings":[]}`,
+				},
+			},
+			expected: false,
+		},
+		{
+			name:        "has_findings with no output",
+			condition:   "has_findings",
+			targetPhase: "qa_e2e_test",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{},
+			},
+			expected: false,
+		},
+		{
+			name:        "not_empty with content",
+			condition:   "not_empty",
+			targetPhase: "spec",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"spec": `{"content":"some content"}`,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:        "not_empty with empty object",
+			condition:   "not_empty",
+			targetPhase: "spec",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"spec": `{}`,
+				},
+			},
+			expected: false,
+		},
+		{
+			name:        "status_needs_fix with needs_fix status",
+			condition:   "status_needs_fix",
+			targetPhase: "qa",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"qa": `{"status":"needs_fix"}`,
+				},
+			},
+			expected: true,
+		},
+		{
+			name:        "status_needs_fix with complete status",
+			condition:   "status_needs_fix",
+			targetPhase: "qa",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"qa": `{"status":"complete"}`,
+				},
+			},
+			expected: false,
+		},
+		{
+			name:        "unknown condition",
+			condition:   "unknown_condition",
+			targetPhase: "test",
+			vars:        map[string]string{},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{
+					"test": `{"data":"value"}`,
+				},
+			},
+			expected: false,
+		},
+		{
+			name:        "falls back to OUTPUT_ var",
+			condition:   "not_empty",
+			targetPhase: "custom_phase",
+			vars: map[string]string{
+				"OUTPUT_custom_phase": `{"content":"from var"}`,
+			},
+			rctx: &variable.ResolutionContext{
+				PriorOutputs: map[string]string{},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := we.evaluateLoopCondition(tt.condition, tt.targetPhase, tt.vars, tt.rctx)
+			if result != tt.expected {
+				t.Errorf("evaluateLoopCondition(%q, %q) = %v, want %v",
+					tt.condition, tt.targetPhase, result, tt.expected)
+			}
+		})
+	}
+}

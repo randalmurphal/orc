@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -106,6 +107,20 @@ func (we *WorkflowExecutor) buildResolutionContext(
 			rctx.ScreenshotDir = task.ScreenshotsPath(we.workingDir, t.ID)
 			if err := os.MkdirAll(rctx.ScreenshotDir, 0755); err != nil {
 				we.logger.Warn("failed to create screenshot directory", "error", err)
+			}
+		}
+
+		// Load QA E2E specific context from task metadata
+		if t.Metadata != nil {
+			// Before images for visual comparison
+			if images, ok := t.Metadata["before_images"]; ok {
+				rctx.BeforeImages = images
+			}
+			// Max iterations override (workflow default can be overridden per-task)
+			if maxIter, ok := t.Metadata["qa_max_iterations"]; ok {
+				if n, err := strconv.Atoi(maxIter); err == nil && n > 0 {
+					rctx.QAMaxIterations = n
+				}
 			}
 		}
 	}

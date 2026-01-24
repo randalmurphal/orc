@@ -358,6 +358,16 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["CHANGELOG_CONTENT"] = rctx.ChangelogContent
 	vars["CLAUDEMD_CONTENT"] = rctx.ClaudeMDContent
 
+	// QA E2E testing context
+	if rctx.QAIteration > 0 {
+		vars["QA_ITERATION"] = fmt.Sprintf("%d", rctx.QAIteration)
+	}
+	if rctx.QAMaxIterations > 0 {
+		vars["QA_MAX_ITERATIONS"] = fmt.Sprintf("%d", rctx.QAMaxIterations)
+	}
+	vars["BEFORE_IMAGES"] = rctx.BeforeImages
+	vars["PREVIOUS_FINDINGS"] = rctx.PreviousFindings
+
 	// Add prior phase outputs with OUTPUT_ prefix
 	for phase, content := range rctx.PriorOutputs {
 		key := "OUTPUT_" + strings.ToUpper(phase)
@@ -378,6 +388,8 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 		case "implement":
 			vars["IMPLEMENT_CONTENT"] = content
 			vars["IMPLEMENTATION_SUMMARY"] = content // Alias for template compatibility
+		case "qa_e2e_test":
+			vars["QA_FINDINGS"] = content // QA test findings for fix phase
 		}
 	}
 }

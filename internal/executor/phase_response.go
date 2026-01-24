@@ -190,6 +190,14 @@ func GetSchemaForPhaseWithRound(phaseID string, round int) string {
 		return QAResultSchema
 	}
 
+	// QA E2E phases have specialized schemas
+	if phaseID == "qa_e2e_test" {
+		return QAE2ETestResultSchema
+	}
+	if phaseID == "qa_e2e_fix" {
+		return QAE2EFixResultSchema
+	}
+
 	return PhaseCompletionSchema
 }
 
@@ -479,6 +487,33 @@ func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string)
 		default:
 			return PhaseStatusBlocked, result.Summary, nil
 		}
+	}
+
+	// QA E2E test phase uses QAE2ETestResultSchema
+	if phaseID == "qa_e2e_test" {
+		result, err := ParseQAE2ETestResult(content)
+		if err != nil {
+			return PhaseStatusContinue, "", fmt.Errorf("invalid QA E2E test result JSON: %w (content=%q)",
+				err, truncateForPrompt(content, 200))
+		}
+		// QA E2E test always completes (findings handled by loop mechanism)
+		if result.Status == "blocked" {
+			return PhaseStatusBlocked, result.Summary, nil
+		}
+		return PhaseStatusComplete, result.Summary, nil
+	}
+
+	// QA E2E fix phase uses QAE2EFixResultSchema
+	if phaseID == "qa_e2e_fix" {
+		result, err := ParseQAE2EFixResult(content)
+		if err != nil {
+			return PhaseStatusContinue, "", fmt.Errorf("invalid QA E2E fix result JSON: %w (content=%q)",
+				err, truncateForPrompt(content, 200))
+		}
+		if result.Status == "blocked" {
+			return PhaseStatusBlocked, result.Summary, nil
+		}
+		return PhaseStatusComplete, result.Summary, nil
 	}
 
 	// All other phases use standard PhaseCompletionSchema
