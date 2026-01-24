@@ -276,10 +276,18 @@ func (we *WorkflowExecutor) executePhase(
 func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExecutionConfig) (*PhaseExecutionResult, error) {
 	result := &PhaseExecutionResult{}
 
-	// Inject ultrathink prefix if thinking is enabled
 	prompt := cfg.Prompt
+
+	// Enable extended thinking via MAX_THINKING_TOKENS env var if thinking is enabled
+	// Note: The old "ultrathink" keyword no longer works as of Claude Code 2.0.x
 	if cfg.Thinking {
-		prompt = "ultrathink\n\n" + prompt
+		if cfg.ClaudeConfig == nil {
+			cfg.ClaudeConfig = &PhaseClaudeConfig{}
+		}
+		if cfg.ClaudeConfig.Env == nil {
+			cfg.ClaudeConfig.Env = make(map[string]string)
+		}
+		cfg.ClaudeConfig.Env["MAX_THINKING_TOKENS"] = "31999"
 	}
 
 	// Generate session ID
