@@ -1,5 +1,13 @@
 import '@testing-library/jest-dom';
 
+// Mock ResizeObserver for Recharts and other components that use it
+class ResizeObserverMock {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserverMock;
+
 // Mock localStorage for tests
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
