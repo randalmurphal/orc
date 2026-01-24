@@ -38,10 +38,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/randalmurphal/devflow v1.1.0 h1:BZxLd+vgBYxV6VnkQsDrIlLEarSSvs/M3QOXOl3rmLc=
 github.com/randalmurphal/devflow v1.1.0/go.mod h1:wPG37RHmrTIdJHnaQpMdF6I+tvvyhDsd0GYuXLeG13Y=
-github.com/randalmurphal/llmkit v1.2.0 h1:8SQkDSohkOU8m6Fqa1sm397a/PcPM8Tt84AaInLaFDo=
-github.com/randalmurphal/llmkit v1.2.0/go.mod h1:OGjBosxKZS3/sQaf9Angikp0n5qE3wXn5kaj8dzsbzY=
-github.com/randalmurphal/llmkit v1.2.1-0.20260124001648-3ff94ab4b98b h1:6HZUYl7tqLXwt8jjQ63Vaqpl6KIHwqAcBRBTmN8Ld5I=
-github.com/randalmurphal/llmkit v1.2.1-0.20260124001648-3ff94ab4b98b/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
+github.com/randalmurphal/llmkit v1.4.0 h1:QspPjn2oXzy4Lk2qWo7+hHLusKwvCF5AM+qMAn0o+XU=
+github.com/randalmurphal/llmkit v1.4.0/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
