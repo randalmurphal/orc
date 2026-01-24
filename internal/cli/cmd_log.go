@@ -315,6 +315,19 @@ func displayFormattedContent(content string, opts transcriptDisplayOptions) {
 				fmt.Println("[Tool Result]")
 			}
 
+		case "thinking":
+			// Extended thinking block - show the thinking content
+			thinking, _ := block["thinking"].(string)
+			if thinking != "" {
+				if opts.useColor {
+					fmt.Printf("%s[Thinking]%s\n", ansiMagenta, ansiReset)
+					fmt.Printf("%s%s%s\n", ansiDim, thinking, ansiReset)
+				} else {
+					fmt.Println("[Thinking]")
+					fmt.Println(thinking)
+				}
+			}
+
 		default:
 			// Unknown block type, show as JSON
 			blockJSON, _ := json.MarshalIndent(block, "", "  ")
