@@ -30,7 +30,7 @@ func TestToInlineAgentDef(t *testing.T) {
 func TestLoadPhaseAgents(t *testing.T) {
 	pdb, err := db.OpenProjectInMemory()
 	require.NoError(t, err)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Seed built-in phase templates first
 	_, err = workflow.SeedBuiltins(pdb)
@@ -70,7 +70,7 @@ func TestLoadPhaseAgents(t *testing.T) {
 func TestLoadPhaseAgents_NonExistentPhase(t *testing.T) {
 	pdb, err := db.OpenProjectInMemory()
 	require.NoError(t, err)
-	defer pdb.Close()
+	defer func() { _ = pdb.Close() }()
 
 	// Load agents for non-existent phase - should return empty, not error
 	agents, err := LoadPhaseAgents(pdb, "nonexistent-phase", "medium")
