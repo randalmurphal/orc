@@ -1063,7 +1063,7 @@ Tasks automatically detect if UI testing is required based on keywords in the ti
 | `click`, `hover`, `navigation`, `menu` | `true` |
 
 When `requires_ui_testing: true`, the executor:
-1. Configures Playwright MCP server in `.mcp.json`
+1. Enables Playwright MCP server via phase template's `claude_config.mcp_servers`
 2. Sets `SCREENSHOT_DIR` to `.orc/tasks/{id}/test-results/screenshots/`
 3. Provides UI testing context to prompt templates
 
