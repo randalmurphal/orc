@@ -2,13 +2,9 @@
 package main
 
 import (
-	"os"
-
-	"github.com/randalmurphal/orc/internal/cli"
+	"fmt"
 )
 
 func main() {
-	if err := cli.Execute(); err != nil {
-		os.Exit(1)
-	}
+	fmt.Println("hello world")
 }
