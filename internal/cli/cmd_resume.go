@@ -82,10 +82,8 @@ func ApplyResumeStateUpdates(t *task.Task, s *state.State, result *ResumeValidat
 		return fmt.Errorf("save state: %w", err)
 	}
 
-	t.Status = task.StatusBlocked
-	if err := backend.SaveTask(t); err != nil {
-		return fmt.Errorf("save task: %w", err)
-	}
+	// Note: Status will be set to running after task is claimed
+	// This function only handles state interruption for orphaned/force-resumed tasks
 
 	return nil
 }
@@ -163,6 +161,15 @@ Use --force to resume a task even if it appears to still be running.`,
 					return fmt.Errorf("task is already being executed by another process")
 				}
 				return fmt.Errorf("claim task execution: %w", err)
+			}
+
+			// Set status to running immediately after claim (before expensive operations)
+			// This ensures orc show/status reflects reality while executor is starting up
+			t.Status = task.StatusRunning
+			if err := backend.SaveTask(t); err != nil {
+				// Log error but don't fail - status update is best-effort UX improvement
+				// WorkflowExecutor will set status later anyway (defensive programming)
+				fmt.Fprintf(os.Stderr, "Warning: failed to update task status: %v\n", err)
 			}
 
 			// Get workflow ID from task weight
@@ -321,4 +328,3 @@ func getResumeFileChangeStats(ctx context.Context, projectRoot, taskBranch strin
 		Deletions:    stats.Deletions,
 	}
 }
-
