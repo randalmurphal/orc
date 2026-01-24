@@ -50,7 +50,7 @@ type PhaseExecutionResult struct {
 	CacheCreationTokens int
 	CacheReadTokens     int
 	CostUSD             float64
-	Artifact            string
+	Content             string // Phase output content for content-producing phases
 	SessionID           string
 }
 
@@ -181,11 +181,11 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
 
-	// Extract artifact if phase produces one and save to phase_outputs
-	if tmpl.ProducesArtifact && result.Artifact == "" {
-		result.Artifact = execResult.Artifact
+	// Extract content if phase produces output and save to phase_outputs
+	if tmpl.ProducesArtifact && result.Content == "" {
+		result.Content = execResult.Content
 	}
-	if result.Artifact != "" && t != nil {
+	if result.Content != "" && t != nil {
 		// Determine output variable name from template or infer from phase ID
 		outputVarName := tmpl.OutputVarName
 		if outputVarName == "" {
@@ -193,8 +193,6 @@ func (we *WorkflowExecutor) executePhase(
 			switch tmpl.ID {
 			case "spec", "tiny_spec":
 				outputVarName = "SPEC_CONTENT"
-			case "design":
-				outputVarName = "DESIGN_CONTENT"
 			case "tdd_write":
 				outputVarName = "TDD_TESTS_CONTENT"
 			case "breakdown":
@@ -213,7 +211,7 @@ func (we *WorkflowExecutor) executePhase(
 			WorkflowRunID:   run.ID,
 			PhaseTemplateID: tmpl.ID,
 			TaskID:          &taskID,
-			Content:         result.Artifact,
+			Content:         result.Content,
 			OutputVarName:   outputVarName,
 			ArtifactType:    tmpl.ArtifactType,
 			Source:          "workflow",
@@ -236,8 +234,8 @@ func (we *WorkflowExecutor) executePhase(
 	runPhase.InputTokens = result.InputTokens
 	runPhase.OutputTokens = result.OutputTokens
 	runPhase.CostUSD = result.CostUSD
-	if result.Artifact != "" {
-		runPhase.Artifact = result.Artifact
+	if result.Content != "" {
+		runPhase.Content = result.Content
 	}
 	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
 		we.logger.Warn("failed to save run phase", "error", err)
@@ -434,7 +432,7 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			}
 
 			// Extract artifact if present
-			result.Artifact = extractArtifactFromJSON(turnResult.Content)
+			result.Content = extractPhaseOutput(turnResult.Content)
 			return result, nil
 
 		case PhaseStatusBlocked:
@@ -537,7 +535,7 @@ func (we *WorkflowExecutor) shouldUseThinking(tmpl *db.PhaseTemplate, phase *db.
 
 	// Decision phases default to thinking
 	switch tmpl.ID {
-	case "spec", "design", "review":
+	case "spec", "review":
 		return true
 	}
 

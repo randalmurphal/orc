@@ -392,7 +392,6 @@ func TestDefaultConfigRetryMap(t *testing.T) {
 		phase    string
 		wantFrom string
 	}{
-		{"design", "spec"}, // Design issues often stem from incomplete spec
 		{"test", "implement"},
 		{"test_unit", "implement"},
 		{"test_e2e", "implement"},

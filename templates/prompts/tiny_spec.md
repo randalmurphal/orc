@@ -140,7 +140,7 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
 {
   "status": "complete",
   "summary": "Defined N criteria, wrote M failing tests covering all criteria",
-  "artifact": "# Tiny Spec: [Title]\n\n## Success Criteria\n\n| ID | Criterion | Verification |\n|----|-----------|-------|\n| SC-1 | ... | ... |\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestFoo | Covered |\n\n## Tests Written\n\n- `path/to/test.ts`: Tests SC-1\n",
+  "content": "# Tiny Spec: [Title]\n\n## Success Criteria\n\n| ID | Criterion | Verification |\n|----|-----------|-------|\n| SC-1 | ... | ... |\n\n## Coverage Summary\n\n| Criterion | Test | Status |\n|-----------|------|--------|\n| SC-1 | TestFoo | Covered |\n\n## Tests Written\n\n- `path/to/test.ts`: Tests SC-1\n",
   "tests": [
     {
       "file": "path/to/test.go",

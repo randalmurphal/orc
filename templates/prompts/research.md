@@ -70,7 +70,7 @@ Create a research summary documenting:
 
 ## Output Format
 
-**CRITICAL**: Your final output MUST be a JSON object with the research document in the `artifact` field.
+**CRITICAL**: Your final output MUST be a JSON object with the research document in the `content` field.
 
 Create the research document following this structure:
 
@@ -129,13 +129,13 @@ Create the research document following this structure:
 
 ## Phase Completion
 
-Output a JSON object with the research in the `artifact` field:
+Output a JSON object with the research in the `content` field:
 
 ```json
 {
   "status": "complete",
   "summary": "Research analyzed 12 files, found 3 dependencies, identified 2 challenges",
-  "artifact": "# Research: Feature Name\n\n## Goal\n..."
+  "content": "# Research: Feature Name\n\n## Goal\n..."
 }
 ```
 

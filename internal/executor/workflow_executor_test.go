@@ -677,8 +677,8 @@ func TestExtractPhaseOutput(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "extracts artifact field when present",
-			input:    `{"status": "complete", "artifact": "The spec content"}`,
+			name:     "extracts content field when present",
+			input:    `{"status": "complete", "content": "The spec content"}`,
 			expected: "The spec content",
 		},
 		{
@@ -707,8 +707,8 @@ func TestExtractPhaseOutput(t *testing.T) {
 			expected: `{"status": "complete", "findings": []}`,
 		},
 		{
-			name:     "prefers artifact field over full JSON",
-			input:    `{"status": "complete", "artifact": "The content", "findings": []}`,
+			name:     "prefers content field over full JSON",
+			input:    `{"status": "complete", "content": "The content", "findings": []}`,
 			expected: "The content",
 		},
 	}

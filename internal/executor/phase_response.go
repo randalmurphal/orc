@@ -44,11 +44,11 @@ const PhaseCompletionSchema = `{
 	"required": ["status"]
 }`
 
-// PhaseCompletionWithArtifactSchema is the JSON schema for phases that produce artifacts.
+// ContentProducingPhaseSchema is the JSON schema for phases that produce document content.
 // Used by: spec, tiny_spec, research, tdd_write, breakdown, docs
-// The artifact field contains the full artifact content (spec, design doc, etc.)
+// The content field contains the full document content (spec, design doc, etc.)
 // The quality_checklist field is required for spec/tiny_spec phases.
-const PhaseCompletionWithArtifactSchema = `{
+const ContentProducingPhaseSchema = `{
 	"type": "object",
 	"properties": {
 		"status": {
@@ -64,9 +64,9 @@ const PhaseCompletionWithArtifactSchema = `{
 			"type": "string",
 			"description": "Work summary for complete status"
 		},
-		"artifact": {
+		"content": {
 			"type": "string",
-			"description": "The full artifact content (spec, design doc, research notes, etc.). REQUIRED when status is complete."
+			"description": "The full phase output content (spec, design doc, research notes, etc.). REQUIRED when status is complete."
 		},
 		"quality_checklist": {
 			"type": "array",
@@ -85,13 +85,15 @@ const PhaseCompletionWithArtifactSchema = `{
 	"required": ["status"]
 }`
 
-// PhasesWithArtifacts lists phases that produce artifacts and should use PhaseCompletionWithArtifactSchema
-var PhasesWithArtifacts = map[string]bool{
+// contentProducingPhases lists phases that produce document content.
+// NOTE: This is used for schema selection. The authoritative source is
+// PhaseTemplate.ProducesArtifact in the database.
+var contentProducingPhases = map[string]bool{
 	"spec":      true,
-	"tiny_spec": true, // Combined spec+TDD for trivial/small tasks
+	"tiny_spec": true,
 	"research":  true,
-	"tdd_write": true, // TDD test-writing phase for medium+
-	"breakdown": true, // Implementation breakdown for medium/large
+	"tdd_write": true,
+	"breakdown": true,
 	"docs":      true,
 }
 
@@ -166,9 +168,9 @@ const ImplementCompletionSchema = `{
 // GetSchemaForPhaseWithRound returns the appropriate JSON schema for a phase,
 // with support for round-specific schemas (e.g., review round 1 vs round 2).
 func GetSchemaForPhaseWithRound(phaseID string, round int) string {
-	// Artifact-producing phases get schema with artifact field
-	if PhasesWithArtifacts[phaseID] {
-		return PhaseCompletionWithArtifactSchema
+	// Content-producing phases get schema with content field
+	if contentProducingPhases[phaseID] {
+		return ContentProducingPhaseSchema
 	}
 
 	// Implement phase uses verification schema
@@ -203,10 +205,10 @@ func GetSchemaForPhaseWithRound(phaseID string, round int) string {
 
 // PhaseResponse represents the structured response from a phase execution.
 type PhaseResponse struct {
-	Status   string `json:"status"`             // "complete", "blocked", or "continue"
-	Reason   string `json:"reason,omitempty"`   // Required for blocked, optional for others
-	Summary  string `json:"summary,omitempty"`  // Work summary for complete status
-	Artifact string `json:"artifact,omitempty"` // Artifact content for phases that produce them (spec, design, research, docs)
+	Status  string `json:"status"`            // "complete", "blocked", or "continue"
+	Reason  string `json:"reason,omitempty"`  // Required for blocked, optional for others
+	Summary string `json:"summary,omitempty"` // Work summary for complete status
+	Content string `json:"content,omitempty"` // Phase output content (spec, design doc, research notes, etc.)
 }
 
 // ImplementVerification represents the verification evidence for implement phase completion.
@@ -412,14 +414,16 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, er
 	}
 }
 
-// ExtractArtifactFromOutput parses JSON and returns the artifact field.
+// ExtractContentFromOutput parses JSON and returns the content field.
 // Content MUST be pure JSON from --json-schema.
-func ExtractArtifactFromOutput(content string) string {
+// Falls back to artifact field for backward compatibility with existing prompts.
+func ExtractContentFromOutput(content string) string {
 	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
 	if err != nil {
 		return ""
 	}
-	return resp.Artifact
+	// Prefer content field, fall back to artifact for compatibility
+	return resp.Content
 }
 
 // ParsePhaseSpecificResponse parses JSON response using the appropriate parser

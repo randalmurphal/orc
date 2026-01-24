@@ -452,10 +452,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			if ps, ok := we.execState.Phases[phase.PhaseTemplateID]; ok {
 				if ps.Status == state.StatusCompleted {
 					we.logger.Info("skipping completed phase", "phase", phase.PhaseTemplateID)
-					// Load artifact from completed phase for variable chaining
+					// Load content from completed phase for variable chaining
 					// Phase outputs are stored in unified phase_outputs table keyed by run ID
 					if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
-						applyArtifactToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, output.Content)
+						applyPhaseContentToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, output.Content)
 					}
 					continue
 				}
@@ -517,9 +517,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return result, err
 		}
 
-		// Update variables with phase output if artifact was produced
-		if phaseResult.Artifact != "" {
-			applyArtifactToVars(vars, rctx.PriorOutputs, phaseResult.PhaseID, phaseResult.Artifact)
+		// Update variables with phase output content
+		if phaseResult.Content != "" {
+			applyPhaseContentToVars(vars, rctx.PriorOutputs, phaseResult.PhaseID, phaseResult.Content)
 		}
 
 		// Check for loop configuration and handle iterative loops
@@ -592,7 +592,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 
 		// Evaluate phase gate
-		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Artifact, t)
+		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t)
 		if gateErr != nil {
 			we.logger.Warn("gate evaluation failed", "phase", tmpl.ID, "error", gateErr)
 			// Continue on gate error - don't block automation
@@ -651,7 +651,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						// Save retry context
 						if we.execState != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
-							we.execState.SetRetryContext(tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Artifact, retryCounts[tmpl.ID])
+							we.execState.SetRetryContext(tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, retryCounts[tmpl.ID])
 							if err := we.backend.SaveState(we.execState); err != nil {
 								we.logger.Warn("failed to save retry state", "error", err)
 							}
@@ -804,7 +804,7 @@ type PhaseResult struct {
 	Status              string
 	Iterations          int
 	DurationMS          int64
-	Artifact            string
+	Content             string
 	Error               string
 	InputTokens         int
 	OutputTokens        int
@@ -815,24 +815,22 @@ type PhaseResult struct {
 
 // Helper functions
 
-// applyArtifactToVars updates variable maps with phase output artifacts.
+// applyPhaseContentToVars updates variable maps with phase output content.
 // Called both when resuming from completed phases and after phase completion.
-func applyArtifactToVars(vars map[string]string, priorOutputs map[string]string, phaseID, artifact string) {
-	vars["OUTPUT_"+phaseID] = artifact
+func applyPhaseContentToVars(vars map[string]string, priorOutputs map[string]string, phaseID, content string) {
+	vars["OUTPUT_"+phaseID] = content
 	switch phaseID {
 	case "spec", "tiny_spec":
-		vars["SPEC_CONTENT"] = artifact
-	case "design":
-		vars["DESIGN_CONTENT"] = artifact
+		vars["SPEC_CONTENT"] = content
 	case "tdd_write":
-		vars["TDD_TESTS_CONTENT"] = artifact
+		vars["TDD_TESTS_CONTENT"] = content
 	case "breakdown":
-		vars["BREAKDOWN_CONTENT"] = artifact
+		vars["BREAKDOWN_CONTENT"] = content
 	case "research":
-		vars["RESEARCH_CONTENT"] = artifact
+		vars["RESEARCH_CONTENT"] = content
 	}
 	if priorOutputs != nil {
-		priorOutputs[phaseID] = artifact
+		priorOutputs[phaseID] = content
 	}
 }
 
@@ -901,8 +899,7 @@ func truncateTitle(s string) string {
 }
 
 // extractPhaseOutput extracts the phase output content from JSON.
-// If the JSON has an explicit "artifact" field (legacy spec/design phases), extracts that.
-// Otherwise, returns the entire JSON as the output - the structured JSON IS the phase output.
+// Checks for "content" field, and if it doesn't exist, returns the entire JSON as the output.
 func extractPhaseOutput(output string) string {
 	output = strings.TrimSpace(output)
 	if output == "" {
@@ -915,18 +912,12 @@ func extractPhaseOutput(output string) string {
 		return ""
 	}
 
-	// Check for legacy "artifact" field (used by spec, design, docs phases)
-	if artifact, ok := generic["artifact"].(string); ok && artifact != "" {
-		return artifact
+	// Check for "content" field (content-producing phases)
+	if content, ok := generic["content"].(string); ok && content != "" {
+		return content
 	}
 
-	// No artifact field - the entire JSON IS the output
+	// No content field - the entire JSON IS the output
 	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
 	return output
-}
-
-// extractArtifactFromJSON is deprecated, use extractPhaseOutput.
-// Kept for backward compatibility.
-func extractArtifactFromJSON(output string) string {
-	return extractPhaseOutput(output)
 }

@@ -184,25 +184,6 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: research, not writing
 		IsBuiltin:        true,
 	},
-	{
-		ID:               "design",
-		Name:             "Design",
-		Description:      "Create design document",
-		PromptSource:     "embedded",
-		PromptPath:       "prompts/design.md",
-		InputVariables:   `["SPEC_CONTENT"]`,
-		ProducesArtifact: true,
-		ArtifactType:     "design",
-		OutputVarName:    "DESIGN_CONTENT",
-		OutputType:       "document",
-		MaxIterations:    10,
-		ModelOverride:    "opus",
-		ThinkingEnabled:  boolPtr(true), // Decision phase: architecture decisions
-		GateType:         "auto",
-		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: planning, not writing
-		IsBuiltin:        true,
-	},
 	// ==========================================================================
 	// QA E2E Testing Phases (Browser-based testing with Playwright MCP)
 	// ==========================================================================

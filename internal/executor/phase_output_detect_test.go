@@ -11,57 +11,57 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-func TestArtifactDetector_DetectSpecArtifacts(t *testing.T) {
+func TestPhaseOutputDetector_DetectSpecOutput(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		specContent  string // Content to save to database (empty = no spec)
-		weight       task.Weight
-		wantArtifact bool
-		wantAutoSkip bool
-		wantDescSub  string
+		name          string
+		specContent   string // Content to save to database (empty = no spec)
+		weight        task.Weight
+		wantHasOutput bool
+		wantAutoSkip  bool
+		wantDescSub   string
 	}{
 		{
-			name:         "no spec in database",
-			specContent:  "",
-			weight:       task.WeightMedium,
-			wantArtifact: false,
-			wantDescSub:  "no spec found",
+			name:          "no spec in database",
+			specContent:   "",
+			weight:        task.WeightMedium,
+			wantHasOutput: false,
+			wantDescSub:   "no spec found",
 		},
 		{
 			name: "valid spec in database",
 			specContent: `# Task Specification
 
 ## Intent
-This task implements a new feature for artifact detection.
+This task implements a new feature for output detection.
 
 ## Success Criteria
-- Detect existing artifacts
+- Detect existing outputs
 - Prompt user to skip phases
 
 ## Testing
-- Unit tests for artifact detection
+- Unit tests for output detection
 - Integration tests for CLI
 `,
-			weight:       task.WeightMedium,
-			wantArtifact: true,
-			wantAutoSkip: true,
-			wantDescSub:  "valid content",
+			weight:        task.WeightMedium,
+			wantHasOutput: true,
+			wantAutoSkip:  true,
+			wantDescSub:   "valid content",
 		},
 		{
-			name:         "empty spec in database",
-			specContent:  "",
-			weight:       task.WeightMedium,
-			wantArtifact: false,
-			wantDescSub:  "no spec found",
+			name:          "empty spec in database",
+			specContent:   "",
+			weight:        task.WeightMedium,
+			wantHasOutput: false,
+			wantDescSub:   "no spec found",
 		},
 		{
-			name:         "minimal spec - too short",
-			specContent:  "# Title",
-			weight:       task.WeightMedium,
-			wantArtifact: false,
-			wantDescSub:  "empty or minimal",
+			name:          "minimal spec - too short",
+			specContent:   "# Title",
+			weight:        task.WeightMedium,
+			wantHasOutput: false,
+			wantDescSub:   "empty or minimal",
 		},
 		{
 			name: "spec missing required sections",
@@ -72,10 +72,10 @@ This task does something.
 
 But it's missing Success Criteria and Testing sections.
 `,
-			weight:       task.WeightMedium,
-			wantArtifact: true,
-			wantAutoSkip: false, // Should not auto-skip invalid specs
-			wantDescSub:  "incomplete",
+			weight:        task.WeightMedium,
+			wantHasOutput: true,
+			wantAutoSkip:  false, // Should not auto-skip invalid specs
+			wantDescSub:   "incomplete",
 		},
 		{
 			name: "trivial weight - skip validation",
@@ -84,10 +84,10 @@ But it's missing Success Criteria and Testing sections.
 This is a trivial task to fix a small typo in the documentation.
 The fix is straightforward and doesn't need detailed specification.
 `,
-			weight:       task.WeightTrivial,
-			wantArtifact: true,
-			wantAutoSkip: true, // Trivial tasks skip validation
-			wantDescSub:  "valid content",
+			weight:        task.WeightTrivial,
+			wantHasOutput: true,
+			wantAutoSkip:  true, // Trivial tasks skip validation
+			wantDescSub:   "valid content",
 		},
 	}
 
@@ -124,11 +124,11 @@ The fix is straightforward and doesn't need detailed specification.
 			}
 
 			// Create detector with backend
-			detector := NewArtifactDetectorWithBackend(taskDir, taskID, tt.weight, backend)
-			status := detector.DetectPhaseArtifacts("spec")
+			detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, tt.weight, backend)
+			status := detector.DetectPhaseOutput("spec")
 
-			if status.HasArtifacts != tt.wantArtifact {
-				t.Errorf("HasArtifacts = %v, want %v", status.HasArtifacts, tt.wantArtifact)
+			if status.HasOutput != tt.wantHasOutput {
+				t.Errorf("HasOutput = %v, want %v", status.HasOutput, tt.wantHasOutput)
 			}
 
 			if status.CanAutoSkip != tt.wantAutoSkip {
@@ -142,35 +142,35 @@ The fix is straightforward and doesn't need detailed specification.
 	}
 }
 
-func TestArtifactDetector_DetectResearchArtifacts(t *testing.T) {
+func TestPhaseOutputDetector_DetectResearchOutput(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-002"
 
 	tests := []struct {
-		name         string
-		setup        func(taskDir string)
-		wantArtifact bool
-		wantAutoSkip bool
+		name          string
+		setup         func(taskDir string)
+		wantHasOutput bool
+		wantAutoSkip  bool
 	}{
 		{
-			name:         "no research artifacts",
-			setup:        func(taskDir string) {},
-			wantArtifact: false,
+			name:          "no research output",
+			setup:         func(taskDir string) {},
+			wantHasOutput: false,
 		},
 		{
-			name: "research.md in artifacts dir",
+			name: "research.md in outputs dir",
 			setup: func(taskDir string) {
-				artifactDir := filepath.Join(taskDir, "artifacts")
-				_ = os.MkdirAll(artifactDir, 0755)
+				outputDir := filepath.Join(taskDir, "outputs")
+				_ = os.MkdirAll(outputDir, 0755)
 				content := `# Research Findings
 
 This is the research content with sufficient detail to be meaningful.
 `
-				_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(content), 0644)
+				_ = os.WriteFile(filepath.Join(outputDir, "research.md"), []byte(content), 0644)
 			},
-			wantArtifact: true,
-			wantAutoSkip: true,
+			wantHasOutput: true,
+			wantAutoSkip:  true,
 		},
 	}
 
@@ -180,11 +180,11 @@ This is the research content with sufficient detail to be meaningful.
 			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
-			detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
-			status := detector.DetectPhaseArtifacts("research")
+			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
+			status := detector.DetectPhaseOutput("research")
 
-			if status.HasArtifacts != tt.wantArtifact {
-				t.Errorf("HasArtifacts = %v, want %v", status.HasArtifacts, tt.wantArtifact)
+			if status.HasOutput != tt.wantHasOutput {
+				t.Errorf("HasOutput = %v, want %v", status.HasOutput, tt.wantHasOutput)
 			}
 
 			if status.CanAutoSkip != tt.wantAutoSkip {
@@ -194,50 +194,50 @@ This is the research content with sufficient detail to be meaningful.
 	}
 }
 
-func TestArtifactDetector_ImplementTestValidateNotAutoSkippable(t *testing.T) {
+func TestPhaseOutputDetector_ImplementTestNotAutoSkippable(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-003"
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
 
-	detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
+	detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
 
 	// These phases should never be auto-skippable
 	phases := []string{"implement", "test"}
 	for _, phaseID := range phases {
-		status := detector.DetectPhaseArtifacts(phaseID)
+		status := detector.DetectPhaseOutput(phaseID)
 		if status.CanAutoSkip {
 			t.Errorf("Phase %s should not be auto-skippable, but CanAutoSkip = true", phaseID)
 		}
 	}
 }
 
-func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
+func TestPhaseOutputDetector_DetectDocsOutput(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-004"
 
 	tests := []struct {
-		name         string
-		setup        func(taskDir string)
-		wantArtifact bool
-		wantAutoSkip bool
+		name          string
+		setup         func(taskDir string)
+		wantHasOutput bool
+		wantAutoSkip  bool
 	}{
 		{
-			name:         "no docs artifacts",
-			setup:        func(taskDir string) {},
-			wantArtifact: false,
+			name:          "no docs output",
+			setup:         func(taskDir string) {},
+			wantHasOutput: false,
 		},
 		{
-			name: "docs.md in artifacts dir",
+			name: "docs.md in outputs dir",
 			setup: func(taskDir string) {
-				artifactDir := filepath.Join(taskDir, "artifacts")
-				_ = os.MkdirAll(artifactDir, 0755)
-				_ = os.WriteFile(filepath.Join(artifactDir, "docs.md"), []byte("# Documentation"), 0644)
+				outputDir := filepath.Join(taskDir, "outputs")
+				_ = os.MkdirAll(outputDir, 0755)
+				_ = os.WriteFile(filepath.Join(outputDir, "docs.md"), []byte("# Documentation"), 0644)
 			},
-			wantArtifact: true,
-			wantAutoSkip: true,
+			wantHasOutput: true,
+			wantAutoSkip:  true,
 		},
 	}
 
@@ -247,11 +247,11 @@ func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
 			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
-			detector := NewArtifactDetectorWithDir(taskDir, taskID, task.WeightMedium)
-			status := detector.DetectPhaseArtifacts("docs")
+			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
+			status := detector.DetectPhaseOutput("docs")
 
-			if status.HasArtifacts != tt.wantArtifact {
-				t.Errorf("HasArtifacts = %v, want %v", status.HasArtifacts, tt.wantArtifact)
+			if status.HasOutput != tt.wantHasOutput {
+				t.Errorf("HasOutput = %v, want %v", status.HasOutput, tt.wantHasOutput)
 			}
 
 			if status.CanAutoSkip != tt.wantAutoSkip {
@@ -261,7 +261,7 @@ func TestArtifactDetector_DetectDocsArtifacts(t *testing.T) {
 	}
 }
 
-func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
+func TestPhaseOutputDetector_SuggestSkippablePhases(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskID := "TEST-005"
@@ -290,7 +290,7 @@ func TestArtifactDetector_SuggestSkippablePhases(t *testing.T) {
 	specContent := `# Specification
 
 ## Intent
-Implement artifact detection.
+Implement output detection.
 
 ## Success Criteria
 - Works correctly.
@@ -302,23 +302,23 @@ Implement artifact detection.
 		t.Fatalf("save spec: %v", err)
 	}
 
-	// Create research artifact file (still uses file)
-	artifactDir := filepath.Join(taskDir, "artifacts")
-	_ = os.MkdirAll(artifactDir, 0755)
+	// Create research output file
+	outputDir := filepath.Join(taskDir, "outputs")
+	_ = os.MkdirAll(outputDir, 0755)
 	researchContent := `# Research Findings
 
 This research document contains detailed analysis of the codebase
 and architectural decisions that will inform the implementation.
 `
-	_ = os.WriteFile(filepath.Join(artifactDir, "research.md"), []byte(researchContent), 0644)
+	_ = os.WriteFile(filepath.Join(outputDir, "research.md"), []byte(researchContent), 0644)
 
-	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
 
-	// Test with phases that have artifacts
+	// Test with phases that have outputs
 	phases := []string{"spec", "research", "implement", "test", "docs"}
 	skippable := detector.SuggestSkippablePhases(phases)
 
-	// Should suggest spec and research (both have artifacts and are auto-skippable)
+	// Should suggest spec and research (both have outputs and are auto-skippable)
 	if len(skippable) != 2 {
 		t.Errorf("Expected 2 skippable phases, got %d: %v", len(skippable), skippable)
 	}
@@ -331,17 +331,17 @@ and architectural decisions that will inform the implementation.
 	}
 }
 
-func TestArtifactDetector_UnknownPhase(t *testing.T) {
+func TestPhaseOutputDetector_UnknownPhase(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
 
-	detector := NewArtifactDetectorWithDir(taskDir, "TEST-006", task.WeightMedium)
-	status := detector.DetectPhaseArtifacts("unknown_phase")
+	detector := NewPhaseOutputDetectorWithDir(taskDir, "TEST-006", task.WeightMedium)
+	status := detector.DetectPhaseOutput("unknown_phase")
 
-	if status.HasArtifacts {
-		t.Error("Unknown phase should not have artifacts")
+	if status.HasOutput {
+		t.Error("Unknown phase should not have output")
 	}
 	if status.CanAutoSkip {
 		t.Error("Unknown phase should not be auto-skippable")
@@ -351,9 +351,9 @@ func TestArtifactDetector_UnknownPhase(t *testing.T) {
 	}
 }
 
-// TestArtifactDetector_DetectSpecFromDatabase verifies that spec detection
+// TestPhaseOutputDetector_DetectSpecFromDatabase verifies that spec detection
 // prioritizes database over file-based storage.
-func TestArtifactDetector_DetectSpecFromDatabase(t *testing.T) {
+func TestPhaseOutputDetector_DetectSpecFromDatabase(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
@@ -387,7 +387,7 @@ Test spec stored in database, not as file.
 
 ## Success Criteria
 - Spec loaded from database
-- No file artifact needed
+- No file needed
 
 ## Testing
 - Unit test verifies database loading
@@ -397,12 +397,12 @@ Test spec stored in database, not as file.
 	}
 
 	// Create detector with backend
-	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
-	status := detector.DetectPhaseArtifacts("spec")
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	status := detector.DetectPhaseOutput("spec")
 
 	// Should detect spec from database
-	if !status.HasArtifacts {
-		t.Error("HasArtifacts should be true when spec exists in database")
+	if !status.HasOutput {
+		t.Error("HasOutput should be true when spec exists in database")
 	}
 	if !status.CanAutoSkip {
 		t.Error("CanAutoSkip should be true for valid spec in database")
@@ -410,8 +410,8 @@ Test spec stored in database, not as file.
 	if !strings.Contains(status.Description, "database") {
 		t.Errorf("Description should mention database, got: %s", status.Description)
 	}
-	if len(status.Artifacts) != 1 || status.Artifacts[0] != "database:spec" {
-		t.Errorf("Artifacts should be ['database:spec'], got: %v", status.Artifacts)
+	if len(status.Outputs) != 1 || status.Outputs[0] != "database:spec" {
+		t.Errorf("Outputs should be ['database:spec'], got: %v", status.Outputs)
 	}
 
 	// Verify no spec.md file exists (spec should only be in DB)
@@ -421,9 +421,9 @@ Test spec stored in database, not as file.
 	}
 }
 
-// TestArtifactDetector_PrefersDatabaseOverFile verifies that when both
+// TestPhaseOutputDetector_PrefersDatabaseOverFile verifies that when both
 // database and file spec exist, database is preferred.
-func TestArtifactDetector_PrefersDatabaseOverFile(t *testing.T) {
+func TestPhaseOutputDetector_PrefersDatabaseOverFile(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	taskDir := filepath.Join(tmpDir, "task")
@@ -482,18 +482,17 @@ This is the legacy file-based spec.
 	}
 
 	// Create detector with backend
-	detector := NewArtifactDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
-	status := detector.DetectPhaseArtifacts("spec")
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	status := detector.DetectPhaseOutput("spec")
 
 	// Should detect spec from database (not file)
-	if !status.HasArtifacts {
-		t.Error("HasArtifacts should be true")
+	if !status.HasOutput {
+		t.Error("HasOutput should be true")
 	}
 	if !strings.Contains(status.Description, "database") {
 		t.Errorf("Description should mention database (not legacy file), got: %s", status.Description)
 	}
-	if len(status.Artifacts) != 1 || status.Artifacts[0] != "database:spec" {
-		t.Errorf("Artifacts should be ['database:spec'], got: %v", status.Artifacts)
+	if len(status.Outputs) != 1 || status.Outputs[0] != "database:spec" {
+		t.Errorf("Outputs should be ['database:spec'], got: %v", status.Outputs)
 	}
 }
-

@@ -74,7 +74,7 @@ These are automatically populated from `ResolutionContext`:
 | Testing | `COVERAGE_THRESHOLD`, `REQUIRES_UI_TESTING`, `SCREENSHOT_DIR`, `TEST_RESULTS`, `TDD_TEST_PLAN` |
 | Automation | `RECENT_COMPLETED_TASKS`, `RECENT_CHANGED_FILES`, `CHANGELOG_CONTENT`, `CLAUDEMD_CONTENT` |
 | QA E2E | `QA_ITERATION`, `QA_MAX_ITERATIONS`, `BEFORE_IMAGES`, `PREVIOUS_FINDINGS`, `QA_FINDINGS` |
-| Prior Outputs | `SPEC_CONTENT`, `RESEARCH_CONTENT`, `DESIGN_CONTENT`, `TDD_TESTS_CONTENT`, `BREAKDOWN_CONTENT`, `IMPLEMENT_CONTENT`, `IMPLEMENTATION_SUMMARY`, `QA_FINDINGS`, `OUTPUT_{PHASE}` |
+| Prior Outputs | `SPEC_CONTENT`, `RESEARCH_CONTENT`, `TDD_TESTS_CONTENT`, `BREAKDOWN_CONTENT`, `IMPLEMENT_CONTENT`, `IMPLEMENTATION_SUMMARY`, `QA_FINDINGS`, `OUTPUT_{PHASE}` |
 
 **Context enrichment:** The executor calls `enrichContextForPhase()` before each phase to load phase-specific data (review findings, test results, etc.) into the resolution context.
 

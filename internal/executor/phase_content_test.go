@@ -9,7 +9,7 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-func TestExtractArtifactContent(t *testing.T) {
+func TestExtractPhaseContent(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -18,12 +18,12 @@ func TestExtractArtifactContent(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "extracts artifact from JSON",
-			output: `{"status": "complete", "artifact": "The artifact content"}`,
-			want:   "The artifact content",
+			name:   "extracts content from JSON",
+			output: `{"status": "complete", "content": "The content text"}`,
+			want:   "The content text",
 		},
 		{
-			name:   "returns empty when no artifact field",
+			name:   "returns empty when no content field",
 			output: `{"status": "complete", "summary": "Done"}`,
 			want:   "",
 		},
@@ -33,35 +33,29 @@ func TestExtractArtifactContent(t *testing.T) {
 			want:   "",
 		},
 		{
-			name:   "handles artifact with newlines",
-			output: `{"status": "complete", "artifact": "Line 1\nLine 2\nLine 3"}`,
+			name:   "handles content with newlines",
+			output: `{"status": "complete", "content": "Line 1\nLine 2\nLine 3"}`,
 			want:   "Line 1\nLine 2\nLine 3",
 		},
 		{
-			name:   "handles artifact with escaped characters",
-			output: `{"status": "complete", "artifact": "Code: \"function() {}\""}`,
+			name:   "handles content with escaped characters",
+			output: `{"status": "complete", "content": "Code: \"function() {}\""}`,
 			want:   `Code: "function() {}"`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ExtractArtifactContent(tt.output)
+			got := ExtractPhaseContent(tt.output)
 			if got != tt.want {
-				t.Errorf("ExtractArtifactContent() = %q, want %q", got, tt.want)
+				t.Errorf("ExtractPhaseContent() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-// newArtifactTestBackend creates a test backend for artifact tests using in-memory database.
-func newArtifactTestBackend(t *testing.T) *storage.DatabaseBackend {
-	t.Helper()
-	return storage.NewTestBackend(t)
-}
-
-// createTestTask creates a task in the backend for testing spec operations.
-func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID string) {
+// createPhaseContentTestTask creates a task in the backend for testing spec operations.
+func createPhaseContentTestTask(t *testing.T, backend storage.Backend, taskID string) {
 	t.Helper()
 	testTask := &task.Task{
 		ID:     taskID,
@@ -74,9 +68,9 @@ func createTestTask(t *testing.T, backend *storage.DatabaseBackend, taskID strin
 	}
 }
 
-// createTestWorkflowRun creates a workflow and workflow run for testing phase output operations.
+// createPhaseContentTestWorkflowRun creates a workflow and workflow run for testing phase output operations.
 // The phase_outputs table has a foreign key constraint to workflow_runs, which needs the run to exist.
-func createTestWorkflowRun(t *testing.T, backend *storage.DatabaseBackend, runID, taskID string) {
+func createPhaseContentTestWorkflowRun(t *testing.T, backend storage.Backend, runID, taskID string) {
 	t.Helper()
 	// Create a minimal test workflow first (in-memory backend doesn't seed workflows)
 	workflow := &db.Workflow{
@@ -117,11 +111,11 @@ func TestSaveSpecToDatabase(t *testing.T) {
 		{
 			name:    "skips non-spec phase",
 			phaseID: "implement",
-			output:  `{"status": "complete", "artifact": "some content"}`,
+			output:  `{"status": "complete", "content": "some content"}`,
 			wantErr: false, // Non-spec phases return (false, nil)
 		},
 		{
-			name:    "returns error when no artifact in JSON",
+			name:    "returns error when no content in JSON",
 			phaseID: "spec",
 			output:  `{"status": "complete", "summary": "Done"}`,
 			wantErr: true,
@@ -136,9 +130,9 @@ func TestSaveSpecToDatabase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			backend := newArtifactTestBackend(t)
+			backend := newTestBackend(t)
 			taskID := "TASK-SPEC-001"
-			createTestTask(t, backend, taskID)
+			createPhaseContentTestTask(t, backend, taskID)
 
 			saved, err := SaveSpecToDatabase(backend, "RUN-001", taskID, tt.phaseID, tt.output)
 
@@ -161,7 +155,7 @@ func TestSaveSpecToDatabase(t *testing.T) {
 
 func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 	t.Parallel()
-	saved, err := SaveSpecToDatabase(nil, "RUN-001", "TASK-001", "spec", `{"status": "complete", "artifact": "content"}`)
+	saved, err := SaveSpecToDatabase(nil, "RUN-001", "TASK-001", "spec", `{"status": "complete", "content": "content"}`)
 	if err == nil {
 		t.Fatal("SaveSpecToDatabase() with nil backend should return error")
 	}
@@ -174,27 +168,27 @@ func TestSaveSpecToDatabase_NilBackend(t *testing.T) {
 }
 
 // TestSaveSpecToDatabase_ExtractsFromJSON verifies that SaveSpecToDatabase extracts
-// spec content from JSON artifact field.
+// spec content from JSON content field.
 func TestSaveSpecToDatabase_ExtractsFromJSON(t *testing.T) {
 	t.Parallel()
-	backend := newArtifactTestBackend(t)
+	backend := newTestBackend(t)
 	taskID := "TASK-JSON-001"
 	runID := "RUN-JSON-001"
 
-	createTestTask(t, backend, taskID)
-	createTestWorkflowRun(t, backend, runID, taskID)
+	createPhaseContentTestTask(t, backend, taskID)
+	createPhaseContentTestWorkflowRun(t, backend, runID, taskID)
 
-	// Output with spec in artifact field
+	// Output with spec in content field
 	specContent := `# Specification: Test Feature
 
 ## Problem Statement
 This tests the JSON extraction mechanism.
 
 ## Success Criteria
-- [ ] Agent outputs spec in artifact field
+- [ ] Agent outputs spec in content field
 - [ ] System extracts from JSON
 `
-	output := `{"status": "complete", "summary": "Spec completed", "artifact": ` + escapeJSONString(specContent) + `}`
+	output := `{"status": "complete", "summary": "Spec completed", "content": ` + escapeJSONString(specContent) + `}`
 
 	saved, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 	if err != nil {
@@ -204,14 +198,14 @@ This tests the JSON extraction mechanism.
 		t.Error("SaveSpecToDatabase() should have saved spec from JSON")
 	}
 
-	// Verify content was saved from artifact field
+	// Verify content was saved from content field
 	loadedSpec, err := backend.GetSpecForTask(taskID)
 	if err != nil {
 		t.Fatalf("GetSpecForTask() error = %v", err)
 	}
 
 	if !strings.Contains(loadedSpec, "JSON extraction mechanism") {
-		t.Errorf("spec content should be from JSON artifact, got: %s", loadedSpec)
+		t.Errorf("spec content should be from JSON content field, got: %s", loadedSpec)
 	}
 }
 
@@ -302,14 +296,14 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 		{
 			name: "includes output length and preview",
 			err: &SpecExtractionError{
-				Reason:        "no artifact field in JSON output",
+				Reason:        "no content field in JSON output",
 				OutputLen:     500,
-				OutputPreview: "Some output without artifact field...",
+				OutputPreview: "Some output without content field...",
 			},
 			wantContains: []string{
-				"no artifact field in JSON output",
+				"no content field in JSON output",
 				"output_length: 500 bytes",
-				"output_preview: \"Some output without artifact field...\"",
+				"output_preview: \"Some output without content field...\"",
 			},
 		},
 		{
@@ -327,7 +321,7 @@ func TestSpecExtractionError_Diagnostics(t *testing.T) {
 		{
 			name: "omits empty fields",
 			err: &SpecExtractionError{
-				Reason:    "no artifact field",
+				Reason:    "no content field",
 				OutputLen: 0,
 			},
 			wantNotContain: []string{
@@ -412,14 +406,14 @@ func TestValidateSpecContent_ReturnsReason(t *testing.T) {
 // populates all diagnostic fields in SpecExtractionError.
 func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	t.Parallel()
-	backend := newArtifactTestBackend(t)
+	backend := newTestBackend(t)
 	taskID := "TASK-DIAG-001"
 	runID := "RUN-DIAG-001"
-	createTestTask(t, backend, taskID)
-	createTestWorkflowRun(t, backend, runID, taskID)
+	createPhaseContentTestTask(t, backend, taskID)
+	createPhaseContentTestWorkflowRun(t, backend, runID, taskID)
 
-	t.Run("no artifact includes output preview", func(t *testing.T) {
-		output := `{"status": "complete", "summary": "Done but no artifact"}`
+	t.Run("no content includes output preview", func(t *testing.T) {
+		output := `{"status": "complete", "summary": "Done but no content"}`
 		_, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
@@ -435,21 +429,21 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 		}
 	})
 
-	t.Run("artifact extraction success", func(t *testing.T) {
+	t.Run("content extraction success", func(t *testing.T) {
 		specContent := "# Specification\n\n## Intent\nBuild a feature with proper error handling and tests."
-		output := `{"status": "complete", "artifact": ` + escapeJSONString(specContent) + `}`
+		output := `{"status": "complete", "content": ` + escapeJSONString(specContent) + `}`
 		saved, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		if err != nil {
 			t.Fatalf("SaveSpecToDatabase() unexpected error: %v", err)
 		}
 		if !saved {
-			t.Error("SaveSpecToDatabase() should have saved from artifact")
+			t.Error("SaveSpecToDatabase() should have saved from content field")
 		}
 	})
 
-	t.Run("artifact too short returns validation failure", func(t *testing.T) {
-		output := `{"status": "complete", "artifact": "short"}`
+	t.Run("content too short returns validation failure", func(t *testing.T) {
+		output := `{"status": "complete", "content": "short"}`
 		_, err := SaveSpecToDatabase(backend, runID, taskID, "spec", output)
 
 		specErr, ok := err.(*SpecExtractionError)
@@ -466,23 +460,23 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	})
 }
 
-// TestPhasesWithArtifacts verifies the phase-to-artifact mapping
-func TestPhasesWithArtifacts(t *testing.T) {
+// TestContentProducingPhases verifies the phase content mapping
+func TestContentProducingPhases(t *testing.T) {
 	t.Parallel()
 
-	// Includes new TDD phases: tiny_spec (combined spec+TDD), tdd_write, breakdown
-	artifactPhases := []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"}
-	nonArtifactPhases := []string{"implement", "test", "review", "finalize"}
+	// Includes TDD phases: tiny_spec (combined spec+TDD), tdd_write, breakdown
+	contentPhases := []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"}
+	nonContentPhases := []string{"implement", "test", "review", "finalize"}
 
-	for _, phase := range artifactPhases {
-		if !PhasesWithArtifacts[phase] {
-			t.Errorf("PhasesWithArtifacts[%q] should be true", phase)
+	for _, phase := range contentPhases {
+		if !contentProducingPhases[phase] {
+			t.Errorf("contentProducingPhases[%q] should be true", phase)
 		}
 	}
 
-	for _, phase := range nonArtifactPhases {
-		if PhasesWithArtifacts[phase] {
-			t.Errorf("PhasesWithArtifacts[%q] should be false", phase)
+	for _, phase := range nonContentPhases {
+		if contentProducingPhases[phase] {
+			t.Errorf("contentProducingPhases[%q] should be false", phase)
 		}
 	}
 }
@@ -491,11 +485,11 @@ func TestPhasesWithArtifacts(t *testing.T) {
 func TestGetSchemaForPhase(t *testing.T) {
 	t.Parallel()
 
-	t.Run("artifact phases get artifact schema", func(t *testing.T) {
+	t.Run("content phases get content schema", func(t *testing.T) {
 		for _, phase := range []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"} {
 			schema := GetSchemaForPhase(phase)
-			if !strings.Contains(schema, `"artifact"`) {
-				t.Errorf("GetSchemaForPhase(%q) should return schema with artifact field", phase)
+			if !strings.Contains(schema, `"content"`) {
+				t.Errorf("GetSchemaForPhase(%q) should return schema with content field", phase)
 			}
 		}
 	})
@@ -503,8 +497,9 @@ func TestGetSchemaForPhase(t *testing.T) {
 	t.Run("standard phases get basic schema", func(t *testing.T) {
 		for _, phase := range []string{"implement", "test", "finalize"} {
 			schema := GetSchemaForPhase(phase)
-			if strings.Contains(schema, `"artifact"`) {
-				t.Errorf("GetSchemaForPhase(%q) should return schema WITHOUT artifact field", phase)
+			// Should not have content field
+			if strings.Contains(schema, `"content"`) {
+				t.Errorf("GetSchemaForPhase(%q) should return schema WITHOUT content field", phase)
 			}
 		}
 	})

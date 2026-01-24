@@ -240,7 +240,7 @@ type WorkflowRunPhase struct {
 	CostUSD      float64 `json:"cost_usd"`
 
 	// Output
-	Artifact string `json:"artifact,omitempty"`
+	Content string `json:"content,omitempty"`
 
 	// Error
 	Error string `json:"error,omitempty"`
@@ -734,7 +734,7 @@ func (p *ProjectDB) SaveWorkflowRunPhase(wrp *WorkflowRunPhase) error {
 	res, err := p.Exec(`
 		INSERT INTO workflow_run_phases (workflow_run_id, phase_template_id, status, iterations,
 			started_at, completed_at, commit_sha, input_tokens, output_tokens, cost_usd,
-			artifact, error, session_id)
+			content, error, session_id)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_run_id, phase_template_id) DO UPDATE SET
 			status = excluded.status,
@@ -745,12 +745,12 @@ func (p *ProjectDB) SaveWorkflowRunPhase(wrp *WorkflowRunPhase) error {
 			input_tokens = excluded.input_tokens,
 			output_tokens = excluded.output_tokens,
 			cost_usd = excluded.cost_usd,
-			artifact = excluded.artifact,
+			content = excluded.content,
 			error = excluded.error,
 			session_id = excluded.session_id
 	`, wrp.WorkflowRunID, wrp.PhaseTemplateID, wrp.Status, wrp.Iterations,
 		startedAt, completedAt, wrp.CommitSHA, wrp.InputTokens, wrp.OutputTokens, wrp.CostUSD,
-		wrp.Artifact, wrp.Error, wrp.SessionID)
+		wrp.Content, wrp.Error, wrp.SessionID)
 	if err != nil {
 		return fmt.Errorf("save workflow run phase: %w", err)
 	}
@@ -781,7 +781,7 @@ func (p *ProjectDB) GetWorkflowRunPhases(runID string) ([]*WorkflowRunPhase, err
 	rows, err := p.Query(`
 		SELECT id, workflow_run_id, phase_template_id, status, iterations,
 			started_at, completed_at, commit_sha, input_tokens, output_tokens, cost_usd,
-			artifact, error, session_id
+			content, error, session_id
 		FROM workflow_run_phases
 		WHERE workflow_run_id = ?
 		ORDER BY id ASC
@@ -1009,19 +1009,19 @@ func scanWorkflowRunRow(rows *sql.Rows) (*WorkflowRun, error) {
 func scanWorkflowRunPhaseRow(rows *sql.Rows) (*WorkflowRunPhase, error) {
 	wrp := &WorkflowRunPhase{}
 	var startedAt, completedAt sql.NullString
-	var commitSHA, artifact, phaseError, sessionID sql.NullString
+	var commitSHA, content, phaseError, sessionID sql.NullString
 
 	err := rows.Scan(
 		&wrp.ID, &wrp.WorkflowRunID, &wrp.PhaseTemplateID, &wrp.Status, &wrp.Iterations,
 		&startedAt, &completedAt, &commitSHA, &wrp.InputTokens, &wrp.OutputTokens, &wrp.CostUSD,
-		&artifact, &phaseError, &sessionID,
+		&content, &phaseError, &sessionID,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	wrp.CommitSHA = commitSHA.String
-	wrp.Artifact = artifact.String
+	wrp.Content = content.String
 	wrp.Error = phaseError.String
 	wrp.SessionID = sessionID.String
 

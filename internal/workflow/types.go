@@ -266,7 +266,7 @@ type WorkflowRunPhase struct {
 	CostUSD      float64 `json:"cost_usd" db:"cost_usd"`
 
 	// Output
-	Artifact string `json:"artifact,omitempty" db:"artifact"`
+	Content string `json:"content,omitempty" db:"content"`
 
 	// Error tracking
 	Error string `json:"error,omitempty" db:"error"`

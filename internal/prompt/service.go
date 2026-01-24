@@ -255,7 +255,6 @@ func GetVariableReference() map[string]string {
 		"{{ITERATION}}":        "Current iteration number within the phase",
 		"{{RESEARCH_CONTENT}}": "Output from the research phase (if applicable)",
 		"{{SPEC_CONTENT}}":     "Output from the spec phase (if applicable)",
-		"{{DESIGN_CONTENT}}":   "Output from the design phase (if applicable)",
 		"{{RETRY_CONTEXT}}":    "Context from failed phase when retrying",
 
 		// Worktree context variables
