@@ -48,14 +48,14 @@
 	background: var(--green);
 }
 
-/* Active: animated pulse effect */
-.pipeline-bar-fill--active {
+/* Running: animated pulse effect */
+.pipeline-bar-fill--running {
 	background: var(--primary);
 	animation: pipeline-progress-grow 2s ease-in-out infinite;
 }
 
-/* Active with explicit progress: no animation, show actual width */
-.pipeline-step--active .pipeline-bar-fill--active[style] {
+/* Running with explicit progress: no animation, show actual width */
+.pipeline-step--running .pipeline-bar-fill--running[style] {
 	animation: none;
 }
 
@@ -68,6 +68,19 @@
 /* Pending: no fill (empty bar) */
 .pipeline-bar-fill--pending {
 	width: 0;
+}
+
+/* Skipped: gray, full width */
+.pipeline-bar-fill--skipped {
+	width: 100%;
+	background: var(--text-muted);
+	opacity: 0.5;
+}
+
+/* Blocked: yellow/warning, full width */
+.pipeline-bar-fill--blocked {
+	width: 100%;
+	background: var(--yellow);
 }
 
 /* =============================================================================
@@ -91,8 +104,8 @@
 	color: var(--green);
 }
 
-/* Active: bright primary color */
-.pipeline-label--active {
+/* Running: bright primary color */
+.pipeline-label--running {
 	color: var(--primary-bright);
 }
 
@@ -104,6 +117,17 @@
 /* Failed: red with X icon */
 .pipeline-label--failed {
 	color: var(--red);
+}
+
+/* Skipped: muted gray */
+.pipeline-label--skipped {
+	color: var(--text-muted);
+	opacity: 0.7;
+}
+
+/* Blocked: yellow/warning */
+.pipeline-label--blocked {
+	color: var(--yellow);
 }
 
 /* Progress percentage display */

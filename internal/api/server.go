@@ -1,4 +1,4 @@
-// Package api provides the REST API and SSE server for orc.
+// Package api provides the REST API and WebSocket server for orc.
 package api
 
 import (
@@ -75,7 +75,7 @@ type Server struct {
 	sessionStart time.Time
 }
 
-// Event represents an SSE event.
+// Event represents a WebSocket event.
 type Event struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
