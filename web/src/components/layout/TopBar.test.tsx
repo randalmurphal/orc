@@ -261,3 +261,94 @@ describe('TopBar', () => {
 		});
 	});
 });
+
+// Tests for right panel toggle button (TASK-514)
+describe('right panel toggle button', () => {
+	it('should render the right panel toggle button with correct aria-label', async () => {
+		const { AppShellProvider } = await import('./AppShellContext');
+		const { TooltipProvider } = await import('@/components/ui/Tooltip');
+
+		render(
+			<TooltipProvider>
+				<AppShellProvider>
+					<TopBar />
+				</AppShellProvider>
+			</TooltipProvider>
+		);
+
+		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
+		expect(toggleBtn).toBeInTheDocument();
+	});
+
+	it('should have aria-expanded reflecting panel state', async () => {
+		const { AppShellProvider } = await import('./AppShellContext');
+		const { TooltipProvider } = await import('@/components/ui/Tooltip');
+
+		render(
+			<TooltipProvider>
+				<AppShellProvider>
+					<TopBar />
+				</AppShellProvider>
+			</TooltipProvider>
+		);
+
+		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
+		// Default state is open (isRightPanelOpen: true on desktop)
+		expect(toggleBtn).toHaveAttribute('aria-expanded');
+	});
+
+	it('should call toggleRightPanel when clicked', async () => {
+		const { AppShellProvider } = await import('./AppShellContext');
+		const { TooltipProvider } = await import('@/components/ui/Tooltip');
+
+		function TestWrapper({ children }: { children: React.ReactNode }) {
+			return (
+				<TooltipProvider>
+					<AppShellProvider>{children}</AppShellProvider>
+				</TooltipProvider>
+			);
+		}
+
+		render(
+			<TestWrapper>
+				<TopBar />
+			</TestWrapper>
+		);
+
+		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
+		const initialExpanded = toggleBtn.getAttribute('aria-expanded');
+
+		fireEvent.click(toggleBtn);
+
+		await waitFor(() => {
+			// After click, aria-expanded should have toggled
+			const newExpanded = toggleBtn.getAttribute('aria-expanded');
+			expect(newExpanded).not.toBe(initialExpanded);
+		});
+	});
+
+	it('should show tooltip with keyboard shortcut hint', async () => {
+		const { AppShellProvider } = await import('./AppShellContext');
+		const { TooltipProvider } = await import('@/components/ui/Tooltip');
+		const { userEvent } = await import('@testing-library/user-event');
+
+		render(
+			<TooltipProvider delayDuration={0}>
+				<AppShellProvider>
+					<TopBar />
+				</AppShellProvider>
+			</TooltipProvider>
+		);
+
+		const toggleBtn = screen.getByRole('button', { name: /toggle.*panel/i });
+		const user = userEvent.setup();
+		await user.hover(toggleBtn);
+
+		await waitFor(() => {
+			// Tooltip should mention the keyboard shortcut
+			// Radix tooltips render both visible and aria-hidden content with same text
+			const elements = screen.getAllByText(/Shift.*Alt.*R/i);
+			expect(elements.length).toBeGreaterThan(0);
+		});
+	});
+});

@@ -67,6 +67,7 @@ export type IconName =
 	// Panel icons
 	| 'panel-left-close'
 	| 'panel-left-open'
+	| 'panel-right'
 	// Database
 	| 'database'
 	// Arrow icons
@@ -208,6 +209,7 @@ const icons: Record<IconName, string> = {
 	// Panel icons (sidebar collapse/expand)
 	'panel-left-close': `<rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path d="m16 15-3-3 3-3" />`,
 	'panel-left-open': `<rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path d="m14 9 3 3-3 3" />`,
+	'panel-right': `<rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />`,
 
 	// Database
 	database: `<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />`,
