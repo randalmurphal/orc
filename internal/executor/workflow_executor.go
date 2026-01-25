@@ -91,7 +91,7 @@ type WorkflowExecutor struct {
 
 	// Optional components
 	gitOps             *git.Git
-	publisher          *PublishHelper
+	publisher          *events.PublishHelper
 	tokenPool          *tokenpool.Pool          // For automatic account switching on rate limits
 	automationSvc      *automation.Service      // For automation event triggers
 	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
@@ -121,7 +121,7 @@ func WithWorkflowGitOps(g *git.Git) WorkflowExecutorOption {
 // WithWorkflowPublisher sets the event publisher.
 func WithWorkflowPublisher(p events.Publisher) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
-		we.publisher = NewPublishHelper(p)
+		we.publisher = events.NewPublishHelper(p)
 	}
 }
 
@@ -203,7 +203,7 @@ func NewWorkflowExecutor(
 		workingDir:    workingDir,
 		logger:        slog.Default(),
 		claudePath:    "claude",
-		publisher:     NewPublishHelper(nil), // Initialize with nil-safe wrapper
+		publisher:     events.NewPublishHelper(nil), // Initialize with nil-safe wrapper
 	}
 
 	for _, opt := range opts {

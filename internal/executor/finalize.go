@@ -39,7 +39,7 @@ import (
 type FinalizeExecutor struct {
 	claudePath       string // Path to claude binary
 	gitSvc           *git.Git
-	publisher        *PublishHelper
+	publisher        *events.PublishHelper
 	logger           *slog.Logger
 	config           ExecutorConfig
 	orcConfig        *config.Config
@@ -62,7 +62,7 @@ func WithFinalizeGitSvc(svc *git.Git) FinalizeExecutorOption {
 
 // WithFinalizePublisher sets the event publisher.
 func WithFinalizePublisher(p events.Publisher) FinalizeExecutorOption {
-	return func(e *FinalizeExecutor) { e.publisher = NewPublishHelper(p) }
+	return func(e *FinalizeExecutor) { e.publisher = events.NewPublishHelper(p) }
 }
 
 // WithFinalizeLogger sets the logger.
@@ -119,7 +119,7 @@ func NewFinalizeExecutor(opts ...FinalizeExecutorOption) *FinalizeExecutor {
 	e := &FinalizeExecutor{
 		claudePath: "claude",
 		logger:     slog.Default(),
-		publisher:  NewPublishHelper(nil),
+		publisher:  events.NewPublishHelper(nil),
 		config: ExecutorConfig{
 			MaxIterations:      10, // Lower for finalize - most work is git ops
 			CheckpointInterval: 1,
