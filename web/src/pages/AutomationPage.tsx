@@ -13,43 +13,19 @@ import { useNavigate } from 'react-router-dom';
 import { useWsStatus, useTaskStore } from '@/stores';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button, Icon, StatusIndicator } from '@/components/ui';
+import {
+	listTriggers,
+	getTriggerHistory,
+	runTrigger,
+	toggleTrigger,
+	resetTrigger,
+	type Trigger,
+	type TriggerExecution,
+} from '@/lib/api';
 import type { Task } from '@/lib/types';
 import './AutomationPage.css';
 
-// Types for automation data
-interface Trigger {
-	id: string;
-	type: string;
-	description: string;
-	enabled: boolean;
-	config: TriggerConfig;
-	last_triggered_at: string | null;
-	trigger_count: number;
-	created_at: string;
-}
-
-interface TriggerConfig {
-	metric?: string;
-	threshold?: number;
-	event?: string;
-	operator?: string;
-	value?: number;
-	weights?: string[];
-	categories?: string[];
-	filter?: Record<string, unknown>;
-}
-
-interface TriggerExecution {
-	id: number;
-	trigger_id: string;
-	task_id: string | null;
-	triggered_at: string;
-	trigger_reason: string;
-	status: string;
-	completed_at: string | null;
-	error_message: string | null;
-}
-
+// Types for automation data (local types not in API)
 interface AutomationStats {
 	total_triggers: number;
 	enabled_triggers: number;
@@ -59,48 +35,7 @@ interface AutomationStats {
 	failed_today: number;
 }
 
-// API functions
-async function listTriggers(): Promise<Trigger[]> {
-	const res = await fetch('/api/automation/triggers');
-	if (!res.ok) throw new Error('Failed to fetch triggers');
-	const data = await res.json();
-	return data.triggers || [];
-}
-
-async function getTriggerHistory(triggerId: string, limit = 10): Promise<TriggerExecution[]> {
-	const res = await fetch(`/api/automation/triggers/${triggerId}/history?limit=${limit}`);
-	if (!res.ok) throw new Error('Failed to fetch history');
-	const data = await res.json();
-	return data.executions || [];
-}
-
-async function runTrigger(triggerId: string): Promise<{ task_id: string }> {
-	const res = await fetch(`/api/automation/triggers/${triggerId}/run`, {
-		method: 'POST',
-	});
-	if (!res.ok) {
-		const error = await res.json().catch(() => ({ error: 'Failed to run trigger' }));
-		throw new Error(error.error || 'Failed to run trigger');
-	}
-	return res.json();
-}
-
-async function toggleTrigger(triggerId: string, enabled: boolean): Promise<void> {
-	const res = await fetch(`/api/automation/triggers/${triggerId}`, {
-		method: 'PUT',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ enabled }),
-	});
-	if (!res.ok) throw new Error('Failed to update trigger');
-}
-
-async function resetTrigger(triggerId: string): Promise<void> {
-	const res = await fetch(`/api/automation/triggers/${triggerId}/reset`, {
-		method: 'POST',
-	});
-	if (!res.ok) throw new Error('Failed to reset trigger');
-}
-
+// Local API functions (not centralized as they're page-specific)
 async function getAutomationStats(): Promise<AutomationStats> {
 	const res = await fetch('/api/automation/stats');
 	if (!res.ok) throw new Error('Failed to fetch stats');

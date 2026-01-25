@@ -14,7 +14,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CompletedPanel, formatTokenCount, formatCost } from './CompletedPanel';
+import { CompletedPanel } from './CompletedPanel';
+import { formatNumber, formatCost } from '@/lib/format';
 import type { Task } from '@/lib/types';
 
 // Helper to create mock task
@@ -369,37 +370,37 @@ describe('CompletedPanel', () => {
 	});
 });
 
-describe('formatTokenCount', () => {
+describe('formatNumber', () => {
 	it('returns number as-is for values under 1000', () => {
-		expect(formatTokenCount(0)).toBe('0');
-		expect(formatTokenCount(1)).toBe('1');
-		expect(formatTokenCount(999)).toBe('999');
+		expect(formatNumber(0)).toBe('0');
+		expect(formatNumber(1)).toBe('1');
+		expect(formatNumber(999)).toBe('999');
 	});
 
 	it('formats thousands with K suffix', () => {
-		expect(formatTokenCount(1000)).toBe('1.0K');
-		expect(formatTokenCount(1234)).toBe('1.2K');
-		expect(formatTokenCount(5678)).toBe('5.7K');
-		expect(formatTokenCount(9999)).toBe('10.0K');
+		expect(formatNumber(1000)).toBe('1K');
+		expect(formatNumber(1234)).toBe('1.2K');
+		expect(formatNumber(5678)).toBe('5.7K');
+		expect(formatNumber(9999)).toBe('10K');
 	});
 
-	it('drops decimal for 10K+', () => {
-		expect(formatTokenCount(10000)).toBe('10K');
-		expect(formatTokenCount(12345)).toBe('12K');
-		expect(formatTokenCount(127000)).toBe('127K');
-		expect(formatTokenCount(999999)).toBe('1000K');
+	it('formats larger thousands with K suffix', () => {
+		expect(formatNumber(10000)).toBe('10K');
+		expect(formatNumber(12345)).toBe('12.3K');
+		expect(formatNumber(127000)).toBe('127K');
+		expect(formatNumber(999999)).toBe('1000K');
 	});
 
 	it('formats millions with M suffix', () => {
-		expect(formatTokenCount(1000000)).toBe('1.0M');
-		expect(formatTokenCount(1234567)).toBe('1.2M');
-		expect(formatTokenCount(5678901)).toBe('5.7M');
+		expect(formatNumber(1000000)).toBe('1M');
+		expect(formatNumber(1234567)).toBe('1.2M');
+		expect(formatNumber(5678901)).toBe('5.7M');
 	});
 
-	it('drops decimal for 10M+', () => {
-		expect(formatTokenCount(10000000)).toBe('10M');
-		expect(formatTokenCount(12345678)).toBe('12M');
-		expect(formatTokenCount(100000000)).toBe('100M');
+	it('formats larger millions with M suffix', () => {
+		expect(formatNumber(10000000)).toBe('10M');
+		expect(formatNumber(12345678)).toBe('12.3M');
+		expect(formatNumber(100000000)).toBe('100M');
 	});
 });
 
@@ -421,8 +422,9 @@ describe('formatCost', () => {
 		expect(formatCost(5.5)).toBe('$5.50');
 	});
 
-	it('handles large values', () => {
+	it('formats large values with K/M suffix', () => {
 		expect(formatCost(100.00)).toBe('$100.00');
-		expect(formatCost(1234.56)).toBe('$1234.56');
+		expect(formatCost(1234.56)).toBe('$1.2K');
+		expect(formatCost(1500000)).toBe('$1.50M');
 	});
 });

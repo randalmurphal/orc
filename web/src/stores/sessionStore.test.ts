@@ -2,10 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
 	useSessionStore,
 	formatDuration,
-	formatCost,
-	formatTokens,
 	STORAGE_KEYS,
 } from './sessionStore';
+import { formatCost } from '@/lib/format';
 
 describe('SessionStore', () => {
 	beforeEach(() => {
@@ -67,29 +66,7 @@ describe('SessionStore', () => {
 			});
 		});
 
-		describe('formatTokens', () => {
-			it('should format small numbers without suffix', () => {
-				expect(formatTokens(500)).toBe('500');
-				expect(formatTokens(0)).toBe('0');
-			});
-
-			it('should format thousands with K suffix', () => {
-				expect(formatTokens(1000)).toBe('1K');
-				expect(formatTokens(125000)).toBe('125K');
-				expect(formatTokens(847000)).toBe('847K');
-			});
-
-			it('should round K values', () => {
-				expect(formatTokens(1500)).toBe('2K');
-				expect(formatTokens(1499)).toBe('1K');
-			});
-
-			it('should format millions with M suffix', () => {
-				expect(formatTokens(1000000)).toBe('1.0M');
-				expect(formatTokens(1200000)).toBe('1.2M');
-				expect(formatTokens(12500000)).toBe('12.5M');
-			});
-		});
+		// formatNumber tests are in @/lib/format.test.ts
 	});
 
 	describe('session lifecycle', () => {
@@ -308,11 +285,12 @@ describe('SessionStore', () => {
 		it('should throw error on pause failure', async () => {
 			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 				ok: false,
-				text: () => Promise.resolve('Server error'),
+				statusText: 'Internal Server Error',
+				json: () => Promise.resolve({ error: 'Server error' }),
 			});
 
 			await expect(useSessionStore.getState().pauseAll()).rejects.toThrow(
-				'Failed to pause all tasks: Server error'
+				'Server error'
 			);
 			expect(useSessionStore.getState().isPaused).toBe(false);
 		});
@@ -322,11 +300,12 @@ describe('SessionStore', () => {
 
 			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
 				ok: false,
-				text: () => Promise.resolve('Server error'),
+				statusText: 'Internal Server Error',
+				json: () => Promise.resolve({ error: 'Server error' }),
 			});
 
 			await expect(useSessionStore.getState().resumeAll()).rejects.toThrow(
-				'Failed to resume all tasks: Server error'
+				'Server error'
 			);
 			expect(useSessionStore.getState().isPaused).toBe(true);
 		});
@@ -524,7 +503,7 @@ describe('SessionStore', () => {
 			});
 
 			const state = useSessionStore.getState();
-			expect(state.formattedTokens).toBe('128K');
+			expect(state.formattedTokens).toBe('127.5K'); // 127500 / 1000 = 127.5
 			expect(state.formattedCost).toBe('$2.51');
 			// Duration should be computed from startTime
 			expect(state.duration).toMatch(/^\d+[hms]/);

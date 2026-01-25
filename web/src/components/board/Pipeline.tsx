@@ -4,11 +4,8 @@
  */
 
 import { forwardRef, useMemo, type HTMLAttributes } from 'react';
-import { Check, X } from 'lucide-react';
-import { Icon } from '../core/Icon';
+import { Check, X, Pause, AlertCircle } from 'lucide-react';
 import './Pipeline.css';
-
-export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'blocked';
 
 export interface PipelineProps extends HTMLAttributes<HTMLDivElement> {
 	/** Array of phase names to display */
@@ -25,10 +22,13 @@ export interface PipelineProps extends HTMLAttributes<HTMLDivElement> {
 	size?: 'compact' | 'default';
 }
 
+/** Visual status type for pipeline rendering */
+type PipelineVisualStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'paused' | 'interrupted' | 'blocked';
+
 /** Internal representation of a phase with computed status. */
 interface PhaseState {
 	name: string;
-	status: PhaseStatus;
+	status: PipelineVisualStatus;
 	progress?: number;
 }
 
@@ -41,6 +41,16 @@ interface PhaseStatesResult {
 /**
  * Computes the status of each phase based on current, completed, and failed phases.
  * Returns both phase states and completed count in a single pass.
+ *
+ * Handles all backend PhaseStatus values:
+ * - pending: not started yet (gray)
+ * - running: currently executing (pulsing blue)
+ * - completed: finished successfully (green)
+ * - failed: encountered error (red)
+ * - skipped: intentionally skipped (gray with indicator)
+ * - paused: temporarily stopped (yellow)
+ * - interrupted: execution was interrupted (orange)
+ * - blocked: waiting on external dependency (gray with lock)
  */
 function computePhaseStates(
 	phases: string[],
@@ -80,9 +90,24 @@ function computePhaseStates(
 function getAriaValueText(phaseStates: PhaseState[], completedCount: number): string {
 	const runningPhase = phaseStates.find((p) => p.status === 'running');
 	const failedPhase = phaseStates.find((p) => p.status === 'failed');
+	const pausedPhase = phaseStates.find((p) => p.status === 'paused');
+	const interruptedPhase = phaseStates.find((p) => p.status === 'interrupted');
+	const blockedPhase = phaseStates.find((p) => p.status === 'blocked');
 
 	if (failedPhase) {
 		return `${failedPhase.name} phase failed. ${completedCount} of ${phaseStates.length} phases completed.`;
+	}
+
+	if (pausedPhase) {
+		return `${pausedPhase.name} phase paused. ${completedCount} of ${phaseStates.length} phases completed.`;
+	}
+
+	if (interruptedPhase) {
+		return `${interruptedPhase.name} phase interrupted. ${completedCount} of ${phaseStates.length} phases completed.`;
+	}
+
+	if (blockedPhase) {
+		return `${blockedPhase.name} phase blocked. ${completedCount} of ${phaseStates.length} phases completed.`;
 	}
 
 	if (runningPhase) {
@@ -184,9 +209,23 @@ export const Pipeline = forwardRef<HTMLDivElement, PipelineProps>(
 						</div>
 						<span className={`pipeline-label pipeline-label--${phase.status}`}>
 							{phase.status === 'completed' && (
-								<Icon name={Check} size="xs" color="success" aria-hidden />
+								<Check size={12} className="pipeline-icon pipeline-icon--success" aria-hidden="true" />
 							)}
-							{phase.status === 'failed' && <Icon name={X} size="xs" color="error" aria-hidden />}
+							{phase.status === 'skipped' && (
+								<Check size={12} className="pipeline-icon pipeline-icon--muted" aria-hidden="true" />
+							)}
+							{phase.status === 'failed' && (
+								<X size={12} className="pipeline-icon pipeline-icon--error" aria-hidden="true" />
+							)}
+							{phase.status === 'paused' && (
+								<Pause size={12} className="pipeline-icon pipeline-icon--warning" aria-hidden="true" />
+							)}
+							{phase.status === 'interrupted' && (
+								<AlertCircle size={12} className="pipeline-icon pipeline-icon--warning" aria-hidden="true" />
+							)}
+							{phase.status === 'blocked' && (
+								<AlertCircle size={12} className="pipeline-icon pipeline-icon--muted" aria-hidden="true" />
+							)}
 							{phase.name}
 							{phase.status === 'running' && phase.progress !== undefined && (
 								<span className="pipeline-progress">{phase.progress}%</span>

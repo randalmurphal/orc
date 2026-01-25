@@ -2,22 +2,13 @@ import { useState, useEffect, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Icon } from '@/components/ui';
 import type { IconName } from '@/components/ui';
+import {
+	listNotifications,
+	dismissNotification as apiDismissNotification,
+	dismissAllNotifications,
+	type Notification,
+} from '@/lib/api';
 import './NotificationBar.css';
-
-interface Notification {
-	id: string;
-	type: string;
-	title: string;
-	message?: string;
-	source_type?: string;
-	source_id?: string;
-	created_at: string;
-	expires_at?: string;
-}
-
-interface NotificationResponse {
-	notifications: Notification[];
-}
 
 /**
  * NotificationBar displays active notifications at the top of all pages.
@@ -37,10 +28,9 @@ export function NotificationBar(): ReactElement | null {
 
 		const fetchNotifications = async () => {
 			try {
-				const res = await fetch('/api/notifications');
-				if (res.ok && isMounted) {
-					const data: NotificationResponse = await res.json();
-					setNotifications(data.notifications || []);
+				const data = await listNotifications();
+				if (isMounted) {
+					setNotifications(data);
 				}
 			} catch (error) {
 				if (isMounted) {
@@ -58,15 +48,11 @@ export function NotificationBar(): ReactElement | null {
 		};
 	}, []);
 
-	const dismissNotification = async (id: string) => {
+	const handleDismissNotification = async (id: string) => {
 		setDismissing(id);
 		try {
-			const res = await fetch(`/api/notifications/${id}/dismiss`, {
-				method: 'PUT',
-			});
-			if (res.ok) {
-				setNotifications((prev: Notification[]) => prev.filter((n: Notification) => n.id !== id));
-			}
+			await apiDismissNotification(id);
+			setNotifications((prev: Notification[]) => prev.filter((n: Notification) => n.id !== id));
 		} catch (error) {
 			console.error('Failed to dismiss notification:', error);
 		} finally {
@@ -76,12 +62,8 @@ export function NotificationBar(): ReactElement | null {
 
 	const dismissAll = async () => {
 		try {
-			const res = await fetch('/api/notifications/dismiss-all', {
-				method: 'PUT',
-			});
-			if (res.ok) {
-				setNotifications([]);
-			}
+			await dismissAllNotifications();
+			setNotifications([]);
 		} catch (error) {
 			console.error('Failed to dismiss all notifications:', error);
 		}
@@ -131,7 +113,7 @@ export function NotificationBar(): ReactElement | null {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => dismissNotification(pending[0].id)}
+								onClick={() => handleDismissNotification(pending[0].id)}
 								loading={dismissing === pending[0].id}
 							>
 								Dismiss
@@ -165,7 +147,7 @@ export function NotificationBar(): ReactElement | null {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => dismissNotification(failed[0].id)}
+								onClick={() => handleDismissNotification(failed[0].id)}
 								loading={dismissing === failed[0].id}
 							>
 								Dismiss
@@ -192,7 +174,7 @@ export function NotificationBar(): ReactElement | null {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => dismissNotification(blocked[0].id)}
+								onClick={() => handleDismissNotification(blocked[0].id)}
 								loading={dismissing === blocked[0].id}
 							>
 								Dismiss

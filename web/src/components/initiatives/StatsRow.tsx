@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * StatsRow component - displays key initiative statistics in a horizontal row.
  * Shows Active Initiatives, Total Tasks, Completion Rate, and Total Cost.
@@ -6,6 +5,12 @@
  */
 
 import { forwardRef, useEffect, useState, type HTMLAttributes } from 'react';
+import {
+	formatNumber,
+	formatCost,
+	formatPercentage,
+	formatTrend,
+} from '@/lib/format';
 import './StatsRow.css';
 
 // =============================================================================
@@ -38,61 +43,6 @@ export interface StatCardProps {
 	trend?: number;
 	color?: 'default' | 'green' | 'amber' | 'red' | 'purple';
 	loading?: boolean;
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Formats large numbers into abbreviated form with K/M suffixes.
- */
-export function formatNumber(value: number): string {
-	const absValue = Math.abs(value);
-
-	if (absValue >= 1_000_000) {
-		const formatted = (value / 1_000_000).toFixed(1);
-		const cleaned = formatted.replace(/\.0+$/, '');
-		return `${cleaned}M`;
-	}
-
-	if (absValue >= 1_000) {
-		const formatted = (value / 1_000).toFixed(1);
-		const cleaned = formatted.replace(/\.0+$/, '');
-		return `${cleaned}K`;
-	}
-
-	return value.toString();
-}
-
-/**
- * Formats a dollar amount with $ prefix.
- */
-export function formatCost(value: number): string {
-	if (value >= 1_000_000) {
-		return `$${(value / 1_000_000).toFixed(2)}M`;
-	}
-	if (value >= 1_000) {
-		const formatted = (value / 1_000).toFixed(1);
-		const cleaned = formatted.replace(/\.0+$/, '');
-		return `$${cleaned}K`;
-	}
-	return `$${value.toFixed(2)}`;
-}
-
-/**
- * Formats a percentage value.
- */
-export function formatPercentage(value: number): string {
-	return `${Math.round(value)}%`;
-}
-
-/**
- * Formats a trend value with + or - prefix.
- */
-export function formatTrend(value: number): string {
-	if (value > 0) return `+${value}`;
-	return value.toString();
 }
 
 // =============================================================================

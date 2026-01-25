@@ -5,6 +5,7 @@
 
 import type { ConnectionStatus } from '@/lib/types';
 import type { DashboardStats as DashboardStatsType } from '@/lib/api';
+import { formatNumber } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
 import './DashboardStats.css';
 
@@ -13,16 +14,6 @@ interface DashboardStatsProps {
 	wsStatus: ConnectionStatus;
 	onFilterClick: (status: string) => void;
 	onDependencyFilterClick?: (status: string) => void;
-}
-
-function formatTokens(tokens: number): string {
-	if (tokens >= 1_000_000) {
-		return `${(tokens / 1_000_000).toFixed(1)}M`;
-	}
-	if (tokens >= 1_000) {
-		return `${(tokens / 1_000).toFixed(1)}K`;
-	}
-	return String(tokens);
 }
 
 export function DashboardStats({
@@ -57,7 +48,7 @@ export function DashboardStats({
 
 	const tokenTooltip =
 		cacheTotal > 0
-			? `Total: ${stats.tokens.toLocaleString()}\nCached: ${cacheTotal.toLocaleString()} (${formatTokens(stats.cache_creation_input_tokens || 0)} creation, ${formatTokens(stats.cache_read_input_tokens || 0)} read)`
+			? `Total: ${stats.tokens.toLocaleString()}\nCached: ${cacheTotal.toLocaleString()} (${formatNumber(stats.cache_creation_input_tokens || 0)} creation, ${formatNumber(stats.cache_read_input_tokens || 0)} read)`
 			: `Total: ${stats.tokens.toLocaleString()}`;
 
 	return (
@@ -110,9 +101,9 @@ export function DashboardStats({
 						<Icon name="dollar" size={24} />
 					</div>
 					<div className="stat-content">
-						<span className="stat-value">{formatTokens(stats.tokens)}</span>
+						<span className="stat-value">{formatNumber(stats.tokens)}</span>
 						<span className="stat-label">
-							Tokens{cacheTotal > 0 ? ` (${formatTokens(cacheTotal)} cached)` : ''}
+							Tokens{cacheTotal > 0 ? ` (${formatNumber(cacheTotal)} cached)` : ''}
 						</span>
 					</div>
 				</div>

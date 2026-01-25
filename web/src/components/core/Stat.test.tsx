@@ -1,12 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { createRef } from 'react';
-import {
-	Stat,
-	formatLargeNumber,
-	type StatValueColor,
-	type StatIconColor,
-} from './Stat';
+import { Stat, type StatValueColor, type StatIconColor } from './Stat';
+import { formatLargeNumber } from '@/lib/format';
 
 describe('formatLargeNumber', () => {
 	it('formats billions with B suffix', () => {

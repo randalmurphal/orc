@@ -19,11 +19,13 @@ import {
 	type StatsPeriod,
 } from '@/stores/statsStore';
 import { ActivityHeatmap, type ActivityData } from './ActivityHeatmap';
-import { TasksBarChart, type DayData } from './TasksBarChart';
+import { TasksBarChart } from './TasksBarChart';
+import type { DayData } from './barChartUtils';
 import { OutcomesDonut } from './OutcomesDonut';
 import { LeaderboardTable, type LeaderboardItem } from './LeaderboardTable';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { formatNumber, formatCost } from '@/lib/format';
 import './StatsView.css';
 
 // =============================================================================
@@ -43,26 +45,6 @@ interface StatCardProps {
 	iconColor: StatCardColor;
 	change: number | null;
 	changeLabel?: string;
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/** Format token count to human-readable string (e.g., "2.4M") */
-function formatTokens(tokens: number): string {
-	if (tokens >= 1_000_000) {
-		return `${(tokens / 1_000_000).toFixed(1)}M`;
-	}
-	if (tokens >= 1_000) {
-		return `${(tokens / 1_000).toFixed(1)}K`;
-	}
-	return tokens.toString();
-}
-
-/** Format cost to USD string (e.g., "$47.82") */
-function formatCost(cost: number): string {
-	return `$${cost.toFixed(2)}`;
 }
 
 /** Format seconds to mm:ss format (e.g., "3:24") */
@@ -416,7 +398,7 @@ export function StatsView({ className = '' }: StatsViewProps) {
 							/>
 							<StatCard
 								label="Tokens Used"
-								value={formatTokens(summaryStats.tokensUsed)}
+								value={formatNumber(summaryStats.tokensUsed)}
 								icon={<Icon name="zap" size={12} />}
 								iconColor="amber"
 								change={weeklyChanges?.tokens ?? null}

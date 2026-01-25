@@ -13,7 +13,8 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 } from 'react';
-import { Badge, formatLargeNumber } from '../core';
+import { Badge } from '../core';
+import { formatLargeNumber } from '@/lib/format';
 import './AgentCard.css';
 
 // =============================================================================

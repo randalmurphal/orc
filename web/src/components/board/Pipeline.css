@@ -65,6 +65,25 @@
 	background: var(--red);
 }
 
+/* Paused: solid yellow, full width */
+.pipeline-bar-fill--paused {
+	width: 100%;
+	background: var(--yellow);
+}
+
+/* Interrupted: solid orange, full width */
+.pipeline-bar-fill--interrupted {
+	width: 100%;
+	background: var(--orange, var(--yellow));
+}
+
+/* Blocked: solid muted, partial width */
+.pipeline-bar-fill--blocked {
+	width: 50%;
+	background: var(--text-muted);
+	opacity: 0.5;
+}
+
 /* Pending: no fill (empty bar) */
 .pipeline-bar-fill--pending {
 	width: 0;
@@ -119,6 +138,16 @@
 	color: var(--red);
 }
 
+/* Paused: yellow */
+.pipeline-label--paused {
+	color: var(--yellow);
+}
+
+/* Interrupted: orange/warning */
+.pipeline-label--interrupted {
+	color: var(--orange, var(--yellow));
+}
+
 /* Skipped: muted gray */
 .pipeline-label--skipped {
 	color: var(--text-muted);
@@ -166,4 +195,29 @@
 		width: 70%;
 		opacity: 0.7;
 	}
+}
+
+/* =============================================================================
+   Pipeline Icons
+   Status indicator icons in labels
+   ============================================================================= */
+
+.pipeline-icon {
+	flex-shrink: 0;
+}
+
+.pipeline-icon--success {
+	color: var(--green);
+}
+
+.pipeline-icon--error {
+	color: var(--red);
+}
+
+.pipeline-icon--warning {
+	color: var(--yellow);
+}
+
+.pipeline-icon--muted {
+	color: var(--text-muted);
 }

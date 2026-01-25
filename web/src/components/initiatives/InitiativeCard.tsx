@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * InitiativeCard component - displays individual initiative information in a card layout.
  * Shows initiative metadata (icon, title, description, status), progress tracking,
@@ -7,6 +6,7 @@
 
 import { forwardRef, useCallback, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { formatNumber, formatCost } from '@/lib/format';
 import type { Initiative, InitiativeStatus } from '../../lib/types';
 import './InitiativeCard.css';
 
@@ -85,27 +85,6 @@ export function getIconColor(status: InitiativeStatus): InitiativeColorVariant {
 	}
 }
 
-/**
- * Formats a number with K/M suffix for large values.
- */
-export function formatTokens(value: number): string {
-	if (value >= 1_000_000) {
-		const formatted = (value / 1_000_000).toFixed(1);
-		return `${formatted.replace(/\.0$/, '')}M`;
-	}
-	if (value >= 1_000) {
-		const formatted = (value / 1_000).toFixed(0);
-		return `${formatted}K`;
-	}
-	return value.toString();
-}
-
-/**
- * Formats cost as dollar amount.
- */
-export function formatCostDisplay(value: number): string {
-	return `$${value.toFixed(2)}`;
-}
 
 /**
  * Checks if initiative should render with reduced opacity.
@@ -323,13 +302,13 @@ export const InitiativeCard = forwardRef<HTMLDivElement, InitiativeCardProps>(
 						{costSpent !== undefined && (
 							<div className="initiative-card-meta-item">
 								<DollarIcon />
-								<span>{formatCostDisplay(costSpent)} spent</span>
+								<span>{formatCost(costSpent)} spent</span>
 							</div>
 						)}
 						{tokensUsed !== undefined && (
 							<div className="initiative-card-meta-item">
 								<LightningIcon />
-								<span>{formatTokens(tokensUsed)} tokens</span>
+								<span>{formatNumber(tokensUsed)} tokens</span>
 							</div>
 						)}
 					</div>

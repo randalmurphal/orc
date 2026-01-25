@@ -2486,3 +2486,104 @@ export async function getEvents(options: GetEventsOptions = {}): Promise<EventsL
 	const query = params.toString() ? `?${params.toString()}` : '';
 	return fetchJSON<EventsListResponse>(`/events${query}`);
 }
+
+// Automation API
+export interface TriggerConfig {
+	metric?: string;
+	threshold?: number;
+	event?: string;
+	operator?: string;
+	value?: number;
+	weights?: string[];
+	categories?: string[];
+	filter?: Record<string, unknown>;
+}
+
+export interface Trigger {
+	id: string;
+	type: string;
+	description: string;
+	enabled: boolean;
+	config: TriggerConfig;
+	last_triggered_at: string | null;
+	trigger_count: number;
+	created_at: string;
+}
+
+export interface TriggerExecution {
+	id: number;
+	trigger_id: string;
+	task_id: string | null;
+	triggered_at: string;
+	trigger_reason: string;
+	status: string;
+	completed_at: string | null;
+	error_message: string | null;
+}
+
+export async function listTriggers(): Promise<Trigger[]> {
+	const data = await fetchJSON<{ triggers: Trigger[] }>('/automation/triggers');
+	return data.triggers || [];
+}
+
+export async function getTriggerHistory(
+	triggerId: string,
+	limit = 10
+): Promise<TriggerExecution[]> {
+	const data = await fetchJSON<{ executions: TriggerExecution[] }>(
+		`/automation/triggers/${triggerId}/history?limit=${limit}`
+	);
+	return data.executions || [];
+}
+
+export async function runTrigger(triggerId: string): Promise<{ task_id: string }> {
+	return fetchJSON<{ task_id: string }>(`/automation/triggers/${triggerId}/run`, {
+		method: 'POST',
+	});
+}
+
+export async function toggleTrigger(triggerId: string, enabled: boolean): Promise<void> {
+	await fetchJSON(`/automation/triggers/${triggerId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ enabled }),
+	});
+}
+
+export async function resetTrigger(triggerId: string): Promise<void> {
+	await fetchJSON(`/automation/triggers/${triggerId}/reset`, { method: 'POST' });
+}
+
+// Notifications API
+export interface Notification {
+	id: string;
+	type: string;
+	title: string;
+	message?: string;
+	source_type?: string;
+	source_id?: string;
+	created_at: string;
+	expires_at?: string;
+}
+
+export async function listNotifications(): Promise<Notification[]> {
+	const data = await fetchJSON<{ notifications: Notification[] }>('/notifications');
+	return data.notifications || [];
+}
+
+export async function dismissNotification(id: string): Promise<void> {
+	await fetchJSON(`/notifications/${id}/dismiss`, { method: 'POST' });
+}
+
+export async function dismissAllNotifications(): Promise<void> {
+	await fetchJSON('/notifications/dismiss-all', { method: 'POST' });
+}
+
+// Session API
+export async function pauseAllTasks(): Promise<void> {
+	await fetchJSON('/tasks/pause-all', { method: 'POST' });
+}
+
+export async function resumeAllTasks(): Promise<void> {
+	await fetchJSON('/tasks/resume-all', { method: 'POST' });
+}

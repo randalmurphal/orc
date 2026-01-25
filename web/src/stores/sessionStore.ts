@@ -1,13 +1,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { pauseAllTasks, resumeAllTasks } from '@/lib/api';
+import { formatNumber, formatCost } from '@/lib/format';
 
 // Storage key for session persistence
 const SESSION_ID_KEY = 'orc-session-id';
 const SESSION_START_KEY = 'orc-session-start';
-
-// API endpoints
-const PAUSE_ALL_ENDPOINT = '/api/tasks/pause-all';
-const RESUME_ALL_ENDPOINT = '/api/tasks/resume-all';
 
 // Types
 export interface SessionMetrics {
@@ -100,27 +98,7 @@ export function formatDuration(startTime: Date | null): string {
 	return `${diffSeconds}s`;
 }
 
-/**
- * Format cost as currency
- * @returns "$1.23" or "$0.00"
- */
-export function formatCost(cost: number): string {
-	return `$${cost.toFixed(2)}`;
-}
-
-/**
- * Format token count with suffixes
- * @returns "125K" or "1.2M" or "500"
- */
-export function formatTokens(tokens: number): string {
-	if (tokens >= 1_000_000) {
-		return `${(tokens / 1_000_000).toFixed(1)}M`;
-	}
-	if (tokens >= 1_000) {
-		return `${Math.round(tokens / 1_000)}K`;
-	}
-	return String(tokens);
-}
+// Format utilities imported from @/lib/format
 
 // localStorage helpers
 
@@ -200,7 +178,7 @@ function computeDerivedState(state: SessionState): Partial<SessionState> {
 	return {
 		duration: formatDuration(state.startTime),
 		formattedCost: formatCost(state.totalCost),
-		formattedTokens: formatTokens(state.totalTokens),
+		formattedTokens: formatNumber(state.totalTokens),
 	};
 }
 
@@ -257,30 +235,12 @@ export const useSessionStore = create<SessionStore>()(
 
 			// Control
 			pauseAll: async () => {
-				const response = await fetch(PAUSE_ALL_ENDPOINT, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-				});
-
-				if (!response.ok) {
-					const error = await response.text();
-					throw new Error(`Failed to pause all tasks: ${error}`);
-				}
-
+				await pauseAllTasks();
 				set({ isPaused: true });
 			},
 
 			resumeAll: async () => {
-				const response = await fetch(RESUME_ALL_ENDPOINT, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-				});
-
-				if (!response.ok) {
-					const error = await response.text();
-					throw new Error(`Failed to resume all tasks: ${error}`);
-				}
-
+				await resumeAllTasks();
 				set({ isPaused: false });
 			},
 
@@ -316,7 +276,7 @@ export const useSessionStore = create<SessionStore>()(
 						totalTokens: newTotalTokens,
 						totalCost: newTotalCost,
 						formattedCost: formatCost(newTotalCost),
-						formattedTokens: formatTokens(newTotalTokens),
+						formattedTokens: formatNumber(newTotalTokens),
 					};
 				});
 			},

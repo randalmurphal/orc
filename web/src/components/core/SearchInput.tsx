@@ -10,7 +10,7 @@ import {
 	type KeyboardEvent,
 	type ChangeEvent,
 } from 'react';
-import './Input.css';
+import '../ui/Input.css';
 
 export interface SearchInputProps
 	extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange'> {

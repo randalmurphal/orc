@@ -44,7 +44,7 @@ describe('Pipeline', () => {
 
 			// Check for check icons in completed phases
 			completedSteps.forEach((step) => {
-				const icon = step.querySelector('.icon');
+				const icon = step.querySelector('.pipeline-icon');
 				expect(icon).toBeInTheDocument();
 			});
 
@@ -65,7 +65,7 @@ describe('Pipeline', () => {
 			const completedSteps = container.querySelectorAll('.pipeline-step--completed');
 			expect(completedSteps).toHaveLength(2);
 
-			const activeSteps = container.querySelectorAll('.pipeline-step--active');
+			const activeSteps = container.querySelectorAll('.pipeline-step--running');
 			expect(activeSteps).toHaveLength(1);
 		});
 	});
@@ -76,14 +76,14 @@ describe('Pipeline', () => {
 				<Pipeline phases={DEFAULT_PHASES} currentPhase="Code" completedPhases={['Plan']} />
 			);
 
-			const activeStep = container.querySelector('.pipeline-step--active');
+			const activeStep = container.querySelector('.pipeline-step--running');
 			expect(activeStep).toBeInTheDocument();
 
-			const activeLabel = container.querySelector('.pipeline-label--active');
+			const activeLabel = container.querySelector('.pipeline-label--running');
 			expect(activeLabel).toBeInTheDocument();
 			expect(activeLabel).toHaveTextContent('Code');
 
-			const activeFill = container.querySelector('.pipeline-bar-fill--active');
+			const activeFill = container.querySelector('.pipeline-bar-fill--running');
 			expect(activeFill).toBeInTheDocument();
 		});
 
@@ -110,7 +110,7 @@ describe('Pipeline', () => {
 				/>
 			);
 
-			const activeFill = container.querySelector('.pipeline-bar-fill--active') as HTMLElement;
+			const activeFill = container.querySelector('.pipeline-bar-fill--running') as HTMLElement;
 			expect(activeFill.style.width).toBe('60%');
 		});
 
@@ -160,7 +160,7 @@ describe('Pipeline', () => {
 			expect(failedLabel).toHaveTextContent('Test');
 
 			// Check for X icon
-			const icon = failedStep?.querySelector('.icon');
+			const icon = failedStep?.querySelector('.pipeline-icon');
 			expect(icon).toBeInTheDocument();
 		});
 
@@ -317,7 +317,7 @@ describe('Pipeline', () => {
 			expect(completedSteps).toHaveLength(1);
 
 			// No active step since current phase doesn't match any
-			const activeSteps = container.querySelectorAll('.pipeline-step--active');
+			const activeSteps = container.querySelectorAll('.pipeline-step--running');
 			expect(activeSteps).toHaveLength(0);
 
 			// Remaining should be pending
@@ -429,7 +429,7 @@ describe('Pipeline', () => {
 			expect(container.querySelectorAll('.pipeline-step--completed')).toHaveLength(2);
 
 			// 1 active with progress
-			const activeStep = container.querySelector('.pipeline-step--active');
+			const activeStep = container.querySelector('.pipeline-step--running');
 			expect(activeStep).toBeInTheDocument();
 			expect(screen.getByText('75%')).toBeInTheDocument();
 

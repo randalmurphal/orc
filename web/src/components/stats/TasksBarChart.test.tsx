@@ -14,12 +14,12 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
+import { TasksBarChart } from './TasksBarChart';
 import {
-	TasksBarChart,
 	calculateBarHeight,
 	defaultWeekData,
 	type DayData,
-} from './TasksBarChart';
+} from './barChartUtils';
 import { TooltipProvider } from '../ui/Tooltip';
 
 // Mock browser APIs not available in jsdom

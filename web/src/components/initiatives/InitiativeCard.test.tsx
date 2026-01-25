@@ -6,8 +6,6 @@ import {
 	extractEmoji,
 	getStatusColor,
 	getIconColor,
-	formatTokens,
-	formatCostDisplay,
 	isPaused,
 } from './InitiativeCard';
 import { TooltipProvider } from '@/components/ui/Tooltip';
@@ -108,32 +106,7 @@ describe('getIconColor', () => {
 	});
 });
 
-describe('formatTokens', () => {
-	it('formats millions with M suffix', () => {
-		expect(formatTokens(1_500_000)).toBe('1.5M');
-		expect(formatTokens(2_000_000)).toBe('2M');
-	});
-
-	it('formats thousands with K suffix', () => {
-		expect(formatTokens(127_000)).toBe('127K');
-		expect(formatTokens(542_000)).toBe('542K');
-		expect(formatTokens(891_000)).toBe('891K');
-	});
-
-	it('returns small numbers as-is', () => {
-		expect(formatTokens(0)).toBe('0');
-		expect(formatTokens(999)).toBe('999');
-	});
-});
-
-describe('formatCostDisplay', () => {
-	it('formats cost with $ prefix and 2 decimal places', () => {
-		expect(formatCostDisplay(2.34)).toBe('$2.34');
-		expect(formatCostDisplay(18.45)).toBe('$18.45');
-		expect(formatCostDisplay(27.03)).toBe('$27.03');
-		expect(formatCostDisplay(0)).toBe('$0.00');
-	});
-});
+// Format utility tests are in @/lib/format.test.ts
 
 describe('isPaused', () => {
 	it('returns true for archived status', () => {
