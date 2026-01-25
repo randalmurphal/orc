@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // mockPublisher captures published events for testing.
@@ -377,10 +377,13 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 	mock := newMockPublisher()
 	ep := NewPublishHelper(mock)
 
-	s := state.New("TASK-001")
-	s.CurrentPhase = "implement"
+	exec := &task.ExecutionState{
+		Phases:           make(map[string]*task.PhaseState),
+		CurrentIteration: 0,
+	}
+	exec.StartPhase("implement")
 
-	ep.State("TASK-001", s)
+	ep.State("TASK-001", exec)
 
 	ev := mock.lastEvent()
 	if ev == nil {
@@ -391,15 +394,16 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 		t.Errorf("expected EventState, got %v", ev.Type)
 	}
 
-	publishedState, ok := ev.Data.(*state.State)
+	publishedExec, ok := ev.Data.(*task.ExecutionState)
 	if !ok {
-		t.Fatalf("expected *state.State data, got %T", ev.Data)
+		t.Fatalf("expected *task.ExecutionState data, got %T", ev.Data)
 	}
-	if publishedState.TaskID != "TASK-001" {
-		t.Errorf("expected TaskID TASK-001, got %s", publishedState.TaskID)
+	if publishedExec.Phases == nil {
+		t.Errorf("expected Phases to be non-nil")
 	}
-	if publishedState.CurrentPhase != "implement" {
-		t.Errorf("expected phase implement, got %s", publishedState.CurrentPhase)
+	// Check that implement phase exists and is running
+	if ps, ok := publishedExec.Phases["implement"]; !ok || ps.Status != task.PhaseStatusRunning {
+		t.Errorf("expected implement phase with status running")
 	}
 }
 

@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -280,12 +279,12 @@ func (we *WorkflowExecutor) executePhase(
 	phaseModel := we.resolvePhaseModel(tmpl, phase)
 	we.recordCostToGlobal(t, tmpl.ID, result, phaseModel, time.Since(startTime))
 
-	// Update execution state if available
-	if we.execState != nil {
-		we.execState.CompletePhase(tmpl.ID, "") // Empty commit SHA for workflow phases
-		we.execState.AddCost(result.CostUSD)
-		if err := we.backend.SaveState(we.execState); err != nil {
-			we.logger.Warn("failed to save execution state", "error", err)
+	// Update execution state if available (Task-centric approach)
+	if we.task != nil {
+		we.task.Execution.CompletePhase(tmpl.ID, "") // Empty commit SHA for workflow phases
+		we.task.Execution.AddCost(we.task.CurrentPhase, result.CostUSD)
+		if err := we.backend.SaveTask(we.task); err != nil {
+			we.logger.Warn("failed to save task execution state", "error", err)
 		}
 	}
 
@@ -318,9 +317,9 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	// If the phase was interrupted/running and has a stored session ID,
 	// we should resume that session instead of starting fresh
 	shouldResume := false
-	if we.execState != nil {
-		if ps, ok := we.execState.Phases[cfg.PhaseID]; ok {
-			if ps.Status == state.StatusInterrupted || ps.Status == state.StatusRunning {
+	if we.task != nil {
+		if ps, ok := we.task.Execution.Phases[cfg.PhaseID]; ok {
+			if ps.Status == task.PhaseStatusInterrupted || ps.Status == task.PhaseStatusRunning {
 				// Use the stored session ID if available for proper resume
 				if ps.SessionID != "" {
 					sessionID = ps.SessionID
@@ -394,6 +393,15 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 		if err != nil {
 			return result, fmt.Errorf("turn %d: %w", i+1, err)
+		}
+
+		// Save session ID to phase state for resume capability
+		// Do this after first successful turn to capture the Claude session ID
+		if i == 0 && we.task != nil && turnResult.SessionID != "" {
+			we.task.Execution.SetPhaseSessionID(cfg.PhaseID, turnResult.SessionID)
+			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
+			}
 		}
 
 		// Accumulate tokens

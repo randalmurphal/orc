@@ -207,9 +207,9 @@ func TestIsPIDAlive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isPIDAlive(tt.pid)
+			result := IsPIDAlive(tt.pid)
 			if result != tt.expected {
-				t.Errorf("isPIDAlive(%d) = %v, want %v", tt.pid, result, tt.expected)
+				t.Errorf("IsPIDAlive(%d) = %v, want %v", tt.pid, result, tt.expected)
 			}
 		})
 	}

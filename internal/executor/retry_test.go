@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/state"
 )
 
 func TestSaveRetryContextFile_WritesToDisk(t *testing.T) {
@@ -70,49 +69,6 @@ func TestSaveRetryContextFile_CreatesTaskDirectory(t *testing.T) {
 	// Verify directory was created
 	if _, err := os.Stat(taskDir); os.IsNotExist(err) {
 		t.Error("task directory was not created")
-	}
-}
-
-func TestLoadRetryContextForPhase_ReadsFromState(t *testing.T) {
-	t.Parallel()
-	s := state.New("TASK-001")
-	s.SetRetryContext("test", "implement", "Tests failed", "Error output", 1)
-
-	context := LoadRetryContextForPhase(s)
-
-	if context == "" {
-		t.Error("LoadRetryContextForPhase should return non-empty context")
-	}
-	if !strings.Contains(context, "Phase \"test\" failed") {
-		t.Error("context should contain failed phase name")
-	}
-	if !strings.Contains(context, "Tests failed") {
-		t.Error("context should contain reason")
-	}
-	if !strings.Contains(context, "retry attempt #1") {
-		t.Error("context should contain attempt number")
-	}
-	if !strings.Contains(context, "Error output") {
-		t.Error("context should contain failure output")
-	}
-}
-
-func TestLoadRetryContextForPhase_NilState_ReturnsEmpty(t *testing.T) {
-	t.Parallel()
-	context := LoadRetryContextForPhase(nil)
-	if context != "" {
-		t.Error("LoadRetryContextForPhase with nil state should return empty string")
-	}
-}
-
-func TestLoadRetryContextForPhase_NoRetryContext_ReturnsEmpty(t *testing.T) {
-	t.Parallel()
-	s := state.New("TASK-001")
-	// No retry context set
-
-	context := LoadRetryContextForPhase(s)
-	if context != "" {
-		t.Error("LoadRetryContextForPhase with no retry context should return empty string")
 	}
 }
 

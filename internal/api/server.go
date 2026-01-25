@@ -24,7 +24,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -812,17 +811,15 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 	}
 
-	st, err := s.backend.LoadState(id)
-	if err != nil {
-		return nil, fmt.Errorf("state not found")
-	}
+	// Get execution state from task
+	exec := &t.Execution
 
 	// Find resume phase with smart retry handling (mirrors CLI logic)
-	resumePhase := st.GetResumePhase()
+	resumePhase := exec.GetResumePhase()
 
 	// If no interrupted/running phase, check retry context
 	if resumePhase == "" {
-		if rc := st.GetRetryContext(); rc != nil && rc.ToPhase != "" {
+		if rc := exec.GetRetryContext(); rc != nil && rc.ToPhase != "" {
 			resumePhase = rc.ToPhase
 			s.logger.Info("resuming from retry target", "task", id, "from", rc.FromPhase, "to", rc.ToPhase)
 		}
@@ -830,18 +827,18 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 	// For failed phases (e.g., review), use retry map to go back to earlier phase
 	// This prevents the review-resume loop where failed reviews keep restarting from review
-	if resumePhase == "" && st.CurrentPhase != "" {
-		if ps, ok := st.Phases[st.CurrentPhase]; ok && ps.Status == state.StatusFailed {
-			if retryFrom := s.orcConfig.ShouldRetryFrom(st.CurrentPhase); retryFrom != "" {
+	if resumePhase == "" && t.CurrentPhase != "" {
+		if ps, ok := exec.Phases[t.CurrentPhase]; ok && ps.Status == task.PhaseStatusFailed {
+			if retryFrom := s.orcConfig.ShouldRetryFrom(t.CurrentPhase); retryFrom != "" {
 				resumePhase = retryFrom
-				s.logger.Info("using retry map for failed phase", "task", id, "from", st.CurrentPhase, "to", retryFrom)
+				s.logger.Info("using retry map for failed phase", "task", id, "from", t.CurrentPhase, "to", retryFrom)
 			}
 		}
 	}
 
 	// Final fallback to current phase
 	if resumePhase == "" {
-		resumePhase = st.CurrentPhase
+		resumePhase = t.CurrentPhase
 	}
 
 	if resumePhase == "" {
@@ -911,18 +908,15 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 // This is a safety net to prevent orphaned "running" tasks when the executor
 // fails to update task status (e.g., due to panic, unexpected error path).
 func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
-	// Reload task and state to get current values
+	// Reload task to get current values (task now contains execution state)
 	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.logger.Warn("failed to reload task for status check", "task", id, "error", err)
 		return
 	}
 
-	st, err := s.backend.LoadState(id)
-	if err != nil {
-		s.logger.Warn("failed to reload state for status check", "task", id, "error", err)
-		return
-	}
+	// Get execution state from task
+	exec := &t.Execution
 
 	// If task is still "running" but execution finished, fix it
 	if t.Status == task.StatusRunning {
@@ -930,12 +924,11 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 		var reason string
 
 		if execErr != nil {
-			// Execution failed
-			switch st.Status {
-			case state.StatusInterrupted:
+			// Execution failed - check if current phase was interrupted
+			if ps := exec.Phases[t.CurrentPhase]; ps != nil && ps.Status == task.PhaseStatusInterrupted {
 				newStatus = task.StatusPaused
 				reason = "interrupted"
-			default:
+			} else {
 				newStatus = task.StatusFailed
 				reason = "execution error"
 			}
@@ -951,7 +944,6 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 			"old_status", t.Status,
 			"new_status", newStatus,
 			"reason", reason,
-			"state_status", st.Status,
 		)
 
 		t.Status = newStatus
@@ -960,9 +952,9 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 		}
 	}
 
-	// Always publish final state
-	if finalState, err := s.backend.LoadState(id); err == nil {
-		s.Publish(id, Event{Type: "state", Data: finalState})
+	// Always publish final execution state
+	if finalTask, err := s.backend.LoadTask(id); err == nil {
+		s.Publish(id, Event{Type: "state", Data: &finalTask.Execution})
 	}
 }
 

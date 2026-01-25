@@ -7,47 +7,46 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/randalmurphal/orc/internal/state"
 )
 
-// mockStateSaver implements the StateSaver interface for testing
-type mockStateSaver struct {
-	mu         sync.Mutex
-	saveCount  int
-	lastState  *state.State
-	shouldFail bool
+// mockHeartbeatUpdater implements the HeartbeatUpdater interface for testing
+type mockHeartbeatUpdater struct {
+	mu          sync.Mutex
+	updateCount int
+	lastTaskID  string
+	shouldFail  bool
 }
 
-func (m *mockStateSaver) SaveState(s *state.State) error {
+func (m *mockHeartbeatUpdater) UpdateTaskHeartbeat(taskID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.saveCount++
-	m.lastState = s
+	m.updateCount++
+	m.lastTaskID = taskID
 	if m.shouldFail {
 		return os.ErrPermission
 	}
 	return nil
 }
 
-func (m *mockStateSaver) getSaveCount() int {
+func (m *mockHeartbeatUpdater) getUpdateCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.saveCount
+	return m.updateCount
+}
+
+func (m *mockHeartbeatUpdater) getLastTaskID() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lastTaskID
 }
 
 func TestHeartbeatRunner_UpdatesHeartbeat(t *testing.T) {
 	t.Parallel()
-	// Create a state with execution info
-	s := state.New("test-task")
-	s.StartExecution(os.Getpid(), "test-host")
-	initialHeartbeat := s.Execution.LastHeartbeat
 
-	// Create mock saver
-	saver := &mockStateSaver{}
+	updater := &mockHeartbeatUpdater{}
 
 	// Create heartbeat runner with short interval for testing
-	runner := NewHeartbeatRunner(saver, s, slog.Default())
+	runner := NewHeartbeatRunner(updater, "test-task", slog.Default())
 	runner.interval = 50 * time.Millisecond
 
 	// Start the heartbeat
@@ -60,25 +59,23 @@ func TestHeartbeatRunner_UpdatesHeartbeat(t *testing.T) {
 	// Stop the heartbeat
 	runner.Stop()
 
-	// Verify heartbeats were saved
-	saveCount := saver.getSaveCount()
-	if saveCount < 2 {
-		t.Errorf("expected at least 2 heartbeat saves, got %d", saveCount)
+	// Verify heartbeats were updated
+	updateCount := updater.getUpdateCount()
+	if updateCount < 2 {
+		t.Errorf("expected at least 2 heartbeat updates, got %d", updateCount)
 	}
 
-	// Verify heartbeat timestamp was updated
-	if !s.Execution.LastHeartbeat.After(initialHeartbeat) {
-		t.Error("expected heartbeat timestamp to be updated")
+	// Verify correct task ID was used
+	if updater.getLastTaskID() != "test-task" {
+		t.Errorf("expected task ID 'test-task', got %s", updater.getLastTaskID())
 	}
 }
 
 func TestHeartbeatRunner_StopsOnContextCancel(t *testing.T) {
 	t.Parallel()
-	s := state.New("test-task")
-	s.StartExecution(os.Getpid(), "test-host")
 
-	saver := &mockStateSaver{}
-	runner := NewHeartbeatRunner(saver, s, slog.Default())
+	updater := &mockHeartbeatUpdater{}
+	runner := NewHeartbeatRunner(updater, "test-task", slog.Default())
 	runner.interval = 50 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -90,13 +87,13 @@ func TestHeartbeatRunner_StopsOnContextCancel(t *testing.T) {
 	// Give it time to stop
 	time.Sleep(100 * time.Millisecond)
 
-	// Save count before waiting
-	countBefore := saver.getSaveCount()
+	// Update count before waiting
+	countBefore := updater.getUpdateCount()
 
-	// Wait a bit more - no new saves should happen
+	// Wait a bit more - no new updates should happen
 	time.Sleep(100 * time.Millisecond)
 
-	countAfter := saver.getSaveCount()
+	countAfter := updater.getUpdateCount()
 	if countAfter > countBefore {
 		t.Error("heartbeat should have stopped on context cancel")
 	}
@@ -104,11 +101,9 @@ func TestHeartbeatRunner_StopsOnContextCancel(t *testing.T) {
 
 func TestHeartbeatRunner_StopsOnStopSignal(t *testing.T) {
 	t.Parallel()
-	s := state.New("test-task")
-	s.StartExecution(os.Getpid(), "test-host")
 
-	saver := &mockStateSaver{}
-	runner := NewHeartbeatRunner(saver, s, slog.Default())
+	updater := &mockHeartbeatUpdater{}
+	runner := NewHeartbeatRunner(updater, "test-task", slog.Default())
 	runner.interval = 50 * time.Millisecond
 
 	ctx := context.Background()
@@ -117,25 +112,23 @@ func TestHeartbeatRunner_StopsOnStopSignal(t *testing.T) {
 	// Stop via Stop() call
 	runner.Stop()
 
-	// Save count right after stop
-	countBefore := saver.getSaveCount()
+	// Update count right after stop
+	countBefore := updater.getUpdateCount()
 
-	// Wait a bit - no new saves should happen
+	// Wait a bit - no new updates should happen
 	time.Sleep(150 * time.Millisecond)
 
-	countAfter := saver.getSaveCount()
+	countAfter := updater.getUpdateCount()
 	if countAfter > countBefore {
 		t.Error("heartbeat should have stopped on Stop() call")
 	}
 }
 
-func TestHeartbeatRunner_ContinuesOnSaveFailure(t *testing.T) {
+func TestHeartbeatRunner_ContinuesOnUpdateFailure(t *testing.T) {
 	t.Parallel()
-	s := state.New("test-task")
-	s.StartExecution(os.Getpid(), "test-host")
 
-	saver := &mockStateSaver{shouldFail: true}
-	runner := NewHeartbeatRunner(saver, s, slog.Default())
+	updater := &mockHeartbeatUpdater{shouldFail: true}
+	runner := NewHeartbeatRunner(updater, "test-task", slog.Default())
 	runner.interval = 50 * time.Millisecond
 
 	ctx := context.Background()
@@ -146,45 +139,9 @@ func TestHeartbeatRunner_ContinuesOnSaveFailure(t *testing.T) {
 
 	runner.Stop()
 
-	// Even with failures, multiple save attempts should be made
-	saveCount := saver.getSaveCount()
-	if saveCount < 2 {
-		t.Errorf("expected at least 2 heartbeat attempts even with failures, got %d", saveCount)
-	}
-}
-
-func TestHeartbeatRunner_UpdateState(t *testing.T) {
-	t.Parallel()
-	s1 := state.New("task-1")
-	s1.StartExecution(os.Getpid(), "test-host")
-
-	s2 := state.New("task-2")
-	s2.StartExecution(os.Getpid(), "test-host")
-
-	saver := &mockStateSaver{}
-	runner := NewHeartbeatRunner(saver, s1, slog.Default())
-	runner.interval = 50 * time.Millisecond
-
-	ctx := context.Background()
-	runner.Start(ctx)
-
-	// Wait for first heartbeat
-	time.Sleep(75 * time.Millisecond)
-
-	// Update state reference
-	runner.UpdateState(s2)
-
-	// Wait for another heartbeat
-	time.Sleep(75 * time.Millisecond)
-
-	runner.Stop()
-
-	// The last state saved should be s2
-	saver.mu.Lock()
-	lastTaskID := saver.lastState.TaskID
-	saver.mu.Unlock()
-
-	if lastTaskID != "task-2" {
-		t.Errorf("expected last heartbeat to use task-2, got %s", lastTaskID)
+	// Even with failures, multiple update attempts should be made
+	updateCount := updater.getUpdateCount()
+	if updateCount < 2 {
+		t.Errorf("expected at least 2 heartbeat attempts even with failures, got %d", updateCount)
 	}
 }

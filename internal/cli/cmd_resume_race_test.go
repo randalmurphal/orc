@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -23,15 +22,9 @@ func TestResumeCommand_RaceConditionPrevention(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusFailed
 	tk.Weight = task.WeightSmall
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusFailed
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -56,28 +49,22 @@ func TestResumeCommand_RaceConditionPrevention(t *testing.T) {
 			}
 			defer func() { _ = backend.Close() }()
 
-			// Load task and state
+			// Load task (execution state is now embedded in task)
 			tk, err := backend.LoadTask("TASK-001")
 			if err != nil {
 				results <- err
 				return
 			}
 
-			s, err := backend.LoadState("TASK-001")
-			if err != nil {
-				results <- err
-				return
-			}
-
 			// Validate resumable
-			validationResult, err := ValidateTaskResumable(tk, s, false)
+			validationResult, err := ValidateTaskResumable(tk, false)
 			if err != nil {
 				results <- err
 				return
 			}
 
 			// Apply state updates if needed
-			if err := ApplyResumeStateUpdates(tk, s, validationResult, false, backend); err != nil {
+			if err := ApplyResumeStateUpdates(tk, validationResult, backend); err != nil {
 				results <- err
 				return
 			}
@@ -116,18 +103,15 @@ func TestResumeCommand_RaceConditionPrevention(t *testing.T) {
 	backend = createResumeTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
-	finalState, err := backend.LoadState("TASK-001")
+	// Executor info is now on the task, not the state
+	finalTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load final state: %v", err)
-	}
-
-	if finalState.Execution == nil {
-		t.Fatal("Execution info should be set by successful claim")
+		t.Fatalf("load final task: %v", err)
 	}
 
 	// PID should be our process PID
-	if finalState.Execution.PID != pid {
-		t.Errorf("Expected PID %d, got %d", pid, finalState.Execution.PID)
+	if finalTask.ExecutorPID != pid {
+		t.Errorf("Expected PID %d, got %d", pid, finalTask.ExecutorPID)
 	}
 }
 
@@ -137,20 +121,15 @@ func TestResumeCommand_OrphanedTaskWithClaim(t *testing.T) {
 	tmpDir := withResumeTestDir(t)
 
 	// Create a running task with a dead executor
+	// Executor info is now on the task, not the state
 	backend := createResumeTestBackend(t, tmpDir)
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning
 	tk.Weight = task.WeightSmall
+	tk.ExecutorPID = 999999 // Dead PID - this is the source of truth for orphan detection
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusRunning
-	s.CurrentPhase = "implement"
-	s.StartExecution(999999, "old-host") // Dead PID
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -163,12 +142,7 @@ func TestResumeCommand_OrphanedTaskWithClaim(t *testing.T) {
 		t.Fatalf("load task: %v", err)
 	}
 
-	s, err = backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
-	validationResult, err := ValidateTaskResumable(tk, s, false)
+	validationResult, err := ValidateTaskResumable(tk, false)
 	if err != nil {
 		t.Fatalf("orphaned task should be resumable: %v", err)
 	}
@@ -178,7 +152,7 @@ func TestResumeCommand_OrphanedTaskWithClaim(t *testing.T) {
 	}
 
 	// Apply state updates
-	if err := ApplyResumeStateUpdates(tk, s, validationResult, false, backend); err != nil {
+	if err := ApplyResumeStateUpdates(tk, validationResult, backend); err != nil {
 		t.Fatalf("apply state updates: %v", err)
 	}
 
@@ -192,17 +166,14 @@ func TestResumeCommand_OrphanedTaskWithClaim(t *testing.T) {
 		t.Fatalf("claim should succeed for orphaned task: %v", err)
 	}
 
-	// Verify new PID was set
-	finalState, err := backend.LoadState("TASK-001")
+	// Verify new PID was set on task
+	finalTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load final state: %v", err)
+		t.Fatalf("load final task: %v", err)
 	}
 
-	if finalState.Execution == nil {
-		t.Fatal("Execution info should be set")
-	}
-	if finalState.Execution.PID != newPID {
-		t.Errorf("Expected new PID %d, got %d", newPID, finalState.Execution.PID)
+	if finalTask.ExecutorPID != newPID {
+		t.Errorf("Expected new PID %d, got %d", newPID, finalTask.ExecutorPID)
 	}
 }
 
@@ -212,22 +183,16 @@ func TestResumeCommand_StaleClaimDoesNotBlock(t *testing.T) {
 	tmpDir := withResumeTestDir(t)
 
 	// Create a task with a claim from a process that's now dead
+	// Executor info is now on the task, not the state
 	backend := createResumeTestBackend(t, tmpDir)
+	deadPID := 888888
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning
 	tk.Weight = task.WeightSmall
+	tk.ExecutorPID = deadPID // Stale PID from dead process
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusRunning
-	s.CurrentPhase = "implement"
-	// Simulate a claim from a dead process (very high PID unlikely to exist)
-	deadPID := 888888
-	s.StartExecution(deadPID, "stale-host")
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -247,20 +212,17 @@ func TestResumeCommand_StaleClaimDoesNotBlock(t *testing.T) {
 		t.Fatalf("claim should succeed despite stale PID: %v", err)
 	}
 
-	// Verify old PID was replaced
-	finalState, err := backend.LoadState("TASK-001")
+	// Verify old PID was replaced on task
+	finalTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load final state: %v", err)
+		t.Fatalf("load final task: %v", err)
 	}
 
-	if finalState.Execution == nil {
-		t.Fatal("Execution info should be set")
-	}
-	if finalState.Execution.PID == deadPID {
+	if finalTask.ExecutorPID == deadPID {
 		t.Error("Old PID should have been replaced")
 	}
-	if finalState.Execution.PID != newPID {
-		t.Errorf("Expected new PID %d, got %d", newPID, finalState.Execution.PID)
+	if finalTask.ExecutorPID != newPID {
+		t.Errorf("Expected new PID %d, got %d", newPID, finalTask.ExecutorPID)
 	}
 }
 
@@ -274,15 +236,9 @@ func TestResumeCommand_PausedTaskClaimWorks(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusPaused
 	tk.Weight = task.WeightSmall
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusPaused
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -295,19 +251,14 @@ func TestResumeCommand_PausedTaskClaimWorks(t *testing.T) {
 		t.Fatalf("load task: %v", err)
 	}
 
-	s, err = backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
 	// Validation
-	validationResult, err := ValidateTaskResumable(tk, s, false)
+	validationResult, err := ValidateTaskResumable(tk, false)
 	if err != nil {
 		t.Fatalf("paused task should be resumable: %v", err)
 	}
 
 	// State updates
-	if err := ApplyResumeStateUpdates(tk, s, validationResult, false, backend); err != nil {
+	if err := ApplyResumeStateUpdates(tk, validationResult, backend); err != nil {
 		t.Fatalf("apply state updates: %v", err)
 	}
 
@@ -321,17 +272,17 @@ func TestResumeCommand_PausedTaskClaimWorks(t *testing.T) {
 		t.Fatalf("claim should succeed for paused task: %v", err)
 	}
 
-	// Verify task is now claimed and running
-	finalState, err := backend.LoadState("TASK-001")
+	// Verify task is now claimed with correct PID
+	finalTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load final state: %v", err)
+		t.Fatalf("load final task: %v", err)
 	}
 
-	if finalState.Status != state.StatusRunning {
-		t.Errorf("Expected status running after claim, got %s", finalState.Status)
+	if finalTask.Status != task.StatusRunning {
+		t.Errorf("Expected task status running after claim, got %s", finalTask.Status)
 	}
-	if finalState.Execution == nil || finalState.Execution.PID != pid {
-		t.Error("Execution info should be set with correct PID")
+	if finalTask.ExecutorPID != pid {
+		t.Errorf("Expected executor PID %d, got %d", pid, finalTask.ExecutorPID)
 	}
 }
 
@@ -345,15 +296,9 @@ func TestResumeCommand_BlockedTaskClaimWorks(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusBlocked
 	tk.Weight = task.WeightSmall
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusPaused // State uses paused, task uses blocked
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -370,14 +315,14 @@ func TestResumeCommand_BlockedTaskClaimWorks(t *testing.T) {
 		t.Fatalf("claim should succeed for blocked task: %v", err)
 	}
 
-	// Verify claim succeeded
-	finalState, err := backend.LoadState("TASK-001")
+	// Verify claim succeeded - executor info is on task now
+	finalTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load final state: %v", err)
+		t.Fatalf("load final task: %v", err)
 	}
 
-	if finalState.Execution == nil || finalState.Execution.PID != pid {
-		t.Error("Execution info should be set for blocked task")
+	if finalTask.ExecutorPID != pid {
+		t.Errorf("Expected executor PID %d for blocked task, got %d", pid, finalTask.ExecutorPID)
 	}
 }
 
@@ -391,15 +336,9 @@ func TestResumeCommand_ClaimErrorMessages(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusFailed
 	tk.Weight = task.WeightSmall
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.Status = state.StatusFailed
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 
 	// First claim

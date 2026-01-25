@@ -5,16 +5,12 @@ package executor
 import (
 	"context"
 	"log/slog"
-	"sync"
 	"time"
-
-	"github.com/randalmurphal/orc/internal/state"
 )
 
-// StateSaver is a minimal interface for saving state, used by HeartbeatRunner.
-// This allows for easier testing without implementing the full storage.Backend.
-type StateSaver interface {
-	SaveState(s *state.State) error
+// HeartbeatUpdater is a minimal interface for updating task heartbeats.
+type HeartbeatUpdater interface {
+	UpdateTaskHeartbeat(taskID string) error
 }
 
 // DefaultHeartbeatInterval is the default interval for heartbeat updates during phase execution.
@@ -24,25 +20,22 @@ const DefaultHeartbeatInterval = 2 * time.Minute
 // HeartbeatRunner manages periodic heartbeat updates during task execution.
 // This ensures that long-running phases don't trigger false positive orphan detection.
 type HeartbeatRunner struct {
-	saver    StateSaver
+	updater  HeartbeatUpdater
+	taskID   string
 	logger   *slog.Logger
 	interval time.Duration
-
-	// Protects state access from concurrent reads/writes
-	mu    sync.Mutex
-	state *state.State
 
 	// Channel to signal stop
 	stopCh chan struct{}
 	doneCh chan struct{}
 }
 
-// NewHeartbeatRunner creates a new heartbeat runner.
-// The saver parameter should implement StateSaver (storage.Backend satisfies this).
-func NewHeartbeatRunner(saver StateSaver, s *state.State, logger *slog.Logger) *HeartbeatRunner {
+// NewHeartbeatRunner creates a new heartbeat runner for a task.
+// The updater parameter should implement HeartbeatUpdater (storage.Backend satisfies this).
+func NewHeartbeatRunner(updater HeartbeatUpdater, taskID string, logger *slog.Logger) *HeartbeatRunner {
 	return &HeartbeatRunner{
-		saver:    saver,
-		state:    s,
+		updater:  updater,
+		taskID:   taskID,
 		logger:   logger,
 		interval: DefaultHeartbeatInterval,
 		stopCh:   make(chan struct{}),
@@ -83,34 +76,16 @@ func (h *HeartbeatRunner) run(ctx context.Context) {
 	}
 }
 
-// updateHeartbeat updates the heartbeat timestamp and persists it to the database.
+// updateHeartbeat updates the heartbeat timestamp in the database.
 func (h *HeartbeatRunner) updateHeartbeat() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Update the heartbeat timestamp
-	h.state.UpdateHeartbeat()
-
-	// Persist to database
-	if err := h.saver.SaveState(h.state); err != nil {
-		h.logger.Warn("failed to save heartbeat update",
+	if err := h.updater.UpdateTaskHeartbeat(h.taskID); err != nil {
+		h.logger.Warn("failed to update heartbeat",
 			"error", err,
-			"task", h.state.TaskID,
+			"task", h.taskID,
 		)
-		// Continue running - a single save failure shouldn't stop heartbeats
+		// Continue running - a single update failure shouldn't stop heartbeats
 		return
 	}
 
-	h.logger.Debug("heartbeat updated",
-		"task", h.state.TaskID,
-		"timestamp", h.state.Execution.LastHeartbeat,
-	)
-}
-
-// UpdateState updates the state reference. This is useful when the state
-// is modified outside the heartbeat runner (e.g., phase transitions).
-func (h *HeartbeatRunner) UpdateState(s *state.State) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.state = s
+	h.logger.Debug("heartbeat updated", "task", h.taskID)
 }

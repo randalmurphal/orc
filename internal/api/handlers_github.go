@@ -13,7 +13,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/github"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -315,12 +314,6 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	st, err := s.backend.LoadState(taskID)
-	if err != nil {
-		// Create new state if it doesn't exist
-		st = state.New(taskID)
-	}
-
 	// Build retry context with the comment as PR feedback
 	prFeedback := executor.PRCommentFeedback{
 		Author:   "reviewer",
@@ -342,13 +335,13 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 		Instructions:   fmt.Sprintf("Fix the issue in %s at line %d: %s", comment.FilePath, comment.LineNumber, comment.Content),
 	}
 
-	// Build and set retry context in state
+	// Build and set retry context in task's execution state
 	retryContext := executor.BuildRetryContextForFreshSession(opts)
-	st.SetRetryContext(t.CurrentPhase, "implement", opts.FailureReason, retryContext, 1)
+	t.Execution.SetRetryContext(t.CurrentPhase, "implement", opts.FailureReason, retryContext, 1)
 
-	// Save state with retry context
-	if err := s.backend.SaveState(st); err != nil {
-		s.jsonError(w, "failed to save state: "+err.Error(), http.StatusInternalServerError)
+	// Save task with retry context
+	if err := s.backend.SaveTask(t); err != nil {
+		s.jsonError(w, "failed to save task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -422,9 +415,9 @@ func (s *Server) handleAutoFixComment(w http.ResponseWriter, r *http.Request) {
 			s.Publish(taskID, Event{Type: "complete", Data: map[string]string{"status": "completed"}})
 		}
 
-		// Reload and publish final state
-		if finalState, err := s.backend.LoadState(taskID); err == nil {
-			s.Publish(taskID, Event{Type: "state", Data: finalState})
+		// Reload and publish final task (which contains execution state)
+		if finalTask, err := s.backend.LoadTask(taskID); err == nil {
+			s.Publish(taskID, Event{Type: "state", Data: &finalTask.Execution})
 		}
 	}()
 

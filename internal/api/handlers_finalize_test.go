@@ -16,7 +16,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -217,6 +216,9 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 		Title:  "Test task",
 		Status: task.StatusCompleted,
 		Weight: task.WeightMedium,
+		Execution: task.ExecutionState{
+			Phases: make(map[string]*task.PhaseState),
+		},
 	}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -391,17 +393,16 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 		// Clear tracker state
 		finTracker.delete(taskID)
 
-		// Create state with completed finalize phase
+		// Update task with completed finalize phase
 		now := time.Now()
-		st := state.New(taskID)
-		st.Phases["finalize"] = &state.PhaseState{
-			Status:      state.StatusCompleted,
+		tsk.Execution.Phases["finalize"] = &task.PhaseState{
+			Status:      task.PhaseStatusCompleted,
 			StartedAt:   now.Add(-5 * time.Minute),
 			CompletedAt: &now,
 			CommitSHA:   "def456",
 		}
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("save state: %v", err)
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("save task: %v", err)
 		}
 
 		req := httptest.NewRequest("GET", "/api/tasks/"+taskID+"/finalize", nil)
@@ -1354,13 +1355,13 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 			t.Fatalf("save task: %v", err)
 		}
 
-		// Create state with completed finalize
-		st := state.New(taskID)
-		st.Phases["finalize"] = &state.PhaseState{
-			Status: state.StatusCompleted,
+		// Update task with completed finalize
+		tsk.Execution.Phases = make(map[string]*task.PhaseState)
+		tsk.Execution.Phases["finalize"] = &task.PhaseState{
+			Status: task.PhaseStatusCompleted,
 		}
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("save state: %v", err)
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("save task: %v", err)
 		}
 
 		orcCfg := config.Default()

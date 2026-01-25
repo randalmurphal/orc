@@ -449,98 +449,84 @@ orc initiative show INIT-001 --format yaml
 
 ---
 
-## state.yaml (Execution State)
+## Execution State (Embedded in Task)
+
+Execution state is embedded in `task.Task.Execution`, not stored as a separate entity. This consolidates task metadata and execution tracking into a single save operation.
+
+### ExecutionState Structure
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `current_iteration` | int | Iteration count within current phase |
+| `phases` | map[string]*PhaseState | Per-phase execution state |
+| `gates` | []GateDecision | Gate evaluation results |
+| `tokens` | TokenUsage | Aggregate token usage |
+| `cost` | CostTracking | Cost tracking |
+| `session` | *SessionInfo | Claude session info |
+| `error` | string | Last error message |
+| `retry_context` | *RetryContext | Cross-phase retry information |
+
+### PhaseState Structure
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | PhaseStatus | pending, running, completed, failed, paused, interrupted, skipped |
+| `started_at` | time.Time | When phase started |
+| `completed_at` | *time.Time | When phase completed |
+| `iterations` | int | Iteration count |
+| `commit_sha` | string | Checkpoint commit |
+| `error` | string | Error message (if failed/skipped) |
+| `tokens` | TokenUsage | Per-phase token usage |
+| `session_id` | string | Claude session ID for this phase |
+
+### Example Task with Execution
 
 ```yaml
-# .orc/tasks/TASK-001/state.yaml
-current_phase: implement
-current_iteration: 3
+id: TASK-001
+title: "Add user authentication"
 status: running
-
-started_at: 2026-01-10T10:31:00Z
-total_duration: 2h15m
-
-# Execution tracking (for orphan detection)
+current_phase: implement
 execution:
-  pid: 12345                        # Process ID of executor
-  hostname: dev-laptop              # Machine running the executor
-  started_at: 2026-01-10T10:31:00Z  # When this execution began
-  last_heartbeat: 2026-01-10T12:30:00Z  # Last executor heartbeat
-
-# Claude session info (for resume support)
-session:
-  id: sess_abc123                   # Claude session ID
-  model: claude-opus-4-5-20251101
-  status: active
-  created_at: 2026-01-10T10:31:00Z
-  last_activity: 2026-01-10T12:30:00Z
-  turn_count: 15
-
-phases:
-  classify:
-    status: completed
-    started_at: 2026-01-10T10:31:00Z
-    completed_at: 2026-01-10T10:32:00Z
-    iterations: 1
-    duration: 45s
-    checkpoint: abc123def
-    result:
-      weight: medium
-      confidence: 0.88
-      rationale: "Multiple files, moderate complexity"
-
-  spec:
-    status: completed
-    started_at: 2026-01-10T10:32:00Z
-    completed_at: 2026-01-10T10:45:00Z
-    iterations: 2
-    duration: 13m
-    checkpoint: def456ghi
-    # Note: spec content stored in database (specs table), not as file artifact
-
-  # Example of a skipped phase (artifact already existed)
-  research:
-    status: skipped
-    completed_at: 2026-01-10T10:31:30Z
-    iterations: 0
-    error: "skipped: artifact exists: research content found in spec.md"
-
-  implement:
-    status: running
-    started_at: 2026-01-10T10:45:00Z
-    iterations: 3
-    last_checkpoint: ghi789jkl
-    files_changed:
-      - src/auth/oauth.go
-      - src/auth/oauth_test.go
-      - src/config/auth.go
-
-gates:
-  - phase: spec
-    type: ai
-    decision: approved
-    timestamp: 2026-01-10T10:45:00Z
-    rationale: "Spec covers all requirements"
-  # Skip decisions are also recorded as gates for audit trail
-  - phase: research
-    type: skip
-    decision: approved
-    timestamp: 2026-01-10T10:31:30Z
-    rationale: "artifact exists: research content found in spec.md"
-
-errors: []
-
-tokens:
-  input_tokens: 45000
-  output_tokens: 12000
-  cache_creation_input_tokens: 2000      # Tokens written to cache
-  cache_read_input_tokens: 8000          # Tokens served from cache
-  total_tokens: 67000
-  by_phase:
-    classify: 2000
-    spec: 15000
-    implement: 28000
+  current_iteration: 3
+  phases:
+    spec:
+      status: completed
+      started_at: 2026-01-10T10:32:00Z
+      completed_at: 2026-01-10T10:45:00Z
+      iterations: 2
+      tokens:
+        input_tokens: 15000
+        output_tokens: 5000
+    implement:
+      status: running
+      started_at: 2026-01-10T10:45:00Z
+      iterations: 3
+  gates:
+    - phase: spec
+      gate_type: ai
+      approved: true
+      timestamp: 2026-01-10T10:45:00Z
+  tokens:
+    input_tokens: 45000
+    output_tokens: 12000
+    cache_read_input_tokens: 8000
+    total_tokens: 57000
+  cost:
+    total_cost_usd: 0.85
 ```
+
+### Executor Tracking (Database-Only)
+
+Orphan detection uses task-level executor tracking stored in database columns (not in YAML):
+
+| Field | Description |
+|-------|-------------|
+| `executor_pid` | Process ID of executor |
+| `executor_hostname` | Machine running the executor |
+| `executor_started_at` | When execution began |
+| `last_heartbeat` | Last heartbeat timestamp |
+
+**Persistence:** Call `backend.SaveTask(t)` to save both task metadata and execution state. Use `backend.UpdateTaskHeartbeat()` for periodic heartbeat updates.
 
 ### Token Fields
 

@@ -11,8 +11,8 @@ import (
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newTestBackend creates a test backend using in-memory database for speed.
@@ -796,10 +796,12 @@ func TestPublishState(t *testing.T) {
 	ch := pub.Subscribe("TASK-007")
 	defer pub.Unsubscribe("TASK-007", ch)
 
-	testState := state.New("TASK-007")
-	testState.StartPhase("implement")
+	testExec := &task.ExecutionState{
+		Phases: make(map[string]*task.PhaseState),
+	}
+	testExec.StartPhase("implement")
 
-	e.publishState("TASK-007", testState)
+	e.publishState("TASK-007", testExec)
 
 	select {
 	case event := <-ch:
@@ -818,23 +820,27 @@ func TestPublishState(t *testing.T) {
 	}
 }
 
-func TestLoadRetryContextForPhase(t *testing.T) {
+func TestLoadRetryContextFromExecution(t *testing.T) {
 	t.Parallel()
 	// Test with no retry context
-	testState := state.New("TASK-999")
-	ctx := LoadRetryContextForPhase(testState)
+	testExec := &task.ExecutionState{
+		Phases: make(map[string]*task.PhaseState),
+	}
+	ctx := LoadRetryContextFromExecution(testExec)
 	if ctx != "" {
 		t.Errorf("expected empty retry context, got %s", ctx)
 	}
 }
 
-func TestLoadRetryContextForPhase_WithContext(t *testing.T) {
+func TestLoadRetryContextFromExecution_WithContext(t *testing.T) {
 	t.Parallel()
 	// Test with retry context set
-	testState := state.New("TASK-888")
-	testState.SetRetryContext("test", "implement", "test failed", "output here", 1)
+	testExec := &task.ExecutionState{
+		Phases: make(map[string]*task.PhaseState),
+	}
+	testExec.SetRetryContext("test", "implement", "test failed", "output here", 1)
 
-	ctx := LoadRetryContextForPhase(testState)
+	ctx := LoadRetryContextFromExecution(testExec)
 	if ctx == "" {
 		t.Error("expected retry context, got empty")
 	}

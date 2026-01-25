@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -38,16 +37,16 @@ import (
 // This executor supports retry/escalation back to the implement phase if
 // issues persist beyond configured thresholds.
 type FinalizeExecutor struct {
-	claudePath   string // Path to claude binary
-	gitSvc       *git.Git
-	publisher    *PublishHelper
-	logger       *slog.Logger
-	config       ExecutorConfig
-	orcConfig    *config.Config
-	workingDir   string
-	taskDir      string
-	stateUpdater func(*state.State)
-	backend      storage.Backend
+	claudePath       string // Path to claude binary
+	gitSvc           *git.Git
+	publisher        *PublishHelper
+	logger           *slog.Logger
+	config           ExecutorConfig
+	orcConfig        *config.Config
+	workingDir       string
+	taskDir          string
+	executionUpdater func(*task.ExecutionState)
+	backend          storage.Backend
 
 	// turnExecutor allows injection of a mock for testing
 	turnExecutor TurnExecutor
@@ -95,9 +94,9 @@ func WithFinalizeTaskDir(dir string) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.taskDir = dir }
 }
 
-// WithFinalizeStateUpdater sets the state updater callback.
-func WithFinalizeStateUpdater(fn func(*state.State)) FinalizeExecutorOption {
-	return func(e *FinalizeExecutor) { e.stateUpdater = fn }
+// WithFinalizeExecutionUpdater sets the execution state updater callback.
+func WithFinalizeExecutionUpdater(fn func(*task.ExecutionState)) FinalizeExecutorOption {
+	return func(e *FinalizeExecutor) { e.executionUpdater = fn }
 }
 
 // WithFinalizeBackend sets the storage backend for initiative loading.
@@ -176,7 +175,7 @@ type FinalizeResult struct {
 }
 
 // Execute runs the finalize phase.
-func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, s *state.State) (*Result, error) {
+func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, exec *task.ExecutionState) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
@@ -233,7 +232,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 	} else {
 		// Step 3: Sync with target branch
 		e.publishProgress(t.ID, p.ID, fmt.Sprintf("Syncing with %s (%d commits behind)...", targetBranch, behind))
-		finalizeResult, err := e.syncWithTarget(ctx, t, p, s, targetBranch, finalizeCfg)
+		finalizeResult, err := e.syncWithTarget(ctx, t, p, exec, targetBranch, finalizeCfg)
 		if err != nil {
 			// Check if we should escalate to implement phase
 			if e.shouldEscalate(finalizeResult, finalizeCfg) {
@@ -262,7 +261,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 			// Try to fix tests using Claude
 			if finalizeCfg.ConflictResolution.Enabled {
 				e.publishProgress(t.ID, p.ID, "Tests failed, attempting to fix...")
-				fixed, fixErr := e.tryFixTests(ctx, t, p, s, testResult)
+				fixed, fixErr := e.tryFixTests(ctx, t, p, exec, testResult)
 				if fixErr != nil || !fixed {
 					result.Error = fmt.Errorf("tests failed after sync and fix attempt: %v failures", len(testResult.Failures))
 					result.Status = PhaseFailed
@@ -386,7 +385,7 @@ func (e *FinalizeExecutor) syncWithTarget(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	targetBranch string,
 	cfg config.FinalizeConfig,
 ) (*FinalizeResult, error) {
@@ -403,12 +402,12 @@ func (e *FinalizeExecutor) syncWithTarget(
 	var syncErr error
 	switch cfg.Sync.Strategy {
 	case config.FinalizeSyncRebase:
-		syncResult, syncErr = e.syncViaRebase(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaRebase(ctx, t, p, exec, target, cfg, result)
 	case config.FinalizeSyncMerge:
-		syncResult, syncErr = e.syncViaMerge(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaMerge(ctx, t, p, exec, target, cfg, result)
 	default:
 		// Default to merge
-		syncResult, syncErr = e.syncViaMerge(ctx, t, p, s, target, cfg, result)
+		syncResult, syncErr = e.syncViaMerge(ctx, t, p, exec, target, cfg, result)
 	}
 
 	// If sync failed, return the error
@@ -449,7 +448,7 @@ func (e *FinalizeExecutor) syncViaMerge(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
 	result *FinalizeResult,
@@ -509,7 +508,7 @@ func (e *FinalizeExecutor) syncViaMerge(
 
 		// Fall back to Claude for remaining conflicts
 		if len(remaining) > 0 {
-			resolved, resolveErr := e.resolveConflicts(ctx, t, p, s, remaining, cfg)
+			resolved, resolveErr := e.resolveConflicts(ctx, t, p, exec, remaining, cfg)
 			if resolveErr != nil {
 				// Abort merge on failure
 				_, _ = e.gitSvc.Context().RunGit("merge", "--abort")
@@ -534,7 +533,7 @@ func (e *FinalizeExecutor) syncViaRebase(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
 	result *FinalizeResult,
@@ -556,7 +555,7 @@ func (e *FinalizeExecutor) syncViaRebase(
 
 		// Note: For rebase, each commit may have conflicts
 		// We'll try to resolve them one by one
-		resolved, resolveErr := e.resolveRebaseConflicts(ctx, t, p, s, result.ConflictFiles, cfg)
+		resolved, resolveErr := e.resolveRebaseConflicts(ctx, t, p, exec, result.ConflictFiles, cfg)
 		if resolveErr != nil {
 			return result, fmt.Errorf("rebase conflict resolution failed: %w", resolveErr)
 		}
@@ -576,7 +575,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
 ) (bool, error) {
@@ -633,7 +632,7 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
 ) (bool, error) {
@@ -672,7 +671,7 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 
 		// Resolve remaining conflicts with Claude
 		if len(remaining) > 0 {
-			resolved, err := e.resolveConflicts(ctx, t, p, s, remaining, cfg)
+			resolved, err := e.resolveConflicts(ctx, t, p, exec, remaining, cfg)
 			if err != nil || !resolved {
 				// Abort rebase
 				_ = e.gitSvc.AbortRebase()
@@ -747,7 +746,7 @@ func (e *FinalizeExecutor) tryFixTests(
 	ctx context.Context,
 	t *task.Task,
 	p *Phase,
-	s *state.State,
+	exec *task.ExecutionState,
 	testResult *ParsedTestResult,
 ) (bool, error) {
 	// Build fix prompt

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -19,11 +20,18 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
+
+// taskElapsed calculates elapsed time since task execution started.
+func taskElapsed(t *task.Task) time.Duration {
+	if t.StartedAt == nil {
+		return 0
+	}
+	return time.Since(*t.StartedAt)
+}
 
 // ResumeValidationResult contains the result of validating a task for resume.
 type ResumeValidationResult struct {
@@ -37,7 +45,7 @@ type ResumeValidationResult struct {
 
 // ValidateTaskResumable checks if a task can be resumed and returns validation details.
 // Returns an error if the task cannot be resumed.
-func ValidateTaskResumable(t *task.Task, s *state.State, forceResume bool) (*ResumeValidationResult, error) {
+func ValidateTaskResumable(t *task.Task, forceResume bool) (*ResumeValidationResult, error) {
 	result := &ResumeValidationResult{}
 
 	switch t.Status {
@@ -45,8 +53,8 @@ func ValidateTaskResumable(t *task.Task, s *state.State, forceResume bool) (*Res
 		// These are always resumable
 		return result, nil
 	case task.StatusRunning:
-		// Check if it's orphaned
-		isOrphaned, reason := s.CheckOrphaned()
+		// Check if it's orphaned - use task's executor info (source of truth)
+		isOrphaned, reason := t.CheckOrphaned()
 		if isOrphaned {
 			result.IsOrphaned = true
 			result.OrphanReason = reason
@@ -56,7 +64,7 @@ func ValidateTaskResumable(t *task.Task, s *state.State, forceResume bool) (*Res
 			result.RequiresStateUpdate = true
 			return result, nil
 		}
-		return nil, fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", s.GetExecutorPID())
+		return nil, fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", t.ExecutorPID)
 	case task.StatusFailed:
 		// Allow resuming failed tasks
 		return result, nil
@@ -66,21 +74,13 @@ func ValidateTaskResumable(t *task.Task, s *state.State, forceResume bool) (*Res
 }
 
 // ApplyResumeStateUpdates applies necessary state updates for orphaned or force-resumed tasks.
-func ApplyResumeStateUpdates(t *task.Task, s *state.State, result *ResumeValidationResult, forceResume bool, backend storage.Backend) error {
+func ApplyResumeStateUpdates(t *task.Task, result *ResumeValidationResult, backend storage.Backend) error {
 	if !result.RequiresStateUpdate {
 		return nil
 	}
 
-	if result.IsOrphaned {
-		s.InterruptPhase(s.CurrentPhase)
-	} else if forceResume {
-		s.ClearExecution()
-		s.InterruptPhase(s.CurrentPhase)
-	}
-
-	if err := backend.SaveState(s); err != nil {
-		return fmt.Errorf("save state: %w", err)
-	}
+	// Mark current phase as interrupted so it will be retried
+	t.Execution.InterruptPhase(t.CurrentPhase)
 
 	t.Status = task.StatusBlocked
 	if err := backend.SaveTask(t); err != nil {
@@ -126,14 +126,8 @@ Use --force to resume a task even if it appears to still be running.`,
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			s, err := backend.LoadState(id)
-			if err != nil {
-				// State might not exist, create new one
-				s = state.New(id)
-			}
-
 			// Validate task is resumable
-			validationResult, err := ValidateTaskResumable(t, s, forceResume)
+			validationResult, err := ValidateTaskResumable(t, forceResume)
 			if err != nil {
 				return err
 			}
@@ -143,14 +137,14 @@ Use --force to resume a task even if it appears to still be running.`,
 				fmt.Printf("Task %s appears orphaned (%s)\n", id, validationResult.OrphanReason)
 				fmt.Println("Marking as interrupted and resuming...")
 			} else if forceResume && validationResult.RequiresStateUpdate {
-				fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, s.GetExecutorPID())
+				fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, t.ExecutorPID)
 				fmt.Println("Force-resuming as requested...")
 			} else if t.Status == task.StatusFailed {
 				fmt.Printf("Task %s failed previously, resuming from last phase...\n", id)
 			}
 
 			// Apply state updates if needed
-			if err := ApplyResumeStateUpdates(t, s, validationResult, forceResume, backend); err != nil {
+			if err := ApplyResumeStateUpdates(t, validationResult, backend); err != nil {
 				return err
 			}
 
@@ -267,15 +261,10 @@ Use --force to resume a task even if it appears to still be running.`,
 
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
-					// Reload task and state for summary
+					// Reload task for summary (execution state is now in task.Execution)
 					t, _ = backend.LoadTask(id)
-					s, _ = backend.LoadState(id)
 					blockedCtx := buildBlockedContext(t, cfg)
-					var tokens int
-					if s != nil {
-						tokens = s.Tokens.TotalTokens
-					}
-					disp.TaskBlockedWithContext(tokens, s.Elapsed(), "sync conflict", blockedCtx)
+					disp.TaskBlockedWithContext(t.Execution.Tokens.TotalTokens, taskElapsed(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -283,8 +272,8 @@ Use --force to resume a task even if it appears to still be running.`,
 				return err
 			}
 
-			// Reload state for summary
-			s, _ = backend.LoadState(id)
+			// Reload task for summary (execution state is in task.Execution)
+			t, _ = backend.LoadTask(id)
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
@@ -292,12 +281,8 @@ Use --force to resume a task even if it appears to still be running.`,
 				fileStats = getResumeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
-			var tokens int
-			if s != nil {
-				tokens = s.Tokens.TotalTokens
-			}
-			_ = result // Result contains run details but we use state for tokens
-			disp.TaskComplete(tokens, s.Elapsed(), fileStats)
+			_ = result // Result contains run details but we use task.Execution for tokens
+			disp.TaskComplete(t.Execution.Tokens.TotalTokens, taskElapsed(t), fileStats)
 			return nil
 		},
 	}

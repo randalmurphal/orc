@@ -16,6 +16,7 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ANSI color codes for transcript display
@@ -432,16 +433,16 @@ func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 				lastSeenID = t.ID
 			}
 
-			// Check if task is still running
-			st, err := backend.LoadState(taskID)
-			if err == nil && st != nil {
+			// Check if task is still running (task.Status is single source of truth)
+			t, err := backend.LoadTask(taskID)
+			if err == nil && t != nil {
 				// If task completed/failed/paused, show message and exit
-				switch st.Status {
-				case "completed", "failed", "paused", "interrupted":
+				switch t.Status {
+				case task.StatusCompleted, task.StatusFailed, task.StatusPaused, task.StatusBlocked:
 					if opts.useColor {
-						fmt.Printf("\n%sTask %s (status: %s)%s\n", ansiDim, taskID, st.Status, ansiReset)
+						fmt.Printf("\n%sTask %s (status: %s)%s\n", ansiDim, taskID, t.Status, ansiReset)
 					} else {
-						fmt.Printf("\nTask %s (status: %s)\n", taskID, st.Status)
+						fmt.Printf("\nTask %s (status: %s)\n", taskID, t.Status)
 					}
 					return nil
 				}

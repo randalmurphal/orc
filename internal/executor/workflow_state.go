@@ -43,11 +43,15 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *task.Task, err err
 	}
 	we.logger.Error("task setup failed", "task", taskID, "error", err)
 
-	// Clear execution tracking and set error in state
-	if we.execState != nil {
-		we.execState.ClearExecution()
-		we.execState.Error = err.Error()
-		if saveErr := we.backend.SaveState(we.execState); saveErr != nil {
+	// Clear execution tracking on task and set error in state
+	if t != nil {
+		if clearErr := we.backend.ClearTaskExecutor(t.ID); clearErr != nil {
+			we.logger.Warn("failed to clear task executor on setup failure", "error", clearErr)
+		}
+	}
+	if we.task != nil {
+		we.task.Execution.Error = err.Error()
+		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on setup failure", "error", saveErr)
 		}
 	}
@@ -87,10 +91,10 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, curr
 	}
 
 	// Update execution state
-	if we.execState != nil {
-		we.execState.InterruptPhase(currentPhase)
-		we.execState.Error = fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error())
-		if saveErr := we.backend.SaveState(we.execState); saveErr != nil {
+	if we.task != nil {
+		we.task.Execution.InterruptPhase(currentPhase)
+		we.task.Execution.Error = fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error())
+		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on interrupt", "error", saveErr)
 		}
 	}
@@ -130,8 +134,8 @@ func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
 	we.logger.Info("committed WIP on interrupt", "sha", checkpoint.CommitSHA[:min(8, len(checkpoint.CommitSHA))])
 
 	// Store commit SHA in state
-	if we.execState != nil && we.execState.Phases != nil {
-		if ps := we.execState.Phases[phaseID]; ps != nil {
+	if we.task != nil && we.task.Execution.Phases != nil {
+		if ps := we.task.Execution.Phases[phaseID]; ps != nil {
 			ps.CommitSHA = checkpoint.CommitSHA
 		}
 	}

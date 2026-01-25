@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Default retry constants
@@ -70,14 +70,14 @@ func SaveRetryContextFile(workDir, taskID, fromPhase, toPhase, reason, output st
 	return path, nil
 }
 
-// LoadRetryContextForPhase loads retry context from state for prompt injection.
-// This builds a summary suitable for inclusion in the {{RETRY_CONTEXT}} template variable.
-func LoadRetryContextForPhase(s *state.State) string {
-	if s == nil {
+// LoadRetryContextFromExecution loads retry context from task.ExecutionState.
+// This is the Task-centric approach where execution state lives in task.Task.Execution.
+func LoadRetryContextFromExecution(e *task.ExecutionState) string {
+	if e == nil {
 		return ""
 	}
 
-	rc := s.GetRetryContext()
+	rc := e.GetRetryContext()
 	if rc == nil {
 		return ""
 	}

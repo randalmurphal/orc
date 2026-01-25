@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -351,28 +350,22 @@ func TestHandleGetDashboardStats_PeriodComparison(t *testing.T) {
 			t.Fatalf("failed to save current task %d: %v", i, err)
 		}
 
-		// Add state with tokens and cost
-		st := &state.State{
-			TaskID:       tsk.ID,
-			CurrentPhase: "implement",
-			Status:       state.StatusCompleted,
-			StartedAt:    *tsk.StartedAt,
-			CompletedAt:  tsk.CompletedAt,
-			Cost: state.CostTracking{
-				TotalCostUSD: 1.0,
-			},
-			Phases: map[string]*state.PhaseState{
-				"implement": {
-					Status: state.StatusCompleted,
-					Tokens: state.TokenUsage{
-						InputTokens:  8000,
-						OutputTokens: 2000,
-					},
+		// Add execution state with tokens and cost
+		tsk.CurrentPhase = "implement"
+		tsk.Execution.Cost = task.CostTracking{
+			TotalCostUSD: 1.0,
+		}
+		tsk.Execution.Phases = map[string]*task.PhaseState{
+			"implement": {
+				Status: task.PhaseStatusCompleted,
+				Tokens: task.TokenUsage{
+					InputTokens:  8000,
+					OutputTokens: 2000,
 				},
 			},
 		}
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("failed to save state for task %d: %v", i, err)
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task with execution state %d: %v", i, err)
 		}
 	}
 
@@ -388,42 +381,36 @@ func TestHandleGetDashboardStats_PeriodComparison(t *testing.T) {
 			t.Fatalf("failed to save previous task %d: %v", i, err)
 		}
 
-		// Add state with tokens and cost
-		st := &state.State{
-			TaskID:       tsk.ID,
-			CurrentPhase: "implement",
-			Status:       state.StatusCompleted,
-			StartedAt:    *tsk.StartedAt,
-			CompletedAt:  tsk.CompletedAt,
-			Cost: state.CostTracking{
-				TotalCostUSD: 0.8,
-			},
-			Phases: map[string]*state.PhaseState{
-				"implement": {
-					Status: state.StatusCompleted,
-					Tokens: state.TokenUsage{
-						InputTokens:  6400,
-						OutputTokens: 1600,
-					},
+		// Add execution state with tokens and cost
+		tsk.CurrentPhase = "implement"
+		tsk.Execution.Cost = task.CostTracking{
+			TotalCostUSD: 0.8,
+		}
+		tsk.Execution.Phases = map[string]*task.PhaseState{
+			"implement": {
+				Status: task.PhaseStatusCompleted,
+				Tokens: task.TokenUsage{
+					InputTokens:  6400,
+					OutputTokens: 1600,
 				},
 			},
 		}
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("failed to save state for previous task %d: %v", i, err)
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task with execution state for previous task %d: %v", i, err)
 		}
 	}
 
-	// Verify states were saved before closing backend
+	// Verify task execution states were saved before closing backend
 	for i := 1; i <= 3; i++ {
 		taskID := fmt.Sprintf("TASK-%03d", i)
-		verifyState, err := backend.LoadState(taskID)
+		verifyTask, err := backend.LoadTask(taskID)
 		if err != nil {
-			t.Fatalf("failed to load state for verification %s: %v", taskID, err)
+			t.Fatalf("failed to load task for verification %s: %v", taskID, err)
 		}
-		if phase, ok := verifyState.Phases["implement"]; !ok {
-			t.Fatalf("state for %s missing implement phase", taskID)
+		if phase, ok := verifyTask.Execution.Phases["implement"]; !ok {
+			t.Fatalf("task %s missing implement phase", taskID)
 		} else if total := phase.Tokens.InputTokens + phase.Tokens.OutputTokens; total != 10000 {
-			t.Fatalf("state for %s has wrong tokens: got %d", taskID, total)
+			t.Fatalf("task %s has wrong tokens: got %d", taskID, total)
 		}
 	}
 

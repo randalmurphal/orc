@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/project"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -523,13 +522,8 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Update state status
-	if st, err := backend.LoadState(taskID); err == nil && st != nil {
-		st.Status = state.StatusPaused
-		if err := backend.SaveState(st); err != nil {
-			s.logger.Error("failed to save state", "error", err)
-		}
-	}
+	// Note: task.Status is the single source of truth for task status.
+	// State tracks per-phase progress, not overall task status.
 
 	s.jsonResponse(w, map[string]any{
 		"status":  "paused",
@@ -715,44 +709,28 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Load state (may not exist)
-	st, _ := backend.LoadState(taskID)
-	if st == nil {
-		st = &state.State{
-			TaskID: taskID,
-			Phases: make(map[string]*state.PhaseState),
-		}
-	}
-
-	// Mark target and all later phases as pending in state
+	// Mark target and all later phases as pending in task's execution state
 	foundTarget := false
 	for _, phase := range phases {
 		if phase.ID == req.Phase {
 			foundTarget = true
 		}
 		if foundTarget {
-			if st.Phases[phase.ID] != nil {
-				st.Phases[phase.ID].Status = state.StatusPending
-				st.Phases[phase.ID].CompletedAt = nil
+			if t.Execution.Phases[phase.ID] != nil {
+				t.Execution.Phases[phase.ID].Status = task.PhaseStatusPending
+				t.Execution.Phases[phase.ID].CompletedAt = nil
 			}
 		}
 	}
 
-	// Update state to point to target phase
-	st.Status = state.StatusPending
-	st.CurrentPhase = req.Phase
-	st.CurrentIteration = 1
-	st.CompletedAt = nil
-
-	// Update task status to allow re-running
-	t.Status = task.StatusPlanned
+	// Update task to point to target phase
+	t.CurrentPhase = req.Phase
+	t.Execution.CurrentIteration = 1
 	t.CompletedAt = nil
 
-	// Save all updates
-	if err := backend.SaveState(st); err != nil {
-		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
-		return
-	}
+	// Update task status to allow re-running (single source of truth)
+	t.Status = task.StatusPlanned
+	t.CompletedAt = nil
 	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
@@ -832,25 +810,16 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Load state (may not exist)
-	st, _ := backend.LoadState(taskID)
-	if st == nil {
-		st = &state.State{
-			TaskID: taskID,
-			Phases: make(map[string]*state.PhaseState),
-		}
-	}
-
 	// Get current phase for context
-	currentPhase := st.CurrentPhase
+	currentPhase := t.CurrentPhase
 	if currentPhase == "" {
 		currentPhase = "review"
 	}
 
 	// Get retry attempt number from existing context or start at 1
 	attempt := 1
-	if st.RetryContext != nil && st.RetryContext.Attempt > 0 {
-		attempt = st.RetryContext.Attempt + 1
+	if t.Execution.RetryContext != nil && t.Execution.RetryContext.Attempt > 0 {
+		attempt = t.Execution.RetryContext.Attempt + 1
 	}
 
 	// Save escalation context as a retry context file
@@ -865,41 +834,34 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	)
 	if saveErr != nil {
 		s.logger.Warn("failed to save escalation context file", "error", saveErr)
-		// Continue anyway, the reason is still in state
+		// Continue anyway, the reason is still in execution state
 	}
 
-	// Set retry context in state
-	st.SetRetryContext(currentPhase, "implement", req.Reason, "", attempt)
+	// Set retry context in task's execution state
+	t.Execution.SetRetryContext(currentPhase, "implement", req.Reason, "", attempt)
 
-	// Mark implement and all later phases as pending in state
+	// Mark implement and all later phases as pending in task's execution state
 	foundTarget := false
 	for _, phase := range phases {
 		if phase.ID == "implement" {
 			foundTarget = true
 		}
 		if foundTarget {
-			if st.Phases[phase.ID] != nil {
-				st.Phases[phase.ID].Status = state.StatusPending
-				st.Phases[phase.ID].CompletedAt = nil
+			if t.Execution.Phases[phase.ID] != nil {
+				t.Execution.Phases[phase.ID].Status = task.PhaseStatusPending
+				t.Execution.Phases[phase.ID].CompletedAt = nil
 			}
 		}
 	}
 
-	// Update state to point to implement phase
-	st.Status = state.StatusPending
-	st.CurrentPhase = "implement"
-	st.CurrentIteration = 1
-	st.CompletedAt = nil
-
-	// Update task status to allow re-running
-	t.Status = task.StatusPlanned
+	// Update task to point to implement phase
+	t.CurrentPhase = "implement"
+	t.Execution.CurrentIteration = 1
 	t.CompletedAt = nil
 
-	// Save all updates
-	if err := backend.SaveState(st); err != nil {
-		s.jsonError(w, "failed to save state", http.StatusInternalServerError)
-		return
-	}
+	// Update task status to allow re-running (single source of truth)
+	t.Status = task.StatusPlanned
+	t.CompletedAt = nil
 	if err := backend.SaveTask(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
@@ -916,7 +878,7 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-// handleGetProjectTaskState returns the state for a project task.
+// handleGetProjectTaskState returns the execution state for a project task.
 func (s *Server) handleGetProjectTaskState(w http.ResponseWriter, r *http.Request) {
 	projectID := r.PathValue("id")
 	taskID := r.PathValue("taskId")
@@ -934,13 +896,13 @@ func (s *Server) handleGetProjectTaskState(w http.ResponseWriter, r *http.Reques
 	}
 	defer func() { _ = backend.Close() }()
 
-	st, err := backend.LoadState(taskID)
-	if err != nil || st == nil {
-		s.jsonError(w, "state not found", http.StatusNotFound)
+	t, err := backend.LoadTask(taskID)
+	if err != nil {
+		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
-	s.jsonResponse(w, st)
+	s.jsonResponse(w, &t.Execution)
 }
 
 // handleGetProjectTaskPlan returns the plan for a project task.

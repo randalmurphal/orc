@@ -3,6 +3,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -124,19 +125,18 @@ See also:
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			s, err := backend.LoadState(id)
-			if err != nil {
-				return fmt.Errorf("load state: %w", err)
-			}
-
 			if reason == "" {
 				reason = "rejected by user"
 			}
 
-			s.RecordGateDecision(s.CurrentPhase, "human", false, reason)
-			if err := backend.SaveState(s); err != nil {
-				return fmt.Errorf("save state: %w", err)
-			}
+			// Record gate decision in task execution state
+			t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
+				Phase:     t.CurrentPhase,
+				GateType:  "human",
+				Approved:  false,
+				Reason:    reason,
+				Timestamp: time.Now(),
+			})
 
 			t.Status = task.StatusFailed
 			if err := backend.SaveTask(t); err != nil {

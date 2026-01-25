@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newRewindCmd creates the rewind command
@@ -44,18 +44,18 @@ Examples:
 				return fmt.Errorf("--to flag is required")
 			}
 
-			// Load state to get checkpoint info
-			s, err := backend.LoadState(id)
+			// Load task (execution state is embedded in task.Execution)
+			t, err := backend.LoadTask(id)
 			if err != nil {
-				return fmt.Errorf("load state: %w", err)
+				return fmt.Errorf("load task: %w", err)
 			}
 
-			// Check if phase exists in state
-			phaseState := s.Phases[toPhase]
+			// Check if phase exists in execution state
+			phaseState := t.Execution.Phases[toPhase]
 			if phaseState == nil {
 				// Show available phases
 				fmt.Printf("Phase '%s' not found or has no state.\n\nAvailable phases:\n", toPhase)
-				for phaseID, ps := range s.Phases {
+				for phaseID, ps := range t.Execution.Phases {
 					checkpoint := ""
 					if ps.CommitSHA != "" {
 						checkpoint = fmt.Sprintf(" (checkpoint: %s)", ps.CommitSHA[:7])
@@ -85,26 +85,26 @@ Examples:
 			// Reset phases after the target phase
 			// Since we don't have an ordered phase list from plan, we reset all phases
 			// to pending and let the executor determine the order at runtime
-			for phaseID, ps := range s.Phases {
-				if phaseID == toPhase || ps.Status == state.StatusCompleted {
+			for phaseID, ps := range t.Execution.Phases {
+				if phaseID == toPhase || ps.Status == task.PhaseStatusCompleted {
 					// Keep completed phases before target
 					continue
 				}
-				ps.Status = state.StatusPending
+				ps.Status = task.PhaseStatusPending
 				ps.CommitSHA = ""
 			}
 
 			// Mark target phase as pending so it will be re-executed
-			s.Phases[toPhase].Status = state.StatusPending
-			s.Phases[toPhase].CommitSHA = ""
+			t.Execution.Phases[toPhase].Status = task.PhaseStatusPending
+			t.Execution.Phases[toPhase].CommitSHA = ""
 
 			// Reset current phase tracking
-			s.CurrentPhase = toPhase
-			s.Status = state.StatusPending
+			t.CurrentPhase = toPhase
 
-			// Save updated state
-			if err := backend.SaveState(s); err != nil {
-				return fmt.Errorf("save state: %w", err)
+			// Update task status to allow re-running (task.Status is single source of truth)
+			t.Status = task.StatusPlanned
+			if err := backend.SaveTask(t); err != nil {
+				return fmt.Errorf("save task: %w", err)
 			}
 
 			fmt.Printf("Rewound to phase: %s\n", toPhase)

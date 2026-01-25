@@ -221,46 +221,51 @@ created ──► classifying ──► planned ──► running ◄─┐
 
 ---
 
-## Task State
+## Execution State
 
-State is stored in the SQLite database (`states` table). Example:
+Execution state is embedded in `task.Task.Execution`, not stored separately. The `ExecutionState` struct tracks:
+
+| Field | Purpose |
+|-------|---------|
+| `CurrentIteration` | Iteration count within current phase |
+| `Phases` | Map of phase ID to `PhaseState` |
+| `Gates` | Gate evaluation results |
+| `Tokens` | Aggregate token usage |
+| `Cost` | Cost tracking |
+| `Session` | Claude session info |
+| `Error` | Last error message |
+| `RetryContext` | Cross-phase retry information |
+
+Example task with execution state:
 
 ```yaml
-current_phase: implement
-current_iteration: 3
+id: TASK-001
+title: "Add user authentication"
 status: running
-
-phases:
-  classify:
-    status: completed
-    started_at: 2026-01-10T10:31:00Z
-    completed_at: 2026-01-10T10:32:00Z
-    result:
-      weight: medium
-      confidence: 0.88
-    checkpoint: abc123
-
-  spec:
-    status: completed
-    started_at: 2026-01-10T10:32:00Z
-    completed_at: 2026-01-10T10:45:00Z
-    iterations: 2
-    checkpoint: def456
-
-  implement:
-    status: running
-    started_at: 2026-01-10T10:45:00Z
-    iterations: 3
-    last_checkpoint: ghi789
-
-gates:
-  - phase: spec
-    type: ai
-    decision: approved
-    timestamp: 2026-01-10T10:45:00Z
-
-errors: []
+current_phase: implement
+execution:
+  current_iteration: 3
+  phases:
+    spec:
+      status: completed
+      started_at: 2026-01-10T10:32:00Z
+      completed_at: 2026-01-10T10:45:00Z
+      iterations: 2
+    implement:
+      status: running
+      started_at: 2026-01-10T10:45:00Z
+      iterations: 3
+  gates:
+    - phase: spec
+      gate_type: ai
+      approved: true
+      timestamp: 2026-01-10T10:45:00Z
+  tokens:
+    input_tokens: 45000
+    output_tokens: 12000
 ```
+
+**Persistence:** Call `backend.SaveTask(t)` to save both task metadata and execution state together.
 
 ---
 

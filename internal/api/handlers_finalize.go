@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -309,8 +308,8 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 	// Get finalize state
 	finState := finTracker.get(taskID)
 	if finState == nil {
-		// No finalize in progress - check state for completed finalize
-		st, err := s.backend.LoadState(taskID)
+		// No finalize in progress - check task's execution state for completed finalize
+		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			s.jsonResponse(w, map[string]any{
 				"task_id": taskID,
@@ -320,15 +319,15 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 			return
 		}
 
-		// Check if finalize phase is complete in state
-		if phaseState, ok := st.Phases["finalize"]; ok {
+		// Check if finalize phase is complete in task's execution state
+		if phaseState, ok := t.Execution.Phases["finalize"]; ok {
 			var status FinalizeStatus
 			switch phaseState.Status {
-			case state.StatusCompleted:
+			case task.PhaseStatusCompleted:
 				status = FinalizeStatusCompleted
-			case state.StatusFailed:
+			case task.PhaseStatusFailed:
 				status = FinalizeStatusFailed
-			case state.StatusRunning:
+			case task.PhaseStatusRunning:
 				status = FinalizeStatusRunning
 			default:
 				status = FinalizeStatusPending
@@ -400,10 +399,12 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	// Load state
-	st, err := s.backend.LoadState(taskID)
-	if err != nil {
-		st = state.New(taskID)
+	// Reload task to get current execution state
+	var loadErr error
+	t, loadErr = s.backend.LoadTask(taskID)
+	if loadErr != nil {
+		s.finalizeFailed(taskID, finState, fmt.Errorf("reload task: %w", loadErr))
+		return
 	}
 
 	// Create finalize phase (plans are created dynamically)
@@ -464,14 +465,14 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		executor.WithFinalizeTaskDir(task.TaskDirIn(s.workDir, taskID)),
 		executor.WithFinalizeBackend(s.backend),
 		executor.WithFinalizeClaudePath(claudePath),
-		executor.WithFinalizeStateUpdater(func(updatedState *state.State) {
-			// Update progress based on state changes
+		executor.WithFinalizeExecutionUpdater(func(exec *task.ExecutionState) {
+			// Update progress based on phase state changes
 			finState.mu.Lock()
-			if updatedState.CurrentPhase == "finalize" {
-				switch updatedState.Status {
-				case state.StatusRunning:
+			if ps := exec.Phases["finalize"]; ps != nil {
+				switch ps.Status {
+				case task.PhaseStatusRunning:
 					finState.StepPercent = 50
-				case state.StatusCompleted:
+				case task.PhaseStatusCompleted:
 					finState.StepPercent = 100
 				}
 			}
@@ -493,29 +494,29 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	// Update state to running
-	st.StartPhase("finalize")
-	if err := s.backend.SaveState(st); err != nil {
-		s.logger.Warn("failed to save state", "error", err)
+	// Update task's execution state to running
+	t.Execution.StartPhase("finalize")
+	if err := s.backend.SaveTask(t); err != nil {
+		s.logger.Warn("failed to save task", "error", err)
 	}
 
 	// Execute finalize (context is passed to executor for cancellation support)
-	result, err := finalizeExec.Execute(ctx, t, finalizePhase, st)
+	result, err := finalizeExec.Execute(ctx, t, finalizePhase, &t.Execution)
 	if err != nil {
-		st.FailPhase("finalize", err)
-		_ = s.backend.SaveState(st)
+		t.Execution.FailPhase("finalize", err)
+		_ = s.backend.SaveTask(t)
 		s.finalizeFailed(taskID, finState, err)
 		return
 	}
 
-	// Update state
+	// Update task's execution state
 	switch result.Status {
 	case executor.PhaseCompleted:
-		st.CompletePhase("finalize", result.CommitSHA)
+		t.Execution.CompletePhase("finalize", result.CommitSHA)
 	case executor.PhaseFailed:
-		st.FailPhase("finalize", result.Error)
+		t.Execution.FailPhase("finalize", result.Error)
 	}
-	_ = s.backend.SaveState(st)
+	_ = s.backend.SaveTask(t)
 
 	// Build result from executor result
 	finResult := &FinalizeResult{
@@ -654,14 +655,11 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 		return false, nil
 	}
 
-	// Check if finalize was already completed
-	st, err := s.backend.LoadState(taskID)
-	if err == nil {
-		if phaseState, ok := st.Phases["finalize"]; ok {
-			if phaseState.Status == state.StatusCompleted {
-				s.logger.Debug("finalize already completed", "task", taskID)
-				return false, nil
-			}
+	// Check if finalize was already completed (check task's execution state)
+	if phaseState, ok := t.Execution.Phases["finalize"]; ok {
+		if phaseState.Status == task.PhaseStatusCompleted {
+			s.logger.Debug("finalize already completed", "task", taskID)
+			return false, nil
 		}
 	}
 

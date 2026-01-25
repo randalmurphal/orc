@@ -20,7 +20,6 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
@@ -99,9 +98,9 @@ type WorkflowExecutor struct {
 	resourceTracker    *ResourceTracker         // For orphan process detection
 
 	// Per-run state (set during Run)
-	worktreePath string        // Path to worktree (if created)
-	worktreeGit  *git.Git      // Git ops scoped to worktree
-	execState    *state.State  // Execution state (for task-based contexts)
+	worktreePath string            // Path to worktree (if created)
+	worktreeGit  *git.Git          // Git ops scoped to worktree
+	task         *task.Task        // Task being executed (for task-based contexts)
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
 
@@ -279,23 +278,19 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 	}
 
-	// Initialize execution state for task-based contexts
+	// Initialize task and execution state for task-based contexts
 	if t != nil {
-		// Load existing state or create new
-		we.execState, err = we.backend.LoadState(t.ID)
-		if err != nil || we.execState == nil {
-			we.execState = state.New(t.ID)
-		}
+		// Store task reference - execution state is in t.Execution
+		we.task = t
 
-		// Set execution info (PID, hostname, heartbeat)
+		// Set execution info (PID, hostname, heartbeat) on task
 		hostname, _ := os.Hostname()
-		we.execState.StartExecution(os.Getpid(), hostname)
-		if err := we.backend.SaveState(we.execState); err != nil {
-			we.logger.Error("failed to save initial state", "task_id", t.ID, "error", err)
+		if err := we.backend.SetTaskExecutor(t.ID, os.Getpid(), hostname); err != nil {
+			we.logger.Error("failed to set task executor", "task_id", t.ID, "error", err)
 		}
 
 		// Start heartbeat runner for orphan detection
-		we.heartbeat = NewHeartbeatRunner(we.backend, we.execState, we.logger)
+		we.heartbeat = NewHeartbeatRunner(we.backend, t.ID, we.logger)
 		we.heartbeat.Start(ctx)
 		defer we.heartbeat.Stop()
 
@@ -424,9 +419,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Resume logic: skip phases that are already completed in task state
 		// This allows resuming a task from where it left off
-		if we.execState != nil && t != nil {
-			if ps, ok := we.execState.Phases[phase.PhaseTemplateID]; ok {
-				if ps.Status == state.StatusCompleted {
+		if we.task != nil {
+			if ps, ok := we.task.Execution.Phases[phase.PhaseTemplateID]; ok {
+				if ps.Status == task.PhaseStatusCompleted {
 					we.logger.Info("skipping completed phase", "phase", phase.PhaseTemplateID)
 					// Load content from completed phase for variable chaining
 					// Phase outputs are stored in unified phase_outputs table keyed by run ID
@@ -475,7 +470,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		rctx.Phase = tmpl.ID
 
 		// Enrich context with phase-specific data (review findings, test results, etc.)
-		we.enrichContextForPhase(rctx, tmpl.ID, t, we.execState)
+		we.enrichContextForPhase(rctx, tmpl.ID, t)
 
 		// Re-resolve variables with updated context
 		vars, err = we.resolver.ResolveAll(ctx, varDefs, rctx)
@@ -540,15 +535,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						}
 
 						// Reset phase completion status for loop-back phases
-						if we.execState != nil {
+						if we.task != nil {
 							for k := loopIdx; k <= i; k++ {
 								phaseID := phases[k].PhaseTemplateID
-								if ps, exists := we.execState.Phases[phaseID]; exists {
-									ps.Status = state.StatusPending
+								if ps, exists := we.task.Execution.Phases[phaseID]; exists {
+									ps.Status = task.PhaseStatusPending
 									ps.Iterations++
 								}
 							}
-							if err := we.backend.SaveState(we.execState); err != nil {
+							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save loop state", "error", err)
 							}
 						}
@@ -583,9 +578,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						we.logger.Error("failed to save blocked task", "error", err)
 					}
 				}
-				if we.execState != nil {
-					we.execState.Error = fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
-					if err := we.backend.SaveState(we.execState); err != nil {
+				if we.task != nil {
+					we.task.Execution.Error = fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
+					if err := we.backend.SaveTask(we.task); err != nil {
 						we.logger.Warn("failed to save blocked state", "error", err)
 					}
 				}
@@ -625,10 +620,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						}
 
 						// Save retry context
-						if we.execState != nil {
+						if we.task != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
-							we.execState.SetRetryContext(tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, retryCounts[tmpl.ID])
-							if err := we.backend.SaveState(we.execState); err != nil {
+							we.task.Execution.SetRetryContext(tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, retryCounts[tmpl.ID])
+							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save retry state", "error", err)
 							}
 						}
@@ -647,9 +642,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 
 			// Record gate decision in state
-			if we.execState != nil {
-				we.execState.RecordGateDecision(tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
-				if err := we.backend.SaveState(we.execState); err != nil {
+			if we.task != nil {
+				we.task.Execution.RecordGateDecision(tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
+				if err := we.backend.SaveTask(we.task); err != nil {
 					we.logger.Warn("failed to save gate decision state", "error", err)
 				}
 			}
@@ -678,11 +673,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				}
 				t.Metadata["blocked_error"] = completionErr.Error()
 
-				if we.execState != nil {
-					we.execState.ClearExecution()
-					if err := we.backend.SaveState(we.execState); err != nil {
-						we.logger.Warn("failed to save cleared execution state", "error", err)
-					}
+				// Clear executor claim
+				if err := we.backend.ClearTaskExecutor(t.ID); err != nil {
+					we.logger.Warn("failed to clear task executor", "error", err)
 				}
 				if err := we.backend.SaveTask(t); err != nil {
 					we.logger.Warn("failed to save blocked task", "task", t.ID, "error", err)
@@ -751,14 +744,15 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 	}
 
-	// Clear execution state
-	if we.execState != nil {
-		we.execState.Complete()
-		we.execState.ClearExecution()
-		if err := we.backend.SaveState(we.execState); err != nil {
-			we.logger.Warn("failed to save completed execution state", "error", err)
+	// Clear execution state and release executor claim
+	if t != nil {
+		if err := we.backend.ClearTaskExecutor(t.ID); err != nil {
+			we.logger.Warn("failed to clear task executor", "error", err)
 		}
 	}
+	// Note: Task completion (t.CompletedAt, t.Status = StatusCompleted) is handled
+	// by runCompletion or other completion paths, not here. This is just for
+	// cleaning up execution state if needed.
 
 	// Populate result fields from run
 	if t != nil {

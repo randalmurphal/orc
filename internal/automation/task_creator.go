@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -102,22 +100,9 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	t.Metadata["automation_template_id"] = templateID
 	t.Metadata["automation_reason"] = reason
 
-	// Save the task
+	// Save the task (task.Execution is initialized by task.New())
 	if err := c.backend.SaveTask(t); err != nil {
 		return "", fmt.Errorf("save automation task: %w", err)
-	}
-
-	// Create initial state
-	s := &state.State{
-		TaskID:       taskID,
-		Status:       state.StatusPending,
-		CurrentPhase: "",
-		StartedAt:    time.Time{},
-	}
-	if err := c.backend.SaveState(s); err != nil {
-		c.logger.Warn("failed to save initial state for automation task",
-			"task", taskID,
-			"error", err)
 	}
 
 	c.logger.Info("created automation task",

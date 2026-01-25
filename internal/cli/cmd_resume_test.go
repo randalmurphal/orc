@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -72,6 +71,7 @@ func TestValidateTaskResumable(t *testing.T) {
 	tests := []struct {
 		name        string
 		status      task.Status
+		setLivePID  bool // If true, sets ExecutorPID to current process (alive)
 		forceResume bool
 		wantErr     bool
 		errContains string
@@ -109,6 +109,7 @@ func TestValidateTaskResumable(t *testing.T) {
 		{
 			name:        "running task not resumable without force",
 			status:      task.StatusRunning,
+			setLivePID:  true, // Need a live PID to be detected as truly running (not orphaned)
 			forceResume: false,
 			wantErr:     true,
 			errContains: "currently running",
@@ -116,6 +117,7 @@ func TestValidateTaskResumable(t *testing.T) {
 		{
 			name:        "running task resumable with force",
 			status:      task.StatusRunning,
+			setLivePID:  true,
 			forceResume: true,
 			wantErr:     false,
 		},
@@ -125,11 +127,12 @@ func TestValidateTaskResumable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tk := task.New("TASK-001", "Test task")
 			tk.Status = tt.status
+			tk.CurrentPhase = "implement"
+			if tt.setLivePID {
+				tk.ExecutorPID = os.Getpid() // Set to current process (alive)
+			}
 
-			s := state.New("TASK-001")
-			s.CurrentPhase = "implement"
-
-			result, err := ValidateTaskResumable(tk, s, tt.forceResume)
+			result, err := ValidateTaskResumable(tk, tt.forceResume)
 
 			if tt.wantErr {
 				if err == nil {
@@ -152,17 +155,16 @@ func TestValidateTaskResumable(t *testing.T) {
 }
 
 // TestValidateTaskResumable_OrphanedTask tests orphan detection in validation.
+// This tests the fix where we check task.ExecutorPID (source of truth).
 func TestValidateTaskResumable_OrphanedTask(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning
-
-	s := state.New("TASK-001")
-	s.CurrentPhase = "implement"
-	s.Status = state.StatusRunning // State must also be running for orphan check
+	tk.CurrentPhase = "implement"
 	// Set a PID that doesn't exist (process is dead = orphaned)
-	s.StartExecution(999999, "testhost")
+	// This is the key field checked by task.CheckOrphaned()
+	tk.ExecutorPID = 999999
 
-	result, err := ValidateTaskResumable(tk, s, false)
+	result, err := ValidateTaskResumable(tk, false)
 
 	if err != nil {
 		t.Errorf("Orphaned task should be resumable, got error: %v", err)
@@ -182,21 +184,18 @@ func TestValidateTaskResumable_OrphanedTask(t *testing.T) {
 func TestValidateTaskResumable_ForceRunning(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusRunning
-
-	s := state.New("TASK-001")
-	s.CurrentPhase = "implement"
-	s.Status = state.StatusRunning // State must also be running for orphan check
+	tk.CurrentPhase = "implement"
 	// Set our own PID so it appears as a live process
-	s.StartExecution(os.Getpid(), "testhost")
+	tk.ExecutorPID = os.Getpid()
 
-	// Without force - should fail
-	_, err := ValidateTaskResumable(tk, s, false)
+	// Without force - should fail (task appears to still be running)
+	_, err := ValidateTaskResumable(tk, false)
 	if err == nil {
 		t.Error("Expected error for running task without force")
 	}
 
 	// With force - should succeed
-	result, err := ValidateTaskResumable(tk, s, true)
+	result, err := ValidateTaskResumable(tk, true)
 	if err != nil {
 		t.Errorf("Expected no error with force flag, got: %v", err)
 	}
@@ -233,14 +232,9 @@ func TestResumeCommand_FromWorktreeDirectory(t *testing.T) {
 	tk := task.New("TASK-001", "Test task")
 	tk.Status = task.StatusCompleted // Will fail with "cannot be resumed"
 	tk.Weight = task.WeightSmall
+	tk.CurrentPhase = "implement"
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	s := state.New("TASK-001")
-	s.CurrentPhase = "implement"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 
 	_ = backend.Close()

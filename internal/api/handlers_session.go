@@ -47,8 +47,12 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Count tasks by status
+	// Count tasks by status and aggregate today's token/cost data
+	// Tokens are stored at the phase level in task.Execution.Phases
+	today := time.Now().UTC().Truncate(24 * time.Hour)
 	var running, completed int
+	var totalInput, totalOutput int
+	var totalCost float64
 	for _, t := range tasks {
 		switch t.Status {
 		case task.StatusRunning:
@@ -56,32 +60,18 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 		case task.StatusCompleted:
 			completed++
 		}
-	}
 
-	// Load all states for token/cost aggregation
-	states, err := s.backend.LoadAllStates()
-	if err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to load states: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Aggregate today's token/cost data
-	// Note: Tokens are stored at the phase level in the database, not at the state level.
-	// We aggregate from phases for token counts, and from state for cost.
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	var totalInput, totalOutput int
-	var totalCost float64
-	for _, st := range states {
 		// Aggregate tokens from phases that started today
-		for _, ps := range st.Phases {
-			if !ps.StartedAt.IsZero() && (ps.StartedAt.After(today) || ps.StartedAt.Equal(today)) {
+		// Skip if task has no phases (uninitialized execution state)
+		for _, ps := range t.Execution.Phases {
+			if ps != nil && !ps.StartedAt.IsZero() && (ps.StartedAt.After(today) || ps.StartedAt.Equal(today)) {
 				totalInput += ps.Tokens.InputTokens
 				totalOutput += ps.Tokens.OutputTokens
 			}
 		}
-		// Cost is tracked at the state level
-		if st.StartedAt.After(today) || st.StartedAt.Equal(today) {
-			totalCost += st.Cost.TotalCostUSD
+		// Cost is tracked at the task level
+		if t.StartedAt != nil && (t.StartedAt.After(today) || t.StartedAt.Equal(today)) {
+			totalCost += t.Execution.Cost.TotalCostUSD
 		}
 	}
 

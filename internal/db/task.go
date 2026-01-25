@@ -464,6 +464,37 @@ func (p *ProjectDB) GetNextTaskID() (string, error) {
 	return fmt.Sprintf("TASK-%03d", num+1), nil
 }
 
+// UpdateTaskHeartbeat updates the last_heartbeat timestamp for a task.
+// Used during long-running phases to prevent false orphan detection.
+func (p *ProjectDB) UpdateTaskHeartbeat(taskID string) error {
+	_, err := p.Exec(`UPDATE tasks SET last_heartbeat = ? WHERE id = ?`,
+		time.Now().Format(time.RFC3339), taskID)
+	return err
+}
+
+// SetTaskExecutor sets the executor info (PID, hostname, heartbeat) for a task.
+// Used when starting fresh execution.
+func (p *ProjectDB) SetTaskExecutor(taskID string, pid int, hostname string) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := p.Exec(`
+		UPDATE tasks
+		SET executor_pid = ?, executor_hostname = ?, executor_started_at = ?, last_heartbeat = ?
+		WHERE id = ?`,
+		pid, hostname, now, now, taskID)
+	return err
+}
+
+// ClearTaskExecutor clears the executor info (PID, hostname) for a task.
+// Called when task completes, fails, or is paused to release the claim.
+func (p *ProjectDB) ClearTaskExecutor(taskID string) error {
+	_, err := p.Exec(`
+		UPDATE tasks
+		SET executor_pid = 0, executor_hostname = ''
+		WHERE id = ?`,
+		taskID)
+	return err
+}
+
 // ============================================================================
 // Transaction-aware Task operations
 // ============================================================================

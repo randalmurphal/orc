@@ -32,9 +32,8 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `prompt/` | Prompt template management | `Service` |
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `spec/` | Interactive spec sessions | `Options`, `Spawner`, `Result` |
-| `state/` | Execution state persistence | `State`, `CommitTaskState`, `CommitPhaseTransition` |
 | `storage/` | Storage backend abstraction (SQLite) | `Backend`, `DatabaseBackend`, `ExportService` |
-| `task/` | Task model, attachments, orphan detection | `Task`, `CheckOrphaned()`, `Attachment` |
+| `task/` | Task model, execution state, attachments, orphan detection | `Task`, `ExecutionState`, `CheckOrphaned()` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
 | `util/` | Common utilities (atomic file writes) | `AtomicWriteFile()` |
@@ -54,7 +53,6 @@ cmd/orc
         │   │   ├── git/
         │   │   ├── github/
         │   │   ├── prompt/
-        │   │   ├── state/
         │   │   ├── storage/
         │   │   ├── task/
         │   │   ├── variable/
@@ -71,7 +69,6 @@ cmd/orc
         │   └── git/
         ├── executor/
         ├── git/
-        ├── state/
         ├── storage/
         ├── workflow/
         └── task/
@@ -87,7 +84,7 @@ cmd/orc
 return fmt.Errorf("load task %s: %w", id, err)
 ```
 
-**Task/State Consistency:** When execution fails, BOTH task and state must update. See `executor/CLAUDE.md` for the complete error handling checklist.
+**Task Consistency:** Task status and execution state are unified in `task.Task.Execution`. When execution fails, update both `t.Status` and `t.Execution` fields, then save with `backend.SaveTask(t)`. See `executor/CLAUDE.md` for the complete error handling checklist.
 
 ### Functional Options
 
@@ -132,7 +129,6 @@ func TestSomething(t *testing.T) {
 | Package | Functions |
 |---------|-----------|
 | `task` | `LoadFrom()`, `LoadAllFrom()`, `TaskDirIn()`, `ExistsIn()`, `DeleteIn()`, `NextIDIn()` |
-| `state` | `LoadFrom()`, `LoadAllStatesFrom()` |
 | `config` | `InitAt()`, `IsInitializedAt()`, `RequireInitAt()` |
 
 ## Package Documentation

@@ -8,7 +8,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -249,13 +248,15 @@ type Backend interface {
 	TaskExists(id string) (bool, error)
 	GetNextTaskID() (string, error)
 
+	// Task heartbeat (for orphan detection during long-running phases)
+	UpdateTaskHeartbeat(taskID string) error
+
+	// Task executor info (for orphan detection)
+	SetTaskExecutor(taskID string, pid int, hostname string) error
+	ClearTaskExecutor(taskID string) error
+
 	// Task activity operations (for heatmap)
 	GetTaskActivityByDate(startDate, endDate string) ([]ActivityCount, error)
-
-	// State operations
-	SaveState(s *state.State) error
-	LoadState(taskID string) (*state.State, error)
-	LoadAllStates() ([]*state.State, error)
 
 	// Phase output operations (unified storage for all phase artifacts)
 	SavePhaseOutput(output *PhaseOutputInfo) error

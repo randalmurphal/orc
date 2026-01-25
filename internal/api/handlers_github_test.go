@@ -13,7 +13,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -54,26 +53,15 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 	tsk.CreatedAt = startTime
 	tsk.UpdatedAt = startTime
 	tsk.StartedAt = &startTime
+	tsk.CurrentPhase = "implement"
+	tsk.Execution = task.InitExecutionState()
+	tsk.Execution.Phases["implement"] = &task.PhaseState{
+		Status:     task.PhaseStatusRunning,
+		StartedAt:  startTime,
+		Iterations: 1,
+	}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create and save state
-	st := state.New(taskID)
-	st.CurrentPhase = "implement"
-	st.CurrentIteration = 1
-	st.Status = state.StatusRunning
-	st.StartedAt = startTime
-	st.UpdatedAt = startTime
-	st.Phases = map[string]*state.PhaseState{
-		"implement": {
-			Status:     state.StatusRunning,
-			StartedAt:  startTime,
-			Iterations: 1,
-		},
-	}
-	if err := backend.SaveState(st); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 
 	// Close backend before applying opts and creating server
@@ -187,14 +175,14 @@ func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
 		t.Errorf("expected status 'running', got %s", resp.Status)
 	}
 
-	// Verify state was updated with retry context
-	st, err := srv.Backend().LoadState(taskID)
+	// Verify task execution state was updated with retry context
+	tsk, err := srv.Backend().LoadTask(taskID)
 	if err != nil {
-		t.Fatalf("failed to load state: %v", err)
+		t.Fatalf("failed to load task: %v", err)
 	}
 
-	if st.RetryContext == nil {
-		t.Error("expected retry context to be set in state")
+	if tsk.Execution.RetryContext == nil {
+		t.Error("expected retry context to be set in task execution state")
 	}
 }
 
@@ -982,14 +970,14 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Verify state has retry context
-	st, err := srv.Backend().LoadState(taskID)
+	// Verify task execution state has retry context
+	tsk, err := srv.Backend().LoadTask(taskID)
 	if err != nil {
-		t.Errorf("expected state to be loadable: %v", err)
+		t.Errorf("expected task to be loadable: %v", err)
 	}
 
-	if st.RetryContext == nil {
-		t.Error("expected state to have retry context")
+	if tsk.Execution.RetryContext == nil {
+		t.Error("expected task to have retry context")
 	}
 }
 

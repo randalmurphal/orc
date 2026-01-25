@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -59,18 +58,12 @@ Examples:
 				return fmt.Errorf("task is not running (status: %s)", t.Status)
 			}
 
-			// Load state to check for executor PID
-			s, err := backend.LoadState(id)
-			if err != nil {
-				s = state.New(id)
-			}
-
 			// Check if executor process is alive and signal it
-			if s.Execution != nil && s.Execution.PID > 0 {
-				if state.IsPIDAlive(s.Execution.PID) {
-					fmt.Printf("⏸️  Signaling executor (PID %d) to pause...\n", s.Execution.PID)
+			if t.ExecutorPID > 0 {
+				if task.IsPIDAlive(t.ExecutorPID) {
+					fmt.Printf("⏸️  Signaling executor (PID %d) to pause...\n", t.ExecutorPID)
 
-					proc, procErr := os.FindProcess(s.Execution.PID)
+					proc, procErr := os.FindProcess(t.ExecutorPID)
 					if procErr == nil {
 						// Send SIGUSR1 for graceful pause
 						if sigErr := proc.Signal(syscall.SIGUSR1); sigErr != nil {

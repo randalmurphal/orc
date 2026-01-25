@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -35,14 +34,10 @@ func SetupSignalHandler() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// GracefulShutdown saves current state before exit
-func GracefulShutdown(backend storage.Backend, t *task.Task, s *state.State, phase string) error {
+// GracefulShutdown saves current execution state before exit
+func GracefulShutdown(backend storage.Backend, t *task.Task, phase string) error {
 	// Mark phase as interrupted (not failed - can be resumed)
-	s.InterruptPhase(phase)
-
-	if err := backend.SaveState(s); err != nil {
-		return fmt.Errorf("save state on interrupt: %w", err)
-	}
+	t.Execution.InterruptPhase(phase)
 
 	// Update task status to interrupted so it can be resumed
 	t.Status = task.StatusBlocked
@@ -60,19 +55,17 @@ type InterruptHandler struct {
 	cancel    context.CancelFunc
 	backend   storage.Backend
 	task      *task.Task
-	state     *state.State
 	lastPhase string
 }
 
 // NewInterruptHandler creates a new interrupt handler
-func NewInterruptHandler(backend storage.Backend, t *task.Task, s *state.State) *InterruptHandler {
+func NewInterruptHandler(backend storage.Backend, t *task.Task) *InterruptHandler {
 	ctx, cancel := SetupSignalHandler()
 	return &InterruptHandler{
 		ctx:     ctx,
 		cancel:  cancel,
 		backend: backend,
 		task:    t,
-		state:   s,
 	}
 }
 
@@ -89,7 +82,7 @@ func (h *InterruptHandler) SetCurrentPhase(phase string) {
 // Cleanup saves state if interrupted
 func (h *InterruptHandler) Cleanup() {
 	if h.ctx.Err() != nil && h.lastPhase != "" {
-		_ = GracefulShutdown(h.backend, h.task, h.state, h.lastPhase)
+		_ = GracefulShutdown(h.backend, h.task, h.lastPhase)
 	}
 	h.cancel()
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -89,10 +88,9 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create state with current phase set to match the decision
-	st := state.New("TASK-001")
-	st.CurrentPhase = "review"
-	if err := srv.backend.SaveState(st); err != nil {
+	// Set current phase on task
+	tsk.CurrentPhase = "review"
+	if err := srv.backend.SaveTask(tsk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -283,10 +281,9 @@ func TestHandlePostDecision_Reject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create state with current phase set to match the decision
-	st := state.New("TASK-002")
-	st.CurrentPhase = "implement"
-	if err := srv.backend.SaveState(st); err != nil {
+	// Set current phase on task
+	tsk.CurrentPhase = "implement"
+	if err := srv.backend.SaveTask(tsk); err != nil {
 		t.Fatal(err)
 	}
 

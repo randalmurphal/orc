@@ -14,7 +14,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -59,33 +58,28 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Create and save state
-	st := state.New(taskID)
-	st.CurrentPhase = "test"
-	st.CurrentIteration = 3
-	st.Status = state.StatusFailed
-	st.StartedAt = startTime
-	st.UpdatedAt = startTime
-	st.Phases = map[string]*state.PhaseState{
+	// Set execution state on task
+	tsk.Execution.CurrentIteration = 3
+	tsk.Execution.Phases = map[string]*task.PhaseState{
 		"implement": {
-			Status:      state.StatusCompleted,
+			Status:      task.PhaseStatusCompleted,
 			StartedAt:   startTime,
 			CompletedAt: &completedTime,
 			Iterations:  5,
 		},
 		"test": {
-			Status:     state.StatusFailed,
+			Status:     task.PhaseStatusFailed,
 			StartedAt:  completedTime,
 			Iterations: 3,
 		},
 	}
-	st.Tokens = state.TokenUsage{
+	tsk.Execution.Tokens = task.TokenUsage{
 		InputTokens:  5000,
 		OutputTokens: 2500,
 		TotalTokens:  7500,
 	}
-	if err := backend.SaveState(st); err != nil {
-		t.Fatalf("failed to save state: %v", err)
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task with execution state: %v", err)
 	}
 
 	// Close backend before applying opts and creating server
@@ -126,12 +120,12 @@ func withRetryReviewComments(comments []db.ReviewComment) func(*testing.T, strin
 	}
 }
 
-// withRetryContext sets up a retry context in state.
+// withRetryContext sets up a retry context in task execution state.
 func withRetryContext(attempt int) func(*testing.T, string, string) {
 	return func(t *testing.T, tmpDir, taskID string) {
 		t.Helper()
 
-		// Create backend to load/save state
+		// Create backend to load/save task
 		storageCfg := &config.StorageConfig{Mode: "database"}
 		backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
 		if err != nil {
@@ -139,13 +133,12 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 		}
 		defer func() { _ = backend.Close() }()
 
-		st, err := backend.LoadState(taskID)
+		tsk, err := backend.LoadTask(taskID)
 		if err != nil {
-			// Create new state if loading fails
-			st = state.New(taskID)
+			t.Fatalf("failed to load task: %v", err)
 		}
 
-		st.RetryContext = &state.RetryContext{
+		tsk.Execution.RetryContext = &task.RetryContext{
 			FromPhase:   "test",
 			ToPhase:     "implement",
 			Reason:      "Tests failed",
@@ -153,8 +146,8 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 			ContextFile: "",
 		}
 
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("failed to save state with retry context: %v", err)
+		if err := backend.SaveTask(tsk); err != nil {
+			t.Fatalf("failed to save task with retry context: %v", err)
 		}
 	}
 }

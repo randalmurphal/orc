@@ -13,7 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -307,17 +306,13 @@ func TestExportDataStruct(t *testing.T) {
 		Version:    4,
 		ExportedAt: now,
 		Task: &task.Task{
-			ID:     "TASK-001",
-			Title:  "Test Task",
-			Status: task.StatusRunning,
-		},
-		State: &state.State{
-			TaskID: "TASK-001",
-			Status: state.StatusRunning,
-			Execution: &state.ExecutionInfo{
-				PID:      12345,
-				Hostname: "old-host",
-			},
+			ID:               "TASK-001",
+			Title:            "Test Task",
+			Status:           task.StatusRunning,
+			ExecutorPID:      12345,
+			ExecutorHostname: "old-host",
+			CurrentPhase:     "implement",
+			Execution:        task.InitExecutionState(),
 		},
 	}
 
@@ -335,14 +330,11 @@ func TestExportDataStruct(t *testing.T) {
 	if unmarshaled.Task.ID != "TASK-001" {
 		t.Errorf("expected task ID 'TASK-001', got %q", unmarshaled.Task.ID)
 	}
-	if unmarshaled.State == nil {
-		t.Fatal("expected state to be present")
-	}
-	if unmarshaled.State.Execution == nil {
-		t.Fatal("expected execution info to be present")
-	}
-	if unmarshaled.State.Execution.PID != 12345 {
-		t.Errorf("expected PID 12345, got %d", unmarshaled.State.Execution.PID)
+	// Note: ExecutorPID has yaml:"-" tag, so it's NOT included in YAML export.
+	// This is intentional - executor info is machine-specific and shouldn't be exported.
+	// The import logic handles running tasks by transforming them to paused.
+	if unmarshaled.Task.ExecutorPID != 0 {
+		t.Errorf("expected PID 0 (yaml:'-' excludes it), got %d", unmarshaled.Task.ExecutorPID)
 	}
 }
 
@@ -350,39 +342,31 @@ func TestExportDataStruct(t *testing.T) {
 func TestRunningTaskImportTransform(t *testing.T) {
 	t.Parallel()
 	// Create an export with a running task
+	// Executor info and execution state are on task
 	export := &ExportData{
-		Version:    3,
+		Version:    4,
 		ExportedAt: time.Now(),
 		Task: &task.Task{
-			ID:        "TASK-001",
-			Title:     "Running Task",
-			Status:    task.StatusRunning,
-			UpdatedAt: time.Now().Add(-1 * time.Hour),
-		},
-		State: &state.State{
-			TaskID:       "TASK-001",
-			Status:       state.StatusRunning,
-			CurrentPhase: "implement",
-			Execution: &state.ExecutionInfo{
-				PID:           12345,
-				Hostname:      "other-machine",
-				StartedAt:     time.Now().Add(-2 * time.Hour),
-				LastHeartbeat: time.Now().Add(-1 * time.Hour),
-			},
+			ID:               "TASK-001",
+			Title:            "Running Task",
+			Status:           task.StatusRunning,
+			ExecutorPID:      12345,
+			ExecutorHostname: "other-machine",
+			UpdatedAt:        time.Now().Add(-1 * time.Hour),
+			CurrentPhase:     "implement",
+			Execution:        task.InitExecutionState(),
 		},
 	}
 
-	// Simulate the import transformation
+	// Simulate the import transformation (matches cmd_export.go logic)
 	wasRunning := false
 	if export.Task.Status == task.StatusRunning {
 		wasRunning = true
 		export.Task.Status = task.StatusPaused
+		// Clear executor info - it's invalid on this machine
+		export.Task.ExecutorPID = 0
+		export.Task.ExecutorHostname = ""
 		export.Task.UpdatedAt = time.Now()
-
-		if export.State != nil {
-			export.State.Status = state.StatusInterrupted
-			export.State.Execution = nil
-		}
 	}
 
 	if !wasRunning {
@@ -391,14 +375,12 @@ func TestRunningTaskImportTransform(t *testing.T) {
 	if export.Task.Status != task.StatusPaused {
 		t.Errorf("expected task status 'paused', got %q", export.Task.Status)
 	}
-	if export.State.Status != state.StatusInterrupted {
-		t.Errorf("expected state status 'interrupted', got %q", export.State.Status)
+	// Executor info should be cleared on task
+	if export.Task.ExecutorPID != 0 {
+		t.Errorf("expected executor PID to be cleared, got %d", export.Task.ExecutorPID)
 	}
-	if export.State.Execution != nil {
-		t.Error("expected execution info to be cleared")
-	}
-	// Phase should be preserved
-	if export.State.CurrentPhase != "implement" {
-		t.Errorf("expected current phase 'implement', got %q", export.State.CurrentPhase)
+	// Phase should be preserved on task
+	if export.Task.CurrentPhase != "implement" {
+		t.Errorf("expected current phase 'implement', got %q", export.Task.CurrentPhase)
 	}
 }

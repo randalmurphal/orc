@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -79,20 +78,9 @@ Examples:
 				}
 			}
 
-			// Load state (may not exist for new tasks)
-			s, err := backend.LoadState(id)
-			if err != nil {
-				// State might not exist, create new one
-				s = state.New(id)
-			}
-
-			// Reset state (plans are created dynamically, no need to reset them)
-			s.Reset()
-
-			// Save state
-			if err := backend.SaveState(s); err != nil {
-				return fmt.Errorf("save state: %w", err)
-			}
+			// Reset execution state (task.Execution contains all execution-related state)
+			t.Execution.Reset()
+			t.CurrentPhase = ""
 
 			// Update task status
 			t.Status = task.StatusPlanned
