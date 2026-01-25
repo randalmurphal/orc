@@ -186,7 +186,7 @@ The database stores task-level and phase-level status:
 | Field | Type | Values | Purpose |
 |-------|------|--------|---------|
 | `task.Status` | `task.Status` | created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed | UI display, workflow |
-| Phase status | `task.PhaseStatus` | pending, running, completed, failed, paused, interrupted, skipped | Per-phase execution state |
+| Phase status | `task.PhaseStatus` | pending, running, completed, failed, paused, interrupted, skipped, blocked | Per-phase execution state |
 
 Phase status is stored in `task.Task.Execution.Phases[phaseID].Status`.
 

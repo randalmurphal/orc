@@ -8,7 +8,7 @@ import { Check, X } from 'lucide-react';
 import { Icon } from '../core/Icon';
 import './Pipeline.css';
 
-export type PhaseStatus = 'pending' | 'active' | 'completed' | 'failed';
+export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'blocked';
 
 export interface PipelineProps extends HTMLAttributes<HTMLDivElement> {
 	/** Array of phase names to display */
@@ -65,7 +65,7 @@ function computePhaseStates(
 		}
 
 		if (currentPhase.toLowerCase() === nameLower) {
-			return { name, status: 'active' as const, progress };
+			return { name, status: 'running' as const, progress };
 		}
 
 		return { name, status: 'pending' as const };
@@ -78,16 +78,16 @@ function computePhaseStates(
  * Generates the aria-valuetext for accessibility.
  */
 function getAriaValueText(phaseStates: PhaseState[], completedCount: number): string {
-	const activePhase = phaseStates.find((p) => p.status === 'active');
+	const runningPhase = phaseStates.find((p) => p.status === 'running');
 	const failedPhase = phaseStates.find((p) => p.status === 'failed');
 
 	if (failedPhase) {
 		return `${failedPhase.name} phase failed. ${completedCount} of ${phaseStates.length} phases completed.`;
 	}
 
-	if (activePhase) {
-		const progressText = activePhase.progress !== undefined ? ` (${activePhase.progress}%)` : '';
-		return `${activePhase.name} phase in progress${progressText}. ${completedCount} of ${phaseStates.length} phases completed.`;
+	if (runningPhase) {
+		const progressText = runningPhase.progress !== undefined ? ` (${runningPhase.progress}%)` : '';
+		return `${runningPhase.name} phase in progress${progressText}. ${completedCount} of ${phaseStates.length} phases completed.`;
 	}
 
 	return `${completedCount} of ${phaseStates.length} phases completed.`;
@@ -176,7 +176,7 @@ export const Pipeline = forwardRef<HTMLDivElement, PipelineProps>(
 							<div
 								className={`pipeline-bar-fill pipeline-bar-fill--${phase.status}`}
 								style={
-									phase.status === 'active' && phase.progress !== undefined
+									phase.status === 'running' && phase.progress !== undefined
 										? { width: `${phase.progress}%` }
 										: undefined
 								}
@@ -188,7 +188,7 @@ export const Pipeline = forwardRef<HTMLDivElement, PipelineProps>(
 							)}
 							{phase.status === 'failed' && <Icon name={X} size="xs" color="error" aria-hidden />}
 							{phase.name}
-							{phase.status === 'active' && phase.progress !== undefined && (
+							{phase.status === 'running' && phase.progress !== undefined && (
 								<span className="pipeline-progress">{phase.progress}%</span>
 							)}
 						</span>

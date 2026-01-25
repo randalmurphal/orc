@@ -93,7 +93,7 @@ func TestHandleGetDashboardStats_InvalidPeriod(t *testing.T) {
 	}
 }
 
-func TestHandleGetDashboardStats_BackwardCompatibility(t *testing.T) {
+func TestHandleGetDashboardStats_CoreFields(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()

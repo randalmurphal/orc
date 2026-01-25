@@ -416,13 +416,11 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, er
 
 // ExtractContentFromOutput parses JSON and returns the content field.
 // Content MUST be pure JSON from --json-schema.
-// Falls back to artifact field for backward compatibility with existing prompts.
 func ExtractContentFromOutput(content string) string {
 	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
 	if err != nil {
 		return ""
 	}
-	// Prefer content field, fall back to artifact for compatibility
 	return resp.Content
 }
 

@@ -1,7 +1,7 @@
 // Task types matching Go structs
 export type TaskWeight = 'trivial' | 'small' | 'medium' | 'large';
 export type TaskStatus = 'created' | 'classifying' | 'planned' | 'running' | 'paused' | 'blocked' | 'finalizing' | 'completed' | 'failed' | 'resolved';
-export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'interrupted' | 'skipped' | 'blocked';
 export type TaskQueue = 'active' | 'backlog';
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskCategory = 'feature' | 'bug' | 'refactor' | 'chore' | 'docs' | 'test';

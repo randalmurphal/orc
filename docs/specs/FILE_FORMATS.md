@@ -470,7 +470,7 @@ Execution state is embedded in `task.Task.Execution`, not stored as a separate e
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | PhaseStatus | pending, running, completed, failed, paused, interrupted, skipped |
+| `status` | PhaseStatus | pending, running, completed, failed, paused, interrupted, skipped, blocked |
 | `started_at` | time.Time | When phase started |
 | `completed_at` | *time.Time | When phase completed |
 | `iterations` | int | Iteration count |
