@@ -408,10 +408,10 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 	}
 
 	// Create finalize phase (plans are created dynamically)
-	finalizePhase := &executor.Phase{
+	finalizePhase := &executor.PhaseDisplay{
 		ID:     "finalize",
 		Name:   "Finalize",
-		Status: executor.PhasePending,
+		Status: task.PhaseStatusPending,
 	}
 
 	// Check for cancellation before creating git service
@@ -511,22 +511,22 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 
 	// Update task's execution state
 	switch result.Status {
-	case executor.PhaseCompleted:
+	case task.PhaseStatusCompleted:
 		t.Execution.CompletePhase("finalize", result.CommitSHA)
-	case executor.PhaseFailed:
+	case task.PhaseStatusFailed:
 		t.Execution.FailPhase("finalize", result.Error)
 	}
 	_ = s.backend.SaveTask(t)
 
 	// Build result from executor result
 	finResult := &FinalizeResult{
-		Synced:       result.Status == executor.PhaseCompleted,
+		Synced:       result.Status == task.PhaseStatusCompleted,
 		CommitSHA:    result.CommitSHA,
 		TargetBranch: targetBranch,
 	}
 
 	// Wait for CI and merge if configured (auto/fast profiles only)
-	if result.Status == executor.PhaseCompleted && s.orcConfig.ShouldWaitForCI() {
+	if result.Status == task.PhaseStatusCompleted && s.orcConfig.ShouldWaitForCI() {
 		// Update progress
 		finState.mu.Lock()
 		finState.Step = "Waiting for CI"

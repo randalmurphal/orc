@@ -211,21 +211,6 @@ type BudgetStatus struct {
 	AtAlertThreshold  bool
 }
 
-// RecordCost logs a cost entry.
-//
-// Deprecated: Use RecordCostExtended for full model and cache token tracking.
-// This method does not support model identification, cache tokens, or initiative tracking.
-func (g *GlobalDB) RecordCost(projectID, taskID, phase string, costUSD float64, inputTokens, outputTokens int) error {
-	_, err := g.Exec(`
-		INSERT INTO cost_log (project_id, task_id, phase, cost_usd, input_tokens, output_tokens)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, projectID, taskID, phase, costUSD, inputTokens, outputTokens)
-	if err != nil {
-		return fmt.Errorf("record cost: %w", err)
-	}
-	return nil
-}
-
 // CostSummary provides aggregated cost data.
 type CostSummary struct {
 	TotalCostUSD float64

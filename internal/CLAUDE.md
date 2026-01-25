@@ -38,7 +38,6 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
 | `util/` | Common utilities (atomic file writes) | `AtomicWriteFile()` |
 | `variable/` | Workflow variable resolution | `Resolver`, `Definition` |
-| `wizard/` | Interactive CLI wizard (deprecated) | `Wizard` |
 | `workflow/` | Workflow definitions, phase templates | `Workflow`, `PhaseTemplate`, `WorkflowRun` |
 
 ## Dependency Graph

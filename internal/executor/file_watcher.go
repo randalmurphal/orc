@@ -63,7 +63,7 @@ func (d *GitDiffDetector) Detect(ctx context.Context, worktreePath, baseRef stri
 // FileWatcher polls for file changes and publishes events.
 type FileWatcher struct {
 	detector  FileChangeDetector
-	publisher *PublishHelper
+	publisher *events.PublishHelper
 	interval  time.Duration
 	taskID    string
 	workDir   string
@@ -77,7 +77,7 @@ type FileWatcher struct {
 }
 
 // NewFileWatcher creates a new file watcher.
-func NewFileWatcher(detector FileChangeDetector, publisher *PublishHelper, taskID, workDir, baseRef string, logger *slog.Logger) *FileWatcher {
+func NewFileWatcher(detector FileChangeDetector, publisher *events.PublishHelper, taskID, workDir, baseRef string, logger *slog.Logger) *FileWatcher {
 	return &FileWatcher{
 		detector:  detector,
 		publisher: publisher,

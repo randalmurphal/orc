@@ -216,12 +216,6 @@ func (i *Initiative) GetTaskDependencies(taskID string) []string {
 	return nil
 }
 
-// GetReadyTasks returns tasks that are pending and have all dependencies completed.
-// Deprecated: Use GetReadyTasksWithLoader for accurate status from task.yaml files.
-func (i *Initiative) GetReadyTasks() []TaskRef {
-	return i.GetReadyTasksWithLoader(nil)
-}
-
 // GetReadyTasksWithLoader returns tasks that are pending/created/planned and have all
 // dependencies completed. If loader is provided, uses actual task status from task.yaml.
 // A task is considered "ready" if it's in a runnable state (created, planned, or pending)

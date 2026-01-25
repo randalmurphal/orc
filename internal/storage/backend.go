@@ -103,18 +103,6 @@ type ReviewComment struct {
 	ResolvedBy  string
 }
 
-// GateDecision represents a phase gate approval decision.
-type GateDecision struct {
-	ID        int64
-	TaskID    string
-	Phase     string
-	GateType  string // "auto", "ai", "human", "skip"
-	Approved  bool
-	Reason    string
-	DecidedBy string
-	DecidedAt time.Time
-}
-
 // ReviewFinding represents a single issue found during review.
 type ReviewFinding struct {
 	Severity              string `json:"severity"` // high, medium, low
@@ -341,8 +329,8 @@ type Backend interface {
 	LoadQAResult(taskID string) (*QAResult, error)
 
 	// Gate decision operations (for export/import)
-	ListGateDecisions(taskID string) ([]GateDecision, error)
-	SaveGateDecision(d *GateDecision) error
+	ListGateDecisions(taskID string) ([]db.GateDecision, error)
+	SaveGateDecision(d *db.GateDecision) error
 
 	// Event log operations (for timeline reconstruction)
 	SaveEvent(e *db.EventLog) error

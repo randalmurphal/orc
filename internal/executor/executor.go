@@ -173,7 +173,7 @@ func findClaudeInCommonLocations() string {
 // Result represents the result of a phase execution.
 type Result struct {
 	Phase        string
-	Status       PhaseStatus
+	Status       task.PhaseStatus
 	Iterations   int
 	Duration     time.Duration
 	Output       string
@@ -354,7 +354,7 @@ func (e *Executor) SetPublisher(p events.Publisher) {
 	// Initialize session broadcaster when publisher is set
 	if p != nil {
 		e.sessionBroadcaster = NewSessionBroadcaster(
-			NewPublishHelper(p),
+			events.NewPublishHelper(p),
 			e.backend,
 			e.globalDB,
 			e.config.WorkDir,
@@ -402,8 +402,8 @@ func (e *Executor) SetOrcConfig(cfg *config.Config) {
 // Event publishing convenience methods - thin wrappers around PublishHelper.
 // These provide backwards-compatible method signatures on Executor.
 
-func (e *Executor) eventPublisher() *PublishHelper {
-	return NewPublishHelper(e.publisher)
+func (e *Executor) eventPublisher() *events.PublishHelper {
+	return events.NewPublishHelper(e.publisher)
 }
 
 func (e *Executor) publishPhaseStart(taskID, phase string) {

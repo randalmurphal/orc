@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // TurnExecutor defines the interface for executing Claude turns.
@@ -183,30 +184,11 @@ type TurnResult struct {
 	Reason    string // For blocked status or continue reason
 	NumTurns  int
 	CostUSD   float64
-	Usage     TokenUsage
+	Usage     task.TokenUsage
 	Duration  time.Duration
 	IsError   bool
 	ErrorText string
 	SessionID string // Session ID from response (for tracking)
-}
-
-// TokenUsage tracks token consumption.
-type TokenUsage struct {
-	InputTokens              int
-	OutputTokens             int
-	TotalTokens              int
-	CacheCreationInputTokens int
-	CacheReadInputTokens     int
-}
-
-// EffectiveInputTokens returns the total input context size including cached tokens.
-func (u TokenUsage) EffectiveInputTokens() int {
-	return u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens
-}
-
-// EffectiveTotalTokens returns the total tokens including cached inputs.
-func (u TokenUsage) EffectiveTotalTokens() int {
-	return u.EffectiveInputTokens() + u.OutputTokens
 }
 
 // ExecuteTurn sends a prompt to Claude and waits for the response.
@@ -254,7 +236,7 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		CostUSD:   resp.CostUSD,
 		SessionID: resp.SessionID,
 		Duration:  time.Since(start),
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:              resp.Usage.InputTokens,
 			OutputTokens:             resp.Usage.OutputTokens,
 			TotalTokens:              resp.Usage.TotalTokens,
@@ -327,7 +309,7 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 		SessionID: resp.SessionID,
 		Duration:  time.Since(start),
 		Status:    PhaseStatusContinue, // Default - caller determines actual status
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:              resp.Usage.InputTokens,
 			OutputTokens:             resp.Usage.OutputTokens,
 			TotalTokens:              resp.Usage.TotalTokens,
@@ -547,7 +529,7 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		Reason:    reason,
 		NumTurns:  1,
 		SessionID: m.SessionIDValue,
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:  100,
 			OutputTokens: 50,
 		},

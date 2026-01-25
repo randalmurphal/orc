@@ -132,17 +132,10 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check for pagination params
+	// Parse pagination params (defaults to page 1, limit 20)
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 
-	// If no pagination requested, return all tasks (backward compatible)
-	if pageStr == "" && limitStr == "" {
-		s.jsonResponse(w, tasks)
-		return
-	}
-
-	// Parse pagination params
 	page := 1
 	limit := 20 // default limit
 	if pageStr != "" {
@@ -282,41 +275,27 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 
 	t := task.New(id, req.Title)
 	t.Description = req.Description
+
+	// Set all fields first, then validate
 	if req.Weight != "" {
 		t.Weight = task.Weight(req.Weight)
 	} else {
-		// Default to medium if not specified
 		t.Weight = task.WeightMedium
 	}
-
-	// Set queue (defaults to active)
 	if req.Queue != "" {
-		queue := task.Queue(req.Queue)
-		if !task.IsValidQueue(queue) {
-			s.jsonError(w, fmt.Sprintf("invalid queue: %s (valid: active, backlog)", req.Queue), http.StatusBadRequest)
-			return
-		}
-		t.Queue = queue
+		t.Queue = task.Queue(req.Queue)
 	}
-
-	// Set priority (defaults to normal)
 	if req.Priority != "" {
-		priority := task.Priority(req.Priority)
-		if !task.IsValidPriority(priority) {
-			s.jsonError(w, fmt.Sprintf("invalid priority: %s (valid: critical, high, normal, low)", req.Priority), http.StatusBadRequest)
-			return
-		}
-		t.Priority = priority
+		t.Priority = task.Priority(req.Priority)
+	}
+	if req.Category != "" {
+		t.Category = task.Category(req.Category)
 	}
 
-	// Set category (defaults to feature)
-	if req.Category != "" {
-		category := task.Category(req.Category)
-		if !task.IsValidCategory(category) {
-			s.jsonError(w, fmt.Sprintf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", req.Category), http.StatusBadRequest)
-			return
-		}
-		t.Category = category
+	// Validate all fields at once
+	if errs := t.Validate(); errs.HasErrors() {
+		s.jsonError(w, errs.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Link to initiative if specified
@@ -538,40 +517,24 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		t.Description = *req.Description
 	}
 
+	// Set all enum fields first, then validate together
 	if req.Weight != nil {
-		weight := task.Weight(*req.Weight)
-		if !task.IsValidWeight(weight) {
-			s.jsonError(w, fmt.Sprintf("invalid weight: %s", *req.Weight), http.StatusBadRequest)
-			return
-		}
-		t.Weight = weight
+		t.Weight = task.Weight(*req.Weight)
 	}
-
 	if req.Queue != nil {
-		queue := task.Queue(*req.Queue)
-		if !task.IsValidQueue(queue) {
-			s.jsonError(w, fmt.Sprintf("invalid queue: %s (valid: active, backlog)", *req.Queue), http.StatusBadRequest)
-			return
-		}
-		t.Queue = queue
+		t.Queue = task.Queue(*req.Queue)
 	}
-
 	if req.Priority != nil {
-		priority := task.Priority(*req.Priority)
-		if !task.IsValidPriority(priority) {
-			s.jsonError(w, fmt.Sprintf("invalid priority: %s (valid: critical, high, normal, low)", *req.Priority), http.StatusBadRequest)
-			return
-		}
-		t.Priority = priority
+		t.Priority = task.Priority(*req.Priority)
+	}
+	if req.Category != nil {
+		t.Category = task.Category(*req.Category)
 	}
 
-	if req.Category != nil {
-		category := task.Category(*req.Category)
-		if !task.IsValidCategory(category) {
-			s.jsonError(w, fmt.Sprintf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", *req.Category), http.StatusBadRequest)
-			return
-		}
-		t.Category = category
+	// Validate all fields at once
+	if errs := t.Validate(); errs.HasErrors() {
+		s.jsonError(w, errs.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Track initiative change for bidirectional sync

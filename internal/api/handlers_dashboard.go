@@ -10,7 +10,7 @@ import (
 
 // DashboardStats represents dashboard statistics.
 type DashboardStats struct {
-	// Existing fields (backward compatible)
+	// Core status counts
 	Running                  int     `json:"running"`
 	Orphaned                 int     `json:"orphaned"`
 	Paused                   int     `json:"paused"`

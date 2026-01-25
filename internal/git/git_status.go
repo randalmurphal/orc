@@ -1,0 +1,639 @@
+package git
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// SyncResult contains the result of a sync operation.
+type SyncResult struct {
+	// Synced indicates whether sync was performed successfully
+	Synced bool
+	// ConflictsDetected indicates merge conflicts were found
+	ConflictsDetected bool
+	// ConflictFiles lists files with conflicts
+	ConflictFiles []string
+	// CommitsBehind is the number of commits the branch is behind target
+	CommitsBehind int
+	// CommitsAhead is the number of commits the branch is ahead of target
+	CommitsAhead int
+}
+
+// ErrMergeConflict is returned when a merge/rebase encounters conflicts.
+var ErrMergeConflict = errors.New("merge conflict detected")
+
+// GetCurrentBranch returns the current branch name.
+func (g *Git) GetCurrentBranch() (string, error) {
+	return g.ctx.CurrentBranch()
+}
+
+// IsClean returns true if the working directory is clean.
+func (g *Git) IsClean() (bool, error) {
+	return g.ctx.IsClean()
+}
+
+// HasUncommittedChanges returns true if there are uncommitted changes
+// (staged or unstaged) in the working directory.
+func (g *Git) HasUncommittedChanges() (bool, error) {
+	out, err := g.ctx.RunGit("status", "--porcelain")
+	if err != nil {
+		return false, fmt.Errorf("git status: %w", err)
+	}
+	// Empty output means clean worktree
+	return strings.TrimSpace(out) != "", nil
+}
+
+// Fetch fetches from the remote.
+func (g *Git) Fetch(remote string) error {
+	return g.ctx.Fetch(remote)
+}
+
+// Rebase rebases onto the target ref.
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
+func (g *Git) Rebase(target string) error {
+	// CRITICAL: Prevent rebase operations on main repo
+	if err := g.RequireWorktreeContext("git rebase"); err != nil {
+		return err
+	}
+	_, err := g.ctx.RunGit("rebase", target)
+	return err
+}
+
+// Merge merges a branch into current.
+//
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
+func (g *Git) Merge(branch string, noFF bool) error {
+	// CRITICAL: Prevent merge operations on main repo
+	if err := g.RequireWorktreeContext("git merge"); err != nil {
+		return err
+	}
+	args := []string{"merge"}
+	if noFF {
+		args = append(args, "--no-ff")
+	}
+	args = append(args, branch)
+	_, err := g.ctx.RunGit(args...)
+	return err
+}
+
+// DetectConflicts checks if the current branch would have conflicts when merged with target.
+// This performs a dry-run merge without modifying the working tree.
+func (g *Git) DetectConflicts(target string) (*SyncResult, error) {
+	result := &SyncResult{}
+
+	// Get commit counts
+	ahead, behind, err := g.GetCommitCounts(target)
+	if err != nil {
+		return nil, fmt.Errorf("get commit counts: %w", err)
+	}
+	result.CommitsAhead = ahead
+	result.CommitsBehind = behind
+
+	// If up-to-date, no conflicts possible
+	if behind == 0 {
+		result.Synced = true
+		return result, nil
+	}
+
+	// Use git merge-tree to detect conflicts without modifying working tree
+	// This requires git 2.38+ with the --write-tree option
+	currentBranch, err := g.ctx.CurrentBranch()
+	if err != nil {
+		return nil, fmt.Errorf("get current branch: %w", err)
+	}
+
+	// Get merge base
+	mergeBase, err := g.ctx.RunGit("merge-base", currentBranch, target)
+	if err != nil {
+		return nil, fmt.Errorf("get merge base: %w", err)
+	}
+	mergeBase = strings.TrimSpace(mergeBase)
+
+	// Try merge-tree with --write-tree (git 2.38+)
+	output, err := g.ctx.RunGit("merge-tree", "--write-tree", "--no-messages", mergeBase, currentBranch, target)
+	if err != nil {
+		// If merge-tree fails, fall back to actual merge attempt
+		return g.detectConflictsViaMerge(target)
+	}
+
+	// Parse output - if there are conflict markers, we have conflicts
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "CONFLICT") {
+			result.ConflictsDetected = true
+			// Extract file name from conflict line if possible
+			// Format: "CONFLICT (content): Merge conflict in <file>"
+			if idx := strings.Index(line, " in "); idx != -1 {
+				file := strings.TrimSpace(line[idx+4:])
+				result.ConflictFiles = append(result.ConflictFiles, file)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// detectConflictsViaMerge performs conflict detection via an actual merge attempt.
+// Falls back for older git versions that don't support merge-tree --write-tree.
+//
+// SAFETY: This function performs merge and reset operations. While it attempts to
+// restore the original state, it MUST only be called in worktree context.
+//
+// This is a compound operation (merge + diff + abort + reset) protected by mutex
+// to prevent concurrent conflict detection from interfering with each other.
+func (g *Git) detectConflictsViaMerge(target string) (*SyncResult, error) {
+	// CRITICAL: This function does merge and reset - MUST be in worktree context
+	if err := g.RequireWorktreeContext("conflict detection via merge"); err != nil {
+		return nil, err
+	}
+	// Additional check: don't do this on protected branches
+	if err := g.RequireNonProtectedBranch("conflict detection via merge"); err != nil {
+		return nil, err
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	result := &SyncResult{}
+
+	// Get current HEAD for potential abort
+	head, err := g.ctx.HeadCommit()
+	if err != nil {
+		return nil, fmt.Errorf("get HEAD: %w", err)
+	}
+
+	// Defer cleanup BEFORE merge attempt - guaranteed to run even on error/panic.
+	// These operations are idempotent: merge --abort and reset --hard are safe
+	// to call even if no merge was started or if already at the target state.
+	defer func() {
+		// Abort any in-progress merge (idempotent - safe if no merge)
+		_, _ = g.ctx.RunGit("merge", "--abort")
+		// Reset to original HEAD just in case (idempotent - safe if already at HEAD)
+		_, _ = g.ctx.RunGit("reset", "--hard", head)
+	}()
+
+	// Attempt merge with --no-commit to detect conflicts
+	_, mergeErr := g.ctx.RunGit("merge", "--no-commit", "--no-ff", target)
+
+	// Check for conflicts by looking at unmerged files
+	if mergeErr != nil {
+		// List unmerged files
+		output, _ := g.ctx.RunGit("diff", "--name-only", "--diff-filter=U")
+		if output != "" {
+			result.ConflictsDetected = true
+			result.ConflictFiles = strings.Split(strings.TrimSpace(output), "\n")
+		}
+	}
+
+	return result, nil
+}
+
+// GetCommitCounts returns (ahead, behind) commit counts relative to target.
+// Ahead is how many commits HEAD has that target doesn't.
+// Behind is how many commits target has that HEAD doesn't.
+func (g *Git) GetCommitCounts(target string) (int, int, error) {
+	// git rev-list --count --left-right HEAD...target
+	output, err := g.ctx.RunGit("rev-list", "--count", "--left-right", "HEAD..."+target)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	parts := strings.Fields(strings.TrimSpace(output))
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %s", output)
+	}
+
+	ahead := 0
+	behind := 0
+	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)
+	_, _ = fmt.Sscanf(parts[1], "%d", &behind)
+
+	return ahead, behind, nil
+}
+
+// RebaseWithConflictCheck rebases onto target and returns details about any conflicts.
+// If conflicts occur, the rebase is aborted and ErrMergeConflict is returned.
+//
+// SAFETY: This operation requires worktree context to prevent accidental modification
+// of the main repository.
+//
+// This is a compound operation (commit counts + rebase + diff + abort) protected by
+// mutex to prevent concurrent rebase operations from interfering with each other.
+func (g *Git) RebaseWithConflictCheck(target string) (*SyncResult, error) {
+	// CRITICAL: Prevent rebase operations on main repo
+	if err := g.RequireWorktreeContext("rebase with conflict check"); err != nil {
+		return nil, err
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	result := &SyncResult{}
+
+	// Get initial state
+	ahead, behind, err := g.GetCommitCounts(target)
+	if err != nil {
+		return nil, fmt.Errorf("get commit counts: %w", err)
+	}
+	result.CommitsAhead = ahead
+	result.CommitsBehind = behind
+
+	// If already up-to-date, no rebase needed
+	if behind == 0 {
+		result.Synced = true
+		return result, nil
+	}
+
+	// Attempt rebase
+	_, rebaseErr := g.ctx.RunGit("rebase", target)
+	if rebaseErr != nil {
+		// Check for conflicts
+		output, _ := g.ctx.RunGit("diff", "--name-only", "--diff-filter=U")
+		if output != "" {
+			result.ConflictsDetected = true
+			result.ConflictFiles = strings.Split(strings.TrimSpace(output), "\n")
+		}
+
+		// Abort the rebase
+		_, _ = g.ctx.RunGit("rebase", "--abort")
+
+		// Only return ErrMergeConflict if we actually detected conflicts
+		if result.ConflictsDetected {
+			return result, fmt.Errorf("%w: %d files have conflicts", ErrMergeConflict, len(result.ConflictFiles))
+		}
+		// Rebase failed for another reason (dirty tree, uncommitted changes, etc.)
+		return result, fmt.Errorf("rebase failed: %w", rebaseErr)
+	}
+
+	result.Synced = true
+	return result, nil
+}
+
+// AbortRebase aborts any in-progress rebase.
+// SAFETY: Requires worktree context - rebase operations should only happen in worktrees.
+func (g *Git) AbortRebase() error {
+	if err := g.RequireWorktreeContext("git rebase --abort"); err != nil {
+		return err
+	}
+	_, err := g.ctx.RunGit("rebase", "--abort")
+	return err
+}
+
+// AbortMerge aborts any in-progress merge.
+// SAFETY: Requires worktree context - merge operations should only happen in worktrees.
+func (g *Git) AbortMerge() error {
+	if err := g.RequireWorktreeContext("git merge --abort"); err != nil {
+		return err
+	}
+	_, err := g.ctx.RunGit("merge", "--abort")
+	return err
+}
+
+// IsRebaseInProgress checks if a rebase is in progress.
+// Checks for .git/rebase-merge/ or .git/rebase-apply/ directories.
+// Works in both regular repos and worktrees.
+func (g *Git) IsRebaseInProgress() (bool, error) {
+	workDir := g.ctx.WorkDir()
+
+	// For worktrees, .git is a file pointing to the actual git dir
+	gitPath := filepath.Join(workDir, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false, fmt.Errorf("stat .git: %w", err)
+	}
+
+	var gitDir string
+	if info.IsDir() {
+		// Regular repo - .git is a directory
+		gitDir = gitPath
+	} else {
+		// Worktree - .git is a file containing "gitdir: <path>"
+		content, err := os.ReadFile(gitPath)
+		if err != nil {
+			return false, fmt.Errorf("read .git file: %w", err)
+		}
+		line := strings.TrimSpace(string(content))
+		if !strings.HasPrefix(line, "gitdir: ") {
+			return false, fmt.Errorf("unexpected .git file format: %s", line)
+		}
+		gitDir = strings.TrimPrefix(line, "gitdir: ")
+	}
+
+	// Check for rebase-merge directory (interactive rebase)
+	rebaseMergeDir := filepath.Join(gitDir, "rebase-merge")
+	if _, err := os.Stat(rebaseMergeDir); err == nil {
+		return true, nil
+	}
+
+	// Check for rebase-apply directory (non-interactive rebase, am)
+	rebaseApplyDir := filepath.Join(gitDir, "rebase-apply")
+	if _, err := os.Stat(rebaseApplyDir); err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// IsMergeInProgress checks if a merge is in progress.
+// Checks for .git/MERGE_HEAD file.
+// Works in both regular repos and worktrees.
+func (g *Git) IsMergeInProgress() (bool, error) {
+	workDir := g.ctx.WorkDir()
+
+	// For worktrees, .git is a file pointing to the actual git dir
+	gitPath := filepath.Join(workDir, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false, fmt.Errorf("stat .git: %w", err)
+	}
+
+	var gitDir string
+	if info.IsDir() {
+		// Regular repo - .git is a directory
+		gitDir = gitPath
+	} else {
+		// Worktree - .git is a file containing "gitdir: <path>"
+		content, err := os.ReadFile(gitPath)
+		if err != nil {
+			return false, fmt.Errorf("read .git file: %w", err)
+		}
+		line := strings.TrimSpace(string(content))
+		if !strings.HasPrefix(line, "gitdir: ") {
+			return false, fmt.Errorf("unexpected .git file format: %s", line)
+		}
+		gitDir = strings.TrimPrefix(line, "gitdir: ")
+	}
+
+	// Check for MERGE_HEAD file
+	mergeHeadFile := filepath.Join(gitDir, "MERGE_HEAD")
+	if _, err := os.Stat(mergeHeadFile); err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// DiscardChanges discards all uncommitted changes in the working directory.
+// This includes both staged and unstaged changes.
+// SAFETY: This operation is destructive and should only be used when explicitly requested.
+func (g *Git) DiscardChanges() error {
+	// Reset staged changes (ignore error - might fail if no HEAD exists yet)
+	_, _ = g.ctx.RunGit("reset", "HEAD")
+
+	// Discard unstaged changes to tracked files
+	if _, err := g.ctx.RunGit("checkout", "--", "."); err != nil {
+		return fmt.Errorf("discard tracked changes: %w", err)
+	}
+
+	// Remove untracked files and directories
+	if _, err := g.ctx.RunGit("clean", "-fd"); err != nil {
+		return fmt.Errorf("remove untracked files: %w", err)
+	}
+
+	return nil
+}
+
+// RestoreOrcDir restores the .orc/ directory from a target ref (e.g., "origin/main").
+// This is used during completion sync to prevent worktree modifications to .orc/ from
+// contaminating the target branch when merged.
+//
+// The function:
+// 1. Checks if .orc/ has changes compared to the target
+// 2. If changes exist, removes the current .orc/ and restores from target
+// 3. Commits the restoration if needed
+//
+// Returns true if restoration was performed, false if no changes were found.
+//
+// This is a compound operation (diff + rm + checkout + add + commit) protected by
+// mutex to ensure atomicity.
+func (g *Git) RestoreOrcDir(target string, taskID string) (bool, error) {
+	// CRITICAL: Prevent restore operations on main repo
+	if err := g.RequireWorktreeContext("restore .orc/"); err != nil {
+		return false, err
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Check if .orc/ directory exists
+	// Use WorkDir() not RepoPath() - in worktree context, WorkDir is the worktree path
+	orcDir := filepath.Join(g.ctx.WorkDir(), ".orc")
+	if _, err := os.Stat(orcDir); os.IsNotExist(err) {
+		// No .orc/ directory, nothing to restore
+		return false, nil
+	}
+
+	// Check if .orc/ has changes compared to target
+	// Use git diff to detect changes between current state and target
+	output, err := g.ctx.RunGit("diff", "--name-only", target, "--", ".orc/")
+	if err != nil {
+		// If target ref doesn't exist or diff fails, skip restoration
+		// This handles cases where target branch doesn't have .orc/ yet
+		return false, nil
+	}
+
+	// If no changes, nothing to restore
+	changedFiles := strings.TrimSpace(output)
+	if changedFiles == "" {
+		return false, nil
+	}
+
+	// Remove tracked .orc/ files that differ from target
+	// This handles both modifications AND additions (files that don't exist in target)
+	// We need to use rm for files that were added (won't exist in target)
+	// and checkout for files that were modified
+
+	// First, remove .orc/ from working tree (but keep in index for now)
+	if err := os.RemoveAll(orcDir); err != nil {
+		return false, fmt.Errorf("remove .orc/ directory: %w", err)
+	}
+
+	// Restore .orc/ from target using checkout
+	// This will recreate .orc/ with the target's content
+	_, err = g.ctx.RunGit("checkout", target, "--", ".orc/")
+	if err != nil {
+		return false, fmt.Errorf("restore .orc/ from %s: %w", target, err)
+	}
+
+	// Check if there are changes to commit (added files that were removed will show as deleted)
+	status, err := g.ctx.RunGit("status", "--porcelain", ".orc/")
+	if err != nil {
+		return false, fmt.Errorf("check status after restore: %w", err)
+	}
+
+	// If there are changes after restoration, commit them
+	if strings.TrimSpace(status) != "" {
+		// Stage all .orc/ changes (including deletions of files not in target)
+		if _, err := g.ctx.RunGit("add", ".orc/"); err != nil {
+			return false, fmt.Errorf("stage .orc/ restore: %w", err)
+		}
+
+		// Commit the restoration
+		commitMsg := fmt.Sprintf("%s %s: restore .orc/ from %s", g.commitPrefix, taskID, target)
+		if _, err := g.ctx.RunGit("commit", "-m", commitMsg); err != nil {
+			// If commit fails due to nothing to commit, that's OK
+			if !strings.Contains(err.Error(), "nothing to commit") {
+				return false, fmt.Errorf("commit .orc/ restore: %w", err)
+			}
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// RestoreClaudeSettings restores .claude/settings.json from a target ref.
+// This prevents worktree isolation hooks from being merged into the target branch.
+// Worktrees inject Claude Code hooks that reference machine-specific paths - these
+// should never be merged to shared branches.
+//
+// Returns true if restoration was performed, false if no changes were needed.
+//
+// This is a compound operation (diff + checkout/rm + add + commit) protected by
+// mutex to ensure atomicity.
+func (g *Git) RestoreClaudeSettings(target string, taskID string) (bool, error) {
+	// CRITICAL: Prevent restore operations on main repo
+	if err := g.RequireWorktreeContext("restore .claude/settings.json"); err != nil {
+		return false, err
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	settingsPath := filepath.Join(g.ctx.WorkDir(), ".claude", "settings.json")
+
+	// Check if settings.json exists
+	if _, err := os.Stat(settingsPath); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	// Check if settings.json differs from target
+	output, err := g.ctx.RunGit("diff", "--name-only", target, "--", ".claude/settings.json")
+	if err != nil {
+		// Target might not have .claude/settings.json - that's fine
+		return false, nil
+	}
+
+	if strings.TrimSpace(output) == "" {
+		return false, nil
+	}
+
+	// Check if target has .claude/settings.json
+	_, err = g.ctx.RunGit("cat-file", "-e", target+":.claude/settings.json")
+	if err != nil {
+		// Target doesn't have settings.json - remove ours entirely
+		if err := os.Remove(settingsPath); err != nil && !os.IsNotExist(err) {
+			return false, fmt.Errorf("remove .claude/settings.json: %w", err)
+		}
+		// Stage the deletion
+		if _, err := g.ctx.RunGit("add", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("stage settings.json deletion: %w", err)
+		}
+	} else {
+		// Restore from target
+		if _, err := g.ctx.RunGit("checkout", target, "--", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("restore .claude/settings.json from %s: %w", target, err)
+		}
+		// Stage the restoration
+		if _, err := g.ctx.RunGit("add", ".claude/settings.json"); err != nil {
+			return false, fmt.Errorf("stage settings.json restore: %w", err)
+		}
+	}
+
+	// Commit if there are staged changes
+	status, _ := g.ctx.RunGit("diff", "--cached", "--name-only", "--", ".claude/settings.json")
+	if strings.TrimSpace(status) != "" {
+		commitMsg := fmt.Sprintf("%s %s: restore .claude/settings.json from %s", g.commitPrefix, taskID, target)
+		if _, err := g.ctx.RunGit("commit", "-m", commitMsg); err != nil {
+			if !strings.Contains(err.Error(), "nothing to commit") {
+				return false, fmt.Errorf("commit settings.json restore: %w", err)
+			}
+			return false, nil
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// TryAutoResolveClaudeMD attempts to auto-resolve CLAUDE.md conflicts.
+// This is called when CLAUDE.md is detected as a conflicted file.
+// Returns true if resolution succeeded, false if manual resolution is needed.
+//
+// Auto-resolution only works for append-only conflicts in the knowledge section:
+// - Both sides add new rows to the same table
+// - No overlapping edits to the same row
+// - Conflict is within orc:knowledge:begin/end markers
+func (g *Git) TryAutoResolveClaudeMD(logger *slog.Logger) (bool, []string) {
+	// Use WorkDir() not RepoPath() - in worktree context, WorkDir is the worktree path
+	claudeMDPath := filepath.Join(g.ctx.WorkDir(), "CLAUDE.md")
+
+	// Read the conflicted file
+	content, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		return false, []string{fmt.Sprintf("failed to read CLAUDE.md: %v", err)}
+	}
+
+	// Check for conflict markers
+	if !strings.Contains(string(content), "<<<<<<<") {
+		return false, []string{"no conflict markers found in CLAUDE.md"}
+	}
+
+	// Attempt auto-resolution
+	resolved, success, logs := ResolveClaudeMDConflict(string(content), logger)
+	if !success {
+		return false, logs
+	}
+
+	// Write the resolved content
+	if err := os.WriteFile(claudeMDPath, []byte(resolved), 0644); err != nil {
+		return false, append(logs, fmt.Sprintf("failed to write resolved CLAUDE.md: %v", err))
+	}
+
+	// Stage the resolved file
+	if _, err := g.ctx.RunGit("add", "CLAUDE.md"); err != nil {
+		return false, append(logs, fmt.Sprintf("failed to stage resolved CLAUDE.md: %v", err))
+	}
+
+	logs = append(logs, "CLAUDE.md auto-resolved and staged")
+	return true, logs
+}
+
+// AutoResolveConflicts attempts to auto-resolve known conflict patterns.
+// Currently handles:
+// - CLAUDE.md knowledge section (append-only table rows)
+//
+// Returns the list of files that were auto-resolved and the remaining conflicts.
+func (g *Git) AutoResolveConflicts(conflictFiles []string, logger *slog.Logger) (resolved []string, remaining []string, logs []string) {
+	for _, file := range conflictFiles {
+		if IsClaudeMDFile(file) {
+			success, resolveLogs := g.TryAutoResolveClaudeMD(logger)
+			logs = append(logs, resolveLogs...)
+			if success {
+				resolved = append(resolved, file)
+				if logger != nil {
+					logger.Info("auto-resolved CLAUDE.md conflict",
+						"file", file,
+					)
+				}
+			} else {
+				remaining = append(remaining, file)
+				if logger != nil {
+					logger.Debug("CLAUDE.md auto-resolve failed, requires manual resolution",
+						"file", file,
+						"reason", strings.Join(resolveLogs, "; "),
+					)
+				}
+			}
+		} else {
+			remaining = append(remaining, file)
+		}
+	}
+	return resolved, remaining, logs
+}

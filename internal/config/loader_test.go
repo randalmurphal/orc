@@ -591,9 +591,6 @@ func TestConfigSource_Level(t *testing.T) {
 		{SourcePersonal, LevelPersonal},
 		{SourceEnv, LevelRuntime},
 		{SourceFlag, LevelRuntime},
-		// Deprecated sources
-		{SourceProject, LevelShared},
-		{SourceUser, LevelPersonal},
 	}
 
 	for _, tt := range tests {
@@ -622,26 +619,6 @@ func TestTrackedSource_String(t *testing.T) {
 				t.Errorf("TrackedSource.String() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-// Backward compatibility tests - ensure deprecated source constants still work
-func TestBackwardCompatibility_DeprecatedSources(t *testing.T) {
-	// SourceProject should work like SourceShared
-	if SourceProject.Level() != LevelShared {
-		t.Errorf("SourceProject.Level() = %v, want LevelShared", SourceProject.Level())
-	}
-
-	// SourceUser should work like SourcePersonal
-	if SourceUser.Level() != LevelPersonal {
-		t.Errorf("SourceUser.Level() = %v, want LevelPersonal", SourceUser.Level())
-	}
-
-	// TrackedConfig should still work with old source constants
-	tc := NewTrackedConfig()
-	tc.SetSource("profile", SourceProject)
-	if tc.GetSource("profile") != SourceProject {
-		t.Errorf("GetSource returned %q, want %q", tc.GetSource("profile"), SourceProject)
 	}
 }
 

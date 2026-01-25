@@ -162,24 +162,6 @@ func (e *OrcError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// APIError represents the JSON structure for API error responses.
-type APIError struct {
-	Code    Code   `json:"code"`
-	Message string `json:"message"`
-	Context string `json:"context,omitempty"`
-	Fix     string `json:"fix,omitempty"`
-}
-
-// ToAPIError converts an OrcError to an API response structure.
-func (e *OrcError) ToAPIError() APIError {
-	return APIError{
-		Code:    e.Code,
-		Message: e.What,
-		Context: e.Why,
-		Fix:     e.Fix,
-	}
-}
-
 // Is reports whether target is an OrcError with the same code.
 func (e *OrcError) Is(target error) bool {
 	t, ok := target.(*OrcError)

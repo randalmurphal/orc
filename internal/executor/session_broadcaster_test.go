@@ -46,7 +46,7 @@ func (p *testPublishHelper) getSessionUpdates() []events.SessionUpdate {
 func TestSessionBroadcaster_OnTaskStart(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -70,7 +70,7 @@ func TestSessionBroadcaster_OnTaskStart(t *testing.T) {
 func TestSessionBroadcaster_OnTaskComplete(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -97,7 +97,7 @@ func TestSessionBroadcaster_OnTaskComplete(t *testing.T) {
 func TestSessionBroadcaster_OnPauseChanged(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -133,7 +133,7 @@ func TestSessionBroadcaster_OnPauseChanged(t *testing.T) {
 func TestSessionBroadcaster_MultipleTasks(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -164,7 +164,7 @@ func TestSessionBroadcaster_MultipleTasks(t *testing.T) {
 func TestSessionBroadcaster_TickerStopsWhenIdle(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -188,7 +188,7 @@ func TestSessionBroadcaster_TickerStopsWhenIdle(t *testing.T) {
 func TestSessionBroadcaster_DurationTracking(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -209,7 +209,7 @@ func TestSessionBroadcaster_DurationTracking(t *testing.T) {
 func TestSessionBroadcaster_GetCurrentMetrics(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -234,7 +234,7 @@ func TestSessionBroadcaster_GetCurrentMetrics(t *testing.T) {
 func TestSessionBroadcaster_Stop(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()
@@ -262,7 +262,7 @@ func TestSessionBroadcaster_Stop(t *testing.T) {
 func TestSessionBroadcaster_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 	pub := &testPublishHelper{}
-	ep := NewPublishHelper(pub)
+	ep := events.NewPublishHelper(pub)
 	sb := NewSessionBroadcaster(ep, nil, nil, "/test/project", nil)
 
 	ctx := context.Background()

@@ -18,7 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
-	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // PhaseExecutionConfig holds configuration for a phase execution.
@@ -66,13 +65,13 @@ func (we *WorkflowExecutor) executePhase(
 ) (PhaseResult, error) {
 	result := PhaseResult{
 		PhaseID: tmpl.ID,
-		Status:  string(workflow.PhaseStatusRunning),
+		Status:  string(task.PhaseStatusRunning),
 	}
 
 	startTime := time.Now()
 
 	// Update phase status
-	runPhase.Status = string(workflow.PhaseStatusRunning)
+	runPhase.Status = string(task.PhaseStatusRunning)
 	runPhase.StartedAt = timePtr(startTime)
 	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
 		return result, fmt.Errorf("update phase status: %w", err)
@@ -92,7 +91,7 @@ func (we *WorkflowExecutor) executePhase(
 	// Load prompt template
 	promptContent, err := we.loadPhasePrompt(tmpl)
 	if err != nil {
-		result.Status = string(workflow.PhaseStatusFailed)
+		result.Status = string(task.PhaseStatusFailed)
 		result.Error = err.Error()
 		return result, err
 	}
@@ -175,9 +174,9 @@ func (we *WorkflowExecutor) executePhase(
 	// Execute with ClaudeExecutor
 	execResult, err := we.executeWithClaude(ctx, execConfig)
 	if err != nil {
-		result.Status = string(workflow.PhaseStatusFailed)
+		result.Status = string(task.PhaseStatusFailed)
 		result.Error = err.Error()
-		runPhase.Status = string(workflow.PhaseStatusFailed)
+		runPhase.Status = string(task.PhaseStatusFailed)
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
 		if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
@@ -191,7 +190,7 @@ func (we *WorkflowExecutor) executePhase(
 	}
 
 	// Update result
-	result.Status = string(workflow.PhaseStatusCompleted)
+	result.Status = string(task.PhaseStatusCompleted)
 	result.Iterations = execResult.Iterations
 	result.DurationMS = time.Since(startTime).Milliseconds()
 	result.InputTokens = execResult.InputTokens
@@ -247,7 +246,7 @@ func (we *WorkflowExecutor) executePhase(
 	}
 
 	// Update phase record
-	runPhase.Status = string(workflow.PhaseStatusCompleted)
+	runPhase.Status = string(task.PhaseStatusCompleted)
 	runPhase.Iterations = result.Iterations
 	runPhase.CompletedAt = timePtr(time.Now())
 	runPhase.InputTokens = result.InputTokens

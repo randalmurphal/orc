@@ -10,49 +10,24 @@ import (
 // Review findings, QA results, gate decisions - quality/review outputs
 // ============================================================================
 
-func (d *DatabaseBackend) ListGateDecisions(taskID string) ([]GateDecision, error) {
+func (d *DatabaseBackend) ListGateDecisions(taskID string) ([]db.GateDecision, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	dbDecisions, err := d.db.GetGateDecisions(taskID)
+	decisions, err := d.db.GetGateDecisions(taskID)
 	if err != nil {
 		return nil, fmt.Errorf("list gate decisions: %w", err)
 	}
-
-	result := make([]GateDecision, len(dbDecisions))
-	for i, dec := range dbDecisions {
-		result[i] = GateDecision{
-			ID:        dec.ID,
-			TaskID:    dec.TaskID,
-			Phase:     dec.Phase,
-			GateType:  dec.GateType,
-			Approved:  dec.Approved,
-			Reason:    dec.Reason,
-			DecidedBy: dec.DecidedBy,
-			DecidedAt: dec.DecidedAt,
-		}
-	}
-	return result, nil
+	return decisions, nil
 }
 
-func (d *DatabaseBackend) SaveGateDecision(gd *GateDecision) error {
+func (d *DatabaseBackend) SaveGateDecision(gd *db.GateDecision) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	dbDecision := &db.GateDecision{
-		ID:        gd.ID,
-		TaskID:    gd.TaskID,
-		Phase:     gd.Phase,
-		GateType:  gd.GateType,
-		Approved:  gd.Approved,
-		Reason:    gd.Reason,
-		DecidedBy: gd.DecidedBy,
-		DecidedAt: gd.DecidedAt,
-	}
-	if err := d.db.AddGateDecision(dbDecision); err != nil {
+	if err := d.db.AddGateDecision(gd); err != nil {
 		return fmt.Errorf("save gate decision: %w", err)
 	}
-	gd.ID = dbDecision.ID
 	return nil
 }
 

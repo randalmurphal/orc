@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/util"
 )
 
 const (
@@ -355,7 +357,7 @@ func SaveTestReport(projectDir, taskID string, report *TestReport) error {
 	}
 
 	reportPath := filepath.Join(resultsDir, ReportFile)
-	if err := os.WriteFile(reportPath, data, 0644); err != nil {
+	if err := util.AtomicWriteFile(reportPath, data, 0644); err != nil {
 		return fmt.Errorf("write report: %w", err)
 	}
 

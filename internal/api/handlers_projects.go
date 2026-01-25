@@ -1055,12 +1055,12 @@ func (s *Server) getWorkflowPhasesWithPlan(backend storage.Backend, taskID strin
 		return nil, err
 	}
 
-	planPhases := make([]executor.Phase, len(phases))
+	planPhases := make([]executor.PhaseDisplay, len(phases))
 	for i, p := range phases {
-		planPhases[i] = executor.Phase{
+		planPhases[i] = executor.PhaseDisplay{
 			ID:     p.ID,
 			Name:   p.Name,
-			Status: executor.PhasePending,
+			Status: task.PhaseStatusPending,
 		}
 	}
 

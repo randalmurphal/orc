@@ -361,42 +361,42 @@ func (o *Orchestrator) Wait() {
 // createPlanForWeight creates an execution plan based on task weight.
 // Plans are created dynamically for execution, not stored.
 func createPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
-	var phases []executor.Phase
+	var phases []executor.PhaseDisplay
 
 	switch weight {
 	case task.WeightTrivial:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		phases = []executor.PhaseDisplay{
+			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case task.WeightSmall:
-		phases = []executor.Phase{
-			{ID: "tiny_spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		phases = []executor.PhaseDisplay{
+			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case task.WeightMedium:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		phases = []executor.PhaseDisplay{
+			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case task.WeightLarge:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		phases = []executor.PhaseDisplay{
+			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	default:
-		phases = []executor.Phase{
-			{ID: "spec", Name: "Specification", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: executor.PhasePending, Gate: gate.Gate{Type: gate.GateAuto}},
+		phases = []executor.PhaseDisplay{
+			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	}
 

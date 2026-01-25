@@ -90,24 +90,6 @@ func TestOrcErrorJSON(t *testing.T) {
 	}
 }
 
-func TestOrcErrorToAPIError(t *testing.T) {
-	err := ErrTaskNotFound("TASK-123")
-	api := err.ToAPIError()
-
-	if api.Code != CodeTaskNotFound {
-		t.Errorf("Code = %v, want %v", api.Code, CodeTaskNotFound)
-	}
-	if api.Message != err.What {
-		t.Errorf("Message = %v, want %v", api.Message, err.What)
-	}
-	if api.Context != err.Why {
-		t.Errorf("Context = %v, want %v", api.Context, err.Why)
-	}
-	if api.Fix != err.Fix {
-		t.Errorf("Fix = %v, want %v", api.Fix, err.Fix)
-	}
-}
-
 func TestErrNotInitializedError(t *testing.T) {
 	err := ErrNotInitialized()
 

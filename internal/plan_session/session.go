@@ -77,7 +77,7 @@ type Result struct {
 	TaskIDs []string
 
 	// ValidationResult contains spec validation outcome.
-	ValidationResult *ValidationResult
+	ValidationResult *task.SpecValidation
 }
 
 // DetectMode determines the planning mode from the target argument.
