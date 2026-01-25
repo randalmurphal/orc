@@ -1,5 +1,11 @@
 // Package executor provides the execution engine for orc.
 // This file defines the JSON schema and types for phase completion responses.
+//
+// TODO: JSON extraction strategy - document this for future maintainers:
+// Content passed to parsing functions MUST be pure JSON from --json-schema flag
+// or StructuredOutput tool. We do NOT extract JSON from mixed content (prose + JSON).
+// This is intentional: the LLM is constrained to output valid JSON via schema enforcement,
+// so extraction/heuristics are unnecessary and would mask bugs in prompt design.
 package executor
 
 import (

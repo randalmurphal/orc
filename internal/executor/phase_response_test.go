@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -594,5 +595,34 @@ func TestGetSchemaForPhaseWithRound_Implement(t *testing.T) {
 	schema := GetSchemaForPhaseWithRound("implement", 0)
 	if schema != ImplementCompletionSchema {
 		t.Error("GetSchemaForPhaseWithRound(implement) should return ImplementCompletionSchema")
+	}
+}
+
+func TestTODOCommentDocumentsJSONExtractionStrategy(t *testing.T) {
+	t.Parallel()
+
+	// Read the phase_response.go file
+	content, err := os.ReadFile("phase_response.go")
+	if err != nil {
+		t.Fatalf("Failed to read phase_response.go: %v", err)
+	}
+
+	fileContent := string(content)
+
+	// The TODO comment must document the JSON extraction strategy:
+	// 1. Content must be pure JSON from --json-schema
+	// 2. No extraction from mixed content
+	// 3. The StructuredOutput tool enforces this
+
+	// Check for a TODO comment that documents the strategy
+	todoPattern := strings.Contains(fileContent, "TODO") &&
+		strings.Contains(fileContent, "JSON extraction strategy") ||
+		(strings.Contains(fileContent, "TODO") &&
+			strings.Contains(fileContent, "--json-schema") &&
+			strings.Contains(fileContent, "pure JSON"))
+
+	if !todoPattern {
+		t.Error("phase_response.go must contain a TODO comment documenting the JSON extraction strategy. " +
+			"Expected: a TODO comment explaining that content is pure JSON from --json-schema or StructuredOutput tool")
 	}
 }
