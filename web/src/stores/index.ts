@@ -80,8 +80,6 @@ export {
 	useFormattedTokens,
 	useSessionMetrics,
 	formatDuration,
-	formatCost,
-	formatTokens,
 	STORAGE_KEYS as SESSION_STORAGE_KEYS,
 	type SessionState,
 	type SessionActions,

@@ -5,12 +5,14 @@ import {
 	StatsRow,
 	StatCard,
 	defaultStats,
+	type InitiativeStats,
+} from './StatsRow';
+import {
 	formatNumber,
 	formatCost,
 	formatPercentage,
 	formatTrend,
-	type InitiativeStats,
-} from './StatsRow';
+} from '@/lib/format';
 
 // =============================================================================
 // Utility Function Tests

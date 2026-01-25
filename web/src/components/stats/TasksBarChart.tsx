@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * TasksBarChart component - displays tasks completed per day as a bar chart.
  * Shows 7 bars (Mon-Sun) with heights proportional to task counts.
@@ -13,10 +12,6 @@ import {
 	type DayData,
 } from './barChartUtils';
 import './TasksBarChart.css';
-
-// Re-export types and utilities for backwards compatibility
-export type { DayData } from './barChartUtils';
-export { calculateBarHeight, defaultWeekData } from './barChartUtils';
 
 // =============================================================================
 // Types

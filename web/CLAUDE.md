@@ -33,11 +33,11 @@ web/src/
 ├── index.css             # Global styles (imports tokens)
 ├── styles/               # Design system (tokens.css, animations.css)
 ├── router/               # Route configuration
-├── lib/                  # Utilities (types, api, websocket, shortcuts)
+├── lib/                  # Utilities (types, api, websocket, shortcuts, format, errors)
 ├── components/           # UI components
 │   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions)
-│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, TaskCard)
-│   ├── core/             # Shared primitives (Badge, Button, Card, Input, Progress, Select, Slider, Stat, Toggle, Tooltip)
+│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, TaskCard, Pipeline)
+│   ├── core/             # Domain primitives (Badge, Card, Progress, SearchInput, Select, Slider, Stat, Toggle)
 │   ├── dashboard/        # Dashboard sections
 │   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
 │   ├── layout/           # AppShell, IconNav, TopBar, RightPanel
@@ -47,7 +47,7 @@ web/src/
 │   ├── task-detail/      # TaskHeader, TabNav, tabs (Transcript, Changes, Review, etc.)
 │   ├── timeline/         # TimelineView, TimelineEvent, TimelineFilters, TimelineGroup
 │   ├── transcript/       # TranscriptViewer, TranscriptNav, TranscriptSection, TranscriptSearch, TranscriptVirtualList
-│   ├── ui/               # Legacy primitives (Button, Icon, Input, Tooltip, StatusIndicator)
+│   ├── ui/               # Base primitives (Button, Icon, Input, Tooltip, StatusIndicator, Breadcrumbs, Toast, EmptyState, Skeleton)
 │   └── workflows/        # WorkflowsView, WorkflowCard, WorkflowDetailPanel
 ├── pages/                # Route pages
 ├── stores/               # Zustand stores
@@ -77,6 +77,23 @@ web/src/
 | `statsStore` | Statistics and analytics data |
 | `preferencesStore` | User preferences |
 | `dependencyStore` | Task dependency graph |
+
+### Shared Utilities (`lib/`)
+
+| Module | Exports | Usage |
+|--------|---------|-------|
+| `format.ts` | `formatNumber`, `formatCost`, `formatLargeNumber`, `formatDuration`, `formatPercentage`, `formatTrend` | Display formatting for numbers, tokens, costs |
+| `errors.ts` | `APIError`, `handleStoreError` | Centralized error handling |
+| `api.ts` | `fetchJSON`, automation/notification/session API functions | All API calls |
+| `types.ts` | `Task`, `PhaseStatus`, `PhaseState`, etc. | TypeScript definitions aligned with Go backend |
+
+### Custom Hooks (`hooks/`)
+
+| Hook | Purpose |
+|------|---------|
+| `useClickKeyboard` | Handles Enter/Space on interactive non-button elements for a11y |
+| `useShortcuts` | Global keyboard shortcut registration |
+| `useWebSocket` | WebSocket connection with auto-reconnect |
 
 ### WebSocket Events
 
