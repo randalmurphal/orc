@@ -922,4 +922,462 @@ describe('StatsStore', () => {
 			expect(period).toBe('7d');
 		});
 	});
+
+	// =========================================================================
+	// TASK-530: Bug fix tests - Most Active Initiatives / Most Modified Files
+	// SC-1, SC-2, SC-3, SC-4, SC-5: Leaderboard data fetching and display
+	// =========================================================================
+
+	describe('TASK-530: Top Initiatives API fetching (SC-1, SC-2)', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn();
+		});
+
+		it('fetchStats should fetch from /api/stats/top-initiatives endpoint', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			const mockTopInitiatives = {
+				period: '7d',
+				initiatives: [
+					{ rank: 1, id: 'INIT-001', title: 'UI Redesign', task_count: 89, completed_count: 75, completion_rate: 84.3, total_tokens: 500000, total_cost_usd: 25.50 },
+					{ rank: 2, id: 'INIT-002', title: 'Backend API', task_count: 67, completed_count: 60, completion_rate: 89.6, total_tokens: 300000, total_cost_usd: 15.00 },
+				],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopInitiatives) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			// Verify the top-initiatives endpoint was called
+			expect(global.fetch).toHaveBeenCalledWith(
+				expect.stringContaining('/api/stats/top-initiatives')
+			);
+		});
+
+		it('fetchStats should transform top-initiatives API response to TopInitiative[] format', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			const mockTopInitiatives = {
+				period: '7d',
+				initiatives: [
+					{ rank: 1, id: 'INIT-001', title: 'UI Redesign', task_count: 89, completed_count: 75, completion_rate: 84.3, total_tokens: 500000, total_cost_usd: 25.50 },
+					{ rank: 2, id: 'INIT-002', title: 'Backend API', task_count: 67, completed_count: 60, completion_rate: 89.6, total_tokens: 300000, total_cost_usd: 15.00 },
+				],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopInitiatives) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// SC-1: Verify initiatives data is populated
+			expect(state.topInitiatives).toHaveLength(2);
+
+			// SC-2: Verify data matches API response (transformed to frontend format)
+			expect(state.topInitiatives[0]).toEqual({
+				name: 'UI Redesign',
+				taskCount: 89,
+			});
+			expect(state.topInitiatives[1]).toEqual({
+				name: 'Backend API',
+				taskCount: 67,
+			});
+		});
+
+		it('fetchStats should handle empty initiatives array from API', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 0, failed: 0,
+				today: 0, total: 0, tokens: 0, cost: 0,
+			};
+
+			const mockTopInitiatives = {
+				period: '7d',
+				initiatives: [],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopInitiatives) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Empty array should result in empty topInitiatives
+			expect(state.topInitiatives).toEqual([]);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+
+		it('fetchStats should handle top-initiatives endpoint 500 error gracefully', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: false, status: 500 }) // top-initiatives fails
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Other stats should still be populated
+			expect(state.summaryStats.tasksCompleted).toBe(5);
+
+			// topInitiatives should be empty (not cause overall error)
+			expect(state.topInitiatives).toEqual([]);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+	});
+
+	describe('TASK-530: Top Files API fetching (SC-3, SC-4)', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn();
+		});
+
+		it('fetchStats should fetch from /api/stats/top-files endpoint', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			const mockTopFiles = {
+				period: '7d',
+				files: [
+					{ rank: 1, path: 'src/lib/auth.ts', modification_count: 34, last_modified: '2026-01-17T10:00:00Z', tasks: ['TASK-001', 'TASK-002'] },
+					{ rank: 2, path: 'src/components/Button.tsx', modification_count: 28, last_modified: '2026-01-16T15:30:00Z', tasks: ['TASK-003'] },
+				],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', initiatives: [] }) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopFiles) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			// Verify the top-files endpoint was called
+			expect(global.fetch).toHaveBeenCalledWith(
+				expect.stringContaining('/api/stats/top-files')
+			);
+		});
+
+		it('fetchStats should transform top-files API response to TopFile[] format', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			const mockTopFiles = {
+				period: '7d',
+				files: [
+					{ rank: 1, path: 'src/lib/auth.ts', modification_count: 34, last_modified: '2026-01-17T10:00:00Z', tasks: ['TASK-001', 'TASK-002'] },
+					{ rank: 2, path: 'src/components/Button.tsx', modification_count: 28, last_modified: '2026-01-16T15:30:00Z', tasks: ['TASK-003'] },
+				],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', initiatives: [] }) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopFiles) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// SC-3: Verify files data is populated
+			expect(state.topFiles).toHaveLength(2);
+
+			// SC-4: Verify data matches API response (transformed to frontend format)
+			expect(state.topFiles[0]).toEqual({
+				path: 'src/lib/auth.ts',
+				modifyCount: 34,
+			});
+			expect(state.topFiles[1]).toEqual({
+				path: 'src/components/Button.tsx',
+				modifyCount: 28,
+			});
+		});
+
+		it('fetchStats should handle empty files array from API', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 0, failed: 0,
+				today: 0, total: 0, tokens: 0, cost: 0,
+			};
+
+			const mockTopFiles = {
+				period: '7d',
+				files: [],
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', initiatives: [] }) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopFiles) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Empty array should result in empty topFiles
+			expect(state.topFiles).toEqual([]);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+
+		it('fetchStats should handle top-files endpoint 500 error gracefully', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', initiatives: [] }) })
+				.mockResolvedValueOnce({ ok: false, status: 500 }); // top-files fails
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Other stats should still be populated
+			expect(state.summaryStats.tasksCompleted).toBe(5);
+
+			// topFiles should be empty (not cause overall error)
+			expect(state.topFiles).toEqual([]);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+	});
+
+	describe('TASK-530: Period filter affects leaderboard data (SC-5)', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn();
+		});
+
+		it('fetchStats should pass correct period parameter to top-initiatives endpoint', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockDashboard),
+			});
+
+			// Test each period
+			const periods: { period: StatsPeriod; expectedParam: string }[] = [
+				{ period: '24h', expectedParam: '24h' },
+				{ period: '7d', expectedParam: '7d' },
+				{ period: '30d', expectedParam: '30d' },
+				{ period: 'all', expectedParam: 'all' },
+			];
+
+			for (const { period, expectedParam } of periods) {
+				useStatsStore.getState().reset();
+				(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+				await useStatsStore.getState().fetchStats(period);
+
+				// Stats endpoints use period values directly (not day/week/month like cost endpoint)
+				expect(global.fetch).toHaveBeenCalledWith(
+					expect.stringContaining(`/api/stats/top-initiatives?limit=4&period=${expectedParam}`)
+				);
+			}
+		});
+
+		it('fetchStats should pass correct period parameter to top-files endpoint', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockDashboard),
+			});
+
+			// Test each period
+			const periods: { period: StatsPeriod; expectedParam: string }[] = [
+				{ period: '24h', expectedParam: '24h' },
+				{ period: '7d', expectedParam: '7d' },
+				{ period: '30d', expectedParam: '30d' },
+				{ period: 'all', expectedParam: 'all' },
+			];
+
+			for (const { period, expectedParam } of periods) {
+				useStatsStore.getState().reset();
+				(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+				await useStatsStore.getState().fetchStats(period);
+
+				// Stats endpoints use period values directly (not day/week/month like cost endpoint)
+				expect(global.fetch).toHaveBeenCalledWith(
+					expect.stringContaining(`/api/stats/top-files?limit=4&period=${expectedParam}`)
+				);
+			}
+		});
+
+		it('cache should store leaderboard data per period', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0, paused: 0, blocked: 0, completed: 5, failed: 0,
+				today: 1, total: 5, tokens: 10000, cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 1.0, total_input_tokens: 8000, total_output_tokens: 2000,
+				total_tokens: 10000, entry_count: 5,
+			};
+
+			const mockTopInitiatives7d = {
+				period: '7d',
+				initiatives: [
+					{ rank: 1, id: 'INIT-001', title: 'Initiative for 7d', task_count: 50, completed_count: 45, completion_rate: 90, total_tokens: 100000, total_cost_usd: 5.0 },
+				],
+			};
+
+			const mockTopInitiatives30d = {
+				period: '30d',
+				initiatives: [
+					{ rank: 1, id: 'INIT-001', title: 'Initiative for 30d', task_count: 200, completed_count: 180, completion_rate: 90, total_tokens: 400000, total_cost_usd: 20.0 },
+				],
+			};
+
+			// Fetch 7d data
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopInitiatives7d) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '7d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			expect(useStatsStore.getState().topInitiatives[0].name).toBe('Initiative for 7d');
+
+			// Fetch 30d data
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ...mockCost, period: 'month' }) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockTopInitiatives30d) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ period: '30d', files: [] }) });
+
+			await useStatsStore.getState().fetchStats('30d');
+
+			expect(useStatsStore.getState().topInitiatives[0].name).toBe('Initiative for 30d');
+
+			// Both should be cached
+			expect(useStatsStore.getState()._cache.has('7d')).toBe(true);
+			expect(useStatsStore.getState()._cache.has('30d')).toBe(true);
+
+			// Cache should contain correct leaderboard data
+			expect(useStatsStore.getState()._cache.get('7d')?.data.topInitiatives[0].name).toBe('Initiative for 7d');
+			expect(useStatsStore.getState()._cache.get('30d')?.data.topInitiatives[0].name).toBe('Initiative for 30d');
+		});
+	});
+
+	describe('TASK-530: Both endpoints failing does not break stats', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn();
+		});
+
+		it('stats should still load when both leaderboard endpoints fail', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 1, paused: 0, blocked: 0, completed: 10, failed: 1,
+				today: 2, total: 12, tokens: 50000, cost: 5.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week', start: '2026-01-10', end: '2026-01-17',
+				total_cost_usd: 5.0, total_input_tokens: 40000, total_output_tokens: 10000,
+				total_tokens: 50000, entry_count: 10,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockDashboard) })
+				.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockCost) })
+				.mockResolvedValueOnce({ ok: false, status: 500 }) // top-initiatives fails
+				.mockResolvedValueOnce({ ok: false, status: 500 }); // top-files fails
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Core stats should still be populated
+			expect(state.summaryStats.tasksCompleted).toBe(10);
+			expect(state.summaryStats.tokensUsed).toBe(50000);
+			expect(state.summaryStats.totalCost).toBe(5.0);
+			expect(state.outcomes.completed).toBe(10);
+			expect(state.outcomes.failed).toBe(1);
+
+			// Leaderboards should be empty but not cause error
+			expect(state.topInitiatives).toEqual([]);
+			expect(state.topFiles).toEqual([]);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+	});
 });
