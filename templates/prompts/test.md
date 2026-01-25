@@ -82,7 +82,7 @@ If this task involves UI changes (`{{REQUIRES_UI_TESTING}}` is set), use Playwri
 1. **Start the dev server** (if not running):
    ```bash
    # Example for Node/Vite projects
-   npm run dev &
+   bun run dev &
    # Wait for server to be ready
    sleep 3
    ```
@@ -128,7 +128,7 @@ Save screenshots with descriptive names:
 go test ./... -v -cover
 
 # For Node projects
-npm test
+bun test
 
 # For Python projects
 pytest -v --cov
@@ -160,8 +160,8 @@ golangci-lint run ./...
 go vet ./...
 
 # For Node/TypeScript projects - run BOTH type checking and linting
-npm run typecheck  # Type checking (tsc --noEmit)
-npm run lint       # ESLint for code quality
+bun run typecheck  # Type checking (tsc --noEmit)
+bun run lint       # ESLint for code quality
 
 # For Python projects
 ruff check .
@@ -235,7 +235,7 @@ Do NOT mark the phase complete until linting passes.
 Before marking the phase complete, verify:
 1. All tests pass (0 failures)
 2. Coverage ≥ {{COVERAGE_THRESHOLD}}%
-3. Linting passes (0 errors from golangci-lint/go vet/npm lint/ruff)
+3. Linting passes (0 errors from golangci-lint/go vet/bun lint/ruff)
 
 ### Output Completion
 

@@ -301,7 +301,7 @@ Requires:
 ### Frontend Tests (Svelte)
 
 ```bash
-cd web && npm run test
+cd web && bun run test
 ```
 
 Using: Vitest + Testing Library

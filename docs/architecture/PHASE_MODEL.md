@@ -476,9 +476,9 @@ Static analysis and linting are **mandatory** quality gates for phase completion
 |----------|----------------|-----------------|
 | **Go** | `golangci-lint run ./...` | errcheck, unused, vet, staticcheck, ineffassign |
 | Go (minimal) | `go vet ./...` | Type errors, suspicious constructs |
-| **Node/TS** | `npm run typecheck && npm run lint` | Type errors, ESLint rules |
-| TS (typecheck) | `tsc --noEmit` or `npm run typecheck` | Type errors only |
-| TS (lint) | `npm run lint` | ESLint code quality rules |
+| **Node/TS** | `bun run typecheck && bun run lint` | Type errors, ESLint rules |
+| TS (typecheck) | `tsc --noEmit` or `bun run typecheck` | Type errors only |
+| TS (lint) | `bun run lint` | ESLint code quality rules |
 | **Python** | `ruff check .` | PEP 8, common bugs, type issues |
 | Python (types) | `pyright .` | Type checking |
 | Python (alt) | `pylint`, `flake8`, `mypy` | Various rule sets |
@@ -539,7 +539,7 @@ linting:
   # Language-specific commands
   commands:
     go: "golangci-lint run ./..."
-    typescript: "npm run lint"
+    typescript: "bun run lint"
     python: "ruff check ."
 ```
 

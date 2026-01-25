@@ -120,7 +120,7 @@ Session complete. Configuration saved.
 | Indicator | Project Type | Config Implications |
 |-----------|--------------|---------------------|
 | `go.mod` | Go | Test: `go test ./...`, Lint: ruff-equivalent |
-| `package.json` | Node.js | Test: `npm test`, Lint: eslint |
+| `package.json` | Node.js | Test: `bun test`, Lint: eslint |
 | `pyproject.toml` | Python | Test: `pytest`, Lint: ruff |
 | `Cargo.toml` | Rust | Test: `cargo test`, Lint: clippy |
 | `pom.xml` | Java/Maven | Test: `mvn test` |
