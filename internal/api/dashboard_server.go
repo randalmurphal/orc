@@ -1,0 +1,757 @@
+// Package api provides the Connect RPC and REST API server for orc.
+// This file implements the DashboardService Connect RPC service.
+package api
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"sort"
+	"time"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
+)
+
+// dashboardServer implements the DashboardServiceHandler interface.
+type dashboardServer struct {
+	orcv1connect.UnimplementedDashboardServiceHandler
+	backend storage.Backend
+	logger  *slog.Logger
+}
+
+// NewDashboardServer creates a new DashboardService handler.
+func NewDashboardServer(
+	backend storage.Backend,
+	logger *slog.Logger,
+) orcv1connect.DashboardServiceHandler {
+	return &dashboardServer{
+		backend: backend,
+		logger:  logger,
+	}
+}
+
+// GetStats returns dashboard statistics.
+func (s *dashboardServer) GetStats(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetStatsRequest],
+) (*connect.Response[orcv1.GetStatsResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	// Calculate status counts
+	statusCounts := &orcv1.StatusCounts{}
+	var runningTasks []*orcv1.RunningTaskInfo
+	var recentCompletions []*orcv1.RecentCompletion
+	var todayCost float64
+	todayTokens := &orcv1.TokenUsage{}
+
+	for _, t := range tasks {
+		statusCounts.All++
+
+		switch t.Status {
+		case task.StatusRunning:
+			statusCounts.Running++
+			statusCounts.Active++
+			runningTasks = append(runningTasks, &orcv1.RunningTaskInfo{
+				Id:           t.ID,
+				Title:        t.Title,
+				CurrentPhase: t.CurrentPhase,
+				Iteration:    int32(t.Execution.CurrentIteration),
+				StartedAt:    timestampOrNil(t.StartedAt),
+			})
+		case task.StatusPlanned, task.StatusCreated:
+			statusCounts.Active++
+		case task.StatusPaused:
+			statusCounts.Active++
+		case task.StatusBlocked:
+			statusCounts.Blocked++
+			statusCounts.Active++
+		case task.StatusCompleted:
+			statusCounts.Completed++
+			if t.CompletedAt != nil && t.CompletedAt.After(today.Add(-7*24*time.Hour)) {
+				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
+					Id:          t.ID,
+					Title:       t.Title,
+					Success:     true,
+					CompletedAt: timestamppb.New(*t.CompletedAt),
+				})
+			}
+		case task.StatusFailed:
+			statusCounts.Failed++
+			if t.UpdatedAt.After(today.Add(-7 * 24 * time.Hour)) {
+				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
+					Id:          t.ID,
+					Title:       t.Title,
+					Success:     false,
+					CompletedAt: timestamppb.New(t.UpdatedAt),
+				})
+			}
+		}
+
+		// Aggregate today's tokens and cost
+		if t.CreatedAt.After(today) || t.UpdatedAt.After(today) {
+			for _, phase := range t.Execution.Phases {
+				todayTokens.InputTokens += int32(phase.Tokens.InputTokens)
+				todayTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+				todayTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
+				todayTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+			}
+			todayTokens.TotalTokens = todayTokens.InputTokens + todayTokens.OutputTokens
+			todayCost += t.Execution.Cost.TotalCostUSD
+		}
+	}
+
+	// Sort recent completions by date (newest first), limit to 10
+	sort.Slice(recentCompletions, func(i, j int) bool {
+		return recentCompletions[i].CompletedAt.AsTime().After(recentCompletions[j].CompletedAt.AsTime())
+	})
+	if len(recentCompletions) > 10 {
+		recentCompletions = recentCompletions[:10]
+	}
+
+	stats := &orcv1.DashboardStats{
+		TaskCounts:        statusCounts,
+		RunningTasks:      runningTasks,
+		RecentCompletions: recentCompletions,
+		PendingDecisions:  0, // Would need access to pendingDecisions store
+		TodayTokens:       todayTokens,
+		TodayCostUsd:      todayCost,
+	}
+
+	return connect.NewResponse(&orcv1.GetStatsResponse{
+		Stats: stats,
+	}), nil
+}
+
+// GetActivityHeatmap returns activity heatmap data.
+func (s *dashboardServer) GetActivityHeatmap(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetActivityHeatmapRequest],
+) (*connect.Response[orcv1.GetActivityHeatmapResponse], error) {
+	days := req.Msg.Days
+	if days <= 0 {
+		days = 90 // Default to 90 days
+	}
+
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	now := time.Now()
+	startDate := now.Add(-time.Duration(days) * 24 * time.Hour)
+
+	// Aggregate by date
+	dayMap := make(map[string]*orcv1.ActivityDay)
+
+	for _, t := range tasks {
+		if t.CompletedAt != nil && t.CompletedAt.After(startDate) {
+			dateStr := t.CompletedAt.Format("2006-01-02")
+			if dayMap[dateStr] == nil {
+				dayMap[dateStr] = &orcv1.ActivityDay{Date: dateStr}
+			}
+			dayMap[dateStr].TasksCompleted++
+
+			// Count phases completed
+			dayMap[dateStr].PhasesCompleted += int32(len(t.Execution.Phases))
+
+			// Sum tokens
+			for _, phase := range t.Execution.Phases {
+				dayMap[dateStr].Tokens += int32(phase.Tokens.InputTokens + phase.Tokens.OutputTokens)
+			}
+		}
+	}
+
+	// Convert to sorted slice
+	var activityDays []*orcv1.ActivityDay
+	for _, day := range dayMap {
+		activityDays = append(activityDays, day)
+	}
+	sort.Slice(activityDays, func(i, j int) bool {
+		return activityDays[i].Date < activityDays[j].Date
+	})
+
+	return connect.NewResponse(&orcv1.GetActivityHeatmapResponse{
+		Heatmap: &orcv1.ActivityHeatmap{
+			Days: activityDays,
+		},
+	}), nil
+}
+
+// GetCostSummary returns cost summary.
+func (s *dashboardServer) GetCostSummary(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetCostSummaryRequest],
+) (*connect.Response[orcv1.GetCostSummaryResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	// Determine time filter
+	now := time.Now()
+	var since time.Time
+	switch req.Msg.Period {
+	case "day":
+		since = now.Add(-24 * time.Hour)
+	case "week":
+		since = now.Add(-7 * 24 * time.Hour)
+	case "month":
+		since = now.Add(-30 * 24 * time.Hour)
+	default:
+		since = time.Time{} // All time
+	}
+
+	// Calculate cost summary
+	var totalCost float64
+	byModel := make(map[string]float64)
+	byCategory := make(map[string]float64)
+	periodCosts := make(map[string]float64)
+
+	for _, t := range tasks {
+		// Filter by time
+		taskTime := t.UpdatedAt
+		if t.CompletedAt != nil {
+			taskTime = *t.CompletedAt
+		}
+		if !since.IsZero() && taskTime.Before(since) {
+			continue
+		}
+
+		cost := t.Execution.Cost.TotalCostUSD
+		totalCost += cost
+
+		// By category
+		byCategory[string(t.Category)] += cost
+
+		// By period (day)
+		periodKey := taskTime.Format("2006-01-02")
+		periodCosts[periodKey] += cost
+
+		// Note: Model tracking per-phase not available in task.PhaseState
+		// Cost tracking is at task level via t.Execution.Cost
+	}
+
+	// Convert period costs to sorted slice
+	var periodCostsList []*orcv1.PeriodCost
+	for date, cost := range periodCosts {
+		periodCostsList = append(periodCostsList, &orcv1.PeriodCost{
+			Period:  "day",
+			Label:   date,
+			CostUsd: cost,
+		})
+	}
+	sort.Slice(periodCostsList, func(i, j int) bool {
+		return periodCostsList[i].Label < periodCostsList[j].Label
+	})
+
+	return connect.NewResponse(&orcv1.GetCostSummaryResponse{
+		Summary: &orcv1.CostSummary{
+			TotalCostUsd: totalCost,
+			ByPeriod:     periodCostsList,
+			ByModel:      byModel,
+			ByCategory:   byCategory,
+		},
+	}), nil
+}
+
+// GetMetrics returns metrics summary.
+func (s *dashboardServer) GetMetrics(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetMetricsRequest],
+) (*connect.Response[orcv1.GetMetricsResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	// Determine time filter
+	now := time.Now()
+	var since time.Time
+	if req.Msg.Period != nil {
+		switch *req.Msg.Period {
+		case "day":
+			since = now.Add(-24 * time.Hour)
+		case "week":
+			since = now.Add(-7 * 24 * time.Hour)
+		case "month":
+			since = now.Add(-30 * 24 * time.Hour)
+		}
+	}
+
+	metrics := &orcv1.MetricsSummary{
+		TotalTokens: &orcv1.TokenUsage{},
+	}
+
+	var completedCount, failedCount int
+	var totalDuration float64
+	var durationCount int
+
+	for _, t := range tasks {
+		// Filter by time
+		taskTime := t.UpdatedAt
+		if t.CompletedAt != nil {
+			taskTime = *t.CompletedAt
+		}
+		if !since.IsZero() && taskTime.Before(since) {
+			continue
+		}
+
+		if t.Status == task.StatusCompleted {
+			completedCount++
+			if t.StartedAt != nil && t.CompletedAt != nil {
+				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
+				durationCount++
+			}
+		} else if t.Status == task.StatusFailed {
+			failedCount++
+		}
+
+		metrics.PhasesExecuted += int32(len(t.Execution.Phases))
+
+		for _, phase := range t.Execution.Phases {
+			metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
+			metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+			metrics.TotalTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
+			metrics.TotalTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+		}
+	}
+
+	metrics.TotalTokens.TotalTokens = metrics.TotalTokens.InputTokens + metrics.TotalTokens.OutputTokens
+	metrics.TasksCompleted = int32(completedCount)
+
+	if durationCount > 0 {
+		metrics.AvgTaskDurationSeconds = totalDuration / float64(durationCount)
+	}
+
+	totalFinished := completedCount + failedCount
+	if totalFinished > 0 {
+		metrics.SuccessRate = float64(completedCount) / float64(totalFinished)
+	}
+
+	return connect.NewResponse(&orcv1.GetMetricsResponse{
+		Metrics: metrics,
+	}), nil
+}
+
+// GetDailyMetrics returns daily metrics.
+func (s *dashboardServer) GetDailyMetrics(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetDailyMetricsRequest],
+) (*connect.Response[orcv1.GetDailyMetricsResponse], error) {
+	days := req.Msg.Days
+	if days <= 0 {
+		days = 30
+	}
+
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	now := time.Now()
+	startDate := now.Add(-time.Duration(days) * 24 * time.Hour)
+
+	// Aggregate by date
+	dayMap := make(map[string]*orcv1.DailyMetrics)
+
+	for _, t := range tasks {
+		// Check creation date
+		if t.CreatedAt.After(startDate) {
+			dateStr := t.CreatedAt.Format("2006-01-02")
+			if dayMap[dateStr] == nil {
+				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
+			}
+			dayMap[dateStr].TasksCreated++
+		}
+
+		// Check completion date
+		if t.Status == task.StatusCompleted && t.CompletedAt != nil && t.CompletedAt.After(startDate) {
+			dateStr := t.CompletedAt.Format("2006-01-02")
+			if dayMap[dateStr] == nil {
+				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
+			}
+			dayMap[dateStr].TasksCompleted++
+			dayMap[dateStr].CostUsd += t.Execution.Cost.TotalCostUSD
+			dayMap[dateStr].PhasesCompleted += int32(len(t.Execution.Phases))
+
+			for _, phase := range t.Execution.Phases {
+				dayMap[dateStr].TokensUsed += int32(phase.Tokens.InputTokens + phase.Tokens.OutputTokens)
+			}
+		}
+
+		// Check failed date
+		if t.Status == task.StatusFailed && t.UpdatedAt.After(startDate) {
+			dateStr := t.UpdatedAt.Format("2006-01-02")
+			if dayMap[dateStr] == nil {
+				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
+			}
+			dayMap[dateStr].TasksFailed++
+		}
+	}
+
+	// Convert to sorted slice
+	var dailyMetrics []*orcv1.DailyMetrics
+	for _, dm := range dayMap {
+		dailyMetrics = append(dailyMetrics, dm)
+	}
+	sort.Slice(dailyMetrics, func(i, j int) bool {
+		return dailyMetrics[i].Date < dailyMetrics[j].Date
+	})
+
+	return connect.NewResponse(&orcv1.GetDailyMetricsResponse{
+		Stats: &orcv1.PerDayStats{
+			Days: dailyMetrics,
+		},
+	}), nil
+}
+
+// GetMetricsByModel returns metrics grouped by model.
+// Note: Model tracking per-phase is not available in task.PhaseState.
+// This returns a single "unknown" model with aggregated metrics.
+func (s *dashboardServer) GetMetricsByModel(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetMetricsByModelRequest],
+) (*connect.Response[orcv1.GetMetricsByModelResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	// Determine time filter
+	now := time.Now()
+	var since time.Time
+	if req.Msg.Period != nil {
+		switch *req.Msg.Period {
+		case "day":
+			since = now.Add(-24 * time.Hour)
+		case "week":
+			since = now.Add(-7 * 24 * time.Hour)
+		case "month":
+			since = now.Add(-30 * 24 * time.Hour)
+		}
+	}
+
+	// Aggregate all metrics (model info not available per-phase)
+	mm := &orcv1.ModelMetrics{
+		Model:  "unknown",
+		Tokens: &orcv1.TokenUsage{},
+	}
+
+	for _, t := range tasks {
+		taskTime := t.UpdatedAt
+		if t.CompletedAt != nil {
+			taskTime = *t.CompletedAt
+		}
+		if !since.IsZero() && taskTime.Before(since) {
+			continue
+		}
+
+		mm.Tasks++
+		mm.CostUsd += t.Execution.Cost.TotalCostUSD
+
+		for _, phase := range t.Execution.Phases {
+			mm.Phases++
+			mm.Tokens.InputTokens += int32(phase.Tokens.InputTokens)
+			mm.Tokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+			mm.Tokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
+			mm.Tokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+		}
+	}
+
+	mm.Tokens.TotalTokens = mm.Tokens.InputTokens + mm.Tokens.OutputTokens
+	if mm.Phases > 0 {
+		mm.AvgTokensPerPhase = float64(mm.Tokens.TotalTokens) / float64(mm.Phases)
+	}
+
+	var models []*orcv1.ModelMetrics
+	if mm.Tasks > 0 {
+		models = append(models, mm)
+	}
+
+	return connect.NewResponse(&orcv1.GetMetricsByModelResponse{
+		Models: models,
+	}), nil
+}
+
+// GetOutcomes returns outcome statistics.
+func (s *dashboardServer) GetOutcomes(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetOutcomesRequest],
+) (*connect.Response[orcv1.GetOutcomesResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	// Determine time filter
+	now := time.Now()
+	var since time.Time
+	if req.Msg.Period != nil {
+		switch *req.Msg.Period {
+		case "day":
+			since = now.Add(-24 * time.Hour)
+		case "week":
+			since = now.Add(-7 * 24 * time.Hour)
+		case "month":
+			since = now.Add(-30 * 24 * time.Hour)
+		}
+	}
+
+	outcomes := &orcv1.OutcomeStats{}
+
+	for _, t := range tasks {
+		taskTime := t.UpdatedAt
+		if t.CompletedAt != nil {
+			taskTime = *t.CompletedAt
+		}
+		if !since.IsZero() && taskTime.Before(since) {
+			continue
+		}
+
+		switch t.Status {
+		case task.StatusCompleted:
+			outcomes.Completed++
+		case task.StatusFailed:
+			outcomes.Failed++
+		case task.StatusResolved:
+			outcomes.Resolved++
+		case task.StatusRunning, task.StatusPaused, task.StatusBlocked, task.StatusPlanned, task.StatusCreated, task.StatusClassifying:
+			outcomes.InProgress++
+		}
+	}
+
+	return connect.NewResponse(&orcv1.GetOutcomesResponse{
+		Outcomes: outcomes,
+	}), nil
+}
+
+// GetTopInitiatives returns top initiatives by activity.
+func (s *dashboardServer) GetTopInitiatives(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetTopInitiativesRequest],
+) (*connect.Response[orcv1.GetTopInitiativesResponse], error) {
+	limit := req.Msg.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	// Aggregate by initiative
+	initMap := make(map[string]*orcv1.TopInitiative)
+
+	for _, t := range tasks {
+		if t.InitiativeID == "" {
+			continue
+		}
+
+		if initMap[t.InitiativeID] == nil {
+			initMap[t.InitiativeID] = &orcv1.TopInitiative{
+				Id:    t.InitiativeID,
+				Title: t.InitiativeID, // Would need to load initiative for real title
+			}
+		}
+
+		initMap[t.InitiativeID].TaskCount++
+		if t.Status == task.StatusCompleted {
+			initMap[t.InitiativeID].CompletedCount++
+		}
+		initMap[t.InitiativeID].CostUsd += t.Execution.Cost.TotalCostUSD
+	}
+
+	// Convert to sorted slice
+	var initiatives []*orcv1.TopInitiative
+	for _, init := range initMap {
+		initiatives = append(initiatives, init)
+	}
+	sort.Slice(initiatives, func(i, j int) bool {
+		return initiatives[i].TaskCount > initiatives[j].TaskCount
+	})
+
+	// Apply limit
+	if int32(len(initiatives)) > limit {
+		initiatives = initiatives[:limit]
+	}
+
+	return connect.NewResponse(&orcv1.GetTopInitiativesResponse{
+		Initiatives: initiatives,
+	}), nil
+}
+
+// GetTopFiles returns top changed files.
+func (s *dashboardServer) GetTopFiles(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetTopFilesRequest],
+) (*connect.Response[orcv1.GetTopFilesResponse], error) {
+	// This would require integration with the diff service
+	// For now, return empty list
+	return connect.NewResponse(&orcv1.GetTopFilesResponse{
+		Files: nil,
+	}), nil
+}
+
+// GetComparison returns comparison metrics between current and previous period.
+func (s *dashboardServer) GetComparison(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetComparisonRequest],
+) (*connect.Response[orcv1.GetComparisonResponse], error) {
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	now := time.Now()
+	var periodDuration time.Duration
+
+	switch req.Msg.Period {
+	case "day":
+		periodDuration = 24 * time.Hour
+	case "week":
+		periodDuration = 7 * 24 * time.Hour
+	case "month":
+		periodDuration = 30 * 24 * time.Hour
+	default:
+		periodDuration = 7 * 24 * time.Hour
+	}
+
+	currentStart := now.Add(-periodDuration)
+	previousStart := now.Add(-2 * periodDuration)
+
+	// Calculate metrics for each period
+	current := s.calculateMetricsForPeriod(tasks, currentStart, now)
+	previous := s.calculateMetricsForPeriod(tasks, previousStart, currentStart)
+
+	// Calculate percentage changes
+	comparison := &orcv1.ComparisonMetrics{
+		Current:  current,
+		Previous: previous,
+	}
+
+	if previous.TasksCompleted > 0 {
+		comparison.TasksChangePct = (float64(current.TasksCompleted) - float64(previous.TasksCompleted)) / float64(previous.TasksCompleted) * 100
+	}
+
+	// Cost change percentage would require cost tracking
+	if previous.SuccessRate > 0 {
+		comparison.SuccessRateChangePct = (current.SuccessRate - previous.SuccessRate) * 100
+	}
+
+	return connect.NewResponse(&orcv1.GetComparisonResponse{
+		Comparison: comparison,
+	}), nil
+}
+
+// GetTaskMetrics returns metrics for a specific task.
+func (s *dashboardServer) GetTaskMetrics(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetTaskMetricsRequest],
+) (*connect.Response[orcv1.GetTaskMetricsResponse], error) {
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
+	}
+
+	metrics := &orcv1.MetricsSummary{
+		TotalTokens: &orcv1.TokenUsage{},
+	}
+
+	if t.Status == task.StatusCompleted {
+		metrics.TasksCompleted = 1
+		metrics.SuccessRate = 1.0
+	} else if t.Status == task.StatusFailed {
+		metrics.SuccessRate = 0.0
+	}
+
+	metrics.PhasesExecuted = int32(len(t.Execution.Phases))
+
+	if t.StartedAt != nil && t.CompletedAt != nil {
+		metrics.AvgTaskDurationSeconds = t.CompletedAt.Sub(*t.StartedAt).Seconds()
+	}
+
+	for _, phase := range t.Execution.Phases {
+		metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
+		metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+		metrics.TotalTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
+		metrics.TotalTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+	}
+	metrics.TotalTokens.TotalTokens = metrics.TotalTokens.InputTokens + metrics.TotalTokens.OutputTokens
+
+	return connect.NewResponse(&orcv1.GetTaskMetricsResponse{
+		Metrics: metrics,
+	}), nil
+}
+
+// Helper functions
+
+func (s *dashboardServer) calculateMetricsForPeriod(tasks []*task.Task, start, end time.Time) *orcv1.MetricsSummary {
+	metrics := &orcv1.MetricsSummary{
+		TotalTokens: &orcv1.TokenUsage{},
+	}
+
+	var completedCount, failedCount int
+	var totalDuration float64
+	var durationCount int
+
+	for _, t := range tasks {
+		taskTime := t.UpdatedAt
+		if t.CompletedAt != nil {
+			taskTime = *t.CompletedAt
+		}
+		if taskTime.Before(start) || taskTime.After(end) {
+			continue
+		}
+
+		if t.Status == task.StatusCompleted {
+			completedCount++
+			if t.StartedAt != nil && t.CompletedAt != nil {
+				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
+				durationCount++
+			}
+		} else if t.Status == task.StatusFailed {
+			failedCount++
+		}
+
+		metrics.PhasesExecuted += int32(len(t.Execution.Phases))
+
+		for _, phase := range t.Execution.Phases {
+			metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
+			metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+		}
+	}
+
+	metrics.TotalTokens.TotalTokens = metrics.TotalTokens.InputTokens + metrics.TotalTokens.OutputTokens
+	metrics.TasksCompleted = int32(completedCount)
+
+	if durationCount > 0 {
+		metrics.AvgTaskDurationSeconds = totalDuration / float64(durationCount)
+	}
+
+	totalFinished := completedCount + failedCount
+	if totalFinished > 0 {
+		metrics.SuccessRate = float64(completedCount) / float64(totalFinished)
+	}
+
+	return metrics
+}
+
+func timestampOrNil(t *time.Time) *timestamppb.Timestamp {
+	if t == nil {
+		return nil
+	}
+	return timestamppb.New(*t)
+}

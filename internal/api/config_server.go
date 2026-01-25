@@ -1,0 +1,849 @@
+// Package api provides the Connect RPC and REST API server for orc.
+// This file implements the ConfigService Connect RPC service.
+package api
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	"connectrpc.com/connect"
+
+	"github.com/randalmurphal/llmkit/claudeconfig"
+	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/prompt"
+	"github.com/randalmurphal/orc/internal/storage"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+)
+
+// configServer implements the ConfigServiceHandler interface.
+type configServer struct {
+	orcv1connect.UnimplementedConfigServiceHandler
+	orcConfig *config.Config
+	backend   storage.Backend
+	workDir   string
+	logger    *slog.Logger
+}
+
+// NewConfigServer creates a new ConfigService handler.
+func NewConfigServer(
+	orcConfig *config.Config,
+	backend storage.Backend,
+	workDir string,
+	logger *slog.Logger,
+) orcv1connect.ConfigServiceHandler {
+	return &configServer{
+		orcConfig: orcConfig,
+		backend:   backend,
+		workDir:   workDir,
+		logger:    logger,
+	}
+}
+
+// GetConfig returns the ORC configuration.
+func (s *configServer) GetConfig(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetConfigRequest],
+) (*connect.Response[orcv1.GetConfigResponse], error) {
+	cfg := s.orcConfig
+	if cfg == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("config not found"))
+	}
+
+	return connect.NewResponse(&orcv1.GetConfigResponse{
+		Config: orcConfigToProto(cfg),
+	}), nil
+}
+
+// UpdateConfig updates the ORC configuration.
+// Note: This returns the current config - actual config editing should be done via file.
+// Full config update would require implementing config.Save() properly.
+func (s *configServer) UpdateConfig(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateConfigRequest],
+) (*connect.Response[orcv1.UpdateConfigResponse], error) {
+	// For now, return unimplemented since config editing is complex
+	// and typically done via file editing
+	return nil, connect.NewError(connect.CodeUnimplemented,
+		errors.New("config updates should be done via orc.yaml file"))
+}
+
+// GetSettings returns Claude Code settings.
+func (s *configServer) GetSettings(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetSettingsRequest],
+) (*connect.Response[orcv1.GetSettingsResponse], error) {
+	var settings *claudeconfig.Settings
+	var err error
+
+	switch req.Msg.Scope {
+	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
+		settings, err = claudeconfig.LoadGlobalSettings()
+	case orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT:
+		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+	default:
+		// Merged (default)
+		settings, err = claudeconfig.LoadSettings(s.workDir)
+	}
+
+	if err != nil {
+		// Return empty settings on error
+		settings = &claudeconfig.Settings{}
+	}
+
+	return connect.NewResponse(&orcv1.GetSettingsResponse{
+		Settings: claudeSettingsToProto(settings),
+	}), nil
+}
+
+// UpdateSettings updates Claude Code settings.
+func (s *configServer) UpdateSettings(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateSettingsRequest],
+) (*connect.Response[orcv1.UpdateSettingsResponse], error) {
+	settings := protoToClaudeSettings(req.Msg.Settings)
+
+	var err error
+	switch req.Msg.Scope {
+	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
+		err = claudeconfig.SaveGlobalSettings(settings)
+	default:
+		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+	}
+
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save settings: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateSettingsResponse{
+		Settings: claudeSettingsToProto(settings),
+	}), nil
+}
+
+// GetSettingsHierarchy returns settings with source information.
+func (s *configServer) GetSettingsHierarchy(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetSettingsHierarchyRequest],
+) (*connect.Response[orcv1.GetSettingsHierarchyResponse], error) {
+	globalSettings, _ := claudeconfig.LoadGlobalSettings()
+	projectSettings, _ := claudeconfig.LoadProjectSettings(s.workDir)
+	mergedSettings, _ := claudeconfig.LoadSettings(s.workDir)
+
+	return connect.NewResponse(&orcv1.GetSettingsHierarchyResponse{
+		Hierarchy: &orcv1.SettingsHierarchy{
+			Global:  claudeSettingsToProto(globalSettings),
+			Project: claudeSettingsToProto(projectSettings),
+			Merged:  claudeSettingsToProto(mergedSettings),
+		},
+	}), nil
+}
+
+// ListHooks returns all hooks.
+func (s *configServer) ListHooks(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListHooksRequest],
+) (*connect.Response[orcv1.ListHooksResponse], error) {
+	var settings *claudeconfig.Settings
+	var err error
+	var scope orcv1.SettingsScope
+
+	if req.Msg.Scope != nil {
+		scope = *req.Msg.Scope
+	}
+
+	switch scope {
+	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
+		settings, err = claudeconfig.LoadGlobalSettings()
+	default:
+		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+		scope = orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT
+	}
+
+	if err != nil || settings == nil || settings.Hooks == nil {
+		return connect.NewResponse(&orcv1.ListHooksResponse{
+			Hooks: []*orcv1.Hook{},
+		}), nil
+	}
+
+	var hooks []*orcv1.Hook
+	for event, eventHooks := range settings.Hooks {
+		for _, h := range eventHooks {
+			// Each Hook contains a Matcher and array of HookEntry
+			for _, entry := range h.Hooks {
+				hooks = append(hooks, &orcv1.Hook{
+					Name:    entry.Command, // Use command as identifier
+					Event:   stringToProtoHookEvent(event),
+					Command: entry.Command,
+					Enabled: true,
+					Scope:   scope,
+					Matcher: func() *string {
+						if h.Matcher != "" {
+							return &h.Matcher
+						}
+						return nil
+					}(),
+				})
+			}
+		}
+	}
+
+	return connect.NewResponse(&orcv1.ListHooksResponse{
+		Hooks: hooks,
+	}), nil
+}
+
+// CreateHook creates a new hook.
+func (s *configServer) CreateHook(
+	ctx context.Context,
+	req *connect.Request[orcv1.CreateHookRequest],
+) (*connect.Response[orcv1.CreateHookResponse], error) {
+	var settings *claudeconfig.Settings
+	var err error
+
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+	}
+
+	if err != nil {
+		settings = &claudeconfig.Settings{}
+	}
+
+	if settings.Hooks == nil {
+		settings.Hooks = make(map[string][]claudeconfig.Hook)
+	}
+
+	event := protoHookEventToString(req.Msg.Event)
+	matcher := ""
+	if req.Msg.Matcher != nil {
+		matcher = *req.Msg.Matcher
+	}
+
+	// Create new hook entry
+	hookEntry := claudeconfig.HookEntry{
+		Type:    "command",
+		Command: req.Msg.Command,
+	}
+
+	// Find or create hook with matching matcher
+	found := false
+	for i, h := range settings.Hooks[event] {
+		if h.Matcher == matcher {
+			settings.Hooks[event][i].Hooks = append(settings.Hooks[event][i].Hooks, hookEntry)
+			found = true
+			break
+		}
+	}
+	if !found {
+		settings.Hooks[event] = append(settings.Hooks[event], claudeconfig.Hook{
+			Matcher: matcher,
+			Hooks:   []claudeconfig.HookEntry{hookEntry},
+		})
+	}
+
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		err = claudeconfig.SaveGlobalSettings(settings)
+	} else {
+		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+	}
+
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save settings: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.CreateHookResponse{
+		Hook: &orcv1.Hook{
+			Name:    req.Msg.Command,
+			Event:   req.Msg.Event,
+			Command: req.Msg.Command,
+			Matcher: req.Msg.Matcher,
+			Enabled: true,
+			Scope:   req.Msg.Scope,
+		},
+	}), nil
+}
+
+// UpdateHook updates an existing hook.
+func (s *configServer) UpdateHook(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateHookRequest],
+) (*connect.Response[orcv1.UpdateHookResponse], error) {
+	// Hook updates are complex due to nested structure
+	// For now, recommend delete + create workflow
+	return nil, connect.NewError(connect.CodeUnimplemented,
+		errors.New("hook updates not supported - use delete + create"))
+}
+
+// DeleteHook deletes a hook.
+func (s *configServer) DeleteHook(
+	ctx context.Context,
+	req *connect.Request[orcv1.DeleteHookRequest],
+) (*connect.Response[orcv1.DeleteHookResponse], error) {
+	var settings *claudeconfig.Settings
+	var err error
+
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		settings, err = claudeconfig.LoadGlobalSettings()
+	} else {
+		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+	}
+
+	if err != nil || settings == nil || settings.Hooks == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("hook not found"))
+	}
+
+	// Find and delete hook by command name
+	found := false
+	for event, hooks := range settings.Hooks {
+		for i := range hooks {
+			for j, entry := range hooks[i].Hooks {
+				if entry.Command == req.Msg.Name {
+					// Remove the entry
+					hooks[i].Hooks = append(hooks[i].Hooks[:j], hooks[i].Hooks[j+1:]...)
+					// If no more entries, remove the hook
+					if len(hooks[i].Hooks) == 0 {
+						settings.Hooks[event] = append(hooks[:i], hooks[i+1:]...)
+					} else {
+						settings.Hooks[event] = hooks
+					}
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("hook not found"))
+	}
+
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		err = claudeconfig.SaveGlobalSettings(settings)
+	} else {
+		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+	}
+
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save settings: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.DeleteHookResponse{
+		Message: "hook deleted",
+	}), nil
+}
+
+// ListSkills returns all skills.
+func (s *configServer) ListSkills(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListSkillsRequest],
+) (*connect.Response[orcv1.ListSkillsResponse], error) {
+	var claudeDir string
+	var scope orcv1.SettingsScope
+
+	if req.Msg.Scope != nil {
+		scope = *req.Msg.Scope
+	}
+
+	if scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+		}
+		claudeDir = filepath.Join(homeDir, ".claude")
+	} else {
+		claudeDir = filepath.Join(s.workDir, ".claude")
+		scope = orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT
+	}
+
+	skills, err := claudeconfig.DiscoverSkills(claudeDir)
+	if err != nil {
+		return connect.NewResponse(&orcv1.ListSkillsResponse{
+			Skills: []*orcv1.Skill{},
+		}), nil
+	}
+
+	protoSkills := make([]*orcv1.Skill, len(skills))
+	for i, skill := range skills {
+		protoSkills[i] = claudeSkillToProto(skill, scope)
+	}
+
+	return connect.NewResponse(&orcv1.ListSkillsResponse{
+		Skills: protoSkills,
+	}), nil
+}
+
+// CreateSkill creates a new skill.
+func (s *configServer) CreateSkill(
+	ctx context.Context,
+	req *connect.Request[orcv1.CreateSkillRequest],
+) (*connect.Response[orcv1.CreateSkillResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+
+	var skillDir string
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+		}
+		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
+	} else {
+		skillDir = filepath.Join(s.workDir, ".claude", "skills", req.Msg.Name)
+	}
+
+	skill := &claudeconfig.Skill{
+		Name:        req.Msg.Name,
+		Description: req.Msg.Description,
+		Content:     req.Msg.Content,
+	}
+
+	if err := claudeconfig.WriteSkillMD(skill, skillDir); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create skill: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.CreateSkillResponse{
+		Skill: claudeSkillToProto(skill, req.Msg.Scope),
+	}), nil
+}
+
+// UpdateSkill updates an existing skill.
+func (s *configServer) UpdateSkill(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateSkillRequest],
+) (*connect.Response[orcv1.UpdateSkillResponse], error) {
+	var baseDir string
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+		}
+		baseDir = filepath.Join(homeDir, ".claude", "skills")
+	} else {
+		baseDir = filepath.Join(s.workDir, ".claude", "skills")
+	}
+
+	skillDir := filepath.Join(baseDir, req.Msg.Name)
+
+	// Check if skill exists
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("skill not found"))
+	}
+
+	// Load existing skill
+	skill, err := claudeconfig.ParseSkillMD(skillPath)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load skill: %w", err))
+	}
+
+	// Apply updates
+	if req.Msg.Description != nil {
+		skill.Description = *req.Msg.Description
+	}
+	if req.Msg.Content != nil {
+		skill.Content = *req.Msg.Content
+	}
+
+	if err := claudeconfig.WriteSkillMD(skill, skillDir); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update skill: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateSkillResponse{
+		Skill: claudeSkillToProto(skill, req.Msg.Scope),
+	}), nil
+}
+
+// DeleteSkill deletes a skill.
+func (s *configServer) DeleteSkill(
+	ctx context.Context,
+	req *connect.Request[orcv1.DeleteSkillRequest],
+) (*connect.Response[orcv1.DeleteSkillResponse], error) {
+	var skillDir string
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+		}
+		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
+	} else {
+		skillDir = filepath.Join(s.workDir, ".claude", "skills", req.Msg.Name)
+	}
+
+	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("skill not found"))
+	}
+
+	if err := os.RemoveAll(skillDir); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete skill: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.DeleteSkillResponse{
+		Message: "skill deleted",
+	}), nil
+}
+
+// GetClaudeMd returns CLAUDE.md content.
+func (s *configServer) GetClaudeMd(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetClaudeMdRequest],
+) (*connect.Response[orcv1.GetClaudeMdResponse], error) {
+	var files []*orcv1.ClaudeMd
+
+	// Check global CLAUDE.md
+	homeDir, _ := os.UserHomeDir()
+	globalPath := filepath.Join(homeDir, "CLAUDE.md")
+	if content, err := os.ReadFile(globalPath); err == nil {
+		files = append(files, &orcv1.ClaudeMd{
+			Path:    globalPath,
+			Content: string(content),
+			Scope:   orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL,
+		})
+	}
+
+	// Check project CLAUDE.md
+	projectPath := filepath.Join(s.workDir, "CLAUDE.md")
+	if content, err := os.ReadFile(projectPath); err == nil {
+		files = append(files, &orcv1.ClaudeMd{
+			Path:    projectPath,
+			Content: string(content),
+			Scope:   orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT,
+		})
+	}
+
+	return connect.NewResponse(&orcv1.GetClaudeMdResponse{
+		Files: files,
+	}), nil
+}
+
+// UpdateClaudeMd updates CLAUDE.md content.
+func (s *configServer) UpdateClaudeMd(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateClaudeMdRequest],
+) (*connect.Response[orcv1.UpdateClaudeMdResponse], error) {
+	var path string
+	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+		}
+		path = filepath.Join(homeDir, "CLAUDE.md")
+	} else {
+		path = filepath.Join(s.workDir, "CLAUDE.md")
+	}
+
+	if err := os.WriteFile(path, []byte(req.Msg.Content), 0644); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to write CLAUDE.md: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateClaudeMdResponse{
+		ClaudeMd: &orcv1.ClaudeMd{
+			Path:    path,
+			Content: req.Msg.Content,
+			Scope:   req.Msg.Scope,
+		},
+	}), nil
+}
+
+// GetConstitution returns the constitution.
+func (s *configServer) GetConstitution(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetConstitutionRequest],
+) (*connect.Response[orcv1.GetConstitutionResponse], error) {
+	content, _, err := s.backend.LoadConstitution()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("constitution not found"))
+	}
+
+	return connect.NewResponse(&orcv1.GetConstitutionResponse{
+		Constitution: &orcv1.Constitution{
+			Content: content,
+		},
+	}), nil
+}
+
+// UpdateConstitution updates the constitution.
+func (s *configServer) UpdateConstitution(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateConstitutionRequest],
+) (*connect.Response[orcv1.UpdateConstitutionResponse], error) {
+	if req.Msg.Content == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
+	}
+
+	if err := s.backend.SaveConstitution(req.Msg.Content, ""); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&orcv1.UpdateConstitutionResponse{
+		Constitution: &orcv1.Constitution{
+			Content: req.Msg.Content,
+		},
+	}), nil
+}
+
+// DeleteConstitution deletes the constitution.
+func (s *configServer) DeleteConstitution(
+	ctx context.Context,
+	req *connect.Request[orcv1.DeleteConstitutionRequest],
+) (*connect.Response[orcv1.DeleteConstitutionResponse], error) {
+	if err := s.backend.DeleteConstitution(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&orcv1.DeleteConstitutionResponse{
+		Message: "constitution deleted",
+	}), nil
+}
+
+// ListPrompts returns all available prompts.
+func (s *configServer) ListPrompts(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListPromptsRequest],
+) (*connect.Response[orcv1.ListPromptsResponse], error) {
+	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	prompts, err := svc.List()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list prompts: %w", err))
+	}
+
+	protoPrompts := make([]*orcv1.PromptTemplate, len(prompts))
+	for i, p := range prompts {
+		protoPrompts[i] = promptInfoToProto(&p)
+	}
+
+	return connect.NewResponse(&orcv1.ListPromptsResponse{
+		Prompts: protoPrompts,
+	}), nil
+}
+
+// GetPrompt returns a specific prompt.
+func (s *configServer) GetPrompt(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetPromptRequest],
+) (*connect.Response[orcv1.GetPromptResponse], error) {
+	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	p, err := svc.Get(req.Msg.Phase)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("prompt not found"))
+	}
+
+	return connect.NewResponse(&orcv1.GetPromptResponse{
+		Prompt: promptToProto(p),
+	}), nil
+}
+
+// GetDefaultPrompt returns the default prompt for a phase.
+func (s *configServer) GetDefaultPrompt(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetDefaultPromptRequest],
+) (*connect.Response[orcv1.GetDefaultPromptResponse], error) {
+	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	p, err := svc.GetDefault(req.Msg.Phase)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("default prompt not found"))
+	}
+
+	return connect.NewResponse(&orcv1.GetDefaultPromptResponse{
+		Prompt: promptToProto(p),
+	}), nil
+}
+
+// UpdatePrompt updates a prompt.
+func (s *configServer) UpdatePrompt(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdatePromptRequest],
+) (*connect.Response[orcv1.UpdatePromptResponse], error) {
+	if req.Msg.Content == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
+	}
+
+	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	if err := svc.Save(req.Msg.Phase, req.Msg.Content); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save prompt: %w", err))
+	}
+
+	p, err := svc.Get(req.Msg.Phase)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to reload prompt: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdatePromptResponse{
+		Prompt: promptToProto(p),
+	}), nil
+}
+
+// DeletePrompt deletes a custom prompt.
+func (s *configServer) DeletePrompt(
+	ctx context.Context,
+	req *connect.Request[orcv1.DeletePromptRequest],
+) (*connect.Response[orcv1.DeletePromptResponse], error) {
+	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+
+	if !svc.HasOverride(req.Msg.Phase) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no override exists for this phase"))
+	}
+
+	if err := svc.Delete(req.Msg.Phase); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete prompt: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.DeletePromptResponse{
+		Message: "prompt deleted",
+	}), nil
+}
+
+// ListPromptVariables lists available prompt variables.
+func (s *configServer) ListPromptVariables(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListPromptVariablesRequest],
+) (*connect.Response[orcv1.ListPromptVariablesResponse], error) {
+	// GetVariableReference returns map[string]string (name -> description)
+	vars := prompt.GetVariableReference()
+	protoVars := make([]*orcv1.PromptVariable, 0, len(vars))
+	for name, description := range vars {
+		protoVars = append(protoVars, &orcv1.PromptVariable{
+			Name:        name,
+			Description: description,
+		})
+	}
+
+	return connect.NewResponse(&orcv1.ListPromptVariablesResponse{
+		Variables: protoVars,
+	}), nil
+}
+
+// === Conversion helpers ===
+
+func orcConfigToProto(cfg *config.Config) *orcv1.Config {
+	result := &orcv1.Config{
+		Automation: &orcv1.AutomationConfig{
+			Profile: string(cfg.Profile),
+		},
+		Completion: &orcv1.CompletionConfig{
+			Action:    cfg.Completion.Action,
+			AutoMerge: cfg.Completion.MergeOnCIPass, // MergeOnCIPass is the equivalent
+		},
+		// Note: config.Config doesn't have Claude-specific settings
+		// Claude settings are in claudeconfig.Settings, not orc config
+	}
+	if cfg.Completion.TargetBranch != "" {
+		result.Completion.TargetBranch = &cfg.Completion.TargetBranch
+	}
+	return result
+}
+
+func claudeSettingsToProto(s *claudeconfig.Settings) *orcv1.Settings {
+	if s == nil {
+		return &orcv1.Settings{}
+	}
+
+	result := &orcv1.Settings{
+		Permissions: make(map[string]bool),
+	}
+
+	if s.Permissions != nil {
+		for _, tool := range s.Permissions.Allow {
+			result.Permissions[tool] = true
+		}
+		for _, tool := range s.Permissions.Deny {
+			result.Permissions[tool] = false
+		}
+	}
+
+	return result
+}
+
+func protoToClaudeSettings(s *orcv1.Settings) *claudeconfig.Settings {
+	if s == nil {
+		return &claudeconfig.Settings{}
+	}
+
+	result := &claudeconfig.Settings{}
+
+	if len(s.Permissions) > 0 {
+		result.Permissions = &claudeconfig.ToolPermissions{}
+		for tool, allowed := range s.Permissions {
+			if allowed {
+				result.Permissions.Allow = append(result.Permissions.Allow, tool)
+			} else {
+				result.Permissions.Deny = append(result.Permissions.Deny, tool)
+			}
+		}
+	}
+
+	return result
+}
+
+func stringToProtoHookEvent(event string) orcv1.HookEvent {
+	switch event {
+	case "PreToolUse":
+		return orcv1.HookEvent_HOOK_EVENT_PRE_TOOL_USE
+	case "PostToolUse":
+		return orcv1.HookEvent_HOOK_EVENT_POST_TOOL_USE
+	case "Notification":
+		return orcv1.HookEvent_HOOK_EVENT_NOTIFICATION
+	case "Stop":
+		return orcv1.HookEvent_HOOK_EVENT_STOP
+	default:
+		return orcv1.HookEvent_HOOK_EVENT_UNSPECIFIED
+	}
+}
+
+func protoHookEventToString(event orcv1.HookEvent) string {
+	switch event {
+	case orcv1.HookEvent_HOOK_EVENT_PRE_TOOL_USE:
+		return "PreToolUse"
+	case orcv1.HookEvent_HOOK_EVENT_POST_TOOL_USE:
+		return "PostToolUse"
+	case orcv1.HookEvent_HOOK_EVENT_NOTIFICATION:
+		return "Notification"
+	case orcv1.HookEvent_HOOK_EVENT_STOP:
+		return "Stop"
+	default:
+		return ""
+	}
+}
+
+func claudeSkillToProto(s *claudeconfig.Skill, scope orcv1.SettingsScope) *orcv1.Skill {
+	return &orcv1.Skill{
+		Name:        s.Name,
+		Description: s.Description,
+		Content:     s.Content,
+		// Note: UserInvocable is a proto field but claudeconfig.Skill doesn't track it
+		// It's determined by skill naming convention or config
+		Scope: scope,
+	}
+}
+
+// promptInfoToProto converts a PromptInfo to proto (used for List).
+// PromptInfo only has Phase, Source, HasOverride, Variables - no content.
+func promptInfoToProto(p *prompt.PromptInfo) *orcv1.PromptTemplate {
+	return &orcv1.PromptTemplate{
+		Phase:    p.Phase,
+		IsCustom: p.HasOverride,
+		// Note: PromptInfo doesn't include Content - use promptToProto for full content
+	}
+}
+
+// promptToProto converts a Prompt to proto (used for Get/GetDefault).
+// Prompt includes Content.
+func promptToProto(p *prompt.Prompt) *orcv1.PromptTemplate {
+	return &orcv1.PromptTemplate{
+		Phase:    p.Phase,
+		Content:  p.Content,
+		IsCustom: p.Source != prompt.SourceEmbedded,
+	}
+}

@@ -1,0 +1,91 @@
+// Package api provides the REST API and Connect RPC server for orc.
+// This file registers Connect RPC service handlers.
+package api
+
+import (
+	"net/http"
+
+	"connectrpc.com/connect"
+
+	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+)
+
+// registerConnectHandlers sets up Connect RPC service handlers.
+// These run alongside REST handlers on the same mux.
+func (s *Server) registerConnectHandlers() {
+	// Create interceptor chain with logging and error mapping
+	interceptors := connect.WithInterceptors(
+		ErrorInterceptor(),
+		LoggingInterceptor(s.logger),
+	)
+
+	// Create service implementations
+	taskSvc := NewTaskServer(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB)
+	initiativeSvc := NewInitiativeServer(s.backend, s.logger, s.publisher)
+	workflowSvc := NewWorkflowServer(s.backend, s.logger)
+	transcriptSvc := NewTranscriptServer(s.backend)
+	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
+	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
+	githubSvc := NewGitHubServer(s.backend, s.workDir, s.logger)
+	dashboardSvc := NewDashboardServer(s.backend, s.logger)
+	projectSvc := NewProjectServer(s.backend, s.logger)
+	branchSvc := NewBranchServer(s.backend, s.logger)
+	decisionSvc := NewDecisionServer(s.backend, s.pendingDecisions, s.publisher, s.logger)
+
+	// Create and register Connect handlers with CORS support
+	// Each NewXxxServiceHandler returns (path string, handler http.Handler)
+
+	taskPath, taskHandler := orcv1connect.NewTaskServiceHandler(taskSvc, interceptors)
+	s.mux.Handle(taskPath, corsHandler(taskHandler))
+
+	initiativePath, initiativeHandler := orcv1connect.NewInitiativeServiceHandler(initiativeSvc, interceptors)
+	s.mux.Handle(initiativePath, corsHandler(initiativeHandler))
+
+	workflowPath, workflowHandler := orcv1connect.NewWorkflowServiceHandler(workflowSvc, interceptors)
+	s.mux.Handle(workflowPath, corsHandler(workflowHandler))
+
+	transcriptPath, transcriptHandler := orcv1connect.NewTranscriptServiceHandler(transcriptSvc, interceptors)
+	s.mux.Handle(transcriptPath, corsHandler(transcriptHandler))
+
+	eventPath, eventHandler := orcv1connect.NewEventServiceHandler(eventSvc, interceptors)
+	s.mux.Handle(eventPath, corsHandler(eventHandler))
+
+	configPath, configHandler := orcv1connect.NewConfigServiceHandler(configSvc, interceptors)
+	s.mux.Handle(configPath, corsHandler(configHandler))
+
+	githubPath, githubHandler := orcv1connect.NewGitHubServiceHandler(githubSvc, interceptors)
+	s.mux.Handle(githubPath, corsHandler(githubHandler))
+
+	dashboardPath, dashboardHandler := orcv1connect.NewDashboardServiceHandler(dashboardSvc, interceptors)
+	s.mux.Handle(dashboardPath, corsHandler(dashboardHandler))
+
+	projectPath, projectHandler := orcv1connect.NewProjectServiceHandler(projectSvc, interceptors)
+	s.mux.Handle(projectPath, corsHandler(projectHandler))
+
+	branchPath, branchHandler := orcv1connect.NewBranchServiceHandler(branchSvc, interceptors)
+	s.mux.Handle(branchPath, corsHandler(branchHandler))
+
+	decisionPath, decisionHandler := orcv1connect.NewDecisionServiceHandler(decisionSvc, interceptors)
+	s.mux.Handle(decisionPath, corsHandler(decisionHandler))
+
+	s.logger.Info("registered Connect RPC handlers", "count", 11)
+}
+
+// corsHandler wraps a handler with CORS support for Connect/gRPC-web clients.
+func corsHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Grpc-Timeout, X-Grpc-Web, X-User-Agent")
+		w.Header().Set("Access-Control-Expose-Headers", "Grpc-Status, Grpc-Message, Grpc-Status-Details-Bin")
+
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
+}
