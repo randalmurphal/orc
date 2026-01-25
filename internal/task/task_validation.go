@@ -56,7 +56,7 @@ func (t *Task) Validate() ValidationErrors {
 		errs = append(errs, ValidationError{
 			Field:   "weight",
 			Value:   string(t.Weight),
-			Message: "invalid weight",
+			Message: "invalid weight (valid: trivial, small, medium, large)",
 		})
 	}
 
@@ -64,7 +64,7 @@ func (t *Task) Validate() ValidationErrors {
 		errs = append(errs, ValidationError{
 			Field:   "queue",
 			Value:   string(t.Queue),
-			Message: "invalid queue",
+			Message: "invalid queue (valid: active, backlog)",
 		})
 	}
 
@@ -72,7 +72,7 @@ func (t *Task) Validate() ValidationErrors {
 		errs = append(errs, ValidationError{
 			Field:   "priority",
 			Value:   string(t.Priority),
-			Message: "invalid priority",
+			Message: "invalid priority (valid: critical, high, normal, low)",
 		})
 	}
 
@@ -80,7 +80,7 @@ func (t *Task) Validate() ValidationErrors {
 		errs = append(errs, ValidationError{
 			Field:   "category",
 			Value:   string(t.Category),
-			Message: "invalid category",
+			Message: "invalid category (valid: feature, bug, refactor, chore, docs, test)",
 		})
 	}
 
@@ -88,7 +88,7 @@ func (t *Task) Validate() ValidationErrors {
 		errs = append(errs, ValidationError{
 			Field:   "status",
 			Value:   string(t.Status),
-			Message: "invalid status",
+			Message: "invalid status (valid: created, classifying, planned, running, paused, blocked, finalizing, completed, failed, resolved)",
 		})
 	}
 
