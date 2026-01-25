@@ -39,6 +39,18 @@ export interface WeeklyChanges {
 	cost: number;
 	successRate: number;
 }
+// TASK-532: Helper to convert period for comparison endpoint (only accepts 7d, 30d)
+function periodToComparisonPeriod(period: StatsPeriod): string | null {
+	switch (period) {
+		case '7d':
+			return '7d';
+		case '30d':
+			return '30d';
+		case '24h':
+		case 'all':
+			return null; // Comparison endpoint doesn't support these periods
+	}
+}
 
 interface CacheEntry {
 	timestamp: number;
@@ -127,6 +139,7 @@ interface DashboardStatsResponse {
 	cache_creation_input_tokens?: number;
 	cache_read_input_tokens?: number;
 	cost: number;
+	avg_task_time_seconds?: number | null;
 }
 
 interface CostSummaryResponse {
@@ -142,7 +155,105 @@ interface CostSummaryResponse {
 	by_phase?: Record<string, number>;
 }
 
-// Helper to convert period to API query param
+// TASK-532: New API response types for stats endpoints
+interface ActivityDayResponse {
+	date: string;
+	count: number;
+	level: number;
+}
+
+interface ActivityStatsResponse {
+	total_tasks: number;
+	current_streak: number;
+	longest_streak: number;
+	busiest_day: { date: string; count: number } | null;
+}
+
+interface ActivityResponse {
+	start_date: string;
+	end_date: string;
+	data: ActivityDayResponse[];
+	stats: ActivityStatsResponse;
+}
+
+interface PerDayDataResponse {
+	date: string;
+	day: string;
+	count: number;
+}
+
+interface PerDayResponse {
+	period: string;
+	data: PerDayDataResponse[];
+	max: number;
+	average: number;
+}
+
+interface OutcomeCountResponse {
+	count: number;
+	percentage: number;
+}
+
+interface OutcomesResponse {
+	period: string;
+	total: number;
+	outcomes: {
+		completed: OutcomeCountResponse;
+		with_retries: OutcomeCountResponse;
+		failed: OutcomeCountResponse;
+	};
+}
+
+interface TopInitiativeDataResponse {
+	rank: number;
+	id: string;
+	title: string;
+	task_count: number;
+	completed_count: number;
+	completion_rate: number;
+	total_tokens: number;
+	total_cost_usd: number;
+}
+
+interface TopInitiativesResponse {
+	period: string;
+	initiatives: TopInitiativeDataResponse[];
+}
+
+interface TopFileDataResponse {
+	rank: number;
+	path: string;
+	modification_count: number;
+	last_modified: string;
+	tasks: string[];
+}
+
+interface TopFilesResponse {
+	period: string;
+	files: TopFileDataResponse[];
+}
+// TASK-532: API response type for comparison endpoint (SC-6)
+interface ComparisonPeriodStats {
+	tasks: number;
+	tokens: number;
+	cost: number;
+	success_rate: number;
+}
+
+interface ComparisonChangeStats {
+	tasks: number;
+	tokens: number;
+	cost: number;
+	success_rate: number;
+}
+
+interface ComparisonResponse {
+	current: ComparisonPeriodStats;
+	previous: ComparisonPeriodStats;
+	changes: ComparisonChangeStats;
+}
+
+// Helper to convert period to API query param (for cost summary)
 function periodToQueryParam(period: StatsPeriod): string {
 	switch (period) {
 		case '24h':
@@ -156,16 +267,32 @@ function periodToQueryParam(period: StatsPeriod): string {
 	}
 }
 
-// Helper to generate activity data (heatmap format)
-// Returns Map<'YYYY-MM-DD', count>
-function generateActivityData(
-	tasksPerDay: TasksPerDay[]
-): Map<string, number> {
-	const activityMap = new Map<string, number>();
-	for (const entry of tasksPerDay) {
-		activityMap.set(entry.day, entry.count);
+// TASK-532: Helper to convert period to days for per-day endpoint
+function periodToDays(period: StatsPeriod): number {
+	switch (period) {
+		case '24h':
+			return 1;
+		case '7d':
+			return 7;
+		case '30d':
+			return 30;
+		case 'all':
+			return 30; // Use 30 days for 'all' (endpoint max is 30)
 	}
-	return activityMap;
+}
+
+// TASK-532: Helper to convert period to API period param (for outcomes, top-initiatives, top-files)
+function periodToApiPeriod(period: StatsPeriod): string {
+	switch (period) {
+		case '24h':
+			return '24h';
+		case '7d':
+			return '7d';
+		case '30d':
+			return '30d';
+		case 'all':
+			return 'all';
+	}
 }
 
 // Helper to calculate weekly changes
@@ -225,10 +352,26 @@ export const useStatsStore = create<StatsStore>()(
 			set({ loading: true, error: null, _fetchingPeriod: period });
 
 			try {
-				// Fetch both endpoints in parallel
-				const [dashboardRes, costRes] = await Promise.all([
+				// TASK-532: Fetch ALL 6 required endpoints in parallel
+				const apiPeriod = periodToApiPeriod(period);
+				const days = periodToDays(period);
+
+				const [
+					dashboardRes,
+					costRes,
+					activityRes,
+					perDayRes,
+					outcomesRes,
+					topInitiativesRes,
+					topFilesRes,
+				] = await Promise.all([
 					fetch('/api/dashboard/stats'),
 					fetch(`/api/cost/summary?period=${periodToQueryParam(period)}`),
+					fetch('/api/stats/activity'),
+					fetch(`/api/stats/per-day?days=${days}`),
+					fetch(`/api/stats/outcomes?period=${apiPeriod}`),
+					fetch(`/api/stats/top-initiatives?period=${apiPeriod}`),
+					fetch(`/api/stats/top-files?period=${apiPeriod}`),
 				]);
 
 				// Handle dashboard stats
@@ -243,29 +386,74 @@ export const useStatsStore = create<StatsStore>()(
 					costData = await costRes.json();
 				}
 
-				// Build tasksPerDay from available data
-				// For now, generate mock data based on period since the API
-				// doesn't return daily breakdown yet
-				const tasksPerDay = generateTasksPerDay(
-					dashboardData?.completed ?? 0,
-					period
-				);
+				// TASK-532: Handle activity endpoint (SC-1)
+				let activityApiData: ActivityResponse | null = null;
+				if (activityRes.ok) {
+					activityApiData = await activityRes.json();
+				}
 
-				// Build outcomes
-				const outcomes: Outcomes = {
-					completed: dashboardData?.completed ?? 0,
-					withRetries: 0, // Not tracked separately in current API
-					failed: dashboardData?.failed ?? 0,
-				};
+				// TASK-532: Handle per-day endpoint (SC-2)
+				let perDayApiData: PerDayResponse | null = null;
+				if (perDayRes.ok) {
+					perDayApiData = await perDayRes.json();
+				}
 
-				// Build activity data from tasks per day
-				const activityData = generateActivityData(tasksPerDay);
+				// TASK-532: Handle outcomes endpoint (SC-4)
+				let outcomesApiData: OutcomesResponse | null = null;
+				if (outcomesRes.ok) {
+					outcomesApiData = await outcomesRes.json();
+				}
 
-				// Build top initiatives (placeholder - would need new API endpoint)
-				const topInitiatives: TopInitiative[] = [];
+				// TASK-532: Handle top-initiatives endpoint (SC-5)
+				let topInitiativesApiData: TopInitiativesResponse | null = null;
+				if (topInitiativesRes.ok) {
+					topInitiativesApiData = await topInitiativesRes.json();
+				}
 
-				// Build top files (placeholder - would need new API endpoint)
-				const topFiles: TopFile[] = [];
+				// TASK-532: Handle top-files endpoint (SC-6)
+				let topFilesApiData: TopFilesResponse | null = null;
+				if (topFilesRes.ok) {
+					topFilesApiData = await topFilesRes.json();
+				}
+
+				// TASK-532: Build activityData from /api/stats/activity response (SC-1)
+				const activityData: Map<string, number> = new Map();
+				if (activityApiData?.data) {
+					for (const day of activityApiData.data) {
+						activityData.set(day.date, day.count);
+					}
+				}
+
+				// TASK-532: Build tasksPerDay from /api/stats/per-day response (SC-2)
+				const tasksPerDay: TasksPerDay[] = (perDayApiData?.data ?? []).map((d) => ({
+					day: d.date, // Use date as the day key for consistency
+					count: d.count,
+				}));
+
+				// TASK-532: Build outcomes from /api/stats/outcomes response (SC-4)
+				const outcomes: Outcomes = outcomesApiData?.outcomes
+					? {
+							completed: outcomesApiData.outcomes.completed.count,
+							withRetries: outcomesApiData.outcomes.with_retries.count,
+							failed: outcomesApiData.outcomes.failed.count,
+						}
+					: {
+							completed: dashboardData?.completed ?? 0,
+							withRetries: 0,
+							failed: dashboardData?.failed ?? 0,
+						};
+
+				// TASK-532: Build topInitiatives from /api/stats/top-initiatives response (SC-5)
+				const topInitiatives: TopInitiative[] = (topInitiativesApiData?.initiatives ?? []).map((i) => ({
+					name: i.title,
+					taskCount: i.task_count,
+				}));
+
+				// TASK-532: Build topFiles from /api/stats/top-files response (SC-6)
+				const topFiles: TopFile[] = (topFilesApiData?.files ?? []).map((f) => ({
+					path: f.path,
+					modifyCount: f.modification_count,
+				}));
 
 				// Calculate summary stats
 				const totalTasks = (dashboardData?.completed ?? 0) + (dashboardData?.failed ?? 0);
@@ -273,11 +461,14 @@ export const useStatsStore = create<StatsStore>()(
 					? ((dashboardData?.completed ?? 0) / totalTasks) * 100
 					: 0;
 
+				// TASK-532: Use avg_task_time_seconds from dashboard stats (SC-3)
+				const avgTime = dashboardData?.avg_task_time_seconds ?? 0;
+
 				const summaryStats: SummaryStats = {
 					tasksCompleted: dashboardData?.completed ?? 0,
 					tokensUsed: costData?.total_tokens ?? dashboardData?.tokens ?? 0,
 					totalCost: costData?.total_cost_usd ?? dashboardData?.cost ?? 0,
-					avgTime: 0, // Would need execution time data from API
+					avgTime: avgTime,
 					successRate: Math.round(successRate * 10) / 10,
 				};
 
@@ -339,52 +530,6 @@ export const useStatsStore = create<StatsStore>()(
 		},
 	}))
 );
-
-// Helper to generate mock tasks per day based on total count and period
-function generateTasksPerDay(
-	totalCompleted: number,
-	period: StatsPeriod
-): TasksPerDay[] {
-	const result: TasksPerDay[] = [];
-	const now = new Date();
-	let days: number;
-
-	switch (period) {
-		case '24h':
-			days = 1;
-			break;
-		case '7d':
-			days = 7;
-			break;
-		case '30d':
-			days = 30;
-			break;
-		case 'all':
-			days = 90; // Show last 90 days for 'all'
-			break;
-	}
-
-	// Distribute tasks across days (simple even distribution for now)
-	const avgPerDay = Math.ceil(totalCompleted / days);
-	let remaining = totalCompleted;
-
-	for (let i = days - 1; i >= 0; i--) {
-		const date = new Date(now);
-		date.setDate(date.getDate() - i);
-		const dateStr = date.toISOString().split('T')[0];
-
-		// Assign tasks, ensuring we don't exceed remaining
-		const count = Math.min(avgPerDay, remaining);
-		remaining -= count;
-
-		result.push({
-			day: dateStr,
-			count,
-		});
-	}
-
-	return result;
-}
 
 // Selector hooks
 export const useStatsPeriod = () => useStatsStore((state) => state.period);
