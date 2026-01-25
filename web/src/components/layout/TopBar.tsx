@@ -10,10 +10,11 @@
  * - Responsive: hides session stats at 768px, expandable search at 480px
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui';
+import { Icon, Tooltip } from '@/components/ui';
 import { useSessionStore, useCurrentProject } from '@/stores';
+import { AppShellContext } from './AppShellContext';
 import './TopBar.css';
 
 interface TopBarProps {
@@ -58,6 +59,9 @@ export function TopBar({
 		pauseAll,
 		resumeAll,
 	} = useSessionStore();
+
+	// Get right panel state from AppShell context (null if not in AppShellProvider)
+	const appShell = useContext(AppShellContext);
 
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const [searchExpanded, setSearchExpanded] = useState(false);
@@ -178,6 +182,19 @@ export function TopBar({
 					>
 						New Task
 					</Button>
+				)}
+				{appShell && (
+					<Tooltip content={<>Toggle panel <kbd>Shift+Alt+R</kbd></>}>
+						<button
+							ref={appShell.panelToggleRef}
+							className="btn-icon"
+							onClick={appShell.toggleRightPanel}
+							aria-label="Toggle right panel"
+							aria-expanded={appShell.isRightPanelOpen}
+						>
+							<Icon name="panel-right" size={16} />
+						</button>
+					</Tooltip>
 				)}
 			</div>
 		</header>
