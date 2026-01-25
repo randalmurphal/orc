@@ -113,6 +113,40 @@
 	}
 }
 
+/* Running status badge - prominent indicator for running tasks */
+.running-status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1-5);
+	font-size: var(--text-sm);
+	font-weight: var(--font-semibold);
+	padding: var(--space-1) var(--space-3);
+	background: color-mix(in srgb, var(--status-info) 20%, transparent);
+	border: 1px solid var(--status-info);
+	border-radius: var(--radius-full);
+	color: var(--status-info);
+}
+
+.running-status-badge.pulse {
+	animation: running-pulse 2s ease-in-out infinite;
+}
+
+@keyframes running-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-info) 40%, transparent);
+	}
+	50% {
+		box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-info) 0%, transparent);
+	}
+}
+
+.running-status-badge .phase-progress {
+	font-weight: var(--font-medium);
+	opacity: 0.8;
+	margin-left: var(--space-1);
+}
+
 .initiative-badge {
 	display: inline-flex;
 	align-items: center;

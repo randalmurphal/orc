@@ -8,17 +8,18 @@ import { ExportDropdown } from '@/components/task-detail/ExportDropdown';
 import { deleteTask, runTask, pauseTask, resumeTask } from '@/lib/api';
 import { toast } from '@/stores/uiStore';
 import { getInitiativeBadgeTitle } from '@/stores';
-import type { Task } from '@/lib/types';
+import type { Task, Plan } from '@/lib/types';
 import { CATEGORY_CONFIG, PRIORITY_CONFIG } from '@/lib/types';
 import './TaskHeader.css';
 
 interface TaskHeaderProps {
 	task: Task;
+	plan?: Plan;
 	onTaskUpdate: (task: Task) => void;
 	onTaskDelete: () => void;
 }
 
-export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps) {
+export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeaderProps) {
 	const navigate = useNavigate();
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -123,6 +124,15 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 	const priorityConfig = PRIORITY_CONFIG[priority];
 	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
 
+	// Calculate phase progress for running tasks
+	const isRunning = task.status === 'running';
+	const phaseProgress = (() => {
+		if (!isRunning || !plan || !task.current_phase) return null;
+		const currentIndex = plan.phases.findIndex(p => p.name === task.current_phase);
+		if (currentIndex === -1) return null;
+		return { current: currentIndex + 1, total: plan.phases.length };
+	})();
+
 	return (
 		<header className="task-header">
 			<div className="task-header-top">
@@ -133,6 +143,16 @@ export function TaskHeader({ task, onTaskUpdate, onTaskDelete }: TaskHeaderProps
 				<div className="task-identity">
 					<span className="task-id">{task.id}</span>
 					<StatusIndicator status={task.status} size="sm" />
+					{isRunning && task.current_phase && (
+						<span className="running-status-badge pulse">
+							Running: {task.current_phase}
+							{phaseProgress && (
+								<span className="phase-progress">
+									({phaseProgress.current} of {phaseProgress.total})
+								</span>
+							)}
+						</span>
+					)}
 					{task.weight && (
 						<span className="weight-badge">{task.weight}</span>
 					)}
