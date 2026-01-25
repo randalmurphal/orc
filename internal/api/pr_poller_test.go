@@ -287,8 +287,8 @@ func (b *emptyBackend) SaveReviewComment(*storage.ReviewComment) error          
 func (b *emptyBackend) SaveEvent(*db.EventLog) error                               { return nil }
 func (b *emptyBackend) SaveEvents([]*db.EventLog) error                            { return nil }
 func (b *emptyBackend) QueryEvents(db.QueryEventsOptions) ([]db.EventLog, error)   { return nil, nil }
-func (b *emptyBackend) ListGateDecisions(string) ([]storage.GateDecision, error)   { return nil, nil }
-func (b *emptyBackend) SaveGateDecision(*storage.GateDecision) error               { return nil }
+func (b *emptyBackend) ListGateDecisions(string) ([]db.GateDecision, error) { return nil, nil }
+func (b *emptyBackend) SaveGateDecision(*db.GateDecision) error             { return nil }
 func (b *emptyBackend) SaveReviewFindings(*storage.ReviewFindings) error           { return nil }
 func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings, error) {
 	return nil, nil

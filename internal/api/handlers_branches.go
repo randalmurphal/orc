@@ -71,17 +71,10 @@ func (s *Server) handleListBranches(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check for pagination params
+	// Parse pagination params (defaults to page 1, limit 20)
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 
-	// If no pagination requested, return all branches (backward compatible)
-	if pageStr == "" && limitStr == "" {
-		s.jsonResponse(w, result)
-		return
-	}
-
-	// Parse pagination params
 	page := 1
 	limit := 20 // default limit
 	if pageStr != "" {

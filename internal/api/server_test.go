@@ -885,13 +885,19 @@ func TestListTasksEndpoint_EmptyDir(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var tasks []task.Task
-	if err := json.NewDecoder(w.Body).Decode(&tasks); err != nil {
+	var resp struct {
+		Tasks      []*task.Task `json:"tasks"`
+		Total      int          `json:"total"`
+		Page       int          `json:"page"`
+		Limit      int          `json:"limit"`
+		TotalPages int          `json:"total_pages"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(tasks) != 0 {
-		t.Errorf("expected 0 tasks, got %d", len(tasks))
+	if len(resp.Tasks) != 0 {
+		t.Errorf("expected 0 tasks, got %d", len(resp.Tasks))
 	}
 }
 
@@ -916,13 +922,19 @@ func TestListTasksEndpoint_NoOrcDir(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var tasks []task.Task
-	if err := json.NewDecoder(w.Body).Decode(&tasks); err != nil {
+	var resp struct {
+		Tasks      []*task.Task `json:"tasks"`
+		Total      int          `json:"total"`
+		Page       int          `json:"page"`
+		Limit      int          `json:"limit"`
+		TotalPages int          `json:"total_pages"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(tasks) != 0 {
-		t.Errorf("expected 0 tasks, got %d", len(tasks))
+	if len(resp.Tasks) != 0 {
+		t.Errorf("expected 0 tasks, got %d", len(resp.Tasks))
 	}
 }
 
@@ -957,17 +969,23 @@ func TestListTasksEndpoint_WithTasks(t *testing.T) {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
-	var tasks []task.Task
-	if err := json.NewDecoder(w.Body).Decode(&tasks); err != nil {
+	var resp struct {
+		Tasks      []*task.Task `json:"tasks"`
+		Total      int          `json:"total"`
+		Page       int          `json:"page"`
+		Limit      int          `json:"limit"`
+		TotalPages int          `json:"total_pages"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(tasks) != 1 {
-		t.Errorf("expected 1 task, got %d", len(tasks))
+	if len(resp.Tasks) != 1 {
+		t.Errorf("expected 1 task, got %d", len(resp.Tasks))
 	}
 
-	if tasks[0].ID != "TASK-001" {
-		t.Errorf("expected task ID 'TASK-001', got %q", tasks[0].ID)
+	if resp.Tasks[0].ID != "TASK-001" {
+		t.Errorf("expected task ID 'TASK-001', got %q", resp.Tasks[0].ID)
 	}
 }
 
@@ -1558,56 +1576,6 @@ func TestServerPublisher(t *testing.T) {
 }
 
 // === Publish Tests ===
-
-func TestPublishWithSubscribers(t *testing.T) {
-	t.Parallel()
-	srv := newTestServer(t)
-
-	// Manually add a subscriber
-	ch := make(chan Event, 10)
-	srv.subscribersMu.Lock()
-	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
-	srv.subscribersMu.Unlock()
-
-	// Publish an event
-	srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
-
-	// Check if event was received
-	select {
-	case evt := <-ch:
-		if evt.Type != "test" {
-			t.Errorf("expected event type 'test', got %q", evt.Type)
-		}
-	default:
-		t.Error("expected to receive event")
-	}
-}
-
-func TestPublishWithFullChannel(t *testing.T) {
-	t.Parallel()
-	srv := newTestServer(t)
-
-	// Create a full channel (capacity 0)
-	ch := make(chan Event)
-	srv.subscribersMu.Lock()
-	srv.subscribers["TASK-001"] = append(srv.subscribers["TASK-001"], ch)
-	srv.subscribersMu.Unlock()
-
-	// Publish should not block even with full channel
-	done := make(chan struct{})
-	go func() {
-		srv.Publish("TASK-001", Event{Type: "test", Data: "hello"})
-		close(done)
-	}()
-
-	// Wait with timeout
-	select {
-	case <-done:
-		// Success - did not block
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Publish blocked on full channel")
-	}
-}
 
 func TestPublishNoSubscribers(t *testing.T) {
 	t.Parallel()

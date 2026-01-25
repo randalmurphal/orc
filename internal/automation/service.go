@@ -76,7 +76,6 @@ type Database interface {
 	SaveTrigger(ctx context.Context, trigger *Trigger) error
 	LoadTrigger(ctx context.Context, id string) (*Trigger, error)
 	LoadAllTriggers(ctx context.Context) ([]*Trigger, error)
-	UpdateTriggerState(ctx context.Context, id string, lastTriggered time.Time, count int) error
 	// IncrementTriggerCount atomically increments trigger count and updates last_triggered_at.
 	// Returns the new count. This avoids race conditions from read-modify-write patterns.
 	IncrementTriggerCount(ctx context.Context, id string, triggeredAt time.Time) (int, error)

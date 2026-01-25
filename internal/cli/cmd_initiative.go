@@ -1136,7 +1136,7 @@ Examples:
 				return nil
 			}
 
-			ready := init.GetReadyTasks()
+			ready := init.GetReadyTasksWithLoader(nil)
 			if len(ready) == 0 {
 				fmt.Println("No tasks ready to run.")
 				fmt.Println("\nPossible reasons:")

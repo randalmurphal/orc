@@ -222,29 +222,6 @@ func (a *ProjectDBAdapter) LoadAllTriggers(ctx context.Context) ([]*Trigger, err
 	return triggers, rows.Err()
 }
 
-// UpdateTriggerState updates trigger state after firing.
-// Deprecated: Use IncrementTriggerCount for atomic increments.
-func (a *ProjectDBAdapter) UpdateTriggerState(ctx context.Context, id string, lastTriggered time.Time, count int) error {
-	query := `
-		UPDATE automation_triggers
-		SET last_triggered_at = ?,
-			trigger_count = ?,
-			updated_at = datetime('now')
-		WHERE id = ?
-	`
-
-	_, err := a.pdb.Driver().Exec(ctx, query,
-		lastTriggered.Format(time.RFC3339),
-		count,
-		id,
-	)
-	if err != nil {
-		return fmt.Errorf("update trigger state: %w", err)
-	}
-
-	return nil
-}
-
 // IncrementTriggerCount atomically increments trigger count and updates last_triggered_at.
 // Returns the new count. This avoids race conditions from read-modify-write patterns.
 func (a *ProjectDBAdapter) IncrementTriggerCount(ctx context.Context, id string, triggeredAt time.Time) (int, error) {

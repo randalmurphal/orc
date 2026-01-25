@@ -100,7 +100,7 @@ func TestAddDecision(t *testing.T) {
 	}
 }
 
-func TestGetReadyTasks(t *testing.T) {
+func TestGetReadyTasksWithLoader_NilLoader_Dependencies(t *testing.T) {
 	init := New("INIT-001", "Ready Tasks Test")
 
 	// Add tasks with dependencies
@@ -109,15 +109,15 @@ func TestGetReadyTasks(t *testing.T) {
 	init.AddTask("TASK-003", "Third", []string{"TASK-001", "TASK-002"})
 	init.AddTask("TASK-004", "Fourth", nil) // No deps
 
-	// Initially, TASK-001 and TASK-004 should be ready
-	ready := init.GetReadyTasks()
+	// Initially, TASK-001 and TASK-004 should be ready (nil loader uses internal status)
+	ready := init.GetReadyTasksWithLoader(nil)
 	if len(ready) != 2 {
 		t.Errorf("Ready tasks count = %d, want 2", len(ready))
 	}
 
 	// Complete TASK-001
 	init.UpdateTaskStatus("TASK-001", "completed")
-	ready = init.GetReadyTasks()
+	ready = init.GetReadyTasksWithLoader(nil)
 	// Now TASK-002 should also be ready, TASK-004 still ready
 	if len(ready) != 2 {
 		t.Errorf("Ready tasks count = %d, want 2 (TASK-002, TASK-004)", len(ready))
@@ -125,7 +125,7 @@ func TestGetReadyTasks(t *testing.T) {
 
 	// Complete TASK-002
 	init.UpdateTaskStatus("TASK-002", "completed")
-	ready = init.GetReadyTasks()
+	ready = init.GetReadyTasksWithLoader(nil)
 	// Now TASK-003 should be ready, TASK-004 still ready
 	if len(ready) != 2 {
 		t.Errorf("Ready tasks count = %d, want 2 (TASK-003, TASK-004)", len(ready))

@@ -62,15 +62,7 @@ func (d *DatabaseBackend) SaveTaskCtx(ctx context.Context, t *task.Task) error {
 
 		// Save execution state: gate decisions
 		for _, gate := range t.Execution.Gates {
-			dbGate := &db.GateDecision{
-				TaskID:    t.ID,
-				Phase:     gate.Phase,
-				GateType:  gate.GateType,
-				Approved:  gate.Approved,
-				Reason:    gate.Reason,
-				DecidedAt: gate.Timestamp,
-			}
-			if err := db.AddGateDecisionTx(tx, dbGate); err != nil {
+			if err := db.AddGateDecisionTx(tx, gate.ToDB(t.ID)); err != nil {
 				return fmt.Errorf("save gate decision: %w", err)
 			}
 		}
@@ -123,15 +115,7 @@ func (d *DatabaseBackend) loadTaskUnlocked(id string) (*task.Task, error) {
 	if err != nil {
 		d.logger.Printf("warning: failed to get gate decisions: %v", err)
 	} else {
-		for _, dbGate := range dbGates {
-			t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
-				Phase:     dbGate.Phase,
-				GateType:  dbGate.GateType,
-				Approved:  dbGate.Approved,
-				Reason:    dbGate.Reason,
-				Timestamp: dbGate.DecidedAt,
-			})
-		}
+		t.Execution.Gates = task.GateDecisionsFromDB(dbGates)
 	}
 
 	return t, nil
@@ -184,15 +168,7 @@ func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
 
 		// Apply pre-fetched gates
 		if gates, ok := allGates[t.ID]; ok {
-			for _, dbGate := range gates {
-				t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
-					Phase:     dbGate.Phase,
-					GateType:  dbGate.GateType,
-					Approved:  dbGate.Approved,
-					Reason:    dbGate.Reason,
-					Timestamp: dbGate.DecidedAt,
-				})
-			}
+			t.Execution.Gates = task.GateDecisionsFromDB(gates)
 		}
 
 		tasks = append(tasks, t)

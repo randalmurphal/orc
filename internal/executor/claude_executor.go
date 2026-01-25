@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // TurnExecutor defines the interface for executing Claude turns.
@@ -183,31 +184,16 @@ type TurnResult struct {
 	Reason    string // For blocked status or continue reason
 	NumTurns  int
 	CostUSD   float64
-	Usage     TokenUsage
+	Usage     task.TokenUsage
 	Duration  time.Duration
 	IsError   bool
 	ErrorText string
 	SessionID string // Session ID from response (for tracking)
 }
 
-// TokenUsage tracks token consumption.
-type TokenUsage struct {
-	InputTokens              int
-	OutputTokens             int
-	TotalTokens              int
-	CacheCreationInputTokens int
-	CacheReadInputTokens     int
-}
-
-// EffectiveInputTokens returns the total input context size including cached tokens.
-func (u TokenUsage) EffectiveInputTokens() int {
-	return u.InputTokens + u.CacheCreationInputTokens + u.CacheReadInputTokens
-}
-
-// EffectiveTotalTokens returns the total tokens including cached inputs.
-func (u TokenUsage) EffectiveTotalTokens() int {
-	return u.EffectiveInputTokens() + u.OutputTokens
-}
+// TokenUsage is an alias for task.TokenUsage for backward compatibility.
+// Deprecated: Use task.TokenUsage directly.
+type TokenUsage = task.TokenUsage
 
 // ExecuteTurn sends a prompt to Claude and waits for the response.
 // Uses --json-schema to force structured output for completion detection.

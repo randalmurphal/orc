@@ -197,15 +197,42 @@ func TestGlobalDB_CostTracking(t *testing.T) {
 
 	gdb := &GlobalDB{DB: db}
 
-	// Record some costs
-	if err := gdb.RecordCost("proj-1", "TASK-001", "implement", 0.05, 1000, 500); err != nil {
-		t.Fatalf("RecordCost failed: %v", err)
+	// Record some costs using RecordCostExtended
+	if err := gdb.RecordCostExtended(CostEntry{
+		ProjectID:    "proj-1",
+		TaskID:       "TASK-001",
+		Phase:        "implement",
+		Model:        "sonnet",
+		CostUSD:      0.05,
+		InputTokens:  1000,
+		OutputTokens: 500,
+		TotalTokens:  1500,
+	}); err != nil {
+		t.Fatalf("RecordCostExtended failed: %v", err)
 	}
-	if err := gdb.RecordCost("proj-1", "TASK-001", "test", 0.03, 600, 300); err != nil {
-		t.Fatalf("RecordCost failed: %v", err)
+	if err := gdb.RecordCostExtended(CostEntry{
+		ProjectID:    "proj-1",
+		TaskID:       "TASK-001",
+		Phase:        "test",
+		Model:        "sonnet",
+		CostUSD:      0.03,
+		InputTokens:  600,
+		OutputTokens: 300,
+		TotalTokens:  900,
+	}); err != nil {
+		t.Fatalf("RecordCostExtended failed: %v", err)
 	}
-	if err := gdb.RecordCost("proj-2", "TASK-002", "implement", 0.10, 2000, 1000); err != nil {
-		t.Fatalf("RecordCost failed: %v", err)
+	if err := gdb.RecordCostExtended(CostEntry{
+		ProjectID:    "proj-2",
+		TaskID:       "TASK-002",
+		Phase:        "implement",
+		Model:        "opus",
+		CostUSD:      0.10,
+		InputTokens:  2000,
+		OutputTokens: 1000,
+		TotalTokens:  3000,
+	}); err != nil {
+		t.Fatalf("RecordCostExtended failed: %v", err)
 	}
 
 	// Get summary (all projects)

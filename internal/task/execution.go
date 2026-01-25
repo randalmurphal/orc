@@ -5,6 +5,8 @@ package task
 import (
 	"strings"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/db"
 )
 
 // PhaseStatus represents the execution status of a phase.
@@ -19,6 +21,7 @@ const (
 	PhaseStatusPaused      PhaseStatus = "paused"
 	PhaseStatusInterrupted PhaseStatus = "interrupted"
 	PhaseStatusSkipped     PhaseStatus = "skipped"
+	PhaseStatusBlocked     PhaseStatus = "blocked"
 )
 
 // PhaseState represents the state of a single phase execution.
@@ -44,6 +47,17 @@ type TokenUsage struct {
 	CacheCreationInputTokens int `yaml:"cache_creation_input_tokens,omitempty" json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `yaml:"cache_read_input_tokens,omitempty" json:"cache_read_input_tokens,omitempty"`
 	TotalTokens              int `yaml:"total_tokens" json:"total_tokens"`
+}
+
+// EffectiveInputTokens returns the total input context size including cached tokens.
+// Use this instead of raw InputTokens to get the actual context window usage.
+func (t TokenUsage) EffectiveInputTokens() int {
+	return t.InputTokens + t.CacheCreationInputTokens + t.CacheReadInputTokens
+}
+
+// EffectiveTotalTokens returns the total tokens including cached inputs.
+func (t TokenUsage) EffectiveTotalTokens() int {
+	return t.EffectiveInputTokens() + t.OutputTokens
 }
 
 // CostTracking tracks cost information for the task.
@@ -387,15 +401,6 @@ func (e *ExecutionState) AddCost(currentPhase string, costUSD float64) {
 	}
 }
 
-// GetSessionID returns the global session ID if available.
-// Deprecated: Use GetPhaseSessionID for phase-specific session tracking.
-func (e *ExecutionState) GetSessionID() string {
-	if e.Session != nil {
-		return e.Session.ID
-	}
-	return ""
-}
-
 // GetPhaseSessionID returns the session ID for a specific phase.
 func (e *ExecutionState) GetPhaseSessionID(phaseID string) string {
 	if ps, ok := e.Phases[phaseID]; ok && ps.SessionID != "" {
@@ -436,4 +441,43 @@ func (e *ExecutionState) GetLastValidation(phaseID string) *ValidationEntry {
 		return nil
 	}
 	return &history[len(history)-1]
+}
+
+// ============================================================================
+// GateDecision conversion functions (domain <-> persistence)
+// ============================================================================
+
+// ToDB converts task.GateDecision to db.GateDecision for persistence.
+func (g GateDecision) ToDB(taskID string) *db.GateDecision {
+	return &db.GateDecision{
+		TaskID:    taskID,
+		Phase:     g.Phase,
+		GateType:  g.GateType,
+		Approved:  g.Approved,
+		Reason:    g.Reason,
+		DecidedAt: g.Timestamp,
+	}
+}
+
+// GateDecisionFromDB converts db.GateDecision to task.GateDecision.
+func GateDecisionFromDB(d *db.GateDecision) GateDecision {
+	return GateDecision{
+		Phase:     d.Phase,
+		GateType:  d.GateType,
+		Approved:  d.Approved,
+		Reason:    d.Reason,
+		Timestamp: d.DecidedAt,
+	}
+}
+
+// GateDecisionsFromDB converts a slice of db.GateDecision to task.GateDecision.
+func GateDecisionsFromDB(dbDecisions []db.GateDecision) []GateDecision {
+	if len(dbDecisions) == 0 {
+		return nil
+	}
+	result := make([]GateDecision, len(dbDecisions))
+	for i, d := range dbDecisions {
+		result[i] = GateDecisionFromDB(&d)
+	}
+	return result
 }
