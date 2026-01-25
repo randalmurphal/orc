@@ -9,8 +9,10 @@
  * - Independent scrolling for sidebar and content
  */
 
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
+import { getConfigStats, type ConfigStats } from '@/lib/api';
 import './SettingsLayout.css';
 
 interface NavItemProps {
@@ -52,10 +54,25 @@ function NavGroup({ title, children }: NavGroupProps) {
 }
 
 export function SettingsLayout() {
-	// Mock badge counts - in a real implementation these would come from API/stores
-	const commandsCount = 5;
-	const mcpServersCount = 2;
-	const memoryCount = 12;
+	const [configStats, setConfigStats] = useState<ConfigStats | undefined>();
+
+	useEffect(() => {
+		let mounted = true;
+
+		getConfigStats()
+			.then((stats) => {
+				if (mounted) {
+					setConfigStats(stats);
+				}
+			})
+			.catch(() => {
+				// Graceful degradation - no badge on error
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, []);
 
 	return (
 		<div className="settings-layout">
@@ -72,21 +89,16 @@ export function SettingsLayout() {
 							to="/settings/commands"
 							icon="terminal"
 							label="Slash Commands"
-							badge={commandsCount}
+							badge={configStats?.slashCommandsCount}
 						/>
 						<NavItem to="/settings/claude-md" icon="file-text" label="CLAUDE.md" />
 						<NavItem
 							to="/settings/mcp"
 							icon="mcp"
 							label="MCP Servers"
-							badge={mcpServersCount}
+							badge={configStats?.mcpServersCount}
 						/>
-						<NavItem
-							to="/settings/memory"
-							icon="database"
-							label="Memory"
-							badge={memoryCount}
-						/>
+						<NavItem to="/settings/memory" icon="database" label="Memory" />
 						<NavItem to="/settings/permissions" icon="shield" label="Permissions" />
 					</NavGroup>
 
