@@ -191,10 +191,6 @@ type TurnResult struct {
 	SessionID string // Session ID from response (for tracking)
 }
 
-// TokenUsage is an alias for task.TokenUsage for backward compatibility.
-// Deprecated: Use task.TokenUsage directly.
-type TokenUsage = task.TokenUsage
-
 // ExecuteTurn sends a prompt to Claude and waits for the response.
 // Uses --json-schema to force structured output for completion detection.
 // The schema varies by phase: content-producing phases (spec, research, docs)
@@ -240,7 +236,7 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 		CostUSD:   resp.CostUSD,
 		SessionID: resp.SessionID,
 		Duration:  time.Since(start),
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:              resp.Usage.InputTokens,
 			OutputTokens:             resp.Usage.OutputTokens,
 			TotalTokens:              resp.Usage.TotalTokens,
@@ -313,7 +309,7 @@ func (e *ClaudeExecutor) ExecuteTurnWithoutSchema(ctx context.Context, prompt st
 		SessionID: resp.SessionID,
 		Duration:  time.Since(start),
 		Status:    PhaseStatusContinue, // Default - caller determines actual status
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:              resp.Usage.InputTokens,
 			OutputTokens:             resp.Usage.OutputTokens,
 			TotalTokens:              resp.Usage.TotalTokens,
@@ -533,7 +529,7 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		Reason:    reason,
 		NumTurns:  1,
 		SessionID: m.SessionIDValue,
-		Usage: TokenUsage{
+		Usage: task.TokenUsage{
 			InputTokens:  100,
 			OutputTokens: 50,
 		},

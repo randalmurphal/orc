@@ -175,11 +175,11 @@ type FinalizeResult struct {
 }
 
 // Execute runs the finalize phase.
-func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, exec *task.ExecutionState) (*Result, error) {
+func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDisplay, exec *task.ExecutionState) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: PhaseRunning,
+		Status: task.PhaseStatusRunning,
 	}
 
 	e.publisher.PhaseStart(t.ID, p.ID)
@@ -188,7 +188,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 	finalizeCfg := e.getFinalizeConfig()
 	if !finalizeCfg.Enabled {
 		e.logger.Info("finalize phase disabled, skipping", "task", t.ID)
-		result.Status = PhaseCompleted
+		result.Status = task.PhaseStatusCompleted
 		result.Duration = time.Since(start)
 		return result, nil
 	}
@@ -205,7 +205,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 	e.publishProgress(t.ID, p.ID, "Fetching latest changes from remote...")
 	if err := e.fetchTarget(); err != nil {
 		result.Error = fmt.Errorf("fetch target: %w", err)
-		result.Status = PhaseFailed
+		result.Status = task.PhaseStatusFailed
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
@@ -215,7 +215,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 	ahead, behind, err := e.checkDivergence(targetBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("check divergence: %w", err)
-		result.Status = PhaseFailed
+		result.Status = task.PhaseStatusFailed
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
@@ -237,11 +237,11 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 			// Check if we should escalate to implement phase
 			if e.shouldEscalate(finalizeResult, finalizeCfg) {
 				result.Error = fmt.Errorf("finalize failed, needs escalation to implement phase: %w", err)
-				result.Status = PhaseFailed
+				result.Status = task.PhaseStatusFailed
 				result.Output = buildEscalationContext(finalizeResult)
 			} else {
 				result.Error = fmt.Errorf("sync with target: %w", err)
-				result.Status = PhaseFailed
+				result.Status = task.PhaseStatusFailed
 			}
 			result.Duration = time.Since(start)
 			return result, result.Error
@@ -264,14 +264,14 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 				fixed, fixErr := e.tryFixTests(ctx, t, p, exec, testResult)
 				if fixErr != nil || !fixed {
 					result.Error = fmt.Errorf("tests failed after sync and fix attempt: %v failures", len(testResult.Failures))
-					result.Status = PhaseFailed
+					result.Status = task.PhaseStatusFailed
 					result.Output = buildTestFailureContext(testResult)
 					result.Duration = time.Since(start)
 					return result, result.Error
 				}
 			} else {
 				result.Error = fmt.Errorf("tests failed after sync: %v failures", len(testResult.Failures))
-				result.Status = PhaseFailed
+				result.Status = task.PhaseStatusFailed
 				result.Output = buildTestFailureContext(testResult)
 				result.Duration = time.Since(start)
 				return result, result.Error
@@ -308,7 +308,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *Phase, 
 		result.Output = buildFinalizeReport(t.ID, targetBranch, finalizeResult)
 	}
 
-	result.Status = PhaseCompleted
+	result.Status = task.PhaseStatusCompleted
 	result.Duration = time.Since(start)
 
 	e.logger.Info("finalize phase complete",
@@ -384,7 +384,7 @@ func (e *FinalizeExecutor) checkDivergence(targetBranch string) (ahead int, behi
 func (e *FinalizeExecutor) syncWithTarget(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	targetBranch string,
 	cfg config.FinalizeConfig,
@@ -447,7 +447,7 @@ func (e *FinalizeExecutor) syncWithTarget(
 func (e *FinalizeExecutor) syncViaMerge(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
@@ -532,7 +532,7 @@ func (e *FinalizeExecutor) syncViaMerge(
 func (e *FinalizeExecutor) syncViaRebase(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
@@ -574,7 +574,7 @@ func (e *FinalizeExecutor) syncViaRebase(
 func (e *FinalizeExecutor) resolveConflicts(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
@@ -631,7 +631,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 func (e *FinalizeExecutor) resolveRebaseConflicts(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
@@ -745,7 +745,7 @@ func (e *FinalizeExecutor) runTests(ctx context.Context, t *task.Task, cfg confi
 func (e *FinalizeExecutor) tryFixTests(
 	ctx context.Context,
 	t *task.Task,
-	p *Phase,
+	p *PhaseDisplay,
 	exec *task.ExecutionState,
 	testResult *ParsedTestResult,
 ) (bool, error) {

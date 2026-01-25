@@ -454,7 +454,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		runPhase := &db.WorkflowRunPhase{
 			WorkflowRunID:   runID,
 			PhaseTemplateID: phase.PhaseTemplateID,
-			Status:          string(workflow.PhaseStatusPending),
+			Status:          string(task.PhaseStatusPending),
 		}
 		if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
 			return result, fmt.Errorf("save run phase: %w", err)

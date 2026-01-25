@@ -124,15 +124,15 @@ If the user then tries to resume the task, these states would block execution wi
 3. **Check for dirty state**: If working directory is not clean, discard all changes
 
 ```go
-// SetupWorktree automatically cleans up when reusing an existing worktree
-func SetupWorktree(taskID string, cfg *config.Config, gitOps *git.Git) (*WorktreeSetup, error) {
-    worktreePath := gitOps.WorktreePath(taskID)
+// SetupWorktreeForTask automatically cleans up when reusing an existing worktree
+func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
+    worktreePath := gitOps.WorktreePath(t.ID)
     if _, err := os.Stat(worktreePath); err == nil {
         // Worktree exists - clean up any problematic state
-        if err := cleanWorktreeState(worktreePath, gitOps); err != nil {
+        if err := cleanWorktreeState(worktreePath, gitOps, expectedBranch); err != nil {
             return nil, err
         }
-        return &WorktreeSetup{Path: worktreePath, Reused: true}, nil
+        return &WorktreeSetup{Path: worktreePath, Reused: true, TargetBranch: targetBranch}, nil
     }
     // ... create new worktree
 }

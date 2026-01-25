@@ -6,6 +6,8 @@ package workflow
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // PromptSource defines where a phase's prompt content comes from.
@@ -24,17 +26,6 @@ const (
 	GateAuto  GateType = "auto"  // AI auto-approves
 	GateHuman GateType = "human" // Requires human approval
 	GateSkip  GateType = "skip"  // No gate, always continues
-)
-
-// PhaseStatus represents the execution state of a phase.
-type PhaseStatus string
-
-const (
-	PhaseStatusPending   PhaseStatus = "pending"
-	PhaseStatusRunning   PhaseStatus = "running"
-	PhaseStatusCompleted PhaseStatus = "completed"
-	PhaseStatusFailed    PhaseStatus = "failed"
-	PhaseStatusSkipped   PhaseStatus = "skipped"
 )
 
 // RunStatus represents the execution state of a workflow run.
@@ -250,7 +241,7 @@ type WorkflowRunPhase struct {
 	PhaseTemplateID string `json:"phase_template_id" db:"phase_template_id"`
 
 	// Status
-	Status     PhaseStatus `json:"status" db:"status"`
+	Status     task.PhaseStatus `json:"status" db:"status"`
 	Iterations int         `json:"iterations" db:"iterations"`
 
 	// Timing
@@ -409,13 +400,13 @@ func (wr *WorkflowRun) GetPhaseByID(templateID string) *WorkflowRunPhase {
 func (wr *WorkflowRun) CurrentRunPhase() *WorkflowRunPhase {
 	// First look for running phase
 	for i := range wr.Phases {
-		if wr.Phases[i].Status == PhaseStatusRunning {
+		if wr.Phases[i].Status == task.PhaseStatusRunning {
 			return &wr.Phases[i]
 		}
 	}
 	// Then look for first pending phase
 	for i := range wr.Phases {
-		if wr.Phases[i].Status == PhaseStatusPending {
+		if wr.Phases[i].Status == task.PhaseStatusPending {
 			return &wr.Phases[i]
 		}
 	}
@@ -425,7 +416,7 @@ func (wr *WorkflowRun) CurrentRunPhase() *WorkflowRunPhase {
 // IsComplete returns true if all phases are completed or skipped.
 func (wr *WorkflowRun) IsComplete() bool {
 	for _, phase := range wr.Phases {
-		if phase.Status != PhaseStatusCompleted && phase.Status != PhaseStatusSkipped {
+		if phase.Status != task.PhaseStatusCompleted && phase.Status != task.PhaseStatusSkipped {
 			return false
 		}
 	}

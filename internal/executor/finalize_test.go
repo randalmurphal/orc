@@ -221,13 +221,13 @@ func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 		Title:  "Test task",
 		Weight: task.WeightLarge,
 	}
-	phase := &Phase{ID: "finalize"}
+	phase := &PhaseDisplay{ID: "finalize"}
 
 	result, err := exec.Execute(context.Background(), tsk, phase, &tsk.Execution)
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	if result.Status != PhaseCompleted {
+	if result.Status != task.PhaseStatusCompleted {
 		t.Errorf("expected status = completed, got %s", result.Status)
 	}
 }
@@ -241,13 +241,13 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 		Title:  "Test task",
 		Weight: task.WeightLarge,
 	}
-	phase := &Phase{ID: "finalize"}
+	phase := &PhaseDisplay{ID: "finalize"}
 
 	result, err := exec.Execute(context.Background(), tsk, phase, &tsk.Execution)
 	if err == nil {
 		t.Error("expected error when git service is not available")
 	}
-	if result.Status != PhaseFailed {
+	if result.Status != task.PhaseStatusFailed {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }
@@ -747,7 +747,7 @@ func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
 	result, err := exec.syncWithTarget(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&Phase{ID: "finalize"},
+		&PhaseDisplay{ID: "finalize"},
 		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
 		"main",
 		cfg,
@@ -979,7 +979,7 @@ func TestFinalizeExecutor_tryFixTests_ExecutorError(t *testing.T) {
 	fixed, err := exec.tryFixTests(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&Phase{ID: "finalize"},
+		&PhaseDisplay{ID: "finalize"},
 		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
 		testResult,
 	)
@@ -1006,7 +1006,7 @@ func TestFinalizeExecutor_resolveConflicts_ExecutorError(t *testing.T) {
 	resolved, err := exec.resolveConflicts(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&Phase{ID: "finalize"},
+		&PhaseDisplay{ID: "finalize"},
 		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
 		[]string{"conflict.go"},
 		cfg,
@@ -1134,7 +1134,7 @@ func TestSyncStrategy_DefaultMerge(t *testing.T) {
 	result, err := exec.syncWithTarget(
 		context.Background(),
 		&task.Task{ID: "TASK-001"},
-		&Phase{ID: "finalize"},
+		&PhaseDisplay{ID: "finalize"},
 		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
 		"main",
 		cfg,
@@ -1164,7 +1164,7 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
 	tsk := &task.Task{ID: "TASK-001", Title: "Test", Weight: task.WeightLarge}
-	phase := &Phase{ID: "finalize"}
+	phase := &PhaseDisplay{ID: "finalize"}
 	s := &task.ExecutionState{Phases: make(map[string]*task.PhaseState)}
 
 	result, err := exec.Execute(context.Background(), tsk, phase, s)
@@ -1173,7 +1173,7 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when git service not available")
 	}
-	if result.Status != PhaseFailed {
+	if result.Status != task.PhaseStatusFailed {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }

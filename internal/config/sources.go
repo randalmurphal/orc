@@ -44,13 +44,6 @@ const (
 	SourceEnv ConfigSource = "env"
 	// SourceFlag indicates a CLI flag override.
 	SourceFlag ConfigSource = "flag"
-
-	// Deprecated: Use SourceShared instead.
-	SourceProject ConfigSource = "project"
-	// Deprecated: Use SourcePersonal instead.
-	SourceUser ConfigSource = "user"
-	// Deprecated: No longer used.
-	SourceSystem ConfigSource = "system"
 )
 
 // Level returns the ConfigLevel for this source.
@@ -58,9 +51,9 @@ func (s ConfigSource) Level() ConfigLevel {
 	switch s {
 	case SourceDefault:
 		return LevelDefaults
-	case SourceShared, SourceProject:
+	case SourceShared:
 		return LevelShared
-	case SourcePersonal, SourceUser:
+	case SourcePersonal:
 		return LevelPersonal
 	case SourceEnv, SourceFlag:
 		return LevelRuntime

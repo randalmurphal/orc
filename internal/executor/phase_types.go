@@ -7,21 +7,6 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// PhaseStatus is an alias for task.PhaseStatus for backward compatibility.
-// DEPRECATED: Use task.PhaseStatus directly.
-type PhaseStatus = task.PhaseStatus
-
-// Backward-compatible constants that alias to task.PhaseStatus values.
-// DEPRECATED: Use task.PhaseStatus* constants directly.
-const (
-	PhasePending   = task.PhaseStatusPending
-	PhaseRunning   = task.PhaseStatusRunning
-	PhaseCompleted = task.PhaseStatusCompleted
-	PhaseFailed    = task.PhaseStatusFailed
-	PhaseSkipped   = task.PhaseStatusSkipped
-	PhaseBlocked   = task.PhaseStatusBlocked
-)
-
 // PhaseDisplay represents phase information for display purposes.
 // Used in CLI, API responses, and plan display.
 type PhaseDisplay struct {
@@ -35,10 +20,6 @@ type PhaseDisplay struct {
 	// Execution configuration
 	MaxIterations int `yaml:"max_iterations,omitempty" json:"max_iterations,omitempty"`
 }
-
-// Phase is an alias for PhaseDisplay for backward compatibility.
-// Deprecated: Use PhaseDisplay directly.
-type Phase = PhaseDisplay
 
 // Plan represents an execution plan containing phases for display.
 // Used in CLI, API responses, and orchestrator plan display.
