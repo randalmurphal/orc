@@ -2123,6 +2123,272 @@ func TestHandleGetComparisonStats_EmptyDatabase(t *testing.T) {
 }
 
 
+// ============================================================================
+// SC-7: Avg Execution Time Tests
+// Tests that the outcomes endpoint returns avg_execution_time_seconds field
+// calculated from (CompletedAt - StartedAt) for completed tasks.
+// ============================================================================
+
+func TestHandleGetOutcomesStats_AvgExecutionTime(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	// Create backend and save test data with timing information
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Create task 1: started 10 minutes ago, completed 5 minutes ago (5 min duration)
+	startedAt1 := now.Add(-10 * time.Minute)
+	completedAt1 := now.Add(-5 * time.Minute)
+	tsk1 := task.New("TASK-001", "Task with 5 min duration")
+	tsk1.Status = task.StatusCompleted
+	tsk1.StartedAt = &startedAt1
+	tsk1.CompletedAt = &completedAt1
+	if err := backend.SaveTask(tsk1); err != nil {
+		t.Fatalf("failed to save task 1: %v", err)
+	}
+
+	// Create task 2: started 20 minutes ago, completed 5 minutes ago (15 min duration)
+	startedAt2 := now.Add(-20 * time.Minute)
+	completedAt2 := now.Add(-5 * time.Minute)
+	tsk2 := task.New("TASK-002", "Task with 15 min duration")
+	tsk2.Status = task.StatusCompleted
+	tsk2.StartedAt = &startedAt2
+	tsk2.CompletedAt = &completedAt2
+	if err := backend.SaveTask(tsk2); err != nil {
+		t.Fatalf("failed to save task 2: %v", err)
+	}
+
+	// Create task 3: started 8 minutes ago, completed 3 minutes ago (5 min duration)
+	startedAt3 := now.Add(-8 * time.Minute)
+	completedAt3 := now.Add(-3 * time.Minute)
+	tsk3 := task.New("TASK-003", "Task with 5 min duration")
+	tsk3.Status = task.StatusCompleted
+	tsk3.StartedAt = &startedAt3
+	tsk3.CompletedAt = &completedAt3
+	if err := backend.SaveTask(tsk3); err != nil {
+		t.Fatalf("failed to save task 3: %v", err)
+	}
+
+	// Close backend before creating server
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Parse response - should include avg_execution_time_seconds field
+	var response struct {
+		Period                  string                  `json:"period"`
+		Total                   int                     `json:"total"`
+		Outcomes                map[string]OutcomeCount `json:"outcomes"`
+		AvgExecutionTimeSeconds float64                 `json:"avg_execution_time_seconds"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Average should be (5 + 15 + 5) / 3 = 8.33 minutes = ~500 seconds
+	// Using approximate comparison to handle floating point
+	expectedAvgSeconds := 500.0 // (300 + 900 + 300) / 3 = 500 seconds
+	tolerance := 10.0           // Allow 10 second variance for test timing
+
+	if response.AvgExecutionTimeSeconds < expectedAvgSeconds-tolerance ||
+		response.AvgExecutionTimeSeconds > expectedAvgSeconds+tolerance {
+		t.Errorf("expected avg_execution_time_seconds≈%.0f, got %.2f",
+			expectedAvgSeconds, response.AvgExecutionTimeSeconds)
+	}
+}
+
+func TestHandleGetOutcomesStats_AvgExecutionTime_NoStartedAt(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Create task without StartedAt (null) - should be excluded from avg calculation
+	completedAt := now.Add(-5 * time.Minute)
+	tsk := task.New("TASK-001", "Task without started_at")
+	tsk.Status = task.StatusCompleted
+	tsk.StartedAt = nil // No start time
+	tsk.CompletedAt = &completedAt
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response struct {
+		AvgExecutionTimeSeconds float64 `json:"avg_execution_time_seconds"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Tasks without StartedAt should result in 0 avg (or excluded from calc)
+	// Since there's no valid timing data, avgTime should be 0
+	if response.AvgExecutionTimeSeconds != 0 {
+		t.Errorf("expected avg_execution_time_seconds=0 for tasks without started_at, got %.2f",
+			response.AvgExecutionTimeSeconds)
+	}
+}
+
+func TestHandleGetOutcomesStats_AvgExecutionTime_EmptyDatabase(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response struct {
+		AvgExecutionTimeSeconds float64 `json:"avg_execution_time_seconds"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Empty database should return 0 avgTime
+	if response.AvgExecutionTimeSeconds != 0 {
+		t.Errorf("expected avg_execution_time_seconds=0 for empty database, got %.2f",
+			response.AvgExecutionTimeSeconds)
+	}
+}
+
+func TestHandleGetOutcomesStats_AvgExecutionTime_PeriodFilter(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(tmpDir+"/.orc", 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+
+	storageCfg := &config.StorageConfig{Mode: "database"}
+	backend, err := storage.NewDatabaseBackend(tmpDir, storageCfg)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+
+	now := time.Now()
+
+	// Task 1: Recent (within 24h) - 10 minute duration
+	startedAt1 := now.Add(-1 * time.Hour)
+	completedAt1 := now.Add(-50 * time.Minute)
+	tsk1 := task.New("TASK-001", "Recent task")
+	tsk1.Status = task.StatusCompleted
+	tsk1.StartedAt = &startedAt1
+	tsk1.CompletedAt = &completedAt1
+	if err := backend.SaveTask(tsk1); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Task 2: Old (48h ago) - 30 minute duration
+	startedAt2 := now.Add(-48 * time.Hour)
+	completedAt2 := now.Add(-47*time.Hour - 30*time.Minute)
+	tsk2 := task.New("TASK-002", "Old task")
+	tsk2.Status = task.StatusCompleted
+	tsk2.StartedAt = &startedAt2
+	tsk2.CompletedAt = &completedAt2
+	if err := backend.SaveTask(tsk2); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cfg := &Config{
+		Addr:    ":0",
+		WorkDir: tmpDir,
+	}
+	server := New(cfg)
+
+	// Request with 24h period - should only include recent task
+	req := httptest.NewRequest(http.MethodGet, "/api/stats/outcomes?period=24h", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleGetOutcomesStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response struct {
+		AvgExecutionTimeSeconds float64 `json:"avg_execution_time_seconds"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	// Only recent task (10 min = 600 seconds) should be included
+	expectedAvgSeconds := 600.0
+	tolerance := 10.0
+
+	if response.AvgExecutionTimeSeconds < expectedAvgSeconds-tolerance ||
+		response.AvgExecutionTimeSeconds > expectedAvgSeconds+tolerance {
+		t.Errorf("expected avg_execution_time_seconds≈%.0f for 24h period, got %.2f",
+			expectedAvgSeconds, response.AvgExecutionTimeSeconds)
+	}
+}
+
 func TestCalculatePercentageChange(t *testing.T) {
 	t.Parallel()
 

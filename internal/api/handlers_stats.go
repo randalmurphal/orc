@@ -319,9 +319,10 @@ type OutcomeCount struct {
 
 // OutcomesResponse is the response for GET /api/stats/outcomes.
 type OutcomesResponse struct {
-	Period   string                  `json:"period"`
-	Total    int                     `json:"total"`
-	Outcomes map[string]OutcomeCount `json:"outcomes"`
+	Period                  string                  `json:"period"`
+	Total                   int                     `json:"total"`
+	Outcomes                map[string]OutcomeCount `json:"outcomes"`
+	AvgExecutionTimeSeconds float64                 `json:"avg_execution_time_seconds"` // SC-7: Average task duration
 }
 
 // ============================================================================
@@ -367,6 +368,7 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 
 	// Filter tasks by completion time and count outcomes
 	var completed, withRetries, failed int
+	var executionTimes []float64 // SC-7: Track execution times for average calculation
 
 	for _, t := range allTasks {
 		// Apply time filter - only include tasks completed within the period
@@ -378,6 +380,12 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 		// Categorize by outcome
 		switch t.Status {
 		case task.StatusCompleted:
+			// SC-7: Calculate execution time if both StartedAt and CompletedAt are set
+			if t.StartedAt != nil && t.CompletedAt != nil {
+				duration := t.CompletedAt.Sub(*t.StartedAt).Seconds()
+				executionTimes = append(executionTimes, duration)
+			}
+
 			// Load state to check for retries
 			st, err := s.backend.LoadState(t.ID)
 			if err != nil {
@@ -438,10 +446,21 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 		outcomes["failed"] = OutcomeCount{Count: 0, Percentage: 0}
 	}
 
+	// SC-7: Calculate average execution time
+	var avgExecutionTime float64
+	if len(executionTimes) > 0 {
+		var sum float64
+		for _, t := range executionTimes {
+			sum += t
+		}
+		avgExecutionTime = sum / float64(len(executionTimes))
+	}
+
 	response := OutcomesResponse{
-		Period:   period,
-		Total:    total,
-		Outcomes: outcomes,
+		Period:                  period,
+		Total:                   total,
+		Outcomes:                outcomes,
+		AvgExecutionTimeSeconds: avgExecutionTime,
 	}
 
 	s.jsonResponse(w, response)
