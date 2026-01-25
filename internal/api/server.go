@@ -212,6 +212,7 @@ func New(cfg *Config) *Server {
 	s.wsHandler = NewWSHandler(pub, s, logger)
 
 	s.registerRoutes()
+	s.registerConnectHandlers()
 	return s
 }
 
