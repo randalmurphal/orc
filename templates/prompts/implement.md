@@ -240,7 +240,7 @@ Before committing:
 go vet ./...
 
 # For Node/TypeScript projects
-npm run typecheck && npm run lint
+bun run typecheck && bun run lint
 
 # For Python projects
 ruff check .

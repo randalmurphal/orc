@@ -78,7 +78,7 @@ Commands are stored in the `project_commands` database table, seeded during `orc
 | Type | Tests | Lint | Build | Typecheck |
 |------|-------|------|-------|-----------|
 | Go | `go test ./...` | `golangci-lint run ./...` | `go build ./...` | `go build -o /dev/null ./...` |
-| Node/TS | `npm test` | `npm run lint` | `npm run build` | `npx tsc --noEmit` |
+| Node/TS | `bun test` | `bun run lint` | `bun run build` | `bunx tsc --noEmit` |
 | Python | `pytest` | `ruff check .` | - | `pyright` |
 | Rust | `cargo test` | `cargo clippy` | `cargo build` | `cargo check` |
 

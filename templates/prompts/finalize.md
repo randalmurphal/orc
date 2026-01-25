@@ -126,7 +126,7 @@ After ALL conflicts are resolved:
 go test ./... -v -race
 
 # For Node projects
-npm test
+bun test
 
 # For Python projects
 pytest -v
@@ -149,9 +149,9 @@ go vet ./...
 golangci-lint run ./...  # REQUIRED: Full linter suite including errcheck
 
 # For Node/TypeScript projects - run type checking AND linting
-npm run build       # Includes tsc for type checking
-npm run typecheck   # Explicit type check (tsc --noEmit)
-npm run lint        # ESLint for code quality
+bun run build       # Includes tsc for type checking
+bun run typecheck   # Explicit type check (tsc --noEmit)
+bun run lint        # ESLint for code quality
 
 # For Python projects
 python -m py_compile $(find . -name "*.py" -not -path "./.venv/*")

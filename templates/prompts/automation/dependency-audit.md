@@ -18,7 +18,7 @@ Review all project dependencies, identify issues, and update or replace problema
    - Identify deprecated or archived packages
 
 2. **Security Check**
-   - Run security audit tools (npm audit, go mod audit, etc.)
+   - Run security audit tools (bun audit, go mod audit, etc.)
    - Check for known CVEs in dependencies
    - Review security advisories for critical packages
 

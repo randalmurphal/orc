@@ -48,7 +48,7 @@ Review the implementation artifact's "Impact Analysis Results" section:
 # Verify no broken references
 go build ./... 2>&1 | grep -i "undefined\|cannot find"
 # Or for TypeScript
-npm run typecheck 2>&1 | grep -i "cannot find\|not found"
+bun run typecheck 2>&1 | grep -i "cannot find\|not found"
 ```
 
 ### 2. Preservation Check (CRITICAL)
@@ -100,7 +100,7 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
    # Go
    go vet ./... && golangci-lint run ./...
    # Node/TypeScript
-   npm run typecheck && npm run lint
+   bun run typecheck && bun run lint
    ```
 
 2. Check changed files:

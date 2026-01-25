@@ -3,9 +3,9 @@
 ## Unit Tests (Vitest)
 
 ```bash
-npm run test           # Run once
-npm run test:watch     # Watch mode
-npm run test:coverage  # Coverage report
+bun run test           # Run once
+bun run test:watch     # Watch mode
+bun run test:coverage  # Coverage report
 ```
 
 Tests located in `src/**/*.test.ts(x)` and `src/integration/`.
@@ -17,10 +17,10 @@ Tests located in `src/**/*.test.ts(x)` and `src/integration/`.
 ## E2E Tests (Playwright)
 
 ```bash
-cd web && npx playwright test                    # Run all
-cd web && npx playwright test specific.spec.ts  # Single file
-cd web && npx playwright test --headed          # With browser UI
-cd web && npx playwright test --ui              # Interactive mode
+cd web && bunx playwright test                    # Run all
+cd web && bunx playwright test specific.spec.ts  # Single file
+cd web && bunx playwright test --headed          # With browser UI
+cd web && bunx playwright test --ui              # Interactive mode
 ```
 
 ### CRITICAL: Sandbox Isolation
@@ -62,8 +62,8 @@ The fixture system (`web/e2e/fixtures.ts`) automatically:
 Separate Playwright project for visual testing:
 
 ```bash
-cd web && npx playwright test --project=visual                    # Compare against baselines
-cd web && npx playwright test --project=visual --update-snapshots # Capture new baselines
+cd web && bunx playwright test --project=visual                    # Compare against baselines
+cd web && bunx playwright test --project=visual --update-snapshots # Capture new baselines
 ```
 
 **Configuration:**

@@ -69,7 +69,7 @@ Start the development server and navigate to the application:
 ```bash
 # Start dev server (adjust command for your stack)
 # For Go: make dev or go run cmd/*/main.go
-# For Node: npm run dev
+# For Node: bun run dev
 # For Python: python manage.py runserver
 ```
 

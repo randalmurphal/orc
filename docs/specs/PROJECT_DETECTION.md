@@ -165,7 +165,7 @@ type ProjectInfo struct {
 | Language | Test | Lint | Build |
 |----------|------|------|-------|
 | Go | `go test ./... -v -race` | `golangci-lint run` | `go build ./...` |
-| TypeScript | `npm test` | `npm run lint` | `npm run build` |
+| TypeScript | `bun test` | `bun run lint` | `bun run build` |
 | Python | `pytest` | `ruff check .` | N/A |
 | Rust | `cargo test` | `cargo clippy` | `cargo build` |
 
@@ -189,9 +189,9 @@ Project type affects default prompts:
 ## Implementation Guidelines
 
 - Use TypeScript strict mode patterns
-- Run tests: `npm test`
+- Run tests: `bun test`
 - Ensure type safety (no `any` without justification)
-- Lint with: `npm run lint`
+- Lint with: `bun run lint`
 - Follow ESLint rules
 ```
 
@@ -258,8 +258,8 @@ func DetectProject(path string) (*ProjectInfo, error) {
         info.Language = "typescript" // or javascript
         pkg := parsePackageJSON(path)
         info.Frameworks = detectJSFrameworks(pkg)
-        info.TestCommand = getScript(pkg, "test", "npm test")
-        info.LintCommand = getScript(pkg, "lint", "npm run lint")
+        info.TestCommand = getScript(pkg, "test", "bun test")
+        info.LintCommand = getScript(pkg, "lint", "bun run lint")
         info.Confidence = 0.9
     }
     // ... other languages

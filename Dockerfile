@@ -60,10 +60,13 @@ FROM base AS dev
 # Install additional dev tools
 RUN apk add --no-cache \
     nodejs \
-    npm \
     vim \
     jq \
     yq
+
+# Install bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 # Install Go tools
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \

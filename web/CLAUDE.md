@@ -16,10 +16,10 @@ React 19 application for orc web UI.
 ## Quick Start
 
 ```bash
-cd web && npm install   # Install dependencies
-npm run dev             # Dev server (port 5173)
-npm run test            # Run tests
-npm run build           # Production build
+cd web && bun install   # Install dependencies
+bun run dev             # Dev server (port 5173)
+bun run test            # Run tests
+bun run build           # Production build
 ```
 
 **Ports:** Frontend `:5173`, API `:8080`
@@ -134,9 +134,9 @@ See [docs/components.md](docs/components.md) for full API.
 ## Testing
 
 ```bash
-npm run test                                    # Vitest
-npx playwright test                             # E2E
-npx playwright test --project=visual            # Visual regression
+bun run test                                    # Vitest
+bunx playwright test                            # E2E
+bunx playwright test --project=visual           # Visual regression
 ```
 
 **CRITICAL:** E2E tests use sandbox in `/tmp`. Always import from `./fixtures`:

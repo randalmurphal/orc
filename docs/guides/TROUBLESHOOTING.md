@@ -85,7 +85,7 @@ orc show TASK-XXX --errors
 
 | Cause | Fix |
 |-------|-----|
-| Missing dependency | `go mod tidy` or `npm install`, then `orc run --continue` |
+| Missing dependency | `go mod tidy` or `bun install`, then `orc run --continue` |
 | Wrong file path | Fix path in spec, rewind to spec phase |
 | API/external failure | Check network, retry later |
 | Misunderstood requirement | Add clarification to task description, rewind |
@@ -707,7 +707,7 @@ WARN orphaned processes detected count=2 processes="chromium (PID=12345) [MCP], 
 ```
 
 - **[MCP]**: Browser/Playwright processes (chromium, chrome, firefox, webkit, puppeteer, selenium)
-- **[orc]**: Other orc-related processes (claude, node, npx, npm, mcp-server)
+- **[orc]**: Other orc-related processes (claude, node, npx, bun, npm, mcp-server)
 
 System processes (systemd, snapper, etc.) are filtered out by default and don't appear in orphan warnings.
 
@@ -732,7 +732,7 @@ diagnostics:
 
 When `filter_system_processes: true` (default), only processes matching orc-related patterns are flagged as potential orphans:
 - Browser automation: playwright, chromium, chrome, firefox, webkit, puppeteer, selenium
-- Claude Code and Node.js: claude, node, npx, npm
+- Claude Code and Node.js: claude, node, npx, bun, npm
 - MCP servers: mcp-server, mcp
 
 System processes that happen to start during task execution (like `systemd-timedated`, `snapper`, `updatedb`, etc.) are ignored. This eliminates false positives where unrelated system activity was incorrectly flagged as orphaned.

@@ -65,7 +65,7 @@ Use the available tools to:
 
 - **Completeness**: Were all dependents from impact analysis updated?
   - Check implementation artifact's "Impact Analysis Results"
-  - Verify no broken imports/references: `go build ./...` or `npm run typecheck`
+  - Verify no broken imports/references: `go build ./...` or `bun run typecheck`
 
 - **Preservation**: Was anything removed that shouldn't be?
   - Cross-reference spec's "Preservation Requirements" table
