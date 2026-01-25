@@ -436,3 +436,200 @@ describe('StatsView accessibility', () => {
 		expect(emptyState).toBeInTheDocument();
 	});
 });
+
+// =============================================================================
+// TASK-526: Bug fix tests - Infinite loading skeleton
+// =============================================================================
+
+describe('TASK-526: Loading skeleton displays immediately (SC-2)', () => {
+	it('shows loading skeleton on initial render before any API call', () => {
+		// Reset mock to default state (simulating initial mount)
+		resetMockState();
+		// BUG: Initial loading state should be true to show skeleton immediately
+		// Currently mockState.loading is false, which shows empty state briefly
+		mockState.loading = true;
+
+		const { container } = render(<StatsView />);
+
+		// Loading skeleton should be visible immediately
+		const skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(5);
+
+		const statsGrid = container.querySelector('.stats-view-stats-grid');
+		expect(statsGrid).toHaveAttribute('aria-busy', 'true');
+	});
+
+	it('does not show empty state before loading completes', () => {
+		// Simulate true initial state: loading should be true
+		resetMockState();
+		mockState.loading = true;
+
+		render(<StatsView />);
+
+		// Empty state should NOT be visible while loading
+		expect(screen.queryByText('No statistics yet')).not.toBeInTheDocument();
+	});
+
+	it('transitions from skeleton to content when loading completes with data', () => {
+		// First render: loading state
+		resetMockState();
+		mockState.loading = true;
+
+		const { container, rerender } = render(<StatsView />);
+
+		// Verify skeleton is shown
+		let skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(5);
+
+		// Simulate fetch completion with data
+		mockState.loading = false;
+		mockState.activityData = new Map([['2026-01-15', 5]]);
+		mockState.summaryStats = {
+			tasksCompleted: 10,
+			tokensUsed: 5000,
+			totalCost: 2.5,
+			avgTime: 60,
+			successRate: 100,
+		};
+
+		rerender(<StatsView />);
+
+		// Skeleton should be gone
+		skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(0);
+
+		// Actual content should be visible
+		const statCards = container.querySelectorAll('.stats-view-stat-card');
+		expect(statCards.length).toBe(5);
+	});
+
+	it('transitions from skeleton to error state on fetch failure', () => {
+		// First render: loading state
+		resetMockState();
+		mockState.loading = true;
+
+		const { container, rerender } = render(<StatsView />);
+
+		// Verify skeleton is shown
+		let skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(5);
+
+		// Simulate fetch failure
+		mockState.loading = false;
+		mockState.error = 'Network error';
+
+		rerender(<StatsView />);
+
+		// Skeleton should be gone
+		skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(0);
+
+		// Error state should be visible
+		expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
+		expect(screen.getByText('Network error')).toBeInTheDocument();
+	});
+
+	it('transitions from skeleton to empty state when no data returned', () => {
+		// First render: loading state
+		resetMockState();
+		mockState.loading = true;
+
+		const { container, rerender } = render(<StatsView />);
+
+		// Verify skeleton is shown
+		let skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(5);
+
+		// Simulate fetch completion with no data
+		mockState.loading = false;
+
+		rerender(<StatsView />);
+
+		// Skeleton should be gone
+		skeletonCards = container.querySelectorAll('.stats-view-stat-card--skeleton');
+		expect(skeletonCards.length).toBe(0);
+
+		// Empty state should be visible
+		expect(screen.getByText('No statistics yet')).toBeInTheDocument();
+	});
+});
+
+describe('TASK-526: Period change behavior (SC-4 component side)', () => {
+	beforeEach(() => {
+		resetMockState();
+		mockState.loading = false;
+		mockState.activityData = new Map([['2026-01-15', 5]]);
+		mockState.summaryStats = {
+			tasksCompleted: 10,
+			tokensUsed: 5000,
+			totalCost: 2.5,
+			avgTime: 60,
+			successRate: 100,
+		};
+	});
+
+	it('clicking period button calls setPeriod only once', async () => {
+		const user = userEvent.setup();
+		render(<StatsView />);
+
+		// Clear previous calls
+		mockSetPeriod.mockClear();
+
+		// Click a different period
+		await user.click(screen.getByRole('tab', { name: '30d' }));
+
+		// setPeriod should be called exactly once
+		expect(mockSetPeriod).toHaveBeenCalledTimes(1);
+		expect(mockSetPeriod).toHaveBeenCalledWith('30d');
+	});
+
+	it('clicking current period does not trigger unnecessary operations', async () => {
+		const user = userEvent.setup();
+		mockState.period = '7d';
+
+		render(<StatsView />);
+
+		// Clear previous calls from mount
+		mockFetchStats.mockClear();
+
+		// Click the already-selected period
+		await user.click(screen.getByRole('tab', { name: '7d' }));
+
+		// setPeriod is called but store should detect same period and not fetch
+		expect(mockSetPeriod).toHaveBeenCalledWith('7d');
+	});
+});
+
+describe('TASK-526: Error recovery behavior', () => {
+	beforeEach(() => {
+		resetMockState();
+		mockState.error = 'Network error';
+		mockState.loading = false;
+	});
+
+	it('retry button triggers fetchStats with current period', async () => {
+		const user = userEvent.setup();
+		render(<StatsView />);
+
+		// Clear calls from initial render
+		mockFetchStats.mockClear();
+
+		// Click retry
+		await user.click(screen.getByRole('button', { name: /retry/i }));
+
+		// Should call fetchStats with current period
+		expect(mockFetchStats).toHaveBeenCalledWith('7d');
+		expect(mockFetchStats).toHaveBeenCalledTimes(1);
+	});
+
+	it('error state shows actionable message and retry button', () => {
+		render(<StatsView />);
+
+		expect(screen.getByText('Failed to load statistics')).toBeInTheDocument();
+		expect(screen.getByText('Network error')).toBeInTheDocument();
+
+		const retryBtn = screen.getByRole('button', { name: /retry/i });
+		expect(retryBtn).toBeInTheDocument();
+		expect(retryBtn).not.toBeDisabled();
+	});
+});

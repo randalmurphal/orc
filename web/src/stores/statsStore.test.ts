@@ -62,7 +62,8 @@ describe('StatsStore', () => {
 				successRate: 0,
 			});
 			expect(state.weeklyChanges).toBeNull();
-			expect(state.loading).toBe(false);
+			// TASK-526: loading starts as true to show skeleton immediately
+			expect(state.loading).toBe(true);
 			expect(state.error).toBeNull();
 		});
 	});
@@ -361,23 +362,20 @@ describe('StatsStore', () => {
 			});
 		});
 
-		it('should trigger fetch when period changes', async () => {
-			// setPeriod calls fetchStats internally, which is async
-			// We need to wait for the fetch to complete
+		// TASK-526: setPeriod now only updates period, component's useEffect triggers fetch
+		it('should update period without fetching (component useEffect handles fetch)', () => {
+			// setPeriod only updates period - it doesn't call fetchStats
+			// The component's useEffect with [fetchStats, period] deps triggers the fetch
 			useStatsStore.getState().setPeriod('30d');
 
-			// Wait for the async fetch to complete
-			await vi.waitFor(() => {
-				expect(global.fetch).toHaveBeenCalled();
-			});
+			// Period should be updated immediately
+			expect(useStatsStore.getState().period).toBe('30d');
 
-			// After fetch completes, period should be updated
-			await vi.waitFor(() => {
-				expect(useStatsStore.getState().period).toBe('30d');
-			});
+			// No fetch call from setPeriod itself (component handles this)
+			expect(global.fetch).not.toHaveBeenCalled();
 		});
 
-		it('should not fetch when setting same period', () => {
+		it('should not update period when setting same period', () => {
 			// Set initial period
 			useStatsStore.setState({ period: '7d' });
 
@@ -387,6 +385,8 @@ describe('StatsStore', () => {
 
 			// Should not fetch since period didn't change
 			expect(global.fetch).not.toHaveBeenCalled();
+			// Period should still be 7d
+			expect(useStatsStore.getState().period).toBe('7d');
 		});
 	});
 
@@ -564,6 +564,341 @@ describe('StatsStore', () => {
 			expect(typeof useTopFiles).toBe('function');
 			expect(typeof useSummaryStats).toBe('function');
 			expect(typeof useWeeklyChanges).toBe('function');
+		});
+	});
+
+	// =========================================================================
+	// TASK-526: Bug fix tests - Infinite loading skeleton
+	// =========================================================================
+
+	describe('TASK-526: Period change triggers exactly one fetch (SC-4)', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn().mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve({
+					running: 0,
+					paused: 0,
+					blocked: 0,
+					completed: 5,
+					failed: 0,
+					today: 1,
+					total: 5,
+					tokens: 10000,
+					cost: 1.0,
+				}),
+			});
+		});
+
+		// TASK-526: setPeriod now only updates period, component's useEffect calls fetchStats
+		// This test verifies that calling fetchStats for the same period is guarded
+		it('fetchStats with same period is guarded to prevent double fetch', async () => {
+			// Clear any previous calls
+			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+			// Act: Call fetchStats twice for the same period simultaneously
+			const fetch1 = useStatsStore.getState().fetchStats('30d');
+			const fetch2 = useStatsStore.getState().fetchStats('30d'); // Should be blocked by guard
+
+			await Promise.all([fetch1, fetch2]);
+
+			// Assert: Only one fetchStats should have actually made fetch calls
+			// Each fetchStats makes 2 parallel calls (dashboard + cost)
+			const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+			expect(fetchCalls.length).toBe(2);
+		});
+
+		it('rapid period changes via setPeriod only update period synchronously', () => {
+			// Clear any previous calls
+			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+			// Act: Rapidly change periods via setPeriod
+			// Note: setPeriod no longer calls fetchStats - it only updates the period
+			useStatsStore.getState().setPeriod('24h');
+			useStatsStore.getState().setPeriod('30d');
+			useStatsStore.getState().setPeriod('7d');
+			useStatsStore.getState().setPeriod('all');
+
+			// Assert: Final period should be 'all'
+			expect(useStatsStore.getState().period).toBe('all');
+
+			// No fetches should have been made (component's useEffect would trigger these)
+			expect(global.fetch).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('TASK-526: Concurrent fetches do not corrupt cache (SC-5)', () => {
+		beforeEach(() => {
+			// Use real timers for concurrent fetch tests (setTimeout must work)
+			vi.useRealTimers();
+		});
+
+		afterEach(() => {
+			// Restore fake timers for other tests
+			vi.useFakeTimers();
+		});
+
+		it('concurrent fetches for same period should not corrupt cache', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0,
+				paused: 0,
+				blocked: 0,
+				completed: 10,
+				failed: 0,
+				today: 1,
+				total: 10,
+				tokens: 50000,
+				cost: 5.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week',
+				start: '2026-01-10',
+				end: '2026-01-17',
+				total_cost_usd: 5.0,
+				total_input_tokens: 40000,
+				total_output_tokens: 10000,
+				total_tokens: 50000,
+				entry_count: 10,
+			};
+
+			// Simulate slow responses
+			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				if (url.includes('dashboard')) {
+					return { ok: true, json: () => Promise.resolve(mockDashboard) };
+				}
+				return { ok: true, json: () => Promise.resolve(mockCost) };
+			});
+
+			// Act: Trigger two concurrent fetches for the same period
+			const fetch1 = useStatsStore.getState().fetchStats('7d');
+			const fetch2 = useStatsStore.getState().fetchStats('7d');
+
+			await Promise.all([fetch1, fetch2]);
+
+			// Assert: Cache should have correct data, not corrupted
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.tasksCompleted).toBe(10);
+			expect(state.summaryStats.tokensUsed).toBe(50000);
+			expect(state._cache.has('7d')).toBe(true);
+			expect(state._cache.get('7d')?.data.summaryStats.tasksCompleted).toBe(10);
+		}, 10000);
+
+		it('concurrent fetches for different periods should not overwrite each other', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0,
+				paused: 0,
+				blocked: 0,
+				completed: 10,
+				failed: 0,
+				today: 1,
+				total: 10,
+				tokens: 50000,
+				cost: 5.0,
+			};
+
+			// Different cost data for different periods
+			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				if (url.includes('dashboard')) {
+					return { ok: true, json: () => Promise.resolve(mockDashboard) };
+				}
+				// Return different data based on period in URL
+				const isWeek = url.includes('period=week');
+				return {
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							period: isWeek ? 'week' : 'month',
+							start: '2026-01-10',
+							end: '2026-01-17',
+							total_cost_usd: isWeek ? 5.0 : 15.0,
+							total_input_tokens: 40000,
+							total_output_tokens: 10000,
+							total_tokens: isWeek ? 50000 : 150000,
+							entry_count: 10,
+						}),
+				};
+			});
+
+			// Act: Trigger fetches for different periods concurrently
+			const fetch7d = useStatsStore.getState().fetchStats('7d');
+			const fetch30d = useStatsStore.getState().fetchStats('30d');
+
+			await Promise.all([fetch7d, fetch30d]);
+
+			// Assert: Both periods should be cached
+			const state = useStatsStore.getState();
+			expect(state._cache.has('7d')).toBe(true);
+			expect(state._cache.has('30d')).toBe(true);
+		}, 10000);
+	});
+
+	describe('TASK-526: Initial loading state (SC-2)', () => {
+		it('initial loading state should be true to show skeleton immediately', () => {
+			// Reset store to get fresh initial state
+			useStatsStore.getState().reset();
+
+			// TASK-526 FIX: Initial loading is now true to show skeleton immediately
+			const state = useStatsStore.getState();
+			expect(state.loading).toBe(true);
+			expect(state._fetchingPeriod).toBeNull();
+		});
+	});
+
+	describe('TASK-526: Edge cases from specification', () => {
+		beforeEach(() => {
+			global.fetch = vi.fn();
+		});
+
+		it('zero completed tasks shows 0 values, not empty state', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0,
+				paused: 0,
+				blocked: 0,
+				completed: 0,
+				failed: 0,
+				today: 0,
+				total: 0,
+				tokens: 0,
+				cost: 0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week',
+				start: '2026-01-10',
+				end: '2026-01-17',
+				total_cost_usd: 0,
+				total_input_tokens: 0,
+				total_output_tokens: 0,
+				total_tokens: 0,
+				entry_count: 0,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDashboard),
+				})
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockCost),
+				});
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.tasksCompleted).toBe(0);
+			expect(state.summaryStats.tokensUsed).toBe(0);
+			expect(state.summaryStats.totalCost).toBe(0);
+			expect(state.summaryStats.successRate).toBe(0);
+			expect(state.loading).toBe(false);
+			expect(state.error).toBeNull();
+		});
+
+		it('loading becomes false after fetch completes', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0,
+				paused: 0,
+				blocked: 0,
+				completed: 5,
+				failed: 0,
+				today: 1,
+				total: 5,
+				tokens: 10000,
+				cost: 1.0,
+			};
+
+			// Simulate a delayed response
+			let resolveResponse: () => void;
+			const delayedPromise = new Promise<void>((resolve) => {
+				resolveResponse = resolve;
+			});
+
+			(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+				await delayedPromise;
+				return {
+					ok: true,
+					json: () => Promise.resolve(mockDashboard),
+				};
+			});
+
+			// Start fetch
+			const fetchPromise = useStatsStore.getState().fetchStats('7d');
+
+			// Loading should be true while fetching
+			expect(useStatsStore.getState().loading).toBe(true);
+
+			// Complete the fetch
+			resolveResponse!();
+			await fetchPromise;
+
+			// Loading should be false after completion
+			expect(useStatsStore.getState().loading).toBe(false);
+		});
+
+		it('cache expired triggers fresh fetch', async () => {
+			const mockDashboard: MockDashboardStats = {
+				running: 0,
+				paused: 0,
+				blocked: 0,
+				completed: 5,
+				failed: 0,
+				today: 1,
+				total: 5,
+				tokens: 10000,
+				cost: 1.0,
+			};
+
+			const mockCost: MockCostSummary = {
+				period: 'week',
+				start: '2026-01-10',
+				end: '2026-01-17',
+				total_cost_usd: 1.0,
+				total_input_tokens: 8000,
+				total_output_tokens: 2000,
+				total_tokens: 10000,
+				entry_count: 5,
+			};
+
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockDashboard),
+				})
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockCost),
+				});
+
+			// First fetch
+			await useStatsStore.getState().fetchStats('7d');
+			expect(useStatsStore.getState()._cache.has('7d')).toBe(true);
+
+			// Advance time past cache duration (5 minutes + buffer)
+			vi.advanceTimersByTime(6 * 60 * 1000);
+
+			// Clear previous mock calls
+			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+
+			// Setup fresh mocks for the refetch
+			(global.fetch as ReturnType<typeof vi.fn>)
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve({ ...mockDashboard, completed: 10 }),
+				})
+				.mockResolvedValueOnce({
+					ok: true,
+					json: () => Promise.resolve(mockCost),
+				});
+
+			// Fetch again after cache expired
+			await useStatsStore.getState().fetchStats('7d');
+
+			// Should have made new fetch calls
+			expect(global.fetch).toHaveBeenCalled();
+			// Data should be updated
+			expect(useStatsStore.getState().summaryStats.tasksCompleted).toBe(10);
 		});
 	});
 

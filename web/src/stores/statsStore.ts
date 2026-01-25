@@ -75,6 +75,9 @@ interface StatsState {
 
 	// Cache (internal)
 	_cache: Map<StatsPeriod, CacheEntry>;
+
+	// Fetch guard to prevent concurrent fetches for the same period (TASK-526)
+	_fetchingPeriod: StatsPeriod | null;
 }
 
 interface StatsActions {
@@ -89,6 +92,7 @@ export type StatsStore = StatsState & StatsActions;
 const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 // Initial state
+// TASK-526: loading starts as true to show skeleton immediately on mount
 const initialState: StatsState = {
 	period: '7d',
 	activityData: new Map(),
@@ -104,9 +108,10 @@ const initialState: StatsState = {
 		successRate: 0,
 	},
 	weeklyChanges: null,
-	loading: false,
+	loading: true, // TASK-526: true to show skeleton immediately
 	error: null,
 	_cache: new Map(),
+	_fetchingPeriod: null, // TASK-526: fetch guard for preventing double fetches
 };
 
 // API response types (matching backend)
@@ -191,6 +196,11 @@ export const useStatsStore = create<StatsStore>()(
 		fetchStats: async (period: StatsPeriod) => {
 			const state = get();
 
+			// TASK-526: Prevent duplicate fetches for the same period
+			if (state._fetchingPeriod === period) {
+				return;
+			}
+
 			// Check cache
 			const cached = state._cache.get(period);
 			const now = Date.now();
@@ -211,7 +221,8 @@ export const useStatsStore = create<StatsStore>()(
 				return;
 			}
 
-			set({ loading: true, error: null });
+			// TASK-526: Set fetch guard before starting fetch
+			set({ loading: true, error: null, _fetchingPeriod: period });
 
 			try {
 				// Fetch both endpoints in parallel
@@ -279,8 +290,10 @@ export const useStatsStore = create<StatsStore>()(
 					summaryStats,
 				};
 
-				// Update cache
-				const newCache = new Map(state._cache);
+				// TASK-526: Get fresh state for cache update to avoid overwriting
+				// concurrent fetches for different periods
+				const freshState = get();
+				const newCache = new Map(freshState._cache);
 				newCache.set(period, {
 					timestamp: now,
 					data: statsData,
@@ -298,6 +311,7 @@ export const useStatsStore = create<StatsStore>()(
 					loading: false,
 					error: null,
 					_cache: newCache,
+					_fetchingPeriod: null, // TASK-526: Clear fetch guard
 				});
 			} catch (error) {
 				const errorMessage = error instanceof Error
@@ -306,6 +320,7 @@ export const useStatsStore = create<StatsStore>()(
 				set({
 					loading: false,
 					error: errorMessage,
+					_fetchingPeriod: null, // TASK-526: Clear fetch guard on error too
 				});
 			}
 		},
@@ -313,8 +328,9 @@ export const useStatsStore = create<StatsStore>()(
 		setPeriod: (period: StatsPeriod) => {
 			const state = get();
 			if (state.period !== period) {
-				// Trigger fetch for new period
-				get().fetchStats(period);
+				// TASK-526: Only update period - component's useEffect will trigger fetch
+				// This prevents double fetch (setPeriod + useEffect both calling fetchStats)
+				set({ period });
 			}
 		},
 
