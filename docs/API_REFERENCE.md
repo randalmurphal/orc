@@ -1189,6 +1189,18 @@ Git diff visualization for task implementation changes. Compares the task branch
 - `base` - Base branch to compare against (default: `main`)
 - `files` - If `true`, return file list without hunks (for `/diff` endpoint only)
 
+**Graceful handling of missing data:**
+
+When a task lacks a branch (new tasks, imported tasks, or deleted worktrees), endpoints return graceful responses instead of errors:
+
+| Endpoint | Condition | Response |
+|----------|-----------|----------|
+| `/diff` | No branch or branch deleted | 200 with empty diff (`files: []`, `stats: {0,0,0}`) |
+| `/diff/stats` | No branch or branch deleted | 200 with zero stats (`{files_changed: 0, ...}`) |
+| `/diff/file/{path}` | No branch or branch deleted | 404 with `"task has no branch to diff"` |
+
+The file endpoint returns 404 because a specific file diff cannot be computed without knowing which ref to compare.
+
 **Working tree support:** When the task branch has not diverged from the base branch (same commit), but there are uncommitted changes in the working tree, the diff will include those uncommitted changes. The `head` field in the response will show `"working tree"` in this case.
 
 **Reference resolution:** Branch refs are automatically resolved. If a local branch doesn't exist but `origin/<branch>` does, the remote tracking branch is used.

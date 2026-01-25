@@ -9,6 +9,22 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// emptyDiffResult returns a DiffResult with empty files array and zero stats.
+// This is used when a task has no branch or the branch doesn't exist in git.
+func emptyDiffResult() diff.DiffResult {
+	return diff.DiffResult{
+		Base:  "",
+		Head:  "",
+		Stats: diff.DiffStats{},
+		Files: []diff.FileDiff{}, // Ensure empty array, not nil (prevents JSON null)
+	}
+}
+
+// emptyDiffStats returns zero stats for tasks without a branch.
+func emptyDiffStats() *diff.DiffStats {
+	return &diff.DiffStats{}
+}
+
 // handleGetDiff returns the diff for a task's changes.
 // Query params:
 //   - base: base branch (default: "main")
@@ -107,16 +123,22 @@ func (s *Server) handleCommitRangeDiff(w http.ResponseWriter, r *http.Request, d
 }
 
 // handleBranchDiff returns the diff using branch comparison (original logic).
+// Returns empty diff gracefully when:
+// - Task has no branch set (t.Branch == "")
+// - Task branch doesn't exist in git (deleted worktree)
 func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, t *task.Task, filesOnly bool) {
+	// Early return with empty diff if task has no branch
+	if t.Branch == "" {
+		s.jsonResponse(w, emptyDiffResult())
+		return
+	}
+
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
 	}
 
 	head := t.Branch
-	if head == "" {
-		head = "HEAD"
-	}
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
@@ -138,7 +160,8 @@ func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSv
 	if filesOnly {
 		files, err := diffSvc.GetFileList(r.Context(), base, head)
 		if err != nil {
-			s.jsonError(w, err.Error(), http.StatusInternalServerError)
+			// If git errors (e.g., branch not found), return empty diff instead of 500
+			s.jsonResponse(w, emptyDiffResult())
 			return
 		}
 
@@ -161,7 +184,8 @@ func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSv
 	// Full diff with hunks
 	result, err := diffSvc.GetFullDiff(r.Context(), base, head)
 	if err != nil {
-		s.jsonError(w, err.Error(), http.StatusInternalServerError)
+		// If git errors (e.g., branch not found), return empty diff instead of 500
+		s.jsonResponse(w, emptyDiffResult())
 		return
 	}
 
@@ -233,6 +257,8 @@ func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit stri
 // This is used for on-demand loading in virtual scrolling.
 // Query params:
 //   - base: base branch (default: "main")
+//
+// Returns 404 when task has no branch (cannot provide file diff without knowing which ref to compare).
 func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
@@ -284,15 +310,18 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Strategy 3: Branch comparison
+	// Return 404 if task has no branch - cannot provide file diff without a ref
+	if t.Branch == "" {
+		s.jsonError(w, "task has no branch to diff", http.StatusNotFound)
+		return
+	}
+
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
 	}
 
 	head := t.Branch
-	if head == "" {
-		head = "HEAD"
-	}
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
@@ -306,7 +335,8 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 
 	fileDiff, err := diffSvc.GetFileDiff(r.Context(), base, head, filePath)
 	if err != nil {
-		s.jsonError(w, err.Error(), http.StatusInternalServerError)
+		// If git errors (e.g., branch not found), return 404 instead of 500
+		s.jsonError(w, "task has no branch to diff", http.StatusNotFound)
 		return
 	}
 
@@ -315,6 +345,9 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 
 // handleGetDiffStats returns just the diff statistics.
 // Useful for quick summary without fetching file contents.
+// Returns zero stats gracefully when:
+// - Task has no branch set (t.Branch == "")
+// - Task branch doesn't exist in git (deleted worktree)
 func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
@@ -355,15 +388,18 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Strategy 3: Branch comparison
+	// Early return with zero stats if task has no branch
+	if t.Branch == "" {
+		s.jsonResponse(w, emptyDiffStats())
+		return
+	}
+
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
 	}
 
 	head := t.Branch
-	if head == "" {
-		head = "HEAD"
-	}
 
 	// Resolve refs (handles remote-only branches)
 	base = diffSvc.ResolveRef(r.Context(), base)
@@ -377,7 +413,8 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := diffSvc.GetStats(r.Context(), base, head)
 	if err != nil {
-		s.jsonError(w, err.Error(), http.StatusInternalServerError)
+		// If git errors (e.g., branch not found), return zero stats instead of 500
+		s.jsonResponse(w, emptyDiffStats())
 		return
 	}
 

@@ -37,6 +37,13 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **No os.Chdir in Tests** | Use explicit path parameters, never `os.Chdir()` | Process-wide, not goroutine-safe | Flaky tests, wrong directory |
 | **Worktree Isolation** | Each task runs in its own worktree | Main repo must stay clean | Conflicts between parallel tasks |
 
+## Canonical: API Responses
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **Missing Data ≠ 500** | When task lacks optional data (branch, worktree), return empty/default response (200), not 500 | Missing optional data is not a server error | UI shows error for valid task with no diff (TASK-528) |
+| **Empty Over Null** | Return empty arrays `[]` not `null` in JSON | Null requires special handling in clients | `TypeError: cannot iterate null` |
+
 ## Canonical: Testing
 
 | Invariant | Rule | Why | Consequence |
@@ -69,6 +76,11 @@ client.Complete(ctx, CompletionRequest{
 
 // ❌ File-based spec in worktree
 os.WriteFile(filepath.Join(worktree, ".orc", "spec.md"), content, 0644)  // BUG: use database
+
+// ❌ 500 for missing optional data (API)
+if t.Branch == "" {
+    s.jsonError(w, "no branch", http.StatusInternalServerError)  // BUG: missing data ≠ server error
+}
 ```
 
 ## Correct Patterns
@@ -95,6 +107,12 @@ client := claude.NewClient(claude.WithModel(model))
 // ✅ Spec in database
 backend.SaveSpec(taskID, content, "spec")
 content, _ := backend.LoadSpec(taskID)
+
+// ✅ Empty response for missing optional data (API)
+if t.Branch == "" {
+    s.jsonResponse(w, emptyDiffResult())  // 200 with empty data, not 500
+    return
+}
 ```
 
 ## Verification
