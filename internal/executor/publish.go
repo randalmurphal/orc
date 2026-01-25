@@ -38,7 +38,7 @@ func (ep *PublishHelper) Publish(ev events.Event) {
 func (ep *PublishHelper) PhaseStart(taskID, phase string) {
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:  phase,
-		Status: string(PhaseRunning),
+		Status: string(task.PhaseStatusRunning),
 	}))
 }
 
@@ -46,7 +46,7 @@ func (ep *PublishHelper) PhaseStart(taskID, phase string) {
 func (ep *PublishHelper) PhaseComplete(taskID, phase, commitSHA string) {
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:     phase,
-		Status:    string(PhaseCompleted),
+		Status:    string(task.PhaseStatusCompleted),
 		CommitSHA: commitSHA,
 	}))
 }
@@ -59,7 +59,7 @@ func (ep *PublishHelper) PhaseFailed(taskID, phase string, err error) {
 	}
 	ep.Publish(events.NewEvent(events.EventPhase, taskID, events.PhaseUpdate{
 		Phase:  phase,
-		Status: string(PhaseFailed),
+		Status: string(task.PhaseStatusFailed),
 		Error:  errMsg,
 	}))
 }

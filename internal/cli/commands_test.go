@@ -3,7 +3,6 @@ package cli
 import (
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -36,15 +35,15 @@ func TestStatusIcon(t *testing.T) {
 func TestPhaseStatusIcon(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		status   executor.PhaseStatus
+		status   task.PhaseStatus
 		expected string
 	}{
-		{executor.PhasePending, "○"},
-		{executor.PhaseRunning, "◐"},
-		{executor.PhaseCompleted, "●"},
-		{executor.PhaseFailed, "✗"},
-		{executor.PhaseSkipped, "⊘"},
-		{executor.PhaseStatus("unknown"), "?"},
+		{task.PhaseStatusPending, "○"},
+		{task.PhaseStatusRunning, "◐"},
+		{task.PhaseStatusCompleted, "●"},
+		{task.PhaseStatusFailed, "✗"},
+		{task.PhaseStatusSkipped, "⊘"},
+		{task.PhaseStatus("unknown"), "?"},
 	}
 
 	for _, tt := range tests {

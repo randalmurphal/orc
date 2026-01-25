@@ -14,7 +14,7 @@ import (
 type PhaseExecutor interface {
 	// Execute runs a phase to completion.
 	// Returns a Result containing the phase outcome.
-	Execute(ctx context.Context, t *task.Task, p *Phase, s *task.ExecutionState) (*Result, error)
+	Execute(ctx context.Context, t *task.Task, p *PhaseDisplay, s *task.ExecutionState) (*Result, error)
 
 	// Name returns a human-readable name for this executor type.
 	Name() string

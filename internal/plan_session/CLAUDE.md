@@ -22,8 +22,9 @@ This package handles `orc plan` - spawning an interactive Claude Code session to
 | `Options` | Session configuration |
 | `Result` | Session outcome (SpecPath, TaskIDs, ValidationResult) |
 | `PromptData` | Data for prompt generation |
-| `ValidationResult` | Spec validation outcome |
 | `Spawner` | Claude process spawner |
+
+Note: `Result.ValidationResult` uses `task.SpecValidation` from the task package.
 
 ## Workflow
 

@@ -135,11 +135,11 @@ Example:
 			execCfg := executor.DefaultConfigForWeight(t.Weight)
 
 			// Create finalize phase
-			finalizePhase := &executor.Phase{
+			finalizePhase := &executor.PhaseDisplay{
 				ID:     "finalize",
 				Name:   "Finalize",
 				Prompt: "Sync with target branch, resolve conflicts, run tests, and assess risk",
-				Status: executor.PhasePending,
+				Status: task.PhaseStatusPending,
 			}
 
 			// Build FinalizeExecutor options

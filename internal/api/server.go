@@ -409,7 +409,10 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
-	_ = json.NewEncoder(w).Encode(err.ToAPIError())
+	_ = json.NewEncoder(w).Encode(APIError{
+		Error: err.What,
+		Code:  string(err.Code),
+	})
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).

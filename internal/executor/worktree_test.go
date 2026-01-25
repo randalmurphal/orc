@@ -11,15 +11,7 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-func TestSetupWorktree_NilGitOps(t *testing.T) {
-	t.Parallel()
-	_, err := SetupWorktree("TASK-001", nil, nil)
-	if err == nil {
-		t.Error("expected error when gitOps is nil")
-	}
-}
-
-// Tests for SetupWorktreeForTask (preferred function)
+// Tests for SetupWorktreeForTask
 
 func TestSetupWorktreeForTask_NilGitOps(t *testing.T) {
 	t.Parallel()
@@ -261,48 +253,7 @@ func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
 	}
 }
 
-func TestSetupWorktree_CreatesDirectory(t *testing.T) {
-	t.Parallel()
-	// Create a temporary git repo for testing
-	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	// Initialize git repo
-	if err := initTestRepo(tmpDir); err != nil {
-		t.Fatalf("failed to init test repo: %v", err)
-	}
-
-	// Create git ops
-	gitCfg := git.DefaultConfig()
-	gitOps, err := git.New(tmpDir, gitCfg)
-	if err != nil {
-		t.Fatalf("failed to create git ops: %v", err)
-	}
-
-	cfg := config.Default()
-	cfg.Completion.TargetBranch = "main"
-
-	// Setup worktree
-	result, err := SetupWorktree("TASK-001", cfg, gitOps)
-	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
-	}
-
-	// Verify directory exists
-	if _, err := os.Stat(result.Path); os.IsNotExist(err) {
-		t.Errorf("worktree directory does not exist: %s", result.Path)
-	}
-
-	// Verify it's not marked as reused
-	if result.Reused {
-		t.Error("expected Reused to be false for new worktree")
-	}
-}
-
-func TestSetupWorktree_ReturnsPath(t *testing.T) {
+func TestSetupWorktreeForTask_ReturnsAbsolutePath(t *testing.T) {
 	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
 	if err != nil {
@@ -319,9 +270,10 @@ func TestSetupWorktree_ReturnsPath(t *testing.T) {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
 
-	result, err := SetupWorktree("TASK-002", nil, gitOps)
+	tsk := &task.Task{ID: "TASK-PATH"}
+	result, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// Path should be non-empty and absolute
@@ -334,50 +286,8 @@ func TestSetupWorktree_ReturnsPath(t *testing.T) {
 	}
 
 	// Path should contain the task ID pattern
-	if !containsTaskID(result.Path, "TASK-002") {
+	if !containsTaskID(result.Path, "TASK-PATH") {
 		t.Errorf("path should contain task ID, got: %s", result.Path)
-	}
-}
-
-func TestSetupWorktree_ReusesExisting(t *testing.T) {
-	t.Parallel()
-	tmpDir, err := os.MkdirTemp("", "orc-worktree-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	if err := initTestRepo(tmpDir); err != nil {
-		t.Fatalf("failed to init test repo: %v", err)
-	}
-
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
-	if err != nil {
-		t.Fatalf("failed to create git ops: %v", err)
-	}
-
-	// Create worktree first time
-	result1, err := SetupWorktree("TASK-003", nil, gitOps)
-	if err != nil {
-		t.Fatalf("first SetupWorktree failed: %v", err)
-	}
-
-	if result1.Reused {
-		t.Error("first setup should not be reused")
-	}
-
-	// Setup again - should reuse
-	result2, err := SetupWorktree("TASK-003", nil, gitOps)
-	if err != nil {
-		t.Fatalf("second SetupWorktree failed: %v", err)
-	}
-
-	if !result2.Reused {
-		t.Error("second setup should be reused")
-	}
-
-	if result1.Path != result2.Path {
-		t.Errorf("paths should match: %s != %s", result1.Path, result2.Path)
 	}
 }
 
@@ -399,9 +309,10 @@ func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
 	}
 
 	// Create worktree
-	result, err := SetupWorktree("TASK-004", nil, gitOps)
+	tsk := &task.Task{ID: "TASK-004"}
+	result, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// Verify it exists
@@ -492,8 +403,9 @@ func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
 	}
 
 	// Create worktree
-	if _, err := SetupWorktree("TASK-005", nil, gitOps); err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+	tsk := &task.Task{ID: "TASK-005"}
+	if _, err := SetupWorktreeForTask(tsk, nil, gitOps, nil); err != nil {
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// After creation
@@ -594,61 +506,6 @@ func containsTaskID(path, taskID string) bool {
 		filepath.Base(filepath.Dir(path)) == "worktrees")
 }
 
-func TestSetupWorktree_StaleWorktree(t *testing.T) {
-	t.Parallel()
-	tmpDir, err := os.MkdirTemp("", "orc-worktree-stale-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	if err := initTestRepo(tmpDir); err != nil {
-		t.Fatalf("failed to init test repo: %v", err)
-	}
-
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
-	if err != nil {
-		t.Fatalf("failed to create git ops: %v", err)
-	}
-
-	// Create worktree first time
-	result1, err := SetupWorktree("TASK-STALE", nil, gitOps)
-	if err != nil {
-		t.Fatalf("first SetupWorktree failed: %v", err)
-	}
-
-	// Manually delete the worktree directory (simulating stale registration)
-	if err := os.RemoveAll(result1.Path); err != nil {
-		t.Fatalf("failed to remove worktree directory: %v", err)
-	}
-
-	// Verify directory is gone
-	if _, err := os.Stat(result1.Path); !os.IsNotExist(err) {
-		t.Fatal("worktree directory should not exist after manual deletion")
-	}
-
-	// WorktreeExists should return false since directory is gone
-	if WorktreeExists("TASK-STALE", gitOps) {
-		t.Error("WorktreeExists should return false when directory is deleted")
-	}
-
-	// Setup again - should succeed due to auto-prune in git layer
-	result2, err := SetupWorktree("TASK-STALE", nil, gitOps)
-	if err != nil {
-		t.Fatalf("SetupWorktree should handle stale worktree: %v", err)
-	}
-
-	// Verify it was created (not reused since directory was deleted)
-	if result2.Reused {
-		t.Error("should not be marked as reused when directory was deleted")
-	}
-
-	// Verify directory exists
-	if _, err := os.Stat(result2.Path); os.IsNotExist(err) {
-		t.Error("worktree should exist after re-creation")
-	}
-}
-
 // TestSetupWorktreeForTask_StaleWorktree tests that SetupWorktreeForTask handles
 // the case where a worktree directory was deleted but git still has metadata about it.
 // This simulates what happens when a task times out, the worktree is manually deleted,
@@ -708,7 +565,7 @@ func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
 	}
 }
 
-func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
+func TestSetupWorktreeForTask_CleansDirtyWorktree(t *testing.T) {
 	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-dirty-test-*")
 	if err != nil {
@@ -726,9 +583,10 @@ func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 	}
 
 	// Create worktree
-	result1, err := SetupWorktree("TASK-DIRTY", nil, gitOps)
+	tsk := &task.Task{ID: "TASK-DIRTY"}
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// Make the worktree dirty by creating an untracked file
@@ -754,9 +612,9 @@ func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 	}
 
 	// Reuse worktree - should clean up dirty state
-	result2, err := SetupWorktree("TASK-DIRTY", nil, gitOps)
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed on reuse: %v", err)
 	}
 
 	if !result2.Reused {
@@ -778,7 +636,7 @@ func TestSetupWorktree_CleansDirtyWorktree(t *testing.T) {
 	}
 }
 
-func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
+func TestSetupWorktreeForTask_AbortsRebaseInProgress(t *testing.T) {
 	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-rebase-test-*")
 	if err != nil {
@@ -796,9 +654,10 @@ func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
 	}
 
 	// Create worktree
-	result1, err := SetupWorktree("TASK-REBASE", nil, gitOps)
+	tsk := &task.Task{ID: "TASK-REBASE"}
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// Create a conflicting scenario to trigger rebase conflict
@@ -840,9 +699,9 @@ func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
 	}
 
 	// Reuse worktree - should abort the rebase
-	result2, err := SetupWorktree("TASK-REBASE", nil, gitOps)
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed on reuse: %v", err)
 	}
 
 	if !result2.Reused {
@@ -859,7 +718,7 @@ func TestSetupWorktree_AbortsRebaseInProgress(t *testing.T) {
 	}
 }
 
-func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
+func TestSetupWorktreeForTask_AbortsMergeInProgress(t *testing.T) {
 	t.Parallel()
 	tmpDir, err := os.MkdirTemp("", "orc-worktree-merge-test-*")
 	if err != nil {
@@ -877,9 +736,10 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 	}
 
 	// Create worktree
-	result1, err := SetupWorktree("TASK-MERGE", nil, gitOps)
+	tsk := &task.Task{ID: "TASK-MERGE"}
+	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
 
 	// Create a branch in main with conflicting changes
@@ -926,9 +786,9 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 	}
 
 	// Reuse worktree - should abort the merge
-	result2, err := SetupWorktree("TASK-MERGE", nil, gitOps)
+	result2, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
-		t.Fatalf("SetupWorktree failed on reuse: %v", err)
+		t.Fatalf("SetupWorktreeForTask failed on reuse: %v", err)
 	}
 
 	if !result2.Reused {
@@ -951,81 +811,5 @@ func TestSetupWorktree_AbortsMergeInProgress(t *testing.T) {
 	}
 	if !clean {
 		t.Error("worktree should be clean after reuse")
-	}
-}
-
-func TestSetupWorktree_SwitchesToCorrectBranch(t *testing.T) {
-	t.Parallel()
-	// This test verifies that when a worktree is reused but is on the wrong branch,
-	// it gets switched to the correct task branch. This prevents issues like:
-	// - Review phase seeing no changes (diffing main against main)
-	// - Commits going to the wrong branch
-	// - Infinite review/implement loops
-
-	tmpDir, err := os.MkdirTemp("", "orc-worktree-branch-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	if err := initTestRepo(tmpDir); err != nil {
-		t.Fatalf("failed to init test repo: %v", err)
-	}
-
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
-	if err != nil {
-		t.Fatalf("failed to create git ops: %v", err)
-	}
-
-	// Create worktree
-	result1, err := SetupWorktree("TASK-BRANCH", nil, gitOps)
-	if err != nil {
-		t.Fatalf("SetupWorktree failed: %v", err)
-	}
-
-	// Verify we're on the expected branch
-	worktreeGit := gitOps.InWorktree(result1.Path)
-	expectedBranch := gitOps.BranchName("TASK-BRANCH")
-	currentBranch, err := worktreeGit.GetCurrentBranch()
-	if err != nil {
-		t.Fatalf("failed to get current branch: %v", err)
-	}
-	if currentBranch != expectedBranch {
-		t.Fatalf("expected branch %s, got %s", expectedBranch, currentBranch)
-	}
-
-	// Create a different branch that isn't used elsewhere
-	// (We can't checkout main since it's used by the main repo)
-	wrongBranch := "wrong-branch"
-	if err := runGitCmd(result1.Path, "checkout", "-b", wrongBranch); err != nil {
-		t.Fatalf("failed to create and checkout wrong branch: %v", err)
-	}
-
-	// Verify we're now on the wrong branch
-	currentBranch, err = worktreeGit.GetCurrentBranch()
-	if err != nil {
-		t.Fatalf("failed to get current branch after checkout: %v", err)
-	}
-	if currentBranch != wrongBranch {
-		t.Fatalf("expected branch %s, got %s", wrongBranch, currentBranch)
-	}
-
-	// Reuse worktree - should switch back to the correct branch
-	result2, err := SetupWorktree("TASK-BRANCH", nil, gitOps)
-	if err != nil {
-		t.Fatalf("SetupWorktree failed on reuse: %v", err)
-	}
-
-	if !result2.Reused {
-		t.Error("should be marked as reused")
-	}
-
-	// Verify we're back on the expected branch
-	currentBranch, err = worktreeGit.GetCurrentBranch()
-	if err != nil {
-		t.Fatalf("failed to get current branch after reuse: %v", err)
-	}
-	if currentBranch != expectedBranch {
-		t.Errorf("worktree should be on %s after reuse, but is on %s", expectedBranch, currentBranch)
 	}
 }

@@ -103,7 +103,7 @@ func TestPublishHelper_PhaseStart_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "implement" {
 		t.Errorf("expected phase implement, got %s", update.Phase)
 	}
-	if update.Status != string(PhaseRunning) {
+	if update.Status != string(task.PhaseStatusRunning) {
 		t.Errorf("expected status running, got %s", update.Status)
 	}
 }
@@ -128,7 +128,7 @@ func TestPublishHelper_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "test" {
 		t.Errorf("expected phase test, got %s", update.Phase)
 	}
-	if update.Status != string(PhaseCompleted) {
+	if update.Status != string(task.PhaseStatusCompleted) {
 		t.Errorf("expected status completed, got %s", update.Status)
 	}
 	if update.CommitSHA != "abc123" {
@@ -174,7 +174,7 @@ func TestPublishHelper_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 			}
-			if update.Status != string(PhaseFailed) {
+			if update.Status != string(task.PhaseStatusFailed) {
 				t.Errorf("expected status failed, got %s", update.Status)
 			}
 			if update.Error != tt.wantMsg {

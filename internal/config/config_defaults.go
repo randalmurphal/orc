@@ -141,8 +141,6 @@ func Default() *Config {
 			ValidateSpecs:    true,                // Haiku validates spec quality
 			ValidateCriteria: true,                // Haiku validates success criteria on completion
 			FailOnAPIError:   true,                // Fail properly on API errors (resumable)
-			// Note: EnforceTests/Lint/Build/TypeCheck moved to phase-level quality_checks
-			// Note: Commands moved to project_commands table (use orc config commands)
 		},
 		Documentation: DocumentationConfig{
 			Enabled:            true,
@@ -404,7 +402,6 @@ func FinalizePresets(profile AutomationProfile) FinalizeConfig {
 }
 
 // ValidationPresets returns validation configuration for a given automation profile.
-// Note: EnforceTests/Lint/Build/TypeCheck are deprecated - quality checks are now phase-level.
 func ValidationPresets(profile AutomationProfile) ValidationConfig {
 	switch profile {
 	case ProfileFast:

@@ -428,8 +428,7 @@ type TestingConfig struct {
 //
 // NOTE: Quality checks (tests, lint, build, typecheck) are now defined at the
 // phase template level via quality_checks JSON. Project commands are stored in
-// the database and seeded during `orc init`. The Enforce* and *Command fields
-// below are deprecated and retained only for config file compatibility.
+// the database and seeded during `orc init`.
 type ValidationConfig struct {
 	// Enabled enables validation checks (default: true)
 	Enabled bool `yaml:"enabled"`
@@ -439,34 +438,6 @@ type ValidationConfig struct {
 
 	// SkipForWeights skips validation for these task weights (default: [trivial, small])
 	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
-
-	// Deprecated: Quality checks are now defined in phase templates.
-	// Retained for config file compatibility.
-	EnforceTests bool `yaml:"enforce_tests"`
-
-	// Deprecated: Quality checks are now defined in phase templates.
-	// Retained for config file compatibility.
-	EnforceLint bool `yaml:"enforce_lint"`
-
-	// Deprecated: Quality checks are now defined in phase templates.
-	// Retained for config file compatibility.
-	EnforceBuild bool `yaml:"enforce_build"`
-
-	// Deprecated: Quality checks are now defined in phase templates.
-	// Retained for config file compatibility.
-	EnforceTypeCheck bool `yaml:"enforce_typecheck"`
-
-	// Deprecated: Commands are now stored in the project_commands database table.
-	// Retained for config file compatibility.
-	LintCommand string `yaml:"lint_command,omitempty"`
-
-	// Deprecated: Commands are now stored in the project_commands database table.
-	// Retained for config file compatibility.
-	BuildCommand string `yaml:"build_command,omitempty"`
-
-	// Deprecated: Commands are now stored in the project_commands database table.
-	// Retained for config file compatibility.
-	TypeCheckCommand string `yaml:"typecheck_command,omitempty"`
 
 	// ValidateSpecs enables Haiku-based spec quality validation before execution (default: true)
 	ValidateSpecs bool `yaml:"validate_specs"`

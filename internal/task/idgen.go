@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/randalmurphal/orc/internal/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -90,7 +91,7 @@ func (s *SequenceStore) save(sd *SequenceData) error {
 		return fmt.Errorf("marshal sequences: %w", err)
 	}
 
-	if err := os.WriteFile(s.path, data, 0644); err != nil {
+	if err := util.AtomicWriteFile(s.path, data, 0644); err != nil {
 		return fmt.Errorf("write sequences: %w", err)
 	}
 	return nil

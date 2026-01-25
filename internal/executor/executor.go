@@ -173,7 +173,7 @@ func findClaudeInCommonLocations() string {
 // Result represents the result of a phase execution.
 type Result struct {
 	Phase        string
-	Status       PhaseStatus
+	Status       task.PhaseStatus
 	Iterations   int
 	Duration     time.Duration
 	Output       string

@@ -220,7 +220,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 			})
 
 			// Mark phase as completed in plan
-			pln.GetPhase(currentPhase.ID).Status = executor.PhaseCompleted
+			pln.GetPhase(currentPhase.ID).Status = task.PhaseStatusCompleted
 
 			// Check if more phases - loop continues with next iteration
 			nextPhase := pln.CurrentPhase()
