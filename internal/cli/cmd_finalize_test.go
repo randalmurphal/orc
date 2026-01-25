@@ -2,7 +2,9 @@ package cli
 
 import (
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/state"
@@ -320,4 +322,138 @@ func containsSubstrHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// Tests for improved error messages when finalizing completed tasks
+
+func TestFinalizeCommand_CompletedTaskWithOpenPR(t *testing.T) {
+	tmpDir := withFinalizeTestDir(t)
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create a completed task with an open PR
+	tk := task.New("TASK-001", "Test task with open PR")
+	tk.Status = task.StatusCompleted
+	tk.Weight = task.WeightSmall
+	tk.SetPRInfo("https://github.com/owner/repo/pull/42", 42)
+	tk.PR.Status = task.PRStatusPendingReview
+
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create state
+	s := state.New("TASK-001")
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	cmd := newFinalizeCmd()
+	cmd.SetArgs([]string{"TASK-001"})
+
+	err = cmd.Execute()
+	if err == nil {
+		t.Error("Finalize should fail for completed task")
+	}
+
+	// Error message should include PR number
+	if !strings.Contains(err.Error(), "42") && !strings.Contains(err.Error(), "#42") {
+		t.Errorf("Error message should include PR number, got: %v", err)
+	}
+
+	// Error message should suggest merge command
+	if !strings.Contains(err.Error(), "gh pr merge") && !strings.Contains(err.Error(), "merge") {
+		t.Errorf("Error message should suggest merging the PR, got: %v", err)
+	}
+}
+
+func TestFinalizeCommand_CompletedTaskWithMergedPR(t *testing.T) {
+	tmpDir := withFinalizeTestDir(t)
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create a completed task with a merged PR
+	tk := task.New("TASK-001", "Test task with merged PR")
+	tk.Status = task.StatusCompleted
+	tk.Weight = task.WeightSmall
+	tk.SetPRInfo("https://github.com/owner/repo/pull/99", 99)
+	tk.PR.Merged = true
+	now := time.Now()
+	tk.PR.MergedAt = &now
+	tk.PR.Status = task.PRStatusMerged
+
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create state
+	s := state.New("TASK-001")
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	cmd := newFinalizeCmd()
+	cmd.SetArgs([]string{"TASK-001"})
+
+	err = cmd.Execute()
+	if err == nil {
+		t.Error("Finalize should fail for completed task")
+	}
+
+	// Error message should include PR number
+	if !strings.Contains(err.Error(), "99") && !strings.Contains(err.Error(), "#99") {
+		t.Errorf("Error message should include PR number, got: %v", err)
+	}
+
+	// Error message should indicate PR was merged
+	if !strings.Contains(err.Error(), "merged") {
+		t.Errorf("Error message should indicate PR was merged, got: %v", err)
+	}
+}
+
+func TestFinalizeCommand_CompletedTaskWithNoPR(t *testing.T) {
+	tmpDir := withFinalizeTestDir(t)
+
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("failed to create backend: %v", err)
+	}
+	defer func() { _ = backend.Close() }()
+
+	// Create a completed task with no PR
+	tk := task.New("TASK-001", "Test task with no PR")
+	tk.Status = task.StatusCompleted
+	tk.Weight = task.WeightSmall
+	// No PR info set
+
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Create state
+	s := state.New("TASK-001")
+	if err := backend.SaveState(s); err != nil {
+		t.Fatalf("failed to save state: %v", err)
+	}
+
+	cmd := newFinalizeCmd()
+	cmd.SetArgs([]string{"TASK-001"})
+
+	err = cmd.Execute()
+	if err == nil {
+		t.Error("Finalize should fail for completed task")
+	}
+
+	// Error message should explain no PR exists
+	if !strings.Contains(err.Error(), "No PR") && !strings.Contains(err.Error(), "no PR") {
+		t.Errorf("Error message should explain no PR exists, got: %v", err)
+	}
 }

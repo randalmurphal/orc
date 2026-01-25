@@ -1391,6 +1391,14 @@ func taskToDBTask(t *task.Task) *db.Task {
 		}
 	}
 
+	// Serialize PR info to JSON
+	var prInfoJSON string
+	if t.PR != nil {
+		if data, err := json.Marshal(t.PR); err == nil {
+			prInfoJSON = string(data)
+		}
+	}
+
 	return &db.Task{
 		ID:           t.ID,
 		Title:        t.Title,
@@ -1410,6 +1418,7 @@ func taskToDBTask(t *task.Task) *db.Task {
 		UpdatedAt:    t.UpdatedAt,
 		Metadata:     metadataJSON,
 		Quality:      qualityJSON,
+		PRInfo:       prInfoJSON,
 		IsAutomation: t.IsAutomation,
 	}
 }
@@ -1427,6 +1436,13 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 	if dbTask.Quality != "" {
 		quality = &task.QualityMetrics{}
 		_ = json.Unmarshal([]byte(dbTask.Quality), quality)
+	}
+
+	// Deserialize PR info from JSON
+	var prInfo *task.PRInfo
+	if dbTask.PRInfo != "" {
+		prInfo = &task.PRInfo{}
+		_ = json.Unmarshal([]byte(dbTask.PRInfo), prInfo)
 	}
 
 	return &task.Task{
@@ -1448,6 +1464,7 @@ func dbTaskToTask(dbTask *db.Task) *task.Task {
 		UpdatedAt:    dbTask.UpdatedAt,
 		Metadata:     metadata,
 		Quality:      quality,
+		PR:           prInfo,
 		IsAutomation: dbTask.IsAutomation,
 	}
 }

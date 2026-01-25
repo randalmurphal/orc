@@ -221,7 +221,17 @@ Example:
 func validateFinalizeState(t *task.Task) error {
 	switch t.Status {
 	case task.StatusCompleted:
-		return fmt.Errorf("task %s is already completed", t.ID)
+		// Provide context-specific error based on PR status
+		if t.HasPR() {
+			prNum := t.PR.Number
+			if t.PR.Merged {
+				return fmt.Errorf("task %s is already completed - PR #%d was merged", t.ID, prNum)
+			}
+			// PR exists but not merged yet
+			return fmt.Errorf("task %s is already completed - PR #%d is open. To merge: gh pr merge %d", t.ID, prNum, prNum)
+		}
+		// No PR exists
+		return fmt.Errorf("task %s is already completed - No PR was created (task may have been completed with --no-pr flag)", t.ID)
 	case task.StatusRunning:
 		return fmt.Errorf("task %s is currently running - pause it first if you want to run finalize manually", t.ID)
 	case task.StatusCreated, task.StatusPlanned:
