@@ -39,6 +39,18 @@ export interface WeeklyChanges {
 	cost: number;
 	successRate: number;
 }
+// TASK-532: Helper to convert period for comparison endpoint (only accepts 7d, 30d)
+function periodToComparisonPeriod(period: StatsPeriod): string | null {
+	switch (period) {
+		case '7d':
+			return '7d';
+		case '30d':
+			return '30d';
+		case '24h':
+		case 'all':
+			return null; // Comparison endpoint doesn't support these periods
+	}
+}
 
 interface CacheEntry {
 	timestamp: number;
@@ -219,6 +231,26 @@ interface TopFileDataResponse {
 interface TopFilesResponse {
 	period: string;
 	files: TopFileDataResponse[];
+}
+// TASK-532: API response type for comparison endpoint (SC-6)
+interface ComparisonPeriodStats {
+	tasks: number;
+	tokens: number;
+	cost: number;
+	success_rate: number;
+}
+
+interface ComparisonChangeStats {
+	tasks: number;
+	tokens: number;
+	cost: number;
+	success_rate: number;
+}
+
+interface ComparisonResponse {
+	current: ComparisonPeriodStats;
+	previous: ComparisonPeriodStats;
+	changes: ComparisonChangeStats;
 }
 
 // Helper to convert period to API query param (for cost summary)

@@ -137,6 +137,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | PR creation fails with 'No commits between branches' | Fixed: `WorkflowExecutor.autoCommitBeforeCompletion()` now auto-commits uncommitted changes before PR/merge if Claude didn't commit during implement phase; uses `HasUncommittedChanges()` to detect dirty worktree, stages with `git add -A`, commits with message "[orc] TASK-XXX: Auto-commit before PR creation" | TASK-512 |
 | Initiative shows BLOCKED when all tasks complete | Fixed: Initiative completion only triggered for branch-based initiatives; added `CheckAndCompleteInitiativeNoBranch()` called after task completion to auto-complete initiatives without `BranchBase` when all tasks finish; updates initiative status from `active` to `completed` | TASK-525 |
 | Stats page stuck in infinite loading skeleton | Fixed: Race condition in statsStore where `setPeriod` and component `useEffect` both triggered fetches; added `_fetchingPeriod` guard to prevent duplicate concurrent fetches for same period; changed initial loading state to `true` (show skeleton immediately); `setPeriod` now only updates period (component `useEffect` triggers fetch) | TASK-526 |
+| Stats charts displayed random placeholder data | Fixed: ActivityHeatmap, CostBreakdownChart, TokenUsageChart used `Math.random()` placeholder data instead of real stats; now properly transform `stats` prop from API into chart format; added empty state handling ("No data available") when API returns no data | TASK-532 |
 
 ## Decisions
 
