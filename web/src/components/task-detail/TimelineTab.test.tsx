@@ -372,4 +372,134 @@ describe('TimelineTab', () => {
 			expect(screen.getByText(/This task doesn't have a plan yet/)).toBeInTheDocument();
 		});
 	});
+
+	/**
+	 * Zero Timestamp Tests (SC-1, SC-2)
+	 *
+	 * These tests verify that Go's zero time value (0001-01-01T00:00:00Z) displays
+	 * as "Never" in the Updated field instead of "Dec 31, 1" which is the incorrect
+	 * timezone-shifted display.
+	 *
+	 * TDD Note: These tests are written BEFORE the fix is implemented.
+	 */
+	describe('Task Info - Updated field with zero timestamp (SC-1)', () => {
+		it('displays "Never" when updated_at is Go zero time (0001-01-01T00:00:00Z)', () => {
+			// Go's zero time value - this is what the backend sends when a task
+			// has never been modified after creation
+			renderTimelineTab({
+				task: createTask({ updated_at: '0001-01-01T00:00:00Z' }),
+			});
+
+			// The Updated field should show "Never" instead of "Dec 31, 1, 06:09 PM"
+			const updatedLabel = screen.getByText('Updated');
+			expect(updatedLabel).toBeInTheDocument();
+
+			// Find the value next to the "Updated" label
+			const infoItem = updatedLabel.closest('.info-item');
+			expect(infoItem).toBeInTheDocument();
+
+			const valueElement = infoItem?.querySelector('dd');
+			expect(valueElement).toBeInTheDocument();
+			expect(valueElement?.textContent).toBe('Never');
+		});
+
+		it('displays "Never" when updated_at is zero time with milliseconds', () => {
+			renderTimelineTab({
+				task: createTask({ updated_at: '0001-01-01T00:00:00.000Z' }),
+			});
+
+			const updatedLabel = screen.getByText('Updated');
+			const infoItem = updatedLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+			expect(valueElement?.textContent).toBe('Never');
+		});
+
+		it('displays "Never" for any year 1 date (edge case: 0001-12-31T23:59:59Z)', () => {
+			// Any date in year 1 should be treated as "never set"
+			renderTimelineTab({
+				task: createTask({ updated_at: '0001-12-31T23:59:59Z' }),
+			});
+
+			const updatedLabel = screen.getByText('Updated');
+			const infoItem = updatedLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+			expect(valueElement?.textContent).toBe('Never');
+		});
+	});
+
+	describe('Task Info - Updated field with valid timestamps (SC-2)', () => {
+		it('displays formatted date for valid updated_at timestamp', () => {
+			renderTimelineTab({
+				task: createTask({ updated_at: '2024-06-15T10:30:00Z' }),
+			});
+
+			const updatedLabel = screen.getByText('Updated');
+			const infoItem = updatedLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+
+			// Should display a formatted date, not "Never" or empty
+			expect(valueElement?.textContent).not.toBe('Never');
+			expect(valueElement?.textContent).not.toBe('');
+			// The exact format depends on locale, but should contain "Jun" or similar
+			expect(valueElement?.textContent).toMatch(/\w{3}\s+\d{1,2}/); // e.g., "Jun 15"
+		});
+
+		it('displays formatted date for Unix epoch (1970-01-01T00:00:00Z)', () => {
+			// Unix epoch is a valid date and should NOT be treated as zero time
+			renderTimelineTab({
+				task: createTask({ updated_at: '1970-01-01T00:00:00Z' }),
+			});
+
+			const updatedLabel = screen.getByText('Updated');
+			const infoItem = updatedLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+
+			// Should display a formatted date, not "Never"
+			expect(valueElement?.textContent).not.toBe('Never');
+			expect(valueElement?.textContent).not.toBe('');
+		});
+
+		it('displays formatted date for dates from year 2 and beyond', () => {
+			// Year 2 is valid and should be formatted normally
+			renderTimelineTab({
+				task: createTask({ updated_at: '0002-01-01T00:00:00Z' }),
+			});
+
+			const updatedLabel = screen.getByText('Updated');
+			const infoItem = updatedLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+
+			// Should display a formatted date, not "Never"
+			expect(valueElement?.textContent).not.toBe('Never');
+		});
+	});
+
+	describe('Task Info - created_at timestamp formatting', () => {
+		it('displays formatted date for valid created_at timestamp', () => {
+			renderTimelineTab({
+				task: createTask({ created_at: '2024-06-15T10:30:00Z' }),
+			});
+
+			const createdLabel = screen.getByText('Created');
+			const infoItem = createdLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+
+			// Should display a formatted date
+			expect(valueElement?.textContent).not.toBe('');
+			expect(valueElement?.textContent).toMatch(/\w{3}\s+\d{1,2}/);
+		});
+
+		it('displays "Never" for zero created_at timestamp', () => {
+			// While unlikely, created_at could also be zero time
+			renderTimelineTab({
+				task: createTask({ created_at: '0001-01-01T00:00:00Z' }),
+			});
+
+			const createdLabel = screen.getByText('Created');
+			const infoItem = createdLabel.closest('.info-item');
+			const valueElement = infoItem?.querySelector('dd');
+
+			expect(valueElement?.textContent).toBe('Never');
+		});
+	});
 });
