@@ -170,18 +170,18 @@ func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSv
 	s.jsonResponse(w, result)
 }
 
-// getTaskCommitRange extracts the first and last commit SHAs from the task's state.
+// getTaskCommitRange extracts the first and last commit SHAs from the task's execution state.
 // Returns empty strings if no commits are found.
 func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit string) {
-	// Try to load state
-	taskState, err := s.backend.LoadState(taskID)
-	if err != nil || taskState == nil {
+	// Try to load task
+	t, err := s.backend.LoadTask(taskID)
+	if err != nil || t == nil {
 		return "", ""
 	}
 
 	// Collect all commit SHAs from phase states
 	var commits []string
-	for _, phaseState := range taskState.Phases {
+	for _, phaseState := range t.Execution.Phases {
 		if phaseState != nil && phaseState.CommitSHA != "" {
 			commits = append(commits, phaseState.CommitSHA)
 		}
@@ -191,23 +191,13 @@ func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit stri
 		return "", ""
 	}
 
-	// Load task to get weight for phase ordering
-	t, err := s.backend.LoadTask(taskID)
-	if err != nil || t == nil {
-		// Fallback: just use the commits we found (might not be in order)
-		if len(commits) == 1 {
-			return commits[0], commits[0]
-		}
-		return "", ""
-	}
-
 	// Get phase order from task weight
 	phaseOrder := phasesForWeight(t.Weight)
 
 	// Build ordered commit list based on phase order
 	var orderedCommits []string
 	for _, phaseID := range phaseOrder {
-		if phaseState, ok := taskState.Phases[phaseID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
+		if phaseState, ok := t.Execution.Phases[phaseID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
 			orderedCommits = append(orderedCommits, phaseState.CommitSHA)
 		}
 	}

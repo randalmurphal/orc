@@ -7,9 +7,21 @@ Storage backend abstraction layer. SQLite is the sole source of truth for all da
 | File | Purpose |
 |------|---------|
 | `backend.go` | `Backend` interface definition, types |
-| `database_backend.go` | `DatabaseBackend` implementation (SQLite) |
+| `db_task.go` | Task CRUD operations including execution state |
+| `db_initiative.go` | Initiative CRUD operations |
+| `db_branch.go` | Branch registry operations |
 | `factory.go` | Backend factory (`NewBackend`) |
 | `export.go` | Export functionality for task artifacts |
+
+## Task-Centric Approach
+
+All execution state is embedded in `task.Task.Execution`. The separate `state.State` struct and related methods (`SaveState`, `LoadState`, `LoadAllStates`) have been removed.
+
+| Operation | Method |
+|-----------|--------|
+| Save task with execution state | `backend.SaveTask(t)` where `t.Execution` contains phases, gates, cost |
+| Load task with execution state | `backend.LoadTask(taskID)` then access `t.Execution` |
+| Load all tasks with execution state | `backend.LoadAllTasks()` then access each `t.Execution` |
 
 ## Backend Interface
 
@@ -18,7 +30,6 @@ All storage operations are defined by the `Backend` interface:
 | Category | Operations |
 |----------|------------|
 | Task | `SaveTask`, `LoadTask`, `LoadAllTasks`, `DeleteTask`, `TaskExists`, `GetNextTaskID` |
-| State | `SaveState`, `LoadState`, `LoadAllStates` |
 | Phase Output | `SavePhaseOutput`, `GetPhaseOutput`, `GetPhaseOutputByVarName`, `GetAllPhaseOutputs`, `LoadPhaseOutputsAsMap`, `GetPhaseOutputsForTask`, `DeletePhaseOutput`, `PhaseOutputExists` |
 | Spec (via Phase Output) | `GetSpecForTask`, `GetFullSpecForTask`, `SpecExistsForTask`, `SaveSpecForTask` |
 | Initiative | `SaveInitiative`, `LoadInitiative`, `LoadAllInitiatives`, `DeleteInitiative`, `InitiativeExists`, `GetNextInitiativeID` |
@@ -47,25 +58,29 @@ Primary implementation using SQLite via the `db` package.
 - Batch loading to avoid N+1 queries
 - Foreign key cascades for deletion
 
-### LoadAllStates Optimization
+### LoadAllTasks Optimization
 
-`LoadAllStates()` uses batch queries to avoid N+1 problem:
+`LoadAllTasks()` uses batch queries to avoid N+1 problem:
 
 ```go
-// 3 queries total instead of 3N queries:
+// 4 queries total instead of 4N queries:
 dbTasks, _ := d.db.ListTasks(db.ListOpts{})       // 1 query
+allDeps, _ := d.db.GetAllTaskDependencies()       // 1 query
 allPhases, _ := d.db.GetAllPhasesGrouped()        // 1 query
 allGates, _ := d.db.GetAllGateDecisionsGrouped()  // 1 query
 
-// Build states from pre-fetched maps
+// Build tasks with execution state from pre-fetched maps
 for _, dbTask := range dbTasks {
-    s := d.buildStateFromData(dbTask, allPhases[dbTask.ID], allGates[dbTask.ID])
+    t := dbTaskToTask(&dbTask)
+    t.BlockedBy = allDeps[t.ID]
+    t.Execution.Phases = allPhases[t.ID]
+    t.Execution.Gates = allGates[t.ID]
 }
 ```
 
 | Operation | Before | After |
 |-----------|--------|-------|
-| 100 tasks | 301 queries | 3 queries |
+| 100 tasks | 401 queries | 4 queries |
 
 ### Concurrency
 
@@ -85,8 +100,7 @@ Multi-table write operations use transactions for atomicity. This prevents parti
 
 | Operation | Tables Modified |
 |-----------|-----------------|
-| `SaveTask` / `SaveTaskCtx` | `tasks`, `task_dependencies` |
-| `SaveState` / `SaveStateCtx` | `tasks`, `phases`, `gate_decisions` |
+| `SaveTask` / `SaveTaskCtx` | `tasks`, `task_dependencies`, `phases`, `gate_decisions` |
 | `SaveInitiative` / `SaveInitiativeCtx` | `initiatives`, `initiative_decisions`, `initiative_tasks`, `initiative_dependencies` |
 
 Example: `SaveTaskCtx` wraps task + dependencies in a single transaction:
@@ -117,7 +131,6 @@ For operations requiring cancellation or timeout support, use the `*Ctx` variant
 | Method | Context-Aware Variant | Purpose |
 |--------|----------------------|---------|
 | `SaveTask` | `SaveTaskCtx` | Save task with context propagation |
-| `SaveState` | `SaveStateCtx` | Save execution state with context |
 | `SaveInitiative` | `SaveInitiativeCtx` | Save initiative with context |
 
 The `*Ctx` methods propagate context through `RunInTx` to `TxOps`, which stores and uses the context for all database operations within the transaction. This enables:
@@ -126,7 +139,7 @@ The `*Ctx` methods propagate context through `RunInTx` to `TxOps`, which stores 
 - **Timeouts**: Wrap context with `context.WithTimeout()` to limit operation duration
 - **Tracing**: Future integration with OpenTelemetry spans
 
-The non-context methods (`SaveTask`, `SaveState`, `SaveInitiative`) use `context.Background()` internally and remain for backward compatibility.
+The non-context methods (`SaveTask`, `SaveInitiative`) use `context.Background()` internally and remain for backward compatibility.
 
 ### Direct DB Access
 
@@ -166,16 +179,16 @@ CLI/API → Backend interface → DatabaseBackend → db.ProjectDB → SQLite
 
 All reads and writes go through the backend. No YAML files are created.
 
-## State vs Task Status
+## Task Status vs Phase Status
 
-The database stores two status fields:
+The database stores task-level and phase-level status:
 
-| Field | Values | Purpose |
-|-------|--------|---------|
-| `Status` (task) | created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed | UI display, workflow |
-| `StateStatus` | pending, running, completed, failed, paused, interrupted, skipped | Execution engine state |
+| Field | Type | Values | Purpose |
+|-------|------|--------|---------|
+| `task.Status` | `task.Status` | created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed | UI display, workflow |
+| Phase status | `task.PhaseStatus` | pending, running, completed, failed, paused, interrupted, skipped | Per-phase execution state |
 
-`SaveState` updates `StateStatus`, while `SaveTask` updates `Status`.
+Phase status is stored in `task.Task.Execution.Phases[phaseID].Status`.
 
 ## Transcript Batch Persistence
 

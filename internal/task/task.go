@@ -457,6 +457,10 @@ type Task struct {
 	ExecutorHostname  string     `yaml:"-" json:"-"`
 	ExecutorStartedAt *time.Time `yaml:"-" json:"-"`
 	LastHeartbeat     *time.Time `yaml:"-" json:"-"`
+
+	// Execution contains all execution-related state (phases, tokens, cost, etc).
+	// This consolidates what was previously tracked in a separate State struct.
+	Execution ExecutionState `yaml:"execution" json:"execution"`
 }
 
 // New creates a new task with the given title.
@@ -473,6 +477,7 @@ func New(id, title string) *Task {
 		CreatedAt: now,
 		UpdatedAt: now,
 		Metadata:  make(map[string]string),
+		Execution: InitExecutionState(),
 	}
 }
 
@@ -498,6 +503,15 @@ func (t *Task) GetCategory() Category {
 		return CategoryFeature
 	}
 	return t.Category
+}
+
+// Elapsed returns the duration since execution started.
+// Returns 0 if the task hasn't started (StartedAt is nil or zero).
+func (t *Task) Elapsed() time.Duration {
+	if t.StartedAt == nil || t.StartedAt.IsZero() {
+		return 0
+	}
+	return time.Since(*t.StartedAt)
 }
 
 // IsBacklog returns true if the task is in the backlog queue.

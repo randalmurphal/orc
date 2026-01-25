@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/prompt"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -75,7 +74,8 @@ func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Confi
 }
 
 // SpawnWorker creates and starts a worker for a task.
-func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executor.Plan, st *state.State) (*Worker, error) {
+// The task's Execution field contains all execution state.
+func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executor.Plan) (*Worker, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -112,14 +112,15 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executo
 	p.workers[t.ID] = worker
 
 	// Start execution in goroutine
-	go worker.run(p, t, pln, st)
+	go worker.run(p, t, pln)
 
 	return worker, nil
 }
 
 // run executes the task in the worktree.
 // Iterates through all phases until completion, failure, or cancellation.
-func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan, st *state.State) {
+// The task's Execution field contains all execution state.
+func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 	defer func() {
 		w.mu.Lock()
 		if w.Status == WorkerStatusRunning {
@@ -203,10 +204,10 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan, st *sta
 
 		// Check if ralph state file was removed (completion)
 		if !mgr.Exists() {
-			// Phase completed
-			st.CompletePhase(currentPhase.ID, "")
+			// Phase completed - update task's execution state
+			t.Execution.CompletePhase(currentPhase.ID, "")
 			if pool.backend != nil {
-				_ = pool.backend.SaveState(st)
+				_ = pool.backend.SaveTask(t)
 			}
 
 			pool.publishEvent(events.Event{
@@ -224,10 +225,11 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan, st *sta
 			// Check if more phases - loop continues with next iteration
 			nextPhase := pln.CurrentPhase()
 			if nextPhase == nil {
-				// Task complete
-				st.Complete()
+				// Task complete - update task status
+				t.Status = task.StatusCompleted
+				t.CompletedAt = timePtr(time.Now())
 				if pool.backend != nil {
-					_ = pool.backend.SaveState(st)
+					_ = pool.backend.SaveTask(t)
 				}
 				w.setStatus(WorkerStatusComplete)
 				return
@@ -239,6 +241,11 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan, st *sta
 		// Ralph state file still exists - phase not complete, wait for external completion
 		return
 	}
+}
+
+// timePtr returns a pointer to the given time.
+func timePtr(t time.Time) *time.Time {
+	return &t
 }
 
 // setStatus sets the worker status.

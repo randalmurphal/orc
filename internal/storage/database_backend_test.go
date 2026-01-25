@@ -10,7 +10,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -200,126 +199,6 @@ func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
 	}
 }
 
-// TestSaveState_Transaction verifies state and phases are saved atomically.
-func TestSaveState_Transaction(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// First create a task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Create state with phases
-	now := time.Now()
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases: map[string]*state.PhaseState{
-			"implement": {
-				Status:     state.StatusRunning,
-				Iterations: 1,
-				StartedAt:  now,
-				Tokens: state.TokenUsage{
-					InputTokens:  1000,
-					OutputTokens: 500,
-				},
-			},
-		},
-	}
-
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
-	if loaded.CurrentPhase != "implement" {
-		t.Errorf("expected CurrentPhase=implement, got %s", loaded.CurrentPhase)
-	}
-	if loaded.Status != state.StatusRunning {
-		t.Errorf("expected Status=running, got %s", loaded.Status)
-	}
-	if ps, ok := loaded.Phases["implement"]; !ok {
-		t.Error("expected implement phase to exist")
-	} else {
-		if ps.Tokens.InputTokens != 1000 {
-			t.Errorf("expected InputTokens=1000, got %d", ps.Tokens.InputTokens)
-		}
-	}
-}
-
-// TestSaveState_RetryContext verifies RetryContext is saved and loaded correctly.
-func TestSaveState_RetryContext(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Save state with RetryContext
-	now := time.Now()
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "test",
-		Status:       state.StatusFailed,
-		StartedAt:    now,
-		Phases:       make(map[string]*state.PhaseState),
-		RetryContext: &state.RetryContext{
-			FromPhase:     "test",
-			ToPhase:       "implement",
-			Reason:        "Test failed: assertion error",
-			FailureOutput: "assertion error at line 42",
-			Attempt:       2,
-			Timestamp:     now,
-		},
-	}
-
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Load and verify
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
-	if loaded.RetryContext == nil {
-		t.Fatal("expected RetryContext to be set")
-	}
-	if loaded.RetryContext.FromPhase != "test" {
-		t.Errorf("expected FromPhase=test, got %s", loaded.RetryContext.FromPhase)
-	}
-	if loaded.RetryContext.ToPhase != "implement" {
-		t.Errorf("expected ToPhase=implement, got %s", loaded.RetryContext.ToPhase)
-	}
-}
-
 // TestSaveInitiative_Transaction verifies initiative and related data are saved atomically.
 func TestSaveInitiative_Transaction(t *testing.T) {
 	t.Parallel()
@@ -410,54 +289,6 @@ func TestSaveInitiative_WithDependencies(t *testing.T) {
 	}
 }
 
-// TestDeleteTask_CascadesCorrectly verifies cascade deletes work.
-func TestDeleteTask_CascadesCorrectly(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Create state with phases
-	now := time.Now()
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases: map[string]*state.PhaseState{
-			"implement": {
-				Status:    state.StatusRunning,
-				StartedAt: now,
-			},
-		},
-	}
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Delete task
-	if err := backend.DeleteTask("TASK-001"); err != nil {
-		t.Fatalf("delete task: %v", err)
-	}
-
-	// Verify task is gone
-	_, err := backend.LoadTask("TASK-001")
-	if err == nil {
-		t.Error("expected error loading deleted task")
-	}
-}
-
 // TestTransactionRollback_SaveTask verifies that if saving dependencies fails,
 // the task data is not partially written.
 // This is a regression test for transaction atomicity.
@@ -498,86 +329,6 @@ func TestTransactionRollback_SaveTask(t *testing.T) {
 	}
 	if len(loaded.BlockedBy) != 1 {
 		t.Errorf("expected 1 dependency, got %d", len(loaded.BlockedBy))
-	}
-}
-
-// TestTransactionAtomicity_SaveState verifies that state changes are atomic.
-// If phase save fails, the task update should also be rolled back.
-func TestTransactionAtomicity_SaveState(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusCreated,
-		CurrentPhase: "",
-		CreatedAt:    time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Save initial state
-	s1 := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    time.Now(),
-		Phases: map[string]*state.PhaseState{
-			"implement": {
-				Status:    state.StatusRunning,
-				StartedAt: time.Now(),
-			},
-		},
-	}
-	if err := backend.SaveState(s1); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Verify initial state
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-	if loaded.CurrentPhase != "implement" {
-		t.Errorf("expected phase=implement, got %s", loaded.CurrentPhase)
-	}
-
-	// Update to next phase
-	s2 := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "test",
-		Status:       state.StatusRunning,
-		StartedAt:    time.Now(),
-		Phases: map[string]*state.PhaseState{
-			"implement": {
-				Status:      state.StatusCompleted,
-				CompletedAt: timePtr(time.Now()),
-			},
-			"test": {
-				Status:    state.StatusRunning,
-				StartedAt: time.Now(),
-			},
-		},
-	}
-	if err := backend.SaveState(s2); err != nil {
-		t.Fatalf("save state2: %v", err)
-	}
-
-	// Verify both phases are present
-	loaded, err = backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-	if len(loaded.Phases) != 2 {
-		t.Errorf("expected 2 phases, got %d", len(loaded.Phases))
-	}
-	if loaded.CurrentPhase != "test" {
-		t.Errorf("expected phase=test, got %s", loaded.CurrentPhase)
 	}
 }
 
@@ -717,302 +468,6 @@ func timePtr(t time.Time) *time.Time {
 	return &t
 }
 
-// TestSaveState_ExecutionInfo verifies ExecutionInfo is saved and loaded correctly.
-// This is critical for orphan detection - without this, running tasks appear orphaned
-// when their state is loaded from the database.
-func TestSaveState_ExecutionInfo(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Save state with ExecutionInfo (simulates executor starting)
-	now := time.Now()
-	execStart := now.Add(-time.Minute) // Started 1 minute ago
-	heartbeat := now                   // Last heartbeat just now
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases:       make(map[string]*state.PhaseState),
-		Execution: &state.ExecutionInfo{
-			PID:           12345,
-			Hostname:      "test-host",
-			StartedAt:     execStart,
-			LastHeartbeat: heartbeat,
-		},
-	}
-
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Load and verify ExecutionInfo is persisted
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
-	if loaded.Execution == nil {
-		t.Fatal("expected ExecutionInfo to be set, got nil (this causes false orphan detection)")
-	}
-	if loaded.Execution.PID != 12345 {
-		t.Errorf("expected PID=12345, got %d", loaded.Execution.PID)
-	}
-	if loaded.Execution.Hostname != "test-host" {
-		t.Errorf("expected Hostname='test-host', got %s", loaded.Execution.Hostname)
-	}
-	// Check timestamps are preserved (within 1 second tolerance for serialization)
-	if loaded.Execution.StartedAt.Sub(execStart).Abs() > time.Second {
-		t.Errorf("StartedAt not preserved: expected %v, got %v", execStart, loaded.Execution.StartedAt)
-	}
-	if loaded.Execution.LastHeartbeat.Sub(heartbeat).Abs() > time.Second {
-		t.Errorf("LastHeartbeat not preserved: expected %v, got %v", heartbeat, loaded.Execution.LastHeartbeat)
-	}
-}
-
-// TestSaveState_ExecutionInfo_RoundTrip verifies ExecutionInfo persists across backend restarts.
-// This simulates an orc restart where a new DatabaseBackend is created against the same database.
-// The test ensures execution info is properly persisted to disk (not just held in memory).
-func TestSaveState_ExecutionInfo_RoundTrip(t *testing.T) {
-	t.Parallel()
-	// Create initial backend and save state with ExecutionInfo
-	tmpDir, err := os.MkdirTemp("", "orc-test-*")
-	if err != nil {
-		t.Fatalf("create temp dir: %v", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	// Create .orc directory
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
-		t.Fatalf("create .orc dir: %v", err)
-	}
-
-	// First backend instance (simulates initial orc process)
-	backend1, err := NewDatabaseBackend(tmpDir, &config.StorageConfig{})
-	if err != nil {
-		t.Fatalf("create backend1: %v", err)
-	}
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend1.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Save state with ExecutionInfo (simulates executor starting)
-	now := time.Now()
-	execStart := now.Add(-time.Minute)
-	heartbeat := now
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases:       make(map[string]*state.PhaseState),
-		Execution: &state.ExecutionInfo{
-			PID:           os.Getpid(), // Use current PID so it passes orphan check
-			Hostname:      "test-host",
-			StartedAt:     execStart,
-			LastHeartbeat: heartbeat,
-		},
-	}
-	if err := backend1.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Close the first backend (simulates orc process ending)
-	if err := backend1.Close(); err != nil {
-		t.Fatalf("close backend1: %v", err)
-	}
-
-	// Create a NEW backend instance (simulates orc restart)
-	backend2, err := NewDatabaseBackend(tmpDir, &config.StorageConfig{})
-	if err != nil {
-		t.Fatalf("create backend2: %v", err)
-	}
-	defer func() { _ = backend2.Close() }()
-
-	// Load state from new backend and verify ExecutionInfo was persisted
-	loaded, err := backend2.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state from backend2: %v", err)
-	}
-
-	// This is the critical assertion - without proper persistence, this would be nil
-	if loaded.Execution == nil {
-		t.Fatal("ExecutionInfo was NOT persisted to database - this causes false orphan detection on orc restart")
-	}
-
-	// Verify all fields survived the round-trip
-	if loaded.Execution.PID != os.Getpid() {
-		t.Errorf("PID not persisted: expected %d, got %d", os.Getpid(), loaded.Execution.PID)
-	}
-	if loaded.Execution.Hostname != "test-host" {
-		t.Errorf("Hostname not persisted: expected 'test-host', got %s", loaded.Execution.Hostname)
-	}
-	if loaded.Execution.StartedAt.Sub(execStart).Abs() > time.Second {
-		t.Errorf("StartedAt not persisted: expected %v, got %v", execStart, loaded.Execution.StartedAt)
-	}
-	if loaded.Execution.LastHeartbeat.Sub(heartbeat).Abs() > time.Second {
-		t.Errorf("LastHeartbeat not persisted: expected %v, got %v", heartbeat, loaded.Execution.LastHeartbeat)
-	}
-
-	// Verify that orphan check now passes (since PID is our own process)
-	isOrphaned, reason := loaded.CheckOrphaned()
-	if isOrphaned {
-		t.Errorf("Task incorrectly flagged as orphaned after reload: %s", reason)
-	}
-}
-
-// TestSaveState_HeartbeatUpdate verifies that heartbeat updates are persisted to database.
-// This is important for future cross-machine orphan detection where PID checks may be unreliable.
-// Note: With the TASK-291 fix, PID checks take precedence over heartbeat checks. A task with
-// a live PID is NOT orphaned regardless of heartbeat staleness.
-func TestSaveState_HeartbeatUpdate(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Initial save with old heartbeat (30 minutes ago - definitely stale)
-	initialTime := time.Now().Add(-30 * time.Minute)
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    initialTime,
-		Phases:       make(map[string]*state.PhaseState),
-		Execution: &state.ExecutionInfo{
-			PID:           os.Getpid(), // Alive PID - this is the key point
-			Hostname:      "test-host",
-			StartedAt:     initialTime,
-			LastHeartbeat: initialTime, // 30 min ago - would be stale
-		},
-	}
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save initial state: %v", err)
-	}
-
-	// TASK-291 FIX: With alive PID, task should NOT be orphaned even with stale heartbeat
-	// This was a false positive that caused running tasks to be flagged as orphaned
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-	isOrphaned, reason := loaded.CheckOrphaned()
-	if isOrphaned {
-		t.Errorf("TASK-291 regression: task with alive PID should NOT be orphaned, got: %s", reason)
-	}
-
-	// Now update the heartbeat (simulates UpdateHeartbeat() call + SaveState)
-	s.UpdateHeartbeat() // This updates LastHeartbeat to now
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state with updated heartbeat: %v", err)
-	}
-
-	// Verify the updated heartbeat was persisted
-	loaded, err = backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state after heartbeat update: %v", err)
-	}
-
-	// Task should still not be orphaned
-	isOrphaned, reason = loaded.CheckOrphaned()
-	if isOrphaned {
-		t.Errorf("expected task to NOT be orphaned after heartbeat update, got: %s", reason)
-	}
-
-	// Verify the heartbeat timestamp was actually updated
-	if time.Since(loaded.Execution.LastHeartbeat) > 2*time.Second {
-		t.Errorf("heartbeat was not updated in database: %v", loaded.Execution.LastHeartbeat)
-	}
-}
-
-// TestSaveState_ExecutionInfoCleared verifies ExecutionInfo is cleared when task completes.
-func TestSaveState_ExecutionInfoCleared(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// First save with ExecutionInfo
-	now := time.Now()
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases:       make(map[string]*state.PhaseState),
-		Execution: &state.ExecutionInfo{
-			PID:           12345,
-			Hostname:      "test-host",
-			StartedAt:     now,
-			LastHeartbeat: now,
-		},
-	}
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state with execution: %v", err)
-	}
-
-	// Now complete the task (ExecutionInfo should be cleared)
-	s.Status = state.StatusCompleted
-	s.Execution = nil // Executor clears this on completion
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save completed state: %v", err)
-	}
-
-	// Load and verify ExecutionInfo is cleared
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-
-	if loaded.Execution != nil {
-		t.Errorf("expected ExecutionInfo to be nil after completion, got %+v", loaded.Execution)
-	}
-}
-
 // TestSaveTaskCtx_ContextCancellation verifies that a canceled context aborts the transaction.
 // This tests the context propagation from DatabaseBackend through TxOps to the driver.
 func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
@@ -1046,47 +501,6 @@ func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
 	_, loadErr := backend.LoadTask("TASK-001")
 	if loadErr == nil {
 		t.Error("task should not have been saved with canceled context")
-	}
-}
-
-// TestSaveStateCtx_ContextCancellation verifies that a canceled context aborts the state save.
-func TestSaveStateCtx_ContextCancellation(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// First create a task with a valid context
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Create a context that's already canceled
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// Try to save state with canceled context
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    time.Now(),
-		Phases:       make(map[string]*state.PhaseState),
-	}
-	err := backend.SaveStateCtx(ctx, s)
-
-	// Should return context canceled error
-	if err == nil {
-		t.Fatal("expected error with canceled context")
-	}
-	if !strings.Contains(err.Error(), "context canceled") {
-		t.Errorf("expected context canceled error, got: %v", err)
 	}
 }
 
@@ -1163,7 +577,7 @@ func TestSaveTaskCtx_ValidContext(t *testing.T) {
 // ExecutorStartedAt, and LastHeartbeat with zero values, causing false orphan detection.
 //
 // Scenario:
-// 1. Executor starts task, sets executor fields via SaveState
+// 1. Create task and set executor fields via SetTaskExecutor
 // 2. Some other code (e.g., CLI edit, API update) calls SaveTask to update task metadata
 // 3. SaveTask MUST preserve executor fields to avoid false orphan detection
 func TestSaveTask_PreservesExecutorFields(t *testing.T) {
@@ -1173,124 +587,57 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 
 	// Step 1: Create task
 	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Original Title",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
+		ID:           "TASK-001",
+		Title:        "Original Title",
+		Weight:       task.WeightSmall,
+		Status:       task.StatusRunning,
+		CurrentPhase: "implement",
+		CreatedAt:    time.Now(),
+		Execution:    task.InitExecutionState(),
 	}
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
-	// Step 2: Executor starts task, sets executor fields via SaveState
-	// This simulates what the executor does when starting a task
-	now := time.Now()
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "implement",
-		Status:       state.StatusRunning,
-		StartedAt:    now,
-		Phases:       make(map[string]*state.PhaseState),
-		Execution: &state.ExecutionInfo{
-			PID:           12345,
-			Hostname:      "worker-1",
-			StartedAt:     now,
-			LastHeartbeat: now,
-		},
-	}
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
+	// Step 2: Set executor fields via SetTaskExecutor (simulates executor claiming task)
+	if err := backend.SetTaskExecutor("TASK-001", 12345, "worker-1"); err != nil {
+		t.Fatalf("set executor: %v", err)
 	}
 
 	// Verify executor fields are set
-	loaded, err := backend.LoadState("TASK-001")
+	loaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load state: %v", err)
+		t.Fatalf("load task: %v", err)
 	}
-	if loaded.Execution == nil || loaded.Execution.PID != 12345 {
-		t.Fatalf("executor fields not set properly: %+v", loaded.Execution)
+	if loaded.ExecutorPID != 12345 {
+		t.Fatalf("executor fields not set properly: expected PID 12345, got %d", loaded.ExecutorPID)
 	}
 
 	// Step 3: Someone updates task metadata via SaveTask (e.g., CLI edit, API update)
 	// This should NOT clear the executor fields!
-	task1.Title = "Updated Title"
-	task1.Description = "Added description"
-	if err := backend.SaveTask(task1); err != nil {
+	loaded.Title = "Updated Title"
+	loaded.Description = "Added description"
+	if err := backend.SaveTask(loaded); err != nil {
 		t.Fatalf("update task: %v", err)
 	}
 
 	// Step 4: Verify executor fields are STILL SET after SaveTask
-	loaded, err = backend.LoadState("TASK-001")
+	reloaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("load state after task update: %v", err)
+		t.Fatalf("load task after update: %v", err)
 	}
 
 	// This is the critical assertion that was failing before TASK-249 fix
-	if loaded.Execution == nil {
-		t.Fatal("REGRESSION: SaveTask overwrote executor fields - ExecutionInfo is nil (causes false orphan detection)")
+	if reloaded.ExecutorPID != 12345 {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorPID: expected 12345, got %d", reloaded.ExecutorPID)
 	}
-	if loaded.Execution.PID != 12345 {
-		t.Errorf("REGRESSION: SaveTask overwrote ExecutorPID: expected 12345, got %d", loaded.Execution.PID)
-	}
-	if loaded.Execution.Hostname != "worker-1" {
-		t.Errorf("REGRESSION: SaveTask overwrote ExecutorHostname: expected 'worker-1', got %s", loaded.Execution.Hostname)
+	if reloaded.ExecutorHostname != "worker-1" {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorHostname: expected 'worker-1', got %s", reloaded.ExecutorHostname)
 	}
 
 	// Verify task metadata was updated correctly
-	loadedTask, err := backend.LoadTask("TASK-001")
-	if err != nil {
-		t.Fatalf("load task: %v", err)
-	}
-	if loadedTask.Title != "Updated Title" {
-		t.Errorf("expected title to be updated to 'Updated Title', got %s", loadedTask.Title)
-	}
-}
-
-// TestSaveTask_PreservesStateStatus verifies that SaveTask preserves StateStatus field.
-// This tests the existing behavior along with the new executor field preservation.
-func TestSaveTask_PreservesStateStatus(t *testing.T) {
-	t.Parallel()
-	backend, tmpDir := setupTestDB(t)
-	defer teardownTestDB(t, backend, tmpDir)
-
-	// Create task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("save task: %v", err)
-	}
-
-	// Set state status via SaveState
-	s := &state.State{
-		TaskID:       "TASK-001",
-		CurrentPhase: "test",
-		Status:       state.StatusFailed, // Important: state status is "failed"
-		StartedAt:    time.Now(),
-		Phases:       make(map[string]*state.PhaseState),
-	}
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("save state: %v", err)
-	}
-
-	// Update task metadata
-	task1.Title = "Updated Task"
-	if err := backend.SaveTask(task1); err != nil {
-		t.Fatalf("update task: %v", err)
-	}
-
-	// Verify state status is preserved
-	loaded, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("load state: %v", err)
-	}
-	if loaded.Status != state.StatusFailed {
-		t.Errorf("StateStatus not preserved: expected 'failed', got %s", loaded.Status)
+	if reloaded.Title != "Updated Title" {
+		t.Errorf("expected title to be updated to 'Updated Title', got %s", reloaded.Title)
 	}
 }
 

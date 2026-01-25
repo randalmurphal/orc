@@ -17,13 +17,21 @@ import (
 // handleGetState returns task execution state.
 func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := s.backend.LoadState(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
-		s.jsonError(w, "state not found", http.StatusNotFound)
+		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
-	s.jsonResponse(w, st)
+	// Return execution state in the format expected by the frontend
+	s.jsonResponse(w, map[string]any{
+		"task_id":       t.ID,
+		"current_phase": t.CurrentPhase,
+		"phases":        t.Execution.Phases,
+		"gates":         t.Execution.Gates,
+		"cost":          t.Execution.Cost,
+		"retry_context": t.Execution.RetryContext,
+	})
 }
 
 // handleGetPlan returns task plan (dynamically generated from task weight).
@@ -45,22 +53,23 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 // handleGetSession returns session information for a task.
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	st, err := s.backend.LoadState(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
-	if st.Session == nil {
-		s.jsonResponse(w, map[string]any{"session": nil})
-		return
-	}
-
-	s.jsonResponse(w, st.Session)
+	// Session info is now embedded in the task execution state
+	// Return minimal session info based on available execution data
+	s.jsonResponse(w, map[string]any{
+		"task_id":       t.ID,
+		"current_phase": t.CurrentPhase,
+		"status":        t.Status,
+	})
 }
 
 // handleGetTokens returns token usage and cost for a task.
-// Prefers DB-aggregated metrics when available, falls back to state.
+// Prefers DB-aggregated metrics when available, falls back to task execution state.
 func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -69,8 +78,8 @@ func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 		pdb := dbBackend.DB()
 		usage, err := pdb.GetTaskTokenUsage(id)
 		if err != nil {
-			// Log DB error but fall through to state-based fallback
-			s.logger.Debug("db token lookup failed, using state fallback", "task", id, "error", err)
+			// Log DB error but fall through to task-based fallback
+			s.logger.Debug("db token lookup failed, using task fallback", "task", id, "error", err)
 		} else if usage.MessageCount > 0 {
 			s.jsonResponse(w, map[string]any{
 				"input_tokens":          usage.TotalInput,
@@ -83,16 +92,27 @@ func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fall back to state-based tokens (legacy or running tasks)
-	st, err := s.backend.LoadState(id)
+	// Fall back to task execution state tokens
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
+	// Aggregate tokens from all phases
+	var totalInput, totalOutput int
+	for _, ps := range t.Execution.Phases {
+		totalInput += ps.Tokens.InputTokens
+		totalOutput += ps.Tokens.OutputTokens
+	}
+
 	s.jsonResponse(w, map[string]any{
-		"tokens": st.Tokens,
-		"cost":   st.Cost,
+		"tokens": map[string]any{
+			"input_tokens":  totalInput,
+			"output_tokens": totalOutput,
+			"total_tokens":  totalInput + totalOutput,
+		},
+		"cost": t.Execution.Cost,
 	})
 }
 
@@ -130,44 +150,47 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Load all states
-	states, err := s.backend.LoadAllStates()
+	// Load all tasks with execution state
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
-		s.jsonError(w, "failed to load task states", http.StatusInternalServerError)
+		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
 	}
 
-	// Aggregate costs
+	// Aggregate costs from task execution state
 	var totalCost float64
 	var totalInputTokens, totalOutputTokens int
 	taskCount := 0
 	taskCosts := make([]map[string]any, 0)
 	phaseCosts := make(map[string]float64)
 
-	for _, st := range states {
+	for _, t := range tasks {
 		// Filter by time range if specified
-		if !since.IsZero() && st.StartedAt.Before(since) {
+		if !since.IsZero() && t.StartedAt.Before(since) {
 			continue
 		}
 
-		totalCost += st.Cost.TotalCostUSD
-		totalInputTokens += st.Tokens.InputTokens
-		totalOutputTokens += st.Tokens.OutputTokens
+		// Aggregate tokens from all phases
+		var taskInput, taskOutput int
+		for phaseID, ps := range t.Execution.Phases {
+			taskInput += ps.Tokens.InputTokens
+			taskOutput += ps.Tokens.OutputTokens
+			// Phase costs are not tracked per-phase in new model, skip
+			_ = phaseID
+		}
+
+		totalCost += t.Execution.Cost.TotalCostUSD
+		totalInputTokens += taskInput
+		totalOutputTokens += taskOutput
 		taskCount++
 
 		// Track per-task cost
 		taskCosts = append(taskCosts, map[string]any{
-			"task_id":    st.TaskID,
-			"cost_usd":   st.Cost.TotalCostUSD,
-			"tokens":     st.Tokens.TotalTokens,
-			"started_at": st.StartedAt,
-			"status":     st.Status,
+			"task_id":    t.ID,
+			"cost_usd":   t.Execution.Cost.TotalCostUSD,
+			"tokens":     taskInput + taskOutput,
+			"started_at": t.StartedAt,
 		})
-
-		// Aggregate phase costs
-		for phase, cost := range st.Cost.PhaseCosts {
-			phaseCosts[phase] += cost
-		}
 	}
 
 	// Check budget threshold from config
@@ -211,30 +234,25 @@ func (s *Server) GetSessionMetrics() map[string]any {
 
 	// Skip backend queries if not available (e.g., in tests)
 	if s.backend != nil {
-		// Count running tasks
+		// Load all tasks - use for both running count and cost/tokens
 		tasks, err := s.backend.LoadAllTasks()
 		if err != nil {
 			s.logger.Warn("failed to load tasks for session metrics", "error", err)
 		} else {
+			// Only count today's usage
+			today := time.Now().UTC().Truncate(24 * time.Hour)
 			for _, t := range tasks {
 				if t.Status == task.StatusRunning {
 					tasksRunning++
 				}
-			}
-		}
 
-		// Load today's aggregated state data for cost/tokens
-		states, err := s.backend.LoadAllStates()
-		if err != nil {
-			s.logger.Warn("failed to load states for session metrics", "error", err)
-		} else {
-			// Only count today's usage
-			today := time.Now().UTC().Truncate(24 * time.Hour)
-			for _, st := range states {
-				if st.StartedAt.After(today) || st.StartedAt.Equal(today) {
-					totalCost += st.Cost.TotalCostUSD
-					totalInputTokens += st.Tokens.InputTokens
-					totalOutputTokens += st.Tokens.OutputTokens
+				// Aggregate cost/tokens for tasks started today
+				if t.StartedAt.After(today) || t.StartedAt.Equal(today) {
+					totalCost += t.Execution.Cost.TotalCostUSD
+					for _, ps := range t.Execution.Phases {
+						totalInputTokens += ps.Tokens.InputTokens
+						totalOutputTokens += ps.Tokens.OutputTokens
+					}
 				}
 			}
 		}

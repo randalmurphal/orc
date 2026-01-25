@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -70,9 +69,8 @@ func TestInterruptHandler(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	tsk := task.New("TASK-001", "Test task")
-	st := state.New("TASK-001")
 
-	h := NewInterruptHandler(backend, tsk, st)
+	h := NewInterruptHandler(backend, tsk)
 	defer h.Cleanup()
 
 	if h.Context() == nil {
@@ -139,29 +137,34 @@ func TestGracefulShutdown(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	tsk := &task.Task{ID: "TASK-001", Title: "Test task", Weight: task.WeightSmall}
-	// Save task to backend first (required for SaveState to work)
+	// Initialize execution state
+	tsk.Execution.Phases = make(map[string]*task.PhaseState)
+	tsk.Execution.StartPhase("implement")
+
+	// Save task to backend first
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
-	st := state.New("TASK-001")
-	st.StartPhase("implement")
-
-	// GracefulShutdown saves state and task
-	err := GracefulShutdown(backend, tsk, st, "implement")
+	// GracefulShutdown saves state via task and updates task status
+	err := GracefulShutdown(backend, tsk, "implement")
 
 	// Should succeed (creates directories as needed)
 	if err != nil {
 		t.Errorf("GracefulShutdown failed: %v", err)
 	}
 
-	// Verify task status was updated to blocked
+	// Verify task status was updated to blocked (task.Status is the single source of truth)
 	if tsk.Status != task.StatusBlocked {
 		t.Errorf("expected task status %v, got %v", task.StatusBlocked, tsk.Status)
 	}
 
-	// Verify state was interrupted
-	if st.Status != state.StatusInterrupted {
-		t.Errorf("expected state status %v, got %v", state.StatusInterrupted, st.Status)
+	// Verify phase was interrupted in execution state
+	ps := tsk.Execution.Phases["implement"]
+	if ps == nil {
+		t.Fatal("expected implement phase to exist after interrupt")
+	}
+	if ps.Status != task.PhaseStatusInterrupted {
+		t.Errorf("expected phase status %v, got %v", task.PhaseStatusInterrupted, ps.Status)
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // PublishHelper wraps event publishing with nil-safety and convenience methods.
@@ -111,7 +111,7 @@ func (ep *PublishHelper) Error(taskID, phase, message string, fatal bool) {
 }
 
 // State publishes a full state update event.
-func (ep *PublishHelper) State(taskID string, s *state.State) {
+func (ep *PublishHelper) State(taskID string, s *task.ExecutionState) {
 	if s == nil {
 		return
 	}

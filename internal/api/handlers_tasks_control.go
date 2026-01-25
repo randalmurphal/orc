@@ -263,9 +263,16 @@ func (s *Server) handleStream(w http.ResponseWriter, r *http.Request) {
 		close(ch)
 	}()
 
-	// Send initial state
-	if st, err := s.backend.LoadState(id); err == nil {
-		data, _ := json.Marshal(st)
+	// Send initial state from task execution
+	if t, err := s.backend.LoadTask(id); err == nil {
+		stateData := map[string]any{
+			"task_id":       t.ID,
+			"current_phase": t.CurrentPhase,
+			"phases":        t.Execution.Phases,
+			"gates":         t.Execution.Gates,
+			"cost":          t.Execution.Cost,
+		}
+		data, _ := json.Marshal(stateData)
 		_, _ = fmt.Fprintf(w, "event: state\ndata: %s\n\n", data)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()

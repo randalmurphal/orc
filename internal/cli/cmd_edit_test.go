@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -30,86 +29,80 @@ func createEditTestBackend(t *testing.T) (storage.Backend, string) {
 func TestRegeneratePlanForWeight(t *testing.T) {
 	backend, _ := createEditTestBackend(t)
 
-	// Create and save a task
+	// Create and save a task with initial execution progress
 	tk := task.New("TASK-001", "Test task")
 	tk.Weight = task.WeightLarge
 	tk.Status = task.StatusPlanned
+	tk.CurrentPhase = "implement"
+	tk.Execution = task.InitExecutionState()
+	tk.Execution.CurrentIteration = 2
+	tk.Execution.Phases["implement"] = &task.PhaseState{
+		Status: task.PhaseStatusCompleted,
+	}
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Create initial state with some progress
-	initialState := state.New("TASK-001")
-	initialState.CurrentPhase = "implement"
-	initialState.Status = state.StatusRunning
-	initialState.Phases["implement"] = &state.PhaseState{
-		Status: state.StatusCompleted,
-	}
-	if err := backend.SaveState(initialState); err != nil {
-		t.Fatalf("failed to save initial state: %v", err)
-	}
-
-	// Regenerate plan for weight change (resets state)
+	// Regenerate plan for weight change (resets execution state)
 	oldWeight := task.WeightSmall
 	if err := regeneratePlanForWeight(backend, tk, oldWeight); err != nil {
 		t.Fatalf("regeneratePlanForWeight() error = %v", err)
 	}
 
-	// Verify state was reset
-	newState, err := backend.LoadState("TASK-001")
-	if err != nil {
-		t.Fatalf("failed to load new state: %v", err)
-	}
-
-	if newState.Status != state.StatusPending {
-		t.Errorf("state status = %s, want %s", newState.Status, state.StatusPending)
-	}
-
-	if newState.CurrentPhase != "" {
-		t.Errorf("state current phase = %q, want empty", newState.CurrentPhase)
-	}
-
-	if len(newState.Phases) != 0 {
-		t.Errorf("state phases = %d, want 0", len(newState.Phases))
-	}
-
-	// Verify task status was set to planned
+	// Verify execution state was reset
 	reloadedTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
+	if reloadedTask.CurrentPhase != "" {
+		t.Errorf("task current phase = %q, want empty", reloadedTask.CurrentPhase)
+	}
+
+	if len(reloadedTask.Execution.Phases) != 0 {
+		t.Errorf("execution phases = %d, want 0", len(reloadedTask.Execution.Phases))
+	}
+
+	if reloadedTask.Execution.CurrentIteration != 0 {
+		t.Errorf("current iteration = %d, want 0", reloadedTask.Execution.CurrentIteration)
+	}
+
+	// Verify task status was set to planned
 	if reloadedTask.Status != task.StatusPlanned {
 		t.Errorf("task status = %s, want %s", reloadedTask.Status, task.StatusPlanned)
 	}
 }
 
-func TestRegeneratePlanForWeight_NoExistingState(t *testing.T) {
+func TestRegeneratePlanForWeight_NoExistingExecutionState(t *testing.T) {
 	backend, _ := createEditTestBackend(t)
 
-	// Create and save a task
+	// Create and save a task without execution state
 	tk := task.New("TASK-001", "Test task")
 	tk.Weight = task.WeightMedium
+	// Execution state is uninitialized (zero value)
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// No state exists yet
-
-	// Regenerate plan
+	// Regenerate plan - should initialize execution state
 	oldWeight := task.WeightSmall
 	if err := regeneratePlanForWeight(backend, tk, oldWeight); err != nil {
 		t.Fatalf("regeneratePlanForWeight() error = %v", err)
 	}
 
-	// Verify state was created
-	newState, err := backend.LoadState("TASK-001")
+	// Verify task was updated with reset execution state
+	reloadedTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
-		t.Fatalf("failed to load new state: %v", err)
+		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if newState.Status != state.StatusPending {
-		t.Errorf("state status = %s, want %s", newState.Status, state.StatusPending)
+	if reloadedTask.ID != "TASK-001" {
+		t.Errorf("task ID = %q, want %q", reloadedTask.ID, "TASK-001")
+	}
+
+	// Execution state should be reset to defaults
+	if reloadedTask.CurrentPhase != "" {
+		t.Errorf("current phase = %q, want empty", reloadedTask.CurrentPhase)
 	}
 }
 

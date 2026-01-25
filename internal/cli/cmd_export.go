@@ -19,7 +19,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -58,10 +57,9 @@ type ExportData struct {
 	Version    int       `yaml:"version"`
 	ExportedAt time.Time `yaml:"exported_at"`
 
-	// Core task data
-	Task  *task.Task   `yaml:"task"`
-	Spec  string       `yaml:"spec,omitempty"`
-	State *state.State `yaml:"state,omitempty"`
+	// Core task data (includes execution state in Task.Execution)
+	Task *task.Task `yaml:"task"`
+	Spec string     `yaml:"spec,omitempty"`
 
 	// Execution history
 	Transcripts   []storage.Transcript   `yaml:"transcripts,omitempty"`
@@ -519,33 +517,17 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	if export.Task.Status == task.StatusRunning {
 		wasRunning = true
 		export.Task.Status = task.StatusPaused
+		// Clear executor info - it's invalid on this machine
+		export.Task.ExecutorPID = 0
+		export.Task.ExecutorHostname = ""
 		// Update timestamp to reflect this change
 		export.Task.UpdatedAt = time.Now()
-
-		// Also update state if present
-		if export.State != nil {
-			export.State.Status = state.StatusInterrupted
-			// Clear execution info - it's invalid on this machine
-			export.State.Execution = nil
-		}
+		// Note: task.Status is the single source of truth - no state.Status update needed
 	}
 
-	// Save task
+	// Save task (includes execution state in Task.Execution)
 	if err := backend.SaveTask(export.Task); err != nil {
 		return fmt.Errorf("save task: %w", err)
-	}
-
-	// Save state if present
-	if export.State != nil {
-		if err := backend.SaveState(export.State); err != nil {
-			// State is critical for active tasks - fail if we can't save it
-			// Note: wasRunning tracks if task was originally running (now paused)
-			if wasRunning || export.Task.Status == task.StatusPaused {
-				return fmt.Errorf("save state for active task: %w", err)
-			}
-			// Non-fatal for completed/failed tasks
-			fmt.Fprintf(os.Stderr, "Warning: could not save state: %v\n", err)
-		}
 	}
 
 	// Import transcripts if present (with deduplication by MessageUUID)
@@ -2147,12 +2129,14 @@ func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opt
 }
 
 // buildExportDataWithBackend creates ExportData for a task using the backend.
-// When withAll is true, includes all data (state, transcripts, comments, attachments, etc.)
+// The task already contains execution state in Task.Execution (loaded by backend.LoadTask).
+// withState controls whether to include gate decisions (for completeness).
+// withTranscripts controls whether to include conversation history.
 func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState, withTranscripts bool) *ExportData {
 	export := &ExportData{
 		Version:    ExportFormatVersion,
 		ExportedAt: time.Now(),
-		Task:       t,
+		Task:       t, // Task.Execution contains the execution state
 	}
 
 	// Always load spec
@@ -2160,13 +2144,8 @@ func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState
 		export.Spec = spec
 	}
 
-	// Load state if requested
+	// Load gate decisions if state export is requested
 	if withState {
-		if s, err := backend.LoadState(t.ID); err == nil {
-			export.State = s
-		}
-
-		// Also load gate decisions when exporting state
 		if decisions, err := backend.ListGateDecisions(t.ID); err == nil {
 			export.GateDecisions = decisions
 		}

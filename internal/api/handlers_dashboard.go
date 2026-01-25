@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -99,24 +98,19 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Batch load all states once (3 queries total instead of 3N)
-	allStates, err := s.backend.LoadAllStates()
-	if err != nil {
-		// Non-fatal: continue without token/cost data
-		allStates = nil
-	}
-	statesByID := make(map[string]*state.State, len(allStates))
-	for _, st := range allStates {
-		statesByID[st.TaskID] = st
+	// Build execution state map from tasks (tasks now contain embedded execution state)
+	tasksByID := make(map[string]*task.Task, len(tasks))
+	for _, t := range tasks {
+		tasksByID[t.ID] = t
 	}
 
 	// Calculate current period stats
-	stats := s.calculatePeriodStats(tasks, statesByID, periodStart, now, today)
+	stats := s.calculatePeriodStats(tasks, tasksByID, periodStart, now, today)
 	stats.Period = period
 
 	// Calculate previous period stats for comparison (if not "all")
 	if period != "all" {
-		prevStats := s.calculatePeriodStats(tasks, statesByID, prevPeriodStart, prevPeriodEnd, today)
+		prevStats := s.calculatePeriodStats(tasks, tasksByID, prevPeriodStart, prevPeriodEnd, today)
 		stats.PreviousPeriod = &PreviousPeriodData{
 			Completed:          prevStats.Completed,
 			Tokens:             prevStats.Tokens,
@@ -135,8 +129,8 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 // calculatePeriodStats computes statistics for a given time period.
 // For current period (periodEnd == now), include current status counts.
 // For historical periods, only compute completion-based metrics.
-// Uses pre-loaded statesByID map to avoid N+1 queries.
-func (s *Server) calculatePeriodStats(tasks []*task.Task, statesByID map[string]*state.State, periodStart, periodEnd, today time.Time) DashboardStats {
+// Uses pre-loaded tasksByID map to avoid N+1 queries.
+func (s *Server) calculatePeriodStats(tasks []*task.Task, tasksByID map[string]*task.Task, periodStart, periodEnd, today time.Time) DashboardStats {
 	stats := DashboardStats{}
 	isCurrentPeriod := periodEnd.After(time.Now().Add(-1 * time.Second)) // Check if this is the current period
 
@@ -183,20 +177,20 @@ func (s *Server) calculatePeriodStats(tasks []*task.Task, statesByID map[string]
 					completedTaskTimes = append(completedTaskTimes, duration)
 				}
 
-				// Look up state from pre-loaded map (O(1) instead of 3 DB queries)
-				if st, ok := statesByID[t.ID]; ok && st != nil {
-					// Sum tokens from all phases
+				// Look up task from pre-loaded map (O(1) instead of DB queries)
+				if tsk, ok := tasksByID[t.ID]; ok && tsk != nil {
+					// Sum tokens from all phases in task's execution state
 					// Note: DB only stores InputTokens and OutputTokens per phase
 					// CacheCreation and CacheRead tokens are not persisted at phase level
 					var inputTokens, outputTokens int
-					for _, phase := range st.Phases {
+					for _, phase := range tsk.Execution.Phases {
 						inputTokens += phase.Tokens.InputTokens
 						outputTokens += phase.Tokens.OutputTokens
 					}
 
 					stats.Tokens += int64(inputTokens + outputTokens)
 					// Cache tokens not available from DB phase storage
-					stats.Cost += st.Cost.TotalCostUSD
+					stats.Cost += tsk.Execution.Cost.TotalCostUSD
 				}
 			}
 		}

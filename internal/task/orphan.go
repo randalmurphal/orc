@@ -12,9 +12,9 @@ import (
 // A live PID always indicates a healthy task, regardless of heartbeat staleness.
 const StaleHeartbeatThreshold = 15 * time.Minute
 
-// isPIDAlive checks if a process with the given PID exists.
+// IsPIDAlive checks if a process with the given PID exists.
 // On Unix-like systems, this sends signal 0 to check existence.
-func isPIDAlive(pid int) bool {
+func IsPIDAlive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
@@ -51,7 +51,7 @@ func (t *Task) CheckOrphaned() (bool, string) {
 	}
 
 	// Primary check: Is the executor process alive?
-	if !isPIDAlive(t.ExecutorPID) {
+	if !IsPIDAlive(t.ExecutorPID) {
 		// PID is dead - task is definitely orphaned
 		// Use heartbeat to provide additional context in the reason
 		if t.LastHeartbeat != nil && time.Since(*t.LastHeartbeat) > StaleHeartbeatThreshold {

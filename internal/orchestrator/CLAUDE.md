@@ -86,9 +86,9 @@ Priority levels:
 ## Worker Lifecycle
 
 1. `SpawnWorker`: Creates worktree, starts claude process
-2. Worker creates ralph state file with phase prompt
+2. Worker updates task execution state with phase prompt
 3. Claude runs with `--dangerously-skip-permissions`
-4. On completion: ralph state removed, phase marked complete
+4. On completion: phase marked complete in task execution state
 5. Worker continues to next phase or marks task complete
 6. Worker self-removes from pool map (immediate capacity release)
 7. Cleanup: worktree removed (if configured)

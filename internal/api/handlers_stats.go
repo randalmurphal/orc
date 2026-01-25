@@ -9,7 +9,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -378,28 +377,22 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 		// Categorize by outcome
 		switch t.Status {
 		case task.StatusCompleted:
-			// Load state to check for retries
-			st, err := s.backend.LoadState(t.ID)
-			if err != nil {
-				// Can't determine retry status, count as completed
-				s.logger.Warn("failed to load state for outcome check", "task", t.ID, "error", err)
-				completed++
-				continue
-			}
+			// Check execution state for retries (execution state is embedded in task)
+			exec := &t.Execution
 
 			// Check if any phase has status "failed" (indicating a retry occurred)
 			hasRetry := false
-			for _, ps := range st.Phases {
+			for _, ps := range exec.Phases {
 				// A phase that failed and was later retried will have status "failed"
 				// in the phase history even if task ultimately completed
-				if ps.Status == state.StatusFailed && ps.Error != "" {
+				if ps.Status == task.PhaseStatusFailed && ps.Error != "" {
 					hasRetry = true
 					break
 				}
 			}
 
 			// Also check if there's retry context
-			if st.RetryContext != nil {
+			if exec.RetryContext != nil {
 				hasRetry = true
 			}
 
@@ -538,33 +531,15 @@ func (s *Server) handleGetTopInitiatives(w http.ResponseWriter, r *http.Request)
 	})
 
 	for _, t := range allTasks {
-		// Load state to get token and cost data
-		st, err := s.backend.LoadState(t.ID)
-		if err != nil {
-			s.logger.Warn("failed to load state for top initiatives", "task", t.ID, "error", err)
-			// Continue without token/cost data for this task
-			taskStatsMap[t.ID] = struct {
-				totalTokens  int
-				totalCostUSD float64
-				isCompleted  bool
-				completedAt  *time.Time
-			}{
-				totalTokens:  0,
-				totalCostUSD: 0,
-				isCompleted:  t.Status == task.StatusCompleted,
-				completedAt:  t.CompletedAt,
-			}
-			continue
-		}
-
+		// Get token and cost data from task's execution state (embedded in task)
 		taskStatsMap[t.ID] = struct {
 			totalTokens  int
 			totalCostUSD float64
 			isCompleted  bool
 			completedAt  *time.Time
 		}{
-			totalTokens:  st.Tokens.TotalTokens,
-			totalCostUSD: st.Cost.TotalCostUSD,
+			totalTokens:  t.Execution.Tokens.TotalTokens,
+			totalCostUSD: t.Execution.Cost.TotalCostUSD,
 			isCompleted:  t.Status == task.StatusCompleted,
 			completedAt:  t.CompletedAt,
 		}
@@ -942,22 +917,17 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Batch load all states once (3 queries total instead of 3N)
-	allStates, err := s.backend.LoadAllStates()
-	if err != nil {
-		// Non-fatal: continue without token/cost data
-		allStates = nil
-	}
-	statesByID := make(map[string]*state.State, len(allStates))
-	for _, st := range allStates {
-		statesByID[st.TaskID] = st
+	// Build task map for accessing execution state (tasks now contain embedded execution state)
+	tasksByID := make(map[string]*task.Task, len(allTasks))
+	for _, t := range allTasks {
+		tasksByID[t.ID] = t
 	}
 
 	// Calculate stats for both periods
-	// Use calculatePeriodStats from handlers_dashboard.go (requires 5 params: tasks, statesByID, periodStart, periodEnd, today)
+	// Use calculatePeriodStats from handlers_dashboard.go (requires 5 params: tasks, tasksByID, periodStart, periodEnd, today)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	currentDashStats := s.calculatePeriodStats(allTasks, statesByID, currentStart, currentEnd, today)
-	previousDashStats := s.calculatePeriodStats(allTasks, statesByID, previousStart, previousEnd, today)
+	currentDashStats := s.calculatePeriodStats(allTasks, tasksByID, currentStart, currentEnd, today)
+	previousDashStats := s.calculatePeriodStats(allTasks, tasksByID, previousStart, previousEnd, today)
 
 	// Convert DashboardStats to PeriodStats for response
 	currentStats := PeriodStats{

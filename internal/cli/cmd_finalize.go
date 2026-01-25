@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"log/slog"
 
@@ -19,9 +20,16 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// finalizeElapsed calculates elapsed time since task execution started.
+func finalizeElapsed(t *task.Task) time.Duration {
+	if t.StartedAt == nil {
+		return 0
+	}
+	return time.Since(*t.StartedAt)
+}
 
 // newFinalizeCmd creates the finalize command
 func newFinalizeCmd() *cobra.Command {
@@ -80,12 +88,6 @@ Example:
 			// Check if task is in a valid state for finalize
 			if err := validateFinalizeState(t); err != nil {
 				return err
-			}
-
-			// Load state
-			s, err := backend.LoadState(id)
-			if err != nil {
-				return fmt.Errorf("load state: %w", err)
 			}
 
 			// Load config
@@ -150,10 +152,11 @@ Example:
 				executor.WithFinalizeTaskDir(task.TaskDirIn(projectRoot, id)),
 				executor.WithFinalizeBackend(backend),
 				executor.WithFinalizeClaudePath(executor.ResolveClaudePath("claude")),
-				executor.WithFinalizeStateUpdater(func(updatedState *state.State) {
-					// Persist state updates during finalization
-					if saveErr := backend.SaveState(updatedState); saveErr != nil {
-						slog.Warn("failed to save state update", "error", saveErr)
+				executor.WithFinalizeExecutionUpdater(func(exec *task.ExecutionState) {
+					// Persist execution state updates during finalization
+					t.Execution = *exec
+					if saveErr := backend.SaveTask(t); saveErr != nil {
+						slog.Warn("failed to save task update", "error", saveErr)
 					}
 				}),
 			}
@@ -169,14 +172,11 @@ Example:
 			finalizeExec := executor.NewFinalizeExecutor(opts...)
 
 			// Execute finalize phase
-			_, err = finalizeExec.Execute(ctx, t, finalizePhase, s)
+			_, err = finalizeExec.Execute(ctx, t, finalizePhase, &t.Execution)
 			if err != nil {
 				if ctx.Err() != nil {
-					// Update task and state status for clean interrupt
-					s.InterruptPhase("finalize")
-					if saveErr := backend.SaveState(s); saveErr != nil {
-						disp.Warning(fmt.Sprintf("failed to save state on interrupt: %v", saveErr))
-					}
+					// Update task and execution state for clean interrupt
+					t.Execution.InterruptPhase("finalize")
 					t.Status = task.StatusBlocked
 					if saveErr := backend.SaveTask(t); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
@@ -190,7 +190,7 @@ Example:
 					// Reload task to get updated metadata with conflict info
 					t, _ = backend.LoadTask(id)
 					blockedCtx := buildBlockedContext(t, cfg)
-					disp.TaskBlockedWithContext(s.Tokens.TotalTokens, s.Elapsed(), "sync conflict", blockedCtx)
+					disp.TaskBlockedWithContext(t.Execution.Tokens.TotalTokens, finalizeElapsed(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -198,13 +198,16 @@ Example:
 				return err
 			}
 
+			// Reload task for final display (execution state is in task.Execution)
+			t, _ = backend.LoadTask(id)
+
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
 			if t.Branch != "" {
 				fileStats = getFinalizeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
-			disp.TaskComplete(s.Tokens.TotalTokens, s.Elapsed(), fileStats)
+			disp.TaskComplete(t.Execution.Tokens.TotalTokens, finalizeElapsed(t), fileStats)
 			return nil
 		},
 	}

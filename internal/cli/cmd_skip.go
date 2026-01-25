@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newSkipCmd creates the skip command
@@ -43,24 +43,23 @@ Example:
 				return fmt.Errorf("--phase flag is required")
 			}
 
-			// Load state
-			s, err := backend.LoadState(id)
+			// Load task (execution state is in task.Execution)
+			t, err := backend.LoadTask(id)
 			if err != nil {
-				// State might not exist, create new one
-				s = state.New(id)
+				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Check if phase is already completed
-			if ps := s.Phases[phaseID]; ps != nil && ps.Status == state.StatusCompleted {
+			if ps := t.Execution.Phases[phaseID]; ps != nil && ps.Status == task.PhaseStatusCompleted {
 				return fmt.Errorf("phase %s is already completed", phaseID)
 			}
 
 			// Skip the phase
-			s.SkipPhase(phaseID, reason)
+			t.Execution.SkipPhase(phaseID, reason)
 
-			// Save state
-			if err := backend.SaveState(s); err != nil {
-				return fmt.Errorf("save state: %w", err)
+			// Save task (includes execution state)
+			if err := backend.SaveTask(t); err != nil {
+				return fmt.Errorf("save task: %w", err)
 			}
 
 			fmt.Printf("Phase %s skipped", phaseID)

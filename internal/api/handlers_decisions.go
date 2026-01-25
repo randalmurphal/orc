@@ -91,25 +91,24 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load state to record decision
-	st, err := s.backend.LoadState(decision.TaskID)
-	if err != nil {
-		s.jsonError(w, "state not found", http.StatusNotFound)
+	// Verify phase matches current task phase to prevent stale decisions
+	if t.CurrentPhase != decision.Phase {
+		s.jsonError(w, fmt.Sprintf("decision phase mismatch: task is at phase %q, decision is for phase %q", t.CurrentPhase, decision.Phase), http.StatusConflict)
 		return
 	}
 
-	// Verify phase matches current state to prevent stale decisions
-	if st.CurrentPhase != decision.Phase {
-		s.jsonError(w, fmt.Sprintf("decision phase mismatch: task is at phase %q, decision is for phase %q", st.CurrentPhase, decision.Phase), http.StatusConflict)
-		return
-	}
+	// Record gate decision in task execution state
+	t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
+		Phase:     decision.Phase,
+		GateType:  decision.GateType,
+		Approved:  req.Approved,
+		Reason:    req.Reason,
+		Timestamp: time.Now(),
+	})
 
-	// Record gate decision in state
-	st.RecordGateDecision(decision.Phase, decision.GateType, req.Approved, req.Reason)
-
-	// Save state
-	if err := s.backend.SaveState(st); err != nil {
-		s.jsonError(w, fmt.Sprintf("failed to save state: %v", err), http.StatusInternalServerError)
+	// Save task
+	if err := s.backend.SaveTask(t); err != nil {
+		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
 

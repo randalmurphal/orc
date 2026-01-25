@@ -9,7 +9,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -220,9 +219,9 @@ func (b *emptyBackend) GetNextTaskID() (string, error)      { return "", nil }
 func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
 	return nil, nil
 }
-func (b *emptyBackend) SaveState(*state.State) error           { return nil }
-func (b *emptyBackend) LoadState(string) (*state.State, error) { return nil, nil }
-func (b *emptyBackend) LoadAllStates() ([]*state.State, error) { return nil, nil }
+func (b *emptyBackend) UpdateTaskHeartbeat(string) error          { return nil }
+func (b *emptyBackend) SetTaskExecutor(string, int, string) error { return nil }
+func (b *emptyBackend) ClearTaskExecutor(string) error            { return nil }
 // Phase output methods
 func (b *emptyBackend) SavePhaseOutput(*storage.PhaseOutputInfo) error                     { return nil }
 func (b *emptyBackend) GetPhaseOutput(string, string) (*storage.PhaseOutputInfo, error)   { return nil, nil }

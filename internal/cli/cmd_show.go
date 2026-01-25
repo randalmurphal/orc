@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -69,10 +68,9 @@ Examples:
 
 			// Create plan dynamically from task weight
 			p := createShowPlanForWeight(id, t.Weight)
-			s, _ := backend.LoadState(id)
 
-			// Merge phase states from execution state into the plan
-			mergePhaseStates(p, s)
+			// Merge phase states from task's execution state into the plan
+			mergePhaseStates(p, t)
 
 			// --full enables everything
 			if showFull {
@@ -96,20 +94,18 @@ Examples:
 			// JSON output
 			if jsonOut {
 				result := map[string]any{
-					"task":   t,
-					"plan":   p,
-					"status": t.Status,
+					"task":      t,
+					"plan":      p,
+					"status":    t.Status,
+					"execution": t.Execution,
 				}
-				if s != nil {
-					result["state"] = s
+				if showSession && t.Execution.Session != nil {
+					result["session"] = t.Execution.Session
 				}
-				if showSession && s != nil && s.Session != nil {
-					result["session"] = s.Session
-				}
-				if showCost && s != nil {
+				if showCost {
 					result["cost"] = map[string]any{
-						"tokens": s.Tokens,
-						"cost":   s.Cost,
+						"tokens": t.Execution.Tokens,
+						"cost":   t.Execution.Cost,
 					}
 				}
 				if showSpec {
@@ -166,18 +162,18 @@ Examples:
 			}
 
 			// Print execution state (tokens summary - always shown)
-			if s != nil && s.Tokens.TotalTokens > 0 {
-				fmt.Printf("\nTokens Used: %d\n", s.Tokens.TotalTokens)
+			if t.Execution.Tokens.TotalTokens > 0 {
+				fmt.Printf("\nTokens Used: %d\n", t.Execution.Tokens.TotalTokens)
 			}
 
 			// Print session info if requested
 			if showSession {
-				printSessionInfo(s, id)
+				printSessionInfo(t, id)
 			}
 
 			// Print cost info if requested
 			if showCost {
-				printCostInfo(s, id, period)
+				printCostInfo(t, id, period)
 			}
 
 			// Print spec info if requested
@@ -205,51 +201,46 @@ Examples:
 }
 
 // printSessionInfo displays session information for a task.
-func printSessionInfo(s *state.State, id string) {
+func printSessionInfo(t *task.Task, id string) {
 	fmt.Printf("\nSession\n")
 	fmt.Printf("─────────────────────────\n")
 
-	if s == nil || s.Session == nil {
+	if t.Execution.Session == nil {
 		fmt.Printf("No session information recorded.\n")
 		fmt.Println("Session info is recorded after the task starts running.")
 		return
 	}
 
-	fmt.Printf("Session ID:    %s\n", s.Session.ID)
-	fmt.Printf("Model:         %s\n", s.Session.Model)
-	fmt.Printf("Status:        %s\n", s.Session.Status)
-	fmt.Printf("Turn Count:    %d\n", s.Session.TurnCount)
-	fmt.Printf("Created:       %s\n", s.Session.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Last Activity: %s\n", s.Session.LastActivity.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Session ID:    %s\n", t.Execution.Session.ID)
+	fmt.Printf("Model:         %s\n", t.Execution.Session.Model)
+	fmt.Printf("Status:        %s\n", t.Execution.Session.Status)
+	fmt.Printf("Turn Count:    %d\n", t.Execution.Session.TurnCount)
+	fmt.Printf("Created:       %s\n", t.Execution.Session.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Last Activity: %s\n", t.Execution.Session.LastActivity.Format("2006-01-02 15:04:05"))
 
-	// Show resume hint if session is paused
-	if s.Status == state.StatusPaused || s.Status == state.StatusInterrupted {
+	// Show resume hint if task is paused or blocked (task.Status is single source of truth)
+	if t.Status == task.StatusPaused || t.Status == task.StatusBlocked {
 		fmt.Println()
 		fmt.Printf("💡 To resume: orc resume %s\n", id)
 	}
 }
 
 // printCostInfo displays cost information for a task.
-func printCostInfo(s *state.State, id string, _ string) {
+func printCostInfo(t *task.Task, id string, _ string) {
 	fmt.Printf("\nCost\n")
 	fmt.Printf("─────────────────────────\n")
 
-	if s == nil {
-		fmt.Printf("No cost information recorded.\n")
-		return
-	}
-
-	fmt.Printf("Total Cost:    $%.4f\n", s.Cost.TotalCostUSD)
+	fmt.Printf("Total Cost:    $%.4f\n", t.Execution.Cost.TotalCostUSD)
 	fmt.Println()
 	fmt.Println("Token Usage:")
-	fmt.Printf("  Input:       %d tokens\n", s.Tokens.InputTokens)
-	fmt.Printf("  Output:      %d tokens\n", s.Tokens.OutputTokens)
-	fmt.Printf("  Total:       %d tokens\n", s.Tokens.TotalTokens)
+	fmt.Printf("  Input:       %d tokens\n", t.Execution.Tokens.InputTokens)
+	fmt.Printf("  Output:      %d tokens\n", t.Execution.Tokens.OutputTokens)
+	fmt.Printf("  Total:       %d tokens\n", t.Execution.Tokens.TotalTokens)
 
-	if len(s.Cost.PhaseCosts) > 0 {
+	if len(t.Execution.Cost.PhaseCosts) > 0 {
 		fmt.Println()
 		fmt.Println("Cost by Phase:")
-		for phase, cost := range s.Cost.PhaseCosts {
+		for phase, cost := range t.Execution.Cost.PhaseCosts {
 			fmt.Printf("  %-12s $%.4f\n", phase+":", cost)
 		}
 	}
@@ -446,26 +437,26 @@ func createShowPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
 }
 
 // mergePhaseStates updates plan phase statuses from the execution state.
-func mergePhaseStates(p *executor.Plan, s *state.State) {
-	if s == nil || s.Phases == nil {
+func mergePhaseStates(p *executor.Plan, t *task.Task) {
+	if t.Execution.Phases == nil {
 		return
 	}
 	for i := range p.Phases {
-		ps, ok := s.Phases[p.Phases[i].ID]
+		ps, ok := t.Execution.Phases[p.Phases[i].ID]
 		if !ok {
 			continue
 		}
 		switch ps.Status {
-		case state.StatusCompleted:
+		case task.PhaseStatusCompleted:
 			p.Phases[i].Status = executor.PhaseCompleted
 			p.Phases[i].CommitSHA = ps.CommitSHA
-		case state.StatusFailed:
+		case task.PhaseStatusFailed:
 			p.Phases[i].Status = executor.PhaseFailed
-		case state.StatusSkipped:
+		case task.PhaseStatusSkipped:
 			p.Phases[i].Status = executor.PhaseSkipped
-		case state.StatusRunning:
+		case task.PhaseStatusRunning:
 			p.Phases[i].Status = executor.PhaseRunning
-		case state.StatusPaused, state.StatusInterrupted:
+		case task.PhaseStatusPaused, task.PhaseStatusInterrupted:
 			p.Phases[i].Status = executor.PhasePending // Show as pending when interrupted/paused
 		}
 	}

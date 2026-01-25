@@ -64,11 +64,10 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = pdb.Close() }()
 
-	// Load state to get attempt number from retry context
-	st, _ := s.backend.LoadState(taskID)
+	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if st != nil && st.RetryContext != nil {
-		attemptNumber = st.RetryContext.Attempt + 1
+	if t.Execution.RetryContext != nil {
+		attemptNumber = t.Execution.RetryContext.Attempt + 1
 	}
 
 	// Build retry options
@@ -150,11 +149,10 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load state to get attempt number from retry context
-	st, _ := s.backend.LoadState(taskID)
+	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if st != nil && st.RetryContext != nil {
-		attemptNumber = st.RetryContext.Attempt + 1
+	if t.Execution.RetryContext != nil {
+		attemptNumber = t.Execution.RetryContext.Attempt + 1
 	}
 
 	// Build preview context
@@ -223,11 +221,10 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	// Get transcripts for context
 	transcripts, _ := pdb.GetTranscripts(taskID)
 
-	// Load state to get attempt number from retry context
-	st, _ := s.backend.LoadState(taskID)
+	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if st != nil && st.RetryContext != nil {
-		attemptNumber = st.RetryContext.Attempt + 1
+	if t.Execution.RetryContext != nil {
+		attemptNumber = t.Execution.RetryContext.Attempt + 1
 	}
 
 	// Build comprehensive retry options

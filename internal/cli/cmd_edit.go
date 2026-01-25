@@ -9,7 +9,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -483,33 +482,22 @@ Example:
 	return cmd
 }
 
-// regeneratePlanForWeight resets the state when task weight changes.
+// regeneratePlanForWeight resets the execution state when task weight changes.
 // Plans are created dynamically at execution time from task weight,
 // so we only need to reset the state for re-execution.
 func regeneratePlanForWeight(backend storage.Backend, t *task.Task, _ task.Weight) error {
-	// Reset state to allow re-execution with new weight
-	s, err := backend.LoadState(t.ID)
-	if err != nil {
-		// State doesn't exist, create new one
-		s = state.New(t.ID)
-	} else {
-		// Reset state for fresh execution
-		s.Status = state.StatusPending
-		s.CurrentPhase = ""
-		s.CurrentIteration = 0
-		s.Error = ""
-		s.RetryContext = nil
-		s.Phases = make(map[string]*state.PhaseState)
-	}
-
-	if err := backend.SaveState(s); err != nil {
-		return fmt.Errorf("save state: %w", err)
-	}
+	// Reset execution state for fresh execution
+	// Note: task.Status is the source of truth (updated below)
+	t.CurrentPhase = ""
+	t.Execution.CurrentIteration = 0
+	t.Execution.Error = ""
+	t.Execution.RetryContext = nil
+	t.Execution.Phases = make(map[string]*task.PhaseState)
 
 	// Update task status to planned
 	t.Status = task.StatusPlanned
 	if err := backend.SaveTask(t); err != nil {
-		return fmt.Errorf("update task status: %w", err)
+		return fmt.Errorf("save task: %w", err)
 	}
 
 	return nil

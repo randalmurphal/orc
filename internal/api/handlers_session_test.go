@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -89,28 +88,32 @@ func TestHandleGetSessionMetrics_WithRunningTasks(t *testing.T) {
 	// Create tasks with different statuses
 	tasks := []*task.Task{
 		{
-			ID:     "TASK-001",
-			Title:  "Running task 1",
-			Status: task.StatusRunning,
-			Weight: task.WeightMedium,
+			ID:        "TASK-001",
+			Title:     "Running task 1",
+			Status:    task.StatusRunning,
+			Weight:    task.WeightMedium,
+			Execution: task.InitExecutionState(),
 		},
 		{
-			ID:     "TASK-002",
-			Title:  "Running task 2",
-			Status: task.StatusRunning,
-			Weight: task.WeightSmall,
+			ID:        "TASK-002",
+			Title:     "Running task 2",
+			Status:    task.StatusRunning,
+			Weight:    task.WeightSmall,
+			Execution: task.InitExecutionState(),
 		},
 		{
-			ID:     "TASK-003",
-			Title:  "Completed task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
+			ID:        "TASK-003",
+			Title:     "Completed task",
+			Status:    task.StatusCompleted,
+			Weight:    task.WeightMedium,
+			Execution: task.InitExecutionState(),
 		},
 		{
-			ID:     "TASK-004",
-			Title:  "Paused task",
-			Status: task.StatusPaused,
-			Weight: task.WeightSmall,
+			ID:        "TASK-004",
+			Title:     "Paused task",
+			Status:    task.StatusPaused,
+			Weight:    task.WeightSmall,
+			Execution: task.InitExecutionState(),
 		},
 	}
 
@@ -164,99 +167,89 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	t.Parallel()
 	backend := createTestBackend(t)
 
-	// Create states with token usage (some today, some yesterday)
-	// Note: Tokens are stored at the PHASE level in the database, not state level.
-	// Note: Cost filtering uses state.StartedAt which comes from dbTask.StartedAt,
-	// so we need to set task StartedAt when creating tasks.
+	// Create tasks with token usage (some today, some yesterday)
+	// Tokens are stored at the PHASE level in task.Execution.Phases.
+	// Cost filtering uses task.StartedAt, so we need to set task StartedAt.
 	//
 	// IMPORTANT: Use times relative to "today at midnight" to avoid day boundary issues.
 	// The handler calculates "today" as time.Now().UTC().Truncate(24 * time.Hour), so we
 	// must use times that are clearly within today (after midnight) or yesterday (before).
 	now := time.Now().UTC()
 	today := now.Truncate(24 * time.Hour)
-	startedToday := today.Add(2 * time.Hour)                   // 2am today (clearly within today)
-	startedToday2 := today.Add(4 * time.Hour)                  // 4am today (clearly within today)
-	startedYesterday := today.Add(-1 * time.Hour)              // 11pm yesterday (clearly before today)
+	startedToday := today.Add(2 * time.Hour)      // 2am today (clearly within today)
+	startedToday2 := today.Add(4 * time.Hour)     // 4am today (clearly within today)
+	startedYesterday := today.Add(-1 * time.Hour) // 11pm yesterday (clearly before today)
 
-	// Create tasks with proper StartedAt times
-	tasks := []*task.Task{
-		{ID: "TASK-001", Title: "Test task 1", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday},
-		{ID: "TASK-002", Title: "Test task 2", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedToday2},
-		{ID: "TASK-003", Title: "Test task 3", Status: task.StatusCompleted, Weight: task.WeightMedium, StartedAt: &startedYesterday},
+	// Create tasks with execution state containing tokens and cost
+	task1 := &task.Task{
+		ID:        "TASK-001",
+		Title:     "Test task 1",
+		Status:    task.StatusCompleted,
+		Weight:    task.WeightMedium,
+		StartedAt: &startedToday,
+		Execution: task.InitExecutionState(),
 	}
+	task1.Execution.Cost.TotalCostUSD = 0.50
+	task1.Execution.Phases["implement"] = &task.PhaseState{
+		Status:    task.PhaseStatusCompleted,
+		StartedAt: startedToday,
+		Tokens: task.TokenUsage{
+			InputTokens:  1000,
+			OutputTokens: 2000,
+		},
+	}
+
+	task2 := &task.Task{
+		ID:        "TASK-002",
+		Title:     "Test task 2",
+		Status:    task.StatusCompleted,
+		Weight:    task.WeightMedium,
+		StartedAt: &startedToday2,
+		Execution: task.InitExecutionState(),
+	}
+	task2.Execution.Cost.TotalCostUSD = 0.75
+	task2.Execution.Phases["implement"] = &task.PhaseState{
+		Status:    task.PhaseStatusCompleted,
+		StartedAt: startedToday2,
+		Tokens: task.TokenUsage{
+			InputTokens:  1500,
+			OutputTokens: 2500,
+		},
+	}
+
+	task3 := &task.Task{
+		ID:        "TASK-003",
+		Title:     "Test task 3",
+		Status:    task.StatusCompleted,
+		Weight:    task.WeightMedium,
+		StartedAt: &startedYesterday,
+		Execution: task.InitExecutionState(),
+	}
+	task3.Execution.Cost.TotalCostUSD = 2.00
+	// Yesterday's phase should not be counted
+	task3.Execution.Phases["implement"] = &task.PhaseState{
+		Status:    task.PhaseStatusCompleted,
+		StartedAt: startedYesterday,
+		Tokens: task.TokenUsage{
+			InputTokens:  5000,
+			OutputTokens: 5000,
+		},
+	}
+
+	tasks := []*task.Task{task1, task2, task3}
 	for _, tsk := range tasks {
 		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("save task %s: %v", tsk.ID, err)
 		}
 	}
 
-	// Create properly initialized states with phase-level tokens
-	st1 := state.New("TASK-001")
-	st1.Status = state.StatusCompleted
-	st1.StartedAt = startedToday
-	st1.UpdatedAt = startedToday
-	st1.Cost = state.CostTracking{
-		TotalCostUSD: 0.50,
-	}
-	// Add a phase with tokens (this is where tokens are actually stored)
-	st1.Phases["implement"] = &state.PhaseState{
-		Status:    state.StatusCompleted,
-		StartedAt: startedToday,
-		Tokens: state.TokenUsage{
-			InputTokens:  1000,
-			OutputTokens: 2000,
-		},
-	}
-
-	st2 := state.New("TASK-002")
-	st2.Status = state.StatusCompleted
-	st2.StartedAt = startedToday2
-	st2.UpdatedAt = startedToday2
-	st2.Cost = state.CostTracking{
-		TotalCostUSD: 0.75,
-	}
-	// Add a phase with tokens
-	st2.Phases["implement"] = &state.PhaseState{
-		Status:    state.StatusCompleted,
-		StartedAt: startedToday2,
-		Tokens: state.TokenUsage{
-			InputTokens:  1500,
-			OutputTokens: 2500,
-		},
-	}
-
-	st3 := state.New("TASK-003")
-	st3.Status = state.StatusCompleted
-	st3.StartedAt = startedYesterday
-	st3.UpdatedAt = startedYesterday
-	st3.Cost = state.CostTracking{
-		TotalCostUSD: 2.00,
-	}
-	// Add a phase with tokens - yesterday's phase should not be counted
-	st3.Phases["implement"] = &state.PhaseState{
-		Status:    state.StatusCompleted,
-		StartedAt: startedYesterday,
-		Tokens: state.TokenUsage{
-			InputTokens:  5000,
-			OutputTokens: 5000,
-		},
-	}
-
-	states := []*state.State{st1, st2, st3}
-
-	for _, st := range states {
-		if err := backend.SaveState(st); err != nil {
-			t.Fatalf("save state %s: %v", st.TaskID, err)
-		}
-	}
-
-	// Verify states were saved
-	loadedStates, err := backend.LoadAllStates()
+	// Verify tasks were saved with execution state
+	loadedTasks, err := backend.LoadAllTasks()
 	if err != nil {
-		t.Fatalf("load states: %v", err)
+		t.Fatalf("load tasks: %v", err)
 	}
-	if len(loadedStates) != 3 {
-		t.Fatalf("expected 3 states, got %d", len(loadedStates))
+	if len(loadedTasks) != 3 {
+		t.Fatalf("expected 3 tasks, got %d", len(loadedTasks))
 	}
 
 	sessionID := uuid.New().String()
@@ -294,7 +287,7 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	expectedInput := 1000 + 1500  // TASK-001 + TASK-002
 	expectedOutput := 2000 + 2500 // TASK-001 + TASK-002
 	expectedTotal := expectedInput + expectedOutput
-	expectedCost := 0.50 + 0.75 // TASK-001 + TASK-002 (state-level cost)
+	expectedCost := 0.50 + 0.75 // TASK-001 + TASK-002 (task-level cost)
 
 	if response.InputTokens != expectedInput {
 		t.Errorf("expected input_tokens %d, got %d", expectedInput, response.InputTokens)

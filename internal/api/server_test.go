@@ -15,7 +15,6 @@ import (
 	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/prompt"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -2138,17 +2137,12 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 	tsk := task.New("TASK-014", "Paused Task")
 	tsk.Status = task.StatusPaused
 	tsk.Weight = "medium"
+	// Set execution state with a paused implement phase
+	tsk.CurrentPhase = "implement"
+	tsk.Execution = task.InitExecutionState()
+	tsk.Execution.Phases["implement"] = &task.PhaseState{Status: task.PhaseStatusInterrupted}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create state with a paused implement phase
-	st := state.New("TASK-014")
-	st.CurrentPhase = "implement"
-	st.Status = state.StatusPaused
-	st.Phases["implement"] = &state.PhaseState{Status: state.StatusInterrupted}
-	if err := backend.SaveState(st); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 	_ = backend.Close()
 
@@ -2454,20 +2448,15 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
 	tsk.Status = task.StatusRunning
 	tsk.Branch = "orc/" + taskID
+	// Set execution state
+	tsk.CurrentPhase = "implement"
+	tsk.Execution = task.InitExecutionState()
+	tsk.Execution.CurrentIteration = 1
+	tsk.Execution.Phases["implement"] = &task.PhaseState{
+		Status: task.PhaseStatusRunning,
+	}
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create state
-	st := state.New(taskID)
-	st.CurrentPhase = "implement"
-	st.CurrentIteration = 1
-	st.Status = state.StatusRunning
-	st.Phases["implement"] = &state.PhaseState{
-		Status: state.StatusRunning,
-	}
-	if err := backend.SaveState(st); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 
 	_ = backend.Close()
@@ -2804,34 +2793,24 @@ func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
 	tsk := task.New("TASK-COST-001", "Cost Test Task")
 	tsk.Status = task.StatusCompleted
 	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create state with cost data
-	st := state.New("TASK-COST-001")
-	st.CurrentPhase = "implement"
-	st.CurrentIteration = 1
-	st.Status = state.StatusCompleted
-	st.Phases["implement"] = &state.PhaseState{
-		Status: state.StatusCompleted,
-		Tokens: state.TokenUsage{
+	// Set execution state with cost data
+	tsk.CurrentPhase = "implement"
+	tsk.Execution = task.InitExecutionState()
+	tsk.Execution.CurrentIteration = 1
+	tsk.Execution.Phases["implement"] = &task.PhaseState{
+		Status: task.PhaseStatusCompleted,
+		Tokens: task.TokenUsage{
 			InputTokens:  1000,
 			OutputTokens: 500,
 			TotalTokens:  1500,
 		},
 	}
-	st.Tokens = state.TokenUsage{
-		InputTokens:  1000,
-		OutputTokens: 500,
-		TotalTokens:  1500,
-	}
-	st.Cost = state.CostTracking{
+	tsk.Execution.Cost = task.CostTracking{
 		TotalCostUSD: 0.025,
 		PhaseCosts:   map[string]float64{"implement": 0.025},
 	}
-	if err := backend.SaveState(st); err != nil {
-		t.Fatalf("failed to save state: %v", err)
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
 
@@ -2888,24 +2867,22 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 	oldTask.Weight = task.WeightSmall
 	oldTask.CreatedAt = oldTime
 	oldTask.UpdatedAt = oldTime
-	if err := backend.SaveTask(oldTask); err != nil {
-		t.Fatalf("failed to save old task: %v", err)
+	// Set execution state with token/cost data for old task
+	oldTask.Execution = task.InitExecutionState()
+	oldTask.Execution.Phases["implement"] = &task.PhaseState{
+		Status:    task.PhaseStatusCompleted,
+		StartedAt: oldTime,
+		Tokens: task.TokenUsage{
+			InputTokens:  100,
+			OutputTokens: 50,
+			TotalTokens:  150,
+		},
 	}
-
-	oldState := state.New("TASK-OLD")
-	oldState.Status = state.StatusCompleted
-	oldState.StartedAt = oldTime
-	oldState.UpdatedAt = oldTime
-	oldState.Tokens = state.TokenUsage{
-		InputTokens:  100,
-		OutputTokens: 50,
-		TotalTokens:  150,
-	}
-	oldState.Cost = state.CostTracking{
+	oldTask.Execution.Cost = task.CostTracking{
 		TotalCostUSD: 0.001,
 	}
-	if err := backend.SaveState(oldState); err != nil {
-		t.Fatalf("failed to save old state: %v", err)
+	if err := backend.SaveTask(oldTask); err != nil {
+		t.Fatalf("failed to save old task: %v", err)
 	}
 
 	// Create recent task
@@ -2915,24 +2892,22 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 	recentTask.Weight = task.WeightSmall
 	recentTask.CreatedAt = now
 	recentTask.UpdatedAt = now
-	if err := backend.SaveTask(recentTask); err != nil {
-		t.Fatalf("failed to save recent task: %v", err)
+	// Set execution state with token/cost data for recent task
+	recentTask.Execution = task.InitExecutionState()
+	recentTask.Execution.Phases["implement"] = &task.PhaseState{
+		Status:    task.PhaseStatusCompleted,
+		StartedAt: now,
+		Tokens: task.TokenUsage{
+			InputTokens:  200,
+			OutputTokens: 100,
+			TotalTokens:  300,
+		},
 	}
-
-	recentState := state.New("TASK-NEW")
-	recentState.Status = state.StatusCompleted
-	recentState.StartedAt = now
-	recentState.UpdatedAt = now
-	recentState.Tokens = state.TokenUsage{
-		InputTokens:  200,
-		OutputTokens: 100,
-		TotalTokens:  300,
-	}
-	recentState.Cost = state.CostTracking{
+	recentTask.Execution.Cost = task.CostTracking{
 		TotalCostUSD: 0.002,
 	}
-	if err := backend.SaveState(recentState); err != nil {
-		t.Fatalf("failed to save recent state: %v", err)
+	if err := backend.SaveTask(recentTask); err != nil {
+		t.Fatalf("failed to save recent task: %v", err)
 	}
 	_ = backend.Close()
 

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -212,39 +211,40 @@ func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.Resolutio
 
 // enrichContextForPhase adds phase-specific context to the resolution context.
 // Call this before executing each phase to load review findings, artifacts, etc.
-func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *task.Task, s *state.State) {
-	// Load retry context from state
-	if s != nil {
-		rctx.RetryContext = LoadRetryContextForPhase(s)
+// Note: Uses Task-centric approach where execution state is in task.Task.Execution.
+func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *task.Task) {
+	if t == nil {
+		return
 	}
 
+	// Load retry context from task's execution state
+	rctx.RetryContext = LoadRetryContextFromExecution(&t.Execution)
+
 	// Load review context for review phases
-	if phaseID == "review" && t != nil {
-		we.loadReviewContext(rctx, t.ID, s)
+	if phaseID == "review" {
+		we.loadReviewContext(rctx, t.ID, &t.Execution)
 	}
 
 	// Load test results for review phase
-	if phaseID == "review" && t != nil {
-		rctx.TestResults = we.loadPriorPhaseContent(t.ID, s, "test")
+	if phaseID == "review" {
+		rctx.TestResults = we.loadPriorPhaseContent(t.ID, &t.Execution, "test")
 	}
 
 	// Load TDD test plan if it exists
-	if t != nil {
-		rctx.TDDTestPlan = we.loadPriorPhaseContent(t.ID, s, "tdd_write_plan")
-	}
+	rctx.TDDTestPlan = we.loadPriorPhaseContent(t.ID, &t.Execution, "tdd_write_plan")
 
 	// Load automation context for automation tasks
-	if t != nil && t.IsAutomation {
+	if t.IsAutomation {
 		we.loadAutomationContext(rctx, t)
 	}
 }
 
 // loadReviewContext loads review-specific context into the resolution context.
-func (we *WorkflowExecutor) loadReviewContext(rctx *variable.ResolutionContext, taskID string, s *state.State) {
+func (we *WorkflowExecutor) loadReviewContext(rctx *variable.ResolutionContext, taskID string, s *task.ExecutionState) {
 	// Determine review round from state
 	round := 1
 	if s != nil && s.Phases != nil {
-		if ps, ok := s.Phases["review"]; ok && ps.Status == state.StatusCompleted {
+		if ps, ok := s.Phases["review"]; ok && ps.Status == task.PhaseStatusCompleted {
 			round = 2
 		}
 	}
@@ -290,11 +290,11 @@ func (we *WorkflowExecutor) loadAutomationContext(rctx *variable.ResolutionConte
 }
 
 // loadPriorPhaseContent loads content from a completed prior phase.
-func (we *WorkflowExecutor) loadPriorPhaseContent(taskID string, s *state.State, phaseID string) string {
+func (we *WorkflowExecutor) loadPriorPhaseContent(taskID string, s *task.ExecutionState, phaseID string) string {
 	// Check if phase is completed
 	if s != nil && s.Phases != nil {
 		ps, ok := s.Phases[phaseID]
-		if ok && ps.Status != state.StatusCompleted {
+		if ok && ps.Status != task.PhaseStatusCompleted {
 			return ""
 		}
 	}

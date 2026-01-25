@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -48,16 +47,11 @@ func createFinalizeTestTask(t *testing.T, tmpDir, id string, status task.Status)
 	tk := task.New(id, "Test task for finalize")
 	tk.Status = status
 	tk.Weight = task.WeightLarge
+	tk.CurrentPhase = "finalize"
+	tk.Execution = task.InitExecutionState()
 
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
-	}
-
-	// Create state
-	s := state.New(id)
-	s.CurrentPhase = "finalize"
-	if err := backend.SaveState(s); err != nil {
-		t.Fatalf("failed to save state: %v", err)
 	}
 
 	return tk

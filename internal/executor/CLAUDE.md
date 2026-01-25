@@ -330,15 +330,15 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 | Invalid session ID errors | Only pass custom session IDs when `Persistence: true` |
 | Validation can't see files | Create clients dynamically with correct workdir |
 
-## Task/State Consistency
+## Task/Execution State Consistency
 
-**CRITICAL:** When execution fails or is interrupted, BOTH task and state must be updated:
+**CRITICAL:** Task status and execution state are unified in `task.Task.Execution`. When execution fails or is interrupted, update the task and save once:
 
-| Component | Field | Must Update |
-|-----------|-------|-------------|
-| Task | `Status` | Set to `Failed`, `Paused`, or `Blocked` |
-| State | `Status` | Set to `StatusFailed` or `StatusInterrupted` |
-| State | `Error` | Store error message for user visibility |
+| Field | Must Update |
+|-------|-------------|
+| `t.Status` | Set to `Failed`, `Paused`, or `Blocked` |
+| `t.Execution.Error` | Store error message for user visibility |
+| `t.Execution.Phases[phase]` | Update phase status via helper methods |
 
 **Why this matters:** If task.Status stays "running" but the executor dies, the task becomes orphaned - it appears running but has no active process.
 
@@ -346,12 +346,11 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 
 When adding new error paths:
 
-1. **Store the error:** `s.Error = err.Error()`
-2. **Update state status:** `s.FailPhase(phaseID, err)` or `s.InterruptPhase(phaseID)`
-3. **Save state:** `e.backend.SaveState(s)`
-4. **Update task status:** `t.Status = task.StatusFailed`
-5. **Save task:** `e.backend.SaveTask(t)`
-6. **Publish events:** `e.publishError()` and `e.publishState()`
+1. **Store the error:** `t.Execution.Error = err.Error()`
+2. **Update phase status:** `t.Execution.FailPhase(phaseID, err)` or `t.Execution.InterruptPhase(phaseID)`
+3. **Update task status:** `t.Status = task.StatusFailed`
+4. **Save task:** `e.backend.SaveTask(t)` (saves both task and execution state)
+5. **Publish events:** `e.publishError()` and `e.publishState()`
 
 **Always use helper functions** (`failRun`, `failSetup`, `interruptRun`) which handle all cleanup consistently.
 
@@ -360,5 +359,5 @@ When adding new error paths:
 | Bad | Why |
 |-----|-----|
 | `if err != nil { return err }` | Task still shows "running" |
-| Update only state or only task | Task/state out of sync |
-| Skip `s.Error = err.Error()` | User can't see what went wrong |
+| Skip `t.Execution.Error = err.Error()` | User can't see what went wrong |
+| Forget to call `backend.SaveTask(t)` | Changes not persisted |

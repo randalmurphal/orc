@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/state"
 	"github.com/randalmurphal/orc/internal/task"
 	"gopkg.in/yaml.v3"
 )
@@ -142,16 +141,18 @@ func (e *ExportService) exportTaskDefinition(taskID, exportDir string) error {
 	return nil
 }
 
-// exportState exports state.yaml.
+// exportState exports state.yaml using task.Execution.
+// Note: This uses the Task-centric approach where execution state is in task.Execution.
 func (e *ExportService) exportState(taskID, exportDir string) error {
-	s, err := e.backend.LoadState(taskID)
+	t, err := e.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}
 
-	data, err := yaml.Marshal(s)
+	// Export the execution state from the task
+	data, err := yaml.Marshal(t.Execution)
 	if err != nil {
-		return fmt.Errorf("marshal state: %w", err)
+		return fmt.Errorf("marshal execution state: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(exportDir, "state.yaml"), data, 0644); err != nil {
 		return fmt.Errorf("write state.yaml: %w", err)
@@ -161,19 +162,15 @@ func (e *ExportService) exportState(taskID, exportDir string) error {
 }
 
 // exportContextSummary generates and exports context.md.
+// Note: This uses the Task-centric approach where execution state is in task.Execution.
 func (e *ExportService) exportContextSummary(taskID, exportDir string) error {
 	t, err := e.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}
 
-	s, err := e.backend.LoadState(taskID)
-	if err != nil {
-		return err
-	}
-
-	// Generate context.md content
-	content, err := generateContextSummary(t, s)
+	// Generate context.md content using task.Execution
+	content, err := generateContextSummary(t)
 	if err != nil {
 		return fmt.Errorf("generate context summary: %w", err)
 	}
@@ -208,7 +205,8 @@ func (e *ExportService) exportTranscripts(taskID, exportDir string) error {
 }
 
 // generateContextSummary creates a markdown summary of the task context.
-func generateContextSummary(t *task.Task, s *state.State) (string, error) {
+// Note: Uses task.Execution for execution state (Task-centric approach).
+func generateContextSummary(t *task.Task) (string, error) {
 	tmpl := `# Task Context: {{.Task.ID}}
 
 ## Overview
@@ -234,23 +232,23 @@ func generateContextSummary(t *task.Task, s *state.State) (string, error) {
 
 | Phase | Status | Tokens |
 |-------|--------|--------|
-{{- range $id, $phase := .State.Phases}}
+{{- range $id, $phase := .Task.Execution.Phases}}
 | {{$id}} | {{$phase.Status}} | {{$phase.Tokens.TotalTokens}} |
 {{- end}}
 
 ## Token Usage
 
-- **Input Tokens:** {{.State.Tokens.InputTokens}}
-- **Output Tokens:** {{.State.Tokens.OutputTokens}}
-- **Total Tokens:** {{.State.Tokens.TotalTokens}}
-- **Total Cost:** ${{printf "%.4f" .State.Cost.TotalCostUSD}}
+- **Input Tokens:** {{.Task.Execution.Tokens.InputTokens}}
+- **Output Tokens:** {{.Task.Execution.Tokens.OutputTokens}}
+- **Total Tokens:** {{.Task.Execution.Tokens.TotalTokens}}
+- **Total Cost:** ${{printf "%.4f" .Task.Execution.Cost.TotalCostUSD}}
 
-{{if .State.Gates}}
+{{if .Task.Execution.Gates}}
 ## Gate Decisions
 
 | Phase | Type | Approved | Reason |
 |-------|------|----------|--------|
-{{- range .State.Gates}}
+{{- range .Task.Execution.Gates}}
 | {{.Phase}} | {{.GateType}} | {{.Approved}} | {{.Reason}} |
 {{- end}}
 {{end}}
@@ -263,11 +261,9 @@ func generateContextSummary(t *task.Task, s *state.State) (string, error) {
 
 	data := struct {
 		Task        *task.Task
-		State       *state.State
 		GeneratedAt time.Time
 	}{
 		Task:        t,
-		State:       s,
 		GeneratedAt: time.Now(),
 	}
 
