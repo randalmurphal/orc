@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Pull request
+message PR {
+  // PR number
+  int32 number = 1;
+  // Title
+  string title = 2;
+  // Body/description
+  string body = 3;
+  // State: "open", "closed", "merged"
+  string state = 4;
+  // API URL
+  string url = 5;
+  // HTML URL (for browser)
+  string html_url = 6;
+  // Head branch
+  string head = 7;
+  // Base branch
+  string base = 8;
+  // Whether PR is mergeable
+  optional bool mergeable = 9;
+  // Mergeable state
+  optional string mergeable_state = 10;
+  // Whether PR is a draft
+  bool draft = 11;
+  // When PR was created
+  google.protobuf.Timestamp created_at = 12;
+  // When PR was last updated
+  google.protobuf.Timestamp updated_at = 13;
+  // When PR was merged
+  optional google.protobuf.Timestamp merged_at = 14;
+}
+
+// PR comment (from GitHub)
+message PRComment {
+  // Comment ID
+  int64 id = 1;
+  // Comment body
+  string body = 2;
+  // File path (for line comments)
+  optional string path = 3;
+  // Line number (for line comments)
+  optional int32 line = 4;
+  // Author login
+  string author = 5;
+  // When comment was created
+  google.protobuf.Timestamp created_at = 6;
+  // Thread ID (for threaded comments)
+  optional int64 thread_id = 7;
+}
+
+// CI check run
+message CheckRun {
+  // Check ID
+  int64 id = 1;
+  // Check name
+  string name = 2;
+  // Status: "queued", "in_progress", "completed"
+  string status = 3;
+  // Conclusion: "success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"
+  optional string conclusion = 4;
+  // When check started
+  optional google.protobuf.Timestamp started_at = 5;
+  // When check completed
+  optional google.protobuf.Timestamp completed_at = 6;
+  // HTML URL
+  optional string html_url = 7;
+}
+
+// CI check summary
+message CheckSummary {
+  int32 passed = 1;
+  int32 failed = 2;
+  int32 pending = 3;
+  int32 neutral = 4;
+  int32 total = 5;
+}
+
+// Sync comments result
+message SyncResult {
+  int32 imported = 1;
+  int32 updated = 2;
+  int32 resolved = 3;
+  int32 total = 4;
+}
+
+// Autofix result
+message AutofixResult {
+  bool success = 1;
+  optional string commit_sha = 2;
+  optional string error = 3;
+  repeated string files_changed = 4;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service GitHubService {
+  // Create a PR for a task
+  rpc CreatePR(CreatePRRequest) returns (CreatePRResponse);
+
+  // Get PR for a task
+  rpc GetPR(GetPRRequest) returns (GetPRResponse);
+
+  // Merge a PR
+  rpc MergePR(MergePRRequest) returns (MergePRResponse);
+
+  // Sync PR comments to review comments
+  rpc SyncComments(SyncCommentsRequest) returns (SyncCommentsResponse);
+
+  // Import PR comments
+  rpc ImportComments(ImportCommentsRequest) returns (ImportCommentsResponse);
+
+  // Get PR checks
+  rpc GetChecks(GetChecksRequest) returns (GetChecksResponse);
+
+  // Refresh PR status
+  rpc RefreshPR(RefreshPRRequest) returns (RefreshPRResponse);
+
+  // Reply to a PR comment
+  rpc ReplyToComment(ReplyToCommentRequest) returns (ReplyToCommentResponse);
+
+  // Autofix a PR comment
+  rpc AutofixComment(AutofixCommentRequest) returns (AutofixCommentResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message CreatePRRequest {
+  string task_id = 1;
+  optional string title = 2;
+  optional string body = 3;
+  optional string base = 4;
+  repeated string labels = 5;
+  repeated string reviewers = 6;
+  bool draft = 7;
+}
+
+message CreatePRResponse {
+  PR pr = 1;
+  bool created = 2;  // False if PR already existed
+}
+
+message GetPRRequest {
+  string task_id = 1;
+}
+
+message GetPRResponse {
+  PR pr = 1;
+}
+
+message MergePRRequest {
+  string task_id = 1;
+  // Merge method: "merge", "squash", "rebase"
+  optional string method = 2;
+  // Commit message for squash/merge
+  optional string commit_message = 3;
+}
+
+message MergePRResponse {
+  bool merged = 1;
+  optional string merge_commit_sha = 2;
+  optional string error = 3;
+}
+
+message SyncCommentsRequest {
+  string task_id = 1;
+}
+
+message SyncCommentsResponse {
+  SyncResult result = 1;
+}
+
+message ImportCommentsRequest {
+  string task_id = 1;
+}
+
+message ImportCommentsResponse {
+  int32 imported = 1;
+  repeated PRComment comments = 2;
+}
+
+message GetChecksRequest {
+  string task_id = 1;
+}
+
+message GetChecksResponse {
+  repeated CheckRun checks = 1;
+  CheckSummary summary = 2;
+}
+
+message RefreshPRRequest {
+  string task_id = 1;
+}
+
+message RefreshPRResponse {
+  PR pr = 1;
+}
+
+message ReplyToCommentRequest {
+  string task_id = 1;
+  int64 comment_id = 2;
+  string content = 3;
+}
+
+message ReplyToCommentResponse {
+  PRComment comment = 1;
+}
+
+message AutofixCommentRequest {
+  string task_id = 1;
+  int64 comment_id = 2;
+}
+
+message AutofixCommentResponse {
+  AutofixResult result = 1;
+}

@@ -1,0 +1,473 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Settings scope
+enum SettingsScope {
+  SETTINGS_SCOPE_UNSPECIFIED = 0;
+  SETTINGS_SCOPE_GLOBAL = 1;   // ~/.claude/
+  SETTINGS_SCOPE_PROJECT = 2;  // .claude/
+}
+
+// Hook event type
+enum HookEvent {
+  HOOK_EVENT_UNSPECIFIED = 0;
+  HOOK_EVENT_PRE_TOOL_USE = 1;
+  HOOK_EVENT_POST_TOOL_USE = 2;
+  HOOK_EVENT_NOTIFICATION = 3;
+  HOOK_EVENT_STOP = 4;
+}
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// ORC configuration
+message Config {
+  // Automation settings
+  AutomationConfig automation = 1;
+  // Completion settings
+  CompletionConfig completion = 2;
+  // Export settings
+  ExportConfig export = 3;
+  // Claude settings
+  ClaudeConfig claude = 4;
+}
+
+message AutomationConfig {
+  // Automation profile: "auto", "fast", "safe", "strict"
+  string profile = 1;
+  // Auto-approve decisions
+  bool auto_approve = 2;
+  // Auto-skip blocked phases
+  bool auto_skip = 3;
+}
+
+message CompletionConfig {
+  // Action on completion: "pr", "merge", "none"
+  string action = 1;
+  // Auto-merge after finalize
+  bool auto_merge = 2;
+  // Target branch for PRs
+  optional string target_branch = 3;
+}
+
+message ExportConfig {
+  // Include transcripts in export
+  bool include_transcripts = 1;
+  // Include attachments in export
+  bool include_attachments = 2;
+  // Export format: "json", "tar.gz"
+  string format = 3;
+}
+
+message ClaudeConfig {
+  // Default model
+  string model = 1;
+  // Enable thinking mode
+  bool thinking = 2;
+  // Max turns per phase
+  int32 max_turns = 3;
+  // Temperature
+  double temperature = 4;
+}
+
+// Claude Code settings (from settings.json)
+message Settings {
+  // Enabled tools
+  repeated string tools = 1;
+  // Allowed MCP servers
+  repeated string mcp_servers = 2;
+  // Custom instructions
+  optional string custom_instructions = 3;
+  // Permission overrides
+  map<string, bool> permissions = 4;
+}
+
+// Settings with hierarchy info
+message SettingsHierarchy {
+  Settings global = 1;
+  Settings project = 2;
+  Settings merged = 3;
+}
+
+// Hook definition
+message Hook {
+  // Hook name
+  string name = 1;
+  // Event that triggers hook
+  HookEvent event = 2;
+  // Matcher pattern (glob for tool names)
+  optional string matcher = 3;
+  // Command to execute
+  string command = 4;
+  // Working directory
+  optional string working_dir = 5;
+  // Environment variables
+  map<string, string> env = 6;
+  // Timeout in seconds
+  int32 timeout = 7;
+  // Whether hook is enabled
+  bool enabled = 8;
+  // Settings scope
+  SettingsScope scope = 9;
+}
+
+// Skill definition
+message Skill {
+  // Skill name
+  string name = 1;
+  // Description
+  string description = 2;
+  // Skill content (markdown)
+  string content = 3;
+  // Whether skill is user-invocable
+  bool user_invocable = 4;
+  // Input schema (JSON)
+  optional string input_schema = 5;
+  // Settings scope
+  SettingsScope scope = 6;
+}
+
+// CLAUDE.md content
+message ClaudeMd {
+  // File path
+  string path = 1;
+  // Content
+  string content = 2;
+  // Scope
+  SettingsScope scope = 3;
+}
+
+// Prompt template
+message PromptTemplate {
+  // Phase ID
+  string phase = 1;
+  // Prompt content
+  string content = 2;
+  // Whether this is a custom prompt
+  bool is_custom = 3;
+  // Source path (if custom)
+  optional string path = 4;
+}
+
+// Available variable for prompts
+message PromptVariable {
+  // Variable name (without braces)
+  string name = 1;
+  // Description
+  string description = 2;
+  // Example value
+  optional string example = 3;
+}
+
+// Constitution (project principles)
+message Constitution {
+  // Content
+  string content = 1;
+  // Source path
+  optional string path = 2;
+  // When last updated
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service ConfigService {
+  // Get ORC configuration
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // Update ORC configuration
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+
+  // Get Claude Code settings
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+
+  // Update Claude Code settings
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+
+  // Get settings hierarchy
+  rpc GetSettingsHierarchy(GetSettingsHierarchyRequest) returns (GetSettingsHierarchyResponse);
+
+  // List hooks
+  rpc ListHooks(ListHooksRequest) returns (ListHooksResponse);
+
+  // Create hook
+  rpc CreateHook(CreateHookRequest) returns (CreateHookResponse);
+
+  // Update hook
+  rpc UpdateHook(UpdateHookRequest) returns (UpdateHookResponse);
+
+  // Delete hook
+  rpc DeleteHook(DeleteHookRequest) returns (DeleteHookResponse);
+
+  // List skills
+  rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
+
+  // Create skill
+  rpc CreateSkill(CreateSkillRequest) returns (CreateSkillResponse);
+
+  // Update skill
+  rpc UpdateSkill(UpdateSkillRequest) returns (UpdateSkillResponse);
+
+  // Delete skill
+  rpc DeleteSkill(DeleteSkillRequest) returns (DeleteSkillResponse);
+
+  // Get CLAUDE.md content
+  rpc GetClaudeMd(GetClaudeMdRequest) returns (GetClaudeMdResponse);
+
+  // Update CLAUDE.md content
+  rpc UpdateClaudeMd(UpdateClaudeMdRequest) returns (UpdateClaudeMdResponse);
+
+  // Get constitution
+  rpc GetConstitution(GetConstitutionRequest) returns (GetConstitutionResponse);
+
+  // Update constitution
+  rpc UpdateConstitution(UpdateConstitutionRequest) returns (UpdateConstitutionResponse);
+
+  // Delete constitution
+  rpc DeleteConstitution(DeleteConstitutionRequest) returns (DeleteConstitutionResponse);
+
+  // List prompt templates
+  rpc ListPrompts(ListPromptsRequest) returns (ListPromptsResponse);
+
+  // Get prompt template
+  rpc GetPrompt(GetPromptRequest) returns (GetPromptResponse);
+
+  // Get default prompt template
+  rpc GetDefaultPrompt(GetDefaultPromptRequest) returns (GetDefaultPromptResponse);
+
+  // Update prompt template
+  rpc UpdatePrompt(UpdatePromptRequest) returns (UpdatePromptResponse);
+
+  // Delete custom prompt
+  rpc DeletePrompt(DeletePromptRequest) returns (DeletePromptResponse);
+
+  // List available prompt variables
+  rpc ListPromptVariables(ListPromptVariablesRequest) returns (ListPromptVariablesResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  Config config = 1;
+}
+
+message UpdateConfigRequest {
+  optional AutomationConfig automation = 1;
+  optional CompletionConfig completion = 2;
+  optional ExportConfig export = 3;
+  optional ClaudeConfig claude = 4;
+}
+
+message UpdateConfigResponse {
+  Config config = 1;
+}
+
+message GetSettingsRequest {
+  SettingsScope scope = 1;
+}
+
+message GetSettingsResponse {
+  Settings settings = 1;
+}
+
+message UpdateSettingsRequest {
+  SettingsScope scope = 1;
+  Settings settings = 2;
+}
+
+message UpdateSettingsResponse {
+  Settings settings = 1;
+}
+
+message GetSettingsHierarchyRequest {}
+
+message GetSettingsHierarchyResponse {
+  SettingsHierarchy hierarchy = 1;
+}
+
+message ListHooksRequest {
+  optional SettingsScope scope = 1;
+}
+
+message ListHooksResponse {
+  repeated Hook hooks = 1;
+}
+
+message CreateHookRequest {
+  string name = 1;
+  HookEvent event = 2;
+  optional string matcher = 3;
+  string command = 4;
+  optional string working_dir = 5;
+  map<string, string> env = 6;
+  int32 timeout = 7;
+  SettingsScope scope = 8;
+}
+
+message CreateHookResponse {
+  Hook hook = 1;
+}
+
+message UpdateHookRequest {
+  string name = 1;
+  SettingsScope scope = 2;
+  optional HookEvent event = 3;
+  optional string matcher = 4;
+  optional string command = 5;
+  optional string working_dir = 6;
+  map<string, string> env = 7;
+  optional int32 timeout = 8;
+  optional bool enabled = 9;
+}
+
+message UpdateHookResponse {
+  Hook hook = 1;
+}
+
+message DeleteHookRequest {
+  string name = 1;
+  SettingsScope scope = 2;
+}
+
+message DeleteHookResponse {
+  string message = 1;
+}
+
+message ListSkillsRequest {
+  optional SettingsScope scope = 1;
+}
+
+message ListSkillsResponse {
+  repeated Skill skills = 1;
+}
+
+message CreateSkillRequest {
+  string name = 1;
+  string description = 2;
+  string content = 3;
+  bool user_invocable = 4;
+  optional string input_schema = 5;
+  SettingsScope scope = 6;
+}
+
+message CreateSkillResponse {
+  Skill skill = 1;
+}
+
+message UpdateSkillRequest {
+  string name = 1;
+  SettingsScope scope = 2;
+  optional string description = 3;
+  optional string content = 4;
+  optional bool user_invocable = 5;
+  optional string input_schema = 6;
+}
+
+message UpdateSkillResponse {
+  Skill skill = 1;
+}
+
+message DeleteSkillRequest {
+  string name = 1;
+  SettingsScope scope = 2;
+}
+
+message DeleteSkillResponse {
+  string message = 1;
+}
+
+message GetClaudeMdRequest {}
+
+message GetClaudeMdResponse {
+  repeated ClaudeMd files = 1;
+}
+
+message UpdateClaudeMdRequest {
+  SettingsScope scope = 1;
+  string content = 2;
+}
+
+message UpdateClaudeMdResponse {
+  ClaudeMd claude_md = 1;
+}
+
+message GetConstitutionRequest {}
+
+message GetConstitutionResponse {
+  Constitution constitution = 1;
+}
+
+message UpdateConstitutionRequest {
+  string content = 1;
+}
+
+message UpdateConstitutionResponse {
+  Constitution constitution = 1;
+}
+
+message DeleteConstitutionRequest {}
+
+message DeleteConstitutionResponse {
+  string message = 1;
+}
+
+message ListPromptsRequest {}
+
+message ListPromptsResponse {
+  repeated PromptTemplate prompts = 1;
+}
+
+message GetPromptRequest {
+  string phase = 1;
+}
+
+message GetPromptResponse {
+  PromptTemplate prompt = 1;
+}
+
+message GetDefaultPromptRequest {
+  string phase = 1;
+}
+
+message GetDefaultPromptResponse {
+  PromptTemplate prompt = 1;
+}
+
+message UpdatePromptRequest {
+  string phase = 1;
+  string content = 2;
+}
+
+message UpdatePromptResponse {
+  PromptTemplate prompt = 1;
+}
+
+message DeletePromptRequest {
+  string phase = 1;
+}
+
+message DeletePromptResponse {
+  string message = 1;
+}
+
+message ListPromptVariablesRequest {}
+
+message ListPromptVariablesResponse {
+  repeated PromptVariable variables = 1;
+}

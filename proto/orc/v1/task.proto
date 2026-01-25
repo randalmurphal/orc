@@ -1,0 +1,706 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Task weight classification determining required phases
+enum TaskWeight {
+  TASK_WEIGHT_UNSPECIFIED = 0;
+  TASK_WEIGHT_TRIVIAL = 1;  // One-liner fixes, typos
+  TASK_WEIGHT_SMALL = 2;    // Bug fixes, isolated changes
+  TASK_WEIGHT_MEDIUM = 3;   // Features needing thought
+  TASK_WEIGHT_LARGE = 4;    // Complex multi-file features
+}
+
+// Task execution status
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_CREATED = 1;      // Task created, not started
+  TASK_STATUS_CLASSIFYING = 2;  // Determining weight/workflow
+  TASK_STATUS_PLANNED = 3;      // Plan generated
+  TASK_STATUS_RUNNING = 4;      // Execution in progress
+  TASK_STATUS_PAUSED = 5;       // Manually paused
+  TASK_STATUS_BLOCKED = 6;      // Waiting on gate/dependency
+  TASK_STATUS_FINALIZING = 7;   // Syncing/merging
+  TASK_STATUS_COMPLETED = 8;    // Successfully finished
+  TASK_STATUS_FAILED = 9;       // Execution failed
+  TASK_STATUS_RESOLVED = 10;    // Failed but manually resolved
+}
+
+// Task queue assignment
+enum TaskQueue {
+  TASK_QUEUE_UNSPECIFIED = 0;
+  TASK_QUEUE_ACTIVE = 1;   // Currently being worked on
+  TASK_QUEUE_BACKLOG = 2;  // Someday/maybe
+}
+
+// Task priority
+enum TaskPriority {
+  TASK_PRIORITY_UNSPECIFIED = 0;
+  TASK_PRIORITY_CRITICAL = 1;
+  TASK_PRIORITY_HIGH = 2;
+  TASK_PRIORITY_NORMAL = 3;
+  TASK_PRIORITY_LOW = 4;
+}
+
+// Task category (affects Claude's approach)
+enum TaskCategory {
+  TASK_CATEGORY_UNSPECIFIED = 0;
+  TASK_CATEGORY_FEATURE = 1;
+  TASK_CATEGORY_BUG = 2;
+  TASK_CATEGORY_REFACTOR = 3;
+  TASK_CATEGORY_CHORE = 4;
+  TASK_CATEGORY_DOCS = 5;
+  TASK_CATEGORY_TEST = 6;
+}
+
+// Phase execution status
+enum PhaseStatus {
+  PHASE_STATUS_UNSPECIFIED = 0;
+  PHASE_STATUS_PENDING = 1;      // Not started
+  PHASE_STATUS_RUNNING = 2;      // Currently executing
+  PHASE_STATUS_COMPLETED = 3;    // Successfully finished
+  PHASE_STATUS_FAILED = 4;       // Execution failed
+  PHASE_STATUS_PAUSED = 5;       // Manually paused
+  PHASE_STATUS_INTERRUPTED = 6;  // Interrupted mid-execution
+  PHASE_STATUS_SKIPPED = 7;      // Skipped by condition
+  PHASE_STATUS_BLOCKED = 8;      // Waiting on gate
+}
+
+// Pull request status
+enum PRStatus {
+  PR_STATUS_UNSPECIFIED = 0;
+  PR_STATUS_NONE = 1;              // No PR created
+  PR_STATUS_DRAFT = 2;
+  PR_STATUS_PENDING_REVIEW = 3;
+  PR_STATUS_CHANGES_REQUESTED = 4;
+  PR_STATUS_APPROVED = 5;
+  PR_STATUS_MERGED = 6;
+  PR_STATUS_CLOSED = 7;
+}
+
+// Dependency status (computed)
+enum DependencyStatus {
+  DEPENDENCY_STATUS_UNSPECIFIED = 0;
+  DEPENDENCY_STATUS_BLOCKED = 1;  // Has unmet blockers
+  DEPENDENCY_STATUS_READY = 2;    // All blockers met
+  DEPENDENCY_STATUS_NONE = 3;     // No dependencies
+}
+
+// Comment severity for review comments
+enum CommentSeverity {
+  COMMENT_SEVERITY_UNSPECIFIED = 0;
+  COMMENT_SEVERITY_SUGGESTION = 1;
+  COMMENT_SEVERITY_ISSUE = 2;
+  COMMENT_SEVERITY_BLOCKER = 3;
+}
+
+// Comment status
+enum CommentStatus {
+  COMMENT_STATUS_UNSPECIFIED = 0;
+  COMMENT_STATUS_OPEN = 1;
+  COMMENT_STATUS_RESOLVED = 2;
+  COMMENT_STATUS_WONT_FIX = 3;
+}
+
+// Comment author type
+enum AuthorType {
+  AUTHOR_TYPE_UNSPECIFIED = 0;
+  AUTHOR_TYPE_HUMAN = 1;
+  AUTHOR_TYPE_AGENT = 2;
+  AUTHOR_TYPE_SYSTEM = 3;
+}
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+// Testing requirements for a task
+message TestingRequirements {
+  bool unit = 1;
+  bool e2e = 2;
+  bool visual = 3;
+}
+
+// Quality metrics tracking
+message QualityMetrics {
+  map<string, int32> phase_retries = 1;
+  int32 review_rejections = 2;
+  bool manual_intervention = 3;
+  optional string manual_intervention_reason = 4;
+  int32 total_retries = 5;
+}
+
+// Pull request information
+message PRInfo {
+  optional string url = 1;
+  optional int32 number = 2;
+  PRStatus status = 3;
+  optional string checks_status = 4;
+  bool mergeable = 5;
+  int32 review_count = 6;
+  int32 approval_count = 7;
+  optional google.protobuf.Timestamp last_checked_at = 8;
+  bool merged = 9;
+  optional google.protobuf.Timestamp merged_at = 10;
+  optional string merge_commit_sha = 11;
+  optional string target_branch = 12;
+}
+
+// Phase execution state
+message PhaseState {
+  PhaseStatus status = 1;
+  google.protobuf.Timestamp started_at = 2;
+  optional google.protobuf.Timestamp completed_at = 3;
+  optional google.protobuf.Timestamp interrupted_at = 4;
+  int32 iterations = 5;
+  optional string commit_sha = 6;
+  repeated string artifacts = 7;
+  optional string error = 8;
+  TokenUsage tokens = 9;
+  repeated ValidationEntry validation_history = 10;
+  optional string session_id = 11;
+}
+
+// Execution state for a task
+message ExecutionState {
+  int32 current_iteration = 1;
+  map<string, PhaseState> phases = 2;
+  repeated GateDecision gates = 3;
+  TokenUsage tokens = 4;
+  CostTracking cost = 5;
+  optional SessionInfo session = 6;
+  optional string error = 7;
+  optional RetryContext retry_context = 8;
+  optional string jsonl_path = 9;
+}
+
+// Task entity
+message Task {
+  string id = 1;
+  string title = 2;
+  optional string description = 3;
+  TaskWeight weight = 4;
+  TaskStatus status = 5;
+  optional string current_phase = 6;
+  string branch = 7;
+  TaskQueue queue = 8;
+  TaskPriority priority = 9;
+  TaskCategory category = 10;
+  optional string initiative_id = 11;
+  optional string workflow_id = 12;
+  optional string target_branch = 13;
+  repeated string blocked_by = 14;
+  repeated string related_to = 15;
+  bool is_automation = 16;
+  bool requires_ui_testing = 17;
+  optional TestingRequirements testing_requirements = 18;
+  optional QualityMetrics quality = 19;
+  optional PRInfo pr = 20;
+  ExecutionState execution = 21;
+  google.protobuf.Timestamp created_at = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  optional google.protobuf.Timestamp started_at = 24;
+  optional google.protobuf.Timestamp completed_at = 25;
+  map<string, string> metadata = 26;
+
+  // Computed fields (populated by server, not stored)
+  repeated string blocks = 100;
+  repeated string referenced_by = 101;
+  bool is_blocked = 102;
+  repeated string unmet_blockers = 103;
+  DependencyStatus dependency_status = 104;
+}
+
+// Phase in a task plan
+message PlanPhase {
+  string id = 1;
+  string name = 2;
+  PhaseStatus status = 3;
+  int32 iterations = 4;
+  optional google.protobuf.Timestamp started_at = 5;
+  optional google.protobuf.Timestamp completed_at = 6;
+  optional string commit_sha = 7;
+  optional string error = 8;
+}
+
+// Task plan (dynamically generated phase sequence)
+message TaskPlan {
+  int32 version = 1;
+  TaskWeight weight = 2;
+  string description = 3;
+  repeated PlanPhase phases = 4;
+}
+
+// Task comment
+message TaskComment {
+  string id = 1;
+  string task_id = 2;
+  string author = 3;
+  AuthorType author_type = 4;
+  string content = 5;
+  optional string phase = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// Review comment (code review)
+message ReviewComment {
+  string id = 1;
+  string task_id = 2;
+  int32 review_round = 3;
+  string content = 4;
+  CommentSeverity severity = 5;
+  CommentStatus status = 6;
+  optional string file_path = 7;
+  optional int32 line_number = 8;
+  google.protobuf.Timestamp created_at = 9;
+  optional google.protobuf.Timestamp resolved_at = 10;
+  optional string resolved_by = 11;
+}
+
+// Dependency graph for visualization
+message DependencyGraph {
+  repeated DependencyNode nodes = 1;
+  repeated DependencyEdge edges = 2;
+}
+
+message DependencyNode {
+  string id = 1;
+  string title = 2;
+  TaskStatus status = 3;
+  TaskWeight weight = 4;
+}
+
+message DependencyEdge {
+  string from = 1;
+  string to = 2;
+  string type = 3;
+}
+
+// Finalize state
+message FinalizeState {
+  bool synced = 1;
+  int32 conflicts_resolved = 2;
+  repeated string conflict_files = 3;
+  bool tests_passed = 4;
+  string risk_level = 5;
+  int32 files_changed = 6;
+  int32 lines_changed = 7;
+  bool needs_review = 8;
+  optional string commit_sha = 9;
+  optional string target_branch = 10;
+  bool ci_passed = 11;
+  optional string ci_details = 12;
+  bool merged = 13;
+  optional string merge_commit = 14;
+}
+
+// Retry preview information
+message RetryPreviewInfo {
+  string task_id = 1;
+  string from_phase = 2;
+  repeated string phases_to_rerun = 3;
+  optional string last_error = 4;
+  repeated ReviewComment unresolved_comments = 5;
+}
+
+// File attachment
+message Attachment {
+  string filename = 1;
+  int64 size = 2;
+  string content_type = 3;
+  google.protobuf.Timestamp created_at = 4;
+  bool is_image = 5;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service TaskService {
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
+  rpc GetTaskState(GetTaskStateRequest) returns (GetTaskStateResponse);
+  rpc GetTaskPlan(GetTaskPlanRequest) returns (GetTaskPlanResponse);
+  rpc RunTask(RunTaskRequest) returns (RunTaskResponse);
+  rpc PauseTask(PauseTaskRequest) returns (PauseTaskResponse);
+  rpc ResumeTask(ResumeTaskRequest) returns (ResumeTaskResponse);
+  rpc SkipBlock(SkipBlockRequest) returns (SkipBlockResponse);
+  rpc RetryTask(RetryTaskRequest) returns (RetryTaskResponse);
+  rpc RetryPreview(RetryPreviewRequest) returns (RetryPreviewResponse);
+  rpc FinalizeTask(FinalizeTaskRequest) returns (FinalizeTaskResponse);
+  rpc GetFinalizeState(GetFinalizeStateRequest) returns (GetFinalizeStateResponse);
+  rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
+  rpc GetDiff(GetDiffRequest) returns (GetDiffResponse);
+  rpc GetDiffStats(GetDiffStatsRequest) returns (GetDiffStatsResponse);
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
+  rpc UpdateComment(UpdateCommentRequest) returns (UpdateCommentResponse);
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
+  rpc ListReviewComments(ListReviewCommentsRequest) returns (ListReviewCommentsResponse);
+  rpc CreateReviewComment(CreateReviewCommentRequest) returns (CreateReviewCommentResponse);
+  rpc UpdateReviewComment(UpdateReviewCommentRequest) returns (UpdateReviewCommentResponse);
+  rpc DeleteReviewComment(DeleteReviewCommentRequest) returns (DeleteReviewCommentResponse);
+  rpc ListAttachments(ListAttachmentsRequest) returns (ListAttachmentsResponse);
+  rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
+  rpc DownloadAttachment(DownloadAttachmentRequest) returns (stream DownloadAttachmentResponse);
+  rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// ListTasks
+message ListTasksRequest {
+  PageRequest page = 1;
+  optional string initiative_id = 2;
+  optional DependencyStatus dependency_status = 3;
+  repeated TaskStatus statuses = 4;
+  optional TaskQueue queue = 5;
+  optional TaskCategory category = 6;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  PageResponse page = 2;
+}
+
+// GetTask
+message GetTaskRequest {
+  string id = 1;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+// CreateTask
+message CreateTaskRequest {
+  string title = 1;
+  optional string description = 2;
+  TaskWeight weight = 3;
+  optional TaskQueue queue = 4;
+  optional TaskPriority priority = 5;
+  optional TaskCategory category = 6;
+  optional string initiative_id = 7;
+  optional string workflow_id = 8;
+  optional string target_branch = 9;
+  repeated string blocked_by = 10;
+  repeated string related_to = 11;
+  map<string, string> metadata = 12;
+}
+
+message CreateTaskResponse {
+  Task task = 1;
+}
+
+// UpdateTask
+message UpdateTaskRequest {
+  string id = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional TaskWeight weight = 4;
+  optional TaskQueue queue = 5;
+  optional TaskPriority priority = 6;
+  optional TaskCategory category = 7;
+  optional string initiative_id = 8;
+  optional string target_branch = 9;
+  repeated string blocked_by = 10;
+  repeated string related_to = 11;
+  map<string, string> metadata = 12;
+}
+
+message UpdateTaskResponse {
+  Task task = 1;
+}
+
+// DeleteTask
+message DeleteTaskRequest {
+  string id = 1;
+}
+
+message DeleteTaskResponse {
+  string message = 1;
+}
+
+// GetTaskState
+message GetTaskStateRequest {
+  string id = 1;
+}
+
+message GetTaskStateResponse {
+  ExecutionState state = 1;
+}
+
+// GetTaskPlan
+message GetTaskPlanRequest {
+  string id = 1;
+}
+
+message GetTaskPlanResponse {
+  TaskPlan plan = 1;
+}
+
+// RunTask
+message RunTaskRequest {
+  string id = 1;
+  optional string profile = 2;
+  bool stream = 3;
+}
+
+message RunTaskResponse {
+  Task task = 1;
+}
+
+// PauseTask
+message PauseTaskRequest {
+  string id = 1;
+}
+
+message PauseTaskResponse {
+  Task task = 1;
+}
+
+// ResumeTask
+message ResumeTaskRequest {
+  string id = 1;
+}
+
+message ResumeTaskResponse {
+  Task task = 1;
+}
+
+// SkipBlock
+message SkipBlockRequest {
+  string id = 1;
+  optional string reason = 2;
+}
+
+message SkipBlockResponse {
+  Task task = 1;
+}
+
+// RetryTask
+message RetryTaskRequest {
+  string id = 1;
+  bool include_review_comments = 2;
+  bool include_pr_comments = 3;
+  optional string instructions = 4;
+  optional string from_phase = 5;
+}
+
+message RetryTaskResponse {
+  Task task = 1;
+  string message = 2;
+}
+
+// RetryPreview
+message RetryPreviewRequest {
+  string id = 1;
+}
+
+message RetryPreviewResponse {
+  RetryPreviewInfo info = 1;
+}
+
+// FinalizeTask
+message FinalizeTaskRequest {
+  string id = 1;
+  bool force = 2;
+  bool gate_override = 3;
+}
+
+message FinalizeTaskResponse {
+  Task task = 1;
+  FinalizeState state = 2;
+}
+
+// GetFinalizeState
+message GetFinalizeStateRequest {
+  string id = 1;
+}
+
+message GetFinalizeStateResponse {
+  FinalizeState state = 1;
+}
+
+// GetDependencies
+message GetDependenciesRequest {
+  string id = 1;
+  bool transitive = 2;
+}
+
+message GetDependenciesResponse {
+  DependencyGraph graph = 1;
+}
+
+// GetDiff
+message GetDiffRequest {
+  string id = 1;
+}
+
+message GetDiffResponse {
+  DiffResult diff = 1;
+}
+
+// GetDiffStats
+message GetDiffStatsRequest {
+  string id = 1;
+}
+
+message GetDiffStatsResponse {
+  DiffStats stats = 1;
+}
+
+// ListComments
+message ListCommentsRequest {
+  string task_id = 1;
+  optional AuthorType author_type = 2;
+  optional string phase = 3;
+}
+
+message ListCommentsResponse {
+  repeated TaskComment comments = 1;
+}
+
+// CreateComment
+message CreateCommentRequest {
+  string task_id = 1;
+  string content = 2;
+  optional string author = 3;
+  optional AuthorType author_type = 4;
+  optional string phase = 5;
+}
+
+message CreateCommentResponse {
+  TaskComment comment = 1;
+}
+
+// UpdateComment
+message UpdateCommentRequest {
+  string task_id = 1;
+  string comment_id = 2;
+  optional string content = 3;
+  optional string phase = 4;
+}
+
+message UpdateCommentResponse {
+  TaskComment comment = 1;
+}
+
+// DeleteComment
+message DeleteCommentRequest {
+  string task_id = 1;
+  string comment_id = 2;
+}
+
+message DeleteCommentResponse {
+  string message = 1;
+}
+
+// ListReviewComments
+message ListReviewCommentsRequest {
+  string task_id = 1;
+  optional CommentStatus status = 2;
+  optional int32 review_round = 3;
+}
+
+message ListReviewCommentsResponse {
+  repeated ReviewComment comments = 1;
+}
+
+// CreateReviewComment
+message CreateReviewCommentRequest {
+  string task_id = 1;
+  string content = 2;
+  CommentSeverity severity = 3;
+  optional string file_path = 4;
+  optional int32 line_number = 5;
+  int32 review_round = 6;
+}
+
+message CreateReviewCommentResponse {
+  ReviewComment comment = 1;
+}
+
+// UpdateReviewComment
+message UpdateReviewCommentRequest {
+  string task_id = 1;
+  string comment_id = 2;
+  optional CommentStatus status = 3;
+  optional string content = 4;
+}
+
+message UpdateReviewCommentResponse {
+  ReviewComment comment = 1;
+}
+
+// DeleteReviewComment
+message DeleteReviewCommentRequest {
+  string task_id = 1;
+  string comment_id = 2;
+}
+
+message DeleteReviewCommentResponse {
+  string message = 1;
+}
+
+// ListAttachments
+message ListAttachmentsRequest {
+  string task_id = 1;
+}
+
+message ListAttachmentsResponse {
+  repeated Attachment attachments = 1;
+}
+
+// UploadAttachment
+message UploadAttachmentRequest {
+  oneof data {
+    AttachmentMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AttachmentMetadata {
+  string task_id = 1;
+  string filename = 2;
+  string content_type = 3;
+}
+
+message UploadAttachmentResponse {
+  Attachment attachment = 1;
+}
+
+// DownloadAttachment
+message DownloadAttachmentRequest {
+  string task_id = 1;
+  string filename = 2;
+}
+
+message DownloadAttachmentResponse {
+  bytes chunk = 1;
+}
+
+// DeleteAttachment
+message DeleteAttachmentRequest {
+  string task_id = 1;
+  string filename = 2;
+}
+
+message DeleteAttachmentResponse {
+  string message = 1;
+}

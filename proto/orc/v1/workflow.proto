@@ -1,0 +1,474 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+import "orc/v1/task.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum PromptSource {
+  PROMPT_SOURCE_UNSPECIFIED = 0;
+  PROMPT_SOURCE_EMBEDDED = 1;
+  PROMPT_SOURCE_DB = 2;
+  PROMPT_SOURCE_FILE = 3;
+}
+
+enum GateType {
+  GATE_TYPE_UNSPECIFIED = 0;
+  GATE_TYPE_AUTO = 1;
+  GATE_TYPE_HUMAN = 2;
+  GATE_TYPE_SKIP = 3;
+}
+
+enum WorkflowType {
+  WORKFLOW_TYPE_UNSPECIFIED = 0;
+  WORKFLOW_TYPE_TASK = 1;
+  WORKFLOW_TYPE_BRANCH = 2;
+  WORKFLOW_TYPE_STANDALONE = 3;
+}
+
+enum ContextType {
+  CONTEXT_TYPE_UNSPECIFIED = 0;
+  CONTEXT_TYPE_TASK = 1;
+  CONTEXT_TYPE_BRANCH = 2;
+  CONTEXT_TYPE_PR = 3;
+  CONTEXT_TYPE_STANDALONE = 4;
+  CONTEXT_TYPE_TAG = 5;
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_RUNNING = 2;
+  RUN_STATUS_PAUSED = 3;
+  RUN_STATUS_COMPLETED = 4;
+  RUN_STATUS_FAILED = 5;
+  RUN_STATUS_CANCELLED = 6;
+}
+
+enum VariableSourceType {
+  VARIABLE_SOURCE_TYPE_UNSPECIFIED = 0;
+  VARIABLE_SOURCE_TYPE_STATIC = 1;
+  VARIABLE_SOURCE_TYPE_ENV = 2;
+  VARIABLE_SOURCE_TYPE_SCRIPT = 3;
+  VARIABLE_SOURCE_TYPE_API = 4;
+  VARIABLE_SOURCE_TYPE_PHASE_OUTPUT = 5;
+  VARIABLE_SOURCE_TYPE_PROMPT_FRAGMENT = 6;
+}
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+message PhaseTemplate {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  PromptSource prompt_source = 4;
+  optional string prompt_content = 5;
+  optional string prompt_path = 6;
+  repeated string input_variables = 7;
+  optional string output_schema = 8;
+  bool produces_artifact = 9;
+  optional string artifact_type = 10;
+  int32 max_iterations = 11;
+  optional string model_override = 12;
+  optional bool thinking_enabled = 13;
+  GateType gate_type = 14;
+  bool checkpoint = 15;
+  optional string retry_from_phase = 16;
+  optional string retry_prompt_path = 17;
+  optional string claude_config = 18;
+  bool is_builtin = 19;
+  google.protobuf.Timestamp created_at = 20;
+  google.protobuf.Timestamp updated_at = 21;
+}
+
+message Workflow {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  WorkflowType workflow_type = 4;
+  optional string default_model = 5;
+  bool default_thinking = 6;
+  bool is_builtin = 7;
+  optional string based_on = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message WorkflowPhase {
+  int32 id = 1;
+  string workflow_id = 2;
+  string phase_template_id = 3;
+  int32 sequence = 4;
+  repeated string depends_on = 5;
+  optional int32 max_iterations_override = 6;
+  optional string model_override = 7;
+  optional bool thinking_override = 8;
+  optional GateType gate_type_override = 9;
+  optional string condition = 10;
+  optional string claude_config_override = 11;
+  PhaseTemplate template = 100;
+}
+
+message WorkflowVariable {
+  int32 id = 1;
+  string workflow_id = 2;
+  string name = 3;
+  optional string description = 4;
+  VariableSourceType source_type = 5;
+  string source_config = 6;
+  bool required = 7;
+  optional string default_value = 8;
+  int32 cache_ttl_seconds = 9;
+  optional string script_content = 10;
+}
+
+message WorkflowWithDetails {
+  Workflow workflow = 1;
+  repeated WorkflowPhase phases = 2;
+  repeated WorkflowVariable variables = 3;
+}
+
+message ContextData {
+  optional string task_id = 1;
+  optional string branch = 2;
+  optional string target_branch = 3;
+  optional int32 pr_number = 4;
+  optional string pr_branch = 5;
+  optional string tag = 6;
+  optional string worktree_path = 7;
+}
+
+message WorkflowRun {
+  string id = 1;
+  string workflow_id = 2;
+  ContextType context_type = 3;
+  ContextData context_data = 4;
+  optional string task_id = 5;
+  string prompt = 6;
+  optional string instructions = 7;
+  RunStatus status = 8;
+  optional string current_phase = 9;
+  optional google.protobuf.Timestamp started_at = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  map<string, string> variables_snapshot = 12;
+  double total_cost_usd = 13;
+  int32 total_input_tokens = 14;
+  int32 total_output_tokens = 15;
+  optional string error = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+}
+
+message WorkflowRunPhase {
+  int32 id = 1;
+  string workflow_run_id = 2;
+  string phase_template_id = 3;
+  PhaseStatus status = 4;
+  int32 iterations = 5;
+  optional google.protobuf.Timestamp started_at = 6;
+  optional google.protobuf.Timestamp completed_at = 7;
+  optional string commit_sha = 8;
+  int32 input_tokens = 9;
+  int32 output_tokens = 10;
+  double cost_usd = 11;
+  optional string content = 12;
+  optional string error = 13;
+  optional string session_id = 14;
+  PhaseTemplate template = 100;
+}
+
+message WorkflowRunWithDetails {
+  WorkflowRun run = 1;
+  Workflow workflow = 2;
+  repeated WorkflowRunPhase phases = 3;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service WorkflowService {
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse);
+  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse);
+  rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+  rpc CloneWorkflow(CloneWorkflowRequest) returns (CloneWorkflowResponse);
+  rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
+  rpc UpdatePhase(UpdatePhaseRequest) returns (UpdatePhaseResponse);
+  rpc RemovePhase(RemovePhaseRequest) returns (RemovePhaseResponse);
+  rpc AddVariable(AddVariableRequest) returns (AddVariableResponse);
+  rpc RemoveVariable(RemoveVariableRequest) returns (RemoveVariableResponse);
+  rpc ListPhaseTemplates(ListPhaseTemplatesRequest) returns (ListPhaseTemplatesResponse);
+  rpc GetPhaseTemplate(GetPhaseTemplateRequest) returns (GetPhaseTemplateResponse);
+  rpc CreatePhaseTemplate(CreatePhaseTemplateRequest) returns (CreatePhaseTemplateResponse);
+  rpc UpdatePhaseTemplate(UpdatePhaseTemplateRequest) returns (UpdatePhaseTemplateResponse);
+  rpc DeletePhaseTemplate(DeletePhaseTemplateRequest) returns (DeletePhaseTemplateResponse);
+  rpc GetPromptContent(GetPromptContentRequest) returns (GetPromptContentResponse);
+  rpc ListWorkflowRuns(ListWorkflowRunsRequest) returns (ListWorkflowRunsResponse);
+  rpc GetWorkflowRun(GetWorkflowRunRequest) returns (GetWorkflowRunResponse);
+  rpc StartWorkflowRun(StartWorkflowRunRequest) returns (StartWorkflowRunResponse);
+  rpc CancelWorkflowRun(CancelWorkflowRunRequest) returns (CancelWorkflowRunResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message ListWorkflowsRequest {
+  PageRequest page = 1;
+  bool include_builtin = 2;
+  bool custom_only = 3;
+  optional WorkflowType workflow_type = 4;
+}
+
+message ListWorkflowsResponse {
+  repeated Workflow workflows = 1;
+  map<string, int32> phase_counts = 2;
+  PageResponse page = 3;
+}
+
+message GetWorkflowRequest {
+  string id = 1;
+}
+
+message GetWorkflowResponse {
+  WorkflowWithDetails workflow = 1;
+}
+
+message CreateWorkflowRequest {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  WorkflowType workflow_type = 4;
+  optional string default_model = 5;
+  bool default_thinking = 6;
+  optional string based_on = 7;
+}
+
+message CreateWorkflowResponse {
+  Workflow workflow = 1;
+}
+
+message UpdateWorkflowRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string default_model = 4;
+  optional bool default_thinking = 5;
+}
+
+message UpdateWorkflowResponse {
+  Workflow workflow = 1;
+}
+
+message DeleteWorkflowRequest {
+  string id = 1;
+}
+
+message DeleteWorkflowResponse {
+  string message = 1;
+}
+
+message CloneWorkflowRequest {
+  string source_id = 1;
+  string new_id = 2;
+  optional string new_name = 3;
+}
+
+message CloneWorkflowResponse {
+  Workflow workflow = 1;
+}
+
+message AddPhaseRequest {
+  string workflow_id = 1;
+  string phase_template_id = 2;
+  int32 sequence = 3;
+  repeated string depends_on = 4;
+  optional int32 max_iterations_override = 5;
+  optional string model_override = 6;
+  optional bool thinking_override = 7;
+  optional GateType gate_type_override = 8;
+  optional string condition = 9;
+}
+
+message AddPhaseResponse {
+  WorkflowPhase phase = 1;
+}
+
+message UpdatePhaseRequest {
+  string workflow_id = 1;
+  int32 phase_id = 2;
+  optional int32 sequence = 3;
+  repeated string depends_on = 4;
+  optional int32 max_iterations_override = 5;
+  optional string model_override = 6;
+  optional bool thinking_override = 7;
+  optional GateType gate_type_override = 8;
+  optional string condition = 9;
+}
+
+message UpdatePhaseResponse {
+  WorkflowPhase phase = 1;
+}
+
+message RemovePhaseRequest {
+  string workflow_id = 1;
+  int32 phase_id = 2;
+}
+
+message RemovePhaseResponse {
+  Workflow workflow = 1;
+}
+
+message AddVariableRequest {
+  string workflow_id = 1;
+  string name = 2;
+  optional string description = 3;
+  VariableSourceType source_type = 4;
+  string source_config = 5;
+  bool required = 6;
+  optional string default_value = 7;
+  int32 cache_ttl_seconds = 8;
+}
+
+message AddVariableResponse {
+  WorkflowVariable variable = 1;
+}
+
+message RemoveVariableRequest {
+  string workflow_id = 1;
+  string name = 2;
+}
+
+message RemoveVariableResponse {
+  Workflow workflow = 1;
+}
+
+message ListPhaseTemplatesRequest {
+  PageRequest page = 1;
+  bool include_builtin = 2;
+}
+
+message ListPhaseTemplatesResponse {
+  repeated PhaseTemplate templates = 1;
+  PageResponse page = 2;
+}
+
+message GetPhaseTemplateRequest {
+  string id = 1;
+}
+
+message GetPhaseTemplateResponse {
+  PhaseTemplate template = 1;
+}
+
+message CreatePhaseTemplateRequest {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  PromptSource prompt_source = 4;
+  optional string prompt_content = 5;
+  optional string prompt_path = 6;
+  optional string output_schema = 7;
+  bool produces_artifact = 8;
+  optional string artifact_type = 9;
+  int32 max_iterations = 10;
+  optional string model_override = 11;
+  optional bool thinking_enabled = 12;
+  GateType gate_type = 13;
+  bool checkpoint = 14;
+}
+
+message CreatePhaseTemplateResponse {
+  PhaseTemplate template = 1;
+}
+
+message UpdatePhaseTemplateRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional PromptSource prompt_source = 4;
+  optional string prompt_content = 5;
+  optional string prompt_path = 6;
+  optional string output_schema = 7;
+  optional bool produces_artifact = 8;
+  optional string artifact_type = 9;
+  optional int32 max_iterations = 10;
+  optional string model_override = 11;
+  optional bool thinking_enabled = 12;
+  optional GateType gate_type = 13;
+  optional bool checkpoint = 14;
+}
+
+message UpdatePhaseTemplateResponse {
+  PhaseTemplate template = 1;
+}
+
+message DeletePhaseTemplateRequest {
+  string id = 1;
+}
+
+message DeletePhaseTemplateResponse {
+  string message = 1;
+}
+
+message GetPromptContentRequest {
+  string phase_template_id = 1;
+}
+
+message GetPromptContentResponse {
+  string content = 1;
+  PromptSource source = 2;
+  optional string path = 3;
+}
+
+message ListWorkflowRunsRequest {
+  PageRequest page = 1;
+  optional string workflow_id = 2;
+  optional string task_id = 3;
+  optional RunStatus status = 4;
+}
+
+message ListWorkflowRunsResponse {
+  repeated WorkflowRun runs = 1;
+  PageResponse page = 2;
+}
+
+message GetWorkflowRunRequest {
+  string id = 1;
+}
+
+message GetWorkflowRunResponse {
+  WorkflowRunWithDetails run = 1;
+}
+
+message StartWorkflowRunRequest {
+  string workflow_id = 1;
+  ContextType context_type = 2;
+  ContextData context_data = 3;
+  string prompt = 4;
+  optional string instructions = 5;
+  map<string, string> variables = 6;
+}
+
+message StartWorkflowRunResponse {
+  WorkflowRun run = 1;
+}
+
+message CancelWorkflowRunRequest {
+  string id = 1;
+}
+
+message CancelWorkflowRunResponse {
+  WorkflowRun run = 1;
+}

@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Trigger type
+enum TriggerType {
+  TRIGGER_TYPE_UNSPECIFIED = 0;
+  TRIGGER_TYPE_SCHEDULE = 1;    // Cron-based
+  TRIGGER_TYPE_WEBHOOK = 2;     // HTTP webhook
+  TRIGGER_TYPE_FILE_WATCH = 3;  // File system changes
+  TRIGGER_TYPE_GIT_HOOK = 4;    // Git events
+  TRIGGER_TYPE_MANUAL = 5;      // Manual trigger only
+}
+
+// Trigger mode
+enum TriggerMode {
+  TRIGGER_MODE_UNSPECIFIED = 0;
+  TRIGGER_MODE_QUEUE = 1;     // Add to queue
+  TRIGGER_MODE_IMMEDIATE = 2; // Run immediately
+  TRIGGER_MODE_DEBOUNCE = 3;  // Debounce multiple triggers
+}
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Trigger condition
+message TriggerCondition {
+  // Cron expression (for SCHEDULE)
+  optional string cron = 1;
+  // File patterns (for FILE_WATCH)
+  repeated string file_patterns = 2;
+  // Git events (for GIT_HOOK)
+  repeated string git_events = 3;
+  // Webhook secret (for WEBHOOK)
+  optional string webhook_secret = 4;
+}
+
+// Trigger action
+message TriggerAction {
+  // Task template
+  optional string task_template = 1;
+  // Task title template
+  string title_template = 2;
+  // Task description template
+  optional string description_template = 3;
+  // Task weight
+  optional string weight = 4;
+  // Initiative to link to
+  optional string initiative_id = 5;
+  // Auto-run after creation
+  bool auto_run = 6;
+}
+
+// Cooldown configuration
+message CooldownConfig {
+  // Minimum seconds between triggers
+  int32 min_seconds = 1;
+  // Maximum concurrent tasks from this trigger
+  int32 max_concurrent = 2;
+}
+
+// Trigger definition
+message Trigger {
+  // Trigger ID
+  string id = 1;
+  // Trigger type
+  TriggerType type = 2;
+  // Description
+  string description = 3;
+  // Whether trigger is enabled
+  bool enabled = 4;
+  // Trigger mode
+  TriggerMode mode = 5;
+  // Trigger condition
+  TriggerCondition condition = 6;
+  // Trigger action
+  TriggerAction action = 7;
+  // Cooldown configuration
+  optional CooldownConfig cooldown = 8;
+  // Last triggered timestamp
+  optional google.protobuf.Timestamp last_triggered_at = 9;
+  // Total trigger count
+  int32 trigger_count = 10;
+  // When trigger was created
+  google.protobuf.Timestamp created_at = 11;
+  // When trigger was last updated
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// Trigger execution
+message TriggerExecution {
+  // Execution ID
+  string id = 1;
+  // Trigger ID
+  string trigger_id = 2;
+  // Created task ID (if successful)
+  optional string task_id = 3;
+  // Whether execution was successful
+  bool success = 4;
+  // Error message (if failed)
+  optional string error = 5;
+  // When execution occurred
+  google.protobuf.Timestamp executed_at = 6;
+}
+
+// Automation statistics
+message AutomationStats {
+  // Total triggers
+  int32 total_triggers = 1;
+  // Enabled triggers
+  int32 enabled_triggers = 2;
+  // Total executions
+  int32 total_executions = 3;
+  // Successful executions
+  int32 successful_executions = 4;
+  // Tasks created by automation
+  int32 tasks_created = 5;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service AutomationService {
+  // List triggers
+  rpc ListTriggers(ListTriggersRequest) returns (ListTriggersResponse);
+
+  // Get a trigger
+  rpc GetTrigger(GetTriggerRequest) returns (GetTriggerResponse);
+
+  // Create a trigger
+  rpc CreateTrigger(CreateTriggerRequest) returns (CreateTriggerResponse);
+
+  // Update a trigger
+  rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse);
+
+  // Delete a trigger
+  rpc DeleteTrigger(DeleteTriggerRequest) returns (DeleteTriggerResponse);
+
+  // Enable/disable a trigger
+  rpc SetTriggerEnabled(SetTriggerEnabledRequest) returns (SetTriggerEnabledResponse);
+
+  // Force run a trigger
+  rpc RunTrigger(RunTriggerRequest) returns (RunTriggerResponse);
+
+  // Get trigger history
+  rpc GetTriggerHistory(GetTriggerHistoryRequest) returns (GetTriggerHistoryResponse);
+
+  // Reset trigger (clear cooldown, reset count)
+  rpc ResetTrigger(ResetTriggerRequest) returns (ResetTriggerResponse);
+
+  // Get automation statistics
+  rpc GetAutomationStats(GetAutomationStatsRequest) returns (GetAutomationStatsResponse);
+
+  // List automation tasks
+  rpc ListAutomationTasks(ListAutomationTasksRequest) returns (ListAutomationTasksResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message ListTriggersRequest {
+  // Filter by type
+  optional TriggerType type = 1;
+  // Filter by enabled state
+  optional bool enabled = 2;
+}
+
+message ListTriggersResponse {
+  repeated Trigger triggers = 1;
+}
+
+message GetTriggerRequest {
+  string id = 1;
+}
+
+message GetTriggerResponse {
+  Trigger trigger = 1;
+}
+
+message CreateTriggerRequest {
+  TriggerType type = 1;
+  string description = 2;
+  TriggerMode mode = 3;
+  TriggerCondition condition = 4;
+  TriggerAction action = 5;
+  optional CooldownConfig cooldown = 6;
+  bool enabled = 7;
+}
+
+message CreateTriggerResponse {
+  Trigger trigger = 1;
+}
+
+message UpdateTriggerRequest {
+  string id = 1;
+  optional string description = 2;
+  optional TriggerMode mode = 3;
+  optional TriggerCondition condition = 4;
+  optional TriggerAction action = 5;
+  optional CooldownConfig cooldown = 6;
+}
+
+message UpdateTriggerResponse {
+  Trigger trigger = 1;
+}
+
+message DeleteTriggerRequest {
+  string id = 1;
+}
+
+message DeleteTriggerResponse {
+  string message = 1;
+}
+
+message SetTriggerEnabledRequest {
+  string id = 1;
+  bool enabled = 2;
+}
+
+message SetTriggerEnabledResponse {
+  Trigger trigger = 1;
+}
+
+message RunTriggerRequest {
+  string id = 1;
+}
+
+message RunTriggerResponse {
+  TriggerExecution execution = 1;
+}
+
+message GetTriggerHistoryRequest {
+  string trigger_id = 1;
+  PageRequest page = 2;
+}
+
+message GetTriggerHistoryResponse {
+  repeated TriggerExecution executions = 1;
+  PageResponse page = 2;
+}
+
+message ResetTriggerRequest {
+  string id = 1;
+}
+
+message ResetTriggerResponse {
+  Trigger trigger = 1;
+}
+
+message GetAutomationStatsRequest {}
+
+message GetAutomationStatsResponse {
+  AutomationStats stats = 1;
+}
+
+message ListAutomationTasksRequest {
+  PageRequest page = 1;
+}
+
+message ListAutomationTasksResponse {
+  repeated string task_ids = 1;
+  PageResponse page = 2;
+}
