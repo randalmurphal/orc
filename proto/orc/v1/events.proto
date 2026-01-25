@@ -1,0 +1,286 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+import "orc/v1/task.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Activity state during task execution
+enum ActivityState {
+  ACTIVITY_STATE_UNSPECIFIED = 0;
+  ACTIVITY_STATE_IDLE = 1;
+  ACTIVITY_STATE_WAITING_API = 2;
+  ACTIVITY_STATE_STREAMING = 3;
+  ACTIVITY_STATE_RUNNING_TOOL = 4;
+  ACTIVITY_STATE_PROCESSING = 5;
+  ACTIVITY_STATE_SPEC_ANALYZING = 6;
+  ACTIVITY_STATE_SPEC_WRITING = 7;
+}
+
+// Timeline event type
+enum TimelineEventType {
+  TIMELINE_EVENT_TYPE_UNSPECIFIED = 0;
+  TIMELINE_EVENT_TYPE_PHASE_STARTED = 1;
+  TIMELINE_EVENT_TYPE_PHASE_COMPLETED = 2;
+  TIMELINE_EVENT_TYPE_PHASE_FAILED = 3;
+  TIMELINE_EVENT_TYPE_TASK_CREATED = 4;
+  TIMELINE_EVENT_TYPE_TASK_STARTED = 5;
+  TIMELINE_EVENT_TYPE_TASK_COMPLETED = 6;
+  TIMELINE_EVENT_TYPE_TASK_FAILED = 7;
+  TIMELINE_EVENT_TYPE_ACTIVITY = 8;
+  TIMELINE_EVENT_TYPE_ERROR = 9;
+  TIMELINE_EVENT_TYPE_METRICS = 10;
+  TIMELINE_EVENT_TYPE_GATE_PENDING = 11;
+  TIMELINE_EVENT_TYPE_GATE_APPROVED = 12;
+  TIMELINE_EVENT_TYPE_GATE_REJECTED = 13;
+}
+
+// =============================================================================
+// EVENT PAYLOAD MESSAGES
+// =============================================================================
+
+// Task was created
+message TaskCreatedEvent {
+  string task_id = 1;
+  string title = 2;
+  TaskWeight weight = 3;
+  optional string initiative_id = 4;
+}
+
+// Task was updated
+message TaskUpdatedEvent {
+  string task_id = 1;
+  Task task = 2;
+  repeated string changed_fields = 3;
+}
+
+// Task was deleted
+message TaskDeletedEvent {
+  string task_id = 1;
+}
+
+// Phase changed (started, completed, failed)
+message PhaseChangedEvent {
+  string task_id = 1;
+  string phase_id = 2;
+  string phase_name = 3;
+  PhaseStatus status = 4;
+  int32 iteration = 5;
+  optional string commit_sha = 6;
+  optional string error = 7;
+}
+
+// Token usage updated
+message TokensUpdatedEvent {
+  string task_id = 1;
+  TokenUsage tokens = 2;
+  optional string phase_id = 3;
+}
+
+// Activity state changed
+message ActivityEvent {
+  string task_id = 1;
+  string phase_id = 2;
+  ActivityState activity = 3;
+  optional string details = 4;
+}
+
+// Initiative was created
+message InitiativeCreatedEvent {
+  string initiative_id = 1;
+  string title = 2;
+}
+
+// Initiative was updated
+message InitiativeUpdatedEvent {
+  string initiative_id = 1;
+  repeated string changed_fields = 2;
+}
+
+// Initiative was deleted
+message InitiativeDeletedEvent {
+  string initiative_id = 1;
+}
+
+// Decision required (gate pending)
+message DecisionRequiredEvent {
+  string decision_id = 1;
+  string task_id = 2;
+  string task_title = 3;
+  string phase = 4;
+  string gate_type = 5;
+  string question = 6;
+  string context = 7;
+  google.protobuf.Timestamp requested_at = 8;
+}
+
+// Decision was resolved
+message DecisionResolvedEvent {
+  string decision_id = 1;
+  string task_id = 2;
+  string phase = 3;
+  bool approved = 4;
+  string resolved_by = 5;
+  optional string reason = 6;
+  google.protobuf.Timestamp resolved_at = 7;
+}
+
+// Files changed in task worktree
+message FileChangedInfo {
+  string path = 1;
+  string status = 2;  // "added", "modified", "deleted"
+  int32 additions = 3;
+  int32 deletions = 4;
+}
+
+message FilesChangedEvent {
+  string task_id = 1;
+  repeated FileChangedInfo files = 2;
+  int32 total_additions = 3;
+  int32 total_deletions = 4;
+}
+
+// Session update (Claude CLI session)
+message SessionUpdateEvent {
+  string task_id = 1;
+  SessionInfo session = 2;
+}
+
+// Error occurred
+message ErrorEvent {
+  string task_id = 1;
+  string error = 2;
+  optional string phase = 3;
+  optional string stack_trace = 4;
+}
+
+// Warning occurred
+message WarningEvent {
+  string task_id = 1;
+  string message = 2;
+  optional string phase = 3;
+}
+
+// Heartbeat for connection health
+message HeartbeatEvent {
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+// =============================================================================
+// MAIN EVENT MESSAGE
+// =============================================================================
+
+// Event with typed payload (replaces WebSocket's untyped data)
+message Event {
+  // Event ID
+  string id = 1;
+  // When event occurred
+  google.protobuf.Timestamp timestamp = 2;
+  // Associated task ID (if applicable)
+  optional string task_id = 3;
+
+  // Typed payload (exactly one must be set)
+  oneof payload {
+    TaskCreatedEvent task_created = 10;
+    TaskUpdatedEvent task_updated = 11;
+    TaskDeletedEvent task_deleted = 12;
+    PhaseChangedEvent phase_changed = 13;
+    TokensUpdatedEvent tokens_updated = 14;
+    ActivityEvent activity = 15;
+    InitiativeCreatedEvent initiative_created = 16;
+    InitiativeUpdatedEvent initiative_updated = 17;
+    InitiativeDeletedEvent initiative_deleted = 18;
+    DecisionRequiredEvent decision_required = 19;
+    DecisionResolvedEvent decision_resolved = 20;
+    FilesChangedEvent files_changed = 21;
+    SessionUpdateEvent session_update = 22;
+    ErrorEvent error = 23;
+    WarningEvent warning = 24;
+    HeartbeatEvent heartbeat = 25;
+  }
+}
+
+// Timeline event for historical event log
+message TimelineEvent {
+  string id = 1;
+  string task_id = 2;
+  string task_title = 3;
+  TimelineEventType event_type = 4;
+  string source = 5;  // "system", "user", "agent"
+  optional string phase = 6;
+  optional int32 iteration = 7;
+  optional string data = 8;  // JSON for additional context
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service EventService {
+  // Subscribe to real-time events (replaces WebSocket)
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+
+  // Get historical events
+  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
+
+  // Get timeline events for a task
+  rpc GetTimeline(GetTimelineRequest) returns (GetTimelineResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message SubscribeRequest {
+  // Subscribe to specific task (optional, empty = all tasks)
+  optional string task_id = 1;
+  // Subscribe to specific initiative (optional)
+  optional string initiative_id = 2;
+  // Event types to receive (empty = all)
+  repeated string event_types = 3;
+  // Include heartbeat events
+  bool include_heartbeat = 4;
+}
+
+message SubscribeResponse {
+  Event event = 1;
+}
+
+message GetEventsRequest {
+  PageRequest page = 1;
+  // Filter by task ID
+  optional string task_id = 2;
+  // Filter by initiative ID
+  optional string initiative_id = 3;
+  // Events since timestamp
+  optional google.protobuf.Timestamp since = 4;
+  // Events until timestamp
+  optional google.protobuf.Timestamp until = 5;
+  // Filter by event types
+  repeated string types = 6;
+}
+
+message GetEventsResponse {
+  repeated Event events = 1;
+  PageResponse page = 2;
+}
+
+message GetTimelineRequest {
+  string task_id = 1;
+  PageRequest page = 2;
+  // Filter by event types
+  repeated TimelineEventType types = 3;
+}
+
+message GetTimelineResponse {
+  repeated TimelineEvent events = 1;
+  PageResponse page = 2;
+}

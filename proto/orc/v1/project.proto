@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Branch type
+enum BranchType {
+  BRANCH_TYPE_UNSPECIFIED = 0;
+  BRANCH_TYPE_INITIATIVE = 1;  // Initiative branch
+  BRANCH_TYPE_STAGING = 2;     // Staging/integration branch
+  BRANCH_TYPE_TASK = 3;        // Task branch (orc/TASK-XXX)
+}
+
+// Branch status
+enum BranchStatus {
+  BRANCH_STATUS_UNSPECIFIED = 0;
+  BRANCH_STATUS_ACTIVE = 1;    // Currently being worked on
+  BRANCH_STATUS_MERGED = 2;    // Merged to target
+  BRANCH_STATUS_STALE = 3;     // No recent activity
+  BRANCH_STATUS_ORPHANED = 4;  // No associated task/initiative
+}
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Project (multi-project support)
+message Project {
+  // Project ID
+  string id = 1;
+  // Project name
+  string name = 2;
+  // Project path
+  string path = 3;
+  // When project was added
+  google.protobuf.Timestamp created_at = 4;
+  // Whether this is the default project
+  bool is_default = 5;
+}
+
+// Branch
+message Branch {
+  // Branch name
+  string name = 1;
+  // Branch type
+  BranchType type = 2;
+  // When branch was created
+  google.protobuf.Timestamp created_at = 3;
+  // Last activity timestamp
+  google.protobuf.Timestamp last_activity = 4;
+  // Branch status
+  BranchStatus status = 5;
+  // Owner (task ID or initiative ID)
+  optional string owner_id = 6;
+  // Commits ahead of target
+  int32 commits_ahead = 7;
+  // Commits behind target
+  int32 commits_behind = 8;
+  // Target branch
+  optional string target_branch = 9;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service ProjectService {
+  // List all projects
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+
+  // Get a project
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // Get default project
+  rpc GetDefaultProject(GetDefaultProjectRequest) returns (GetDefaultProjectResponse);
+
+  // Set default project
+  rpc SetDefaultProject(SetDefaultProjectRequest) returns (SetDefaultProjectResponse);
+
+  // Add a project
+  rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
+
+  // Remove a project
+  rpc RemoveProject(RemoveProjectRequest) returns (RemoveProjectResponse);
+}
+
+service BranchService {
+  // List branches
+  rpc ListBranches(ListBranchesRequest) returns (ListBranchesResponse);
+
+  // Get a branch
+  rpc GetBranch(GetBranchRequest) returns (GetBranchResponse);
+
+  // Update branch status
+  rpc UpdateBranchStatus(UpdateBranchStatusRequest) returns (UpdateBranchStatusResponse);
+
+  // Delete branch
+  rpc DeleteBranch(DeleteBranchRequest) returns (DeleteBranchResponse);
+
+  // Cleanup stale branches
+  rpc CleanupStaleBranches(CleanupStaleBranchesRequest) returns (CleanupStaleBranchesResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// Project requests
+message ListProjectsRequest {}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+}
+
+message GetProjectRequest {
+  string id = 1;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message GetDefaultProjectRequest {}
+
+message GetDefaultProjectResponse {
+  optional string default_project_id = 1;
+  optional Project project = 2;
+}
+
+message SetDefaultProjectRequest {
+  string project_id = 1;
+}
+
+message SetDefaultProjectResponse {
+  Project project = 1;
+}
+
+message AddProjectRequest {
+  string name = 1;
+  string path = 2;
+}
+
+message AddProjectResponse {
+  Project project = 1;
+}
+
+message RemoveProjectRequest {
+  string id = 1;
+}
+
+message RemoveProjectResponse {
+  string message = 1;
+}
+
+// Branch requests
+message ListBranchesRequest {
+  // Filter by type
+  optional BranchType type = 1;
+  // Filter by status
+  optional BranchStatus status = 2;
+  // Include orphaned branches
+  bool include_orphaned = 3;
+}
+
+message ListBranchesResponse {
+  repeated Branch branches = 1;
+}
+
+message GetBranchRequest {
+  string name = 1;
+}
+
+message GetBranchResponse {
+  Branch branch = 1;
+}
+
+message UpdateBranchStatusRequest {
+  string name = 1;
+  BranchStatus status = 2;
+}
+
+message UpdateBranchStatusResponse {
+  Branch branch = 1;
+}
+
+message DeleteBranchRequest {
+  string name = 1;
+  // Force delete even if not merged
+  bool force = 2;
+}
+
+message DeleteBranchResponse {
+  string message = 1;
+}
+
+message CleanupStaleBranchesRequest {
+  // Days since last activity to consider stale
+  int32 stale_days = 1;
+  // Dry run (don't actually delete)
+  bool dry_run = 2;
+}
+
+message CleanupStaleBranchesResponse {
+  repeated string deleted_branches = 1;
+  repeated string skipped_branches = 2;
+}

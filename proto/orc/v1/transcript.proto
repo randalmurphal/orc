@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Transcript file metadata
+message TranscriptFile {
+  // File path
+  string path = 1;
+  // Phase that generated this transcript
+  string phase = 2;
+  // Iteration number
+  int32 iteration = 3;
+  // File size in bytes
+  int64 size = 4;
+  // When transcript was created
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// Transcript entry (single message in conversation)
+message TranscriptEntry {
+  // Entry timestamp
+  google.protobuf.Timestamp timestamp = 1;
+  // Message type: "user", "assistant", "system", "tool_use", "tool_result"
+  string type = 2;
+  // Message content
+  string content = 3;
+  // Tool name (for tool_use/tool_result)
+  optional string tool_name = 4;
+  // Tool input (JSON, for tool_use)
+  optional string tool_input = 5;
+  // Token usage for this entry
+  optional TokenUsage tokens = 6;
+}
+
+// Complete transcript
+message Transcript {
+  // Task ID
+  string task_id = 1;
+  // Phase ID
+  string phase = 2;
+  // Iteration number
+  int32 iteration = 3;
+  // Session ID
+  optional string session_id = 4;
+  // Model used
+  optional string model = 5;
+  // Transcript entries
+  repeated TranscriptEntry entries = 6;
+  // Total token usage
+  TokenUsage total_tokens = 7;
+  // When transcript started
+  google.protobuf.Timestamp started_at = 8;
+  // When transcript ended
+  optional google.protobuf.Timestamp ended_at = 9;
+}
+
+// Transcript chunk for streaming
+message TranscriptChunk {
+  // Chunk data
+  bytes data = 1;
+  // Whether this is the last chunk
+  bool is_last = 2;
+}
+
+// Todo item from Claude's todo list
+message TodoItem {
+  // Todo content
+  string content = 1;
+  // Todo status: "pending", "in_progress", "completed"
+  string status = 2;
+  // Active form (present participle)
+  optional string active_form = 3;
+}
+
+// Todo snapshot at a point in time
+message TodoSnapshot {
+  // Snapshot timestamp
+  google.protobuf.Timestamp timestamp = 1;
+  // Phase when snapshot was taken
+  string phase = 2;
+  // Iteration number
+  int32 iteration = 3;
+  // Todo items
+  repeated TodoItem items = 4;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service TranscriptService {
+  // List transcript files for a task
+  rpc ListTranscripts(ListTranscriptsRequest) returns (ListTranscriptsResponse);
+
+  // Get a specific transcript
+  rpc GetTranscript(GetTranscriptRequest) returns (GetTranscriptResponse);
+
+  // Stream transcript content (for large transcripts)
+  rpc GetTranscriptContent(GetTranscriptContentRequest) returns (stream GetTranscriptContentResponse);
+
+  // Get token usage for a task
+  rpc GetTokens(GetTokensRequest) returns (GetTokensResponse);
+
+  // Get session info for a task
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+
+  // Get todo list for a task
+  rpc GetTodos(GetTodosRequest) returns (GetTodosResponse);
+
+  // Get todo history for a task
+  rpc GetTodoHistory(GetTodoHistoryRequest) returns (GetTodoHistoryResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message ListTranscriptsRequest {
+  string task_id = 1;
+  // Filter by phase
+  optional string phase = 2;
+}
+
+message ListTranscriptsResponse {
+  repeated TranscriptFile transcripts = 1;
+}
+
+message GetTranscriptRequest {
+  string task_id = 1;
+  string phase = 2;
+  int32 iteration = 3;
+}
+
+message GetTranscriptResponse {
+  Transcript transcript = 1;
+}
+
+message GetTranscriptContentRequest {
+  string task_id = 1;
+  string phase = 2;
+  int32 iteration = 3;
+}
+
+message GetTranscriptContentResponse {
+  TranscriptChunk chunk = 1;
+}
+
+message GetTokensRequest {
+  string task_id = 1;
+}
+
+message GetTokensResponse {
+  TokenUsage tokens = 1;
+}
+
+message GetSessionRequest {
+  string task_id = 1;
+}
+
+message GetSessionResponse {
+  SessionInfo session = 1;
+}
+
+message GetTodosRequest {
+  string task_id = 1;
+}
+
+message GetTodosResponse {
+  repeated TodoItem items = 1;
+  optional string phase = 2;
+  optional int32 iteration = 3;
+}
+
+message GetTodoHistoryRequest {
+  string task_id = 1;
+}
+
+message GetTodoHistoryResponse {
+  repeated TodoSnapshot snapshots = 1;
+}

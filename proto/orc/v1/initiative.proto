@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+import "orc/v1/task.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum InitiativeStatus {
+  INITIATIVE_STATUS_UNSPECIFIED = 0;
+  INITIATIVE_STATUS_DRAFT = 1;
+  INITIATIVE_STATUS_ACTIVE = 2;
+  INITIATIVE_STATUS_COMPLETED = 3;
+  INITIATIVE_STATUS_ARCHIVED = 4;
+}
+
+enum MergeStatus {
+  MERGE_STATUS_UNSPECIFIED = 0;
+  MERGE_STATUS_NONE = 1;
+  MERGE_STATUS_PENDING = 2;
+  MERGE_STATUS_IN_PROGRESS = 3;
+  MERGE_STATUS_MERGED = 4;
+  MERGE_STATUS_FAILED = 5;
+}
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+message Identity {
+  string initials = 1;
+  optional string display_name = 2;
+  optional string email = 3;
+}
+
+message InitiativeDecision {
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  string by = 3;
+  string decision = 4;
+  optional string rationale = 5;
+}
+
+message TaskRef {
+  string id = 1;
+  string title = 2;
+  TaskStatus status = 3;
+  repeated string depends_on = 4;
+}
+
+message Initiative {
+  int32 version = 1;
+  string id = 2;
+  string title = 3;
+  InitiativeStatus status = 4;
+  optional Identity owner = 5;
+  optional string vision = 6;
+  repeated InitiativeDecision decisions = 7;
+  repeated string context_files = 8;
+  repeated TaskRef tasks = 9;
+  repeated string blocked_by = 10;
+  optional string branch_base = 11;
+  optional string branch_prefix = 12;
+  MergeStatus merge_status = 13;
+  optional string merge_commit = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+  repeated string blocks = 100;
+}
+
+message InitiativeProgress {
+  string id = 1;
+  int32 completed = 2;
+  int32 total = 3;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service InitiativeService {
+  rpc ListInitiatives(ListInitiativesRequest) returns (ListInitiativesResponse);
+  rpc GetInitiative(GetInitiativeRequest) returns (GetInitiativeResponse);
+  rpc CreateInitiative(CreateInitiativeRequest) returns (CreateInitiativeResponse);
+  rpc UpdateInitiative(UpdateInitiativeRequest) returns (UpdateInitiativeResponse);
+  rpc DeleteInitiative(DeleteInitiativeRequest) returns (DeleteInitiativeResponse);
+  rpc ListInitiativeTasks(ListInitiativeTasksRequest) returns (ListInitiativeTasksResponse);
+  rpc LinkTasks(LinkTasksRequest) returns (LinkTasksResponse);
+  rpc UnlinkTask(UnlinkTaskRequest) returns (UnlinkTaskResponse);
+  rpc AddDecision(AddDecisionRequest) returns (AddDecisionResponse);
+  rpc GetReadyTasks(GetReadyTasksRequest) returns (GetReadyTasksResponse);
+  rpc GetDependencyGraph(GetDependencyGraphRequest) returns (GetDependencyGraphResponse);
+  rpc RunInitiative(RunInitiativeRequest) returns (RunInitiativeResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message ListInitiativesRequest {
+  PageRequest page = 1;
+  optional InitiativeStatus status = 2;
+  bool shared = 3;
+}
+
+message ListInitiativesResponse {
+  repeated Initiative initiatives = 1;
+  PageResponse page = 2;
+}
+
+message GetInitiativeRequest {
+  string id = 1;
+}
+
+message GetInitiativeResponse {
+  Initiative initiative = 1;
+}
+
+message CreateInitiativeRequest {
+  string title = 1;
+  optional string vision = 2;
+  optional Identity owner = 3;
+  repeated string blocked_by = 4;
+  optional string branch_base = 5;
+  optional string branch_prefix = 6;
+  repeated string context_files = 7;
+}
+
+message CreateInitiativeResponse {
+  Initiative initiative = 1;
+}
+
+message UpdateInitiativeRequest {
+  string id = 1;
+  optional string title = 2;
+  optional string vision = 3;
+  optional Identity owner = 4;
+  optional InitiativeStatus status = 5;
+  repeated string blocked_by = 6;
+  optional string branch_base = 7;
+  optional string branch_prefix = 8;
+  repeated string context_files = 9;
+}
+
+message UpdateInitiativeResponse {
+  Initiative initiative = 1;
+}
+
+message DeleteInitiativeRequest {
+  string id = 1;
+}
+
+message DeleteInitiativeResponse {
+  string message = 1;
+}
+
+message ListInitiativeTasksRequest {
+  string initiative_id = 1;
+}
+
+message ListInitiativeTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message LinkTasksRequest {
+  string initiative_id = 1;
+  repeated string task_ids = 2;
+}
+
+message LinkTasksResponse {
+  Initiative initiative = 1;
+}
+
+message UnlinkTaskRequest {
+  string initiative_id = 1;
+  string task_id = 2;
+}
+
+message UnlinkTaskResponse {
+  Initiative initiative = 1;
+}
+
+message AddDecisionRequest {
+  string initiative_id = 1;
+  string decision = 2;
+  optional string rationale = 3;
+  optional string by = 4;
+}
+
+message AddDecisionResponse {
+  Initiative initiative = 1;
+}
+
+message GetReadyTasksRequest {
+  string initiative_id = 1;
+}
+
+message GetReadyTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message GetDependencyGraphRequest {
+  string initiative_id = 1;
+}
+
+message GetDependencyGraphResponse {
+  DependencyGraph graph = 1;
+}
+
+message RunInitiativeRequest {
+  string initiative_id = 1;
+  optional string profile = 2;
+  int32 max_parallel = 3;
+}
+
+message RunInitiativeResponse {
+  Initiative initiative = 1;
+  repeated string started_task_ids = 2;
+  string message = 3;
+}

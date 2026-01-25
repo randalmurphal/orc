@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Decision option
+message DecisionOption {
+  // Option ID
+  string id = 1;
+  // Option label
+  string label = 2;
+  // Description of what this option means
+  optional string description = 3;
+  // Whether this is the recommended option
+  bool recommended = 4;
+}
+
+// Pending decision (gate waiting for approval)
+message PendingDecision {
+  // Decision ID
+  string id = 1;
+  // Task ID
+  string task_id = 2;
+  // Task title
+  string task_title = 3;
+  // Phase that requires decision
+  string phase = 4;
+  // Gate type
+  string gate_type = 5;
+  // Question to answer
+  string question = 6;
+  // Additional context
+  string context = 7;
+  // Available options
+  repeated DecisionOption options = 8;
+  // When decision was requested
+  google.protobuf.Timestamp requested_at = 9;
+}
+
+// Resolved decision
+message ResolvedDecision {
+  // Decision ID
+  string id = 1;
+  // Task ID
+  string task_id = 2;
+  // Phase
+  string phase = 3;
+  // Whether approved
+  bool approved = 4;
+  // Selected option ID (if applicable)
+  optional string selected_option = 5;
+  // Who resolved the decision
+  string resolved_by = 6;
+  // Reason for decision
+  optional string reason = 7;
+  // When resolved
+  google.protobuf.Timestamp resolved_at = 8;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service DecisionService {
+  // List pending decisions
+  rpc ListPendingDecisions(ListPendingDecisionsRequest) returns (ListPendingDecisionsResponse);
+
+  // Get a pending decision
+  rpc GetPendingDecision(GetPendingDecisionRequest) returns (GetPendingDecisionResponse);
+
+  // Resolve a decision
+  rpc ResolveDecision(ResolveDecisionRequest) returns (ResolveDecisionResponse);
+
+  // List resolved decisions
+  rpc ListResolvedDecisions(ListResolvedDecisionsRequest) returns (ListResolvedDecisionsResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message ListPendingDecisionsRequest {
+  // Filter by task ID
+  optional string task_id = 1;
+}
+
+message ListPendingDecisionsResponse {
+  repeated PendingDecision decisions = 1;
+}
+
+message GetPendingDecisionRequest {
+  string id = 1;
+}
+
+message GetPendingDecisionResponse {
+  PendingDecision decision = 1;
+}
+
+message ResolveDecisionRequest {
+  string id = 1;
+  bool approved = 2;
+  // Selected option ID
+  optional string selected_option = 3;
+  // Reason for decision
+  optional string reason = 4;
+  // Who is making the decision
+  optional string resolved_by = 5;
+}
+
+message ResolveDecisionResponse {
+  ResolvedDecision decision = 1;
+}
+
+message ListResolvedDecisionsRequest {
+  PageRequest page = 1;
+  // Filter by task ID
+  optional string task_id = 2;
+}
+
+message ListResolvedDecisionsResponse {
+  repeated ResolvedDecision decisions = 1;
+  PageResponse page = 2;
+}

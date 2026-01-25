@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// Pagination request parameters
+message PageRequest {
+  // Page number (1-indexed)
+  int32 page = 1;
+  // Number of items per page
+  int32 limit = 2;
+}
+
+// Pagination response metadata
+message PageResponse {
+  // Current page number
+  int32 page = 1;
+  // Items per page
+  int32 limit = 2;
+  // Total number of items
+  int32 total = 3;
+  // Total number of pages
+  int32 total_pages = 4;
+  // Whether there are more pages
+  bool has_more = 5;
+}
+
+// Token usage tracking for LLM API calls
+message TokenUsage {
+  // Input tokens consumed
+  int32 input_tokens = 1;
+  // Output tokens generated
+  int32 output_tokens = 2;
+  // Tokens used for cache creation
+  int32 cache_creation_input_tokens = 3;
+  // Tokens read from cache
+  int32 cache_read_input_tokens = 4;
+  // Total tokens (input + output)
+  int32 total_tokens = 5;
+}
+
+// Cost tracking for LLM API usage
+message CostTracking {
+  // Total cost in USD
+  double total_cost_usd = 1;
+  // Cost breakdown by phase
+  map<string, double> phase_costs = 2;
+  // Last time cost was updated
+  google.protobuf.Timestamp last_updated_at = 3;
+}
+
+// Session information for Claude CLI sessions
+message SessionInfo {
+  // Session UUID
+  string id = 1;
+  // Model used (e.g., "claude-sonnet-4-20250514")
+  string model = 2;
+  // Session status
+  string status = 3;
+  // When session was created
+  google.protobuf.Timestamp created_at = 4;
+  // Last activity timestamp
+  google.protobuf.Timestamp last_activity = 5;
+  // Number of conversation turns
+  int32 turn_count = 6;
+}
+
+// Validation entry from phase validation
+message ValidationEntry {
+  // Iteration number when validation occurred
+  int32 iteration = 1;
+  // Type of validation ("progress", "criteria", "quality_check")
+  string type = 2;
+  // Decision made ("CONTINUE", "RETRY", "STOP")
+  string decision = 3;
+  // Reason for the decision
+  optional string reason = 4;
+  // When validation occurred
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// Gate decision for phase gates
+message GateDecision {
+  // Phase that required the gate
+  string phase = 1;
+  // Type of gate ("auto", "human", "skip")
+  string gate_type = 2;
+  // Whether the gate was approved
+  bool approved = 3;
+  // Reason for the decision
+  optional string reason = 4;
+  // When the decision was made
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// Retry context when retrying from a failed phase
+message RetryContext {
+  // Phase to retry from
+  string from_phase = 1;
+  // Phase that failed
+  string to_phase = 2;
+  // Reason for retry
+  string reason = 3;
+  // Output from failed attempt
+  optional string failure_output = 4;
+  // Path to context file
+  optional string context_file = 5;
+  // Retry attempt number
+  int32 attempt = 6;
+  // When retry was initiated
+  google.protobuf.Timestamp timestamp = 7;
+}
+
+// File diff statistics
+message DiffStats {
+  // Number of files changed
+  int32 files_changed = 1;
+  // Lines added
+  int32 additions = 2;
+  // Lines deleted
+  int32 deletions = 3;
+}
+
+// Single line in a diff hunk
+message DiffLine {
+  // Line type: "context", "addition", "deletion"
+  string type = 1;
+  // Line content
+  string content = 2;
+  // Old file line number (for context/deletion)
+  optional int32 old_line = 3;
+  // New file line number (for context/addition)
+  optional int32 new_line = 4;
+}
+
+// Diff hunk (contiguous changed section)
+message DiffHunk {
+  // Starting line in old file
+  int32 old_start = 1;
+  // Number of lines in old file
+  int32 old_lines = 2;
+  // Starting line in new file
+  int32 new_start = 3;
+  // Number of lines in new file
+  int32 new_lines = 4;
+  // Lines in this hunk
+  repeated DiffLine lines = 5;
+}
+
+// Single file diff
+message FileDiff {
+  // File path (new path for renames)
+  string path = 1;
+  // Old path (for renames)
+  optional string old_path = 2;
+  // File status: "added", "modified", "deleted", "renamed"
+  string status = 3;
+  // Lines added
+  int32 additions = 4;
+  // Lines deleted
+  int32 deletions = 5;
+  // Whether file is binary
+  bool binary = 6;
+  // Syntax highlighting language
+  string syntax = 7;
+  // Diff hunks
+  repeated DiffHunk hunks = 8;
+  // Error loading diff (if any)
+  optional string load_error = 9;
+}
+
+// Complete diff result
+message DiffResult {
+  // Base commit/branch
+  string base = 1;
+  // Head commit/branch
+  string head = 2;
+  // Overall statistics
+  DiffStats stats = 3;
+  // Per-file diffs
+  repeated FileDiff files = 4;
+}
+
+// Empty message for RPCs with no request parameters
+message Empty {}

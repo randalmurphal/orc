@@ -1,0 +1,314 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+import "orc/v1/common.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Dashboard statistics
+message DashboardStats {
+  // Task counts by status
+  StatusCounts task_counts = 1;
+  // Running tasks
+  repeated RunningTaskInfo running_tasks = 2;
+  // Recent completions
+  repeated RecentCompletion recent_completions = 3;
+  // Pending decisions count
+  int32 pending_decisions = 4;
+  // Today's token usage
+  TokenUsage today_tokens = 5;
+  // Today's cost
+  double today_cost_usd = 6;
+}
+
+// Status counts
+message StatusCounts {
+  int32 all = 1;
+  int32 active = 2;
+  int32 completed = 3;
+  int32 failed = 4;
+  int32 running = 5;
+  int32 blocked = 6;
+}
+
+// Running task info
+message RunningTaskInfo {
+  string id = 1;
+  string title = 2;
+  string current_phase = 3;
+  int32 iteration = 4;
+  google.protobuf.Timestamp started_at = 5;
+}
+
+// Recent completion
+message RecentCompletion {
+  string id = 1;
+  string title = 2;
+  bool success = 3;
+  google.protobuf.Timestamp completed_at = 4;
+}
+
+// Activity heatmap data
+message ActivityHeatmap {
+  // Days with activity
+  repeated ActivityDay days = 1;
+}
+
+message ActivityDay {
+  // Date (YYYY-MM-DD)
+  string date = 1;
+  // Number of tasks completed
+  int32 tasks_completed = 2;
+  // Phases completed
+  int32 phases_completed = 3;
+  // Commits made
+  int32 commits = 4;
+  // Total tokens used
+  int32 tokens = 5;
+}
+
+// Cost summary
+message CostSummary {
+  // Total cost all time
+  double total_cost_usd = 1;
+  // Cost by period
+  repeated PeriodCost by_period = 2;
+  // Cost by model
+  map<string, double> by_model = 3;
+  // Cost by task category
+  map<string, double> by_category = 4;
+}
+
+message PeriodCost {
+  string period = 1;  // "day", "week", "month"
+  string label = 2;   // "2024-01-15", "Week 3", "January"
+  double cost_usd = 3;
+}
+
+// Metrics summary
+message MetricsSummary {
+  // Tasks completed
+  int32 tasks_completed = 1;
+  // Phases executed
+  int32 phases_executed = 2;
+  // Total commits
+  int32 total_commits = 3;
+  // Lines of code changed
+  int32 lines_changed = 4;
+  // Average task duration (seconds)
+  double avg_task_duration_seconds = 5;
+  // Success rate (0-1)
+  double success_rate = 6;
+  // First-try success rate
+  double first_try_success_rate = 7;
+  // Token usage
+  TokenUsage total_tokens = 8;
+}
+
+// Daily metrics
+message DailyMetrics {
+  string date = 1;
+  int32 tasks_created = 2;
+  int32 tasks_completed = 3;
+  int32 tasks_failed = 4;
+  int32 phases_completed = 5;
+  int32 commits = 6;
+  int32 tokens_used = 7;
+  double cost_usd = 8;
+}
+
+// Metrics by model
+message ModelMetrics {
+  string model = 1;
+  int32 tasks = 2;
+  int32 phases = 3;
+  TokenUsage tokens = 4;
+  double cost_usd = 5;
+  double avg_tokens_per_phase = 6;
+}
+
+// Per-day statistics
+message PerDayStats {
+  repeated DailyMetrics days = 1;
+}
+
+// Outcome statistics
+message OutcomeStats {
+  int32 completed = 1;
+  int32 failed = 2;
+  int32 resolved = 3;
+  int32 in_progress = 4;
+}
+
+// Top initiatives by activity
+message TopInitiative {
+  string id = 1;
+  string title = 2;
+  int32 task_count = 3;
+  int32 completed_count = 4;
+  double cost_usd = 5;
+}
+
+// Top changed files
+message TopFile {
+  string path = 1;
+  int32 change_count = 2;
+  int32 additions = 3;
+  int32 deletions = 4;
+}
+
+// Comparison metrics (this period vs previous)
+message ComparisonMetrics {
+  MetricsSummary current = 1;
+  MetricsSummary previous = 2;
+  // Percentage changes
+  double tasks_change_pct = 3;
+  double cost_change_pct = 4;
+  double success_rate_change_pct = 5;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service DashboardService {
+  // Get dashboard statistics
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // Get activity heatmap
+  rpc GetActivityHeatmap(GetActivityHeatmapRequest) returns (GetActivityHeatmapResponse);
+
+  // Get cost summary
+  rpc GetCostSummary(GetCostSummaryRequest) returns (GetCostSummaryResponse);
+
+  // Get metrics summary
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+
+  // Get daily metrics
+  rpc GetDailyMetrics(GetDailyMetricsRequest) returns (GetDailyMetricsResponse);
+
+  // Get metrics by model
+  rpc GetMetricsByModel(GetMetricsByModelRequest) returns (GetMetricsByModelResponse);
+
+  // Get outcome statistics
+  rpc GetOutcomes(GetOutcomesRequest) returns (GetOutcomesResponse);
+
+  // Get top initiatives
+  rpc GetTopInitiatives(GetTopInitiativesRequest) returns (GetTopInitiativesResponse);
+
+  // Get top changed files
+  rpc GetTopFiles(GetTopFilesRequest) returns (GetTopFilesResponse);
+
+  // Get comparison metrics
+  rpc GetComparison(GetComparisonRequest) returns (GetComparisonResponse);
+
+  // Get task-specific metrics
+  rpc GetTaskMetrics(GetTaskMetricsRequest) returns (GetTaskMetricsResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  DashboardStats stats = 1;
+}
+
+message GetActivityHeatmapRequest {
+  // Number of days to include
+  int32 days = 1;
+}
+
+message GetActivityHeatmapResponse {
+  ActivityHeatmap heatmap = 1;
+}
+
+message GetCostSummaryRequest {
+  // Period: "day", "week", "month", "all"
+  string period = 1;
+}
+
+message GetCostSummaryResponse {
+  CostSummary summary = 1;
+}
+
+message GetMetricsRequest {
+  // Period: "day", "week", "month", "all"
+  optional string period = 1;
+}
+
+message GetMetricsResponse {
+  MetricsSummary metrics = 1;
+}
+
+message GetDailyMetricsRequest {
+  // Number of days
+  int32 days = 1;
+}
+
+message GetDailyMetricsResponse {
+  PerDayStats stats = 1;
+}
+
+message GetMetricsByModelRequest {
+  // Period
+  optional string period = 1;
+}
+
+message GetMetricsByModelResponse {
+  repeated ModelMetrics models = 1;
+}
+
+message GetOutcomesRequest {
+  // Period
+  optional string period = 1;
+}
+
+message GetOutcomesResponse {
+  OutcomeStats outcomes = 1;
+}
+
+message GetTopInitiativesRequest {
+  // Number of initiatives to return
+  int32 limit = 1;
+}
+
+message GetTopInitiativesResponse {
+  repeated TopInitiative initiatives = 1;
+}
+
+message GetTopFilesRequest {
+  // Number of files to return
+  int32 limit = 1;
+  // Task ID filter (optional)
+  optional string task_id = 2;
+}
+
+message GetTopFilesResponse {
+  repeated TopFile files = 1;
+}
+
+message GetComparisonRequest {
+  // Period to compare: "day", "week", "month"
+  string period = 1;
+}
+
+message GetComparisonResponse {
+  ComparisonMetrics comparison = 1;
+}
+
+message GetTaskMetricsRequest {
+  string task_id = 1;
+}
+
+message GetTaskMetricsResponse {
+  MetricsSummary metrics = 1;
+}
