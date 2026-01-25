@@ -1,6 +1,27 @@
 import type { DateFormat } from '@/stores/preferencesStore';
 
 /**
+ * Check if a Date represents Go's zero time value (0001-01-01T00:00:00Z).
+ *
+ * Go's time.Time zero value is year 1 AD, which JavaScript parses as a valid date.
+ * This helper detects such dates to handle them as "not set" rather than displaying
+ * incorrect values like "Dec 31, 1" (timezone-shifted year 1).
+ *
+ * Also returns true for invalid dates (NaN time value) for convenience.
+ *
+ * @param date - Date object to check
+ * @returns true if the date is Go's zero time (year 1) or invalid
+ */
+export function isZeroTime(date: Date): boolean {
+	// Invalid dates should also be treated as "zero time" for convenience
+	if (isNaN(date.getTime())) return true;
+
+	// Go's zero time is year 1 AD. No legitimate task would have dates from year 1.
+	// Use getUTCFullYear() for consistent results across timezones.
+	return date.getUTCFullYear() <= 1;
+}
+
+/**
  * Format a date according to the user's date format preference.
  *
  * @param date - Date string, Date object, or null/undefined
@@ -17,8 +38,8 @@ export function formatDate(
 
 	const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-	// Check for invalid date
-	if (isNaN(dateObj.getTime())) return fallback;
+	// Check for invalid date or Go's zero time (year 1)
+	if (isZeroTime(dateObj)) return fallback;
 
 	switch (format) {
 		case 'relative':

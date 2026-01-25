@@ -432,6 +432,9 @@ function formatDateTime(dateStr: string): string {
 	if (!dateStr) return '';
 	const date = new Date(dateStr);
 	if (isNaN(date.getTime())) return '';
+	// Check for Go's zero time (year 1 AD) - display "Never" instead of garbage
+	// Use getUTCFullYear() for consistent results across timezones.
+	if (date.getUTCFullYear() <= 1) return 'Never';
 	return date.toLocaleString(undefined, {
 		year: 'numeric',
 		month: 'short',
