@@ -1,49 +1,48 @@
-package executor
+package events
 
 import (
 	"errors"
 	"sync"
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // mockPublisher captures published events for testing.
 type mockPublisher struct {
 	mu     sync.Mutex
-	events []events.Event
+	events []Event
 }
 
 func newMockPublisher() *mockPublisher {
-	return &mockPublisher{events: make([]events.Event, 0)}
+	return &mockPublisher{events: make([]Event, 0)}
 }
 
-func (m *mockPublisher) Publish(ev events.Event) {
+func (m *mockPublisher) Publish(ev Event) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.events = append(m.events, ev)
 }
 
-func (m *mockPublisher) Subscribe(taskID string) <-chan events.Event {
-	ch := make(chan events.Event)
+func (m *mockPublisher) Subscribe(taskID string) <-chan Event {
+	ch := make(chan Event)
 	close(ch)
 	return ch
 }
 
-func (m *mockPublisher) Unsubscribe(taskID string, ch <-chan events.Event) {}
+func (m *mockPublisher) Unsubscribe(taskID string, ch <-chan Event) {}
 
 func (m *mockPublisher) Close() {}
 
-func (m *mockPublisher) getEvents() []events.Event {
+func (m *mockPublisher) getEvents() []Event {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	result := make([]events.Event, len(m.events))
+	result := make([]Event, len(m.events))
 	copy(result, m.events)
 	return result
 }
 
-func (m *mockPublisher) lastEvent() *events.Event {
+func (m *mockPublisher) lastEvent() *Event {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if len(m.events) == 0 {
@@ -69,11 +68,11 @@ func TestPublishHelper_Publish_NilPublisher_NoOp(t *testing.T) {
 	ep := NewPublishHelper(nil)
 
 	// Should not panic when publishing with nil publisher
-	ep.Publish(events.NewEvent(events.EventState, "TASK-001", nil))
+	ep.Publish(NewEvent(EventState, "TASK-001", nil))
 
 	// Also test when the PublishHelper itself is nil
 	var nilEP *PublishHelper
-	nilEP.Publish(events.NewEvent(events.EventState, "TASK-001", nil))
+	nilEP.Publish(NewEvent(EventState, "TASK-001", nil))
 }
 
 func TestPublishHelper_PhaseStart_PublishesCorrectEvent(t *testing.T) {
@@ -89,14 +88,14 @@ func TestPublishHelper_PhaseStart_PublishesCorrectEvent(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	if ev.Type != events.EventPhase {
+	if ev.Type != EventPhase {
 		t.Errorf("expected EventPhase, got %v", ev.Type)
 	}
 	if ev.TaskID != "TASK-001" {
 		t.Errorf("expected TaskID TASK-001, got %s", ev.TaskID)
 	}
 
-	update, ok := ev.Data.(events.PhaseUpdate)
+	update, ok := ev.Data.(PhaseUpdate)
 	if !ok {
 		t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 	}
@@ -121,7 +120,7 @@ func TestPublishHelper_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	update, ok := ev.Data.(events.PhaseUpdate)
+	update, ok := ev.Data.(PhaseUpdate)
 	if !ok {
 		t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 	}
@@ -170,7 +169,7 @@ func TestPublishHelper_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 				t.Fatal("expected event to be published")
 			}
 
-			update, ok := ev.Data.(events.PhaseUpdate)
+			update, ok := ev.Data.(PhaseUpdate)
 			if !ok {
 				t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 			}
@@ -235,14 +234,14 @@ func TestPublishHelper_Transcript_AllFieldsSet(t *testing.T) {
 				t.Fatal("expected event to be published")
 			}
 
-			if ev.Type != events.EventTranscript {
+			if ev.Type != EventTranscript {
 				t.Errorf("expected EventTranscript, got %v", ev.Type)
 			}
 			if ev.TaskID != tt.taskID {
 				t.Errorf("expected TaskID %s, got %s", tt.taskID, ev.TaskID)
 			}
 
-			line, ok := ev.Data.(events.TranscriptLine)
+			line, ok := ev.Data.(TranscriptLine)
 			if !ok {
 				t.Fatalf("expected TranscriptLine data, got %T", ev.Data)
 			}
@@ -278,7 +277,7 @@ func TestPublishHelper_TranscriptChunk_SetsChunkType(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	line, ok := ev.Data.(events.TranscriptLine)
+	line, ok := ev.Data.(TranscriptLine)
 	if !ok {
 		t.Fatalf("expected TranscriptLine data, got %T", ev.Data)
 	}
@@ -303,11 +302,11 @@ func TestPublishHelper_Tokens_AllFieldsSet(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	if ev.Type != events.EventTokens {
+	if ev.Type != EventTokens {
 		t.Errorf("expected EventTokens, got %v", ev.Type)
 	}
 
-	update, ok := ev.Data.(events.TokenUpdate)
+	update, ok := ev.Data.(TokenUpdate)
 	if !ok {
 		t.Fatalf("expected TokenUpdate data, got %T", ev.Data)
 	}
@@ -350,11 +349,11 @@ func TestPublishHelper_Error_FatalFlag(t *testing.T) {
 				t.Fatal("expected event to be published")
 			}
 
-			if ev.Type != events.EventError {
+			if ev.Type != EventError {
 				t.Errorf("expected EventError, got %v", ev.Type)
 			}
 
-			errData, ok := ev.Data.(events.ErrorData)
+			errData, ok := ev.Data.(ErrorData)
 			if !ok {
 				t.Fatalf("expected ErrorData, got %T", ev.Data)
 			}
@@ -390,7 +389,7 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	if ev.Type != events.EventState {
+	if ev.Type != EventState {
 		t.Errorf("expected EventState, got %v", ev.Type)
 	}
 
@@ -471,7 +470,7 @@ func TestPublishHelper_Session_PublishesSessionUpdate(t *testing.T) {
 	mock := newMockPublisher()
 	ep := NewPublishHelper(mock)
 
-	update := events.SessionUpdate{
+	update := SessionUpdate{
 		DurationSeconds:  3650,
 		TotalTokens:      127500,
 		EstimatedCostUSD: 2.51,
@@ -488,16 +487,16 @@ func TestPublishHelper_Session_PublishesSessionUpdate(t *testing.T) {
 		t.Fatal("expected event to be published")
 	}
 
-	if ev.Type != events.EventSessionUpdate {
+	if ev.Type != EventSessionUpdate {
 		t.Errorf("expected EventSessionUpdate, got %v", ev.Type)
 	}
 
 	// Session events use GlobalTaskID so all subscribers receive them
-	if ev.TaskID != events.GlobalTaskID {
-		t.Errorf("expected TaskID %q, got %q", events.GlobalTaskID, ev.TaskID)
+	if ev.TaskID != GlobalTaskID {
+		t.Errorf("expected TaskID %q, got %q", GlobalTaskID, ev.TaskID)
 	}
 
-	sessionData, ok := ev.Data.(events.SessionUpdate)
+	sessionData, ok := ev.Data.(SessionUpdate)
 	if !ok {
 		t.Fatalf("expected SessionUpdate data, got %T", ev.Data)
 	}
@@ -531,7 +530,7 @@ func TestPublishHelper_Session_NilPublisher_NoOp(t *testing.T) {
 	ep := NewPublishHelper(nil)
 
 	// Should not panic when publishing with nil publisher
-	ep.Session(events.SessionUpdate{
+	ep.Session(SessionUpdate{
 		TasksRunning: 1,
 	})
 }

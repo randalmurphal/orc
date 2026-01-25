@@ -79,7 +79,7 @@ func TestFileWatcher_StartStop(t *testing.T) {
 		},
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	watcher := NewFileWatcher(detector, publisher, "TASK-001", "/tmp/worktree", "main", logger)
@@ -104,7 +104,7 @@ func TestFileWatcher_EmitsEventOnChange(t *testing.T) {
 		},
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use very short interval for testing
@@ -142,7 +142,7 @@ func TestFileWatcher_Dedupe(t *testing.T) {
 		},
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use very short interval for testing
@@ -168,7 +168,7 @@ func TestFileWatcher_NoEventWhenEmpty(t *testing.T) {
 		files: []events.ChangedFile{}, // No files
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use very short interval for testing
@@ -193,7 +193,7 @@ func TestFileWatcher_GitError(t *testing.T) {
 		err: fmt.Errorf("git command failed"),
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Use very short interval for testing
@@ -221,7 +221,7 @@ func TestFileWatcher_ContextCancel(t *testing.T) {
 		},
 	}
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	watcher := NewFileWatcher(detector, publisher, "TASK-001", "/tmp/worktree", "main", logger)
@@ -561,7 +561,7 @@ func TestFileWatcher_Integration(t *testing.T) {
 	// Set up components
 	detector := NewGitDiffDetector(tmpDir)
 	mockPub := &MockPublisher{}
-	publisher := NewPublishHelper(mockPub)
+	publisher := events.NewPublishHelper(mockPub)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Create watcher with very short interval
