@@ -136,6 +136,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Old tasks run with outdated phases after template update | Fixed: `orc run` now auto-detects stale plans via `IsPlanStale()` (checks version, phase sequence, inline prompts) and auto-migrates before execution; completed/skipped phases preserved; bulk migration via `orc migrate plans --all` | TASK-498 |
 | PR creation fails with 'No commits between branches' | Fixed: `WorkflowExecutor.autoCommitBeforeCompletion()` now auto-commits uncommitted changes before PR/merge if Claude didn't commit during implement phase; uses `HasUncommittedChanges()` to detect dirty worktree, stages with `git add -A`, commits with message "[orc] TASK-XXX: Auto-commit before PR creation" | TASK-512 |
 | Initiative shows BLOCKED when all tasks complete | Fixed: Initiative completion only triggered for branch-based initiatives; added `CheckAndCompleteInitiativeNoBranch()` called after task completion to auto-complete initiatives without `BranchBase` when all tasks finish; updates initiative status from `active` to `completed` | TASK-525 |
+| Stats page stuck in infinite loading skeleton | Fixed: Race condition in statsStore where `setPeriod` and component `useEffect` both triggered fetches; added `_fetchingPeriod` guard to prevent duplicate concurrent fetches for same period; changed initial loading state to `true` (show skeleton immediately); `setPeriod` now only updates period (component `useEffect` triggers fetch) | TASK-526 |
 
 ## Decisions
 
