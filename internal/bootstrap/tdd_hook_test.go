@@ -8,9 +8,39 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite" // Pure Go SQLite driver
 )
+
+// writeExecutableScript writes a script file with proper sync to avoid
+// "text file busy" (ETXTBSY) race conditions on Linux. This happens when
+// executing a file that hasn't been fully released by the kernel.
+//
+// The sync + close + sleep pattern ensures the kernel fully releases the
+// file descriptor before we attempt to execute. Under heavy parallel test
+// load, even sync + close can race with exec.
+func writeExecutableScript(t *testing.T, path string, content []byte) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		t.Fatalf("create script: %v", err)
+	}
+	if _, err := f.Write(content); err != nil {
+		_ = f.Close()
+		t.Fatalf("write script: %v", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		t.Fatalf("sync script: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close script: %v", err)
+	}
+	// Small delay ensures kernel fully releases the file descriptor.
+	// Required under heavy parallel test load where sync+close alone can race.
+	time.Sleep(10 * time.Millisecond)
+}
 
 // TestTDDHookIntegration tests the bash hook against a real SQLite database.
 // This ensures the hook correctly queries the database and enforces TDD discipline.
@@ -61,9 +91,7 @@ func TestTDDHookIntegration(t *testing.T) {
 	}
 
 	hookPath := filepath.Join(hookDir, TDDDisciplineHook)
-	if err := os.WriteFile(hookPath, hookContent, 0755); err != nil {
-		t.Fatalf("write hook: %v", err)
-	}
+	writeExecutableScript(t, hookPath, hookContent)
 
 	tests := []struct {
 		name        string
@@ -221,9 +249,7 @@ func TestTDDHookNoDatabase(t *testing.T) {
 	}
 
 	hookPath := filepath.Join(hookDir, TDDDisciplineHook)
-	if err := os.WriteFile(hookPath, hookContent, 0755); err != nil {
-		t.Fatalf("write hook: %v", err)
-	}
+	writeExecutableScript(t, hookPath, hookContent)
 
 	// Create hook input JSON for a non-test file
 	input := map[string]interface{}{
@@ -264,9 +290,7 @@ func TestTDDHookNoEnvVars(t *testing.T) {
 	}
 
 	hookPath := filepath.Join(hookDir, TDDDisciplineHook)
-	if err := os.WriteFile(hookPath, hookContent, 0755); err != nil {
-		t.Fatalf("write hook: %v", err)
-	}
+	writeExecutableScript(t, hookPath, hookContent)
 
 	// Create hook input JSON for a non-test file
 	input := map[string]interface{}{

@@ -9,6 +9,35 @@ import (
 	"time"
 )
 
+// writeExecutableScript writes a script file with proper sync to avoid
+// "text file busy" (ETXTBSY) race conditions on Linux. This happens when
+// executing a file that hasn't been fully released by the kernel.
+//
+// The sync + close + sleep pattern ensures the kernel fully releases the
+// file descriptor before we attempt to execute. Under heavy parallel test
+// load, even sync + close can race with exec.
+func writeExecutableScript(t *testing.T, path, content string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		t.Fatalf("create script: %v", err)
+	}
+	if _, err := f.WriteString(content); err != nil {
+		_ = f.Close()
+		t.Fatalf("write script: %v", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		t.Fatalf("sync script: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close script: %v", err)
+	}
+	// Small delay ensures kernel fully releases the file descriptor.
+	// Required under heavy parallel test load where sync+close alone can race.
+	time.Sleep(10 * time.Millisecond)
+}
+
 func TestScriptExecutorBasic(t *testing.T) {
 	t.Parallel()
 
@@ -23,9 +52,7 @@ func TestScriptExecutorBasic(t *testing.T) {
 	scriptContent := `#!/bin/bash
 echo "Hello, World!"
 `
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 
@@ -57,9 +84,7 @@ func TestScriptExecutorWithArgs(t *testing.T) {
 	scriptContent := `#!/bin/bash
 echo "Hello, $1!"
 `
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 
@@ -96,9 +121,7 @@ for i in $(seq 1 100); do
 done
 echo "done"
 `
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 
@@ -216,9 +239,7 @@ func TestScriptExecutorExitCode(t *testing.T) {
 echo "error message" >&2
 exit 1
 `
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 
@@ -251,22 +272,7 @@ func TestScriptExecutorEnvironment(t *testing.T) {
 	scriptContent := `#!/bin/bash
 echo "$ORC_PROJECT_ROOT"
 `
-	// Write and sync to avoid "text file busy" race
-	f, err := os.OpenFile(scriptPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		t.Fatalf("create script: %v", err)
-	}
-	if _, err := f.WriteString(scriptContent); err != nil {
-		_ = f.Close()
-		t.Fatalf("write script: %v", err)
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		t.Fatalf("sync script: %v", err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatalf("close script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 
@@ -302,9 +308,7 @@ for i in $(seq 1 1000); do
 done
 echo "done"
 `
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
-	}
+	writeExecutableScript(t, scriptPath, scriptContent)
 
 	executor := NewScriptExecutor(tmpDir)
 	executor.DefaultTimeout = 60 * time.Second // Long timeout (won't be reached)
