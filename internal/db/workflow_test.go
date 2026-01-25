@@ -705,8 +705,3 @@ func TestListWorkflowRunsFiltering(t *testing.T) {
 		t.Errorf("expected 4 runs total, got %d", len(result))
 	}
 }
-
-// Helper function
-func strPtr(s string) *string {
-	return &s
-}

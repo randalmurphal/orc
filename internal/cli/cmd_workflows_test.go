@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -537,23 +535,5 @@ func TestWorkflowList_FiltersCorrectly(t *testing.T) {
 	}
 	if len(filteredCustom) != customCount {
 		t.Errorf("custom filter count mismatch")
-	}
-}
-
-// Helper to capture stdout from cobra commands (for future use)
-func captureOutput(f func()) string {
-	var buf bytes.Buffer
-	old := rootCmd.OutOrStdout()
-	rootCmd.SetOut(&buf)
-	defer rootCmd.SetOut(old)
-	f()
-	return buf.String()
-}
-
-// Helper to check if string contains substring
-func assertContains(t *testing.T, s, substr string) {
-	t.Helper()
-	if !strings.Contains(s, substr) {
-		t.Errorf("expected %q to contain %q", s, substr)
 	}
 }

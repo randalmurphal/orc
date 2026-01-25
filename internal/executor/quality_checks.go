@@ -152,8 +152,17 @@ func NewQualityCheckRunner(
 	}
 }
 
-// Run executes all configured quality checks sequentially.
-// Returns results for each check.
+// Run executes all configured quality checks sequentially after phase completion.
+// Quality checks verify the agent's work meets project standards (tests pass, code compiles, lints clean, etc.).
+//
+// Returns a QualityCheckResult containing:
+//   - Checks: individual results for each check (name, passed status, output, duration)
+//   - AllPassed: true if all checks passed or were skipped
+//   - HasBlocks: true if any blocking check failed (on_failure="block" or default)
+//   - Duration: total execution time for all checks
+//
+// The HasBlocks field indicates whether the phase should be retried with error feedback.
+// When HasBlocks is true, the phase executor will inject check failures into the next iteration prompt.
 func (r *QualityCheckRunner) Run(ctx context.Context) *QualityCheckResult {
 	start := time.Now()
 	result := &QualityCheckResult{

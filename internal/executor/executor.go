@@ -209,10 +209,8 @@ type Executor struct {
 	tokenPool *tokenpool.Pool
 
 	// Runtime state for current task
-	worktreePath   string   // Path to worktree if enabled
-	worktreeGit    *git.Git // Git operations for worktree
-	currentTaskDir string   // Directory for current task's files
-	currentTaskID  string   // Task ID for hooks (e.g., TDD enforcement)
+	worktreePath  string // Path to worktree if enabled
+	currentTaskID string // Task ID for hooks (e.g., TDD enforcement)
 
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
@@ -231,9 +229,6 @@ type Executor struct {
 
 	// ClaudeCLI path (resolved absolute path)
 	claudePath string
-
-	// MCP config path for worktree context (optional)
-	mcpConfigPath string
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	// When set, passed to sub-executors (StandardExecutor, FullExecutor, etc.)
@@ -389,11 +384,6 @@ func (e *Executor) SetHeadless(headless bool) {
 	e.headless = headless
 }
 
-// taskDir returns the directory for a task's files.
-func (e *Executor) taskDir(taskID string) string {
-	return filepath.Join(e.config.WorkDir, ".orc", "tasks", taskID)
-}
-
 // SetClient sets the Claude client (for testing).
 func (e *Executor) SetClient(c claude.Client) {
 	e.client = c
@@ -419,9 +409,6 @@ func (e *Executor) eventPublisher() *PublishHelper {
 	return NewPublishHelper(e.publisher)
 }
 
-func (e *Executor) publish(ev events.Event) {
-	e.eventPublisher().Publish(ev)
-}
 
 func (e *Executor) publishPhaseStart(taskID, phase string) {
 	e.eventPublisher().PhaseStart(taskID, phase)
@@ -565,10 +552,4 @@ func (e *Executor) MarkCurrentAccountExhausted(reason string) {
 	if e.tokenPool != nil {
 		e.tokenPool.MarkExhausted(reason)
 	}
-}
-
-// runResourceAnalysis takes the after-snapshot and analyzes resource usage.
-// Called via defer in ExecuteTask to run regardless of success or failure.
-func (e *Executor) runResourceAnalysis() {
-	RunResourceAnalysis(e.resourceTracker, e.logger)
 }

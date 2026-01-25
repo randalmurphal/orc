@@ -1,0 +1,3 @@
+# Placeholder for go:embed
+# This directory is populated by 'make build' which copies web/build/ here
+# For development without building the frontend, this file ensures go:embed doesn't fail
