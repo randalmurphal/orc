@@ -131,34 +131,14 @@ func (c *AutoTaskCreator) nextAutoTaskID(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Use efficient database query if adapter is available
-	if c.dbAdapter != nil {
-		maxNum, err := c.dbAdapter.GetMaxAutoTaskNumber(ctx)
-		if err != nil {
-			return "", fmt.Errorf("get max auto task number: %w", err)
-		}
-		return fmt.Sprintf("AUTO-%03d", maxNum+1), nil
+	if c.dbAdapter == nil {
+		return "", fmt.Errorf("database adapter required for AUTO task ID generation")
 	}
 
-	// Fallback: Get all tasks and find the highest AUTO-XXX number
-	// This is less efficient but ensures backward compatibility
-	tasks, err := c.backend.LoadAllTasks()
+	maxNum, err := c.dbAdapter.GetMaxAutoTaskNumber(ctx)
 	if err != nil {
-		return "", fmt.Errorf("load tasks: %w", err)
+		return "", fmt.Errorf("get max auto task number: %w", err)
 	}
-
-	maxNum := 0
-	for _, t := range tasks {
-		if len(t.ID) > 5 && t.ID[:5] == "AUTO-" {
-			var num int
-			if _, scanErr := fmt.Sscanf(t.ID[5:], "%d", &num); scanErr == nil {
-				if num > maxNum {
-					maxNum = num
-				}
-			}
-		}
-	}
-
 	return fmt.Sprintf("AUTO-%03d", maxNum+1), nil
 }
 

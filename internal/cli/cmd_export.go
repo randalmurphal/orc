@@ -63,7 +63,7 @@ type ExportData struct {
 
 	// Execution history
 	Transcripts   []storage.Transcript   `yaml:"transcripts,omitempty"`
-	GateDecisions []storage.GateDecision `yaml:"gate_decisions,omitempty"`
+	GateDecisions []db.GateDecision `yaml:"gate_decisions,omitempty"`
 
 	// Collaboration data
 	TaskComments   []storage.TaskComment   `yaml:"task_comments,omitempty"`

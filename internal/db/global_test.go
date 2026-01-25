@@ -142,7 +142,7 @@ func TestMigration002_Idempotent(t *testing.T) {
 	}
 }
 
-func TestMigration002_PreservesData(t *testing.T) {
+func TestRecordCostExtended_SetsModel(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "global.db")
@@ -160,19 +160,28 @@ func TestMigration002_PreservesData(t *testing.T) {
 
 	gdb := &GlobalDB{DB: db}
 
-	// Insert data using old method
-	if err := gdb.RecordCost("proj-1", "TASK-001", "implement", 0.05, 1000, 500); err != nil {
-		t.Fatalf("RecordCost failed: %v", err)
+	// Insert data with model specified
+	if err := gdb.RecordCostExtended(CostEntry{
+		ProjectID:    "proj-1",
+		TaskID:       "TASK-001",
+		Phase:        "implement",
+		Model:        "sonnet",
+		CostUSD:      0.05,
+		InputTokens:  1000,
+		OutputTokens: 500,
+		TotalTokens:  1500,
+	}); err != nil {
+		t.Fatalf("RecordCostExtended failed: %v", err)
 	}
 
-	// Verify old data is preserved (model should be empty string)
+	// Verify model is set correctly
 	var model string
 	err = db.QueryRow("SELECT model FROM cost_log WHERE task_id = ?", "TASK-001").Scan(&model)
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
-	if model != "" {
-		t.Errorf("model = %q, want empty string", model)
+	if model != "sonnet" {
+		t.Errorf("model = %q, want sonnet", model)
 	}
 
 	// Get summary should still work
