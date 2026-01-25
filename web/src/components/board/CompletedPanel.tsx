@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * CompletedPanel component for right panel showing completed tasks summary
  *
@@ -13,6 +12,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
+import { formatNumber, formatCost } from '@/lib/format';
 import type { Task } from '@/lib/types';
 import './CompletedPanel.css';
 
@@ -25,30 +25,6 @@ export interface CompletedPanelProps {
 	todayCost: number;
 	/** Recent completed tasks (for expandable list) */
 	recentTasks?: Task[];
-}
-
-/**
- * Formats a number with K/M suffix for large values.
- * Examples: 1234 -> "1.2K", 1234567 -> "1.2M"
- */
-export function formatTokenCount(count: number): string {
-	if (count < 1000) {
-		return count.toString();
-	}
-	if (count < 1_000_000) {
-		const k = count / 1000;
-		return k >= 10 ? `${Math.round(k)}K` : `${k.toFixed(1)}K`;
-	}
-	const m = count / 1_000_000;
-	return m >= 10 ? `${Math.round(m)}M` : `${m.toFixed(1)}M`;
-}
-
-/**
- * Formats a cost as currency with $ prefix.
- * Examples: 2.345 -> "$2.35", 0.1 -> "$0.10"
- */
-export function formatCost(cost: number): string {
-	return `$${cost.toFixed(2)}`;
 }
 
 /**
@@ -78,7 +54,7 @@ export function CompletedPanel({
 
 	// Format stats string
 	const statsText = useMemo(() => {
-		const tokenStr = formatTokenCount(todayTokens);
+		const tokenStr = formatNumber(todayTokens);
 		const costStr = formatCost(todayCost);
 		return `${tokenStr} tokens · ${costStr}`;
 	}, [todayTokens, todayCost]);
@@ -138,7 +114,7 @@ export function CompletedPanel({
 				<div id="completed-panel-body" className="panel-body" role="region">
 					<div className="completed-stats-detail">
 						<span className="completed-stats-tokens">
-							{formatTokenCount(todayTokens)} tokens
+							{formatNumber(todayTokens)} tokens
 						</span>
 						<span className="completed-stats-separator">·</span>
 						<span className="completed-stats-cost">{formatCost(todayCost)}</span>

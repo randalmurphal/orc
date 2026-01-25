@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import { TranscriptSection } from './TranscriptSection';
+import { formatNumber } from '@/lib/format';
 import type { SectionData } from './TranscriptViewer';
 import './TranscriptVirtualList.css';
 
@@ -189,7 +190,7 @@ export function TranscriptVirtualList({
 							timestamp={formatTimestamp(item.section.timestamp)}
 							badge={
 								item.section.tokens
-									? `${formatTokens(item.section.tokens)} tokens`
+									? `${formatNumber(item.section.tokens)} tokens`
 									: undefined
 							}
 							defaultExpanded={false}
@@ -209,7 +210,7 @@ export function TranscriptVirtualList({
 										timestamp={formatTimestamp(child.timestamp)}
 										badge={
 											child.tokens
-												? `${formatTokens(child.tokens)} tokens`
+												? `${formatNumber(child.tokens)} tokens`
 												: undefined
 										}
 										depth={1}
@@ -243,12 +244,6 @@ function formatTimestamp(timestamp: string): string {
 	}
 }
 
-function formatTokens(tokens: number): string {
-	if (tokens >= 1000) {
-		return `${(tokens / 1000).toFixed(1)}k`;
-	}
-	return String(tokens);
-}
 
 function highlightSearchTerms(text: string, query: string): ReactNode {
 	if (!query) return text;

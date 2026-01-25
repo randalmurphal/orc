@@ -1,10 +1,10 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * Stat component - displays large numeric values with labels and trend indicators.
  * Used for dashboard statistics like task counts, token usage, costs, etc.
  */
 
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { formatLargeNumber } from '@/lib/format';
 import './Stat.css';
 
 export type StatValueColor =
@@ -49,41 +49,6 @@ export interface StatProps extends HTMLAttributes<HTMLDivElement> {
 	icon?: ReactNode;
 	/** Color variant for the icon background */
 	iconColor?: StatIconColor;
-}
-
-/**
- * Formats large numbers into abbreviated form.
- * Examples: 1234567 -> '1.23M', 847000 -> '847K', 1234 -> '1,234'
- */
-export function formatLargeNumber(value: number): string {
-	const absValue = Math.abs(value);
-
-	if (absValue >= 1_000_000_000) {
-		const formatted = (value / 1_000_000_000).toFixed(2);
-		// Remove trailing zeros after decimal
-		const cleaned = formatted.replace(/\.?0+$/, '');
-		return `${cleaned}B`;
-	}
-
-	if (absValue >= 1_000_000) {
-		const formatted = (value / 1_000_000).toFixed(2);
-		const cleaned = formatted.replace(/\.?0+$/, '');
-		return `${cleaned}M`;
-	}
-
-	if (absValue >= 1_000) {
-		// For values >= 10K, use K abbreviation
-		if (absValue >= 10_000) {
-			const formatted = (value / 1_000).toFixed(1);
-			const cleaned = formatted.replace(/\.?0+$/, '');
-			return `${cleaned}K`;
-		}
-		// For values between 1K and 10K, use comma formatting
-		return value.toLocaleString('en-US');
-	}
-
-	// Small numbers: just return as string
-	return value.toString();
 }
 
 /**

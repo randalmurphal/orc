@@ -20,5 +20,8 @@ export {
 // Document title hook
 export { useDocumentTitle } from './useDocumentTitle';
 
+// Accessibility hooks
+export { useClickKeyboard } from './useClickKeyboard';
+
 // Re-export commonly used store hooks for convenience
 export { useCurrentProject } from '@/stores';

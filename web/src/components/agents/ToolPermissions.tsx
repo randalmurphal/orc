@@ -13,7 +13,6 @@ import {
 	Monitor,
 	type LucideIcon,
 } from 'lucide-react';
-import { Icon } from '../core/Icon';
 import { Toggle } from '../core/Toggle';
 import './ToolPermissions.css';
 
@@ -120,7 +119,7 @@ export function ToolPermissions({
 							className={`tool-permissions__item ${isWarningTarget ? 'tool-permissions__item--warning' : ''}`}
 						>
 							<span className="tool-permissions__label">
-								<Icon name={tool.icon} size="sm" color="muted" aria-hidden />
+								<tool.icon size={14} className="tool-permissions__icon" aria-hidden="true" />
 								{tool.label}
 							</span>
 							<Toggle

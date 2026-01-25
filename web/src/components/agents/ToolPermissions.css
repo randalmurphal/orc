@@ -72,9 +72,10 @@
 	user-select: none;
 }
 
-/* Icon within label - 14px, muted color handled by Icon component */
-.tool-permissions__label .icon {
+/* Icon within label - 14px, muted color */
+.tool-permissions__icon {
 	flex-shrink: 0;
+	color: var(--text-muted);
 }
 
 /* ==========================================================================

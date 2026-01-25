@@ -1,11 +1,57 @@
 // Task types matching Go structs
 export type TaskWeight = 'trivial' | 'small' | 'medium' | 'large';
 export type TaskStatus = 'created' | 'classifying' | 'planned' | 'running' | 'paused' | 'blocked' | 'finalizing' | 'completed' | 'failed' | 'resolved';
-export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type PhaseStatus =
+	| 'pending'
+	| 'running'
+	| 'completed'
+	| 'failed'
+	| 'skipped'
+	| 'paused'
+	| 'interrupted'
+	| 'blocked';
 export type TaskQueue = 'active' | 'backlog';
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskCategory = 'feature' | 'bug' | 'refactor' | 'chore' | 'docs' | 'test';
 export type DependencyStatus = 'blocked' | 'ready' | 'none';
+
+export interface TestingRequirements {
+	unit?: boolean;
+	e2e?: boolean;
+	visual?: boolean;
+}
+
+export interface QualityMetrics {
+	phase_retries?: Record<string, number>;
+	review_rejections?: number;
+	manual_intervention?: boolean;
+	manual_intervention_reason?: string;
+	total_retries?: number;
+}
+
+export interface PRInfo {
+	url?: string;
+	number?: number;
+	status?: PRStatus;
+	checks_status?: string;
+	mergeable?: boolean;
+	review_count?: number;
+	approval_count?: number;
+	last_checked_at?: string;
+	merged?: boolean;
+	merged_at?: string;
+	merge_commit_sha?: string;
+	target_branch?: string;
+}
+
+export type PRStatus =
+	| ''
+	| 'draft'
+	| 'pending_review'
+	| 'changes_requested'
+	| 'approved'
+	| 'merged'
+	| 'closed';
 
 export interface Task {
 	id: string;
@@ -32,6 +78,21 @@ export interface Task {
 	started_at?: string;
 	completed_at?: string;
 	metadata?: Record<string, string>;
+	// Workflow and automation fields
+	workflow_id?: string;
+	is_automation?: boolean;
+	// Testing fields
+	requires_ui_testing?: boolean;
+	testing_requirements?: TestingRequirements;
+	// Quality tracking
+	quality?: QualityMetrics;
+	// PR information
+	pr?: PRInfo;
+	// Executor tracking (for orphan detection)
+	executor_pid?: number;
+	executor_hostname?: string;
+	executor_started_at?: string;
+	last_heartbeat?: string;
 }
 
 // Priority sort order (lower = higher priority)
@@ -97,14 +158,26 @@ export interface TaskState {
 	retries?: number;
 }
 
+export interface ValidationEntry {
+	iteration: number;
+	type: string;
+	decision: string;
+	reason?: string;
+	timestamp: string;
+}
+
 export interface PhaseState {
 	status: string;
 	started_at?: string;
 	completed_at?: string;
+	interrupted_at?: string;
 	iterations: number;
 	commit_sha?: string;
+	artifacts?: string[];
 	error?: string;
 	tokens: TokenUsage;
+	validation_history?: ValidationEntry[];
+	session_id?: string;
 }
 
 // ExecutionInfo tracks the process executing a task
@@ -397,6 +470,8 @@ export interface InitiativeTaskRef {
 	status: string;
 }
 
+export type InitiativeMergeStatus = '' | 'pending' | 'in_progress' | 'merged' | 'failed';
+
 export interface Initiative {
 	version: number;
 	id: string;
@@ -411,6 +486,8 @@ export interface Initiative {
 	tasks?: InitiativeTaskRef[];
 	blocked_by?: string[];
 	blocks?: string[];
+	merge_status?: InitiativeMergeStatus;
+	merge_commit?: string;
 	created_at: string;
 	updated_at: string;
 }

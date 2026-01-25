@@ -1,19 +1,22 @@
-// Core UI components
+// Shared primitives from ui/
+export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from '../ui/Button';
+export { Icon, type IconName } from '../ui/Icon';
+export { Input, type InputProps, type InputSize, type InputVariant } from '../ui/Input';
+export {
+	Tooltip,
+	TooltipProvider,
+	type TooltipProps,
+	type TooltipProviderProps,
+	type TooltipSide,
+	type TooltipAlign,
+} from '../ui/Tooltip';
+
+// Core components
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeVariant, BadgeStatus } from './Badge';
 
-// Button is the canonical implementation in ui/, re-export for backwards compatibility
-export { Button } from '../ui/Button';
-export type { ButtonProps, ButtonVariant, ButtonSize } from '../ui/Button';
-
 export { Card } from './Card';
 export type { CardProps, CardPadding } from './Card';
-
-export { Icon } from './Icon';
-export type { IconProps, IconSize, IconColor } from './Icon';
-
-export { Input } from './Input';
-export type { InputProps } from './Input';
 
 export { Progress } from './Progress';
 export type { ProgressProps, ProgressColor, ProgressSize } from './Progress';
@@ -27,11 +30,8 @@ export type { SelectProps, SelectOption } from './Select';
 export { Slider } from './Slider';
 export type { SliderProps } from './Slider';
 
-export { Stat, formatLargeNumber } from './Stat';
+export { Stat } from './Stat';
 export type { StatProps, StatValueColor, StatIconColor, StatTrend } from './Stat';
 
 export { Toggle } from './Toggle';
 export type { ToggleProps, ToggleSize } from './Toggle';
-
-export { Tooltip } from './Tooltip';
-export type { TooltipProps, TooltipPosition } from './Tooltip';

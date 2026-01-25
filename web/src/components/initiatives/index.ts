@@ -8,16 +8,8 @@ export {
 	extractEmoji,
 	getStatusColor,
 	getIconColor,
-	formatTokens,
-	formatCostDisplay,
 	isPaused,
 } from './InitiativeCard';
-export {
-	formatNumber,
-	formatCost,
-	formatPercentage,
-	formatTrend,
-} from './StatsRow';
 
 // Initiative hooks
 export {

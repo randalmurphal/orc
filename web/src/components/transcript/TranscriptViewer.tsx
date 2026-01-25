@@ -15,6 +15,7 @@ import type { Transcript } from '@/lib/api';
 import type { TranscriptLine } from '@/hooks/useWebSocket';
 import { useTranscripts } from '@/hooks/useTranscripts';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { formatNumber } from '@/lib/format';
 import { TranscriptNav, type TranscriptNavPhase } from './TranscriptNav';
 import { TranscriptSection, type TranscriptSectionType } from './TranscriptSection';
 import { TranscriptVirtualList } from './TranscriptVirtualList';
@@ -482,7 +483,7 @@ export function TranscriptViewer({
 									title={section.title}
 									subtitle={section.subtitle}
 									timestamp={formatTimestamp(section.timestamp)}
-									badge={section.tokens ? `${formatTokens(section.tokens)} tokens` : undefined}
+									badge={section.tokens ? `${formatNumber(section.tokens)} tokens` : undefined}
 									defaultExpanded={sections.length <= 3}
 									testId={`transcript-${section.id}`}
 								>
@@ -494,7 +495,7 @@ export function TranscriptViewer({
 												title={child.title}
 												subtitle={child.subtitle}
 												timestamp={formatTimestamp(child.timestamp)}
-												badge={child.tokens ? `${formatTokens(child.tokens)} tokens` : undefined}
+												badge={child.tokens ? `${formatNumber(child.tokens)} tokens` : undefined}
 												depth={1}
 												testId={`transcript-${child.id}`}
 											>
@@ -540,12 +541,6 @@ function formatTimestamp(timestamp: string): string {
 	}
 }
 
-function formatTokens(tokens: number): string {
-	if (tokens >= 1000) {
-		return `${(tokens / 1000).toFixed(1)}k`;
-	}
-	return String(tokens);
-}
 
 function escapeRegExp(string: string): string {
 	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
