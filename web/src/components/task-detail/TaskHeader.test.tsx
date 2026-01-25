@@ -213,3 +213,195 @@ describe('TaskHeader', () => {
 		});
 	});
 });
+
+describe('Running Status Badge (TASK-312)', () => {
+	// Helper to create a plan with phases
+	const createPlan = (phases: string[], currentPhase?: string) => ({
+		version: 1,
+		weight: 'small' as const,
+		description: 'Test plan',
+		phases: phases.map((name, idx) => ({
+			id: `phase-${idx}`,
+			name,
+			status: name === currentPhase ? 'running' as const : 
+				phases.indexOf(name) < phases.indexOf(currentPhase ?? '') ? 'completed' as const : 'pending' as const,
+			iterations: 1,
+		})),
+	});
+
+	const renderTaskHeader = (props = {}) => {
+		const defaultProps = {
+			task: {
+				id: 'TASK-001',
+				title: 'Test Task',
+				description: 'Test description',
+				status: 'created' as const,
+				weight: 'small' as const,
+				branch: 'orc/TASK-001',
+				priority: 'normal' as const,
+				category: 'feature' as const,
+				queue: 'active' as const,
+				created_at: '2024-01-01T00:00:00Z',
+				updated_at: '2024-01-01T00:00:00Z',
+			},
+			onTaskUpdate: vi.fn(),
+			onTaskDelete: vi.fn(),
+		};
+		return render(
+			<TooltipProvider delayDuration={0}>
+				<MemoryRouter>
+					<TaskHeader {...defaultProps} {...props} />
+				</MemoryRouter>
+			</TooltipProvider>
+		);
+	};
+
+	describe('SC-1: Running status badge with phase name', () => {
+		it('displays "Running: implement" badge when task is running with current_phase=implement', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+			});
+
+			// Should display "Running: implement" prominently
+			expect(screen.getByText(/Running.*implement/i)).toBeInTheDocument();
+		});
+
+		it('displays "Running: review" badge when task is running with current_phase=review', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'review',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+			});
+
+			expect(screen.getByText(/Running.*review/i)).toBeInTheDocument();
+		});
+
+		it('does NOT display running badge when task is not running', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'completed',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+			});
+
+			expect(screen.queryByText(/Running.*implement/i)).not.toBeInTheDocument();
+		});
+
+		it('has pulse animation class for running status', () => {
+			const { container } = renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+			});
+
+			// Running badge should have animation class
+			const runningBadge = container.querySelector('.running-status-badge');
+			expect(runningBadge).toBeInTheDocument();
+			expect(runningBadge).toHaveClass('pulse');
+		});
+	});
+
+	describe('SC-2: Phase progress indicator', () => {
+		it('displays "2 of 4" when on second phase of four-phase plan', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+				plan: createPlan(['spec', 'implement', 'review', 'docs'], 'implement'),
+			});
+
+			// Should show phase progress
+			expect(screen.getByText(/2 of 4/i)).toBeInTheDocument();
+		});
+
+		it('displays "3 of 5" when on third phase of five-phase plan', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'medium',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+				plan: createPlan(['spec', 'tdd_write', 'implement', 'review', 'docs'], 'implement'),
+			});
+
+			expect(screen.getByText(/3 of 5/i)).toBeInTheDocument();
+		});
+
+		it('does NOT display phase progress when plan is not provided', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'running',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+			});
+
+			// Should NOT have progress like "X of Y" without plan
+			expect(screen.queryByText(/\d+ of \d+/i)).not.toBeInTheDocument();
+		});
+
+		it('does NOT display phase progress when task is not running', () => {
+			renderTaskHeader({
+				task: {
+					id: 'TASK-001',
+					title: 'Test Task',
+					status: 'completed',
+					weight: 'small',
+					branch: 'orc/TASK-001',
+					current_phase: 'implement',
+					created_at: '2024-01-01T00:00:00Z',
+					updated_at: '2024-01-01T00:00:00Z',
+				},
+				plan: createPlan(['spec', 'implement', 'review', 'docs'], 'implement'),
+			});
+
+			expect(screen.queryByText(/\d+ of \d+/i)).not.toBeInTheDocument();
+		});
+	});
+});

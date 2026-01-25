@@ -142,6 +142,7 @@ export function TaskDetail() {
 		<div className="task-detail-page">
 			<TaskHeader
 				task={task}
+				plan={plan ?? undefined}
 				onTaskUpdate={handleTaskUpdate}
 				onTaskDelete={handleTaskDelete}
 			/>
