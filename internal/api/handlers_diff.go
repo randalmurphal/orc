@@ -7,7 +7,6 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // handleGetDiff returns the diff for a task's changes.
@@ -378,22 +377,6 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.jsonResponse(w, stats)
-}
-
-// phasesForWeight returns the phase IDs for a given task weight (domain type).
-func phasesForWeight(weight task.Weight) []string {
-	switch weight {
-	case task.WeightTrivial:
-		return []string{"tiny_spec", "implement"}
-	case task.WeightSmall:
-		return []string{"tiny_spec", "implement", "review"}
-	case task.WeightMedium:
-		return []string{"spec", "tdd_write", "implement", "review", "docs"}
-	case task.WeightLarge:
-		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
-	default:
-		return []string{"spec", "implement", "review"}
-	}
 }
 
 // phasesForWeightProto returns the phase IDs for a given proto task weight.

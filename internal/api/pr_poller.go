@@ -212,10 +212,6 @@ func (p *PRPoller) determinePRStatus(pr *github.PR, summary *github.PRStatusSumm
 	return DeterminePRStatus(pr, summary)
 }
 
-func (p *PRPoller) determinePRStatusProto(pr *github.PR, summary *github.PRStatusSummary) orcv1.PRStatus {
-	return DeterminePRStatusProto(pr, summary)
-}
-
 // DeterminePRStatus derives the task.PRStatus from a PR and its review summary.
 // This is used by both the poller and the API handler.
 func DeterminePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {

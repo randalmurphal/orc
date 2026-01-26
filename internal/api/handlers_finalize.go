@@ -382,7 +382,7 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 
 // runFinalizeAsync runs the finalize operation asynchronously.
 // The context should be derived from the server context to support graceful shutdown.
-func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *orcv1.Task, _ FinalizeRequest, finState *FinalizeState) {
+func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.Task, _ FinalizeRequest, finState *FinalizeState) {
 	// Clean up cancel function when done (regardless of success/failure)
 	defer finTracker.cancel(taskID)
 
@@ -402,9 +402,8 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *orcv1.T
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	// Reload task to get current execution state
-	var loadErr error
-	t, loadErr = s.backend.LoadTaskProto(taskID)
+	// Load task to get current execution state
+	t, loadErr := s.backend.LoadTaskProto(taskID)
 	if loadErr != nil {
 		s.finalizeFailed(taskID, finState, fmt.Errorf("reload task: %w", loadErr))
 		return

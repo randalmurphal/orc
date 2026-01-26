@@ -464,10 +464,6 @@ func padNumber(n int) string {
 	return string(rune('0'+n/100)) + string(rune('0'+(n/10)%10)) + string(rune('0'+n%10))
 }
 
-func timePtr(t time.Time) *time.Time {
-	return &t
-}
-
 // TestSaveTaskCtx_ContextCancellation verifies that a canceled context aborts the transaction.
 // This tests the context propagation from DatabaseBackend through TxOps to the driver.
 func TestSaveTaskCtx_ContextCancellation(t *testing.T) {

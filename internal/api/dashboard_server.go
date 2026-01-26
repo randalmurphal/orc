@@ -18,15 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// protoTimestampToTime converts a protobuf timestamp to time.Time.
-// Returns zero time if the timestamp is nil.
-func protoTimestampToTime(ts *timestamppb.Timestamp) time.Time {
-	if ts == nil {
-		return time.Time{}
-	}
-	return ts.AsTime()
-}
-
 // dashboardServer implements the DashboardServiceHandler interface.
 type dashboardServer struct {
 	orcv1connect.UnimplementedDashboardServiceHandler
@@ -317,13 +308,14 @@ func (s *dashboardServer) GetMetrics(
 			continue
 		}
 
-		if t.Status == task.StatusCompleted {
+		switch t.Status {
+		case task.StatusCompleted:
 			completedCount++
 			if t.StartedAt != nil && t.CompletedAt != nil {
 				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
 				durationCount++
 			}
-		} else if t.Status == task.StatusFailed {
+		case task.StatusFailed:
 			failedCount++
 		}
 
@@ -679,10 +671,11 @@ func (s *dashboardServer) GetTaskMetrics(
 		TotalTokens: &orcv1.TokenUsage{},
 	}
 
-	if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
+	switch t.Status {
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 		metrics.TasksCompleted = 1
 		metrics.SuccessRate = 1.0
-	} else if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED {
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		metrics.SuccessRate = 0.0
 	}
 
@@ -730,13 +723,14 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*task.Task, start, e
 			continue
 		}
 
-		if t.Status == task.StatusCompleted {
+		switch t.Status {
+		case task.StatusCompleted:
 			completedCount++
 			if t.StartedAt != nil && t.CompletedAt != nil {
 				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
 				durationCount++
 			}
-		} else if t.Status == task.StatusFailed {
+		case task.StatusFailed:
 			failedCount++
 		}
 

@@ -105,10 +105,7 @@ func (s *eventServer) Subscribe(
 			}
 
 			// Filter by initiative if specified
-			if req.Msg.InitiativeId != nil {
-				// Would need to load task to check initiative, skip for now
-				// TODO: Add initiative filtering
-			}
+			// TODO: Add initiative filtering (would need to load task to check initiative)
 
 			// Convert to proto event
 			protoEvent := internalEventToProto(event)
