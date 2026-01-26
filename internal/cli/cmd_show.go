@@ -461,18 +461,16 @@ func mergePhaseStatesProto(p *executor.Plan, t *orcv1.Task) {
 		if !ok {
 			continue
 		}
+		// Phase status is completion-only: PENDING, COMPLETED, SKIPPED
 		switch ps.Status {
 		case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
 			p.Phases[i].CommitSHA = ps.GetCommitSha()
-		case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
-			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 		case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
 			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-		case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
-			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_RUNNING
-		case orcv1.PhaseStatus_PHASE_STATUS_PAUSED, orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED:
-			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING // Show as pending when interrupted/paused
+		default:
+			// PENDING or any legacy value stays as PENDING
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 		}
 	}
 }

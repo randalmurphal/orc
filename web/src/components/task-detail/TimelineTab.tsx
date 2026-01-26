@@ -150,15 +150,12 @@ interface TimelinePhaseProps {
 }
 
 // Status class mapping for CSS
+// Phase status is completion-only: PENDING, COMPLETED, SKIPPED
+// Running/failed state is derived from task status + current phase
 const STATUS_CLASS_MAP: Record<PhaseStatus, string> = {
 	[PhaseStatus.COMPLETED]: 'completed',
-	[PhaseStatus.RUNNING]: 'running',
-	[PhaseStatus.FAILED]: 'failed',
 	[PhaseStatus.SKIPPED]: 'skipped',
 	[PhaseStatus.PENDING]: 'pending',
-	[PhaseStatus.PAUSED]: 'paused',
-	[PhaseStatus.INTERRUPTED]: 'interrupted',
-	[PhaseStatus.BLOCKED]: 'blocked',
 	[PhaseStatus.UNSPECIFIED]: 'pending',
 };
 
@@ -176,13 +173,13 @@ function TimelinePhase({
 	totalPhases,
 }: TimelinePhaseProps) {
 	const getStatusIcon = (): IconName => {
+		// Phase status is completion-only. Use isCurrent prop for running state.
+		if (isCurrent && status === PhaseStatus.PENDING) {
+			return 'play-circle'; // Currently running
+		}
 		switch (status) {
 			case PhaseStatus.COMPLETED:
 				return 'check-circle';
-			case PhaseStatus.RUNNING:
-				return 'play-circle';
-			case PhaseStatus.FAILED:
-				return 'x-circle';
 			case PhaseStatus.SKIPPED:
 				return 'circle';
 			default:
@@ -191,13 +188,13 @@ function TimelinePhase({
 	};
 
 	const getStatusLabel = (): string => {
+		// Phase status is completion-only. Use isCurrent prop for running state.
+		if (isCurrent && status === PhaseStatus.PENDING) {
+			return 'Running';
+		}
 		switch (status) {
 			case PhaseStatus.COMPLETED:
 				return 'Completed';
-			case PhaseStatus.RUNNING:
-				return 'Running';
-			case PhaseStatus.FAILED:
-				return 'Failed';
 			case PhaseStatus.SKIPPED:
 				return 'Skipped';
 			default:
@@ -206,8 +203,9 @@ function TimelinePhase({
 	};
 
 	const getStatusClass = () => {
-		if (isCurrent && status === PhaseStatus.RUNNING) return 'running';
-		return STATUS_CLASS_MAP[status];
+		// If this is the current phase and it's not completed, it's running
+		if (isCurrent && status === PhaseStatus.PENDING) return 'running';
+		return STATUS_CLASS_MAP[status] ?? 'pending';
 	};
 
 	return (

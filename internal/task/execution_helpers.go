@@ -20,6 +20,7 @@ func EnsurePhasesProto(e *orcv1.ExecutionState) {
 }
 
 // EnsurePhaseProto ensures a phase entry exists in the Phases map.
+// New phases are created with PENDING status (the default for non-completed phases).
 func EnsurePhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	EnsurePhasesProto(e)
 	if e == nil {
@@ -27,12 +28,14 @@ func EnsurePhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	}
 	if e.Phases[phaseID] == nil {
 		e.Phases[phaseID] = &orcv1.PhaseState{
+			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
 			Tokens: &orcv1.TokenUsage{},
 		}
 	}
 }
 
-// StartPhaseProto marks a phase as started.
+// StartPhaseProto records a phase start time.
+// Note: Phase status stays PENDING until completed. Task status tracks running state.
 func StartPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	if e == nil {
 		return
@@ -40,7 +43,7 @@ func StartPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	now := timestamppb.Now()
 	EnsurePhaseProto(e, phaseID)
 
-	e.Phases[phaseID].Status = orcv1.PhaseStatus_PHASE_STATUS_RUNNING
+	// Keep status as PENDING - task.status tracks running, phase.status tracks completion
 	e.Phases[phaseID].StartedAt = now
 }
 
@@ -59,7 +62,8 @@ func CompletePhaseProto(e *orcv1.ExecutionState, phaseID string, commitSHA strin
 	}
 }
 
-// FailPhaseProto marks a phase as failed.
+// FailPhaseProto records an error on the execution state.
+// Note: Phase status stays PENDING (not completed). Task status tracks failure.
 func FailPhaseProto(e *orcv1.ExecutionState, phaseID string, err error) {
 	if e == nil || err == nil {
 		return
@@ -68,11 +72,13 @@ func FailPhaseProto(e *orcv1.ExecutionState, phaseID string, err error) {
 	e.Error = &errStr
 	EnsurePhaseProto(e, phaseID)
 
-	e.Phases[phaseID].Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+	// Record error on the phase for visibility, but don't change status
+	// Phase status stays PENDING - task.status tracks the failure
 	e.Phases[phaseID].Error = &errStr
 }
 
-// InterruptPhaseProto marks a phase as interrupted (can be resumed).
+// InterruptPhaseProto records that a phase was interrupted.
+// Note: Phase status stays PENDING (not completed). Task status tracks interruption.
 func InterruptPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	if e == nil {
 		return
@@ -80,7 +86,8 @@ func InterruptPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	now := timestamppb.Now()
 	EnsurePhaseProto(e, phaseID)
 
-	e.Phases[phaseID].Status = orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED
+	// Record interrupt timestamp, but don't change status
+	// Phase status stays PENDING - task.status tracks the interrupt
 	e.Phases[phaseID].InterruptedAt = now
 }
 
@@ -161,17 +168,12 @@ func RecordGateDecisionProto(e *orcv1.ExecutionState, phase, gateType string, ap
 	e.Gates = append(e.Gates, decision)
 }
 
-// GetResumePhaseProto returns the phase to resume from (first interrupted or running phase).
+// GetResumePhaseProto is deprecated - use task.current_phase + task.status instead.
+// Phase status no longer tracks running/interrupted state (only completion).
+// Returns empty string - callers should use task.current_phase for resume logic.
 func GetResumePhaseProto(e *orcv1.ExecutionState) string {
-	if e == nil || e.Phases == nil {
-		return ""
-	}
-	for phaseID, phaseState := range e.Phases {
-		if phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED ||
-			phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_RUNNING {
-			return phaseID
-		}
-	}
+	// Deprecated: phases don't track running/interrupted state anymore.
+	// Use task.current_phase for the phase to resume.
 	return ""
 }
 

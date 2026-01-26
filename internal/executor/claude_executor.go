@@ -357,15 +357,17 @@ func (e *ClaudeExecutor) buildBaseCLIOptions() []claude.ClaudeOption {
 		opts = append(opts, claude.WithModel(e.model))
 	}
 
-	// Only pass session ID in resume mode. Claude CLI requires UUIDs for session IDs,
-	// but orc uses custom IDs like "TASK-XXX-implement". On the first call, we let
-	// Claude generate a UUID and capture it from the response. Subsequent calls use
-	// --resume with that UUID.
-	if e.sessionID != "" && e.resume {
-		opts = append(opts, claude.WithResume(e.sessionID))
-		e.logger.Debug("using --resume with session ID", "session_id", e.sessionID)
-	} else {
-		e.logger.Debug("starting new session", "existing_session_id", e.sessionID, "resume", e.resume)
+	// Session ID handling:
+	// - First call: pass --session-id so Claude uses OUR UUID (not generate its own)
+	// - Resume call: pass --resume to continue existing session
+	if e.sessionID != "" {
+		if e.resume {
+			opts = append(opts, claude.WithResume(e.sessionID))
+			e.logger.Debug("resuming existing session", "session_id", e.sessionID)
+		} else {
+			opts = append(opts, claude.WithSessionID(e.sessionID))
+			e.logger.Debug("starting new session with ID", "session_id", e.sessionID)
+		}
 	}
 
 	if e.maxTurns > 0 {

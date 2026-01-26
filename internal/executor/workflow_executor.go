@@ -77,6 +77,10 @@ type WorkflowRunOptions struct {
 
 	// Stream enables real-time output streaming.
 	Stream bool
+
+	// IsResume indicates this is resuming an interrupted/paused task.
+	// Set this when the original task status was paused/failed/blocked before TryClaimTaskExecution changed it to running.
+	IsResume bool
 }
 
 // WorkflowExecutor runs workflows using the new database-first workflow system.
@@ -105,6 +109,7 @@ type WorkflowExecutor struct {
 	task         *orcv1.Task       // Task being executed (for task-based contexts)
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
+	isResuming   bool              // True if resuming a paused/failed/blocked task
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
@@ -376,7 +381,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	varDefs := we.convertToDefinitions(workflowVars)
 
 	// Resolve all variables
-	vars, err := we.resolver.ResolveAll(ctx, varDefs, rctx)
+	vars, err := we.resolver.ResolveAll(execCtx, varDefs, rctx)
 	if err != nil {
 		we.failRun(run, t, fmt.Errorf("resolve variables: %w", err))
 		return nil, err
@@ -392,7 +397,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Sync task status to Running
+	// Note: Use opts.IsResume since TryClaimTaskExecution already changed status to running
 	if t != nil {
+		we.isResuming = opts.IsResume
+		if we.isResuming {
+			we.logger.Info("detected resume from interrupted state", "task", t.Id)
+		}
 		t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status running", "task_id", t.Id, "error", err)
@@ -446,10 +456,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return result, fmt.Errorf("phase template not found: %s", phase.PhaseTemplateID)
 		}
 
-		// Check for context cancellation
-		if ctx.Err() != nil {
-			we.interruptRun(run, t, phase.PhaseTemplateID, ctx.Err())
-			return result, ctx.Err()
+		// Check for context cancellation (from SIGUSR1 pause signal)
+		if execCtx.Err() != nil {
+			we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
+			return result, execCtx.Err()
 		}
 
 		// Create run phase record
@@ -475,17 +485,23 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.enrichContextForPhase(rctx, tmpl.ID, t)
 
 		// Re-resolve variables with updated context
-		vars, err = we.resolver.ResolveAll(ctx, varDefs, rctx)
+		vars, err = we.resolver.ResolveAll(execCtx, varDefs, rctx)
 		if err != nil {
 			we.failRun(run, t, fmt.Errorf("resolve variables for phase %s: %w", tmpl.ID, err))
 			return result, err
 		}
 
 		// Execute the phase with timeout support (PhaseMax config)
-		phaseResult, err := we.executePhaseWithTimeout(ctx, tmpl, phase, vars, rctx, run, runPhase, t)
+		phaseResult, err := we.executePhaseWithTimeout(execCtx, tmpl, phase, vars, rctx, run, runPhase, t)
 		result.PhaseResults = append(result.PhaseResults, phaseResult)
 
 		if err != nil {
+			// Check if this was triggered by pause signal (execCtx cancelled)
+			// Note: The error may be "signal: killed" from subprocess, not context.Canceled
+			if execCtx.Err() != nil {
+				we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
+				return result, err
+			}
 			we.failRun(run, t, err)
 			return result, err
 		}
@@ -656,7 +672,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 	// Run completion action (sync, PR/merge) for task-based contexts
 	if t != nil && we.gitOps != nil {
-		completionErr := we.runCompletion(ctx, t)
+		completionErr := we.runCompletion(execCtx, t)
 		if completionErr != nil {
 			// Check if it's a conflict or merge error
 			if errors.Is(completionErr, ErrSyncConflict) || errors.Is(completionErr, ErrMergeFailed) {

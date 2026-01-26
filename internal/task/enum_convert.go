@@ -206,48 +206,34 @@ func CategoryFromProto(c orcv1.TaskCategory) string {
 }
 
 // PhaseStatusToProto converts a string phase status to proto PhaseStatus.
+// Phase status tracks completion only (pending, completed, skipped).
+// Execution state (running, paused, etc.) is tracked at task level via TaskStatus.
 func PhaseStatusToProto(s string) orcv1.PhaseStatus {
 	switch s {
 	case "pending":
 		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	case "running":
-		return orcv1.PhaseStatus_PHASE_STATUS_RUNNING
 	case "completed":
 		return orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
-	case "failed":
-		return orcv1.PhaseStatus_PHASE_STATUS_FAILED
-	case "paused":
-		return orcv1.PhaseStatus_PHASE_STATUS_PAUSED
-	case "interrupted":
-		return orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED
 	case "skipped":
 		return orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-	case "blocked":
-		return orcv1.PhaseStatus_PHASE_STATUS_BLOCKED
+	// Legacy values from before migration 038 - all map to pending (not completed)
+	case "running", "failed", "paused", "interrupted", "blocked":
+		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
 	default:
 		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
 	}
 }
 
 // PhaseStatusFromProto converts a proto PhaseStatus to string.
+// Only pending, completed, skipped are valid phase statuses.
 func PhaseStatusFromProto(s orcv1.PhaseStatus) string {
 	switch s {
 	case orcv1.PhaseStatus_PHASE_STATUS_PENDING:
 		return "pending"
-	case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
-		return "running"
 	case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 		return "completed"
-	case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
-		return "failed"
-	case orcv1.PhaseStatus_PHASE_STATUS_PAUSED:
-		return "paused"
-	case orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED:
-		return "interrupted"
 	case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
 		return "skipped"
-	case orcv1.PhaseStatus_PHASE_STATUS_BLOCKED:
-		return "blocked"
 	default:
 		return "pending"
 	}

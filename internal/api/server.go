@@ -622,9 +622,14 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 	// For failed phases (e.g., review), use retry map to go back to earlier phase
 	// This prevents the review-resume loop where failed reviews keep restarting from review
+	// Check task status and phase error since phases no longer track FAILED status
 	currentPhase := task.GetCurrentPhaseProto(t)
 	if resumePhase == "" && currentPhase != "" {
-		if ps := exec.GetPhases()[currentPhase]; ps != nil && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_FAILED {
+		// If task failed and current phase has an error, use retry map
+		taskFailed := t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED
+		ps := exec.GetPhases()[currentPhase]
+		phaseHasError := ps != nil && ps.Error != nil && *ps.Error != ""
+		if taskFailed || phaseHasError {
 			if retryFrom := s.orcConfig.ShouldRetryFrom(currentPhase); retryFrom != "" {
 				resumePhase = retryFrom
 				s.logger.Info("using retry map for failed phase", "task", id, "from", currentPhase, "to", retryFrom)
@@ -721,8 +726,10 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 
 		currentPhase := task.GetCurrentPhaseProto(t)
 		if execErr != nil {
-			// Execution failed - check if current phase was interrupted
-			if ps := exec.GetPhases()[currentPhase]; ps != nil && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED {
+			// Execution failed - check if current phase was interrupted (has interruptedAt timestamp)
+			ps := exec.GetPhases()[currentPhase]
+			wasInterrupted := ps != nil && ps.InterruptedAt != nil
+			if wasInterrupted {
 				newStatus = orcv1.TaskStatus_TASK_STATUS_PAUSED
 				reason = "interrupted"
 			} else {

@@ -63,16 +63,14 @@ enum TaskCategory {
 }
 
 // Phase execution status
+// NOTE: Phase status tracks only completion state. Execution state (running, paused, etc.)
+// is tracked at the task level via TaskStatus. Use task.current_phase to know which phase.
 enum PhaseStatus {
   PHASE_STATUS_UNSPECIFIED = 0;
-  PHASE_STATUS_PENDING = 1;      // Not started
-  PHASE_STATUS_RUNNING = 2;      // Currently executing
-  PHASE_STATUS_COMPLETED = 3;    // Successfully finished
-  PHASE_STATUS_FAILED = 4;       // Execution failed
-  PHASE_STATUS_PAUSED = 5;       // Manually paused
-  PHASE_STATUS_INTERRUPTED = 6;  // Interrupted mid-execution
-  PHASE_STATUS_SKIPPED = 7;      // Skipped by condition
-  PHASE_STATUS_BLOCKED = 8;      // Waiting on gate
+  PHASE_STATUS_PENDING = 1;    // Not yet completed (includes not started, in progress, needs retry)
+  PHASE_STATUS_COMPLETED = 3;  // Successfully finished
+  PHASE_STATUS_SKIPPED = 7;    // Skipped by gate condition
+  // Values 2,4,5,6,8 were removed - use task status for execution state
 }
 
 // Pull request status

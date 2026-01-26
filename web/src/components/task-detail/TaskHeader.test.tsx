@@ -208,6 +208,8 @@ describe('TaskHeader', () => {
 
 describe('Running Status Badge (TASK-312)', () => {
 	// Helper to create a plan with phases
+	// Phase status is completion-only (PENDING, COMPLETED, SKIPPED)
+	// Running state is determined by being the current phase with PENDING status
 	const createPlan = (phases: string[], currentPhase?: string) => ({
 		version: 1,
 		weight: TaskWeight.SMALL,
@@ -215,8 +217,7 @@ describe('Running Status Badge (TASK-312)', () => {
 		phases: phases.map((name, idx) => ({
 			id: `phase-${idx}`,
 			name,
-			status: name === currentPhase ? PhaseStatus.RUNNING :
-				phases.indexOf(name) < phases.indexOf(currentPhase ?? '') ? PhaseStatus.COMPLETED : PhaseStatus.PENDING,
+			status: phases.indexOf(name) < phases.indexOf(currentPhase ?? '') ? PhaseStatus.COMPLETED : PhaseStatus.PENDING,
 			iterations: 1,
 		})),
 	});
