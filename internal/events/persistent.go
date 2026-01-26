@@ -30,6 +30,7 @@ type PersistentPublisher struct {
 	logger      *slog.Logger
 	stopCh      chan struct{}
 	wg          sync.WaitGroup
+	closeOnce   sync.Once
 }
 
 // NewPersistentPublisher creates a new persistent event publisher.
@@ -104,21 +105,24 @@ func (p *PersistentPublisher) Unsubscribe(taskID string, ch <-chan Event) {
 }
 
 // Close shuts down the publisher, flushes remaining events, and releases resources.
+// Close is idempotent and safe to call multiple times.
 func (p *PersistentPublisher) Close() {
-	// Signal flush loop to stop
-	close(p.stopCh)
+	p.closeOnce.Do(func() {
+		// Signal flush loop to stop
+		close(p.stopCh)
 
-	// Stop the ticker
-	p.flushTicker.Stop()
+		// Stop the ticker
+		p.flushTicker.Stop()
 
-	// Wait for flush loop to finish
-	p.wg.Wait()
+		// Wait for flush loop to finish
+		p.wg.Wait()
 
-	// Final flush
-	p.flush()
+		// Final flush
+		p.flush()
 
-	// Close inner publisher
-	p.inner.Close()
+		// Close inner publisher
+		p.inner.Close()
+	})
 }
 
 // flushLoop runs in the background and flushes the buffer every 5 seconds.
