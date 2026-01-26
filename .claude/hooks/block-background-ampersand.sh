@@ -2,11 +2,18 @@
 #
 # Block Background Ampersand Hook for Claude Code
 #
-# Blocks Bash commands that end with a bare `&` for backgrounding.
+# Blocks Bash commands that use `&` for backgrounding ANYWHERE in the command.
 # Claude should use `run_in_background: true` parameter instead, which:
 # - Returns a task ID for tracking
 # - Allows checking output with TaskOutput tool
 # - Properly manages the background process
+#
+# Allowed patterns (not backgrounding):
+# - && (logical AND)
+# - |& (pipe stderr)
+# - &> &>> (redirect both streams)
+# - >& (redirect stdout)
+# - <& (duplicate input fd)
 #
 # Exit codes:
 # - 0: Allow tool execution
@@ -30,14 +37,27 @@ if [[ -z "$command" ]]; then
     exit 0
 fi
 
-# Check if command ends with bare `&` (not `&&` or `|&`)
-# Trim trailing whitespace first, then check
-trimmed=$(echo "$command" | sed 's/[[:space:]]*$//')
+# Remove all safe & patterns, then check if any bare & remains
+# Safe patterns: && |& &> &>> >& <&
+# Order matters: check longer patterns first
+safe_removed=$(echo "$command" | sed -E '
+    s/&>>//g
+    s/&&//g
+    s/\|&//g
+    s/&>//g
+    s/>&//g
+    s/<&//g
+')
 
-# Match: ends with & but not && or |&
-if [[ "$trimmed" =~ \&$ ]] && [[ ! "$trimmed" =~ \&\&$ ]] && [[ ! "$trimmed" =~ \|\&$ ]]; then
+# If any & remains after removing safe patterns, it's a backgrounding &
+if [[ "$safe_removed" == *"&"* ]]; then
     cat >&2 << 'EOF'
-BLOCKED: Don't use `&` to background. Use `"run_in_background": true` instead.
+BLOCKED: Don't use `&` to background processes. Use `"run_in_background": true` parameter instead.
+
+This catches ALL backgrounding, including:
+- `cmd &` (trailing)
+- `cmd1 & cmd2` (mid-command)
+- `(subshell &)` (in subshells)
 EOF
     exit 2
 fi
