@@ -314,3 +314,20 @@ func TestPersistentPublisher_DBFailureDoesNotCrash(t *testing.T) {
 		t.Error("timeout waiting for broadcast event")
 	}
 }
+
+// TestPersistentPublisher_CloseIsIdempotent verifies Close() can be called multiple times.
+// This was causing "close of closed channel" panics when CLIPublisher wrapped
+// PersistentPublisher and both had deferred Close() calls.
+func TestPersistentPublisher_CloseIsIdempotent(t *testing.T) {
+	logger := slog.Default()
+	pub := NewPersistentPublisher(nil, "test", logger)
+
+	// First close should succeed
+	pub.Close()
+
+	// Second close should not panic
+	pub.Close()
+
+	// Third close should also be fine
+	pub.Close()
+}
