@@ -14,6 +14,7 @@
 # - &> &>> (redirect both streams)
 # - >& (redirect stdout)
 # - <& (duplicate input fd)
+# - & inside quotes (commit messages, echo, etc.)
 #
 # Exit codes:
 # - 0: Allow tool execution
@@ -37,10 +38,26 @@ if [[ -z "$command" ]]; then
     exit 0
 fi
 
+# Strip quoted content to avoid false positives on strings like "foo & bar"
+# This handles the common cases; pathological nesting may slip through
+strip_quotes() {
+    local str="$1"
+    # Remove escaped quotes and ampersands first
+    str=$(echo "$str" | sed -E "s/\\\\[\"'&]//g")
+    # Remove single-quoted strings (no escaping inside single quotes)
+    str=$(echo "$str" | sed -E "s/'[^']*'//g")
+    # Remove double-quoted strings
+    str=$(echo "$str" | sed -E 's/"[^"]*"//g')
+    echo "$str"
+}
+
+# Strip quoted content first
+unquoted=$(strip_quotes "$command")
+
 # Remove all safe & patterns, then check if any bare & remains
 # Safe patterns: && |& &> &>> >& <&
 # Order matters: check longer patterns first
-safe_removed=$(echo "$command" | sed -E '
+safe_removed=$(echo "$unquoted" | sed -E '
     s/&>>//g
     s/&&//g
     s/\|&//g
