@@ -40,6 +40,8 @@ export {
 	useWsStatus,
 	useToasts,
 	toast,
+	type Toast,
+	type ToastType,
 } from './uiStore';
 
 // Dependency store

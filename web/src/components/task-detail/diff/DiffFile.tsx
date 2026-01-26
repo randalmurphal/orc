@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { DiffHunk } from './DiffHunk';
-import type { FileDiff, ReviewComment, CreateCommentRequest } from '@/lib/types';
+import type { FileDiff } from '@/gen/orc/v1/common_pb';
+import type { ReviewComment } from '@/gen/orc/v1/task_pb';
+import { CommentStatus } from '@/gen/orc/v1/task_pb';
+import type { CreateCommentRequest } from './types';
 import './DiffFile.css';
 
 interface DiffFileProps {
@@ -35,7 +38,7 @@ export function DiffFile({
 }: DiffFileProps) {
 	// Filter comments for this file
 	const fileComments = useMemo(
-		() => comments.filter((c) => c.file_path === file.path),
+		() => comments.filter((c) => c.filePath === file.path),
 		[comments, file.path]
 	);
 
@@ -74,9 +77,9 @@ export function DiffFile({
 				<Icon name={expanded ? 'chevron-down' : 'chevron-right'} size={16} />
 				<Icon name={getStatusIcon()} size={14} className={`status-icon ${getStatusClass()}`} />
 				<span className="file-path">
-					{file.status === 'renamed' && file.old_path ? (
+					{file.status === 'renamed' && file.oldPath ? (
 						<>
-							<span className="old-path">{file.old_path}</span>
+							<span className="old-path">{file.oldPath}</span>
 							<Icon name="arrow-left" size={12} className="rename-arrow" />
 						</>
 					) : null}
@@ -87,9 +90,9 @@ export function DiffFile({
 					{file.additions > 0 && <span className="additions">+{file.additions}</span>}
 					{file.deletions > 0 && <span className="deletions">-{file.deletions}</span>}
 				</div>
-				{fileComments.filter((c) => c.status === 'open').length > 0 && (
+				{fileComments.filter((c) => c.status === CommentStatus.OPEN).length > 0 && (
 					<span className="comment-count">
-						{fileComments.filter((c) => c.status === 'open').length}
+						{fileComments.filter((c) => c.status === CommentStatus.OPEN).length}
 					</span>
 				)}
 			</button>

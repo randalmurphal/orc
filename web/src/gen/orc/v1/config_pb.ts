@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/config.proto.
  */
 export const file_orc_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("ChNvcmMvdjEvY29uZmlnLnByb3RvEgZvcmMudjEisAEKBkNvbmZpZxIsCgphdXRvbWF0aW9uGAEgASgLMhgub3JjLnYxLkF1dG9tYXRpb25Db25maWcSLAoKY29tcGxldGlvbhgCIAEoCzIYLm9yYy52MS5Db21wbGV0aW9uQ29uZmlnEiQKBmV4cG9ydBgDIAEoCzIULm9yYy52MS5FeHBvcnRDb25maWcSJAoGY2xhdWRlGAQgASgLMhQub3JjLnYxLkNsYXVkZUNvbmZpZyJMChBBdXRvbWF0aW9uQ29uZmlnEg8KB3Byb2ZpbGUYASABKAkSFAoMYXV0b19hcHByb3ZlGAIgASgIEhEKCWF1dG9fc2tpcBgDIAEoCCJkChBDb21wbGV0aW9uQ29uZmlnEg4KBmFjdGlvbhgBIAEoCRISCgphdXRvX21lcmdlGAIgASgIEhoKDXRhcmdldF9icmFuY2gYAyABKAlIAIgBAUIQCg5fdGFyZ2V0X2JyYW5jaCJYCgxFeHBvcnRDb25maWcSGwoTaW5jbHVkZV90cmFuc2NyaXB0cxgBIAEoCBIbChNpbmNsdWRlX2F0dGFjaG1lbnRzGAIgASgIEg4KBmZvcm1hdBgDIAEoCSJXCgxDbGF1ZGVDb25maWcSDQoFbW9kZWwYASABKAkSEAoIdGhpbmtpbmcYAiABKAgSEQoJbWF4X3R1cm5zGAMgASgFEhMKC3RlbXBlcmF0dXJlGAQgASgBItQBCghTZXR0aW5ncxINCgV0b29scxgBIAMoCRITCgttY3Bfc2VydmVycxgCIAMoCRIgChNjdXN0b21faW5zdHJ1Y3Rpb25zGAMgASgJSACIAQESNgoLcGVybWlzc2lvbnMYBCADKAsyIS5vcmMudjEuU2V0dGluZ3MuUGVybWlzc2lvbnNFbnRyeRoyChBQZXJtaXNzaW9uc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCDoCOAFCFgoUX2N1c3RvbV9pbnN0cnVjdGlvbnMiegoRU2V0dGluZ3NIaWVyYXJjaHkSIAoGZ2xvYmFsGAEgASgLMhAub3JjLnYxLlNldHRpbmdzEiEKB3Byb2plY3QYAiABKAsyEC5vcmMudjEuU2V0dGluZ3MSIAoGbWVyZ2VkGAMgASgLMhAub3JjLnYxLlNldHRpbmdzIqsCCgRIb29rEgwKBG5hbWUYASABKAkSIAoFZXZlbnQYAiABKA4yES5vcmMudjEuSG9va0V2ZW50EhQKB21hdGNoZXIYAyABKAlIAIgBARIPCgdjb21tYW5kGAQgASgJEhgKC3dvcmtpbmdfZGlyGAUgASgJSAGIAQESIgoDZW52GAYgAygLMhUub3JjLnYxLkhvb2suRW52RW50cnkSDwoHdGltZW91dBgHIAEoBRIPCgdlbmFibGVkGAggASgIEiQKBXNjb3BlGAkgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIKCghfbWF0Y2hlckIOCgxfd29ya2luZ19kaXIipQEKBVNraWxsEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDwoHY29udGVudBgDIAEoCRIWCg51c2VyX2ludm9jYWJsZRgEIAEoCBIZCgxpbnB1dF9zY2hlbWEYBSABKAlIAIgBARIkCgVzY29wZRgGIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlQg8KDV9pbnB1dF9zY2hlbWEiTwoIQ2xhdWRlTWQSDAoEcGF0aBgBIAEoCRIPCgdjb250ZW50GAIgASgJEiQKBXNjb3BlGAMgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUiXwoOUHJvbXB0VGVtcGxhdGUSDQoFcGhhc2UYASABKAkSDwoHY29udGVudBgCIAEoCRIRCglpc19jdXN0b20YAyABKAgSEQoEcGF0aBgEIAEoCUgAiAEBQgcKBV9wYXRoIlUKDlByb21wdFZhcmlhYmxlEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSFAoHZXhhbXBsZRgDIAEoCUgAiAEBQgoKCF9leGFtcGxlImsKDENvbnN0aXR1dGlvbhIPCgdjb250ZW50GAEgASgJEhEKBHBhdGgYAiABKAlIAIgBARIuCgp1cGRhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIHCgVfcGF0aCISChBHZXRDb25maWdSZXF1ZXN0IjMKEUdldENvbmZpZ1Jlc3BvbnNlEh4KBmNvbmZpZxgBIAEoCzIOLm9yYy52MS5Db25maWcihQIKE1VwZGF0ZUNvbmZpZ1JlcXVlc3QSMQoKYXV0b21hdGlvbhgBIAEoCzIYLm9yYy52MS5BdXRvbWF0aW9uQ29uZmlnSACIAQESMQoKY29tcGxldGlvbhgCIAEoCzIYLm9yYy52MS5Db21wbGV0aW9uQ29uZmlnSAGIAQESKQoGZXhwb3J0GAMgASgLMhQub3JjLnYxLkV4cG9ydENvbmZpZ0gCiAEBEikKBmNsYXVkZRgEIAEoCzIULm9yYy52MS5DbGF1ZGVDb25maWdIA4gBAUINCgtfYXV0b21hdGlvbkINCgtfY29tcGxldGlvbkIJCgdfZXhwb3J0QgkKB19jbGF1ZGUiNgoUVXBkYXRlQ29uZmlnUmVzcG9uc2USHgoGY29uZmlnGAEgASgLMg4ub3JjLnYxLkNvbmZpZyI6ChJHZXRTZXR0aW5nc1JlcXVlc3QSJAoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZSI5ChNHZXRTZXR0aW5nc1Jlc3BvbnNlEiIKCHNldHRpbmdzGAEgASgLMhAub3JjLnYxLlNldHRpbmdzImEKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIkCgVzY29wZRgBIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEiIKCHNldHRpbmdzGAIgASgLMhAub3JjLnYxLlNldHRpbmdzIjwKFlVwZGF0ZVNldHRpbmdzUmVzcG9uc2USIgoIc2V0dGluZ3MYASABKAsyEC5vcmMudjEuU2V0dGluZ3MiHQobR2V0U2V0dGluZ3NIaWVyYXJjaHlSZXF1ZXN0IkwKHEdldFNldHRpbmdzSGllcmFyY2h5UmVzcG9uc2USLAoJaGllcmFyY2h5GAEgASgLMhkub3JjLnYxLlNldHRpbmdzSGllcmFyY2h5IkcKEExpc3RIb29rc1JlcXVlc3QSKQoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUgAiAEBQggKBl9zY29wZSIwChFMaXN0SG9va3NSZXNwb25zZRIbCgVob29rcxgBIAMoCzIMLm9yYy52MS5Ib29rIrQCChFDcmVhdGVIb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEiAKBWV2ZW50GAIgASgOMhEub3JjLnYxLkhvb2tFdmVudBIUCgdtYXRjaGVyGAMgASgJSACIAQESDwoHY29tbWFuZBgEIAEoCRIYCgt3b3JraW5nX2RpchgFIAEoCUgBiAEBEi8KA2VudhgGIAMoCzIiLm9yYy52MS5DcmVhdGVIb29rUmVxdWVzdC5FbnZFbnRyeRIPCgd0aW1lb3V0GAcgASgFEiQKBXNjb3BlGAggASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIKCghfbWF0Y2hlckIOCgxfd29ya2luZ19kaXIiMAoSQ3JlYXRlSG9va1Jlc3BvbnNlEhoKBGhvb2sYASABKAsyDC5vcmMudjEuSG9vayKHAwoRVXBkYXRlSG9va1JlcXVlc3QSDAoEbmFtZRgBIAEoCRIkCgVzY29wZRgCIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEiUKBWV2ZW50GAMgASgOMhEub3JjLnYxLkhvb2tFdmVudEgAiAEBEhQKB21hdGNoZXIYBCABKAlIAYgBARIUCgdjb21tYW5kGAUgASgJSAKIAQESGAoLd29ya2luZ19kaXIYBiABKAlIA4gBARIvCgNlbnYYByADKAsyIi5vcmMudjEuVXBkYXRlSG9va1JlcXVlc3QuRW52RW50cnkSFAoHdGltZW91dBgIIAEoBUgEiAEBEhQKB2VuYWJsZWQYCSABKAhIBYgBARoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQggKBl9ldmVudEIKCghfbWF0Y2hlckIKCghfY29tbWFuZEIOCgxfd29ya2luZ19kaXJCCgoIX3RpbWVvdXRCCgoIX2VuYWJsZWQiMAoSVXBkYXRlSG9va1Jlc3BvbnNlEhoKBGhvb2sYASABKAsyDC5vcmMudjEuSG9vayJHChFEZWxldGVIb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEiQKBXNjb3BlGAIgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUiJQoSRGVsZXRlSG9va1Jlc3BvbnNlEg8KB21lc3NhZ2UYASABKAkiSAoRTGlzdFNraWxsc1JlcXVlc3QSKQoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUgAiAEBQggKBl9zY29wZSIzChJMaXN0U2tpbGxzUmVzcG9uc2USHQoGc2tpbGxzGAEgAygLMg0ub3JjLnYxLlNraWxsIrIBChJDcmVhdGVTa2lsbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIPCgdjb250ZW50GAMgASgJEhYKDnVzZXJfaW52b2NhYmxlGAQgASgIEhkKDGlucHV0X3NjaGVtYRgFIAEoCUgAiAEBEiQKBXNjb3BlGAYgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGVCDwoNX2lucHV0X3NjaGVtYSIzChNDcmVhdGVTa2lsbFJlc3BvbnNlEhwKBXNraWxsGAEgASgLMg0ub3JjLnYxLlNraWxsIvABChJVcGRhdGVTa2lsbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRIkCgVzY29wZRgCIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESFAoHY29udGVudBgEIAEoCUgBiAEBEhsKDnVzZXJfaW52b2NhYmxlGAUgASgISAKIAQESGQoMaW5wdXRfc2NoZW1hGAYgASgJSAOIAQFCDgoMX2Rlc2NyaXB0aW9uQgoKCF9jb250ZW50QhEKD191c2VyX2ludm9jYWJsZUIPCg1faW5wdXRfc2NoZW1hIjMKE1VwZGF0ZVNraWxsUmVzcG9uc2USHAoFc2tpbGwYASABKAsyDS5vcmMudjEuU2tpbGwiSAoSRGVsZXRlU2tpbGxSZXF1ZXN0EgwKBG5hbWUYASABKAkSJAoFc2NvcGUYAiABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZSImChNEZWxldGVTa2lsbFJlc3BvbnNlEg8KB21lc3NhZ2UYASABKAkiFAoSR2V0Q2xhdWRlTWRSZXF1ZXN0IjYKE0dldENsYXVkZU1kUmVzcG9uc2USHwoFZmlsZXMYASADKAsyEC5vcmMudjEuQ2xhdWRlTWQiTgoVVXBkYXRlQ2xhdWRlTWRSZXF1ZXN0EiQKBXNjb3BlGAEgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUSDwoHY29udGVudBgCIAEoCSI9ChZVcGRhdGVDbGF1ZGVNZFJlc3BvbnNlEiMKCWNsYXVkZV9tZBgBIAEoCzIQLm9yYy52MS5DbGF1ZGVNZCIYChZHZXRDb25zdGl0dXRpb25SZXF1ZXN0IkUKF0dldENvbnN0aXR1dGlvblJlc3BvbnNlEioKDGNvbnN0aXR1dGlvbhgBIAEoCzIULm9yYy52MS5Db25zdGl0dXRpb24iLAoZVXBkYXRlQ29uc3RpdHV0aW9uUmVxdWVzdBIPCgdjb250ZW50GAEgASgJIkgKGlVwZGF0ZUNvbnN0aXR1dGlvblJlc3BvbnNlEioKDGNvbnN0aXR1dGlvbhgBIAEoCzIULm9yYy52MS5Db25zdGl0dXRpb24iGwoZRGVsZXRlQ29uc3RpdHV0aW9uUmVxdWVzdCItChpEZWxldGVDb25zdGl0dXRpb25SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJIhQKEkxpc3RQcm9tcHRzUmVxdWVzdCI+ChNMaXN0UHJvbXB0c1Jlc3BvbnNlEicKB3Byb21wdHMYASADKAsyFi5vcmMudjEuUHJvbXB0VGVtcGxhdGUiIQoQR2V0UHJvbXB0UmVxdWVzdBINCgVwaGFzZRgBIAEoCSI7ChFHZXRQcm9tcHRSZXNwb25zZRImCgZwcm9tcHQYASABKAsyFi5vcmMudjEuUHJvbXB0VGVtcGxhdGUiKAoXR2V0RGVmYXVsdFByb21wdFJlcXVlc3QSDQoFcGhhc2UYASABKAkiQgoYR2V0RGVmYXVsdFByb21wdFJlc3BvbnNlEiYKBnByb21wdBgBIAEoCzIWLm9yYy52MS5Qcm9tcHRUZW1wbGF0ZSI1ChNVcGRhdGVQcm9tcHRSZXF1ZXN0Eg0KBXBoYXNlGAEgASgJEg8KB2NvbnRlbnQYAiABKAkiPgoUVXBkYXRlUHJvbXB0UmVzcG9uc2USJgoGcHJvbXB0GAEgASgLMhYub3JjLnYxLlByb21wdFRlbXBsYXRlIiQKE0RlbGV0ZVByb21wdFJlcXVlc3QSDQoFcGhhc2UYASABKAkiJwoURGVsZXRlUHJvbXB0UmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSIcChpMaXN0UHJvbXB0VmFyaWFibGVzUmVxdWVzdCJIChtMaXN0UHJvbXB0VmFyaWFibGVzUmVzcG9uc2USKQoJdmFyaWFibGVzGAEgAygLMhYub3JjLnYxLlByb21wdFZhcmlhYmxlKmYKDVNldHRpbmdzU2NvcGUSHgoaU0VUVElOR1NfU0NPUEVfVU5TUEVDSUZJRUQQABIZChVTRVRUSU5HU19TQ09QRV9HTE9CQUwQARIaChZTRVRUSU5HU19TQ09QRV9QUk9KRUNUEAIqlAEKCUhvb2tFdmVudBIaChZIT09LX0VWRU5UX1VOU1BFQ0lGSUVEEAASGwoXSE9PS19FVkVOVF9QUkVfVE9PTF9VU0UQARIcChhIT09LX0VWRU5UX1BPU1RfVE9PTF9VU0UQAhIbChdIT09LX0VWRU5UX05PVElGSUNBVElPThADEhMKD0hPT0tfRVZFTlRfU1RPUBAEMsQOCg1Db25maWdTZXJ2aWNlEkAKCUdldENvbmZpZxIYLm9yYy52MS5HZXRDb25maWdSZXF1ZXN0Ghkub3JjLnYxLkdldENvbmZpZ1Jlc3BvbnNlEkkKDFVwZGF0ZUNvbmZpZxIbLm9yYy52MS5VcGRhdGVDb25maWdSZXF1ZXN0Ghwub3JjLnYxLlVwZGF0ZUNvbmZpZ1Jlc3BvbnNlEkYKC0dldFNldHRpbmdzEhoub3JjLnYxLkdldFNldHRpbmdzUmVxdWVzdBobLm9yYy52MS5HZXRTZXR0aW5nc1Jlc3BvbnNlEk8KDlVwZGF0ZVNldHRpbmdzEh0ub3JjLnYxLlVwZGF0ZVNldHRpbmdzUmVxdWVzdBoeLm9yYy52MS5VcGRhdGVTZXR0aW5nc1Jlc3BvbnNlEmEKFEdldFNldHRpbmdzSGllcmFyY2h5EiMub3JjLnYxLkdldFNldHRpbmdzSGllcmFyY2h5UmVxdWVzdBokLm9yYy52MS5HZXRTZXR0aW5nc0hpZXJhcmNoeVJlc3BvbnNlEkAKCUxpc3RIb29rcxIYLm9yYy52MS5MaXN0SG9va3NSZXF1ZXN0Ghkub3JjLnYxLkxpc3RIb29rc1Jlc3BvbnNlEkMKCkNyZWF0ZUhvb2sSGS5vcmMudjEuQ3JlYXRlSG9va1JlcXVlc3QaGi5vcmMudjEuQ3JlYXRlSG9va1Jlc3BvbnNlEkMKClVwZGF0ZUhvb2sSGS5vcmMudjEuVXBkYXRlSG9va1JlcXVlc3QaGi5vcmMudjEuVXBkYXRlSG9va1Jlc3BvbnNlEkMKCkRlbGV0ZUhvb2sSGS5vcmMudjEuRGVsZXRlSG9va1JlcXVlc3QaGi5vcmMudjEuRGVsZXRlSG9va1Jlc3BvbnNlEkMKCkxpc3RTa2lsbHMSGS5vcmMudjEuTGlzdFNraWxsc1JlcXVlc3QaGi5vcmMudjEuTGlzdFNraWxsc1Jlc3BvbnNlEkYKC0NyZWF0ZVNraWxsEhoub3JjLnYxLkNyZWF0ZVNraWxsUmVxdWVzdBobLm9yYy52MS5DcmVhdGVTa2lsbFJlc3BvbnNlEkYKC1VwZGF0ZVNraWxsEhoub3JjLnYxLlVwZGF0ZVNraWxsUmVxdWVzdBobLm9yYy52MS5VcGRhdGVTa2lsbFJlc3BvbnNlEkYKC0RlbGV0ZVNraWxsEhoub3JjLnYxLkRlbGV0ZVNraWxsUmVxdWVzdBobLm9yYy52MS5EZWxldGVTa2lsbFJlc3BvbnNlEkYKC0dldENsYXVkZU1kEhoub3JjLnYxLkdldENsYXVkZU1kUmVxdWVzdBobLm9yYy52MS5HZXRDbGF1ZGVNZFJlc3BvbnNlEk8KDlVwZGF0ZUNsYXVkZU1kEh0ub3JjLnYxLlVwZGF0ZUNsYXVkZU1kUmVxdWVzdBoeLm9yYy52MS5VcGRhdGVDbGF1ZGVNZFJlc3BvbnNlElIKD0dldENvbnN0aXR1dGlvbhIeLm9yYy52MS5HZXRDb25zdGl0dXRpb25SZXF1ZXN0Gh8ub3JjLnYxLkdldENvbnN0aXR1dGlvblJlc3BvbnNlElsKElVwZGF0ZUNvbnN0aXR1dGlvbhIhLm9yYy52MS5VcGRhdGVDb25zdGl0dXRpb25SZXF1ZXN0GiIub3JjLnYxLlVwZGF0ZUNvbnN0aXR1dGlvblJlc3BvbnNlElsKEkRlbGV0ZUNvbnN0aXR1dGlvbhIhLm9yYy52MS5EZWxldGVDb25zdGl0dXRpb25SZXF1ZXN0GiIub3JjLnYxLkRlbGV0ZUNvbnN0aXR1dGlvblJlc3BvbnNlEkYKC0xpc3RQcm9tcHRzEhoub3JjLnYxLkxpc3RQcm9tcHRzUmVxdWVzdBobLm9yYy52MS5MaXN0UHJvbXB0c1Jlc3BvbnNlEkAKCUdldFByb21wdBIYLm9yYy52MS5HZXRQcm9tcHRSZXF1ZXN0Ghkub3JjLnYxLkdldFByb21wdFJlc3BvbnNlElUKEEdldERlZmF1bHRQcm9tcHQSHy5vcmMudjEuR2V0RGVmYXVsdFByb21wdFJlcXVlc3QaIC5vcmMudjEuR2V0RGVmYXVsdFByb21wdFJlc3BvbnNlEkkKDFVwZGF0ZVByb21wdBIbLm9yYy52MS5VcGRhdGVQcm9tcHRSZXF1ZXN0Ghwub3JjLnYxLlVwZGF0ZVByb21wdFJlc3BvbnNlEkkKDERlbGV0ZVByb21wdBIbLm9yYy52MS5EZWxldGVQcm9tcHRSZXF1ZXN0Ghwub3JjLnYxLkRlbGV0ZVByb21wdFJlc3BvbnNlEl4KE0xpc3RQcm9tcHRWYXJpYWJsZXMSIi5vcmMudjEuTGlzdFByb21wdFZhcmlhYmxlc1JlcXVlc3QaIy5vcmMudjEuTGlzdFByb21wdFZhcmlhYmxlc1Jlc3BvbnNlQocBCgpjb20ub3JjLnYxQgtDb25maWdQcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChNvcmMvdjEvY29uZmlnLnByb3RvEgZvcmMudjEisAEKBkNvbmZpZxIsCgphdXRvbWF0aW9uGAEgASgLMhgub3JjLnYxLkF1dG9tYXRpb25Db25maWcSLAoKY29tcGxldGlvbhgCIAEoCzIYLm9yYy52MS5Db21wbGV0aW9uQ29uZmlnEiQKBmV4cG9ydBgDIAEoCzIULm9yYy52MS5FeHBvcnRDb25maWcSJAoGY2xhdWRlGAQgASgLMhQub3JjLnYxLkNsYXVkZUNvbmZpZyJMChBBdXRvbWF0aW9uQ29uZmlnEg8KB3Byb2ZpbGUYASABKAkSFAoMYXV0b19hcHByb3ZlGAIgASgIEhEKCWF1dG9fc2tpcBgDIAEoCCJkChBDb21wbGV0aW9uQ29uZmlnEg4KBmFjdGlvbhgBIAEoCRISCgphdXRvX21lcmdlGAIgASgIEhoKDXRhcmdldF9icmFuY2gYAyABKAlIAIgBAUIQCg5fdGFyZ2V0X2JyYW5jaCJYCgxFeHBvcnRDb25maWcSGwoTaW5jbHVkZV90cmFuc2NyaXB0cxgBIAEoCBIbChNpbmNsdWRlX2F0dGFjaG1lbnRzGAIgASgIEg4KBmZvcm1hdBgDIAEoCSJXCgxDbGF1ZGVDb25maWcSDQoFbW9kZWwYASABKAkSEAoIdGhpbmtpbmcYAiABKAgSEQoJbWF4X3R1cm5zGAMgASgFEhMKC3RlbXBlcmF0dXJlGAQgASgBItQBCghTZXR0aW5ncxINCgV0b29scxgBIAMoCRITCgttY3Bfc2VydmVycxgCIAMoCRIgChNjdXN0b21faW5zdHJ1Y3Rpb25zGAMgASgJSACIAQESNgoLcGVybWlzc2lvbnMYBCADKAsyIS5vcmMudjEuU2V0dGluZ3MuUGVybWlzc2lvbnNFbnRyeRoyChBQZXJtaXNzaW9uc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCDoCOAFCFgoUX2N1c3RvbV9pbnN0cnVjdGlvbnMiegoRU2V0dGluZ3NIaWVyYXJjaHkSIAoGZ2xvYmFsGAEgASgLMhAub3JjLnYxLlNldHRpbmdzEiEKB3Byb2plY3QYAiABKAsyEC5vcmMudjEuU2V0dGluZ3MSIAoGbWVyZ2VkGAMgASgLMhAub3JjLnYxLlNldHRpbmdzIqsCCgRIb29rEgwKBG5hbWUYASABKAkSIAoFZXZlbnQYAiABKA4yES5vcmMudjEuSG9va0V2ZW50EhQKB21hdGNoZXIYAyABKAlIAIgBARIPCgdjb21tYW5kGAQgASgJEhgKC3dvcmtpbmdfZGlyGAUgASgJSAGIAQESIgoDZW52GAYgAygLMhUub3JjLnYxLkhvb2suRW52RW50cnkSDwoHdGltZW91dBgHIAEoBRIPCgdlbmFibGVkGAggASgIEiQKBXNjb3BlGAkgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIKCghfbWF0Y2hlckIOCgxfd29ya2luZ19kaXIipQEKBVNraWxsEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDwoHY29udGVudBgDIAEoCRIWCg51c2VyX2ludm9jYWJsZRgEIAEoCBIZCgxpbnB1dF9zY2hlbWEYBSABKAlIAIgBARIkCgVzY29wZRgGIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlQg8KDV9pbnB1dF9zY2hlbWEiTwoIQ2xhdWRlTWQSDAoEcGF0aBgBIAEoCRIPCgdjb250ZW50GAIgASgJEiQKBXNjb3BlGAMgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUiXwoOUHJvbXB0VGVtcGxhdGUSDQoFcGhhc2UYASABKAkSDwoHY29udGVudBgCIAEoCRIRCglpc19jdXN0b20YAyABKAgSEQoEcGF0aBgEIAEoCUgAiAEBQgcKBV9wYXRoIlUKDlByb21wdFZhcmlhYmxlEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSFAoHZXhhbXBsZRgDIAEoCUgAiAEBQgoKCF9leGFtcGxlImsKDENvbnN0aXR1dGlvbhIPCgdjb250ZW50GAEgASgJEhEKBHBhdGgYAiABKAlIAIgBARIuCgp1cGRhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIHCgVfcGF0aCK7AgoFQWdlbnQSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRISCgVtb2RlbBgDIAEoCUgAiAEBEisKBXRvb2xzGAQgASgLMhcub3JjLnYxLlRvb2xQZXJtaXNzaW9uc0gBiAEBEhMKBnByb21wdBgFIAEoCUgCiAEBEhUKCHdvcmtfZGlyGAYgASgJSAOIAQESEgoKc2tpbGxfcmVmcxgHIAMoCRIUCgd0aW1lb3V0GAggASgJSASIAQESEQoEcGF0aBgJIAEoCUgFiAEBEiQKBXNjb3BlGAogASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGVCCAoGX21vZGVsQggKBl90b29sc0IJCgdfcHJvbXB0QgsKCV93b3JrX2RpckIKCghfdGltZW91dEIHCgVfcGF0aCIuCg9Ub29sUGVybWlzc2lvbnMSDQoFYWxsb3cYASADKAkSDAoEZGVueRgCIAMoCSI/CghUb29sSW5mbxIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhAKCGNhdGVnb3J5GAMgASgJIl0KBlNjcmlwdBIMCgRuYW1lGAEgASgJEgwKBHBhdGgYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoIbGFuZ3VhZ2UYBCABKAlIAIgBAUILCglfbGFuZ3VhZ2UiewoLQ29uZmlnU3RhdHMSHAoUc2xhc2hfY29tbWFuZHNfY291bnQYASABKAUSFgoOY2xhdWRlX21kX3NpemUYAiABKAMSGQoRbWNwX3NlcnZlcnNfY291bnQYAyABKAUSGwoTcGVybWlzc2lvbnNfcHJvZmlsZRgEIAEoCSISChBHZXRDb25maWdSZXF1ZXN0IjMKEUdldENvbmZpZ1Jlc3BvbnNlEh4KBmNvbmZpZxgBIAEoCzIOLm9yYy52MS5Db25maWcihQIKE1VwZGF0ZUNvbmZpZ1JlcXVlc3QSMQoKYXV0b21hdGlvbhgBIAEoCzIYLm9yYy52MS5BdXRvbWF0aW9uQ29uZmlnSACIAQESMQoKY29tcGxldGlvbhgCIAEoCzIYLm9yYy52MS5Db21wbGV0aW9uQ29uZmlnSAGIAQESKQoGZXhwb3J0GAMgASgLMhQub3JjLnYxLkV4cG9ydENvbmZpZ0gCiAEBEikKBmNsYXVkZRgEIAEoCzIULm9yYy52MS5DbGF1ZGVDb25maWdIA4gBAUINCgtfYXV0b21hdGlvbkINCgtfY29tcGxldGlvbkIJCgdfZXhwb3J0QgkKB19jbGF1ZGUiNgoUVXBkYXRlQ29uZmlnUmVzcG9uc2USHgoGY29uZmlnGAEgASgLMg4ub3JjLnYxLkNvbmZpZyI6ChJHZXRTZXR0aW5nc1JlcXVlc3QSJAoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZSI5ChNHZXRTZXR0aW5nc1Jlc3BvbnNlEiIKCHNldHRpbmdzGAEgASgLMhAub3JjLnYxLlNldHRpbmdzImEKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIkCgVzY29wZRgBIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEiIKCHNldHRpbmdzGAIgASgLMhAub3JjLnYxLlNldHRpbmdzIjwKFlVwZGF0ZVNldHRpbmdzUmVzcG9uc2USIgoIc2V0dGluZ3MYASABKAsyEC5vcmMudjEuU2V0dGluZ3MiHQobR2V0U2V0dGluZ3NIaWVyYXJjaHlSZXF1ZXN0IkwKHEdldFNldHRpbmdzSGllcmFyY2h5UmVzcG9uc2USLAoJaGllcmFyY2h5GAEgASgLMhkub3JjLnYxLlNldHRpbmdzSGllcmFyY2h5IkcKEExpc3RIb29rc1JlcXVlc3QSKQoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUgAiAEBQggKBl9zY29wZSIwChFMaXN0SG9va3NSZXNwb25zZRIbCgVob29rcxgBIAMoCzIMLm9yYy52MS5Ib29rIrQCChFDcmVhdGVIb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEiAKBWV2ZW50GAIgASgOMhEub3JjLnYxLkhvb2tFdmVudBIUCgdtYXRjaGVyGAMgASgJSACIAQESDwoHY29tbWFuZBgEIAEoCRIYCgt3b3JraW5nX2RpchgFIAEoCUgBiAEBEi8KA2VudhgGIAMoCzIiLm9yYy52MS5DcmVhdGVIb29rUmVxdWVzdC5FbnZFbnRyeRIPCgd0aW1lb3V0GAcgASgFEiQKBXNjb3BlGAggASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIKCghfbWF0Y2hlckIOCgxfd29ya2luZ19kaXIiMAoSQ3JlYXRlSG9va1Jlc3BvbnNlEhoKBGhvb2sYASABKAsyDC5vcmMudjEuSG9vayKHAwoRVXBkYXRlSG9va1JlcXVlc3QSDAoEbmFtZRgBIAEoCRIkCgVzY29wZRgCIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEiUKBWV2ZW50GAMgASgOMhEub3JjLnYxLkhvb2tFdmVudEgAiAEBEhQKB21hdGNoZXIYBCABKAlIAYgBARIUCgdjb21tYW5kGAUgASgJSAKIAQESGAoLd29ya2luZ19kaXIYBiABKAlIA4gBARIvCgNlbnYYByADKAsyIi5vcmMudjEuVXBkYXRlSG9va1JlcXVlc3QuRW52RW50cnkSFAoHdGltZW91dBgIIAEoBUgEiAEBEhQKB2VuYWJsZWQYCSABKAhIBYgBARoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQggKBl9ldmVudEIKCghfbWF0Y2hlckIKCghfY29tbWFuZEIOCgxfd29ya2luZ19kaXJCCgoIX3RpbWVvdXRCCgoIX2VuYWJsZWQiMAoSVXBkYXRlSG9va1Jlc3BvbnNlEhoKBGhvb2sYASABKAsyDC5vcmMudjEuSG9vayJHChFEZWxldGVIb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEiQKBXNjb3BlGAIgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUiJQoSRGVsZXRlSG9va1Jlc3BvbnNlEg8KB21lc3NhZ2UYASABKAkiSAoRTGlzdFNraWxsc1JlcXVlc3QSKQoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUgAiAEBQggKBl9zY29wZSIzChJMaXN0U2tpbGxzUmVzcG9uc2USHQoGc2tpbGxzGAEgAygLMg0ub3JjLnYxLlNraWxsIrIBChJDcmVhdGVTa2lsbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIPCgdjb250ZW50GAMgASgJEhYKDnVzZXJfaW52b2NhYmxlGAQgASgIEhkKDGlucHV0X3NjaGVtYRgFIAEoCUgAiAEBEiQKBXNjb3BlGAYgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGVCDwoNX2lucHV0X3NjaGVtYSIzChNDcmVhdGVTa2lsbFJlc3BvbnNlEhwKBXNraWxsGAEgASgLMg0ub3JjLnYxLlNraWxsIvABChJVcGRhdGVTa2lsbFJlcXVlc3QSDAoEbmFtZRgBIAEoCRIkCgVzY29wZRgCIAEoDjIVLm9yYy52MS5TZXR0aW5nc1Njb3BlEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESFAoHY29udGVudBgEIAEoCUgBiAEBEhsKDnVzZXJfaW52b2NhYmxlGAUgASgISAKIAQESGQoMaW5wdXRfc2NoZW1hGAYgASgJSAOIAQFCDgoMX2Rlc2NyaXB0aW9uQgoKCF9jb250ZW50QhEKD191c2VyX2ludm9jYWJsZUIPCg1faW5wdXRfc2NoZW1hIjMKE1VwZGF0ZVNraWxsUmVzcG9uc2USHAoFc2tpbGwYASABKAsyDS5vcmMudjEuU2tpbGwiSAoSRGVsZXRlU2tpbGxSZXF1ZXN0EgwKBG5hbWUYASABKAkSJAoFc2NvcGUYAiABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZSImChNEZWxldGVTa2lsbFJlc3BvbnNlEg8KB21lc3NhZ2UYASABKAkiFAoSR2V0Q2xhdWRlTWRSZXF1ZXN0IjYKE0dldENsYXVkZU1kUmVzcG9uc2USHwoFZmlsZXMYASADKAsyEC5vcmMudjEuQ2xhdWRlTWQiTgoVVXBkYXRlQ2xhdWRlTWRSZXF1ZXN0EiQKBXNjb3BlGAEgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGUSDwoHY29udGVudBgCIAEoCSI9ChZVcGRhdGVDbGF1ZGVNZFJlc3BvbnNlEiMKCWNsYXVkZV9tZBgBIAEoCzIQLm9yYy52MS5DbGF1ZGVNZCIYChZHZXRDb25zdGl0dXRpb25SZXF1ZXN0IkUKF0dldENvbnN0aXR1dGlvblJlc3BvbnNlEioKDGNvbnN0aXR1dGlvbhgBIAEoCzIULm9yYy52MS5Db25zdGl0dXRpb24iLAoZVXBkYXRlQ29uc3RpdHV0aW9uUmVxdWVzdBIPCgdjb250ZW50GAEgASgJIkgKGlVwZGF0ZUNvbnN0aXR1dGlvblJlc3BvbnNlEioKDGNvbnN0aXR1dGlvbhgBIAEoCzIULm9yYy52MS5Db25zdGl0dXRpb24iGwoZRGVsZXRlQ29uc3RpdHV0aW9uUmVxdWVzdCItChpEZWxldGVDb25zdGl0dXRpb25SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJIhQKEkxpc3RQcm9tcHRzUmVxdWVzdCI+ChNMaXN0UHJvbXB0c1Jlc3BvbnNlEicKB3Byb21wdHMYASADKAsyFi5vcmMudjEuUHJvbXB0VGVtcGxhdGUiIQoQR2V0UHJvbXB0UmVxdWVzdBINCgVwaGFzZRgBIAEoCSI7ChFHZXRQcm9tcHRSZXNwb25zZRImCgZwcm9tcHQYASABKAsyFi5vcmMudjEuUHJvbXB0VGVtcGxhdGUiKAoXR2V0RGVmYXVsdFByb21wdFJlcXVlc3QSDQoFcGhhc2UYASABKAkiQgoYR2V0RGVmYXVsdFByb21wdFJlc3BvbnNlEiYKBnByb21wdBgBIAEoCzIWLm9yYy52MS5Qcm9tcHRUZW1wbGF0ZSI1ChNVcGRhdGVQcm9tcHRSZXF1ZXN0Eg0KBXBoYXNlGAEgASgJEg8KB2NvbnRlbnQYAiABKAkiPgoUVXBkYXRlUHJvbXB0UmVzcG9uc2USJgoGcHJvbXB0GAEgASgLMhYub3JjLnYxLlByb21wdFRlbXBsYXRlIiQKE0RlbGV0ZVByb21wdFJlcXVlc3QSDQoFcGhhc2UYASABKAkiJwoURGVsZXRlUHJvbXB0UmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSIcChpMaXN0UHJvbXB0VmFyaWFibGVzUmVxdWVzdCJIChtMaXN0UHJvbXB0VmFyaWFibGVzUmVzcG9uc2USKQoJdmFyaWFibGVzGAEgAygLMhYub3JjLnYxLlByb21wdFZhcmlhYmxlIkgKEUxpc3RBZ2VudHNSZXF1ZXN0EikKBXNjb3BlGAEgASgOMhUub3JjLnYxLlNldHRpbmdzU2NvcGVIAIgBAUIICgZfc2NvcGUiMwoSTGlzdEFnZW50c1Jlc3BvbnNlEh0KBmFnZW50cxgBIAMoCzINLm9yYy52MS5BZ2VudCIfCg9HZXRBZ2VudFJlcXVlc3QSDAoEbmFtZRgBIAEoCSIwChBHZXRBZ2VudFJlc3BvbnNlEhwKBWFnZW50GAEgASgLMg0ub3JjLnYxLkFnZW50IqwCChJDcmVhdGVBZ2VudFJlcXVlc3QSDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRISCgVtb2RlbBgDIAEoCUgAiAEBEisKBXRvb2xzGAQgASgLMhcub3JjLnYxLlRvb2xQZXJtaXNzaW9uc0gBiAEBEhMKBnByb21wdBgFIAEoCUgCiAEBEhUKCHdvcmtfZGlyGAYgASgJSAOIAQESEgoKc2tpbGxfcmVmcxgHIAMoCRIUCgd0aW1lb3V0GAggASgJSASIAQESJAoFc2NvcGUYCSABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUIICgZfbW9kZWxCCAoGX3Rvb2xzQgkKB19wcm9tcHRCCwoJX3dvcmtfZGlyQgoKCF90aW1lb3V0IjMKE0NyZWF0ZUFnZW50UmVzcG9uc2USHAoFYWdlbnQYASABKAsyDS5vcmMudjEuQWdlbnQimwIKElVwZGF0ZUFnZW50UmVxdWVzdBIMCgRuYW1lGAEgASgJEhgKC2Rlc2NyaXB0aW9uGAIgASgJSACIAQESEgoFbW9kZWwYAyABKAlIAYgBARIrCgV0b29scxgEIAEoCzIXLm9yYy52MS5Ub29sUGVybWlzc2lvbnNIAogBARITCgZwcm9tcHQYBSABKAlIA4gBARIVCgh3b3JrX2RpchgGIAEoCUgEiAEBEhIKCnNraWxsX3JlZnMYByADKAkSFAoHdGltZW91dBgIIAEoCUgFiAEBQg4KDF9kZXNjcmlwdGlvbkIICgZfbW9kZWxCCAoGX3Rvb2xzQgkKB19wcm9tcHRCCwoJX3dvcmtfZGlyQgoKCF90aW1lb3V0IjMKE1VwZGF0ZUFnZW50UmVzcG9uc2USHAoFYWdlbnQYASABKAsyDS5vcmMudjEuQWdlbnQiIgoSRGVsZXRlQWdlbnRSZXF1ZXN0EgwKBG5hbWUYASABKAkiJgoTRGVsZXRlQWdlbnRSZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJIhQKEkxpc3RTY3JpcHRzUmVxdWVzdCI2ChNMaXN0U2NyaXB0c1Jlc3BvbnNlEh8KB3NjcmlwdHMYASADKAsyDi5vcmMudjEuU2NyaXB0IhgKFkRpc2NvdmVyU2NyaXB0c1JlcXVlc3QiOgoXRGlzY292ZXJTY3JpcHRzUmVzcG9uc2USHwoHc2NyaXB0cxgBIAMoCzIOLm9yYy52MS5TY3JpcHQiIAoQR2V0U2NyaXB0UmVxdWVzdBIMCgRuYW1lGAEgASgJIjMKEUdldFNjcmlwdFJlc3BvbnNlEh4KBnNjcmlwdBgBIAEoCzIOLm9yYy52MS5TY3JpcHQiagoTQ3JlYXRlU2NyaXB0UmVxdWVzdBIMCgRuYW1lGAEgASgJEgwKBHBhdGgYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoIbGFuZ3VhZ2UYBCABKAlIAIgBAUILCglfbGFuZ3VhZ2UiNgoUQ3JlYXRlU2NyaXB0UmVzcG9uc2USHgoGc2NyaXB0GAEgASgLMg4ub3JjLnYxLlNjcmlwdCKNAQoTVXBkYXRlU2NyaXB0UmVxdWVzdBIMCgRuYW1lGAEgASgJEhEKBHBhdGgYAiABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgBiAEBEhUKCGxhbmd1YWdlGAQgASgJSAKIAQFCBwoFX3BhdGhCDgoMX2Rlc2NyaXB0aW9uQgsKCV9sYW5ndWFnZSI2ChRVcGRhdGVTY3JpcHRSZXNwb25zZRIeCgZzY3JpcHQYASABKAsyDi5vcmMudjEuU2NyaXB0IiMKE0RlbGV0ZVNjcmlwdFJlcXVlc3QSDAoEbmFtZRgBIAEoCSInChREZWxldGVTY3JpcHRSZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJIlwKEExpc3RUb29sc1JlcXVlc3QSKQoFc2NvcGUYASABKA4yFS5vcmMudjEuU2V0dGluZ3NTY29wZUgAiAEBEhMKC2J5X2NhdGVnb3J5GAIgASgIQggKBl9zY29wZSK5AQoRTGlzdFRvb2xzUmVzcG9uc2USHwoFdG9vbHMYASADKAsyEC5vcmMudjEuVG9vbEluZm8SPgoLYnlfY2F0ZWdvcnkYAiADKAsyKS5vcmMudjEuTGlzdFRvb2xzUmVzcG9uc2UuQnlDYXRlZ29yeUVudHJ5GkMKD0J5Q2F0ZWdvcnlFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5vcmMudjEuVG9vbExpc3Q6AjgBIisKCFRvb2xMaXN0Eh8KBXRvb2xzGAEgAygLMhAub3JjLnYxLlRvb2xJbmZvIhsKGUdldFRvb2xQZXJtaXNzaW9uc1JlcXVlc3QiSgoaR2V0VG9vbFBlcm1pc3Npb25zUmVzcG9uc2USLAoLcGVybWlzc2lvbnMYASABKAsyFy5vcmMudjEuVG9vbFBlcm1pc3Npb25zIkwKHFVwZGF0ZVRvb2xQZXJtaXNzaW9uc1JlcXVlc3QSLAoLcGVybWlzc2lvbnMYASABKAsyFy5vcmMudjEuVG9vbFBlcm1pc3Npb25zIk0KHVVwZGF0ZVRvb2xQZXJtaXNzaW9uc1Jlc3BvbnNlEiwKC3Blcm1pc3Npb25zGAEgASgLMhcub3JjLnYxLlRvb2xQZXJtaXNzaW9ucyIXChVHZXRDb25maWdTdGF0c1JlcXVlc3QiPAoWR2V0Q29uZmlnU3RhdHNSZXNwb25zZRIiCgVzdGF0cxgBIAEoCzITLm9yYy52MS5Db25maWdTdGF0cypmCg1TZXR0aW5nc1Njb3BlEh4KGlNFVFRJTkdTX1NDT1BFX1VOU1BFQ0lGSUVEEAASGQoVU0VUVElOR1NfU0NPUEVfR0xPQkFMEAESGgoWU0VUVElOR1NfU0NPUEVfUFJPSkVDVBACKpQBCglIb29rRXZlbnQSGgoWSE9PS19FVkVOVF9VTlNQRUNJRklFRBAAEhsKF0hPT0tfRVZFTlRfUFJFX1RPT0xfVVNFEAESHAoYSE9PS19FVkVOVF9QT1NUX1RPT0xfVVNFEAISGwoXSE9PS19FVkVOVF9OT1RJRklDQVRJT04QAxITCg9IT09LX0VWRU5UX1NUT1AQBDK1FwoNQ29uZmlnU2VydmljZRJACglHZXRDb25maWcSGC5vcmMudjEuR2V0Q29uZmlnUmVxdWVzdBoZLm9yYy52MS5HZXRDb25maWdSZXNwb25zZRJJCgxVcGRhdGVDb25maWcSGy5vcmMudjEuVXBkYXRlQ29uZmlnUmVxdWVzdBocLm9yYy52MS5VcGRhdGVDb25maWdSZXNwb25zZRJGCgtHZXRTZXR0aW5ncxIaLm9yYy52MS5HZXRTZXR0aW5nc1JlcXVlc3QaGy5vcmMudjEuR2V0U2V0dGluZ3NSZXNwb25zZRJPCg5VcGRhdGVTZXR0aW5ncxIdLm9yYy52MS5VcGRhdGVTZXR0aW5nc1JlcXVlc3QaHi5vcmMudjEuVXBkYXRlU2V0dGluZ3NSZXNwb25zZRJhChRHZXRTZXR0aW5nc0hpZXJhcmNoeRIjLm9yYy52MS5HZXRTZXR0aW5nc0hpZXJhcmNoeVJlcXVlc3QaJC5vcmMudjEuR2V0U2V0dGluZ3NIaWVyYXJjaHlSZXNwb25zZRJACglMaXN0SG9va3MSGC5vcmMudjEuTGlzdEhvb2tzUmVxdWVzdBoZLm9yYy52MS5MaXN0SG9va3NSZXNwb25zZRJDCgpDcmVhdGVIb29rEhkub3JjLnYxLkNyZWF0ZUhvb2tSZXF1ZXN0Ghoub3JjLnYxLkNyZWF0ZUhvb2tSZXNwb25zZRJDCgpVcGRhdGVIb29rEhkub3JjLnYxLlVwZGF0ZUhvb2tSZXF1ZXN0Ghoub3JjLnYxLlVwZGF0ZUhvb2tSZXNwb25zZRJDCgpEZWxldGVIb29rEhkub3JjLnYxLkRlbGV0ZUhvb2tSZXF1ZXN0Ghoub3JjLnYxLkRlbGV0ZUhvb2tSZXNwb25zZRJDCgpMaXN0U2tpbGxzEhkub3JjLnYxLkxpc3RTa2lsbHNSZXF1ZXN0Ghoub3JjLnYxLkxpc3RTa2lsbHNSZXNwb25zZRJGCgtDcmVhdGVTa2lsbBIaLm9yYy52MS5DcmVhdGVTa2lsbFJlcXVlc3QaGy5vcmMudjEuQ3JlYXRlU2tpbGxSZXNwb25zZRJGCgtVcGRhdGVTa2lsbBIaLm9yYy52MS5VcGRhdGVTa2lsbFJlcXVlc3QaGy5vcmMudjEuVXBkYXRlU2tpbGxSZXNwb25zZRJGCgtEZWxldGVTa2lsbBIaLm9yYy52MS5EZWxldGVTa2lsbFJlcXVlc3QaGy5vcmMudjEuRGVsZXRlU2tpbGxSZXNwb25zZRJGCgtHZXRDbGF1ZGVNZBIaLm9yYy52MS5HZXRDbGF1ZGVNZFJlcXVlc3QaGy5vcmMudjEuR2V0Q2xhdWRlTWRSZXNwb25zZRJPCg5VcGRhdGVDbGF1ZGVNZBIdLm9yYy52MS5VcGRhdGVDbGF1ZGVNZFJlcXVlc3QaHi5vcmMudjEuVXBkYXRlQ2xhdWRlTWRSZXNwb25zZRJSCg9HZXRDb25zdGl0dXRpb24SHi5vcmMudjEuR2V0Q29uc3RpdHV0aW9uUmVxdWVzdBofLm9yYy52MS5HZXRDb25zdGl0dXRpb25SZXNwb25zZRJbChJVcGRhdGVDb25zdGl0dXRpb24SIS5vcmMudjEuVXBkYXRlQ29uc3RpdHV0aW9uUmVxdWVzdBoiLm9yYy52MS5VcGRhdGVDb25zdGl0dXRpb25SZXNwb25zZRJbChJEZWxldGVDb25zdGl0dXRpb24SIS5vcmMudjEuRGVsZXRlQ29uc3RpdHV0aW9uUmVxdWVzdBoiLm9yYy52MS5EZWxldGVDb25zdGl0dXRpb25SZXNwb25zZRJGCgtMaXN0UHJvbXB0cxIaLm9yYy52MS5MaXN0UHJvbXB0c1JlcXVlc3QaGy5vcmMudjEuTGlzdFByb21wdHNSZXNwb25zZRJACglHZXRQcm9tcHQSGC5vcmMudjEuR2V0UHJvbXB0UmVxdWVzdBoZLm9yYy52MS5HZXRQcm9tcHRSZXNwb25zZRJVChBHZXREZWZhdWx0UHJvbXB0Eh8ub3JjLnYxLkdldERlZmF1bHRQcm9tcHRSZXF1ZXN0GiAub3JjLnYxLkdldERlZmF1bHRQcm9tcHRSZXNwb25zZRJJCgxVcGRhdGVQcm9tcHQSGy5vcmMudjEuVXBkYXRlUHJvbXB0UmVxdWVzdBocLm9yYy52MS5VcGRhdGVQcm9tcHRSZXNwb25zZRJJCgxEZWxldGVQcm9tcHQSGy5vcmMudjEuRGVsZXRlUHJvbXB0UmVxdWVzdBocLm9yYy52MS5EZWxldGVQcm9tcHRSZXNwb25zZRJeChNMaXN0UHJvbXB0VmFyaWFibGVzEiIub3JjLnYxLkxpc3RQcm9tcHRWYXJpYWJsZXNSZXF1ZXN0GiMub3JjLnYxLkxpc3RQcm9tcHRWYXJpYWJsZXNSZXNwb25zZRJDCgpMaXN0QWdlbnRzEhkub3JjLnYxLkxpc3RBZ2VudHNSZXF1ZXN0Ghoub3JjLnYxLkxpc3RBZ2VudHNSZXNwb25zZRI9CghHZXRBZ2VudBIXLm9yYy52MS5HZXRBZ2VudFJlcXVlc3QaGC5vcmMudjEuR2V0QWdlbnRSZXNwb25zZRJGCgtDcmVhdGVBZ2VudBIaLm9yYy52MS5DcmVhdGVBZ2VudFJlcXVlc3QaGy5vcmMudjEuQ3JlYXRlQWdlbnRSZXNwb25zZRJGCgtVcGRhdGVBZ2VudBIaLm9yYy52MS5VcGRhdGVBZ2VudFJlcXVlc3QaGy5vcmMudjEuVXBkYXRlQWdlbnRSZXNwb25zZRJGCgtEZWxldGVBZ2VudBIaLm9yYy52MS5EZWxldGVBZ2VudFJlcXVlc3QaGy5vcmMudjEuRGVsZXRlQWdlbnRSZXNwb25zZRJGCgtMaXN0U2NyaXB0cxIaLm9yYy52MS5MaXN0U2NyaXB0c1JlcXVlc3QaGy5vcmMudjEuTGlzdFNjcmlwdHNSZXNwb25zZRJSCg9EaXNjb3ZlclNjcmlwdHMSHi5vcmMudjEuRGlzY292ZXJTY3JpcHRzUmVxdWVzdBofLm9yYy52MS5EaXNjb3ZlclNjcmlwdHNSZXNwb25zZRJACglHZXRTY3JpcHQSGC5vcmMudjEuR2V0U2NyaXB0UmVxdWVzdBoZLm9yYy52MS5HZXRTY3JpcHRSZXNwb25zZRJJCgxDcmVhdGVTY3JpcHQSGy5vcmMudjEuQ3JlYXRlU2NyaXB0UmVxdWVzdBocLm9yYy52MS5DcmVhdGVTY3JpcHRSZXNwb25zZRJJCgxVcGRhdGVTY3JpcHQSGy5vcmMudjEuVXBkYXRlU2NyaXB0UmVxdWVzdBocLm9yYy52MS5VcGRhdGVTY3JpcHRSZXNwb25zZRJJCgxEZWxldGVTY3JpcHQSGy5vcmMudjEuRGVsZXRlU2NyaXB0UmVxdWVzdBocLm9yYy52MS5EZWxldGVTY3JpcHRSZXNwb25zZRJACglMaXN0VG9vbHMSGC5vcmMudjEuTGlzdFRvb2xzUmVxdWVzdBoZLm9yYy52MS5MaXN0VG9vbHNSZXNwb25zZRJbChJHZXRUb29sUGVybWlzc2lvbnMSIS5vcmMudjEuR2V0VG9vbFBlcm1pc3Npb25zUmVxdWVzdBoiLm9yYy52MS5HZXRUb29sUGVybWlzc2lvbnNSZXNwb25zZRJkChVVcGRhdGVUb29sUGVybWlzc2lvbnMSJC5vcmMudjEuVXBkYXRlVG9vbFBlcm1pc3Npb25zUmVxdWVzdBolLm9yYy52MS5VcGRhdGVUb29sUGVybWlzc2lvbnNSZXNwb25zZRJPCg5HZXRDb25maWdTdGF0cxIdLm9yYy52MS5HZXRDb25maWdTdGF0c1JlcXVlc3QaHi5vcmMudjEuR2V0Q29uZmlnU3RhdHNSZXNwb25zZUKHAQoKY29tLm9yYy52MUILQ29uZmlnUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * ORC configuration
@@ -547,6 +547,193 @@ export const ConstitutionSchema: GenMessage<Constitution> = /*@__PURE__*/
   messageDesc(file_orc_v1_config, 12);
 
 /**
+ * SubAgent definition
+ *
+ * @generated from message orc.v1.Agent
+ */
+export type Agent = Message<"orc.v1.Agent"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: optional string model = 3;
+   */
+  model?: string;
+
+  /**
+   * @generated from field: optional orc.v1.ToolPermissions tools = 4;
+   */
+  tools?: ToolPermissions;
+
+  /**
+   * @generated from field: optional string prompt = 5;
+   */
+  prompt?: string;
+
+  /**
+   * @generated from field: optional string work_dir = 6;
+   */
+  workDir?: string;
+
+  /**
+   * @generated from field: repeated string skill_refs = 7;
+   */
+  skillRefs: string[];
+
+  /**
+   * @generated from field: optional string timeout = 8;
+   */
+  timeout?: string;
+
+  /**
+   * for global agents from .md files
+   *
+   * @generated from field: optional string path = 9;
+   */
+  path?: string;
+
+  /**
+   * @generated from field: orc.v1.SettingsScope scope = 10;
+   */
+  scope: SettingsScope;
+};
+
+/**
+ * Describes the message orc.v1.Agent.
+ * Use `create(AgentSchema)` to create a new message.
+ */
+export const AgentSchema: GenMessage<Agent> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 13);
+
+/**
+ * Tool permissions
+ *
+ * @generated from message orc.v1.ToolPermissions
+ */
+export type ToolPermissions = Message<"orc.v1.ToolPermissions"> & {
+  /**
+   * @generated from field: repeated string allow = 1;
+   */
+  allow: string[];
+
+  /**
+   * @generated from field: repeated string deny = 2;
+   */
+  deny: string[];
+};
+
+/**
+ * Describes the message orc.v1.ToolPermissions.
+ * Use `create(ToolPermissionsSchema)` to create a new message.
+ */
+export const ToolPermissionsSchema: GenMessage<ToolPermissions> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 14);
+
+/**
+ * Tool info
+ *
+ * @generated from message orc.v1.ToolInfo
+ */
+export type ToolInfo = Message<"orc.v1.ToolInfo"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string category = 3;
+   */
+  category: string;
+};
+
+/**
+ * Describes the message orc.v1.ToolInfo.
+ * Use `create(ToolInfoSchema)` to create a new message.
+ */
+export const ToolInfoSchema: GenMessage<ToolInfo> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 15);
+
+/**
+ * Project script
+ *
+ * @generated from message orc.v1.Script
+ */
+export type Script = Message<"orc.v1.Script"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: optional string language = 4;
+   */
+  language?: string;
+};
+
+/**
+ * Describes the message orc.v1.Script.
+ * Use `create(ScriptSchema)` to create a new message.
+ */
+export const ScriptSchema: GenMessage<Script> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 16);
+
+/**
+ * Config stats for settings page
+ *
+ * @generated from message orc.v1.ConfigStats
+ */
+export type ConfigStats = Message<"orc.v1.ConfigStats"> & {
+  /**
+   * @generated from field: int32 slash_commands_count = 1;
+   */
+  slashCommandsCount: number;
+
+  /**
+   * @generated from field: int64 claude_md_size = 2;
+   */
+  claudeMdSize: bigint;
+
+  /**
+   * @generated from field: int32 mcp_servers_count = 3;
+   */
+  mcpServersCount: number;
+
+  /**
+   * @generated from field: string permissions_profile = 4;
+   */
+  permissionsProfile: string;
+};
+
+/**
+ * Describes the message orc.v1.ConfigStats.
+ * Use `create(ConfigStatsSchema)` to create a new message.
+ */
+export const ConfigStatsSchema: GenMessage<ConfigStats> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 17);
+
+/**
  * @generated from message orc.v1.GetConfigRequest
  */
 export type GetConfigRequest = Message<"orc.v1.GetConfigRequest"> & {
@@ -557,7 +744,7 @@ export type GetConfigRequest = Message<"orc.v1.GetConfigRequest"> & {
  * Use `create(GetConfigRequestSchema)` to create a new message.
  */
 export const GetConfigRequestSchema: GenMessage<GetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 13);
+  messageDesc(file_orc_v1_config, 18);
 
 /**
  * @generated from message orc.v1.GetConfigResponse
@@ -574,7 +761,7 @@ export type GetConfigResponse = Message<"orc.v1.GetConfigResponse"> & {
  * Use `create(GetConfigResponseSchema)` to create a new message.
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 14);
+  messageDesc(file_orc_v1_config, 19);
 
 /**
  * @generated from message orc.v1.UpdateConfigRequest
@@ -606,7 +793,7 @@ export type UpdateConfigRequest = Message<"orc.v1.UpdateConfigRequest"> & {
  * Use `create(UpdateConfigRequestSchema)` to create a new message.
  */
 export const UpdateConfigRequestSchema: GenMessage<UpdateConfigRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 15);
+  messageDesc(file_orc_v1_config, 20);
 
 /**
  * @generated from message orc.v1.UpdateConfigResponse
@@ -623,7 +810,7 @@ export type UpdateConfigResponse = Message<"orc.v1.UpdateConfigResponse"> & {
  * Use `create(UpdateConfigResponseSchema)` to create a new message.
  */
 export const UpdateConfigResponseSchema: GenMessage<UpdateConfigResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 16);
+  messageDesc(file_orc_v1_config, 21);
 
 /**
  * @generated from message orc.v1.GetSettingsRequest
@@ -640,7 +827,7 @@ export type GetSettingsRequest = Message<"orc.v1.GetSettingsRequest"> & {
  * Use `create(GetSettingsRequestSchema)` to create a new message.
  */
 export const GetSettingsRequestSchema: GenMessage<GetSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 17);
+  messageDesc(file_orc_v1_config, 22);
 
 /**
  * @generated from message orc.v1.GetSettingsResponse
@@ -657,7 +844,7 @@ export type GetSettingsResponse = Message<"orc.v1.GetSettingsResponse"> & {
  * Use `create(GetSettingsResponseSchema)` to create a new message.
  */
 export const GetSettingsResponseSchema: GenMessage<GetSettingsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 18);
+  messageDesc(file_orc_v1_config, 23);
 
 /**
  * @generated from message orc.v1.UpdateSettingsRequest
@@ -679,7 +866,7 @@ export type UpdateSettingsRequest = Message<"orc.v1.UpdateSettingsRequest"> & {
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 19);
+  messageDesc(file_orc_v1_config, 24);
 
 /**
  * @generated from message orc.v1.UpdateSettingsResponse
@@ -696,7 +883,7 @@ export type UpdateSettingsResponse = Message<"orc.v1.UpdateSettingsResponse"> & 
  * Use `create(UpdateSettingsResponseSchema)` to create a new message.
  */
 export const UpdateSettingsResponseSchema: GenMessage<UpdateSettingsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 20);
+  messageDesc(file_orc_v1_config, 25);
 
 /**
  * @generated from message orc.v1.GetSettingsHierarchyRequest
@@ -709,7 +896,7 @@ export type GetSettingsHierarchyRequest = Message<"orc.v1.GetSettingsHierarchyRe
  * Use `create(GetSettingsHierarchyRequestSchema)` to create a new message.
  */
 export const GetSettingsHierarchyRequestSchema: GenMessage<GetSettingsHierarchyRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 21);
+  messageDesc(file_orc_v1_config, 26);
 
 /**
  * @generated from message orc.v1.GetSettingsHierarchyResponse
@@ -726,7 +913,7 @@ export type GetSettingsHierarchyResponse = Message<"orc.v1.GetSettingsHierarchyR
  * Use `create(GetSettingsHierarchyResponseSchema)` to create a new message.
  */
 export const GetSettingsHierarchyResponseSchema: GenMessage<GetSettingsHierarchyResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 22);
+  messageDesc(file_orc_v1_config, 27);
 
 /**
  * @generated from message orc.v1.ListHooksRequest
@@ -743,7 +930,7 @@ export type ListHooksRequest = Message<"orc.v1.ListHooksRequest"> & {
  * Use `create(ListHooksRequestSchema)` to create a new message.
  */
 export const ListHooksRequestSchema: GenMessage<ListHooksRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 23);
+  messageDesc(file_orc_v1_config, 28);
 
 /**
  * @generated from message orc.v1.ListHooksResponse
@@ -760,7 +947,7 @@ export type ListHooksResponse = Message<"orc.v1.ListHooksResponse"> & {
  * Use `create(ListHooksResponseSchema)` to create a new message.
  */
 export const ListHooksResponseSchema: GenMessage<ListHooksResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 24);
+  messageDesc(file_orc_v1_config, 29);
 
 /**
  * @generated from message orc.v1.CreateHookRequest
@@ -812,7 +999,7 @@ export type CreateHookRequest = Message<"orc.v1.CreateHookRequest"> & {
  * Use `create(CreateHookRequestSchema)` to create a new message.
  */
 export const CreateHookRequestSchema: GenMessage<CreateHookRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 25);
+  messageDesc(file_orc_v1_config, 30);
 
 /**
  * @generated from message orc.v1.CreateHookResponse
@@ -829,7 +1016,7 @@ export type CreateHookResponse = Message<"orc.v1.CreateHookResponse"> & {
  * Use `create(CreateHookResponseSchema)` to create a new message.
  */
 export const CreateHookResponseSchema: GenMessage<CreateHookResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 26);
+  messageDesc(file_orc_v1_config, 31);
 
 /**
  * @generated from message orc.v1.UpdateHookRequest
@@ -886,7 +1073,7 @@ export type UpdateHookRequest = Message<"orc.v1.UpdateHookRequest"> & {
  * Use `create(UpdateHookRequestSchema)` to create a new message.
  */
 export const UpdateHookRequestSchema: GenMessage<UpdateHookRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 27);
+  messageDesc(file_orc_v1_config, 32);
 
 /**
  * @generated from message orc.v1.UpdateHookResponse
@@ -903,7 +1090,7 @@ export type UpdateHookResponse = Message<"orc.v1.UpdateHookResponse"> & {
  * Use `create(UpdateHookResponseSchema)` to create a new message.
  */
 export const UpdateHookResponseSchema: GenMessage<UpdateHookResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 28);
+  messageDesc(file_orc_v1_config, 33);
 
 /**
  * @generated from message orc.v1.DeleteHookRequest
@@ -925,7 +1112,7 @@ export type DeleteHookRequest = Message<"orc.v1.DeleteHookRequest"> & {
  * Use `create(DeleteHookRequestSchema)` to create a new message.
  */
 export const DeleteHookRequestSchema: GenMessage<DeleteHookRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 29);
+  messageDesc(file_orc_v1_config, 34);
 
 /**
  * @generated from message orc.v1.DeleteHookResponse
@@ -942,7 +1129,7 @@ export type DeleteHookResponse = Message<"orc.v1.DeleteHookResponse"> & {
  * Use `create(DeleteHookResponseSchema)` to create a new message.
  */
 export const DeleteHookResponseSchema: GenMessage<DeleteHookResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 30);
+  messageDesc(file_orc_v1_config, 35);
 
 /**
  * @generated from message orc.v1.ListSkillsRequest
@@ -959,7 +1146,7 @@ export type ListSkillsRequest = Message<"orc.v1.ListSkillsRequest"> & {
  * Use `create(ListSkillsRequestSchema)` to create a new message.
  */
 export const ListSkillsRequestSchema: GenMessage<ListSkillsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 31);
+  messageDesc(file_orc_v1_config, 36);
 
 /**
  * @generated from message orc.v1.ListSkillsResponse
@@ -976,7 +1163,7 @@ export type ListSkillsResponse = Message<"orc.v1.ListSkillsResponse"> & {
  * Use `create(ListSkillsResponseSchema)` to create a new message.
  */
 export const ListSkillsResponseSchema: GenMessage<ListSkillsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 32);
+  messageDesc(file_orc_v1_config, 37);
 
 /**
  * @generated from message orc.v1.CreateSkillRequest
@@ -1018,7 +1205,7 @@ export type CreateSkillRequest = Message<"orc.v1.CreateSkillRequest"> & {
  * Use `create(CreateSkillRequestSchema)` to create a new message.
  */
 export const CreateSkillRequestSchema: GenMessage<CreateSkillRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 33);
+  messageDesc(file_orc_v1_config, 38);
 
 /**
  * @generated from message orc.v1.CreateSkillResponse
@@ -1035,7 +1222,7 @@ export type CreateSkillResponse = Message<"orc.v1.CreateSkillResponse"> & {
  * Use `create(CreateSkillResponseSchema)` to create a new message.
  */
 export const CreateSkillResponseSchema: GenMessage<CreateSkillResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 34);
+  messageDesc(file_orc_v1_config, 39);
 
 /**
  * @generated from message orc.v1.UpdateSkillRequest
@@ -1077,7 +1264,7 @@ export type UpdateSkillRequest = Message<"orc.v1.UpdateSkillRequest"> & {
  * Use `create(UpdateSkillRequestSchema)` to create a new message.
  */
 export const UpdateSkillRequestSchema: GenMessage<UpdateSkillRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 35);
+  messageDesc(file_orc_v1_config, 40);
 
 /**
  * @generated from message orc.v1.UpdateSkillResponse
@@ -1094,7 +1281,7 @@ export type UpdateSkillResponse = Message<"orc.v1.UpdateSkillResponse"> & {
  * Use `create(UpdateSkillResponseSchema)` to create a new message.
  */
 export const UpdateSkillResponseSchema: GenMessage<UpdateSkillResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 36);
+  messageDesc(file_orc_v1_config, 41);
 
 /**
  * @generated from message orc.v1.DeleteSkillRequest
@@ -1116,7 +1303,7 @@ export type DeleteSkillRequest = Message<"orc.v1.DeleteSkillRequest"> & {
  * Use `create(DeleteSkillRequestSchema)` to create a new message.
  */
 export const DeleteSkillRequestSchema: GenMessage<DeleteSkillRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 37);
+  messageDesc(file_orc_v1_config, 42);
 
 /**
  * @generated from message orc.v1.DeleteSkillResponse
@@ -1133,7 +1320,7 @@ export type DeleteSkillResponse = Message<"orc.v1.DeleteSkillResponse"> & {
  * Use `create(DeleteSkillResponseSchema)` to create a new message.
  */
 export const DeleteSkillResponseSchema: GenMessage<DeleteSkillResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 38);
+  messageDesc(file_orc_v1_config, 43);
 
 /**
  * @generated from message orc.v1.GetClaudeMdRequest
@@ -1146,7 +1333,7 @@ export type GetClaudeMdRequest = Message<"orc.v1.GetClaudeMdRequest"> & {
  * Use `create(GetClaudeMdRequestSchema)` to create a new message.
  */
 export const GetClaudeMdRequestSchema: GenMessage<GetClaudeMdRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 39);
+  messageDesc(file_orc_v1_config, 44);
 
 /**
  * @generated from message orc.v1.GetClaudeMdResponse
@@ -1163,7 +1350,7 @@ export type GetClaudeMdResponse = Message<"orc.v1.GetClaudeMdResponse"> & {
  * Use `create(GetClaudeMdResponseSchema)` to create a new message.
  */
 export const GetClaudeMdResponseSchema: GenMessage<GetClaudeMdResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 40);
+  messageDesc(file_orc_v1_config, 45);
 
 /**
  * @generated from message orc.v1.UpdateClaudeMdRequest
@@ -1185,7 +1372,7 @@ export type UpdateClaudeMdRequest = Message<"orc.v1.UpdateClaudeMdRequest"> & {
  * Use `create(UpdateClaudeMdRequestSchema)` to create a new message.
  */
 export const UpdateClaudeMdRequestSchema: GenMessage<UpdateClaudeMdRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 41);
+  messageDesc(file_orc_v1_config, 46);
 
 /**
  * @generated from message orc.v1.UpdateClaudeMdResponse
@@ -1202,7 +1389,7 @@ export type UpdateClaudeMdResponse = Message<"orc.v1.UpdateClaudeMdResponse"> & 
  * Use `create(UpdateClaudeMdResponseSchema)` to create a new message.
  */
 export const UpdateClaudeMdResponseSchema: GenMessage<UpdateClaudeMdResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 42);
+  messageDesc(file_orc_v1_config, 47);
 
 /**
  * @generated from message orc.v1.GetConstitutionRequest
@@ -1215,7 +1402,7 @@ export type GetConstitutionRequest = Message<"orc.v1.GetConstitutionRequest"> & 
  * Use `create(GetConstitutionRequestSchema)` to create a new message.
  */
 export const GetConstitutionRequestSchema: GenMessage<GetConstitutionRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 43);
+  messageDesc(file_orc_v1_config, 48);
 
 /**
  * @generated from message orc.v1.GetConstitutionResponse
@@ -1232,7 +1419,7 @@ export type GetConstitutionResponse = Message<"orc.v1.GetConstitutionResponse"> 
  * Use `create(GetConstitutionResponseSchema)` to create a new message.
  */
 export const GetConstitutionResponseSchema: GenMessage<GetConstitutionResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 44);
+  messageDesc(file_orc_v1_config, 49);
 
 /**
  * @generated from message orc.v1.UpdateConstitutionRequest
@@ -1249,7 +1436,7 @@ export type UpdateConstitutionRequest = Message<"orc.v1.UpdateConstitutionReques
  * Use `create(UpdateConstitutionRequestSchema)` to create a new message.
  */
 export const UpdateConstitutionRequestSchema: GenMessage<UpdateConstitutionRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 45);
+  messageDesc(file_orc_v1_config, 50);
 
 /**
  * @generated from message orc.v1.UpdateConstitutionResponse
@@ -1266,7 +1453,7 @@ export type UpdateConstitutionResponse = Message<"orc.v1.UpdateConstitutionRespo
  * Use `create(UpdateConstitutionResponseSchema)` to create a new message.
  */
 export const UpdateConstitutionResponseSchema: GenMessage<UpdateConstitutionResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 46);
+  messageDesc(file_orc_v1_config, 51);
 
 /**
  * @generated from message orc.v1.DeleteConstitutionRequest
@@ -1279,7 +1466,7 @@ export type DeleteConstitutionRequest = Message<"orc.v1.DeleteConstitutionReques
  * Use `create(DeleteConstitutionRequestSchema)` to create a new message.
  */
 export const DeleteConstitutionRequestSchema: GenMessage<DeleteConstitutionRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 47);
+  messageDesc(file_orc_v1_config, 52);
 
 /**
  * @generated from message orc.v1.DeleteConstitutionResponse
@@ -1296,7 +1483,7 @@ export type DeleteConstitutionResponse = Message<"orc.v1.DeleteConstitutionRespo
  * Use `create(DeleteConstitutionResponseSchema)` to create a new message.
  */
 export const DeleteConstitutionResponseSchema: GenMessage<DeleteConstitutionResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 48);
+  messageDesc(file_orc_v1_config, 53);
 
 /**
  * @generated from message orc.v1.ListPromptsRequest
@@ -1309,7 +1496,7 @@ export type ListPromptsRequest = Message<"orc.v1.ListPromptsRequest"> & {
  * Use `create(ListPromptsRequestSchema)` to create a new message.
  */
 export const ListPromptsRequestSchema: GenMessage<ListPromptsRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 49);
+  messageDesc(file_orc_v1_config, 54);
 
 /**
  * @generated from message orc.v1.ListPromptsResponse
@@ -1326,7 +1513,7 @@ export type ListPromptsResponse = Message<"orc.v1.ListPromptsResponse"> & {
  * Use `create(ListPromptsResponseSchema)` to create a new message.
  */
 export const ListPromptsResponseSchema: GenMessage<ListPromptsResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 50);
+  messageDesc(file_orc_v1_config, 55);
 
 /**
  * @generated from message orc.v1.GetPromptRequest
@@ -1343,7 +1530,7 @@ export type GetPromptRequest = Message<"orc.v1.GetPromptRequest"> & {
  * Use `create(GetPromptRequestSchema)` to create a new message.
  */
 export const GetPromptRequestSchema: GenMessage<GetPromptRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 51);
+  messageDesc(file_orc_v1_config, 56);
 
 /**
  * @generated from message orc.v1.GetPromptResponse
@@ -1360,7 +1547,7 @@ export type GetPromptResponse = Message<"orc.v1.GetPromptResponse"> & {
  * Use `create(GetPromptResponseSchema)` to create a new message.
  */
 export const GetPromptResponseSchema: GenMessage<GetPromptResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 52);
+  messageDesc(file_orc_v1_config, 57);
 
 /**
  * @generated from message orc.v1.GetDefaultPromptRequest
@@ -1377,7 +1564,7 @@ export type GetDefaultPromptRequest = Message<"orc.v1.GetDefaultPromptRequest"> 
  * Use `create(GetDefaultPromptRequestSchema)` to create a new message.
  */
 export const GetDefaultPromptRequestSchema: GenMessage<GetDefaultPromptRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 53);
+  messageDesc(file_orc_v1_config, 58);
 
 /**
  * @generated from message orc.v1.GetDefaultPromptResponse
@@ -1394,7 +1581,7 @@ export type GetDefaultPromptResponse = Message<"orc.v1.GetDefaultPromptResponse"
  * Use `create(GetDefaultPromptResponseSchema)` to create a new message.
  */
 export const GetDefaultPromptResponseSchema: GenMessage<GetDefaultPromptResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 54);
+  messageDesc(file_orc_v1_config, 59);
 
 /**
  * @generated from message orc.v1.UpdatePromptRequest
@@ -1416,7 +1603,7 @@ export type UpdatePromptRequest = Message<"orc.v1.UpdatePromptRequest"> & {
  * Use `create(UpdatePromptRequestSchema)` to create a new message.
  */
 export const UpdatePromptRequestSchema: GenMessage<UpdatePromptRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 55);
+  messageDesc(file_orc_v1_config, 60);
 
 /**
  * @generated from message orc.v1.UpdatePromptResponse
@@ -1433,7 +1620,7 @@ export type UpdatePromptResponse = Message<"orc.v1.UpdatePromptResponse"> & {
  * Use `create(UpdatePromptResponseSchema)` to create a new message.
  */
 export const UpdatePromptResponseSchema: GenMessage<UpdatePromptResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 56);
+  messageDesc(file_orc_v1_config, 61);
 
 /**
  * @generated from message orc.v1.DeletePromptRequest
@@ -1450,7 +1637,7 @@ export type DeletePromptRequest = Message<"orc.v1.DeletePromptRequest"> & {
  * Use `create(DeletePromptRequestSchema)` to create a new message.
  */
 export const DeletePromptRequestSchema: GenMessage<DeletePromptRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 57);
+  messageDesc(file_orc_v1_config, 62);
 
 /**
  * @generated from message orc.v1.DeletePromptResponse
@@ -1467,7 +1654,7 @@ export type DeletePromptResponse = Message<"orc.v1.DeletePromptResponse"> & {
  * Use `create(DeletePromptResponseSchema)` to create a new message.
  */
 export const DeletePromptResponseSchema: GenMessage<DeletePromptResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 58);
+  messageDesc(file_orc_v1_config, 63);
 
 /**
  * @generated from message orc.v1.ListPromptVariablesRequest
@@ -1480,7 +1667,7 @@ export type ListPromptVariablesRequest = Message<"orc.v1.ListPromptVariablesRequ
  * Use `create(ListPromptVariablesRequestSchema)` to create a new message.
  */
 export const ListPromptVariablesRequestSchema: GenMessage<ListPromptVariablesRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 59);
+  messageDesc(file_orc_v1_config, 64);
 
 /**
  * @generated from message orc.v1.ListPromptVariablesResponse
@@ -1497,7 +1684,641 @@ export type ListPromptVariablesResponse = Message<"orc.v1.ListPromptVariablesRes
  * Use `create(ListPromptVariablesResponseSchema)` to create a new message.
  */
 export const ListPromptVariablesResponseSchema: GenMessage<ListPromptVariablesResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_config, 60);
+  messageDesc(file_orc_v1_config, 65);
+
+/**
+ * Agent request/response messages
+ *
+ * @generated from message orc.v1.ListAgentsRequest
+ */
+export type ListAgentsRequest = Message<"orc.v1.ListAgentsRequest"> & {
+  /**
+   * @generated from field: optional orc.v1.SettingsScope scope = 1;
+   */
+  scope?: SettingsScope;
+};
+
+/**
+ * Describes the message orc.v1.ListAgentsRequest.
+ * Use `create(ListAgentsRequestSchema)` to create a new message.
+ */
+export const ListAgentsRequestSchema: GenMessage<ListAgentsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 66);
+
+/**
+ * @generated from message orc.v1.ListAgentsResponse
+ */
+export type ListAgentsResponse = Message<"orc.v1.ListAgentsResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.Agent agents = 1;
+   */
+  agents: Agent[];
+};
+
+/**
+ * Describes the message orc.v1.ListAgentsResponse.
+ * Use `create(ListAgentsResponseSchema)` to create a new message.
+ */
+export const ListAgentsResponseSchema: GenMessage<ListAgentsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 67);
+
+/**
+ * @generated from message orc.v1.GetAgentRequest
+ */
+export type GetAgentRequest = Message<"orc.v1.GetAgentRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message orc.v1.GetAgentRequest.
+ * Use `create(GetAgentRequestSchema)` to create a new message.
+ */
+export const GetAgentRequestSchema: GenMessage<GetAgentRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 68);
+
+/**
+ * @generated from message orc.v1.GetAgentResponse
+ */
+export type GetAgentResponse = Message<"orc.v1.GetAgentResponse"> & {
+  /**
+   * @generated from field: orc.v1.Agent agent = 1;
+   */
+  agent?: Agent;
+};
+
+/**
+ * Describes the message orc.v1.GetAgentResponse.
+ * Use `create(GetAgentResponseSchema)` to create a new message.
+ */
+export const GetAgentResponseSchema: GenMessage<GetAgentResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 69);
+
+/**
+ * @generated from message orc.v1.CreateAgentRequest
+ */
+export type CreateAgentRequest = Message<"orc.v1.CreateAgentRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: optional string model = 3;
+   */
+  model?: string;
+
+  /**
+   * @generated from field: optional orc.v1.ToolPermissions tools = 4;
+   */
+  tools?: ToolPermissions;
+
+  /**
+   * @generated from field: optional string prompt = 5;
+   */
+  prompt?: string;
+
+  /**
+   * @generated from field: optional string work_dir = 6;
+   */
+  workDir?: string;
+
+  /**
+   * @generated from field: repeated string skill_refs = 7;
+   */
+  skillRefs: string[];
+
+  /**
+   * @generated from field: optional string timeout = 8;
+   */
+  timeout?: string;
+
+  /**
+   * @generated from field: orc.v1.SettingsScope scope = 9;
+   */
+  scope: SettingsScope;
+};
+
+/**
+ * Describes the message orc.v1.CreateAgentRequest.
+ * Use `create(CreateAgentRequestSchema)` to create a new message.
+ */
+export const CreateAgentRequestSchema: GenMessage<CreateAgentRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 70);
+
+/**
+ * @generated from message orc.v1.CreateAgentResponse
+ */
+export type CreateAgentResponse = Message<"orc.v1.CreateAgentResponse"> & {
+  /**
+   * @generated from field: orc.v1.Agent agent = 1;
+   */
+  agent?: Agent;
+};
+
+/**
+ * Describes the message orc.v1.CreateAgentResponse.
+ * Use `create(CreateAgentResponseSchema)` to create a new message.
+ */
+export const CreateAgentResponseSchema: GenMessage<CreateAgentResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 71);
+
+/**
+ * @generated from message orc.v1.UpdateAgentRequest
+ */
+export type UpdateAgentRequest = Message<"orc.v1.UpdateAgentRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional string description = 2;
+   */
+  description?: string;
+
+  /**
+   * @generated from field: optional string model = 3;
+   */
+  model?: string;
+
+  /**
+   * @generated from field: optional orc.v1.ToolPermissions tools = 4;
+   */
+  tools?: ToolPermissions;
+
+  /**
+   * @generated from field: optional string prompt = 5;
+   */
+  prompt?: string;
+
+  /**
+   * @generated from field: optional string work_dir = 6;
+   */
+  workDir?: string;
+
+  /**
+   * @generated from field: repeated string skill_refs = 7;
+   */
+  skillRefs: string[];
+
+  /**
+   * @generated from field: optional string timeout = 8;
+   */
+  timeout?: string;
+};
+
+/**
+ * Describes the message orc.v1.UpdateAgentRequest.
+ * Use `create(UpdateAgentRequestSchema)` to create a new message.
+ */
+export const UpdateAgentRequestSchema: GenMessage<UpdateAgentRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 72);
+
+/**
+ * @generated from message orc.v1.UpdateAgentResponse
+ */
+export type UpdateAgentResponse = Message<"orc.v1.UpdateAgentResponse"> & {
+  /**
+   * @generated from field: orc.v1.Agent agent = 1;
+   */
+  agent?: Agent;
+};
+
+/**
+ * Describes the message orc.v1.UpdateAgentResponse.
+ * Use `create(UpdateAgentResponseSchema)` to create a new message.
+ */
+export const UpdateAgentResponseSchema: GenMessage<UpdateAgentResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 73);
+
+/**
+ * @generated from message orc.v1.DeleteAgentRequest
+ */
+export type DeleteAgentRequest = Message<"orc.v1.DeleteAgentRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message orc.v1.DeleteAgentRequest.
+ * Use `create(DeleteAgentRequestSchema)` to create a new message.
+ */
+export const DeleteAgentRequestSchema: GenMessage<DeleteAgentRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 74);
+
+/**
+ * @generated from message orc.v1.DeleteAgentResponse
+ */
+export type DeleteAgentResponse = Message<"orc.v1.DeleteAgentResponse"> & {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message orc.v1.DeleteAgentResponse.
+ * Use `create(DeleteAgentResponseSchema)` to create a new message.
+ */
+export const DeleteAgentResponseSchema: GenMessage<DeleteAgentResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 75);
+
+/**
+ * Script request/response messages
+ *
+ * @generated from message orc.v1.ListScriptsRequest
+ */
+export type ListScriptsRequest = Message<"orc.v1.ListScriptsRequest"> & {
+};
+
+/**
+ * Describes the message orc.v1.ListScriptsRequest.
+ * Use `create(ListScriptsRequestSchema)` to create a new message.
+ */
+export const ListScriptsRequestSchema: GenMessage<ListScriptsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 76);
+
+/**
+ * @generated from message orc.v1.ListScriptsResponse
+ */
+export type ListScriptsResponse = Message<"orc.v1.ListScriptsResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.Script scripts = 1;
+   */
+  scripts: Script[];
+};
+
+/**
+ * Describes the message orc.v1.ListScriptsResponse.
+ * Use `create(ListScriptsResponseSchema)` to create a new message.
+ */
+export const ListScriptsResponseSchema: GenMessage<ListScriptsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 77);
+
+/**
+ * @generated from message orc.v1.DiscoverScriptsRequest
+ */
+export type DiscoverScriptsRequest = Message<"orc.v1.DiscoverScriptsRequest"> & {
+};
+
+/**
+ * Describes the message orc.v1.DiscoverScriptsRequest.
+ * Use `create(DiscoverScriptsRequestSchema)` to create a new message.
+ */
+export const DiscoverScriptsRequestSchema: GenMessage<DiscoverScriptsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 78);
+
+/**
+ * @generated from message orc.v1.DiscoverScriptsResponse
+ */
+export type DiscoverScriptsResponse = Message<"orc.v1.DiscoverScriptsResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.Script scripts = 1;
+   */
+  scripts: Script[];
+};
+
+/**
+ * Describes the message orc.v1.DiscoverScriptsResponse.
+ * Use `create(DiscoverScriptsResponseSchema)` to create a new message.
+ */
+export const DiscoverScriptsResponseSchema: GenMessage<DiscoverScriptsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 79);
+
+/**
+ * @generated from message orc.v1.GetScriptRequest
+ */
+export type GetScriptRequest = Message<"orc.v1.GetScriptRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message orc.v1.GetScriptRequest.
+ * Use `create(GetScriptRequestSchema)` to create a new message.
+ */
+export const GetScriptRequestSchema: GenMessage<GetScriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 80);
+
+/**
+ * @generated from message orc.v1.GetScriptResponse
+ */
+export type GetScriptResponse = Message<"orc.v1.GetScriptResponse"> & {
+  /**
+   * @generated from field: orc.v1.Script script = 1;
+   */
+  script?: Script;
+};
+
+/**
+ * Describes the message orc.v1.GetScriptResponse.
+ * Use `create(GetScriptResponseSchema)` to create a new message.
+ */
+export const GetScriptResponseSchema: GenMessage<GetScriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 81);
+
+/**
+ * @generated from message orc.v1.CreateScriptRequest
+ */
+export type CreateScriptRequest = Message<"orc.v1.CreateScriptRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: optional string language = 4;
+   */
+  language?: string;
+};
+
+/**
+ * Describes the message orc.v1.CreateScriptRequest.
+ * Use `create(CreateScriptRequestSchema)` to create a new message.
+ */
+export const CreateScriptRequestSchema: GenMessage<CreateScriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 82);
+
+/**
+ * @generated from message orc.v1.CreateScriptResponse
+ */
+export type CreateScriptResponse = Message<"orc.v1.CreateScriptResponse"> & {
+  /**
+   * @generated from field: orc.v1.Script script = 1;
+   */
+  script?: Script;
+};
+
+/**
+ * Describes the message orc.v1.CreateScriptResponse.
+ * Use `create(CreateScriptResponseSchema)` to create a new message.
+ */
+export const CreateScriptResponseSchema: GenMessage<CreateScriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 83);
+
+/**
+ * @generated from message orc.v1.UpdateScriptRequest
+ */
+export type UpdateScriptRequest = Message<"orc.v1.UpdateScriptRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional string path = 2;
+   */
+  path?: string;
+
+  /**
+   * @generated from field: optional string description = 3;
+   */
+  description?: string;
+
+  /**
+   * @generated from field: optional string language = 4;
+   */
+  language?: string;
+};
+
+/**
+ * Describes the message orc.v1.UpdateScriptRequest.
+ * Use `create(UpdateScriptRequestSchema)` to create a new message.
+ */
+export const UpdateScriptRequestSchema: GenMessage<UpdateScriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 84);
+
+/**
+ * @generated from message orc.v1.UpdateScriptResponse
+ */
+export type UpdateScriptResponse = Message<"orc.v1.UpdateScriptResponse"> & {
+  /**
+   * @generated from field: orc.v1.Script script = 1;
+   */
+  script?: Script;
+};
+
+/**
+ * Describes the message orc.v1.UpdateScriptResponse.
+ * Use `create(UpdateScriptResponseSchema)` to create a new message.
+ */
+export const UpdateScriptResponseSchema: GenMessage<UpdateScriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 85);
+
+/**
+ * @generated from message orc.v1.DeleteScriptRequest
+ */
+export type DeleteScriptRequest = Message<"orc.v1.DeleteScriptRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message orc.v1.DeleteScriptRequest.
+ * Use `create(DeleteScriptRequestSchema)` to create a new message.
+ */
+export const DeleteScriptRequestSchema: GenMessage<DeleteScriptRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 86);
+
+/**
+ * @generated from message orc.v1.DeleteScriptResponse
+ */
+export type DeleteScriptResponse = Message<"orc.v1.DeleteScriptResponse"> & {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message orc.v1.DeleteScriptResponse.
+ * Use `create(DeleteScriptResponseSchema)` to create a new message.
+ */
+export const DeleteScriptResponseSchema: GenMessage<DeleteScriptResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 87);
+
+/**
+ * Tool request/response messages
+ *
+ * @generated from message orc.v1.ListToolsRequest
+ */
+export type ListToolsRequest = Message<"orc.v1.ListToolsRequest"> & {
+  /**
+   * @generated from field: optional orc.v1.SettingsScope scope = 1;
+   */
+  scope?: SettingsScope;
+
+  /**
+   * @generated from field: bool by_category = 2;
+   */
+  byCategory: boolean;
+};
+
+/**
+ * Describes the message orc.v1.ListToolsRequest.
+ * Use `create(ListToolsRequestSchema)` to create a new message.
+ */
+export const ListToolsRequestSchema: GenMessage<ListToolsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 88);
+
+/**
+ * @generated from message orc.v1.ListToolsResponse
+ */
+export type ListToolsResponse = Message<"orc.v1.ListToolsResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.ToolInfo tools = 1;
+   */
+  tools: ToolInfo[];
+
+  /**
+   * @generated from field: map<string, orc.v1.ToolList> by_category = 2;
+   */
+  byCategory: { [key: string]: ToolList };
+};
+
+/**
+ * Describes the message orc.v1.ListToolsResponse.
+ * Use `create(ListToolsResponseSchema)` to create a new message.
+ */
+export const ListToolsResponseSchema: GenMessage<ListToolsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 89);
+
+/**
+ * @generated from message orc.v1.ToolList
+ */
+export type ToolList = Message<"orc.v1.ToolList"> & {
+  /**
+   * @generated from field: repeated orc.v1.ToolInfo tools = 1;
+   */
+  tools: ToolInfo[];
+};
+
+/**
+ * Describes the message orc.v1.ToolList.
+ * Use `create(ToolListSchema)` to create a new message.
+ */
+export const ToolListSchema: GenMessage<ToolList> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 90);
+
+/**
+ * @generated from message orc.v1.GetToolPermissionsRequest
+ */
+export type GetToolPermissionsRequest = Message<"orc.v1.GetToolPermissionsRequest"> & {
+};
+
+/**
+ * Describes the message orc.v1.GetToolPermissionsRequest.
+ * Use `create(GetToolPermissionsRequestSchema)` to create a new message.
+ */
+export const GetToolPermissionsRequestSchema: GenMessage<GetToolPermissionsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 91);
+
+/**
+ * @generated from message orc.v1.GetToolPermissionsResponse
+ */
+export type GetToolPermissionsResponse = Message<"orc.v1.GetToolPermissionsResponse"> & {
+  /**
+   * @generated from field: orc.v1.ToolPermissions permissions = 1;
+   */
+  permissions?: ToolPermissions;
+};
+
+/**
+ * Describes the message orc.v1.GetToolPermissionsResponse.
+ * Use `create(GetToolPermissionsResponseSchema)` to create a new message.
+ */
+export const GetToolPermissionsResponseSchema: GenMessage<GetToolPermissionsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 92);
+
+/**
+ * @generated from message orc.v1.UpdateToolPermissionsRequest
+ */
+export type UpdateToolPermissionsRequest = Message<"orc.v1.UpdateToolPermissionsRequest"> & {
+  /**
+   * @generated from field: orc.v1.ToolPermissions permissions = 1;
+   */
+  permissions?: ToolPermissions;
+};
+
+/**
+ * Describes the message orc.v1.UpdateToolPermissionsRequest.
+ * Use `create(UpdateToolPermissionsRequestSchema)` to create a new message.
+ */
+export const UpdateToolPermissionsRequestSchema: GenMessage<UpdateToolPermissionsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 93);
+
+/**
+ * @generated from message orc.v1.UpdateToolPermissionsResponse
+ */
+export type UpdateToolPermissionsResponse = Message<"orc.v1.UpdateToolPermissionsResponse"> & {
+  /**
+   * @generated from field: orc.v1.ToolPermissions permissions = 1;
+   */
+  permissions?: ToolPermissions;
+};
+
+/**
+ * Describes the message orc.v1.UpdateToolPermissionsResponse.
+ * Use `create(UpdateToolPermissionsResponseSchema)` to create a new message.
+ */
+export const UpdateToolPermissionsResponseSchema: GenMessage<UpdateToolPermissionsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 94);
+
+/**
+ * Config stats request/response
+ *
+ * @generated from message orc.v1.GetConfigStatsRequest
+ */
+export type GetConfigStatsRequest = Message<"orc.v1.GetConfigStatsRequest"> & {
+};
+
+/**
+ * Describes the message orc.v1.GetConfigStatsRequest.
+ * Use `create(GetConfigStatsRequestSchema)` to create a new message.
+ */
+export const GetConfigStatsRequestSchema: GenMessage<GetConfigStatsRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 95);
+
+/**
+ * @generated from message orc.v1.GetConfigStatsResponse
+ */
+export type GetConfigStatsResponse = Message<"orc.v1.GetConfigStatsResponse"> & {
+  /**
+   * @generated from field: orc.v1.ConfigStats stats = 1;
+   */
+  stats?: ConfigStats;
+};
+
+/**
+ * Describes the message orc.v1.GetConfigStatsResponse.
+ * Use `create(GetConfigStatsResponseSchema)` to create a new message.
+ */
+export const GetConfigStatsResponseSchema: GenMessage<GetConfigStatsResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_config, 96);
 
 /**
  * Settings scope
@@ -1812,6 +2633,134 @@ export const ConfigService: GenService<{
     methodKind: "unary";
     input: typeof ListPromptVariablesRequestSchema;
     output: typeof ListPromptVariablesResponseSchema;
+  },
+  /**
+   * Agents
+   *
+   * @generated from rpc orc.v1.ConfigService.ListAgents
+   */
+  listAgents: {
+    methodKind: "unary";
+    input: typeof ListAgentsRequestSchema;
+    output: typeof ListAgentsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.GetAgent
+   */
+  getAgent: {
+    methodKind: "unary";
+    input: typeof GetAgentRequestSchema;
+    output: typeof GetAgentResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.CreateAgent
+   */
+  createAgent: {
+    methodKind: "unary";
+    input: typeof CreateAgentRequestSchema;
+    output: typeof CreateAgentResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.UpdateAgent
+   */
+  updateAgent: {
+    methodKind: "unary";
+    input: typeof UpdateAgentRequestSchema;
+    output: typeof UpdateAgentResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.DeleteAgent
+   */
+  deleteAgent: {
+    methodKind: "unary";
+    input: typeof DeleteAgentRequestSchema;
+    output: typeof DeleteAgentResponseSchema;
+  },
+  /**
+   * Scripts
+   *
+   * @generated from rpc orc.v1.ConfigService.ListScripts
+   */
+  listScripts: {
+    methodKind: "unary";
+    input: typeof ListScriptsRequestSchema;
+    output: typeof ListScriptsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.DiscoverScripts
+   */
+  discoverScripts: {
+    methodKind: "unary";
+    input: typeof DiscoverScriptsRequestSchema;
+    output: typeof DiscoverScriptsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.GetScript
+   */
+  getScript: {
+    methodKind: "unary";
+    input: typeof GetScriptRequestSchema;
+    output: typeof GetScriptResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.CreateScript
+   */
+  createScript: {
+    methodKind: "unary";
+    input: typeof CreateScriptRequestSchema;
+    output: typeof CreateScriptResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.UpdateScript
+   */
+  updateScript: {
+    methodKind: "unary";
+    input: typeof UpdateScriptRequestSchema;
+    output: typeof UpdateScriptResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.DeleteScript
+   */
+  deleteScript: {
+    methodKind: "unary";
+    input: typeof DeleteScriptRequestSchema;
+    output: typeof DeleteScriptResponseSchema;
+  },
+  /**
+   * Tools
+   *
+   * @generated from rpc orc.v1.ConfigService.ListTools
+   */
+  listTools: {
+    methodKind: "unary";
+    input: typeof ListToolsRequestSchema;
+    output: typeof ListToolsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.GetToolPermissions
+   */
+  getToolPermissions: {
+    methodKind: "unary";
+    input: typeof GetToolPermissionsRequestSchema;
+    output: typeof GetToolPermissionsResponseSchema;
+  },
+  /**
+   * @generated from rpc orc.v1.ConfigService.UpdateToolPermissions
+   */
+  updateToolPermissions: {
+    methodKind: "unary";
+    input: typeof UpdateToolPermissionsRequestSchema;
+    output: typeof UpdateToolPermissionsResponseSchema;
+  },
+  /**
+   * Config stats
+   *
+   * @generated from rpc orc.v1.ConfigService.GetConfigStats
+   */
+  getConfigStats: {
+    methodKind: "unary";
+    input: typeof GetConfigStatsRequestSchema;
+    output: typeof GetConfigStatsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_orc_v1_config, 0);

@@ -15,7 +15,11 @@ import {
 	useInitiativeStore,
 	useDependencyStore,
 } from '@/stores';
-import { listProjects, listProjectTasks, listInitiatives } from '@/lib/api';
+import { create } from '@bufbuild/protobuf';
+import { projectClient, taskClient, initiativeClient } from '@/lib/client';
+import { ListProjectsRequestSchema } from '@/gen/orc/v1/project_pb';
+import { ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
+import { ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
 
 interface DataProviderProps {
 	children: ReactNode;
@@ -59,13 +63,13 @@ export function DataProvider({ children }: DataProviderProps) {
 		setProjectLoading(true);
 		setProjectError(null);
 		try {
-			const projects = await listProjects();
-			setProjects(projects);
+			const response = await projectClient.listProjects(create(ListProjectsRequestSchema, {}));
+			setProjects(response.projects);
 
 			// If no project selected yet and we have projects, select the first one
 			const currentId = useProjectStore.getState().currentProjectId;
-			if (!currentId && projects.length > 0) {
-				selectProject(projects[0].id);
+			if (!currentId && response.projects.length > 0) {
+				selectProject(response.projects[0].id);
 			}
 		} catch (err) {
 			setProjectError(err instanceof Error ? err.message : 'Failed to load projects');
@@ -84,8 +88,9 @@ export function DataProvider({ children }: DataProviderProps) {
 		setTaskLoading(true);
 		setTaskError(null);
 		try {
-			const tasks = await listProjectTasks(projectId);
-			setTasks(tasks);
+			// Note: Project context is handled by the backend via request headers/cookies
+			const response = await taskClient.listTasks(create(ListTasksRequestSchema, {}));
+			setTasks(response.tasks);
 		} catch (err) {
 			setTaskError(err instanceof Error ? err.message : 'Failed to load tasks');
 		} finally {
@@ -96,8 +101,8 @@ export function DataProvider({ children }: DataProviderProps) {
 	// Load initiatives (not project-scoped currently)
 	const loadInitiatives = useCallback(async () => {
 		try {
-			const initiatives = await listInitiatives();
-			setInitiatives(initiatives);
+			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}));
+			setInitiatives(response.initiatives);
 		} catch (err) {
 			console.error('Failed to load initiatives:', err);
 			// Don't set error state - initiatives are not critical

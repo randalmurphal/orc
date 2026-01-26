@@ -102,6 +102,48 @@ const (
 	// ConfigServiceListPromptVariablesProcedure is the fully-qualified name of the ConfigService's
 	// ListPromptVariables RPC.
 	ConfigServiceListPromptVariablesProcedure = "/orc.v1.ConfigService/ListPromptVariables"
+	// ConfigServiceListAgentsProcedure is the fully-qualified name of the ConfigService's ListAgents
+	// RPC.
+	ConfigServiceListAgentsProcedure = "/orc.v1.ConfigService/ListAgents"
+	// ConfigServiceGetAgentProcedure is the fully-qualified name of the ConfigService's GetAgent RPC.
+	ConfigServiceGetAgentProcedure = "/orc.v1.ConfigService/GetAgent"
+	// ConfigServiceCreateAgentProcedure is the fully-qualified name of the ConfigService's CreateAgent
+	// RPC.
+	ConfigServiceCreateAgentProcedure = "/orc.v1.ConfigService/CreateAgent"
+	// ConfigServiceUpdateAgentProcedure is the fully-qualified name of the ConfigService's UpdateAgent
+	// RPC.
+	ConfigServiceUpdateAgentProcedure = "/orc.v1.ConfigService/UpdateAgent"
+	// ConfigServiceDeleteAgentProcedure is the fully-qualified name of the ConfigService's DeleteAgent
+	// RPC.
+	ConfigServiceDeleteAgentProcedure = "/orc.v1.ConfigService/DeleteAgent"
+	// ConfigServiceListScriptsProcedure is the fully-qualified name of the ConfigService's ListScripts
+	// RPC.
+	ConfigServiceListScriptsProcedure = "/orc.v1.ConfigService/ListScripts"
+	// ConfigServiceDiscoverScriptsProcedure is the fully-qualified name of the ConfigService's
+	// DiscoverScripts RPC.
+	ConfigServiceDiscoverScriptsProcedure = "/orc.v1.ConfigService/DiscoverScripts"
+	// ConfigServiceGetScriptProcedure is the fully-qualified name of the ConfigService's GetScript RPC.
+	ConfigServiceGetScriptProcedure = "/orc.v1.ConfigService/GetScript"
+	// ConfigServiceCreateScriptProcedure is the fully-qualified name of the ConfigService's
+	// CreateScript RPC.
+	ConfigServiceCreateScriptProcedure = "/orc.v1.ConfigService/CreateScript"
+	// ConfigServiceUpdateScriptProcedure is the fully-qualified name of the ConfigService's
+	// UpdateScript RPC.
+	ConfigServiceUpdateScriptProcedure = "/orc.v1.ConfigService/UpdateScript"
+	// ConfigServiceDeleteScriptProcedure is the fully-qualified name of the ConfigService's
+	// DeleteScript RPC.
+	ConfigServiceDeleteScriptProcedure = "/orc.v1.ConfigService/DeleteScript"
+	// ConfigServiceListToolsProcedure is the fully-qualified name of the ConfigService's ListTools RPC.
+	ConfigServiceListToolsProcedure = "/orc.v1.ConfigService/ListTools"
+	// ConfigServiceGetToolPermissionsProcedure is the fully-qualified name of the ConfigService's
+	// GetToolPermissions RPC.
+	ConfigServiceGetToolPermissionsProcedure = "/orc.v1.ConfigService/GetToolPermissions"
+	// ConfigServiceUpdateToolPermissionsProcedure is the fully-qualified name of the ConfigService's
+	// UpdateToolPermissions RPC.
+	ConfigServiceUpdateToolPermissionsProcedure = "/orc.v1.ConfigService/UpdateToolPermissions"
+	// ConfigServiceGetConfigStatsProcedure is the fully-qualified name of the ConfigService's
+	// GetConfigStats RPC.
+	ConfigServiceGetConfigStatsProcedure = "/orc.v1.ConfigService/GetConfigStats"
 )
 
 // ConfigServiceClient is a client for the orc.v1.ConfigService service.
@@ -154,6 +196,25 @@ type ConfigServiceClient interface {
 	DeletePrompt(context.Context, *connect.Request[v1.DeletePromptRequest]) (*connect.Response[v1.DeletePromptResponse], error)
 	// List available prompt variables
 	ListPromptVariables(context.Context, *connect.Request[v1.ListPromptVariablesRequest]) (*connect.Response[v1.ListPromptVariablesResponse], error)
+	// Agents
+	ListAgents(context.Context, *connect.Request[v1.ListAgentsRequest]) (*connect.Response[v1.ListAgentsResponse], error)
+	GetAgent(context.Context, *connect.Request[v1.GetAgentRequest]) (*connect.Response[v1.GetAgentResponse], error)
+	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
+	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
+	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
+	// Scripts
+	ListScripts(context.Context, *connect.Request[v1.ListScriptsRequest]) (*connect.Response[v1.ListScriptsResponse], error)
+	DiscoverScripts(context.Context, *connect.Request[v1.DiscoverScriptsRequest]) (*connect.Response[v1.DiscoverScriptsResponse], error)
+	GetScript(context.Context, *connect.Request[v1.GetScriptRequest]) (*connect.Response[v1.GetScriptResponse], error)
+	CreateScript(context.Context, *connect.Request[v1.CreateScriptRequest]) (*connect.Response[v1.CreateScriptResponse], error)
+	UpdateScript(context.Context, *connect.Request[v1.UpdateScriptRequest]) (*connect.Response[v1.UpdateScriptResponse], error)
+	DeleteScript(context.Context, *connect.Request[v1.DeleteScriptRequest]) (*connect.Response[v1.DeleteScriptResponse], error)
+	// Tools
+	ListTools(context.Context, *connect.Request[v1.ListToolsRequest]) (*connect.Response[v1.ListToolsResponse], error)
+	GetToolPermissions(context.Context, *connect.Request[v1.GetToolPermissionsRequest]) (*connect.Response[v1.GetToolPermissionsResponse], error)
+	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
+	// Config stats
+	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the orc.v1.ConfigService service. By default, it
@@ -311,35 +372,140 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("ListPromptVariables")),
 			connect.WithClientOptions(opts...),
 		),
+		listAgents: connect.NewClient[v1.ListAgentsRequest, v1.ListAgentsResponse](
+			httpClient,
+			baseURL+ConfigServiceListAgentsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ListAgents")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgent: connect.NewClient[v1.GetAgentRequest, v1.GetAgentResponse](
+			httpClient,
+			baseURL+ConfigServiceGetAgentProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		createAgent: connect.NewClient[v1.CreateAgentRequest, v1.CreateAgentResponse](
+			httpClient,
+			baseURL+ConfigServiceCreateAgentProcedure,
+			connect.WithSchema(configServiceMethods.ByName("CreateAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		updateAgent: connect.NewClient[v1.UpdateAgentRequest, v1.UpdateAgentResponse](
+			httpClient,
+			baseURL+ConfigServiceUpdateAgentProcedure,
+			connect.WithSchema(configServiceMethods.ByName("UpdateAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAgent: connect.NewClient[v1.DeleteAgentRequest, v1.DeleteAgentResponse](
+			httpClient,
+			baseURL+ConfigServiceDeleteAgentProcedure,
+			connect.WithSchema(configServiceMethods.ByName("DeleteAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		listScripts: connect.NewClient[v1.ListScriptsRequest, v1.ListScriptsResponse](
+			httpClient,
+			baseURL+ConfigServiceListScriptsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ListScripts")),
+			connect.WithClientOptions(opts...),
+		),
+		discoverScripts: connect.NewClient[v1.DiscoverScriptsRequest, v1.DiscoverScriptsResponse](
+			httpClient,
+			baseURL+ConfigServiceDiscoverScriptsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("DiscoverScripts")),
+			connect.WithClientOptions(opts...),
+		),
+		getScript: connect.NewClient[v1.GetScriptRequest, v1.GetScriptResponse](
+			httpClient,
+			baseURL+ConfigServiceGetScriptProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetScript")),
+			connect.WithClientOptions(opts...),
+		),
+		createScript: connect.NewClient[v1.CreateScriptRequest, v1.CreateScriptResponse](
+			httpClient,
+			baseURL+ConfigServiceCreateScriptProcedure,
+			connect.WithSchema(configServiceMethods.ByName("CreateScript")),
+			connect.WithClientOptions(opts...),
+		),
+		updateScript: connect.NewClient[v1.UpdateScriptRequest, v1.UpdateScriptResponse](
+			httpClient,
+			baseURL+ConfigServiceUpdateScriptProcedure,
+			connect.WithSchema(configServiceMethods.ByName("UpdateScript")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteScript: connect.NewClient[v1.DeleteScriptRequest, v1.DeleteScriptResponse](
+			httpClient,
+			baseURL+ConfigServiceDeleteScriptProcedure,
+			connect.WithSchema(configServiceMethods.ByName("DeleteScript")),
+			connect.WithClientOptions(opts...),
+		),
+		listTools: connect.NewClient[v1.ListToolsRequest, v1.ListToolsResponse](
+			httpClient,
+			baseURL+ConfigServiceListToolsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ListTools")),
+			connect.WithClientOptions(opts...),
+		),
+		getToolPermissions: connect.NewClient[v1.GetToolPermissionsRequest, v1.GetToolPermissionsResponse](
+			httpClient,
+			baseURL+ConfigServiceGetToolPermissionsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetToolPermissions")),
+			connect.WithClientOptions(opts...),
+		),
+		updateToolPermissions: connect.NewClient[v1.UpdateToolPermissionsRequest, v1.UpdateToolPermissionsResponse](
+			httpClient,
+			baseURL+ConfigServiceUpdateToolPermissionsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("UpdateToolPermissions")),
+			connect.WithClientOptions(opts...),
+		),
+		getConfigStats: connect.NewClient[v1.GetConfigStatsRequest, v1.GetConfigStatsResponse](
+			httpClient,
+			baseURL+ConfigServiceGetConfigStatsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	getConfig            *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
-	updateConfig         *connect.Client[v1.UpdateConfigRequest, v1.UpdateConfigResponse]
-	getSettings          *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	updateSettings       *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
-	getSettingsHierarchy *connect.Client[v1.GetSettingsHierarchyRequest, v1.GetSettingsHierarchyResponse]
-	listHooks            *connect.Client[v1.ListHooksRequest, v1.ListHooksResponse]
-	createHook           *connect.Client[v1.CreateHookRequest, v1.CreateHookResponse]
-	updateHook           *connect.Client[v1.UpdateHookRequest, v1.UpdateHookResponse]
-	deleteHook           *connect.Client[v1.DeleteHookRequest, v1.DeleteHookResponse]
-	listSkills           *connect.Client[v1.ListSkillsRequest, v1.ListSkillsResponse]
-	createSkill          *connect.Client[v1.CreateSkillRequest, v1.CreateSkillResponse]
-	updateSkill          *connect.Client[v1.UpdateSkillRequest, v1.UpdateSkillResponse]
-	deleteSkill          *connect.Client[v1.DeleteSkillRequest, v1.DeleteSkillResponse]
-	getClaudeMd          *connect.Client[v1.GetClaudeMdRequest, v1.GetClaudeMdResponse]
-	updateClaudeMd       *connect.Client[v1.UpdateClaudeMdRequest, v1.UpdateClaudeMdResponse]
-	getConstitution      *connect.Client[v1.GetConstitutionRequest, v1.GetConstitutionResponse]
-	updateConstitution   *connect.Client[v1.UpdateConstitutionRequest, v1.UpdateConstitutionResponse]
-	deleteConstitution   *connect.Client[v1.DeleteConstitutionRequest, v1.DeleteConstitutionResponse]
-	listPrompts          *connect.Client[v1.ListPromptsRequest, v1.ListPromptsResponse]
-	getPrompt            *connect.Client[v1.GetPromptRequest, v1.GetPromptResponse]
-	getDefaultPrompt     *connect.Client[v1.GetDefaultPromptRequest, v1.GetDefaultPromptResponse]
-	updatePrompt         *connect.Client[v1.UpdatePromptRequest, v1.UpdatePromptResponse]
-	deletePrompt         *connect.Client[v1.DeletePromptRequest, v1.DeletePromptResponse]
-	listPromptVariables  *connect.Client[v1.ListPromptVariablesRequest, v1.ListPromptVariablesResponse]
+	getConfig             *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
+	updateConfig          *connect.Client[v1.UpdateConfigRequest, v1.UpdateConfigResponse]
+	getSettings           *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	updateSettings        *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	getSettingsHierarchy  *connect.Client[v1.GetSettingsHierarchyRequest, v1.GetSettingsHierarchyResponse]
+	listHooks             *connect.Client[v1.ListHooksRequest, v1.ListHooksResponse]
+	createHook            *connect.Client[v1.CreateHookRequest, v1.CreateHookResponse]
+	updateHook            *connect.Client[v1.UpdateHookRequest, v1.UpdateHookResponse]
+	deleteHook            *connect.Client[v1.DeleteHookRequest, v1.DeleteHookResponse]
+	listSkills            *connect.Client[v1.ListSkillsRequest, v1.ListSkillsResponse]
+	createSkill           *connect.Client[v1.CreateSkillRequest, v1.CreateSkillResponse]
+	updateSkill           *connect.Client[v1.UpdateSkillRequest, v1.UpdateSkillResponse]
+	deleteSkill           *connect.Client[v1.DeleteSkillRequest, v1.DeleteSkillResponse]
+	getClaudeMd           *connect.Client[v1.GetClaudeMdRequest, v1.GetClaudeMdResponse]
+	updateClaudeMd        *connect.Client[v1.UpdateClaudeMdRequest, v1.UpdateClaudeMdResponse]
+	getConstitution       *connect.Client[v1.GetConstitutionRequest, v1.GetConstitutionResponse]
+	updateConstitution    *connect.Client[v1.UpdateConstitutionRequest, v1.UpdateConstitutionResponse]
+	deleteConstitution    *connect.Client[v1.DeleteConstitutionRequest, v1.DeleteConstitutionResponse]
+	listPrompts           *connect.Client[v1.ListPromptsRequest, v1.ListPromptsResponse]
+	getPrompt             *connect.Client[v1.GetPromptRequest, v1.GetPromptResponse]
+	getDefaultPrompt      *connect.Client[v1.GetDefaultPromptRequest, v1.GetDefaultPromptResponse]
+	updatePrompt          *connect.Client[v1.UpdatePromptRequest, v1.UpdatePromptResponse]
+	deletePrompt          *connect.Client[v1.DeletePromptRequest, v1.DeletePromptResponse]
+	listPromptVariables   *connect.Client[v1.ListPromptVariablesRequest, v1.ListPromptVariablesResponse]
+	listAgents            *connect.Client[v1.ListAgentsRequest, v1.ListAgentsResponse]
+	getAgent              *connect.Client[v1.GetAgentRequest, v1.GetAgentResponse]
+	createAgent           *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent           *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent           *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	listScripts           *connect.Client[v1.ListScriptsRequest, v1.ListScriptsResponse]
+	discoverScripts       *connect.Client[v1.DiscoverScriptsRequest, v1.DiscoverScriptsResponse]
+	getScript             *connect.Client[v1.GetScriptRequest, v1.GetScriptResponse]
+	createScript          *connect.Client[v1.CreateScriptRequest, v1.CreateScriptResponse]
+	updateScript          *connect.Client[v1.UpdateScriptRequest, v1.UpdateScriptResponse]
+	deleteScript          *connect.Client[v1.DeleteScriptRequest, v1.DeleteScriptResponse]
+	listTools             *connect.Client[v1.ListToolsRequest, v1.ListToolsResponse]
+	getToolPermissions    *connect.Client[v1.GetToolPermissionsRequest, v1.GetToolPermissionsResponse]
+	updateToolPermissions *connect.Client[v1.UpdateToolPermissionsRequest, v1.UpdateToolPermissionsResponse]
+	getConfigStats        *connect.Client[v1.GetConfigStatsRequest, v1.GetConfigStatsResponse]
 }
 
 // GetConfig calls orc.v1.ConfigService.GetConfig.
@@ -462,6 +628,81 @@ func (c *configServiceClient) ListPromptVariables(ctx context.Context, req *conn
 	return c.listPromptVariables.CallUnary(ctx, req)
 }
 
+// ListAgents calls orc.v1.ConfigService.ListAgents.
+func (c *configServiceClient) ListAgents(ctx context.Context, req *connect.Request[v1.ListAgentsRequest]) (*connect.Response[v1.ListAgentsResponse], error) {
+	return c.listAgents.CallUnary(ctx, req)
+}
+
+// GetAgent calls orc.v1.ConfigService.GetAgent.
+func (c *configServiceClient) GetAgent(ctx context.Context, req *connect.Request[v1.GetAgentRequest]) (*connect.Response[v1.GetAgentResponse], error) {
+	return c.getAgent.CallUnary(ctx, req)
+}
+
+// CreateAgent calls orc.v1.ConfigService.CreateAgent.
+func (c *configServiceClient) CreateAgent(ctx context.Context, req *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error) {
+	return c.createAgent.CallUnary(ctx, req)
+}
+
+// UpdateAgent calls orc.v1.ConfigService.UpdateAgent.
+func (c *configServiceClient) UpdateAgent(ctx context.Context, req *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error) {
+	return c.updateAgent.CallUnary(ctx, req)
+}
+
+// DeleteAgent calls orc.v1.ConfigService.DeleteAgent.
+func (c *configServiceClient) DeleteAgent(ctx context.Context, req *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error) {
+	return c.deleteAgent.CallUnary(ctx, req)
+}
+
+// ListScripts calls orc.v1.ConfigService.ListScripts.
+func (c *configServiceClient) ListScripts(ctx context.Context, req *connect.Request[v1.ListScriptsRequest]) (*connect.Response[v1.ListScriptsResponse], error) {
+	return c.listScripts.CallUnary(ctx, req)
+}
+
+// DiscoverScripts calls orc.v1.ConfigService.DiscoverScripts.
+func (c *configServiceClient) DiscoverScripts(ctx context.Context, req *connect.Request[v1.DiscoverScriptsRequest]) (*connect.Response[v1.DiscoverScriptsResponse], error) {
+	return c.discoverScripts.CallUnary(ctx, req)
+}
+
+// GetScript calls orc.v1.ConfigService.GetScript.
+func (c *configServiceClient) GetScript(ctx context.Context, req *connect.Request[v1.GetScriptRequest]) (*connect.Response[v1.GetScriptResponse], error) {
+	return c.getScript.CallUnary(ctx, req)
+}
+
+// CreateScript calls orc.v1.ConfigService.CreateScript.
+func (c *configServiceClient) CreateScript(ctx context.Context, req *connect.Request[v1.CreateScriptRequest]) (*connect.Response[v1.CreateScriptResponse], error) {
+	return c.createScript.CallUnary(ctx, req)
+}
+
+// UpdateScript calls orc.v1.ConfigService.UpdateScript.
+func (c *configServiceClient) UpdateScript(ctx context.Context, req *connect.Request[v1.UpdateScriptRequest]) (*connect.Response[v1.UpdateScriptResponse], error) {
+	return c.updateScript.CallUnary(ctx, req)
+}
+
+// DeleteScript calls orc.v1.ConfigService.DeleteScript.
+func (c *configServiceClient) DeleteScript(ctx context.Context, req *connect.Request[v1.DeleteScriptRequest]) (*connect.Response[v1.DeleteScriptResponse], error) {
+	return c.deleteScript.CallUnary(ctx, req)
+}
+
+// ListTools calls orc.v1.ConfigService.ListTools.
+func (c *configServiceClient) ListTools(ctx context.Context, req *connect.Request[v1.ListToolsRequest]) (*connect.Response[v1.ListToolsResponse], error) {
+	return c.listTools.CallUnary(ctx, req)
+}
+
+// GetToolPermissions calls orc.v1.ConfigService.GetToolPermissions.
+func (c *configServiceClient) GetToolPermissions(ctx context.Context, req *connect.Request[v1.GetToolPermissionsRequest]) (*connect.Response[v1.GetToolPermissionsResponse], error) {
+	return c.getToolPermissions.CallUnary(ctx, req)
+}
+
+// UpdateToolPermissions calls orc.v1.ConfigService.UpdateToolPermissions.
+func (c *configServiceClient) UpdateToolPermissions(ctx context.Context, req *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error) {
+	return c.updateToolPermissions.CallUnary(ctx, req)
+}
+
+// GetConfigStats calls orc.v1.ConfigService.GetConfigStats.
+func (c *configServiceClient) GetConfigStats(ctx context.Context, req *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error) {
+	return c.getConfigStats.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the orc.v1.ConfigService service.
 type ConfigServiceHandler interface {
 	// Get ORC configuration
@@ -512,6 +753,25 @@ type ConfigServiceHandler interface {
 	DeletePrompt(context.Context, *connect.Request[v1.DeletePromptRequest]) (*connect.Response[v1.DeletePromptResponse], error)
 	// List available prompt variables
 	ListPromptVariables(context.Context, *connect.Request[v1.ListPromptVariablesRequest]) (*connect.Response[v1.ListPromptVariablesResponse], error)
+	// Agents
+	ListAgents(context.Context, *connect.Request[v1.ListAgentsRequest]) (*connect.Response[v1.ListAgentsResponse], error)
+	GetAgent(context.Context, *connect.Request[v1.GetAgentRequest]) (*connect.Response[v1.GetAgentResponse], error)
+	CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error)
+	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
+	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
+	// Scripts
+	ListScripts(context.Context, *connect.Request[v1.ListScriptsRequest]) (*connect.Response[v1.ListScriptsResponse], error)
+	DiscoverScripts(context.Context, *connect.Request[v1.DiscoverScriptsRequest]) (*connect.Response[v1.DiscoverScriptsResponse], error)
+	GetScript(context.Context, *connect.Request[v1.GetScriptRequest]) (*connect.Response[v1.GetScriptResponse], error)
+	CreateScript(context.Context, *connect.Request[v1.CreateScriptRequest]) (*connect.Response[v1.CreateScriptResponse], error)
+	UpdateScript(context.Context, *connect.Request[v1.UpdateScriptRequest]) (*connect.Response[v1.UpdateScriptResponse], error)
+	DeleteScript(context.Context, *connect.Request[v1.DeleteScriptRequest]) (*connect.Response[v1.DeleteScriptResponse], error)
+	// Tools
+	ListTools(context.Context, *connect.Request[v1.ListToolsRequest]) (*connect.Response[v1.ListToolsResponse], error)
+	GetToolPermissions(context.Context, *connect.Request[v1.GetToolPermissionsRequest]) (*connect.Response[v1.GetToolPermissionsResponse], error)
+	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
+	// Config stats
+	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -665,6 +925,96 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("ListPromptVariables")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceListAgentsHandler := connect.NewUnaryHandler(
+		ConfigServiceListAgentsProcedure,
+		svc.ListAgents,
+		connect.WithSchema(configServiceMethods.ByName("ListAgents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetAgentHandler := connect.NewUnaryHandler(
+		ConfigServiceGetAgentProcedure,
+		svc.GetAgent,
+		connect.WithSchema(configServiceMethods.ByName("GetAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceCreateAgentHandler := connect.NewUnaryHandler(
+		ConfigServiceCreateAgentProcedure,
+		svc.CreateAgent,
+		connect.WithSchema(configServiceMethods.ByName("CreateAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceUpdateAgentHandler := connect.NewUnaryHandler(
+		ConfigServiceUpdateAgentProcedure,
+		svc.UpdateAgent,
+		connect.WithSchema(configServiceMethods.ByName("UpdateAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceDeleteAgentHandler := connect.NewUnaryHandler(
+		ConfigServiceDeleteAgentProcedure,
+		svc.DeleteAgent,
+		connect.WithSchema(configServiceMethods.ByName("DeleteAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceListScriptsHandler := connect.NewUnaryHandler(
+		ConfigServiceListScriptsProcedure,
+		svc.ListScripts,
+		connect.WithSchema(configServiceMethods.ByName("ListScripts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceDiscoverScriptsHandler := connect.NewUnaryHandler(
+		ConfigServiceDiscoverScriptsProcedure,
+		svc.DiscoverScripts,
+		connect.WithSchema(configServiceMethods.ByName("DiscoverScripts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetScriptHandler := connect.NewUnaryHandler(
+		ConfigServiceGetScriptProcedure,
+		svc.GetScript,
+		connect.WithSchema(configServiceMethods.ByName("GetScript")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceCreateScriptHandler := connect.NewUnaryHandler(
+		ConfigServiceCreateScriptProcedure,
+		svc.CreateScript,
+		connect.WithSchema(configServiceMethods.ByName("CreateScript")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceUpdateScriptHandler := connect.NewUnaryHandler(
+		ConfigServiceUpdateScriptProcedure,
+		svc.UpdateScript,
+		connect.WithSchema(configServiceMethods.ByName("UpdateScript")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceDeleteScriptHandler := connect.NewUnaryHandler(
+		ConfigServiceDeleteScriptProcedure,
+		svc.DeleteScript,
+		connect.WithSchema(configServiceMethods.ByName("DeleteScript")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceListToolsHandler := connect.NewUnaryHandler(
+		ConfigServiceListToolsProcedure,
+		svc.ListTools,
+		connect.WithSchema(configServiceMethods.ByName("ListTools")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetToolPermissionsHandler := connect.NewUnaryHandler(
+		ConfigServiceGetToolPermissionsProcedure,
+		svc.GetToolPermissions,
+		connect.WithSchema(configServiceMethods.ByName("GetToolPermissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceUpdateToolPermissionsHandler := connect.NewUnaryHandler(
+		ConfigServiceUpdateToolPermissionsProcedure,
+		svc.UpdateToolPermissions,
+		connect.WithSchema(configServiceMethods.ByName("UpdateToolPermissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetConfigStatsHandler := connect.NewUnaryHandler(
+		ConfigServiceGetConfigStatsProcedure,
+		svc.GetConfigStats,
+		connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
@@ -715,6 +1065,36 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceDeletePromptHandler.ServeHTTP(w, r)
 		case ConfigServiceListPromptVariablesProcedure:
 			configServiceListPromptVariablesHandler.ServeHTTP(w, r)
+		case ConfigServiceListAgentsProcedure:
+			configServiceListAgentsHandler.ServeHTTP(w, r)
+		case ConfigServiceGetAgentProcedure:
+			configServiceGetAgentHandler.ServeHTTP(w, r)
+		case ConfigServiceCreateAgentProcedure:
+			configServiceCreateAgentHandler.ServeHTTP(w, r)
+		case ConfigServiceUpdateAgentProcedure:
+			configServiceUpdateAgentHandler.ServeHTTP(w, r)
+		case ConfigServiceDeleteAgentProcedure:
+			configServiceDeleteAgentHandler.ServeHTTP(w, r)
+		case ConfigServiceListScriptsProcedure:
+			configServiceListScriptsHandler.ServeHTTP(w, r)
+		case ConfigServiceDiscoverScriptsProcedure:
+			configServiceDiscoverScriptsHandler.ServeHTTP(w, r)
+		case ConfigServiceGetScriptProcedure:
+			configServiceGetScriptHandler.ServeHTTP(w, r)
+		case ConfigServiceCreateScriptProcedure:
+			configServiceCreateScriptHandler.ServeHTTP(w, r)
+		case ConfigServiceUpdateScriptProcedure:
+			configServiceUpdateScriptHandler.ServeHTTP(w, r)
+		case ConfigServiceDeleteScriptProcedure:
+			configServiceDeleteScriptHandler.ServeHTTP(w, r)
+		case ConfigServiceListToolsProcedure:
+			configServiceListToolsHandler.ServeHTTP(w, r)
+		case ConfigServiceGetToolPermissionsProcedure:
+			configServiceGetToolPermissionsHandler.ServeHTTP(w, r)
+		case ConfigServiceUpdateToolPermissionsProcedure:
+			configServiceUpdateToolPermissionsHandler.ServeHTTP(w, r)
+		case ConfigServiceGetConfigStatsProcedure:
+			configServiceGetConfigStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -818,4 +1198,64 @@ func (UnimplementedConfigServiceHandler) DeletePrompt(context.Context, *connect.
 
 func (UnimplementedConfigServiceHandler) ListPromptVariables(context.Context, *connect.Request[v1.ListPromptVariablesRequest]) (*connect.Response[v1.ListPromptVariablesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ListPromptVariables is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ListAgents(context.Context, *connect.Request[v1.ListAgentsRequest]) (*connect.Response[v1.ListAgentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ListAgents is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetAgent(context.Context, *connect.Request[v1.GetAgentRequest]) (*connect.Response[v1.GetAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetAgent is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) CreateAgent(context.Context, *connect.Request[v1.CreateAgentRequest]) (*connect.Response[v1.CreateAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.CreateAgent is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.UpdateAgent is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.DeleteAgent is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ListScripts(context.Context, *connect.Request[v1.ListScriptsRequest]) (*connect.Response[v1.ListScriptsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ListScripts is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) DiscoverScripts(context.Context, *connect.Request[v1.DiscoverScriptsRequest]) (*connect.Response[v1.DiscoverScriptsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.DiscoverScripts is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetScript(context.Context, *connect.Request[v1.GetScriptRequest]) (*connect.Response[v1.GetScriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetScript is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) CreateScript(context.Context, *connect.Request[v1.CreateScriptRequest]) (*connect.Response[v1.CreateScriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.CreateScript is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) UpdateScript(context.Context, *connect.Request[v1.UpdateScriptRequest]) (*connect.Response[v1.UpdateScriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.UpdateScript is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) DeleteScript(context.Context, *connect.Request[v1.DeleteScriptRequest]) (*connect.Response[v1.DeleteScriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.DeleteScript is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ListTools(context.Context, *connect.Request[v1.ListToolsRequest]) (*connect.Response[v1.ListToolsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ListTools is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetToolPermissions(context.Context, *connect.Request[v1.GetToolPermissionsRequest]) (*connect.Response[v1.GetToolPermissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetToolPermissions is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.UpdateToolPermissions is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetConfigStats is not implemented"))
 }

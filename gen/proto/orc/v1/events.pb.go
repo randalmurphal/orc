@@ -1050,7 +1050,7 @@ func (x *FilesChangedEvent) GetTotalDeletions() int32 {
 	return 0
 }
 
-// Session update (Claude CLI session)
+// Session update (Claude CLI session info for a specific task)
 type SessionUpdateEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -1103,6 +1103,99 @@ func (x *SessionUpdateEvent) GetSession() *SessionInfo {
 	return nil
 }
 
+// Aggregate session metrics (global dashboard metrics)
+type SessionMetricsEvent struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DurationSeconds  int64                  `protobuf:"varint,1,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`       // Total session duration
+	TotalTokens      int32                  `protobuf:"varint,2,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`                   // Aggregate tokens across all tasks
+	EstimatedCostUsd float64                `protobuf:"fixed64,3,opt,name=estimated_cost_usd,json=estimatedCostUsd,proto3" json:"estimated_cost_usd,omitempty"` // Estimated cost
+	InputTokens      int32                  `protobuf:"varint,4,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`                   // Total input tokens
+	OutputTokens     int32                  `protobuf:"varint,5,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`                // Total output tokens
+	TasksRunning     int32                  `protobuf:"varint,6,opt,name=tasks_running,json=tasksRunning,proto3" json:"tasks_running,omitempty"`                // Number of currently running tasks
+	IsPaused         bool                   `protobuf:"varint,7,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`                            // Whether all tasks are paused
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SessionMetricsEvent) Reset() {
+	*x = SessionMetricsEvent{}
+	mi := &file_orc_v1_events_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionMetricsEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionMetricsEvent) ProtoMessage() {}
+
+func (x *SessionMetricsEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_events_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionMetricsEvent.ProtoReflect.Descriptor instead.
+func (*SessionMetricsEvent) Descriptor() ([]byte, []int) {
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SessionMetricsEvent) GetDurationSeconds() int64 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetTotalTokens() int32 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetEstimatedCostUsd() float64 {
+	if x != nil {
+		return x.EstimatedCostUsd
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetInputTokens() int32 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetOutputTokens() int32 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetTasksRunning() int32 {
+	if x != nil {
+		return x.TasksRunning
+	}
+	return 0
+}
+
+func (x *SessionMetricsEvent) GetIsPaused() bool {
+	if x != nil {
+		return x.IsPaused
+	}
+	return false
+}
+
 // Error occurred
 type ErrorEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1116,7 +1209,7 @@ type ErrorEvent struct {
 
 func (x *ErrorEvent) Reset() {
 	*x = ErrorEvent{}
-	mi := &file_orc_v1_events_proto_msgTypes[14]
+	mi := &file_orc_v1_events_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1128,7 +1221,7 @@ func (x *ErrorEvent) String() string {
 func (*ErrorEvent) ProtoMessage() {}
 
 func (x *ErrorEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[14]
+	mi := &file_orc_v1_events_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1141,7 +1234,7 @@ func (x *ErrorEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorEvent.ProtoReflect.Descriptor instead.
 func (*ErrorEvent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{14}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ErrorEvent) GetTaskId() string {
@@ -1184,7 +1277,7 @@ type WarningEvent struct {
 
 func (x *WarningEvent) Reset() {
 	*x = WarningEvent{}
-	mi := &file_orc_v1_events_proto_msgTypes[15]
+	mi := &file_orc_v1_events_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +1289,7 @@ func (x *WarningEvent) String() string {
 func (*WarningEvent) ProtoMessage() {}
 
 func (x *WarningEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[15]
+	mi := &file_orc_v1_events_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1302,7 @@ func (x *WarningEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WarningEvent.ProtoReflect.Descriptor instead.
 func (*WarningEvent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *WarningEvent) GetTaskId() string {
@@ -1243,7 +1336,7 @@ type HeartbeatEvent struct {
 
 func (x *HeartbeatEvent) Reset() {
 	*x = HeartbeatEvent{}
-	mi := &file_orc_v1_events_proto_msgTypes[16]
+	mi := &file_orc_v1_events_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1348,7 @@ func (x *HeartbeatEvent) String() string {
 func (*HeartbeatEvent) ProtoMessage() {}
 
 func (x *HeartbeatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[16]
+	mi := &file_orc_v1_events_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1268,7 +1361,7 @@ func (x *HeartbeatEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatEvent.ProtoReflect.Descriptor instead.
 func (*HeartbeatEvent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{16}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *HeartbeatEvent) GetTimestamp() *timestamppb.Timestamp {
@@ -1307,6 +1400,7 @@ type Event struct {
 	//	*Event_Error
 	//	*Event_Warning
 	//	*Event_Heartbeat
+	//	*Event_SessionMetrics
 	Payload       isEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1314,7 +1408,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_orc_v1_events_proto_msgTypes[17]
+	mi := &file_orc_v1_events_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1326,7 +1420,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[17]
+	mi := &file_orc_v1_events_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1339,7 +1433,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{17}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Event) GetId() string {
@@ -1514,6 +1608,15 @@ func (x *Event) GetHeartbeat() *HeartbeatEvent {
 	return nil
 }
 
+func (x *Event) GetSessionMetrics() *SessionMetricsEvent {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_SessionMetrics); ok {
+			return x.SessionMetrics
+		}
+	}
+	return nil
+}
+
 type isEvent_Payload interface {
 	isEvent_Payload()
 }
@@ -1582,6 +1685,10 @@ type Event_Heartbeat struct {
 	Heartbeat *HeartbeatEvent `protobuf:"bytes,25,opt,name=heartbeat,proto3,oneof"`
 }
 
+type Event_SessionMetrics struct {
+	SessionMetrics *SessionMetricsEvent `protobuf:"bytes,26,opt,name=session_metrics,json=sessionMetrics,proto3,oneof"`
+}
+
 func (*Event_TaskCreated) isEvent_Payload() {}
 
 func (*Event_TaskUpdated) isEvent_Payload() {}
@@ -1614,6 +1721,8 @@ func (*Event_Warning) isEvent_Payload() {}
 
 func (*Event_Heartbeat) isEvent_Payload() {}
 
+func (*Event_SessionMetrics) isEvent_Payload() {}
+
 // Timeline event for historical event log
 type TimelineEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1632,7 +1741,7 @@ type TimelineEvent struct {
 
 func (x *TimelineEvent) Reset() {
 	*x = TimelineEvent{}
-	mi := &file_orc_v1_events_proto_msgTypes[18]
+	mi := &file_orc_v1_events_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1644,7 +1753,7 @@ func (x *TimelineEvent) String() string {
 func (*TimelineEvent) ProtoMessage() {}
 
 func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[18]
+	mi := &file_orc_v1_events_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +1766,7 @@ func (x *TimelineEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEvent.ProtoReflect.Descriptor instead.
 func (*TimelineEvent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{18}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TimelineEvent) GetId() string {
@@ -1739,7 +1848,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[19]
+	mi := &file_orc_v1_events_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1751,7 +1860,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[19]
+	mi := &file_orc_v1_events_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1764,7 +1873,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{19}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SubscribeRequest) GetTaskId() string {
@@ -1804,7 +1913,7 @@ type SubscribeResponse struct {
 
 func (x *SubscribeResponse) Reset() {
 	*x = SubscribeResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[20]
+	mi := &file_orc_v1_events_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1816,7 +1925,7 @@ func (x *SubscribeResponse) String() string {
 func (*SubscribeResponse) ProtoMessage() {}
 
 func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[20]
+	mi := &file_orc_v1_events_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1829,7 +1938,7 @@ func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeResponse.ProtoReflect.Descriptor instead.
 func (*SubscribeResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SubscribeResponse) GetEvent() *Event {
@@ -1858,7 +1967,7 @@ type GetEventsRequest struct {
 
 func (x *GetEventsRequest) Reset() {
 	*x = GetEventsRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[21]
+	mi := &file_orc_v1_events_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1870,7 +1979,7 @@ func (x *GetEventsRequest) String() string {
 func (*GetEventsRequest) ProtoMessage() {}
 
 func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[21]
+	mi := &file_orc_v1_events_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1883,7 +1992,7 @@ func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetEventsRequest) GetPage() *PageRequest {
@@ -1938,7 +2047,7 @@ type GetEventsResponse struct {
 
 func (x *GetEventsResponse) Reset() {
 	*x = GetEventsResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[22]
+	mi := &file_orc_v1_events_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1950,7 +2059,7 @@ func (x *GetEventsResponse) String() string {
 func (*GetEventsResponse) ProtoMessage() {}
 
 func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[22]
+	mi := &file_orc_v1_events_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1963,7 +2072,7 @@ func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetEventsResponse) GetEvents() []*Event {
@@ -1992,7 +2101,7 @@ type GetTimelineRequest struct {
 
 func (x *GetTimelineRequest) Reset() {
 	*x = GetTimelineRequest{}
-	mi := &file_orc_v1_events_proto_msgTypes[23]
+	mi := &file_orc_v1_events_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2004,7 +2113,7 @@ func (x *GetTimelineRequest) String() string {
 func (*GetTimelineRequest) ProtoMessage() {}
 
 func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[23]
+	mi := &file_orc_v1_events_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2017,7 +2126,7 @@ func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetTimelineRequest) GetTaskId() string {
@@ -2051,7 +2160,7 @@ type GetTimelineResponse struct {
 
 func (x *GetTimelineResponse) Reset() {
 	*x = GetTimelineResponse{}
-	mi := &file_orc_v1_events_proto_msgTypes[24]
+	mi := &file_orc_v1_events_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2063,7 +2172,7 @@ func (x *GetTimelineResponse) String() string {
 func (*GetTimelineResponse) ProtoMessage() {}
 
 func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_events_proto_msgTypes[24]
+	mi := &file_orc_v1_events_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2076,7 +2185,7 @@ func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_events_proto_rawDescGZIP(), []int{24}
+	return file_orc_v1_events_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetTimelineResponse) GetEvents() []*TimelineEvent {
@@ -2177,7 +2286,15 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x0ftotal_deletions\x18\x04 \x01(\x05R\x0etotalDeletions\"\\\n" +
 	"\x12SessionUpdateEvent\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12-\n" +
-	"\asession\x18\x02 \x01(\v2\x13.orc.v1.SessionInfoR\asession\"\x96\x01\n" +
+	"\asession\x18\x02 \x01(\v2\x13.orc.v1.SessionInfoR\asession\"\x9b\x02\n" +
+	"\x13SessionMetricsEvent\x12)\n" +
+	"\x10duration_seconds\x18\x01 \x01(\x03R\x0fdurationSeconds\x12!\n" +
+	"\ftotal_tokens\x18\x02 \x01(\x05R\vtotalTokens\x12,\n" +
+	"\x12estimated_cost_usd\x18\x03 \x01(\x01R\x10estimatedCostUsd\x12!\n" +
+	"\finput_tokens\x18\x04 \x01(\x05R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x05 \x01(\x05R\foutputTokens\x12#\n" +
+	"\rtasks_running\x18\x06 \x01(\x05R\ftasksRunning\x12\x1b\n" +
+	"\tis_paused\x18\a \x01(\bR\bisPaused\"\x96\x01\n" +
 	"\n" +
 	"ErrorEvent\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
@@ -2193,7 +2310,7 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
 	"\x06_phase\"J\n" +
 	"\x0eHeartbeatEvent\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xab\t\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xf3\t\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1c\n" +
@@ -2214,7 +2331,8 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x0esession_update\x18\x16 \x01(\v2\x1a.orc.v1.SessionUpdateEventH\x00R\rsessionUpdate\x12*\n" +
 	"\x05error\x18\x17 \x01(\v2\x12.orc.v1.ErrorEventH\x00R\x05error\x120\n" +
 	"\awarning\x18\x18 \x01(\v2\x14.orc.v1.WarningEventH\x00R\awarning\x126\n" +
-	"\theartbeat\x18\x19 \x01(\v2\x16.orc.v1.HeartbeatEventH\x00R\theartbeatB\t\n" +
+	"\theartbeat\x18\x19 \x01(\v2\x16.orc.v1.HeartbeatEventH\x00R\theartbeat\x12F\n" +
+	"\x0fsession_metrics\x18\x1a \x01(\v2\x1b.orc.v1.SessionMetricsEventH\x00R\x0esessionMetricsB\t\n" +
 	"\apayloadB\n" +
 	"\n" +
 	"\b_task_id\"\xdc\x02\n" +
@@ -2313,7 +2431,7 @@ func file_orc_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_orc_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_orc_v1_events_proto_goTypes = []any{
 	(ActivityState)(0),             // 0: orc.v1.ActivityState
 	(TimelineEventType)(0),         // 1: orc.v1.TimelineEventType
@@ -2331,38 +2449,39 @@ var file_orc_v1_events_proto_goTypes = []any{
 	(*FileChangedInfo)(nil),        // 13: orc.v1.FileChangedInfo
 	(*FilesChangedEvent)(nil),      // 14: orc.v1.FilesChangedEvent
 	(*SessionUpdateEvent)(nil),     // 15: orc.v1.SessionUpdateEvent
-	(*ErrorEvent)(nil),             // 16: orc.v1.ErrorEvent
-	(*WarningEvent)(nil),           // 17: orc.v1.WarningEvent
-	(*HeartbeatEvent)(nil),         // 18: orc.v1.HeartbeatEvent
-	(*Event)(nil),                  // 19: orc.v1.Event
-	(*TimelineEvent)(nil),          // 20: orc.v1.TimelineEvent
-	(*SubscribeRequest)(nil),       // 21: orc.v1.SubscribeRequest
-	(*SubscribeResponse)(nil),      // 22: orc.v1.SubscribeResponse
-	(*GetEventsRequest)(nil),       // 23: orc.v1.GetEventsRequest
-	(*GetEventsResponse)(nil),      // 24: orc.v1.GetEventsResponse
-	(*GetTimelineRequest)(nil),     // 25: orc.v1.GetTimelineRequest
-	(*GetTimelineResponse)(nil),    // 26: orc.v1.GetTimelineResponse
-	(TaskWeight)(0),                // 27: orc.v1.TaskWeight
-	(*Task)(nil),                   // 28: orc.v1.Task
-	(PhaseStatus)(0),               // 29: orc.v1.PhaseStatus
-	(*TokenUsage)(nil),             // 30: orc.v1.TokenUsage
-	(*timestamppb.Timestamp)(nil),  // 31: google.protobuf.Timestamp
-	(*SessionInfo)(nil),            // 32: orc.v1.SessionInfo
-	(*PageRequest)(nil),            // 33: orc.v1.PageRequest
-	(*PageResponse)(nil),           // 34: orc.v1.PageResponse
+	(*SessionMetricsEvent)(nil),    // 16: orc.v1.SessionMetricsEvent
+	(*ErrorEvent)(nil),             // 17: orc.v1.ErrorEvent
+	(*WarningEvent)(nil),           // 18: orc.v1.WarningEvent
+	(*HeartbeatEvent)(nil),         // 19: orc.v1.HeartbeatEvent
+	(*Event)(nil),                  // 20: orc.v1.Event
+	(*TimelineEvent)(nil),          // 21: orc.v1.TimelineEvent
+	(*SubscribeRequest)(nil),       // 22: orc.v1.SubscribeRequest
+	(*SubscribeResponse)(nil),      // 23: orc.v1.SubscribeResponse
+	(*GetEventsRequest)(nil),       // 24: orc.v1.GetEventsRequest
+	(*GetEventsResponse)(nil),      // 25: orc.v1.GetEventsResponse
+	(*GetTimelineRequest)(nil),     // 26: orc.v1.GetTimelineRequest
+	(*GetTimelineResponse)(nil),    // 27: orc.v1.GetTimelineResponse
+	(TaskWeight)(0),                // 28: orc.v1.TaskWeight
+	(*Task)(nil),                   // 29: orc.v1.Task
+	(PhaseStatus)(0),               // 30: orc.v1.PhaseStatus
+	(*TokenUsage)(nil),             // 31: orc.v1.TokenUsage
+	(*timestamppb.Timestamp)(nil),  // 32: google.protobuf.Timestamp
+	(*SessionInfo)(nil),            // 33: orc.v1.SessionInfo
+	(*PageRequest)(nil),            // 34: orc.v1.PageRequest
+	(*PageResponse)(nil),           // 35: orc.v1.PageResponse
 }
 var file_orc_v1_events_proto_depIdxs = []int32{
-	27, // 0: orc.v1.TaskCreatedEvent.weight:type_name -> orc.v1.TaskWeight
-	28, // 1: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
-	29, // 2: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
-	30, // 3: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
+	28, // 0: orc.v1.TaskCreatedEvent.weight:type_name -> orc.v1.TaskWeight
+	29, // 1: orc.v1.TaskUpdatedEvent.task:type_name -> orc.v1.Task
+	30, // 2: orc.v1.PhaseChangedEvent.status:type_name -> orc.v1.PhaseStatus
+	31, // 3: orc.v1.TokensUpdatedEvent.tokens:type_name -> orc.v1.TokenUsage
 	0,  // 4: orc.v1.ActivityEvent.activity:type_name -> orc.v1.ActivityState
-	31, // 5: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
-	31, // 6: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
+	32, // 5: orc.v1.DecisionRequiredEvent.requested_at:type_name -> google.protobuf.Timestamp
+	32, // 6: orc.v1.DecisionResolvedEvent.resolved_at:type_name -> google.protobuf.Timestamp
 	13, // 7: orc.v1.FilesChangedEvent.files:type_name -> orc.v1.FileChangedInfo
-	32, // 8: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
-	31, // 9: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
-	31, // 10: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	33, // 8: orc.v1.SessionUpdateEvent.session:type_name -> orc.v1.SessionInfo
+	32, // 9: orc.v1.HeartbeatEvent.timestamp:type_name -> google.protobuf.Timestamp
+	32, // 10: orc.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
 	2,  // 11: orc.v1.Event.task_created:type_name -> orc.v1.TaskCreatedEvent
 	3,  // 12: orc.v1.Event.task_updated:type_name -> orc.v1.TaskUpdatedEvent
 	4,  // 13: orc.v1.Event.task_deleted:type_name -> orc.v1.TaskDeletedEvent
@@ -2376,32 +2495,33 @@ var file_orc_v1_events_proto_depIdxs = []int32{
 	12, // 21: orc.v1.Event.decision_resolved:type_name -> orc.v1.DecisionResolvedEvent
 	14, // 22: orc.v1.Event.files_changed:type_name -> orc.v1.FilesChangedEvent
 	15, // 23: orc.v1.Event.session_update:type_name -> orc.v1.SessionUpdateEvent
-	16, // 24: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
-	17, // 25: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
-	18, // 26: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
-	1,  // 27: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
-	31, // 28: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
-	19, // 29: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
-	33, // 30: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
-	31, // 31: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
-	31, // 32: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
-	19, // 33: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
-	34, // 34: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
-	33, // 35: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
-	1,  // 36: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
-	20, // 37: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
-	34, // 38: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
-	21, // 39: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
-	23, // 40: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
-	25, // 41: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
-	22, // 42: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
-	24, // 43: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
-	26, // 44: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
-	42, // [42:45] is the sub-list for method output_type
-	39, // [39:42] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	17, // 24: orc.v1.Event.error:type_name -> orc.v1.ErrorEvent
+	18, // 25: orc.v1.Event.warning:type_name -> orc.v1.WarningEvent
+	19, // 26: orc.v1.Event.heartbeat:type_name -> orc.v1.HeartbeatEvent
+	16, // 27: orc.v1.Event.session_metrics:type_name -> orc.v1.SessionMetricsEvent
+	1,  // 28: orc.v1.TimelineEvent.event_type:type_name -> orc.v1.TimelineEventType
+	32, // 29: orc.v1.TimelineEvent.created_at:type_name -> google.protobuf.Timestamp
+	20, // 30: orc.v1.SubscribeResponse.event:type_name -> orc.v1.Event
+	34, // 31: orc.v1.GetEventsRequest.page:type_name -> orc.v1.PageRequest
+	32, // 32: orc.v1.GetEventsRequest.since:type_name -> google.protobuf.Timestamp
+	32, // 33: orc.v1.GetEventsRequest.until:type_name -> google.protobuf.Timestamp
+	20, // 34: orc.v1.GetEventsResponse.events:type_name -> orc.v1.Event
+	35, // 35: orc.v1.GetEventsResponse.page:type_name -> orc.v1.PageResponse
+	34, // 36: orc.v1.GetTimelineRequest.page:type_name -> orc.v1.PageRequest
+	1,  // 37: orc.v1.GetTimelineRequest.types:type_name -> orc.v1.TimelineEventType
+	21, // 38: orc.v1.GetTimelineResponse.events:type_name -> orc.v1.TimelineEvent
+	35, // 39: orc.v1.GetTimelineResponse.page:type_name -> orc.v1.PageResponse
+	22, // 40: orc.v1.EventService.Subscribe:input_type -> orc.v1.SubscribeRequest
+	24, // 41: orc.v1.EventService.GetEvents:input_type -> orc.v1.GetEventsRequest
+	26, // 42: orc.v1.EventService.GetTimeline:input_type -> orc.v1.GetTimelineRequest
+	23, // 43: orc.v1.EventService.Subscribe:output_type -> orc.v1.SubscribeResponse
+	25, // 44: orc.v1.EventService.GetEvents:output_type -> orc.v1.GetEventsResponse
+	27, // 45: orc.v1.EventService.GetTimeline:output_type -> orc.v1.GetTimelineResponse
+	43, // [43:46] is the sub-list for method output_type
+	40, // [40:43] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_events_proto_init() }
@@ -2416,9 +2536,9 @@ func file_orc_v1_events_proto_init() {
 	file_orc_v1_events_proto_msgTypes[4].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[5].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[10].OneofWrappers = []any{}
-	file_orc_v1_events_proto_msgTypes[14].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[15].OneofWrappers = []any{}
-	file_orc_v1_events_proto_msgTypes[17].OneofWrappers = []any{
+	file_orc_v1_events_proto_msgTypes[16].OneofWrappers = []any{}
+	file_orc_v1_events_proto_msgTypes[18].OneofWrappers = []any{
 		(*Event_TaskCreated)(nil),
 		(*Event_TaskUpdated)(nil),
 		(*Event_TaskDeleted)(nil),
@@ -2435,17 +2555,18 @@ func file_orc_v1_events_proto_init() {
 		(*Event_Error)(nil),
 		(*Event_Warning)(nil),
 		(*Event_Heartbeat)(nil),
+		(*Event_SessionMetrics)(nil),
 	}
-	file_orc_v1_events_proto_msgTypes[18].OneofWrappers = []any{}
 	file_orc_v1_events_proto_msgTypes[19].OneofWrappers = []any{}
-	file_orc_v1_events_proto_msgTypes[21].OneofWrappers = []any{}
+	file_orc_v1_events_proto_msgTypes[20].OneofWrappers = []any{}
+	file_orc_v1_events_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_events_proto_rawDesc), len(file_orc_v1_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

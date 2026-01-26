@@ -10,7 +10,8 @@
 
 import { useCallback } from 'react';
 import { TaskCard } from './TaskCard';
-import type { Task, Initiative } from '@/lib/types';
+import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import './Swimlane.css';
 
 export interface SwimlaneProps {
@@ -62,7 +63,7 @@ export function Swimlane({
 	taskDecisionCounts,
 }: SwimlaneProps) {
 	// Calculate progress
-	const completedCount = tasks.filter((t) => t.status === 'completed').length;
+	const completedCount = tasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 	const totalCount = tasks.length;
 	const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 

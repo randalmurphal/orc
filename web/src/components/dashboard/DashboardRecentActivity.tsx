@@ -4,7 +4,9 @@
  */
 
 import { Link } from 'react-router-dom';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import { timestampToDate } from '@/lib/time';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import './DashboardRecentActivity.css';
 
@@ -12,10 +14,9 @@ interface DashboardRecentActivityProps {
 	tasks: Task[];
 }
 
-function formatRelativeTime(dateStr: string): string {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	if (isNaN(date.getTime())) return '';
+function formatRelativeTime(ts: Timestamp | undefined): string {
+	const date = timestampToDate(ts);
+	if (!date) return '';
 
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
@@ -55,7 +56,7 @@ export function DashboardRecentActivity({ tasks }: DashboardRecentActivityProps)
 							<span className="activity-id">{task.id}</span>
 							<span className="activity-title">{task.title}</span>
 						</div>
-						<span className="activity-time">{formatRelativeTime(task.updated_at)}</span>
+						<span className="activity-time">{formatRelativeTime(task.updatedAt)}</span>
 					</Link>
 				))}
 			</div>

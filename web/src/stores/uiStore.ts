@@ -1,6 +1,19 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Toast, ToastType, ConnectionStatus } from '@/lib/types';
+import type { ConnectionStatus } from '@/lib/events';
+import type { PendingDecision } from '@/gen/orc/v1/decision_pb';
+
+// UI-specific types (not proto)
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface Toast {
+	id: string;
+	type: ToastType;
+	message: string;
+	title?: string;
+	duration?: number;
+	dismissible?: boolean;
+}
 
 const SIDEBAR_STORAGE_KEY = 'orc-sidebar-expanded';
 const SIDEBAR_DEFAULT_KEY = 'orc-sidebar-default';
@@ -57,6 +70,9 @@ interface UIStore {
 	// Toast queue
 	toasts: Toast[];
 
+	// Pending decisions (from decision_required events)
+	pendingDecisions: PendingDecision[];
+
 	// Sidebar actions
 	toggleSidebar: () => void;
 	setSidebarExpanded: (expanded: boolean) => void;
@@ -73,6 +89,11 @@ interface UIStore {
 	addToast: (toast: Omit<Toast, 'id'> & { id?: string }) => string;
 	dismissToast: (id: string) => void;
 	clearToasts: () => void;
+
+	// Decision actions
+	addPendingDecision: (decision: PendingDecision) => void;
+	removePendingDecision: (decisionId: string) => void;
+	clearPendingDecisions: () => void;
 
 	// Convenience toast methods
 	toast: {
@@ -91,6 +112,7 @@ const initialState = {
 	mobileMenuOpen: false,
 	wsStatus: 'disconnected' as ConnectionStatus,
 	toasts: [] as Toast[],
+	pendingDecisions: [] as PendingDecision[],
 };
 
 export const useUIStore = create<UIStore>()(
@@ -165,6 +187,23 @@ export const useUIStore = create<UIStore>()(
 
 			clearToasts: () => set({ toasts: [] }),
 
+			// Decision actions
+			addPendingDecision: (decision: PendingDecision) =>
+				set((state: UIStore) => {
+					// Avoid duplicates
+					if (state.pendingDecisions.some((d) => d.id === decision.id)) {
+						return state;
+					}
+					return { pendingDecisions: [...state.pendingDecisions, decision] };
+				}),
+
+			removePendingDecision: (decisionId: string) =>
+				set((state: UIStore) => ({
+					pendingDecisions: state.pendingDecisions.filter((d) => d.id !== decisionId),
+				})),
+
+			clearPendingDecisions: () => set({ pendingDecisions: [] }),
+
 			// Convenience toast methods
 			toast: {
 				success: (message: string, options?: Partial<Omit<Toast, 'id' | 'type' | 'message'>>) =>
@@ -195,6 +234,7 @@ export const useSidebarExpanded = () => useUIStore((state: UIStore) => state.sid
 export const useMobileMenuOpen = () => useUIStore((state: UIStore) => state.mobileMenuOpen);
 export const useWsStatus = () => useUIStore((state: UIStore) => state.wsStatus);
 export const useToasts = () => useUIStore((state: UIStore) => state.toasts);
+export const usePendingDecisions = () => useUIStore((state: UIStore) => state.pendingDecisions);
 
 // Direct access to toast methods (for use outside React components)
 export const toast = {

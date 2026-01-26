@@ -12,8 +12,7 @@
 import { useCallback } from 'react';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Tooltip } from '@/components/ui/Tooltip';
-import type { Task, TaskPriority, TaskCategory } from '@/lib/types';
-import { CATEGORY_CONFIG } from '@/lib/types';
+import { type Task, TaskStatus, TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
 import './TaskCard.css';
 
 interface TaskCardProps {
@@ -29,34 +28,49 @@ interface TaskCardProps {
 
 // Priority dot colors
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
-	critical: 'var(--red)',
-	high: 'var(--orange)',
-	normal: 'var(--blue)',
-	low: 'var(--text-muted)',
+	[TaskPriority.CRITICAL]: 'var(--red)',
+	[TaskPriority.HIGH]: 'var(--orange)',
+	[TaskPriority.NORMAL]: 'var(--blue)',
+	[TaskPriority.LOW]: 'var(--text-muted)',
+	[TaskPriority.UNSPECIFIED]: 'var(--text-muted)',
 };
 
-// Category icon mapping (to IconName)
-const CATEGORY_ICONS: Record<TaskCategory, IconName> = {
-	feature: 'sparkles',
-	bug: 'bug',
-	refactor: 'recycle',
-	chore: 'tools',
-	docs: 'file-text',
-	test: 'beaker',
+// Category config with labels, colors, and icons
+const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: IconName }> = {
+	[TaskCategory.FEATURE]: { label: 'Feature', color: 'var(--status-success)', icon: 'sparkles' },
+	[TaskCategory.BUG]: { label: 'Bug', color: 'var(--status-error)', icon: 'bug' },
+	[TaskCategory.REFACTOR]: { label: 'Refactor', color: 'var(--status-info)', icon: 'recycle' },
+	[TaskCategory.CHORE]: { label: 'Chore', color: 'var(--text-muted)', icon: 'tools' },
+	[TaskCategory.DOCS]: { label: 'Docs', color: 'var(--status-warning)', icon: 'file-text' },
+	[TaskCategory.TEST]: { label: 'Test', color: 'var(--cyan)', icon: 'beaker' },
+	[TaskCategory.UNSPECIFIED]: { label: 'Feature', color: 'var(--status-success)', icon: 'sparkles' },
 };
+
+/** Get human-readable priority label */
+function getPriorityLabel(priority: TaskPriority): string {
+	switch (priority) {
+		case TaskPriority.CRITICAL: return 'critical';
+		case TaskPriority.HIGH: return 'high';
+		case TaskPriority.NORMAL: return 'normal';
+		case TaskPriority.LOW: return 'low';
+		default: return 'normal';
+	}
+}
 
 /**
  * Build accessible aria-label for task card
  */
 function buildAriaLabel(task: Task): string {
-	const priority = task.priority || 'normal';
-	const category = task.category || 'feature';
-	const parts = [`${task.id}: ${task.title}`, `${priority} priority`, category];
+	const priority = task.priority || TaskPriority.NORMAL;
+	const category = task.category || TaskCategory.FEATURE;
+	const priorityLabel = getPriorityLabel(priority);
+	const categoryConfig = CATEGORY_CONFIG[category];
+	const parts = [`${task.id}: ${task.title}`, `${priorityLabel} priority`, categoryConfig.label.toLowerCase()];
 
-	if (task.is_blocked) {
+	if (task.isBlocked) {
 		parts.push('blocked');
 	}
-	if (task.status === 'running') {
+	if (task.status === TaskStatus.RUNNING) {
 		parts.push('running');
 	}
 
@@ -72,14 +86,13 @@ export function TaskCard({
 	className = '',
 	pendingDecisionCount = 0,
 }: TaskCardProps) {
-	const priority = (task.priority || 'normal') as TaskPriority;
-	const category = (task.category || 'feature') as TaskCategory;
+	const priority = task.priority || TaskPriority.NORMAL;
+	const category = task.category || TaskCategory.FEATURE;
 	const categoryConfig = CATEGORY_CONFIG[category];
-	const categoryIcon = CATEGORY_ICONS[category];
 	const priorityColor = PRIORITY_COLORS[priority];
 
-	const isRunning = task.status === 'running';
-	const isBlocked = task.is_blocked;
+	const isRunning = task.status === TaskStatus.RUNNING;
+	const isBlocked = task.isBlocked;
 	const hasPendingDecision = pendingDecisionCount > 0;
 
 	// Click handler
@@ -135,15 +148,15 @@ export function TaskCard({
 				style={{ color: categoryConfig.color }}
 				title={categoryConfig.label}
 			>
-				<Icon name={categoryIcon} size={14} />
+				<Icon name={categoryConfig.icon} size={14} />
 			</div>
 
 			{/* Main content */}
 			<div className="task-card-content">
 				<div className="task-card-header">
 					<span className="task-card-id">{task.id}</span>
-					{showInitiative && task.initiative_id && (
-						<span className="task-card-initiative">{task.initiative_id}</span>
+					{showInitiative && task.initiativeId && (
+						<span className="task-card-initiative">{task.initiativeId}</span>
 					)}
 				</div>
 				<Tooltip content={task.title} side="top">
@@ -155,14 +168,14 @@ export function TaskCard({
 			<div className="task-card-status">
 				{/* Blocked warning icon */}
 				{isBlocked && (
-					<span className="task-card-blocked" title={`Blocked by ${task.unmet_blockers?.join(', ')}`}>
+					<span className="task-card-blocked" title={`Blocked by ${task.unmetBlockers?.join(', ')}`}>
 						<Icon name="alert-triangle" size={12} />
 					</span>
 				)}
 
 				{/* Running progress indicator */}
 				{isRunning && (
-					<span className="task-card-running" title={`Running: ${task.current_phase || 'starting'}`}>
+					<span className="task-card-running" title={`Running: ${task.currentPhase || 'starting'}`}>
 						<span className="task-card-running-dot" />
 					</span>
 				)}

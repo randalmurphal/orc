@@ -3,7 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TaskHeader } from './TaskHeader';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskWeight, TaskCategory, TaskPriority, TaskQueue, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { createMockTask, createTimestamp } from '@/test/factories';
 
 // Mock the navigate function
 const mockNavigate = vi.fn();
@@ -44,44 +46,34 @@ vi.mock('@/stores/uiStore', () => ({
 	},
 }));
 
-// Type for overrides that only allows optional fields from Task (not required ones)
-type TaskOverrides = Omit<Partial<Task>, 'id' | 'title' | 'weight' | 'status' | 'branch' | 'created_at' | 'updated_at'> & {
-	id?: string;
-	title?: string;
-	weight?: Task['weight'];
-	status?: Task['status'];
-	branch?: string;
-	created_at?: string;
-	updated_at?: string;
-};
-
 describe('TaskHeader', () => {
-	const createTask = (overrides: TaskOverrides = {}): Task => ({
-		id: overrides.id ?? 'TASK-001',
-		title: overrides.title ?? 'Test Task',
-		description: overrides.description ?? 'Test description',
-		status: overrides.status ?? 'created',
-		weight: overrides.weight ?? 'small',
-		branch: overrides.branch ?? 'orc/TASK-001',
-		priority: overrides.priority ?? 'normal',
-		category: overrides.category ?? 'feature',
-		queue: overrides.queue ?? 'active',
-		created_at: overrides.created_at ?? '2024-01-01T00:00:00Z',
-		updated_at: overrides.updated_at ?? '2024-01-01T00:00:00Z',
-		initiative_id: overrides.initiative_id,
-		target_branch: overrides.target_branch,
-		blocked_by: overrides.blocked_by,
-		blocks: overrides.blocks,
-		related_to: overrides.related_to,
-		referenced_by: overrides.referenced_by,
-		is_blocked: overrides.is_blocked,
-		unmet_blockers: overrides.unmet_blockers,
-		dependency_status: overrides.dependency_status,
-		started_at: overrides.started_at,
-		completed_at: overrides.completed_at,
-		current_phase: overrides.current_phase,
-		metadata: overrides.metadata,
-	});
+	const createTask = (overrides: Partial<Omit<Task, '$typeName' | '$unknown'>> = {}): Task => {
+		return createMockTask({
+			id: overrides.id ?? 'TASK-001',
+			title: overrides.title ?? 'Test Task',
+			description: overrides.description ?? 'Test description',
+			status: overrides.status ?? TaskStatus.CREATED,
+			weight: overrides.weight ?? TaskWeight.SMALL,
+			branch: overrides.branch ?? 'orc/TASK-001',
+			priority: overrides.priority ?? TaskPriority.NORMAL,
+			category: overrides.category ?? TaskCategory.FEATURE,
+			queue: overrides.queue ?? TaskQueue.ACTIVE,
+			createdAt: overrides.createdAt ?? createTimestamp('2024-01-01T00:00:00Z'),
+			updatedAt: overrides.updatedAt ?? createTimestamp('2024-01-01T00:00:00Z'),
+			initiativeId: overrides.initiativeId,
+			targetBranch: overrides.targetBranch,
+			blockedBy: overrides.blockedBy ?? [],
+			blocks: overrides.blocks ?? [],
+			relatedTo: overrides.relatedTo ?? [],
+			referencedBy: overrides.referencedBy ?? [],
+			isBlocked: overrides.isBlocked ?? false,
+			unmetBlockers: overrides.unmetBlockers ?? [],
+			currentPhase: overrides.currentPhase,
+			startedAt: overrides.startedAt,
+			completedAt: overrides.completedAt,
+			metadata: overrides.metadata ?? {},
+		});
+	};
 
 	const defaultProps = {
 		task: createTask(),
@@ -104,9 +96,9 @@ describe('TaskHeader', () => {
 	};
 
 	describe('Initiative Badge', () => {
-		it('renders initiative badge when task.initiative_id is set', () => {
+		it('renders initiative badge when task.initiativeId is set', () => {
 			renderTaskHeader({
-				task: createTask({ initiative_id: 'INIT-001' }),
+				task: createTask({ initiativeId: 'INIT-001' }),
 			});
 
 			const badge = screen.getByRole('button', { name: /test init/i });
@@ -114,9 +106,9 @@ describe('TaskHeader', () => {
 			expect(badge).toHaveClass('initiative-badge');
 		});
 
-		it('hides initiative badge when task.initiative_id is undefined', () => {
+		it('hides initiative badge when task.initiativeId is undefined', () => {
 			renderTaskHeader({
-				task: createTask({ initiative_id: undefined }),
+				task: createTask({ initiativeId: undefined }),
 			});
 
 			expect(screen.queryByText(/test init/i)).not.toBeInTheDocument();
@@ -124,7 +116,7 @@ describe('TaskHeader', () => {
 
 		it('navigates to initiative detail page when clicked', () => {
 			renderTaskHeader({
-				task: createTask({ initiative_id: 'INIT-001' }),
+				task: createTask({ initiativeId: 'INIT-001' }),
 			});
 
 			const badge = screen.getByRole('button', { name: /test init/i });
@@ -137,7 +129,7 @@ describe('TaskHeader', () => {
 	describe('Priority Badge', () => {
 		it('renders priority badge for critical priority', () => {
 			renderTaskHeader({
-				task: createTask({ priority: 'critical' }),
+				task: createTask({ priority: TaskPriority.CRITICAL }),
 			});
 
 			const badge = screen.getByText('Critical');
@@ -147,7 +139,7 @@ describe('TaskHeader', () => {
 
 		it('renders priority badge for high priority', () => {
 			renderTaskHeader({
-				task: createTask({ priority: 'high' }),
+				task: createTask({ priority: TaskPriority.HIGH }),
 			});
 
 			const badge = screen.getByText('High');
@@ -157,7 +149,7 @@ describe('TaskHeader', () => {
 
 		it('renders priority badge for low priority', () => {
 			renderTaskHeader({
-				task: createTask({ priority: 'low' }),
+				task: createTask({ priority: TaskPriority.LOW }),
 			});
 
 			const badge = screen.getByText('Low');
@@ -167,7 +159,7 @@ describe('TaskHeader', () => {
 
 		it('renders priority badge for normal priority with subtle styling', () => {
 			renderTaskHeader({
-				task: createTask({ priority: 'normal' }),
+				task: createTask({ priority: TaskPriority.NORMAL }),
 			});
 
 			const badge = screen.getByText('Normal');
@@ -177,7 +169,7 @@ describe('TaskHeader', () => {
 
 		it('defaults to normal priority when priority is not set', () => {
 			renderTaskHeader({
-				task: createTask({ priority: undefined }),
+				task: createTask({ priority: TaskPriority.UNSPECIFIED }),
 			});
 
 			const badge = screen.getByText('Normal');
@@ -190,10 +182,10 @@ describe('TaskHeader', () => {
 		it('renders badges in correct order: ID, status, weight, category, priority, initiative', () => {
 			const { container } = renderTaskHeader({
 				task: createTask({
-					initiative_id: 'INIT-001',
-					priority: 'high',
-					category: 'bug',
-					weight: 'medium',
+					initiativeId: 'INIT-001',
+					priority: TaskPriority.HIGH,
+					category: TaskCategory.BUG,
+					weight: TaskWeight.MEDIUM,
 				}),
 			});
 
@@ -218,32 +210,32 @@ describe('Running Status Badge (TASK-312)', () => {
 	// Helper to create a plan with phases
 	const createPlan = (phases: string[], currentPhase?: string) => ({
 		version: 1,
-		weight: 'small' as const,
+		weight: TaskWeight.SMALL,
 		description: 'Test plan',
 		phases: phases.map((name, idx) => ({
 			id: `phase-${idx}`,
 			name,
-			status: name === currentPhase ? 'running' as const : 
-				phases.indexOf(name) < phases.indexOf(currentPhase ?? '') ? 'completed' as const : 'pending' as const,
+			status: name === currentPhase ? PhaseStatus.RUNNING :
+				phases.indexOf(name) < phases.indexOf(currentPhase ?? '') ? PhaseStatus.COMPLETED : PhaseStatus.PENDING,
 			iterations: 1,
 		})),
 	});
 
 	const renderTaskHeader = (props = {}) => {
 		const defaultProps = {
-			task: {
+			task: createMockTask({
 				id: 'TASK-001',
 				title: 'Test Task',
 				description: 'Test description',
-				status: 'created' as const,
-				weight: 'small' as const,
+				status: TaskStatus.CREATED,
+				weight: TaskWeight.SMALL,
 				branch: 'orc/TASK-001',
-				priority: 'normal' as const,
-				category: 'feature' as const,
-				queue: 'active' as const,
-				created_at: '2024-01-01T00:00:00Z',
-				updated_at: '2024-01-01T00:00:00Z',
-			},
+				priority: TaskPriority.NORMAL,
+				category: TaskCategory.FEATURE,
+				queue: TaskQueue.ACTIVE,
+				createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+				updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+			}),
 			onTaskUpdate: vi.fn(),
 			onTaskDelete: vi.fn(),
 		};
@@ -257,36 +249,36 @@ describe('Running Status Badge (TASK-312)', () => {
 	};
 
 	describe('SC-1: Running status badge with phase name', () => {
-		it('displays "Running: implement" badge when task is running with current_phase=implement', () => {
+		it('displays "Running: implement" badge when task is running with currentPhase=implement', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'small',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			});
 
 			// Should display "Running: implement" prominently
 			expect(screen.getByText(/Running.*implement/i)).toBeInTheDocument();
 		});
 
-		it('displays "Running: review" badge when task is running with current_phase=review', () => {
+		it('displays "Running: review" badge when task is running with currentPhase=review', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'small',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'review',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'review',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			});
 
 			expect(screen.getByText(/Running.*review/i)).toBeInTheDocument();
@@ -294,16 +286,16 @@ describe('Running Status Badge (TASK-312)', () => {
 
 		it('does NOT display running badge when task is not running', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'completed',
-					weight: 'small',
+					status: TaskStatus.COMPLETED,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			});
 
 			expect(screen.queryByText(/Running.*implement/i)).not.toBeInTheDocument();
@@ -311,16 +303,16 @@ describe('Running Status Badge (TASK-312)', () => {
 
 		it('has pulse animation class for running status', () => {
 			const { container } = renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'small',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			});
 
 			// Running badge should have animation class
@@ -333,16 +325,16 @@ describe('Running Status Badge (TASK-312)', () => {
 	describe('SC-2: Phase progress indicator', () => {
 		it('displays "2 of 4" when on second phase of four-phase plan', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'small',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 				plan: createPlan(['spec', 'implement', 'review', 'docs'], 'implement'),
 			});
 
@@ -352,16 +344,16 @@ describe('Running Status Badge (TASK-312)', () => {
 
 		it('displays "3 of 5" when on third phase of five-phase plan', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'medium',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.MEDIUM,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 				plan: createPlan(['spec', 'tdd_write', 'implement', 'review', 'docs'], 'implement'),
 			});
 
@@ -370,16 +362,16 @@ describe('Running Status Badge (TASK-312)', () => {
 
 		it('does NOT display phase progress when plan is not provided', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'running',
-					weight: 'small',
+					status: TaskStatus.RUNNING,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			});
 
 			// Should NOT have progress like "X of Y" without plan
@@ -388,16 +380,16 @@ describe('Running Status Badge (TASK-312)', () => {
 
 		it('does NOT display phase progress when task is not running', () => {
 			renderTaskHeader({
-				task: {
+				task: createMockTask({
 					id: 'TASK-001',
 					title: 'Test Task',
-					status: 'completed',
-					weight: 'small',
+					status: TaskStatus.COMPLETED,
+					weight: TaskWeight.SMALL,
 					branch: 'orc/TASK-001',
-					current_phase: 'implement',
-					created_at: '2024-01-01T00:00:00Z',
-					updated_at: '2024-01-01T00:00:00Z',
-				},
+					currentPhase: 'implement',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+					updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 				plan: createPlan(['spec', 'implement', 'review', 'docs'], 'implement'),
 			});
 

@@ -2,22 +2,31 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskCard } from './TaskCard';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Task } from '@/lib/types';
+import { createMockTask, createTimestamp } from '@/test/factories';
+import {
+	type Task,
+	TaskStatus,
+	TaskWeight,
+	TaskCategory,
+	TaskPriority,
+} from '@/gen/orc/v1/task_pb';
 
-// Sample task for testing
-const createTask = (overrides: Partial<Task> = {}): Task => ({
-	id: 'TASK-001',
-	title: 'Test Task',
-	description: 'A test task description',
-	weight: 'medium',
-	status: 'created',
-	category: 'feature',
-	priority: 'normal',
-	branch: 'orc/TASK-001',
-	created_at: '2024-01-01T00:00:00Z',
-	updated_at: '2024-01-01T00:00:00Z',
-	...overrides,
-});
+// Helper to create task with common test defaults
+function createTask(overrides: Partial<Omit<Task, '$typeName' | '$unknown'>> = {}): Task {
+	return createMockTask({
+		id: 'TASK-001',
+		title: 'Test Task',
+		description: 'A test task description',
+		weight: TaskWeight.MEDIUM,
+		status: TaskStatus.CREATED,
+		category: TaskCategory.FEATURE,
+		priority: TaskPriority.NORMAL,
+		branch: 'orc/TASK-001',
+		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+		...overrides,
+	});
+}
 
 function renderTaskCard(task: Task, props: Partial<Parameters<typeof TaskCard>[0]> = {}) {
 	return render(
@@ -64,29 +73,29 @@ describe('TaskCard', () => {
 		});
 
 		it('renders correct category icon based on task category', () => {
-			const { container: featureContainer } = renderTaskCard(createTask({ category: 'feature' }));
+			const { container: featureContainer } = renderTaskCard(createTask({ category: TaskCategory.FEATURE }));
 			expect(featureContainer.querySelector('.task-card-category')).toBeInTheDocument();
 
-			const { container: bugContainer } = renderTaskCard(createTask({ category: 'bug' }));
+			const { container: bugContainer } = renderTaskCard(createTask({ category: TaskCategory.BUG }));
 			expect(bugContainer.querySelector('.task-card-category')).toBeInTheDocument();
 		});
 
 		it('renders different priority dot colors', () => {
 			const { container: criticalContainer } = renderTaskCard(
-				createTask({ priority: 'critical' })
+				createTask({ priority: TaskPriority.CRITICAL })
 			);
 			const criticalDot = criticalContainer.querySelector('.task-card-priority');
 			expect(criticalDot).toHaveStyle({ backgroundColor: 'var(--red)' });
 
-			const { container: highContainer } = renderTaskCard(createTask({ priority: 'high' }));
+			const { container: highContainer } = renderTaskCard(createTask({ priority: TaskPriority.HIGH }));
 			const highDot = highContainer.querySelector('.task-card-priority');
 			expect(highDot).toHaveStyle({ backgroundColor: 'var(--orange)' });
 
-			const { container: normalContainer } = renderTaskCard(createTask({ priority: 'normal' }));
+			const { container: normalContainer } = renderTaskCard(createTask({ priority: TaskPriority.NORMAL }));
 			const normalDot = normalContainer.querySelector('.task-card-priority');
 			expect(normalDot).toHaveStyle({ backgroundColor: 'var(--blue)' });
 
-			const { container: lowContainer } = renderTaskCard(createTask({ priority: 'low' }));
+			const { container: lowContainer } = renderTaskCard(createTask({ priority: TaskPriority.LOW }));
 			const lowDot = lowContainer.querySelector('.task-card-priority');
 			expect(lowDot).toHaveStyle({ backgroundColor: 'var(--text-muted)' });
 		});
@@ -102,7 +111,7 @@ describe('TaskCard', () => {
 
 		it('has running class when task is running', () => {
 			const { container } = renderTaskCard(
-				createTask({ status: 'running', current_phase: 'implement' })
+				createTask({ status: TaskStatus.RUNNING, currentPhase: 'implement' })
 			);
 
 			expect(container.querySelector('.task-card')).toHaveClass('running');
@@ -110,7 +119,7 @@ describe('TaskCard', () => {
 
 		it('has blocked class when task is blocked', () => {
 			const { container } = renderTaskCard(
-				createTask({ is_blocked: true, unmet_blockers: ['TASK-002'] })
+				createTask({ isBlocked: true, unmetBlockers: ['TASK-002'] })
 			);
 
 			expect(container.querySelector('.task-card')).toHaveClass('blocked');
@@ -190,7 +199,7 @@ describe('TaskCard', () => {
 
 	describe('aria-label', () => {
 		it('has correct aria-label format', () => {
-			renderTaskCard(createTask({ priority: 'high', category: 'feature' }));
+			renderTaskCard(createTask({ priority: TaskPriority.HIGH, category: TaskCategory.FEATURE }));
 
 			const card = screen.getByRole('button');
 			expect(card).toHaveAttribute(
@@ -200,14 +209,14 @@ describe('TaskCard', () => {
 		});
 
 		it('includes blocked in aria-label when task is blocked', () => {
-			renderTaskCard(createTask({ is_blocked: true, unmet_blockers: ['TASK-002'] }));
+			renderTaskCard(createTask({ isBlocked: true, unmetBlockers: ['TASK-002'] }));
 
 			const card = screen.getByRole('button');
 			expect(card.getAttribute('aria-label')).toContain('blocked');
 		});
 
 		it('includes running in aria-label when task is running', () => {
-			renderTaskCard(createTask({ status: 'running' }));
+			renderTaskCard(createTask({ status: TaskStatus.RUNNING }));
 
 			const card = screen.getByRole('button');
 			expect(card.getAttribute('aria-label')).toContain('running');
@@ -217,7 +226,7 @@ describe('TaskCard', () => {
 	describe('blocked tasks', () => {
 		it('shows warning icon for blocked tasks', () => {
 			const { container } = renderTaskCard(
-				createTask({ is_blocked: true, unmet_blockers: ['TASK-002', 'TASK-003'] })
+				createTask({ isBlocked: true, unmetBlockers: ['TASK-002', 'TASK-003'] })
 			);
 
 			const blockedIcon = container.querySelector('.task-card-blocked');
@@ -225,7 +234,7 @@ describe('TaskCard', () => {
 		});
 
 		it('does not show warning icon when not blocked', () => {
-			const { container } = renderTaskCard(createTask({ is_blocked: false }));
+			const { container } = renderTaskCard(createTask({ isBlocked: false }));
 
 			const blockedIcon = container.querySelector('.task-card-blocked');
 			expect(blockedIcon).not.toBeInTheDocument();
@@ -235,7 +244,7 @@ describe('TaskCard', () => {
 	describe('running tasks', () => {
 		it('shows mini progress indicator for running tasks', () => {
 			const { container } = renderTaskCard(
-				createTask({ status: 'running', current_phase: 'implement' })
+				createTask({ status: TaskStatus.RUNNING, currentPhase: 'implement' })
 			);
 
 			const runningIndicator = container.querySelector('.task-card-running');
@@ -246,7 +255,7 @@ describe('TaskCard', () => {
 		});
 
 		it('does not show running indicator when not running', () => {
-			const { container } = renderTaskCard(createTask({ status: 'created' }));
+			const { container } = renderTaskCard(createTask({ status: TaskStatus.CREATED }));
 
 			const runningIndicator = container.querySelector('.task-card-running');
 			expect(runningIndicator).not.toBeInTheDocument();
@@ -256,13 +265,13 @@ describe('TaskCard', () => {
 	describe('missing initiative', () => {
 		it('handles missing initiative gracefully (no crash)', () => {
 			expect(() => {
-				renderTaskCard(createTask({ initiative_id: undefined }));
+				renderTaskCard(createTask({ initiativeId: undefined }));
 			}).not.toThrow();
 		});
 
 		it('shows initiative badge when showInitiative is true and initiative exists', () => {
 			const { container } = renderTaskCard(
-				createTask({ initiative_id: 'INIT-001' }),
+				createTask({ initiativeId: 'INIT-001' }),
 				{ showInitiative: true }
 			);
 
@@ -273,7 +282,7 @@ describe('TaskCard', () => {
 
 		it('does not show initiative badge when showInitiative is false', () => {
 			const { container } = renderTaskCard(
-				createTask({ initiative_id: 'INIT-001' }),
+				createTask({ initiativeId: 'INIT-001' }),
 				{ showInitiative: false }
 			);
 

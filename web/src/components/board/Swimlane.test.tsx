@@ -2,42 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Swimlane, type SwimlaneProps } from './Swimlane';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Task, Initiative } from '@/lib/types';
-
-// Sample task factory
-function createTask(overrides: Partial<Task> = {}): Task {
-	return {
-		id: 'TASK-001',
-		title: 'Test Task',
-		description: 'A test task description',
-		weight: 'medium',
-		status: 'created',
-		category: 'feature',
-		priority: 'normal',
-		branch: 'orc/TASK-001',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
-
-// Sample initiative factory
-function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
-	return {
-		version: 1,
-		id: 'INIT-001',
-		title: 'Test Initiative',
-		status: 'active',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { createMockTask, createMockInitiative } from '@/test/factories';
 
 function renderSwimlane(props: Partial<SwimlaneProps> = {}) {
 	const defaultProps: SwimlaneProps = {
-		initiative: createInitiative(),
-		tasks: [createTask()],
+		initiative: createMockInitiative(),
+		tasks: [createMockTask()],
 		isCollapsed: false,
 		onToggle: vi.fn(),
 		...props,
@@ -57,10 +28,10 @@ describe('Swimlane', () => {
 	describe('rendering', () => {
 		it('renders header with chevron, icon, name, count, and progress', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ title: 'Auth System' }),
+				initiative: createMockInitiative({ title: 'Auth System' }),
 				tasks: [
-					createTask({ id: 'T1', status: 'created' }),
-					createTask({ id: 'T2', status: 'completed' }),
+					createMockTask({ id: 'T1', status: TaskStatus.CREATED }),
+					createMockTask({ id: 'T2', status: TaskStatus.COMPLETED }),
 				],
 			});
 
@@ -89,9 +60,9 @@ describe('Swimlane', () => {
 		it('displays correct task count badge', () => {
 			const { container } = renderSwimlane({
 				tasks: [
-					createTask({ id: 'T1' }),
-					createTask({ id: 'T2' }),
-					createTask({ id: 'T3' }),
+					createMockTask({ id: 'T1' }),
+					createMockTask({ id: 'T2' }),
+					createMockTask({ id: 'T3' }),
 				],
 			});
 
@@ -102,10 +73,10 @@ describe('Swimlane', () => {
 		it('calculates and displays progress correctly', () => {
 			const { container } = renderSwimlane({
 				tasks: [
-					createTask({ id: 'T1', status: 'completed' }),
-					createTask({ id: 'T2', status: 'completed' }),
-					createTask({ id: 'T3', status: 'created' }),
-					createTask({ id: 'T4', status: 'running' }),
+					createMockTask({ id: 'T1', status: TaskStatus.COMPLETED }),
+					createMockTask({ id: 'T2', status: TaskStatus.COMPLETED }),
+					createMockTask({ id: 'T3', status: TaskStatus.CREATED }),
+					createMockTask({ id: 'T4', status: TaskStatus.RUNNING }),
 				],
 			});
 
@@ -117,8 +88,8 @@ describe('Swimlane', () => {
 		it('renders TaskCards for each task', () => {
 			renderSwimlane({
 				tasks: [
-					createTask({ id: 'TASK-001', title: 'First Task' }),
-					createTask({ id: 'TASK-002', title: 'Second Task' }),
+					createMockTask({ id: 'TASK-001', title: 'First Task' }),
+					createMockTask({ id: 'TASK-002', title: 'Second Task' }),
 				],
 			});
 
@@ -130,7 +101,7 @@ describe('Swimlane', () => {
 	describe('initiative icon', () => {
 		it('uses first letter of initiative title as icon', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ title: 'Backend API' }),
+				initiative: createMockInitiative({ title: 'Backend API' }),
 			});
 
 			const icon = container.querySelector('.swimlane-icon');
@@ -139,7 +110,7 @@ describe('Swimlane', () => {
 
 		it('uses emoji if initiative title starts with one', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ title: '🚀 Launch Features' }),
+				initiative: createMockInitiative({ title: '🚀 Launch Features' }),
 			});
 
 			const icon = container.querySelector('.swimlane-icon');
@@ -151,7 +122,7 @@ describe('Swimlane', () => {
 		it('shows ? icon for null initiative (unassigned)', () => {
 			const { container } = renderSwimlane({
 				initiative: null,
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 			});
 
 			const icon = container.querySelector('.swimlane-icon');
@@ -163,7 +134,7 @@ describe('Swimlane', () => {
 		it('shows "Unassigned" title when initiative is null', () => {
 			renderSwimlane({
 				initiative: null,
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 			});
 
 			expect(screen.getByText('Unassigned')).toBeInTheDocument();
@@ -172,7 +143,7 @@ describe('Swimlane', () => {
 		it('applies unassigned color class to icon', () => {
 			const { container } = renderSwimlane({
 				initiative: null,
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 			});
 
 			const icon = container.querySelector('.swimlane-icon');
@@ -182,7 +153,7 @@ describe('Swimlane', () => {
 		it('sets data-testid to swimlane-unassigned', () => {
 			renderSwimlane({
 				initiative: null,
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 			});
 
 			expect(screen.getByTestId('swimlane-unassigned')).toBeInTheDocument();
@@ -229,7 +200,7 @@ describe('Swimlane', () => {
 
 		it('sets aria-hidden on content when collapsed', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-001' }),
+				initiative: createMockInitiative({ id: 'INIT-001' }),
 				isCollapsed: true,
 			});
 
@@ -294,7 +265,7 @@ describe('Swimlane', () => {
 	describe('task click handler', () => {
 		it('calls onTaskClick when a TaskCard is clicked', () => {
 			const onTaskClick = vi.fn();
-			const task = createTask({ id: 'TASK-001' });
+			const task = createMockTask({ id: 'TASK-001' });
 			const { container } = renderSwimlane({
 				tasks: [task],
 				onTaskClick,
@@ -309,7 +280,7 @@ describe('Swimlane', () => {
 
 		it('does not crash when onTaskClick is not provided', () => {
 			const { container } = renderSwimlane({
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 				onTaskClick: undefined,
 			});
 
@@ -321,7 +292,7 @@ describe('Swimlane', () => {
 	describe('context menu handler', () => {
 		it('calls onContextMenu when TaskCard is right-clicked', () => {
 			const onContextMenu = vi.fn();
-			const task = createTask({ id: 'TASK-001' });
+			const task = createMockTask({ id: 'TASK-001' });
 			const { container } = renderSwimlane({
 				tasks: [task],
 				onContextMenu,
@@ -336,7 +307,7 @@ describe('Swimlane', () => {
 
 		it('does not crash when onContextMenu is not provided', () => {
 			const { container } = renderSwimlane({
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 				onContextMenu: undefined,
 			});
 
@@ -349,7 +320,7 @@ describe('Swimlane', () => {
 		it('renders long names with title attribute for tooltip', () => {
 			const longTitle = 'This is a very long initiative name that should be truncated with ellipsis via CSS';
 			renderSwimlane({
-				initiative: createInitiative({ title: longTitle }),
+				initiative: createMockInitiative({ title: longTitle }),
 			});
 
 			const nameElement = screen.getByText(longTitle);
@@ -358,7 +329,7 @@ describe('Swimlane', () => {
 
 		it('name element has class for ellipsis truncation', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ title: 'Any Name' }),
+				initiative: createMockInitiative({ title: 'Any Name' }),
 			});
 
 			const nameElement = container.querySelector('.swimlane-name');
@@ -393,7 +364,7 @@ describe('Swimlane', () => {
 
 		it('header has aria-controls pointing to content ID', () => {
 			const { container } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-001' }),
+				initiative: createMockInitiative({ id: 'INIT-001' }),
 			});
 
 			const header = container.querySelector('.swimlane-header');
@@ -403,8 +374,8 @@ describe('Swimlane', () => {
 		it('progress bar has role="progressbar" and aria attributes', () => {
 			const { container } = renderSwimlane({
 				tasks: [
-					createTask({ id: 'T1', status: 'completed' }),
-					createTask({ id: 'T2', status: 'created' }),
+					createMockTask({ id: 'T1', status: TaskStatus.COMPLETED }),
+					createMockTask({ id: 'T2', status: TaskStatus.CREATED }),
 				],
 			});
 
@@ -420,10 +391,10 @@ describe('Swimlane', () => {
 		it('assigns consistent color themes based on initiative ID', () => {
 			// Same initiative ID should always get the same color
 			const { container: container1 } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-ABC' }),
+				initiative: createMockInitiative({ id: 'INIT-ABC' }),
 			});
 			const { container: container2 } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-ABC' }),
+				initiative: createMockInitiative({ id: 'INIT-ABC' }),
 			});
 
 			const icon1 = container1.querySelector('.swimlane-icon');
@@ -435,10 +406,10 @@ describe('Swimlane', () => {
 			// Note: Due to hash collision, this test may fail occasionally
 			// but should work for most unique IDs
 			const { container: container1 } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-001' }),
+				initiative: createMockInitiative({ id: 'INIT-001' }),
 			});
 			const { container: container2 } = renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-002' }),
+				initiative: createMockInitiative({ id: 'INIT-002' }),
 			});
 
 			const icon1 = container1.querySelector('.swimlane-icon');
@@ -453,11 +424,11 @@ describe('Swimlane', () => {
 	describe('meta information', () => {
 		it('shows completed/total count in meta for initiatives', () => {
 			renderSwimlane({
-				initiative: createInitiative(),
+				initiative: createMockInitiative(),
 				tasks: [
-					createTask({ id: 'T1', status: 'completed' }),
-					createTask({ id: 'T2', status: 'running' }),
-					createTask({ id: 'T3', status: 'created' }),
+					createMockTask({ id: 'T1', status: TaskStatus.COMPLETED }),
+					createMockTask({ id: 'T2', status: TaskStatus.RUNNING }),
+					createMockTask({ id: 'T3', status: TaskStatus.CREATED }),
 				],
 			});
 
@@ -467,7 +438,7 @@ describe('Swimlane', () => {
 		it('does not show meta for unassigned swimlane', () => {
 			const { container } = renderSwimlane({
 				initiative: null,
-				tasks: [createTask()],
+				tasks: [createMockTask()],
 			});
 
 			const meta = container.querySelector('.swimlane-meta');
@@ -478,7 +449,7 @@ describe('Swimlane', () => {
 	describe('data-testid', () => {
 		it('sets data-testid with initiative ID', () => {
 			renderSwimlane({
-				initiative: createInitiative({ id: 'INIT-TEST' }),
+				initiative: createMockInitiative({ id: 'INIT-TEST' }),
 			});
 
 			expect(screen.getByTestId('swimlane-INIT-TEST')).toBeInTheDocument();

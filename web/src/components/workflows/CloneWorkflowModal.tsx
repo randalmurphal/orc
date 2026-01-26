@@ -11,8 +11,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { cloneWorkflow } from '@/lib/api';
-import type { Workflow } from '@/lib/types';
+import { workflowClient } from '@/lib/client';
+import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import './CloneWorkflowModal.css';
 
 export interface CloneWorkflowModalProps {
@@ -90,12 +90,14 @@ export function CloneWorkflowModal({
 			setError(null);
 
 			try {
-				const cloned = await cloneWorkflow(workflow.id, {
-					new_id: newId.trim(),
-					name: name.trim() || undefined,
-					description: description.trim() || undefined,
+				const response = await workflowClient.cloneWorkflow({
+					sourceId: workflow.id,
+					newId: newId.trim(),
+					newName: name.trim() || undefined,
 				});
-				onCloned(cloned);
+				if (response.workflow) {
+					onCloned(response.workflow);
+				}
 				handleClose();
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Failed to clone workflow');
@@ -103,7 +105,7 @@ export function CloneWorkflowModal({
 				setSaving(false);
 			}
 		},
-		[workflow, newId, name, description, onCloned, handleClose]
+		[workflow, newId, name, onCloned, handleClose]
 	);
 
 	if (!workflow) {
@@ -126,7 +128,7 @@ export function CloneWorkflowModal({
 						<Icon name="workflow" size={14} />
 						<span className="clone-workflow-source-name">{workflow.name}</span>
 						<code className="clone-workflow-source-id">{workflow.id}</code>
-						{workflow.is_builtin && (
+						{workflow.isBuiltin && (
 							<span className="clone-workflow-source-badge">Built-in</span>
 						)}
 					</div>

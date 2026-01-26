@@ -10,12 +10,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { computeLayout, getEdgePath, type LayoutConfig } from '@/lib/graph-layout';
-import type { DependencyGraphNode, DependencyGraphEdge } from '@/lib/api';
+import { type DependencyNode, type DependencyEdge, TaskStatus } from '@/gen/orc/v1/task_pb';
 import './DependencyGraph.css';
 
+// Map TaskStatus enum to string status for styling
+type StatusString = 'done' | 'running' | 'blocked' | 'ready' | 'pending' | 'paused' | 'failed';
+
+function taskStatusToString(status: TaskStatus): StatusString {
+	switch (status) {
+		case TaskStatus.COMPLETED:
+			return 'done';
+		case TaskStatus.RUNNING:
+			return 'running';
+		case TaskStatus.BLOCKED:
+			return 'blocked';
+		case TaskStatus.PLANNED:
+			return 'ready';
+		case TaskStatus.PAUSED:
+			return 'paused';
+		case TaskStatus.FAILED:
+			return 'failed';
+		case TaskStatus.CREATED:
+		case TaskStatus.CLASSIFYING:
+		case TaskStatus.FINALIZING:
+		case TaskStatus.RESOLVED:
+		default:
+			return 'pending';
+	}
+}
+
 interface DependencyGraphProps {
-	nodes: DependencyGraphNode[];
-	edges: DependencyGraphEdge[];
+	nodes: DependencyNode[];
+	edges: DependencyEdge[];
 	onNodeClick?: (nodeId: string) => void;
 }
 
@@ -56,7 +82,7 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 	const panStartRef = useRef({ x: 0, y: 0 });
 
 	// Tooltip state
-	const [hoveredNode, setHoveredNode] = useState<DependencyGraphNode | null>(null);
+	const [hoveredNode, setHoveredNode] = useState<DependencyNode | null>(null);
 	const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
 	// Compute layout
@@ -147,7 +173,7 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 	);
 
 	const handleNodeMouseEnter = useCallback(
-		(e: React.MouseEvent, node: DependencyGraphNode) => {
+		(e: React.MouseEvent, node: DependencyNode) => {
 			setHoveredNode(node);
 			const rect = containerRef.current?.getBoundingClientRect();
 			if (rect) {
@@ -316,20 +342,21 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 							{/* Nodes */}
 							{nodes.map((node) => {
 								const layoutNode = layout.nodes.get(node.id);
-								const config = getNodeConfig(node.status);
+								const statusStr = taskStatusToString(node.status);
+								const config = getNodeConfig(statusStr);
 								if (!layoutNode) return null;
 
 								return (
 									<g
 										key={node.id}
-										className={`node node-${node.status}`}
+										className={`node node-${statusStr}`}
 										transform={`translate(${layoutNode.x}, ${layoutNode.y})`}
 										onClick={() => handleNodeClick(node.id)}
 										onMouseEnter={(e) => handleNodeMouseEnter(e, node)}
 										onMouseLeave={handleNodeMouseLeave}
 										role="button"
 										tabIndex={0}
-										aria-label={`${node.id}: ${node.title} (${node.status})`}
+										aria-label={`${node.id}: ${node.title} (${statusStr})`}
 										onKeyDown={(e) =>
 											e.key === 'Enter' && handleNodeClick(node.id)
 										}
@@ -376,7 +403,7 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 					>
 						<div className="tooltip-title">{hoveredNode.title}</div>
 						<div className="tooltip-meta">
-							{hoveredNode.id} - {hoveredNode.status}
+							{hoveredNode.id} - {taskStatusToString(hoveredNode.status)}
 						</div>
 					</div>
 				)}

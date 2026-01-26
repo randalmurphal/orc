@@ -4,16 +4,22 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
-import { listScripts, discoverScripts, type ProjectScript } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type Script,
+	ListScriptsRequestSchema,
+	DiscoverScriptsRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
 export function Scripts() {
 	useDocumentTitle('Scripts');
-	const [scripts, setScripts] = useState<ProjectScript[]>([]);
+	const [scripts, setScripts] = useState<Script[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [discovering, setDiscovering] = useState(false);
@@ -22,8 +28,8 @@ export function Scripts() {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await listScripts();
-			setScripts(data);
+			const response = await configClient.listScripts(create(ListScriptsRequestSchema, {}));
+			setScripts(response.scripts);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load scripts');
 		} finally {
@@ -38,8 +44,8 @@ export function Scripts() {
 	const handleDiscover = async () => {
 		try {
 			setDiscovering(true);
-			const discovered = await discoverScripts();
-			toast.success(`Discovered ${discovered.length} script${discovered.length !== 1 ? 's' : ''}`);
+			const response = await configClient.discoverScripts(create(DiscoverScriptsRequestSchema, {}));
+			toast.success(`Discovered ${response.scripts.length} script${response.scripts.length !== 1 ? 's' : ''}`);
 			await loadScripts();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to discover scripts');
@@ -48,7 +54,7 @@ export function Scripts() {
 		}
 	};
 
-	const getLanguageIcon = (script: ProjectScript): IconName => {
+	const getLanguageIcon = (script: Script): IconName => {
 		const ext = script.path.split('.').pop()?.toLowerCase();
 		switch (ext) {
 			case 'py':
@@ -64,7 +70,11 @@ export function Scripts() {
 		}
 	};
 
-	const getLanguageLabel = (script: ProjectScript): string => {
+	const getLanguageLabel = (script: Script): string => {
+		// Use the language field if available, otherwise derive from extension
+		if (script.language) {
+			return script.language;
+		}
 		const ext = script.path.split('.').pop()?.toLowerCase();
 		switch (ext) {
 			case 'py':

@@ -3,7 +3,7 @@
  * Includes animation for running and paused states.
  */
 
-import type { TaskStatus } from '@/lib/types';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import './StatusIndicator.css';
 
 export type StatusIndicatorSize = 'sm' | 'md' | 'lg';
@@ -15,52 +15,57 @@ interface StatusConfig {
 }
 
 const statusConfig: Record<TaskStatus, StatusConfig> = {
-	created: {
+	[TaskStatus.UNSPECIFIED]: {
+		color: 'var(--text-muted)',
+		glow: 'transparent',
+		label: 'Unknown',
+	},
+	[TaskStatus.CREATED]: {
 		color: 'var(--text-muted)',
 		glow: 'transparent',
 		label: 'Created',
 	},
-	classifying: {
+	[TaskStatus.CLASSIFYING]: {
 		color: 'var(--status-warning)',
 		glow: 'var(--status-warning-glow)',
 		label: 'Classifying',
 	},
-	planned: {
+	[TaskStatus.PLANNED]: {
 		color: 'var(--text-secondary)',
 		glow: 'transparent',
 		label: 'Planned',
 	},
-	running: {
+	[TaskStatus.RUNNING]: {
 		color: 'var(--primary)',
 		glow: 'var(--primary-glow)',
 		label: 'Running',
 	},
-	paused: {
+	[TaskStatus.PAUSED]: {
 		color: 'var(--status-warning)',
 		glow: 'var(--status-warning-glow)',
 		label: 'Paused',
 	},
-	blocked: {
+	[TaskStatus.BLOCKED]: {
 		color: 'var(--status-danger)',
 		glow: 'var(--status-danger-glow)',
 		label: 'Blocked',
 	},
-	finalizing: {
+	[TaskStatus.FINALIZING]: {
 		color: 'var(--status-info)',
 		glow: 'var(--status-info-glow)',
 		label: 'Finalizing',
 	},
-	completed: {
+	[TaskStatus.COMPLETED]: {
 		color: 'var(--status-success)',
 		glow: 'transparent',
 		label: 'Completed',
 	},
-	failed: {
+	[TaskStatus.FAILED]: {
 		color: 'var(--status-danger)',
 		glow: 'transparent',
 		label: 'Failed',
 	},
-	resolved: {
+	[TaskStatus.RESOLVED]: {
 		color: 'var(--status-warning)',
 		glow: 'transparent',
 		label: 'Resolved',
@@ -74,9 +79,9 @@ interface StatusIndicatorProps {
 }
 
 export function StatusIndicator({ status, size = 'md', showLabel = false }: StatusIndicatorProps) {
-	const config = statusConfig[status] || statusConfig.created;
-	const isAnimated = status === 'running';
-	const isPaused = status === 'paused';
+	const config = statusConfig[status] || statusConfig[TaskStatus.CREATED];
+	const isAnimated = status === TaskStatus.RUNNING;
+	const isPaused = status === TaskStatus.PAUSED;
 
 	const containerClasses = [
 		'status-indicator',

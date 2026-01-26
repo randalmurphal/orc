@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, DragEvent, ChangeEvent } from 'react';
-import type { Attachment } from '@/lib/types';
-import { listAttachments, uploadAttachment, deleteAttachment, getAttachmentUrl } from '@/lib/api';
+import { taskClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
+import {
+	type Attachment,
+	ListAttachmentsRequestSchema,
+	DeleteAttachmentRequestSchema,
+} from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
 import './AttachmentsTab.css';
@@ -9,20 +15,26 @@ interface AttachmentsTabProps {
 	taskId: string;
 }
 
-function formatSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function formatSize(bytes: number | bigint): string {
+	const numBytes = typeof bytes === 'bigint' ? Number(bytes) : bytes;
+	if (numBytes < 1024) return `${numBytes} B`;
+	if (numBytes < 1024 * 1024) return `${(numBytes / 1024).toFixed(1)} KB`;
+	return `${(numBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(dateStr: string): string {
-	const date = new Date(dateStr);
+function formatDate(date: Date | null): string {
+	if (!date) return 'N/A';
 	return date.toLocaleDateString(undefined, {
 		month: 'short',
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
 	});
+}
+
+// Get attachment URL (still uses REST endpoint for serving files)
+function getAttachmentUrl(taskId: string, filename: string): string {
+	return `/api/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
 }
 
 export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
@@ -39,8 +51,10 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 		setError(null);
 
 		try {
-			const data = await listAttachments(taskId);
-			setAttachments(data);
+			const response = await taskClient.listAttachments(
+				create(ListAttachmentsRequestSchema, { taskId })
+			);
+			setAttachments(response.attachments);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load attachments');
 		} finally {
@@ -60,8 +74,17 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 			setError(null);
 
 			try {
+				// Upload still uses REST for multipart file upload
 				for (const file of files) {
-					await uploadAttachment(taskId, file);
+					const formData = new FormData();
+					formData.append('file', file);
+					const res = await fetch(`/api/tasks/${taskId}/attachments`, {
+						method: 'POST',
+						body: formData,
+					});
+					if (!res.ok) {
+						throw new Error(`Upload failed: ${res.statusText}`);
+					}
 				}
 				await loadAttachments();
 				toast.success(`${files.length} file${files.length > 1 ? 's' : ''} uploaded`);
@@ -80,7 +103,9 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 			if (!confirm(`Delete "${filename}"?`)) return;
 
 			try {
-				await deleteAttachment(taskId, filename);
+				await taskClient.deleteAttachment(
+					create(DeleteAttachmentRequestSchema, { taskId, filename })
+				);
 				setAttachments((prev) => prev.filter((a) => a.filename !== filename));
 				toast.success('Attachment deleted');
 			} catch (e) {
@@ -143,8 +168,8 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 	}, [lightboxImage, closeLightbox]);
 
 	// Split attachments into images and files
-	const images = useMemo(() => attachments.filter((a) => a.is_image), [attachments]);
-	const files = useMemo(() => attachments.filter((a) => !a.is_image), [attachments]);
+	const images = useMemo(() => attachments.filter((a) => a.isImage), [attachments]);
+	const files = useMemo(() => attachments.filter((a) => !a.isImage), [attachments]);
 
 	return (
 		<div className="attachments-container">
@@ -237,7 +262,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 											{attachment.filename}
 										</a>
 										<span className="file-meta">{formatSize(attachment.size)}</span>
-										<span className="file-date">{formatDate(attachment.created_at)}</span>
+										<span className="file-date">{formatDate(timestampToDate(attachment.createdAt))}</span>
 										<button
 											className="delete-btn"
 											onClick={() => handleDelete(attachment.filename)}

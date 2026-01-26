@@ -2,7 +2,7 @@
  * PhaseTemplateCard displays a single phase template with its configuration.
  */
 
-import type { PhaseTemplate } from '@/lib/types';
+import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import { Badge } from '@/components/core/Badge';
 import { Icon } from '@/components/ui/Icon';
 
@@ -35,7 +35,7 @@ export function PhaseTemplateCard({ template, onSelect }: PhaseTemplateCardProps
 					<h3 className="phase-template-card-name">{template.name}</h3>
 					<span className="phase-template-card-id">{template.id}</span>
 				</div>
-				{template.is_builtin ? (
+				{template.isBuiltin ? (
 					<Badge variant="status" status="active">
 						Built-in
 					</Badge>
@@ -53,17 +53,17 @@ export function PhaseTemplateCard({ template, onSelect }: PhaseTemplateCardProps
 			<div className="phase-template-card-config">
 				<div className="phase-template-card-config-item">
 					<span className="phase-template-card-config-label">Gate</span>
-					<span className="phase-template-card-config-value">{template.gate_type}</span>
+					<span className="phase-template-card-config-value">{template.gateType}</span>
 				</div>
 				<div className="phase-template-card-config-item">
 					<span className="phase-template-card-config-label">Max iterations</span>
-					<span className="phase-template-card-config-value">{template.max_iterations}</span>
+					<span className="phase-template-card-config-value">{template.maxIterations}</span>
 				</div>
-				{template.produces_artifact && (
+				{template.producesArtifact && (
 					<div className="phase-template-card-config-item">
 						<span className="phase-template-card-config-label">Produces</span>
 						<Badge variant="status" status="completed">
-							{template.artifact_type || 'artifact'}
+							{template.artifactType || 'artifact'}
 						</Badge>
 					</div>
 				)}
@@ -72,12 +72,12 @@ export function PhaseTemplateCard({ template, onSelect }: PhaseTemplateCardProps
 			<div className="phase-template-card-footer">
 				<span className="phase-template-card-prompt-source">
 					<Icon name="file-text" size={12} />
-					{template.prompt_source}
+					{template.promptSource}
 				</span>
-				{template.model_override && (
+				{template.modelOverride && (
 					<span className="phase-template-card-model">
 						<Icon name="cpu" size={12} />
-						{template.model_override}
+						{template.modelOverride}
 					</span>
 				)}
 			</div>

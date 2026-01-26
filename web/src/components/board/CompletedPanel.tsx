@@ -13,7 +13,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { formatNumber, formatCost } from '@/lib/format';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
 import './CompletedPanel.css';
 
 export interface CompletedPanelProps {

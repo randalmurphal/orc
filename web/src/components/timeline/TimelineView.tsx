@@ -11,8 +11,14 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getEvents, listTasks, listInitiatives } from '@/lib/api';
-import { useWebSocket } from '@/hooks';
+import { create } from '@bufbuild/protobuf';
+import { TimestampSchema, type Timestamp } from '@bufbuild/protobuf/wkt';
+import { eventClient, taskClient, initiativeClient } from '@/lib/client';
+import { GetEventsRequestSchema } from '@/gen/orc/v1/events_pb';
+import { ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
+import { ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
+import { PageRequestSchema } from '@/gen/orc/v1/common_pb';
+import { useConnectionStatus } from '@/hooks';
 import { TimelineGroup } from './TimelineGroup';
 import { type TimelineEventData } from './TimelineEvent';
 import { TimelineEmptyState } from './TimelineEmptyState';
@@ -21,11 +27,152 @@ import { TimeRangeSelector, getDateRange, type TimeRange, type CustomDateRange }
 import { groupEventsByDate, getDateGroupLabel } from './utils';
 import './TimelineView.css';
 
+// Helper to convert ISO string to Timestamp
+function isoToTimestamp(iso: string): Timestamp {
+	const date = new Date(iso);
+	return create(TimestampSchema, {
+		seconds: BigInt(Math.floor(date.getTime() / 1000)),
+		nanos: (date.getTime() % 1000) * 1000000,
+	});
+}
+
+// Helper to convert Timestamp to ISO string
+function timestampToIso(ts: Timestamp | undefined): string {
+	if (!ts) return new Date().toISOString();
+	const millis = Number(ts.seconds) * 1000 + Math.floor(ts.nanos / 1000000);
+	return new Date(millis).toISOString();
+}
+
+// Event payload type from proto
+type EventPayload = {
+	case: string | undefined;
+	value?: unknown;
+};
+
+// Map proto event payload case to TimelineEventData event_type
+function mapPayloadToEventType(payload: EventPayload): TimelineEventData['event_type'] {
+	switch (payload.case) {
+		case 'taskCreated':
+			return 'task_created';
+		case 'taskUpdated':
+			return 'task_started'; // Map to closest equivalent
+		case 'phaseChanged': {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const status = (payload.value as any)?.status;
+			if (status === 1) return 'phase_started'; // RUNNING
+			if (status === 2) return 'phase_completed'; // COMPLETED
+			if (status === 3) return 'phase_failed'; // FAILED
+			return 'phase_started';
+		}
+		case 'activity':
+			return 'activity_changed';
+		case 'error':
+			return 'error_occurred';
+		case 'warning':
+			return 'warning_issued';
+		case 'tokensUpdated':
+			return 'token_update';
+		case 'decisionRequired':
+		case 'decisionResolved':
+			return 'gate_decision';
+		default:
+			return 'task_started';
+	}
+}
+
+// Extract data from proto event payload
+function extractEventData(payload: EventPayload): {
+	taskTitle?: string;
+	phase?: string;
+	iteration?: number;
+	source?: TimelineEventData['source'];
+	data?: Record<string, unknown>;
+} {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const value = payload.value as any;
+	if (!value) return {};
+
+	switch (payload.case) {
+		case 'taskCreated':
+			return {
+				taskTitle: value.title,
+				source: 'executor',
+				data: { weight: value.weight },
+			};
+		case 'phaseChanged':
+			return {
+				phase: value.phaseName,
+				iteration: value.iteration,
+				source: 'executor',
+				data: {
+					status: value.status,
+					commitSha: value.commitSha,
+					error: value.error,
+				},
+			};
+		case 'activity':
+			return {
+				phase: value.phaseId,
+				source: 'executor',
+				data: {
+					activity: value.activity,
+					details: value.details,
+				},
+			};
+		case 'error':
+			return {
+				phase: value.phase,
+				source: 'executor',
+				data: {
+					error: value.error,
+					stackTrace: value.stackTrace,
+				},
+			};
+		case 'warning':
+			return {
+				phase: value.phase,
+				source: 'executor',
+				data: { message: value.message },
+			};
+		case 'tokensUpdated':
+			return {
+				phase: value.phaseId,
+				source: 'executor',
+				data: { tokens: value.tokens },
+			};
+		case 'decisionRequired':
+			return {
+				taskTitle: value.taskTitle,
+				phase: value.phase,
+				source: 'executor',
+				data: {
+					decisionId: value.decisionId,
+					gateType: value.gateType,
+					question: value.question,
+					context: value.context,
+				},
+			};
+		case 'decisionResolved':
+			return {
+				phase: value.phase,
+				source: 'executor',
+				data: {
+					decisionId: value.decisionId,
+					approved: value.approved,
+					reason: value.reason,
+					resolvedBy: value.resolvedBy,
+				},
+			};
+		default:
+			return { source: 'executor' };
+	}
+}
+
 const PAGE_SIZE = 50;
 
 export function TimelineView() {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const { on, status: wsStatus } = useWebSocket();
+	const wsStatus = useConnectionStatus();
 
 	// State
 	const [events, setEvents] = useState<TimelineEventData[]>([]);
@@ -92,14 +239,12 @@ export function TimelineView() {
 		async function loadFilterData() {
 			try {
 				const [tasksRes, initiativesRes] = await Promise.all([
-					listTasks(),
-					listInitiatives()
+					taskClient.listTasks(create(ListTasksRequestSchema, {})),
+					initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}))
 				]);
-				
-				// Handle paginated or array response for tasks
-				const tasksList = Array.isArray(tasksRes) ? tasksRes : tasksRes.tasks;
-				setTasks(tasksList.map(t => ({ id: t.id, title: t.title })));
-				setInitiatives(initiativesRes.map(i => ({ id: i.id, title: i.title })));
+
+				setTasks(tasksRes.tasks.map(t => ({ id: t.id, title: t.title })));
+				setInitiatives(initiativesRes.initiatives.map(i => ({ id: i.id, title: i.title })));
 			} catch {
 				// Silently fail - filter dropdowns will just be empty
 			}
@@ -122,22 +267,37 @@ export function TimelineView() {
 		}
 
 		try {
-			const response = await getEvents({
-				types: filters.types.length > 0 ? filters.types : undefined,
-				task_id: filters.taskId,
-				initiative_id: filters.initiativeId,
-				since: filters.since,
-				until: filters.until,
-				limit: PAGE_SIZE,
-				offset: currentOffset,
+			const request = create(GetEventsRequestSchema, {
+				page: create(PageRequestSchema, {
+					page: Math.floor(currentOffset / PAGE_SIZE) + 1,
+					limit: PAGE_SIZE,
+				}),
+				taskId: filters.taskId,
+				initiativeId: filters.initiativeId,
+				since: filters.since ? isoToTimestamp(filters.since) : undefined,
+				until: filters.until ? isoToTimestamp(filters.until) : undefined,
+				types: filters.types.length > 0 ? filters.types : [],
 			});
 
-			const newEvents = response.events.map(e => ({
-				...e,
-				event_type: e.event_type as TimelineEventData['event_type'],
-				source: e.source as TimelineEventData['source'],
-				data: (e.data || {}) as Record<string, unknown>,
-			}));
+			const response = await eventClient.getEvents(request);
+
+			// Map proto Event to TimelineEventData
+			const newEvents: TimelineEventData[] = response.events.map((e, idx) => {
+				const eventType = mapPayloadToEventType(e.payload);
+				const eventData = extractEventData(e.payload);
+
+				return {
+					id: currentOffset + idx, // Generate sequential ID
+					task_id: e.taskId ?? '',
+					task_title: eventData.taskTitle ?? '',
+					phase: eventData.phase,
+					iteration: eventData.iteration,
+					event_type: eventType,
+					source: eventData.source ?? 'executor',
+					data: eventData.data ?? {},
+					created_at: timestampToIso(e.timestamp),
+				};
+			});
 
 			if (reset) {
 				setEvents(newEvents);
@@ -145,7 +305,7 @@ export function TimelineView() {
 				setEvents(prev => [...prev, ...newEvents]);
 			}
 
-			setHasMore(response.has_more);
+			setHasMore(response.page?.hasMore ?? false);
 			setOffset(currentOffset + newEvents.length);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to load events';
@@ -203,51 +363,8 @@ export function TimelineView() {
 		return () => container.removeEventListener('scroll', handleScroll);
 	}, [handleScroll]);
 
-	// WebSocket subscription for real-time updates
-	useEffect(() => {
-		// Subscribe to all relevant event types
-		const eventTypes = [
-			'phase_started',
-			'phase_completed',
-			'phase_failed',
-			'task_created',
-			'task_started',
-			'task_completed',
-			'error_occurred',
-		] as const;
-
-		// Subscribe to 'all' events and filter for timeline-relevant ones
-		const unsubAll = on('all', (wsEvent) => {
-			// Handle both real WSEvent (has event field) and test mock (has type field)
-			const eventObj = wsEvent as unknown as Record<string, unknown>;
-			const eventType = (eventObj.event || eventObj.type) as string;
-			if (!eventType) return;
-			if (!eventTypes.includes(eventType as (typeof eventTypes)[number])) return;
-
-			// Extract event data - from wsEvent.data or directly from wsEvent for test mocks
-			const data = (eventObj.data || eventObj) as Record<string, unknown>;
-			const taskId = (eventObj.task_id || data.task_id) as string || '';
-
-			// Create a timeline event from the WebSocket event
-			const newEvent: TimelineEventData = {
-				id: Date.now(), // Temporary ID
-				task_id: taskId,
-				task_title: (data.title || data.task_title || eventObj.task_title || taskId) as string,
-				event_type: eventType as TimelineEventData['event_type'],
-				phase: (data.phase || eventObj.phase) as string | undefined,
-				data: data,
-				source: 'executor',
-				created_at: ((data.created_at || eventObj.created_at) as string) || new Date().toISOString(),
-			};
-
-			// Prepend to events list
-			setEvents(prev => [newEvent, ...prev]);
-		});
-
-		return () => {
-			unsubAll();
-		};
-	}, [on]);
+	// TODO: Real-time event updates will be implemented via Connect RPC event streaming
+	// The event handler will dispatch timeline events to this component
 
 	// Group events by date
 	const groupedEvents = useMemo(() => {

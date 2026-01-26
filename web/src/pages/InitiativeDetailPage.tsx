@@ -12,19 +12,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import {
-	getInitiative,
-	updateInitiative,
-	addInitiativeTask,
-	removeInitiativeTask,
-	addInitiativeDecision,
-	listTasks,
-	getInitiativeDependencyGraph,
-	type DependencyGraphData,
-	type AddInitiativeTaskRequest,
-	type AddInitiativeDecisionRequest,
-} from '@/lib/api';
-import type { Initiative, InitiativeStatus, Task } from '@/lib/types';
+	type Initiative,
+	InitiativeStatus,
+} from '@/gen/orc/v1/initiative_pb';
+import { type Task, TaskStatus, type DependencyGraph as DependencyGraphData } from '@/gen/orc/v1/task_pb';
+import { initiativeClient, taskClient } from '@/lib/client';
+import { timestampToDate } from '@/lib/time';
 import { useInitiativeStore } from '@/stores';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
@@ -33,20 +28,64 @@ import './InitiativeDetailPage.css';
 
 type TaskFilter = 'all' | 'completed' | 'running' | 'planned';
 
+// Map TaskStatus enum to display string for task cards
+function getTaskStatusDisplay(status: TaskStatus): string {
+	switch (status) {
+		case TaskStatus.COMPLETED:
+			return 'completed';
+		case TaskStatus.RUNNING:
+			return 'running';
+		case TaskStatus.BLOCKED:
+			return 'blocked';
+		case TaskStatus.PAUSED:
+			return 'paused';
+		case TaskStatus.FAILED:
+			return 'failed';
+		case TaskStatus.PLANNED:
+			return 'planned';
+		case TaskStatus.CREATED:
+			return 'created';
+		case TaskStatus.CLASSIFYING:
+			return 'classifying';
+		case TaskStatus.FINALIZING:
+			return 'finalizing';
+		case TaskStatus.RESOLVED:
+			return 'resolved';
+		default:
+			return 'pending';
+	}
+}
+
+// Map InitiativeStatus enum to display string
+function getInitiativeStatusDisplay(status: InitiativeStatus): string {
+	switch (status) {
+		case InitiativeStatus.DRAFT:
+			return 'draft';
+		case InitiativeStatus.ACTIVE:
+			return 'active';
+		case InitiativeStatus.COMPLETED:
+			return 'completed';
+		case InitiativeStatus.ARCHIVED:
+			return 'archived';
+		default:
+			return 'unknown';
+	}
+}
+
 /**
  * Extract first emoji from text or return default based on status
  */
-function extractEmoji(text: string, status?: string): string {
+function extractEmoji(text: string, status?: InitiativeStatus): string {
 	const emojiMatch = text.match(/^(\p{Emoji})/u);
 	if (emojiMatch) return emojiMatch[1];
 
 	// Default emojis by status
 	switch (status) {
-		case 'active':
+		case InitiativeStatus.ACTIVE:
 			return '🚀';
-		case 'completed':
+		case InitiativeStatus.COMPLETED:
 			return '✅';
-		case 'archived':
+		case InitiativeStatus.ARCHIVED:
 			return '📦';
 		default:
 			return '📋';
@@ -79,7 +118,7 @@ export function InitiativeDetailPage() {
 	// Edit form state
 	const [editTitle, setEditTitle] = useState('');
 	const [editVision, setEditVision] = useState('');
-	const [editStatus, setEditStatus] = useState<InitiativeStatus>('draft');
+	const [editStatus, setEditStatus] = useState<InitiativeStatus>(InitiativeStatus.DRAFT);
 	const [editBranchBase, setEditBranchBase] = useState('');
 	const [editBranchPrefix, setEditBranchPrefix] = useState('');
 
@@ -102,7 +141,7 @@ export function InitiativeDetailPage() {
 		if (!initiative?.tasks || initiative.tasks.length === 0) {
 			return { completed: 0, total: 0, percentage: 0 };
 		}
-		const completed = initiative.tasks.filter((t) => t.status === 'completed').length;
+		const completed = initiative.tasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 		const total = initiative.tasks.length;
 		return { completed, total, percentage: Math.round((completed / total) * 100) };
 	}, [initiative?.tasks]);
@@ -115,11 +154,11 @@ export function InitiativeDetailPage() {
 		return initiative.tasks.filter((task) => {
 			switch (taskFilter) {
 				case 'completed':
-					return task.status === 'completed';
+					return task.status === TaskStatus.COMPLETED;
 				case 'running':
-					return task.status === 'running';
+					return task.status === TaskStatus.RUNNING;
 				case 'planned':
-					return !['completed', 'running', 'failed'].includes(task.status);
+					return ![TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.FAILED].includes(task.status);
 				default:
 					return true;
 			}
@@ -152,8 +191,10 @@ export function InitiativeDetailPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			const data = await getInitiative(id);
-			setInitiative(data);
+			const response = await initiativeClient.getInitiative({ id });
+			if (response.initiative) {
+				setInitiative(response.initiative);
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load initiative');
 		} finally {
@@ -166,8 +207,11 @@ export function InitiativeDetailPage() {
 		setGraphLoading(true);
 		setGraphError(null);
 		try {
-			const data = await getInitiativeDependencyGraph(initiative.id);
-			setGraphData(data);
+			const response = await initiativeClient.getDependencyGraph({ initiativeId: initiative.id });
+			if (response.graph) {
+				// Store proto graph directly - DependencyGraph now uses proto types
+				setGraphData(response.graph);
+			}
 		} catch (e) {
 			setGraphError(e instanceof Error ? e.message : 'Failed to load dependency graph');
 		} finally {
@@ -195,8 +239,8 @@ export function InitiativeDetailPage() {
 			setEditTitle(initiative.title);
 			setEditVision(initiative.vision || '');
 			setEditStatus(initiative.status);
-			setEditBranchBase(initiative.branch_base || '');
-			setEditBranchPrefix(initiative.branch_prefix || '');
+			setEditBranchBase(initiative.branchBase || '');
+			setEditBranchPrefix(initiative.branchPrefix || '');
 		}
 		setEditModalOpen(true);
 	}, [initiative]);
@@ -204,15 +248,18 @@ export function InitiativeDetailPage() {
 	const saveEdit = useCallback(async () => {
 		if (!initiative) return;
 		try {
-			const updated = await updateInitiative(initiative.id, {
+			const response = await initiativeClient.updateInitiative({
+				id: initiative.id,
 				title: editTitle,
 				vision: editVision,
 				status: editStatus,
-				branch_base: editBranchBase.trim() || undefined,
-				branch_prefix: editBranchPrefix.trim() || undefined,
+				branchBase: editBranchBase.trim() || undefined,
+				branchPrefix: editBranchPrefix.trim() || undefined,
 			});
-			setInitiative(updated);
-			updateInitiativeInStore(updated.id, updated);
+			if (response.initiative) {
+				setInitiative(response.initiative);
+				updateInitiativeInStore(response.initiative.id, response.initiative);
+			}
 			setEditModalOpen(false);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to update initiative');
@@ -224,11 +271,16 @@ export function InitiativeDetailPage() {
 			if (!initiative) return;
 			setStatusActionLoading(true);
 			try {
-				const updated = await updateInitiative(initiative.id, { status: newStatus });
-				setInitiative(updated);
-				updateInitiativeInStore(updated.id, updated);
+				const response = await initiativeClient.updateInitiative({
+					id: initiative.id,
+					status: newStatus,
+				});
+				if (response.initiative) {
+					setInitiative(response.initiative);
+					updateInitiativeInStore(response.initiative.id, response.initiative);
+				}
 			} catch (e) {
-				setError(e instanceof Error ? e.message : `Failed to ${newStatus} initiative`);
+				setError(e instanceof Error ? e.message : `Failed to update initiative status`);
 			} finally {
 				setStatusActionLoading(false);
 			}
@@ -236,14 +288,14 @@ export function InitiativeDetailPage() {
 		[initiative, updateInitiativeInStore]
 	);
 
-	const handleActivate = useCallback(() => handleStatusChange('active'), [handleStatusChange]);
+	const handleActivate = useCallback(() => handleStatusChange(InitiativeStatus.ACTIVE), [handleStatusChange]);
 	const handleComplete = useCallback(
-		() => handleStatusChange('completed'),
+		() => handleStatusChange(InitiativeStatus.COMPLETED),
 		[handleStatusChange]
 	);
 	const handleArchive = useCallback(() => {
 		setConfirmArchiveOpen(false);
-		handleStatusChange('archived');
+		handleStatusChange(InitiativeStatus.ARCHIVED);
 	}, [handleStatusChange]);
 
 	const openLinkTaskModal = useCallback(async () => {
@@ -251,8 +303,8 @@ export function InitiativeDetailPage() {
 		setLinkTaskSearch('');
 		setLinkTaskModalOpen(true);
 		try {
-			const result = await listTasks();
-			setAvailableTasks(Array.isArray(result) ? result : result.tasks);
+			const response = await taskClient.listTasks({});
+			setAvailableTasks(response.tasks);
 		} catch (e) {
 			console.error('Failed to load tasks:', e);
 			setAvailableTasks([]);
@@ -265,8 +317,10 @@ export function InitiativeDetailPage() {
 		async (taskId: string) => {
 			if (!initiative) return;
 			try {
-				const req: AddInitiativeTaskRequest = { task_id: taskId };
-				await addInitiativeTask(initiative.id, req);
+				await initiativeClient.linkTasks({
+					initiativeId: initiative.id,
+					taskIds: [taskId],
+				});
 				await loadInitiative();
 				setLinkTaskModalOpen(false);
 			} catch (e) {
@@ -280,7 +334,10 @@ export function InitiativeDetailPage() {
 		async (taskId: string) => {
 			if (!initiative || !confirm(`Remove task ${taskId} from this initiative?`)) return;
 			try {
-				await removeInitiativeTask(initiative.id, taskId);
+				await initiativeClient.unlinkTask({
+					initiativeId: initiative.id,
+					taskId,
+				});
 				await loadInitiative();
 			} catch (e) {
 				setError(e instanceof Error ? e.message : 'Failed to remove task');
@@ -300,12 +357,12 @@ export function InitiativeDetailPage() {
 		if (!initiative || !decisionText.trim()) return;
 		setAddingDecision(true);
 		try {
-			const req: AddInitiativeDecisionRequest = {
+			await initiativeClient.addDecision({
+				initiativeId: initiative.id,
 				decision: decisionText.trim(),
 				rationale: decisionRationale.trim() || undefined,
 				by: decisionBy.trim() || undefined,
-			};
-			await addInitiativeDecision(initiative.id, req);
+			});
 			await loadInitiative();
 			setAddDecisionModalOpen(false);
 		} catch (e) {
@@ -315,41 +372,42 @@ export function InitiativeDetailPage() {
 		}
 	}, [initiative, decisionText, decisionRationale, decisionBy, loadInitiative]);
 
-	const getStatusIcon = useCallback((status: string) => {
+	const getStatusIcon = useCallback((status: TaskStatus) => {
 		switch (status) {
-			case 'completed':
+			case TaskStatus.COMPLETED:
 				return 'check-circle';
-			case 'running':
+			case TaskStatus.RUNNING:
 				return 'play-circle';
-			case 'failed':
+			case TaskStatus.FAILED:
 				return 'x-circle';
-			case 'paused':
+			case TaskStatus.PAUSED:
 				return 'pause-circle';
-			case 'blocked':
+			case TaskStatus.BLOCKED:
 				return 'alert-circle';
 			default:
 				return 'circle';
 		}
 	}, []);
 
-	const getStatusClass = useCallback((status: string) => {
+	const getStatusClass = useCallback((status: TaskStatus) => {
 		switch (status) {
-			case 'completed':
+			case TaskStatus.COMPLETED:
 				return 'status-success';
-			case 'running':
+			case TaskStatus.RUNNING:
 				return 'status-running';
-			case 'failed':
+			case TaskStatus.FAILED:
 				return 'status-danger';
-			case 'blocked':
-			case 'paused':
+			case TaskStatus.BLOCKED:
+			case TaskStatus.PAUSED:
 				return 'status-warning';
 			default:
 				return 'status-pending';
 		}
 	}, []);
 
-	const formatDate = useCallback((dateStr: string) => {
-		const date = new Date(dateStr);
+	const formatDate = useCallback((timestamp?: Timestamp) => {
+		const date = timestampToDate(timestamp);
+		if (!date) return 'Unknown date';
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}, []);
 
@@ -410,11 +468,11 @@ export function InitiativeDetailPage() {
 							<h1 className="initiative-title">{titleWithoutEmoji}</h1>
 						</div>
 						<div className="header-actions">
-							<span className={`status-badge status-${initiative.status}`}>
-								{initiative.status}
+							<span className={`status-badge status-${getInitiativeStatusDisplay(initiative.status)}`}>
+								{getInitiativeStatusDisplay(initiative.status)}
 							</span>
 							{/* Status transition buttons based on current status */}
-							{initiative.status === 'draft' && (
+							{initiative.status === InitiativeStatus.DRAFT && (
 								<button
 									className="btn btn-primary"
 									onClick={handleActivate}
@@ -424,7 +482,7 @@ export function InitiativeDetailPage() {
 									{statusActionLoading ? 'Activating...' : 'Activate'}
 								</button>
 							)}
-							{initiative.status === 'active' && (
+							{initiative.status === InitiativeStatus.ACTIVE && (
 								<button
 									className="btn btn-success"
 									onClick={handleComplete}
@@ -434,7 +492,7 @@ export function InitiativeDetailPage() {
 									{statusActionLoading ? 'Completing...' : 'Complete'}
 								</button>
 							)}
-							{initiative.status === 'completed' && (
+							{initiative.status === InitiativeStatus.COMPLETED && (
 								<button
 									className="btn btn-secondary"
 									onClick={handleActivate}
@@ -450,7 +508,7 @@ export function InitiativeDetailPage() {
 								Edit
 							</button>
 
-							{initiative.status !== 'archived' && (
+							{initiative.status !== InitiativeStatus.ARCHIVED && (
 								<button
 									className="btn btn-ghost btn-danger-hover"
 									onClick={() => setConfirmArchiveOpen(true)}
@@ -589,7 +647,7 @@ export function InitiativeDetailPage() {
 											{task.title}
 										</span>
 										<span className="task-status-text">
-											{task.status}
+											{getTaskStatusDisplay(task.status)}
 										</span>
 									</Link>
 									<button
@@ -711,12 +769,12 @@ export function InitiativeDetailPage() {
 						<select
 							id="edit-status"
 							value={editStatus}
-							onChange={(e) => setEditStatus(e.target.value as InitiativeStatus)}
+							onChange={(e) => setEditStatus(Number(e.target.value) as InitiativeStatus)}
 						>
-							<option value="draft">Draft</option>
-							<option value="active">Active</option>
-							<option value="completed">Completed</option>
-							<option value="archived">Archived</option>
+							<option value={InitiativeStatus.DRAFT}>Draft</option>
+							<option value={InitiativeStatus.ACTIVE}>Active</option>
+							<option value={InitiativeStatus.COMPLETED}>Completed</option>
+							<option value={InitiativeStatus.ARCHIVED}>Archived</option>
 						</select>
 					</div>
 
@@ -800,8 +858,8 @@ export function InitiativeDetailPage() {
 								>
 									<span className="task-id">{task.id}</span>
 									<span className="task-title">{task.title}</span>
-									<span className={`task-status-badge status-${task.status}`}>
-										{task.status}
+									<span className={`task-status-badge status-${getTaskStatusDisplay(task.status)}`}>
+										{getTaskStatusDisplay(task.status)}
 									</span>
 								</button>
 							))}

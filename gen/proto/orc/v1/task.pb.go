@@ -665,6 +665,62 @@ func (AuthorType) EnumDescriptor() ([]byte, []int) {
 	return file_orc_v1_task_proto_rawDescGZIP(), []int{10}
 }
 
+// Test result status
+type TestResultStatus int32
+
+const (
+	TestResultStatus_TEST_RESULT_STATUS_UNSPECIFIED TestResultStatus = 0
+	TestResultStatus_TEST_RESULT_STATUS_PASSED      TestResultStatus = 1
+	TestResultStatus_TEST_RESULT_STATUS_FAILED      TestResultStatus = 2
+	TestResultStatus_TEST_RESULT_STATUS_SKIPPED     TestResultStatus = 3
+	TestResultStatus_TEST_RESULT_STATUS_PENDING     TestResultStatus = 4
+)
+
+// Enum value maps for TestResultStatus.
+var (
+	TestResultStatus_name = map[int32]string{
+		0: "TEST_RESULT_STATUS_UNSPECIFIED",
+		1: "TEST_RESULT_STATUS_PASSED",
+		2: "TEST_RESULT_STATUS_FAILED",
+		3: "TEST_RESULT_STATUS_SKIPPED",
+		4: "TEST_RESULT_STATUS_PENDING",
+	}
+	TestResultStatus_value = map[string]int32{
+		"TEST_RESULT_STATUS_UNSPECIFIED": 0,
+		"TEST_RESULT_STATUS_PASSED":      1,
+		"TEST_RESULT_STATUS_FAILED":      2,
+		"TEST_RESULT_STATUS_SKIPPED":     3,
+		"TEST_RESULT_STATUS_PENDING":     4,
+	}
+)
+
+func (x TestResultStatus) Enum() *TestResultStatus {
+	p := new(TestResultStatus)
+	*p = x
+	return p
+}
+
+func (x TestResultStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TestResultStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_orc_v1_task_proto_enumTypes[11].Descriptor()
+}
+
+func (TestResultStatus) Type() protoreflect.EnumType {
+	return &file_orc_v1_task_proto_enumTypes[11]
+}
+
+func (x TestResultStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TestResultStatus.Descriptor instead.
+func (TestResultStatus) EnumDescriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{11}
+}
+
 // Testing requirements for a task
 type TestingRequirements struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2259,6 +2315,614 @@ func (x *RetryPreviewInfo) GetUnresolvedComments() []*ReviewComment {
 	return nil
 }
 
+// Individual test result
+type TestResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Status        TestResultStatus       `protobuf:"varint,2,opt,name=status,proto3,enum=orc.v1.TestResultStatus" json:"status,omitempty"`
+	DurationMs    int64                  `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Error         *string                `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	Screenshots   []string               `protobuf:"bytes,5,rep,name=screenshots,proto3" json:"screenshots,omitempty"`
+	Trace         *string                `protobuf:"bytes,6,opt,name=trace,proto3,oneof" json:"trace,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestResult) Reset() {
+	*x = TestResult{}
+	mi := &file_orc_v1_task_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestResult) ProtoMessage() {}
+
+func (x *TestResult) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestResult.ProtoReflect.Descriptor instead.
+func (*TestResult) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *TestResult) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TestResult) GetStatus() TestResultStatus {
+	if x != nil {
+		return x.Status
+	}
+	return TestResultStatus_TEST_RESULT_STATUS_UNSPECIFIED
+}
+
+func (x *TestResult) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *TestResult) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *TestResult) GetScreenshots() []string {
+	if x != nil {
+		return x.Screenshots
+	}
+	return nil
+}
+
+func (x *TestResult) GetTrace() string {
+	if x != nil && x.Trace != nil {
+		return *x.Trace
+	}
+	return ""
+}
+
+// Test suite containing multiple tests
+type TestSuite struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Tests         []*TestResult          `protobuf:"bytes,2,rep,name=tests,proto3" json:"tests,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestSuite) Reset() {
+	*x = TestSuite{}
+	mi := &file_orc_v1_task_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSuite) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSuite) ProtoMessage() {}
+
+func (x *TestSuite) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSuite.ProtoReflect.Descriptor instead.
+func (*TestSuite) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TestSuite) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TestSuite) GetTests() []*TestResult {
+	if x != nil {
+		return x.Tests
+	}
+	return nil
+}
+
+// Summary counts for test results
+type TestSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Passed        int32                  `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Failed        int32                  `protobuf:"varint,3,opt,name=failed,proto3" json:"failed,omitempty"`
+	Skipped       int32                  `protobuf:"varint,4,opt,name=skipped,proto3" json:"skipped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestSummary) Reset() {
+	*x = TestSummary{}
+	mi := &file_orc_v1_task_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestSummary) ProtoMessage() {}
+
+func (x *TestSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestSummary.ProtoReflect.Descriptor instead.
+func (*TestSummary) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TestSummary) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *TestSummary) GetPassed() int32 {
+	if x != nil {
+		return x.Passed
+	}
+	return 0
+}
+
+func (x *TestSummary) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *TestSummary) GetSkipped() int32 {
+	if x != nil {
+		return x.Skipped
+	}
+	return 0
+}
+
+// Coverage detail for a specific metric
+type CoverageDetail struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Covered       int32                  `protobuf:"varint,2,opt,name=covered,proto3" json:"covered,omitempty"`
+	Percent       float64                `protobuf:"fixed64,3,opt,name=percent,proto3" json:"percent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CoverageDetail) Reset() {
+	*x = CoverageDetail{}
+	mi := &file_orc_v1_task_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CoverageDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CoverageDetail) ProtoMessage() {}
+
+func (x *CoverageDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CoverageDetail.ProtoReflect.Descriptor instead.
+func (*CoverageDetail) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *CoverageDetail) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *CoverageDetail) GetCovered() int32 {
+	if x != nil {
+		return x.Covered
+	}
+	return 0
+}
+
+func (x *CoverageDetail) GetPercent() float64 {
+	if x != nil {
+		return x.Percent
+	}
+	return 0
+}
+
+// Test coverage information
+type TestCoverage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Percentage    float64                `protobuf:"fixed64,1,opt,name=percentage,proto3" json:"percentage,omitempty"`
+	Lines         *CoverageDetail        `protobuf:"bytes,2,opt,name=lines,proto3,oneof" json:"lines,omitempty"`
+	Branches      *CoverageDetail        `protobuf:"bytes,3,opt,name=branches,proto3,oneof" json:"branches,omitempty"`
+	Functions     *CoverageDetail        `protobuf:"bytes,4,opt,name=functions,proto3,oneof" json:"functions,omitempty"`
+	Statements    *CoverageDetail        `protobuf:"bytes,5,opt,name=statements,proto3,oneof" json:"statements,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestCoverage) Reset() {
+	*x = TestCoverage{}
+	mi := &file_orc_v1_task_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestCoverage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestCoverage) ProtoMessage() {}
+
+func (x *TestCoverage) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestCoverage.ProtoReflect.Descriptor instead.
+func (*TestCoverage) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TestCoverage) GetPercentage() float64 {
+	if x != nil {
+		return x.Percentage
+	}
+	return 0
+}
+
+func (x *TestCoverage) GetLines() *CoverageDetail {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+func (x *TestCoverage) GetBranches() *CoverageDetail {
+	if x != nil {
+		return x.Branches
+	}
+	return nil
+}
+
+func (x *TestCoverage) GetFunctions() *CoverageDetail {
+	if x != nil {
+		return x.Functions
+	}
+	return nil
+}
+
+func (x *TestCoverage) GetStatements() *CoverageDetail {
+	if x != nil {
+		return x.Statements
+	}
+	return nil
+}
+
+// Full test report
+type TestReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Framework     string                 `protobuf:"bytes,2,opt,name=framework,proto3" json:"framework,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	DurationMs    int64                  `protobuf:"varint,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Summary       *TestSummary           `protobuf:"bytes,6,opt,name=summary,proto3" json:"summary,omitempty"`
+	Suites        []*TestSuite           `protobuf:"bytes,7,rep,name=suites,proto3" json:"suites,omitempty"`
+	Coverage      *TestCoverage          `protobuf:"bytes,8,opt,name=coverage,proto3,oneof" json:"coverage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestReport) Reset() {
+	*x = TestReport{}
+	mi := &file_orc_v1_task_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestReport) ProtoMessage() {}
+
+func (x *TestReport) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestReport.ProtoReflect.Descriptor instead.
+func (*TestReport) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *TestReport) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *TestReport) GetFramework() string {
+	if x != nil {
+		return x.Framework
+	}
+	return ""
+}
+
+func (x *TestReport) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *TestReport) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *TestReport) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *TestReport) GetSummary() *TestSummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *TestReport) GetSuites() []*TestSuite {
+	if x != nil {
+		return x.Suites
+	}
+	return nil
+}
+
+func (x *TestReport) GetCoverage() *TestCoverage {
+	if x != nil {
+		return x.Coverage
+	}
+	return nil
+}
+
+// Screenshot information
+type Screenshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Filename      string                 `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	PageName      string                 `protobuf:"bytes,2,opt,name=page_name,json=pageName,proto3" json:"page_name,omitempty"`
+	TestName      *string                `protobuf:"bytes,3,opt,name=test_name,json=testName,proto3,oneof" json:"test_name,omitempty"`
+	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Screenshot) Reset() {
+	*x = Screenshot{}
+	mi := &file_orc_v1_task_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Screenshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Screenshot) ProtoMessage() {}
+
+func (x *Screenshot) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Screenshot.ProtoReflect.Descriptor instead.
+func (*Screenshot) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *Screenshot) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *Screenshot) GetPageName() string {
+	if x != nil {
+		return x.PageName
+	}
+	return ""
+}
+
+func (x *Screenshot) GetTestName() string {
+	if x != nil && x.TestName != nil {
+		return *x.TestName
+	}
+	return ""
+}
+
+func (x *Screenshot) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *Screenshot) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+// Complete test results info for a task
+type TestResultsInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HasResults    bool                   `protobuf:"varint,1,opt,name=has_results,json=hasResults,proto3" json:"has_results,omitempty"`
+	Report        *TestReport            `protobuf:"bytes,2,opt,name=report,proto3,oneof" json:"report,omitempty"`
+	Screenshots   []*Screenshot          `protobuf:"bytes,3,rep,name=screenshots,proto3" json:"screenshots,omitempty"`
+	HasTraces     bool                   `protobuf:"varint,4,opt,name=has_traces,json=hasTraces,proto3" json:"has_traces,omitempty"`
+	TraceFiles    []string               `protobuf:"bytes,5,rep,name=trace_files,json=traceFiles,proto3" json:"trace_files,omitempty"`
+	HasHtmlReport bool                   `protobuf:"varint,6,opt,name=has_html_report,json=hasHtmlReport,proto3" json:"has_html_report,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestResultsInfo) Reset() {
+	*x = TestResultsInfo{}
+	mi := &file_orc_v1_task_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestResultsInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestResultsInfo) ProtoMessage() {}
+
+func (x *TestResultsInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestResultsInfo.ProtoReflect.Descriptor instead.
+func (*TestResultsInfo) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *TestResultsInfo) GetHasResults() bool {
+	if x != nil {
+		return x.HasResults
+	}
+	return false
+}
+
+func (x *TestResultsInfo) GetReport() *TestReport {
+	if x != nil {
+		return x.Report
+	}
+	return nil
+}
+
+func (x *TestResultsInfo) GetScreenshots() []*Screenshot {
+	if x != nil {
+		return x.Screenshots
+	}
+	return nil
+}
+
+func (x *TestResultsInfo) GetHasTraces() bool {
+	if x != nil {
+		return x.HasTraces
+	}
+	return false
+}
+
+func (x *TestResultsInfo) GetTraceFiles() []string {
+	if x != nil {
+		return x.TraceFiles
+	}
+	return nil
+}
+
+func (x *TestResultsInfo) GetHasHtmlReport() bool {
+	if x != nil {
+		return x.HasHtmlReport
+	}
+	return false
+}
+
 // File attachment
 type Attachment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2273,7 +2937,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_orc_v1_task_proto_msgTypes[15]
+	mi := &file_orc_v1_task_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2285,7 +2949,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[15]
+	mi := &file_orc_v1_task_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2298,7 +2962,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Attachment) GetFilename() string {
@@ -2351,7 +3015,7 @@ type ListTasksRequest struct {
 
 func (x *ListTasksRequest) Reset() {
 	*x = ListTasksRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[16]
+	mi := &file_orc_v1_task_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2363,7 +3027,7 @@ func (x *ListTasksRequest) String() string {
 func (*ListTasksRequest) ProtoMessage() {}
 
 func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[16]
+	mi := &file_orc_v1_task_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2376,7 +3040,7 @@ func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListTasksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{16}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListTasksRequest) GetPage() *PageRequest {
@@ -2431,7 +3095,7 @@ type ListTasksResponse struct {
 
 func (x *ListTasksResponse) Reset() {
 	*x = ListTasksResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[17]
+	mi := &file_orc_v1_task_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2443,7 +3107,7 @@ func (x *ListTasksResponse) String() string {
 func (*ListTasksResponse) ProtoMessage() {}
 
 func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[17]
+	mi := &file_orc_v1_task_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2456,7 +3120,7 @@ func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksResponse.ProtoReflect.Descriptor instead.
 func (*ListTasksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{17}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListTasksResponse) GetTasks() []*Task {
@@ -2483,7 +3147,7 @@ type GetTaskRequest struct {
 
 func (x *GetTaskRequest) Reset() {
 	*x = GetTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[18]
+	mi := &file_orc_v1_task_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2495,7 +3159,7 @@ func (x *GetTaskRequest) String() string {
 func (*GetTaskRequest) ProtoMessage() {}
 
 func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[18]
+	mi := &file_orc_v1_task_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2508,7 +3172,7 @@ func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{18}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetTaskRequest) GetId() string {
@@ -2527,7 +3191,7 @@ type GetTaskResponse struct {
 
 func (x *GetTaskResponse) Reset() {
 	*x = GetTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[19]
+	mi := &file_orc_v1_task_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2539,7 +3203,7 @@ func (x *GetTaskResponse) String() string {
 func (*GetTaskResponse) ProtoMessage() {}
 
 func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[19]
+	mi := &file_orc_v1_task_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2552,7 +3216,7 @@ func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{19}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetTaskResponse) GetTask() *Task {
@@ -2583,7 +3247,7 @@ type CreateTaskRequest struct {
 
 func (x *CreateTaskRequest) Reset() {
 	*x = CreateTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[20]
+	mi := &file_orc_v1_task_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2595,7 +3259,7 @@ func (x *CreateTaskRequest) String() string {
 func (*CreateTaskRequest) ProtoMessage() {}
 
 func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[20]
+	mi := &file_orc_v1_task_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2608,7 +3272,7 @@ func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskRequest.ProtoReflect.Descriptor instead.
 func (*CreateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CreateTaskRequest) GetTitle() string {
@@ -2704,7 +3368,7 @@ type CreateTaskResponse struct {
 
 func (x *CreateTaskResponse) Reset() {
 	*x = CreateTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[21]
+	mi := &file_orc_v1_task_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2716,7 +3380,7 @@ func (x *CreateTaskResponse) String() string {
 func (*CreateTaskResponse) ProtoMessage() {}
 
 func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[21]
+	mi := &file_orc_v1_task_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2729,7 +3393,7 @@ func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskResponse.ProtoReflect.Descriptor instead.
 func (*CreateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CreateTaskResponse) GetTask() *Task {
@@ -2760,7 +3424,7 @@ type UpdateTaskRequest struct {
 
 func (x *UpdateTaskRequest) Reset() {
 	*x = UpdateTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[22]
+	mi := &file_orc_v1_task_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2772,7 +3436,7 @@ func (x *UpdateTaskRequest) String() string {
 func (*UpdateTaskRequest) ProtoMessage() {}
 
 func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[22]
+	mi := &file_orc_v1_task_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2785,7 +3449,7 @@ func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *UpdateTaskRequest) GetId() string {
@@ -2881,7 +3545,7 @@ type UpdateTaskResponse struct {
 
 func (x *UpdateTaskResponse) Reset() {
 	*x = UpdateTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[23]
+	mi := &file_orc_v1_task_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2893,7 +3557,7 @@ func (x *UpdateTaskResponse) String() string {
 func (*UpdateTaskResponse) ProtoMessage() {}
 
 func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[23]
+	mi := &file_orc_v1_task_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2906,7 +3570,7 @@ func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *UpdateTaskResponse) GetTask() *Task {
@@ -2926,7 +3590,7 @@ type DeleteTaskRequest struct {
 
 func (x *DeleteTaskRequest) Reset() {
 	*x = DeleteTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[24]
+	mi := &file_orc_v1_task_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2938,7 +3602,7 @@ func (x *DeleteTaskRequest) String() string {
 func (*DeleteTaskRequest) ProtoMessage() {}
 
 func (x *DeleteTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[24]
+	mi := &file_orc_v1_task_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2951,7 +3615,7 @@ func (x *DeleteTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{24}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DeleteTaskRequest) GetId() string {
@@ -2970,7 +3634,7 @@ type DeleteTaskResponse struct {
 
 func (x *DeleteTaskResponse) Reset() {
 	*x = DeleteTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[25]
+	mi := &file_orc_v1_task_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2982,7 +3646,7 @@ func (x *DeleteTaskResponse) String() string {
 func (*DeleteTaskResponse) ProtoMessage() {}
 
 func (x *DeleteTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[25]
+	mi := &file_orc_v1_task_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2995,7 +3659,7 @@ func (x *DeleteTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{25}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DeleteTaskResponse) GetMessage() string {
@@ -3015,7 +3679,7 @@ type GetTaskStateRequest struct {
 
 func (x *GetTaskStateRequest) Reset() {
 	*x = GetTaskStateRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[26]
+	mi := &file_orc_v1_task_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3027,7 +3691,7 @@ func (x *GetTaskStateRequest) String() string {
 func (*GetTaskStateRequest) ProtoMessage() {}
 
 func (x *GetTaskStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[26]
+	mi := &file_orc_v1_task_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3040,7 +3704,7 @@ func (x *GetTaskStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskStateRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskStateRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{26}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetTaskStateRequest) GetId() string {
@@ -3059,7 +3723,7 @@ type GetTaskStateResponse struct {
 
 func (x *GetTaskStateResponse) Reset() {
 	*x = GetTaskStateResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[27]
+	mi := &file_orc_v1_task_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3071,7 +3735,7 @@ func (x *GetTaskStateResponse) String() string {
 func (*GetTaskStateResponse) ProtoMessage() {}
 
 func (x *GetTaskStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[27]
+	mi := &file_orc_v1_task_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3084,7 +3748,7 @@ func (x *GetTaskStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskStateResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskStateResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{27}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetTaskStateResponse) GetState() *ExecutionState {
@@ -3104,7 +3768,7 @@ type GetTaskPlanRequest struct {
 
 func (x *GetTaskPlanRequest) Reset() {
 	*x = GetTaskPlanRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[28]
+	mi := &file_orc_v1_task_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3116,7 +3780,7 @@ func (x *GetTaskPlanRequest) String() string {
 func (*GetTaskPlanRequest) ProtoMessage() {}
 
 func (x *GetTaskPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[28]
+	mi := &file_orc_v1_task_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3129,7 +3793,7 @@ func (x *GetTaskPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskPlanRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskPlanRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{28}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetTaskPlanRequest) GetId() string {
@@ -3148,7 +3812,7 @@ type GetTaskPlanResponse struct {
 
 func (x *GetTaskPlanResponse) Reset() {
 	*x = GetTaskPlanResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[29]
+	mi := &file_orc_v1_task_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3160,7 +3824,7 @@ func (x *GetTaskPlanResponse) String() string {
 func (*GetTaskPlanResponse) ProtoMessage() {}
 
 func (x *GetTaskPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[29]
+	mi := &file_orc_v1_task_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3173,7 +3837,7 @@ func (x *GetTaskPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskPlanResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskPlanResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{29}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetTaskPlanResponse) GetPlan() *TaskPlan {
@@ -3195,7 +3859,7 @@ type RunTaskRequest struct {
 
 func (x *RunTaskRequest) Reset() {
 	*x = RunTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[30]
+	mi := &file_orc_v1_task_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3207,7 +3871,7 @@ func (x *RunTaskRequest) String() string {
 func (*RunTaskRequest) ProtoMessage() {}
 
 func (x *RunTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[30]
+	mi := &file_orc_v1_task_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3220,7 +3884,7 @@ func (x *RunTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTaskRequest.ProtoReflect.Descriptor instead.
 func (*RunTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{30}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *RunTaskRequest) GetId() string {
@@ -3253,7 +3917,7 @@ type RunTaskResponse struct {
 
 func (x *RunTaskResponse) Reset() {
 	*x = RunTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[31]
+	mi := &file_orc_v1_task_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3265,7 +3929,7 @@ func (x *RunTaskResponse) String() string {
 func (*RunTaskResponse) ProtoMessage() {}
 
 func (x *RunTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[31]
+	mi := &file_orc_v1_task_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3278,7 +3942,7 @@ func (x *RunTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTaskResponse.ProtoReflect.Descriptor instead.
 func (*RunTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{31}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RunTaskResponse) GetTask() *Task {
@@ -3298,7 +3962,7 @@ type PauseTaskRequest struct {
 
 func (x *PauseTaskRequest) Reset() {
 	*x = PauseTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[32]
+	mi := &file_orc_v1_task_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3310,7 +3974,7 @@ func (x *PauseTaskRequest) String() string {
 func (*PauseTaskRequest) ProtoMessage() {}
 
 func (x *PauseTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[32]
+	mi := &file_orc_v1_task_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3323,7 +3987,7 @@ func (x *PauseTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseTaskRequest.ProtoReflect.Descriptor instead.
 func (*PauseTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{32}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PauseTaskRequest) GetId() string {
@@ -3342,7 +4006,7 @@ type PauseTaskResponse struct {
 
 func (x *PauseTaskResponse) Reset() {
 	*x = PauseTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[33]
+	mi := &file_orc_v1_task_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3354,7 +4018,7 @@ func (x *PauseTaskResponse) String() string {
 func (*PauseTaskResponse) ProtoMessage() {}
 
 func (x *PauseTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[33]
+	mi := &file_orc_v1_task_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3367,7 +4031,7 @@ func (x *PauseTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseTaskResponse.ProtoReflect.Descriptor instead.
 func (*PauseTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{33}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *PauseTaskResponse) GetTask() *Task {
@@ -3387,7 +4051,7 @@ type ResumeTaskRequest struct {
 
 func (x *ResumeTaskRequest) Reset() {
 	*x = ResumeTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[34]
+	mi := &file_orc_v1_task_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3399,7 +4063,7 @@ func (x *ResumeTaskRequest) String() string {
 func (*ResumeTaskRequest) ProtoMessage() {}
 
 func (x *ResumeTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[34]
+	mi := &file_orc_v1_task_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3412,7 +4076,7 @@ func (x *ResumeTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeTaskRequest.ProtoReflect.Descriptor instead.
 func (*ResumeTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{34}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ResumeTaskRequest) GetId() string {
@@ -3431,7 +4095,7 @@ type ResumeTaskResponse struct {
 
 func (x *ResumeTaskResponse) Reset() {
 	*x = ResumeTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[35]
+	mi := &file_orc_v1_task_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3443,7 +4107,7 @@ func (x *ResumeTaskResponse) String() string {
 func (*ResumeTaskResponse) ProtoMessage() {}
 
 func (x *ResumeTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[35]
+	mi := &file_orc_v1_task_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3456,7 +4120,7 @@ func (x *ResumeTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeTaskResponse.ProtoReflect.Descriptor instead.
 func (*ResumeTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{35}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ResumeTaskResponse) GetTask() *Task {
@@ -3464,6 +4128,184 @@ func (x *ResumeTaskResponse) GetTask() *Task {
 		return x.Task
 	}
 	return nil
+}
+
+// PauseAllTasks - Pauses all running tasks
+type PauseAllTasksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseAllTasksRequest) Reset() {
+	*x = PauseAllTasksRequest{}
+	mi := &file_orc_v1_task_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseAllTasksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseAllTasksRequest) ProtoMessage() {}
+
+func (x *PauseAllTasksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseAllTasksRequest.ProtoReflect.Descriptor instead.
+func (*PauseAllTasksRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{44}
+}
+
+type PauseAllTasksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tasks         []*Task                `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`  // The tasks that were paused
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"` // Number of tasks paused
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseAllTasksResponse) Reset() {
+	*x = PauseAllTasksResponse{}
+	mi := &file_orc_v1_task_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseAllTasksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseAllTasksResponse) ProtoMessage() {}
+
+func (x *PauseAllTasksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseAllTasksResponse.ProtoReflect.Descriptor instead.
+func (*PauseAllTasksResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *PauseAllTasksResponse) GetTasks() []*Task {
+	if x != nil {
+		return x.Tasks
+	}
+	return nil
+}
+
+func (x *PauseAllTasksResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+// ResumeAllTasks - Resumes all paused tasks
+type ResumeAllTasksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeAllTasksRequest) Reset() {
+	*x = ResumeAllTasksRequest{}
+	mi := &file_orc_v1_task_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeAllTasksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeAllTasksRequest) ProtoMessage() {}
+
+func (x *ResumeAllTasksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeAllTasksRequest.ProtoReflect.Descriptor instead.
+func (*ResumeAllTasksRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{46}
+}
+
+type ResumeAllTasksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tasks         []*Task                `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`  // The tasks that were resumed
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"` // Number of tasks resumed
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeAllTasksResponse) Reset() {
+	*x = ResumeAllTasksResponse{}
+	mi := &file_orc_v1_task_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeAllTasksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeAllTasksResponse) ProtoMessage() {}
+
+func (x *ResumeAllTasksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeAllTasksResponse.ProtoReflect.Descriptor instead.
+func (*ResumeAllTasksResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ResumeAllTasksResponse) GetTasks() []*Task {
+	if x != nil {
+		return x.Tasks
+	}
+	return nil
+}
+
+func (x *ResumeAllTasksResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
 }
 
 // SkipBlock
@@ -3477,7 +4319,7 @@ type SkipBlockRequest struct {
 
 func (x *SkipBlockRequest) Reset() {
 	*x = SkipBlockRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[36]
+	mi := &file_orc_v1_task_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3489,7 +4331,7 @@ func (x *SkipBlockRequest) String() string {
 func (*SkipBlockRequest) ProtoMessage() {}
 
 func (x *SkipBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[36]
+	mi := &file_orc_v1_task_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3502,7 +4344,7 @@ func (x *SkipBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkipBlockRequest.ProtoReflect.Descriptor instead.
 func (*SkipBlockRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{36}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *SkipBlockRequest) GetId() string {
@@ -3528,7 +4370,7 @@ type SkipBlockResponse struct {
 
 func (x *SkipBlockResponse) Reset() {
 	*x = SkipBlockResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[37]
+	mi := &file_orc_v1_task_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3540,7 +4382,7 @@ func (x *SkipBlockResponse) String() string {
 func (*SkipBlockResponse) ProtoMessage() {}
 
 func (x *SkipBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[37]
+	mi := &file_orc_v1_task_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3553,7 +4395,7 @@ func (x *SkipBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkipBlockResponse.ProtoReflect.Descriptor instead.
 func (*SkipBlockResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{37}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *SkipBlockResponse) GetTask() *Task {
@@ -3577,7 +4419,7 @@ type RetryTaskRequest struct {
 
 func (x *RetryTaskRequest) Reset() {
 	*x = RetryTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[38]
+	mi := &file_orc_v1_task_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3589,7 +4431,7 @@ func (x *RetryTaskRequest) String() string {
 func (*RetryTaskRequest) ProtoMessage() {}
 
 func (x *RetryTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[38]
+	mi := &file_orc_v1_task_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3602,7 +4444,7 @@ func (x *RetryTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryTaskRequest.ProtoReflect.Descriptor instead.
 func (*RetryTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{38}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *RetryTaskRequest) GetId() string {
@@ -3650,7 +4492,7 @@ type RetryTaskResponse struct {
 
 func (x *RetryTaskResponse) Reset() {
 	*x = RetryTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[39]
+	mi := &file_orc_v1_task_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3662,7 +4504,7 @@ func (x *RetryTaskResponse) String() string {
 func (*RetryTaskResponse) ProtoMessage() {}
 
 func (x *RetryTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[39]
+	mi := &file_orc_v1_task_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3675,7 +4517,7 @@ func (x *RetryTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryTaskResponse.ProtoReflect.Descriptor instead.
 func (*RetryTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{39}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *RetryTaskResponse) GetTask() *Task {
@@ -3702,7 +4544,7 @@ type RetryPreviewRequest struct {
 
 func (x *RetryPreviewRequest) Reset() {
 	*x = RetryPreviewRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[40]
+	mi := &file_orc_v1_task_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3714,7 +4556,7 @@ func (x *RetryPreviewRequest) String() string {
 func (*RetryPreviewRequest) ProtoMessage() {}
 
 func (x *RetryPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[40]
+	mi := &file_orc_v1_task_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3727,7 +4569,7 @@ func (x *RetryPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryPreviewRequest.ProtoReflect.Descriptor instead.
 func (*RetryPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{40}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RetryPreviewRequest) GetId() string {
@@ -3746,7 +4588,7 @@ type RetryPreviewResponse struct {
 
 func (x *RetryPreviewResponse) Reset() {
 	*x = RetryPreviewResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[41]
+	mi := &file_orc_v1_task_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3758,7 +4600,7 @@ func (x *RetryPreviewResponse) String() string {
 func (*RetryPreviewResponse) ProtoMessage() {}
 
 func (x *RetryPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[41]
+	mi := &file_orc_v1_task_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3771,7 +4613,7 @@ func (x *RetryPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetryPreviewResponse.ProtoReflect.Descriptor instead.
 func (*RetryPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{41}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *RetryPreviewResponse) GetInfo() *RetryPreviewInfo {
@@ -3793,7 +4635,7 @@ type FinalizeTaskRequest struct {
 
 func (x *FinalizeTaskRequest) Reset() {
 	*x = FinalizeTaskRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[42]
+	mi := &file_orc_v1_task_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3805,7 +4647,7 @@ func (x *FinalizeTaskRequest) String() string {
 func (*FinalizeTaskRequest) ProtoMessage() {}
 
 func (x *FinalizeTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[42]
+	mi := &file_orc_v1_task_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3818,7 +4660,7 @@ func (x *FinalizeTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeTaskRequest.ProtoReflect.Descriptor instead.
 func (*FinalizeTaskRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{42}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *FinalizeTaskRequest) GetId() string {
@@ -3852,7 +4694,7 @@ type FinalizeTaskResponse struct {
 
 func (x *FinalizeTaskResponse) Reset() {
 	*x = FinalizeTaskResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[43]
+	mi := &file_orc_v1_task_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3864,7 +4706,7 @@ func (x *FinalizeTaskResponse) String() string {
 func (*FinalizeTaskResponse) ProtoMessage() {}
 
 func (x *FinalizeTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[43]
+	mi := &file_orc_v1_task_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3877,7 +4719,7 @@ func (x *FinalizeTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeTaskResponse.ProtoReflect.Descriptor instead.
 func (*FinalizeTaskResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{43}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *FinalizeTaskResponse) GetTask() *Task {
@@ -3904,7 +4746,7 @@ type GetFinalizeStateRequest struct {
 
 func (x *GetFinalizeStateRequest) Reset() {
 	*x = GetFinalizeStateRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[44]
+	mi := &file_orc_v1_task_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3916,7 +4758,7 @@ func (x *GetFinalizeStateRequest) String() string {
 func (*GetFinalizeStateRequest) ProtoMessage() {}
 
 func (x *GetFinalizeStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[44]
+	mi := &file_orc_v1_task_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3929,7 +4771,7 @@ func (x *GetFinalizeStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFinalizeStateRequest.ProtoReflect.Descriptor instead.
 func (*GetFinalizeStateRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{44}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GetFinalizeStateRequest) GetId() string {
@@ -3948,7 +4790,7 @@ type GetFinalizeStateResponse struct {
 
 func (x *GetFinalizeStateResponse) Reset() {
 	*x = GetFinalizeStateResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[45]
+	mi := &file_orc_v1_task_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3960,7 +4802,7 @@ func (x *GetFinalizeStateResponse) String() string {
 func (*GetFinalizeStateResponse) ProtoMessage() {}
 
 func (x *GetFinalizeStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[45]
+	mi := &file_orc_v1_task_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3973,7 +4815,7 @@ func (x *GetFinalizeStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFinalizeStateResponse.ProtoReflect.Descriptor instead.
 func (*GetFinalizeStateResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{45}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *GetFinalizeStateResponse) GetState() *FinalizeState {
@@ -3994,7 +4836,7 @@ type GetDependenciesRequest struct {
 
 func (x *GetDependenciesRequest) Reset() {
 	*x = GetDependenciesRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[46]
+	mi := &file_orc_v1_task_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4006,7 +4848,7 @@ func (x *GetDependenciesRequest) String() string {
 func (*GetDependenciesRequest) ProtoMessage() {}
 
 func (x *GetDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[46]
+	mi := &file_orc_v1_task_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4019,7 +4861,7 @@ func (x *GetDependenciesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*GetDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{46}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *GetDependenciesRequest) GetId() string {
@@ -4045,7 +4887,7 @@ type GetDependenciesResponse struct {
 
 func (x *GetDependenciesResponse) Reset() {
 	*x = GetDependenciesResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[47]
+	mi := &file_orc_v1_task_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4057,7 +4899,7 @@ func (x *GetDependenciesResponse) String() string {
 func (*GetDependenciesResponse) ProtoMessage() {}
 
 func (x *GetDependenciesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[47]
+	mi := &file_orc_v1_task_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4070,7 +4912,7 @@ func (x *GetDependenciesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDependenciesResponse.ProtoReflect.Descriptor instead.
 func (*GetDependenciesResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{47}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GetDependenciesResponse) GetGraph() *DependencyGraph {
@@ -4090,7 +4932,7 @@ type GetDiffRequest struct {
 
 func (x *GetDiffRequest) Reset() {
 	*x = GetDiffRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[48]
+	mi := &file_orc_v1_task_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4102,7 +4944,7 @@ func (x *GetDiffRequest) String() string {
 func (*GetDiffRequest) ProtoMessage() {}
 
 func (x *GetDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[48]
+	mi := &file_orc_v1_task_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4115,7 +4957,7 @@ func (x *GetDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffRequest.ProtoReflect.Descriptor instead.
 func (*GetDiffRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{48}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetDiffRequest) GetId() string {
@@ -4134,7 +4976,7 @@ type GetDiffResponse struct {
 
 func (x *GetDiffResponse) Reset() {
 	*x = GetDiffResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[49]
+	mi := &file_orc_v1_task_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4146,7 +4988,7 @@ func (x *GetDiffResponse) String() string {
 func (*GetDiffResponse) ProtoMessage() {}
 
 func (x *GetDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[49]
+	mi := &file_orc_v1_task_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4159,7 +5001,7 @@ func (x *GetDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffResponse.ProtoReflect.Descriptor instead.
 func (*GetDiffResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{49}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *GetDiffResponse) GetDiff() *DiffResult {
@@ -4179,7 +5021,7 @@ type GetDiffStatsRequest struct {
 
 func (x *GetDiffStatsRequest) Reset() {
 	*x = GetDiffStatsRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[50]
+	mi := &file_orc_v1_task_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4191,7 +5033,7 @@ func (x *GetDiffStatsRequest) String() string {
 func (*GetDiffStatsRequest) ProtoMessage() {}
 
 func (x *GetDiffStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[50]
+	mi := &file_orc_v1_task_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4204,7 +5046,7 @@ func (x *GetDiffStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetDiffStatsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{50}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *GetDiffStatsRequest) GetId() string {
@@ -4223,7 +5065,7 @@ type GetDiffStatsResponse struct {
 
 func (x *GetDiffStatsResponse) Reset() {
 	*x = GetDiffStatsResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[51]
+	mi := &file_orc_v1_task_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4235,7 +5077,7 @@ func (x *GetDiffStatsResponse) String() string {
 func (*GetDiffStatsResponse) ProtoMessage() {}
 
 func (x *GetDiffStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[51]
+	mi := &file_orc_v1_task_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4248,7 +5090,7 @@ func (x *GetDiffStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetDiffStatsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{51}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *GetDiffStatsResponse) GetStats() *DiffStats {
@@ -4270,7 +5112,7 @@ type ListCommentsRequest struct {
 
 func (x *ListCommentsRequest) Reset() {
 	*x = ListCommentsRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[52]
+	mi := &file_orc_v1_task_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4282,7 +5124,7 @@ func (x *ListCommentsRequest) String() string {
 func (*ListCommentsRequest) ProtoMessage() {}
 
 func (x *ListCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[52]
+	mi := &file_orc_v1_task_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4295,7 +5137,7 @@ func (x *ListCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommentsRequest.ProtoReflect.Descriptor instead.
 func (*ListCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{52}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ListCommentsRequest) GetTaskId() string {
@@ -4328,7 +5170,7 @@ type ListCommentsResponse struct {
 
 func (x *ListCommentsResponse) Reset() {
 	*x = ListCommentsResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[53]
+	mi := &file_orc_v1_task_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4340,7 +5182,7 @@ func (x *ListCommentsResponse) String() string {
 func (*ListCommentsResponse) ProtoMessage() {}
 
 func (x *ListCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[53]
+	mi := &file_orc_v1_task_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4353,7 +5195,7 @@ func (x *ListCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommentsResponse.ProtoReflect.Descriptor instead.
 func (*ListCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{53}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ListCommentsResponse) GetComments() []*TaskComment {
@@ -4377,7 +5219,7 @@ type CreateCommentRequest struct {
 
 func (x *CreateCommentRequest) Reset() {
 	*x = CreateCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[54]
+	mi := &file_orc_v1_task_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4389,7 +5231,7 @@ func (x *CreateCommentRequest) String() string {
 func (*CreateCommentRequest) ProtoMessage() {}
 
 func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[54]
+	mi := &file_orc_v1_task_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4402,7 +5244,7 @@ func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentRequest.ProtoReflect.Descriptor instead.
 func (*CreateCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{54}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *CreateCommentRequest) GetTaskId() string {
@@ -4449,7 +5291,7 @@ type CreateCommentResponse struct {
 
 func (x *CreateCommentResponse) Reset() {
 	*x = CreateCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[55]
+	mi := &file_orc_v1_task_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4461,7 +5303,7 @@ func (x *CreateCommentResponse) String() string {
 func (*CreateCommentResponse) ProtoMessage() {}
 
 func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[55]
+	mi := &file_orc_v1_task_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4474,7 +5316,7 @@ func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentResponse.ProtoReflect.Descriptor instead.
 func (*CreateCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{55}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *CreateCommentResponse) GetComment() *TaskComment {
@@ -4497,7 +5339,7 @@ type UpdateCommentRequest struct {
 
 func (x *UpdateCommentRequest) Reset() {
 	*x = UpdateCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[56]
+	mi := &file_orc_v1_task_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4509,7 +5351,7 @@ func (x *UpdateCommentRequest) String() string {
 func (*UpdateCommentRequest) ProtoMessage() {}
 
 func (x *UpdateCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[56]
+	mi := &file_orc_v1_task_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4522,7 +5364,7 @@ func (x *UpdateCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCommentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{56}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *UpdateCommentRequest) GetTaskId() string {
@@ -4562,7 +5404,7 @@ type UpdateCommentResponse struct {
 
 func (x *UpdateCommentResponse) Reset() {
 	*x = UpdateCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[57]
+	mi := &file_orc_v1_task_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4574,7 +5416,7 @@ func (x *UpdateCommentResponse) String() string {
 func (*UpdateCommentResponse) ProtoMessage() {}
 
 func (x *UpdateCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[57]
+	mi := &file_orc_v1_task_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4587,7 +5429,7 @@ func (x *UpdateCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCommentResponse.ProtoReflect.Descriptor instead.
 func (*UpdateCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{57}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *UpdateCommentResponse) GetComment() *TaskComment {
@@ -4608,7 +5450,7 @@ type DeleteCommentRequest struct {
 
 func (x *DeleteCommentRequest) Reset() {
 	*x = DeleteCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[58]
+	mi := &file_orc_v1_task_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4620,7 +5462,7 @@ func (x *DeleteCommentRequest) String() string {
 func (*DeleteCommentRequest) ProtoMessage() {}
 
 func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[58]
+	mi := &file_orc_v1_task_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4633,7 +5475,7 @@ func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{58}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *DeleteCommentRequest) GetTaskId() string {
@@ -4659,7 +5501,7 @@ type DeleteCommentResponse struct {
 
 func (x *DeleteCommentResponse) Reset() {
 	*x = DeleteCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[59]
+	mi := &file_orc_v1_task_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4671,7 +5513,7 @@ func (x *DeleteCommentResponse) String() string {
 func (*DeleteCommentResponse) ProtoMessage() {}
 
 func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[59]
+	mi := &file_orc_v1_task_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4684,7 +5526,7 @@ func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{59}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *DeleteCommentResponse) GetMessage() string {
@@ -4706,7 +5548,7 @@ type ListReviewCommentsRequest struct {
 
 func (x *ListReviewCommentsRequest) Reset() {
 	*x = ListReviewCommentsRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[60]
+	mi := &file_orc_v1_task_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4718,7 +5560,7 @@ func (x *ListReviewCommentsRequest) String() string {
 func (*ListReviewCommentsRequest) ProtoMessage() {}
 
 func (x *ListReviewCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[60]
+	mi := &file_orc_v1_task_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4731,7 +5573,7 @@ func (x *ListReviewCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReviewCommentsRequest.ProtoReflect.Descriptor instead.
 func (*ListReviewCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{60}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ListReviewCommentsRequest) GetTaskId() string {
@@ -4764,7 +5606,7 @@ type ListReviewCommentsResponse struct {
 
 func (x *ListReviewCommentsResponse) Reset() {
 	*x = ListReviewCommentsResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[61]
+	mi := &file_orc_v1_task_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4776,7 +5618,7 @@ func (x *ListReviewCommentsResponse) String() string {
 func (*ListReviewCommentsResponse) ProtoMessage() {}
 
 func (x *ListReviewCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[61]
+	mi := &file_orc_v1_task_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4789,7 +5631,7 @@ func (x *ListReviewCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReviewCommentsResponse.ProtoReflect.Descriptor instead.
 func (*ListReviewCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{61}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ListReviewCommentsResponse) GetComments() []*ReviewComment {
@@ -4814,7 +5656,7 @@ type CreateReviewCommentRequest struct {
 
 func (x *CreateReviewCommentRequest) Reset() {
 	*x = CreateReviewCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[62]
+	mi := &file_orc_v1_task_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4826,7 +5668,7 @@ func (x *CreateReviewCommentRequest) String() string {
 func (*CreateReviewCommentRequest) ProtoMessage() {}
 
 func (x *CreateReviewCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[62]
+	mi := &file_orc_v1_task_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4839,7 +5681,7 @@ func (x *CreateReviewCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateReviewCommentRequest.ProtoReflect.Descriptor instead.
 func (*CreateReviewCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{62}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *CreateReviewCommentRequest) GetTaskId() string {
@@ -4893,7 +5735,7 @@ type CreateReviewCommentResponse struct {
 
 func (x *CreateReviewCommentResponse) Reset() {
 	*x = CreateReviewCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[63]
+	mi := &file_orc_v1_task_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4905,7 +5747,7 @@ func (x *CreateReviewCommentResponse) String() string {
 func (*CreateReviewCommentResponse) ProtoMessage() {}
 
 func (x *CreateReviewCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[63]
+	mi := &file_orc_v1_task_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4918,7 +5760,7 @@ func (x *CreateReviewCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateReviewCommentResponse.ProtoReflect.Descriptor instead.
 func (*CreateReviewCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{63}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *CreateReviewCommentResponse) GetComment() *ReviewComment {
@@ -4941,7 +5783,7 @@ type UpdateReviewCommentRequest struct {
 
 func (x *UpdateReviewCommentRequest) Reset() {
 	*x = UpdateReviewCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[64]
+	mi := &file_orc_v1_task_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4953,7 +5795,7 @@ func (x *UpdateReviewCommentRequest) String() string {
 func (*UpdateReviewCommentRequest) ProtoMessage() {}
 
 func (x *UpdateReviewCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[64]
+	mi := &file_orc_v1_task_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4966,7 +5808,7 @@ func (x *UpdateReviewCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReviewCommentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateReviewCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{64}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *UpdateReviewCommentRequest) GetTaskId() string {
@@ -5006,7 +5848,7 @@ type UpdateReviewCommentResponse struct {
 
 func (x *UpdateReviewCommentResponse) Reset() {
 	*x = UpdateReviewCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[65]
+	mi := &file_orc_v1_task_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5018,7 +5860,7 @@ func (x *UpdateReviewCommentResponse) String() string {
 func (*UpdateReviewCommentResponse) ProtoMessage() {}
 
 func (x *UpdateReviewCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[65]
+	mi := &file_orc_v1_task_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5031,7 +5873,7 @@ func (x *UpdateReviewCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReviewCommentResponse.ProtoReflect.Descriptor instead.
 func (*UpdateReviewCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{65}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *UpdateReviewCommentResponse) GetComment() *ReviewComment {
@@ -5052,7 +5894,7 @@ type DeleteReviewCommentRequest struct {
 
 func (x *DeleteReviewCommentRequest) Reset() {
 	*x = DeleteReviewCommentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[66]
+	mi := &file_orc_v1_task_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5064,7 +5906,7 @@ func (x *DeleteReviewCommentRequest) String() string {
 func (*DeleteReviewCommentRequest) ProtoMessage() {}
 
 func (x *DeleteReviewCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[66]
+	mi := &file_orc_v1_task_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5077,7 +5919,7 @@ func (x *DeleteReviewCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteReviewCommentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteReviewCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{66}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *DeleteReviewCommentRequest) GetTaskId() string {
@@ -5103,7 +5945,7 @@ type DeleteReviewCommentResponse struct {
 
 func (x *DeleteReviewCommentResponse) Reset() {
 	*x = DeleteReviewCommentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[67]
+	mi := &file_orc_v1_task_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5115,7 +5957,7 @@ func (x *DeleteReviewCommentResponse) String() string {
 func (*DeleteReviewCommentResponse) ProtoMessage() {}
 
 func (x *DeleteReviewCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[67]
+	mi := &file_orc_v1_task_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5128,7 +5970,7 @@ func (x *DeleteReviewCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteReviewCommentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteReviewCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{67}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *DeleteReviewCommentResponse) GetMessage() string {
@@ -5148,7 +5990,7 @@ type ListAttachmentsRequest struct {
 
 func (x *ListAttachmentsRequest) Reset() {
 	*x = ListAttachmentsRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[68]
+	mi := &file_orc_v1_task_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5160,7 +6002,7 @@ func (x *ListAttachmentsRequest) String() string {
 func (*ListAttachmentsRequest) ProtoMessage() {}
 
 func (x *ListAttachmentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[68]
+	mi := &file_orc_v1_task_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5173,7 +6015,7 @@ func (x *ListAttachmentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttachmentsRequest.ProtoReflect.Descriptor instead.
 func (*ListAttachmentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{68}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *ListAttachmentsRequest) GetTaskId() string {
@@ -5192,7 +6034,7 @@ type ListAttachmentsResponse struct {
 
 func (x *ListAttachmentsResponse) Reset() {
 	*x = ListAttachmentsResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[69]
+	mi := &file_orc_v1_task_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5204,7 +6046,7 @@ func (x *ListAttachmentsResponse) String() string {
 func (*ListAttachmentsResponse) ProtoMessage() {}
 
 func (x *ListAttachmentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[69]
+	mi := &file_orc_v1_task_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5217,7 +6059,7 @@ func (x *ListAttachmentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAttachmentsResponse.ProtoReflect.Descriptor instead.
 func (*ListAttachmentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{69}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *ListAttachmentsResponse) GetAttachments() []*Attachment {
@@ -5241,7 +6083,7 @@ type UploadAttachmentRequest struct {
 
 func (x *UploadAttachmentRequest) Reset() {
 	*x = UploadAttachmentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[70]
+	mi := &file_orc_v1_task_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5253,7 +6095,7 @@ func (x *UploadAttachmentRequest) String() string {
 func (*UploadAttachmentRequest) ProtoMessage() {}
 
 func (x *UploadAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[70]
+	mi := &file_orc_v1_task_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5266,7 +6108,7 @@ func (x *UploadAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*UploadAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{70}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *UploadAttachmentRequest) GetData() isUploadAttachmentRequest_Data {
@@ -5321,7 +6163,7 @@ type AttachmentMetadata struct {
 
 func (x *AttachmentMetadata) Reset() {
 	*x = AttachmentMetadata{}
-	mi := &file_orc_v1_task_proto_msgTypes[71]
+	mi := &file_orc_v1_task_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5333,7 +6175,7 @@ func (x *AttachmentMetadata) String() string {
 func (*AttachmentMetadata) ProtoMessage() {}
 
 func (x *AttachmentMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[71]
+	mi := &file_orc_v1_task_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5346,7 +6188,7 @@ func (x *AttachmentMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachmentMetadata.ProtoReflect.Descriptor instead.
 func (*AttachmentMetadata) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{71}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *AttachmentMetadata) GetTaskId() string {
@@ -5379,7 +6221,7 @@ type UploadAttachmentResponse struct {
 
 func (x *UploadAttachmentResponse) Reset() {
 	*x = UploadAttachmentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[72]
+	mi := &file_orc_v1_task_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5391,7 +6233,7 @@ func (x *UploadAttachmentResponse) String() string {
 func (*UploadAttachmentResponse) ProtoMessage() {}
 
 func (x *UploadAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[72]
+	mi := &file_orc_v1_task_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5404,7 +6246,7 @@ func (x *UploadAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*UploadAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{72}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *UploadAttachmentResponse) GetAttachment() *Attachment {
@@ -5425,7 +6267,7 @@ type DownloadAttachmentRequest struct {
 
 func (x *DownloadAttachmentRequest) Reset() {
 	*x = DownloadAttachmentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[73]
+	mi := &file_orc_v1_task_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5437,7 +6279,7 @@ func (x *DownloadAttachmentRequest) String() string {
 func (*DownloadAttachmentRequest) ProtoMessage() {}
 
 func (x *DownloadAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[73]
+	mi := &file_orc_v1_task_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5450,7 +6292,7 @@ func (x *DownloadAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*DownloadAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{73}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *DownloadAttachmentRequest) GetTaskId() string {
@@ -5476,7 +6318,7 @@ type DownloadAttachmentResponse struct {
 
 func (x *DownloadAttachmentResponse) Reset() {
 	*x = DownloadAttachmentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[74]
+	mi := &file_orc_v1_task_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5488,7 +6330,7 @@ func (x *DownloadAttachmentResponse) String() string {
 func (*DownloadAttachmentResponse) ProtoMessage() {}
 
 func (x *DownloadAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[74]
+	mi := &file_orc_v1_task_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5501,7 +6343,7 @@ func (x *DownloadAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DownloadAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{74}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *DownloadAttachmentResponse) GetChunk() []byte {
@@ -5522,7 +6364,7 @@ type DeleteAttachmentRequest struct {
 
 func (x *DeleteAttachmentRequest) Reset() {
 	*x = DeleteAttachmentRequest{}
-	mi := &file_orc_v1_task_proto_msgTypes[75]
+	mi := &file_orc_v1_task_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5534,7 +6376,7 @@ func (x *DeleteAttachmentRequest) String() string {
 func (*DeleteAttachmentRequest) ProtoMessage() {}
 
 func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[75]
+	mi := &file_orc_v1_task_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5547,7 +6389,7 @@ func (x *DeleteAttachmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{75}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *DeleteAttachmentRequest) GetTaskId() string {
@@ -5573,7 +6415,7 @@ type DeleteAttachmentResponse struct {
 
 func (x *DeleteAttachmentResponse) Reset() {
 	*x = DeleteAttachmentResponse{}
-	mi := &file_orc_v1_task_proto_msgTypes[76]
+	mi := &file_orc_v1_task_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5585,7 +6427,7 @@ func (x *DeleteAttachmentResponse) String() string {
 func (*DeleteAttachmentResponse) ProtoMessage() {}
 
 func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_task_proto_msgTypes[76]
+	mi := &file_orc_v1_task_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5598,12 +6440,504 @@ func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_task_proto_rawDescGZIP(), []int{76}
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *DeleteAttachmentResponse) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+// GetTestResults
+type GetTestResultsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTestResultsRequest) Reset() {
+	*x = GetTestResultsRequest{}
+	mi := &file_orc_v1_task_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTestResultsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTestResultsRequest) ProtoMessage() {}
+
+func (x *GetTestResultsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTestResultsRequest.ProtoReflect.Descriptor instead.
+func (*GetTestResultsRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *GetTestResultsRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type GetTestResultsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       *TestResultsInfo       `protobuf:"bytes,1,opt,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTestResultsResponse) Reset() {
+	*x = GetTestResultsResponse{}
+	mi := &file_orc_v1_task_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTestResultsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTestResultsResponse) ProtoMessage() {}
+
+func (x *GetTestResultsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTestResultsResponse.ProtoReflect.Descriptor instead.
+func (*GetTestResultsResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *GetTestResultsResponse) GetResults() *TestResultsInfo {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+// ReviewFinding from multi-agent code review
+type ReviewFinding struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Severity              string                 `protobuf:"bytes,1,opt,name=severity,proto3" json:"severity,omitempty"`
+	File                  *string                `protobuf:"bytes,2,opt,name=file,proto3,oneof" json:"file,omitempty"`
+	Line                  *int32                 `protobuf:"varint,3,opt,name=line,proto3,oneof" json:"line,omitempty"`
+	Description           string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Suggestion            *string                `protobuf:"bytes,5,opt,name=suggestion,proto3,oneof" json:"suggestion,omitempty"`
+	AgentId               *string                `protobuf:"bytes,6,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	ConstitutionViolation *string                `protobuf:"bytes,7,opt,name=constitution_violation,json=constitutionViolation,proto3,oneof" json:"constitution_violation,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ReviewFinding) Reset() {
+	*x = ReviewFinding{}
+	mi := &file_orc_v1_task_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewFinding) ProtoMessage() {}
+
+func (x *ReviewFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewFinding.ProtoReflect.Descriptor instead.
+func (*ReviewFinding) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *ReviewFinding) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *ReviewFinding) GetFile() string {
+	if x != nil && x.File != nil {
+		return *x.File
+	}
+	return ""
+}
+
+func (x *ReviewFinding) GetLine() int32 {
+	if x != nil && x.Line != nil {
+		return *x.Line
+	}
+	return 0
+}
+
+func (x *ReviewFinding) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ReviewFinding) GetSuggestion() string {
+	if x != nil && x.Suggestion != nil {
+		return *x.Suggestion
+	}
+	return ""
+}
+
+func (x *ReviewFinding) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *ReviewFinding) GetConstitutionViolation() string {
+	if x != nil && x.ConstitutionViolation != nil {
+		return *x.ConstitutionViolation
+	}
+	return ""
+}
+
+type ReviewRoundFindings struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Round         int32                  `protobuf:"varint,2,opt,name=round,proto3" json:"round,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	Issues        []*ReviewFinding       `protobuf:"bytes,4,rep,name=issues,proto3" json:"issues,omitempty"`
+	Questions     []string               `protobuf:"bytes,5,rep,name=questions,proto3" json:"questions,omitempty"`
+	Positives     []string               `protobuf:"bytes,6,rep,name=positives,proto3" json:"positives,omitempty"`
+	AgentId       *string                `protobuf:"bytes,7,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewRoundFindings) Reset() {
+	*x = ReviewRoundFindings{}
+	mi := &file_orc_v1_task_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewRoundFindings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewRoundFindings) ProtoMessage() {}
+
+func (x *ReviewRoundFindings) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewRoundFindings.ProtoReflect.Descriptor instead.
+func (*ReviewRoundFindings) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *ReviewRoundFindings) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ReviewRoundFindings) GetRound() int32 {
+	if x != nil {
+		return x.Round
+	}
+	return 0
+}
+
+func (x *ReviewRoundFindings) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ReviewRoundFindings) GetIssues() []*ReviewFinding {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+func (x *ReviewRoundFindings) GetQuestions() []string {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *ReviewRoundFindings) GetPositives() []string {
+	if x != nil {
+		return x.Positives
+	}
+	return nil
+}
+
+func (x *ReviewRoundFindings) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *ReviewRoundFindings) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+// GetReviewFindings
+type GetReviewFindingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReviewFindingsRequest) Reset() {
+	*x = GetReviewFindingsRequest{}
+	mi := &file_orc_v1_task_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReviewFindingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReviewFindingsRequest) ProtoMessage() {}
+
+func (x *GetReviewFindingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReviewFindingsRequest.ProtoReflect.Descriptor instead.
+func (*GetReviewFindingsRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *GetReviewFindingsRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type GetReviewFindingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rounds        []*ReviewRoundFindings `protobuf:"bytes,1,rep,name=rounds,proto3" json:"rounds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReviewFindingsResponse) Reset() {
+	*x = GetReviewFindingsResponse{}
+	mi := &file_orc_v1_task_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReviewFindingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReviewFindingsResponse) ProtoMessage() {}
+
+func (x *GetReviewFindingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReviewFindingsResponse.ProtoReflect.Descriptor instead.
+func (*GetReviewFindingsResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *GetReviewFindingsResponse) GetRounds() []*ReviewRoundFindings {
+	if x != nil {
+		return x.Rounds
+	}
+	return nil
+}
+
+// ExportTask
+type ExportTaskRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TaskId             string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	IncludeTranscripts bool                   `protobuf:"varint,2,opt,name=include_transcripts,json=includeTranscripts,proto3" json:"include_transcripts,omitempty"`
+	IncludeAttachments bool                   `protobuf:"varint,3,opt,name=include_attachments,json=includeAttachments,proto3" json:"include_attachments,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ExportTaskRequest) Reset() {
+	*x = ExportTaskRequest{}
+	mi := &file_orc_v1_task_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportTaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportTaskRequest) ProtoMessage() {}
+
+func (x *ExportTaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportTaskRequest.ProtoReflect.Descriptor instead.
+func (*ExportTaskRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *ExportTaskRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ExportTaskRequest) GetIncludeTranscripts() bool {
+	if x != nil {
+		return x.IncludeTranscripts
+	}
+	return false
+}
+
+func (x *ExportTaskRequest) GetIncludeAttachments() bool {
+	if x != nil {
+		return x.IncludeAttachments
+	}
+	return false
+}
+
+type ExportTaskResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType   string                 `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportTaskResponse) Reset() {
+	*x = ExportTaskResponse{}
+	mi := &file_orc_v1_task_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportTaskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportTaskResponse) ProtoMessage() {}
+
+func (x *ExportTaskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_task_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportTaskResponse.ProtoReflect.Descriptor instead.
+func (*ExportTaskResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_task_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *ExportTaskResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *ExportTaskResponse) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *ExportTaskResponse) GetContentType() string {
+	if x != nil {
+		return x.ContentType
 	}
 	return ""
 }
@@ -5846,7 +7180,79 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01\x12F\n" +
 	"\x13unresolved_comments\x18\x05 \x03(\v2\x15.orc.v1.ReviewCommentR\x12unresolvedCommentsB\r\n" +
-	"\v_last_error\"\xb5\x01\n" +
+	"\v_last_error\"\xdf\x01\n" +
+	"\n" +
+	"TestResult\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x18.orc.v1.TestResultStatusR\x06status\x12\x1f\n" +
+	"\vduration_ms\x18\x03 \x01(\x03R\n" +
+	"durationMs\x12\x19\n" +
+	"\x05error\x18\x04 \x01(\tH\x00R\x05error\x88\x01\x01\x12 \n" +
+	"\vscreenshots\x18\x05 \x03(\tR\vscreenshots\x12\x19\n" +
+	"\x05trace\x18\x06 \x01(\tH\x01R\x05trace\x88\x01\x01B\b\n" +
+	"\x06_errorB\b\n" +
+	"\x06_trace\"I\n" +
+	"\tTestSuite\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12(\n" +
+	"\x05tests\x18\x02 \x03(\v2\x12.orc.v1.TestResultR\x05tests\"m\n" +
+	"\vTestSummary\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x16\n" +
+	"\x06passed\x18\x02 \x01(\x05R\x06passed\x12\x16\n" +
+	"\x06failed\x18\x03 \x01(\x05R\x06failed\x12\x18\n" +
+	"\askipped\x18\x04 \x01(\x05R\askipped\"Z\n" +
+	"\x0eCoverageDetail\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x18\n" +
+	"\acovered\x18\x02 \x01(\x05R\acovered\x12\x18\n" +
+	"\apercent\x18\x03 \x01(\x01R\apercent\"\xc6\x02\n" +
+	"\fTestCoverage\x12\x1e\n" +
+	"\n" +
+	"percentage\x18\x01 \x01(\x01R\n" +
+	"percentage\x121\n" +
+	"\x05lines\x18\x02 \x01(\v2\x16.orc.v1.CoverageDetailH\x00R\x05lines\x88\x01\x01\x127\n" +
+	"\bbranches\x18\x03 \x01(\v2\x16.orc.v1.CoverageDetailH\x01R\bbranches\x88\x01\x01\x129\n" +
+	"\tfunctions\x18\x04 \x01(\v2\x16.orc.v1.CoverageDetailH\x02R\tfunctions\x88\x01\x01\x12;\n" +
+	"\n" +
+	"statements\x18\x05 \x01(\v2\x16.orc.v1.CoverageDetailH\x03R\n" +
+	"statements\x88\x01\x01B\b\n" +
+	"\x06_linesB\v\n" +
+	"\t_branchesB\f\n" +
+	"\n" +
+	"_functionsB\r\n" +
+	"\v_statements\"\xfd\x02\n" +
+	"\n" +
+	"TestReport\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x1c\n" +
+	"\tframework\x18\x02 \x01(\tR\tframework\x129\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
+	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x1f\n" +
+	"\vduration_ms\x18\x05 \x01(\x03R\n" +
+	"durationMs\x12-\n" +
+	"\asummary\x18\x06 \x01(\v2\x13.orc.v1.TestSummaryR\asummary\x12)\n" +
+	"\x06suites\x18\a \x03(\v2\x11.orc.v1.TestSuiteR\x06suites\x125\n" +
+	"\bcoverage\x18\b \x01(\v2\x14.orc.v1.TestCoverageH\x00R\bcoverage\x88\x01\x01B\v\n" +
+	"\t_coverage\"\xc4\x01\n" +
+	"\n" +
+	"Screenshot\x12\x1a\n" +
+	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x1b\n" +
+	"\tpage_name\x18\x02 \x01(\tR\bpageName\x12 \n" +
+	"\ttest_name\x18\x03 \x01(\tH\x00R\btestName\x88\x01\x01\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\f\n" +
+	"\n" +
+	"_test_name\"\x8c\x02\n" +
+	"\x0fTestResultsInfo\x12\x1f\n" +
+	"\vhas_results\x18\x01 \x01(\bR\n" +
+	"hasResults\x12/\n" +
+	"\x06report\x18\x02 \x01(\v2\x12.orc.v1.TestReportH\x00R\x06report\x88\x01\x01\x124\n" +
+	"\vscreenshots\x18\x03 \x03(\v2\x12.orc.v1.ScreenshotR\vscreenshots\x12\x1d\n" +
+	"\n" +
+	"has_traces\x18\x04 \x01(\bR\thasTraces\x12\x1f\n" +
+	"\vtrace_files\x18\x05 \x03(\tR\n" +
+	"traceFiles\x12&\n" +
+	"\x0fhas_html_report\x18\x06 \x01(\bR\rhasHtmlReportB\t\n" +
+	"\a_report\"\xb5\x01\n" +
 	"\n" +
 	"Attachment\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x12\n" +
@@ -5958,7 +7364,15 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x11ResumeTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"6\n" +
 	"\x12ResumeTaskResponse\x12 \n" +
-	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"J\n" +
+	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\x16\n" +
+	"\x14PauseAllTasksRequest\"Q\n" +
+	"\x15PauseAllTasksResponse\x12\"\n" +
+	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x17\n" +
+	"\x15ResumeAllTasksRequest\"R\n" +
+	"\x16ResumeAllTasksResponse\x12\"\n" +
+	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"J\n" +
 	"\x10SkipBlockRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\x06reason\x18\x02 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
@@ -6108,7 +7522,49 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\"4\n" +
 	"\x18DeleteAttachmentResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage*\x88\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"0\n" +
+	"\x15GetTestResultsRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"K\n" +
+	"\x16GetTestResultsResponse\x121\n" +
+	"\aresults\x18\x01 \x01(\v2\x17.orc.v1.TestResultsInfoR\aresults\"\xc9\x02\n" +
+	"\rReviewFinding\x12\x1a\n" +
+	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x17\n" +
+	"\x04file\x18\x02 \x01(\tH\x00R\x04file\x88\x01\x01\x12\x17\n" +
+	"\x04line\x18\x03 \x01(\x05H\x01R\x04line\x88\x01\x01\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
+	"\n" +
+	"suggestion\x18\x05 \x01(\tH\x02R\n" +
+	"suggestion\x88\x01\x01\x12\x1e\n" +
+	"\bagent_id\x18\x06 \x01(\tH\x03R\aagentId\x88\x01\x01\x12:\n" +
+	"\x16constitution_violation\x18\a \x01(\tH\x04R\x15constitutionViolation\x88\x01\x01B\a\n" +
+	"\x05_fileB\a\n" +
+	"\x05_lineB\r\n" +
+	"\v_suggestionB\v\n" +
+	"\t_agent_idB\x19\n" +
+	"\x17_constitution_violation\"\xb1\x02\n" +
+	"\x13ReviewRoundFindings\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05round\x18\x02 \x01(\x05R\x05round\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12-\n" +
+	"\x06issues\x18\x04 \x03(\v2\x15.orc.v1.ReviewFindingR\x06issues\x12\x1c\n" +
+	"\tquestions\x18\x05 \x03(\tR\tquestions\x12\x1c\n" +
+	"\tpositives\x18\x06 \x03(\tR\tpositives\x12\x1e\n" +
+	"\bagent_id\x18\a \x01(\tH\x00R\aagentId\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\v\n" +
+	"\t_agent_id\"3\n" +
+	"\x18GetReviewFindingsRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"P\n" +
+	"\x19GetReviewFindingsResponse\x123\n" +
+	"\x06rounds\x18\x01 \x03(\v2\x1b.orc.v1.ReviewRoundFindingsR\x06rounds\"\x8e\x01\n" +
+	"\x11ExportTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12/\n" +
+	"\x13include_transcripts\x18\x02 \x01(\bR\x12includeTranscripts\x12/\n" +
+	"\x13include_attachments\x18\x03 \x01(\bR\x12includeAttachments\"g\n" +
+	"\x12ExportTaskResponse\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType*\x88\x01\n" +
 	"\n" +
 	"TaskWeight\x12\x1b\n" +
 	"\x17TASK_WEIGHT_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -6187,7 +7643,13 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x17AUTHOR_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11AUTHOR_TYPE_HUMAN\x10\x01\x12\x15\n" +
 	"\x11AUTHOR_TYPE_AGENT\x10\x02\x12\x16\n" +
-	"\x12AUTHOR_TYPE_SYSTEM\x10\x032\x91\x12\n" +
+	"\x12AUTHOR_TYPE_SYSTEM\x10\x03*\xb4\x01\n" +
+	"\x10TestResultStatus\x12\"\n" +
+	"\x1eTEST_RESULT_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19TEST_RESULT_STATUS_PASSED\x10\x01\x12\x1d\n" +
+	"\x19TEST_RESULT_STATUS_FAILED\x10\x02\x12\x1e\n" +
+	"\x1aTEST_RESULT_STATUS_SKIPPED\x10\x03\x12\x1e\n" +
+	"\x1aTEST_RESULT_STATUS_PENDING\x10\x042\xa0\x15\n" +
 	"\vTaskService\x12@\n" +
 	"\tListTasks\x12\x18.orc.v1.ListTasksRequest\x1a\x19.orc.v1.ListTasksResponse\x12:\n" +
 	"\aGetTask\x12\x16.orc.v1.GetTaskRequest\x1a\x17.orc.v1.GetTaskResponse\x12C\n" +
@@ -6202,7 +7664,9 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\aRunTask\x12\x16.orc.v1.RunTaskRequest\x1a\x17.orc.v1.RunTaskResponse\x12@\n" +
 	"\tPauseTask\x12\x18.orc.v1.PauseTaskRequest\x1a\x19.orc.v1.PauseTaskResponse\x12C\n" +
 	"\n" +
-	"ResumeTask\x12\x19.orc.v1.ResumeTaskRequest\x1a\x1a.orc.v1.ResumeTaskResponse\x12@\n" +
+	"ResumeTask\x12\x19.orc.v1.ResumeTaskRequest\x1a\x1a.orc.v1.ResumeTaskResponse\x12L\n" +
+	"\rPauseAllTasks\x12\x1c.orc.v1.PauseAllTasksRequest\x1a\x1d.orc.v1.PauseAllTasksResponse\x12O\n" +
+	"\x0eResumeAllTasks\x12\x1d.orc.v1.ResumeAllTasksRequest\x1a\x1e.orc.v1.ResumeAllTasksResponse\x12@\n" +
 	"\tSkipBlock\x12\x18.orc.v1.SkipBlockRequest\x1a\x19.orc.v1.SkipBlockResponse\x12@\n" +
 	"\tRetryTask\x12\x18.orc.v1.RetryTaskRequest\x1a\x19.orc.v1.RetryTaskResponse\x12I\n" +
 	"\fRetryPreview\x12\x1b.orc.v1.RetryPreviewRequest\x1a\x1c.orc.v1.RetryPreviewResponse\x12I\n" +
@@ -6222,7 +7686,11 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x0fListAttachments\x12\x1e.orc.v1.ListAttachmentsRequest\x1a\x1f.orc.v1.ListAttachmentsResponse\x12W\n" +
 	"\x10UploadAttachment\x12\x1f.orc.v1.UploadAttachmentRequest\x1a .orc.v1.UploadAttachmentResponse(\x01\x12]\n" +
 	"\x12DownloadAttachment\x12!.orc.v1.DownloadAttachmentRequest\x1a\".orc.v1.DownloadAttachmentResponse0\x01\x12U\n" +
-	"\x10DeleteAttachment\x12\x1f.orc.v1.DeleteAttachmentRequest\x1a .orc.v1.DeleteAttachmentResponseB\x85\x01\n" +
+	"\x10DeleteAttachment\x12\x1f.orc.v1.DeleteAttachmentRequest\x1a .orc.v1.DeleteAttachmentResponse\x12O\n" +
+	"\x0eGetTestResults\x12\x1d.orc.v1.GetTestResultsRequest\x1a\x1e.orc.v1.GetTestResultsResponse\x12X\n" +
+	"\x11GetReviewFindings\x12 .orc.v1.GetReviewFindingsRequest\x1a!.orc.v1.GetReviewFindingsResponse\x12C\n" +
+	"\n" +
+	"ExportTask\x12\x19.orc.v1.ExportTaskRequest\x1a\x1a.orc.v1.ExportTaskResponseB\x85\x01\n" +
 	"\n" +
 	"com.orc.v1B\tTaskProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -6238,8 +7706,8 @@ func file_orc_v1_task_proto_rawDescGZIP() []byte {
 	return file_orc_v1_task_proto_rawDescData
 }
 
-var file_orc_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_orc_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 82)
+var file_orc_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
+var file_orc_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 102)
 var file_orc_v1_task_proto_goTypes = []any{
 	(TaskWeight)(0),                     // 0: orc.v1.TaskWeight
 	(TaskStatus)(0),                     // 1: orc.v1.TaskStatus
@@ -6252,264 +7720,315 @@ var file_orc_v1_task_proto_goTypes = []any{
 	(CommentSeverity)(0),                // 8: orc.v1.CommentSeverity
 	(CommentStatus)(0),                  // 9: orc.v1.CommentStatus
 	(AuthorType)(0),                     // 10: orc.v1.AuthorType
-	(*TestingRequirements)(nil),         // 11: orc.v1.TestingRequirements
-	(*QualityMetrics)(nil),              // 12: orc.v1.QualityMetrics
-	(*PRInfo)(nil),                      // 13: orc.v1.PRInfo
-	(*PhaseState)(nil),                  // 14: orc.v1.PhaseState
-	(*ExecutionState)(nil),              // 15: orc.v1.ExecutionState
-	(*Task)(nil),                        // 16: orc.v1.Task
-	(*PlanPhase)(nil),                   // 17: orc.v1.PlanPhase
-	(*TaskPlan)(nil),                    // 18: orc.v1.TaskPlan
-	(*TaskComment)(nil),                 // 19: orc.v1.TaskComment
-	(*ReviewComment)(nil),               // 20: orc.v1.ReviewComment
-	(*DependencyGraph)(nil),             // 21: orc.v1.DependencyGraph
-	(*DependencyNode)(nil),              // 22: orc.v1.DependencyNode
-	(*DependencyEdge)(nil),              // 23: orc.v1.DependencyEdge
-	(*FinalizeState)(nil),               // 24: orc.v1.FinalizeState
-	(*RetryPreviewInfo)(nil),            // 25: orc.v1.RetryPreviewInfo
-	(*Attachment)(nil),                  // 26: orc.v1.Attachment
-	(*ListTasksRequest)(nil),            // 27: orc.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),           // 28: orc.v1.ListTasksResponse
-	(*GetTaskRequest)(nil),              // 29: orc.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),             // 30: orc.v1.GetTaskResponse
-	(*CreateTaskRequest)(nil),           // 31: orc.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil),          // 32: orc.v1.CreateTaskResponse
-	(*UpdateTaskRequest)(nil),           // 33: orc.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil),          // 34: orc.v1.UpdateTaskResponse
-	(*DeleteTaskRequest)(nil),           // 35: orc.v1.DeleteTaskRequest
-	(*DeleteTaskResponse)(nil),          // 36: orc.v1.DeleteTaskResponse
-	(*GetTaskStateRequest)(nil),         // 37: orc.v1.GetTaskStateRequest
-	(*GetTaskStateResponse)(nil),        // 38: orc.v1.GetTaskStateResponse
-	(*GetTaskPlanRequest)(nil),          // 39: orc.v1.GetTaskPlanRequest
-	(*GetTaskPlanResponse)(nil),         // 40: orc.v1.GetTaskPlanResponse
-	(*RunTaskRequest)(nil),              // 41: orc.v1.RunTaskRequest
-	(*RunTaskResponse)(nil),             // 42: orc.v1.RunTaskResponse
-	(*PauseTaskRequest)(nil),            // 43: orc.v1.PauseTaskRequest
-	(*PauseTaskResponse)(nil),           // 44: orc.v1.PauseTaskResponse
-	(*ResumeTaskRequest)(nil),           // 45: orc.v1.ResumeTaskRequest
-	(*ResumeTaskResponse)(nil),          // 46: orc.v1.ResumeTaskResponse
-	(*SkipBlockRequest)(nil),            // 47: orc.v1.SkipBlockRequest
-	(*SkipBlockResponse)(nil),           // 48: orc.v1.SkipBlockResponse
-	(*RetryTaskRequest)(nil),            // 49: orc.v1.RetryTaskRequest
-	(*RetryTaskResponse)(nil),           // 50: orc.v1.RetryTaskResponse
-	(*RetryPreviewRequest)(nil),         // 51: orc.v1.RetryPreviewRequest
-	(*RetryPreviewResponse)(nil),        // 52: orc.v1.RetryPreviewResponse
-	(*FinalizeTaskRequest)(nil),         // 53: orc.v1.FinalizeTaskRequest
-	(*FinalizeTaskResponse)(nil),        // 54: orc.v1.FinalizeTaskResponse
-	(*GetFinalizeStateRequest)(nil),     // 55: orc.v1.GetFinalizeStateRequest
-	(*GetFinalizeStateResponse)(nil),    // 56: orc.v1.GetFinalizeStateResponse
-	(*GetDependenciesRequest)(nil),      // 57: orc.v1.GetDependenciesRequest
-	(*GetDependenciesResponse)(nil),     // 58: orc.v1.GetDependenciesResponse
-	(*GetDiffRequest)(nil),              // 59: orc.v1.GetDiffRequest
-	(*GetDiffResponse)(nil),             // 60: orc.v1.GetDiffResponse
-	(*GetDiffStatsRequest)(nil),         // 61: orc.v1.GetDiffStatsRequest
-	(*GetDiffStatsResponse)(nil),        // 62: orc.v1.GetDiffStatsResponse
-	(*ListCommentsRequest)(nil),         // 63: orc.v1.ListCommentsRequest
-	(*ListCommentsResponse)(nil),        // 64: orc.v1.ListCommentsResponse
-	(*CreateCommentRequest)(nil),        // 65: orc.v1.CreateCommentRequest
-	(*CreateCommentResponse)(nil),       // 66: orc.v1.CreateCommentResponse
-	(*UpdateCommentRequest)(nil),        // 67: orc.v1.UpdateCommentRequest
-	(*UpdateCommentResponse)(nil),       // 68: orc.v1.UpdateCommentResponse
-	(*DeleteCommentRequest)(nil),        // 69: orc.v1.DeleteCommentRequest
-	(*DeleteCommentResponse)(nil),       // 70: orc.v1.DeleteCommentResponse
-	(*ListReviewCommentsRequest)(nil),   // 71: orc.v1.ListReviewCommentsRequest
-	(*ListReviewCommentsResponse)(nil),  // 72: orc.v1.ListReviewCommentsResponse
-	(*CreateReviewCommentRequest)(nil),  // 73: orc.v1.CreateReviewCommentRequest
-	(*CreateReviewCommentResponse)(nil), // 74: orc.v1.CreateReviewCommentResponse
-	(*UpdateReviewCommentRequest)(nil),  // 75: orc.v1.UpdateReviewCommentRequest
-	(*UpdateReviewCommentResponse)(nil), // 76: orc.v1.UpdateReviewCommentResponse
-	(*DeleteReviewCommentRequest)(nil),  // 77: orc.v1.DeleteReviewCommentRequest
-	(*DeleteReviewCommentResponse)(nil), // 78: orc.v1.DeleteReviewCommentResponse
-	(*ListAttachmentsRequest)(nil),      // 79: orc.v1.ListAttachmentsRequest
-	(*ListAttachmentsResponse)(nil),     // 80: orc.v1.ListAttachmentsResponse
-	(*UploadAttachmentRequest)(nil),     // 81: orc.v1.UploadAttachmentRequest
-	(*AttachmentMetadata)(nil),          // 82: orc.v1.AttachmentMetadata
-	(*UploadAttachmentResponse)(nil),    // 83: orc.v1.UploadAttachmentResponse
-	(*DownloadAttachmentRequest)(nil),   // 84: orc.v1.DownloadAttachmentRequest
-	(*DownloadAttachmentResponse)(nil),  // 85: orc.v1.DownloadAttachmentResponse
-	(*DeleteAttachmentRequest)(nil),     // 86: orc.v1.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil),    // 87: orc.v1.DeleteAttachmentResponse
-	nil,                                 // 88: orc.v1.QualityMetrics.PhaseRetriesEntry
-	nil,                                 // 89: orc.v1.ExecutionState.PhasesEntry
-	nil,                                 // 90: orc.v1.Task.MetadataEntry
-	nil,                                 // 91: orc.v1.CreateTaskRequest.MetadataEntry
-	nil,                                 // 92: orc.v1.UpdateTaskRequest.MetadataEntry
-	(*timestamppb.Timestamp)(nil),       // 93: google.protobuf.Timestamp
-	(*TokenUsage)(nil),                  // 94: orc.v1.TokenUsage
-	(*ValidationEntry)(nil),             // 95: orc.v1.ValidationEntry
-	(*GateDecision)(nil),                // 96: orc.v1.GateDecision
-	(*CostTracking)(nil),                // 97: orc.v1.CostTracking
-	(*SessionInfo)(nil),                 // 98: orc.v1.SessionInfo
-	(*RetryContext)(nil),                // 99: orc.v1.RetryContext
-	(*PageRequest)(nil),                 // 100: orc.v1.PageRequest
-	(*PageResponse)(nil),                // 101: orc.v1.PageResponse
-	(*DiffResult)(nil),                  // 102: orc.v1.DiffResult
-	(*DiffStats)(nil),                   // 103: orc.v1.DiffStats
+	(TestResultStatus)(0),               // 11: orc.v1.TestResultStatus
+	(*TestingRequirements)(nil),         // 12: orc.v1.TestingRequirements
+	(*QualityMetrics)(nil),              // 13: orc.v1.QualityMetrics
+	(*PRInfo)(nil),                      // 14: orc.v1.PRInfo
+	(*PhaseState)(nil),                  // 15: orc.v1.PhaseState
+	(*ExecutionState)(nil),              // 16: orc.v1.ExecutionState
+	(*Task)(nil),                        // 17: orc.v1.Task
+	(*PlanPhase)(nil),                   // 18: orc.v1.PlanPhase
+	(*TaskPlan)(nil),                    // 19: orc.v1.TaskPlan
+	(*TaskComment)(nil),                 // 20: orc.v1.TaskComment
+	(*ReviewComment)(nil),               // 21: orc.v1.ReviewComment
+	(*DependencyGraph)(nil),             // 22: orc.v1.DependencyGraph
+	(*DependencyNode)(nil),              // 23: orc.v1.DependencyNode
+	(*DependencyEdge)(nil),              // 24: orc.v1.DependencyEdge
+	(*FinalizeState)(nil),               // 25: orc.v1.FinalizeState
+	(*RetryPreviewInfo)(nil),            // 26: orc.v1.RetryPreviewInfo
+	(*TestResult)(nil),                  // 27: orc.v1.TestResult
+	(*TestSuite)(nil),                   // 28: orc.v1.TestSuite
+	(*TestSummary)(nil),                 // 29: orc.v1.TestSummary
+	(*CoverageDetail)(nil),              // 30: orc.v1.CoverageDetail
+	(*TestCoverage)(nil),                // 31: orc.v1.TestCoverage
+	(*TestReport)(nil),                  // 32: orc.v1.TestReport
+	(*Screenshot)(nil),                  // 33: orc.v1.Screenshot
+	(*TestResultsInfo)(nil),             // 34: orc.v1.TestResultsInfo
+	(*Attachment)(nil),                  // 35: orc.v1.Attachment
+	(*ListTasksRequest)(nil),            // 36: orc.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),           // 37: orc.v1.ListTasksResponse
+	(*GetTaskRequest)(nil),              // 38: orc.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),             // 39: orc.v1.GetTaskResponse
+	(*CreateTaskRequest)(nil),           // 40: orc.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),          // 41: orc.v1.CreateTaskResponse
+	(*UpdateTaskRequest)(nil),           // 42: orc.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),          // 43: orc.v1.UpdateTaskResponse
+	(*DeleteTaskRequest)(nil),           // 44: orc.v1.DeleteTaskRequest
+	(*DeleteTaskResponse)(nil),          // 45: orc.v1.DeleteTaskResponse
+	(*GetTaskStateRequest)(nil),         // 46: orc.v1.GetTaskStateRequest
+	(*GetTaskStateResponse)(nil),        // 47: orc.v1.GetTaskStateResponse
+	(*GetTaskPlanRequest)(nil),          // 48: orc.v1.GetTaskPlanRequest
+	(*GetTaskPlanResponse)(nil),         // 49: orc.v1.GetTaskPlanResponse
+	(*RunTaskRequest)(nil),              // 50: orc.v1.RunTaskRequest
+	(*RunTaskResponse)(nil),             // 51: orc.v1.RunTaskResponse
+	(*PauseTaskRequest)(nil),            // 52: orc.v1.PauseTaskRequest
+	(*PauseTaskResponse)(nil),           // 53: orc.v1.PauseTaskResponse
+	(*ResumeTaskRequest)(nil),           // 54: orc.v1.ResumeTaskRequest
+	(*ResumeTaskResponse)(nil),          // 55: orc.v1.ResumeTaskResponse
+	(*PauseAllTasksRequest)(nil),        // 56: orc.v1.PauseAllTasksRequest
+	(*PauseAllTasksResponse)(nil),       // 57: orc.v1.PauseAllTasksResponse
+	(*ResumeAllTasksRequest)(nil),       // 58: orc.v1.ResumeAllTasksRequest
+	(*ResumeAllTasksResponse)(nil),      // 59: orc.v1.ResumeAllTasksResponse
+	(*SkipBlockRequest)(nil),            // 60: orc.v1.SkipBlockRequest
+	(*SkipBlockResponse)(nil),           // 61: orc.v1.SkipBlockResponse
+	(*RetryTaskRequest)(nil),            // 62: orc.v1.RetryTaskRequest
+	(*RetryTaskResponse)(nil),           // 63: orc.v1.RetryTaskResponse
+	(*RetryPreviewRequest)(nil),         // 64: orc.v1.RetryPreviewRequest
+	(*RetryPreviewResponse)(nil),        // 65: orc.v1.RetryPreviewResponse
+	(*FinalizeTaskRequest)(nil),         // 66: orc.v1.FinalizeTaskRequest
+	(*FinalizeTaskResponse)(nil),        // 67: orc.v1.FinalizeTaskResponse
+	(*GetFinalizeStateRequest)(nil),     // 68: orc.v1.GetFinalizeStateRequest
+	(*GetFinalizeStateResponse)(nil),    // 69: orc.v1.GetFinalizeStateResponse
+	(*GetDependenciesRequest)(nil),      // 70: orc.v1.GetDependenciesRequest
+	(*GetDependenciesResponse)(nil),     // 71: orc.v1.GetDependenciesResponse
+	(*GetDiffRequest)(nil),              // 72: orc.v1.GetDiffRequest
+	(*GetDiffResponse)(nil),             // 73: orc.v1.GetDiffResponse
+	(*GetDiffStatsRequest)(nil),         // 74: orc.v1.GetDiffStatsRequest
+	(*GetDiffStatsResponse)(nil),        // 75: orc.v1.GetDiffStatsResponse
+	(*ListCommentsRequest)(nil),         // 76: orc.v1.ListCommentsRequest
+	(*ListCommentsResponse)(nil),        // 77: orc.v1.ListCommentsResponse
+	(*CreateCommentRequest)(nil),        // 78: orc.v1.CreateCommentRequest
+	(*CreateCommentResponse)(nil),       // 79: orc.v1.CreateCommentResponse
+	(*UpdateCommentRequest)(nil),        // 80: orc.v1.UpdateCommentRequest
+	(*UpdateCommentResponse)(nil),       // 81: orc.v1.UpdateCommentResponse
+	(*DeleteCommentRequest)(nil),        // 82: orc.v1.DeleteCommentRequest
+	(*DeleteCommentResponse)(nil),       // 83: orc.v1.DeleteCommentResponse
+	(*ListReviewCommentsRequest)(nil),   // 84: orc.v1.ListReviewCommentsRequest
+	(*ListReviewCommentsResponse)(nil),  // 85: orc.v1.ListReviewCommentsResponse
+	(*CreateReviewCommentRequest)(nil),  // 86: orc.v1.CreateReviewCommentRequest
+	(*CreateReviewCommentResponse)(nil), // 87: orc.v1.CreateReviewCommentResponse
+	(*UpdateReviewCommentRequest)(nil),  // 88: orc.v1.UpdateReviewCommentRequest
+	(*UpdateReviewCommentResponse)(nil), // 89: orc.v1.UpdateReviewCommentResponse
+	(*DeleteReviewCommentRequest)(nil),  // 90: orc.v1.DeleteReviewCommentRequest
+	(*DeleteReviewCommentResponse)(nil), // 91: orc.v1.DeleteReviewCommentResponse
+	(*ListAttachmentsRequest)(nil),      // 92: orc.v1.ListAttachmentsRequest
+	(*ListAttachmentsResponse)(nil),     // 93: orc.v1.ListAttachmentsResponse
+	(*UploadAttachmentRequest)(nil),     // 94: orc.v1.UploadAttachmentRequest
+	(*AttachmentMetadata)(nil),          // 95: orc.v1.AttachmentMetadata
+	(*UploadAttachmentResponse)(nil),    // 96: orc.v1.UploadAttachmentResponse
+	(*DownloadAttachmentRequest)(nil),   // 97: orc.v1.DownloadAttachmentRequest
+	(*DownloadAttachmentResponse)(nil),  // 98: orc.v1.DownloadAttachmentResponse
+	(*DeleteAttachmentRequest)(nil),     // 99: orc.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),    // 100: orc.v1.DeleteAttachmentResponse
+	(*GetTestResultsRequest)(nil),       // 101: orc.v1.GetTestResultsRequest
+	(*GetTestResultsResponse)(nil),      // 102: orc.v1.GetTestResultsResponse
+	(*ReviewFinding)(nil),               // 103: orc.v1.ReviewFinding
+	(*ReviewRoundFindings)(nil),         // 104: orc.v1.ReviewRoundFindings
+	(*GetReviewFindingsRequest)(nil),    // 105: orc.v1.GetReviewFindingsRequest
+	(*GetReviewFindingsResponse)(nil),   // 106: orc.v1.GetReviewFindingsResponse
+	(*ExportTaskRequest)(nil),           // 107: orc.v1.ExportTaskRequest
+	(*ExportTaskResponse)(nil),          // 108: orc.v1.ExportTaskResponse
+	nil,                                 // 109: orc.v1.QualityMetrics.PhaseRetriesEntry
+	nil,                                 // 110: orc.v1.ExecutionState.PhasesEntry
+	nil,                                 // 111: orc.v1.Task.MetadataEntry
+	nil,                                 // 112: orc.v1.CreateTaskRequest.MetadataEntry
+	nil,                                 // 113: orc.v1.UpdateTaskRequest.MetadataEntry
+	(*timestamppb.Timestamp)(nil),       // 114: google.protobuf.Timestamp
+	(*TokenUsage)(nil),                  // 115: orc.v1.TokenUsage
+	(*ValidationEntry)(nil),             // 116: orc.v1.ValidationEntry
+	(*GateDecision)(nil),                // 117: orc.v1.GateDecision
+	(*CostTracking)(nil),                // 118: orc.v1.CostTracking
+	(*SessionInfo)(nil),                 // 119: orc.v1.SessionInfo
+	(*RetryContext)(nil),                // 120: orc.v1.RetryContext
+	(*PageRequest)(nil),                 // 121: orc.v1.PageRequest
+	(*PageResponse)(nil),                // 122: orc.v1.PageResponse
+	(*DiffResult)(nil),                  // 123: orc.v1.DiffResult
+	(*DiffStats)(nil),                   // 124: orc.v1.DiffStats
 }
 var file_orc_v1_task_proto_depIdxs = []int32{
-	88,  // 0: orc.v1.QualityMetrics.phase_retries:type_name -> orc.v1.QualityMetrics.PhaseRetriesEntry
+	109, // 0: orc.v1.QualityMetrics.phase_retries:type_name -> orc.v1.QualityMetrics.PhaseRetriesEntry
 	6,   // 1: orc.v1.PRInfo.status:type_name -> orc.v1.PRStatus
-	93,  // 2: orc.v1.PRInfo.last_checked_at:type_name -> google.protobuf.Timestamp
-	93,  // 3: orc.v1.PRInfo.merged_at:type_name -> google.protobuf.Timestamp
+	114, // 2: orc.v1.PRInfo.last_checked_at:type_name -> google.protobuf.Timestamp
+	114, // 3: orc.v1.PRInfo.merged_at:type_name -> google.protobuf.Timestamp
 	5,   // 4: orc.v1.PhaseState.status:type_name -> orc.v1.PhaseStatus
-	93,  // 5: orc.v1.PhaseState.started_at:type_name -> google.protobuf.Timestamp
-	93,  // 6: orc.v1.PhaseState.completed_at:type_name -> google.protobuf.Timestamp
-	93,  // 7: orc.v1.PhaseState.interrupted_at:type_name -> google.protobuf.Timestamp
-	94,  // 8: orc.v1.PhaseState.tokens:type_name -> orc.v1.TokenUsage
-	95,  // 9: orc.v1.PhaseState.validation_history:type_name -> orc.v1.ValidationEntry
-	89,  // 10: orc.v1.ExecutionState.phases:type_name -> orc.v1.ExecutionState.PhasesEntry
-	96,  // 11: orc.v1.ExecutionState.gates:type_name -> orc.v1.GateDecision
-	94,  // 12: orc.v1.ExecutionState.tokens:type_name -> orc.v1.TokenUsage
-	97,  // 13: orc.v1.ExecutionState.cost:type_name -> orc.v1.CostTracking
-	98,  // 14: orc.v1.ExecutionState.session:type_name -> orc.v1.SessionInfo
-	99,  // 15: orc.v1.ExecutionState.retry_context:type_name -> orc.v1.RetryContext
+	114, // 5: orc.v1.PhaseState.started_at:type_name -> google.protobuf.Timestamp
+	114, // 6: orc.v1.PhaseState.completed_at:type_name -> google.protobuf.Timestamp
+	114, // 7: orc.v1.PhaseState.interrupted_at:type_name -> google.protobuf.Timestamp
+	115, // 8: orc.v1.PhaseState.tokens:type_name -> orc.v1.TokenUsage
+	116, // 9: orc.v1.PhaseState.validation_history:type_name -> orc.v1.ValidationEntry
+	110, // 10: orc.v1.ExecutionState.phases:type_name -> orc.v1.ExecutionState.PhasesEntry
+	117, // 11: orc.v1.ExecutionState.gates:type_name -> orc.v1.GateDecision
+	115, // 12: orc.v1.ExecutionState.tokens:type_name -> orc.v1.TokenUsage
+	118, // 13: orc.v1.ExecutionState.cost:type_name -> orc.v1.CostTracking
+	119, // 14: orc.v1.ExecutionState.session:type_name -> orc.v1.SessionInfo
+	120, // 15: orc.v1.ExecutionState.retry_context:type_name -> orc.v1.RetryContext
 	0,   // 16: orc.v1.Task.weight:type_name -> orc.v1.TaskWeight
 	1,   // 17: orc.v1.Task.status:type_name -> orc.v1.TaskStatus
 	2,   // 18: orc.v1.Task.queue:type_name -> orc.v1.TaskQueue
 	3,   // 19: orc.v1.Task.priority:type_name -> orc.v1.TaskPriority
 	4,   // 20: orc.v1.Task.category:type_name -> orc.v1.TaskCategory
-	11,  // 21: orc.v1.Task.testing_requirements:type_name -> orc.v1.TestingRequirements
-	12,  // 22: orc.v1.Task.quality:type_name -> orc.v1.QualityMetrics
-	13,  // 23: orc.v1.Task.pr:type_name -> orc.v1.PRInfo
-	15,  // 24: orc.v1.Task.execution:type_name -> orc.v1.ExecutionState
-	93,  // 25: orc.v1.Task.created_at:type_name -> google.protobuf.Timestamp
-	93,  // 26: orc.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
-	93,  // 27: orc.v1.Task.started_at:type_name -> google.protobuf.Timestamp
-	93,  // 28: orc.v1.Task.completed_at:type_name -> google.protobuf.Timestamp
-	90,  // 29: orc.v1.Task.metadata:type_name -> orc.v1.Task.MetadataEntry
+	12,  // 21: orc.v1.Task.testing_requirements:type_name -> orc.v1.TestingRequirements
+	13,  // 22: orc.v1.Task.quality:type_name -> orc.v1.QualityMetrics
+	14,  // 23: orc.v1.Task.pr:type_name -> orc.v1.PRInfo
+	16,  // 24: orc.v1.Task.execution:type_name -> orc.v1.ExecutionState
+	114, // 25: orc.v1.Task.created_at:type_name -> google.protobuf.Timestamp
+	114, // 26: orc.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
+	114, // 27: orc.v1.Task.started_at:type_name -> google.protobuf.Timestamp
+	114, // 28: orc.v1.Task.completed_at:type_name -> google.protobuf.Timestamp
+	111, // 29: orc.v1.Task.metadata:type_name -> orc.v1.Task.MetadataEntry
 	7,   // 30: orc.v1.Task.dependency_status:type_name -> orc.v1.DependencyStatus
 	5,   // 31: orc.v1.PlanPhase.status:type_name -> orc.v1.PhaseStatus
-	93,  // 32: orc.v1.PlanPhase.started_at:type_name -> google.protobuf.Timestamp
-	93,  // 33: orc.v1.PlanPhase.completed_at:type_name -> google.protobuf.Timestamp
+	114, // 32: orc.v1.PlanPhase.started_at:type_name -> google.protobuf.Timestamp
+	114, // 33: orc.v1.PlanPhase.completed_at:type_name -> google.protobuf.Timestamp
 	0,   // 34: orc.v1.TaskPlan.weight:type_name -> orc.v1.TaskWeight
-	17,  // 35: orc.v1.TaskPlan.phases:type_name -> orc.v1.PlanPhase
+	18,  // 35: orc.v1.TaskPlan.phases:type_name -> orc.v1.PlanPhase
 	10,  // 36: orc.v1.TaskComment.author_type:type_name -> orc.v1.AuthorType
-	93,  // 37: orc.v1.TaskComment.created_at:type_name -> google.protobuf.Timestamp
-	93,  // 38: orc.v1.TaskComment.updated_at:type_name -> google.protobuf.Timestamp
+	114, // 37: orc.v1.TaskComment.created_at:type_name -> google.protobuf.Timestamp
+	114, // 38: orc.v1.TaskComment.updated_at:type_name -> google.protobuf.Timestamp
 	8,   // 39: orc.v1.ReviewComment.severity:type_name -> orc.v1.CommentSeverity
 	9,   // 40: orc.v1.ReviewComment.status:type_name -> orc.v1.CommentStatus
-	93,  // 41: orc.v1.ReviewComment.created_at:type_name -> google.protobuf.Timestamp
-	93,  // 42: orc.v1.ReviewComment.resolved_at:type_name -> google.protobuf.Timestamp
-	22,  // 43: orc.v1.DependencyGraph.nodes:type_name -> orc.v1.DependencyNode
-	23,  // 44: orc.v1.DependencyGraph.edges:type_name -> orc.v1.DependencyEdge
+	114, // 41: orc.v1.ReviewComment.created_at:type_name -> google.protobuf.Timestamp
+	114, // 42: orc.v1.ReviewComment.resolved_at:type_name -> google.protobuf.Timestamp
+	23,  // 43: orc.v1.DependencyGraph.nodes:type_name -> orc.v1.DependencyNode
+	24,  // 44: orc.v1.DependencyGraph.edges:type_name -> orc.v1.DependencyEdge
 	1,   // 45: orc.v1.DependencyNode.status:type_name -> orc.v1.TaskStatus
 	0,   // 46: orc.v1.DependencyNode.weight:type_name -> orc.v1.TaskWeight
-	20,  // 47: orc.v1.RetryPreviewInfo.unresolved_comments:type_name -> orc.v1.ReviewComment
-	93,  // 48: orc.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
-	100, // 49: orc.v1.ListTasksRequest.page:type_name -> orc.v1.PageRequest
-	7,   // 50: orc.v1.ListTasksRequest.dependency_status:type_name -> orc.v1.DependencyStatus
-	1,   // 51: orc.v1.ListTasksRequest.statuses:type_name -> orc.v1.TaskStatus
-	2,   // 52: orc.v1.ListTasksRequest.queue:type_name -> orc.v1.TaskQueue
-	4,   // 53: orc.v1.ListTasksRequest.category:type_name -> orc.v1.TaskCategory
-	16,  // 54: orc.v1.ListTasksResponse.tasks:type_name -> orc.v1.Task
-	101, // 55: orc.v1.ListTasksResponse.page:type_name -> orc.v1.PageResponse
-	16,  // 56: orc.v1.GetTaskResponse.task:type_name -> orc.v1.Task
-	0,   // 57: orc.v1.CreateTaskRequest.weight:type_name -> orc.v1.TaskWeight
-	2,   // 58: orc.v1.CreateTaskRequest.queue:type_name -> orc.v1.TaskQueue
-	3,   // 59: orc.v1.CreateTaskRequest.priority:type_name -> orc.v1.TaskPriority
-	4,   // 60: orc.v1.CreateTaskRequest.category:type_name -> orc.v1.TaskCategory
-	91,  // 61: orc.v1.CreateTaskRequest.metadata:type_name -> orc.v1.CreateTaskRequest.MetadataEntry
-	16,  // 62: orc.v1.CreateTaskResponse.task:type_name -> orc.v1.Task
-	0,   // 63: orc.v1.UpdateTaskRequest.weight:type_name -> orc.v1.TaskWeight
-	2,   // 64: orc.v1.UpdateTaskRequest.queue:type_name -> orc.v1.TaskQueue
-	3,   // 65: orc.v1.UpdateTaskRequest.priority:type_name -> orc.v1.TaskPriority
-	4,   // 66: orc.v1.UpdateTaskRequest.category:type_name -> orc.v1.TaskCategory
-	92,  // 67: orc.v1.UpdateTaskRequest.metadata:type_name -> orc.v1.UpdateTaskRequest.MetadataEntry
-	16,  // 68: orc.v1.UpdateTaskResponse.task:type_name -> orc.v1.Task
-	15,  // 69: orc.v1.GetTaskStateResponse.state:type_name -> orc.v1.ExecutionState
-	18,  // 70: orc.v1.GetTaskPlanResponse.plan:type_name -> orc.v1.TaskPlan
-	16,  // 71: orc.v1.RunTaskResponse.task:type_name -> orc.v1.Task
-	16,  // 72: orc.v1.PauseTaskResponse.task:type_name -> orc.v1.Task
-	16,  // 73: orc.v1.ResumeTaskResponse.task:type_name -> orc.v1.Task
-	16,  // 74: orc.v1.SkipBlockResponse.task:type_name -> orc.v1.Task
-	16,  // 75: orc.v1.RetryTaskResponse.task:type_name -> orc.v1.Task
-	25,  // 76: orc.v1.RetryPreviewResponse.info:type_name -> orc.v1.RetryPreviewInfo
-	16,  // 77: orc.v1.FinalizeTaskResponse.task:type_name -> orc.v1.Task
-	24,  // 78: orc.v1.FinalizeTaskResponse.state:type_name -> orc.v1.FinalizeState
-	24,  // 79: orc.v1.GetFinalizeStateResponse.state:type_name -> orc.v1.FinalizeState
-	21,  // 80: orc.v1.GetDependenciesResponse.graph:type_name -> orc.v1.DependencyGraph
-	102, // 81: orc.v1.GetDiffResponse.diff:type_name -> orc.v1.DiffResult
-	103, // 82: orc.v1.GetDiffStatsResponse.stats:type_name -> orc.v1.DiffStats
-	10,  // 83: orc.v1.ListCommentsRequest.author_type:type_name -> orc.v1.AuthorType
-	19,  // 84: orc.v1.ListCommentsResponse.comments:type_name -> orc.v1.TaskComment
-	10,  // 85: orc.v1.CreateCommentRequest.author_type:type_name -> orc.v1.AuthorType
-	19,  // 86: orc.v1.CreateCommentResponse.comment:type_name -> orc.v1.TaskComment
-	19,  // 87: orc.v1.UpdateCommentResponse.comment:type_name -> orc.v1.TaskComment
-	9,   // 88: orc.v1.ListReviewCommentsRequest.status:type_name -> orc.v1.CommentStatus
-	20,  // 89: orc.v1.ListReviewCommentsResponse.comments:type_name -> orc.v1.ReviewComment
-	8,   // 90: orc.v1.CreateReviewCommentRequest.severity:type_name -> orc.v1.CommentSeverity
-	20,  // 91: orc.v1.CreateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
-	9,   // 92: orc.v1.UpdateReviewCommentRequest.status:type_name -> orc.v1.CommentStatus
-	20,  // 93: orc.v1.UpdateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
-	26,  // 94: orc.v1.ListAttachmentsResponse.attachments:type_name -> orc.v1.Attachment
-	82,  // 95: orc.v1.UploadAttachmentRequest.metadata:type_name -> orc.v1.AttachmentMetadata
-	26,  // 96: orc.v1.UploadAttachmentResponse.attachment:type_name -> orc.v1.Attachment
-	14,  // 97: orc.v1.ExecutionState.PhasesEntry.value:type_name -> orc.v1.PhaseState
-	27,  // 98: orc.v1.TaskService.ListTasks:input_type -> orc.v1.ListTasksRequest
-	29,  // 99: orc.v1.TaskService.GetTask:input_type -> orc.v1.GetTaskRequest
-	31,  // 100: orc.v1.TaskService.CreateTask:input_type -> orc.v1.CreateTaskRequest
-	33,  // 101: orc.v1.TaskService.UpdateTask:input_type -> orc.v1.UpdateTaskRequest
-	35,  // 102: orc.v1.TaskService.DeleteTask:input_type -> orc.v1.DeleteTaskRequest
-	37,  // 103: orc.v1.TaskService.GetTaskState:input_type -> orc.v1.GetTaskStateRequest
-	39,  // 104: orc.v1.TaskService.GetTaskPlan:input_type -> orc.v1.GetTaskPlanRequest
-	41,  // 105: orc.v1.TaskService.RunTask:input_type -> orc.v1.RunTaskRequest
-	43,  // 106: orc.v1.TaskService.PauseTask:input_type -> orc.v1.PauseTaskRequest
-	45,  // 107: orc.v1.TaskService.ResumeTask:input_type -> orc.v1.ResumeTaskRequest
-	47,  // 108: orc.v1.TaskService.SkipBlock:input_type -> orc.v1.SkipBlockRequest
-	49,  // 109: orc.v1.TaskService.RetryTask:input_type -> orc.v1.RetryTaskRequest
-	51,  // 110: orc.v1.TaskService.RetryPreview:input_type -> orc.v1.RetryPreviewRequest
-	53,  // 111: orc.v1.TaskService.FinalizeTask:input_type -> orc.v1.FinalizeTaskRequest
-	55,  // 112: orc.v1.TaskService.GetFinalizeState:input_type -> orc.v1.GetFinalizeStateRequest
-	57,  // 113: orc.v1.TaskService.GetDependencies:input_type -> orc.v1.GetDependenciesRequest
-	59,  // 114: orc.v1.TaskService.GetDiff:input_type -> orc.v1.GetDiffRequest
-	61,  // 115: orc.v1.TaskService.GetDiffStats:input_type -> orc.v1.GetDiffStatsRequest
-	63,  // 116: orc.v1.TaskService.ListComments:input_type -> orc.v1.ListCommentsRequest
-	65,  // 117: orc.v1.TaskService.CreateComment:input_type -> orc.v1.CreateCommentRequest
-	67,  // 118: orc.v1.TaskService.UpdateComment:input_type -> orc.v1.UpdateCommentRequest
-	69,  // 119: orc.v1.TaskService.DeleteComment:input_type -> orc.v1.DeleteCommentRequest
-	71,  // 120: orc.v1.TaskService.ListReviewComments:input_type -> orc.v1.ListReviewCommentsRequest
-	73,  // 121: orc.v1.TaskService.CreateReviewComment:input_type -> orc.v1.CreateReviewCommentRequest
-	75,  // 122: orc.v1.TaskService.UpdateReviewComment:input_type -> orc.v1.UpdateReviewCommentRequest
-	77,  // 123: orc.v1.TaskService.DeleteReviewComment:input_type -> orc.v1.DeleteReviewCommentRequest
-	79,  // 124: orc.v1.TaskService.ListAttachments:input_type -> orc.v1.ListAttachmentsRequest
-	81,  // 125: orc.v1.TaskService.UploadAttachment:input_type -> orc.v1.UploadAttachmentRequest
-	84,  // 126: orc.v1.TaskService.DownloadAttachment:input_type -> orc.v1.DownloadAttachmentRequest
-	86,  // 127: orc.v1.TaskService.DeleteAttachment:input_type -> orc.v1.DeleteAttachmentRequest
-	28,  // 128: orc.v1.TaskService.ListTasks:output_type -> orc.v1.ListTasksResponse
-	30,  // 129: orc.v1.TaskService.GetTask:output_type -> orc.v1.GetTaskResponse
-	32,  // 130: orc.v1.TaskService.CreateTask:output_type -> orc.v1.CreateTaskResponse
-	34,  // 131: orc.v1.TaskService.UpdateTask:output_type -> orc.v1.UpdateTaskResponse
-	36,  // 132: orc.v1.TaskService.DeleteTask:output_type -> orc.v1.DeleteTaskResponse
-	38,  // 133: orc.v1.TaskService.GetTaskState:output_type -> orc.v1.GetTaskStateResponse
-	40,  // 134: orc.v1.TaskService.GetTaskPlan:output_type -> orc.v1.GetTaskPlanResponse
-	42,  // 135: orc.v1.TaskService.RunTask:output_type -> orc.v1.RunTaskResponse
-	44,  // 136: orc.v1.TaskService.PauseTask:output_type -> orc.v1.PauseTaskResponse
-	46,  // 137: orc.v1.TaskService.ResumeTask:output_type -> orc.v1.ResumeTaskResponse
-	48,  // 138: orc.v1.TaskService.SkipBlock:output_type -> orc.v1.SkipBlockResponse
-	50,  // 139: orc.v1.TaskService.RetryTask:output_type -> orc.v1.RetryTaskResponse
-	52,  // 140: orc.v1.TaskService.RetryPreview:output_type -> orc.v1.RetryPreviewResponse
-	54,  // 141: orc.v1.TaskService.FinalizeTask:output_type -> orc.v1.FinalizeTaskResponse
-	56,  // 142: orc.v1.TaskService.GetFinalizeState:output_type -> orc.v1.GetFinalizeStateResponse
-	58,  // 143: orc.v1.TaskService.GetDependencies:output_type -> orc.v1.GetDependenciesResponse
-	60,  // 144: orc.v1.TaskService.GetDiff:output_type -> orc.v1.GetDiffResponse
-	62,  // 145: orc.v1.TaskService.GetDiffStats:output_type -> orc.v1.GetDiffStatsResponse
-	64,  // 146: orc.v1.TaskService.ListComments:output_type -> orc.v1.ListCommentsResponse
-	66,  // 147: orc.v1.TaskService.CreateComment:output_type -> orc.v1.CreateCommentResponse
-	68,  // 148: orc.v1.TaskService.UpdateComment:output_type -> orc.v1.UpdateCommentResponse
-	70,  // 149: orc.v1.TaskService.DeleteComment:output_type -> orc.v1.DeleteCommentResponse
-	72,  // 150: orc.v1.TaskService.ListReviewComments:output_type -> orc.v1.ListReviewCommentsResponse
-	74,  // 151: orc.v1.TaskService.CreateReviewComment:output_type -> orc.v1.CreateReviewCommentResponse
-	76,  // 152: orc.v1.TaskService.UpdateReviewComment:output_type -> orc.v1.UpdateReviewCommentResponse
-	78,  // 153: orc.v1.TaskService.DeleteReviewComment:output_type -> orc.v1.DeleteReviewCommentResponse
-	80,  // 154: orc.v1.TaskService.ListAttachments:output_type -> orc.v1.ListAttachmentsResponse
-	83,  // 155: orc.v1.TaskService.UploadAttachment:output_type -> orc.v1.UploadAttachmentResponse
-	85,  // 156: orc.v1.TaskService.DownloadAttachment:output_type -> orc.v1.DownloadAttachmentResponse
-	87,  // 157: orc.v1.TaskService.DeleteAttachment:output_type -> orc.v1.DeleteAttachmentResponse
-	128, // [128:158] is the sub-list for method output_type
-	98,  // [98:128] is the sub-list for method input_type
-	98,  // [98:98] is the sub-list for extension type_name
-	98,  // [98:98] is the sub-list for extension extendee
-	0,   // [0:98] is the sub-list for field type_name
+	21,  // 47: orc.v1.RetryPreviewInfo.unresolved_comments:type_name -> orc.v1.ReviewComment
+	11,  // 48: orc.v1.TestResult.status:type_name -> orc.v1.TestResultStatus
+	27,  // 49: orc.v1.TestSuite.tests:type_name -> orc.v1.TestResult
+	30,  // 50: orc.v1.TestCoverage.lines:type_name -> orc.v1.CoverageDetail
+	30,  // 51: orc.v1.TestCoverage.branches:type_name -> orc.v1.CoverageDetail
+	30,  // 52: orc.v1.TestCoverage.functions:type_name -> orc.v1.CoverageDetail
+	30,  // 53: orc.v1.TestCoverage.statements:type_name -> orc.v1.CoverageDetail
+	114, // 54: orc.v1.TestReport.started_at:type_name -> google.protobuf.Timestamp
+	114, // 55: orc.v1.TestReport.completed_at:type_name -> google.protobuf.Timestamp
+	29,  // 56: orc.v1.TestReport.summary:type_name -> orc.v1.TestSummary
+	28,  // 57: orc.v1.TestReport.suites:type_name -> orc.v1.TestSuite
+	31,  // 58: orc.v1.TestReport.coverage:type_name -> orc.v1.TestCoverage
+	114, // 59: orc.v1.Screenshot.created_at:type_name -> google.protobuf.Timestamp
+	32,  // 60: orc.v1.TestResultsInfo.report:type_name -> orc.v1.TestReport
+	33,  // 61: orc.v1.TestResultsInfo.screenshots:type_name -> orc.v1.Screenshot
+	114, // 62: orc.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	121, // 63: orc.v1.ListTasksRequest.page:type_name -> orc.v1.PageRequest
+	7,   // 64: orc.v1.ListTasksRequest.dependency_status:type_name -> orc.v1.DependencyStatus
+	1,   // 65: orc.v1.ListTasksRequest.statuses:type_name -> orc.v1.TaskStatus
+	2,   // 66: orc.v1.ListTasksRequest.queue:type_name -> orc.v1.TaskQueue
+	4,   // 67: orc.v1.ListTasksRequest.category:type_name -> orc.v1.TaskCategory
+	17,  // 68: orc.v1.ListTasksResponse.tasks:type_name -> orc.v1.Task
+	122, // 69: orc.v1.ListTasksResponse.page:type_name -> orc.v1.PageResponse
+	17,  // 70: orc.v1.GetTaskResponse.task:type_name -> orc.v1.Task
+	0,   // 71: orc.v1.CreateTaskRequest.weight:type_name -> orc.v1.TaskWeight
+	2,   // 72: orc.v1.CreateTaskRequest.queue:type_name -> orc.v1.TaskQueue
+	3,   // 73: orc.v1.CreateTaskRequest.priority:type_name -> orc.v1.TaskPriority
+	4,   // 74: orc.v1.CreateTaskRequest.category:type_name -> orc.v1.TaskCategory
+	112, // 75: orc.v1.CreateTaskRequest.metadata:type_name -> orc.v1.CreateTaskRequest.MetadataEntry
+	17,  // 76: orc.v1.CreateTaskResponse.task:type_name -> orc.v1.Task
+	0,   // 77: orc.v1.UpdateTaskRequest.weight:type_name -> orc.v1.TaskWeight
+	2,   // 78: orc.v1.UpdateTaskRequest.queue:type_name -> orc.v1.TaskQueue
+	3,   // 79: orc.v1.UpdateTaskRequest.priority:type_name -> orc.v1.TaskPriority
+	4,   // 80: orc.v1.UpdateTaskRequest.category:type_name -> orc.v1.TaskCategory
+	113, // 81: orc.v1.UpdateTaskRequest.metadata:type_name -> orc.v1.UpdateTaskRequest.MetadataEntry
+	17,  // 82: orc.v1.UpdateTaskResponse.task:type_name -> orc.v1.Task
+	16,  // 83: orc.v1.GetTaskStateResponse.state:type_name -> orc.v1.ExecutionState
+	19,  // 84: orc.v1.GetTaskPlanResponse.plan:type_name -> orc.v1.TaskPlan
+	17,  // 85: orc.v1.RunTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 86: orc.v1.PauseTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 87: orc.v1.ResumeTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 88: orc.v1.PauseAllTasksResponse.tasks:type_name -> orc.v1.Task
+	17,  // 89: orc.v1.ResumeAllTasksResponse.tasks:type_name -> orc.v1.Task
+	17,  // 90: orc.v1.SkipBlockResponse.task:type_name -> orc.v1.Task
+	17,  // 91: orc.v1.RetryTaskResponse.task:type_name -> orc.v1.Task
+	26,  // 92: orc.v1.RetryPreviewResponse.info:type_name -> orc.v1.RetryPreviewInfo
+	17,  // 93: orc.v1.FinalizeTaskResponse.task:type_name -> orc.v1.Task
+	25,  // 94: orc.v1.FinalizeTaskResponse.state:type_name -> orc.v1.FinalizeState
+	25,  // 95: orc.v1.GetFinalizeStateResponse.state:type_name -> orc.v1.FinalizeState
+	22,  // 96: orc.v1.GetDependenciesResponse.graph:type_name -> orc.v1.DependencyGraph
+	123, // 97: orc.v1.GetDiffResponse.diff:type_name -> orc.v1.DiffResult
+	124, // 98: orc.v1.GetDiffStatsResponse.stats:type_name -> orc.v1.DiffStats
+	10,  // 99: orc.v1.ListCommentsRequest.author_type:type_name -> orc.v1.AuthorType
+	20,  // 100: orc.v1.ListCommentsResponse.comments:type_name -> orc.v1.TaskComment
+	10,  // 101: orc.v1.CreateCommentRequest.author_type:type_name -> orc.v1.AuthorType
+	20,  // 102: orc.v1.CreateCommentResponse.comment:type_name -> orc.v1.TaskComment
+	20,  // 103: orc.v1.UpdateCommentResponse.comment:type_name -> orc.v1.TaskComment
+	9,   // 104: orc.v1.ListReviewCommentsRequest.status:type_name -> orc.v1.CommentStatus
+	21,  // 105: orc.v1.ListReviewCommentsResponse.comments:type_name -> orc.v1.ReviewComment
+	8,   // 106: orc.v1.CreateReviewCommentRequest.severity:type_name -> orc.v1.CommentSeverity
+	21,  // 107: orc.v1.CreateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
+	9,   // 108: orc.v1.UpdateReviewCommentRequest.status:type_name -> orc.v1.CommentStatus
+	21,  // 109: orc.v1.UpdateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
+	35,  // 110: orc.v1.ListAttachmentsResponse.attachments:type_name -> orc.v1.Attachment
+	95,  // 111: orc.v1.UploadAttachmentRequest.metadata:type_name -> orc.v1.AttachmentMetadata
+	35,  // 112: orc.v1.UploadAttachmentResponse.attachment:type_name -> orc.v1.Attachment
+	34,  // 113: orc.v1.GetTestResultsResponse.results:type_name -> orc.v1.TestResultsInfo
+	103, // 114: orc.v1.ReviewRoundFindings.issues:type_name -> orc.v1.ReviewFinding
+	114, // 115: orc.v1.ReviewRoundFindings.created_at:type_name -> google.protobuf.Timestamp
+	104, // 116: orc.v1.GetReviewFindingsResponse.rounds:type_name -> orc.v1.ReviewRoundFindings
+	15,  // 117: orc.v1.ExecutionState.PhasesEntry.value:type_name -> orc.v1.PhaseState
+	36,  // 118: orc.v1.TaskService.ListTasks:input_type -> orc.v1.ListTasksRequest
+	38,  // 119: orc.v1.TaskService.GetTask:input_type -> orc.v1.GetTaskRequest
+	40,  // 120: orc.v1.TaskService.CreateTask:input_type -> orc.v1.CreateTaskRequest
+	42,  // 121: orc.v1.TaskService.UpdateTask:input_type -> orc.v1.UpdateTaskRequest
+	44,  // 122: orc.v1.TaskService.DeleteTask:input_type -> orc.v1.DeleteTaskRequest
+	46,  // 123: orc.v1.TaskService.GetTaskState:input_type -> orc.v1.GetTaskStateRequest
+	48,  // 124: orc.v1.TaskService.GetTaskPlan:input_type -> orc.v1.GetTaskPlanRequest
+	50,  // 125: orc.v1.TaskService.RunTask:input_type -> orc.v1.RunTaskRequest
+	52,  // 126: orc.v1.TaskService.PauseTask:input_type -> orc.v1.PauseTaskRequest
+	54,  // 127: orc.v1.TaskService.ResumeTask:input_type -> orc.v1.ResumeTaskRequest
+	56,  // 128: orc.v1.TaskService.PauseAllTasks:input_type -> orc.v1.PauseAllTasksRequest
+	58,  // 129: orc.v1.TaskService.ResumeAllTasks:input_type -> orc.v1.ResumeAllTasksRequest
+	60,  // 130: orc.v1.TaskService.SkipBlock:input_type -> orc.v1.SkipBlockRequest
+	62,  // 131: orc.v1.TaskService.RetryTask:input_type -> orc.v1.RetryTaskRequest
+	64,  // 132: orc.v1.TaskService.RetryPreview:input_type -> orc.v1.RetryPreviewRequest
+	66,  // 133: orc.v1.TaskService.FinalizeTask:input_type -> orc.v1.FinalizeTaskRequest
+	68,  // 134: orc.v1.TaskService.GetFinalizeState:input_type -> orc.v1.GetFinalizeStateRequest
+	70,  // 135: orc.v1.TaskService.GetDependencies:input_type -> orc.v1.GetDependenciesRequest
+	72,  // 136: orc.v1.TaskService.GetDiff:input_type -> orc.v1.GetDiffRequest
+	74,  // 137: orc.v1.TaskService.GetDiffStats:input_type -> orc.v1.GetDiffStatsRequest
+	76,  // 138: orc.v1.TaskService.ListComments:input_type -> orc.v1.ListCommentsRequest
+	78,  // 139: orc.v1.TaskService.CreateComment:input_type -> orc.v1.CreateCommentRequest
+	80,  // 140: orc.v1.TaskService.UpdateComment:input_type -> orc.v1.UpdateCommentRequest
+	82,  // 141: orc.v1.TaskService.DeleteComment:input_type -> orc.v1.DeleteCommentRequest
+	84,  // 142: orc.v1.TaskService.ListReviewComments:input_type -> orc.v1.ListReviewCommentsRequest
+	86,  // 143: orc.v1.TaskService.CreateReviewComment:input_type -> orc.v1.CreateReviewCommentRequest
+	88,  // 144: orc.v1.TaskService.UpdateReviewComment:input_type -> orc.v1.UpdateReviewCommentRequest
+	90,  // 145: orc.v1.TaskService.DeleteReviewComment:input_type -> orc.v1.DeleteReviewCommentRequest
+	92,  // 146: orc.v1.TaskService.ListAttachments:input_type -> orc.v1.ListAttachmentsRequest
+	94,  // 147: orc.v1.TaskService.UploadAttachment:input_type -> orc.v1.UploadAttachmentRequest
+	97,  // 148: orc.v1.TaskService.DownloadAttachment:input_type -> orc.v1.DownloadAttachmentRequest
+	99,  // 149: orc.v1.TaskService.DeleteAttachment:input_type -> orc.v1.DeleteAttachmentRequest
+	101, // 150: orc.v1.TaskService.GetTestResults:input_type -> orc.v1.GetTestResultsRequest
+	105, // 151: orc.v1.TaskService.GetReviewFindings:input_type -> orc.v1.GetReviewFindingsRequest
+	107, // 152: orc.v1.TaskService.ExportTask:input_type -> orc.v1.ExportTaskRequest
+	37,  // 153: orc.v1.TaskService.ListTasks:output_type -> orc.v1.ListTasksResponse
+	39,  // 154: orc.v1.TaskService.GetTask:output_type -> orc.v1.GetTaskResponse
+	41,  // 155: orc.v1.TaskService.CreateTask:output_type -> orc.v1.CreateTaskResponse
+	43,  // 156: orc.v1.TaskService.UpdateTask:output_type -> orc.v1.UpdateTaskResponse
+	45,  // 157: orc.v1.TaskService.DeleteTask:output_type -> orc.v1.DeleteTaskResponse
+	47,  // 158: orc.v1.TaskService.GetTaskState:output_type -> orc.v1.GetTaskStateResponse
+	49,  // 159: orc.v1.TaskService.GetTaskPlan:output_type -> orc.v1.GetTaskPlanResponse
+	51,  // 160: orc.v1.TaskService.RunTask:output_type -> orc.v1.RunTaskResponse
+	53,  // 161: orc.v1.TaskService.PauseTask:output_type -> orc.v1.PauseTaskResponse
+	55,  // 162: orc.v1.TaskService.ResumeTask:output_type -> orc.v1.ResumeTaskResponse
+	57,  // 163: orc.v1.TaskService.PauseAllTasks:output_type -> orc.v1.PauseAllTasksResponse
+	59,  // 164: orc.v1.TaskService.ResumeAllTasks:output_type -> orc.v1.ResumeAllTasksResponse
+	61,  // 165: orc.v1.TaskService.SkipBlock:output_type -> orc.v1.SkipBlockResponse
+	63,  // 166: orc.v1.TaskService.RetryTask:output_type -> orc.v1.RetryTaskResponse
+	65,  // 167: orc.v1.TaskService.RetryPreview:output_type -> orc.v1.RetryPreviewResponse
+	67,  // 168: orc.v1.TaskService.FinalizeTask:output_type -> orc.v1.FinalizeTaskResponse
+	69,  // 169: orc.v1.TaskService.GetFinalizeState:output_type -> orc.v1.GetFinalizeStateResponse
+	71,  // 170: orc.v1.TaskService.GetDependencies:output_type -> orc.v1.GetDependenciesResponse
+	73,  // 171: orc.v1.TaskService.GetDiff:output_type -> orc.v1.GetDiffResponse
+	75,  // 172: orc.v1.TaskService.GetDiffStats:output_type -> orc.v1.GetDiffStatsResponse
+	77,  // 173: orc.v1.TaskService.ListComments:output_type -> orc.v1.ListCommentsResponse
+	79,  // 174: orc.v1.TaskService.CreateComment:output_type -> orc.v1.CreateCommentResponse
+	81,  // 175: orc.v1.TaskService.UpdateComment:output_type -> orc.v1.UpdateCommentResponse
+	83,  // 176: orc.v1.TaskService.DeleteComment:output_type -> orc.v1.DeleteCommentResponse
+	85,  // 177: orc.v1.TaskService.ListReviewComments:output_type -> orc.v1.ListReviewCommentsResponse
+	87,  // 178: orc.v1.TaskService.CreateReviewComment:output_type -> orc.v1.CreateReviewCommentResponse
+	89,  // 179: orc.v1.TaskService.UpdateReviewComment:output_type -> orc.v1.UpdateReviewCommentResponse
+	91,  // 180: orc.v1.TaskService.DeleteReviewComment:output_type -> orc.v1.DeleteReviewCommentResponse
+	93,  // 181: orc.v1.TaskService.ListAttachments:output_type -> orc.v1.ListAttachmentsResponse
+	96,  // 182: orc.v1.TaskService.UploadAttachment:output_type -> orc.v1.UploadAttachmentResponse
+	98,  // 183: orc.v1.TaskService.DownloadAttachment:output_type -> orc.v1.DownloadAttachmentResponse
+	100, // 184: orc.v1.TaskService.DeleteAttachment:output_type -> orc.v1.DeleteAttachmentResponse
+	102, // 185: orc.v1.TaskService.GetTestResults:output_type -> orc.v1.GetTestResultsResponse
+	106, // 186: orc.v1.TaskService.GetReviewFindings:output_type -> orc.v1.GetReviewFindingsResponse
+	108, // 187: orc.v1.TaskService.ExportTask:output_type -> orc.v1.ExportTaskResponse
+	153, // [153:188] is the sub-list for method output_type
+	118, // [118:153] is the sub-list for method input_type
+	118, // [118:118] is the sub-list for extension type_name
+	118, // [118:118] is the sub-list for extension extendee
+	0,   // [0:118] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_task_proto_init() }
@@ -6528,29 +8047,36 @@ func file_orc_v1_task_proto_init() {
 	file_orc_v1_task_proto_msgTypes[9].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[13].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[14].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[16].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[15].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[19].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[20].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[21].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[22].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[24].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[28].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[30].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[36].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[38].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[52].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[54].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[56].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[60].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[62].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[48].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[50].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[64].OneofWrappers = []any{}
-	file_orc_v1_task_proto_msgTypes[70].OneofWrappers = []any{
+	file_orc_v1_task_proto_msgTypes[66].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[68].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[72].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[74].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[76].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[82].OneofWrappers = []any{
 		(*UploadAttachmentRequest_Metadata)(nil),
 		(*UploadAttachmentRequest_Chunk)(nil),
 	}
+	file_orc_v1_task_proto_msgTypes[91].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[92].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_task_proto_rawDesc), len(file_orc_v1_task_proto_rawDesc)),
-			NumEnums:      11,
-			NumMessages:   82,
+			NumEnums:      12,
+			NumMessages:   102,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

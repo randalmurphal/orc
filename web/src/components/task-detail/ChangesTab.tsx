@@ -1,17 +1,40 @@
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Icon } from '@/components/ui/Icon';
 import { DiffFile } from '@/components/task-detail/diff/DiffFile';
 import { DiffStats } from '@/components/task-detail/diff/DiffStats';
+import { taskClient } from '@/lib/client';
 import {
-	getReviewComments,
-	createReviewComment,
-	updateReviewComment,
-	deleteReviewComment,
-	triggerReviewRetry,
-} from '@/lib/api';
+	type ReviewComment,
+	CommentSeverity,
+	CommentStatus,
+	GetDiffRequestSchema,
+	ListReviewCommentsRequestSchema,
+	CreateReviewCommentRequestSchema,
+	UpdateReviewCommentRequestSchema,
+	DeleteReviewCommentRequestSchema,
+} from '@/gen/orc/v1/task_pb';
+// Note: triggerReviewRetry doesn't have a proto endpoint yet
+import type { DiffResult, FileDiff } from '@/gen/orc/v1/common_pb';
+import type { CreateCommentRequest } from '@/components/task-detail/diff/types';
+import { timestampToDate } from '@/lib/time';
 import { toast } from '@/stores/uiStore';
-import type { DiffResult, FileDiff, ReviewComment, CreateCommentRequest } from '@/lib/types';
 import './ChangesTab.css';
+
+// Helper to convert CommentSeverity enum to string label
+function getSeverityLabel(severity: CommentSeverity): string {
+	switch (severity) {
+		case CommentSeverity.BLOCKER:
+			return 'blocker';
+		case CommentSeverity.ISSUE:
+			return 'issue';
+		case CommentSeverity.SUGGESTION:
+			return 'suggestion';
+		default:
+			return 'issue';
+	}
+}
+
 
 interface ChangesTabProps {
 	taskId: string;
@@ -29,28 +52,30 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	const [sendingToAgent, setSendingToAgent] = useState(false);
 	const [showGeneralCommentForm, setShowGeneralCommentForm] = useState(false);
 	const [generalCommentContent, setGeneralCommentContent] = useState('');
-	const [generalCommentSeverity, setGeneralCommentSeverity] = useState<'suggestion' | 'issue' | 'blocker'>('issue');
+	const [generalCommentSeverity, setGeneralCommentSeverity] = useState<CommentSeverity>(CommentSeverity.ISSUE);
 	const [addingGeneralComment, setAddingGeneralComment] = useState(false);
 
 	// Comment stats
-	const openComments = comments.filter((c) => c.status === 'open');
-	const blockerCount = openComments.filter((c) => c.severity === 'blocker').length;
-	const issueCount = openComments.filter((c) => c.severity === 'issue').length;
-	const suggestionCount = openComments.filter((c) => c.severity === 'suggestion').length;
+	const openComments = comments.filter((c) => c.status === CommentStatus.OPEN);
+	const blockerCount = openComments.filter((c) => c.severity === CommentSeverity.BLOCKER).length;
+	const issueCount = openComments.filter((c) => c.severity === CommentSeverity.ISSUE).length;
+	const suggestionCount = openComments.filter((c) => c.severity === CommentSeverity.SUGGESTION).length;
 	const hasBlockers = blockerCount > 0;
 
 	// General comments (not tied to a specific line)
-	const generalComments = comments.filter((c) => !c.file_path && !c.line_number);
+	const generalComments = comments.filter((c) => !c.filePath && !c.lineNumber);
 
 	// Load diff
 	const loadDiff = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(`/api/tasks/${taskId}/diff?files=true`);
-			if (!res.ok) throw new Error('Failed to load diff');
-			const data = await res.json();
-			setDiff(data);
+			const response = await taskClient.getDiff(
+				create(GetDiffRequestSchema, { id: taskId })
+			);
+			if (response.diff) {
+				setDiff(response.diff);
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Unknown error');
 		} finally {
@@ -61,8 +86,10 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	// Load comments
 	const loadComments = useCallback(async () => {
 		try {
-			const data = await getReviewComments(taskId);
-			setComments(data);
+			const response = await taskClient.listReviewComments(
+				create(ListReviewCommentsRequestSchema, { taskId })
+			);
+			setComments(response.comments);
 		} catch (e) {
 			console.error('Failed to load comments:', e);
 		}
@@ -170,8 +197,18 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 	// Comment handlers
 	const handleAddComment = useCallback(async (comment: CreateCommentRequest) => {
 		try {
-			const newComment = await createReviewComment(taskId, comment);
-			setComments((prev) => [...prev, newComment]);
+			const response = await taskClient.createReviewComment(
+				create(CreateReviewCommentRequestSchema, {
+					taskId,
+					content: comment.content,
+					severity: comment.severity,
+					filePath: comment.filePath,
+					lineNumber: comment.lineNumber,
+				})
+			);
+			if (response.comment) {
+				setComments((prev) => [...prev, response.comment!]);
+			}
 			setActiveLineNumber(null);
 			setActiveFilePath(null);
 			toast.success('Comment added');
@@ -183,8 +220,12 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	const handleResolveComment = useCallback(async (id: string) => {
 		try {
-			const updated = await updateReviewComment(taskId, id, { status: 'resolved' });
-			setComments((prev) => prev.map((c) => (c.id === id ? updated : c)));
+			const response = await taskClient.updateReviewComment(
+				create(UpdateReviewCommentRequestSchema, { taskId, commentId: id, status: CommentStatus.RESOLVED })
+			);
+			if (response.comment) {
+				setComments((prev) => prev.map((c) => (c.id === id ? response.comment! : c)));
+			}
 			toast.success('Comment resolved');
 		} catch (_e) {
 			toast.error('Failed to resolve comment');
@@ -193,8 +234,12 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	const handleWontFixComment = useCallback(async (id: string) => {
 		try {
-			const updated = await updateReviewComment(taskId, id, { status: 'wont_fix' });
-			setComments((prev) => prev.map((c) => (c.id === id ? updated : c)));
+			const response = await taskClient.updateReviewComment(
+				create(UpdateReviewCommentRequestSchema, { taskId, commentId: id, status: CommentStatus.WONT_FIX })
+			);
+			if (response.comment) {
+				setComments((prev) => prev.map((c) => (c.id === id ? response.comment! : c)));
+			}
 			toast.success("Marked as won't fix");
 		} catch (_e) {
 			toast.error('Failed to update comment');
@@ -203,7 +248,9 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	const handleDeleteComment = useCallback(async (id: string) => {
 		try {
-			await deleteReviewComment(taskId, id);
+			await taskClient.deleteReviewComment(
+				create(DeleteReviewCommentRequestSchema, { taskId, commentId: id })
+			);
 			setComments((prev) => prev.filter((c) => c.id !== id));
 			toast.success('Comment deleted');
 		} catch (_e) {
@@ -216,13 +263,18 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		if (!generalCommentContent.trim() || addingGeneralComment) return;
 		setAddingGeneralComment(true);
 		try {
-			const newComment = await createReviewComment(taskId, {
-				content: generalCommentContent.trim(),
-				severity: generalCommentSeverity,
-			});
-			setComments((prev) => [...prev, newComment]);
+			const response = await taskClient.createReviewComment(
+				create(CreateReviewCommentRequestSchema, {
+					taskId,
+					content: generalCommentContent.trim(),
+					severity: generalCommentSeverity,
+				})
+			);
+			if (response.comment) {
+				setComments((prev) => [...prev, response.comment!]);
+			}
 			setGeneralCommentContent('');
-			setGeneralCommentSeverity('issue');
+			setGeneralCommentSeverity(CommentSeverity.ISSUE);
 			setShowGeneralCommentForm(false);
 			toast.success('Comment added');
 		} catch (_e) {
@@ -232,12 +284,17 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		}
 	}, [taskId, generalCommentContent, generalCommentSeverity, addingGeneralComment]);
 
-	// Send to agent
+	// Send to agent - uses raw fetch until proto endpoint is added
 	const handleSendToAgent = useCallback(async () => {
 		if (openComments.length === 0 || sendingToAgent) return;
 		setSendingToAgent(true);
 		try {
-			await triggerReviewRetry(taskId);
+			const res = await fetch(`/api/tasks/${taskId}/review/retry`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ include_comments: true }),
+			});
+			if (!res.ok) throw new Error('Failed to trigger review retry');
 			toast.success('Comments sent to agent for review');
 		} catch (_e) {
 			toast.error('Failed to send comments to agent');
@@ -355,7 +412,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 						</>
 					)}
 
-					<DiffStats stats={diff.stats} />
+					{diff.stats && <DiffStats stats={diff.stats} />}
 				</div>
 			</div>
 
@@ -392,18 +449,21 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 				</div>
 
 				{/* Open general comments */}
-				{generalComments.filter((c) => c.status === 'open').length > 0 && (
+				{generalComments.filter((c) => c.status === CommentStatus.OPEN).length > 0 && (
 					<div className="general-comments-list">
 						{generalComments
-							.filter((c) => c.status === 'open')
-							.map((comment) => (
+							.filter((c) => c.status === CommentStatus.OPEN)
+							.map((comment) => {
+								const severityLabel = getSeverityLabel(comment.severity);
+								const createdDate = timestampToDate(comment.createdAt);
+								return (
 								<div key={comment.id} className="general-comment">
 									<div className="comment-header">
-										<span className={`severity-badge ${comment.severity}`}>
-											{comment.severity}
+										<span className={`severity-badge ${severityLabel}`}>
+											{severityLabel}
 										</span>
 										<span className="timestamp">
-											{new Date(comment.created_at).toLocaleString()}
+											{createdDate?.toLocaleString() ?? 'N/A'}
 										</span>
 									</div>
 									<div className="comment-content">{comment.content}</div>
@@ -428,7 +488,8 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 										</button>
 									</div>
 								</div>
-							))}
+								);
+							})}
 					</div>
 				)}
 
@@ -436,14 +497,18 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 				{showGeneralCommentForm && (
 					<div className="general-comment-form">
 						<div className="severity-pills">
-							{(['suggestion', 'issue', 'blocker'] as const).map((sev) => (
+							{([
+								{ value: CommentSeverity.SUGGESTION, label: 'suggestion' },
+								{ value: CommentSeverity.ISSUE, label: 'issue' },
+								{ value: CommentSeverity.BLOCKER, label: 'blocker' },
+							]).map((sev) => (
 								<button
-									key={sev}
+									key={sev.label}
 									type="button"
-									className={`severity-pill ${generalCommentSeverity === sev ? 'selected' : ''}`}
-									onClick={() => setGeneralCommentSeverity(sev)}
+									className={`severity-pill ${generalCommentSeverity === sev.value ? 'selected' : ''}`}
+									onClick={() => setGeneralCommentSeverity(sev.value)}
 								>
-									{sev}
+									{sev.label}
 								</button>
 							))}
 						</div>

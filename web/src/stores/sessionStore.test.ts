@@ -5,6 +5,15 @@ import {
 	STORAGE_KEYS,
 } from './sessionStore';
 import { formatCost } from '@/lib/format';
+import { taskClient } from '@/lib/client';
+
+// Mock the Connect RPC client
+vi.mock('@/lib/client', () => ({
+	taskClient: {
+		pauseAllTasks: vi.fn(),
+		resumeAllTasks: vi.fn(),
+	},
+}));
 
 describe('SessionStore', () => {
 	beforeEach(() => {
@@ -241,26 +250,19 @@ describe('SessionStore', () => {
 
 	describe('pause/resume', () => {
 		beforeEach(() => {
-			// Mock fetch
-			global.fetch = vi.fn();
-		});
-
-		afterEach(() => {
-			vi.restoreAllMocks();
+			vi.mocked(taskClient.pauseAllTasks).mockReset();
+			vi.mocked(taskClient.resumeAllTasks).mockReset();
 		});
 
 		it('should call pause endpoint and update state', async () => {
-			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve({}),
-			});
+			vi.mocked(taskClient.pauseAllTasks).mockResolvedValueOnce({
+				tasks: [],
+				count: 0,
+			} as never);
 
 			await useSessionStore.getState().pauseAll();
 
-			expect(global.fetch).toHaveBeenCalledWith('/api/tasks/pause-all', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-			});
+			expect(taskClient.pauseAllTasks).toHaveBeenCalled();
 			expect(useSessionStore.getState().isPaused).toBe(true);
 		});
 
@@ -268,26 +270,21 @@ describe('SessionStore', () => {
 			// First pause
 			useSessionStore.setState({ isPaused: true });
 
-			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-				ok: true,
-				json: () => Promise.resolve({}),
-			});
+			vi.mocked(taskClient.resumeAllTasks).mockResolvedValueOnce({
+				tasks: [],
+				count: 0,
+			} as never);
 
 			await useSessionStore.getState().resumeAll();
 
-			expect(global.fetch).toHaveBeenCalledWith('/api/tasks/resume-all', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-			});
+			expect(taskClient.resumeAllTasks).toHaveBeenCalled();
 			expect(useSessionStore.getState().isPaused).toBe(false);
 		});
 
 		it('should throw error on pause failure', async () => {
-			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-				ok: false,
-				statusText: 'Internal Server Error',
-				json: () => Promise.resolve({ error: 'Server error' }),
-			});
+			vi.mocked(taskClient.pauseAllTasks).mockRejectedValueOnce(
+				new Error('Server error')
+			);
 
 			await expect(useSessionStore.getState().pauseAll()).rejects.toThrow(
 				'Server error'
@@ -298,11 +295,9 @@ describe('SessionStore', () => {
 		it('should throw error on resume failure', async () => {
 			useSessionStore.setState({ isPaused: true });
 
-			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-				ok: false,
-				statusText: 'Internal Server Error',
-				json: () => Promise.resolve({ error: 'Server error' }),
-			});
+			vi.mocked(taskClient.resumeAllTasks).mockRejectedValueOnce(
+				new Error('Server error')
+			);
 
 			await expect(useSessionStore.getState().resumeAll()).rejects.toThrow(
 				'Server error'
@@ -428,16 +423,16 @@ describe('SessionStore', () => {
 		});
 	});
 
-	describe('updateFromSessionEvent', () => {
+	describe('updateFromMetricsEvent', () => {
 		it('should update all metrics from session_update event', () => {
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 3650,
-				total_tokens: 127500,
-				estimated_cost_usd: 2.51,
-				input_tokens: 95000,
-				output_tokens: 32500,
-				tasks_running: 2,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 3650,
+				totalTokens: 127500,
+				estimatedCostUsd: 2.51,
+				inputTokens: 95000,
+				outputTokens: 32500,
+				tasksRunning: 2,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();
@@ -449,18 +444,18 @@ describe('SessionStore', () => {
 			expect(state.isPaused).toBe(false);
 		});
 
-		it('should compute startTime from duration_seconds when no session exists', () => {
+		it('should compute startTime from durationSeconds when no session exists', () => {
 			const now = new Date();
 			vi.setSystemTime(now);
 
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 3650, // ~1h ago
-				total_tokens: 1000,
-				estimated_cost_usd: 0.01,
-				input_tokens: 500,
-				output_tokens: 500,
-				tasks_running: 1,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 3650, // ~1h ago
+				totalTokens: 1000,
+				estimatedCostUsd: 0.01,
+				inputTokens: 500,
+				outputTokens: 500,
+				tasksRunning: 1,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();
@@ -477,14 +472,14 @@ describe('SessionStore', () => {
 			useSessionStore.getState().startSession();
 			const originalStartTime = useSessionStore.getState().startTime;
 
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 100,
-				total_tokens: 5000,
-				estimated_cost_usd: 0.1,
-				input_tokens: 3000,
-				output_tokens: 2000,
-				tasks_running: 1,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 100,
+				totalTokens: 5000,
+				estimatedCostUsd: 0.1,
+				inputTokens: 3000,
+				outputTokens: 2000,
+				tasksRunning: 1,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();
@@ -492,14 +487,14 @@ describe('SessionStore', () => {
 		});
 
 		it('should update formatted values after session event', () => {
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 3650,
-				total_tokens: 127500,
-				estimated_cost_usd: 2.51,
-				input_tokens: 95000,
-				output_tokens: 32500,
-				tasks_running: 2,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 3650,
+				totalTokens: 127500,
+				estimatedCostUsd: 2.51,
+				inputTokens: 95000,
+				outputTokens: 32500,
+				tasksRunning: 2,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();
@@ -510,14 +505,14 @@ describe('SessionStore', () => {
 		});
 
 		it('should handle zero values', () => {
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 0,
-				total_tokens: 0,
-				estimated_cost_usd: 0,
-				input_tokens: 0,
-				output_tokens: 0,
-				tasks_running: 0,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 0,
+				totalTokens: 0,
+				estimatedCostUsd: 0,
+				inputTokens: 0,
+				outputTokens: 0,
+				tasksRunning: 0,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();
@@ -530,14 +525,14 @@ describe('SessionStore', () => {
 		});
 
 		it('should handle paused state', () => {
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 100,
-				total_tokens: 1000,
-				estimated_cost_usd: 0.02,
-				input_tokens: 600,
-				output_tokens: 400,
-				tasks_running: 0,
-				is_paused: true,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 100,
+				totalTokens: 1000,
+				estimatedCostUsd: 0.02,
+				inputTokens: 600,
+				outputTokens: 400,
+				tasksRunning: 0,
+				isPaused: true,
 			});
 
 			const state = useSessionStore.getState();
@@ -556,14 +551,14 @@ describe('SessionStore', () => {
 			useSessionStore.getState().incrementActiveTask();
 
 			// Server has different state
-			useSessionStore.getState().updateFromSessionEvent({
-				duration_seconds: 200,
-				total_tokens: 10000,
-				estimated_cost_usd: 0.5,
-				input_tokens: 6000,
-				output_tokens: 4000,
-				tasks_running: 2,
-				is_paused: false,
+			useSessionStore.getState().updateFromMetricsEvent({
+				durationSeconds: 200,
+				totalTokens: 10000,
+				estimatedCostUsd: 0.5,
+				inputTokens: 6000,
+				outputTokens: 4000,
+				tasksRunning: 2,
+				isPaused: false,
 			});
 
 			const state = useSessionStore.getState();

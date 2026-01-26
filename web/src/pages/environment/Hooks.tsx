@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
@@ -12,62 +13,131 @@ import { Modal } from '@/components/overlays/Modal';
 import type { IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
+import { configClient } from '@/lib/client';
 import {
-	listHooks,
-	getHookTypes,
-	updateHook,
-	type HooksMap,
 	type Hook,
-	type HookEvent,
-} from '@/lib/api';
+	HookEvent,
+	SettingsScope,
+	ListHooksRequestSchema,
+	CreateHookRequestSchema,
+	UpdateHookRequestSchema,
+	DeleteHookRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
-type Scope = 'project' | 'global';
+type ScopeTab = 'project' | 'global';
+
+// Convert UI scope tab to protobuf SettingsScope enum
+function toSettingsScope(scope: ScopeTab): SettingsScope {
+	return scope === 'global' ? SettingsScope.GLOBAL : SettingsScope.PROJECT;
+}
+
+// Convert HookEvent enum to display string
+function hookEventToString(event: HookEvent): string {
+	switch (event) {
+		case HookEvent.PRE_TOOL_USE:
+			return 'PreToolUse';
+		case HookEvent.POST_TOOL_USE:
+			return 'PostToolUse';
+		case HookEvent.NOTIFICATION:
+			return 'Notification';
+		case HookEvent.STOP:
+			return 'Stop';
+		default:
+			return 'Unknown';
+	}
+}
+
+// Convert string to HookEvent enum
+function stringToHookEvent(str: string): HookEvent {
+	switch (str) {
+		case 'PreToolUse':
+			return HookEvent.PRE_TOOL_USE;
+		case 'PostToolUse':
+			return HookEvent.POST_TOOL_USE;
+		case 'Notification':
+			return HookEvent.NOTIFICATION;
+		case 'Stop':
+			return HookEvent.STOP;
+		default:
+			return HookEvent.UNSPECIFIED;
+	}
+}
+
+// Available hook events
+const HOOK_EVENTS = [
+	HookEvent.PRE_TOOL_USE,
+	HookEvent.POST_TOOL_USE,
+	HookEvent.NOTIFICATION,
+	HookEvent.STOP,
+];
 
 // Hook event descriptions
-const HOOK_EVENT_INFO: Record<string, { icon: IconName; description: string }> = {
-	PreToolUse: {
+const HOOK_EVENT_INFO: Record<HookEvent, { icon: IconName; description: string }> = {
+	[HookEvent.UNSPECIFIED]: {
+		icon: 'code',
+		description: 'Unspecified event',
+	},
+	[HookEvent.PRE_TOOL_USE]: {
 		icon: 'play',
 		description: 'Runs before a tool is executed',
 	},
-	PostToolUse: {
+	[HookEvent.POST_TOOL_USE]: {
 		icon: 'check',
 		description: 'Runs after a tool completes',
 	},
-	PreCompact: {
-		icon: 'minimize-2',
-		description: 'Runs before context compaction',
+	[HookEvent.NOTIFICATION]: {
+		icon: 'info',
+		description: 'Runs on notifications',
 	},
-	PrePrompt: {
-		icon: 'message-square',
-		description: 'Runs before sending a prompt',
-	},
-	Stop: {
+	[HookEvent.STOP]: {
 		icon: 'pause',
 		description: 'Runs when execution stops',
 	},
 };
 
+// Editor form state for creating/editing a hook
+interface HookFormState {
+	name: string;
+	event: HookEvent;
+	matcher: string;
+	command: string;
+	workingDir: string;
+	timeout: number;
+	enabled: boolean;
+}
+
+const defaultFormState: HookFormState = {
+	name: '',
+	event: HookEvent.PRE_TOOL_USE,
+	matcher: '*',
+	command: '',
+	workingDir: '',
+	timeout: 30,
+	enabled: true,
+};
+
 export function Hooks() {
 	useDocumentTitle('Hooks');
-	const [scope, setScope] = useState<Scope>('project');
-	const [hooks, setHooks] = useState<HooksMap>({});
-	const [hookTypes, setHookTypes] = useState<HookEvent[]>([]);
+	const [scope, setScope] = useState<ScopeTab>('project');
+	const [hooks, setHooks] = useState<Hook[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Editor modal state
-	const [editingEvent, setEditingEvent] = useState<string | null>(null);
-	const [editorHooks, setEditorHooks] = useState<Hook[]>([]);
+	const [editingHook, setEditingHook] = useState<Hook | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
+	const [formState, setFormState] = useState<HookFormState>(defaultFormState);
 	const [saving, setSaving] = useState(false);
 
 	const loadData = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const [hooksData, types] = await Promise.all([listHooks(scope), getHookTypes()]);
-			setHooks(hooksData);
-			setHookTypes(types);
+			const response = await configClient.listHooks(
+				create(ListHooksRequestSchema, { scope: toSettingsScope(scope) })
+			);
+			setHooks(response.hooks);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load hooks');
 		} finally {
@@ -79,93 +149,124 @@ export function Hooks() {
 		loadData();
 	}, [loadData]);
 
-	const handleEdit = (event: string) => {
-		const eventHooks = hooks[event] || [];
-		setEditorHooks(
-			eventHooks.length > 0
-				? eventHooks.map((h) => ({ ...h, hooks: [...h.hooks] }))
-				: [{ matcher: '*', hooks: [{ type: 'command', command: '' }] }]
-		);
-		setEditingEvent(event);
+	const handleCreate = () => {
+		setFormState(defaultFormState);
+		setIsCreating(true);
+		setEditingHook(null);
 	};
 
-	const handleAddHook = () => {
-		setEditorHooks([...editorHooks, { matcher: '*', hooks: [{ type: 'command', command: '' }] }]);
+	const handleEdit = (hook: Hook) => {
+		setFormState({
+			name: hook.name,
+			event: hook.event,
+			matcher: hook.matcher || '*',
+			command: hook.command,
+			workingDir: hook.workingDir || '',
+			timeout: hook.timeout || 30,
+			enabled: hook.enabled,
+		});
+		setEditingHook(hook);
+		setIsCreating(false);
 	};
 
-	const handleRemoveHook = (index: number) => {
-		setEditorHooks(editorHooks.filter((_, i) => i !== index));
+	const handleClose = () => {
+		setEditingHook(null);
+		setIsCreating(false);
+		setFormState(defaultFormState);
 	};
 
-	const handleUpdateMatcher = (index: number, matcher: string) => {
-		const updated = [...editorHooks];
-		updated[index] = { ...updated[index], matcher };
-		setEditorHooks(updated);
-	};
-
-	const handleUpdateCommand = (hookIndex: number, entryIndex: number, command: string) => {
-		const updated = [...editorHooks];
-		const hookEntries = [...updated[hookIndex].hooks];
-		hookEntries[entryIndex] = { ...hookEntries[entryIndex], command };
-		updated[hookIndex] = { ...updated[hookIndex], hooks: hookEntries };
-		setEditorHooks(updated);
-	};
-
-	const handleAddEntry = (hookIndex: number) => {
-		const updated = [...editorHooks];
-		updated[hookIndex] = {
-			...updated[hookIndex],
-			hooks: [...updated[hookIndex].hooks, { type: 'command', command: '' }],
-		};
-		setEditorHooks(updated);
-	};
-
-	const handleRemoveEntry = (hookIndex: number, entryIndex: number) => {
-		const updated = [...editorHooks];
-		updated[hookIndex] = {
-			...updated[hookIndex],
-			hooks: updated[hookIndex].hooks.filter((_, i) => i !== entryIndex),
-		};
-		setEditorHooks(updated);
+	const handleFormChange = (field: keyof HookFormState, value: string | number | boolean | HookEvent) => {
+		setFormState((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handleSave = async () => {
-		if (!editingEvent) return;
-
-		// Filter out empty hooks
-		const filteredHooks = editorHooks.filter(
-			(h) => h.matcher.trim() && h.hooks.some((e) => e.command.trim())
-		);
+		if (!formState.name.trim() || !formState.command.trim()) {
+			toast.error('Name and command are required');
+			return;
+		}
 
 		try {
 			setSaving(true);
-			await updateHook(editingEvent, filteredHooks, scope);
-			toast.success(`${editingEvent} hooks saved`);
-			setEditingEvent(null);
+
+			if (isCreating) {
+				await configClient.createHook(
+					create(CreateHookRequestSchema, {
+						name: formState.name.trim(),
+						event: formState.event,
+						matcher: formState.matcher || undefined,
+						command: formState.command.trim(),
+						workingDir: formState.workingDir || undefined,
+						timeout: formState.timeout,
+						scope: toSettingsScope(scope),
+					})
+				);
+				toast.success('Hook created');
+			} else if (editingHook) {
+				await configClient.updateHook(
+					create(UpdateHookRequestSchema, {
+						name: editingHook.name,
+						scope: toSettingsScope(scope),
+						event: formState.event,
+						matcher: formState.matcher || undefined,
+						command: formState.command.trim(),
+						workingDir: formState.workingDir || undefined,
+						timeout: formState.timeout,
+						enabled: formState.enabled,
+					})
+				);
+				toast.success('Hook updated');
+			}
+
+			handleClose();
 			await loadData();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to save hooks');
+			toast.error(err instanceof Error ? err.message : 'Failed to save hook');
 		} finally {
 			setSaving(false);
 		}
 	};
 
-	const handleDelete = async (event: string) => {
-		if (!confirm(`Delete all ${event} hooks?`)) {
+	const handleDelete = async (hook: Hook) => {
+		if (!confirm(`Delete hook "${hook.name}"?`)) {
 			return;
 		}
 		try {
-			await updateHook(event, [], scope);
-			toast.success(`${event} hooks deleted`);
+			await configClient.deleteHook(
+				create(DeleteHookRequestSchema, {
+					name: hook.name,
+					scope: toSettingsScope(scope),
+				})
+			);
+			toast.success('Hook deleted');
 			await loadData();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete hooks');
+			toast.error(err instanceof Error ? err.message : 'Failed to delete hook');
 		}
 	};
 
-	const countHooks = (event: string): number => {
-		return (hooks[event] || []).reduce((sum, h) => sum + h.hooks.length, 0);
+	const handleToggleEnabled = async (hook: Hook) => {
+		try {
+			await configClient.updateHook(
+				create(UpdateHookRequestSchema, {
+					name: hook.name,
+					scope: toSettingsScope(scope),
+					enabled: !hook.enabled,
+				})
+			);
+			await loadData();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to update hook');
+		}
 	};
+
+	// Group hooks by event type for display
+	const hooksByEvent = HOOK_EVENTS.reduce(
+		(acc, event) => {
+			acc[event] = hooks.filter((h) => h.event === event);
+			return acc;
+		},
+		{} as Record<HookEvent, Hook[]>
+	);
 
 	if (loading) {
 		return (
@@ -188,6 +289,8 @@ export function Hooks() {
 		);
 	}
 
+	const isEditorOpen = isCreating || editingHook !== null;
+
 	return (
 		<div className="page environment-hooks-page">
 			<div className="env-page-header">
@@ -197,80 +300,102 @@ export function Hooks() {
 						Configure shell commands that run at specific points during Claude Code execution.
 					</p>
 				</div>
+				<Button variant="primary" size="sm" onClick={handleCreate}>
+					<Icon name="plus" size={14} />
+					Add Hook
+				</Button>
 			</div>
 
-			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as Scope)}>
+			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as ScopeTab)}>
 				<Tabs.List className="env-scope-tabs">
 					<Tabs.Trigger value="project" className="env-scope-tab">
 						<Icon name="folder" size={14} />
 						Project
 					</Tabs.Trigger>
 					<Tabs.Trigger value="global" className="env-scope-tab">
-						<Icon name="user" size={14} />
+						<Icon name="globe" size={14} />
 						Global
 					</Tabs.Trigger>
 				</Tabs.List>
 
 				<Tabs.Content value={scope}>
 					<div className="hooks-groups">
-						{hookTypes.map((event) => {
-							const info = HOOK_EVENT_INFO[event] || {
-								icon: 'code',
-								description: 'Custom hook event',
-							};
-							const eventHooks = hooks[event] || [];
-							const count = countHooks(event);
+						{HOOK_EVENTS.map((event) => {
+							const info = HOOK_EVENT_INFO[event];
+							const eventHooks = hooksByEvent[event] || [];
 
 							return (
 								<div key={event} className="hooks-group">
 									<div className="hooks-group-header">
 										<div className="hooks-group-title-row">
 											<Icon name={info.icon} size={16} />
-											<h4 className="hooks-group-title">{event}</h4>
-											{count > 0 && (
+											<h4 className="hooks-group-title">{hookEventToString(event)}</h4>
+											{eventHooks.length > 0 && (
 												<span className="hooks-group-count">
-													{count} hook{count !== 1 ? 's' : ''}
+													{eventHooks.length} hook{eventHooks.length !== 1 ? 's' : ''}
 												</span>
 											)}
 										</div>
 										<p className="hooks-group-description">{info.description}</p>
 									</div>
-									<div className="hooks-group-actions">
-										<Button variant="ghost" size="sm" onClick={() => handleEdit(event)}>
-											<Icon name="edit" size={14} />
-											{count > 0 ? 'Edit' : 'Add'}
-										</Button>
-										{count > 0 && (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleDelete(event)}
-											>
-												<Icon name="trash" size={14} />
-											</Button>
-										)}
-									</div>
-									{eventHooks.length > 0 && (
+									{eventHooks.length > 0 ? (
 										<div className="hooks-list">
-											{eventHooks.map((hook, i) => (
-												<div key={i} className="hook-item">
-													<div className="hook-matcher">
-														<Icon name="target" size={12} />
-														<code>{hook.matcher}</code>
-													</div>
-													<div className="hook-commands">
-														{hook.hooks.map((entry, j) => (
-															<div key={j} className="hook-command">
+											{eventHooks.map((hook) => (
+												<div
+													key={hook.name}
+													className={`hook-item ${!hook.enabled ? 'disabled' : ''}`}
+												>
+													<div className="hook-item-main">
+														<div className="hook-item-info">
+															<div className="hook-name">{hook.name}</div>
+															{hook.matcher && hook.matcher !== '*' && (
+																<div className="hook-matcher">
+																	<Icon name="target" size={12} />
+																	<code>{hook.matcher}</code>
+																</div>
+															)}
+															<div className="hook-command">
 																<Icon name="terminal" size={12} />
-																<code>{entry.command}</code>
+																<code>{hook.command}</code>
 															</div>
-														))}
+														</div>
+														<div className="hook-item-actions">
+															<Button
+																variant="ghost"
+																size="sm"
+																iconOnly
+																onClick={() => handleToggleEnabled(hook)}
+																aria-label={hook.enabled ? 'Disable' : 'Enable'}
+															>
+																<Icon
+																	name={hook.enabled ? 'eye' : 'eye-off'}
+																	size={16}
+																/>
+															</Button>
+															<Button
+																variant="ghost"
+																size="sm"
+																iconOnly
+																onClick={() => handleEdit(hook)}
+																aria-label="Edit"
+															>
+																<Icon name="edit" size={14} />
+															</Button>
+															<Button
+																variant="ghost"
+																size="sm"
+																iconOnly
+																onClick={() => handleDelete(hook)}
+																aria-label="Delete"
+															>
+																<Icon name="trash" size={14} />
+															</Button>
+														</div>
 													</div>
 												</div>
 											))}
 										</div>
-									)}
-									{eventHooks.length === 0 && (
+									) : (
 										<div className="hooks-empty">No hooks configured</div>
 									)}
 								</div>
@@ -282,88 +407,110 @@ export function Hooks() {
 
 			{/* Editor Modal */}
 			<Modal
-				open={editingEvent !== null}
-				onClose={() => setEditingEvent(null)}
-				title={`Edit ${editingEvent} Hooks`}
+				open={isEditorOpen}
+				onClose={handleClose}
+				title={isCreating ? 'Create Hook' : `Edit Hook: ${editingHook?.name}`}
 				size="lg"
 			>
 				<div className="hooks-editor">
-					<p className="hooks-editor-hint">
-						Each hook has a <strong>matcher</strong> pattern (e.g., <code>*</code> for all,{' '}
-						<code>Edit</code> for specific tool) and one or more <strong>commands</strong> to
-						run.
-					</p>
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-name">Name</label>
+						<Input
+							id="hook-name"
+							value={formState.name}
+							onChange={(e) => handleFormChange('name', e.target.value)}
+							placeholder="my-hook"
+							size="sm"
+							disabled={!isCreating}
+						/>
+					</div>
 
-					{editorHooks.map((hook, hookIndex) => (
-						<div key={hookIndex} className="hooks-editor-item">
-							<div className="hooks-editor-item-header">
-								<div className="hooks-editor-matcher">
-									<label>Matcher Pattern</label>
-									<Input
-										value={hook.matcher}
-										onChange={(e) => handleUpdateMatcher(hookIndex, e.target.value)}
-										placeholder="* or tool name"
-										size="sm"
-									/>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => handleRemoveHook(hookIndex)}
-									aria-label="Remove hook"
-								>
-									<Icon name="trash" size={14} />
-								</Button>
-							</div>
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-event">Event</label>
+						<select
+							id="hook-event"
+							className="input-field"
+							value={hookEventToString(formState.event)}
+							onChange={(e) => handleFormChange('event', stringToHookEvent(e.target.value))}
+							style={{ padding: 'var(--space-2)' }}
+						>
+							{HOOK_EVENTS.map((event) => (
+								<option key={event} value={hookEventToString(event)}>
+									{hookEventToString(event)} - {HOOK_EVENT_INFO[event].description}
+								</option>
+							))}
+						</select>
+					</div>
 
-							<div className="hooks-editor-commands">
-								<label>Commands</label>
-								{hook.hooks.map((entry, entryIndex) => (
-									<div key={entryIndex} className="hooks-editor-command-row">
-										<Input
-											value={entry.command}
-											onChange={(e) =>
-												handleUpdateCommand(hookIndex, entryIndex, e.target.value)
-											}
-											placeholder="Shell command to run"
-											size="sm"
-										/>
-										{hook.hooks.length > 1 && (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => handleRemoveEntry(hookIndex, entryIndex)}
-												aria-label="Remove command"
-											>
-												<Icon name="x" size={14} />
-											</Button>
-										)}
-									</div>
-								))}
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => handleAddEntry(hookIndex)}
-									className="hooks-editor-add-command"
-								>
-									<Icon name="plus" size={14} />
-									Add Command
-								</Button>
-							</div>
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-matcher">Matcher Pattern</label>
+						<Input
+							id="hook-matcher"
+							value={formState.matcher}
+							onChange={(e) => handleFormChange('matcher', e.target.value)}
+							placeholder="* (all) or specific tool name"
+							size="sm"
+						/>
+						<p className="hooks-editor-hint">
+							Use <code>*</code> to match all tools, or specify a tool name like{' '}
+							<code>Edit</code> or <code>Bash</code>.
+						</p>
+					</div>
+
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-command">Command</label>
+						<Input
+							id="hook-command"
+							value={formState.command}
+							onChange={(e) => handleFormChange('command', e.target.value)}
+							placeholder="Shell command to execute"
+							size="sm"
+						/>
+					</div>
+
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-workdir">Working Directory (optional)</label>
+						<Input
+							id="hook-workdir"
+							value={formState.workingDir}
+							onChange={(e) => handleFormChange('workingDir', e.target.value)}
+							placeholder="/path/to/directory"
+							size="sm"
+						/>
+					</div>
+
+					<div className="hooks-editor-field">
+						<label htmlFor="hook-timeout">Timeout (seconds)</label>
+						<Input
+							id="hook-timeout"
+							type="number"
+							min={1}
+							max={300}
+							value={formState.timeout}
+							onChange={(e) => handleFormChange('timeout', parseInt(e.target.value) || 30)}
+							size="sm"
+						/>
+					</div>
+
+					{!isCreating && (
+						<div className="hooks-editor-field">
+							<label className="settings-checkbox-label">
+								<input
+									type="checkbox"
+									checked={formState.enabled}
+									onChange={(e) => handleFormChange('enabled', e.target.checked)}
+								/>
+								Enabled
+							</label>
 						</div>
-					))}
-
-					<Button variant="secondary" onClick={handleAddHook} className="hooks-editor-add">
-						<Icon name="plus" size={14} />
-						Add Hook
-					</Button>
+					)}
 
 					<div className="hooks-editor-actions">
-						<Button variant="secondary" onClick={() => setEditingEvent(null)}>
+						<Button variant="secondary" onClick={handleClose}>
 							Cancel
 						</Button>
 						<Button variant="primary" onClick={handleSave} loading={saving}>
-							Save Hooks
+							{isCreating ? 'Create Hook' : 'Save Changes'}
 						</Button>
 					</div>
 				</div>

@@ -1,20 +1,66 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { TaskEditModal } from '@/components/task-detail/TaskEditModal';
 import { ExportDropdown } from '@/components/task-detail/ExportDropdown';
-import { deleteTask, runTask, pauseTask, resumeTask } from '@/lib/api';
+import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { getInitiativeBadgeTitle } from '@/stores';
-import type { Task, Plan } from '@/lib/types';
-import { CATEGORY_CONFIG, PRIORITY_CONFIG } from '@/lib/types';
+import {
+	DeleteTaskRequestSchema,
+	RunTaskRequestSchema,
+	PauseTaskRequestSchema,
+	ResumeTaskRequestSchema,
+} from '@/gen/orc/v1/task_pb';
+import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskWeight, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
+import type { IconName } from '@/components/ui/Icon';
 import './TaskHeader.css';
+
+// Config for category display with proto enum keys
+const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: IconName }> = {
+	[TaskCategory.FEATURE]: { label: 'Feature', color: 'var(--status-success)', icon: 'sparkles' },
+	[TaskCategory.BUG]: { label: 'Bug', color: 'var(--status-error)', icon: 'bug' },
+	[TaskCategory.REFACTOR]: { label: 'Refactor', color: 'var(--status-info)', icon: 'recycle' },
+	[TaskCategory.CHORE]: { label: 'Chore', color: 'var(--text-muted)', icon: 'tools' },
+	[TaskCategory.DOCS]: { label: 'Docs', color: 'var(--status-warning)', icon: 'file-text' },
+	[TaskCategory.TEST]: { label: 'Test', color: 'var(--cyan)', icon: 'beaker' },
+	[TaskCategory.UNSPECIFIED]: { label: '', color: '', icon: 'sparkles' },
+};
+
+// Config for priority display with proto enum keys
+const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = {
+	[TaskPriority.CRITICAL]: { label: 'Critical', color: 'var(--status-error)' },
+	[TaskPriority.HIGH]: { label: 'High', color: 'var(--status-warning)' },
+	[TaskPriority.NORMAL]: { label: 'Normal', color: 'var(--text-muted)' },
+	[TaskPriority.LOW]: { label: 'Low', color: 'var(--text-muted)' },
+	[TaskPriority.UNSPECIFIED]: { label: 'Normal', color: 'var(--text-muted)' },
+};
+
+// Weight labels for display
+const WEIGHT_LABELS: Record<TaskWeight, string> = {
+	[TaskWeight.TRIVIAL]: 'trivial',
+	[TaskWeight.SMALL]: 'small',
+	[TaskWeight.MEDIUM]: 'medium',
+	[TaskWeight.LARGE]: 'large',
+	[TaskWeight.UNSPECIFIED]: '',
+};
+
+// Priority keys for CSS class names
+const PRIORITY_KEYS: Record<TaskPriority, string> = {
+	[TaskPriority.CRITICAL]: 'critical',
+	[TaskPriority.HIGH]: 'high',
+	[TaskPriority.NORMAL]: 'normal',
+	[TaskPriority.LOW]: 'low',
+	[TaskPriority.UNSPECIFIED]: 'normal',
+};
 
 interface TaskHeaderProps {
 	task: Task;
-	plan?: Plan;
+	plan?: TaskPlan;
 	onTaskUpdate: (task: Task) => void;
 	onTaskDelete: () => void;
 }
@@ -30,7 +76,9 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 	const handleRun = useCallback(async () => {
 		setActionLoading(true);
 		try {
-			const result = await runTask(task.id);
+			const result = await taskClient.runTask(
+				create(RunTaskRequestSchema, { id: task.id })
+			);
 			if (result.task) {
 				onTaskUpdate(result.task);
 			}
@@ -45,7 +93,9 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 	const handlePause = useCallback(async () => {
 		setActionLoading(true);
 		try {
-			await pauseTask(task.id);
+			await taskClient.pauseTask(
+				create(PauseTaskRequestSchema, { id: task.id })
+			);
 			toast.success('Task paused');
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to pause task');
@@ -57,7 +107,9 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 	const handleResume = useCallback(async () => {
 		setActionLoading(true);
 		try {
-			await resumeTask(task.id);
+			await taskClient.resumeTask(
+				create(ResumeTaskRequestSchema, { id: task.id })
+			);
 			toast.success('Task resumed');
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to resume task');
@@ -69,7 +121,9 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 	const handleDelete = useCallback(async () => {
 		setIsDeleting(true);
 		try {
-			await deleteTask(task.id);
+			await taskClient.deleteTask(
+				create(DeleteTaskRequestSchema, { id: task.id })
+			);
 			toast.success('Task deleted');
 			onTaskDelete();
 		} catch (e) {
@@ -91,23 +145,23 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		}
 
 		switch (task.status) {
-			case 'created':
-			case 'planned':
-			case 'failed':
+			case TaskStatus.CREATED:
+			case TaskStatus.PLANNED:
+			case TaskStatus.FAILED:
 				return (
 					<button className="action-btn run" onClick={handleRun} title="Run task">
 						<Icon name="play" size={16} />
 						<span>Run</span>
 					</button>
 				);
-			case 'running':
+			case TaskStatus.RUNNING:
 				return (
 					<button className="action-btn pause" onClick={handlePause} title="Pause task">
 						<Icon name="pause" size={16} />
 						<span>Pause</span>
 					</button>
 				);
-			case 'paused':
+			case TaskStatus.PAUSED:
 				return (
 					<button className="action-btn resume" onClick={handleResume} title="Resume task">
 						<Icon name="play" size={16} />
@@ -119,16 +173,18 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		}
 	};
 
-	const categoryConfig = task.category ? CATEGORY_CONFIG[task.category] : null;
-	const priority = task.priority || 'normal';
+	const categoryConfig = task.category !== TaskCategory.UNSPECIFIED
+		? CATEGORY_CONFIG[task.category]
+		: null;
+	const priority = task.priority || TaskPriority.NORMAL;
 	const priorityConfig = PRIORITY_CONFIG[priority];
-	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
+	const initiativeBadge = task.initiativeId ? getInitiativeBadgeTitle(task.initiativeId) : null;
 
 	// Calculate phase progress for running tasks
-	const isRunning = task.status === 'running';
+	const isRunning = task.status === TaskStatus.RUNNING;
 	const phaseProgress = (() => {
-		if (!isRunning || !plan || !task.current_phase) return null;
-		const currentIndex = plan.phases.findIndex(p => p.name === task.current_phase);
+		if (!isRunning || !plan || !task.currentPhase) return null;
+		const currentIndex = plan.phases.findIndex(p => p.name === task.currentPhase);
 		if (currentIndex === -1) return null;
 		return { current: currentIndex + 1, total: plan.phases.length };
 	})();
@@ -143,9 +199,9 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 				<div className="task-identity">
 					<span className="task-id">{task.id}</span>
 					<StatusIndicator status={task.status} size="sm" />
-					{isRunning && task.current_phase && (
+					{isRunning && task.currentPhase && (
 						<span className="running-status-badge pulse">
-							Running: {task.current_phase}
+							Running: {task.currentPhase}
 							{phaseProgress && (
 								<span className="phase-progress">
 									({phaseProgress.current} of {phaseProgress.total})
@@ -153,8 +209,8 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 							)}
 						</span>
 					)}
-					{task.weight && (
-						<span className="weight-badge">{task.weight}</span>
+					{task.weight !== TaskWeight.UNSPECIFIED && (
+						<span className="weight-badge">{WEIGHT_LABELS[task.weight]}</span>
 					)}
 					{categoryConfig && (
 						<span
@@ -167,7 +223,7 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 					)}
 					<Tooltip content={`${priorityConfig.label} priority`}>
 						<span
-							className={`priority-badge priority-${priority}`}
+							className={`priority-badge priority-${PRIORITY_KEYS[priority]}`}
 							style={{ '--priority-color': priorityConfig.color } as React.CSSProperties}
 						>
 							{priorityConfig.label}
@@ -177,7 +233,7 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 						<Tooltip content={initiativeBadge.full}>
 							<button
 								className="initiative-badge"
-								onClick={() => navigate(`/initiatives/${task.initiative_id}`)}
+								onClick={() => navigate(`/initiatives/${task.initiativeId}`)}
 							>
 								<Icon name="layers" size={12} />
 								{initiativeBadge.display}

@@ -1,6 +1,8 @@
 import { Fragment } from 'react';
 import { InlineCommentThread } from './InlineCommentThread';
-import type { Hunk, ReviewComment, CreateCommentRequest } from '@/lib/types';
+import type { DiffHunk as Hunk, DiffLine } from '@/gen/orc/v1/common_pb';
+import type { ReviewComment } from '@/gen/orc/v1/task_pb';
+import type { CreateCommentRequest } from './types';
 import './DiffHunk.css';
 
 interface DiffHunkProps {
@@ -34,7 +36,7 @@ export function DiffHunk({
 		<div className="diff-hunk">
 			{/* Hunk Header */}
 			<div className="hunk-header">
-				@@ -{hunk.old_start},{hunk.old_lines} +{hunk.new_start},{hunk.new_lines} @@
+				@@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
 			</div>
 
 			{/* Lines */}
@@ -99,12 +101,12 @@ function SplitView({
 }: ViewProps) {
 	// Build pairs for split view
 	const pairs: Array<{
-		left: typeof hunk.lines[0] | null;
-		right: typeof hunk.lines[0] | null;
+		left: DiffLine | null;
+		right: DiffLine | null;
 	}> = [];
 
-	const leftQueue: typeof hunk.lines = [];
-	const rightQueue: typeof hunk.lines = [];
+	const leftQueue: DiffLine[] = [];
+	const rightQueue: DiffLine[] = [];
 
 	for (const line of hunk.lines) {
 		if (line.type === 'context') {
@@ -132,7 +134,7 @@ function SplitView({
 	}
 
 	const getLineComments = (lineNumber?: number) =>
-		lineNumber ? comments.filter((c) => c.line_number === lineNumber) : [];
+		lineNumber ? comments.filter((c) => c.lineNumber === lineNumber) : [];
 
 	return (
 		<table className="split-table">
@@ -140,8 +142,8 @@ function SplitView({
 				{pairs.map((pair, index) => {
 					const leftLine = pair.left;
 					const rightLine = pair.right;
-					const leftLineNum = leftLine?.old_line;
-					const rightLineNum = rightLine?.new_line;
+					const leftLineNum = leftLine?.oldLine;
+					const rightLineNum = rightLine?.newLine;
 					const lineComments =
 						rightLineNum
 							? getLineComments(rightLineNum)
@@ -157,11 +159,11 @@ function SplitView({
 						<Fragment key={index}>
 							<tr className="split-row">
 								{/* Left side (old) */}
-								<td className="line-number old">{leftLine?.old_line ?? ''}</td>
+								<td className="line-number old">{leftLine?.oldLine ?? ''}</td>
 								<td
 									className={`line-content old ${leftLine?.type ?? 'empty'}`}
 									onClick={() =>
-										leftLine?.old_line && onLineClick(leftLine.old_line, filePath)
+										leftLine?.oldLine && onLineClick(leftLine.oldLine, filePath)
 									}
 								>
 									{leftLine?.type === 'deletion' && <span className="prefix">-</span>}
@@ -169,11 +171,11 @@ function SplitView({
 								</td>
 
 								{/* Right side (new) */}
-								<td className="line-number new">{rightLine?.new_line ?? ''}</td>
+								<td className="line-number new">{rightLine?.newLine ?? ''}</td>
 								<td
 									className={`line-content new ${rightLine?.type ?? 'empty'}`}
 									onClick={() =>
-										rightLine?.new_line && onLineClick(rightLine.new_line, filePath)
+										rightLine?.newLine && onLineClick(rightLine.newLine, filePath)
 									}
 								>
 									{rightLine?.type === 'addition' && <span className="prefix">+</span>}
@@ -220,21 +222,21 @@ function UnifiedView({
 	onCloseThread,
 }: ViewProps) {
 	const getLineComments = (lineNumber?: number) =>
-		lineNumber ? comments.filter((c) => c.line_number === lineNumber) : [];
+		lineNumber ? comments.filter((c) => c.lineNumber === lineNumber) : [];
 
 	return (
 		<table className="unified-table">
 			<tbody>
 				{hunk.lines.map((line, index) => {
-					const lineNum = line.new_line ?? line.old_line;
+					const lineNum = line.newLine ?? line.oldLine;
 					const lineComments = getLineComments(lineNum);
 					const isActive = Boolean(lineNum && activeLineNumber === lineNum);
 
 					return (
 						<Fragment key={index}>
 							<tr className={`unified-row ${line.type}`}>
-								<td className="line-number old">{line.old_line ?? ''}</td>
-								<td className="line-number new">{line.new_line ?? ''}</td>
+								<td className="line-number old">{line.oldLine ?? ''}</td>
+								<td className="line-number new">{line.newLine ?? ''}</td>
 								<td
 									className={`line-content ${line.type}`}
 									onClick={() => lineNum && onLineClick(lineNum, filePath)}

@@ -2,16 +2,77 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Modal } from '@/components/overlays/Modal';
 import { Icon } from '@/components/ui/Icon';
-import { updateTask } from '@/lib/api';
+import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { useInitiatives } from '@/stores';
-import type { Task, TaskWeight, TaskPriority, TaskCategory, TaskQueue } from '@/lib/types';
+import {
+	type Task,
+	TaskWeight,
+	TaskPriority,
+	TaskCategory,
+	TaskQueue,
+} from '@/gen/orc/v1/task_pb';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import './TaskEditModal.css';
 
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
-const PRIORITIES: TaskPriority[] = ['critical', 'high', 'normal', 'low'];
-const CATEGORIES: TaskCategory[] = ['feature', 'bug', 'refactor', 'chore', 'docs', 'test'];
-const QUEUES: TaskQueue[] = ['active', 'backlog'];
+const WEIGHTS: TaskWeight[] = [
+	TaskWeight.TRIVIAL,
+	TaskWeight.SMALL,
+	TaskWeight.MEDIUM,
+	TaskWeight.LARGE,
+];
+const PRIORITIES: TaskPriority[] = [
+	TaskPriority.CRITICAL,
+	TaskPriority.HIGH,
+	TaskPriority.NORMAL,
+	TaskPriority.LOW,
+];
+const CATEGORIES: TaskCategory[] = [
+	TaskCategory.FEATURE,
+	TaskCategory.BUG,
+	TaskCategory.REFACTOR,
+	TaskCategory.CHORE,
+	TaskCategory.DOCS,
+	TaskCategory.TEST,
+];
+const QUEUES: TaskQueue[] = [TaskQueue.ACTIVE, TaskQueue.BACKLOG];
+
+// Labels for enum values
+const WEIGHT_LABELS: Record<TaskWeight, string> = {
+	[TaskWeight.UNSPECIFIED]: 'unspecified',
+	[TaskWeight.TRIVIAL]: 'trivial',
+	[TaskWeight.SMALL]: 'small',
+	[TaskWeight.MEDIUM]: 'medium',
+	[TaskWeight.LARGE]: 'large',
+};
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+	[TaskPriority.UNSPECIFIED]: 'unspecified',
+	[TaskPriority.CRITICAL]: 'critical',
+	[TaskPriority.HIGH]: 'high',
+	[TaskPriority.NORMAL]: 'normal',
+	[TaskPriority.LOW]: 'low',
+};
+const CATEGORY_LABELS: Record<TaskCategory, string> = {
+	[TaskCategory.UNSPECIFIED]: 'unspecified',
+	[TaskCategory.FEATURE]: 'feature',
+	[TaskCategory.BUG]: 'bug',
+	[TaskCategory.REFACTOR]: 'refactor',
+	[TaskCategory.CHORE]: 'chore',
+	[TaskCategory.DOCS]: 'docs',
+	[TaskCategory.TEST]: 'test',
+};
+const QUEUE_LABELS: Record<TaskQueue, string> = {
+	[TaskQueue.UNSPECIFIED]: 'unspecified',
+	[TaskQueue.ACTIVE]: 'active',
+	[TaskQueue.BACKLOG]: 'backlog',
+};
+const INITIATIVE_STATUS_LABELS: Record<InitiativeStatus, string> = {
+	[InitiativeStatus.UNSPECIFIED]: 'unspecified',
+	[InitiativeStatus.DRAFT]: 'draft',
+	[InitiativeStatus.ACTIVE]: 'active',
+	[InitiativeStatus.COMPLETED]: 'completed',
+	[InitiativeStatus.ARCHIVED]: 'archived',
+};
 
 // Internal value for "no initiative" since Radix Select requires string values
 const NO_INITIATIVE_VALUE = '__none__';
@@ -27,11 +88,11 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [title, setTitle] = useState(task.title);
 	const [description, setDescription] = useState(task.description ?? '');
 	const [weight, setWeight] = useState<TaskWeight>(task.weight);
-	const [priority, setPriority] = useState<TaskPriority>(task.priority ?? 'normal');
-	const [category, setCategory] = useState<TaskCategory>(task.category ?? 'feature');
-	const [queue, setQueue] = useState<TaskQueue>(task.queue ?? 'active');
-	const [initiativeId, setInitiativeId] = useState<string | undefined>(task.initiative_id);
-	const [targetBranch, setTargetBranch] = useState(task.target_branch ?? '');
+	const [priority, setPriority] = useState<TaskPriority>(task.priority || TaskPriority.NORMAL);
+	const [category, setCategory] = useState<TaskCategory>(task.category || TaskCategory.FEATURE);
+	const [queue, setQueue] = useState<TaskQueue>(task.queue || TaskQueue.ACTIVE);
+	const [initiativeId, setInitiativeId] = useState<string | undefined>(task.initiativeId);
+	const [targetBranch, setTargetBranch] = useState(task.targetBranch ?? '');
 	const [saving, setSaving] = useState(false);
 
 	const initiatives = useInitiatives();
@@ -42,11 +103,11 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 			setTitle(task.title);
 			setDescription(task.description ?? '');
 			setWeight(task.weight);
-			setPriority(task.priority ?? 'normal');
-			setCategory(task.category ?? 'feature');
-			setQueue(task.queue ?? 'active');
-			setInitiativeId(task.initiative_id);
-			setTargetBranch(task.target_branch ?? '');
+			setPriority(task.priority || TaskPriority.NORMAL);
+			setCategory(task.category || TaskCategory.FEATURE);
+			setQueue(task.queue || TaskQueue.ACTIVE);
+			setInitiativeId(task.initiativeId);
+			setTargetBranch(task.targetBranch ?? '');
 		}
 	}, [open, task]);
 
@@ -54,8 +115,8 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const sortedInitiatives = useMemo(() => {
 		return [...initiatives].sort((a, b) => {
 			// Active first
-			if (a.status === 'active' && b.status !== 'active') return -1;
-			if (b.status === 'active' && a.status !== 'active') return 1;
+			if (a.status === InitiativeStatus.ACTIVE && b.status !== InitiativeStatus.ACTIVE) return -1;
+			if (b.status === InitiativeStatus.ACTIVE && a.status !== InitiativeStatus.ACTIVE) return 1;
 			// Then by title
 			return a.title.localeCompare(b.title);
 		});
@@ -81,18 +142,21 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 
 		setSaving(true);
 		try {
-			const updated = await updateTask(task.id, {
+			const response = await taskClient.updateTask({
+				id: task.id,
 				title: title.trim(),
 				description: description.trim() || undefined,
 				weight,
 				priority,
 				category,
 				queue,
-				initiative_id: initiativeId || '', // Empty string to clear initiative
-				target_branch: targetBranch.trim() || undefined,
+				initiativeId: initiativeId || undefined,
+				targetBranch: targetBranch.trim() || undefined,
 			});
 			toast.success('Task updated');
-			onUpdate(updated);
+			if (response.task) {
+				onUpdate(response.task);
+			}
 			onClose();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to update task');
@@ -135,12 +199,12 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 						<label htmlFor="task-weight">Weight</label>
 						<select
 							id="task-weight"
-							value={weight}
-							onChange={(e) => setWeight(e.target.value as TaskWeight)}
+							value={String(weight)}
+							onChange={(e) => setWeight(Number(e.target.value) as TaskWeight)}
 						>
 							{WEIGHTS.map((w) => (
-								<option key={w} value={w}>
-									{w}
+								<option key={w} value={String(w)}>
+									{WEIGHT_LABELS[w]}
 								</option>
 							))}
 						</select>
@@ -150,12 +214,12 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 						<label htmlFor="task-priority">Priority</label>
 						<select
 							id="task-priority"
-							value={priority}
-							onChange={(e) => setPriority(e.target.value as TaskPriority)}
+							value={String(priority)}
+							onChange={(e) => setPriority(Number(e.target.value) as TaskPriority)}
 						>
 							{PRIORITIES.map((p) => (
-								<option key={p} value={p}>
-									{p}
+								<option key={p} value={String(p)}>
+									{PRIORITY_LABELS[p]}
 								</option>
 							))}
 						</select>
@@ -168,12 +232,12 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 						<label htmlFor="task-category">Category</label>
 						<select
 							id="task-category"
-							value={category}
-							onChange={(e) => setCategory(e.target.value as TaskCategory)}
+							value={String(category)}
+							onChange={(e) => setCategory(Number(e.target.value) as TaskCategory)}
 						>
 							{CATEGORIES.map((c) => (
-								<option key={c} value={c}>
-									{c}
+								<option key={c} value={String(c)}>
+									{CATEGORY_LABELS[c]}
 								</option>
 							))}
 						</select>
@@ -183,12 +247,12 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 						<label htmlFor="task-queue">Queue</label>
 						<select
 							id="task-queue"
-							value={queue}
-							onChange={(e) => setQueue(e.target.value as TaskQueue)}
+							value={String(queue)}
+							onChange={(e) => setQueue(Number(e.target.value) as TaskQueue)}
 						>
 							{QUEUES.map((q) => (
-								<option key={q} value={q}>
-									{q}
+								<option key={q} value={String(q)}>
+									{QUEUE_LABELS[q]}
 								</option>
 							))}
 						</select>
@@ -234,8 +298,8 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 											className="initiative-select-item"
 										>
 											<Select.ItemText>{init.title}</Select.ItemText>
-											{init.status !== 'active' && (
-												<span className="initiative-status-badge">{init.status}</span>
+											{init.status !== InitiativeStatus.ACTIVE && (
+												<span className="initiative-status-badge">{INITIATIVE_STATUS_LABELS[init.status]}</span>
 											)}
 										</Select.Item>
 									))}

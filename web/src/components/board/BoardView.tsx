@@ -29,18 +29,14 @@ import { useAppShell } from '@/components/layout/AppShellContext';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiatives } from '@/stores/initiativeStore';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { submitDecision, getConfigStats, skipBlock, forceBlock, type ConfigStats } from '@/lib/api';
-import type {
-	Task,
-	TaskState,
-	PendingDecision,
-	DecisionRequiredData,
-	DecisionResolvedData,
-	FilesChangedData,
-	FileChangedInfo,
-	DecisionOption,
-} from '@/lib/types';
+import { usePendingDecisions, useUIStore } from '@/stores/uiStore';
+import { decisionClient, taskClient, configClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
+import { ResolveDecisionRequestSchema } from '@/gen/orc/v1/decision_pb';
+import { type Task, TaskStatus, type ExecutionState, SkipBlockRequestSchema, RunTaskRequestSchema } from '@/gen/orc/v1/task_pb';
+import { GetConfigStatsRequestSchema } from '@/gen/orc/v1/config_pb';
+import { timestampToDate } from '@/lib/time';
+import { type ConfigStats } from './ConfigPanel';
 import './BoardView.css';
 
 export interface BoardViewProps {
@@ -51,11 +47,12 @@ export interface BoardViewProps {
  * Check if a task was completed today
  */
 function isCompletedToday(task: Task): boolean {
-	if (task.status !== 'completed' || !task.completed_at) {
+	if (task.status !== TaskStatus.COMPLETED || !task.completedAt) {
 		return false;
 	}
 
-	const completedDate = new Date(task.completed_at);
+	const completedDate = timestampToDate(task.completedAt);
+	if (!completedDate) return false;
 	const today = new Date();
 
 	return (
@@ -80,37 +77,38 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const totalTokens = useSessionStore((state) => state.totalTokens);
 	const totalCost = useSessionStore((state) => state.totalCost);
 
-	// WebSocket hook - also get status to re-subscribe when connection is ready
-	const { on, status: wsStatus } = useWebSocket();
+	// Pending decisions from uiStore (populated by event handlers)
+	const pendingDecisions = usePendingDecisions();
+	const removePendingDecision = useUIStore((state) => state.removePendingDecision);
 
 	// Local state
 	const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<Set<string>>(
 		new Set()
 	);
-	const [pendingDecisions, setPendingDecisions] = useState<PendingDecision[]>([]);
 	const [configStats, setConfigStats] = useState<ConfigStats | undefined>(undefined);
 	const [, setConfigLoading] = useState(true);
-	const [changedFiles, setChangedFiles] = useState<ChangedFile[]>([]);
+	// TODO: changedFiles need to be populated from event handlers
+	const [changedFiles, _setChangedFiles] = useState<ChangedFile[]>([]);
 
 	// Derived state: filter tasks by status
 	const queuedTasks = useMemo(
 		() =>
 			tasks.filter(
 				(task: Task) =>
-					task.status === 'planned' ||
-					task.status === 'created' ||
-					task.status === 'classifying'
+					task.status === TaskStatus.PLANNED ||
+					task.status === TaskStatus.CREATED ||
+					task.status === TaskStatus.CLASSIFYING
 			),
 		[tasks]
 	);
 
 	const runningTasks = useMemo(
-		() => tasks.filter((task: Task) => task.status === 'running'),
+		() => tasks.filter((task: Task) => task.status === TaskStatus.RUNNING),
 		[tasks]
 	);
 
 	const blockedTasks = useMemo(
-		() => tasks.filter((task: Task) => task.status === 'blocked' || task.is_blocked),
+		() => tasks.filter((task: Task) => task.status === TaskStatus.BLOCKED || task.isBlocked),
 		[tasks]
 	);
 
@@ -123,15 +121,15 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const taskDecisionCounts = useMemo(() => {
 		const counts = new Map<string, number>();
 		for (const decision of pendingDecisions) {
-			const currentCount = counts.get(decision.task_id) || 0;
-			counts.set(decision.task_id, currentCount + 1);
+			const currentCount = counts.get(decision.taskId) || 0;
+			counts.set(decision.taskId, currentCount + 1);
 		}
 		return counts;
 	}, [pendingDecisions]);
 
 	// Convert Map to Record for RunningColumn
 	const taskStatesRecord = useMemo(() => {
-		const record: Record<string, TaskState> = {};
+		const record: Record<string, ExecutionState> = {};
 		for (const [id, state] of taskStates) {
 			record[id] = state;
 		}
@@ -175,15 +173,19 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const handleSkipBlock = useCallback(
 		async (taskId: string) => {
 			try {
-				const result = await skipBlock(taskId);
-				// Update task store: clear blockers and update status
-				updateTask(taskId, {
-					blocked_by: [],
-					is_blocked: false,
-					unmet_blockers: [],
-					status: 'planned',
-				});
-				console.log('Skip block successful:', result.message);
+				const result = await taskClient.skipBlock(create(SkipBlockRequestSchema, { id: taskId }));
+				// Update task store: use returned task or clear blockers manually
+				if (result.task) {
+					updateTask(taskId, result.task);
+				} else {
+					updateTask(taskId, {
+						blockedBy: [],
+						isBlocked: false,
+						unmetBlockers: [],
+						status: TaskStatus.PLANNED,
+					});
+				}
+				console.log('Skip block successful for task:', taskId);
 			} catch (error) {
 				console.error('Failed to skip block:', error);
 			}
@@ -194,16 +196,13 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const handleForceBlock = useCallback(
 		async (taskId: string) => {
 			try {
-				const result = await forceBlock(taskId);
-				// Update task store with the returned task if available
+				// Note: RunTask doesn't have a force option in proto yet
+				// This will start the task if it can be started
+				const result = await taskClient.runTask(create(RunTaskRequestSchema, { id: taskId }));
 				if (result.task) {
-					updateTask(taskId, {
-						status: result.task.status,
-						current_phase: result.task.current_phase,
-					});
+					updateTask(taskId, result.task);
 				} else {
-					// Just update status to running
-					updateTask(taskId, { status: 'running' });
+					updateTask(taskId, { status: TaskStatus.RUNNING });
 				}
 				console.log('Force run started for task:', taskId);
 			} catch (error) {
@@ -225,18 +224,19 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 				if (!option) return;
 
 				// Submit the decision (approve with selected option)
-				await submitDecision(decisionId, {
+				await decisionClient.resolveDecision(create(ResolveDecisionRequestSchema, {
+					id: decisionId,
 					approved: true,
 					reason: option.label,
-				});
+				}));
 
-				// Remove the decision from pending list immediately (don't wait for WebSocket)
-				setPendingDecisions((prev) => prev.filter((d) => d.id !== decisionId));
+				// Remove the decision from pending list immediately (don't wait for events)
+				removePendingDecision(decisionId);
 			} catch (error) {
 				console.error('Failed to submit decision:', error);
 			}
 		},
-		[pendingDecisions]
+		[pendingDecisions, removePendingDecision]
 	);
 
 	const handleFileClick = useCallback(
@@ -249,108 +249,21 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		[navigate]
 	);
 
-	// Subscribe to WebSocket events for decisions and files
-	// Depend on wsStatus to re-subscribe when connection becomes ready
-	useEffect(() => {
-		// Wait for WebSocket to be connected before subscribing
-		if (wsStatus !== 'connected') {
-			return;
-		}
-
-		// Subscribe to decision_required events
-		const unsubDecisionRequired = on('decision_required', (event) => {
-			if ('event' in event && event.event === 'decision_required') {
-				const data = event.data as DecisionRequiredData;
-
-				// Convert decision_required data to PendingDecision format
-				const decision: PendingDecision = {
-					id: data.decision_id,
-					task_id: data.task_id,
-					question: data.question,
-					// Parse context into options if it contains newline-separated criteria
-					// For now, create a simple approve/reject option set
-					options: [
-						{
-							id: 'approve',
-							label: 'Approve',
-							description: 'Approve the gate and continue execution',
-							recommended: true,
-						},
-						{
-							id: 'reject',
-							label: 'Reject',
-							description: 'Reject the gate and fail the task',
-						},
-					] as DecisionOption[],
-					created_at: data.requested_at,
-				};
-
-				setPendingDecisions((prev) => {
-					// Check if decision already exists (avoid duplicates)
-					if (prev.some((d) => d.id === decision.id)) {
-						return prev;
-					}
-					return [...prev, decision];
-				});
-			}
-		});
-
-		// Subscribe to decision_resolved events
-		const unsubDecisionResolved = on('decision_resolved', (event) => {
-			if ('event' in event && event.event === 'decision_resolved') {
-				const data = event.data as DecisionResolvedData;
-
-				// Remove the decision from pending list
-				setPendingDecisions((prev) => prev.filter((d) => d.id !== data.decision_id));
-			}
-		});
-
-		// Subscribe to files_changed events
-		const unsubFilesChanged = on('files_changed', (event) => {
-			if ('event' in event && event.event === 'files_changed') {
-				const data = event.data as FilesChangedData;
-				const taskId = event.task_id;
-
-				// Convert FilesChangedData to ChangedFile[] format
-				const files: ChangedFile[] = data.files.map((file: FileChangedInfo) => ({
-					path: file.path,
-					status: file.status,
-					taskId,
-				}));
-
-				// Replace changed files (it's a snapshot, not accumulative)
-				setChangedFiles(files);
-			}
-		});
-
-		// Subscribe to complete event to clear state
-		const unsubComplete = on('complete', (event) => {
-			if ('event' in event && event.event === 'complete') {
-				const taskId = event.task_id;
-
-				// Clear decisions for this task
-				setPendingDecisions((prev) => prev.filter((d) => d.task_id !== taskId));
-
-				// Clear files for this task
-				setChangedFiles((prev) => prev.filter((f) => f.taskId !== taskId));
-			}
-		});
-
-		return () => {
-			unsubDecisionRequired();
-			unsubDecisionResolved();
-			unsubFilesChanged();
-			unsubComplete();
-		};
-	}, [on, wsStatus]);
-
 	// Fetch config stats on mount
 	useEffect(() => {
 		let mounted = true;
 
-		getConfigStats()
-			.then((stats) => {
-				if (mounted) {
+		configClient.getConfigStats(create(GetConfigStatsRequestSchema, {}))
+			.then((response) => {
+				if (mounted && response.stats) {
+					// Convert proto ConfigStats to ConfigPanel ConfigStats
+					// (bigint claudeMdSize -> number)
+					const stats: ConfigStats = {
+						slashCommandsCount: response.stats.slashCommandsCount,
+						claudeMdSize: Number(response.stats.claudeMdSize),
+						mcpServersCount: response.stats.mcpServersCount,
+						permissionsProfile: response.stats.permissionsProfile,
+					};
 					setConfigStats(stats);
 					setConfigLoading(false);
 				}

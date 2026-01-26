@@ -1,47 +1,78 @@
 /**
- * useTranscripts - Hook for paginated transcript loading with infinite scroll
+ * useTranscripts - Hook for transcript loading with phase filtering
  *
- * Provides cursor-based pagination, live streaming integration, and phase filtering.
+ * Uses Connect RPC TranscriptService to load transcripts.
+ * Provides phase filtering and live streaming integration.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Transcript, PhaseSummary, TranscriptPaginationResult } from '@/lib/api';
-import { getTranscriptsPaginated } from '@/lib/api';
-import type { TranscriptLine } from '@/hooks/useWebSocket';
+import { create } from '@bufbuild/protobuf';
+import { transcriptClient } from '@/lib/client';
+import {
+	type TranscriptFile,
+	type Transcript as ProtoTranscript,
+	type TranscriptEntry,
+	ListTranscriptsRequestSchema,
+	GetTranscriptRequestSchema,
+} from '@/gen/orc/v1/transcript_pb';
+import { timestampToISO } from '@/lib/time';
+import type { TranscriptLine } from '@/hooks/useEvents';
 
-const DEFAULT_PAGE_SIZE = 50;
+/**
+ * Flattened transcript entry for UI consumption.
+ * Matches the shape expected by existing components.
+ */
+export interface FlatTranscriptEntry {
+	id: number;
+	task_id: string;
+	phase: string;
+	iteration: number;
+	session_id: string;
+	type: string;
+	content: string;
+	model?: string;
+	input_tokens: number;
+	output_tokens: number;
+	timestamp: string;
+}
+
+/** Phase summary with counts */
+export interface PhaseSummary {
+	phase: string;
+	transcript_count: number;
+}
 
 export interface UseTranscriptsOptions {
 	/** Task ID to load transcripts for */
 	taskId: string;
 	/** Initial phase filter */
 	initialPhase?: string;
-	/** Page size for loading (default: 50) */
+	/** Page size for loading (default: 50) - kept for API compatibility */
 	pageSize?: number;
 	/** Enable auto-scroll when new content arrives */
 	autoScroll?: boolean;
 }
 
 export interface UseTranscriptsResult {
-	/** Loaded transcripts */
-	transcripts: Transcript[];
+	/** Loaded transcripts (flattened entries) */
+	transcripts: FlatTranscriptEntry[];
 	/** Phase summary with counts */
 	phases: PhaseSummary[];
-	/** Pagination info */
-	pagination: TranscriptPaginationResult | null;
+	/** Pagination info (simplified for new model) */
+	pagination: { has_more: boolean; next_cursor: number | null; prev_cursor: number | null; total_count: number } | null;
 	/** Current phase filter */
 	currentPhase: string | null;
 	/** Whether currently loading */
 	loading: boolean;
-	/** Whether loading more (infinite scroll) */
+	/** Whether loading more (for scroll compat) */
 	loadingMore: boolean;
 	/** Error message if any */
 	error: string | null;
 	/** Whether auto-scroll is enabled */
 	isAutoScrollEnabled: boolean;
-	/** Load more transcripts (for infinite scroll) */
+	/** Load more transcripts (no-op in new model, kept for compat) */
 	loadMore: () => Promise<void>;
-	/** Load previous transcripts (for reverse scroll) */
+	/** Load previous transcripts (no-op in new model, kept for compat) */
 	loadPrevious: () => Promise<void>;
 	/** Change phase filter */
 	setPhase: (phase: string | null) => void;
@@ -61,15 +92,65 @@ export interface UseTranscriptsResult {
 	streamingLines: TranscriptLine[];
 }
 
+/**
+ * Convert proto TranscriptEntry to flattened format
+ */
+function flattenEntry(
+	entry: TranscriptEntry,
+	transcript: ProtoTranscript,
+	index: number
+): FlatTranscriptEntry {
+	return {
+		// Generate unique ID from phase/iteration/index
+		id: hashCode(`${transcript.phase}-${transcript.iteration}-${index}`),
+		task_id: transcript.taskId,
+		phase: transcript.phase,
+		iteration: transcript.iteration,
+		session_id: transcript.sessionId ?? '',
+		type: entry.type,
+		content: entry.content,
+		model: transcript.model,
+		input_tokens: entry.tokens?.inputTokens ?? 0,
+		output_tokens: entry.tokens?.outputTokens ?? 0,
+		timestamp: timestampToISO(entry.timestamp),
+	};
+}
+
+/**
+ * Simple hash function for generating stable IDs
+ */
+function hashCode(str: string): number {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		const char = str.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash & hash; // Convert to 32bit integer
+	}
+	return Math.abs(hash);
+}
+
+/**
+ * Derive phase summary from transcript files
+ */
+function derivePhaseSummary(files: TranscriptFile[]): PhaseSummary[] {
+	const phaseMap = new Map<string, number>();
+	for (const file of files) {
+		const count = phaseMap.get(file.phase) ?? 0;
+		phaseMap.set(file.phase, count + 1);
+	}
+	return Array.from(phaseMap.entries()).map(([phase, transcript_count]) => ({
+		phase,
+		transcript_count,
+	}));
+}
+
 export function useTranscripts({
 	taskId,
 	initialPhase,
-	pageSize = DEFAULT_PAGE_SIZE,
 	autoScroll = true,
 }: UseTranscriptsOptions): UseTranscriptsResult {
-	const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+	const [transcripts, setTranscripts] = useState<FlatTranscriptEntry[]>([]);
 	const [phases, setPhases] = useState<PhaseSummary[]>([]);
-	const [pagination, setPagination] = useState<TranscriptPaginationResult | null>(null);
 	const [currentPhase, setCurrentPhase] = useState<string | null>(initialPhase ?? null);
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
@@ -77,10 +158,59 @@ export function useTranscripts({
 	const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(autoScroll);
 	const [streamingLines, setStreamingLines] = useState<TranscriptLine[]>([]);
 
-	// Track the most recent transcript ID to detect new streaming content
-	const lastKnownIdRef = useRef<number>(0);
 	// Track task ID changes for reset
 	const prevTaskIdRef = useRef<string>(taskId);
+
+	// Load transcripts from Connect RPC
+	const loadTranscripts = useCallback(async () => {
+		setLoading(true);
+		setError(null);
+		try {
+			// List all transcript files for this task
+			const listRequest = create(ListTranscriptsRequestSchema, {
+				taskId,
+				phase: currentPhase ?? undefined,
+			});
+			const listResponse = await transcriptClient.listTranscripts(listRequest);
+			const files = listResponse.transcripts;
+
+			// Derive phase summary
+			// For phase summary, we need all files regardless of filter
+			const allFilesRequest = create(ListTranscriptsRequestSchema, { taskId });
+			const allFilesResponse = await transcriptClient.listTranscripts(allFilesRequest);
+			setPhases(derivePhaseSummary(allFilesResponse.transcripts));
+
+			// Fetch each transcript and flatten entries
+			const allEntries: FlatTranscriptEntry[] = [];
+			for (const file of files) {
+				try {
+					const getRequest = create(GetTranscriptRequestSchema, {
+						taskId,
+						phase: file.phase,
+						iteration: file.iteration,
+					});
+					const getResponse = await transcriptClient.getTranscript(getRequest);
+					if (getResponse.transcript) {
+						const transcript = getResponse.transcript;
+						for (let i = 0; i < transcript.entries.length; i++) {
+							allEntries.push(flattenEntry(transcript.entries[i], transcript, i));
+						}
+					}
+				} catch (e) {
+					// Log but continue loading other transcripts
+					console.warn(`Failed to load transcript ${file.phase}/${file.iteration}:`, e);
+				}
+			}
+
+			// Sort by timestamp
+			allEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+			setTranscripts(allEntries);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : 'Failed to load transcripts');
+		} finally {
+			setLoading(false);
+		}
+	}, [taskId, currentPhase]);
 
 	// Initial load
 	useEffect(() => {
@@ -88,86 +218,25 @@ export function useTranscripts({
 		if (prevTaskIdRef.current !== taskId) {
 			setTranscripts([]);
 			setPhases([]);
-			setPagination(null);
 			setError(null);
 			setStreamingLines([]);
-			lastKnownIdRef.current = 0;
 			prevTaskIdRef.current = taskId;
 		}
 
-		async function loadInitial() {
-			setLoading(true);
-			setError(null);
-			try {
-				const response = await getTranscriptsPaginated(taskId, {
-					limit: pageSize,
-					direction: 'asc',
-					phase: currentPhase ?? undefined,
-				});
-				setTranscripts(response.transcripts);
-				setPhases(response.phases);
-				setPagination(response.pagination);
+		loadTranscripts();
+	}, [taskId, currentPhase, loadTranscripts]);
 
-				// Track last known ID
-				if (response.transcripts.length > 0) {
-					lastKnownIdRef.current = response.transcripts[response.transcripts.length - 1].id;
-				}
-			} catch (e) {
-				setError(e instanceof Error ? e.message : 'Failed to load transcripts');
-			} finally {
-				setLoading(false);
-			}
-		}
-
-		loadInitial();
-	}, [taskId, currentPhase, pageSize]);
-
-	// Load more transcripts (forward)
+	// Load more (no-op in new model - kept for API compatibility)
 	const loadMore = useCallback(async () => {
-		if (!pagination?.next_cursor || loadingMore) return;
+		// New model loads all at once - this is a no-op
+		setLoadingMore(false);
+	}, []);
 
-		setLoadingMore(true);
-		try {
-			const response = await getTranscriptsPaginated(taskId, {
-				limit: pageSize,
-				cursor: pagination.next_cursor,
-				direction: 'asc',
-				phase: currentPhase ?? undefined,
-			});
-			setTranscripts((prev) => [...prev, ...response.transcripts]);
-			setPagination(response.pagination);
-
-			// Update last known ID
-			if (response.transcripts.length > 0) {
-				lastKnownIdRef.current = response.transcripts[response.transcripts.length - 1].id;
-			}
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Failed to load more transcripts');
-		} finally {
-			setLoadingMore(false);
-		}
-	}, [taskId, currentPhase, pageSize, pagination, loadingMore]);
-
-	// Load previous transcripts (backward)
+	// Load previous (no-op in new model - kept for API compatibility)
 	const loadPrevious = useCallback(async () => {
-		if (!pagination?.prev_cursor || loadingMore) return;
-
-		setLoadingMore(true);
-		try {
-			const response = await getTranscriptsPaginated(taskId, {
-				limit: pageSize,
-				cursor: pagination.prev_cursor,
-				direction: 'asc',
-				phase: currentPhase ?? undefined,
-			});
-			setTranscripts((prev) => [...response.transcripts, ...prev]);
-			setPagination(response.pagination);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Failed to load previous transcripts');
-		} finally {
-			setLoadingMore(false);
-		}
-	}, [taskId, currentPhase, pageSize, pagination, loadingMore]);
+		// New model loads all at once - this is a no-op
+		setLoadingMore(false);
+	}, []);
 
 	// Change phase filter
 	const setPhase = useCallback((phase: string | null) => {
@@ -181,28 +250,9 @@ export function useTranscripts({
 
 	// Refresh transcripts
 	const refresh = useCallback(async () => {
-		setLoading(true);
-		setError(null);
 		setStreamingLines([]);
-		try {
-			const response = await getTranscriptsPaginated(taskId, {
-				limit: pageSize,
-				direction: 'asc',
-				phase: currentPhase ?? undefined,
-			});
-			setTranscripts(response.transcripts);
-			setPhases(response.phases);
-			setPagination(response.pagination);
-
-			if (response.transcripts.length > 0) {
-				lastKnownIdRef.current = response.transcripts[response.transcripts.length - 1].id;
-			}
-		} catch (e) {
-			setError(e instanceof Error ? e.message : 'Failed to refresh transcripts');
-		} finally {
-			setLoading(false);
-		}
-	}, [taskId, currentPhase, pageSize]);
+		await loadTranscripts();
+	}, [loadTranscripts]);
 
 	// Append streaming line (called from WebSocket handler)
 	const appendStreamingLine = useCallback((line: TranscriptLine) => {
@@ -217,7 +267,12 @@ export function useTranscripts({
 	return {
 		transcripts,
 		phases,
-		pagination,
+		pagination: {
+			has_more: false,
+			next_cursor: null,
+			prev_cursor: null,
+			total_count: transcripts.length,
+		},
 		currentPhase,
 		loading,
 		loadingMore,
@@ -228,8 +283,8 @@ export function useTranscripts({
 		setPhase,
 		toggleAutoScroll,
 		refresh,
-		hasMore: pagination?.has_more ?? false,
-		hasPrevious: pagination?.prev_cursor != null,
+		hasMore: false,
+		hasPrevious: false,
 		appendStreamingLine,
 		clearStreamingLines,
 		streamingLines,

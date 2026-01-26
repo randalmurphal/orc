@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { Icon } from '@/components/ui/Icon';
@@ -11,15 +12,15 @@ import { Modal } from '@/components/overlays/Modal';
 import type { IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
+import { configClient } from '@/lib/client';
 import {
-	listPrompts,
-	getPrompt,
-	getPromptDefault,
-	savePrompt,
-	deletePrompt,
-	type PromptInfo,
-	type Prompt,
-} from '@/lib/api';
+	type PromptTemplate,
+	ListPromptsRequestSchema,
+	GetPromptRequestSchema,
+	GetDefaultPromptRequestSchema,
+	UpdatePromptRequestSchema,
+	DeletePromptRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
 // Phase icons and descriptions
@@ -33,9 +34,22 @@ const PHASE_INFO: Record<string, { icon: IconName; description: string }> = {
 	finalize: { icon: 'check-circle', description: 'Finalize phase for branch sync and merge' },
 };
 
+// Extract template variables from content (e.g., {{TASK_ID}}, {{SPEC_CONTENT}})
+function extractVariables(content: string): string[] {
+	const matches = content.match(/\{\{([A-Z_]+)\}\}/g);
+	if (!matches) return [];
+	// Remove duplicates and extract just the variable name
+	return [...new Set(matches.map((m) => m.slice(2, -2)))];
+}
+
+// Derive source from isCustom flag
+function getSource(isCustom: boolean): string {
+	return isCustom ? 'project' : 'embedded';
+}
+
 export function Prompts() {
 	useDocumentTitle('Prompts');
-	const [prompts, setPrompts] = useState<PromptInfo[]>([]);
+	const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -48,15 +62,15 @@ export function Prompts() {
 
 	// Preview modal state
 	const [previewingPhase, setPreviewingPhase] = useState<string | null>(null);
-	const [previewContent, setPreviewContent] = useState<Prompt | null>(null);
+	const [previewContent, setPreviewContent] = useState<PromptTemplate | null>(null);
 	const [previewLoading, setPreviewLoading] = useState(false);
 
 	const loadPrompts = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await listPrompts();
-			setPrompts(data);
+			const response = await configClient.listPrompts(create(ListPromptsRequestSchema, {}));
+			setPrompts(response.prompts);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load prompts');
 		} finally {
@@ -72,8 +86,10 @@ export function Prompts() {
 		setPreviewingPhase(phase);
 		setPreviewLoading(true);
 		try {
-			const prompt = await getPrompt(phase);
-			setPreviewContent(prompt);
+			const response = await configClient.getPrompt(
+				create(GetPromptRequestSchema, { phase })
+			);
+			setPreviewContent(response.prompt ?? null);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to load prompt');
 			setPreviewingPhase(null);
@@ -87,12 +103,13 @@ export function Prompts() {
 		setEditorLoading(true);
 		try {
 			// Load both current and default content
-			const [current, defaultPrompt] = await Promise.all([
-				getPrompt(phase),
-				getPromptDefault(phase).catch(() => null),
+			const [currentResponse, defaultResponse] = await Promise.all([
+				configClient.getPrompt(create(GetPromptRequestSchema, { phase })),
+				configClient.getDefaultPrompt(create(GetDefaultPromptRequestSchema, { phase })).catch(() => null),
 			]);
-			setEditorContent(current.content);
-			setDefaultContent(defaultPrompt?.content || current.content);
+			const currentContent = currentResponse.prompt?.content ?? '';
+			setEditorContent(currentContent);
+			setDefaultContent(defaultResponse?.prompt?.content ?? currentContent);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to load prompt');
 			setEditingPhase(null);
@@ -105,7 +122,9 @@ export function Prompts() {
 		if (!editingPhase) return;
 		try {
 			setSaving(true);
-			await savePrompt(editingPhase, editorContent);
+			await configClient.updatePrompt(
+				create(UpdatePromptRequestSchema, { phase: editingPhase, content: editorContent })
+			);
 			toast.success(`${editingPhase} prompt saved`);
 			setEditingPhase(null);
 			await loadPrompts();
@@ -121,7 +140,7 @@ export function Prompts() {
 			return;
 		}
 		try {
-			await deletePrompt(phase);
+			await configClient.deletePrompt(create(DeletePromptRequestSchema, { phase }));
 			toast.success(`${phase} prompt override deleted`);
 			await loadPrompts();
 		} catch (err) {
@@ -172,17 +191,19 @@ export function Prompts() {
 						icon: 'file',
 						description: 'Custom phase',
 					};
+					const variables = extractVariables(prompt.content);
+					const source = getSource(prompt.isCustom);
 					return (
 						<div key={prompt.phase} className="prompt-item">
 							<div className="prompt-item-header">
 								<div className="prompt-item-title">
 									<Icon name={info.icon} size={18} />
 									<span className="prompt-phase-name">{prompt.phase}</span>
-									{prompt.has_override && (
+									{prompt.isCustom && (
 										<span className="prompt-badge override">Override</span>
 									)}
-									<span className={`prompt-badge source-${prompt.source}`}>
-										{prompt.source}
+									<span className={`prompt-badge source-${source}`}>
+										{source}
 									</span>
 								</div>
 								<div className="prompt-item-actions">
@@ -202,7 +223,7 @@ export function Prompts() {
 										<Icon name="edit" size={14} />
 										Edit
 									</Button>
-									{prompt.has_override && (
+									{prompt.isCustom && (
 										<Button
 											variant="ghost"
 											size="sm"
@@ -214,10 +235,10 @@ export function Prompts() {
 								</div>
 							</div>
 							<p className="prompt-item-description">{info.description}</p>
-							{prompt.variables.length > 0 && (
+							{variables.length > 0 && (
 								<div className="prompt-variables">
 									<span className="prompt-variables-label">Variables:</span>
-									{prompt.variables.map((v) => (
+									{variables.map((v) => (
 										<code key={v} className="prompt-variable">
 											{`{{${v}}}`}
 										</code>
@@ -241,13 +262,13 @@ export function Prompts() {
 				) : previewContent ? (
 					<div className="prompt-preview">
 						<div className="prompt-preview-meta">
-							<span className={`prompt-badge source-${previewContent.source}`}>
-								{previewContent.source}
+							<span className={`prompt-badge source-${getSource(previewContent.isCustom)}`}>
+								{getSource(previewContent.isCustom)}
 							</span>
-							{previewContent.variables.length > 0 && (
+							{extractVariables(previewContent.content).length > 0 && (
 								<div className="prompt-variables">
 									<span className="prompt-variables-label">Variables:</span>
-									{previewContent.variables.map((v) => (
+									{extractVariables(previewContent.content).map((v) => (
 										<code key={v} className="prompt-variable">
 											{`{{${v}}}`}
 										</code>

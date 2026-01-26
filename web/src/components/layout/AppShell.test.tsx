@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { AppShell } from './AppShell';
 import { AppShellProvider, useAppShell } from './AppShellContext';
 import { TooltipProvider } from '@/components/ui';
 import { useProjectStore, useSessionStore } from '@/stores';
+import { createTimestamp } from '@/test/factories';
+import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 
 // =============================================================================
 // TEST UTILITIES
@@ -35,12 +38,12 @@ beforeEach(() => {
 	// Reset stores to default state
 	useProjectStore.setState({
 		projects: [
-			{
+			create(ProjectSchema, {
 				id: 'proj-001',
 				name: 'Test Project',
 				path: '/test/project',
-				created_at: '2024-01-01T00:00:00Z',
-			},
+				createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+			}),
 		],
 		currentProjectId: 'proj-001',
 		loading: false,

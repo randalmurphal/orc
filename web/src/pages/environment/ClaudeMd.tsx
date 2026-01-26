@@ -5,26 +5,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import type { IconName } from '@/components/ui/Icon';
 import { useDocumentTitle } from '@/hooks';
-import { getClaudeMDHierarchy, type ClaudeMDHierarchy, type ClaudeMD } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type ClaudeMd as ClaudeMdType,
+	SettingsScope,
+	GetClaudeMdRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
-type Scope = 'global' | 'user' | 'project';
+type ScopeTab = 'global' | 'project';
 
-import type { IconName } from '@/components/ui/Icon';
-
-const SCOPE_INFO: Record<Scope, { label: string; icon: IconName; description: string }> = {
+const SCOPE_INFO: Record<ScopeTab, { label: string; icon: IconName; description: string }> = {
 	global: {
 		label: 'Global',
 		icon: 'globe',
-		description: 'System-wide instructions (~/.claude/CLAUDE.md)',
-	},
-	user: {
-		label: 'User',
-		icon: 'user',
-		description: 'Personal instructions (~/CLAUDE.md)',
+		description: 'System-wide instructions (~/.claude/CLAUDE.md, ~/CLAUDE.md)',
 	},
 	project: {
 		label: 'Project',
@@ -35,24 +35,29 @@ const SCOPE_INFO: Record<Scope, { label: string; icon: IconName; description: st
 
 export function ClaudeMd() {
 	useDocumentTitle('CLAUDE.md');
-	const [hierarchy, setHierarchy] = useState<ClaudeMDHierarchy | null>(null);
+	const [files, setFiles] = useState<ClaudeMdType[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [activeScope, setActiveScope] = useState<Scope>('project');
+	const [activeScope, setActiveScope] = useState<ScopeTab>('project');
 
-	const loadHierarchy = useCallback(async () => {
+	const loadFiles = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await getClaudeMDHierarchy();
-			setHierarchy(data);
+			const response = await configClient.getClaudeMd(create(GetClaudeMdRequestSchema, {}));
+			setFiles(response.files);
 
-			// Set initial scope to first available
-			if (data.project) {
+			// Set initial scope to first available with content
+			const hasProject = response.files.some(
+				(f) => f.scope === SettingsScope.PROJECT && f.content
+			);
+			const hasGlobal = response.files.some(
+				(f) => f.scope === SettingsScope.GLOBAL && f.content
+			);
+
+			if (hasProject) {
 				setActiveScope('project');
-			} else if (data.user) {
-				setActiveScope('user');
-			} else if (data.global) {
+			} else if (hasGlobal) {
 				setActiveScope('global');
 			}
 		} catch (err) {
@@ -63,31 +68,32 @@ export function ClaudeMd() {
 	}, []);
 
 	useEffect(() => {
-		loadHierarchy();
-	}, [loadHierarchy]);
+		loadFiles();
+	}, [loadFiles]);
 
-	const getActiveContent = (): ClaudeMD | null => {
-		if (!hierarchy) return null;
-		switch (activeScope) {
-			case 'global':
-				return hierarchy.global || null;
-			case 'user':
-				return hierarchy.user || null;
-			case 'project':
-				return hierarchy.project || null;
-		}
+	// Get files for the current scope
+	const getFilesForScope = (scope: ScopeTab): ClaudeMdType[] => {
+		const targetScope =
+			scope === 'project' ? SettingsScope.PROJECT : SettingsScope.GLOBAL;
+		return files.filter((f) => f.scope === targetScope);
 	};
 
-	const hasContent = (scope: Scope): boolean => {
-		if (!hierarchy) return false;
-		switch (scope) {
-			case 'global':
-				return !!hierarchy.global?.content;
-			case 'user':
-				return !!hierarchy.user?.content;
-			case 'project':
-				return !!hierarchy.project?.content;
-		}
+	// Get the primary file for a scope (first one with content)
+	const getPrimaryFile = (scope: ScopeTab): ClaudeMdType | null => {
+		const scopeFiles = getFilesForScope(scope);
+		return scopeFiles.find((f) => f.content) ?? scopeFiles[0] ?? null;
+	};
+
+	// Get additional files for a scope (all except the primary)
+	const getAdditionalFiles = (scope: ScopeTab): ClaudeMdType[] => {
+		const scopeFiles = getFilesForScope(scope);
+		const primary = getPrimaryFile(scope);
+		if (!primary) return [];
+		return scopeFiles.filter((f) => f.path !== primary.path && f.content);
+	};
+
+	const hasContent = (scope: ScopeTab): boolean => {
+		return getFilesForScope(scope).some((f) => f.content);
 	};
 
 	if (loading) {
@@ -103,7 +109,7 @@ export function ClaudeMd() {
 			<div className="page environment-claudemd-page">
 				<div className="env-error">
 					<p>{error}</p>
-					<Button variant="secondary" onClick={loadHierarchy}>
+					<Button variant="secondary" onClick={loadFiles}>
 						Retry
 					</Button>
 				</div>
@@ -111,7 +117,8 @@ export function ClaudeMd() {
 		);
 	}
 
-	const activeContent = getActiveContent();
+	const activeContent = getPrimaryFile(activeScope);
+	const additionalFiles = getAdditionalFiles(activeScope);
 	const scopeInfo = SCOPE_INFO[activeScope];
 
 	return (
@@ -121,14 +128,14 @@ export function ClaudeMd() {
 					<h3>CLAUDE.md</h3>
 					<p className="env-page-description">
 						Project instructions that customize Claude Code behavior. Files are loaded in
-						order: global, user, then project.
+						order: global, then project.
 					</p>
 				</div>
 			</div>
 
-			<Tabs.Root value={activeScope} onValueChange={(v) => setActiveScope(v as Scope)}>
+			<Tabs.Root value={activeScope} onValueChange={(v) => setActiveScope(v as ScopeTab)}>
 				<Tabs.List className="env-scope-tabs">
-					{(['global', 'user', 'project'] as Scope[]).map((scope) => {
+					{(['global', 'project'] as ScopeTab[]).map((scope) => {
 						const info = SCOPE_INFO[scope];
 						const has = hasContent(scope);
 						return (
@@ -174,14 +181,14 @@ export function ClaudeMd() {
 				</Tabs.Content>
 			</Tabs.Root>
 
-			{hierarchy?.local && hierarchy.local.length > 0 && (
+			{additionalFiles.length > 0 && (
 				<div className="claudemd-local-section">
-					<h4>Local CLAUDE.md Files</h4>
+					<h4>Additional CLAUDE.md Files</h4>
 					<p className="claudemd-local-description">
-						Additional CLAUDE.md files found in subdirectories.
+						Other CLAUDE.md files in this scope.
 					</p>
 					<div className="claudemd-local-list">
-						{hierarchy.local.map((file, i) => (
+						{additionalFiles.map((file, i) => (
 							<div key={i} className="claudemd-local-item">
 								<Icon name="file-text" size={14} />
 								<code>{file.path}</code>

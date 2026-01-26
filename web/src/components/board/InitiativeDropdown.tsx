@@ -11,7 +11,8 @@ import * as Select from '@radix-ui/react-select';
 import { Icon } from '@/components/ui/Icon';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useInitiatives, UNASSIGNED_INITIATIVE } from '@/stores';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import './InitiativeDropdown.css';
 
 interface InitiativeDropdownProps {
@@ -37,8 +38,8 @@ export function InitiativeDropdown({
 			counts[init.id] = 0;
 		}
 		for (const task of tasks) {
-			if (task.initiative_id && counts[task.initiative_id] !== undefined) {
-				counts[task.initiative_id]++;
+			if (task.initiativeId && counts[task.initiativeId] !== undefined) {
+				counts[task.initiativeId]++;
 			} else {
 				counts['unassigned']++;
 			}
@@ -50,8 +51,8 @@ export function InitiativeDropdown({
 	const sortedInitiatives = useMemo(() => {
 		return [...initiatives].sort((a, b) => {
 			// Active first
-			if (a.status === 'active' && b.status !== 'active') return -1;
-			if (b.status === 'active' && a.status !== 'active') return 1;
+			if (a.status === InitiativeStatus.ACTIVE && b.status !== InitiativeStatus.ACTIVE) return -1;
+			if (b.status === InitiativeStatus.ACTIVE && a.status !== InitiativeStatus.ACTIVE) return 1;
 			// Then by title
 			return a.title.localeCompare(b.title);
 		});

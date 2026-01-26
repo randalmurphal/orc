@@ -1,51 +1,61 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsView } from './SettingsView';
-import type { SkillInfo, Skill } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import type { Skill } from '@/gen/orc/v1/config_pb';
+import { SettingsScope } from '@/gen/orc/v1/config_pb';
 
-// Mock the api module
-vi.mock('@/lib/api', () => ({
-	listSkills: vi.fn(),
-	getSkill: vi.fn(),
-	updateSkill: vi.fn(),
+// Mock the configClient
+vi.mock('@/lib/client', () => ({
+	configClient: {
+		listSkills: vi.fn(),
+		updateSkill: vi.fn(),
+		deleteSkill: vi.fn(),
+	},
 }));
 
-// Import after mock to get mocked version
-import * as api from '@/lib/api';
+const mockSkillContent = '# Mock Command Content\n\nThis is the command template.';
 
-const mockSkillInfos: SkillInfo[] = [
+// Proto-compatible mock skills
+const mockSkills: Partial<Skill>[] = [
 	{
 		name: 'commit',
 		description: 'Create a commit with staged changes',
-		path: '/home/user/.claude/commands/commit.md', // global (contains /.claude/)
+		content: mockSkillContent,
+		userInvocable: true,
+		scope: SettingsScope.GLOBAL,
 	},
 	{
 		name: 'review',
 		description: 'Review code changes',
-		path: '/project/commands/review.md', // project (no /.claude/)
+		content: '# Review command',
+		userInvocable: true,
+		scope: SettingsScope.PROJECT,
 	},
 	{
 		name: 'test',
 		description: 'Run tests',
-		path: '/home/user/.claude/commands/test.md', // global
+		content: '# Test command',
+		userInvocable: true,
+		scope: SettingsScope.GLOBAL,
 	},
 ];
-
-const mockSkillContent = '# Mock Command Content\n\nThis is the command template.';
-
-const mockSkill: Skill = {
-	name: 'commit',
-	description: 'Create a commit',
-	content: mockSkillContent,
-	path: '/home/user/.claude/commands/commit.md',
-};
 
 describe('SettingsView', () => {
 	beforeEach(() => {
 		// Set up default mocks
-		vi.mocked(api.listSkills).mockResolvedValue(mockSkillInfos);
-		vi.mocked(api.getSkill).mockResolvedValue(mockSkill);
-		vi.mocked(api.updateSkill).mockResolvedValue(mockSkill);
+		vi.mocked(configClient.listSkills).mockResolvedValue({
+			skills: mockSkills as Skill[],
+			$typeName: 'orc.v1.ListSkillsResponse',
+		});
+		vi.mocked(configClient.updateSkill).mockResolvedValue({
+			skill: mockSkills[0] as Skill,
+			$typeName: 'orc.v1.UpdateSkillResponse',
+		});
+		vi.mocked(configClient.deleteSkill).mockResolvedValue({
+			message: 'Skill deleted successfully',
+			$typeName: 'orc.v1.DeleteSkillResponse',
+		});
 	});
 
 	afterEach(() => {
@@ -243,20 +253,23 @@ describe('SettingsView', () => {
 
 			// Verify updateSkill was called
 			await waitFor(() => {
-				expect(api.updateSkill).toHaveBeenCalled();
+				expect(configClient.updateSkill).toHaveBeenCalled();
 			});
 		});
 	});
 
 	describe('empty state', () => {
 		it('shows empty state when no commands available', async () => {
-			vi.mocked(api.listSkills).mockResolvedValue([]);
+			vi.mocked(configClient.listSkills).mockResolvedValue({
+				skills: [],
+				$typeName: 'orc.v1.ListSkillsResponse',
+			});
 
 			const { container } = render(<SettingsView />);
 
 			// Wait for fetch to complete
 			await waitFor(() => {
-				expect(api.listSkills).toHaveBeenCalled();
+				expect(configClient.listSkills).toHaveBeenCalled();
 			});
 
 			// Editor should show empty state
@@ -311,13 +324,13 @@ describe('SettingsView', () => {
 
 	describe('error handling', () => {
 		it('handles API error gracefully', async () => {
-			vi.mocked(api.listSkills).mockRejectedValue(new Error('Network error'));
+			vi.mocked(configClient.listSkills).mockRejectedValue(new Error('Network error'));
 
 			const { container } = render(<SettingsView />);
 
 			// Should still render the view structure
 			await waitFor(() => {
-				expect(api.listSkills).toHaveBeenCalled();
+				expect(configClient.listSkills).toHaveBeenCalled();
 			});
 
 			// View should be rendered (empty but functional)

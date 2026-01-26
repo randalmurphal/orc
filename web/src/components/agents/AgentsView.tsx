@@ -5,7 +5,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { listAgents, getConfig, updateConfig, type SubAgent, type Config } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import type { Agent as ProtoAgent, Config } from '@/gen/orc/v1/config_pb';
 import { AgentCard, type Agent, type AgentStatus, type IconColor } from './AgentCard';
 import { ExecutionSettings, type ExecutionSettingsData } from './ExecutionSettings';
 import { ToolPermissions, type ToolId } from './ToolPermissions';
@@ -110,25 +111,18 @@ function AgentsViewError({ error, onRetry }: AgentsViewErrorProps) {
 const ICON_COLORS: IconColor[] = ['purple', 'blue', 'green', 'amber'];
 const AGENT_EMOJIS = ['🧠', '🔧', '📝', '🔍', '🚀', '💡'];
 
-function subAgentToAgent(subAgent: SubAgent, index: number): Agent {
+function protoAgentToAgent(protoAgent: ProtoAgent, index: number): Agent {
 	// Derive icon color based on index
 	const iconColor = ICON_COLORS[index % ICON_COLORS.length];
 	const emoji = AGENT_EMOJIS[index % AGENT_EMOJIS.length];
 
-	// Extract tools from subAgent
-	let tools: string[] = [];
-	if (typeof subAgent.tools === 'string') {
-		// Global agent with path to tools
-		tools = ['Configured'];
-	} else if (subAgent.tools) {
-		// ToolPermissions object
-		tools = subAgent.tools.allow || [];
-	}
+	// Extract tools from protoAgent
+	const tools = protoAgent.tools?.allow ?? [];
 
 	return {
-		id: subAgent.name,
-		name: subAgent.name,
-		model: subAgent.model || 'default',
+		id: protoAgent.name,
+		name: protoAgent.name,
+		model: protoAgent.model || 'default',
 		status: 'idle' as AgentStatus,
 		emoji,
 		iconColor,
@@ -144,8 +138,8 @@ function subAgentToAgent(subAgent: SubAgent, index: number): Agent {
 function configToExecutionSettings(config: Config): ExecutionSettingsData {
 	return {
 		parallelTasks: 2, // Default, not in current config
-		autoApprove: config.automation.profile === 'auto',
-		defaultModel: config.execution.model,
+		autoApprove: config.automation?.profile === 'auto',
+		defaultModel: config.claude?.model || 'claude-sonnet-4-20250514',
 		costLimit: 25, // Default, not in current config
 	};
 }
@@ -185,10 +179,15 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 		setLoading(true);
 		setError(null);
 		try {
-			const [agentsData, configData] = await Promise.all([listAgents(), getConfig()]);
-			// Transform SubAgent[] to Agent[]
-			setAgents(agentsData.map((a, i) => subAgentToAgent(a, i)));
-			setExecutionSettings(configToExecutionSettings(configData));
+			const [agentsResponse, configResponse] = await Promise.all([
+				configClient.listAgents({}),
+				configClient.getConfig({}),
+			]);
+			// Transform ProtoAgent[] to Agent[]
+			setAgents(agentsResponse.agents.map((a, i) => protoAgentToAgent(a, i)));
+			if (configResponse.config) {
+				setExecutionSettings(configToExecutionSettings(configResponse.config));
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load agents');
 		} finally {
@@ -220,12 +219,11 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 			setIsSaving(true);
 			try {
 				if (update.defaultModel) {
-					await updateConfig({
-						execution: { model: update.defaultModel },
+					await configClient.updateConfig({
+						claude: { model: update.defaultModel },
 					});
 				}
-				// Note: autoApprove would need profile update at top level, not automation.profile
-				// The current API doesn't support automation.profile in ConfigUpdateRequest
+				// Note: autoApprove would need profile update via automation.profile
 			} catch {
 				// Silently fail - settings will revert on reload
 			} finally {

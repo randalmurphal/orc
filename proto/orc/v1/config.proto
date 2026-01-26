@@ -179,6 +179,49 @@ message Constitution {
   google.protobuf.Timestamp updated_at = 3;
 }
 
+// SubAgent definition
+message Agent {
+  string name = 1;
+  string description = 2;
+  optional string model = 3;
+  optional ToolPermissions tools = 4;
+  optional string prompt = 5;
+  optional string work_dir = 6;
+  repeated string skill_refs = 7;
+  optional string timeout = 8;
+  optional string path = 9; // for global agents from .md files
+  SettingsScope scope = 10;
+}
+
+// Tool permissions
+message ToolPermissions {
+  repeated string allow = 1;
+  repeated string deny = 2;
+}
+
+// Tool info
+message ToolInfo {
+  string name = 1;
+  string description = 2;
+  string category = 3;
+}
+
+// Project script
+message Script {
+  string name = 1;
+  string path = 2;
+  string description = 3;
+  optional string language = 4;
+}
+
+// Config stats for settings page
+message ConfigStats {
+  int32 slash_commands_count = 1;
+  int64 claude_md_size = 2;
+  int32 mcp_servers_count = 3;
+  string permissions_profile = 4;
+}
+
 // =============================================================================
 // SERVICE
 // =============================================================================
@@ -255,6 +298,29 @@ service ConfigService {
 
   // List available prompt variables
   rpc ListPromptVariables(ListPromptVariablesRequest) returns (ListPromptVariablesResponse);
+
+  // Agents
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse);
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
+  rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse);
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
+
+  // Scripts
+  rpc ListScripts(ListScriptsRequest) returns (ListScriptsResponse);
+  rpc DiscoverScripts(DiscoverScriptsRequest) returns (DiscoverScriptsResponse);
+  rpc GetScript(GetScriptRequest) returns (GetScriptResponse);
+  rpc CreateScript(CreateScriptRequest) returns (CreateScriptResponse);
+  rpc UpdateScript(UpdateScriptRequest) returns (UpdateScriptResponse);
+  rpc DeleteScript(DeleteScriptRequest) returns (DeleteScriptResponse);
+
+  // Tools
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+  rpc GetToolPermissions(GetToolPermissionsRequest) returns (GetToolPermissionsResponse);
+  rpc UpdateToolPermissions(UpdateToolPermissionsRequest) returns (UpdateToolPermissionsResponse);
+
+  // Config stats
+  rpc GetConfigStats(GetConfigStatsRequest) returns (GetConfigStatsResponse);
 }
 
 // =============================================================================
@@ -470,4 +536,147 @@ message ListPromptVariablesRequest {}
 
 message ListPromptVariablesResponse {
   repeated PromptVariable variables = 1;
+}
+
+// Agent request/response messages
+message ListAgentsRequest {
+  optional SettingsScope scope = 1;
+}
+
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+}
+
+message GetAgentRequest {
+  string name = 1;
+}
+
+message GetAgentResponse {
+  Agent agent = 1;
+}
+
+message CreateAgentRequest {
+  string name = 1;
+  string description = 2;
+  optional string model = 3;
+  optional ToolPermissions tools = 4;
+  optional string prompt = 5;
+  optional string work_dir = 6;
+  repeated string skill_refs = 7;
+  optional string timeout = 8;
+  SettingsScope scope = 9;
+}
+
+message CreateAgentResponse {
+  Agent agent = 1;
+}
+
+message UpdateAgentRequest {
+  string name = 1;
+  optional string description = 2;
+  optional string model = 3;
+  optional ToolPermissions tools = 4;
+  optional string prompt = 5;
+  optional string work_dir = 6;
+  repeated string skill_refs = 7;
+  optional string timeout = 8;
+}
+
+message UpdateAgentResponse {
+  Agent agent = 1;
+}
+
+message DeleteAgentRequest {
+  string name = 1;
+}
+
+message DeleteAgentResponse {
+  string message = 1;
+}
+
+// Script request/response messages
+message ListScriptsRequest {}
+
+message ListScriptsResponse {
+  repeated Script scripts = 1;
+}
+
+message DiscoverScriptsRequest {}
+
+message DiscoverScriptsResponse {
+  repeated Script scripts = 1;
+}
+
+message GetScriptRequest {
+  string name = 1;
+}
+
+message GetScriptResponse {
+  Script script = 1;
+}
+
+message CreateScriptRequest {
+  string name = 1;
+  string path = 2;
+  string description = 3;
+  optional string language = 4;
+}
+
+message CreateScriptResponse {
+  Script script = 1;
+}
+
+message UpdateScriptRequest {
+  string name = 1;
+  optional string path = 2;
+  optional string description = 3;
+  optional string language = 4;
+}
+
+message UpdateScriptResponse {
+  Script script = 1;
+}
+
+message DeleteScriptRequest {
+  string name = 1;
+}
+
+message DeleteScriptResponse {
+  string message = 1;
+}
+
+// Tool request/response messages
+message ListToolsRequest {
+  optional SettingsScope scope = 1;
+  bool by_category = 2;
+}
+
+message ListToolsResponse {
+  repeated ToolInfo tools = 1;
+  map<string, ToolList> by_category = 2;
+}
+
+message ToolList {
+  repeated ToolInfo tools = 1;
+}
+
+message GetToolPermissionsRequest {}
+
+message GetToolPermissionsResponse {
+  ToolPermissions permissions = 1;
+}
+
+message UpdateToolPermissionsRequest {
+  ToolPermissions permissions = 1;
+}
+
+message UpdateToolPermissionsResponse {
+  ToolPermissions permissions = 1;
+}
+
+// Config stats request/response
+message GetConfigStatsRequest {}
+
+message GetConfigStatsResponse {
+  ConfigStats stats = 1;
 }

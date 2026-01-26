@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { TestResultsInfo } from '@/lib/types';
-import { getTestResults, getScreenshotUrl, getHTMLReportUrl, getTraceUrl } from '@/lib/api';
+import { taskClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
+import {
+	type TestResultsInfo,
+	type TestResult,
+	GetTestResultsRequestSchema,
+	TestResultStatus,
+} from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
 import './TestResultsTab.css';
 
@@ -10,26 +17,46 @@ interface TestResultsTabProps {
 
 type TabId = 'summary' | 'screenshots' | 'suites';
 
-function formatSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function formatSize(bytes: number | bigint): string {
+	const numBytes = typeof bytes === 'bigint' ? Number(bytes) : bytes;
+	if (numBytes < 1024) return `${numBytes} B`;
+	if (numBytes < 1024 * 1024) return `${(numBytes / 1024).toFixed(1)} KB`;
+	return `${(numBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDuration(ms: number): string {
-	if (ms < 1000) return `${ms}ms`;
-	if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-	return `${(ms / 60000).toFixed(1)}m`;
+function formatDuration(ms: number | bigint): string {
+	const numMs = typeof ms === 'bigint' ? Number(ms) : ms;
+	if (numMs < 1000) return `${numMs}ms`;
+	if (numMs < 60000) return `${(numMs / 1000).toFixed(1)}s`;
+	return `${(numMs / 60000).toFixed(1)}m`;
 }
 
-function formatDate(dateStr: string): string {
-	const date = new Date(dateStr);
+function formatDate(date: Date | null): string {
+	if (!date) return '';
 	return date.toLocaleDateString(undefined, {
 		month: 'short',
 		day: 'numeric',
 		hour: '2-digit',
 		minute: '2-digit',
 	});
+}
+
+// URL helpers (still use REST endpoints for serving files)
+function getScreenshotUrl(taskId: string, filename: string): string {
+	return `/api/tasks/${taskId}/test-results/screenshots/${encodeURIComponent(filename)}`;
+}
+
+function getHTMLReportUrl(taskId: string): string {
+	return `/api/tasks/${taskId}/test-results/html-report`;
+}
+
+function getTraceUrl(taskId: string, filename: string): string {
+	return `/api/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
+}
+
+// Helper to check test status
+function testStatusMatches(test: TestResult, status: TestResultStatus): boolean {
+	return test.status === status;
 }
 
 export function TestResultsTab({ taskId }: TestResultsTabProps) {
@@ -46,8 +73,10 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 			setError(null);
 
 			try {
-				const data = await getTestResults(taskId);
-				setResults(data);
+				const response = await taskClient.getTestResults(
+					create(GetTestResultsRequestSchema, { taskId })
+				);
+				setResults(response.results ?? null);
 			} catch (e) {
 				setError(e instanceof Error ? e.message : 'Failed to load test results');
 			} finally {
@@ -111,7 +140,7 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 		);
 	}
 
-	if (!results?.has_results) {
+	if (!results?.hasResults) {
 		return (
 			<div className="test-results-container">
 				<div className="empty-state">
@@ -163,19 +192,19 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 							{/* Pass/Fail summary */}
 							<div className="summary-cards">
 								<div className="summary-card">
-									<div className="summary-value passed">{results.report.summary.passed}</div>
+									<div className="summary-value passed">{results.report.summary?.passed ?? 0}</div>
 									<div className="summary-label">Passed</div>
 								</div>
 								<div className="summary-card">
-									<div className="summary-value failed">{results.report.summary.failed}</div>
+									<div className="summary-value failed">{results.report.summary?.failed ?? 0}</div>
 									<div className="summary-label">Failed</div>
 								</div>
 								<div className="summary-card">
-									<div className="summary-value skipped">{results.report.summary.skipped}</div>
+									<div className="summary-value skipped">{results.report.summary?.skipped ?? 0}</div>
 									<div className="summary-label">Skipped</div>
 								</div>
 								<div className="summary-card">
-									<div className="summary-value">{results.report.summary.total}</div>
+									<div className="summary-value">{results.report.summary?.total ?? 0}</div>
 									<div className="summary-label">Total</div>
 								</div>
 							</div>
@@ -202,13 +231,13 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 								</div>
 								<div className="metadata-item">
 									<span className="metadata-label">Duration</span>
-									<span className="metadata-value">{formatDuration(results.report.duration)}</span>
+									<span className="metadata-value">{formatDuration(results.report.durationMs)}</span>
 								</div>
-								{results.report.completed_at && (
+								{results.report.completedAt && (
 									<div className="metadata-item">
 										<span className="metadata-label">Completed</span>
 										<span className="metadata-value">
-											{formatDate(results.report.completed_at)}
+											{formatDate(timestampToDate(results.report.completedAt))}
 										</span>
 									</div>
 								)}
@@ -265,7 +294,7 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 
 					{/* Quick links */}
 					<div className="quick-links">
-						{results.has_html_report && (
+						{results.hasHtmlReport && (
 							<a
 								href={getHTMLReportUrl(taskId)}
 								target="_blank"
@@ -276,18 +305,18 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 								View HTML Report
 							</a>
 						)}
-						{results.has_traces &&
-							results.trace_files &&
-							results.trace_files.length > 0 && (
+						{results.hasTraces &&
+							results.traceFiles &&
+							results.traceFiles.length > 0 && (
 								<a
-									href={getTraceUrl(taskId, results.trace_files[0])}
+									href={getTraceUrl(taskId, results.traceFiles[0])}
 									target="_blank"
 									rel="noopener noreferrer"
 									className="quick-link"
 								>
 									<Icon name="clock" size={16} />
-									Download Trace ({results.trace_files.length} file
-									{results.trace_files.length > 1 ? 's' : ''})
+									Download Trace ({results.traceFiles.length} file
+									{results.traceFiles.length > 1 ? 's' : ''})
 								</a>
 							)}
 					</div>
@@ -307,13 +336,13 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 								>
 									<img
 										src={getScreenshotUrl(taskId, screenshot.filename)}
-										alt={screenshot.page_name}
+										alt={screenshot.pageName}
 										loading="lazy"
 									/>
 								</button>
 								<div className="screenshot-info">
-									<span className="screenshot-name" title={screenshot.page_name}>
-										{screenshot.page_name}
+									<span className="screenshot-name" title={screenshot.pageName}>
+										{screenshot.pageName}
 									</span>
 									<span className="screenshot-meta">{formatSize(screenshot.size)}</span>
 								</div>
@@ -331,21 +360,21 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 							<div className="suite-header">
 								<span className="suite-name">{suite.name}</span>
 								<span className="suite-count">
-									{suite.tests.filter((t) => t.status === 'passed').length}/{suite.tests.length}{' '}
+									{suite.tests.filter((t) => testStatusMatches(t, TestResultStatus.PASSED)).length}/{suite.tests.length}{' '}
 									passed
 								</span>
 							</div>
 							<div className="suite-tests">
 								{suite.tests.map((test, testIdx) => (
 									<div key={testIdx}>
-										<div className={`test-item ${test.status}`}>
+										<div className={`test-item ${test.status === TestResultStatus.PASSED ? 'passed' : test.status === TestResultStatus.FAILED ? 'failed' : 'skipped'}`}>
 											<span className="test-status-icon">
-												{test.status === 'passed' && <Icon name="check" size={14} />}
-												{test.status === 'failed' && <Icon name="x" size={14} />}
-												{test.status === 'skipped' && <Icon name="slash" size={14} />}
+												{test.status === TestResultStatus.PASSED && <Icon name="check" size={14} />}
+												{test.status === TestResultStatus.FAILED && <Icon name="x" size={14} />}
+												{test.status === TestResultStatus.SKIPPED && <Icon name="slash" size={14} />}
 											</span>
 											<span className="test-name">{test.name}</span>
-											<span className="test-duration">{formatDuration(test.duration)}</span>
+											<span className="test-duration">{formatDuration(test.durationMs)}</span>
 										</div>
 										{test.error && (
 											<div className="test-error">

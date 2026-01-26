@@ -13,14 +13,14 @@
 
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { RunningCard } from './RunningCard';
-import type { Task, TaskState } from '@/lib/types';
+import { type Task, type ExecutionState } from '@/gen/orc/v1/task_pb';
 import './RunningColumn.css';
 
 export interface RunningColumnProps {
 	/** Tasks filtered to running status */
 	tasks: Task[];
 	/** Task states keyed by task ID (from WebSocket updates) */
-	taskStates?: Record<string, TaskState>;
+	taskStates?: Record<string, ExecutionState>;
 	/** Output lines per task (from WebSocket transcript events) */
 	taskOutputs?: Record<string, string[]>;
 	/** Callback when a task card is clicked */
@@ -110,22 +110,12 @@ export function RunningColumn({
 
 	// Build default task state for tasks without WebSocket state
 	const getTaskState = useCallback(
-		(task: Task): TaskState => {
+		(task: Task): ExecutionState | undefined => {
 			const wsState = taskStates[task.id];
 			if (wsState) return wsState;
 
-			// Build minimal state from task data
-			return {
-				task_id: task.id,
-				current_phase: task.current_phase || '',
-				current_iteration: 1,
-				status: task.status,
-				started_at: task.started_at || task.updated_at,
-				updated_at: task.updated_at,
-				phases: {},
-				gates: [],
-				tokens: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
-			};
+			// Return task's embedded execution state, or undefined
+			return task.execution;
 		},
 		[taskStates]
 	);

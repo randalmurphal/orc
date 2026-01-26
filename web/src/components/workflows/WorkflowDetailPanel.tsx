@@ -11,8 +11,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { Button, Icon } from '@/components/ui';
-import { getWorkflow, deleteWorkflow } from '@/lib/api';
-import type { Workflow, WorkflowWithDetails, WorkflowPhase, WorkflowVariable } from '@/lib/types';
+import { workflowClient } from '@/lib/client';
+import type {
+	Workflow,
+	WorkflowWithDetails,
+	WorkflowPhase,
+	WorkflowVariable,
+} from '@/gen/orc/v1/workflow_pb';
 import './WorkflowDetailPanel.css';
 
 export interface WorkflowDetailPanelProps {
@@ -42,23 +47,23 @@ function PhaseItem({
 		<div className="workflow-detail-phase">
 			<div className="workflow-detail-phase-number">{index + 1}</div>
 			<div className="workflow-detail-phase-info">
-				<span className="workflow-detail-phase-id">{phase.phase_template_id}</span>
-				{phase.gate_type_override && (
+				<span className="workflow-detail-phase-id">{phase.phaseTemplateId}</span>
+				{phase.gateTypeOverride !== undefined && (
 					<span className="workflow-detail-phase-gate">
 						<Icon name="shield" size={10} />
-						{phase.gate_type_override}
+						{phase.gateTypeOverride}
 					</span>
 				)}
-				{phase.model_override && (
+				{phase.modelOverride && (
 					<span className="workflow-detail-phase-model">
 						<Icon name="robot" size={10} />
-						{phase.model_override}
+						{phase.modelOverride}
 					</span>
 				)}
 			</div>
-			{phase.max_iterations_override && (
+			{phase.maxIterationsOverride !== undefined && (
 				<span className="workflow-detail-phase-iterations">
-					max {phase.max_iterations_override}
+					max {phase.maxIterationsOverride}
 				</span>
 			)}
 		</div>
@@ -69,14 +74,16 @@ function PhaseItem({
  * Renders a workflow variable definition.
  */
 function VariableItem({ variable }: { variable: WorkflowVariable }) {
+	const sourceTypeStr = String(variable.sourceType);
 	const sourceIcon = {
-		static: 'code',
-		env: 'terminal',
-		script: 'file-code',
-		api: 'globe',
-		phase_output: 'git-branch',
-		prompt_fragment: 'file-text',
-	}[variable.source_type] || 'settings';
+		'0': 'settings', // UNSPECIFIED
+		'1': 'code', // STATIC
+		'2': 'terminal', // ENV
+		'3': 'file-code', // SCRIPT
+		'4': 'globe', // API
+		'5': 'git-branch', // PHASE_OUTPUT
+		'6': 'file-text', // PROMPT_FRAGMENT
+	}[sourceTypeStr] || 'settings';
 
 	return (
 		<div className="workflow-detail-variable">
@@ -89,7 +96,7 @@ function VariableItem({ variable }: { variable: WorkflowVariable }) {
 			<div className="workflow-detail-variable-meta">
 				<span className="workflow-detail-variable-source">
 					<Icon name={sourceIcon as 'code'} size={10} />
-					{variable.source_type}
+					{variable.sourceType}
 				</span>
 				{variable.description && (
 					<span className="workflow-detail-variable-desc">{variable.description}</span>
@@ -126,10 +133,11 @@ export function WorkflowDetailPanel({
 		setLoading(true);
 		setError(null);
 
-		getWorkflow(workflow.id)
-			.then((data) => {
-				if (!cancelled) {
-					setDetails(data);
+		workflowClient
+			.getWorkflow({ id: workflow.id })
+			.then((response) => {
+				if (!cancelled && response.workflow) {
+					setDetails(response.workflow);
 				}
 			})
 			.catch((e) => {
@@ -149,7 +157,7 @@ export function WorkflowDetailPanel({
 	}, [workflow?.id, isOpen]);
 
 	const handleDelete = useCallback(async () => {
-		if (!workflow || workflow.is_builtin) return;
+		if (!workflow || workflow.isBuiltin) return;
 
 		const confirmed = window.confirm(
 			`Delete workflow "${workflow.name}"? This cannot be undone.`
@@ -158,7 +166,7 @@ export function WorkflowDetailPanel({
 
 		setDeleting(true);
 		try {
-			await deleteWorkflow(workflow.id);
+			await workflowClient.deleteWorkflow({ id: workflow.id });
 			onDeleted(workflow.id);
 			onClose();
 		} catch (e) {
@@ -178,7 +186,7 @@ export function WorkflowDetailPanel({
 		return null;
 	}
 
-	const displayWorkflow = details || workflow;
+	const displayWorkflow = details?.workflow || workflow;
 	const phases = details?.phases || [];
 	const variables = details?.variables || [];
 
@@ -194,7 +202,7 @@ export function WorkflowDetailPanel({
 						<h2 className="workflow-detail-title">{displayWorkflow.name}</h2>
 						<code className="workflow-detail-id">{displayWorkflow.id}</code>
 					</div>
-					{displayWorkflow.is_builtin && (
+					{displayWorkflow.isBuiltin && (
 						<span className="workflow-detail-badge builtin">Built-in</span>
 					)}
 				</div>
@@ -206,24 +214,24 @@ export function WorkflowDetailPanel({
 				<div className="workflow-detail-meta">
 					<span className="workflow-detail-meta-item">
 						<Icon name="layers" size={12} />
-						{displayWorkflow.workflow_type}
+						{displayWorkflow.workflowType}
 					</span>
-					{displayWorkflow.default_model && (
+					{displayWorkflow.defaultModel && (
 						<span className="workflow-detail-meta-item">
 							<Icon name="robot" size={12} />
-							{displayWorkflow.default_model}
+							{displayWorkflow.defaultModel}
 						</span>
 					)}
-					{displayWorkflow.default_thinking && (
+					{displayWorkflow.defaultThinking && (
 						<span className="workflow-detail-meta-item">
 							<Icon name="brain" size={12} />
 							Thinking
 						</span>
 					)}
-					{displayWorkflow.based_on && (
+					{displayWorkflow.basedOn && (
 						<span className="workflow-detail-meta-item">
 							<Icon name="git-branch" size={12} />
-							from {displayWorkflow.based_on}
+							from {displayWorkflow.basedOn}
 						</span>
 					)}
 				</div>
@@ -238,7 +246,7 @@ export function WorkflowDetailPanel({
 					>
 						Clone
 					</Button>
-					{!displayWorkflow.is_builtin && (
+					{!displayWorkflow.isBuiltin && (
 						<Button
 							variant="danger"
 							size="sm"

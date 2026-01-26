@@ -7,8 +7,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTaskStore } from '@/stores';
-import { listInitiatives } from '@/lib/api';
-import type { Initiative } from '@/lib/types';
+import { initiativeClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import { InitiativeStatus, ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import { StatsRow, type InitiativeStats } from './StatsRow';
 import { InitiativeCard } from './InitiativeCard';
 import { Button } from '@/components/ui/Button';
@@ -137,8 +141,8 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		setLoading(true);
 		setError(null);
 		try {
-			const data = await listInitiatives();
-			setInitiatives(data);
+			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}));
+			setInitiatives(response.initiatives);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load initiatives');
 		} finally {
@@ -163,21 +167,21 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
 		for (const task of tasks) {
-			if (task.initiative_id) {
+			if (task.initiativeId) {
 				// Build initiative -> tasks lookup
-				const existing = byInitiative.get(task.initiative_id);
+				const existing = byInitiative.get(task.initiativeId);
 				if (existing) {
 					existing.push(task);
 				} else {
-					byInitiative.set(task.initiative_id, [task]);
+					byInitiative.set(task.initiativeId, [task]);
 				}
 
 				// Track linked tasks and compute stats in same pass
 				linked.push(task);
-				if (task.status === 'completed') {
+				if (task.status === TaskStatus.COMPLETED) {
 					completed++;
 				}
-				if (new Date(task.created_at) > oneWeekAgo) {
+				if ((timestampToDate(task.createdAt) ?? new Date(0)) > oneWeekAgo) {
 					thisWeek++;
 				}
 			}
@@ -197,7 +201,7 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 
 		for (const initiative of initiatives) {
 			const initiativeTasks = tasksByInitiative.get(initiative.id) || [];
-			const completed = initiativeTasks.filter((t) => t.status === 'completed').length;
+			const completed = initiativeTasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 			map.set(initiative.id, { completed, total: initiativeTasks.length });
 		}
 
@@ -207,7 +211,7 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 	// Compute aggregate stats
 	const stats: InitiativeStats = useMemo(() => {
 		// Count active initiatives
-		const activeInitiatives = initiatives.filter((i) => i.status === 'active').length;
+		const activeInitiatives = initiatives.filter((i) => i.status === InitiativeStatus.ACTIVE).length;
 
 		// Use pre-computed values from single-pass task processing
 		const totalTasks = linkedTasks.length;
@@ -220,8 +224,8 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		for (const [taskId, state] of taskStates) {
 			if (linkedTaskIds.has(taskId) && state?.tokens) {
 				// Rough estimate: $3/1M input tokens, $15/1M output tokens
-				const inputCost = (state.tokens.input_tokens / 1_000_000) * 3;
-				const outputCost = (state.tokens.output_tokens / 1_000_000) * 15;
+				const inputCost = (state.tokens?.inputTokens / 1_000_000) * 3;
+				const outputCost = (state.tokens?.outputTokens / 1_000_000) * 15;
 				totalCost += inputCost + outputCost;
 			}
 		}

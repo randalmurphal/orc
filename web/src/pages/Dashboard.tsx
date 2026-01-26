@@ -10,10 +10,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { useTaskStore, useWsStatus } from '@/stores';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { getDashboardStats, listInitiatives, type DashboardStats } from '@/lib/api';
-import type { Initiative, Task } from '@/lib/types';
+import { dashboardClient, initiativeClient } from '@/lib/client';
+import { GetStatsRequestSchema, type DashboardStats } from '@/gen/orc/v1/dashboard_pb';
+import { ListInitiativesRequestSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import type { Task, TaskStatus } from '@/gen/orc/v1/task_pb';
+import { TaskStatus as TaskStatusEnum } from '@/gen/orc/v1/task_pb';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import { timestampToDate } from '@/lib/time';
 import {
 	DashboardStats as StatsSection,
 	DashboardQuickActions,
@@ -25,13 +30,12 @@ import {
 import './Dashboard.css';
 
 // Filter tasks by status
-const ACTIVE_STATUSES = ['running', 'blocked', 'paused'];
-const RECENT_STATUSES = ['completed', 'failed'];
+const ACTIVE_STATUSES: TaskStatus[] = [TaskStatusEnum.RUNNING, TaskStatusEnum.BLOCKED, TaskStatusEnum.PAUSED];
+const RECENT_STATUSES: TaskStatus[] = [TaskStatusEnum.COMPLETED, TaskStatusEnum.FAILED];
 
 export function Dashboard() {
 	const navigate = useNavigate();
 	const wsStatus = useWsStatus();
-	const { on } = useWebSocket();
 	const tasks = useTaskStore((state) => state.tasks);
 
 	const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -46,18 +50,26 @@ export function Dashboard() {
 
 	const recentTasks = tasks
 		.filter((t: Task) => RECENT_STATUSES.includes(t.status))
-		.sort((a: Task, b: Task) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+		.sort((a: Task, b: Task) => {
+			const aTime = timestampToDate(a.updatedAt)?.getTime() ?? 0;
+			const bTime = timestampToDate(b.updatedAt)?.getTime() ?? 0;
+			return bTime - aTime;
+		})
 		.slice(0, 5);
 
 	const loadDashboardData = useCallback(async () => {
 		try {
 			// Load stats and initiatives in parallel
-			const [statsData, initiativesData] = await Promise.all([
-				getDashboardStats(),
-				listInitiatives({ status: 'active' }),
+			const [statsResponse, initiativesResponse] = await Promise.all([
+				dashboardClient.getStats(create(GetStatsRequestSchema, {})),
+				initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {
+					status: InitiativeStatus.ACTIVE
+				})),
 			]);
-			setStats(statsData);
-			setInitiatives(initiativesData);
+			if (statsResponse.stats) {
+				setStats(statsResponse.stats);
+			}
+			setInitiatives(initiativesResponse.initiatives);
 			setLoading(false);
 			setError(null);
 		} catch (e) {
@@ -68,8 +80,10 @@ export function Dashboard() {
 
 	const loadInitiatives = useCallback(async () => {
 		try {
-			const data = await listInitiatives({ status: 'active' });
-			setInitiatives(data);
+			const response = await initiativeClient.listInitiatives(
+				create(ListInitiativesRequestSchema, { status: InitiativeStatus.ACTIVE })
+			);
+			setInitiatives(response.initiatives);
 		} catch {
 			// Silently fail - not critical
 		}
@@ -87,21 +101,22 @@ export function Dashboard() {
 		}
 	}, [wsStatus, loadDashboardData]);
 
-	// Subscribe to task events to refresh initiatives when task status changes
+	// Subscribe to task changes via store subscription to refresh initiatives
 	useEffect(() => {
-		const unsubscribe = on('all', (event) => {
-			if (
-				'event' in event &&
-				['task_updated', 'task_created', 'task_deleted'].includes(event.event)
-			) {
+		// Subscribe to taskStore changes - when tasks change, refresh stats
+		const unsubscribe = useTaskStore.subscribe(
+			(state) => state.tasks,
+			() => {
 				// Refresh initiatives to update progress counts
 				loadInitiatives();
 				// Also refresh stats
-				getDashboardStats().then(setStats).catch(() => {});
+				dashboardClient.getStats(create(GetStatsRequestSchema, {}))
+					.then((res) => { if (res.stats) setStats(res.stats); })
+					.catch(() => {});
 			}
-		});
+		);
 		return unsubscribe;
-	}, [on, loadInitiatives]);
+	}, [loadInitiatives]);
 
 	const navigateToFiltered = (status: string) => {
 		navigate(`/?status=${status}`);

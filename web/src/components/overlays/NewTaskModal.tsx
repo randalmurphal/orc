@@ -1,13 +1,34 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Modal } from './Modal';
-import { createProjectTask } from '@/lib/api';
+import { taskClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
 import { toast } from '@/stores/uiStore';
 import { useCurrentProjectId } from '@/stores';
-import type { Task, TaskWeight, TaskCategory } from '@/lib/types';
+import {
+	type Task,
+	TaskWeight,
+	TaskCategory,
+	CreateTaskRequestSchema,
+} from '@/gen/orc/v1/task_pb';
 import '../task-detail/TaskEditModal.css';
 
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
-const CATEGORIES: TaskCategory[] = ['feature', 'bug', 'refactor', 'chore', 'docs', 'test'];
+// Weight options with enum values and display labels
+const WEIGHT_OPTIONS = [
+	{ value: TaskWeight.TRIVIAL, label: 'trivial' },
+	{ value: TaskWeight.SMALL, label: 'small' },
+	{ value: TaskWeight.MEDIUM, label: 'medium' },
+	{ value: TaskWeight.LARGE, label: 'large' },
+] as const;
+
+// Category options with enum values and display labels
+const CATEGORY_OPTIONS = [
+	{ value: TaskCategory.FEATURE, label: 'feature' },
+	{ value: TaskCategory.BUG, label: 'bug' },
+	{ value: TaskCategory.REFACTOR, label: 'refactor' },
+	{ value: TaskCategory.CHORE, label: 'chore' },
+	{ value: TaskCategory.DOCS, label: 'docs' },
+	{ value: TaskCategory.TEST, label: 'test' },
+] as const;
 
 interface NewTaskModalProps {
 	open: boolean;
@@ -19,8 +40,8 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 	const currentProjectId = useCurrentProjectId();
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
-	const [weight, setWeight] = useState<TaskWeight>('medium');
-	const [category, setCategory] = useState<TaskCategory>('feature');
+	const [weight, setWeight] = useState<TaskWeight>(TaskWeight.MEDIUM);
+	const [category, setCategory] = useState<TaskCategory>(TaskCategory.FEATURE);
 	const [saving, setSaving] = useState(false);
 
 	// Reset form when modal opens
@@ -28,8 +49,8 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 		if (open) {
 			setTitle('');
 			setDescription('');
-			setWeight('medium');
-			setCategory('feature');
+			setWeight(TaskWeight.MEDIUM);
+			setCategory(TaskCategory.FEATURE);
 		}
 	}, [open]);
 
@@ -46,15 +67,18 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 
 		setSaving(true);
 		try {
-			const task = await createProjectTask(
-				currentProjectId,
-				title.trim(),
-				description.trim() || undefined,
-				weight,
-				category
+			const response = await taskClient.createTask(
+				create(CreateTaskRequestSchema, {
+					title: title.trim(),
+					description: description.trim() || undefined,
+					weight,
+					category,
+				})
 			);
-			toast.success(`Task ${task.id} created`);
-			onCreate?.(task);
+			if (response.task) {
+				toast.success(`Task ${response.task.id} created`);
+				onCreate?.(response.task);
+			}
 			onClose();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to create task');
@@ -110,11 +134,11 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 						<select
 							id="new-task-weight"
 							value={weight}
-							onChange={(e) => setWeight(e.target.value as TaskWeight)}
+							onChange={(e) => setWeight(Number(e.target.value) as TaskWeight)}
 						>
-							{WEIGHTS.map((w) => (
-								<option key={w} value={w}>
-									{w}
+							{WEIGHT_OPTIONS.map((w) => (
+								<option key={w.value} value={w.value}>
+									{w.label}
 								</option>
 							))}
 						</select>
@@ -126,32 +150,28 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 						<select
 							id="new-task-category"
 							value={category}
-							onChange={(e) => setCategory(e.target.value as TaskCategory)}
+							onChange={(e) => setCategory(Number(e.target.value) as TaskCategory)}
 						>
-							{CATEGORIES.map((c) => (
-								<option key={c} value={c}>
-									{c}
+							{CATEGORY_OPTIONS.map((c) => (
+								<option key={c.value} value={c.value}>
+									{c.label}
 								</option>
 							))}
 						</select>
+						<span className="form-hint">Affects how Claude approaches work</span>
 					</div>
 				</div>
 
 				{/* Actions */}
 				<div className="form-actions">
-					<button
-						type="button"
-						className="cancel-btn"
-						onClick={onClose}
-						disabled={saving}
-					>
+					<button type="button" onClick={onClose} className="btn-secondary">
 						Cancel
 					</button>
 					<button
 						type="button"
-						className="save-btn"
 						onClick={handleSave}
-						disabled={saving || !title.trim() || !currentProjectId}
+						disabled={saving || !title.trim()}
+						className="btn-primary"
 					>
 						{saving ? 'Creating...' : 'Create Task'}
 					</button>

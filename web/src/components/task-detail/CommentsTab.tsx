@@ -1,22 +1,34 @@
 import { useState, useEffect, useCallback, useMemo, useRef, FormEvent, KeyboardEvent } from 'react';
-import type { TaskComment, CreateTaskCommentRequest, TaskCommentAuthorType } from '@/lib/types';
+import { create } from '@bufbuild/protobuf';
+import type { TaskComment } from '@/gen/orc/v1/task_pb';
 import {
-	getTaskComments,
-	createTaskComment,
-	deleteTaskComment,
-	updateTaskComment,
-} from '@/lib/api';
+	AuthorType,
+	ListCommentsRequestSchema,
+	CreateCommentRequestSchema,
+	UpdateCommentRequestSchema,
+	DeleteCommentRequestSchema,
+} from '@/gen/orc/v1/task_pb';
+import { taskClient } from '@/lib/client';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
+import { timestampToDate } from '@/lib/time';
 import './CommentsTab.css';
+
+// Local type for the comment form submission
+interface CommentFormData {
+	content: string;
+	author?: string;
+	authorType: AuthorType;
+	phase?: string;
+}
 
 interface CommentsTabProps {
 	taskId: string;
 	phases?: string[];
 }
 
-function formatRelativeTime(dateStr: string): string {
-	const date = new Date(dateStr);
+function formatRelativeTime(date: Date | null): string {
+	if (!date) return 'N/A';
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
 	const diffSec = Math.floor(diffMs / 1000);
@@ -36,33 +48,39 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 const authorTypeConfig: Record<
-	TaskCommentAuthorType,
+	AuthorType,
 	{ color: string; bg: string; label: string; icon: IconName }
 > = {
-	human: {
+	[AuthorType.HUMAN]: {
 		color: 'var(--status-info)',
 		bg: 'var(--status-info-bg)',
 		label: 'Human',
 		icon: 'user',
 	},
-	agent: {
+	[AuthorType.AGENT]: {
 		color: 'var(--primary)',
 		bg: 'var(--primary-dim)',
 		label: 'Agent',
 		icon: 'cpu',
 	},
-	system: {
+	[AuthorType.SYSTEM]: {
 		color: 'var(--text-muted)',
 		bg: 'var(--bg-tertiary)',
 		label: 'System',
 		icon: 'settings',
 	},
+	[AuthorType.UNSPECIFIED]: {
+		color: 'var(--text-muted)',
+		bg: 'var(--bg-tertiary)',
+		label: 'Unknown',
+		icon: 'user',
+	},
 };
 
-const authorTypeOptions: { value: TaskCommentAuthorType; label: string; description: string }[] = [
-	{ value: 'human', label: 'Human', description: 'Manual note or feedback' },
-	{ value: 'agent', label: 'Agent', description: 'Note from Claude/AI' },
-	{ value: 'system', label: 'System', description: 'Automated system note' },
+const authorTypeOptions: { value: AuthorType; label: string; description: string }[] = [
+	{ value: AuthorType.HUMAN, label: 'Human', description: 'Manual note or feedback' },
+	{ value: AuthorType.AGENT, label: 'Agent', description: 'Note from Claude/AI' },
+	{ value: AuthorType.SYSTEM, label: 'System', description: 'Automated system note' },
 ];
 
 interface CommentThreadProps {
@@ -72,7 +90,10 @@ interface CommentThreadProps {
 }
 
 function CommentThread({ comment, onEdit, onDelete }: CommentThreadProps) {
-	const authorType = authorTypeConfig[comment.author_type];
+	const authorType = authorTypeConfig[comment.authorType];
+	const createdDate = timestampToDate(comment.createdAt);
+	const updatedDate = timestampToDate(comment.updatedAt);
+	const wasEdited = updatedDate && createdDate && updatedDate.getTime() !== createdDate.getTime();
 
 	return (
 		<div className="comment-thread">
@@ -90,14 +111,14 @@ function CommentThread({ comment, onEdit, onDelete }: CommentThreadProps) {
 						<span>{comment.phase}</span>
 					</div>
 				)}
-				<span className="timestamp">{formatRelativeTime(comment.created_at)}</span>
+				<span className="timestamp">{formatRelativeTime(createdDate)}</span>
 			</div>
 
 			<div className="comment-content">{comment.content}</div>
 
-			{comment.updated_at !== comment.created_at && (
+			{wasEdited && (
 				<div className="edited-info">
-					<span>edited {formatRelativeTime(comment.updated_at)}</span>
+					<span>edited {formatRelativeTime(updatedDate)}</span>
 				</div>
 			)}
 
@@ -129,7 +150,7 @@ function CommentThread({ comment, onEdit, onDelete }: CommentThreadProps) {
 
 interface CommentFormProps {
 	phases?: string[];
-	onSubmit: (comment: CreateTaskCommentRequest) => void;
+	onSubmit: (comment: CommentFormData) => void;
 	onCancel: () => void;
 	isLoading?: boolean;
 	editMode?: boolean;
@@ -148,7 +169,7 @@ function CommentForm({
 }: CommentFormProps) {
 	const [content, setContent] = useState(initialContent);
 	const [phase, setPhase] = useState(initialPhase);
-	const [authorType, setAuthorType] = useState<TaskCommentAuthorType>('human');
+	const [authorType, setAuthorType] = useState<AuthorType>(AuthorType.HUMAN);
 	const [author, setAuthor] = useState('');
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -169,9 +190,9 @@ function CommentForm({
 			e.preventDefault();
 			if (!canSubmit) return;
 
-			const comment: CreateTaskCommentRequest = {
+			const comment: CommentFormData = {
 				content: content.trim(),
-				author_type: authorType,
+				authorType,
 			};
 
 			if (author.trim()) {
@@ -307,15 +328,17 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [filterAuthorType, setFilterAuthorType] = useState<TaskCommentAuthorType | ''>('');
+	const [filterAuthorType, setFilterAuthorType] = useState<AuthorType | null>(null);
 	const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
 
 	const loadComments = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const data = await getTaskComments(taskId);
-			setComments(data);
+			const response = await taskClient.listComments(
+				create(ListCommentsRequestSchema, { taskId })
+			);
+			setComments(response.comments);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load comments');
 		} finally {
@@ -329,33 +352,45 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 
 	// Filtered comments
 	const filteredComments = useMemo(() => {
-		if (!filterAuthorType) return comments;
-		return comments.filter((c) => c.author_type === filterAuthorType);
+		if (filterAuthorType === null) return comments;
+		return comments.filter((c) => c.authorType === filterAuthorType);
 	}, [comments, filterAuthorType]);
 
 	// Comments by author type
-	const humanComments = useMemo(() => comments.filter((c) => c.author_type === 'human'), [comments]);
-	const agentComments = useMemo(() => comments.filter((c) => c.author_type === 'agent'), [comments]);
+	const humanComments = useMemo(() => comments.filter((c) => c.authorType === AuthorType.HUMAN), [comments]);
+	const agentComments = useMemo(() => comments.filter((c) => c.authorType === AuthorType.AGENT), [comments]);
 	const systemComments = useMemo(
-		() => comments.filter((c) => c.author_type === 'system'),
+		() => comments.filter((c) => c.authorType === AuthorType.SYSTEM),
 		[comments]
 	);
 
 	const handleSubmit = useCallback(
-		async (comment: CreateTaskCommentRequest) => {
+		async (comment: CommentFormData) => {
 			setIsSubmitting(true);
 			try {
 				if (editingCommentId) {
 					// Update existing comment
-					await updateTaskComment(taskId, editingCommentId, {
-						content: comment.content,
-						phase: comment.phase,
-					});
+					await taskClient.updateComment(
+						create(UpdateCommentRequestSchema, {
+							taskId,
+							commentId: editingCommentId,
+							content: comment.content,
+							phase: comment.phase,
+						})
+					);
 					setEditingCommentId(null);
 					toast.success('Comment updated');
 				} else {
 					// Create new comment
-					await createTaskComment(taskId, comment);
+					await taskClient.createComment(
+						create(CreateCommentRequestSchema, {
+							taskId,
+							content: comment.content,
+							author: comment.author,
+							authorType: comment.authorType,
+							phase: comment.phase,
+						})
+					);
 					toast.success('Comment added');
 				}
 				setShowForm(false);
@@ -385,7 +420,9 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 			if (!confirm('Delete this comment?')) return;
 
 			try {
-				await deleteTaskComment(taskId, commentId);
+				await taskClient.deleteComment(
+					create(DeleteCommentRequestSchema, { taskId, commentId })
+				);
 				await loadComments();
 				toast.success('Comment deleted');
 			} catch (e) {
@@ -450,31 +487,31 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 				<div className="filter-bar">
 					<span className="filter-label">Filter:</span>
 					<button
-						className={`filter-btn ${filterAuthorType === '' ? 'active' : ''}`}
-						onClick={() => setFilterAuthorType('')}
+						className={`filter-btn ${filterAuthorType === null ? 'active' : ''}`}
+						onClick={() => setFilterAuthorType(null)}
 					>
 						All ({comments.length})
 					</button>
 					{humanComments.length > 0 && (
 						<button
-							className={`filter-btn human ${filterAuthorType === 'human' ? 'active' : ''}`}
-							onClick={() => setFilterAuthorType('human')}
+							className={`filter-btn human ${filterAuthorType === AuthorType.HUMAN ? 'active' : ''}`}
+							onClick={() => setFilterAuthorType(AuthorType.HUMAN)}
 						>
 							Human ({humanComments.length})
 						</button>
 					)}
 					{agentComments.length > 0 && (
 						<button
-							className={`filter-btn agent ${filterAuthorType === 'agent' ? 'active' : ''}`}
-							onClick={() => setFilterAuthorType('agent')}
+							className={`filter-btn agent ${filterAuthorType === AuthorType.AGENT ? 'active' : ''}`}
+							onClick={() => setFilterAuthorType(AuthorType.AGENT)}
 						>
 							Agent ({agentComments.length})
 						</button>
 					)}
 					{systemComments.length > 0 && (
 						<button
-							className={`filter-btn system ${filterAuthorType === 'system' ? 'active' : ''}`}
-							onClick={() => setFilterAuthorType('system')}
+							className={`filter-btn system ${filterAuthorType === AuthorType.SYSTEM ? 'active' : ''}`}
+							onClick={() => setFilterAuthorType(AuthorType.SYSTEM)}
 						>
 							System ({systemComments.length})
 						</button>

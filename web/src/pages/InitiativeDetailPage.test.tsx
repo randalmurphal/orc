@@ -1,53 +1,97 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { InitiativeDetailPage } from './InitiativeDetailPage';
-import * as api from '@/lib/api';
-import type { Initiative } from '@/lib/types';
+import { useInitiativeStore } from '@/stores';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import {
+	InitiativeStatus,
+	InitiativeDecisionSchema,
+} from '@/gen/orc/v1/initiative_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import {
+	createMockInitiative,
+	createMockTaskRef,
+	createTimestamp,
+} from '@/test/factories';
 
-// Mock the API functions
-vi.mock('@/lib/api', () => ({
-	getInitiative: vi.fn(),
-	updateInitiative: vi.fn(),
-	addInitiativeTask: vi.fn(),
-	removeInitiativeTask: vi.fn(),
-	addInitiativeDecision: vi.fn(),
-	listTasks: vi.fn(),
-	getInitiativeDependencyGraph: vi.fn(),
+// Mock the Connect RPC clients
+const mockGetInitiative = vi.fn();
+const mockUpdateInitiative = vi.fn();
+const mockGetDependencyGraph = vi.fn();
+const mockLinkTasks = vi.fn();
+const mockUnlinkTask = vi.fn();
+const mockAddDecision = vi.fn();
+const mockListTasks = vi.fn();
+
+vi.mock('@/lib/client', () => ({
+	initiativeClient: {
+		getInitiative: (...args: unknown[]) => mockGetInitiative(...args),
+		updateInitiative: (...args: unknown[]) => mockUpdateInitiative(...args),
+		getDependencyGraph: (...args: unknown[]) => mockGetDependencyGraph(...args),
+		linkTasks: (...args: unknown[]) => mockLinkTasks(...args),
+		unlinkTask: (...args: unknown[]) => mockUnlinkTask(...args),
+		addDecision: (...args: unknown[]) => mockAddDecision(...args),
+	},
+	taskClient: {
+		listTasks: (...args: unknown[]) => mockListTasks(...args),
+	},
 }));
 
+// Helper to create a mock InitiativeDecision
+function createMockDecision(overrides: {
+	id?: string;
+	date?: string;
+	by?: string;
+	decision?: string;
+	rationale?: string;
+} = {}) {
+	return create(InitiativeDecisionSchema, {
+		id: overrides.id ?? 'DEC-001',
+		date: createTimestamp(overrides.date ?? '2024-01-15T00:00:00Z'),
+		by: overrides.by ?? '',
+		decision: overrides.decision ?? 'Test decision',
+		rationale: overrides.rationale,
+	});
+}
+
 describe('InitiativeDetailPage', () => {
-	const mockInitiative: Initiative = {
-		version: 1,
+	const mockInitiative: Initiative = createMockInitiative({
 		id: 'INIT-001',
 		title: 'Test Initiative',
-		status: 'active',
+		status: InitiativeStatus.ACTIVE,
 		vision: 'Test vision statement',
 		tasks: [
-			{ id: 'TASK-001', title: 'First Task', status: 'completed' },
-			{ id: 'TASK-002', title: 'Second Task', status: 'running' },
-			{ id: 'TASK-003', title: 'Third Task', status: 'pending' },
+			createMockTaskRef({ id: 'TASK-001', title: 'First Task', status: TaskStatus.COMPLETED }),
+			createMockTaskRef({ id: 'TASK-002', title: 'Second Task', status: TaskStatus.RUNNING }),
+			createMockTaskRef({ id: 'TASK-003', title: 'Third Task', status: TaskStatus.CREATED }),
 		],
 		decisions: [
-			{
+			createMockDecision({
 				id: 'DEC-001',
-				date: '2024-01-15',
+				date: '2024-01-15T00:00:00Z',
 				decision: 'Use React for frontend',
 				rationale: 'Better ecosystem',
 				by: 'John',
-			},
+			}),
 		],
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-15T00:00:00Z',
-	};
+	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(api.getInitiative).mockResolvedValue(mockInitiative);
-		vi.mocked(api.listTasks).mockResolvedValue([]);
-		vi.mocked(api.getInitiativeDependencyGraph).mockResolvedValue({
-			nodes: [],
-			edges: [],
+		mockGetInitiative.mockResolvedValue({ initiative: mockInitiative });
+		mockListTasks.mockResolvedValue({ tasks: [] });
+		mockGetDependencyGraph.mockResolvedValue({
+			graph: { nodes: [], edges: [] },
+		});
+		// Reset the initiative store
+		useInitiativeStore.setState({
+			initiatives: new Map(),
+			currentInitiativeId: null,
+			loading: false,
+			error: null,
+			hasLoaded: false,
 		});
 	});
 
@@ -64,8 +108,8 @@ describe('InitiativeDetailPage', () => {
 	describe('loading state', () => {
 		it('shows loading spinner initially', async () => {
 			// Delay the API response
-			vi.mocked(api.getInitiative).mockImplementation(
-				() => new Promise((resolve) => setTimeout(() => resolve(mockInitiative), 100))
+			mockGetInitiative.mockImplementation(
+				() => new Promise((resolve) => setTimeout(() => resolve({ initiative: mockInitiative }), 100))
 			);
 
 			renderInitiativeDetailPage();
@@ -75,7 +119,7 @@ describe('InitiativeDetailPage', () => {
 
 	describe('error state', () => {
 		it('shows error message when load fails', async () => {
-			vi.mocked(api.getInitiative).mockRejectedValue(new Error('Failed to load'));
+			mockGetInitiative.mockRejectedValue(new Error('Failed to load'));
 
 			renderInitiativeDetailPage();
 
@@ -85,7 +129,7 @@ describe('InitiativeDetailPage', () => {
 		});
 
 		it('shows retry button on error', async () => {
-			vi.mocked(api.getInitiative).mockRejectedValue(new Error('Failed'));
+			mockGetInitiative.mockRejectedValue(new Error('Failed'));
 
 			renderInitiativeDetailPage();
 
@@ -95,7 +139,7 @@ describe('InitiativeDetailPage', () => {
 		});
 
 		it('shows 404 when initiative not found', async () => {
-			vi.mocked(api.getInitiative).mockResolvedValue(null as unknown as Awaited<ReturnType<typeof api.getInitiative>>);
+			mockGetInitiative.mockResolvedValue({ initiative: undefined });
 
 			renderInitiativeDetailPage();
 
@@ -184,10 +228,11 @@ describe('InitiativeDetailPage', () => {
 		});
 
 		it('shows Activate button for draft initiative', async () => {
-			vi.mocked(api.getInitiative).mockResolvedValue({
+			const draftInitiative = createMockInitiative({
 				...mockInitiative,
-				status: 'draft',
+				status: InitiativeStatus.DRAFT,
 			});
+			mockGetInitiative.mockResolvedValue({ initiative: draftInitiative });
 
 			renderInitiativeDetailPage();
 
@@ -197,10 +242,11 @@ describe('InitiativeDetailPage', () => {
 		});
 
 		it('calls updateInitiative when status button clicked', async () => {
-			vi.mocked(api.updateInitiative).mockResolvedValue({
+			const updatedInitiative = createMockInitiative({
 				...mockInitiative,
-				status: 'completed',
+				status: InitiativeStatus.COMPLETED,
 			});
+			mockUpdateInitiative.mockResolvedValue({ initiative: updatedInitiative });
 
 			renderInitiativeDetailPage();
 
@@ -209,8 +255,9 @@ describe('InitiativeDetailPage', () => {
 			});
 
 			await waitFor(() => {
-				expect(api.updateInitiative).toHaveBeenCalledWith('INIT-001', {
-					status: 'completed',
+				expect(mockUpdateInitiative).toHaveBeenCalledWith({
+					id: 'INIT-001',
+					status: InitiativeStatus.COMPLETED,
 				});
 			});
 		});
@@ -347,14 +394,13 @@ describe('InitiativeDetailPage', () => {
 			});
 
 			await waitFor(() => {
-				expect(api.getInitiativeDependencyGraph).toHaveBeenCalledWith('INIT-001');
+				expect(mockGetDependencyGraph).toHaveBeenCalledWith({ initiativeId: 'INIT-001' });
 			});
 		});
 
 		it('shows empty state when expanded with no dependencies', async () => {
-			vi.mocked(api.getInitiativeDependencyGraph).mockResolvedValue({
-				nodes: [],
-				edges: [],
+			mockGetDependencyGraph.mockResolvedValue({
+				graph: { nodes: [], edges: [] },
 			});
 
 			renderInitiativeDetailPage();

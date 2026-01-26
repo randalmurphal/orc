@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateHookRequest, CreateHookResponse, CreateSkillRequest, CreateSkillResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteSkillRequest, DeleteSkillResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListSkillsRequest, ListSkillsResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse } from "./config_pb.js";
+import { CreateAgentRequest, CreateAgentResponse, CreateHookRequest, CreateHookResponse, CreateScriptRequest, CreateScriptResponse, CreateSkillRequest, CreateSkillResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteScriptRequest, DeleteScriptResponse, DeleteSkillRequest, DeleteSkillResponse, DiscoverScriptsRequest, DiscoverScriptsResponse, GetAgentRequest, GetAgentResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConfigStatsRequest, GetConfigStatsResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetScriptRequest, GetScriptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, GetToolPermissionsRequest, GetToolPermissionsResponse, ListAgentsRequest, ListAgentsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListScriptsRequest, ListScriptsResponse, ListSkillsRequest, ListSkillsResponse, ListToolsRequest, ListToolsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateScriptRequest, UpdateScriptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse, UpdateToolPermissionsRequest, UpdateToolPermissionsResponse } from "./config_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -274,6 +274,149 @@ export const ConfigService = {
       name: "ListPromptVariables",
       I: ListPromptVariablesRequest,
       O: ListPromptVariablesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Agents
+     *
+     * @generated from rpc orc.v1.ConfigService.ListAgents
+     */
+    listAgents: {
+      name: "ListAgents",
+      I: ListAgentsRequest,
+      O: ListAgentsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.GetAgent
+     */
+    getAgent: {
+      name: "GetAgent",
+      I: GetAgentRequest,
+      O: GetAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.CreateAgent
+     */
+    createAgent: {
+      name: "CreateAgent",
+      I: CreateAgentRequest,
+      O: CreateAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.UpdateAgent
+     */
+    updateAgent: {
+      name: "UpdateAgent",
+      I: UpdateAgentRequest,
+      O: UpdateAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.DeleteAgent
+     */
+    deleteAgent: {
+      name: "DeleteAgent",
+      I: DeleteAgentRequest,
+      O: DeleteAgentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Scripts
+     *
+     * @generated from rpc orc.v1.ConfigService.ListScripts
+     */
+    listScripts: {
+      name: "ListScripts",
+      I: ListScriptsRequest,
+      O: ListScriptsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.DiscoverScripts
+     */
+    discoverScripts: {
+      name: "DiscoverScripts",
+      I: DiscoverScriptsRequest,
+      O: DiscoverScriptsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.GetScript
+     */
+    getScript: {
+      name: "GetScript",
+      I: GetScriptRequest,
+      O: GetScriptResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.CreateScript
+     */
+    createScript: {
+      name: "CreateScript",
+      I: CreateScriptRequest,
+      O: CreateScriptResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.UpdateScript
+     */
+    updateScript: {
+      name: "UpdateScript",
+      I: UpdateScriptRequest,
+      O: UpdateScriptResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.DeleteScript
+     */
+    deleteScript: {
+      name: "DeleteScript",
+      I: DeleteScriptRequest,
+      O: DeleteScriptResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Tools
+     *
+     * @generated from rpc orc.v1.ConfigService.ListTools
+     */
+    listTools: {
+      name: "ListTools",
+      I: ListToolsRequest,
+      O: ListToolsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.GetToolPermissions
+     */
+    getToolPermissions: {
+      name: "GetToolPermissions",
+      I: GetToolPermissionsRequest,
+      O: GetToolPermissionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.ConfigService.UpdateToolPermissions
+     */
+    updateToolPermissions: {
+      name: "UpdateToolPermissions",
+      I: UpdateToolPermissionsRequest,
+      O: UpdateToolPermissionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Config stats
+     *
+     * @generated from rpc orc.v1.ConfigService.GetConfigStats
+     */
+    getConfigStats: {
+      name: "GetConfigStats",
+      I: GetConfigStatsRequest,
+      O: GetConfigStatsResponse,
       kind: MethodKind.Unary,
     },
   }

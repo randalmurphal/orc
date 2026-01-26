@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { listWorkflows, listPhaseTemplates } from '@/lib/api';
-import type { Workflow, PhaseTemplate } from '@/lib/types';
+import type { Workflow, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
+import { workflowClient } from '@/lib/client';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { WorkflowCard } from './WorkflowCard';
 import { PhaseTemplateCard } from './PhaseTemplateCard';
@@ -87,18 +87,25 @@ function WorkflowsViewError({ error, onRetry }: WorkflowsViewErrorProps) {
 export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
 	const { workflows, phaseTemplates, setWorkflows, setPhaseTemplates } = useWorkflowStore();
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const [workflowsData, templatesData] = await Promise.all([
-				listWorkflows(),
-				listPhaseTemplates(),
+			const [workflowsRes, templatesRes] = await Promise.all([
+				workflowClient.listWorkflows({ includeBuiltin: true }),
+				workflowClient.listPhaseTemplates({ includeBuiltin: true }),
 			]);
-			setWorkflows(workflowsData);
-			setPhaseTemplates(templatesData);
+			setWorkflows(workflowsRes.workflows);
+			setPhaseTemplates(templatesRes.templates);
+			// Convert Map to plain object for phase counts
+			const counts: Record<string, number> = {};
+			for (const [key, value] of Object.entries(workflowsRes.phaseCounts)) {
+				counts[key] = value;
+			}
+			setPhaseCounts(counts);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load workflows');
 		} finally {
@@ -129,12 +136,12 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 	}, []);
 
 	// Separate built-in and custom workflows
-	const builtinWorkflows = workflows.filter((wf) => wf.is_builtin);
-	const customWorkflows = workflows.filter((wf) => !wf.is_builtin);
+	const builtinWorkflows = workflows.filter((wf) => wf.isBuiltin);
+	const customWorkflows = workflows.filter((wf) => !wf.isBuiltin);
 
 	// Separate built-in and custom phase templates
-	const builtinPhases = phaseTemplates.filter((pt) => pt.is_builtin);
-	const customPhases = phaseTemplates.filter((pt) => !pt.is_builtin);
+	const builtinPhases = phaseTemplates.filter((pt) => pt.isBuiltin);
+	const customPhases = phaseTemplates.filter((pt) => !pt.isBuiltin);
 
 	const classes = ['workflows-view', className].filter(Boolean).join(' ');
 
@@ -174,6 +181,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 								<WorkflowCard
 									key={workflow.id}
 									workflow={workflow}
+									phaseCount={phaseCounts[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
 								/>
@@ -197,6 +205,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 								<WorkflowCard
 									key={workflow.id}
 									workflow={workflow}
+									phaseCount={phaseCounts[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
 								/>

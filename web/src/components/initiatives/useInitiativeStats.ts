@@ -1,13 +1,15 @@
 /**
- * useInitiativeStats hook - provides initiative statistics with WebSocket updates.
+ * useInitiativeStats hook - provides initiative statistics with real-time updates.
  *
- * Computes stats from task and initiative stores, and will handle real-time
- * updates when the stats_update WebSocket event is implemented.
+ * Computes stats from task and initiative stores. Stats update automatically
+ * when store data changes via Connect RPC event streaming.
  */
 
 import { useMemo, useEffect, useState, useRef } from 'react';
 import { useTaskStore, useInitiativeStore, useInitiatives } from '@/stores';
-import { useWebSocket } from '@/hooks';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import type { InitiativeStats } from './StatsRow';
 
 /**
@@ -28,28 +30,8 @@ export function useInitiativeStats(): {
 	const initiativesLoading = useInitiativeStore((state) => state.loading);
 	const tasksLoading = useTaskStore((state) => state.loading);
 
-	const { on, status: wsStatus } = useWebSocket();
-
 	// Track if we've received the first load of data
 	const [hasInitialData, setHasInitialData] = useState(false);
-
-	// Listen for stats_update events from WebSocket (when backend implements it)
-	const [wsStats, setWsStats] = useState<InitiativeStats | null>(null);
-
-	useEffect(() => {
-		if (wsStatus !== 'connected') return;
-
-		// When stats_update is implemented, this will receive real-time updates
-		// For now, this is a placeholder that will work once the backend sends it
-		const unsub = on('all', (event) => {
-			if ('event' in event && event.event === ('stats_update' as never)) {
-				const statsData = event.data as InitiativeStats;
-				setWsStats(statsData);
-			}
-		});
-
-		return unsub;
-	}, [on, wsStatus]);
 
 	// Mark as having initial data once stores are loaded
 	useEffect(() => {
@@ -62,7 +44,7 @@ export function useInitiativeStats(): {
 	const computedStats = useMemo<InitiativeStats>(() => {
 		// Count active initiatives
 		const activeInitiatives = initiatives.filter(
-			(i) => i.status === 'active'
+			(i) => i.status === InitiativeStatus.ACTIVE
 		).length;
 
 		// Total tasks
@@ -72,12 +54,12 @@ export function useInitiativeStats(): {
 		const oneWeekAgo = new Date();
 		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 		const tasksThisWeek = tasks.filter((t) => {
-			const createdAt = new Date(t.created_at);
-			return createdAt >= oneWeekAgo;
+			const createdAt = timestampToDate(t.createdAt);
+			return createdAt && createdAt >= oneWeekAgo;
 		}).length;
 
 		// Completion rate
-		const completedTasks = tasks.filter((t) => t.status === 'completed').length;
+		const completedTasks = tasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 		const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
 		// Total cost (placeholder - would need token usage tracking)
@@ -93,11 +75,9 @@ export function useInitiativeStats(): {
 		};
 	}, [tasks, initiatives]);
 
-	// Use WebSocket stats if available, otherwise use computed stats
-	const stats = wsStats ?? computedStats;
 	const loading = !hasInitialData || (initiativesLoading && tasksLoading);
 
-	return { stats, loading };
+	return { stats: computedStats, loading };
 }
 
 /**

@@ -13,7 +13,7 @@ import { useState, useCallback } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/overlays/Modal';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
 import './BlockedPanel.css';
 
 export interface BlockedPanelProps {
@@ -143,7 +143,7 @@ export function BlockedPanel({ tasks, onSkip, onForce }: BlockedPanelProps) {
 							</div>
 
 							<div className="blocked-reason">
-								{formatBlockingReason(task.unmet_blockers || task.blocked_by || [])}
+								{formatBlockingReason(task.unmetBlockers || task.blockedBy || [])}
 							</div>
 
 							<div className="blocked-actions">
