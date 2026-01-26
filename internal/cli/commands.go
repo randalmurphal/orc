@@ -93,20 +93,17 @@ func statusText(status orcv1.TaskStatus) string {
 
 // phaseStatusIcon returns an icon for phase status
 func phaseStatusIcon(status orcv1.PhaseStatus) string {
-	// Phase status icons are already ASCII-safe, no plain mode needed
+	// Phase status is completion-only: PENDING, COMPLETED, SKIPPED
+	// Running/failed state is derived from task status + current_phase
 	switch status {
 	case orcv1.PhaseStatus_PHASE_STATUS_PENDING:
 		return "○"
-	case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
-		return "◐"
 	case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 		return "●"
-	case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
-		return "✗"
 	case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
 		return "⊘"
 	default:
-		return "?"
+		return "○" // Treat unknown as pending
 	}
 }
 

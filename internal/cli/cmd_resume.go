@@ -248,6 +248,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				TaskID:      id,
 				Prompt:      task.GetDescriptionProto(t),
 				Category:    t.Category,
+				IsResume:    true, // This is a resume operation
 			}
 
 			// Execute workflow (WorkflowExecutor handles resume internally via state)

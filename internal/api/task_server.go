@@ -789,14 +789,11 @@ func (s *taskServer) RetryPreview(
 	}
 
 	// Determine phases that would be rerun
+	// Use current_phase as the starting point since phases no longer track running/failed status
 	phasesToRerun := []string{}
-	if t.Execution != nil && t.Execution.Phases != nil {
-		for phaseName, phaseState := range t.Execution.Phases {
-			if phaseState != nil && (phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_FAILED ||
-				phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED) {
-				phasesToRerun = append(phasesToRerun, phaseName)
-			}
-		}
+	currentPhase := task.GetCurrentPhaseProto(t)
+	if currentPhase != "" {
+		phasesToRerun = append(phasesToRerun, currentPhase)
 	}
 
 	// If no failed phases, default to implement

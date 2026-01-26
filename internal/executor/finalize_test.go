@@ -244,8 +244,9 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when git service is not available")
 	}
-	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_FAILED {
-		t.Errorf("expected status = failed, got %s", result.Status)
+	// Result.Status is PENDING when not completed, result.Error indicates failure
+	if result.Error == nil {
+		t.Error("expected result.Error to be set on failure")
 	}
 }
 
@@ -1174,7 +1175,8 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when git service not available")
 	}
-	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_FAILED {
-		t.Errorf("expected status = failed, got %s", result.Status)
+	// Result.Status is PENDING when not completed, result.Error indicates failure
+	if result.Error == nil {
+		t.Error("expected result.Error to be set on failure")
 	}
 }

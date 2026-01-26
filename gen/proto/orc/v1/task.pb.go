@@ -321,18 +321,15 @@ func (TaskCategory) EnumDescriptor() ([]byte, []int) {
 }
 
 // Phase execution status
+// NOTE: Phase status tracks only completion state. Execution state (running, paused, etc.)
+// is tracked at the task level via TaskStatus. Use task.current_phase to know which phase.
 type PhaseStatus int32
 
 const (
 	PhaseStatus_PHASE_STATUS_UNSPECIFIED PhaseStatus = 0
-	PhaseStatus_PHASE_STATUS_PENDING     PhaseStatus = 1 // Not started
-	PhaseStatus_PHASE_STATUS_RUNNING     PhaseStatus = 2 // Currently executing
+	PhaseStatus_PHASE_STATUS_PENDING     PhaseStatus = 1 // Not yet completed (includes not started, in progress, needs retry)
 	PhaseStatus_PHASE_STATUS_COMPLETED   PhaseStatus = 3 // Successfully finished
-	PhaseStatus_PHASE_STATUS_FAILED      PhaseStatus = 4 // Execution failed
-	PhaseStatus_PHASE_STATUS_PAUSED      PhaseStatus = 5 // Manually paused
-	PhaseStatus_PHASE_STATUS_INTERRUPTED PhaseStatus = 6 // Interrupted mid-execution
-	PhaseStatus_PHASE_STATUS_SKIPPED     PhaseStatus = 7 // Skipped by condition
-	PhaseStatus_PHASE_STATUS_BLOCKED     PhaseStatus = 8 // Waiting on gate
+	PhaseStatus_PHASE_STATUS_SKIPPED     PhaseStatus = 7 // Skipped by gate condition
 )
 
 // Enum value maps for PhaseStatus.
@@ -340,24 +337,14 @@ var (
 	PhaseStatus_name = map[int32]string{
 		0: "PHASE_STATUS_UNSPECIFIED",
 		1: "PHASE_STATUS_PENDING",
-		2: "PHASE_STATUS_RUNNING",
 		3: "PHASE_STATUS_COMPLETED",
-		4: "PHASE_STATUS_FAILED",
-		5: "PHASE_STATUS_PAUSED",
-		6: "PHASE_STATUS_INTERRUPTED",
 		7: "PHASE_STATUS_SKIPPED",
-		8: "PHASE_STATUS_BLOCKED",
 	}
 	PhaseStatus_value = map[string]int32{
 		"PHASE_STATUS_UNSPECIFIED": 0,
 		"PHASE_STATUS_PENDING":     1,
-		"PHASE_STATUS_RUNNING":     2,
 		"PHASE_STATUS_COMPLETED":   3,
-		"PHASE_STATUS_FAILED":      4,
-		"PHASE_STATUS_PAUSED":      5,
-		"PHASE_STATUS_INTERRUPTED": 6,
 		"PHASE_STATUS_SKIPPED":     7,
-		"PHASE_STATUS_BLOCKED":     8,
 	}
 )
 
@@ -7796,17 +7783,12 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x16TASK_CATEGORY_REFACTOR\x10\x03\x12\x17\n" +
 	"\x13TASK_CATEGORY_CHORE\x10\x04\x12\x16\n" +
 	"\x12TASK_CATEGORY_DOCS\x10\x05\x12\x16\n" +
-	"\x12TASK_CATEGORY_TEST\x10\x06*\xff\x01\n" +
+	"\x12TASK_CATEGORY_TEST\x10\x06*{\n" +
 	"\vPhaseStatus\x12\x1c\n" +
 	"\x18PHASE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14PHASE_STATUS_PENDING\x10\x01\x12\x18\n" +
-	"\x14PHASE_STATUS_RUNNING\x10\x02\x12\x1a\n" +
-	"\x16PHASE_STATUS_COMPLETED\x10\x03\x12\x17\n" +
-	"\x13PHASE_STATUS_FAILED\x10\x04\x12\x17\n" +
-	"\x13PHASE_STATUS_PAUSED\x10\x05\x12\x1c\n" +
-	"\x18PHASE_STATUS_INTERRUPTED\x10\x06\x12\x18\n" +
-	"\x14PHASE_STATUS_SKIPPED\x10\a\x12\x18\n" +
-	"\x14PHASE_STATUS_BLOCKED\x10\b*\xd1\x01\n" +
+	"\x14PHASE_STATUS_PENDING\x10\x01\x12\x1a\n" +
+	"\x16PHASE_STATUS_COMPLETED\x10\x03\x12\x18\n" +
+	"\x14PHASE_STATUS_SKIPPED\x10\a*\xd1\x01\n" +
 	"\bPRStatus\x12\x19\n" +
 	"\x15PR_STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0ePR_STATUS_NONE\x10\x01\x12\x13\n" +

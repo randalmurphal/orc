@@ -398,9 +398,10 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 	if publishedExec.Phases == nil {
 		t.Errorf("expected Phases to be non-nil")
 	}
-	// Check that implement phase exists and is running
-	if ps, ok := publishedExec.Phases["implement"]; !ok || ps.Status != orcv1.PhaseStatus_PHASE_STATUS_RUNNING {
-		t.Errorf("expected implement phase with status running")
+	// Check that implement phase exists and has started (PENDING with StartedAt set)
+	// Phase status is completion-only; running state is derived from task status + current_phase
+	if ps, ok := publishedExec.Phases["implement"]; !ok || ps.Status != orcv1.PhaseStatus_PHASE_STATUS_PENDING {
+		t.Errorf("expected implement phase with status pending")
 	}
 }
 

@@ -39,11 +39,9 @@ func TestPhaseStatusIcon(t *testing.T) {
 		expected string
 	}{
 		{orcv1.PhaseStatus_PHASE_STATUS_PENDING, "○"},
-		{orcv1.PhaseStatus_PHASE_STATUS_RUNNING, "◐"},
 		{orcv1.PhaseStatus_PHASE_STATUS_COMPLETED, "●"},
-		{orcv1.PhaseStatus_PHASE_STATUS_FAILED, "✗"},
 		{orcv1.PhaseStatus_PHASE_STATUS_SKIPPED, "⊘"},
-		{orcv1.PhaseStatus(9999), "?"}, // Unknown status
+		{orcv1.PhaseStatus(9999), "○"}, // Unknown status defaults to pending
 	}
 
 	for _, tt := range tests {
