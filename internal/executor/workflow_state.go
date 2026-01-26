@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
@@ -14,7 +15,7 @@ import (
 )
 
 // failRun marks a run as failed and syncs task status.
-func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error) {
+func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err error) {
 	run.Status = string(workflow.RunStatusFailed)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())
@@ -24,9 +25,10 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error
 
 	// Sync task status to Failed
 	if t != nil {
-		t.Status = task.StatusFailed
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Error("failed to save task status failed", "task_id", t.ID, "error", saveErr)
+		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		task.UpdateTimestampProto(t)
+		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
+			we.logger.Error("failed to save task status failed", "task_id", t.Id, "error", saveErr)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
@@ -36,30 +38,31 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *task.Task, err error
 }
 
 // failSetup handles failures during setup phase (before any phase runs).
-func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *task.Task, err error) {
+func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err error) {
 	taskID := ""
 	if t != nil {
-		taskID = t.ID
+		taskID = t.Id
 	}
 	we.logger.Error("task setup failed", "task", taskID, "error", err)
 
 	// Clear execution tracking on task and set error in state
 	if t != nil {
-		if clearErr := we.backend.ClearTaskExecutor(t.ID); clearErr != nil {
+		if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
 			we.logger.Warn("failed to clear task executor on setup failure", "error", clearErr)
 		}
 	}
 	if we.task != nil {
-		we.task.Execution.Error = err.Error()
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+		task.SetErrorProto(we.task.Execution, err.Error())
+		if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on setup failure", "error", saveErr)
 		}
 	}
 
 	// Update task status
 	if t != nil {
-		t.Status = task.StatusFailed
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
+		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		task.UpdateTimestampProto(t)
+		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
 			we.logger.Error("failed to save task on setup failure", "error", saveErr)
 		}
 	}
@@ -75,7 +78,7 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *task.Task, err err
 
 // interruptRun marks a run as cancelled (interrupted by context cancellation) and syncs task status.
 // Commits work-in-progress before updating status to preserve changes.
-func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, currentPhase string, err error) {
+func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, currentPhase string, err error) {
 	we.logger.Info("run interrupted", "run_id", run.ID, "phase", currentPhase, "reason", err.Error())
 
 	// Commit work-in-progress before updating state
@@ -92,18 +95,19 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, curr
 
 	// Update execution state
 	if we.task != nil {
-		we.task.Execution.InterruptPhase(currentPhase)
-		we.task.Execution.Error = fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error())
-		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+		task.InterruptPhaseProto(we.task.Execution, currentPhase)
+		task.SetErrorProto(we.task.Execution, fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error()))
+		if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on interrupt", "error", saveErr)
 		}
 	}
 
 	// Sync task status to Paused (can be resumed)
 	if t != nil {
-		t.Status = task.StatusPaused
-		if saveErr := we.backend.SaveTask(t); saveErr != nil {
-			we.logger.Error("failed to save task status paused", "task_id", t.ID, "error", saveErr)
+		t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+		task.UpdateTimestampProto(t)
+		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
+			we.logger.Error("failed to save task status paused", "task_id", t.Id, "error", saveErr)
 		}
 		// Publish task updated event for real-time UI updates
 		we.publishTaskUpdated(t)
@@ -111,7 +115,7 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *task.Task, curr
 }
 
 // commitWIPOnInterrupt commits any work-in-progress and pushes to remote.
-func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
+func (we *WorkflowExecutor) commitWIPOnInterrupt(t *orcv1.Task, phaseID string) {
 	gitSvc := we.worktreeGit
 	if gitSvc == nil {
 		gitSvc = we.gitOps
@@ -121,7 +125,7 @@ func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
 	}
 
 	// Use CreateCheckpoint which handles staging and committing
-	checkpoint, err := gitSvc.CreateCheckpoint(t.ID, phaseID, "interrupted (work in progress)")
+	checkpoint, err := gitSvc.CreateCheckpoint(t.Id, phaseID, "interrupted (work in progress)")
 	if err != nil {
 		// Log but don't fail - checkpoint is best effort
 		we.logger.Debug("no checkpoint created on interrupt", "reason", err)
@@ -134,10 +138,8 @@ func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
 	we.logger.Info("committed WIP on interrupt", "sha", checkpoint.CommitSHA[:min(8, len(checkpoint.CommitSHA))])
 
 	// Store commit SHA in state
-	if we.task != nil && we.task.Execution.Phases != nil {
-		if ps := we.task.Execution.Phases[phaseID]; ps != nil {
-			ps.CommitSHA = checkpoint.CommitSHA
-		}
+	if we.task != nil && we.task.Execution != nil && we.task.Execution.Phases != nil {
+		task.SetPhaseCommitSHAProto(we.task.Execution, phaseID, checkpoint.CommitSHA)
 	}
 
 	// Push to remote with timeout to avoid blocking interrupt
@@ -160,7 +162,7 @@ func (we *WorkflowExecutor) commitWIPOnInterrupt(t *task.Task, phaseID string) {
 
 // recordCostToGlobal logs cost and token usage to the global database for cross-project analytics.
 // Failures are logged but don't interrupt execution.
-func (we *WorkflowExecutor) recordCostToGlobal(t *task.Task, phaseID string, result PhaseResult, model string, duration time.Duration) {
+func (we *WorkflowExecutor) recordCostToGlobal(t *orcv1.Task, phaseID string, result PhaseResult, model string, duration time.Duration) {
 	if we.globalDB == nil {
 		return // Global DB not available, skip silently
 	}
@@ -173,8 +175,8 @@ func (we *WorkflowExecutor) recordCostToGlobal(t *task.Task, phaseID string, res
 	taskID := ""
 	initiativeID := ""
 	if t != nil {
-		taskID = t.ID
-		initiativeID = t.InitiativeID
+		taskID = t.Id
+		initiativeID = task.GetInitiativeIDProto(t)
 	}
 
 	entry := db.CostEntry{

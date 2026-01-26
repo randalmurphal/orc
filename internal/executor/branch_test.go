@@ -3,16 +3,17 @@ package executor
 import (
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestResolveTargetBranch(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name           string
-		task           *task.Task
+		task           *orcv1.Task
 		initiative     *initiative.Initiative
 		config         *config.Config
 		expectedBranch string
@@ -26,16 +27,16 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:           "task with no target branch - defaults to main",
-			task:           &task.Task{ID: "TASK-001"},
+			task:           &orcv1.Task{Id: "TASK-001"},
 			initiative:     nil,
 			config:         nil,
 			expectedBranch: "main",
 		},
 		{
 			name: "level 1: task explicit override takes precedence",
-			task: &task.Task{
-				ID:           "TASK-001",
-				TargetBranch: "hotfix/v2.1",
+			task: &orcv1.Task{
+				Id:           "TASK-001",
+				TargetBranch: proto.String("hotfix/v2.1"),
 			},
 			initiative: &initiative.Initiative{
 				ID:         "INIT-001",
@@ -54,7 +55,7 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name: "level 2: initiative branch takes precedence over developer staging",
-			task: &task.Task{ID: "TASK-001"},
+			task: &orcv1.Task{Id: "TASK-001"},
 			initiative: &initiative.Initiative{
 				ID:         "INIT-001",
 				BranchBase: "feature/auth",
@@ -72,7 +73,7 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:       "level 3: developer staging when enabled",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Developer: config.DeveloperConfig{
@@ -87,7 +88,7 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:       "developer staging disabled falls through to project config",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Developer: config.DeveloperConfig{
@@ -102,7 +103,7 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:       "developer staging enabled but empty branch falls through",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Developer: config.DeveloperConfig{
@@ -117,7 +118,7 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:       "level 4: project config default",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Completion: config.CompletionConfig{
@@ -128,14 +129,14 @@ func TestResolveTargetBranch(t *testing.T) {
 		},
 		{
 			name:           "level 5: fallback to main when config has no target",
-			task:           &task.Task{ID: "TASK-001"},
+			task:           &orcv1.Task{Id: "TASK-001"},
 			initiative:     nil,
 			config:         &config.Config{},
 			expectedBranch: "main",
 		},
 		{
 			name: "initiative with empty branch base falls through",
-			task: &task.Task{ID: "TASK-001"},
+			task: &orcv1.Task{Id: "TASK-001"},
 			initiative: &initiative.Initiative{
 				ID:         "INIT-001",
 				BranchBase: "",
@@ -163,7 +164,7 @@ func TestResolveTargetBranchSource(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name           string
-		task           *task.Task
+		task           *orcv1.Task
 		initiative     *initiative.Initiative
 		config         *config.Config
 		expectedBranch string
@@ -179,9 +180,9 @@ func TestResolveTargetBranchSource(t *testing.T) {
 		},
 		{
 			name: "task override source",
-			task: &task.Task{
-				ID:           "TASK-001",
-				TargetBranch: "hotfix/v2.1",
+			task: &orcv1.Task{
+				Id:           "TASK-001",
+				TargetBranch: proto.String("hotfix/v2.1"),
 			},
 			initiative:     nil,
 			config:         nil,
@@ -190,7 +191,7 @@ func TestResolveTargetBranchSource(t *testing.T) {
 		},
 		{
 			name: "initiative branch source",
-			task: &task.Task{ID: "TASK-001"},
+			task: &orcv1.Task{Id: "TASK-001"},
 			initiative: &initiative.Initiative{
 				ID:         "INIT-001",
 				BranchBase: "feature/auth",
@@ -201,7 +202,7 @@ func TestResolveTargetBranchSource(t *testing.T) {
 		},
 		{
 			name:       "developer staging source",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Developer: config.DeveloperConfig{
@@ -214,7 +215,7 @@ func TestResolveTargetBranchSource(t *testing.T) {
 		},
 		{
 			name:       "project config source",
-			task:       &task.Task{ID: "TASK-001"},
+			task:       &orcv1.Task{Id: "TASK-001"},
 			initiative: nil,
 			config: &config.Config{
 				Completion: config.CompletionConfig{

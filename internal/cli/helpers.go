@@ -5,6 +5,7 @@ package cli
 import (
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/task"
@@ -83,4 +84,44 @@ func containsPhase(phases []string, phaseID string) bool {
 		}
 	}
 	return false
+}
+
+// buildBlockedContextProto creates progress context for blocked task display (proto version).
+// Used by finalize, resume, and other commands that handle blocked tasks.
+func buildBlockedContextProto(t *orcv1.Task, cfg *config.Config) *progress.BlockedContext {
+	ctx := &progress.BlockedContext{}
+
+	// Get worktree path from task ID and config
+	if cfg != nil && cfg.Worktree.Enabled {
+		// Construct worktree path using config's worktree directory
+		worktreeDir := cfg.Worktree.Dir
+		if worktreeDir == "" {
+			worktreeDir = ".orc/worktrees"
+		}
+		ctx.WorktreePath = worktreeDir + "/orc-" + t.Id
+	}
+
+	// Extract conflict files from task metadata if available
+	if t.Metadata != nil {
+		if errStr, ok := t.Metadata["blocked_error"]; ok {
+			ctx.ConflictFiles = parseConflictFilesFromError(errStr)
+		}
+	}
+
+	// Set sync strategy based on config
+	if cfg != nil {
+		if cfg.Completion.Finalize.Sync.Strategy == config.FinalizeSyncMerge {
+			ctx.SyncStrategy = progress.SyncStrategyMerge
+		} else {
+			ctx.SyncStrategy = progress.SyncStrategyRebase
+		}
+
+		// Set target branch
+		ctx.TargetBranch = cfg.Completion.TargetBranch
+		if ctx.TargetBranch == "" {
+			ctx.TargetBranch = "main"
+		}
+	}
+
+	return ctx
 }

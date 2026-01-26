@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 )
@@ -273,4 +274,187 @@ func dbInitiativeToInitiative(dbInit *db.Initiative) *initiative.Initiative {
 		CreatedAt:    dbInit.CreatedAt,
 		UpdatedAt:    dbInit.UpdatedAt,
 	}
+}
+
+// ============================================================================
+// Proto Initiative Operations (orcv1.Initiative)
+// ============================================================================
+
+// SaveInitiativeProto saves a proto initiative to the database.
+func (d *DatabaseBackend) SaveInitiativeProto(i *orcv1.Initiative) error {
+	return d.SaveInitiativeProtoCtx(context.Background(), i)
+}
+
+// SaveInitiativeProtoCtx saves a proto initiative with context support.
+func (d *DatabaseBackend) SaveInitiativeProtoCtx(ctx context.Context, i *orcv1.Initiative) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbInit := protoInitiativeToDBInitiative(i)
+
+	return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
+		if err := db.SaveInitiativeTx(tx, dbInit); err != nil {
+			return fmt.Errorf("save initiative: %w", err)
+		}
+
+		// Save decisions
+		if err := db.ClearInitiativeDecisionsTx(tx, i.Id); err != nil {
+			return fmt.Errorf("clear initiative decisions: %w", err)
+		}
+		for _, decision := range i.Decisions {
+			dbDecision := protoDecisionToDBDecision(i.Id, decision)
+			if err := db.AddInitiativeDecisionTx(tx, dbDecision); err != nil {
+				return fmt.Errorf("save decision %s: %w", decision.Id, err)
+			}
+		}
+
+		// Save task refs
+		if err := db.ClearInitiativeTasksTx(tx, i.Id); err != nil {
+			return fmt.Errorf("clear initiative tasks: %w", err)
+		}
+		for idx, taskRef := range i.Tasks {
+			if err := db.AddTaskToInitiativeTx(tx, i.Id, taskRef.Id, idx); err != nil {
+				return fmt.Errorf("add task %s to initiative: %w", taskRef.Id, err)
+			}
+		}
+
+		// Save dependencies
+		if err := db.ClearInitiativeDependenciesTx(tx, i.Id); err != nil {
+			return fmt.Errorf("clear initiative dependencies: %w", err)
+		}
+		for _, depID := range i.BlockedBy {
+			if err := db.AddInitiativeDependencyTx(tx, i.Id, depID); err != nil {
+				return fmt.Errorf("add initiative dependency %s: %w", depID, err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// LoadInitiativeProto loads an initiative as proto type from the database.
+func (d *DatabaseBackend) LoadInitiativeProto(id string) (*orcv1.Initiative, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbInit, err := d.db.GetInitiative(id)
+	if err != nil {
+		return nil, fmt.Errorf("get initiative: %w", err)
+	}
+	if dbInit == nil {
+		return nil, fmt.Errorf("initiative %s not found", id)
+	}
+
+	i := dbInitiativeToProtoInitiative(dbInit)
+
+	// Load decisions
+	dbDecisions, err := d.db.GetInitiativeDecisions(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get decisions: %v", err)
+	} else {
+		for _, dbDec := range dbDecisions {
+			i.Decisions = append(i.Decisions, dbDecisionToProtoDecision(&dbDec))
+		}
+	}
+
+	// Load task refs
+	taskIDs, err := d.db.GetInitiativeTasks(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative tasks: %v", err)
+	} else {
+		for _, taskID := range taskIDs {
+			dbTask, err := d.db.GetTask(taskID)
+			if err != nil || dbTask == nil {
+				continue
+			}
+			i.Tasks = append(i.Tasks, dbTaskRefToProtoTaskRef(taskID, dbTask.Title, dbTask.Status))
+		}
+	}
+
+	// Load dependencies
+	deps, err := d.db.GetInitiativeDependencies(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative dependencies: %v", err)
+	} else {
+		i.BlockedBy = deps
+	}
+
+	// Load dependents
+	dependents, err := d.db.GetInitiativeDependents(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get initiative dependents: %v", err)
+	} else {
+		i.Blocks = dependents
+	}
+
+	return i, nil
+}
+
+// LoadAllInitiativesProto loads all initiatives as proto types from the database.
+func (d *DatabaseBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbInits, err := d.db.ListInitiatives(db.ListOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("list initiatives: %w", err)
+	}
+
+	// Batch load all related data
+	allDecisions, err := d.db.GetAllInitiativeDecisions()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load decisions: %v", err)
+		allDecisions = make(map[string][]db.InitiativeDecision)
+	}
+
+	allTaskRefs, err := d.db.GetAllInitiativeTaskRefs()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load task refs: %v", err)
+		allTaskRefs = make(map[string][]db.InitiativeTaskRef)
+	}
+
+	allDeps, err := d.db.GetAllInitiativeDependencies()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependencies: %v", err)
+		allDeps = make(map[string][]string)
+	}
+
+	allDependents, err := d.db.GetAllInitiativeDependents()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependents: %v", err)
+		allDependents = make(map[string][]string)
+	}
+
+	initiatives := make([]*orcv1.Initiative, 0, len(dbInits))
+	for _, dbInit := range dbInits {
+		i := dbInitiativeToProtoInitiative(&dbInit)
+
+		// Apply pre-fetched decisions
+		if dbDecisions, ok := allDecisions[i.Id]; ok {
+			for _, dbDec := range dbDecisions {
+				i.Decisions = append(i.Decisions, dbDecisionToProtoDecision(&dbDec))
+			}
+		}
+
+		// Apply pre-fetched task refs
+		if taskRefs, ok := allTaskRefs[i.Id]; ok {
+			for _, ref := range taskRefs {
+				i.Tasks = append(i.Tasks, dbTaskRefToProtoTaskRef(ref.TaskID, ref.Title, ref.Status))
+			}
+		}
+
+		// Apply pre-fetched dependencies
+		if deps, ok := allDeps[i.Id]; ok {
+			i.BlockedBy = deps
+		}
+
+		// Apply pre-fetched dependents
+		if dependents, ok := allDependents[i.Id]; ok {
+			i.Blocks = dependents
+		}
+
+		initiatives = append(initiatives, i)
+	}
+
+	return initiatives, nil
 }

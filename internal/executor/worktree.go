@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -40,7 +41,7 @@ type WorktreeSetup struct {
 //
 // This is the preferred function for task execution as it supports initiative-level
 // and developer staging branches.
-func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
+func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
 	if gitOps == nil {
 		return nil, fmt.Errorf("git operations not available")
 	}
@@ -53,12 +54,13 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 
 	// Get initiative prefix if task belongs to an initiative
 	var initiativePrefix string
-	if t.InitiativeID != "" && backend != nil {
-		init, err := backend.LoadInitiative(t.InitiativeID)
+	initiativeID := task.GetInitiativeIDProto(t)
+	if initiativeID != "" && backend != nil {
+		init, err := backend.LoadInitiative(initiativeID)
 		if err != nil {
 			slog.Warn("failed to load initiative for branch prefix, using default 'orc/' prefix",
-				"task_id", t.ID,
-				"initiative_id", t.InitiativeID,
+				"task_id", t.Id,
+				"initiative_id", initiativeID,
 				"error", err,
 			)
 		} else if init != nil {
@@ -67,47 +69,35 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	}
 
 	// For non-default branches (initiative/staging), ensure they exist
-	// Default branches (main, master, develop) should already exist
 	if !IsDefaultBranch(targetBranch) {
-		// Determine base branch for creating new branches
 		baseBranch := "main"
 		if cfg != nil && cfg.Completion.TargetBranch != "" {
 			baseBranch = cfg.Completion.TargetBranch
 		}
-
-		// Auto-create the branch if it doesn't exist
 		if err := gitOps.EnsureBranchExists(targetBranch, baseBranch); err != nil {
 			return nil, fmt.Errorf("ensure target branch %s exists: %w", targetBranch, err)
 		}
 	}
 
 	// Calculate expected branch name for this task
-	expectedBranch := gitOps.BranchNameWithInitiativePrefix(t.ID, initiativePrefix)
+	expectedBranch := gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
 
-	// Prune stale worktree entries BEFORE checking if worktree exists.
-	// This handles the case where a worktree directory was deleted (e.g., manually or
-	// by external cleanup) but git still has metadata about it. Without pruning first,
-	// os.Stat returns "not found" but git refuses to create because the branch is
-	// "already used by worktree at <path>".
+	// Prune stale worktree entries
 	if err := gitOps.PruneWorktrees(); err != nil {
 		slog.Debug("failed to prune stale worktrees (non-fatal)",
-			"task_id", t.ID,
+			"task_id", t.Id,
 			"error", err,
 		)
 	}
 
 	// Check if worktree already exists
-	// Use initiative prefix for consistent path resolution
-	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.ID, initiativePrefix)
+	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.Id, initiativePrefix)
 	if info, err := os.Stat(worktreePath); err == nil {
-		// Validate it's a directory, not a file
 		if !info.IsDir() {
 			return nil, fmt.Errorf("worktree path exists but is not a directory: %s", worktreePath)
 		}
-		// Worktree exists - clean up any problematic state before reusing
-		// CRITICAL: Also verifies worktree is on the correct branch
 		if err := cleanWorktreeState(worktreePath, gitOps, expectedBranch); err != nil {
-			return nil, fmt.Errorf("clean worktree state for %s: %w", t.ID, err)
+			return nil, fmt.Errorf("clean worktree state for %s: %w", t.Id, err)
 		}
 		return &WorktreeSetup{
 			Path:         worktreePath,
@@ -117,20 +107,19 @@ func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, bac
 	}
 
 	// Create new worktree with initiative prefix
-	path, err := gitOps.CreateWorktreeWithInitiativePrefix(t.ID, targetBranch, initiativePrefix)
+	path, err := gitOps.CreateWorktreeWithInitiativePrefix(t.Id, targetBranch, initiativePrefix)
 	if err != nil {
-		return nil, fmt.Errorf("create worktree for %s: %w", t.ID, err)
+		return nil, fmt.Errorf("create worktree for %s: %w", t.Id, err)
 	}
 
 	// SAFETY: Validate branch after creation
-	// This catches any issues with worktree creation leaving us on the wrong branch
 	worktreeGit := gitOps.InWorktree(path)
 	currentBranch, err := worktreeGit.GetCurrentBranch()
 	if err != nil {
-		return nil, fmt.Errorf("verify worktree branch for %s: %w", t.ID, err)
+		return nil, fmt.Errorf("verify worktree branch for %s: %w", t.Id, err)
 	}
 	if currentBranch != expectedBranch {
-		return nil, fmt.Errorf("INTERNAL BUG: worktree created on wrong branch: expected %s, got %s - this indicates a bug in CreateWorktreeWithInitiativePrefix",
+		return nil, fmt.Errorf("INTERNAL BUG: worktree created on wrong branch: expected %s, got %s",
 			expectedBranch, currentBranch)
 	}
 

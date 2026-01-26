@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/diff"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/task"
@@ -17,7 +18,7 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
 	// Load task to get branch and PR info
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -34,8 +35,8 @@ func (s *Server) handleGetDiff(w http.ResponseWriter, r *http.Request) {
 	// 3. Default → branch comparison
 
 	// Strategy 1: Merged PR
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		s.handleMergedPRDiff(w, r, diffSvc, t.PR.MergeCommitSHA, filesOnly)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		s.handleMergedPRDiff(w, r, diffSvc, *t.Pr.MergeCommitSha, filesOnly)
 		return
 	}
 
@@ -107,7 +108,7 @@ func (s *Server) handleCommitRangeDiff(w http.ResponseWriter, r *http.Request, d
 }
 
 // handleBranchDiff returns the diff using branch comparison (original logic).
-func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, t *task.Task, filesOnly bool) {
+func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSvc *diff.Service, t *orcv1.Task, filesOnly bool) {
 	base := r.URL.Query().Get("base")
 	if base == "" {
 		base = "main"
@@ -174,16 +175,21 @@ func (s *Server) handleBranchDiff(w http.ResponseWriter, r *http.Request, diffSv
 // Returns empty strings if no commits are found.
 func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit string) {
 	// Try to load task
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil || t == nil {
+		return "", ""
+	}
+
+	// Nil-safe execution access
+	if t.Execution == nil || t.Execution.Phases == nil {
 		return "", ""
 	}
 
 	// Collect all commit SHAs from phase states
 	var commits []string
 	for _, phaseState := range t.Execution.Phases {
-		if phaseState != nil && phaseState.CommitSHA != "" {
-			commits = append(commits, phaseState.CommitSHA)
+		if phaseState != nil && phaseState.CommitSha != nil && *phaseState.CommitSha != "" {
+			commits = append(commits, *phaseState.CommitSha)
 		}
 	}
 
@@ -192,13 +198,13 @@ func (s *Server) getTaskCommitRange(taskID string) (firstCommit, lastCommit stri
 	}
 
 	// Get phase order from task weight
-	phaseOrder := phasesForWeight(t.Weight)
+	phaseOrder := phasesForWeightProto(t.Weight)
 
 	// Build ordered commit list based on phase order
 	var orderedCommits []string
 	for _, phaseID := range phaseOrder {
-		if phaseState, ok := t.Execution.Phases[phaseID]; ok && phaseState != nil && phaseState.CommitSHA != "" {
-			orderedCommits = append(orderedCommits, phaseState.CommitSHA)
+		if phaseState, ok := t.Execution.Phases[phaseID]; ok && phaseState != nil && phaseState.CommitSha != nil && *phaseState.CommitSha != "" {
+			orderedCommits = append(orderedCommits, *phaseState.CommitSha)
 		}
 	}
 
@@ -237,7 +243,7 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	// Remove leading slash if present
 	filePath = strings.TrimPrefix(filePath, "/")
 
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -251,8 +257,8 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 	// 3. Default → branch comparison
 
 	// Strategy 1: Merged PR
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		fileDiff, err := diffSvc.GetMergeCommitFileDiff(r.Context(), t.PR.MergeCommitSHA, filePath)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		fileDiff, err := diffSvc.GetMergeCommitFileDiff(r.Context(), *t.Pr.MergeCommitSha, filePath)
 		if err != nil {
 			s.jsonError(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -308,7 +314,7 @@ func (s *Server) handleGetDiffFile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
@@ -322,8 +328,8 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	// 3. Default → branch comparison
 
 	// Strategy 1: Merged PR
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		stats, err := diffSvc.GetStats(r.Context(), t.PR.MergeCommitSHA+"^", t.PR.MergeCommitSHA)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		stats, err := diffSvc.GetStats(r.Context(), *t.Pr.MergeCommitSha+"^", *t.Pr.MergeCommitSha)
 		if err != nil {
 			s.jsonError(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -374,7 +380,7 @@ func (s *Server) handleGetDiffStats(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, stats)
 }
 
-// phasesForWeight returns the phase IDs for a given task weight.
+// phasesForWeight returns the phase IDs for a given task weight (domain type).
 func phasesForWeight(weight task.Weight) []string {
 	switch weight {
 	case task.WeightTrivial:
@@ -384,6 +390,22 @@ func phasesForWeight(weight task.Weight) []string {
 	case task.WeightMedium:
 		return []string{"spec", "tdd_write", "implement", "review", "docs"}
 	case task.WeightLarge:
+		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
+	default:
+		return []string{"spec", "implement", "review"}
+	}
+}
+
+// phasesForWeightProto returns the phase IDs for a given proto task weight.
+func phasesForWeightProto(weight orcv1.TaskWeight) []string {
+	switch weight {
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+		return []string{"tiny_spec", "implement"}
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+		return []string{"tiny_spec", "implement", "review"}
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+		return []string{"spec", "tdd_write", "implement", "review", "docs"}
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
 	default:
 		return []string{"spec", "implement", "review"}

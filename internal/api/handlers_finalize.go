@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -231,14 +232,14 @@ func (s *Server) handleFinalizeTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task first (before attempting to acquire finalize slot)
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
 	// Check task status - should be completed or in a finalizable state
-	if t.Status != task.StatusCompleted && t.Status != task.StatusPlanned && t.Status != task.StatusFailed {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED && t.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED && t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 		// Allow finalize on completed/planned/failed tasks
 		if !req.Force {
 			s.jsonError(w, fmt.Sprintf("task cannot be finalized in status: %s (use force=true to override)", t.Status), http.StatusBadRequest)
@@ -309,7 +310,7 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 	finState := finTracker.get(taskID)
 	if finState == nil {
 		// No finalize in progress - check task's execution state for completed finalize
-		t, err := s.backend.LoadTask(taskID)
+		t, err := s.backend.LoadTaskProto(taskID)
 		if err != nil {
 			s.jsonResponse(w, map[string]any{
 				"task_id": taskID,
@@ -320,28 +321,30 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Check if finalize phase is complete in task's execution state
-		if phaseState, ok := t.Execution.Phases["finalize"]; ok {
-			var status FinalizeStatus
-			switch phaseState.Status {
-			case task.PhaseStatusCompleted:
-				status = FinalizeStatusCompleted
-			case task.PhaseStatusFailed:
-				status = FinalizeStatusFailed
-			case task.PhaseStatusRunning:
-				status = FinalizeStatusRunning
-			default:
-				status = FinalizeStatusPending
-			}
+		if t.Execution != nil && t.Execution.Phases != nil {
+			if phaseState, ok := t.Execution.Phases["finalize"]; ok {
+				var status FinalizeStatus
+				switch phaseState.Status {
+				case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
+					status = FinalizeStatusCompleted
+				case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
+					status = FinalizeStatusFailed
+				case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
+					status = FinalizeStatusRunning
+				default:
+					status = FinalizeStatusPending
+				}
 
-			s.jsonResponse(w, map[string]any{
-				"task_id":      taskID,
-				"status":       status,
-				"started_at":   phaseState.StartedAt,
-				"completed_at": phaseState.CompletedAt,
-				"commit_sha":   phaseState.CommitSHA,
-				"error":        phaseState.Error,
-			})
-			return
+				s.jsonResponse(w, map[string]any{
+					"task_id":      taskID,
+					"status":       status,
+					"started_at":   phaseState.StartedAt,
+					"completed_at": phaseState.CompletedAt,
+					"commit_sha":   phaseState.GetCommitSha(),
+					"error":        phaseState.GetError(),
+				})
+				return
+			}
 		}
 
 		// No finalize info
@@ -379,7 +382,7 @@ func (s *Server) handleGetFinalizeStatus(w http.ResponseWriter, r *http.Request)
 
 // runFinalizeAsync runs the finalize operation asynchronously.
 // The context should be derived from the server context to support graceful shutdown.
-func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Task, _ FinalizeRequest, finState *FinalizeState) {
+func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *orcv1.Task, _ FinalizeRequest, finState *FinalizeState) {
 	// Clean up cancel function when done (regardless of success/failure)
 	defer finTracker.cancel(taskID)
 
@@ -401,7 +404,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 
 	// Reload task to get current execution state
 	var loadErr error
-	t, loadErr = s.backend.LoadTask(taskID)
+	t, loadErr = s.backend.LoadTaskProto(taskID)
 	if loadErr != nil {
 		s.finalizeFailed(taskID, finState, fmt.Errorf("reload task: %w", loadErr))
 		return
@@ -465,14 +468,14 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 		executor.WithFinalizeTaskDir(task.TaskDirIn(s.workDir, taskID)),
 		executor.WithFinalizeBackend(s.backend),
 		executor.WithFinalizeClaudePath(claudePath),
-		executor.WithFinalizeExecutionUpdater(func(exec *task.ExecutionState) {
+		executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 			// Update progress based on phase state changes
 			finState.mu.Lock()
 			if ps := exec.Phases["finalize"]; ps != nil {
 				switch ps.Status {
-				case task.PhaseStatusRunning:
+				case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
 					finState.StepPercent = 50
-				case task.PhaseStatusCompleted:
+				case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 					finState.StepPercent = 100
 				}
 			}
@@ -495,38 +498,39 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, t *task.Ta
 	s.publishFinalizeEvent(taskID, finState)
 
 	// Update task's execution state to running
-	t.Execution.StartPhase("finalize")
-	if err := s.backend.SaveTask(t); err != nil {
+	task.EnsureExecutionProto(t)
+	task.StartPhaseProto(t.Execution, "finalize")
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.logger.Warn("failed to save task", "error", err)
 	}
 
 	// Execute finalize (context is passed to executor for cancellation support)
-	result, err := finalizeExec.Execute(ctx, t, finalizePhase, &t.Execution)
+	result, err := finalizeExec.Execute(ctx, t, finalizePhase, t.Execution)
 	if err != nil {
-		t.Execution.FailPhase("finalize", err)
-		_ = s.backend.SaveTask(t)
+		task.FailPhaseProto(t.Execution, "finalize", err)
+		_ = s.backend.SaveTaskProto(t)
 		s.finalizeFailed(taskID, finState, err)
 		return
 	}
 
 	// Update task's execution state
 	switch result.Status {
-	case task.PhaseStatusCompleted:
-		t.Execution.CompletePhase("finalize", result.CommitSHA)
-	case task.PhaseStatusFailed:
-		t.Execution.FailPhase("finalize", result.Error)
+	case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
+		task.CompletePhaseProto(t.Execution, "finalize", result.CommitSHA)
+	case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
+		task.FailPhaseProto(t.Execution, "finalize", result.Error)
 	}
-	_ = s.backend.SaveTask(t)
+	_ = s.backend.SaveTaskProto(t)
 
 	// Build result from executor result
 	finResult := &FinalizeResult{
-		Synced:       result.Status == task.PhaseStatusCompleted,
+		Synced:       result.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
 		CommitSHA:    result.CommitSHA,
 		TargetBranch: targetBranch,
 	}
 
 	// Wait for CI and merge if configured (auto/fast profiles only)
-	if result.Status == task.PhaseStatusCompleted && s.orcConfig.ShouldWaitForCI() {
+	if result.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED && s.orcConfig.ShouldWaitForCI() {
 		// Update progress
 		finState.mu.Lock()
 		finState.Step = "Waiting for CI"
@@ -637,29 +641,31 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 	}
 
 	// Load task first (before attempting to acquire finalize slot)
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		return false, fmt.Errorf("load task: %w", err)
 	}
 
 	// Check if task weight supports finalize
-	if !s.orcConfig.ShouldRunFinalize(string(t.Weight)) {
+	if !s.orcConfig.ShouldRunFinalize(task.WeightFromProto(t.Weight)) {
 		s.logger.Debug("finalize not applicable for task weight", "task", taskID, "weight", t.Weight)
 		return false, nil
 	}
 
 	// Check task status - must be completed (has a PR that's approved)
 	// Tasks in other states (running, failed) shouldn't be auto-finalized
-	if t.Status != task.StatusCompleted {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 		s.logger.Debug("task not in completed state", "task", taskID, "status", t.Status)
 		return false, nil
 	}
 
 	// Check if finalize was already completed (check task's execution state)
-	if phaseState, ok := t.Execution.Phases["finalize"]; ok {
-		if phaseState.Status == task.PhaseStatusCompleted {
-			s.logger.Debug("finalize already completed", "task", taskID)
-			return false, nil
+	if t.Execution != nil && t.Execution.Phases != nil {
+		if phaseState, ok := t.Execution.Phases["finalize"]; ok {
+			if phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+				s.logger.Debug("finalize already completed", "task", taskID)
+				return false, nil
+			}
 		}
 	}
 

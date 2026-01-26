@@ -60,7 +60,7 @@ func (s *taskServer) ListTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListTasksRequest],
 ) (*connect.Response[orcv1.ListTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		// Return empty list if no tasks yet
 		return connect.NewResponse(&orcv1.ListTasksResponse{
@@ -70,14 +70,14 @@ func (s *taskServer) ListTasks(
 	}
 
 	if tasks == nil {
-		tasks = []*task.Task{}
+		tasks = []*orcv1.Task{}
 	}
 
 	// Filter by initiative if requested
 	if req.Msg.InitiativeId != nil && *req.Msg.InitiativeId != "" {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if t.InitiativeID == *req.Msg.InitiativeId {
+			if task.GetInitiativeIDProto(t) == *req.Msg.InitiativeId {
 				filtered = append(filtered, t)
 			}
 		}
@@ -86,13 +86,13 @@ func (s *taskServer) ListTasks(
 
 	// Filter by status if requested
 	if len(req.Msg.Statuses) > 0 {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		statusSet := make(map[orcv1.TaskStatus]bool)
 		for _, status := range req.Msg.Statuses {
 			statusSet[status] = true
 		}
 		for _, t := range tasks {
-			if statusSet[taskStatusToProto(t.Status)] {
+			if statusSet[t.Status] {
 				filtered = append(filtered, t)
 			}
 		}
@@ -101,10 +101,9 @@ func (s *taskServer) ListTasks(
 
 	// Filter by queue if requested
 	if req.Msg.Queue != nil {
-		var filtered []*task.Task
-		targetQueue := protoToTaskQueue(*req.Msg.Queue)
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if t.GetQueue() == targetQueue {
+			if task.GetQueueProto(t) == *req.Msg.Queue {
 				filtered = append(filtered, t)
 			}
 		}
@@ -113,10 +112,9 @@ func (s *taskServer) ListTasks(
 
 	// Filter by category if requested
 	if req.Msg.Category != nil {
-		var filtered []*task.Task
-		targetCategory := protoToTaskCategory(*req.Msg.Category)
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if t.Category == targetCategory {
+			if task.GetCategoryProto(t) == *req.Msg.Category {
 				filtered = append(filtered, t)
 			}
 		}
@@ -124,13 +122,13 @@ func (s *taskServer) ListTasks(
 	}
 
 	// Populate computed dependency fields
-	task.PopulateComputedFields(tasks)
+	task.PopulateComputedFieldsProto(tasks)
 
 	// Filter by dependency status if requested
 	if req.Msg.DependencyStatus != nil {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if dependencyStatusToProto(t.DependencyStatus) == *req.Msg.DependencyStatus {
+			if t.DependencyStatus == *req.Msg.DependencyStatus {
 				filtered = append(filtered, t)
 			}
 		}
@@ -163,13 +161,7 @@ func (s *taskServer) ListTasks(
 	if offset < totalCount {
 		tasks = tasks[offset:endIdx]
 	} else {
-		tasks = []*task.Task{}
-	}
-
-	// Convert to proto
-	protoTasks := make([]*orcv1.Task, len(tasks))
-	for i, t := range tasks {
-		protoTasks[i] = TaskToProto(t)
+		tasks = []*orcv1.Task{}
 	}
 
 	// Calculate pagination response
@@ -179,7 +171,7 @@ func (s *taskServer) ListTasks(
 	}
 
 	return connect.NewResponse(&orcv1.ListTasksResponse{
-		Tasks: protoTasks,
+		Tasks: tasks,
 		Page: &orcv1.PageResponse{
 			Page:       page,
 			Limit:      limit,
@@ -199,27 +191,27 @@ func (s *taskServer) GetTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Populate computed fields
-	allTasks, _ := s.backend.LoadAllTasks()
+	allTasks, _ := s.backend.LoadAllTasksProto()
 	if allTasks != nil {
-		t.Blocks = task.ComputeBlocks(t.ID, allTasks)
-		t.ReferencedBy = task.ComputeReferencedBy(t.ID, allTasks)
-		taskMap := make(map[string]*task.Task)
+		t.Blocks = task.ComputeBlocksProto(t.Id, allTasks)
+		t.ReferencedBy = task.ComputeReferencedByProto(t.Id, allTasks)
+		taskMap := make(map[string]*orcv1.Task)
 		for _, at := range allTasks {
-			taskMap[at.ID] = at
+			taskMap[at.Id] = at
 		}
-		t.UnmetBlockers = t.GetUnmetDependencies(taskMap)
+		t.UnmetBlockers = task.GetUnmetDependenciesProto(t, taskMap)
 		t.IsBlocked = len(t.UnmetBlockers) > 0
-		t.DependencyStatus = t.ComputeDependencyStatus()
+		t.DependencyStatus = task.ComputeDependencyStatusProto(t)
 	}
 
 	return connect.NewResponse(&orcv1.GetTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -238,33 +230,33 @@ func (s *taskServer) CreateTask(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("generate task ID: %w", err))
 	}
 
-	// Create the task
-	t := task.New(id, req.Msg.Title)
+	// Create the task using proto type
+	t := task.NewProtoTask(id, req.Msg.Title)
 
-	// Set optional fields from request
+	// Set optional fields from request - direct proto assignments
 	if req.Msg.Description != nil {
-		t.Description = *req.Msg.Description
+		t.Description = req.Msg.Description
 	}
 	if req.Msg.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-		t.Weight = protoToTaskWeight(req.Msg.Weight)
+		t.Weight = req.Msg.Weight
 	}
 	if req.Msg.Queue != nil {
-		t.Queue = protoToTaskQueue(*req.Msg.Queue)
+		t.Queue = *req.Msg.Queue
 	}
 	if req.Msg.Priority != nil {
-		t.Priority = protoToTaskPriority(*req.Msg.Priority)
+		t.Priority = *req.Msg.Priority
 	}
 	if req.Msg.Category != nil {
-		t.Category = protoToTaskCategory(*req.Msg.Category)
+		t.Category = *req.Msg.Category
 	}
 	if req.Msg.InitiativeId != nil {
-		t.InitiativeID = *req.Msg.InitiativeId
+		t.InitiativeId = req.Msg.InitiativeId
 	}
 	if req.Msg.WorkflowId != nil {
-		t.WorkflowID = *req.Msg.WorkflowId
+		t.WorkflowId = req.Msg.WorkflowId
 	}
 	if req.Msg.TargetBranch != nil {
-		t.TargetBranch = *req.Msg.TargetBranch
+		t.TargetBranch = req.Msg.TargetBranch
 	}
 	if len(req.Msg.BlockedBy) > 0 {
 		t.BlockedBy = req.Msg.BlockedBy
@@ -274,17 +266,17 @@ func (s *taskServer) CreateTask(
 	}
 
 	// Save the task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskCreated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskCreated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.CreateTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -298,35 +290,35 @@ func (s *taskServer) UpdateTask(
 	}
 
 	// Load existing task
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
-	// Apply updates
+	// Apply updates - direct proto field assignments
 	if req.Msg.Title != nil {
 		t.Title = *req.Msg.Title
 	}
 	if req.Msg.Description != nil {
-		t.Description = *req.Msg.Description
+		t.Description = req.Msg.Description
 	}
 	if req.Msg.Weight != nil {
-		t.Weight = protoToTaskWeight(*req.Msg.Weight)
+		t.Weight = *req.Msg.Weight
 	}
 	if req.Msg.Queue != nil {
-		t.Queue = protoToTaskQueue(*req.Msg.Queue)
+		t.Queue = *req.Msg.Queue
 	}
 	if req.Msg.Priority != nil {
-		t.Priority = protoToTaskPriority(*req.Msg.Priority)
+		t.Priority = *req.Msg.Priority
 	}
 	if req.Msg.Category != nil {
-		t.Category = protoToTaskCategory(*req.Msg.Category)
+		t.Category = *req.Msg.Category
 	}
 	if req.Msg.InitiativeId != nil {
-		t.InitiativeID = *req.Msg.InitiativeId
+		t.InitiativeId = req.Msg.InitiativeId
 	}
 	if req.Msg.TargetBranch != nil {
-		t.TargetBranch = *req.Msg.TargetBranch
+		t.TargetBranch = req.Msg.TargetBranch
 	}
 	if req.Msg.BlockedBy != nil {
 		t.BlockedBy = req.Msg.BlockedBy
@@ -335,18 +327,21 @@ func (s *taskServer) UpdateTask(
 		t.RelatedTo = req.Msg.RelatedTo
 	}
 
+	// Update timestamp
+	task.UpdateTimestampProto(t)
+
 	// Save the task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.UpdateTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -360,13 +355,13 @@ func (s *taskServer) DeleteTask(
 	}
 
 	// Check task exists
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task is running
-	if t.Status == task.StatusRunning {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("cannot delete running task"))
 	}
 
@@ -392,13 +387,13 @@ func (s *taskServer) GetTaskState(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	return connect.NewResponse(&orcv1.GetTaskStateResponse{
-		State: executionStateToProto(&t.Execution),
+		State: t.Execution,
 	}), nil
 }
 
@@ -411,25 +406,29 @@ func (s *taskServer) GetTaskPlan(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Build TaskPlan from execution state
 	plan := &orcv1.TaskPlan{
-		Version:     1,
-		Weight:      taskWeightToProto(t.Weight),
-		Description: t.Description,
+		Version: 1,
+		Weight:  t.Weight,
+	}
+	if t.Description != nil {
+		plan.Description = *t.Description
 	}
 
 	// Add phases from execution state (map iteration)
-	for phaseName, phase := range t.Execution.Phases {
-		planPhase := &orcv1.PlanPhase{
-			Name:   phaseName,
-			Status: phaseStatusToProto(phase.Status),
+	if t.Execution != nil && t.Execution.Phases != nil {
+		for phaseName, phase := range t.Execution.Phases {
+			planPhase := &orcv1.PlanPhase{
+				Name:   phaseName,
+				Status: phase.Status,
+			}
+			plan.Phases = append(plan.Phases, planPhase)
 		}
-		plan.Phases = append(plan.Phases, planPhase)
 	}
 
 	return connect.NewResponse(&orcv1.GetTaskPlanResponse{
@@ -446,24 +445,24 @@ func (s *taskServer) GetDependencies(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Load all tasks to compute dependencies
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
 
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, at := range allTasks {
-		taskMap[at.ID] = at
+		taskMap[at.Id] = at
 	}
 
 	// Compute dependency info
-	t.Blocks = task.ComputeBlocks(t.ID, allTasks)
+	blocks := task.ComputeBlocksProto(t.Id, allTasks)
 
 	// Build dependency graph
 	graph := &orcv1.DependencyGraph{
@@ -473,9 +472,9 @@ func (s *taskServer) GetDependencies(
 
 	// Add the target task as a node
 	graph.Nodes = append(graph.Nodes, &orcv1.DependencyNode{
-		Id:     t.ID,
+		Id:     t.Id,
 		Title:  t.Title,
-		Status: taskStatusToProto(t.Status),
+		Status: t.Status,
 	})
 
 	// Add blockers as nodes and edges
@@ -483,29 +482,29 @@ func (s *taskServer) GetDependencies(
 		blocker, exists := taskMap[blockerID]
 		if exists {
 			graph.Nodes = append(graph.Nodes, &orcv1.DependencyNode{
-				Id:     blocker.ID,
+				Id:     blocker.Id,
 				Title:  blocker.Title,
-				Status: taskStatusToProto(blocker.Status),
+				Status: blocker.Status,
 			})
 			graph.Edges = append(graph.Edges, &orcv1.DependencyEdge{
 				From: blockerID,
-				To:   t.ID,
+				To:   t.Id,
 				Type: "blocks",
 			})
 		}
 	}
 
 	// Add blocked tasks as nodes and edges
-	for _, blockID := range t.Blocks {
+	for _, blockID := range blocks {
 		blocked, exists := taskMap[blockID]
 		if exists {
 			graph.Nodes = append(graph.Nodes, &orcv1.DependencyNode{
-				Id:     blocked.ID,
+				Id:     blocked.Id,
 				Title:  blocked.Title,
-				Status: taskStatusToProto(blocked.Status),
+				Status: blocked.Status,
 			})
 			graph.Edges = append(graph.Edges, &orcv1.DependencyEdge{
-				From: t.ID,
+				From: t.Id,
 				To:   blockID,
 				Type: "blocks",
 			})
@@ -518,12 +517,12 @@ func (s *taskServer) GetDependencies(
 			rel, exists := taskMap[relID]
 			if exists {
 				graph.Nodes = append(graph.Nodes, &orcv1.DependencyNode{
-					Id:     rel.ID,
+					Id:     rel.Id,
 					Title:  rel.Title,
-					Status: taskStatusToProto(rel.Status),
+					Status: rel.Status,
 				})
 				graph.Edges = append(graph.Edges, &orcv1.DependencyEdge{
-					From: t.ID,
+					From: t.Id,
 					To:   relID,
 					Type: "related",
 				})
@@ -549,46 +548,43 @@ func (s *taskServer) RunTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task is already running
-	if t.Status == task.StatusRunning {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is already running"))
 	}
 
 	// Check if task is blocked by dependencies
-	allTasks, _ := s.backend.LoadAllTasks()
+	allTasks, _ := s.backend.LoadAllTasksProto()
 	if allTasks != nil {
-		taskMap := make(map[string]*task.Task)
+		taskMap := make(map[string]*orcv1.Task)
 		for _, at := range allTasks {
-			taskMap[at.ID] = at
+			taskMap[at.Id] = at
 		}
-		unmet := t.GetUnmetDependencies(taskMap)
+		unmet := task.GetUnmetDependenciesProto(t, taskMap)
 		if len(unmet) > 0 {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task is blocked by: %v", unmet))
 		}
 	}
 
 	// Set task to running
-	t.Status = task.StatusRunning
-	now := time.Now()
-	t.StartedAt = &now
-	t.UpdatedAt = now
+	task.MarkStartedProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.RunTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -601,31 +597,31 @@ func (s *taskServer) PauseTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task is running
-	if t.Status != task.StatusRunning {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is not running"))
 	}
 
 	// Set task to paused
-	t.Status = task.StatusPaused
-	t.UpdatedAt = time.Now()
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.PauseTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -638,31 +634,33 @@ func (s *taskServer) ResumeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task can be resumed
-	if t.Status != task.StatusPaused && t.Status != task.StatusFailed && t.Status != task.StatusBlocked {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_PAUSED &&
+		t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED &&
+		t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task cannot be resumed"))
 	}
 
 	// Set task to running
-	t.Status = task.StatusRunning
-	t.UpdatedAt = time.Now()
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.ResumeTaskResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -675,31 +673,31 @@ func (s *taskServer) SkipBlock(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Clear blocked_by and reset status if blocked
-	if t.Status == task.StatusBlocked || len(t.BlockedBy) > 0 {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED || len(t.BlockedBy) > 0 {
 		t.BlockedBy = nil
-		if t.Status == task.StatusBlocked {
-			t.Status = task.StatusPlanned
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 		}
-		t.UpdatedAt = time.Now()
+		task.UpdateTimestampProto(t)
 
-		if err := s.backend.SaveTask(t); err != nil {
+		if err := s.backend.SaveTaskProto(t); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 		}
 
 		// Publish event
 		if s.publisher != nil {
-			s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+			s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 		}
 	}
 
 	return connect.NewResponse(&orcv1.SkipBlockResponse{
-		Task: TaskToProto(t),
+		Task: t,
 	}), nil
 }
 
@@ -716,13 +714,15 @@ func (s *taskServer) RetryTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task can be retried
-	if t.Status != task.StatusFailed && t.Status != task.StatusCompleted && t.Status != task.StatusPaused {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED &&
+		t.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED &&
+		t.Status != orcv1.TaskStatus_TASK_STATUS_PAUSED {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task cannot be retried"))
 	}
 
@@ -732,40 +732,44 @@ func (s *taskServer) RetryTask(
 		fromPhase = *req.Msg.FromPhase
 	}
 
-	t.Execution.RetryContext = &task.RetryContext{
-		FromPhase: fromPhase,
-		ToPhase:   "",
-		Reason:    "manual retry",
-		Attempt:   t.Quality.TotalRetries + 1,
-		Timestamp: time.Now(),
+	// Ensure execution state is initialized
+	task.EnsureExecutionProto(t)
+
+	// Get current retry count
+	var currentRetries int32
+	if t.Quality != nil {
+		currentRetries = t.Quality.TotalRetries
 	}
 
+	// Set retry context using proto helper
+	instructions := ""
 	if req.Msg.Instructions != nil {
-		t.Execution.RetryContext.FailureOutput = *req.Msg.Instructions
+		instructions = *req.Msg.Instructions
 	}
+	task.SetRetryContextProto(t.Execution, fromPhase, "", "manual retry", instructions, currentRetries+1)
 
 	// Reset status
-	t.Status = task.StatusPlanned
-	t.Execution.Error = ""
-	t.UpdatedAt = time.Now()
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if t.Execution != nil {
+		t.Execution.Error = nil
+	}
+	task.UpdateTimestampProto(t)
 
 	// Increment retry counter
-	if t.Quality == nil {
-		t.Quality = &task.QualityMetrics{}
-	}
+	task.EnsureQualityMetricsProto(t)
 	t.Quality.TotalRetries++
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	return connect.NewResponse(&orcv1.RetryTaskResponse{
-		Task:    TaskToProto(t),
+		Task:    t,
 		Message: fmt.Sprintf("Task will retry from phase: %s", fromPhase),
 	}), nil
 }
@@ -779,16 +783,19 @@ func (s *taskServer) RetryPreview(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Determine phases that would be rerun
 	phasesToRerun := []string{}
-	for phaseName, phaseState := range t.Execution.Phases {
-		if phaseState != nil && (phaseState.Status == task.PhaseStatusFailed || phaseState.Status == task.PhaseStatusInterrupted) {
-			phasesToRerun = append(phasesToRerun, phaseName)
+	if t.Execution != nil && t.Execution.Phases != nil {
+		for phaseName, phaseState := range t.Execution.Phases {
+			if phaseState != nil && (phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_FAILED ||
+				phaseState.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED) {
+				phasesToRerun = append(phasesToRerun, phaseName)
+			}
 		}
 	}
 
@@ -802,8 +809,8 @@ func (s *taskServer) RetryPreview(
 		PhasesToRerun: phasesToRerun,
 	}
 
-	if t.Execution.Error != "" {
-		info.LastError = &t.Execution.Error
+	if t.Execution != nil && t.Execution.Error != nil && *t.Execution.Error != "" {
+		info.LastError = t.Execution.Error
 	}
 
 	return connect.NewResponse(&orcv1.RetryPreviewResponse{
@@ -824,27 +831,28 @@ func (s *taskServer) FinalizeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Check if task can be finalized
-	if t.Status != task.StatusCompleted && t.Status != task.StatusFinalizing && !req.Msg.Force {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED &&
+		t.Status != orcv1.TaskStatus_TASK_STATUS_FINALIZING && !req.Msg.Force {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task status is %s, expected completed", t.Status))
 	}
 
 	// Start finalize (this would normally be async, but for the RPC we return immediately)
-	t.Status = task.StatusFinalizing
-	t.UpdatedAt = time.Now()
+	t.Status = orcv1.TaskStatus_TASK_STATUS_FINALIZING
+	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 	}
 
 	// Return initial finalize state (actual finalization runs async in background)
@@ -855,7 +863,7 @@ func (s *taskServer) FinalizeTask(
 	}
 
 	return connect.NewResponse(&orcv1.FinalizeTaskResponse{
-		Task:  TaskToProto(t),
+		Task:  t,
 		State: state,
 	}), nil
 }
@@ -870,26 +878,26 @@ func (s *taskServer) GetFinalizeState(
 	}
 
 	// Load task to get finalization state
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Build finalize state from task's current state
 	protoState := &orcv1.FinalizeState{
-		Synced:      t.Status == task.StatusCompleted,
+		Synced:      t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 		TestsPassed: true, // Default assumption; real implementation would check test results
-		NeedsReview: t.PR != nil && !t.PR.Merged,
+		NeedsReview: t.Pr != nil && !t.Pr.Merged,
 	}
 
 	// If merged, populate merge details
-	if t.PR != nil && t.PR.Merged {
+	if t.Pr != nil && t.Pr.Merged {
 		protoState.Merged = true
-		if t.PR.MergeCommitSHA != "" {
-			protoState.MergeCommit = &t.PR.MergeCommitSHA
+		if t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+			protoState.MergeCommit = t.Pr.MergeCommitSha
 		}
-		if t.PR.TargetBranch != "" {
-			protoState.TargetBranch = &t.PR.TargetBranch
+		if t.Pr.TargetBranch != nil && *t.Pr.TargetBranch != "" {
+			protoState.TargetBranch = t.Pr.TargetBranch
 		}
 	}
 
@@ -911,7 +919,7 @@ func (s *taskServer) GetDiff(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -922,8 +930,8 @@ func (s *taskServer) GetDiff(
 	var result *diff.DiffResult
 
 	// Strategy 1: Merged PR
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		result, err = diffSvc.GetMergeCommitDiff(ctx, t.PR.MergeCommitSHA)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		result, err = diffSvc.GetMergeCommitDiff(ctx, *t.Pr.MergeCommitSha)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get merge commit diff: %w", err))
 		}
@@ -966,7 +974,7 @@ func (s *taskServer) GetDiffStats(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTaskProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -976,8 +984,9 @@ func (s *taskServer) GetDiffStats(
 	var stats *diff.DiffStats
 
 	// Strategy 1: Merged PR
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		stats, err = diffSvc.GetStats(ctx, t.PR.MergeCommitSHA+"^", t.PR.MergeCommitSHA)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		sha := *t.Pr.MergeCommitSha
+		stats, err = diffSvc.GetStats(ctx, sha+"^", sha)
 	} else {
 		// Strategy 2: Branch comparison
 		base := "main"

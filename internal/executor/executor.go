@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/llmkit/claude"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
@@ -173,7 +174,7 @@ func findClaudeInCommonLocations() string {
 // Result represents the result of a phase execution.
 type Result struct {
 	Phase        string
-	Status       task.PhaseStatus
+	Status       orcv1.PhaseStatus
 	Iterations   int
 	Duration     time.Duration
 	Output       string

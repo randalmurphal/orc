@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
@@ -25,12 +26,9 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
-// taskElapsed calculates elapsed time since task execution started.
-func taskElapsed(t *task.Task) time.Duration {
-	if t.StartedAt == nil {
-		return 0
-	}
-	return time.Since(*t.StartedAt)
+// taskElapsedProto calculates elapsed time since task execution started.
+func taskElapsedProto(t *orcv1.Task) time.Duration {
+	return task.ElapsedProto(t)
 }
 
 // ResumeValidationResult contains the result of validating a task for resume.
@@ -43,18 +41,18 @@ type ResumeValidationResult struct {
 	RequiresStateUpdate bool
 }
 
-// ValidateTaskResumable checks if a task can be resumed and returns validation details.
+// ValidateTaskResumableProto checks if a task can be resumed and returns validation details.
 // Returns an error if the task cannot be resumed.
-func ValidateTaskResumable(t *task.Task, forceResume bool) (*ResumeValidationResult, error) {
+func ValidateTaskResumableProto(t *orcv1.Task, forceResume bool) (*ResumeValidationResult, error) {
 	result := &ResumeValidationResult{}
 
 	switch t.Status {
-	case task.StatusPaused, task.StatusBlocked:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 		// These are always resumable
 		return result, nil
-	case task.StatusRunning:
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 		// Check if it's orphaned - use task's executor info (source of truth)
-		isOrphaned, reason := t.CheckOrphaned()
+		isOrphaned, reason := task.CheckOrphanedProto(t)
 		if isOrphaned {
 			result.IsOrphaned = true
 			result.OrphanReason = reason
@@ -64,8 +62,8 @@ func ValidateTaskResumable(t *task.Task, forceResume bool) (*ResumeValidationRes
 			result.RequiresStateUpdate = true
 			return result, nil
 		}
-		return nil, fmt.Errorf("task is currently running (PID %d). Use --force to resume anyway", t.ExecutorPID)
-	case task.StatusFailed:
+		return nil, fmt.Errorf("task is currently running. Use --force to resume anyway")
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		// Allow resuming failed tasks
 		return result, nil
 	default:
@@ -73,17 +71,18 @@ func ValidateTaskResumable(t *task.Task, forceResume bool) (*ResumeValidationRes
 	}
 }
 
-// ApplyResumeStateUpdates applies necessary state updates for orphaned or force-resumed tasks.
-func ApplyResumeStateUpdates(t *task.Task, result *ResumeValidationResult, backend storage.Backend) error {
+// ApplyResumeStateUpdatesProto applies necessary state updates for orphaned or force-resumed tasks.
+func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult, backend storage.Backend) error {
 	if !result.RequiresStateUpdate {
 		return nil
 	}
 
 	// Mark current phase as interrupted so it will be retried
-	t.Execution.InterruptPhase(t.CurrentPhase)
+	task.EnsureExecutionProto(t)
+	task.InterruptPhaseProto(t.Execution, task.GetCurrentPhaseProto(t))
 
-	t.Status = task.StatusBlocked
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	if err := backend.SaveTaskProto(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
@@ -121,13 +120,13 @@ Use --force to resume a task even if it appears to still be running.`,
 
 			id := args[0]
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Validate task is resumable
-			validationResult, err := ValidateTaskResumable(t, forceResume)
+			validationResult, err := ValidateTaskResumableProto(t, forceResume)
 			if err != nil {
 				return err
 			}
@@ -137,14 +136,14 @@ Use --force to resume a task even if it appears to still be running.`,
 				fmt.Printf("Task %s appears orphaned (%s)\n", id, validationResult.OrphanReason)
 				fmt.Println("Marking as interrupted and resuming...")
 			} else if forceResume && validationResult.RequiresStateUpdate {
-				fmt.Printf("Warning: Task %s may still be running (PID %d)\n", id, t.ExecutorPID)
+				fmt.Printf("Warning: Task %s may still be running\n", id)
 				fmt.Println("Force-resuming as requested...")
-			} else if t.Status == task.StatusFailed {
+			} else if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED {
 				fmt.Printf("Task %s failed previously, resuming from last phase...\n", id)
 			}
 
 			// Apply state updates if needed
-			if err := ApplyResumeStateUpdates(t, validationResult, backend); err != nil {
+			if err := ApplyResumeStateUpdatesProto(t, validationResult, backend); err != nil {
 				return err
 			}
 
@@ -160,7 +159,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Get workflow ID from task - MUST be set
-			workflowID := t.WorkflowID
+			workflowID := task.GetWorkflowIDProto(t)
 			if workflowID == "" {
 				return fmt.Errorf("task %s has no workflow_id set - cannot resume\n\nSet workflow with: orc edit %s --workflow <workflow-id>\nSee available workflows: orc workflows", id, id)
 			}
@@ -247,8 +246,8 @@ Use --force to resume a task even if it appears to still be running.`,
 			opts := executor.WorkflowRunOptions{
 				ContextType: executor.ContextTask,
 				TaskID:      id,
-				Prompt:      t.Description,
-				Category:    t.Category,
+				Prompt:      task.GetDescriptionProto(t),
+				Category:    task.Category(task.CategoryFromProto(t.Category)),
 			}
 
 			// Execute workflow (WorkflowExecutor handles resume internally via state)
@@ -262,9 +261,9 @@ Use --force to resume a task even if it appears to still be running.`,
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
-					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContext(t, cfg)
-					disp.TaskBlockedWithContext(t.Execution.Tokens.TotalTokens, taskElapsed(t), "sync conflict", blockedCtx)
+					t, _ = backend.LoadTaskProto(id)
+					blockedCtx := buildBlockedContextProto(t, cfg)
+					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -273,7 +272,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Reload task for summary (execution state is in task.Execution)
-			t, _ = backend.LoadTask(id)
+			t, _ = backend.LoadTaskProto(id)
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
@@ -282,7 +281,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			_ = result // Result contains run details but we use task.Execution for tokens
-			disp.TaskComplete(t.Execution.Tokens.TotalTokens, taskElapsed(t), fileStats)
+			disp.TaskComplete(task.GetTotalTokensProto(t), taskElapsedProto(t), fileStats)
 			return nil
 		},
 	}

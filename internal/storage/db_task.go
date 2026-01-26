@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -509,4 +510,184 @@ func dbPhaseToPhaseState(dbPhase *db.Phase) *task.PhaseState {
 			OutputTokens: dbPhase.OutputTokens,
 		},
 	}
+}
+
+// ============================================================================
+// Proto Task Operations (orcv1.Task)
+// ============================================================================
+
+// SaveTaskProto saves a proto task to the database.
+func (d *DatabaseBackend) SaveTaskProto(t *orcv1.Task) error {
+	return d.SaveTaskProtoCtx(context.Background(), t)
+}
+
+// SaveTaskProtoCtx saves a proto task with context support.
+func (d *DatabaseBackend) SaveTaskProtoCtx(ctx context.Context, t *orcv1.Task) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	dbTask := protoTaskToDBTask(t)
+
+	// Preserve executor fields from existing task
+	existingTask, err := d.db.GetTask(t.Id)
+	if err == nil && existingTask != nil {
+		dbTask.ExecutorPID = existingTask.ExecutorPID
+		dbTask.ExecutorHostname = existingTask.ExecutorHostname
+		dbTask.ExecutorStartedAt = existingTask.ExecutorStartedAt
+		dbTask.LastHeartbeat = existingTask.LastHeartbeat
+	}
+
+	return d.db.RunInTx(ctx, func(tx *db.TxOps) error {
+		if err := db.SaveTaskTx(tx, dbTask); err != nil {
+			return fmt.Errorf("save task: %w", err)
+		}
+
+		// Save dependencies
+		if err := db.ClearTaskDependenciesTx(tx, t.Id); err != nil {
+			return fmt.Errorf("clear task dependencies: %w", err)
+		}
+		for _, depID := range t.BlockedBy {
+			if err := db.AddTaskDependencyTx(tx, t.Id, depID); err != nil {
+				return fmt.Errorf("add task dependency %s: %w", depID, err)
+			}
+		}
+
+		// Save execution state: phases
+		if err := db.ClearPhasesTx(tx, t.Id); err != nil {
+			return fmt.Errorf("clear phases: %w", err)
+		}
+		if t.Execution != nil {
+			for phaseID, ps := range t.Execution.Phases {
+				dbPhase := protoPhaseToDBPhase(t.Id, phaseID, ps)
+				if err := db.SavePhaseTx(tx, dbPhase); err != nil {
+					return fmt.Errorf("save phase %s: %w", phaseID, err)
+				}
+			}
+
+			// Save execution state: gate decisions
+			for _, gate := range t.Execution.Gates {
+				dbGate := protoGateToDBGate(t.Id, gate)
+				if err := db.AddGateDecisionTx(tx, dbGate); err != nil {
+					return fmt.Errorf("save gate decision: %w", err)
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
+// LoadTaskProto loads a task as proto type from the database.
+func (d *DatabaseBackend) LoadTaskProto(id string) (*orcv1.Task, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return d.loadTaskProtoUnlocked(id)
+}
+
+// loadTaskProtoUnlocked loads a proto task without holding the lock.
+func (d *DatabaseBackend) loadTaskProtoUnlocked(id string) (*orcv1.Task, error) {
+	dbTask, err := d.db.GetTask(id)
+	if err != nil {
+		return nil, fmt.Errorf("get task: %w", err)
+	}
+	if dbTask == nil {
+		return nil, fmt.Errorf("task %s not found", id)
+	}
+
+	t := dbTaskToProtoTask(dbTask)
+
+	// Load dependencies
+	deps, err := d.db.GetTaskDependencies(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get task dependencies: %v", err)
+	} else {
+		t.BlockedBy = deps
+	}
+
+	// Load execution state: phases
+	dbPhases, err := d.db.GetPhases(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get phases: %v", err)
+	} else {
+		if t.Execution == nil {
+			t.Execution = &orcv1.ExecutionState{
+				Phases: make(map[string]*orcv1.PhaseState),
+			}
+		}
+		for _, dbPhase := range dbPhases {
+			t.Execution.Phases[dbPhase.PhaseID] = dbPhaseToProtoPhase(&dbPhase)
+		}
+	}
+
+	// Load execution state: gates
+	dbGates, err := d.db.GetGateDecisions(id)
+	if err != nil {
+		d.logger.Printf("warning: failed to get gate decisions: %v", err)
+	} else {
+		t.Execution.Gates = dbGatesToProtoGates(dbGates)
+	}
+
+	return t, nil
+}
+
+// LoadAllTasksProto loads all tasks as proto types from the database.
+func (d *DatabaseBackend) LoadAllTasksProto() ([]*orcv1.Task, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	dbTasks, _, err := d.db.ListTasks(db.ListOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+
+	// Batch load all related data to avoid N+1 queries
+	allDeps, err := d.db.GetAllTaskDependencies()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load dependencies: %v", err)
+		allDeps = make(map[string][]string)
+	}
+
+	allPhases, err := d.db.GetAllPhasesGrouped()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load phases: %v", err)
+		allPhases = make(map[string][]db.Phase)
+	}
+
+	allGates, err := d.db.GetAllGateDecisionsGrouped()
+	if err != nil {
+		d.logger.Printf("warning: failed to batch load gates: %v", err)
+		allGates = make(map[string][]db.GateDecision)
+	}
+
+	tasks := make([]*orcv1.Task, 0, len(dbTasks))
+	for _, dbTask := range dbTasks {
+		t := dbTaskToProtoTask(&dbTask)
+
+		// Apply pre-fetched dependencies
+		if deps, ok := allDeps[t.Id]; ok {
+			t.BlockedBy = deps
+		}
+
+		// Apply pre-fetched phases
+		if phases, ok := allPhases[t.Id]; ok {
+			if t.Execution == nil {
+				t.Execution = &orcv1.ExecutionState{
+					Phases: make(map[string]*orcv1.PhaseState),
+				}
+			}
+			for _, dbPhase := range phases {
+				t.Execution.Phases[dbPhase.PhaseID] = dbPhaseToProtoPhase(&dbPhase)
+			}
+		}
+
+		// Apply pre-fetched gates
+		if gates, ok := allGates[t.Id]; ok {
+			t.Execution.Gates = dbGatesToProtoGates(gates)
+		}
+
+		tasks = append(tasks, t)
+	}
+
+	return tasks, nil
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
@@ -23,12 +24,9 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// finalizeElapsed calculates elapsed time since task execution started.
-func finalizeElapsed(t *task.Task) time.Duration {
-	if t.StartedAt == nil {
-		return 0
-	}
-	return time.Since(*t.StartedAt)
+// finalizeElapsedProto calculates elapsed time since task execution started.
+func finalizeElapsedProto(t *orcv1.Task) time.Duration {
+	return task.ElapsedProto(t)
 }
 
 // newFinalizeCmd creates the finalize command
@@ -80,13 +78,13 @@ Example:
 			id := args[0]
 
 			// Load task
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Check if task is in a valid state for finalize
-			if err := validateFinalizeState(t); err != nil {
+			if err := validateFinalizeStateProto(t); err != nil {
 				return err
 			}
 
@@ -132,7 +130,7 @@ Example:
 			}
 
 			// Build executor config (use task weight for appropriate settings)
-			execCfg := executor.DefaultConfigForWeight(t.Weight)
+			execCfg := executor.DefaultConfigForWeight(task.Weight(task.WeightFromProto(t.Weight)))
 
 			// Create finalize phase
 			finalizePhase := &executor.PhaseDisplay{
@@ -152,10 +150,10 @@ Example:
 				executor.WithFinalizeTaskDir(task.TaskDirIn(projectRoot, id)),
 				executor.WithFinalizeBackend(backend),
 				executor.WithFinalizeClaudePath(executor.ResolveClaudePath("claude")),
-				executor.WithFinalizeExecutionUpdater(func(exec *task.ExecutionState) {
+				executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 					// Persist execution state updates during finalization
-					t.Execution = *exec
-					if saveErr := backend.SaveTask(t); saveErr != nil {
+					t.Execution = exec
+					if saveErr := backend.SaveTaskProto(t); saveErr != nil {
 						slog.Warn("failed to save task update", "error", saveErr)
 					}
 				}),
@@ -172,13 +170,14 @@ Example:
 			finalizeExec := executor.NewFinalizeExecutor(opts...)
 
 			// Execute finalize phase
-			_, err = finalizeExec.Execute(ctx, t, finalizePhase, &t.Execution)
+			_, err = finalizeExec.Execute(ctx, t, finalizePhase, t.Execution)
 			if err != nil {
 				if ctx.Err() != nil {
 					// Update task and execution state for clean interrupt
-					t.Execution.InterruptPhase("finalize")
-					t.Status = task.StatusBlocked
-					if saveErr := backend.SaveTask(t); saveErr != nil {
+					task.EnsureExecutionProto(t)
+					task.InterruptPhaseProto(t.Execution, "finalize")
+					t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+					if saveErr := backend.SaveTaskProto(t); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
 					}
 					disp.TaskInterrupted()
@@ -188,9 +187,9 @@ Example:
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task to get updated metadata with conflict info
-					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContext(t, cfg)
-					disp.TaskBlockedWithContext(t.Execution.Tokens.TotalTokens, finalizeElapsed(t), "sync conflict", blockedCtx)
+					t, _ = backend.LoadTaskProto(id)
+					blockedCtx := buildBlockedContextProto(t, cfg)
+					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), finalizeElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
 
@@ -199,7 +198,7 @@ Example:
 			}
 
 			// Reload task for final display (execution state is in task.Execution)
-			t, _ = backend.LoadTask(id)
+			t, _ = backend.LoadTaskProto(id)
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats
@@ -207,7 +206,7 @@ Example:
 				fileStats = getFinalizeFileChangeStats(ctx, projectRoot, t.Branch, cfg)
 			}
 
-			disp.TaskComplete(t.Execution.Tokens.TotalTokens, finalizeElapsed(t), fileStats)
+			disp.TaskComplete(task.GetTotalTokensProto(t), finalizeElapsedProto(t), fileStats)
 			return nil
 		},
 	}
@@ -220,17 +219,17 @@ Example:
 	return cmd
 }
 
-// validateFinalizeState checks if the task is in a valid state for finalize.
-func validateFinalizeState(t *task.Task) error {
+// validateFinalizeStateProto checks if the task is in a valid state for finalize.
+func validateFinalizeStateProto(t *orcv1.Task) error {
 	switch t.Status {
-	case task.StatusCompleted:
-		return fmt.Errorf("task %s is already completed", t.ID)
-	case task.StatusRunning:
-		return fmt.Errorf("task %s is currently running - pause it first if you want to run finalize manually", t.ID)
-	case task.StatusCreated, task.StatusPlanned:
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
+		return fmt.Errorf("task %s is already completed", t.Id)
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
+		return fmt.Errorf("task %s is currently running - pause it first if you want to run finalize manually", t.Id)
+	case orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_PLANNED:
 		// Allow finalize on created/planned tasks (e.g., after manual implementation)
 		return nil
-	case task.StatusPaused, task.StatusBlocked, task.StatusFailed:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_FAILED:
 		// These states are allowed for finalize
 		return nil
 	default:

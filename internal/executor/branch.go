@@ -4,6 +4,7 @@ package executor
 import (
 	"log/slog"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -30,13 +31,14 @@ const DefaultTargetBranch = "main"
 //
 // Returns the resolved target branch name. If the resolved branch name is invalid,
 // falls back to the default branch for safety.
-func ResolveTargetBranch(t *task.Task, init *initiative.Initiative, cfg *config.Config) string {
+func ResolveTargetBranch(t *orcv1.Task, init *initiative.Initiative, cfg *config.Config) string {
 	var branch string
 	var source string
 
 	// Level 1: Task explicit override
-	if t != nil && t.TargetBranch != "" {
-		branch = t.TargetBranch
+	targetBranch := task.GetTargetBranchProto(t)
+	if t != nil && targetBranch != "" {
+		branch = targetBranch
 		source = "task override"
 	} else if init != nil && init.BranchBase != "" {
 		// Level 2: Initiative branch base
@@ -76,10 +78,11 @@ func ResolveTargetBranch(t *task.Task, init *initiative.Initiative, cfg *config.
 //   - source: A human-readable description of where the branch came from
 //
 // If the resolved branch name is invalid, falls back to the default branch for safety.
-func ResolveTargetBranchSource(t *task.Task, init *initiative.Initiative, cfg *config.Config) (branch, source string) {
+func ResolveTargetBranchSource(t *orcv1.Task, init *initiative.Initiative, cfg *config.Config) (branch, source string) {
 	// Level 1: Task explicit override
-	if t != nil && t.TargetBranch != "" {
-		branch = t.TargetBranch
+	targetBranch := task.GetTargetBranchProto(t)
+	if t != nil && targetBranch != "" {
+		branch = targetBranch
 		source = "task override"
 	} else if init != nil && init.BranchBase != "" {
 		// Level 2: Initiative branch base
@@ -132,24 +135,25 @@ func IsDefaultBranch(branch string) bool {
 //   - cfg: The orc configuration (may be nil)
 //
 // Returns the resolved target branch name.
-func ResolveTargetBranchForTask(t *task.Task, backend storage.Backend, cfg *config.Config) string {
+func ResolveTargetBranchForTask(t *orcv1.Task, backend storage.Backend, cfg *config.Config) string {
 	branch, _ := ResolveTargetBranchForTaskWithSource(t, backend, cfg)
 	return branch
 }
 
 // ResolveTargetBranchForTaskWithSource is like ResolveTargetBranchForTask but also returns
 // the source of the resolution for debugging/logging purposes.
-func ResolveTargetBranchForTaskWithSource(t *task.Task, backend storage.Backend, cfg *config.Config) (branch, source string) {
+func ResolveTargetBranchForTaskWithSource(t *orcv1.Task, backend storage.Backend, cfg *config.Config) (branch, source string) {
 	var init *initiative.Initiative
 
 	// Load initiative if task belongs to one
-	if t != nil && t.InitiativeID != "" && backend != nil {
+	initiativeID := task.GetInitiativeIDProto(t)
+	if t != nil && initiativeID != "" && backend != nil {
 		var err error
-		init, err = backend.LoadInitiative(t.InitiativeID)
+		init, err = backend.LoadInitiative(initiativeID)
 		if err != nil {
 			slog.Debug("failed to load initiative for branch resolution",
-				"task_id", t.ID,
-				"initiative_id", t.InitiativeID,
+				"task_id", t.Id,
+				"initiative_id", initiativeID,
 				"error", err,
 			)
 			// Continue with nil initiative - will fall through to other resolution levels
@@ -158,3 +162,4 @@ func ResolveTargetBranchForTaskWithSource(t *task.Task, backend storage.Backend,
 
 	return ResolveTargetBranchSource(t, init, cfg)
 }
+

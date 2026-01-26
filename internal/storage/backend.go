@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
@@ -228,13 +229,19 @@ type PhaseOutputInfo struct {
 // Backend defines the storage operations for orc.
 // All implementations must be safe for concurrent access.
 type Backend interface {
-	// Task operations
+	// Task operations (legacy - using task.Task)
 	SaveTask(t *task.Task) error
 	LoadTask(id string) (*task.Task, error)
 	LoadAllTasks() ([]*task.Task, error)
 	DeleteTask(id string) error
 	TaskExists(id string) (bool, error)
 	GetNextTaskID() (string, error)
+
+	// Task operations (proto types - preferred for new code)
+	// These methods use orcv1.Task directly for proto-first development
+	SaveTaskProto(t *orcv1.Task) error
+	LoadTaskProto(id string) (*orcv1.Task, error)
+	LoadAllTasksProto() ([]*orcv1.Task, error)
 
 	// Task heartbeat (for orphan detection during long-running phases)
 	UpdateTaskHeartbeat(taskID string) error
@@ -262,13 +269,18 @@ type Backend interface {
 	SpecExistsForTask(taskID string) (bool, error)
 	SaveSpecForTask(taskID, content, source string) error // For import compatibility
 
-	// Initiative operations
+	// Initiative operations (legacy - using initiative.Initiative)
 	SaveInitiative(i *initiative.Initiative) error
 	LoadInitiative(id string) (*initiative.Initiative, error)
 	LoadAllInitiatives() ([]*initiative.Initiative, error)
 	DeleteInitiative(id string) error
 	InitiativeExists(id string) (bool, error)
 	GetNextInitiativeID() (string, error)
+
+	// Initiative operations (proto types - preferred for new code)
+	SaveInitiativeProto(i *orcv1.Initiative) error
+	LoadInitiativeProto(id string) (*orcv1.Initiative, error)
+	LoadAllInitiativesProto() ([]*orcv1.Initiative, error)
 
 	// Phase template operations
 	SavePhaseTemplate(pt *db.PhaseTemplate) error

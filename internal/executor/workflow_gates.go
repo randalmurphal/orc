@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // GateEvaluationResult contains the result of gate evaluation.
@@ -22,7 +22,7 @@ type GateEvaluationResult struct {
 }
 
 // evaluatePhaseGate evaluates the gate for a completed phase.
-func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *task.Task) (*GateEvaluationResult, error) {
+func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *orcv1.Task) (*GateEvaluationResult, error) {
 	result := &GateEvaluationResult{}
 
 	// Determine effective gate type
@@ -70,11 +70,11 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.
 // Uses the EventTaskUpdated type which the frontend listens for.
-func (we *WorkflowExecutor) publishTaskUpdated(t *task.Task) {
+func (we *WorkflowExecutor) publishTaskUpdated(t *orcv1.Task) {
 	if we.publisher == nil || t == nil {
 		return
 	}
-	we.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.ID, t))
+	we.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
 }
 
 // runResourceAnalysis runs the resource tracker analysis after task completion.
@@ -84,23 +84,23 @@ func (we *WorkflowExecutor) runResourceAnalysis() {
 }
 
 // triggerAutomationEvent sends an event to the automation service if configured.
-func (we *WorkflowExecutor) triggerAutomationEvent(ctx context.Context, eventType string, t *task.Task, phase string) {
+func (we *WorkflowExecutor) triggerAutomationEvent(ctx context.Context, eventType string, t *orcv1.Task, phase string) {
 	if we.automationSvc == nil || t == nil {
 		return
 	}
 
 	event := &automation.Event{
 		Type:     eventType,
-		TaskID:   t.ID,
-		Weight:   string(t.Weight),
-		Category: string(t.Category),
+		TaskID:   t.Id,
+		Weight:   t.Weight.String(),
+		Category: t.Category.String(),
 		Phase:    phase,
 	}
 
 	if err := we.automationSvc.HandleEvent(ctx, event); err != nil {
 		we.logger.Warn("automation event handling failed",
 			"event", eventType,
-			"task", t.ID,
+			"task", t.Id,
 			"error", err)
 	}
 }

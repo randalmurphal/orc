@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -70,7 +71,7 @@ func (we *WorkflowExecutor) createTaskForRun(opts WorkflowRunOptions) (*task.Tas
 // buildResolutionContext creates the variable resolution context.
 func (we *WorkflowExecutor) buildResolutionContext(
 	opts WorkflowRunOptions,
-	t *task.Task,
+	t *orcv1.Task,
 	wf *db.Workflow,
 	run *db.WorkflowRun,
 ) *variable.ResolutionContext {
@@ -87,25 +88,26 @@ func (we *WorkflowExecutor) buildResolutionContext(
 	}
 
 	if t != nil {
-		rctx.TaskID = t.ID
+		rctx.TaskID = t.Id
 		rctx.TaskTitle = t.Title
-		rctx.TaskDescription = t.Description
-		rctx.TaskCategory = string(t.Category)
-		rctx.TaskWeight = string(t.Weight)
+		rctx.TaskDescription = task.GetDescriptionProto(t)
+		rctx.TaskCategory = t.Category.String()
+		rctx.TaskWeight = t.Weight.String()
 		rctx.TaskBranch = t.Branch
-		rctx.RequiresUITesting = t.RequiresUITesting
+		rctx.RequiresUITesting = t.RequiresUiTesting
 
 		// Resolve target branch
 		rctx.TargetBranch = ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
 
 		// Load initiative context if task belongs to an initiative
-		if t.InitiativeID != "" {
-			we.loadInitiativeContext(rctx, t.InitiativeID)
+		initiativeID := task.GetInitiativeIDProto(t)
+		if initiativeID != "" {
+			we.loadInitiativeContext(rctx, initiativeID)
 		}
 
 		// Set up screenshot dir for UI testing tasks
-		if t.RequiresUITesting && we.workingDir != "" {
-			rctx.ScreenshotDir = task.ScreenshotsPath(we.workingDir, t.ID)
+		if t.RequiresUiTesting && we.workingDir != "" {
+			rctx.ScreenshotDir = task.ScreenshotsPath(we.workingDir, t.Id)
 			if err := os.MkdirAll(rctx.ScreenshotDir, 0755); err != nil {
 				we.logger.Warn("failed to create screenshot directory", "error", err)
 			}
@@ -212,112 +214,31 @@ func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.Resolutio
 // enrichContextForPhase adds phase-specific context to the resolution context.
 // Call this before executing each phase to load review findings, artifacts, etc.
 // Note: Uses Task-centric approach where execution state is in task.Task.Execution.
-func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *task.Task) {
+func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *orcv1.Task) {
 	if t == nil {
 		return
 	}
 
 	// Load retry context from task's execution state
-	rctx.RetryContext = LoadRetryContextFromExecution(&t.Execution)
+	rctx.RetryContext = LoadRetryContextFromExecutionProto(t.Execution)
 
 	// Load review context for review phases
 	if phaseID == "review" {
-		we.loadReviewContext(rctx, t.ID, &t.Execution)
+		we.loadReviewContextProto(rctx, t.Id, t.Execution)
 	}
 
 	// Load test results for review phase
 	if phaseID == "review" {
-		rctx.TestResults = we.loadPriorPhaseContent(t.ID, &t.Execution, "test")
+		rctx.TestResults = we.loadPriorPhaseContentProto(t.Id, t.Execution, "test")
 	}
 
 	// Load TDD test plan if it exists
-	rctx.TDDTestPlan = we.loadPriorPhaseContent(t.ID, &t.Execution, "tdd_write_plan")
+	rctx.TDDTestPlan = we.loadPriorPhaseContentProto(t.Id, t.Execution, "tdd_write_plan")
 
 	// Load automation context for automation tasks
 	if t.IsAutomation {
-		we.loadAutomationContext(rctx, t)
+		we.loadAutomationContextProto(rctx, t)
 	}
-}
-
-// loadReviewContext loads review-specific context into the resolution context.
-func (we *WorkflowExecutor) loadReviewContext(rctx *variable.ResolutionContext, taskID string, s *task.ExecutionState) {
-	// Determine review round from state
-	round := 1
-	if s != nil && s.Phases != nil {
-		if ps, ok := s.Phases["review"]; ok && ps.Status == task.PhaseStatusCompleted {
-			round = 2
-		}
-	}
-	rctx.ReviewRound = round
-
-	// Load previous round's findings for round 2+
-	if round > 1 {
-		findings, err := we.backend.LoadReviewFindings(taskID, round-1)
-		if err != nil {
-			we.logger.Debug("failed to load review findings",
-				"task_id", taskID,
-				"round", round-1,
-				"error", err,
-			)
-			return
-		}
-		if findings != nil {
-			rctx.ReviewFindings = formatReviewFindingsForPrompt(findings)
-		}
-	}
-}
-
-// loadAutomationContext loads automation task context.
-func (we *WorkflowExecutor) loadAutomationContext(rctx *variable.ResolutionContext, t *task.Task) {
-	// Load recent completed tasks
-	tasks, err := we.backend.LoadAllTasks()
-	if err == nil {
-		rctx.RecentCompletedTasks = formatRecentCompletedTasksForPrompt(tasks, 20)
-		rctx.RecentChangedFiles = collectRecentChangedFilesForPrompt(tasks, 10)
-	}
-
-	// Load CHANGELOG.md content
-	changelogPath := filepath.Join(we.workingDir, "CHANGELOG.md")
-	if content, err := os.ReadFile(changelogPath); err == nil {
-		rctx.ChangelogContent = string(content)
-	}
-
-	// Load CLAUDE.md content
-	claudeMDPath := filepath.Join(we.workingDir, "CLAUDE.md")
-	if content, err := os.ReadFile(claudeMDPath); err == nil {
-		rctx.ClaudeMDContent = string(content)
-	}
-}
-
-// loadPriorPhaseContent loads content from a completed prior phase.
-func (we *WorkflowExecutor) loadPriorPhaseContent(taskID string, s *task.ExecutionState, phaseID string) string {
-	// Check if phase is completed
-	if s != nil && s.Phases != nil {
-		ps, ok := s.Phases[phaseID]
-		if ok && ps.Status != task.PhaseStatusCompleted {
-			return ""
-		}
-	}
-
-	// Load from database - phase outputs are stored there, not as files
-	outputs, err := we.backend.GetPhaseOutputsForTask(taskID)
-	if err != nil {
-		we.logger.Debug("failed to load phase outputs for task",
-			"task_id", taskID,
-			"phase_id", phaseID,
-			"error", err,
-		)
-		return ""
-	}
-
-	// Find the output for this phase
-	for _, output := range outputs {
-		if output.PhaseTemplateID == phaseID {
-			return strings.TrimSpace(output.Content)
-		}
-	}
-
-	return ""
 }
 
 // formatReviewFindingsForPrompt formats review findings for template injection.
@@ -458,4 +379,85 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 		}
 	}
 	return defs
+}
+
+// loadReviewContextProto loads review-specific context into the resolution context.
+func (we *WorkflowExecutor) loadReviewContextProto(rctx *variable.ResolutionContext, taskID string, e *orcv1.ExecutionState) {
+	// Determine review round from state
+	round := 1
+	if e != nil && e.Phases != nil {
+		if ps, ok := e.Phases["review"]; ok && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+			round = 2
+		}
+	}
+	rctx.ReviewRound = round
+
+	// Load previous round's findings for round 2+
+	if round > 1 {
+		findings, err := we.backend.LoadReviewFindings(taskID, round-1)
+		if err != nil {
+			we.logger.Debug("failed to load review findings",
+				"task_id", taskID,
+				"round", round-1,
+				"error", err,
+			)
+			return
+		}
+		if findings != nil {
+			rctx.ReviewFindings = formatReviewFindingsForPrompt(findings)
+		}
+	}
+}
+
+// loadPriorPhaseContentProto loads content from a completed prior phase using proto types.
+func (we *WorkflowExecutor) loadPriorPhaseContentProto(taskID string, e *orcv1.ExecutionState, phaseID string) string {
+	// Check if phase is completed
+	if e != nil && e.Phases != nil {
+		ps, ok := e.Phases[phaseID]
+		if ok && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+			return ""
+		}
+	}
+
+	// Load from database - phase outputs are stored there, not as files
+	outputs, err := we.backend.GetPhaseOutputsForTask(taskID)
+	if err != nil {
+		we.logger.Debug("failed to load phase outputs for task",
+			"task_id", taskID,
+			"phase_id", phaseID,
+			"error", err,
+		)
+		return ""
+	}
+
+	// Find the output for this phase
+	for _, output := range outputs {
+		if output.PhaseTemplateID == phaseID {
+			return strings.TrimSpace(output.Content)
+		}
+	}
+
+	return ""
+}
+
+// loadAutomationContextProto loads automation task context using proto types.
+func (we *WorkflowExecutor) loadAutomationContextProto(rctx *variable.ResolutionContext, t *orcv1.Task) {
+	// Load recent completed tasks
+	tasks, err := we.backend.LoadAllTasks()
+	if err == nil {
+		rctx.RecentCompletedTasks = formatRecentCompletedTasksForPrompt(tasks, 20)
+		rctx.RecentChangedFiles = collectRecentChangedFilesForPrompt(tasks, 10)
+	}
+
+	// Load CHANGELOG.md content
+	changelogPath := filepath.Join(we.workingDir, "CHANGELOG.md")
+	if content, err := os.ReadFile(changelogPath); err == nil {
+		rctx.ChangelogContent = string(content)
+	}
+
+	// Load CLAUDE.md content
+	claudeMDPath := filepath.Join(we.workingDir, "CLAUDE.md")
+	if content, err := os.ReadFile(claudeMDPath); err == nil {
+		rctx.ClaudeMDContent = string(content)
+	}
 }
