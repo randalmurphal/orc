@@ -182,7 +182,7 @@ For blocked tasks, use one of these commands instead:
 The 'resolve' command is for marking failed tasks as complete without re-running.
 Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 					}
-					return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks (use --force to override)", id, t.Status)
+					return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks (use --force to override)", id, task.StatusFromProto(t.Status))
 				}
 				forceResolving = true
 			}

@@ -15,7 +15,9 @@ Storage backend abstraction layer. SQLite is the sole source of truth for all da
 
 ## Task-Centric Approach
 
-All execution state is embedded in `task.Task.Execution`. The separate `state.State` struct and related methods (`SaveState`, `LoadState`, `LoadAllStates`) have been removed.
+All execution state is embedded in `orcv1.Task.Execution`. The proto type `orcv1.Task` (from `gen/proto/orc/v1/task.pb.go`) is the domain model used throughout the codebase.
+
+**Note:** `db.Task` is an internal DTO used only within the storage layer for database mapping. It is not exposed outside storage - all public APIs use `*orcv1.Task`.
 
 | Operation | Method |
 |-----------|--------|

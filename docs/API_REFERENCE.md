@@ -1620,7 +1620,7 @@ Query parameters:
   "files": [
     {
       "rank": 1,
-      "path": "internal/api/handlers_stats.go",
+      "path": "internal/api/dashboard_server.go",
       "modification_count": 5,
       "last_modified": "2026-01-20T10:00:00Z",
       "tasks": ["TASK-380", "TASK-375", "TASK-372", "TASK-368", "TASK-365"]
@@ -2238,8 +2238,8 @@ Files changed events report real-time file modifications during task execution. 
 ```json
 {
   "files": [
-    {"path": "internal/api/handlers.go", "status": "modified", "additions": 45, "deletions": 12},
-    {"path": "internal/api/handlers_test.go", "status": "added", "additions": 120, "deletions": 0}
+    {"path": "internal/api/task_server.go", "status": "modified", "additions": 45, "deletions": 12},
+    {"path": "internal/api/task_server_test.go", "status": "added", "additions": 120, "deletions": 0}
   ],
   "total_additions": 165,
   "total_deletions": 12,

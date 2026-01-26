@@ -125,7 +125,7 @@ If the user then tries to resume the task, these states would block execution wi
 
 ```go
 // SetupWorktreeForTask automatically cleans up when reusing an existing worktree
-func SetupWorktreeForTask(t *task.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
+func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
     worktreePath := gitOps.WorktreePath(t.ID)
     if _, err := os.Stat(worktreePath); err == nil {
         // Worktree exists - clean up any problematic state

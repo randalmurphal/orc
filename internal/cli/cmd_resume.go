@@ -67,7 +67,7 @@ func ValidateTaskResumableProto(t *orcv1.Task, forceResume bool) (*ResumeValidat
 		// Allow resuming failed tasks
 		return result, nil
 	default:
-		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
+		return nil, fmt.Errorf("task cannot be resumed (status: %s)", task.StatusFromProto(t.Status))
 	}
 }
 

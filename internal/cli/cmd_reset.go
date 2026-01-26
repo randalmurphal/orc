@@ -60,7 +60,7 @@ Examples:
 
 			// Don't reset already-planned tasks (nothing to reset)
 			if t.Status == orcv1.TaskStatus_TASK_STATUS_PLANNED || t.Status == orcv1.TaskStatus_TASK_STATUS_CREATED {
-				fmt.Printf("Task %s is already in %s state, nothing to reset\n", id, t.Status)
+				fmt.Printf("Task %s is already in %s state, nothing to reset\n", id, task.StatusFromProto(t.Status))
 				return nil
 			}
 

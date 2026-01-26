@@ -1,60 +1,91 @@
 # API Package
 
-REST API server with WebSocket support for real-time updates.
+Connect RPC server with WebSocket support for real-time updates.
 
 ## Architecture
 
 ```
 Server
-├── Routes (chi router) → handlers_*.go (20 handler files)
-├── WebSocket Hub → Client connections, subscriptions
-├── PR Poller → Background PR status updates
-├── Finalize Tracker → In-memory state + cancellation
-└── Event Publisher → Real-time task updates
+├── Connect RPC Services (13) → *_server.go
+├── WebSocket Handler         → websocket.go (legacy + EventService)
+├── Interceptors              → interceptors.go
+├── PR Poller                 → Background PR status updates
+├── Finalize Tracker          → Async finalize operations
+└── Event Publisher           → Real-time task updates
 ```
+
+## Connect RPC Services
+
+Services are registered in `server_connect.go:15-79`. Each implements a handler interface from `orcv1connect`.
+
+| Service | File | Key Methods |
+|---------|------|-------------|
+| `TaskService` | `task_server.go` | CRUD, Run/Pause/Resume, Diff, Comments, Attachments |
+| `InitiativeService` | `initiative_server.go` | CRUD, Link tasks, Dependency graph |
+| `WorkflowService` | `workflow_server.go` | List, Get workflows and phases |
+| `TranscriptService` | `transcript_server.go` | Get, Stream transcripts |
+| `EventService` | `event_server.go` | Subscribe (streaming), GetEvents, GetTimeline |
+| `ConfigService` | `config_server.go` | Get/Update orc config |
+| `GitHubService` | `github_server.go` | PR info, Refresh PR status |
+| `DashboardService` | `dashboard_server.go` | Stats, Metrics |
+| `ProjectService` | `project_server.go` | Multi-project management |
+| `BranchService` | `branch_server.go` | Branch operations |
+| `DecisionService` | `decision_server.go` | Gate decisions (approve/reject) |
+| `NotificationService` | `notification_server.go` | Push notifications |
+| `MCPService` | `mcp_server.go` | MCP server config |
 
 ## Key Patterns
 
-### Response Helpers
+### Service Implementation
 
 ```go
-s.jsonResponse(w, data)              // Success
-s.handleOrcError(w, err)             // Error with status
-s.jsonError(w, "msg", http.StatusBadRequest)
-```
+type taskServer struct {
+    orcv1connect.UnimplementedTaskServiceHandler
+    backend   storage.Backend
+    config    *config.Config
+    logger    *slog.Logger
+    publisher events.Publisher
+}
 
-### Handler Methods
-
-```go
-func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-    // All handlers are Server methods
+func (s *taskServer) GetTask(
+    ctx context.Context,
+    req *connect.Request[orcv1.GetTaskRequest],
+) (*connect.Response[orcv1.GetTaskResponse], error) {
+    // Implementation
 }
 ```
 
-### Auto-Commit
+### Error Handling
 
-API handlers auto-commit .orc/ mutations:
+Interceptors map internal errors to Connect codes (`interceptors.go:56-117`):
 
-| Helper | Used By |
-|--------|---------|
-| `autoCommitTask(t, action)` | Task CRUD |
-| `autoCommitConfig(desc)` | Config handlers |
-| `autoCommitPrompt(phase, action)` | Prompt handlers |
-| `autoCommitInitiative(init, action)` | Initiative handlers |
+| Internal Error | Connect Code |
+|---------------|--------------|
+| Task not found | `NotFound` |
+| Validation error | `InvalidArgument` |
+| Task already running | `FailedPrecondition` |
+| Claude timeout | `DeadlineExceeded` |
+| Default | `Internal` |
 
-Respects `tasks.disable_auto_commit` config.
+### Server Streaming (Events)
 
-### Scope Parameter
+`EventService.Subscribe` provides real-time events via server streaming (`event_server.go:60-136`):
 
-Claude Code endpoints support `?scope=global` for `~/.claude/`:
-
+```go
+func (s *eventServer) Subscribe(
+    ctx context.Context,
+    req *connect.Request[orcv1.SubscribeRequest],
+    stream *connect.ServerStream[orcv1.SubscribeResponse],
+) error {
+    // Subscribe to publisher, forward events to stream
+}
 ```
-/api/skills?scope=global
-/api/hooks?scope=global
-/api/agents?scope=global
-```
 
-## WebSocket Protocol
+Clients can filter by task ID, initiative ID, or event types. Heartbeat support included.
+
+## WebSocket Protocol (Legacy)
+
+WebSocket handler at `/api/ws` (`websocket.go`) remains for backward compatibility.
 
 ### Client Messages
 
@@ -62,6 +93,7 @@ Claude Code endpoints support `?scope=global` for `~/.claude/`:
 {"type": "subscribe", "task_id": "TASK-001"}
 {"type": "subscribe", "task_id": "*"}
 {"type": "unsubscribe"}
+{"type": "command", "task_id": "TASK-001", "action": "pause"}
 {"type": "ping"}
 ```
 
@@ -69,46 +101,51 @@ Claude Code endpoints support `?scope=global` for `~/.claude/`:
 
 ```json
 {"type": "subscribed", "task_id": "TASK-001"}
-{"type": "event", "event_type": "task_updated", "data": {...}}
-{"type": "event", "event_type": "transcript", "data": {...}}
+{"type": "event", "event": "task_updated", "task_id": "...", "data": {...}}
 {"type": "pong"}
 ```
 
-### Events
-
-| Event | Data |
-|-------|------|
-| `task_created` | `{task: Task}` |
-| `task_updated` | `{task: Task}` |
-| `task_deleted` | `{task_id: string}` |
-| `state` | `{raw: string}` |
-| `finalize` | `{task_id, status, step}` |
-| `decision_required` | `{decision_id, task_id, phase, gate_type, question}` |
-| `decision_resolved` | `{decision_id, task_id, approved, reason}` |
-| `files_changed` | `{files: [], total_additions, total_deletions}` |
-| `session_update` | `{duration_seconds, total_tokens, tasks_running, ...}` |
-
 ## PR Status Polling
 
-Background poller (60s interval, 30s rate limit per task):
-1. Find tasks with open PRs
-2. Get PR reviews and CI status
-3. Update task with derived status
-4. Trigger finalize on approval (auto profile)
+Background poller (`pr_poller.go`) monitors PR status changes:
 
-**Status derivation:** MERGED > CLOSED > Draft > changes_requested > approved > pending_review
+- **Interval**: 60s default
+- **Rate limit**: 30s per task minimum
+- **Status derivation**: MERGED > CLOSED > Draft > changes_requested > approved > pending_review
+- **Auto-trigger**: Optionally triggers finalize on PR approval
 
-## Startup Tasks
+## Finalize Tracker
 
-Server performs housekeeping on startup:
-1. `pruneStaleWorktrees()` - Remove stale git worktree entries (directories deleted without `git worktree remove`)
+In-memory tracker for async finalize operations (`finalize_tracker.go`):
 
-## Graceful Shutdown
+- **States**: pending, running, completed, failed
+- **Progress**: Step, progress message, percentage
+- **Cleanup**: Auto-cleans completed entries after 5 minutes
+- **Events**: Publishes progress via event publisher
 
-Server manages background goroutines via `serverCtx`:
-1. `serverCtxCancel()` - Signal stop
-2. `finTracker.cancelAll()` - Cancel finalize ops
-3. `prPoller.Stop()` - Stop polling (idempotent via sync.Once)
+## Startup and Shutdown
+
+**Startup** (`server.go:274-355`):
+1. Seed built-in workflows and agents
+2. Create event publisher
+3. Register Connect handlers
+4. Start PR poller
+5. Prune stale worktrees
+
+**Shutdown**:
+1. Cancel server context
+2. Cancel all finalize operations
+3. Stop PR poller
+4. Graceful HTTP shutdown (5s timeout)
+
+## Interceptors
+
+| Interceptor | Purpose |
+|-------------|---------|
+| `ErrorInterceptor` | Maps internal errors to Connect codes |
+| `LoggingInterceptor` | Logs RPC method, duration, errors |
+| `StreamLoggingInterceptor` | Logs streaming RPCs |
+| `RecoverInterceptor` | Catches panics, returns internal error |
 
 ## Testing
 
@@ -118,7 +155,3 @@ go test ./internal/api/... -v
 ```
 
 Or use `make test` which handles prerequisites.
-
-## Reference
-
-See [docs/API_REFERENCE.md](/docs/API_REFERENCE.md) for full endpoint documentation.

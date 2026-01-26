@@ -17,7 +17,7 @@ By default, all task PRs target `main`. This feature adds configurable branch ta
 The `ResolveTargetBranch()` function resolves the target branch:
 
 ```go
-func ResolveTargetBranch(t *task.Task, init *initiative.Initiative, cfg *config.Config) string {
+func ResolveTargetBranch(t *orcv1.Task, init *initiative.Initiative, cfg *config.Config) string {
     // 1. Task explicit override (highest priority)
     if t != nil && t.TargetBranch != "" {
         return t.TargetBranch
@@ -194,16 +194,18 @@ orc branches cleanup           # Delete merged/orphaned
 orc branches prune             # Remove stale tracking entries
 ```
 
-### API Endpoints
+### Connect RPC Methods
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/branches` | List branches (filter: type, status) |
-| GET | `/api/branches/{name}` | Get branch details |
-| PATCH | `/api/branches/{name}/status` | Update branch status |
-| DELETE | `/api/branches/{name}` | Remove from registry |
+Branch operations use Connect RPC (gRPC-compatible):
 
-**Location:** `internal/api/handlers_branches.go`
+| Method | Service | Description |
+|--------|---------|-------------|
+| `ListBranches` | `BranchService` | List branches with filters |
+| `GetBranch` | `BranchService` | Get branch details |
+| `UpdateBranchStatus` | `BranchService` | Update branch status |
+| `DeleteBranch` | `BranchService` | Remove from registry |
+
+**Location:** `internal/api/branch_server.go`
 
 ## Web UI
 

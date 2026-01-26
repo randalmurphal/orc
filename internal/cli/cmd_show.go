@@ -17,6 +17,7 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newShowCmd creates the show command
@@ -132,8 +133,8 @@ Examples:
 			// Print task details
 			fmt.Printf("\n%s - %s\n", t.Id, t.Title)
 			fmt.Printf("────────────────────────────────────────────\n")
-			fmt.Printf("Status:    %s\n", t.Status)
-			fmt.Printf("Weight:    %s\n", t.Weight)
+			fmt.Printf("Status:    %s\n", task.StatusFromProto(t.Status))
+			fmt.Printf("Weight:    %s\n", task.WeightFromProto(t.Weight))
 			fmt.Printf("Branch:    %s\n", t.Branch)
 			if t.CreatedAt != nil {
 				fmt.Printf("Created:   %s\n", t.CreatedAt.AsTime().Format(time.RFC3339))

@@ -223,12 +223,12 @@ created ──► classifying ──► planned ──► running ◄─┐
 
 ## Execution State
 
-Execution state is embedded in `task.Task.Execution`, not stored separately. The `ExecutionState` struct tracks:
+Execution state is embedded in `orcv1.Task.Execution`, not stored separately. The `orcv1.ExecutionState` message tracks:
 
 | Field | Purpose |
 |-------|---------|
 | `CurrentIteration` | Iteration count within current phase |
-| `Phases` | Map of phase ID to `PhaseState` |
+| `Phases` | Map of phase ID to `orcv1.PhaseState` |
 | `Gates` | Gate evaluation results |
 | `Tokens` | Aggregate token usage |
 | `Cost` | Cost tracking |
