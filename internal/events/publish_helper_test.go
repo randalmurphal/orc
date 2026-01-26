@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -102,7 +103,7 @@ func TestPublishHelper_PhaseStart_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "implement" {
 		t.Errorf("expected phase implement, got %s", update.Phase)
 	}
-	if update.Status != string(task.PhaseStatusRunning) {
+	if update.Status != "running" {
 		t.Errorf("expected status running, got %s", update.Status)
 	}
 }
@@ -127,7 +128,7 @@ func TestPublishHelper_PhaseComplete_PublishesCorrectEvent(t *testing.T) {
 	if update.Phase != "test" {
 		t.Errorf("expected phase test, got %s", update.Phase)
 	}
-	if update.Status != string(task.PhaseStatusCompleted) {
+	if update.Status != "completed" {
 		t.Errorf("expected status completed, got %s", update.Status)
 	}
 	if update.CommitSHA != "abc123" {
@@ -173,7 +174,7 @@ func TestPublishHelper_PhaseFailed_IncludesErrorMessage(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected PhaseUpdate data, got %T", ev.Data)
 			}
-			if update.Status != string(task.PhaseStatusFailed) {
+			if update.Status != "failed" {
 				t.Errorf("expected status failed, got %s", update.Status)
 			}
 			if update.Error != tt.wantMsg {
@@ -376,11 +377,8 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 	mock := newMockPublisher()
 	ep := NewPublishHelper(mock)
 
-	exec := &task.ExecutionState{
-		Phases:           make(map[string]*task.PhaseState),
-		CurrentIteration: 0,
-	}
-	exec.StartPhase("implement")
+	exec := task.InitProtoExecutionState()
+	task.StartPhaseProto(exec, "implement")
 
 	ep.State("TASK-001", exec)
 
@@ -393,15 +391,15 @@ func TestPublishHelper_State_PublishesState(t *testing.T) {
 		t.Errorf("expected EventState, got %v", ev.Type)
 	}
 
-	publishedExec, ok := ev.Data.(*task.ExecutionState)
+	publishedExec, ok := ev.Data.(*orcv1.ExecutionState)
 	if !ok {
-		t.Fatalf("expected *task.ExecutionState data, got %T", ev.Data)
+		t.Fatalf("expected *orcv1.ExecutionState data, got %T", ev.Data)
 	}
 	if publishedExec.Phases == nil {
 		t.Errorf("expected Phases to be non-nil")
 	}
 	// Check that implement phase exists and is running
-	if ps, ok := publishedExec.Phases["implement"]; !ok || ps.Status != task.PhaseStatusRunning {
+	if ps, ok := publishedExec.Phases["implement"]; !ok || ps.Status != orcv1.PhaseStatus_PHASE_STATUS_RUNNING {
 		t.Errorf("expected implement phase with status running")
 	}
 }

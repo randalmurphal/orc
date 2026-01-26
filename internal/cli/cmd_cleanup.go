@@ -9,18 +9,18 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // orphanedWorktree holds information about an orphaned worktree.
 type orphanedWorktree struct {
 	TaskID string
 	Path   string
-	Status task.Status // Empty if task doesn't exist
-	Reason string      // Why it's considered orphaned
+	Status orcv1.TaskStatus // UNSPECIFIED if task doesn't exist
+	Reason string           // Why it's considered orphaned
 }
 
 // newCleanupCmd creates the cleanup command
@@ -103,8 +103,8 @@ Examples:
 			cleanedCount := 0
 			failedCount := 0
 			for _, o := range orphans {
-				statusStr := string(o.Status)
-				if statusStr == "" {
+				statusStr := o.Status.String()
+				if statusStr == "" || statusStr == "TASK_STATUS_UNSPECIFIED" {
 					statusStr = "unknown"
 				}
 
@@ -165,7 +165,7 @@ Examples:
 
 // findOrphanedWorktrees finds worktrees that should be cleaned up.
 func findOrphanedWorktrees(gitOps *git.Git, backend interface {
-	LoadTask(id string) (*task.Task, error)
+	LoadTaskProto(id string) (*orcv1.Task, error)
 }, includeFailed bool) ([]orphanedWorktree, error) {
 	var orphans []orphanedWorktree
 
@@ -217,7 +217,7 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 		}
 
 		// Load task to check status
-		t, err := backend.LoadTask(taskID)
+		t, err := backend.LoadTaskProto(taskID)
 		if err != nil {
 			orphans = append(orphans, orphanedWorktree{
 				TaskID: taskID,
@@ -229,21 +229,21 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 
 		// Check if task is in a terminal state
 		switch t.Status {
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			orphans = append(orphans, orphanedWorktree{
 				TaskID: taskID,
 				Path:   wt.path,
 				Status: t.Status,
 				Reason: "task completed",
 			})
-		case task.StatusResolved:
+		case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
 			orphans = append(orphans, orphanedWorktree{
 				TaskID: taskID,
 				Path:   wt.path,
 				Status: t.Status,
 				Reason: "task resolved",
 			})
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			if includeFailed {
 				orphans = append(orphans, orphanedWorktree{
 					TaskID: taskID,

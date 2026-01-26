@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
@@ -1223,18 +1224,24 @@ func TestReviewFindings_SaveAndLoad(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	// Create review findings with AgentID
-	findings := &ReviewFindings{
-		TaskID:  "TASK-001",
+	// Create review findings with AgentID (using proto types)
+	agentID := "code-reviewer"
+	agentID2 := "silent-failure-hunter"
+	fileMain := "main.go"
+	fileUtils := "utils.go"
+	line42 := int32(42)
+	line100 := int32(100)
+	findings := &orcv1.ReviewRoundFindings{
+		TaskId:  "TASK-001",
 		Round:   1,
 		Summary: "Found 2 issues in the implementation",
-		Issues: []ReviewFinding{
-			{Severity: "high", File: "main.go", Line: 42, Description: "SQL injection vulnerability", AgentID: "code-reviewer"},
-			{Severity: "medium", File: "utils.go", Line: 100, Description: "Error not handled", AgentID: "silent-failure-hunter"},
+		Issues: []*orcv1.ReviewFinding{
+			{Severity: "high", File: &fileMain, Line: &line42, Description: "SQL injection vulnerability", AgentId: &agentID},
+			{Severity: "medium", File: &fileUtils, Line: &line100, Description: "Error not handled", AgentId: &agentID2},
 		},
 		Questions: []string{"Why is this implemented synchronously?"},
 		Positives: []string{"Good test coverage"},
-		AgentID:   "code-reviewer",
+		AgentId:   &agentID,
 	}
 
 	// Save
@@ -1252,8 +1259,8 @@ func TestReviewFindings_SaveAndLoad(t *testing.T) {
 	}
 
 	// Verify fields
-	if loaded.TaskID != "TASK-001" {
-		t.Errorf("TaskID = %q, want %q", loaded.TaskID, "TASK-001")
+	if loaded.TaskId != "TASK-001" {
+		t.Errorf("TaskId = %q, want %q", loaded.TaskId, "TASK-001")
 	}
 	if loaded.Round != 1 {
 		t.Errorf("Round = %d, want 1", loaded.Round)
@@ -1267,11 +1274,11 @@ func TestReviewFindings_SaveAndLoad(t *testing.T) {
 	if loaded.Issues[0].Severity != "high" {
 		t.Errorf("Issues[0].Severity = %q, want %q", loaded.Issues[0].Severity, "high")
 	}
-	if loaded.Issues[0].AgentID != "code-reviewer" {
-		t.Errorf("Issues[0].AgentID = %q, want %q", loaded.Issues[0].AgentID, "code-reviewer")
+	if loaded.Issues[0].AgentId == nil || *loaded.Issues[0].AgentId != "code-reviewer" {
+		t.Errorf("Issues[0].AgentId = %v, want %q", loaded.Issues[0].AgentId, "code-reviewer")
 	}
-	if loaded.AgentID != "code-reviewer" {
-		t.Errorf("AgentID = %q, want %q", loaded.AgentID, "code-reviewer")
+	if loaded.AgentId == nil || *loaded.AgentId != "code-reviewer" {
+		t.Errorf("AgentId = %v, want %q", loaded.AgentId, "code-reviewer")
 	}
 	if len(loaded.Questions) != 1 {
 		t.Errorf("Questions count = %d, want 1", len(loaded.Questions))
@@ -1299,20 +1306,22 @@ func TestReviewFindings_LoadAll(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	// Save findings for multiple rounds
-	round1 := &ReviewFindings{
-		TaskID:  "TASK-002",
+	// Save findings for multiple rounds (using proto types)
+	agentID1 := "code-reviewer"
+	agentID2 := "silent-failure-hunter"
+	round1 := &orcv1.ReviewRoundFindings{
+		TaskId:  "TASK-002",
 		Round:   1,
 		Summary: "Round 1 findings",
-		Issues:  []ReviewFinding{{Severity: "high", Description: "Issue 1"}},
-		AgentID: "code-reviewer",
+		Issues:  []*orcv1.ReviewFinding{{Severity: "high", Description: "Issue 1"}},
+		AgentId: &agentID1,
 	}
-	round2 := &ReviewFindings{
-		TaskID:  "TASK-002",
+	round2 := &orcv1.ReviewRoundFindings{
+		TaskId:  "TASK-002",
 		Round:   2,
 		Summary: "Round 2 findings",
-		Issues:  []ReviewFinding{{Severity: "low", Description: "Issue 2"}},
-		AgentID: "silent-failure-hunter",
+		Issues:  []*orcv1.ReviewFinding{{Severity: "low", Description: "Issue 2"}},
+		AgentId: &agentID2,
 	}
 
 	if err := backend.SaveReviewFindings(round1); err != nil {
@@ -1339,12 +1348,12 @@ func TestReviewFindings_LoadAll(t *testing.T) {
 		t.Errorf("Second result Round = %d, want 2", all[1].Round)
 	}
 
-	// Verify AgentID preserved
-	if all[0].AgentID != "code-reviewer" {
-		t.Errorf("First result AgentID = %q, want %q", all[0].AgentID, "code-reviewer")
+	// Verify AgentId preserved
+	if all[0].AgentId == nil || *all[0].AgentId != "code-reviewer" {
+		t.Errorf("First result AgentId = %v, want %q", all[0].AgentId, "code-reviewer")
 	}
-	if all[1].AgentID != "silent-failure-hunter" {
-		t.Errorf("Second result AgentID = %q, want %q", all[1].AgentID, "silent-failure-hunter")
+	if all[1].AgentId == nil || *all[1].AgentId != "silent-failure-hunter" {
+		t.Errorf("Second result AgentId = %v, want %q", all[1].AgentId, "silent-failure-hunter")
 	}
 }
 

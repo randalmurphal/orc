@@ -223,7 +223,7 @@ func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 			})
 
 			// Mark phase as completed in plan
-			pln.GetPhase(currentPhase.ID).Status = task.PhaseStatusCompleted
+			pln.GetPhase(currentPhase.ID).Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
 
 			// Check if more phases - loop continues with next iteration
 			nextPhase := pln.CurrentPhase()

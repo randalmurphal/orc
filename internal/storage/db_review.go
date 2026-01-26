@@ -3,7 +3,9 @@ package storage
 import (
 	"fmt"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // ============================================================================
@@ -32,37 +34,18 @@ func (d *DatabaseBackend) SaveGateDecision(gd *db.GateDecision) error {
 }
 
 // ============================================================================
-// Review findings
+// Review findings - uses proto types directly
 // ============================================================================
 
-func (d *DatabaseBackend) SaveReviewFindings(f *ReviewFindings) error {
+func (d *DatabaseBackend) SaveReviewFindings(f *orcv1.ReviewRoundFindings) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	dbFindings := &db.ReviewFindings{
-		TaskID:    f.TaskID,
-		Round:     f.Round,
-		Summary:   f.Summary,
-		Issues:    make([]db.ReviewFinding, len(f.Issues)),
-		Questions: f.Questions,
-		Positives: f.Positives,
-		AgentID:   f.AgentID,
-		CreatedAt: f.CreatedAt,
-	}
-	for i, issue := range f.Issues {
-		dbFindings.Issues[i] = db.ReviewFinding{
-			Severity:    issue.Severity,
-			File:        issue.File,
-			Line:        issue.Line,
-			Description: issue.Description,
-			Suggestion:  issue.Suggestion,
-			AgentID:     issue.AgentID,
-		}
-	}
+	dbFindings := protoToDBReviewFindings(f)
 	return d.db.SaveReviewFindings(dbFindings)
 }
 
-func (d *DatabaseBackend) LoadReviewFindings(taskID string, round int) (*ReviewFindings, error) {
+func (d *DatabaseBackend) LoadReviewFindings(taskID string, round int) (*orcv1.ReviewRoundFindings, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -73,10 +56,10 @@ func (d *DatabaseBackend) LoadReviewFindings(taskID string, round int) (*ReviewF
 	if dbFindings == nil {
 		return nil, nil
 	}
-	return convertDBReviewFindings(dbFindings), nil
+	return dbToProtoReviewFindings(dbFindings), nil
 }
 
-func (d *DatabaseBackend) LoadAllReviewFindings(taskID string) ([]*ReviewFindings, error) {
+func (d *DatabaseBackend) LoadAllReviewFindings(taskID string) ([]*orcv1.ReviewRoundFindings, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -84,36 +67,109 @@ func (d *DatabaseBackend) LoadAllReviewFindings(taskID string) ([]*ReviewFinding
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*ReviewFindings, len(dbList))
+	result := make([]*orcv1.ReviewRoundFindings, len(dbList))
 	for i, dbFindings := range dbList {
-		result[i] = convertDBReviewFindings(dbFindings)
+		result[i] = dbToProtoReviewFindings(dbFindings)
 	}
 	return result, nil
 }
 
-func convertDBReviewFindings(dbFindings *db.ReviewFindings) *ReviewFindings {
-	f := &ReviewFindings{
-		TaskID:    dbFindings.TaskID,
-		Round:     dbFindings.Round,
+// protoToDBReviewFindings converts proto type to db type for persistence.
+func protoToDBReviewFindings(f *orcv1.ReviewRoundFindings) *db.ReviewFindings {
+	dbFindings := &db.ReviewFindings{
+		TaskID:    f.TaskId,
+		Round:     int(f.Round),
+		Summary:   f.Summary,
+		Issues:    make([]db.ReviewFinding, len(f.Issues)),
+		Questions: f.Questions,
+		Positives: f.Positives,
+	}
+
+	if f.AgentId != nil {
+		dbFindings.AgentID = *f.AgentId
+	}
+	if f.CreatedAt != nil {
+		dbFindings.CreatedAt = f.CreatedAt.AsTime()
+	}
+
+	for i, issue := range f.Issues {
+		dbIssue := db.ReviewFinding{
+			Severity:    issue.Severity,
+			Description: issue.Description,
+		}
+		if issue.File != nil {
+			dbIssue.File = *issue.File
+		}
+		if issue.Line != nil {
+			dbIssue.Line = int(*issue.Line)
+		}
+		if issue.Suggestion != nil {
+			dbIssue.Suggestion = *issue.Suggestion
+		}
+		if issue.AgentId != nil {
+			dbIssue.AgentID = *issue.AgentId
+		}
+		if issue.ConstitutionViolation != nil {
+			dbIssue.ConstitutionViolation = *issue.ConstitutionViolation
+		}
+		dbFindings.Issues[i] = dbIssue
+	}
+
+	if dbFindings.Issues == nil {
+		dbFindings.Issues = []db.ReviewFinding{}
+	}
+	if dbFindings.Questions == nil {
+		dbFindings.Questions = []string{}
+	}
+	if dbFindings.Positives == nil {
+		dbFindings.Positives = []string{}
+	}
+
+	return dbFindings
+}
+
+// dbToProtoReviewFindings converts db type to proto type for API responses.
+func dbToProtoReviewFindings(dbFindings *db.ReviewFindings) *orcv1.ReviewRoundFindings {
+	f := &orcv1.ReviewRoundFindings{
+		TaskId:    dbFindings.TaskID,
+		Round:     int32(dbFindings.Round),
 		Summary:   dbFindings.Summary,
-		Issues:    make([]ReviewFinding, len(dbFindings.Issues)),
+		Issues:    make([]*orcv1.ReviewFinding, len(dbFindings.Issues)),
 		Questions: dbFindings.Questions,
 		Positives: dbFindings.Positives,
-		AgentID:   dbFindings.AgentID,
-		CreatedAt: dbFindings.CreatedAt,
+		CreatedAt: timestamppb.New(dbFindings.CreatedAt),
 	}
+
+	if dbFindings.AgentID != "" {
+		f.AgentId = &dbFindings.AgentID
+	}
+
 	for i, issue := range dbFindings.Issues {
-		f.Issues[i] = ReviewFinding{
+		protoIssue := &orcv1.ReviewFinding{
 			Severity:    issue.Severity,
-			File:        issue.File,
-			Line:        issue.Line,
 			Description: issue.Description,
-			Suggestion:  issue.Suggestion,
-			AgentID:     issue.AgentID,
 		}
+		if issue.File != "" {
+			protoIssue.File = &issue.File
+		}
+		if issue.Line > 0 {
+			line := int32(issue.Line)
+			protoIssue.Line = &line
+		}
+		if issue.Suggestion != "" {
+			protoIssue.Suggestion = &issue.Suggestion
+		}
+		if issue.AgentID != "" {
+			protoIssue.AgentId = &issue.AgentID
+		}
+		if issue.ConstitutionViolation != "" {
+			protoIssue.ConstitutionViolation = &issue.ConstitutionViolation
+		}
+		f.Issues[i] = protoIssue
 	}
+
 	if f.Issues == nil {
-		f.Issues = []ReviewFinding{}
+		f.Issues = []*orcv1.ReviewFinding{}
 	}
 	if f.Questions == nil {
 		f.Questions = []string{}
@@ -121,6 +177,7 @@ func convertDBReviewFindings(dbFindings *db.ReviewFindings) *ReviewFindings {
 	if f.Positives == nil {
 		f.Positives = []string{}
 	}
+
 	return f
 }
 

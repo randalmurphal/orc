@@ -4,9 +4,9 @@ package cli
 import (
 	"fmt"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // getBackend creates a storage backend for the current project.
@@ -33,30 +33,30 @@ func getBackend() (storage.Backend, error) {
 // Helper functions
 
 // statusIcon returns an icon for task status, respecting the --plain flag
-func statusIcon(status task.Status) string {
+func statusIcon(status orcv1.TaskStatus) string {
 	if plain {
 		return statusText(status)
 	}
 	switch status {
-	case task.StatusCreated:
+	case orcv1.TaskStatus_TASK_STATUS_CREATED:
 		return "📝"
-	case task.StatusClassifying:
+	case orcv1.TaskStatus_TASK_STATUS_CLASSIFYING:
 		return "🔍"
-	case task.StatusPlanned:
+	case orcv1.TaskStatus_TASK_STATUS_PLANNED:
 		return "📋"
-	case task.StatusRunning:
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 		return "⏳"
-	case task.StatusPaused:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED:
 		return "⏸️"
-	case task.StatusBlocked:
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 		return "🚫"
-	case task.StatusFinalizing:
+	case orcv1.TaskStatus_TASK_STATUS_FINALIZING:
 		return "🏁"
-	case task.StatusCompleted:
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 		return "✅"
-	case task.StatusFailed:
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return "❌"
-	case task.StatusResolved:
+	case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
 		return "🔧"
 	default:
 		return "❓"
@@ -64,27 +64,27 @@ func statusIcon(status task.Status) string {
 }
 
 // statusText returns a plain text status indicator
-func statusText(status task.Status) string {
+func statusText(status orcv1.TaskStatus) string {
 	switch status {
-	case task.StatusCreated:
+	case orcv1.TaskStatus_TASK_STATUS_CREATED:
 		return "[NEW]"
-	case task.StatusClassifying:
+	case orcv1.TaskStatus_TASK_STATUS_CLASSIFYING:
 		return "[...]"
-	case task.StatusPlanned:
+	case orcv1.TaskStatus_TASK_STATUS_PLANNED:
 		return "[RDY]"
-	case task.StatusRunning:
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 		return "[RUN]"
-	case task.StatusPaused:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED:
 		return "[PSE]"
-	case task.StatusBlocked:
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 		return "[BLK]"
-	case task.StatusFinalizing:
+	case orcv1.TaskStatus_TASK_STATUS_FINALIZING:
 		return "[FIN]"
-	case task.StatusCompleted:
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 		return "[OK]"
-	case task.StatusFailed:
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return "[ERR]"
-	case task.StatusResolved:
+	case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
 		return "[RSV]"
 	default:
 		return "[???]"
@@ -92,18 +92,18 @@ func statusText(status task.Status) string {
 }
 
 // phaseStatusIcon returns an icon for phase status
-func phaseStatusIcon(status task.PhaseStatus) string {
+func phaseStatusIcon(status orcv1.PhaseStatus) string {
 	// Phase status icons are already ASCII-safe, no plain mode needed
 	switch status {
-	case task.PhaseStatusPending:
+	case orcv1.PhaseStatus_PHASE_STATUS_PENDING:
 		return "○"
-	case task.PhaseStatusRunning:
+	case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
 		return "◐"
-	case task.PhaseStatusCompleted:
+	case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 		return "●"
-	case task.PhaseStatusFailed:
+	case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
 		return "✗"
-	case task.PhaseStatusSkipped:
+	case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
 		return "⊘"
 	default:
 		return "?"
@@ -115,4 +115,68 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// weightStringProto returns a string representation of the weight enum
+func weightStringProto(w orcv1.TaskWeight) string {
+	switch w {
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+		return "trivial"
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+		return "small"
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+		return "medium"
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+		return "large"
+	default:
+		return "unknown"
+	}
+}
+
+// matchStatusProto returns true if the proto status matches the filter string
+func matchStatusProto(status orcv1.TaskStatus, filter string) bool {
+	// Map common filter strings to proto enum values
+	switch filter {
+	case "created", "new":
+		return status == orcv1.TaskStatus_TASK_STATUS_CREATED
+	case "classifying":
+		return status == orcv1.TaskStatus_TASK_STATUS_CLASSIFYING
+	case "planned", "ready":
+		return status == orcv1.TaskStatus_TASK_STATUS_PLANNED
+	case "running":
+		return status == orcv1.TaskStatus_TASK_STATUS_RUNNING
+	case "paused":
+		return status == orcv1.TaskStatus_TASK_STATUS_PAUSED
+	case "blocked":
+		return status == orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	case "finalizing":
+		return status == orcv1.TaskStatus_TASK_STATUS_FINALIZING
+	case "completed", "done":
+		return status == orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	case "failed":
+		return status == orcv1.TaskStatus_TASK_STATUS_FAILED
+	case "resolved":
+		return status == orcv1.TaskStatus_TASK_STATUS_RESOLVED
+	case "pending": // "pending" is a meta-filter for created+planned
+		return status == orcv1.TaskStatus_TASK_STATUS_CREATED ||
+			status == orcv1.TaskStatus_TASK_STATUS_PLANNED
+	default:
+		return false
+	}
+}
+
+// matchWeightProto returns true if the proto weight matches the filter string
+func matchWeightProto(weight orcv1.TaskWeight, filter string) bool {
+	switch filter {
+	case "trivial":
+		return weight == orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
+	case "small":
+		return weight == orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	case "medium":
+		return weight == orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	case "large":
+		return weight == orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	default:
+		return false
+	}
 }

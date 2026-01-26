@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -142,44 +145,46 @@ func TestRunningTaskImportTransform(t *testing.T) {
 	t.Parallel()
 	// Create an export with a running task
 	// Executor info and execution state are on task
+	currentPhase := "implement"
+	hostname := "other-machine"
 	export := &ExportData{
 		Version:    4,
 		ExportedAt: time.Now(),
-		Task: &task.Task{
-			ID:               "TASK-001",
+		Task: &orcv1.Task{
+			Id:               "TASK-001",
 			Title:            "Running Task",
-			Status:           task.StatusRunning,
-			ExecutorPID:      12345,
-			ExecutorHostname: "other-machine",
-			UpdatedAt:        time.Now().Add(-1 * time.Hour),
-			CurrentPhase:     "implement",
-			Execution:        task.InitExecutionState(),
+			Status:           orcv1.TaskStatus_TASK_STATUS_RUNNING,
+			ExecutorPid:      12345,
+			ExecutorHostname: &hostname,
+			UpdatedAt:        timestamppb.New(time.Now().Add(-1 * time.Hour)),
+			CurrentPhase:     &currentPhase,
+			Execution:        task.InitProtoExecutionState(),
 		},
 	}
 
 	// Simulate the import transformation (matches cmd_export.go logic)
 	wasRunning := false
-	if export.Task.Status == task.StatusRunning {
+	if export.Task.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		wasRunning = true
-		export.Task.Status = task.StatusPaused
+		export.Task.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 		// Clear executor info - it's invalid on this machine
-		export.Task.ExecutorPID = 0
-		export.Task.ExecutorHostname = ""
-		export.Task.UpdatedAt = time.Now()
+		export.Task.ExecutorPid = 0
+		export.Task.ExecutorHostname = nil
+		export.Task.UpdatedAt = timestamppb.Now()
 	}
 
 	if !wasRunning {
 		t.Error("expected wasRunning to be true")
 	}
-	if export.Task.Status != task.StatusPaused {
-		t.Errorf("expected task status 'paused', got %q", export.Task.Status)
+	if export.Task.Status != orcv1.TaskStatus_TASK_STATUS_PAUSED {
+		t.Errorf("expected task status 'paused', got %s", export.Task.Status)
 	}
 	// Executor info should be cleared on task
-	if export.Task.ExecutorPID != 0 {
-		t.Errorf("expected executor PID to be cleared, got %d", export.Task.ExecutorPID)
+	if export.Task.ExecutorPid != 0 {
+		t.Errorf("expected executor PID to be cleared, got %d", export.Task.ExecutorPid)
 	}
 	// Phase should be preserved on task
-	if export.Task.CurrentPhase != "implement" {
-		t.Errorf("expected current phase 'implement', got %q", export.Task.CurrentPhase)
+	if export.Task.CurrentPhase == nil || *export.Task.CurrentPhase != "implement" {
+		t.Errorf("expected current phase 'implement', got %v", export.Task.CurrentPhase)
 	}
 }

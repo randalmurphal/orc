@@ -10,9 +10,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func newAutomationCmd() *cobra.Command {
@@ -657,7 +659,7 @@ Example:
 			}
 			defer func() { _ = backend.Close() }()
 
-			tasks, err := backend.LoadAllTasks()
+			tasks, err := backend.LoadAllTasksProto()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -669,12 +671,12 @@ Example:
 			count := 0
 			for _, t := range tasks {
 				// Filter for AUTO-* tasks
-				if len(t.ID) < 5 || t.ID[:5] != "AUTO-" {
+				if len(t.Id) < 5 || t.Id[:5] != "AUTO-" {
 					continue
 				}
 
 				// Filter by pending if requested
-				if showPending && (t.Status != "created" && t.Status != "planned") {
+				if showPending && (t.Status != orcv1.TaskStatus_TASK_STATUS_CREATED && t.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED) {
 					continue
 				}
 
@@ -683,11 +685,14 @@ Example:
 					title = title[:47] + "..."
 				}
 
-				createdAt := formatTimeAgo(t.CreatedAt)
+				var createdAt string
+				if t.CreatedAt != nil {
+					createdAt = formatTimeAgo(t.CreatedAt.AsTime())
+				}
 
 				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-					t.ID,
-					string(t.Status),
+					t.Id,
+					task.StatusFromProto(t.Status),
 					title,
 					createdAt,
 				)

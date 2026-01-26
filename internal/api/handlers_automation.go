@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // TriggerResponse represents a trigger in API responses.
@@ -303,16 +303,16 @@ func (s *Server) handleListAutomationTasks(w http.ResponseWriter, r *http.Reques
 	// Use efficient database query via is_automation filter
 	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
 	if !ok {
-		// Fallback for non-database backends: load all and filter
-		tasks, err := s.backend.LoadAllTasks()
+		// Fallback for non-database backends: load all and filter (using proto types)
+		tasks, err := s.backend.LoadAllTasksProto()
 		if err != nil {
 			s.logger.Error("failed to load tasks", "error", err)
 			s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 			return
 		}
-		autoTasks := make([]*task.Task, 0)
+		autoTasks := make([]*orcv1.Task, 0)
 		for _, t := range tasks {
-			if strings.HasPrefix(t.ID, "AUTO-") {
+			if strings.HasPrefix(t.Id, "AUTO-") {
 				autoTasks = append(autoTasks, t)
 			}
 		}
@@ -363,23 +363,23 @@ func (s *Server) handleGetAutomationStats(w http.ResponseWriter, r *http.Request
 		stats.RunningTasks = taskStats.Running
 		stats.CompletedTasks = taskStats.Completed
 	} else {
-		// Fallback for non-database backends: load all and filter
-		tasks, err := s.backend.LoadAllTasks()
+		// Fallback for non-database backends: load all and filter (using proto types)
+		tasks, err := s.backend.LoadAllTasksProto()
 		if err != nil {
 			s.logger.Error("failed to load tasks", "error", err)
 			s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 			return
 		}
 		for _, t := range tasks {
-			if !strings.HasPrefix(t.ID, "AUTO-") {
+			if !strings.HasPrefix(t.Id, "AUTO-") {
 				continue
 			}
 			switch t.Status {
-			case "created", "planned":
+			case orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_PLANNED:
 				stats.PendingTasks++
-			case "running":
+			case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 				stats.RunningTasks++
-			case "completed":
+			case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 				stats.CompletedTasks++
 			}
 		}

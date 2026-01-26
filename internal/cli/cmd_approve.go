@@ -3,10 +3,11 @@ package cli
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -54,17 +55,17 @@ See also:
 
 			id := args[0]
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			if t.Status != task.StatusBlocked {
+			if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 				return fmt.Errorf("task is not blocked (status: %s)", t.Status)
 			}
 
-			t.Status = task.StatusPlanned
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -120,7 +121,7 @@ See also:
 			id := args[0]
 			reason, _ := cmd.Flags().GetString("reason")
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -130,16 +131,17 @@ See also:
 			}
 
 			// Record gate decision in task execution state
-			t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
-				Phase:     t.CurrentPhase,
+			task.EnsureExecutionProto(t)
+			t.Execution.Gates = append(t.Execution.Gates, &orcv1.GateDecision{
+				Phase:     task.GetCurrentPhaseProto(t),
 				GateType:  "human",
 				Approved:  false,
-				Reason:    reason,
-				Timestamp: time.Now(),
+				Reason:    &reason,
+				Timestamp: timestamppb.Now(),
 			})
 
-			t.Status = task.StatusFailed
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

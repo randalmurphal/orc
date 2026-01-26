@@ -3,8 +3,8 @@
 package executor
 
 import (
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/gate"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // PhaseDisplay represents phase information for display purposes.
@@ -13,7 +13,7 @@ type PhaseDisplay struct {
 	ID        string           `yaml:"id" json:"id"`
 	Name      string           `yaml:"name" json:"name"`
 	Prompt    string           `yaml:"prompt,omitempty" json:"prompt,omitempty"`
-	Status    task.PhaseStatus `yaml:"status" json:"status"`
+	Status    orcv1.PhaseStatus `yaml:"status" json:"status"`
 	CommitSHA string           `yaml:"commit_sha,omitempty" json:"commit_sha,omitempty"`
 	Gate      gate.Gate        `yaml:"gate,omitempty" json:"gate,omitempty"`
 
@@ -52,7 +52,7 @@ func (p *Plan) GetPhaseIndex(id string) int {
 // Returns nil if all phases are complete.
 func (p *Plan) CurrentPhase() *PhaseDisplay {
 	for i := range p.Phases {
-		if p.Phases[i].Status != task.PhaseStatusCompleted && p.Phases[i].Status != task.PhaseStatusSkipped {
+		if p.Phases[i].Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED && p.Phases[i].Status != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
 			return &p.Phases[i]
 		}
 	}

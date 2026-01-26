@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,7 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // handleGetTestResults returns test results for a task.
@@ -222,8 +223,14 @@ func (s *Server) handleSaveTestReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var report task.TestReport
-	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.jsonError(w, "failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	var report orcv1.TestReport
+	if err := protojson.Unmarshal(body, &report); err != nil {
 		s.jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}

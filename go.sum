@@ -40,8 +40,6 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/randalmurphal/devflow v1.1.0 h1:BZxLd+vgBYxV6VnkQsDrIlLEarSSvs/M3QOXOl3rmLc=
 github.com/randalmurphal/devflow v1.1.0/go.mod h1:wPG37RHmrTIdJHnaQpMdF6I+tvvyhDsd0GYuXLeG13Y=
-github.com/randalmurphal/llmkit v1.4.0 h1:QspPjn2oXzy4Lk2qWo7+hHLusKwvCF5AM+qMAn0o+XU=
-github.com/randalmurphal/llmkit v1.4.0/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
 github.com/randalmurphal/llmkit v1.4.1 h1:lyRt611JBtssxGDUtZwp8dqcPatF5nULtLl6baoRF+Y=
 github.com/randalmurphal/llmkit v1.4.1/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=

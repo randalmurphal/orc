@@ -15,6 +15,7 @@ import (
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // InitiativeCompletionResult contains the result of an initiative completion operation.
@@ -137,14 +138,14 @@ func (c *InitiativeCompleter) CheckAndCompleteInitiative(ctx context.Context, in
 // createTaskLoader creates a TaskLoader function that fetches task status from the backend.
 func (c *InitiativeCompleter) createTaskLoader() initiative.TaskLoader {
 	return func(taskID string) (status string, title string, err error) {
-		t, err := c.backend.LoadTask(taskID)
+		t, err := c.backend.LoadTaskProto(taskID)
 		if err != nil {
 			return "", "", err
 		}
 		if t == nil {
 			return "", "", nil
 		}
-		return string(t.Status), t.Title, nil
+		return task.StatusFromProto(t.Status), t.Title, nil
 	}
 }
 

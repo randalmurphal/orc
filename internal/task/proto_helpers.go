@@ -618,16 +618,41 @@ func EnsureMetadataProto(t *orcv1.Task) {
 }
 
 // CheckOrphanedProto checks if a task is orphaned (executor process died mid-run).
-// Note: Proto Task type doesn't yet have executor tracking fields.
-// This is a stub that returns false until those fields are added to the proto schema.
-// TODO: Add executor_pid, executor_hostname, and last_heartbeat fields to proto Task
-// and implement proper orphan detection.
+// A task is orphaned if:
+// 1. Its status is "running" but no executor PID is tracked
+// 2. Its status is "running" with a PID that no longer exists
+//
+// Note: Heartbeat staleness is only used for additional context when the PID is dead.
+// A live PID always indicates a healthy task - this prevents false positives during
+// long-running phases where heartbeats may not be updated frequently.
+//
+// Returns (isOrphaned, reason) where reason explains why.
 func CheckOrphanedProto(t *orcv1.Task) (bool, string) {
 	if t == nil {
 		return false, ""
 	}
-	// Proto tasks don't yet support orphan detection
-	// When running status is set, assume the task is actively running
+
+	// Only running tasks can be orphaned
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		return false, ""
+	}
+
+	// No execution info means potentially orphaned (legacy or incomplete state)
+	if t.ExecutorPid == 0 {
+		return true, "no execution info (legacy state or incomplete)"
+	}
+
+	// Primary check: Is the executor process alive?
+	if !IsPIDAlive(int(t.ExecutorPid)) {
+		// PID is dead - task is definitely orphaned
+		// Use heartbeat to provide additional context in the reason
+		if t.LastHeartbeat != nil && time.Since(t.LastHeartbeat.AsTime()) > StaleHeartbeatThreshold {
+			return true, "executor process not running (heartbeat stale)"
+		}
+		return true, "executor process not running"
+	}
+
+	// PID is alive - task is NOT orphaned, regardless of heartbeat
 	return false, ""
 }
 

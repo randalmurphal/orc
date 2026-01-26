@@ -4,7 +4,7 @@ package events
 import (
 	"time"
 
-	"github.com/randalmurphal/orc/internal/task"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 // PublishHelper wraps event publishing with nil-safety and convenience methods.
@@ -37,7 +37,7 @@ func (ep *PublishHelper) Publish(ev Event) {
 func (ep *PublishHelper) PhaseStart(taskID, phase string) {
 	ep.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
 		Phase:  phase,
-		Status: string(task.PhaseStatusRunning),
+		Status: "running",
 	}))
 }
 
@@ -45,7 +45,7 @@ func (ep *PublishHelper) PhaseStart(taskID, phase string) {
 func (ep *PublishHelper) PhaseComplete(taskID, phase, commitSHA string) {
 	ep.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
 		Phase:     phase,
-		Status:    string(task.PhaseStatusCompleted),
+		Status:    "completed",
 		CommitSHA: commitSHA,
 	}))
 }
@@ -58,7 +58,7 @@ func (ep *PublishHelper) PhaseFailed(taskID, phase string, err error) {
 	}
 	ep.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
 		Phase:  phase,
-		Status: string(task.PhaseStatusFailed),
+		Status: "failed",
 		Error:  errMsg,
 	}))
 }
@@ -110,7 +110,7 @@ func (ep *PublishHelper) Error(taskID, phase, message string, fatal bool) {
 }
 
 // State publishes a full state update event.
-func (ep *PublishHelper) State(taskID string, s *task.ExecutionState) {
+func (ep *PublishHelper) State(taskID string, s *orcv1.ExecutionState) {
 	if s == nil {
 		return
 	}

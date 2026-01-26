@@ -15,6 +15,8 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// Note: task import is used for task.ExportPath() utility function.
+
 // newExportCmd creates the export command
 func newExportCmd() *cobra.Command {
 	var outputFile string
@@ -187,7 +189,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 	defer func() { _ = backend.Close() }()
 
 	// Load task
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}

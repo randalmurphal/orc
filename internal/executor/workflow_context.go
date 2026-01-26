@@ -213,7 +213,7 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 }
 
 // formatReviewFindingsForPrompt formats review findings for template injection.
-func formatReviewFindingsForPrompt(findings *storage.ReviewFindings) string {
+func formatReviewFindingsForPrompt(findings *orcv1.ReviewRoundFindings) string {
 	if findings == nil {
 		return "No findings from previous round."
 	}
@@ -242,16 +242,16 @@ func formatReviewFindingsForPrompt(findings *storage.ReviewFindings) string {
 		sb.WriteString("### Issues to Verify\n\n")
 		for i, issue := range findings.Issues {
 			fmt.Fprintf(&sb, "%d. [%s] %s", i+1, strings.ToUpper(issue.Severity), issue.Description)
-			if issue.File != "" {
-				fmt.Fprintf(&sb, " (in %s", issue.File)
-				if issue.Line > 0 {
-					fmt.Fprintf(&sb, ":%d", issue.Line)
+			if issue.File != nil && *issue.File != "" {
+				fmt.Fprintf(&sb, " (in %s", *issue.File)
+				if issue.Line != nil && *issue.Line > 0 {
+					fmt.Fprintf(&sb, ":%d", *issue.Line)
 				}
 				sb.WriteString(")")
 			}
 			sb.WriteString("\n")
-			if issue.Suggestion != "" {
-				fmt.Fprintf(&sb, "   Suggested fix: %s\n", issue.Suggestion)
+			if issue.Suggestion != nil && *issue.Suggestion != "" {
+				fmt.Fprintf(&sb, "   Suggested fix: %s\n", *issue.Suggestion)
 			}
 		}
 	}
@@ -274,27 +274,27 @@ func formatReviewFindingsForPrompt(findings *storage.ReviewFindings) string {
 }
 
 // formatRecentCompletedTasksForPrompt formats recent completed tasks as a markdown list.
-func formatRecentCompletedTasksForPrompt(tasks []*task.Task, limit int) string {
-	var completed []*task.Task
+func formatRecentCompletedTasksForPrompt(tasks []*orcv1.Task, limit int) string {
+	var completed []*orcv1.Task
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			completed = append(completed, t)
 		}
 	}
 
-	// Sort by completion time (most recent first) - already done by LoadAllTasks
+	// Sort by completion time (most recent first) - already done by LoadAllTasksProto
 	if len(completed) > limit {
 		completed = completed[:limit]
 	}
 
 	var sb strings.Builder
 	for _, t := range completed {
-		fmt.Fprintf(&sb, "- **%s**: %s", t.ID, t.Title)
-		if t.Category != "" {
-			fmt.Fprintf(&sb, " [%s]", t.Category)
+		fmt.Fprintf(&sb, "- **%s**: %s", t.Id, t.Title)
+		if t.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
+			fmt.Fprintf(&sb, " [%s]", task.CategoryFromProto(t.Category))
 		}
-		if t.Weight != "" {
-			fmt.Fprintf(&sb, " (%s)", t.Weight)
+		if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
+			fmt.Fprintf(&sb, " (%s)", task.WeightFromProto(t.Weight))
 		}
 		sb.WriteString("\n")
 	}
@@ -302,10 +302,10 @@ func formatRecentCompletedTasksForPrompt(tasks []*task.Task, limit int) string {
 }
 
 // collectRecentChangedFilesForPrompt collects files changed in recent tasks.
-func collectRecentChangedFilesForPrompt(tasks []*task.Task, limit int) string {
-	var recent []*task.Task
+func collectRecentChangedFilesForPrompt(tasks []*orcv1.Task, limit int) string {
+	var recent []*orcv1.Task
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			recent = append(recent, t)
 		}
 	}
@@ -414,7 +414,7 @@ func (we *WorkflowExecutor) loadPriorPhaseContentProto(taskID string, e *orcv1.E
 // loadAutomationContextProto loads automation task context using proto types.
 func (we *WorkflowExecutor) loadAutomationContextProto(rctx *variable.ResolutionContext, t *orcv1.Task) {
 	// Load recent completed tasks
-	tasks, err := we.backend.LoadAllTasks()
+	tasks, err := we.backend.LoadAllTasksProto()
 	if err == nil {
 		rctx.RecentCompletedTasks = formatRecentCompletedTasksForPrompt(tasks, 20)
 		rctx.RecentChangedFiles = collectRecentChangedFilesForPrompt(tasks, 10)

@@ -2,11 +2,12 @@ package task
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestTestResultsPath(t *testing.T) {
@@ -60,8 +61,8 @@ func TestGetTestResults_NoResults(t *testing.T) {
 		t.Error("HasTraces should be false")
 	}
 
-	if info.HasHTMLReport {
-		t.Error("HasHTMLReport should be false")
+	if info.HasHtmlReport {
+		t.Error("HasHtmlReport should be false")
 	}
 }
 
@@ -75,32 +76,31 @@ func TestGetTestResults_WithReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create report.json
-	report := TestReport{
+	// Create and save report using proto types
+	report := &orcv1.TestReport{
 		Version:     1,
 		Framework:   "playwright",
-		StartedAt:   time.Now().Add(-time.Minute),
-		CompletedAt: time.Now(),
-		Duration:    60000,
-		Summary: TestSummary{
+		StartedAt:   timestamppb.Now(),
+		CompletedAt: timestamppb.Now(),
+		DurationMs:  60000,
+		Summary: &orcv1.TestSummary{
 			Total:   10,
 			Passed:  8,
 			Failed:  1,
 			Skipped: 1,
 		},
-		Suites: []TestSuite{
+		Suites: []*orcv1.TestSuite{
 			{
 				Name: "example.spec.ts",
-				Tests: []TestResult{
-					{Name: "test 1", Status: TestResultStatusPassed, Duration: 1000},
-					{Name: "test 2", Status: TestResultStatusFailed, Duration: 2000, Error: "assertion failed"},
+				Tests: []*orcv1.TestResult{
+					{Name: "test 1", Status: orcv1.TestResultStatus_TEST_RESULT_STATUS_PASSED, DurationMs: 1000},
+					{Name: "test 2", Status: orcv1.TestResultStatus_TEST_RESULT_STATUS_FAILED, DurationMs: 2000, Error: strPtr("assertion failed")},
 				},
 			},
 		},
 	}
 
-	reportData, _ := json.Marshal(report)
-	if err := os.WriteFile(filepath.Join(resultsDir, ReportFile), reportData, 0644); err != nil {
+	if err := SaveTestReport(tmpDir, taskID, report); err != nil {
 		t.Fatal(err)
 	}
 
@@ -215,8 +215,8 @@ func TestGetTestResults_WithHTMLReport(t *testing.T) {
 		t.Fatalf("GetTestResults() error = %v", err)
 	}
 
-	if !info.HasHTMLReport {
-		t.Error("HasHTMLReport should be true")
+	if !info.HasHtmlReport {
+		t.Error("HasHtmlReport should be true")
 	}
 }
 
@@ -345,10 +345,10 @@ func TestSaveTestReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report := &TestReport{
+	report := &orcv1.TestReport{
 		Version:   1,
 		Framework: "playwright",
-		Summary: TestSummary{
+		Summary: &orcv1.TestSummary{
 			Total:  5,
 			Passed: 5,
 		},
@@ -358,20 +358,18 @@ func TestSaveTestReport(t *testing.T) {
 		t.Fatalf("SaveTestReport() error = %v", err)
 	}
 
-	// Verify report was saved
-	reportPath := filepath.Join(TestResultsPath(tmpDir, taskID), ReportFile)
-	data, err := os.ReadFile(reportPath)
+	// Verify report was saved by reading it back
+	info, err := GetTestResults(tmpDir, taskID)
 	if err != nil {
-		t.Fatalf("Failed to read saved report: %v", err)
+		t.Fatalf("GetTestResults() error = %v", err)
 	}
 
-	var savedReport TestReport
-	if err := json.Unmarshal(data, &savedReport); err != nil {
-		t.Fatalf("Failed to unmarshal saved report: %v", err)
+	if info.Report == nil {
+		t.Fatal("Report should not be nil")
 	}
 
-	if savedReport.Framework != "playwright" {
-		t.Errorf("Framework = %q, want %q", savedReport.Framework, "playwright")
+	if info.Report.Framework != "playwright" {
+		t.Errorf("Framework = %q, want %q", info.Report.Framework, "playwright")
 	}
 }
 
@@ -579,54 +577,50 @@ func TestInitTestResultsDir(t *testing.T) {
 	}
 }
 
-func TestTestResultStatus_Values(t *testing.T) {
-	// Verify status constants
-	statuses := []TestResultStatus{
-		TestResultStatusPassed,
-		TestResultStatusFailed,
-		TestResultStatusSkipped,
-		TestResultStatusPending,
+func TestTestResultStatus_ProtoValues(t *testing.T) {
+	// Verify proto status enum values
+	statuses := []orcv1.TestResultStatus{
+		orcv1.TestResultStatus_TEST_RESULT_STATUS_PASSED,
+		orcv1.TestResultStatus_TEST_RESULT_STATUS_FAILED,
+		orcv1.TestResultStatus_TEST_RESULT_STATUS_SKIPPED,
 	}
 
-	expected := []string{"passed", "failed", "skipped", "pending"}
+	expected := []string{"TEST_RESULT_STATUS_PASSED", "TEST_RESULT_STATUS_FAILED", "TEST_RESULT_STATUS_SKIPPED"}
 
 	for i, status := range statuses {
-		if string(status) != expected[i] {
-			t.Errorf("Status %d = %q, want %q", i, status, expected[i])
+		if status.String() != expected[i] {
+			t.Errorf("Status %d = %q, want %q", i, status.String(), expected[i])
 		}
 	}
 }
 
-func TestTestCoverage_JSON(t *testing.T) {
-	coverage := TestCoverage{
+func TestTestCoverage_Proto(t *testing.T) {
+	coverage := &orcv1.TestCoverage{
 		Percentage: 85.5,
-		Lines: &CoverageDetail{
+		Lines: &orcv1.CoverageDetail{
 			Total:   100,
 			Covered: 85,
-			Percent: 85.0,
 		},
-		Branches: &CoverageDetail{
+		Branches: &orcv1.CoverageDetail{
 			Total:   50,
 			Covered: 40,
-			Percent: 80.0,
 		},
 	}
 
-	data, err := json.Marshal(coverage)
-	if err != nil {
-		t.Fatalf("Marshal error: %v", err)
+	if coverage.Percentage != 85.5 {
+		t.Errorf("Percentage = %f, want 85.5", coverage.Percentage)
 	}
 
-	var decoded TestCoverage
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatalf("Unmarshal error: %v", err)
+	if coverage.Lines == nil || coverage.Lines.Covered != 85 {
+		t.Error("Lines coverage not correctly set")
 	}
 
-	if decoded.Percentage != 85.5 {
-		t.Errorf("Percentage = %f, want 85.5", decoded.Percentage)
+	if coverage.Branches == nil || coverage.Branches.Covered != 40 {
+		t.Error("Branches coverage not correctly set")
 	}
+}
 
-	if decoded.Lines == nil || decoded.Lines.Covered != 85 {
-		t.Error("Lines coverage not correctly decoded")
-	}
+// strPtr returns a pointer to the given string.
+func strPtr(s string) *string {
+	return &s
 }

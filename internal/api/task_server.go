@@ -1765,3 +1765,69 @@ func (s *taskServer) ExportTask(
 		ExportedTo: ".orc/exports/" + taskID,
 	}), nil
 }
+
+// PauseAllTasks pauses all currently running tasks.
+func (s *taskServer) PauseAllTasks(
+	ctx context.Context,
+	req *connect.Request[orcv1.PauseAllTasksRequest],
+) (*connect.Response[orcv1.PauseAllTasksResponse], error) {
+	tasks, err := s.backend.LoadAllTasksProto()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	var pausedTasks []*orcv1.Task
+	for _, t := range tasks {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+			if err := s.backend.SaveTaskProto(t); err != nil {
+				s.logger.Warn("failed to pause task", "task_id", t.Id, "error", err)
+				continue
+			}
+			pausedTasks = append(pausedTasks, t)
+			s.publisher.Publish(events.Event{
+				Type:   events.EventTaskUpdated,
+				TaskID: t.Id,
+				Data:   t,
+			})
+		}
+	}
+
+	return connect.NewResponse(&orcv1.PauseAllTasksResponse{
+		Tasks: pausedTasks,
+		Count: int32(len(pausedTasks)),
+	}), nil
+}
+
+// ResumeAllTasks resumes all paused tasks.
+func (s *taskServer) ResumeAllTasks(
+	ctx context.Context,
+	req *connect.Request[orcv1.ResumeAllTasksRequest],
+) (*connect.Response[orcv1.ResumeAllTasksResponse], error) {
+	tasks, err := s.backend.LoadAllTasksProto()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
+	}
+
+	var resumedTasks []*orcv1.Task
+	for _, t := range tasks {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_PAUSED {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+			if err := s.backend.SaveTaskProto(t); err != nil {
+				s.logger.Warn("failed to resume task", "task_id", t.Id, "error", err)
+				continue
+			}
+			resumedTasks = append(resumedTasks, t)
+			s.publisher.Publish(events.Event{
+				Type:   events.EventTaskUpdated,
+				TaskID: t.Id,
+				Data:   t,
+			})
+		}
+	}
+
+	return connect.NewResponse(&orcv1.ResumeAllTasksResponse{
+		Tasks: resumedTasks,
+		Count: int32(len(resumedTasks)),
+	}), nil
+}

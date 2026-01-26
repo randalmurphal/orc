@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -91,23 +92,23 @@ func TestShowDependencyTree_SingleTask(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create a task with no dependencies
-	tk := task.New("TASK-001", "Root task")
-	tk.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk); err != nil {
+	tk := task.NewProtoTask("TASK-001", "Root task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Should not error for a task with no dependencies
@@ -120,37 +121,37 @@ func TestShowDependencyTree_WithDependencies(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create tasks with dependencies: TASK-003 -> TASK-002 -> TASK-001
-	tk1 := task.New("TASK-001", "Root task")
-	tk1.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk1); err != nil {
+	tk1 := task.NewProtoTask("TASK-001", "Root task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Middle task")
-	tk2.Status = task.StatusPlanned
+	tk2 := task.NewProtoTask("TASK-002", "Middle task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(tk2); err != nil {
+	if err := backend.SaveTaskProto(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Leaf task")
-	tk3.Status = task.StatusPlanned
+	tk3 := task.NewProtoTask("TASK-003", "Leaf task")
+	tk3.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk3.BlockedBy = []string{"TASK-002"}
-	if err := backend.SaveTask(tk3); err != nil {
+	if err := backend.SaveTaskProto(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Verify blocks are computed correctly
@@ -171,36 +172,36 @@ func TestShowDependencyOverview(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create tasks: one blocking, one blocked, one independent
-	tk1 := task.New("TASK-001", "Root task")
-	tk1.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk1); err != nil {
+	tk1 := task.NewProtoTask("TASK-001", "Root task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Blocked task")
-	tk2.Status = task.StatusPlanned
+	tk2 := task.NewProtoTask("TASK-002", "Blocked task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(tk2); err != nil {
+	if err := backend.SaveTaskProto(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Independent task")
-	tk3.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk3); err != nil {
+	tk3 := task.NewProtoTask("TASK-003", "Independent task")
+	tk3.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Should not error
@@ -213,30 +214,30 @@ func TestShowDependencyGraph(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create a simple dependency chain
-	tk1 := task.New("TASK-001", "Root task")
-	tk1.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk1); err != nil {
+	tk1 := task.NewProtoTask("TASK-001", "Root task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Child task")
-	tk2.Status = task.StatusPlanned
+	tk2 := task.NewProtoTask("TASK-002", "Child task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(tk2); err != nil {
+	if err := backend.SaveTaskProto(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Should not error with empty initiative filter (all tasks)
@@ -292,30 +293,30 @@ func TestDepsOutput_JSON(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create tasks with dependencies
-	tk1 := task.New("TASK-001", "Root task")
-	tk1.Status = task.StatusCompleted
-	if err := backend.SaveTask(tk1); err != nil {
+	tk1 := task.NewProtoTask("TASK-001", "Root task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := backend.SaveTaskProto(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Child task")
-	tk2.Status = task.StatusPlanned
+	tk2 := task.NewProtoTask("TASK-002", "Child task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(tk2); err != nil {
+	if err := backend.SaveTaskProto(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Set jsonOut to true for this test
@@ -335,43 +336,43 @@ func TestGetChain(t *testing.T) {
 	_, backend := withDepsTestDir(t)
 
 	// Create a linear chain: TASK-003 -> TASK-002 -> TASK-001
-	tk1 := task.New("TASK-001", "Root task")
-	tk1.Status = task.StatusPlanned
-	if err := backend.SaveTask(tk1); err != nil {
+	tk1 := task.NewProtoTask("TASK-001", "Root task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk2 := task.New("TASK-002", "Middle task")
-	tk2.Status = task.StatusPlanned
+	tk2 := task.NewProtoTask("TASK-002", "Middle task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(tk2); err != nil {
+	if err := backend.SaveTaskProto(tk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	tk3 := task.New("TASK-003", "Leaf task")
-	tk3.Status = task.StatusPlanned
+	tk3 := task.NewProtoTask("TASK-003", "Leaf task")
+	tk3.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	tk3.BlockedBy = []string{"TASK-002"}
-	if err := backend.SaveTask(tk3); err != nil {
+	if err := backend.SaveTaskProto(tk3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Load all tasks and populate computed fields
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("failed to load tasks: %v", err)
 	}
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tk := range allTasks {
-		taskMap[tk.ID] = tk
+		taskMap[tk.Id] = tk
 	}
 
 	// Build filtered IDs (all tasks)
 	filteredIDs := make(map[string]bool)
 	for _, tk := range allTasks {
-		filteredIDs[tk.ID] = true
+		filteredIDs[tk.Id] = true
 	}
 
 	// Test chain starting from root (TASK-001)

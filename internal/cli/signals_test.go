@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -68,7 +69,7 @@ func TestInterruptHandler(t *testing.T) {
 	backend := createSignalsTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
-	tsk := task.New("TASK-001", "Test task")
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 
 	h := NewInterruptHandler(backend, tsk)
 	defer h.Cleanup()
@@ -136,13 +137,14 @@ func TestGracefulShutdown(t *testing.T) {
 	backend := createSignalsTestBackend(t, tmpDir)
 	defer func() { _ = backend.Close() }()
 
-	tsk := &task.Task{ID: "TASK-001", Title: "Test task", Weight: task.WeightSmall}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	// Initialize execution state
-	tsk.Execution.Phases = make(map[string]*task.PhaseState)
-	tsk.Execution.StartPhase("implement")
+	task.EnsureExecutionProto(tsk)
+	task.StartPhaseProto(tsk.Execution, "implement")
 
 	// Save task to backend first
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -155,8 +157,8 @@ func TestGracefulShutdown(t *testing.T) {
 	}
 
 	// Verify task status was updated to blocked (task.Status is the single source of truth)
-	if tsk.Status != task.StatusBlocked {
-		t.Errorf("expected task status %v, got %v", task.StatusBlocked, tsk.Status)
+	if tsk.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Errorf("expected task status %v, got %v", orcv1.TaskStatus_TASK_STATUS_BLOCKED, tsk.Status)
 	}
 
 	// Verify phase was interrupted in execution state
@@ -164,7 +166,7 @@ func TestGracefulShutdown(t *testing.T) {
 	if ps == nil {
 		t.Fatal("expected implement phase to exist after interrupt")
 	}
-	if ps.Status != task.PhaseStatusInterrupted {
-		t.Errorf("expected phase status %v, got %v", task.PhaseStatusInterrupted, ps.Status)
+	if ps.Status != orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED {
+		t.Errorf("expected phase status %v, got %v", orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED, ps.Status)
 	}
 }

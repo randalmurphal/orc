@@ -367,37 +367,37 @@ func createPlanForWeight(taskID string, weight orcv1.TaskWeight) *executor.Plan 
 	switch weight {
 	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		phases = []executor.PhaseDisplay{
-			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		phases = []executor.PhaseDisplay{
-			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	default:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	}
 

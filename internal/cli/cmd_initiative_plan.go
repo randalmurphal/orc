@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -219,30 +220,30 @@ Examples:
 				localToTaskID[mt.ID] = taskID
 
 				// Create task
-				t := task.New(taskID, mt.Title)
+				t := task.NewProtoTask(taskID, mt.Title)
 				if mt.Description != "" {
-					t.Description = mt.Description
+					t.Description = &mt.Description
 				}
 
 				// Set weight (default medium)
 				if mt.Weight != "" {
-					t.Weight = task.Weight(mt.Weight)
+					t.Weight = task.WeightToProto(mt.Weight)
 				} else {
-					t.Weight = task.WeightMedium
+					t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 				}
 
 				// Set category (default feature)
 				if mt.Category != "" {
-					t.Category = task.Category(mt.Category)
+					t.Category = task.CategoryToProto(mt.Category)
 				}
 
 				// Set priority (default normal)
 				if mt.Priority != "" {
-					t.Priority = task.Priority(mt.Priority)
+					t.Priority = task.PriorityToProto(mt.Priority)
 				}
 
 				// Link to initiative
-				t.SetInitiative(targetInitiativeID)
+				t.InitiativeId = &targetInitiativeID
 
 				// Map dependencies
 				var blockedBy []string
@@ -254,10 +255,10 @@ Examples:
 				t.BlockedBy = blockedBy
 
 				// Set testing requirements
-				t.SetTestingRequirements(hasFrontend)
+				task.SetTestingRequirementsProto(t, hasFrontend)
 
 				// Save task
-				if err := backend.SaveTask(t); err != nil {
+				if err := backend.SaveTaskProto(t); err != nil {
 					return fmt.Errorf("save task %s: %w", taskID, err)
 				}
 
@@ -271,8 +272,8 @@ Examples:
 				}
 
 				// Update task status to planned
-				t.Status = task.StatusPlanned
-				if err := backend.SaveTask(t); err != nil {
+				t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+				if err := backend.SaveTaskProto(t); err != nil {
 					return fmt.Errorf("update task %s: %w", taskID, err)
 				}
 

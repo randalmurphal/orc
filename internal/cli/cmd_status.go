@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
@@ -107,7 +108,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 	}
 
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
@@ -121,8 +122,8 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 
 	// Enrich running tasks with current phase from workflow_runs
 	for _, t := range allTasks {
-		if wr, ok := runningWorkflows[t.ID]; ok && wr.CurrentPhase != "" {
-			t.CurrentPhase = wr.CurrentPhase
+		if wr, ok := runningWorkflows[t.Id]; ok && wr.CurrentPhase != "" {
+			task.SetCurrentPhaseProto(t, wr.CurrentPhase)
 		}
 	}
 
@@ -134,27 +135,28 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 	}
 
 	// Populate computed fields for dependency tracking (on ALL tasks)
-	task.PopulateComputedFields(allTasks)
+	task.PopulateComputedFieldsProto(allTasks)
 
 	// Build task map for dependency checks (using ALL tasks, not filtered)
 	// This ensures dependencies work correctly even when blocker is outside initiative
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
+		taskMap[t.Id] = t
 	}
 
 	// Apply initiative filter after loading but before categorization
-	var tasks []*task.Task
+	var tasks []*orcv1.Task
 	for _, t := range allTasks {
 		// Initiative filter
 		if initiativeFilterActive {
+			initID := task.GetInitiativeIDProto(t)
 			// Empty string or "unassigned" means show tasks without initiative
 			if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
-				if t.InitiativeID != "" {
+				if initID != "" {
 					continue
 				}
 			} else {
-				if t.InitiativeID != initiativeFilter {
+				if initID != initiativeFilter {
 					continue
 				}
 			}
@@ -189,40 +191,40 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 	}
 	orphanedIDs := make(map[string]orphanInfo)
 	for _, t := range tasks {
-		if isOrphaned, reason := t.CheckOrphaned(); isOrphaned {
-			orphanedIDs[t.ID] = orphanInfo{TaskID: t.ID, Reason: reason}
+		if isOrphaned, reason := task.CheckOrphanedProto(t); isOrphaned {
+			orphanedIDs[t.Id] = orphanInfo{TaskID: t.Id, Reason: reason}
 		}
 	}
 
 	// Categorize tasks
-	var systemBlocked, depBlocked, running, orphaned, paused, ready, recent, other []*task.Task
+	var systemBlocked, depBlocked, running, orphaned, paused, ready, recent, other []*orcv1.Task
 	now := time.Now()
 	dayAgo := now.Add(-24 * time.Hour)
 
 	for _, t := range tasks {
 		switch t.Status {
-		case task.StatusBlocked:
+		case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 			// System-level blocked (needs human input)
 			systemBlocked = append(systemBlocked, t)
-		case task.StatusRunning:
+		case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 			// Check if this running task is actually orphaned
-			if _, isOrphaned := orphanedIDs[t.ID]; isOrphaned {
+			if _, isOrphaned := orphanedIDs[t.Id]; isOrphaned {
 				orphaned = append(orphaned, t)
 			} else {
 				running = append(running, t)
 			}
-		case task.StatusPaused:
+		case orcv1.TaskStatus_TASK_STATUS_PAUSED:
 			paused = append(paused, t)
-		case task.StatusFinalizing, task.StatusCompleted, task.StatusFailed:
-			if t.UpdatedAt.After(dayAgo) {
+		case orcv1.TaskStatus_TASK_STATUS_FINALIZING, orcv1.TaskStatus_TASK_STATUS_COMPLETED, orcv1.TaskStatus_TASK_STATUS_FAILED:
+			if t.UpdatedAt != nil && t.UpdatedAt.AsTime().After(dayAgo) {
 				recent = append(recent, t)
 			} else if showAll {
 				other = append(other, t)
 			}
-		case task.StatusCreated, task.StatusPlanned:
+		case orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_PLANNED:
 			// Check dependency status for created/planned tasks
 			if len(t.BlockedBy) > 0 {
-				unmet := t.GetUnmetDependencies(taskMap)
+				unmet := task.GetUnmetDependenciesProto(t, taskMap)
 				if len(unmet) > 0 {
 					depBlocked = append(depBlocked, t)
 				} else {
@@ -238,12 +240,20 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 
 	// Sort recent by update time (newest first)
 	sort.Slice(recent, func(i, j int) bool {
-		return recent[i].UpdatedAt.After(recent[j].UpdatedAt)
+		ti := time.Time{}
+		tj := time.Time{}
+		if recent[i].UpdatedAt != nil {
+			ti = recent[i].UpdatedAt.AsTime()
+		}
+		if recent[j].UpdatedAt != nil {
+			tj = recent[j].UpdatedAt.AsTime()
+		}
+		return ti.After(tj)
 	})
 
 	// Sort ready by priority
 	sort.Slice(ready, func(i, j int) bool {
-		return task.PriorityOrder(ready[i].GetPriority()) < task.PriorityOrder(ready[j].GetPriority())
+		return task.PriorityOrderFromProto(task.GetPriorityProto(ready[i])) < task.PriorityOrderFromProto(task.GetPriorityProto(ready[j]))
 	})
 
 	// Print sections with priority ordering
@@ -258,12 +268,12 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 		_, _ = fmt.Fprintln(out)
 		for _, t := range orphaned {
-			info := orphanedIDs[t.ID]
+			info := orphanedIDs[t.Id]
 			reason := info.Reason
 			if reason == "" {
 				reason = "unknown"
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.ID, truncate(t.Title, 35), reason)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t(%s)\n", t.Id, truncate(t.Title, 35), reason)
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out, "  Use 'orc resume <task-id>' to continue these tasks")
@@ -292,14 +302,14 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 						if worktreeDir == "" {
 							worktreeDir = ".orc/worktrees"
 						}
-						worktreePath = worktreeDir + "/orc-" + t.ID
+						worktreePath = worktreeDir + "/orc-" + t.Id
 					}
 				}
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.ID, truncate(t.Title, 40), blockedReason)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", t.Id, truncate(t.Title, 40), blockedReason)
 			if worktreePath != "" {
 				_, _ = fmt.Fprintf(out, "      Worktree: %s\n", worktreePath)
-				_, _ = fmt.Fprintf(out, "      → orc resume %s (after resolving conflicts)\n", t.ID)
+				_, _ = fmt.Fprintf(out, "      → orc resume %s (after resolving conflicts)\n", t.Id)
 			}
 		}
 		_ = w.Flush()
@@ -315,11 +325,11 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 		_, _ = fmt.Fprintln(out)
 		for _, t := range running {
-			phase := t.CurrentPhase
+			phase := task.GetCurrentPhaseProto(t)
 			if phase == "" {
 				phase = "starting"
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.ID, truncate(t.Title, 40), phase)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.Id, truncate(t.Title, 40), phase)
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -337,11 +347,11 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		// Build set of task IDs that are being displayed (for filtering blocker IDs)
 		displayedTaskIDs := make(map[string]bool)
 		for _, t := range tasks {
-			displayedTaskIDs[t.ID] = true
+			displayedTaskIDs[t.Id] = true
 		}
 
 		for _, t := range depBlocked {
-			unmet := t.GetUnmetDependencies(taskMap)
+			unmet := task.GetUnmetDependenciesProto(t, taskMap)
 			// Filter unmet dependencies to only show blockers that are in the displayed task list
 			var filteredUnmet []string
 			for _, blockerID := range unmet {
@@ -352,10 +362,10 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 			// Only show "(by ...)" if there are displayed blockers
 			if len(filteredUnmet) > 0 {
 				blockerStr := formatBlockerList(filteredUnmet)
-				_, _ = fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.ID, truncate(t.Title, 35), blockerStr)
+				_, _ = fmt.Fprintf(w, "  %s\t%s\t(by %s)\n", t.Id, truncate(t.Title, 35), blockerStr)
 			} else {
 				// No displayed blockers - just show the task without blocker info
-				_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 35))
+				_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.Id, truncate(t.Title, 35))
 			}
 		}
 		_ = w.Flush()
@@ -371,7 +381,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 		_, _ = fmt.Fprintln(out)
 		for _, t := range ready {
-			_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.ID, truncate(t.Title, 45))
+			_, _ = fmt.Fprintf(w, "  %s\t%s\n", t.Id, truncate(t.Title, 45))
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -386,7 +396,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 		_, _ = fmt.Fprintln(out)
 		for _, t := range paused {
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ orc resume %s\n", t.ID, truncate(t.Title, 40), t.ID)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ orc resume %s\n", t.Id, truncate(t.Title, 40), t.Id)
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -398,8 +408,11 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		_, _ = fmt.Fprintln(out)
 		for _, t := range recent {
 			icon := statusIcon(t.Status)
-			ago := formatTimeAgo(t.UpdatedAt)
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 35), ago)
+			ago := ""
+			if t.UpdatedAt != nil {
+				ago = formatTimeAgo(t.UpdatedAt.AsTime())
+			}
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", icon, t.Id, truncate(t.Title, 35), ago)
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -411,7 +424,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		_, _ = fmt.Fprintln(out)
 		for _, t := range other {
 			icon := statusIcon(t.Status)
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", icon, t.ID, truncate(t.Title, 40))
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", icon, t.Id, truncate(t.Title, 40))
 		}
 		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
@@ -421,7 +434,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 	total := len(tasks)
 	completed := 0
 	for _, t := range tasks {
-		if t.Status == task.StatusCompleted {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			completed++
 		}
 	}

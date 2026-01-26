@@ -17,7 +17,6 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newShowCmd creates the show command
@@ -87,7 +86,7 @@ Examples:
 			}
 
 			// Load review findings if requested
-			var reviewFindings []*storage.ReviewFindings
+			var reviewFindings []*orcv1.ReviewRoundFindings
 			if showReview {
 				reviewFindings, _ = backend.LoadAllReviewFindings(id)
 			}
@@ -310,7 +309,7 @@ func printSpecInfo(spec *storage.PhaseOutputInfo) {
 }
 
 // printReviewFindings displays review findings for a task.
-func printReviewFindings(findings []*storage.ReviewFindings) {
+func printReviewFindings(findings []*orcv1.ReviewRoundFindings) {
 	fmt.Printf("\nReview Findings\n")
 	fmt.Printf("─────────────────────────\n")
 
@@ -328,21 +327,21 @@ func printReviewFindings(findings []*storage.ReviewFindings) {
 			for _, issue := range f.Issues {
 				icon := severityIcon(issue.Severity)
 				fmt.Printf("  %s [%s] %s\n", icon, issue.Severity, issue.Description)
-				if issue.File != "" {
-					if issue.Line > 0 {
-						fmt.Printf("      %s:%d\n", issue.File, issue.Line)
+				if issue.File != nil && *issue.File != "" {
+					if issue.Line != nil && *issue.Line > 0 {
+						fmt.Printf("      %s:%d\n", *issue.File, *issue.Line)
 					} else {
-						fmt.Printf("      %s\n", issue.File)
+						fmt.Printf("      %s\n", *issue.File)
 					}
 				}
-				if issue.Suggestion != "" {
-					fmt.Printf("      💡 %s\n", issue.Suggestion)
+				if issue.Suggestion != nil && *issue.Suggestion != "" {
+					fmt.Printf("      💡 %s\n", *issue.Suggestion)
 				}
-				if issue.ConstitutionViolation != "" {
-					if issue.ConstitutionViolation == "invariant" {
+				if issue.ConstitutionViolation != nil && *issue.ConstitutionViolation != "" {
+					if *issue.ConstitutionViolation == "invariant" {
 						fmt.Printf("      ⚠️  Constitution: INVARIANT (must fix)\n")
 					} else {
-						fmt.Printf("      ⚠️  Constitution: %s\n", issue.ConstitutionViolation)
+						fmt.Printf("      ⚠️  Constitution: %s\n", *issue.ConstitutionViolation)
 					}
 				}
 			}
@@ -411,37 +410,37 @@ func createShowPlanForWeightProto(taskID string, weight orcv1.TaskWeight) *execu
 	switch weight {
 	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		phases = []executor.PhaseDisplay{
-			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		phases = []executor.PhaseDisplay{
-			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tiny_spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "breakdown", Name: "Breakdown", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "tdd_write", Name: "TDD Tests", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "breakdown", Name: "Breakdown", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "docs", Name: "Documentation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	default:
 		phases = []executor.PhaseDisplay{
-			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
-			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "spec", Name: "Specification", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "implement", Name: "Implementation", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
+			{ID: "review", Name: "Review", Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
 	}
 
@@ -463,16 +462,16 @@ func mergePhaseStatesProto(p *executor.Plan, t *orcv1.Task) {
 		}
 		switch ps.Status {
 		case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
-			p.Phases[i].Status = task.PhaseStatusCompleted
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
 			p.Phases[i].CommitSHA = ps.GetCommitSha()
 		case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
-			p.Phases[i].Status = task.PhaseStatusFailed
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 		case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
-			p.Phases[i].Status = task.PhaseStatusSkipped
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
 		case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
-			p.Phases[i].Status = task.PhaseStatusRunning
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_RUNNING
 		case orcv1.PhaseStatus_PHASE_STATUS_PAUSED, orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED:
-			p.Phases[i].Status = task.PhaseStatusPending // Show as pending when interrupted/paused
+			p.Phases[i].Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING // Show as pending when interrupted/paused
 		}
 	}
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
 )
 
@@ -431,7 +430,7 @@ func (e *Executor) publishError(taskID, phase, message string, fatal bool) {
 	e.eventPublisher().Error(taskID, phase, message, fatal)
 }
 
-func (e *Executor) publishState(taskID string, s *task.ExecutionState) {
+func (e *Executor) publishState(taskID string, s *orcv1.ExecutionState) {
 	e.eventPublisher().State(taskID, s)
 }
 
