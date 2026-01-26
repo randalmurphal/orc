@@ -76,6 +76,16 @@ const (
 	// TaskServiceGetDependenciesProcedure is the fully-qualified name of the TaskService's
 	// GetDependencies RPC.
 	TaskServiceGetDependenciesProcedure = "/orc.v1.TaskService/GetDependencies"
+	// TaskServiceAddBlockerProcedure is the fully-qualified name of the TaskService's AddBlocker RPC.
+	TaskServiceAddBlockerProcedure = "/orc.v1.TaskService/AddBlocker"
+	// TaskServiceRemoveBlockerProcedure is the fully-qualified name of the TaskService's RemoveBlocker
+	// RPC.
+	TaskServiceRemoveBlockerProcedure = "/orc.v1.TaskService/RemoveBlocker"
+	// TaskServiceAddRelatedProcedure is the fully-qualified name of the TaskService's AddRelated RPC.
+	TaskServiceAddRelatedProcedure = "/orc.v1.TaskService/AddRelated"
+	// TaskServiceRemoveRelatedProcedure is the fully-qualified name of the TaskService's RemoveRelated
+	// RPC.
+	TaskServiceRemoveRelatedProcedure = "/orc.v1.TaskService/RemoveRelated"
 	// TaskServiceGetDiffProcedure is the fully-qualified name of the TaskService's GetDiff RPC.
 	TaskServiceGetDiffProcedure = "/orc.v1.TaskService/GetDiff"
 	// TaskServiceGetDiffStatsProcedure is the fully-qualified name of the TaskService's GetDiffStats
@@ -149,6 +159,10 @@ type TaskServiceClient interface {
 	FinalizeTask(context.Context, *connect.Request[v1.FinalizeTaskRequest]) (*connect.Response[v1.FinalizeTaskResponse], error)
 	GetFinalizeState(context.Context, *connect.Request[v1.GetFinalizeStateRequest]) (*connect.Response[v1.GetFinalizeStateResponse], error)
 	GetDependencies(context.Context, *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error)
+	AddBlocker(context.Context, *connect.Request[v1.AddBlockerRequest]) (*connect.Response[v1.AddBlockerResponse], error)
+	RemoveBlocker(context.Context, *connect.Request[v1.RemoveBlockerRequest]) (*connect.Response[v1.RemoveBlockerResponse], error)
+	AddRelated(context.Context, *connect.Request[v1.AddRelatedRequest]) (*connect.Response[v1.AddRelatedResponse], error)
+	RemoveRelated(context.Context, *connect.Request[v1.RemoveRelatedRequest]) (*connect.Response[v1.RemoveRelatedResponse], error)
 	GetDiff(context.Context, *connect.Request[v1.GetDiffRequest]) (*connect.Response[v1.GetDiffResponse], error)
 	GetDiffStats(context.Context, *connect.Request[v1.GetDiffStatsRequest]) (*connect.Response[v1.GetDiffStatsResponse], error)
 	GetFileDiff(context.Context, *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error)
@@ -290,6 +304,30 @@ func NewTaskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(taskServiceMethods.ByName("GetDependencies")),
 			connect.WithClientOptions(opts...),
 		),
+		addBlocker: connect.NewClient[v1.AddBlockerRequest, v1.AddBlockerResponse](
+			httpClient,
+			baseURL+TaskServiceAddBlockerProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("AddBlocker")),
+			connect.WithClientOptions(opts...),
+		),
+		removeBlocker: connect.NewClient[v1.RemoveBlockerRequest, v1.RemoveBlockerResponse](
+			httpClient,
+			baseURL+TaskServiceRemoveBlockerProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("RemoveBlocker")),
+			connect.WithClientOptions(opts...),
+		),
+		addRelated: connect.NewClient[v1.AddRelatedRequest, v1.AddRelatedResponse](
+			httpClient,
+			baseURL+TaskServiceAddRelatedProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("AddRelated")),
+			connect.WithClientOptions(opts...),
+		),
+		removeRelated: connect.NewClient[v1.RemoveRelatedRequest, v1.RemoveRelatedResponse](
+			httpClient,
+			baseURL+TaskServiceRemoveRelatedProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("RemoveRelated")),
+			connect.WithClientOptions(opts...),
+		),
 		getDiff: connect.NewClient[v1.GetDiffRequest, v1.GetDiffResponse](
 			httpClient,
 			baseURL+TaskServiceGetDiffProcedure,
@@ -421,6 +459,10 @@ type taskServiceClient struct {
 	finalizeTask        *connect.Client[v1.FinalizeTaskRequest, v1.FinalizeTaskResponse]
 	getFinalizeState    *connect.Client[v1.GetFinalizeStateRequest, v1.GetFinalizeStateResponse]
 	getDependencies     *connect.Client[v1.GetDependenciesRequest, v1.GetDependenciesResponse]
+	addBlocker          *connect.Client[v1.AddBlockerRequest, v1.AddBlockerResponse]
+	removeBlocker       *connect.Client[v1.RemoveBlockerRequest, v1.RemoveBlockerResponse]
+	addRelated          *connect.Client[v1.AddRelatedRequest, v1.AddRelatedResponse]
+	removeRelated       *connect.Client[v1.RemoveRelatedRequest, v1.RemoveRelatedResponse]
 	getDiff             *connect.Client[v1.GetDiffRequest, v1.GetDiffResponse]
 	getDiffStats        *connect.Client[v1.GetDiffStatsRequest, v1.GetDiffStatsResponse]
 	getFileDiff         *connect.Client[v1.GetFileDiffRequest, v1.GetFileDiffResponse]
@@ -529,6 +571,26 @@ func (c *taskServiceClient) GetFinalizeState(ctx context.Context, req *connect.R
 // GetDependencies calls orc.v1.TaskService.GetDependencies.
 func (c *taskServiceClient) GetDependencies(ctx context.Context, req *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error) {
 	return c.getDependencies.CallUnary(ctx, req)
+}
+
+// AddBlocker calls orc.v1.TaskService.AddBlocker.
+func (c *taskServiceClient) AddBlocker(ctx context.Context, req *connect.Request[v1.AddBlockerRequest]) (*connect.Response[v1.AddBlockerResponse], error) {
+	return c.addBlocker.CallUnary(ctx, req)
+}
+
+// RemoveBlocker calls orc.v1.TaskService.RemoveBlocker.
+func (c *taskServiceClient) RemoveBlocker(ctx context.Context, req *connect.Request[v1.RemoveBlockerRequest]) (*connect.Response[v1.RemoveBlockerResponse], error) {
+	return c.removeBlocker.CallUnary(ctx, req)
+}
+
+// AddRelated calls orc.v1.TaskService.AddRelated.
+func (c *taskServiceClient) AddRelated(ctx context.Context, req *connect.Request[v1.AddRelatedRequest]) (*connect.Response[v1.AddRelatedResponse], error) {
+	return c.addRelated.CallUnary(ctx, req)
+}
+
+// RemoveRelated calls orc.v1.TaskService.RemoveRelated.
+func (c *taskServiceClient) RemoveRelated(ctx context.Context, req *connect.Request[v1.RemoveRelatedRequest]) (*connect.Response[v1.RemoveRelatedResponse], error) {
+	return c.removeRelated.CallUnary(ctx, req)
 }
 
 // GetDiff calls orc.v1.TaskService.GetDiff.
@@ -641,6 +703,10 @@ type TaskServiceHandler interface {
 	FinalizeTask(context.Context, *connect.Request[v1.FinalizeTaskRequest]) (*connect.Response[v1.FinalizeTaskResponse], error)
 	GetFinalizeState(context.Context, *connect.Request[v1.GetFinalizeStateRequest]) (*connect.Response[v1.GetFinalizeStateResponse], error)
 	GetDependencies(context.Context, *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error)
+	AddBlocker(context.Context, *connect.Request[v1.AddBlockerRequest]) (*connect.Response[v1.AddBlockerResponse], error)
+	RemoveBlocker(context.Context, *connect.Request[v1.RemoveBlockerRequest]) (*connect.Response[v1.RemoveBlockerResponse], error)
+	AddRelated(context.Context, *connect.Request[v1.AddRelatedRequest]) (*connect.Response[v1.AddRelatedResponse], error)
+	RemoveRelated(context.Context, *connect.Request[v1.RemoveRelatedRequest]) (*connect.Response[v1.RemoveRelatedResponse], error)
 	GetDiff(context.Context, *connect.Request[v1.GetDiffRequest]) (*connect.Response[v1.GetDiffResponse], error)
 	GetDiffStats(context.Context, *connect.Request[v1.GetDiffStatsRequest]) (*connect.Response[v1.GetDiffStatsResponse], error)
 	GetFileDiff(context.Context, *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error)
@@ -776,6 +842,30 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 		TaskServiceGetDependenciesProcedure,
 		svc.GetDependencies,
 		connect.WithSchema(taskServiceMethods.ByName("GetDependencies")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceAddBlockerHandler := connect.NewUnaryHandler(
+		TaskServiceAddBlockerProcedure,
+		svc.AddBlocker,
+		connect.WithSchema(taskServiceMethods.ByName("AddBlocker")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceRemoveBlockerHandler := connect.NewUnaryHandler(
+		TaskServiceRemoveBlockerProcedure,
+		svc.RemoveBlocker,
+		connect.WithSchema(taskServiceMethods.ByName("RemoveBlocker")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceAddRelatedHandler := connect.NewUnaryHandler(
+		TaskServiceAddRelatedProcedure,
+		svc.AddRelated,
+		connect.WithSchema(taskServiceMethods.ByName("AddRelated")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceRemoveRelatedHandler := connect.NewUnaryHandler(
+		TaskServiceRemoveRelatedProcedure,
+		svc.RemoveRelated,
+		connect.WithSchema(taskServiceMethods.ByName("RemoveRelated")),
 		connect.WithHandlerOptions(opts...),
 	)
 	taskServiceGetDiffHandler := connect.NewUnaryHandler(
@@ -924,6 +1014,14 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 			taskServiceGetFinalizeStateHandler.ServeHTTP(w, r)
 		case TaskServiceGetDependenciesProcedure:
 			taskServiceGetDependenciesHandler.ServeHTTP(w, r)
+		case TaskServiceAddBlockerProcedure:
+			taskServiceAddBlockerHandler.ServeHTTP(w, r)
+		case TaskServiceRemoveBlockerProcedure:
+			taskServiceRemoveBlockerHandler.ServeHTTP(w, r)
+		case TaskServiceAddRelatedProcedure:
+			taskServiceAddRelatedHandler.ServeHTTP(w, r)
+		case TaskServiceRemoveRelatedProcedure:
+			taskServiceRemoveRelatedHandler.ServeHTTP(w, r)
 		case TaskServiceGetDiffProcedure:
 			taskServiceGetDiffHandler.ServeHTTP(w, r)
 		case TaskServiceGetDiffStatsProcedure:
@@ -1039,6 +1137,22 @@ func (UnimplementedTaskServiceHandler) GetFinalizeState(context.Context, *connec
 
 func (UnimplementedTaskServiceHandler) GetDependencies(context.Context, *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.GetDependencies is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) AddBlocker(context.Context, *connect.Request[v1.AddBlockerRequest]) (*connect.Response[v1.AddBlockerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.AddBlocker is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) RemoveBlocker(context.Context, *connect.Request[v1.RemoveBlockerRequest]) (*connect.Response[v1.RemoveBlockerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.RemoveBlocker is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) AddRelated(context.Context, *connect.Request[v1.AddRelatedRequest]) (*connect.Response[v1.AddRelatedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.AddRelated is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) RemoveRelated(context.Context, *connect.Request[v1.RemoveRelatedRequest]) (*connect.Response[v1.RemoveRelatedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.RemoveRelated is not implemented"))
 }
 
 func (UnimplementedTaskServiceHandler) GetDiff(context.Context, *connect.Request[v1.GetDiffRequest]) (*connect.Response[v1.GetDiffResponse], error) {

@@ -9,7 +9,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-isatty v0.0.20
 	github.com/randalmurphal/devflow v1.1.0
-	github.com/randalmurphal/llmkit v1.4.1
+	github.com/randalmurphal/llmkit v1.4.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1

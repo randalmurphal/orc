@@ -608,6 +608,57 @@ func (s *configServer) DeleteConstitution(
 	}), nil
 }
 
+// GetConfigStats returns configuration stats for the settings page.
+func (s *configServer) GetConfigStats(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetConfigStatsRequest],
+) (*connect.Response[orcv1.GetConfigStatsResponse], error) {
+	stats := &orcv1.ConfigStats{}
+
+	// Count skills (slash commands)
+	homeDir, _ := os.UserHomeDir()
+	globalClaudeDir := filepath.Join(homeDir, ".claude")
+	projectClaudeDir := filepath.Join(s.workDir, ".claude")
+
+	globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
+	projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
+	stats.SlashCommandsCount = int32(len(globalSkills) + len(projectSkills))
+
+	// Get CLAUDE.md size (sum of global + project)
+	var claudeMdSize int64
+	if info, err := os.Stat(filepath.Join(homeDir, "CLAUDE.md")); err == nil {
+		claudeMdSize += info.Size()
+	}
+	if info, err := os.Stat(filepath.Join(s.workDir, "CLAUDE.md")); err == nil {
+		claudeMdSize += info.Size()
+	}
+	stats.ClaudeMdSize = claudeMdSize
+
+	// Count MCP servers from ~/.claude.json and .mcp.json
+	mcpCount, _ := claudeconfig.CountMCPServers(s.workDir)
+	stats.McpServersCount = int32(mcpCount)
+
+	// Get permissions profile
+	settings, _ := claudeconfig.LoadSettings(s.workDir)
+	if settings != nil && settings.Permissions != nil {
+		if len(settings.Permissions.Allow) > 0 && len(settings.Permissions.Deny) == 0 {
+			stats.PermissionsProfile = "allowlist"
+		} else if len(settings.Permissions.Deny) > 0 && len(settings.Permissions.Allow) == 0 {
+			stats.PermissionsProfile = "denylist"
+		} else if len(settings.Permissions.Allow) > 0 && len(settings.Permissions.Deny) > 0 {
+			stats.PermissionsProfile = "mixed"
+		} else {
+			stats.PermissionsProfile = "default"
+		}
+	} else {
+		stats.PermissionsProfile = "default"
+	}
+
+	return connect.NewResponse(&orcv1.GetConfigStatsResponse{
+		Stats: stats,
+	}), nil
+}
+
 // ListPrompts returns all available prompts.
 func (s *configServer) ListPrompts(
 	ctx context.Context,
