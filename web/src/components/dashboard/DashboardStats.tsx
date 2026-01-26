@@ -3,14 +3,14 @@
  * Shows running, blocked, today's completed, and token usage.
  */
 
-import type { ConnectionStatus } from '@/lib/types';
-import type { DashboardStats as DashboardStatsType } from '@/lib/api';
+import type { ConnectionStatus } from '@/lib/events';
+import type { DashboardStats as ProtoDashboardStats } from '@/gen/orc/v1/dashboard_pb';
 import { formatNumber } from '@/lib/format';
 import { Icon } from '@/components/ui/Icon';
 import './DashboardStats.css';
 
 interface DashboardStatsProps {
-	stats: DashboardStatsType;
+	stats: ProtoDashboardStats;
 	wsStatus: ConnectionStatus;
 	onFilterClick: (status: string) => void;
 	onDependencyFilterClick?: (status: string) => void;
@@ -22,8 +22,12 @@ export function DashboardStats({
 	onFilterClick,
 	onDependencyFilterClick,
 }: DashboardStatsProps) {
+	const tokens = stats.todayTokens;
+	const totalTokens = tokens?.totalTokens ?? 0;
 	const cacheTotal =
-		(stats.cache_creation_input_tokens || 0) + (stats.cache_read_input_tokens || 0);
+		(tokens?.cacheCreationInputTokens ?? 0) + (tokens?.cacheReadInputTokens ?? 0);
+	const taskCounts = stats.taskCounts;
+	const todayCompleted = stats.recentCompletions?.length ?? 0;
 
 	const connectionStatusClass = [
 		'connection-status',
@@ -48,8 +52,8 @@ export function DashboardStats({
 
 	const tokenTooltip =
 		cacheTotal > 0
-			? `Total: ${stats.tokens.toLocaleString()}\nCached: ${cacheTotal.toLocaleString()} (${formatNumber(stats.cache_creation_input_tokens || 0)} creation, ${formatNumber(stats.cache_read_input_tokens || 0)} read)`
-			: `Total: ${stats.tokens.toLocaleString()}`;
+			? `Total: ${totalTokens.toLocaleString()}\nCached: ${cacheTotal.toLocaleString()} (${formatNumber(tokens?.cacheCreationInputTokens ?? 0)} creation, ${formatNumber(tokens?.cacheReadInputTokens ?? 0)} read)`
+			: `Total: ${totalTokens.toLocaleString()}`;
 
 	return (
 		<section className="stats-section">
@@ -66,7 +70,7 @@ export function DashboardStats({
 						<Icon name="clock" size={24} />
 					</div>
 					<div className="stat-content">
-						<span className="stat-value">{stats.running}</span>
+						<span className="stat-value">{taskCounts?.running ?? 0}</span>
 						<span className="stat-label">Running</span>
 					</div>
 				</button>
@@ -81,7 +85,7 @@ export function DashboardStats({
 						<Icon name="blocked" size={24} />
 					</div>
 					<div className="stat-content">
-						<span className="stat-value">{stats.blocked}</span>
+						<span className="stat-value">{taskCounts?.blocked ?? 0}</span>
 						<span className="stat-label">Blocked</span>
 					</div>
 				</button>
@@ -91,7 +95,7 @@ export function DashboardStats({
 						<Icon name="calendar" size={24} />
 					</div>
 					<div className="stat-content">
-						<span className="stat-value">{stats.today}</span>
+						<span className="stat-value">{todayCompleted}</span>
 						<span className="stat-label">Today</span>
 					</div>
 				</button>
@@ -101,7 +105,7 @@ export function DashboardStats({
 						<Icon name="dollar" size={24} />
 					</div>
 					<div className="stat-content">
-						<span className="stat-value">{formatNumber(stats.tokens)}</span>
+						<span className="stat-value">{formatNumber(totalTokens)}</span>
 						<span className="stat-label">
 							Tokens{cacheTotal > 0 ? ` (${formatNumber(cacheTotal)} cached)` : ''}
 						</span>

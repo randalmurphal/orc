@@ -1,6 +1,23 @@
 import { useState, useCallback } from 'react';
-import type { ReviewComment, CreateCommentRequest, CommentSeverity } from '@/lib/types';
+import type { ReviewComment } from '@/gen/orc/v1/task_pb';
+import { CommentSeverity, CommentStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
+import type { CreateCommentRequest } from './types';
 import './InlineCommentThread.css';
+
+// Helper to convert CommentSeverity enum to display string
+const severityToString = (severity: CommentSeverity): string => {
+	switch (severity) {
+		case CommentSeverity.SUGGESTION:
+			return 'suggestion';
+		case CommentSeverity.ISSUE:
+			return 'issue';
+		case CommentSeverity.BLOCKER:
+			return 'blocker';
+		default:
+			return 'issue';
+	}
+};
 
 interface InlineCommentThreadProps {
 	filePath: string;
@@ -26,11 +43,11 @@ export function InlineCommentThread({
 	onCloseThread,
 }: InlineCommentThreadProps) {
 	const [content, setContent] = useState('');
-	const [severity, setSeverity] = useState<CommentSeverity>('issue');
+	const [severity, setSeverity] = useState<CommentSeverity>(CommentSeverity.ISSUE);
 	const [submitting, setSubmitting] = useState(false);
 
-	const openComments = comments.filter((c) => c.status === 'open');
-	const resolvedComments = comments.filter((c) => c.status !== 'open');
+	const openComments = comments.filter((c) => c.status === CommentStatus.OPEN);
+	const resolvedComments = comments.filter((c) => c.status !== CommentStatus.OPEN);
 
 	const handleSubmit = useCallback(async () => {
 		if (!content.trim() || submitting) return;
@@ -38,13 +55,13 @@ export function InlineCommentThread({
 		setSubmitting(true);
 		try {
 			await onAddComment({
-				file_path: filePath,
-				line_number: lineNumber,
+				filePath,
+				lineNumber,
 				content: content.trim(),
 				severity,
 			});
 			setContent('');
-			setSeverity('issue');
+			setSeverity(CommentSeverity.ISSUE);
 		} finally {
 			setSubmitting(false);
 		}
@@ -57,24 +74,28 @@ export function InlineCommentThread({
 	return (
 		<div className="inline-comment-thread">
 			{/* Open Comments */}
-			{openComments.map((comment) => (
-				<div key={comment.id} className={`comment ${comment.severity}`}>
-					<div className="comment-header">
-						<span className={`severity-badge ${comment.severity}`}>{comment.severity}</span>
-						<span className="timestamp">
-							{new Date(comment.created_at).toLocaleString()}
-						</span>
+			{openComments.map((comment) => {
+				const severityStr = severityToString(comment.severity);
+				const createdDate = timestampToDate(comment.createdAt);
+				return (
+					<div key={comment.id} className={`comment ${severityStr}`}>
+						<div className="comment-header">
+							<span className={`severity-badge ${severityStr}`}>{severityStr}</span>
+							<span className="timestamp">
+								{createdDate?.toLocaleString() ?? 'N/A'}
+							</span>
+						</div>
+						<div className="comment-content">{comment.content}</div>
+						<div className="comment-actions">
+							<button onClick={() => onResolveComment(comment.id)}>Resolve</button>
+							<button onClick={() => onWontFixComment(comment.id)}>Won't Fix</button>
+							<button className="delete" onClick={() => onDeleteComment(comment.id)}>
+								Delete
+							</button>
+						</div>
 					</div>
-					<div className="comment-content">{comment.content}</div>
-					<div className="comment-actions">
-						<button onClick={() => onResolveComment(comment.id)}>Resolve</button>
-						<button onClick={() => onWontFixComment(comment.id)}>Won't Fix</button>
-						<button className="delete" onClick={() => onDeleteComment(comment.id)}>
-							Delete
-						</button>
-					</div>
-				</div>
-			))}
+				);
+			})}
 
 			{/* Resolved Comments (collapsed) */}
 			{resolvedComments.length > 0 && (
@@ -89,14 +110,18 @@ export function InlineCommentThread({
 			{showForm && (
 				<div className="comment-form">
 					<div className="severity-pills">
-						{(['suggestion', 'issue', 'blocker'] as const).map((sev) => (
+						{([
+							{ value: CommentSeverity.SUGGESTION, label: 'suggestion' },
+							{ value: CommentSeverity.ISSUE, label: 'issue' },
+							{ value: CommentSeverity.BLOCKER, label: 'blocker' },
+						]).map((sev) => (
 							<button
-								key={sev}
+								key={sev.label}
 								type="button"
-								className={`severity-pill ${severity === sev ? 'selected' : ''}`}
-								onClick={() => setSeverity(sev)}
+								className={`severity-pill ${severity === sev.value ? 'selected' : ''}`}
+								onClick={() => setSeverity(sev.value)}
 							>
-								{sev}
+								{sev.label}
 							</button>
 						))}
 					</div>

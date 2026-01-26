@@ -15,7 +15,8 @@ import {
 	DEPENDENCY_OPTIONS,
 	type DependencyStatusFilter,
 } from '@/stores';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { DependencyStatus } from '@/gen/orc/v1/task_pb';
 import './DependencyDropdown.css';
 
 interface DependencyDropdownProps {
@@ -35,9 +36,9 @@ export function DependencyDropdown({ tasks }: DependencyDropdownProps) {
 			none: 0,
 		};
 		for (const task of tasks) {
-			if (task.dependency_status === 'blocked') counts.blocked++;
-			else if (task.dependency_status === 'ready') counts.ready++;
-			else if (task.dependency_status === 'none') counts.none++;
+			if (task.dependencyStatus === DependencyStatus.BLOCKED) counts.blocked++;
+			else if (task.dependencyStatus === DependencyStatus.READY) counts.ready++;
+			else if (task.dependencyStatus === DependencyStatus.NONE) counts.none++;
 		}
 		return counts;
 	}, [tasks]);

@@ -1,12 +1,12 @@
-// WebSocket hooks
+// Event streaming hooks (Connect RPC)
 export {
-	WebSocketProvider,
-	useWebSocket,
+	EventProvider,
+	useEvents,
 	useTaskSubscription,
 	useConnectionStatus,
 	GLOBAL_TASK_ID,
 	type TranscriptLine,
-} from './useWebSocket';
+} from './useEvents';
 
 // Shortcut hooks
 export {

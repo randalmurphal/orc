@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Project } from '@/lib/types';
+import type { Project } from '@/gen/orc/v1/project_pb';
 
 const STORAGE_KEY = 'orc_current_project_id';
 const URL_PARAM = 'project';

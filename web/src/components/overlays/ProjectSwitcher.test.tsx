@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
 import { ProjectSwitcher } from './ProjectSwitcher';
 import { useProjectStore } from '@/stores';
+import { createTimestamp } from '@/test/factories';
+import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -30,9 +33,9 @@ Object.defineProperty(window, 'history', { value: historyMock, writable: true })
 
 describe('ProjectSwitcher', () => {
 	const mockProjects = [
-		{ id: 'proj-001', name: 'Test Project', path: '/test/project', created_at: '2024-01-01T00:00:00Z' },
-		{ id: 'proj-002', name: 'Another Project', path: '/another/project', created_at: '2024-01-02T00:00:00Z' },
-		{ id: 'proj-003', name: 'Third Project', path: '/third/project', created_at: '2024-01-03T00:00:00Z' },
+		create(ProjectSchema, { id: 'proj-001', name: 'Test Project', path: '/test/project', createdAt: createTimestamp('2024-01-01T00:00:00Z') }),
+		create(ProjectSchema, { id: 'proj-002', name: 'Another Project', path: '/another/project', createdAt: createTimestamp('2024-01-02T00:00:00Z') }),
+		create(ProjectSchema, { id: 'proj-003', name: 'Third Project', path: '/third/project', createdAt: createTimestamp('2024-01-03T00:00:00Z') }),
 	];
 
 	beforeEach(() => {

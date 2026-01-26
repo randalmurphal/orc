@@ -8,38 +8,56 @@
  * - Mock data for development
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { CommandList, type Command } from './CommandList';
 import { ConfigEditor } from './ConfigEditor';
-import * as api from '@/lib/api';
+import { configClient } from '@/lib/client';
+import type { Skill } from '@/gen/orc/v1/config_pb';
+import { SettingsScope } from '@/gen/orc/v1/config_pb';
 import './SettingsView.css';
 
+// Helper to convert SettingsScope enum to Command scope string
+function scopeToString(scope: SettingsScope): 'project' | 'global' {
+	return scope === SettingsScope.GLOBAL ? 'global' : 'project';
+}
+
+// Helper to generate a synthetic path for display
+function skillToPath(skill: Skill): string {
+	const base = skill.scope === SettingsScope.GLOBAL ? '~/.claude/commands' : '.claude/commands';
+	return `${base}/${skill.name}.md`;
+}
+
 export function SettingsView() {
-	const [commands, setCommands] = useState<Command[]>([]);
+	const [skills, setSkills] = useState<Skill[]>([]);
 	const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 	const [editorContent, setEditorContent] = useState('');
 
+	// Convert skills to commands for CommandList
+	const commands: Command[] = useMemo(() => {
+		return skills.map((skill) => ({
+			id: skill.name,
+			name: `/${skill.name}`,
+			description: skill.description,
+			scope: scopeToString(skill.scope),
+			path: skillToPath(skill),
+		}));
+	}, [skills]);
+
 	const selectedCommand = commands.find((c) => c.id === selectedId);
+	const selectedSkill = skills.find((s) => s.name === selectedId);
 
 	// Fetch skills from API on mount
 	useEffect(() => {
 		const fetchSkills = async () => {
 			try {
-				const skills = await api.listSkills();
-				const commandsFromSkills: Command[] = skills.map((skill) => ({
-					id: skill.name,
-					name: `/${skill.name}`,
-					description: skill.description,
-					scope: skill.path.includes('/.claude/') ? 'global' : 'project',
-					path: skill.path,
-				}));
-				setCommands(commandsFromSkills);
+				const response = await configClient.listSkills({});
+				setSkills(response.skills);
 
-				// Auto-select first command if available
-				if (commandsFromSkills.length > 0) {
-					setSelectedId(commandsFromSkills[0].id);
+				// Auto-select first skill if available
+				if (response.skills.length > 0) {
+					setSelectedId(response.skills[0].name);
 				}
 			} catch (err) {
 				console.error('Failed to fetch skills:', err);
@@ -49,52 +67,54 @@ export function SettingsView() {
 		fetchSkills();
 	}, []);
 
-	// Fetch command content when selection changes
+	// Update editor content when selection changes (skills already have content)
 	useEffect(() => {
-		if (!selectedId) return;
-
-		const fetchCommandContent = async () => {
-			try {
-				// scope is optional, let API decide based on skill location
-				const skill = await api.getSkill(selectedId, undefined);
-				setEditorContent(skill?.content || '');
-			} catch (err) {
-				console.error('Failed to fetch command content:', err);
-				setEditorContent('');
-			}
-		};
-
-		fetchCommandContent();
-	}, [selectedId]);
+		if (selectedSkill) {
+			setEditorContent(selectedSkill.content);
+		} else {
+			setEditorContent('');
+		}
+	}, [selectedSkill]);
 
 	const handleSelect = useCallback((id: string) => {
 		setSelectedId(id);
 	}, []);
 
-	const handleDelete = useCallback((id: string) => {
-		setCommands((prev) => prev.filter((c) => c.id !== id));
-		if (selectedId === id) {
-			setSelectedId(commands[0]?.id !== id ? commands[0]?.id : commands[1]?.id);
+	const handleDelete = useCallback(async (id: string) => {
+		try {
+			const skillToDelete = skills.find((s) => s.name === id);
+			if (!skillToDelete) return;
+
+			await configClient.deleteSkill({ name: id, scope: skillToDelete.scope });
+			setSkills((prev) => prev.filter((s) => s.name !== id));
+
+			if (selectedId === id) {
+				const remaining = skills.filter((s) => s.name !== id);
+				setSelectedId(remaining[0]?.name);
+			}
+		} catch (err) {
+			console.error('Failed to delete skill:', err);
 		}
-	}, [selectedId, commands]);
+	}, [selectedId, skills]);
 
 	const handleContentChange = useCallback((content: string) => {
 		setEditorContent(content);
 	}, []);
 
 	const handleSave = useCallback(async () => {
-		if (!selectedId || !selectedCommand) return;
+		if (!selectedId || !selectedSkill) return;
 
 		try {
-			await api.updateSkill(selectedId, {
+			await configClient.updateSkill({
 				name: selectedId,
-				description: selectedCommand.description,
+				scope: selectedSkill.scope,
+				description: selectedSkill.description,
 				content: editorContent,
 			});
 		} catch (err) {
 			console.error('Failed to save command:', err);
 		}
-	}, [selectedId, selectedCommand, editorContent]);
+	}, [selectedId, selectedSkill, editorContent]);
 
 	const handleNewCommand = useCallback(() => {
 		// TODO: Open modal to create a new command when implemented

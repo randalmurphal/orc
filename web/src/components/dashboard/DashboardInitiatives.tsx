@@ -8,7 +8,9 @@
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Initiative } from '@/lib/types';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import { timestampToDate } from '@/lib/time';
 import { useTaskStore, useInitiativeStore } from '@/stores';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -33,6 +35,21 @@ function getProgressColor(percent: number): string {
 function truncateTitle(title: string, maxLength: number = 30): string {
 	if (title.length <= maxLength) return title;
 	return title.slice(0, maxLength - 1) + '…';
+}
+
+function getStatusLabel(status: InitiativeStatus): string {
+	switch (status) {
+		case InitiativeStatus.DRAFT:
+			return 'draft';
+		case InitiativeStatus.ACTIVE:
+			return 'active';
+		case InitiativeStatus.COMPLETED:
+			return 'completed';
+		case InitiativeStatus.ARCHIVED:
+			return 'archived';
+		default:
+			return 'unknown';
+	}
 }
 
 export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps) {
@@ -61,9 +78,13 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 		return null;
 	}
 
-	// Sort by updated_at descending, take top 5
+	// Sort by updatedAt descending, take top 5
 	const sortedInitiatives = [...initiatives]
-		.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+		.sort((a, b) => {
+			const dateA = timestampToDate(a.updatedAt)?.getTime() ?? 0;
+			const dateB = timestampToDate(b.updatedAt)?.getTime() ?? 0;
+			return dateB - dateA;
+		})
 		.slice(0, 5);
 
 	const hasMore = initiatives.length > 5;
@@ -89,6 +110,7 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 					const tooltip = initiative.vision
 						? `${initiative.title}\n\n${initiative.vision}`
 						: initiative.title;
+					const statusLabel = getStatusLabel(initiative.status);
 
 					return (
 						<Tooltip content={tooltip} side="top">
@@ -98,9 +120,9 @@ export function DashboardInitiatives({ initiatives }: DashboardInitiativesProps)
 								onClick={() => handleInitiativeClick(initiative.id)}
 							>
 								<span className="initiative-title">{truncateTitle(initiative.title)}</span>
-							{initiative.status !== 'active' ? (
-								<span className={`initiative-status status-${initiative.status}`}>
-									{initiative.status}
+							{initiative.status !== InitiativeStatus.ACTIVE ? (
+								<span className={`initiative-status status-${statusLabel}`}>
+									{statusLabel}
 								</span>
 							) : (
 								<div className="progress-container">

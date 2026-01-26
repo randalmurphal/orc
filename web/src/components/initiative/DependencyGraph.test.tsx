@@ -1,8 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { DependencyGraph } from './DependencyGraph';
-import type { DependencyGraphNode, DependencyGraphEdge } from '@/lib/api';
+import { type DependencyNode, type DependencyEdge, TaskStatus, DependencyNodeSchema, DependencyEdgeSchema } from '@/gen/orc/v1/task_pb';
+
+// Helper to create test nodes
+function createNode(id: string, title: string, status: TaskStatus): DependencyNode {
+	return create(DependencyNodeSchema, { id, title, status });
+}
+
+// Helper to create test edges
+function createEdge(from: string, to: string, type = 'blocked_by'): DependencyEdge {
+	return create(DependencyEdgeSchema, { from, to, type });
+}
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -20,8 +31,8 @@ describe('DependencyGraph', () => {
 	});
 
 	const renderGraph = (
-		nodes: DependencyGraphNode[],
-		edges: DependencyGraphEdge[],
+		nodes: DependencyNode[],
+		edges: DependencyEdge[],
 		onNodeClick?: (nodeId: string) => void
 	) => {
 		return render(
@@ -39,15 +50,15 @@ describe('DependencyGraph', () => {
 	});
 
 	describe('with nodes', () => {
-		const nodes: DependencyGraphNode[] = [
-			{ id: 'TASK-001', title: 'First Task', status: 'done' },
-			{ id: 'TASK-002', title: 'Second Task', status: 'running' },
-			{ id: 'TASK-003', title: 'Third Task', status: 'blocked' },
+		const nodes: DependencyNode[] = [
+			createNode('TASK-001', 'First Task', TaskStatus.COMPLETED),
+			createNode('TASK-002', 'Second Task', TaskStatus.RUNNING),
+			createNode('TASK-003', 'Third Task', TaskStatus.BLOCKED),
 		];
 
-		const edges: DependencyGraphEdge[] = [
-			{ from: 'TASK-001', to: 'TASK-002' },
-			{ from: 'TASK-002', to: 'TASK-003' },
+		const edges: DependencyEdge[] = [
+			createEdge('TASK-001', 'TASK-002'),
+			createEdge('TASK-002', 'TASK-003'),
 		];
 
 		it('renders all nodes', () => {
@@ -76,8 +87,8 @@ describe('DependencyGraph', () => {
 	});
 
 	describe('toolbar', () => {
-		const nodes: DependencyGraphNode[] = [
-			{ id: 'TASK-001', title: 'Test', status: 'done' },
+		const nodes: DependencyNode[] = [
+			createNode('TASK-001', 'Test', TaskStatus.COMPLETED),
 		];
 
 		it('renders zoom in button', () => {
@@ -113,8 +124,8 @@ describe('DependencyGraph', () => {
 	});
 
 	describe('node interaction', () => {
-		const nodes: DependencyGraphNode[] = [
-			{ id: 'TASK-001', title: 'Test Task', status: 'done' },
+		const nodes: DependencyNode[] = [
+			createNode('TASK-001', 'Test Task', TaskStatus.COMPLETED),
 		];
 
 		it('navigates to task on click by default', () => {
@@ -154,8 +165,8 @@ describe('DependencyGraph', () => {
 	});
 
 	describe('tooltip', () => {
-		const nodes: DependencyGraphNode[] = [
-			{ id: 'TASK-001', title: 'Test Task Title', status: 'running' },
+		const nodes: DependencyNode[] = [
+			createNode('TASK-001', 'Test Task Title', TaskStatus.RUNNING),
 		];
 
 		it('shows tooltip on node hover', () => {
@@ -186,24 +197,24 @@ describe('DependencyGraph', () => {
 
 	describe('status styling', () => {
 		it('applies correct CSS class for running status', () => {
-			const nodes: DependencyGraphNode[] = [
-				{ id: 'TASK-001', title: 'Test', status: 'running' },
+			const nodes: DependencyNode[] = [
+				createNode('TASK-001', 'Test', TaskStatus.RUNNING),
 			];
 			const { container } = renderGraph(nodes, []);
 			expect(container.querySelector('g.node-running')).toBeInTheDocument();
 		});
 
 		it('applies correct CSS class for done status', () => {
-			const nodes: DependencyGraphNode[] = [
-				{ id: 'TASK-001', title: 'Test', status: 'done' },
+			const nodes: DependencyNode[] = [
+				createNode('TASK-001', 'Test', TaskStatus.COMPLETED),
 			];
 			const { container } = renderGraph(nodes, []);
 			expect(container.querySelector('g.node-done')).toBeInTheDocument();
 		});
 
 		it('applies correct CSS class for blocked status', () => {
-			const nodes: DependencyGraphNode[] = [
-				{ id: 'TASK-001', title: 'Test', status: 'blocked' },
+			const nodes: DependencyNode[] = [
+				createNode('TASK-001', 'Test', TaskStatus.BLOCKED),
 			];
 			const { container } = renderGraph(nodes, []);
 			expect(container.querySelector('g.node-blocked')).toBeInTheDocument();

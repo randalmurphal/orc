@@ -5,33 +5,47 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { useDocumentTitle } from '@/hooks';
-import { listAgents, getAgent, type SubAgent } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type Agent,
+	SettingsScope,
+	ListAgentsRequestSchema,
+	GetAgentRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
-type Scope = 'project' | 'global';
+type ScopeTab = 'project' | 'global';
+
+// Convert UI scope tab to protobuf SettingsScope enum
+function toSettingsScope(scope: ScopeTab): SettingsScope {
+	return scope === 'global' ? SettingsScope.GLOBAL : SettingsScope.PROJECT;
+}
 
 export function Agents() {
 	useDocumentTitle('Agents');
-	const [scope, setScope] = useState<Scope>('project');
-	const [agents, setAgents] = useState<SubAgent[]>([]);
+	const [scope, setScope] = useState<ScopeTab>('project');
+	const [agents, setAgents] = useState<Agent[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Preview modal state
 	const [previewingAgent, setPreviewingAgent] = useState<string | null>(null);
-	const [previewContent, setPreviewContent] = useState<SubAgent | null>(null);
+	const [previewContent, setPreviewContent] = useState<Agent | null>(null);
 	const [previewLoading, setPreviewLoading] = useState(false);
 
 	const loadAgents = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await listAgents(scope === 'global' ? 'global' : undefined);
-			setAgents(data);
+			const response = await configClient.listAgents(
+				create(ListAgentsRequestSchema, { scope: toSettingsScope(scope) })
+			);
+			setAgents(response.agents);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load agents');
 		} finally {
@@ -47,8 +61,10 @@ export function Agents() {
 		setPreviewingAgent(agentName);
 		setPreviewLoading(true);
 		try {
-			const agent = await getAgent(agentName);
-			setPreviewContent(agent);
+			const response = await configClient.getAgent(
+				create(GetAgentRequestSchema, { name: agentName })
+			);
+			setPreviewContent(response.agent ?? null);
 		} catch (_err) {
 			setPreviewingAgent(null);
 		} finally {
@@ -88,7 +104,7 @@ export function Agents() {
 				</div>
 			</div>
 
-			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as Scope)}>
+			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as ScopeTab)}>
 				<Tabs.List className="env-scope-tabs">
 					<Tabs.Trigger value="project" className="env-scope-tab">
 						<Icon name="folder" size={14} />
@@ -173,18 +189,18 @@ export function Agents() {
 							</div>
 						)}
 
-						{previewContent.work_dir && (
+						{previewContent.workDir && (
 							<div className="agent-preview-field">
 								<span className="agent-preview-label">Working Directory:</span>
-								<code>{previewContent.work_dir}</code>
+								<code>{previewContent.workDir}</code>
 							</div>
 						)}
 
-						{previewContent.skill_refs && previewContent.skill_refs.length > 0 && (
+						{previewContent.skillRefs && previewContent.skillRefs.length > 0 && (
 							<div className="agent-preview-field">
 								<span className="agent-preview-label">Skills:</span>
 								<div className="agent-preview-skills">
-									{previewContent.skill_refs.map((skill) => (
+									{previewContent.skillRefs.map((skill) => (
 										<code key={skill} className="agent-preview-skill">
 											{skill}
 										</code>
@@ -197,9 +213,11 @@ export function Agents() {
 							<div className="agent-preview-field">
 								<span className="agent-preview-label">Tools:</span>
 								<code>
-									{typeof previewContent.tools === 'string'
-										? previewContent.tools
-										: JSON.stringify(previewContent.tools)}
+									{previewContent.tools.allow?.length
+										? `Allow: ${previewContent.tools.allow.join(', ')}`
+										: previewContent.tools.deny?.length
+											? `Deny: ${previewContent.tools.deny.join(', ')}`
+											: 'Default'}
 								</code>
 							</div>
 						)}

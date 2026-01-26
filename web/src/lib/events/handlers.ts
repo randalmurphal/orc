@@ -1,0 +1,190 @@
+/**
+ * Event handlers - Route incoming events to the appropriate stores
+ *
+ * This module processes typed Event payloads (discriminated unions)
+ * and dispatches updates to Zustand stores.
+ */
+
+import type { Event } from '@/gen/orc/v1/events_pb';
+import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, toast } from '@/stores';
+import { create } from '@bufbuild/protobuf';
+import { PendingDecisionSchema } from '@/gen/orc/v1/decision_pb';
+
+/**
+ * Handle an incoming event by dispatching to the appropriate store.
+ *
+ * Events use discriminated unions via `event.payload.case`, providing
+ * type-safe access to the payload value.
+ */
+export function handleEvent(event: Event): void {
+	const taskStore = useTaskStore.getState();
+	const initiativeStore = useInitiativeStore.getState();
+
+	switch (event.payload.case) {
+		case 'taskCreated': {
+			// TaskCreatedEvent has partial info - trigger refresh or add minimal task
+			const { taskId, title } = event.payload.value;
+			console.log(`Task created: ${taskId} - ${title}`);
+			break;
+		}
+
+		case 'taskUpdated': {
+			const { taskId, task } = event.payload.value;
+			if (task) {
+				// Proto types match directly - no conversion needed
+				taskStore.updateTask(taskId, {
+					currentPhase: task.currentPhase,
+					status: task.status,
+				});
+			}
+			break;
+		}
+
+		case 'taskDeleted': {
+			const { taskId } = event.payload.value;
+			taskStore.removeTask(taskId);
+			toast.info(`Task ${taskId} deleted`);
+			break;
+		}
+
+		case 'phaseChanged': {
+			const { taskId, phaseName } = event.payload.value;
+			taskStore.updateTask(taskId, {
+				currentPhase: phaseName,
+			});
+			break;
+		}
+
+		case 'tokensUpdated': {
+			const { taskId, tokens } = event.payload.value;
+			if (tokens) {
+				const existingState = taskStore.getTaskState(taskId);
+				if (existingState) {
+					// Proto types match directly - no conversion needed
+					taskStore.updateTaskState(taskId, {
+						...existingState,
+						tokens,
+					});
+				}
+			}
+			break;
+		}
+
+		case 'activity': {
+			const { taskId, phaseId, activity } = event.payload.value;
+			// Activity is proto ActivityState enum - matches store directly
+			taskStore.updateTaskActivity(taskId, phaseId, activity);
+			break;
+		}
+
+		case 'initiativeCreated': {
+			const { initiativeId, title } = event.payload.value;
+			console.log(`Initiative created: ${initiativeId} - ${title}`);
+			break;
+		}
+
+		case 'initiativeUpdated': {
+			const { initiativeId } = event.payload.value;
+			console.log(`Initiative updated: ${initiativeId}`);
+			break;
+		}
+
+		case 'initiativeDeleted': {
+			const { initiativeId } = event.payload.value;
+			initiativeStore.removeInitiative(initiativeId);
+			toast.info(`Initiative ${initiativeId} deleted`);
+			break;
+		}
+
+		case 'decisionRequired': {
+			const uiStore = useUIStore.getState();
+			const eventData = event.payload.value;
+			// Convert event to PendingDecision proto
+			// Note: DecisionRequiredEvent doesn't include options - they come from API if needed
+			const decision = create(PendingDecisionSchema, {
+				id: eventData.decisionId,
+				taskId: eventData.taskId,
+				taskTitle: eventData.taskTitle,
+				phase: eventData.phase,
+				gateType: eventData.gateType,
+				question: eventData.question,
+				context: eventData.context,
+				requestedAt: eventData.requestedAt,
+				options: [], // Options fetched via API when needed
+			});
+			uiStore.addPendingDecision(decision);
+			toast.warning(`Decision required: ${eventData.taskTitle} - ${eventData.question}`);
+			break;
+		}
+
+		case 'decisionResolved': {
+			const uiStore = useUIStore.getState();
+			const { decisionId, taskId, approved } = event.payload.value;
+			uiStore.removePendingDecision(decisionId);
+			const action = approved ? 'approved' : 'rejected';
+			toast.info(`Decision ${action} for task ${taskId}`);
+			break;
+		}
+
+		case 'filesChanged': {
+			// File change events - could update UI indicator
+			break;
+		}
+
+		case 'sessionUpdate': {
+			// SessionInfo contains Claude session metadata (id, model, status)
+			const { session } = event.payload.value;
+			if (session) {
+				console.log(`Session update: ${session.id} - ${session.status}`);
+			}
+			break;
+		}
+
+		case 'sessionMetrics': {
+			// Aggregate session metrics (tokens, cost, etc.)
+			const sessionStore = useSessionStore.getState();
+			const metrics = event.payload.value;
+			sessionStore.updateFromMetricsEvent({
+				durationSeconds: metrics.durationSeconds,
+				totalTokens: metrics.totalTokens,
+				estimatedCostUsd: metrics.estimatedCostUsd,
+				inputTokens: metrics.inputTokens,
+				outputTokens: metrics.outputTokens,
+				tasksRunning: metrics.tasksRunning,
+				isPaused: metrics.isPaused,
+			});
+			break;
+		}
+
+		case 'error': {
+			const { error, phase } = event.payload.value;
+			const message = phase ? `[${phase}] ${error}` : error;
+			toast.error(message);
+			break;
+		}
+
+		case 'warning': {
+			const { message, phase } = event.payload.value;
+			const msg = phase ? `[${phase}] ${message}` : message;
+			toast.warning(msg);
+			break;
+		}
+
+		case 'heartbeat': {
+			// Connection health check - no action needed
+			break;
+		}
+
+		case undefined: {
+			console.warn('Event with undefined payload case:', event);
+			break;
+		}
+
+		default: {
+			// Exhaustiveness check - cast to never to catch unhandled cases
+			const _exhaustive: never = event.payload;
+			void _exhaustive; // Suppress unused variable warning
+			console.warn('Unhandled event payload case:', event.payload);
+		}
+	}
+}

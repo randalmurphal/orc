@@ -2,37 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueueColumn, type QueueColumnProps } from './QueueColumn';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Task, Initiative } from '@/lib/types';
-
-// Sample task factory
-function createTask(overrides: Partial<Task> = {}): Task {
-	return {
-		id: 'TASK-001',
-		title: 'Test Task',
-		description: 'A test task description',
-		weight: 'medium',
-		status: 'created',
-		category: 'feature',
-		priority: 'normal',
-		branch: 'orc/TASK-001',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
-
-// Sample initiative factory
-function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
-	return {
-		version: 1,
-		id: 'INIT-001',
-		title: 'Test Initiative',
-		status: 'active',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import { createMockTask, createMockInitiative } from '@/test/factories';
 
 function renderQueueColumn(props: Partial<QueueColumnProps> = {}) {
 	const defaultProps: QueueColumnProps = {
@@ -61,9 +32,9 @@ describe('QueueColumn', () => {
 		it('displays correct task count in badge', () => {
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1' }),
-					createTask({ id: 'T2' }),
-					createTask({ id: 'T3' }),
+					createMockTask({ id: 'T1' }),
+					createMockTask({ id: 'T2' }),
+					createMockTask({ id: 'T3' }),
 				],
 			});
 
@@ -84,15 +55,15 @@ describe('QueueColumn', () => {
 	});
 
 	describe('task grouping', () => {
-		it('groups tasks by initiative_id into separate Swimlane components', () => {
-			const init1 = createInitiative({ id: 'INIT-001', title: 'Auth System' });
-			const init2 = createInitiative({ id: 'INIT-002', title: 'Dashboard' });
+		it('groups tasks by initiativeId into separate Swimlane components', () => {
+			const init1 = createMockInitiative({ id: 'INIT-001', title: 'Auth System' });
+			const init2 = createMockInitiative({ id: 'INIT-002', title: 'Dashboard' });
 
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-001' }),
-					createTask({ id: 'T2', initiative_id: 'INIT-001' }),
-					createTask({ id: 'T3', initiative_id: 'INIT-002' }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-001' }),
+					createMockTask({ id: 'T2', initiativeId: 'INIT-001' }),
+					createMockTask({ id: 'T3', initiativeId: 'INIT-002' }),
 				],
 				initiatives: [init1, init2],
 			});
@@ -106,11 +77,11 @@ describe('QueueColumn', () => {
 			expect(screen.getByText('Dashboard')).toBeInTheDocument();
 		});
 
-		it('places tasks without initiative_id in "Unassigned" swimlane', () => {
+		it('places tasks without initiativeId in "Unassigned" swimlane', () => {
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: undefined }),
-					createTask({ id: 'T2', initiative_id: undefined }),
+					createMockTask({ id: 'T1', initiativeId: undefined }),
+					createMockTask({ id: 'T2', initiativeId: undefined }),
 				],
 				initiatives: [],
 			});
@@ -120,12 +91,12 @@ describe('QueueColumn', () => {
 		});
 
 		it('handles mix of assigned and unassigned tasks', () => {
-			const init1 = createInitiative({ id: 'INIT-001', title: 'Feature Work' });
+			const init1 = createMockInitiative({ id: 'INIT-001', title: 'Feature Work' });
 
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-001' }),
-					createTask({ id: 'T2', initiative_id: undefined }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-001' }),
+					createMockTask({ id: 'T2', initiativeId: undefined }),
 				],
 				initiatives: [init1],
 			});
@@ -137,23 +108,23 @@ describe('QueueColumn', () => {
 
 	describe('swimlane sorting', () => {
 		it('sorts active initiatives first, then by task count', () => {
-			const activeInit = createInitiative({
+			const activeInit = createMockInitiative({
 				id: 'INIT-ACTIVE',
 				title: 'Active Initiative',
-				status: 'active',
+				status: InitiativeStatus.ACTIVE,
 			});
-			const draftInit = createInitiative({
+			const draftInit = createMockInitiative({
 				id: 'INIT-DRAFT',
 				title: 'Draft Initiative',
-				status: 'draft',
+				status: InitiativeStatus.DRAFT,
 			});
 
 			const { container } = renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-DRAFT' }),
-					createTask({ id: 'T2', initiative_id: 'INIT-DRAFT' }),
-					createTask({ id: 'T3', initiative_id: 'INIT-DRAFT' }),
-					createTask({ id: 'T4', initiative_id: 'INIT-ACTIVE' }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-DRAFT' }),
+					createMockTask({ id: 'T2', initiativeId: 'INIT-DRAFT' }),
+					createMockTask({ id: 'T3', initiativeId: 'INIT-DRAFT' }),
+					createMockTask({ id: 'T4', initiativeId: 'INIT-ACTIVE' }),
 				],
 				initiatives: [draftInit, activeInit],
 			});
@@ -165,23 +136,23 @@ describe('QueueColumn', () => {
 		});
 
 		it('sorts by task count (descending) when status is the same', () => {
-			const init1 = createInitiative({
+			const init1 = createMockInitiative({
 				id: 'INIT-FEW',
 				title: 'Few Tasks',
-				status: 'active',
+				status: InitiativeStatus.ACTIVE,
 			});
-			const init2 = createInitiative({
+			const init2 = createMockInitiative({
 				id: 'INIT-MANY',
 				title: 'Many Tasks',
-				status: 'active',
+				status: InitiativeStatus.ACTIVE,
 			});
 
 			const { container } = renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-FEW' }),
-					createTask({ id: 'T2', initiative_id: 'INIT-MANY' }),
-					createTask({ id: 'T3', initiative_id: 'INIT-MANY' }),
-					createTask({ id: 'T4', initiative_id: 'INIT-MANY' }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-FEW' }),
+					createMockTask({ id: 'T2', initiativeId: 'INIT-MANY' }),
+					createMockTask({ id: 'T3', initiativeId: 'INIT-MANY' }),
+					createMockTask({ id: 'T4', initiativeId: 'INIT-MANY' }),
 				],
 				initiatives: [init1, init2],
 			});
@@ -193,17 +164,17 @@ describe('QueueColumn', () => {
 		});
 
 		it('places "Unassigned" swimlane at the bottom', () => {
-			const init = createInitiative({
+			const init = createMockInitiative({
 				id: 'INIT-001',
 				title: 'Some Initiative',
-				status: 'active',
+				status: InitiativeStatus.ACTIVE,
 			});
 
 			const { container } = renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: undefined }),
-					createTask({ id: 'T2', initiative_id: undefined }),
-					createTask({ id: 'T3', initiative_id: 'INIT-001' }),
+					createMockTask({ id: 'T1', initiativeId: undefined }),
+					createMockTask({ id: 'T2', initiativeId: undefined }),
+					createMockTask({ id: 'T3', initiativeId: 'INIT-001' }),
 				],
 				initiatives: [init],
 			});
@@ -230,7 +201,7 @@ describe('QueueColumn', () => {
 	describe('task click handling', () => {
 		it('passes onTaskClick through to Swimlane components', () => {
 			const onTaskClick = vi.fn();
-			const task = createTask({ id: 'TASK-001', initiative_id: undefined });
+			const task = createMockTask({ id: 'TASK-001', initiativeId: undefined });
 
 			const { container } = renderQueueColumn({
 				tasks: [task],
@@ -247,9 +218,9 @@ describe('QueueColumn', () => {
 
 		it('works with tasks in different swimlanes', () => {
 			const onTaskClick = vi.fn();
-			const init = createInitiative({ id: 'INIT-001' });
-			const task1 = createTask({ id: 'T1', initiative_id: 'INIT-001' });
-			const task2 = createTask({ id: 'T2', initiative_id: undefined });
+			const init = createMockInitiative({ id: 'INIT-001' });
+			const task1 = createMockTask({ id: 'T1', initiativeId: 'INIT-001' });
+			const task2 = createMockTask({ id: 'T2', initiativeId: undefined });
 
 			const { container } = renderQueueColumn({
 				tasks: [task1, task2],
@@ -268,7 +239,7 @@ describe('QueueColumn', () => {
 	describe('context menu handling', () => {
 		it('passes onContextMenu through to Swimlane components', () => {
 			const onContextMenu = vi.fn();
-			const task = createTask({ id: 'TASK-001', initiative_id: undefined });
+			const task = createMockTask({ id: 'TASK-001', initiativeId: undefined });
 
 			const { container } = renderQueueColumn({
 				tasks: [task],
@@ -287,10 +258,10 @@ describe('QueueColumn', () => {
 	describe('collapse state management', () => {
 		it('calls onToggleSwimlane when swimlane header clicked', () => {
 			const onToggleSwimlane = vi.fn();
-			const init = createInitiative({ id: 'INIT-001', title: 'Test' });
+			const init = createMockInitiative({ id: 'INIT-001', title: 'Test' });
 
 			const { container } = renderQueueColumn({
-				tasks: [createTask({ id: 'T1', initiative_id: 'INIT-001' })],
+				tasks: [createMockTask({ id: 'T1', initiativeId: 'INIT-001' })],
 				initiatives: [init],
 				onToggleSwimlane,
 			});
@@ -306,7 +277,7 @@ describe('QueueColumn', () => {
 			const onToggleSwimlane = vi.fn();
 
 			const { container } = renderQueueColumn({
-				tasks: [createTask({ id: 'T1', initiative_id: undefined })],
+				tasks: [createMockTask({ id: 'T1', initiativeId: undefined })],
 				initiatives: [],
 				onToggleSwimlane,
 			});
@@ -318,11 +289,11 @@ describe('QueueColumn', () => {
 		});
 
 		it('applies collapsed state from collapsedSwimlanes prop', () => {
-			const init = createInitiative({ id: 'INIT-001', title: 'Test' });
+			const init = createMockInitiative({ id: 'INIT-001', title: 'Test' });
 			const collapsedSwimlanes = new Set(['INIT-001']);
 
 			const { container } = renderQueueColumn({
-				tasks: [createTask({ id: 'T1', initiative_id: 'INIT-001' })],
+				tasks: [createMockTask({ id: 'T1', initiativeId: 'INIT-001' })],
 				initiatives: [init],
 				collapsedSwimlanes,
 			});
@@ -332,11 +303,11 @@ describe('QueueColumn', () => {
 		});
 
 		it('does not collapse swimlanes not in collapsedSwimlanes set', () => {
-			const init = createInitiative({ id: 'INIT-001', title: 'Test' });
+			const init = createMockInitiative({ id: 'INIT-001', title: 'Test' });
 			const collapsedSwimlanes = new Set(['INIT-OTHER']);
 
 			const { container } = renderQueueColumn({
-				tasks: [createTask({ id: 'T1', initiative_id: 'INIT-001' })],
+				tasks: [createMockTask({ id: 'T1', initiativeId: 'INIT-001' })],
 				initiatives: [init],
 				collapsedSwimlanes,
 			});
@@ -357,7 +328,7 @@ describe('QueueColumn', () => {
 
 		it('count badge has aria-label for screen readers', () => {
 			renderQueueColumn({
-				tasks: [createTask({ id: 'T1' }), createTask({ id: 'T2' })],
+				tasks: [createMockTask({ id: 'T1' }), createMockTask({ id: 'T2' })],
 			});
 
 			const countBadge = screen.getByLabelText('2 tasks');
@@ -366,11 +337,11 @@ describe('QueueColumn', () => {
 	});
 
 	describe('edge cases', () => {
-		it('handles tasks with initiative_id that does not exist in initiatives array', () => {
+		it('handles tasks with initiativeId that does not exist in initiatives array', () => {
 			// Tasks pointing to non-existent initiative should go to unassigned
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-NONEXISTENT' }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-NONEXISTENT' }),
 				],
 				initiatives: [],
 			});
@@ -382,7 +353,7 @@ describe('QueueColumn', () => {
 		it('handles empty initiatives array with assigned tasks', () => {
 			renderQueueColumn({
 				tasks: [
-					createTask({ id: 'T1', initiative_id: 'INIT-001' }),
+					createMockTask({ id: 'T1', initiativeId: 'INIT-001' }),
 				],
 				initiatives: [],
 			});
@@ -392,10 +363,10 @@ describe('QueueColumn', () => {
 		});
 
 		it('handles undefined collapsedSwimlanes prop', () => {
-			const init = createInitiative({ id: 'INIT-001' });
+			const init = createMockInitiative({ id: 'INIT-001' });
 
 			const { container } = renderQueueColumn({
-				tasks: [createTask({ id: 'T1', initiative_id: 'INIT-001' })],
+				tasks: [createMockTask({ id: 'T1', initiativeId: 'INIT-001' })],
 				initiatives: [init],
 				collapsedSwimlanes: undefined,
 			});

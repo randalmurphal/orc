@@ -5,34 +5,57 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
-import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
-import { listSkills, getSkill, type SkillInfo, type Skill } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type Skill,
+	SettingsScope,
+	ListSkillsRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
-type Scope = 'project' | 'global';
+type ScopeTab = 'project' | 'global';
+
+// Convert UI scope tab to protobuf SettingsScope enum
+function toSettingsScope(scope: ScopeTab): SettingsScope {
+	return scope === 'global' ? SettingsScope.GLOBAL : SettingsScope.PROJECT;
+}
+
+// Convert protobuf SettingsScope enum to display string
+function scopeToString(scope: SettingsScope): string {
+	switch (scope) {
+		case SettingsScope.GLOBAL:
+			return 'global';
+		case SettingsScope.PROJECT:
+			return 'project';
+		default:
+			return 'unknown';
+	}
+}
 
 export function Skills() {
 	useDocumentTitle('Skills');
-	const [scope, setScope] = useState<Scope>('project');
-	const [skills, setSkills] = useState<SkillInfo[]>([]);
+	const [scope, setScope] = useState<ScopeTab>('project');
+	const [skills, setSkills] = useState<Skill[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Preview modal state
 	const [previewingSkill, setPreviewingSkill] = useState<string | null>(null);
 	const [previewContent, setPreviewContent] = useState<Skill | null>(null);
-	const [previewLoading, setPreviewLoading] = useState(false);
 
 	const loadSkills = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await listSkills(scope);
-			setSkills(data);
+			const response = await configClient.listSkills(
+				create(ListSkillsRequestSchema, { scope: toSettingsScope(scope) })
+			);
+			setSkills(response.skills);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load skills');
 		} finally {
@@ -44,17 +67,12 @@ export function Skills() {
 		loadSkills();
 	}, [loadSkills]);
 
-	const handlePreview = async (skillName: string) => {
-		setPreviewingSkill(skillName);
-		setPreviewLoading(true);
-		try {
-			const skill = await getSkill(skillName, scope);
+	const handlePreview = (skillName: string) => {
+		// Find the skill in the loaded list (protobuf includes full content)
+		const skill = skills.find((s) => s.name === skillName);
+		if (skill) {
+			setPreviewingSkill(skillName);
 			setPreviewContent(skill);
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to load skill');
-			setPreviewingSkill(null);
-		} finally {
-			setPreviewLoading(false);
 		}
 	};
 
@@ -90,7 +108,7 @@ export function Skills() {
 				</div>
 			</div>
 
-			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as Scope)}>
+			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as ScopeTab)}>
 				<Tabs.List className="env-scope-tabs">
 					<Tabs.Trigger value="project" className="env-scope-tab">
 						<Icon name="folder" size={14} />
@@ -128,7 +146,10 @@ export function Skills() {
 									</div>
 									<p className="env-card-description">{skill.description}</p>
 									<div className="skill-card-meta">
-										<code className="skill-card-path">{skill.path}</code>
+										<span className="skill-card-scope">{scopeToString(skill.scope)}</span>
+										{skill.userInvocable && (
+											<span className="skill-card-badge">User Invocable</span>
+										)}
 									</div>
 								</div>
 							))}
@@ -149,52 +170,35 @@ export function Skills() {
 				}
 				size="lg"
 			>
-				{previewLoading ? (
-					<div className="env-loading">Loading skill...</div>
-				) : previewContent ? (
+				{previewContent ? (
 					<div className="skill-preview">
 						<div className="skill-preview-meta">
 							<div className="skill-preview-description">
 								{previewContent.description}
 							</div>
-							{previewContent.version && (
-								<span className="skill-preview-badge">v{previewContent.version}</span>
-							)}
 						</div>
-
-						{previewContent.allowed_tools && previewContent.allowed_tools.length > 0 && (
-							<div className="skill-preview-tools">
-								<span className="skill-preview-label">Allowed Tools:</span>
-								<div className="skill-preview-tools-list">
-									{previewContent.allowed_tools.map((tool) => (
-										<code key={tool} className="skill-preview-tool">
-											{tool}
-										</code>
-									))}
-								</div>
-							</div>
-						)}
 
 						<div className="skill-preview-flags">
-							{previewContent.has_references && (
+							{previewContent.userInvocable && (
 								<span className="skill-preview-flag">
-									<Icon name="link" size={12} />
-									References
+									<Icon name="user" size={12} />
+									User Invocable
 								</span>
 							)}
-							{previewContent.has_scripts && (
+							{previewContent.inputSchema && (
 								<span className="skill-preview-flag">
-									<Icon name="terminal" size={12} />
-									Scripts
-								</span>
-							)}
-							{previewContent.has_assets && (
-								<span className="skill-preview-flag">
-									<Icon name="image" size={12} />
-									Assets
+									<Icon name="code" size={12} />
+									Has Input Schema
 								</span>
 							)}
 						</div>
+
+						{previewContent.inputSchema && (
+							<div className="skill-preview-section">
+								<h5>Input Schema</h5>
+								<pre className="skill-preview-content">{previewContent.inputSchema}</pre>
+							</div>
+						)}
 
 						<div className="skill-preview-section">
 							<h5>Content</h5>

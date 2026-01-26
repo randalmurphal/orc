@@ -3,13 +3,19 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { InitiativesView } from './InitiativesView';
-import * as api from '@/lib/api';
 import { useTaskStore } from '@/stores';
-import type { Initiative, Task } from '@/lib/types';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { createMockInitiative, createMockTask, createMockTaskRef } from '@/test/factories';
 
-// Mock the API functions
-vi.mock('@/lib/api', () => ({
-	listInitiatives: vi.fn(),
+// Mock the Connect RPC client
+const mockListInitiatives = vi.fn();
+vi.mock('@/lib/client', () => ({
+	initiativeClient: {
+		listInitiatives: (...args: unknown[]) => mockListInitiatives(...args),
+	},
 }));
 
 // Mock useNavigate
@@ -24,101 +30,82 @@ vi.mock('react-router-dom', async () => {
 
 describe('InitiativesView', () => {
 	const mockInitiatives: Initiative[] = [
-		{
-			version: 1,
+		createMockInitiative({
 			id: 'INIT-001',
 			title: 'Frontend Polish',
-			status: 'active',
+			status: InitiativeStatus.ACTIVE,
 			vision: 'UI refresh with component library',
 			tasks: [
-				{ id: 'TASK-001', title: 'Task 1', status: 'completed' },
-				{ id: 'TASK-002', title: 'Task 2', status: 'running' },
+				createMockTaskRef({ id: 'TASK-001', title: 'Task 1', status: TaskStatus.COMPLETED }),
+				createMockTaskRef({ id: 'TASK-002', title: 'Task 2', status: TaskStatus.RUNNING }),
 			],
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
-			version: 1,
+		}),
+		createMockInitiative({
 			id: 'INIT-002',
 			title: 'Auth Overhaul',
-			status: 'active',
+			status: InitiativeStatus.ACTIVE,
 			vision: 'OAuth2 with PKCE',
 			tasks: [
-				{ id: 'TASK-003', title: 'Task 3', status: 'completed' },
-				{ id: 'TASK-004', title: 'Task 4', status: 'completed' },
-				{ id: 'TASK-005', title: 'Task 5', status: 'created' },
+				createMockTaskRef({ id: 'TASK-003', title: 'Task 3', status: TaskStatus.COMPLETED }),
+				createMockTaskRef({ id: 'TASK-004', title: 'Task 4', status: TaskStatus.COMPLETED }),
+				createMockTaskRef({ id: 'TASK-005', title: 'Task 5', status: TaskStatus.CREATED }),
 			],
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
-			version: 1,
+		}),
+		createMockInitiative({
 			id: 'INIT-003',
 			title: 'Analytics Dashboard',
-			status: 'draft',
+			status: InitiativeStatus.DRAFT,
 			vision: 'Real-time metrics',
 			tasks: [],
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
+		}),
 	];
 
 	const mockTasks: Task[] = [
-		{
+		createMockTask({
 			id: 'TASK-001',
 			title: 'Task 1',
-			status: 'completed',
-			weight: 'small',
+			status: TaskStatus.COMPLETED,
+			weight: TaskWeight.SMALL,
 			branch: 'orc/TASK-001',
-			initiative_id: 'INIT-001',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
+			initiativeId: 'INIT-001',
+		}),
+		createMockTask({
 			id: 'TASK-002',
 			title: 'Task 2',
-			status: 'running',
-			weight: 'medium',
+			status: TaskStatus.RUNNING,
+			weight: TaskWeight.MEDIUM,
 			branch: 'orc/TASK-002',
-			initiative_id: 'INIT-001',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
+			initiativeId: 'INIT-001',
+		}),
+		createMockTask({
 			id: 'TASK-003',
 			title: 'Task 3',
-			status: 'completed',
-			weight: 'small',
+			status: TaskStatus.COMPLETED,
+			weight: TaskWeight.SMALL,
 			branch: 'orc/TASK-003',
-			initiative_id: 'INIT-002',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
+			initiativeId: 'INIT-002',
+		}),
+		createMockTask({
 			id: 'TASK-004',
 			title: 'Task 4',
-			status: 'completed',
-			weight: 'medium',
+			status: TaskStatus.COMPLETED,
+			weight: TaskWeight.MEDIUM,
 			branch: 'orc/TASK-004',
-			initiative_id: 'INIT-002',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
-		{
+			initiativeId: 'INIT-002',
+		}),
+		createMockTask({
 			id: 'TASK-005',
 			title: 'Task 5',
-			status: 'created',
-			weight: 'large',
+			status: TaskStatus.CREATED,
+			weight: TaskWeight.LARGE,
 			branch: 'orc/TASK-005',
-			initiative_id: 'INIT-002',
-			created_at: '2024-01-01T00:00:00Z',
-			updated_at: '2024-01-15T00:00:00Z',
-		},
+			initiativeId: 'INIT-002',
+		}),
 	];
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(api.listInitiatives).mockResolvedValue(mockInitiatives);
+		mockListInitiatives.mockResolvedValue({ initiatives: mockInitiatives });
 		// Set up task store with mock tasks
 		useTaskStore.setState({ tasks: mockTasks, taskStates: new Map() });
 	});
@@ -136,9 +123,9 @@ describe('InitiativesView', () => {
 	describe('loading state', () => {
 		it('shows loading skeleton initially', async () => {
 			// Delay the API response
-			vi.mocked(api.listInitiatives).mockImplementation(
+			mockListInitiatives.mockImplementation(
 				() =>
-					new Promise((resolve) => setTimeout(() => resolve(mockInitiatives), 100))
+					new Promise((resolve) => setTimeout(() => resolve({ initiatives: mockInitiatives }), 100))
 			);
 
 			renderInitiativesView();
@@ -148,9 +135,9 @@ describe('InitiativesView', () => {
 		});
 
 		it('shows stats row in loading state', async () => {
-			vi.mocked(api.listInitiatives).mockImplementation(
+			mockListInitiatives.mockImplementation(
 				() =>
-					new Promise((resolve) => setTimeout(() => resolve(mockInitiatives), 100))
+					new Promise((resolve) => setTimeout(() => resolve({ initiatives: mockInitiatives }), 100))
 			);
 
 			renderInitiativesView();
@@ -162,7 +149,7 @@ describe('InitiativesView', () => {
 
 	describe('error state', () => {
 		it('shows error message when load fails', async () => {
-			vi.mocked(api.listInitiatives).mockRejectedValue(new Error('Failed to load'));
+			mockListInitiatives.mockRejectedValue(new Error('Failed to load'));
 
 			renderInitiativesView();
 
@@ -173,7 +160,7 @@ describe('InitiativesView', () => {
 		});
 
 		it('shows retry button on error', async () => {
-			vi.mocked(api.listInitiatives).mockRejectedValue(new Error('Failed'));
+			mockListInitiatives.mockRejectedValue(new Error('Failed'));
 
 			renderInitiativesView();
 
@@ -183,9 +170,9 @@ describe('InitiativesView', () => {
 		});
 
 		it('retries loading when retry button is clicked', async () => {
-			vi.mocked(api.listInitiatives)
+			mockListInitiatives
 				.mockRejectedValueOnce(new Error('Failed'))
-				.mockResolvedValueOnce(mockInitiatives);
+				.mockResolvedValueOnce({ initiatives: mockInitiatives });
 
 			renderInitiativesView();
 
@@ -196,14 +183,14 @@ describe('InitiativesView', () => {
 			fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 
 			await waitFor(() => {
-				expect(api.listInitiatives).toHaveBeenCalledTimes(2);
+				expect(mockListInitiatives).toHaveBeenCalledTimes(2);
 			});
 		});
 	});
 
 	describe('empty state', () => {
 		it('shows empty state when no initiatives', async () => {
-			vi.mocked(api.listInitiatives).mockResolvedValue([]);
+			mockListInitiatives.mockResolvedValue({ initiatives: [] });
 
 			renderInitiativesView();
 
@@ -213,7 +200,7 @@ describe('InitiativesView', () => {
 		});
 
 		it('shows helpful description in empty state', async () => {
-			vi.mocked(api.listInitiatives).mockResolvedValue([]);
+			mockListInitiatives.mockResolvedValue({ initiatives: [] });
 
 			renderInitiativesView();
 
@@ -377,7 +364,7 @@ describe('InitiativesView', () => {
 		});
 
 		it('empty state has status role', async () => {
-			vi.mocked(api.listInitiatives).mockResolvedValue([]);
+			mockListInitiatives.mockResolvedValue({ initiatives: [] });
 
 			renderInitiativesView();
 
@@ -387,7 +374,7 @@ describe('InitiativesView', () => {
 		});
 
 		it('error state has alert role', async () => {
-			vi.mocked(api.listInitiatives).mockRejectedValue(new Error('Failed'));
+			mockListInitiatives.mockRejectedValue(new Error('Failed'));
 
 			renderInitiativesView();
 

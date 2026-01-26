@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type {
-	Workflow,
-	WorkflowWithDetails,
-	PhaseTemplate,
-	WorkflowRun,
-	WorkflowRunWithDetails,
-} from '@/lib/types';
+import {
+	type Workflow,
+	type WorkflowWithDetails,
+	type PhaseTemplate,
+	type WorkflowRun,
+	type WorkflowRunWithDetails,
+	RunStatus,
+} from '@/gen/orc/v1/workflow_pb';
 
 interface WorkflowStore {
 	// State
@@ -60,23 +61,23 @@ export const useWorkflowStore = create<WorkflowStore>()(
 
 		// Derived state
 		getBuiltinWorkflows: () => {
-			return get().workflows.filter((wf) => wf.is_builtin);
+			return get().workflows.filter((wf) => wf.isBuiltin);
 		},
 
 		getCustomWorkflows: () => {
-			return get().workflows.filter((wf) => !wf.is_builtin);
+			return get().workflows.filter((wf) => !wf.isBuiltin);
 		},
 
 		getBuiltinPhases: () => {
-			return get().phaseTemplates.filter((pt) => pt.is_builtin);
+			return get().phaseTemplates.filter((pt) => pt.isBuiltin);
 		},
 
 		getCustomPhases: () => {
-			return get().phaseTemplates.filter((pt) => !pt.is_builtin);
+			return get().phaseTemplates.filter((pt) => !pt.isBuiltin);
 		},
 
 		getRunningRuns: () => {
-			return get().workflowRuns.filter((run) => run.status === 'running');
+			return get().workflowRuns.filter((run) => run.status === RunStatus.RUNNING);
 		},
 
 		// Actions

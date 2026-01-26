@@ -5,8 +5,7 @@
 
 import { useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useToasts, useUIStore } from '@/stores';
-import type { ToastType } from '@/lib/types';
+import { useToasts, useUIStore, type ToastType } from '@/stores';
 import { Icon } from './Icon';
 import './ToastContainer.css';
 

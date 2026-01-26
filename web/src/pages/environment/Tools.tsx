@@ -4,11 +4,22 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { useDocumentTitle } from '@/hooks';
-import { listToolsByCategory, getToolPermissions, type ToolsByCategory, type ToolPermissions } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type ToolInfo,
+	type ToolPermissions,
+	type ToolList,
+	ListToolsRequestSchema,
+	GetToolPermissionsRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
+
+// Convert protobuf byCategory map to a more usable format
+type ToolsByCategory = { [category: string]: ToolInfo[] };
 
 export function Tools() {
 	useDocumentTitle('Tools');
@@ -21,12 +32,18 @@ export function Tools() {
 		try {
 			setLoading(true);
 			setError(null);
-			const [toolsData, permsData] = await Promise.all([
-				listToolsByCategory(),
-				getToolPermissions().catch(() => null),
+			const [toolsResponse, permsResponse] = await Promise.all([
+				configClient.listTools(create(ListToolsRequestSchema, { byCategory: true })),
+				configClient.getToolPermissions(create(GetToolPermissionsRequestSchema, {})).catch(() => null),
 			]);
-			setTools(toolsData);
-			setPermissions(permsData);
+
+			// Convert protobuf ToolList map to ToolInfo[] map
+			const byCategory: ToolsByCategory = {};
+			for (const [category, toolList] of Object.entries(toolsResponse.byCategory)) {
+				byCategory[category] = (toolList as ToolList).tools;
+			}
+			setTools(byCategory);
+			setPermissions(permsResponse?.permissions ?? null);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load tools');
 		} finally {

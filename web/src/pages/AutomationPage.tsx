@@ -11,99 +11,85 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWsStatus, useTaskStore } from '@/stores';
-import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button, Icon, StatusIndicator } from '@/components/ui';
+import { automationClient } from '@/lib/client';
+import { create } from '@bufbuild/protobuf';
 import {
-	listTriggers,
-	getTriggerHistory,
-	runTrigger,
-	toggleTrigger,
-	resetTrigger,
+	ListTriggersRequestSchema,
+	GetTriggerHistoryRequestSchema,
+	RunTriggerRequestSchema,
+	SetTriggerEnabledRequestSchema,
+	ResetTriggerRequestSchema,
+	TriggerType,
 	type Trigger,
 	type TriggerExecution,
-} from '@/lib/api';
-import type { Task } from '@/lib/types';
+} from '@/gen/orc/v1/automation_pb';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToRelative } from '@/lib/time';
 import './AutomationPage.css';
 
-// Types for automation data (local types not in API)
-interface AutomationStats {
-	total_triggers: number;
-	enabled_triggers: number;
-	pending_tasks: number;
-	running_tasks: number;
-	completed_today: number;
-	failed_today: number;
-}
-
-// Local API functions (not centralized as they're page-specific)
-async function getAutomationStats(): Promise<AutomationStats> {
-	const res = await fetch('/api/automation/stats');
-	if (!res.ok) throw new Error('Failed to fetch stats');
-	return res.json();
-}
-
-async function listAutomationTasks(): Promise<Task[]> {
-	const res = await fetch('/api/automation/tasks');
-	if (!res.ok) throw new Error('Failed to fetch automation tasks');
-	const data = await res.json();
-	return data.tasks || [];
-}
+import {
+	GetAutomationStatsRequestSchema,
+	ListAutomationTasksRequestSchema,
+	type AutomationStats,
+} from '@/gen/orc/v1/automation_pb';
 
 // Helpers
-function formatRelativeTime(dateStr: string | null): string {
-	if (!dateStr) return 'Never';
-	const date = new Date(dateStr);
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffMins = Math.floor(diffMs / 60000);
-	const diffHours = Math.floor(diffMs / 3600000);
-	const diffDays = Math.floor(diffMs / 86400000);
-
-	if (diffMins < 1) return 'just now';
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	return `${diffDays}d ago`;
-}
-
-function getTriggerTypeLabel(type: string): string {
+function getTriggerTypeLabel(type: TriggerType): string {
 	switch (type) {
-		case 'count':
-			return 'Count-based';
-		case 'initiative':
-			return 'Initiative';
-		case 'event':
-			return 'Event';
-		case 'threshold':
-			return 'Threshold';
-		case 'schedule':
+		case TriggerType.SCHEDULE:
 			return 'Scheduled';
+		case TriggerType.WEBHOOK:
+			return 'Webhook';
+		case TriggerType.FILE_WATCH:
+			return 'File Watch';
+		case TriggerType.GIT_HOOK:
+			return 'Git Hook';
+		case TriggerType.MANUAL:
+			return 'Manual';
 		default:
-			return type;
+			return 'Unknown';
 	}
 }
 
-function getTriggerTypeIcon(type: string): 'clock' | 'target' | 'zap' | 'activity' | 'calendar' {
+function getTriggerTypeIcon(type: TriggerType): 'clock' | 'target' | 'zap' | 'activity' | 'calendar' {
 	switch (type) {
-		case 'count':
-			return 'target';
-		case 'initiative':
-			return 'target';
-		case 'event':
-			return 'zap';
-		case 'threshold':
-			return 'activity';
-		case 'schedule':
+		case TriggerType.SCHEDULE:
 			return 'calendar';
+		case TriggerType.WEBHOOK:
+			return 'zap';
+		case TriggerType.FILE_WATCH:
+			return 'activity';
+		case TriggerType.GIT_HOOK:
+			return 'target';
+		case TriggerType.MANUAL:
+			return 'clock';
 		default:
 			return 'clock';
 	}
 }
 
+// Get execution status string from proto boolean
+function getExecutionStatus(exec: TriggerExecution): string {
+	if (exec.success) return 'success';
+	if (exec.error) return 'failed';
+	return 'pending';
+}
+
+// Build a config object for display from proto trigger fields
+function buildTriggerConfig(trigger: Trigger): object {
+	return {
+		condition: trigger.condition,
+		action: trigger.action,
+		cooldown: trigger.cooldown,
+	};
+}
+
 export function AutomationPage() {
 	const navigate = useNavigate();
 	const wsStatus = useWsStatus();
-	const { on } = useWebSocket();
-	const allTasks = useTaskStore((state: { tasks: Task[] }) => state.tasks);
+	const allTasks = useTaskStore((state) => state.tasks);
 
 	// State
 	const [triggers, setTriggers] = useState<Trigger[]>([]);
@@ -121,27 +107,33 @@ export function AutomationPage() {
 	// Load data
 	const loadData = useCallback(async () => {
 		try {
-			const [triggersData, tasksData, statsData] = await Promise.all([
-				listTriggers(),
-				listAutomationTasks(),
-				getAutomationStats(),
+			const [triggersResponse, tasksResponse, statsResponse] = await Promise.all([
+				automationClient.listTriggers(create(ListTriggersRequestSchema, {})),
+				automationClient.listAutomationTasks(create(ListAutomationTasksRequestSchema, {})),
+				automationClient.getAutomationStats(create(GetAutomationStatsRequestSchema, {})),
 			]);
-			setTriggers(triggersData);
-			setAutomationTasks(tasksData);
-			setStats(statsData);
+			setTriggers(triggersResponse.triggers);
+			// Filter allTasks by returned taskIds
+			const taskIdSet = new Set(tasksResponse.taskIds);
+			setAutomationTasks(allTasks.filter((t) => taskIdSet.has(t.id)));
+			if (statsResponse.stats) {
+				setStats(statsResponse.stats);
+			}
 			setLoading(false);
 			setError(null);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load automation data');
 			setLoading(false);
 		}
-	}, []);
+	}, [allTasks]);
 
 	// Load trigger history
 	const loadHistory = useCallback(async (triggerId: string) => {
 		try {
-			const history = await getTriggerHistory(triggerId);
-			setTriggerHistory(history);
+			const response = await automationClient.getTriggerHistory(
+				create(GetTriggerHistoryRequestSchema, { triggerId })
+			);
+			setTriggerHistory(response.executions);
 		} catch {
 			// Silent fail for history
 		}
@@ -160,17 +152,17 @@ export function AutomationPage() {
 	}, [wsStatus, loadData]);
 
 	// Subscribe to task events
+	// Subscribe to task changes via store subscription to refresh data
 	useEffect(() => {
-		const unsubscribe = on('all', (event) => {
-			if (
-				'event' in event &&
-				['task_created', 'task_updated', 'task_deleted'].includes(event.event)
-			) {
+		const unsubscribe = useTaskStore.subscribe(
+			(state) => state.tasks,
+			() => {
+				// Refresh automation data when tasks change
 				loadData();
 			}
-		});
+		);
 		return unsubscribe;
-	}, [on, loadData]);
+	}, [loadData]);
 
 	// Load history when trigger selected
 	useEffect(() => {
@@ -183,10 +175,12 @@ export function AutomationPage() {
 	const handleRunTrigger = async (triggerId: string) => {
 		setActionLoading(triggerId);
 		try {
-			const result = await runTrigger(triggerId);
+			const response = await automationClient.runTrigger(
+				create(RunTriggerRequestSchema, { id: triggerId })
+			);
 			// Navigate to the created task
-			if (result.task_id) {
-				navigate(`/tasks/${result.task_id}`);
+			if (response.execution?.taskId) {
+				navigate(`/tasks/${response.execution.taskId}`);
 			} else {
 				loadData();
 			}
@@ -200,7 +194,9 @@ export function AutomationPage() {
 	const handleToggleTrigger = async (triggerId: string, enabled: boolean) => {
 		setActionLoading(triggerId);
 		try {
-			await toggleTrigger(triggerId, enabled);
+			await automationClient.setTriggerEnabled(
+				create(SetTriggerEnabledRequestSchema, { id: triggerId, enabled })
+			);
 			setTriggers((prev: Trigger[]) =>
 				prev.map((t: Trigger) => (t.id === triggerId ? { ...t, enabled } : t))
 			);
@@ -214,7 +210,9 @@ export function AutomationPage() {
 	const handleResetTrigger = async (triggerId: string) => {
 		setActionLoading(triggerId);
 		try {
-			await resetTrigger(triggerId);
+			await automationClient.resetTrigger(
+				create(ResetTriggerRequestSchema, { id: triggerId })
+			);
 			loadData();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to reset trigger');
@@ -226,12 +224,12 @@ export function AutomationPage() {
 	// Filter automation tasks from all tasks (AUTO-* prefix)
 	const autoTasks = automationTasks.length > 0
 		? automationTasks
-		: allTasks.filter((t: Task) => t.id.startsWith('AUTO-'));
+		: allTasks.filter((t) => t.id.startsWith('AUTO-'));
 
-	const pendingTasks = autoTasks.filter((t: Task) => t.status === 'created' || t.status === 'planned');
-	const runningTasks = autoTasks.filter((t: Task) => t.status === 'running');
-	const completedTasks = autoTasks.filter((t: Task) => t.status === 'completed');
-	const failedTasks = autoTasks.filter((t: Task) => t.status === 'failed');
+	const pendingTasks = autoTasks.filter((t) => t.status === TaskStatus.CREATED || t.status === TaskStatus.PLANNED);
+	const runningTasks = autoTasks.filter((t) => t.status === TaskStatus.RUNNING);
+	const completedTasks = autoTasks.filter((t) => t.status === TaskStatus.COMPLETED);
+	const failedTasks = autoTasks.filter((t) => t.status === TaskStatus.FAILED);
 
 	// Loading state
 	if (loading) {
@@ -270,20 +268,20 @@ export function AutomationPage() {
 					{stats && (
 						<>
 							<div className="stat">
-								<span className="stat-value">{stats.enabled_triggers}</span>
+								<span className="stat-value">{stats.enabledTriggers}</span>
 								<span className="stat-label">Active Triggers</span>
 							</div>
 							<div className="stat">
-								<span className="stat-value">{stats.pending_tasks}</span>
+								<span className="stat-value">{pendingTasks.length}</span>
 								<span className="stat-label">Pending</span>
 							</div>
 							<div className="stat">
-								<span className="stat-value">{stats.running_tasks}</span>
+								<span className="stat-value">{runningTasks.length}</span>
 								<span className="stat-label">Running</span>
 							</div>
 							<div className="stat">
-								<span className="stat-value">{stats.completed_today}</span>
-								<span className="stat-label">Today</span>
+								<span className="stat-value">{stats.tasksCreated}</span>
+								<span className="stat-label">Created</span>
 							</div>
 						</>
 					)}
@@ -390,11 +388,11 @@ export function AutomationPage() {
 											</span>
 											<span className="trigger-stat">
 												<Icon name="target" size={12} />
-												{trigger.trigger_count} executions
+												{trigger.triggerCount} executions
 											</span>
 											<span className="trigger-stat">
 												<Icon name="clock" size={12} />
-												Last: {formatRelativeTime(trigger.last_triggered_at)}
+												Last: {timestampToRelative(trigger.lastTriggeredAt)}
 											</span>
 										</div>
 
@@ -404,7 +402,7 @@ export function AutomationPage() {
 												<div className="detail-section">
 													<h4>Configuration</h4>
 													<pre className="config-preview">
-														{JSON.stringify(trigger.config, null, 2)}
+														{JSON.stringify(buildTriggerConfig(trigger), null, 2)}
 													</pre>
 												</div>
 												<div className="detail-actions">
@@ -427,27 +425,27 @@ export function AutomationPage() {
 														<div className="history-list">
 															{triggerHistory.slice(0, 5).map((exec) => (
 																<div key={exec.id} className="history-item">
-																	<span className={`execution-status status-${exec.status}`}>
-																		{exec.status}
+																	<span className={`execution-status status-${getExecutionStatus(exec)}`}>
+																		{getExecutionStatus(exec)}
 																	</span>
 																	<span className="execution-task">
-																		{exec.task_id ? (
+																		{exec.taskId ? (
 																			<a
-																				href={`/tasks/${exec.task_id}`}
+																				href={`/tasks/${exec.taskId}`}
 																				onClick={(e) => {
 																					e.preventDefault();
 																					e.stopPropagation();
-																					navigate(`/tasks/${exec.task_id}`);
+																					navigate(`/tasks/${exec.taskId}`);
 																				}}
 																			>
-																				{exec.task_id}
+																				{exec.taskId}
 																			</a>
 																		) : (
 																			'—'
 																		)}
 																	</span>
 																	<span className="execution-time">
-																		{formatRelativeTime(exec.triggered_at)}
+																		{timestampToRelative(exec.executedAt)}
 																	</span>
 																</div>
 															))}
@@ -483,7 +481,7 @@ export function AutomationPage() {
 											<StatusIndicator status={task.status} size="sm" />
 											<span className="task-id">{task.id}</span>
 											<span className="task-title">{task.title}</span>
-											<span className="task-time">{formatRelativeTime(task.created_at)}</span>
+											<span className="task-time">{timestampToRelative(task.createdAt)}</span>
 										</div>
 									))}
 								</div>
@@ -508,7 +506,7 @@ export function AutomationPage() {
 											<StatusIndicator status={task.status} size="sm" />
 											<span className="task-id">{task.id}</span>
 											<span className="task-title">{task.title}</span>
-											<span className="task-phase">{task.current_phase}</span>
+											<span className="task-phase">{task.currentPhase}</span>
 										</div>
 									))}
 								</div>
@@ -533,7 +531,7 @@ export function AutomationPage() {
 											<StatusIndicator status={task.status} size="sm" />
 											<span className="task-id">{task.id}</span>
 											<span className="task-title">{task.title}</span>
-											<span className="task-time">{formatRelativeTime(task.updated_at)}</span>
+											<span className="task-time">{timestampToRelative(task.updatedAt)}</span>
 										</div>
 									))}
 								</div>
@@ -558,7 +556,7 @@ export function AutomationPage() {
 											<StatusIndicator status={task.status} size="sm" />
 											<span className="task-id">{task.id}</span>
 											<span className="task-title">{task.title}</span>
-											<span className="task-time">{formatRelativeTime(task.updated_at)}</span>
+											<span className="task-time">{timestampToRelative(task.updatedAt)}</span>
 										</div>
 									))}
 								</div>
@@ -588,37 +586,35 @@ export function AutomationPage() {
 										<tr>
 											<th>Status</th>
 											<th>Task</th>
-											<th>Reason</th>
-											<th>Started</th>
-											<th>Completed</th>
+											<th>Error</th>
+											<th>Executed</th>
 										</tr>
 									</thead>
 									<tbody>
 										{triggerHistory.map((exec) => (
 											<tr key={exec.id}>
 												<td>
-													<span className={`execution-status status-${exec.status}`}>
-														{exec.status}
+													<span className={`execution-status status-${getExecutionStatus(exec)}`}>
+														{getExecutionStatus(exec)}
 													</span>
 												</td>
 												<td>
-													{exec.task_id ? (
+													{exec.taskId ? (
 														<a
-															href={`/tasks/${exec.task_id}`}
+															href={`/tasks/${exec.taskId}`}
 															onClick={(e) => {
 																e.preventDefault();
-																navigate(`/tasks/${exec.task_id}`);
+																navigate(`/tasks/${exec.taskId}`);
 															}}
 														>
-															{exec.task_id}
+															{exec.taskId}
 														</a>
 													) : (
 														'—'
 													)}
 												</td>
-												<td className="reason-cell">{exec.trigger_reason}</td>
-												<td>{formatRelativeTime(exec.triggered_at)}</td>
-												<td>{exec.completed_at ? formatRelativeTime(exec.completed_at) : '—'}</td>
+												<td className="reason-cell">{exec.error || '—'}</td>
+												<td>{timestampToRelative(exec.executedAt)}</td>
 											</tr>
 										))}
 									</tbody>

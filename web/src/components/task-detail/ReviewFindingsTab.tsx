@@ -4,7 +4,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getReviewFindings, type ReviewFindings, type ReviewFinding } from '@/lib/api';
+import { taskClient } from '@/lib/client';
+import type { ReviewFinding, ReviewRoundFindings } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import './ReviewFindingsTab.css';
 
@@ -20,8 +22,8 @@ const severityConfig: Record<string, { color: string; bg: string; icon: IconName
 	low: { color: 'var(--text-muted)', bg: 'var(--bg-tertiary)', icon: 'circle' },
 };
 
-function formatRelativeTime(dateStr: string): string {
-	const date = new Date(dateStr);
+function formatRelativeTime(date: Date | null | undefined): string {
+	if (!date) return '';
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
 	const diffSec = Math.floor(diffMs / 1000);
@@ -46,7 +48,7 @@ interface FindingCardProps {
 
 function FindingCard({ finding }: FindingCardProps) {
 	const severity = severityConfig[finding.severity] || severityConfig.medium;
-	const hasConstitutionViolation = finding.constitution_violation;
+	const hasConstitutionViolation = finding.constitutionViolation;
 
 	return (
 		<div className="finding-card" style={{ borderLeftColor: severity.color }}>
@@ -56,9 +58,9 @@ function FindingCard({ finding }: FindingCardProps) {
 					<span>{finding.severity}</span>
 				</div>
 				{hasConstitutionViolation && (
-					<div className={`constitution-badge ${finding.constitution_violation}`}>
+					<div className={`constitution-badge ${finding.constitutionViolation}`}>
 						<Icon name="shield" size={12} />
-						<span>{finding.constitution_violation === 'invariant' ? 'Invariant Violation' : 'Default Deviation'}</span>
+						<span>{finding.constitutionViolation === 'invariant' ? 'Invariant Violation' : 'Default Deviation'}</span>
 					</div>
 				)}
 				{finding.file && (
@@ -78,10 +80,10 @@ function FindingCard({ finding }: FindingCardProps) {
 				</div>
 			)}
 
-			{finding.agent_id && (
+			{finding.agentId && (
 				<div className="finding-agent">
 					<span className="agent-label">Reviewer:</span>
-					<span>{finding.agent_id}</span>
+					<span>{finding.agentId}</span>
 				</div>
 			)}
 		</div>
@@ -89,7 +91,7 @@ function FindingCard({ finding }: FindingCardProps) {
 }
 
 interface RoundSectionProps {
-	findings: ReviewFindings;
+	findings: ReviewRoundFindings;
 	isExpanded: boolean;
 	onToggle: () => void;
 }
@@ -99,7 +101,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 	const positiveCount = findings.positives?.length || 0;
 	const questionCount = findings.questions?.length || 0;
 
-	const hasInvariantViolation = findings.issues?.some(i => i.constitution_violation === 'invariant');
+	const hasInvariantViolation = findings.issues?.some(i => i.constitutionViolation === 'invariant');
 
 	return (
 		<div className={`round-section ${isExpanded ? 'expanded' : ''} ${hasInvariantViolation ? 'has-blocker' : ''}`}>
@@ -107,8 +109,8 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 				<div className="round-title">
 					<Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={16} />
 					<span>Round {findings.round}</span>
-					{findings.agent_id && (
-						<span className="round-agent">{findings.agent_id}</span>
+					{findings.agentId && (
+						<span className="round-agent">{findings.agentId}</span>
 					)}
 				</div>
 				<div className="round-stats">
@@ -130,7 +132,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 							{questionCount}
 						</span>
 					)}
-					<span className="timestamp">{formatRelativeTime(findings.created_at)}</span>
+					<span className="timestamp">{formatRelativeTime(timestampToDate(findings.createdAt))}</span>
 				</div>
 			</button>
 
@@ -163,7 +165,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 								What's Good ({positiveCount})
 							</h4>
 							<ul className="positives-list">
-								{findings.positives!.map((positive, idx) => (
+								{findings.positives.map((positive, idx) => (
 									<li key={idx}>{positive}</li>
 								))}
 							</ul>
@@ -177,7 +179,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 								Questions ({questionCount})
 							</h4>
 							<ul className="questions-list">
-								{findings.questions!.map((question, idx) => (
+								{findings.questions.map((question, idx) => (
 									<li key={idx}>{question}</li>
 								))}
 							</ul>
@@ -190,7 +192,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 }
 
 export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
-	const [findings, setFindings] = useState<ReviewFindings[]>([]);
+	const [findings, setFindings] = useState<ReviewRoundFindings[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
@@ -199,11 +201,11 @@ export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
 		setLoading(true);
 		setError(null);
 		try {
-			const data = await getReviewFindings(taskId);
-			setFindings(data);
+			const response = await taskClient.getReviewFindings({ taskId });
+			setFindings(response.rounds);
 			// Expand the latest round by default
-			if (data.length > 0) {
-				const latestRound = Math.max(...data.map(f => f.round));
+			if (response.rounds.length > 0) {
+				const latestRound = Math.max(...response.rounds.map(f => f.round));
 				setExpandedRounds(new Set([latestRound]));
 			}
 		} catch (e) {
@@ -231,7 +233,7 @@ export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
 
 	// Aggregate stats
 	const totalIssues = findings.reduce((sum, f) => sum + (f.issues?.length || 0), 0);
-	const hasBlockers = findings.some(f => f.issues?.some(i => i.constitution_violation === 'invariant'));
+	const hasBlockers = findings.some(f => f.issues?.some(i => i.constitutionViolation === 'invariant'));
 
 	if (loading) {
 		return (

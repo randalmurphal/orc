@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useProjectStore } from './projectStore';
 import { resetUrlMocks, setMockSearch } from '../test-setup';
-import type { Project } from '@/lib/types';
+import type { Project } from '@/gen/orc/v1/project_pb';
 
 // Factory for creating test projects
 function createProject(overrides: Partial<Project> = {}): Project {
 	return {
+		$typeName: 'orc.v1.Project',
 		id: `proj-${Math.random().toString(36).slice(2, 7)}`,
 		name: 'Test Project',
 		path: '/path/to/project',
-		created_at: new Date().toISOString(),
 		...overrides,
-	};
+	} as Project;
 }
 
 describe('ProjectStore', () => {

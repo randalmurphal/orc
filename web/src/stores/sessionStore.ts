@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { pauseAllTasks, resumeAllTasks } from '@/lib/api';
+import { create as createProto } from '@bufbuild/protobuf';
+import { taskClient } from '@/lib/client';
+import {
+	PauseAllTasksRequestSchema,
+	ResumeAllTasksRequestSchema,
+} from '@/gen/orc/v1/task_pb';
 import { formatNumber, formatCost } from '@/lib/format';
 
 // Storage key for session persistence
@@ -13,17 +18,6 @@ export interface SessionMetrics {
 	totalCost: number;
 	inputTokens: number;
 	outputTokens: number;
-}
-
-// WebSocket session_update event data
-export interface SessionUpdateData {
-	duration_seconds: number;
-	total_tokens: number;
-	estimated_cost_usd: number;
-	input_tokens: number;
-	output_tokens: number;
-	tasks_running: number;
-	is_paused: boolean;
 }
 
 export interface SessionState extends SessionMetrics {
@@ -53,11 +47,20 @@ export interface SessionActions {
 	// Updates
 	updateMetrics: (metrics: Partial<SessionMetrics>) => void;
 	addTokens: (input: number, output: number, cost: number) => void;
-	updateFromSessionEvent: (data: SessionUpdateData) => void;
+	updateFromMetricsEvent: (data: {
+		durationSeconds: number | bigint;
+		totalTokens: number;
+		estimatedCostUsd: number;
+		inputTokens: number;
+		outputTokens: number;
+		tasksRunning: number;
+		isPaused: boolean;
+	}) => void;
 
 	// Task tracking
 	incrementActiveTask: () => void;
 	decrementActiveTask: () => void;
+	setActiveTaskCount: (count: number) => void;
 
 	// Computed getters
 	getFormattedDuration: () => string;
@@ -97,8 +100,6 @@ export function formatDuration(startTime: Date | null): string {
 
 	return `${diffSeconds}s`;
 }
-
-// Format utilities imported from @/lib/format
 
 // localStorage helpers
 
@@ -233,14 +234,14 @@ export const useSessionStore = create<SessionStore>()(
 				});
 			},
 
-			// Control
+			// Control - pause/resume all tasks via Connect RPC
 			pauseAll: async () => {
-				await pauseAllTasks();
+				await taskClient.pauseAllTasks(createProto(PauseAllTasksRequestSchema, {}));
 				set({ isPaused: true });
 			},
 
 			resumeAll: async () => {
-				await resumeAllTasks();
+				await taskClient.resumeAllTasks(createProto(ResumeAllTasksRequestSchema, {}));
 				set({ isPaused: false });
 			},
 
@@ -281,25 +282,25 @@ export const useSessionStore = create<SessionStore>()(
 				});
 			},
 
-			updateFromSessionEvent: (data: SessionUpdateData) => {
+			updateFromMetricsEvent: (data) => {
 				set((state) => {
-					// Compute startTime from duration_seconds if no session exists
+					// Compute startTime from durationSeconds if no session exists
 					let newStartTime = state.startTime;
-					if (!newStartTime) {
+					const durationSeconds = Number(data.durationSeconds);
+					if (!newStartTime && durationSeconds > 0) {
 						const now = new Date();
-						newStartTime = new Date(now.getTime() - data.duration_seconds * 1000);
+						newStartTime = new Date(now.getTime() - durationSeconds * 1000);
 					}
-					// If startTime exists, preserve it (local time reference wins)
 
 					const newState = {
 						...state,
 						startTime: newStartTime,
-						totalTokens: data.total_tokens,
-						totalCost: data.estimated_cost_usd,
-						inputTokens: data.input_tokens,
-						outputTokens: data.output_tokens,
-						activeTaskCount: data.tasks_running,
-						isPaused: data.is_paused,
+						totalTokens: data.totalTokens,
+						totalCost: data.estimatedCostUsd,
+						inputTokens: data.inputTokens,
+						outputTokens: data.outputTokens,
+						activeTaskCount: data.tasksRunning,
+						isPaused: data.isPaused,
 					};
 
 					return {
@@ -320,6 +321,10 @@ export const useSessionStore = create<SessionStore>()(
 				set((state) => ({
 					activeTaskCount: Math.max(0, state.activeTaskCount - 1),
 				}));
+			},
+
+			setActiveTaskCount: (count: number) => {
+				set({ activeTaskCount: count });
 			},
 
 			// Computed getters

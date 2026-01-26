@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseTaskRequest, PauseTaskResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
+import { CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, ExportTaskRequest, ExportTaskResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetReviewFindingsRequest, GetReviewFindingsResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, GetTestResultsRequest, GetTestResultsResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseAllTasksRequest, PauseAllTasksResponse, PauseTaskRequest, PauseTaskResponse, ResumeAllTasksRequest, ResumeAllTasksResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -100,6 +100,24 @@ export const TaskService = {
       name: "ResumeTask",
       I: ResumeTaskRequest,
       O: ResumeTaskResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.PauseAllTasks
+     */
+    pauseAllTasks: {
+      name: "PauseAllTasks",
+      I: PauseAllTasksRequest,
+      O: PauseAllTasksResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.ResumeAllTasks
+     */
+    resumeAllTasks: {
+      name: "ResumeAllTasks",
+      I: ResumeAllTasksRequest,
+      O: ResumeAllTasksResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -280,6 +298,37 @@ export const TaskService = {
       name: "DeleteAttachment",
       I: DeleteAttachmentRequest,
       O: DeleteAttachmentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.GetTestResults
+     */
+    getTestResults: {
+      name: "GetTestResults",
+      I: GetTestResultsRequest,
+      O: GetTestResultsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Get review findings from multi-agent code review
+     *
+     * @generated from rpc orc.v1.TaskService.GetReviewFindings
+     */
+    getReviewFindings: {
+      name: "GetReviewFindings",
+      I: GetReviewFindingsRequest,
+      O: GetReviewFindingsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Export task data
+     *
+     * @generated from rpc orc.v1.TaskService.ExportTask
+     */
+    exportTask: {
+      name: "ExportTask",
+      I: ExportTaskRequest,
+      O: ExportTaskResponse,
       kind: MethodKind.Unary,
     },
   }

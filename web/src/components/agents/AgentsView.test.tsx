@@ -1,81 +1,83 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AgentsView } from './AgentsView';
-import * as api from '@/lib/api';
-import type { SubAgent, Config } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import type { Agent, Config } from '@/gen/orc/v1/config_pb';
+import { SettingsScope } from '@/gen/orc/v1/config_pb';
 
-// Mock the API functions
-vi.mock('@/lib/api', () => ({
-	listAgents: vi.fn(),
-	getConfig: vi.fn(),
-	updateConfig: vi.fn(),
+// Mock the configClient
+vi.mock('@/lib/client', () => ({
+	configClient: {
+		listAgents: vi.fn(),
+		getConfig: vi.fn(),
+		updateConfig: vi.fn(),
+	},
 }));
 
 describe('AgentsView', () => {
-	const mockAgents: SubAgent[] = [
+	// Proto-compatible mock agents
+	const mockAgents: Partial<Agent>[] = [
 		{
 			name: 'Primary Coder',
 			description: 'Main coding agent',
 			model: 'claude-sonnet-4-20250514',
-			tools: { allow: ['File Read', 'File Write', 'Bash'] },
+			tools: { allow: ['File Read', 'File Write', 'Bash'], deny: [], $typeName: 'orc.v1.ToolPermissions' },
+			skillRefs: [],
+			scope: SettingsScope.PROJECT,
 		},
 		{
 			name: 'Reviewer',
 			description: 'Code review agent',
 			model: 'claude-opus-4-20250514',
-			tools: { allow: ['File Read', 'Git'] },
+			tools: { allow: ['File Read', 'Git'], deny: [], $typeName: 'orc.v1.ToolPermissions' },
+			skillRefs: [],
+			scope: SettingsScope.PROJECT,
 		},
 		{
 			name: 'Docs Agent',
 			description: 'Documentation writer',
 			model: 'claude-haiku-3-5-20241022',
-			tools: 'docs-tools.md',
+			tools: { allow: [], deny: [], $typeName: 'orc.v1.ToolPermissions' },
+			path: 'docs-tools.md',
+			skillRefs: [],
+			scope: SettingsScope.GLOBAL,
 		},
 	];
 
-	const mockConfig: Config = {
-		version: '1.0',
-		profile: 'auto',
+	// Proto-compatible mock config
+	const mockConfig: Partial<Config> = {
 		automation: {
 			profile: 'auto',
-			gates_default: 'skip',
-			retry_enabled: true,
-			retry_max: 3,
+			autoApprove: true,
+			autoSkip: false,
+			$typeName: 'orc.v1.AutomationConfig',
 		},
-		execution: {
+		claude: {
 			model: 'claude-sonnet-4-20250514',
-			max_iterations: 100,
-			timeout: '30m',
-		},
-		git: {
-			branch_prefix: 'orc/',
-			commit_prefix: '[orc]',
-		},
-		worktree: {
-			enabled: true,
-			dir: '.orc/worktrees',
-			cleanup_on_complete: true,
-			cleanup_on_fail: false,
+			thinking: false,
+			maxTurns: 100,
+			temperature: 0,
+			$typeName: 'orc.v1.ClaudeConfig',
 		},
 		completion: {
 			action: 'finalize',
-			target_branch: 'main',
-			delete_branch: true,
+			autoMerge: false,
+			targetBranch: 'main',
+			$typeName: 'orc.v1.CompletionConfig',
 		},
-		timeouts: {
-			phase_max: '30m',
-			turn_max: '5m',
-			idle_warning: '2m',
-			heartbeat_interval: '30s',
-			idle_timeout: '10m',
+		export: {
+			includeTranscripts: true,
+			includeAttachments: true,
+			format: 'tar.gz',
+			$typeName: 'orc.v1.ExportConfig',
 		},
 	};
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(api.listAgents).mockResolvedValue(mockAgents);
-		vi.mocked(api.getConfig).mockResolvedValue(mockConfig);
-		vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
+		vi.mocked(configClient.listAgents).mockResolvedValue({ agents: mockAgents as Agent[], $typeName: 'orc.v1.ListAgentsResponse' });
+		vi.mocked(configClient.getConfig).mockResolvedValue({ config: mockConfig as Config, $typeName: 'orc.v1.GetConfigResponse' });
+		vi.mocked(configClient.updateConfig).mockResolvedValue({ config: mockConfig as Config, $typeName: 'orc.v1.UpdateConfigResponse' });
 	});
 
 	describe('page header', () => {
@@ -109,8 +111,8 @@ describe('AgentsView', () => {
 	describe('loading state', () => {
 		it('displays loading skeletons during fetch', async () => {
 			// Delay the API response
-			vi.mocked(api.listAgents).mockImplementation(
-				() => new Promise((resolve) => setTimeout(() => resolve(mockAgents), 100))
+			vi.mocked(configClient.listAgents).mockImplementation(
+				() => new Promise((resolve) => setTimeout(() => resolve({ agents: mockAgents as Agent[], $typeName: 'orc.v1.ListAgentsResponse' }), 100))
 			);
 
 			render(<AgentsView />);
@@ -120,8 +122,8 @@ describe('AgentsView', () => {
 		});
 
 		it('shows skeleton grid with aria-busy', async () => {
-			vi.mocked(api.listAgents).mockImplementation(
-				() => new Promise((resolve) => setTimeout(() => resolve(mockAgents), 100))
+			vi.mocked(configClient.listAgents).mockImplementation(
+				() => new Promise((resolve) => setTimeout(() => resolve({ agents: mockAgents as Agent[], $typeName: 'orc.v1.ListAgentsResponse' }), 100))
 			);
 
 			render(<AgentsView />);
@@ -133,7 +135,7 @@ describe('AgentsView', () => {
 
 	describe('error state', () => {
 		it('displays error state with retry button when fetch fails', async () => {
-			vi.mocked(api.listAgents).mockRejectedValue(new Error('Network error'));
+			vi.mocked(configClient.listAgents).mockRejectedValue(new Error('Network error'));
 
 			render(<AgentsView />);
 
@@ -145,9 +147,9 @@ describe('AgentsView', () => {
 		});
 
 		it('retries loading when retry button is clicked', async () => {
-			vi.mocked(api.listAgents)
+			vi.mocked(configClient.listAgents)
 				.mockRejectedValueOnce(new Error('Failed'))
-				.mockResolvedValueOnce(mockAgents);
+				.mockResolvedValueOnce({ agents: mockAgents as Agent[], $typeName: 'orc.v1.ListAgentsResponse' });
 
 			render(<AgentsView />);
 
@@ -158,12 +160,12 @@ describe('AgentsView', () => {
 			fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 
 			await waitFor(() => {
-				expect(api.listAgents).toHaveBeenCalledTimes(2);
+				expect(configClient.listAgents).toHaveBeenCalledTimes(2);
 			});
 		});
 
 		it('has alert role for accessibility', async () => {
-			vi.mocked(api.listAgents).mockRejectedValue(new Error('Failed'));
+			vi.mocked(configClient.listAgents).mockRejectedValue(new Error('Failed'));
 
 			render(<AgentsView />);
 
@@ -175,7 +177,7 @@ describe('AgentsView', () => {
 
 	describe('empty state', () => {
 		it('displays empty state when agents array is empty', async () => {
-			vi.mocked(api.listAgents).mockResolvedValue([]);
+			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [], $typeName: 'orc.v1.ListAgentsResponse' });
 
 			render(<AgentsView />);
 
@@ -185,7 +187,7 @@ describe('AgentsView', () => {
 		});
 
 		it('shows helpful description in empty state', async () => {
-			vi.mocked(api.listAgents).mockResolvedValue([]);
+			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [], $typeName: 'orc.v1.ListAgentsResponse' });
 
 			render(<AgentsView />);
 
@@ -197,7 +199,7 @@ describe('AgentsView', () => {
 		});
 
 		it('has status role for accessibility', async () => {
-			vi.mocked(api.listAgents).mockResolvedValue([]);
+			vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [], $typeName: 'orc.v1.ListAgentsResponse' });
 
 			render(<AgentsView />);
 
@@ -319,43 +321,37 @@ describe('AgentsView', () => {
 describe('AgentsPage', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		vi.mocked(api.listAgents).mockResolvedValue([]);
-		vi.mocked(api.getConfig).mockResolvedValue({
-			version: '1.0',
-			profile: 'auto',
-			automation: {
-				profile: 'auto',
-				gates_default: 'skip',
-				retry_enabled: true,
-				retry_max: 3,
-			},
-			execution: {
-				model: 'claude-sonnet-4-20250514',
-				max_iterations: 100,
-				timeout: '30m',
-			},
-			git: {
-				branch_prefix: 'orc/',
-				commit_prefix: '[orc]',
-			},
-			worktree: {
-				enabled: true,
-				dir: '.orc/worktrees',
-				cleanup_on_complete: true,
-				cleanup_on_fail: false,
-			},
-			completion: {
-				action: 'finalize',
-				target_branch: 'main',
-				delete_branch: true,
-			},
-			timeouts: {
-				phase_max: '30m',
-				turn_max: '5m',
-				idle_warning: '2m',
-				heartbeat_interval: '30s',
-				idle_timeout: '10m',
-			},
+		vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [], $typeName: 'orc.v1.ListAgentsResponse' });
+		vi.mocked(configClient.getConfig).mockResolvedValue({
+			config: {
+				automation: {
+					profile: 'auto',
+					autoApprove: true,
+					autoSkip: false,
+					$typeName: 'orc.v1.AutomationConfig',
+				},
+				claude: {
+					model: 'claude-sonnet-4-20250514',
+					thinking: false,
+					maxTurns: 100,
+					temperature: 0,
+					$typeName: 'orc.v1.ClaudeConfig',
+				},
+				completion: {
+					action: 'finalize',
+					autoMerge: false,
+					targetBranch: 'main',
+					$typeName: 'orc.v1.CompletionConfig',
+				},
+				export: {
+					includeTranscripts: true,
+					includeAttachments: true,
+					format: 'tar.gz',
+					$typeName: 'orc.v1.ExportConfig',
+				},
+				$typeName: 'orc.v1.Config',
+			} as Config,
+			$typeName: 'orc.v1.GetConfigResponse',
 		});
 	});
 

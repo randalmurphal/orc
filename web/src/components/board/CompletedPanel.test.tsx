@@ -16,21 +16,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CompletedPanel } from './CompletedPanel';
 import { formatNumber, formatCost } from '@/lib/format';
-import type { Task } from '@/lib/types';
-
-// Helper to create mock task
-function createMockTask(overrides: Partial<Task> = {}): Task {
-	return {
-		id: 'TASK-001',
-		title: 'Test task',
-		weight: 'small',
-		status: 'completed',
-		branch: 'orc/TASK-001',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import { createMockTask } from '@/test/factories';
 
 describe('CompletedPanel', () => {
 	describe('basic rendering', () => {
@@ -96,7 +83,7 @@ describe('CompletedPanel', () => {
 
 	describe('expand/collapse', () => {
 		it('starts collapsed', () => {
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -114,7 +101,7 @@ describe('CompletedPanel', () => {
 
 		it('expands when clicked (with tasks)', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -133,7 +120,7 @@ describe('CompletedPanel', () => {
 
 		it('collapses when clicked again', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -170,7 +157,7 @@ describe('CompletedPanel', () => {
 					completedCount={1}
 					todayTokens={10000}
 					todayCost={0.5}
-					recentTasks={[createMockTask()]}
+					recentTasks={[createMockTask({ status: TaskStatus.COMPLETED })]}
 				/>
 			);
 
@@ -195,7 +182,7 @@ describe('CompletedPanel', () => {
 	describe('expanded content', () => {
 		it('shows stats detail when expanded', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -216,8 +203,8 @@ describe('CompletedPanel', () => {
 		it('shows task list when expanded', async () => {
 			const user = userEvent.setup();
 			const tasks = [
-				createMockTask({ id: 'TASK-001', title: 'First task' }),
-				createMockTask({ id: 'TASK-002', title: 'Second task' }),
+				createMockTask({ id: 'TASK-001', title: 'First task', status: TaskStatus.COMPLETED }),
+				createMockTask({ id: 'TASK-002', title: 'Second task', status: TaskStatus.COMPLETED }),
 			];
 
 			render(
@@ -241,7 +228,7 @@ describe('CompletedPanel', () => {
 		it('shows task title with tooltip', async () => {
 			const user = userEvent.setup();
 			const longTitle = 'This is a very long task title that should be truncated';
-			const tasks = [createMockTask({ title: longTitle })];
+			const tasks = [createMockTask({ title: longTitle, status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -263,7 +250,7 @@ describe('CompletedPanel', () => {
 	describe('keyboard navigation', () => {
 		it('expands on Enter key', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -283,7 +270,7 @@ describe('CompletedPanel', () => {
 
 		it('expands on Space key', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -305,7 +292,7 @@ describe('CompletedPanel', () => {
 	describe('accessibility', () => {
 		it('has aria-expanded attribute when expandable', async () => {
 			const user = userEvent.setup();
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel
@@ -324,7 +311,7 @@ describe('CompletedPanel', () => {
 		});
 
 		it('has aria-controls linking to body', () => {
-			const tasks = [createMockTask()];
+			const tasks = [createMockTask({ status: TaskStatus.COMPLETED })];
 
 			render(
 				<CompletedPanel

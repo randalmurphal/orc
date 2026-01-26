@@ -1,0 +1,45 @@
+/**
+ * Connect RPC client configuration
+ *
+ * Single transport instance with typed service clients for all orc services.
+ */
+
+import { createClient } from '@connectrpc/connect';
+import { createConnectTransport } from '@connectrpc/connect-web';
+
+// Import services from _pb.ts files (GenService format for Connect v2)
+import { TaskService } from '@/gen/orc/v1/task_pb';
+import { EventService } from '@/gen/orc/v1/events_pb';
+import { InitiativeService } from '@/gen/orc/v1/initiative_pb';
+import { WorkflowService } from '@/gen/orc/v1/workflow_pb';
+import { ConfigService } from '@/gen/orc/v1/config_pb';
+import { DashboardService } from '@/gen/orc/v1/dashboard_pb';
+import { ProjectService, BranchService } from '@/gen/orc/v1/project_pb';
+import { TranscriptService } from '@/gen/orc/v1/transcript_pb';
+import { AutomationService } from '@/gen/orc/v1/automation_pb';
+import { GitHubService } from '@/gen/orc/v1/github_pb';
+import { KnowledgeService } from '@/gen/orc/v1/knowledge_pb';
+import { DecisionService } from '@/gen/orc/v1/decision_pb';
+
+/**
+ * Connect transport configured for the orc API.
+ * Uses the Vite proxy (/api -> :8080).
+ */
+const transport = createConnectTransport({
+	baseUrl: '/api',
+});
+
+// Service clients - typed wrappers around the transport
+export const taskClient = createClient(TaskService, transport);
+export const eventClient = createClient(EventService, transport);
+export const initiativeClient = createClient(InitiativeService, transport);
+export const workflowClient = createClient(WorkflowService, transport);
+export const configClient = createClient(ConfigService, transport);
+export const dashboardClient = createClient(DashboardService, transport);
+export const projectClient = createClient(ProjectService, transport);
+export const branchClient = createClient(BranchService, transport);
+export const transcriptClient = createClient(TranscriptService, transport);
+export const automationClient = createClient(AutomationService, transport);
+export const githubClient = createClient(GitHubService, transport);
+export const knowledgeClient = createClient(KnowledgeService, transport);
+export const decisionClient = createClient(DecisionService, transport);

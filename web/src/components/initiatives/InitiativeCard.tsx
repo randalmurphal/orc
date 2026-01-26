@@ -7,7 +7,7 @@
 import { forwardRef, useCallback, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { formatNumber, formatCost } from '@/lib/format';
-import type { Initiative, InitiativeStatus } from '../../lib/types';
+import { type Initiative, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import './InitiativeCard.css';
 
 // =============================================================================
@@ -56,12 +56,12 @@ export function extractEmoji(text: string | undefined): string {
  */
 export function getStatusColor(status: InitiativeStatus): InitiativeColorVariant {
 	switch (status) {
-		case 'active':
+		case InitiativeStatus.ACTIVE:
 			return 'green';
-		case 'completed':
+		case InitiativeStatus.COMPLETED:
 			return 'purple';
-		case 'archived':
-		case 'draft':
+		case InitiativeStatus.ARCHIVED:
+		case InitiativeStatus.DRAFT:
 			return 'amber';
 		default:
 			return 'blue';
@@ -73,12 +73,12 @@ export function getStatusColor(status: InitiativeStatus): InitiativeColorVariant
  */
 export function getIconColor(status: InitiativeStatus): InitiativeColorVariant {
 	switch (status) {
-		case 'active':
+		case InitiativeStatus.ACTIVE:
 			return 'green';
-		case 'completed':
+		case InitiativeStatus.COMPLETED:
 			return 'purple';
-		case 'archived':
-		case 'draft':
+		case InitiativeStatus.ARCHIVED:
+		case InitiativeStatus.DRAFT:
 			return 'amber';
 		default:
 			return 'blue';
@@ -90,7 +90,25 @@ export function getIconColor(status: InitiativeStatus): InitiativeColorVariant {
  * Checks if initiative should render with reduced opacity.
  */
 export function isPaused(status: InitiativeStatus): boolean {
-	return status === 'archived' || status === 'draft';
+	return status === InitiativeStatus.ARCHIVED || status === InitiativeStatus.DRAFT;
+}
+
+/**
+ * Get human-readable status label
+ */
+export function getStatusLabel(status: InitiativeStatus): string {
+	switch (status) {
+		case InitiativeStatus.ACTIVE:
+			return 'Active';
+		case InitiativeStatus.COMPLETED:
+			return 'Completed';
+		case InitiativeStatus.ARCHIVED:
+			return 'Archived';
+		case InitiativeStatus.DRAFT:
+			return 'Draft';
+		default:
+			return 'Unknown';
+	}
 }
 
 // =============================================================================
@@ -150,7 +168,7 @@ interface StatusBadgeProps {
 
 function StatusBadge({ status }: StatusBadgeProps) {
 	const colorClass = `initiative-card-status-${getStatusColor(status)}`;
-	const label = status.charAt(0).toUpperCase() + status.slice(1);
+	const label = getStatusLabel(status);
 
 	return (
 		<span

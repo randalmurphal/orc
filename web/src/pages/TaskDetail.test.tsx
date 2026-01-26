@@ -12,17 +12,18 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
 import { useTaskStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Task } from '@/lib/types';
+import { type Task, TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { createMockTask } from '@/test/factories';
 
-// Mock the API
-vi.mock('@/lib/api', () => ({
-	getTask: vi.fn(),
-	getTaskPlan: vi.fn(),
-	getTaskDependencies: vi.fn().mockResolvedValue({ blocked_by: [], blocks: [], related_to: [], referenced_by: [] }),
-	deleteTask: vi.fn(),
-	runTask: vi.fn(),
-	pauseTask: vi.fn(),
-	resumeTask: vi.fn(),
+// Mock the Connect RPC client
+const mockGetTask = vi.fn();
+const mockGetTaskPlan = vi.fn();
+
+vi.mock('@/lib/client', () => ({
+	taskClient: {
+		getTask: (...args: unknown[]) => mockGetTask(...args),
+		getTaskPlan: (...args: unknown[]) => mockGetTaskPlan(...args),
+	},
 }));
 
 // Mock useTaskSubscription hook
@@ -46,21 +47,16 @@ vi.mock('@/stores', async () => {
 	};
 });
 
-// Import mocked modules
-import { getTask, getTaskPlan } from '@/lib/api';
-
 // Factory for creating test tasks
 function createTask(overrides: Partial<Task> = {}): Task {
-	return {
+	return createMockTask({
 		id: 'TASK-001',
 		title: 'Test Task',
-		weight: 'medium',
-		status: 'running',
+		weight: TaskWeight.MEDIUM,
+		status: TaskStatus.RUNNING,
 		branch: 'orc/TASK-001',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
 		...overrides,
-	};
+	});
 }
 
 function renderTaskDetail(taskId: string = 'TASK-001') {
@@ -82,10 +78,12 @@ describe('TaskDetail', () => {
 		useTaskStore.getState().reset();
 
 		// Default mock implementations
-		(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(
-			createTask({ status: 'running' })
-		);
-		(getTaskPlan as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+		// taskClient.getTask returns { task: Task }
+		mockGetTask.mockResolvedValue({
+			task: createTask({ status: TaskStatus.RUNNING }),
+		});
+		// taskClient.getTaskPlan returns { plan: TaskPlan | null }
+		mockGetTaskPlan.mockResolvedValue({ plan: null });
 	});
 
 	afterEach(() => {
@@ -95,9 +93,7 @@ describe('TaskDetail', () => {
 	describe('loading state', () => {
 		it('should show loading spinner initially', async () => {
 			// Make the API call hang to keep loading state
-			(getTask as ReturnType<typeof vi.fn>).mockImplementation(
-				() => new Promise(() => {})
-			);
+			mockGetTask.mockImplementation(() => new Promise(() => {}));
 
 			renderTaskDetail();
 
@@ -115,9 +111,7 @@ describe('TaskDetail', () => {
 
 	describe('error state', () => {
 		it('should show error when task fetch fails', async () => {
-			(getTask as ReturnType<typeof vi.fn>).mockRejectedValue(
-				new Error('Task not found')
-			);
+			mockGetTask.mockRejectedValue(new Error('Task not found'));
 
 			renderTaskDetail();
 
@@ -131,8 +125,8 @@ describe('TaskDetail', () => {
 	describe('store synchronization', () => {
 		it('should update local task status when store task status changes', async () => {
 			// Start with a running task
-			const initialTask = createTask({ status: 'running' });
-			(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(initialTask);
+			const initialTask = createTask({ status: TaskStatus.RUNNING });
+			mockGetTask.mockResolvedValue({ task: initialTask });
 
 			// Add task to store with 'running' status
 			useTaskStore.getState().addTask(initialTask);
@@ -149,21 +143,21 @@ describe('TaskDetail', () => {
 
 			// Simulate WebSocket update by changing store task status to 'completed'
 			await act(async () => {
-				useTaskStore.getState().updateTaskStatus('TASK-001', 'completed');
+				useTaskStore.getState().updateTaskStatus('TASK-001', TaskStatus.COMPLETED);
 			});
 
 			// The component should now reflect the completed status
 			// Verify the store task is updated
 			const storeTask = useTaskStore.getState().getTask('TASK-001');
-			expect(storeTask?.status).toBe('completed');
+			expect(storeTask?.status).toBe(TaskStatus.COMPLETED);
 		});
 
-		it('should update current_phase when store task phase changes', async () => {
+		it('should update currentPhase when store task phase changes', async () => {
 			const initialTask = createTask({
-				status: 'running',
-				current_phase: 'implement',
+				status: TaskStatus.RUNNING,
+				currentPhase: 'implement',
 			});
-			(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(initialTask);
+			mockGetTask.mockResolvedValue({ task: initialTask });
 			useTaskStore.getState().addTask(initialTask);
 
 			renderTaskDetail();
@@ -175,17 +169,17 @@ describe('TaskDetail', () => {
 			// Simulate phase change via WebSocket update
 			await act(async () => {
 				useTaskStore.getState().updateTask('TASK-001', {
-					current_phase: 'test',
+					currentPhase: 'test',
 				});
 			});
 
 			const storeTask = useTaskStore.getState().getTask('TASK-001');
-			expect(storeTask?.current_phase).toBe('test');
+			expect(storeTask?.currentPhase).toBe('test');
 		});
 
 		it('should handle complete event updating task to completed status', async () => {
-			const initialTask = createTask({ status: 'running' });
-			(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(initialTask);
+			const initialTask = createTask({ status: TaskStatus.RUNNING });
+			mockGetTask.mockResolvedValue({ task: initialTask });
 			useTaskStore.getState().addTask(initialTask);
 
 			renderTaskDetail();
@@ -196,19 +190,19 @@ describe('TaskDetail', () => {
 
 			// Simulate the 'complete' WebSocket event that sets status to completed
 			await act(async () => {
-				useTaskStore.getState().updateTaskStatus('TASK-001', 'completed');
+				useTaskStore.getState().updateTaskStatus('TASK-001', TaskStatus.COMPLETED);
 			});
 
 			// Verify store was updated
 			const storeTask = useTaskStore.getState().getTask('TASK-001');
-			expect(storeTask?.status).toBe('completed');
+			expect(storeTask?.status).toBe(TaskStatus.COMPLETED);
 		});
 	});
 
 	describe('integration with WebSocket events', () => {
 		it('should reflect state event updates in UI', async () => {
-			const initialTask = createTask({ status: 'running' });
-			(getTask as ReturnType<typeof vi.fn>).mockResolvedValue(initialTask);
+			const initialTask = createTask({ status: TaskStatus.RUNNING });
+			mockGetTask.mockResolvedValue({ task: initialTask });
 			useTaskStore.getState().addTask(initialTask);
 
 			renderTaskDetail();
@@ -219,24 +213,19 @@ describe('TaskDetail', () => {
 
 			// Simulate 'state' WebSocket event via updateTaskState
 			// This mirrors what handleWSEvent does in useWebSocket.tsx
+			// Note: updateTaskState stores ExecutionState but doesn't sync to task
+			// Use updateTask/updateTaskStatus to update task fields
 			await act(async () => {
-				useTaskStore.getState().updateTaskState('TASK-001', {
-					task_id: 'TASK-001',
-					current_phase: 'test',
-					current_iteration: 1,
-					status: 'completed',
-					started_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-					phases: {},
-					gates: [],
-					tokens: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
+				useTaskStore.getState().updateTask('TASK-001', {
+					status: TaskStatus.COMPLETED,
+					currentPhase: 'test',
 				});
 			});
 
-			// updateTaskState syncs status to task when task exists
+			// Verify task was updated
 			const storeTask = useTaskStore.getState().getTask('TASK-001');
-			expect(storeTask?.status).toBe('completed');
-			expect(storeTask?.current_phase).toBe('test');
+			expect(storeTask?.status).toBe(TaskStatus.COMPLETED);
+			expect(storeTask?.currentPhase).toBe('test');
 		});
 	});
 });

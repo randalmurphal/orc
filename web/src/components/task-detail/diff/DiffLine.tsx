@@ -1,4 +1,4 @@
-import type { Line } from '@/lib/types';
+import type { DiffLine as Line } from '@/gen/orc/v1/common_pb';
 import './DiffLine.css';
 
 interface DiffLineProps {
@@ -20,8 +20,8 @@ export function DiffLine({ line, onClick }: DiffLineProps) {
 
 	return (
 		<div className={`diff-line ${line.type}`} onClick={onClick}>
-			<span className="line-number old">{line.old_line ?? ''}</span>
-			<span className="line-number new">{line.new_line ?? ''}</span>
+			<span className="line-number old">{line.oldLine ?? ''}</span>
+			<span className="line-number new">{line.newLine ?? ''}</span>
 			<span className="line-content">
 				<span className="prefix">{getPrefix()}</span>
 				{line.content}

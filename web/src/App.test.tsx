@@ -4,22 +4,16 @@ import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 import { useProjectStore, useTaskStore, useInitiativeStore } from '@/stores';
 
-// Mock WebSocket to prevent actual connections
-vi.mock('@/lib/websocket', () => ({
-	OrcWebSocket: vi.fn().mockImplementation(() => ({
+// Mock events module to prevent actual connections
+vi.mock('@/lib/events', () => ({
+	EventSubscription: vi.fn().mockImplementation(() => ({
 		connect: vi.fn(),
 		disconnect: vi.fn(),
-		subscribe: vi.fn(),
-		unsubscribe: vi.fn(),
-		subscribeGlobal: vi.fn(),
-		setPrimarySubscription: vi.fn(),
 		on: vi.fn().mockReturnValue(() => {}),
 		onStatusChange: vi.fn().mockReturnValue(() => {}),
-		isConnected: vi.fn().mockReturnValue(false),
-		getTaskId: vi.fn().mockReturnValue(null),
-		command: vi.fn(),
+		getStatus: vi.fn().mockReturnValue('disconnected'),
 	})),
-	GLOBAL_TASK_ID: '*',
+	handleEvent: vi.fn(),
 }));
 
 // Mock API calls
@@ -94,9 +88,9 @@ describe('App', () => {
 		vi.clearAllMocks();
 	});
 
-	it('renders App with router and WebSocketProvider', async () => {
+	it('renders App with router and EventProvider', async () => {
 		renderApp('/');
-		// App renders routes wrapped in WebSocketProvider
+		// App renders routes wrapped in EventProvider
 		await waitFor(() => {
 			// Should render the layout with sidebar and content
 			expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();

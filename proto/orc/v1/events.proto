@@ -147,10 +147,21 @@ message FilesChangedEvent {
   int32 total_deletions = 4;
 }
 
-// Session update (Claude CLI session)
+// Session update (Claude CLI session info for a specific task)
 message SessionUpdateEvent {
   string task_id = 1;
   SessionInfo session = 2;
+}
+
+// Aggregate session metrics (global dashboard metrics)
+message SessionMetricsEvent {
+  int64 duration_seconds = 1;      // Total session duration
+  int32 total_tokens = 2;          // Aggregate tokens across all tasks
+  double estimated_cost_usd = 3;   // Estimated cost
+  int32 input_tokens = 4;          // Total input tokens
+  int32 output_tokens = 5;         // Total output tokens
+  int32 tasks_running = 6;         // Number of currently running tasks
+  bool is_paused = 7;              // Whether all tasks are paused
 }
 
 // Error occurred
@@ -204,6 +215,7 @@ message Event {
     ErrorEvent error = 23;
     WarningEvent warning = 24;
     HeartbeatEvent heartbeat = 25;
+    SessionMetricsEvent session_metrics = 26;
   }
 }
 

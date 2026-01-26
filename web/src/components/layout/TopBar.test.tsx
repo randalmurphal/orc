@@ -1,19 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
 import { TopBar } from './TopBar';
 import { useProjectStore, useSessionStore } from '@/stores';
+import { createTimestamp } from '@/test/factories';
+import { ProjectSchema } from '@/gen/orc/v1/project_pb';
 
 describe('TopBar', () => {
 	beforeEach(() => {
 		// Reset stores to default state
 		useProjectStore.setState({
 			projects: [
-				{
+				create(ProjectSchema, {
 					id: 'proj-001',
 					name: 'Test Project',
 					path: '/test/project',
-					created_at: '2024-01-01T00:00:00Z',
-				},
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+				}),
 			],
 			currentProjectId: 'proj-001',
 			loading: false,

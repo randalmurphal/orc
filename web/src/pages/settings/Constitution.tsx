@@ -4,11 +4,18 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { ConfigEditor } from '@/components/settings/ConfigEditor';
 import { useDocumentTitle } from '@/hooks';
-import { getConstitution, updateConstitution, deleteConstitution, type Constitution } from '@/lib/api';
+import { configClient } from '@/lib/client';
+import {
+	type Constitution,
+	GetConstitutionRequestSchema,
+	UpdateConstitutionRequestSchema,
+	DeleteConstitutionRequestSchema,
+} from '@/gen/orc/v1/config_pb';
 import './Constitution.css';
 
 const CONSTITUTION_TEMPLATE = `# Project Constitution
@@ -61,9 +68,16 @@ export function ConstitutionPage() {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await getConstitution();
-			setConstitution(data);
-			setContent(data.content);
+			const response = await configClient.getConstitution(
+				create(GetConstitutionRequestSchema, {})
+			);
+			if (response.constitution) {
+				setConstitution(response.constitution);
+				setContent(response.constitution.content);
+			} else {
+				setConstitution(null);
+				setContent('');
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load constitution');
 		} finally {
@@ -79,8 +93,12 @@ export function ConstitutionPage() {
 		try {
 			setSaving(true);
 			setError(null);
-			const updated = await updateConstitution(content);
-			setConstitution(updated);
+			const response = await configClient.updateConstitution(
+				create(UpdateConstitutionRequestSchema, { content })
+			);
+			if (response.constitution) {
+				setConstitution(response.constitution);
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save constitution');
 		} finally {
@@ -95,8 +113,8 @@ export function ConstitutionPage() {
 		try {
 			setSaving(true);
 			setError(null);
-			await deleteConstitution();
-			setConstitution({ content: '', version: '', exists: false });
+			await configClient.deleteConstitution(create(DeleteConstitutionRequestSchema, {}));
+			setConstitution(null);
 			setContent('');
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to delete constitution');
@@ -108,6 +126,9 @@ export function ConstitutionPage() {
 	const handleUseTemplate = useCallback(() => {
 		setContent(CONSTITUTION_TEMPLATE);
 	}, []);
+
+	// Constitution exists if we have a constitution object with content
+	const exists = constitution !== null && constitution.content.length > 0;
 
 	if (loading) {
 		return (
@@ -128,7 +149,7 @@ export function ConstitutionPage() {
 					</p>
 				</div>
 				<div className="constitution-actions">
-					{!constitution?.exists && (
+					{!exists && (
 						<Button
 							variant="secondary"
 							size="sm"
@@ -138,7 +159,7 @@ export function ConstitutionPage() {
 							Use Template
 						</Button>
 					)}
-					{constitution?.exists && (
+					{exists && (
 						<Button
 							variant="danger"
 							size="sm"
@@ -159,7 +180,7 @@ export function ConstitutionPage() {
 				</div>
 			)}
 
-			{constitution?.exists ? (
+			{exists ? (
 				<ConfigEditor
 					filePath=".orc/constitution.md"
 					content={content}

@@ -2,12 +2,13 @@
  * WorkflowCard displays a single workflow with its phases and metadata.
  */
 
-import type { Workflow } from '@/lib/types';
+import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import { Badge } from '@/components/core/Badge';
 import { Icon } from '@/components/ui/Icon';
 
 export interface WorkflowCardProps {
 	workflow: Workflow;
+	phaseCount?: number;
 	onSelect?: (workflow: Workflow) => void;
 	onClone?: (workflow: Workflow) => void;
 }
@@ -15,7 +16,7 @@ export interface WorkflowCardProps {
 /**
  * WorkflowCard displays a workflow with its name, phase count, and actions.
  */
-export function WorkflowCard({ workflow, onSelect, onClone }: WorkflowCardProps) {
+export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: WorkflowCardProps) {
 	const handleClick = () => {
 		onSelect?.(workflow);
 	};
@@ -41,7 +42,7 @@ export function WorkflowCard({ workflow, onSelect, onClone }: WorkflowCardProps)
 					<h3 className="workflow-card-name">{workflow.name}</h3>
 					<span className="workflow-card-id">{workflow.id}</span>
 				</div>
-				{workflow.is_builtin ? (
+				{workflow.isBuiltin ? (
 					<Badge variant="status" status="active">
 						Built-in
 					</Badge>
@@ -59,21 +60,21 @@ export function WorkflowCard({ workflow, onSelect, onClone }: WorkflowCardProps)
 			<div className="workflow-card-stats">
 				<div className="workflow-card-stat">
 					<Icon name="layers" size={14} />
-					<span>{workflow.phase_count ?? 0} phases</span>
+					<span>{phaseCount ?? 0} phases</span>
 				</div>
 				<div className="workflow-card-stat">
-					<span className="workflow-card-type">{workflow.workflow_type}</span>
+					<span className="workflow-card-type">{workflow.workflowType}</span>
 				</div>
-				{workflow.default_model && (
+				{workflow.defaultModel && (
 					<div className="workflow-card-stat">
 						<Icon name="cpu" size={14} />
-						<span>{workflow.default_model}</span>
+						<span>{workflow.defaultModel}</span>
 					</div>
 				)}
 			</div>
 
 			<div className="workflow-card-actions">
-				{workflow.is_builtin ? (
+				{workflow.isBuiltin ? (
 					<button
 						className="workflow-card-action"
 						onClick={handleClone}

@@ -54,6 +54,12 @@ const (
 	TaskServicePauseTaskProcedure = "/orc.v1.TaskService/PauseTask"
 	// TaskServiceResumeTaskProcedure is the fully-qualified name of the TaskService's ResumeTask RPC.
 	TaskServiceResumeTaskProcedure = "/orc.v1.TaskService/ResumeTask"
+	// TaskServicePauseAllTasksProcedure is the fully-qualified name of the TaskService's PauseAllTasks
+	// RPC.
+	TaskServicePauseAllTasksProcedure = "/orc.v1.TaskService/PauseAllTasks"
+	// TaskServiceResumeAllTasksProcedure is the fully-qualified name of the TaskService's
+	// ResumeAllTasks RPC.
+	TaskServiceResumeAllTasksProcedure = "/orc.v1.TaskService/ResumeAllTasks"
 	// TaskServiceSkipBlockProcedure is the fully-qualified name of the TaskService's SkipBlock RPC.
 	TaskServiceSkipBlockProcedure = "/orc.v1.TaskService/SkipBlock"
 	// TaskServiceRetryTaskProcedure is the fully-qualified name of the TaskService's RetryTask RPC.
@@ -111,6 +117,14 @@ const (
 	// TaskServiceDeleteAttachmentProcedure is the fully-qualified name of the TaskService's
 	// DeleteAttachment RPC.
 	TaskServiceDeleteAttachmentProcedure = "/orc.v1.TaskService/DeleteAttachment"
+	// TaskServiceGetTestResultsProcedure is the fully-qualified name of the TaskService's
+	// GetTestResults RPC.
+	TaskServiceGetTestResultsProcedure = "/orc.v1.TaskService/GetTestResults"
+	// TaskServiceGetReviewFindingsProcedure is the fully-qualified name of the TaskService's
+	// GetReviewFindings RPC.
+	TaskServiceGetReviewFindingsProcedure = "/orc.v1.TaskService/GetReviewFindings"
+	// TaskServiceExportTaskProcedure is the fully-qualified name of the TaskService's ExportTask RPC.
+	TaskServiceExportTaskProcedure = "/orc.v1.TaskService/ExportTask"
 )
 
 // TaskServiceClient is a client for the orc.v1.TaskService service.
@@ -125,6 +139,8 @@ type TaskServiceClient interface {
 	RunTask(context.Context, *connect.Request[v1.RunTaskRequest]) (*connect.Response[v1.RunTaskResponse], error)
 	PauseTask(context.Context, *connect.Request[v1.PauseTaskRequest]) (*connect.Response[v1.PauseTaskResponse], error)
 	ResumeTask(context.Context, *connect.Request[v1.ResumeTaskRequest]) (*connect.Response[v1.ResumeTaskResponse], error)
+	PauseAllTasks(context.Context, *connect.Request[v1.PauseAllTasksRequest]) (*connect.Response[v1.PauseAllTasksResponse], error)
+	ResumeAllTasks(context.Context, *connect.Request[v1.ResumeAllTasksRequest]) (*connect.Response[v1.ResumeAllTasksResponse], error)
 	SkipBlock(context.Context, *connect.Request[v1.SkipBlockRequest]) (*connect.Response[v1.SkipBlockResponse], error)
 	RetryTask(context.Context, *connect.Request[v1.RetryTaskRequest]) (*connect.Response[v1.RetryTaskResponse], error)
 	RetryPreview(context.Context, *connect.Request[v1.RetryPreviewRequest]) (*connect.Response[v1.RetryPreviewResponse], error)
@@ -145,6 +161,11 @@ type TaskServiceClient interface {
 	UploadAttachment(context.Context) *connect.ClientStreamForClient[v1.UploadAttachmentRequest, v1.UploadAttachmentResponse]
 	DownloadAttachment(context.Context, *connect.Request[v1.DownloadAttachmentRequest]) (*connect.ServerStreamForClient[v1.DownloadAttachmentResponse], error)
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	GetTestResults(context.Context, *connect.Request[v1.GetTestResultsRequest]) (*connect.Response[v1.GetTestResultsResponse], error)
+	// Get review findings from multi-agent code review
+	GetReviewFindings(context.Context, *connect.Request[v1.GetReviewFindingsRequest]) (*connect.Response[v1.GetReviewFindingsResponse], error)
+	// Export task data
+	ExportTask(context.Context, *connect.Request[v1.ExportTaskRequest]) (*connect.Response[v1.ExportTaskResponse], error)
 }
 
 // NewTaskServiceClient constructs a client for the orc.v1.TaskService service. By default, it uses
@@ -216,6 +237,18 @@ func NewTaskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+TaskServiceResumeTaskProcedure,
 			connect.WithSchema(taskServiceMethods.ByName("ResumeTask")),
+			connect.WithClientOptions(opts...),
+		),
+		pauseAllTasks: connect.NewClient[v1.PauseAllTasksRequest, v1.PauseAllTasksResponse](
+			httpClient,
+			baseURL+TaskServicePauseAllTasksProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("PauseAllTasks")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeAllTasks: connect.NewClient[v1.ResumeAllTasksRequest, v1.ResumeAllTasksResponse](
+			httpClient,
+			baseURL+TaskServiceResumeAllTasksProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("ResumeAllTasks")),
 			connect.WithClientOptions(opts...),
 		),
 		skipBlock: connect.NewClient[v1.SkipBlockRequest, v1.SkipBlockResponse](
@@ -338,6 +371,24 @@ func NewTaskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(taskServiceMethods.ByName("DeleteAttachment")),
 			connect.WithClientOptions(opts...),
 		),
+		getTestResults: connect.NewClient[v1.GetTestResultsRequest, v1.GetTestResultsResponse](
+			httpClient,
+			baseURL+TaskServiceGetTestResultsProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("GetTestResults")),
+			connect.WithClientOptions(opts...),
+		),
+		getReviewFindings: connect.NewClient[v1.GetReviewFindingsRequest, v1.GetReviewFindingsResponse](
+			httpClient,
+			baseURL+TaskServiceGetReviewFindingsProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("GetReviewFindings")),
+			connect.WithClientOptions(opts...),
+		),
+		exportTask: connect.NewClient[v1.ExportTaskRequest, v1.ExportTaskResponse](
+			httpClient,
+			baseURL+TaskServiceExportTaskProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("ExportTask")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -353,6 +404,8 @@ type taskServiceClient struct {
 	runTask             *connect.Client[v1.RunTaskRequest, v1.RunTaskResponse]
 	pauseTask           *connect.Client[v1.PauseTaskRequest, v1.PauseTaskResponse]
 	resumeTask          *connect.Client[v1.ResumeTaskRequest, v1.ResumeTaskResponse]
+	pauseAllTasks       *connect.Client[v1.PauseAllTasksRequest, v1.PauseAllTasksResponse]
+	resumeAllTasks      *connect.Client[v1.ResumeAllTasksRequest, v1.ResumeAllTasksResponse]
 	skipBlock           *connect.Client[v1.SkipBlockRequest, v1.SkipBlockResponse]
 	retryTask           *connect.Client[v1.RetryTaskRequest, v1.RetryTaskResponse]
 	retryPreview        *connect.Client[v1.RetryPreviewRequest, v1.RetryPreviewResponse]
@@ -373,6 +426,9 @@ type taskServiceClient struct {
 	uploadAttachment    *connect.Client[v1.UploadAttachmentRequest, v1.UploadAttachmentResponse]
 	downloadAttachment  *connect.Client[v1.DownloadAttachmentRequest, v1.DownloadAttachmentResponse]
 	deleteAttachment    *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
+	getTestResults      *connect.Client[v1.GetTestResultsRequest, v1.GetTestResultsResponse]
+	getReviewFindings   *connect.Client[v1.GetReviewFindingsRequest, v1.GetReviewFindingsResponse]
+	exportTask          *connect.Client[v1.ExportTaskRequest, v1.ExportTaskResponse]
 }
 
 // ListTasks calls orc.v1.TaskService.ListTasks.
@@ -423,6 +479,16 @@ func (c *taskServiceClient) PauseTask(ctx context.Context, req *connect.Request[
 // ResumeTask calls orc.v1.TaskService.ResumeTask.
 func (c *taskServiceClient) ResumeTask(ctx context.Context, req *connect.Request[v1.ResumeTaskRequest]) (*connect.Response[v1.ResumeTaskResponse], error) {
 	return c.resumeTask.CallUnary(ctx, req)
+}
+
+// PauseAllTasks calls orc.v1.TaskService.PauseAllTasks.
+func (c *taskServiceClient) PauseAllTasks(ctx context.Context, req *connect.Request[v1.PauseAllTasksRequest]) (*connect.Response[v1.PauseAllTasksResponse], error) {
+	return c.pauseAllTasks.CallUnary(ctx, req)
+}
+
+// ResumeAllTasks calls orc.v1.TaskService.ResumeAllTasks.
+func (c *taskServiceClient) ResumeAllTasks(ctx context.Context, req *connect.Request[v1.ResumeAllTasksRequest]) (*connect.Response[v1.ResumeAllTasksResponse], error) {
+	return c.resumeAllTasks.CallUnary(ctx, req)
 }
 
 // SkipBlock calls orc.v1.TaskService.SkipBlock.
@@ -525,6 +591,21 @@ func (c *taskServiceClient) DeleteAttachment(ctx context.Context, req *connect.R
 	return c.deleteAttachment.CallUnary(ctx, req)
 }
 
+// GetTestResults calls orc.v1.TaskService.GetTestResults.
+func (c *taskServiceClient) GetTestResults(ctx context.Context, req *connect.Request[v1.GetTestResultsRequest]) (*connect.Response[v1.GetTestResultsResponse], error) {
+	return c.getTestResults.CallUnary(ctx, req)
+}
+
+// GetReviewFindings calls orc.v1.TaskService.GetReviewFindings.
+func (c *taskServiceClient) GetReviewFindings(ctx context.Context, req *connect.Request[v1.GetReviewFindingsRequest]) (*connect.Response[v1.GetReviewFindingsResponse], error) {
+	return c.getReviewFindings.CallUnary(ctx, req)
+}
+
+// ExportTask calls orc.v1.TaskService.ExportTask.
+func (c *taskServiceClient) ExportTask(ctx context.Context, req *connect.Request[v1.ExportTaskRequest]) (*connect.Response[v1.ExportTaskResponse], error) {
+	return c.exportTask.CallUnary(ctx, req)
+}
+
 // TaskServiceHandler is an implementation of the orc.v1.TaskService service.
 type TaskServiceHandler interface {
 	ListTasks(context.Context, *connect.Request[v1.ListTasksRequest]) (*connect.Response[v1.ListTasksResponse], error)
@@ -537,6 +618,8 @@ type TaskServiceHandler interface {
 	RunTask(context.Context, *connect.Request[v1.RunTaskRequest]) (*connect.Response[v1.RunTaskResponse], error)
 	PauseTask(context.Context, *connect.Request[v1.PauseTaskRequest]) (*connect.Response[v1.PauseTaskResponse], error)
 	ResumeTask(context.Context, *connect.Request[v1.ResumeTaskRequest]) (*connect.Response[v1.ResumeTaskResponse], error)
+	PauseAllTasks(context.Context, *connect.Request[v1.PauseAllTasksRequest]) (*connect.Response[v1.PauseAllTasksResponse], error)
+	ResumeAllTasks(context.Context, *connect.Request[v1.ResumeAllTasksRequest]) (*connect.Response[v1.ResumeAllTasksResponse], error)
 	SkipBlock(context.Context, *connect.Request[v1.SkipBlockRequest]) (*connect.Response[v1.SkipBlockResponse], error)
 	RetryTask(context.Context, *connect.Request[v1.RetryTaskRequest]) (*connect.Response[v1.RetryTaskResponse], error)
 	RetryPreview(context.Context, *connect.Request[v1.RetryPreviewRequest]) (*connect.Response[v1.RetryPreviewResponse], error)
@@ -557,6 +640,11 @@ type TaskServiceHandler interface {
 	UploadAttachment(context.Context, *connect.ClientStream[v1.UploadAttachmentRequest]) (*connect.Response[v1.UploadAttachmentResponse], error)
 	DownloadAttachment(context.Context, *connect.Request[v1.DownloadAttachmentRequest], *connect.ServerStream[v1.DownloadAttachmentResponse]) error
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	GetTestResults(context.Context, *connect.Request[v1.GetTestResultsRequest]) (*connect.Response[v1.GetTestResultsResponse], error)
+	// Get review findings from multi-agent code review
+	GetReviewFindings(context.Context, *connect.Request[v1.GetReviewFindingsRequest]) (*connect.Response[v1.GetReviewFindingsResponse], error)
+	// Export task data
+	ExportTask(context.Context, *connect.Request[v1.ExportTaskRequest]) (*connect.Response[v1.ExportTaskResponse], error)
 }
 
 // NewTaskServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -624,6 +712,18 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 		TaskServiceResumeTaskProcedure,
 		svc.ResumeTask,
 		connect.WithSchema(taskServiceMethods.ByName("ResumeTask")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServicePauseAllTasksHandler := connect.NewUnaryHandler(
+		TaskServicePauseAllTasksProcedure,
+		svc.PauseAllTasks,
+		connect.WithSchema(taskServiceMethods.ByName("PauseAllTasks")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceResumeAllTasksHandler := connect.NewUnaryHandler(
+		TaskServiceResumeAllTasksProcedure,
+		svc.ResumeAllTasks,
+		connect.WithSchema(taskServiceMethods.ByName("ResumeAllTasks")),
 		connect.WithHandlerOptions(opts...),
 	)
 	taskServiceSkipBlockHandler := connect.NewUnaryHandler(
@@ -746,6 +846,24 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(taskServiceMethods.ByName("DeleteAttachment")),
 		connect.WithHandlerOptions(opts...),
 	)
+	taskServiceGetTestResultsHandler := connect.NewUnaryHandler(
+		TaskServiceGetTestResultsProcedure,
+		svc.GetTestResults,
+		connect.WithSchema(taskServiceMethods.ByName("GetTestResults")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceGetReviewFindingsHandler := connect.NewUnaryHandler(
+		TaskServiceGetReviewFindingsProcedure,
+		svc.GetReviewFindings,
+		connect.WithSchema(taskServiceMethods.ByName("GetReviewFindings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskServiceExportTaskHandler := connect.NewUnaryHandler(
+		TaskServiceExportTaskProcedure,
+		svc.ExportTask,
+		connect.WithSchema(taskServiceMethods.ByName("ExportTask")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.TaskService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TaskServiceListTasksProcedure:
@@ -768,6 +886,10 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 			taskServicePauseTaskHandler.ServeHTTP(w, r)
 		case TaskServiceResumeTaskProcedure:
 			taskServiceResumeTaskHandler.ServeHTTP(w, r)
+		case TaskServicePauseAllTasksProcedure:
+			taskServicePauseAllTasksHandler.ServeHTTP(w, r)
+		case TaskServiceResumeAllTasksProcedure:
+			taskServiceResumeAllTasksHandler.ServeHTTP(w, r)
 		case TaskServiceSkipBlockProcedure:
 			taskServiceSkipBlockHandler.ServeHTTP(w, r)
 		case TaskServiceRetryTaskProcedure:
@@ -808,6 +930,12 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 			taskServiceDownloadAttachmentHandler.ServeHTTP(w, r)
 		case TaskServiceDeleteAttachmentProcedure:
 			taskServiceDeleteAttachmentHandler.ServeHTTP(w, r)
+		case TaskServiceGetTestResultsProcedure:
+			taskServiceGetTestResultsHandler.ServeHTTP(w, r)
+		case TaskServiceGetReviewFindingsProcedure:
+			taskServiceGetReviewFindingsHandler.ServeHTTP(w, r)
+		case TaskServiceExportTaskProcedure:
+			taskServiceExportTaskHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -855,6 +983,14 @@ func (UnimplementedTaskServiceHandler) PauseTask(context.Context, *connect.Reque
 
 func (UnimplementedTaskServiceHandler) ResumeTask(context.Context, *connect.Request[v1.ResumeTaskRequest]) (*connect.Response[v1.ResumeTaskResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.ResumeTask is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) PauseAllTasks(context.Context, *connect.Request[v1.PauseAllTasksRequest]) (*connect.Response[v1.PauseAllTasksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.PauseAllTasks is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) ResumeAllTasks(context.Context, *connect.Request[v1.ResumeAllTasksRequest]) (*connect.Response[v1.ResumeAllTasksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.ResumeAllTasks is not implemented"))
 }
 
 func (UnimplementedTaskServiceHandler) SkipBlock(context.Context, *connect.Request[v1.SkipBlockRequest]) (*connect.Response[v1.SkipBlockResponse], error) {
@@ -935,4 +1071,16 @@ func (UnimplementedTaskServiceHandler) DownloadAttachment(context.Context, *conn
 
 func (UnimplementedTaskServiceHandler) DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.DeleteAttachment is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) GetTestResults(context.Context, *connect.Request[v1.GetTestResultsRequest]) (*connect.Response[v1.GetTestResultsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.GetTestResults is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) GetReviewFindings(context.Context, *connect.Request[v1.GetReviewFindingsRequest]) (*connect.Response[v1.GetReviewFindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.GetReviewFindings is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) ExportTask(context.Context, *connect.Request[v1.ExportTaskRequest]) (*connect.Response[v1.ExportTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.ExportTask is not implemented"))
 }

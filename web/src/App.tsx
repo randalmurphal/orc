@@ -1,6 +1,7 @@
 import { useRoutes } from 'react-router-dom';
 import { routes } from '@/router';
-import { WebSocketProvider, ShortcutProvider } from '@/hooks';
+import { ShortcutProvider } from '@/hooks';
+import { EventProvider } from '@/hooks/useEvents';
 import { DataProvider } from '@/components/layout';
 import { TooltipProvider } from '@/components/ui';
 
@@ -10,7 +11,7 @@ import { TooltipProvider } from '@/components/ui';
  * Wraps the app with:
  * - TooltipProvider for hover tooltips
  * - ShortcutProvider for keyboard shortcuts
- * - WebSocketProvider for real-time updates
+ * - EventProvider for real-time updates via Connect RPC streaming
  * - DataProvider for centralized data loading
  * - Router for navigation
  */
@@ -20,9 +21,9 @@ function App() {
 	return (
 		<TooltipProvider delayDuration={300}>
 			<ShortcutProvider>
-				<WebSocketProvider>
+				<EventProvider>
 					<DataProvider>{routeElements}</DataProvider>
-				</WebSocketProvider>
+				</EventProvider>
 			</ShortcutProvider>
 		</TooltipProvider>
 	);

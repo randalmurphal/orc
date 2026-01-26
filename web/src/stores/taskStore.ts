@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Task, TaskState, TaskStatus, StatusCounts, ActivityState } from '@/lib/types';
+import { type Task, TaskStatus, type ExecutionState } from '@/gen/orc/v1/task_pb';
+import { ActivityState } from '@/gen/orc/v1/events_pb';
+import { type StatusCounts } from '@/gen/orc/v1/dashboard_pb';
+import { timestampToDate } from '@/lib/time';
 
 // Active statuses for filtering (running/blocked/paused for getActiveTasks)
-const ACTIVE_STATUSES: TaskStatus[] = ['running', 'blocked', 'paused'];
-const RECENT_STATUSES: TaskStatus[] = ['completed', 'failed'];
+const ACTIVE_STATUSES: TaskStatus[] = [TaskStatus.RUNNING, TaskStatus.BLOCKED, TaskStatus.PAUSED];
+const RECENT_STATUSES: TaskStatus[] = [TaskStatus.COMPLETED, TaskStatus.FAILED];
 // Terminal statuses (not active anymore)
-const TERMINAL_STATUSES: TaskStatus[] = ['completed', 'failed'];
+const TERMINAL_STATUSES: TaskStatus[] = [TaskStatus.COMPLETED, TaskStatus.FAILED];
 
-// Activity state for a task (ephemeral, from WebSocket events)
+// Activity state for a task (ephemeral, from event stream)
 export interface TaskActivity {
 	phase: string;
 	activity: ActivityState;
@@ -18,7 +21,7 @@ export interface TaskActivity {
 interface TaskStore {
 	// State
 	tasks: Task[];
-	taskStates: Map<string, TaskState>;
+	taskStates: Map<string, ExecutionState>;
 	taskActivities: Map<string, TaskActivity>;
 	loading: boolean;
 	error: string | null;
@@ -35,10 +38,10 @@ interface TaskStore {
 	updateTask: (taskId: string, updates: Partial<Task>) => void;
 	updateTaskStatus: (taskId: string, status: TaskStatus, currentPhase?: string) => void;
 	removeTask: (taskId: string) => void;
-	updateTaskState: (taskId: string, state: TaskState) => void;
+	updateTaskState: (taskId: string, state: ExecutionState) => void;
 	removeTaskState: (taskId: string) => void;
 	getTask: (taskId: string) => Task | undefined;
-	getTaskState: (taskId: string) => TaskState | undefined;
+	getTaskState: (taskId: string) => ExecutionState | undefined;
 	updateTaskActivity: (taskId: string, phase: string, activity: ActivityState) => void;
 	clearTaskActivity: (taskId: string) => void;
 	getTaskActivity: (taskId: string) => TaskActivity | undefined;
@@ -49,7 +52,7 @@ interface TaskStore {
 
 const initialState = {
 	tasks: [] as Task[],
-	taskStates: new Map<string, TaskState>(),
+	taskStates: new Map<string, ExecutionState>(),
 	taskActivities: new Map<string, TaskActivity>(),
 	loading: false,
 	error: null as string | null,
@@ -69,13 +72,18 @@ export const useTaskStore = create<TaskStore>()(
 			const { tasks } = get();
 			return tasks
 				.filter((task) => RECENT_STATUSES.includes(task.status))
-				.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+				.sort((a, b) => {
+					const dateA = timestampToDate(a.updatedAt);
+					const dateB = timestampToDate(b.updatedAt);
+					if (!dateA || !dateB) return 0;
+					return dateB.getTime() - dateA.getTime();
+				})
 				.slice(0, 10);
 		},
 
 		getRunningTasks: () => {
 			const { tasks } = get();
-			return tasks.filter((task) => task.status === 'running');
+			return tasks.filter((task) => task.status === TaskStatus.RUNNING);
 		},
 
 		getStatusCounts: () => {
@@ -85,10 +93,10 @@ export const useTaskStore = create<TaskStore>()(
 					counts.all++;
 					// Active = not terminal (completed or failed)
 					if (!TERMINAL_STATUSES.includes(task.status)) counts.active++;
-					if (task.status === 'completed') counts.completed++;
-					if (task.status === 'failed') counts.failed++;
-					if (task.status === 'running') counts.running++;
-					if (task.status === 'blocked') counts.blocked++;
+					if (task.status === TaskStatus.COMPLETED) counts.completed++;
+					if (task.status === TaskStatus.FAILED) counts.failed++;
+					if (task.status === TaskStatus.RUNNING) counts.running++;
+					if (task.status === TaskStatus.BLOCKED) counts.blocked++;
 					return counts;
 				},
 				{ all: 0, active: 0, completed: 0, failed: 0, running: 0, blocked: 0 } as StatusCounts
@@ -118,7 +126,7 @@ export const useTaskStore = create<TaskStore>()(
 			set((state) => ({
 				tasks: state.tasks.map((task) =>
 					task.id === taskId
-						? { ...task, status, ...(currentPhase !== undefined && { current_phase: currentPhase }) }
+						? { ...task, status, ...(currentPhase !== undefined && { currentPhase }) }
 						: task
 				),
 			})),
@@ -137,19 +145,6 @@ export const useTaskStore = create<TaskStore>()(
 			set((state) => {
 				const newStates = new Map(state.taskStates);
 				newStates.set(taskId, taskState);
-
-				// Sync status to task if task exists
-				const taskIndex = state.tasks.findIndex((t) => t.id === taskId);
-				if (taskIndex !== -1 && taskState.status) {
-					const updatedTasks = [...state.tasks];
-					updatedTasks[taskIndex] = {
-						...updatedTasks[taskIndex],
-						status: taskState.status as TaskStatus,
-						current_phase: taskState.current_phase,
-					};
-					return { taskStates: newStates, tasks: updatedTasks };
-				}
-
 				return { taskStates: newStates };
 			}),
 

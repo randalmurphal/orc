@@ -5,18 +5,72 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
+import { configClient } from '@/lib/client';
 import {
-	getConfig,
-	updateConfig,
 	type Config as ConfigType,
-	type ConfigUpdateRequest,
-} from '@/lib/api';
+	GetConfigRequestSchema,
+	UpdateConfigRequestSchema,
+	AutomationConfigSchema,
+	CompletionConfigSchema,
+	ExportConfigSchema,
+	ClaudeConfigSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
+
+// Form state mirrors protobuf Config structure
+interface FormData {
+	automation: {
+		profile: string;
+		autoApprove: boolean;
+		autoSkip: boolean;
+	};
+	completion: {
+		action: string;
+		autoMerge: boolean;
+		targetBranch: string;
+	};
+	export: {
+		includeTranscripts: boolean;
+		includeAttachments: boolean;
+		format: string;
+	};
+	claude: {
+		model: string;
+		thinking: boolean;
+		maxTurns: number;
+		temperature: number;
+	};
+}
+
+const defaultFormData: FormData = {
+	automation: {
+		profile: 'auto',
+		autoApprove: false,
+		autoSkip: false,
+	},
+	completion: {
+		action: 'pr',
+		autoMerge: false,
+		targetBranch: 'main',
+	},
+	export: {
+		includeTranscripts: true,
+		includeAttachments: false,
+		format: 'tar.gz',
+	},
+	claude: {
+		model: 'claude-sonnet-4-20250514',
+		thinking: false,
+		maxTurns: 10,
+		temperature: 0.7,
+	},
+};
 
 export function Config() {
 	useDocumentTitle('Configuration');
@@ -27,23 +81,38 @@ export function Config() {
 	const [hasChanges, setHasChanges] = useState(false);
 
 	// Form state mirrors config structure
-	const [formData, setFormData] = useState<ConfigUpdateRequest>({});
+	const [formData, setFormData] = useState<FormData>(defaultFormData);
 
 	const loadConfig = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await getConfig();
-			setConfig(data);
+			const response = await configClient.getConfig(create(GetConfigRequestSchema, {}));
+			const cfg = response.config;
+			setConfig(cfg ?? null);
 			// Initialize form with current values
 			setFormData({
-				profile: data.profile,
-				automation: { ...data.automation },
-				execution: { ...data.execution },
-				git: { ...data.git },
-				worktree: { ...data.worktree },
-				completion: { ...data.completion },
-				timeouts: { ...data.timeouts },
+				automation: {
+					profile: cfg?.automation?.profile || 'auto',
+					autoApprove: cfg?.automation?.autoApprove || false,
+					autoSkip: cfg?.automation?.autoSkip || false,
+				},
+				completion: {
+					action: cfg?.completion?.action || 'pr',
+					autoMerge: cfg?.completion?.autoMerge || false,
+					targetBranch: cfg?.completion?.targetBranch || 'main',
+				},
+				export: {
+					includeTranscripts: cfg?.export?.includeTranscripts ?? true,
+					includeAttachments: cfg?.export?.includeAttachments || false,
+					format: cfg?.export?.format || 'tar.gz',
+				},
+				claude: {
+					model: cfg?.claude?.model || 'claude-sonnet-4-20250514',
+					thinking: cfg?.claude?.thinking || false,
+					maxTurns: cfg?.claude?.maxTurns || 10,
+					temperature: cfg?.claude?.temperature || 0.7,
+				},
 			});
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load configuration');
@@ -56,30 +125,59 @@ export function Config() {
 		loadConfig();
 	}, [loadConfig]);
 
-	const handleChange = <K extends keyof ConfigUpdateRequest>(
+	const handleChange = <K extends keyof FormData>(
 		section: K,
-		field: keyof NonNullable<ConfigUpdateRequest[K]>,
+		field: keyof FormData[K],
 		value: unknown
 	) => {
 		setFormData((prev) => ({
 			...prev,
 			[section]: {
-				...(prev[section] as object),
+				...prev[section],
 				[field]: value,
 			},
 		}));
 		setHasChanges(true);
 	};
 
-	const handleProfileChange = (value: string) => {
-		setFormData((prev) => ({ ...prev, profile: value }));
-		setHasChanges(true);
-	};
-
 	const handleSave = async () => {
 		try {
 			setSaving(true);
-			await updateConfig(formData);
+
+			const automation = create(AutomationConfigSchema, {
+				profile: formData.automation.profile,
+				autoApprove: formData.automation.autoApprove,
+				autoSkip: formData.automation.autoSkip,
+			});
+
+			const completion = create(CompletionConfigSchema, {
+				action: formData.completion.action,
+				autoMerge: formData.completion.autoMerge,
+				targetBranch: formData.completion.targetBranch || undefined,
+			});
+
+			const exportConfig = create(ExportConfigSchema, {
+				includeTranscripts: formData.export.includeTranscripts,
+				includeAttachments: formData.export.includeAttachments,
+				format: formData.export.format,
+			});
+
+			const claude = create(ClaudeConfigSchema, {
+				model: formData.claude.model,
+				thinking: formData.claude.thinking,
+				maxTurns: formData.claude.maxTurns,
+				temperature: formData.claude.temperature,
+			});
+
+			await configClient.updateConfig(
+				create(UpdateConfigRequestSchema, {
+					automation,
+					completion,
+					export: exportConfig,
+					claude,
+				})
+			);
+
 			toast.success('Configuration saved');
 			setHasChanges(false);
 			await loadConfig();
@@ -93,13 +191,27 @@ export function Config() {
 	const handleReset = () => {
 		if (!config) return;
 		setFormData({
-			profile: config.profile,
-			automation: { ...config.automation },
-			execution: { ...config.execution },
-			git: { ...config.git },
-			worktree: { ...config.worktree },
-			completion: { ...config.completion },
-			timeouts: { ...config.timeouts },
+			automation: {
+				profile: config.automation?.profile || 'auto',
+				autoApprove: config.automation?.autoApprove || false,
+				autoSkip: config.automation?.autoSkip || false,
+			},
+			completion: {
+				action: config.completion?.action || 'pr',
+				autoMerge: config.completion?.autoMerge || false,
+				targetBranch: config.completion?.targetBranch || 'main',
+			},
+			export: {
+				includeTranscripts: config.export?.includeTranscripts ?? true,
+				includeAttachments: config.export?.includeAttachments || false,
+				format: config.export?.format || 'tar.gz',
+			},
+			claude: {
+				model: config.claude?.model || 'claude-sonnet-4-20250514',
+				thinking: config.claude?.thinking || false,
+				maxTurns: config.claude?.maxTurns || 10,
+				temperature: config.claude?.temperature || 0.7,
+			},
 		});
 		setHasChanges(false);
 	};
@@ -143,43 +255,13 @@ export function Config() {
 				</div>
 			</div>
 
-			<Accordion.Root type="multiple" defaultValue={['automation', 'execution']} className="config-accordion">
-				{/* Profile */}
-				<Accordion.Item value="profile" className="config-section">
-					<Accordion.Header>
-						<Accordion.Trigger className="config-section-header">
-							<h4 className="config-section-title">
-								<Icon name="zap" size={18} />
-								Profile
-							</h4>
-							<Icon name="chevron-down" size={16} />
-						</Accordion.Trigger>
-					</Accordion.Header>
-					<Accordion.Content className="config-section-content">
-						<div className="config-field">
-							<label htmlFor="profile">Automation Profile</label>
-							<select
-								id="profile"
-								value={formData.profile || ''}
-								onChange={(e) => handleProfileChange(e.target.value)}
-								className="input-field"
-								style={{ padding: 'var(--space-2)' }}
-							>
-								<option value="auto">Auto (fully automated)</option>
-								<option value="fast">Fast (speed over safety)</option>
-								<option value="safe">Safe (AI reviews, human merge)</option>
-								<option value="strict">Strict (human gates)</option>
-							</select>
-						</div>
-					</Accordion.Content>
-				</Accordion.Item>
-
+			<Accordion.Root type="multiple" defaultValue={['automation', 'completion']} className="config-accordion">
 				{/* Automation */}
 				<Accordion.Item value="automation" className="config-section">
 					<Accordion.Header>
 						<Accordion.Trigger className="config-section-header">
 							<h4 className="config-section-title">
-								<Icon name="target" size={18} />
+								<Icon name="zap" size={18} />
 								Automation
 							</h4>
 							<Icon name="chevron-down" size={16} />
@@ -188,179 +270,37 @@ export function Config() {
 					<Accordion.Content className="config-section-content">
 						<div className="config-field-group">
 							<div className="config-field">
-								<label htmlFor="gates_default">Gates Default</label>
+								<label htmlFor="profile">Profile</label>
 								<select
-									id="gates_default"
-									value={formData.automation?.gates_default || ''}
-									onChange={(e) => handleChange('automation', 'gates_default', e.target.value)}
+									id="profile"
+									value={formData.automation.profile}
+									onChange={(e) => handleChange('automation', 'profile', e.target.value)}
 									className="input-field"
 									style={{ padding: 'var(--space-2)' }}
 								>
-									<option value="ai">AI</option>
-									<option value="human">Human</option>
-									<option value="auto">Auto</option>
+									<option value="auto">Auto (fully automated)</option>
+									<option value="fast">Fast (speed over safety)</option>
+									<option value="safe">Safe (AI reviews, human merge)</option>
+									<option value="strict">Strict (human gates)</option>
 								</select>
 							</div>
 							<div className="config-field config-checkbox-field">
 								<input
 									type="checkbox"
-									id="retry_enabled"
-									checked={formData.automation?.retry_enabled ?? false}
-									onChange={(e) => handleChange('automation', 'retry_enabled', e.target.checked)}
+									id="auto_approve"
+									checked={formData.automation.autoApprove}
+									onChange={(e) => handleChange('automation', 'autoApprove', e.target.checked)}
 								/>
-								<label htmlFor="retry_enabled">Retry Enabled</label>
-							</div>
-							<div className="config-field">
-								<label htmlFor="retry_max">Max Retries</label>
-								<Input
-									id="retry_max"
-									type="number"
-									min="0"
-									max="10"
-									value={formData.automation?.retry_max ?? ''}
-									onChange={(e) => handleChange('automation', 'retry_max', parseInt(e.target.value) || 0)}
-									size="sm"
-								/>
-							</div>
-						</div>
-					</Accordion.Content>
-				</Accordion.Item>
-
-				{/* Execution */}
-				<Accordion.Item value="execution" className="config-section">
-					<Accordion.Header>
-						<Accordion.Trigger className="config-section-header">
-							<h4 className="config-section-title">
-								<Icon name="cpu" size={18} />
-								Execution
-							</h4>
-							<Icon name="chevron-down" size={16} />
-						</Accordion.Trigger>
-					</Accordion.Header>
-					<Accordion.Content className="config-section-content">
-						<div className="config-field-group">
-							<div className="config-field">
-								<label htmlFor="model">Model</label>
-								<Input
-									id="model"
-									value={formData.execution?.model ?? ''}
-									onChange={(e) => handleChange('execution', 'model', e.target.value)}
-									size="sm"
-									placeholder="claude-sonnet-4-20250514"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="max_iterations">Max Iterations</label>
-								<Input
-									id="max_iterations"
-									type="number"
-									min="1"
-									max="100"
-									value={formData.execution?.max_iterations ?? ''}
-									onChange={(e) => handleChange('execution', 'max_iterations', parseInt(e.target.value) || 10)}
-									size="sm"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="timeout">Timeout</label>
-								<Input
-									id="timeout"
-									value={formData.execution?.timeout ?? ''}
-									onChange={(e) => handleChange('execution', 'timeout', e.target.value)}
-									size="sm"
-									placeholder="30m"
-								/>
-							</div>
-						</div>
-					</Accordion.Content>
-				</Accordion.Item>
-
-				{/* Git */}
-				<Accordion.Item value="git" className="config-section">
-					<Accordion.Header>
-						<Accordion.Trigger className="config-section-header">
-							<h4 className="config-section-title">
-								<Icon name="git-branch" size={18} />
-								Git
-							</h4>
-							<Icon name="chevron-down" size={16} />
-						</Accordion.Trigger>
-					</Accordion.Header>
-					<Accordion.Content className="config-section-content">
-						<div className="config-field-group">
-							<div className="config-field">
-								<label htmlFor="branch_prefix">Branch Prefix</label>
-								<Input
-									id="branch_prefix"
-									value={formData.git?.branch_prefix ?? ''}
-									onChange={(e) => handleChange('git', 'branch_prefix', e.target.value)}
-									size="sm"
-									placeholder="orc/"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="commit_prefix">Commit Prefix</label>
-								<Input
-									id="commit_prefix"
-									value={formData.git?.commit_prefix ?? ''}
-									onChange={(e) => handleChange('git', 'commit_prefix', e.target.value)}
-									size="sm"
-									placeholder="[orc]"
-								/>
-							</div>
-						</div>
-					</Accordion.Content>
-				</Accordion.Item>
-
-				{/* Worktree */}
-				<Accordion.Item value="worktree" className="config-section">
-					<Accordion.Header>
-						<Accordion.Trigger className="config-section-header">
-							<h4 className="config-section-title">
-								<Icon name="folder" size={18} />
-								Worktree
-							</h4>
-							<Icon name="chevron-down" size={16} />
-						</Accordion.Trigger>
-					</Accordion.Header>
-					<Accordion.Content className="config-section-content">
-						<div className="config-field-group">
-							<div className="config-field config-checkbox-field">
-								<input
-									type="checkbox"
-									id="worktree_enabled"
-									checked={formData.worktree?.enabled ?? false}
-									onChange={(e) => handleChange('worktree', 'enabled', e.target.checked)}
-								/>
-								<label htmlFor="worktree_enabled">Enabled</label>
-							</div>
-							<div className="config-field">
-								<label htmlFor="worktree_dir">Directory</label>
-								<Input
-									id="worktree_dir"
-									value={formData.worktree?.dir ?? ''}
-									onChange={(e) => handleChange('worktree', 'dir', e.target.value)}
-									size="sm"
-									placeholder=".orc/worktrees"
-								/>
+								<label htmlFor="auto_approve">Auto-Approve Decisions</label>
 							</div>
 							<div className="config-field config-checkbox-field">
 								<input
 									type="checkbox"
-									id="cleanup_on_complete"
-									checked={formData.worktree?.cleanup_on_complete ?? false}
-									onChange={(e) => handleChange('worktree', 'cleanup_on_complete', e.target.checked)}
+									id="auto_skip"
+									checked={formData.automation.autoSkip}
+									onChange={(e) => handleChange('automation', 'autoSkip', e.target.checked)}
 								/>
-								<label htmlFor="cleanup_on_complete">Cleanup on Complete</label>
-							</div>
-							<div className="config-field config-checkbox-field">
-								<input
-									type="checkbox"
-									id="cleanup_on_fail"
-									checked={formData.worktree?.cleanup_on_fail ?? false}
-									onChange={(e) => handleChange('worktree', 'cleanup_on_fail', e.target.checked)}
-								/>
-								<label htmlFor="cleanup_on_fail">Cleanup on Fail</label>
+								<label htmlFor="auto_skip">Auto-Skip Blocked Phases</label>
 							</div>
 						</div>
 					</Accordion.Content>
@@ -383,7 +323,7 @@ export function Config() {
 								<label htmlFor="completion_action">Action</label>
 								<select
 									id="completion_action"
-									value={formData.completion?.action || ''}
+									value={formData.completion.action}
 									onChange={(e) => handleChange('completion', 'action', e.target.value)}
 									className="input-field"
 									style={{ padding: 'var(--space-2)' }}
@@ -393,36 +333,84 @@ export function Config() {
 									<option value="none">None</option>
 								</select>
 							</div>
+							<div className="config-field config-checkbox-field">
+								<input
+									type="checkbox"
+									id="auto_merge"
+									checked={formData.completion.autoMerge}
+									onChange={(e) => handleChange('completion', 'autoMerge', e.target.checked)}
+								/>
+								<label htmlFor="auto_merge">Auto-Merge After Finalize</label>
+							</div>
 							<div className="config-field">
 								<label htmlFor="target_branch">Target Branch</label>
 								<Input
 									id="target_branch"
-									value={formData.completion?.target_branch ?? ''}
-									onChange={(e) => handleChange('completion', 'target_branch', e.target.value)}
+									value={formData.completion.targetBranch}
+									onChange={(e) => handleChange('completion', 'targetBranch', e.target.value)}
 									size="sm"
 									placeholder="main"
 								/>
-							</div>
-							<div className="config-field config-checkbox-field">
-								<input
-									type="checkbox"
-									id="delete_branch"
-									checked={formData.completion?.delete_branch ?? false}
-									onChange={(e) => handleChange('completion', 'delete_branch', e.target.checked)}
-								/>
-								<label htmlFor="delete_branch">Delete Branch After Merge</label>
 							</div>
 						</div>
 					</Accordion.Content>
 				</Accordion.Item>
 
-				{/* Timeouts */}
-				<Accordion.Item value="timeouts" className="config-section">
+				{/* Export */}
+				<Accordion.Item value="export" className="config-section">
 					<Accordion.Header>
 						<Accordion.Trigger className="config-section-header">
 							<h4 className="config-section-title">
-								<Icon name="clock" size={18} />
-								Timeouts
+								<Icon name="download" size={18} />
+								Export
+							</h4>
+							<Icon name="chevron-down" size={16} />
+						</Accordion.Trigger>
+					</Accordion.Header>
+					<Accordion.Content className="config-section-content">
+						<div className="config-field-group">
+							<div className="config-field config-checkbox-field">
+								<input
+									type="checkbox"
+									id="include_transcripts"
+									checked={formData.export.includeTranscripts}
+									onChange={(e) => handleChange('export', 'includeTranscripts', e.target.checked)}
+								/>
+								<label htmlFor="include_transcripts">Include Transcripts</label>
+							</div>
+							<div className="config-field config-checkbox-field">
+								<input
+									type="checkbox"
+									id="include_attachments"
+									checked={formData.export.includeAttachments}
+									onChange={(e) => handleChange('export', 'includeAttachments', e.target.checked)}
+								/>
+								<label htmlFor="include_attachments">Include Attachments</label>
+							</div>
+							<div className="config-field">
+								<label htmlFor="export_format">Format</label>
+								<select
+									id="export_format"
+									value={formData.export.format}
+									onChange={(e) => handleChange('export', 'format', e.target.value)}
+									className="input-field"
+									style={{ padding: 'var(--space-2)' }}
+								>
+									<option value="tar.gz">tar.gz (compressed)</option>
+									<option value="json">JSON</option>
+								</select>
+							</div>
+						</div>
+					</Accordion.Content>
+				</Accordion.Item>
+
+				{/* Claude */}
+				<Accordion.Item value="claude" className="config-section">
+					<Accordion.Header>
+						<Accordion.Trigger className="config-section-header">
+							<h4 className="config-section-title">
+								<Icon name="cpu" size={18} />
+								Claude
 							</h4>
 							<Icon name="chevron-down" size={16} />
 						</Accordion.Trigger>
@@ -430,53 +418,47 @@ export function Config() {
 					<Accordion.Content className="config-section-content">
 						<div className="config-field-group">
 							<div className="config-field">
-								<label htmlFor="phase_max">Phase Max</label>
+								<label htmlFor="claude_model">Model</label>
 								<Input
-									id="phase_max"
-									value={formData.timeouts?.phase_max ?? ''}
-									onChange={(e) => handleChange('timeouts', 'phase_max', e.target.value)}
+									id="claude_model"
+									value={formData.claude.model}
+									onChange={(e) => handleChange('claude', 'model', e.target.value)}
 									size="sm"
-									placeholder="1h"
+									placeholder="claude-sonnet-4-20250514"
+								/>
+							</div>
+							<div className="config-field config-checkbox-field">
+								<input
+									type="checkbox"
+									id="claude_thinking"
+									checked={formData.claude.thinking}
+									onChange={(e) => handleChange('claude', 'thinking', e.target.checked)}
+								/>
+								<label htmlFor="claude_thinking">Enable Thinking Mode</label>
+							</div>
+							<div className="config-field">
+								<label htmlFor="claude_max_turns">Max Turns</label>
+								<Input
+									id="claude_max_turns"
+									type="number"
+									min="1"
+									max="100"
+									value={formData.claude.maxTurns}
+									onChange={(e) => handleChange('claude', 'maxTurns', parseInt(e.target.value) || 10)}
+									size="sm"
 								/>
 							</div>
 							<div className="config-field">
-								<label htmlFor="turn_max">Turn Max</label>
+								<label htmlFor="claude_temperature">Temperature</label>
 								<Input
-									id="turn_max"
-									value={formData.timeouts?.turn_max ?? ''}
-									onChange={(e) => handleChange('timeouts', 'turn_max', e.target.value)}
+									id="claude_temperature"
+									type="number"
+									min="0"
+									max="1"
+									step="0.1"
+									value={formData.claude.temperature}
+									onChange={(e) => handleChange('claude', 'temperature', parseFloat(e.target.value) || 0.7)}
 									size="sm"
-									placeholder="5m"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="idle_warning">Idle Warning</label>
-								<Input
-									id="idle_warning"
-									value={formData.timeouts?.idle_warning ?? ''}
-									onChange={(e) => handleChange('timeouts', 'idle_warning', e.target.value)}
-									size="sm"
-									placeholder="2m"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="heartbeat_interval">Heartbeat Interval</label>
-								<Input
-									id="heartbeat_interval"
-									value={formData.timeouts?.heartbeat_interval ?? ''}
-									onChange={(e) => handleChange('timeouts', 'heartbeat_interval', e.target.value)}
-									size="sm"
-									placeholder="10s"
-								/>
-							</div>
-							<div className="config-field">
-								<label htmlFor="idle_timeout">Idle Timeout</label>
-								<Input
-									id="idle_timeout"
-									value={formData.timeouts?.idle_timeout ?? ''}
-									onChange={(e) => handleChange('timeouts', 'idle_timeout', e.target.value)}
-									size="sm"
-									placeholder="10m"
 								/>
 							</div>
 						</div>

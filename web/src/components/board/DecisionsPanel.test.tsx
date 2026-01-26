@@ -1,21 +1,60 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DecisionsPanel } from './DecisionsPanel';
-import type { PendingDecision } from '@/lib/types';
+import { create } from '@bufbuild/protobuf';
+import type { PendingDecision, DecisionOption } from '@/gen/orc/v1/decision_pb';
+import { DecisionOptionSchema } from '@/gen/orc/v1/decision_pb';
+import { createMockDecision } from '@/test/factories';
 
-// Sample decision for testing
-const createDecision = (overrides: Partial<PendingDecision> = {}): PendingDecision => ({
-	id: 'decision-001',
-	task_id: 'TASK-001',
-	question: 'Which test framework?',
-	options: [
-		{ id: 'jest', label: 'Jest' },
-		{ id: 'vitest', label: 'Vitest' },
-		{ id: 'both', label: 'Both' },
-	],
-	created_at: '2024-01-01T00:00:00Z',
-	...overrides,
-});
+// Simple input type for test option data (without proto Message requirements)
+interface OptionInput {
+	id?: string;
+	label?: string;
+	description?: string;
+	recommended?: boolean;
+}
+
+// Helper to create a proper DecisionOption proto object
+function createOption(input: OptionInput = {}): DecisionOption {
+	return create(DecisionOptionSchema, {
+		id: input.id || 'opt-1',
+		label: input.label || 'Option',
+		description: input.description || '',
+		recommended: input.recommended || false,
+	});
+}
+
+// Decision input type (without proto Message requirements for options)
+interface DecisionInput {
+	id?: string;
+	taskId?: string;
+	taskTitle?: string;
+	phase?: string;
+	gateType?: string;
+	question?: string;
+	context?: string;
+	options?: OptionInput[];
+}
+
+// Helper to create a decision with options
+function createDecisionWithOptions(overrides: DecisionInput = {}): PendingDecision {
+	const { options: optionInputs, ...rest } = overrides;
+	const decision = createMockDecision({
+		question: 'Which test framework?',
+		...rest,
+	});
+	// Override options if provided
+	if (optionInputs) {
+		decision.options = optionInputs.map(opt => createOption(opt));
+	} else {
+		decision.options = [
+			createOption({ id: 'jest', label: 'Jest' }),
+			createOption({ id: 'vitest', label: 'Vitest' }),
+			createOption({ id: 'both', label: 'Both' }),
+		];
+	}
+	return decision;
+}
 
 describe('DecisionsPanel', () => {
 	beforeEach(() => {
@@ -42,7 +81,10 @@ describe('DecisionsPanel', () => {
 
 	describe('rendering with decisions', () => {
 		it('renders section header with correct count', () => {
-			const decisions = [createDecision(), createDecision({ id: 'decision-002' })];
+			const decisions = [
+				createDecisionWithOptions(),
+				createDecisionWithOptions({ id: 'decision-002' })
+			];
 			const onDecide = vi.fn();
 
 			render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
@@ -53,7 +95,7 @@ describe('DecisionsPanel', () => {
 		});
 
 		it('renders decision question text', () => {
-			const decisions = [createDecision({ question: 'Select a database' })];
+			const decisions = [createDecisionWithOptions({ question: 'Select a database' })];
 			const onDecide = vi.fn();
 
 			render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
@@ -62,7 +104,7 @@ describe('DecisionsPanel', () => {
 		});
 
 		it('renders task ID context', () => {
-			const decisions = [createDecision({ task_id: 'TASK-123' })];
+			const decisions = [createDecisionWithOptions({ taskId: 'TASK-123' })];
 			const onDecide = vi.fn();
 
 			render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
@@ -72,7 +114,7 @@ describe('DecisionsPanel', () => {
 
 		it('renders all option buttons', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'Option A' },
 						{ id: 'opt2', label: 'Option B' },
@@ -91,9 +133,9 @@ describe('DecisionsPanel', () => {
 
 		it('renders multiple decisions', () => {
 			const decisions = [
-				createDecision({ id: 'dec-1', question: 'Question 1' }),
-				createDecision({ id: 'dec-2', question: 'Question 2' }),
-				createDecision({ id: 'dec-3', question: 'Question 3' }),
+				createDecisionWithOptions({ id: 'dec-1', question: 'Question 1' }),
+				createDecisionWithOptions({ id: 'dec-2', question: 'Question 2' }),
+				createDecisionWithOptions({ id: 'dec-3', question: 'Question 3' }),
 			];
 			const onDecide = vi.fn();
 
@@ -108,7 +150,7 @@ describe('DecisionsPanel', () => {
 	describe('recommended option highlighting', () => {
 		it('highlights first option as recommended when none explicitly marked', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'First Option' },
 						{ id: 'opt2', label: 'Second Option' },
@@ -128,7 +170,7 @@ describe('DecisionsPanel', () => {
 
 		it('highlights explicitly recommended option', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'Not Recommended' },
 						{ id: 'opt2', label: 'Recommended', recommended: true },
@@ -149,7 +191,7 @@ describe('DecisionsPanel', () => {
 
 		it('does not highlight first option when another is explicitly recommended', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'First' },
 						{ id: 'opt2', label: 'Second', recommended: true },
@@ -169,7 +211,7 @@ describe('DecisionsPanel', () => {
 		it('calls onDecide with correct arguments when option clicked', async () => {
 			const onDecide = vi.fn();
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					id: 'dec-123',
 					options: [
 						{ id: 'option-a', label: 'Option A' },
@@ -191,11 +233,11 @@ describe('DecisionsPanel', () => {
 		it('calls onDecide for each clicked option', async () => {
 			const onDecide = vi.fn();
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					id: 'dec-1',
 					options: [{ id: 'opt-1', label: 'First' }],
 				}),
-				createDecision({
+				createDecisionWithOptions({
 					id: 'dec-2',
 					options: [{ id: 'opt-2', label: 'Second' }],
 				}),
@@ -225,7 +267,7 @@ describe('DecisionsPanel', () => {
 			);
 
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'Option 1' },
 						{ id: 'opt2', label: 'Option 2' },
@@ -262,7 +304,7 @@ describe('DecisionsPanel', () => {
 					})
 			);
 
-			const decisions = [createDecision()];
+			const decisions = [createDecisionWithOptions()];
 			const { container } = render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
 
 			const button = screen.getByText('Jest');
@@ -286,7 +328,7 @@ describe('DecisionsPanel', () => {
 		it('renders long question text without overflow', () => {
 			const longQuestion =
 				'This is a very long question that should wrap properly within the decision panel without causing any horizontal overflow issues';
-			const decisions = [createDecision({ question: longQuestion })];
+			const decisions = [createDecisionWithOptions({ question: longQuestion })];
 			const onDecide = vi.fn();
 
 			const { container } = render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
@@ -297,7 +339,7 @@ describe('DecisionsPanel', () => {
 
 		it('renders long option labels correctly', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'A very long option label that should wrap' },
 						{ id: 'opt2', label: 'Another lengthy option text' },
@@ -316,7 +358,7 @@ describe('DecisionsPanel', () => {
 	describe('option description tooltip', () => {
 		it('sets title attribute for option with description', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{
 							id: 'opt1',
@@ -348,7 +390,7 @@ describe('DecisionsPanel', () => {
 					})
 			);
 
-			const decisions = [createDecision()];
+			const decisions = [createDecisionWithOptions()];
 			const { container } = render(<DecisionsPanel decisions={decisions} onDecide={onDecide} />);
 
 			const button = screen.getByText('Jest');
@@ -369,7 +411,7 @@ describe('DecisionsPanel', () => {
 
 		it('has appropriate aria-label for recommended options', () => {
 			const decisions = [
-				createDecision({
+				createDecisionWithOptions({
 					options: [
 						{ id: 'opt1', label: 'Recommended Option', recommended: true },
 						{ id: 'opt2', label: 'Normal Option' },

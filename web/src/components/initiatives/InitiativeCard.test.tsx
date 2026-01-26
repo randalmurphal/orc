@@ -9,7 +9,8 @@ import {
 	isPaused,
 } from './InitiativeCard';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import type { Initiative, InitiativeStatus } from '../../lib/types';
+import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import { createMockInitiative } from '@/test/factories';
 
 // =============================================================================
 // Test Helpers
@@ -23,32 +24,27 @@ function renderWithTooltips(ui: React.ReactElement) {
 // Test Fixtures
 // =============================================================================
 
-const mockInitiative: Initiative = {
-	version: 1,
+const mockInitiative = createMockInitiative({
 	id: 'INIT-001',
 	title: '🎨 Frontend Polish & UX Audit',
-	status: 'active',
+	status: InitiativeStatus.ACTIVE,
 	vision:
 		'Comprehensive UI refresh including component library documentation and accessibility improvements',
-	created_at: '2026-01-01T00:00:00Z',
-	updated_at: '2026-01-15T00:00:00Z',
-};
+});
 
-const mockPausedInitiative: Initiative = {
-	...mockInitiative,
+const mockPausedInitiative = createMockInitiative({
 	id: 'INIT-002',
 	title: '📊 Analytics Dashboard',
-	status: 'archived',
+	status: InitiativeStatus.ARCHIVED,
 	vision: 'Real-time metrics, charts, and exportable reports',
-};
+});
 
-const mockCompletedInitiative: Initiative = {
-	...mockInitiative,
+const mockCompletedInitiative = createMockInitiative({
 	id: 'INIT-003',
 	title: '⚡ Systems Reliability',
-	status: 'completed',
+	status: InitiativeStatus.COMPLETED,
 	vision: 'Redis caching, connection pooling, circuit breakers',
-};
+});
 
 // =============================================================================
 // Utility Function Tests
@@ -81,28 +77,28 @@ describe('extractEmoji', () => {
 
 describe('getStatusColor', () => {
 	it('returns green for active status', () => {
-		expect(getStatusColor('active')).toBe('green');
+		expect(getStatusColor(InitiativeStatus.ACTIVE)).toBe('green');
 	});
 
 	it('returns purple for completed status', () => {
-		expect(getStatusColor('completed')).toBe('purple');
+		expect(getStatusColor(InitiativeStatus.COMPLETED)).toBe('purple');
 	});
 
 	it('returns amber for archived status', () => {
-		expect(getStatusColor('archived')).toBe('amber');
+		expect(getStatusColor(InitiativeStatus.ARCHIVED)).toBe('amber');
 	});
 
 	it('returns amber for draft status', () => {
-		expect(getStatusColor('draft')).toBe('amber');
+		expect(getStatusColor(InitiativeStatus.DRAFT)).toBe('amber');
 	});
 });
 
 describe('getIconColor', () => {
 	it('returns correct colors for each status', () => {
-		expect(getIconColor('active')).toBe('green');
-		expect(getIconColor('completed')).toBe('purple');
-		expect(getIconColor('archived')).toBe('amber');
-		expect(getIconColor('draft')).toBe('amber');
+		expect(getIconColor(InitiativeStatus.ACTIVE)).toBe('green');
+		expect(getIconColor(InitiativeStatus.COMPLETED)).toBe('purple');
+		expect(getIconColor(InitiativeStatus.ARCHIVED)).toBe('amber');
+		expect(getIconColor(InitiativeStatus.DRAFT)).toBe('amber');
 	});
 });
 
@@ -110,19 +106,19 @@ describe('getIconColor', () => {
 
 describe('isPaused', () => {
 	it('returns true for archived status', () => {
-		expect(isPaused('archived')).toBe(true);
+		expect(isPaused(InitiativeStatus.ARCHIVED)).toBe(true);
 	});
 
 	it('returns true for draft status', () => {
-		expect(isPaused('draft')).toBe(true);
+		expect(isPaused(InitiativeStatus.DRAFT)).toBe(true);
 	});
 
 	it('returns false for active status', () => {
-		expect(isPaused('active')).toBe(false);
+		expect(isPaused(InitiativeStatus.ACTIVE)).toBe(false);
 	});
 
 	it('returns false for completed status', () => {
-		expect(isPaused('completed')).toBe(false);
+		expect(isPaused(InitiativeStatus.COMPLETED)).toBe(false);
 	});
 });
 
@@ -235,10 +231,10 @@ describe('InitiativeCard', () => {
 		});
 
 		it('applies paused opacity when status is draft', () => {
-			const draftInitiative: Initiative = {
+			const draftInitiative = createMockInitiative({
 				...mockInitiative,
-				status: 'draft',
-			};
+				status: InitiativeStatus.DRAFT,
+			});
 			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={draftInitiative} />
 			);
@@ -266,10 +262,10 @@ describe('InitiativeCard', () => {
 		});
 
 		it('does not render description when vision is undefined', () => {
-			const initiativeWithoutVision: Initiative = {
+			const initiativeWithoutVision = createMockInitiative({
 				...mockInitiative,
 				vision: undefined,
-			};
+			});
 			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={initiativeWithoutVision} />
 			);
@@ -280,11 +276,11 @@ describe('InitiativeCard', () => {
 
 	describe('missing emoji handling', () => {
 		it('uses default icon when title has no emoji', () => {
-			const initiativeNoEmoji: Initiative = {
+			const initiativeNoEmoji = createMockInitiative({
 				...mockInitiative,
 				title: 'Frontend Polish',
 				vision: 'Some description without emoji',
-			};
+			});
 			const { container } = renderWithTooltips(
 				<InitiativeCard initiative={initiativeNoEmoji} />
 			);
@@ -306,22 +302,22 @@ describe('InitiativeCard', () => {
 			status: InitiativeStatus;
 			expectedClass: string;
 		}> = [
-			{ status: 'active', expectedClass: 'initiative-card-status-green' },
+			{ status: InitiativeStatus.ACTIVE, expectedClass: 'initiative-card-status-green' },
 			{
-				status: 'completed',
+				status: InitiativeStatus.COMPLETED,
 				expectedClass: 'initiative-card-status-purple',
 			},
 			{
-				status: 'archived',
+				status: InitiativeStatus.ARCHIVED,
 				expectedClass: 'initiative-card-status-amber',
 			},
-			{ status: 'draft', expectedClass: 'initiative-card-status-amber' },
+			{ status: InitiativeStatus.DRAFT, expectedClass: 'initiative-card-status-amber' },
 		];
 
 		it.each(statusTestCases)(
 			'displays $expectedClass for $status status',
 			({ status, expectedClass }) => {
-				const initiative: Initiative = { ...mockInitiative, status };
+				const initiative = createMockInitiative({ ...mockInitiative, status });
 				const { container } = renderWithTooltips(
 					<InitiativeCard initiative={initiative} />
 				);
@@ -472,7 +468,7 @@ describe('InitiativeCard', () => {
 			const card = container.querySelector('article');
 			expect(card).toHaveAttribute(
 				'aria-label',
-				'Initiative: 🎨 Frontend Polish & UX Audit. Status: active. Progress: 15 of 20 tasks complete.'
+				`Initiative: 🎨 Frontend Polish & UX Audit. Status: ${InitiativeStatus.ACTIVE}. Progress: 15 of 20 tasks complete.`
 			);
 		});
 

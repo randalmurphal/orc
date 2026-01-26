@@ -1,10 +1,17 @@
 import { useState, useCallback } from 'react';
-import type { Transcript } from '@/lib/api';
-import type { TranscriptLine } from '@/hooks/useWebSocket';
+import { create } from '@bufbuild/protobuf';
+import { transcriptClient } from '@/lib/client';
+import {
+	ListTranscriptsRequestSchema,
+	GetTranscriptRequestSchema,
+	type Transcript as ProtoTranscript,
+	type TranscriptEntry,
+} from '@/gen/orc/v1/transcript_pb';
+import { timestampToISO } from '@/lib/time';
+import type { TranscriptLine } from '@/hooks';
 import { TranscriptViewer } from '@/components/transcript';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
-import { getTranscripts } from '@/lib/api';
 import './TranscriptTab.css';
 
 // Content block types from Claude's JSONL format
@@ -21,6 +28,16 @@ interface ToolUseBlock {
 }
 
 type ContentBlock = TextBlock | ToolUseBlock | { type: string };
+
+/** Flattened transcript entry for export */
+interface FlatExportEntry {
+	id: number;
+	phase: string;
+	type: string;
+	content: string;
+	timestamp: string;
+	model?: string;
+}
 
 interface TranscriptTabProps {
 	taskId: string;
@@ -64,8 +81,8 @@ function formatTime(timestamp: string): string {
 }
 
 // Group transcripts by phase
-function groupByPhase(transcripts: Transcript[]): Map<string, Transcript[]> {
-	const groups = new Map<string, Transcript[]>();
+function groupByPhase(transcripts: FlatExportEntry[]): Map<string, FlatExportEntry[]> {
+	const groups = new Map<string, FlatExportEntry[]>();
 	for (const t of transcripts) {
 		const existing = groups.get(t.phase) || [];
 		existing.push(t);
@@ -74,24 +91,78 @@ function groupByPhase(transcripts: Transcript[]): Map<string, Transcript[]> {
 	return groups;
 }
 
+/** Simple hash function for generating stable IDs */
+function hashCode(str: string): number {
+	let hash = 0;
+	for (let i = 0; i < str.length; i++) {
+		const char = str.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash & hash;
+	}
+	return Math.abs(hash);
+}
+
+/** Flatten a proto transcript entry to export format */
+function flattenEntryForExport(
+	entry: TranscriptEntry,
+	transcript: ProtoTranscript,
+	index: number
+): FlatExportEntry {
+	return {
+		id: hashCode(`${transcript.phase}-${transcript.iteration}-${index}`),
+		phase: transcript.phase,
+		type: entry.type,
+		content: entry.content,
+		timestamp: timestampToISO(entry.timestamp),
+		model: transcript.model,
+	};
+}
+
 export function TranscriptTab({
 	taskId,
 	streamingLines = [],
 	isRunning = false,
 }: TranscriptTabProps) {
-	const [transcriptsForExport, setTranscriptsForExport] = useState<Transcript[]>([]);
+	const [transcriptsForExport, setTranscriptsForExport] = useState<FlatExportEntry[]>([]);
 	const [exportLoading, setExportLoading] = useState(false);
 
-	// Load all transcripts for export (not paginated)
-	const loadAllForExport = useCallback(async (): Promise<Transcript[]> => {
+	// Load all transcripts for export using Connect RPC
+	const loadAllForExport = useCallback(async (): Promise<FlatExportEntry[]> => {
 		if (transcriptsForExport.length > 0) {
 			return transcriptsForExport;
 		}
 		setExportLoading(true);
 		try {
-			const data = await getTranscripts(taskId);
-			setTranscriptsForExport(data);
-			return data;
+			// List all transcript files
+			const listRequest = create(ListTranscriptsRequestSchema, { taskId });
+			const listResponse = await transcriptClient.listTranscripts(listRequest);
+			const files = listResponse.transcripts;
+
+			// Fetch each transcript and flatten entries
+			const allEntries: FlatExportEntry[] = [];
+			for (const file of files) {
+				try {
+					const getRequest = create(GetTranscriptRequestSchema, {
+						taskId,
+						phase: file.phase,
+						iteration: file.iteration,
+					});
+					const getResponse = await transcriptClient.getTranscript(getRequest);
+					if (getResponse.transcript) {
+						const transcript = getResponse.transcript;
+						for (let i = 0; i < transcript.entries.length; i++) {
+							allEntries.push(flattenEntryForExport(transcript.entries[i], transcript, i));
+						}
+					}
+				} catch (e) {
+					console.warn(`Failed to load transcript ${file.phase}/${file.iteration}:`, e);
+				}
+			}
+
+			// Sort by timestamp
+			allEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+			setTranscriptsForExport(allEntries);
+			return allEntries;
 		} finally {
 			setExportLoading(false);
 		}

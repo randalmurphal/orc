@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { TaskHeader } from '@/components/task-detail/TaskHeader';
 import { DependencySidebar } from '@/components/task-detail/DependencySidebar';
 import { TabNav, type TabId } from '@/components/task-detail/TabNav';
@@ -11,10 +12,11 @@ import { AttachmentsTab } from '@/components/task-detail/AttachmentsTab';
 import { CommentsTab } from '@/components/task-detail/CommentsTab';
 import { ReviewFindingsTab } from '@/components/task-detail/ReviewFindingsTab';
 import { Icon } from '@/components/ui/Icon';
-import { getTask, getTaskPlan } from '@/lib/api';
+import { taskClient } from '@/lib/client';
 import { useTaskSubscription } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
-import type { Task, Plan } from '@/lib/types';
+import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
+import { GetTaskRequestSchema, GetTaskPlanRequestSchema } from '@/gen/orc/v1/task_pb';
 import './TaskDetail.css';
 
 // Valid tab IDs
@@ -40,7 +42,7 @@ export function TaskDetail() {
 
 	// State
 	const [task, setTask] = useState<Task | null>(null);
-	const [plan, setPlan] = useState<Plan | null>(null);
+	const [plan, setPlan] = useState<TaskPlan | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -56,9 +58,9 @@ export function TaskDetail() {
 	useEffect(() => {
 		if (storeTask) {
 			setTask((prev) => {
-				// Only update if status or current_phase changed
-				if (prev && (prev.status !== storeTask.status || prev.current_phase !== storeTask.current_phase)) {
-					return { ...prev, status: storeTask.status, current_phase: storeTask.current_phase };
+				// Only update if status or currentPhase changed
+				if (prev && (prev.status !== storeTask.status || prev.currentPhase !== storeTask.currentPhase)) {
+					return { ...prev, status: storeTask.status, currentPhase: storeTask.currentPhase };
 				}
 				return prev;
 			});
@@ -73,13 +75,17 @@ export function TaskDetail() {
 		setError(null);
 
 		try {
-			const [taskData, planData] = await Promise.all([
-				getTask(id),
-				getTaskPlan(id).catch(() => null),
+			const [taskResponse, planResponse] = await Promise.all([
+				taskClient.getTask(create(GetTaskRequestSchema, { id })),
+				taskClient.getTaskPlan(create(GetTaskPlanRequestSchema, { id })).catch(() => null),
 			]);
 
-			setTask(taskData);
-			setPlan(planData);
+			if (taskResponse.task) {
+				setTask(taskResponse.task);
+			}
+			if (planResponse?.plan) {
+				setPlan(planResponse.plan);
+			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load task');
 		} finally {

@@ -1,15 +1,47 @@
 import { Link } from 'react-router-dom';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getInitiativeBadgeTitle } from '@/stores';
-import type { Task, TaskState, Plan, PhaseStatus, TokenUsage } from '@/lib/types';
-import { CATEGORY_CONFIG, PRIORITY_CONFIG } from '@/lib/types';
+import type { Task, TaskPlan, ExecutionState } from '@/gen/orc/v1/task_pb';
+import { PhaseStatus, TaskCategory, TaskPriority, TaskWeight, TaskStatus, TaskQueue } from '@/gen/orc/v1/task_pb';
+import type { TokenUsage } from '@/gen/orc/v1/common_pb';
+import { timestampToDate } from '@/lib/time';
 import './TimelineTab.css';
+
+// Config for category display with proto enum keys
+const CATEGORY_CONFIG: Record<TaskCategory, { label: string; color: string; icon: IconName }> = {
+	[TaskCategory.FEATURE]: { label: 'Feature', color: 'var(--status-success)', icon: 'sparkles' },
+	[TaskCategory.BUG]: { label: 'Bug', color: 'var(--status-error)', icon: 'bug' },
+	[TaskCategory.REFACTOR]: { label: 'Refactor', color: 'var(--status-info)', icon: 'recycle' },
+	[TaskCategory.CHORE]: { label: 'Chore', color: 'var(--text-muted)', icon: 'tools' },
+	[TaskCategory.DOCS]: { label: 'Docs', color: 'var(--status-warning)', icon: 'file-text' },
+	[TaskCategory.TEST]: { label: 'Test', color: 'var(--cyan)', icon: 'beaker' },
+	[TaskCategory.UNSPECIFIED]: { label: '', color: '', icon: 'sparkles' },
+};
+
+// Config for priority display with proto enum keys
+const PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string }> = {
+	[TaskPriority.CRITICAL]: { label: 'Critical', color: 'var(--status-error)' },
+	[TaskPriority.HIGH]: { label: 'High', color: 'var(--status-warning)' },
+	[TaskPriority.NORMAL]: { label: 'Normal', color: 'var(--text-muted)' },
+	[TaskPriority.LOW]: { label: 'Low', color: 'var(--text-muted)' },
+	[TaskPriority.UNSPECIFIED]: { label: 'Normal', color: 'var(--text-muted)' },
+};
+
+// Weight labels for display
+const WEIGHT_LABELS: Record<TaskWeight, string> = {
+	[TaskWeight.TRIVIAL]: 'trivial',
+	[TaskWeight.SMALL]: 'small',
+	[TaskWeight.MEDIUM]: 'medium',
+	[TaskWeight.LARGE]: 'large',
+	[TaskWeight.UNSPECIFIED]: '',
+};
 
 interface TimelineTabProps {
 	task: Task;
-	taskState: TaskState | null;
-	plan: Plan | null;
+	taskState: ExecutionState | null;
+	plan: TaskPlan | null;
 }
 
 export function TimelineTab({ task, taskState, plan }: TimelineTabProps) {
@@ -38,18 +70,18 @@ export function TimelineTab({ task, taskState, plan }: TimelineTabProps) {
 						{plan.phases.map((phase, index) => {
 							const phaseState = taskState?.phases[phase.name];
 							const status = phaseState?.status ?? phase.status;
-							const isCurrent = taskState?.current_phase === phase.name;
+							const isCurrent = task.currentPhase === phase.name;
 
 							return (
 								<TimelinePhase
 									key={phase.id}
 									name={phase.name}
-									status={status as PhaseStatus}
+									status={status}
 									isCurrent={isCurrent}
-									startedAt={phaseState?.started_at}
-									completedAt={phaseState?.completed_at}
+									startedAt={phaseState?.startedAt}
+									completedAt={phaseState?.completedAt}
 									iterations={phaseState?.iterations ?? phase.iterations}
-									commitSha={phaseState?.commit_sha ?? phase.commit_sha}
+									commitSha={phaseState?.commitSha ?? phase.commitSha}
 									error={phaseState?.error ?? phase.error}
 									isLast={index === plan.phases.length - 1}
 									position={index + 1}
@@ -74,13 +106,13 @@ export function TimelineTab({ task, taskState, plan }: TimelineTabProps) {
 						<div className="phase-tokens">
 							{plan.phases.map((phase) => {
 								const phaseState = taskState.phases[phase.name];
-								if (!phaseState?.tokens?.total_tokens) return null;
+								if (!phaseState?.tokens?.totalTokens) return null;
 
 								return (
 									<div key={phase.id} className="phase-token-row">
 										<span className="phase-name">{phase.name}</span>
 										<span className="phase-total">
-											{formatNumber(phaseState.tokens.total_tokens)}
+											{formatNumber(phaseState.tokens.totalTokens)}
 										</span>
 									</div>
 								);
@@ -107,8 +139,8 @@ interface TimelinePhaseProps {
 	name: string;
 	status: PhaseStatus;
 	isCurrent: boolean;
-	startedAt?: string;
-	completedAt?: string;
+	startedAt?: Timestamp;
+	completedAt?: Timestamp;
 	iterations: number;
 	commitSha?: string;
 	error?: string;
@@ -116,6 +148,19 @@ interface TimelinePhaseProps {
 	position: number;
 	totalPhases: number;
 }
+
+// Status class mapping for CSS
+const STATUS_CLASS_MAP: Record<PhaseStatus, string> = {
+	[PhaseStatus.COMPLETED]: 'completed',
+	[PhaseStatus.RUNNING]: 'running',
+	[PhaseStatus.FAILED]: 'failed',
+	[PhaseStatus.SKIPPED]: 'skipped',
+	[PhaseStatus.PENDING]: 'pending',
+	[PhaseStatus.PAUSED]: 'paused',
+	[PhaseStatus.INTERRUPTED]: 'interrupted',
+	[PhaseStatus.BLOCKED]: 'blocked',
+	[PhaseStatus.UNSPECIFIED]: 'pending',
+};
 
 function TimelinePhase({
 	name,
@@ -132,13 +177,13 @@ function TimelinePhase({
 }: TimelinePhaseProps) {
 	const getStatusIcon = (): IconName => {
 		switch (status) {
-			case 'completed':
+			case PhaseStatus.COMPLETED:
 				return 'check-circle';
-			case 'running':
+			case PhaseStatus.RUNNING:
 				return 'play-circle';
-			case 'failed':
+			case PhaseStatus.FAILED:
 				return 'x-circle';
-			case 'skipped':
+			case PhaseStatus.SKIPPED:
 				return 'circle';
 			default:
 				return 'circle';
@@ -147,13 +192,13 @@ function TimelinePhase({
 
 	const getStatusLabel = (): string => {
 		switch (status) {
-			case 'completed':
+			case PhaseStatus.COMPLETED:
 				return 'Completed';
-			case 'running':
+			case PhaseStatus.RUNNING:
 				return 'Running';
-			case 'failed':
+			case PhaseStatus.FAILED:
 				return 'Failed';
-			case 'skipped':
+			case PhaseStatus.SKIPPED:
 				return 'Skipped';
 			default:
 				return 'Pending';
@@ -161,8 +206,8 @@ function TimelinePhase({
 	};
 
 	const getStatusClass = () => {
-		if (isCurrent && status === 'running') return 'running';
-		return status;
+		if (isCurrent && status === PhaseStatus.RUNNING) return 'running';
+		return STATUS_CLASS_MAP[status];
 	};
 
 	return (
@@ -182,8 +227,8 @@ function TimelinePhase({
 				</div>
 				{(startedAt || completedAt) && (
 					<div className="phase-time">
-						{startedAt && <span>Started: {formatTime(startedAt)}</span>}
-						{completedAt && <span>Completed: {formatTime(completedAt)}</span>}
+						{startedAt && <span>Started: {formatTime(timestampToDate(startedAt))}</span>}
+						{completedAt && <span>Completed: {formatTime(timestampToDate(completedAt))}</span>}
 					</div>
 				)}
 				{commitSha && (
@@ -210,29 +255,29 @@ interface TokenStatsProps {
 
 function TokenStats({ tokens }: TokenStatsProps) {
 	const cacheRate =
-		tokens.cache_read_input_tokens && tokens.input_tokens
-			? Math.round((tokens.cache_read_input_tokens / (tokens.input_tokens + tokens.cache_read_input_tokens)) * 100)
+		tokens.cacheReadInputTokens && tokens.inputTokens
+			? Math.round((tokens.cacheReadInputTokens / (tokens.inputTokens + tokens.cacheReadInputTokens)) * 100)
 			: 0;
 
 	return (
 		<div className="token-stats">
 			<div className="stat-card">
 				<span className="stat-label">Total Tokens</span>
-				<span className="stat-value">{formatNumber(tokens.total_tokens)}</span>
+				<span className="stat-value">{formatNumber(tokens.totalTokens)}</span>
 			</div>
 			<div className="stat-card">
 				<span className="stat-label">Input</span>
-				<span className="stat-value">{formatNumber(tokens.input_tokens)}</span>
+				<span className="stat-value">{formatNumber(tokens.inputTokens)}</span>
 			</div>
 			<div className="stat-card">
 				<span className="stat-label">Output</span>
-				<span className="stat-value">{formatNumber(tokens.output_tokens)}</span>
+				<span className="stat-value">{formatNumber(tokens.outputTokens)}</span>
 			</div>
-			{tokens.cache_read_input_tokens !== undefined && tokens.cache_read_input_tokens > 0 && (
+			{tokens.cacheReadInputTokens !== undefined && tokens.cacheReadInputTokens > 0 && (
 				<>
 					<div className="stat-card">
 						<span className="stat-label">Cache Read</span>
-						<span className="stat-value">{formatNumber(tokens.cache_read_input_tokens)}</span>
+						<span className="stat-value">{formatNumber(tokens.cacheReadInputTokens)}</span>
 					</div>
 					<div className="stat-card highlight">
 						<span className="stat-label">Cache Rate</span>
@@ -240,10 +285,10 @@ function TokenStats({ tokens }: TokenStatsProps) {
 					</div>
 				</>
 			)}
-			{tokens.cache_creation_input_tokens !== undefined && tokens.cache_creation_input_tokens > 0 && (
+			{tokens.cacheCreationInputTokens !== undefined && tokens.cacheCreationInputTokens > 0 && (
 				<div className="stat-card">
 					<span className="stat-label">Cache Created</span>
-					<span className="stat-value">{formatNumber(tokens.cache_creation_input_tokens)}</span>
+					<span className="stat-value">{formatNumber(tokens.cacheCreationInputTokens)}</span>
 				</div>
 			)}
 		</div>
@@ -253,36 +298,80 @@ function TokenStats({ tokens }: TokenStatsProps) {
 // Task Info List Component
 interface TaskInfoListProps {
 	task: Task;
-	taskState: TaskState | null;
+	taskState: ExecutionState | null;
+}
+
+// Status labels mapping
+const STATUS_LABELS: Record<TaskStatus, string> = {
+	[TaskStatus.CREATED]: 'created',
+	[TaskStatus.CLASSIFYING]: 'classifying',
+	[TaskStatus.PLANNED]: 'planned',
+	[TaskStatus.RUNNING]: 'running',
+	[TaskStatus.PAUSED]: 'paused',
+	[TaskStatus.BLOCKED]: 'blocked',
+	[TaskStatus.FINALIZING]: 'finalizing',
+	[TaskStatus.COMPLETED]: 'completed',
+	[TaskStatus.FAILED]: 'failed',
+	[TaskStatus.RESOLVED]: 'resolved',
+	[TaskStatus.UNSPECIFIED]: '',
+};
+
+// Queue labels mapping
+const QUEUE_LABELS: Record<TaskQueue, string> = {
+	[TaskQueue.ACTIVE]: 'active',
+	[TaskQueue.BACKLOG]: 'backlog',
+	[TaskQueue.UNSPECIFIED]: 'active',
+};
+
+// Priority keys for CSS class names
+const PRIORITY_KEYS: Record<TaskPriority, string> = {
+	[TaskPriority.CRITICAL]: 'critical',
+	[TaskPriority.HIGH]: 'high',
+	[TaskPriority.NORMAL]: 'normal',
+	[TaskPriority.LOW]: 'low',
+	[TaskPriority.UNSPECIFIED]: 'normal',
+};
+
+function getPriorityKey(priority: TaskPriority): string {
+	return PRIORITY_KEYS[priority];
 }
 
 function TaskInfoList({ task, taskState }: TaskInfoListProps) {
-	const categoryConfig = task.category ? CATEGORY_CONFIG[task.category] : null;
-	const priority = task.priority || 'normal';
+	const categoryConfig = task.category !== TaskCategory.UNSPECIFIED
+		? CATEGORY_CONFIG[task.category]
+		: null;
+	const priority = task.priority || TaskPriority.NORMAL;
 	const priorityConfig = PRIORITY_CONFIG[priority];
-	const initiativeBadge = task.initiative_id ? getInitiativeBadgeTitle(task.initiative_id) : null;
-	const duration = calculateDuration(task.started_at, task.completed_at);
+	const initiativeBadge = task.initiativeId ? getInitiativeBadgeTitle(task.initiativeId) : null;
+	const startedDate = timestampToDate(task.startedAt);
+	const completedDate = timestampToDate(task.completedAt);
+	const duration = calculateDuration(startedDate, completedDate);
+
+	const statusLabel = STATUS_LABELS[task.status];
+	const queueLabel = QUEUE_LABELS[task.queue || TaskQueue.ACTIVE];
+	const weightLabel = WEIGHT_LABELS[task.weight];
+	const priorityKey = getPriorityKey(priority);
 
 	return (
 		<dl className="info-list">
 			{/* Status & Classification */}
 			<div className="info-item">
 				<dt>Status</dt>
-				<dd className={`status-${task.status}`}>{task.status}</dd>
+				<dd className={`status-${statusLabel}`}>{statusLabel}</dd>
 			</div>
 			<div className="info-item">
 				<dt>Weight</dt>
-				<dd className="weight-value">{task.weight}</dd>
+				<dd className="weight-value">{weightLabel}</dd>
 			</div>
 			<div className="info-item">
 				<dt>Queue</dt>
-				<dd className={`queue-${task.queue || 'active'}`}>{task.queue || 'active'}</dd>
+				<dd className={`queue-${queueLabel}`}>{queueLabel}</dd>
 			</div>
 			<div className="info-item">
 				<dt>Priority</dt>
 				<dd>
 					<span
-						className={`info-priority priority-${priority}`}
+						className={`info-priority priority-${priorityKey}`}
 						style={{ '--priority-color': priorityConfig.color } as React.CSSProperties}
 					>
 						{priorityConfig.label}
@@ -309,7 +398,7 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 				<div className="info-item">
 					<dt>Initiative</dt>
 					<dd>
-						<Link to={`/initiatives/${task.initiative_id}`} className="info-initiative-link">
+						<Link to={`/initiatives/${task.initiativeId}`} className="info-initiative-link">
 							<Icon name="layers" size={12} />
 							<Tooltip content={initiativeBadge.full}>
 								<span>{initiativeBadge.display}</span>
@@ -320,12 +409,12 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 			)}
 
 			{/* Blocked By */}
-			{task.blocked_by && task.blocked_by.length > 0 && (
+			{task.blockedBy && task.blockedBy.length > 0 && (
 				<div className="info-item">
 					<dt>Blocked By</dt>
 					<dd className="info-blocked-by">
 						<Icon name="alert-circle" size={12} />
-						{task.blocked_by.length} {task.blocked_by.length === 1 ? 'task' : 'tasks'}
+						{task.blockedBy.length} {task.blockedBy.length === 1 ? 'task' : 'tasks'}
 					</dd>
 				</div>
 			)}
@@ -339,30 +428,30 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 					</dd>
 				</div>
 			)}
-			{task.target_branch && (
+			{task.targetBranch && (
 				<div className="info-item">
 					<dt>Target</dt>
 					<dd>
-						<code className="info-branch">{task.target_branch}</code>
+						<code className="info-branch">{task.targetBranch}</code>
 					</dd>
 				</div>
 			)}
 
 			{/* Execution Info (when running) */}
-			{taskState?.current_phase && task.status === 'running' && (
+			{task.currentPhase && task.status === TaskStatus.RUNNING && (
 				<div className="info-item">
 					<dt>Current Phase</dt>
-					<dd className="info-phase">{taskState.current_phase}</dd>
+					<dd className="info-phase">{task.currentPhase}</dd>
 				</div>
 			)}
-			{taskState?.execution && task.status === 'running' && (
+			{taskState?.session && task.status === TaskStatus.RUNNING && (
 				<div className="info-item">
-					<dt>Executor</dt>
+					<dt>Session</dt>
 					<dd>
-						<Tooltip content={`PID ${taskState.execution.pid} on ${taskState.execution.hostname}`}>
+						<Tooltip content={`Session ${taskState.session.id}`}>
 							<span className="info-executor">
 								<Icon name="cpu" size={12} />
-								{taskState.execution.hostname}
+								{taskState.session.id?.slice(0, 8) ?? 'N/A'}
 							</span>
 						</Tooltip>
 					</dd>
@@ -370,28 +459,28 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 			)}
 
 			{/* Retries */}
-			{taskState?.retries !== undefined && taskState.retries > 0 && (
+			{taskState?.retryContext && (
 				<div className="info-item">
-					<dt>Retries</dt>
-					<dd className="info-retries">{taskState.retries}</dd>
+					<dt>Retry Info</dt>
+					<dd className="info-retries">From: {taskState.retryContext.fromPhase}</dd>
 				</div>
 			)}
 
 			{/* Timestamps */}
 			<div className="info-item">
 				<dt>Created</dt>
-				<dd>{formatDateTime(task.created_at)}</dd>
+				<dd>{formatDateTime(timestampToDate(task.createdAt))}</dd>
 			</div>
-			{task.started_at && (
+			{startedDate && (
 				<div className="info-item">
 					<dt>Started</dt>
-					<dd>{formatDateTime(task.started_at)}</dd>
+					<dd>{formatDateTime(startedDate)}</dd>
 				</div>
 			)}
-			{task.completed_at && (
+			{completedDate && (
 				<div className="info-item">
 					<dt>Completed</dt>
-					<dd>{formatDateTime(task.completed_at)}</dd>
+					<dd>{formatDateTime(completedDate)}</dd>
 				</div>
 			)}
 			{duration && (
@@ -402,7 +491,7 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 			)}
 			<div className="info-item">
 				<dt>Updated</dt>
-				<dd className="info-updated">{formatDateTime(task.updated_at)}</dd>
+				<dd className="info-updated">{formatDateTime(timestampToDate(task.updatedAt))}</dd>
 			</div>
 		</dl>
 	);
@@ -419,8 +508,9 @@ function formatNumber(num: number): string {
 	return num.toString();
 }
 
-function formatTime(dateStr: string): string {
-	return new Date(dateStr).toLocaleString(undefined, {
+function formatTime(date: Date | null): string {
+	if (!date) return 'N/A';
+	return date.toLocaleString(undefined, {
 		month: 'short',
 		day: 'numeric',
 		hour: '2-digit',
@@ -428,10 +518,8 @@ function formatTime(dateStr: string): string {
 	});
 }
 
-function formatDateTime(dateStr: string): string {
-	if (!dateStr) return '';
-	const date = new Date(dateStr);
-	if (isNaN(date.getTime())) return '';
+function formatDateTime(date: Date | null): string {
+	if (!date) return '';
 	return date.toLocaleString(undefined, {
 		year: 'numeric',
 		month: 'short',
@@ -441,11 +529,11 @@ function formatDateTime(dateStr: string): string {
 	});
 }
 
-function calculateDuration(startedAt?: string, completedAt?: string): string | null {
+function calculateDuration(startedAt: Date | null, completedAt: Date | null): string | null {
 	if (!startedAt) return null;
 
-	const start = new Date(startedAt);
-	const end = completedAt ? new Date(completedAt) : new Date();
+	const start = startedAt;
+	const end = completedAt ?? new Date();
 
 	if (isNaN(start.getTime())) return null;
 	if (completedAt && isNaN(end.getTime())) return null;

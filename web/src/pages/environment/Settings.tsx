@@ -5,25 +5,33 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
+import { configClient } from '@/lib/client';
 import {
-	getSettingsHierarchy,
-	updateSettings,
-	updateGlobalSettings,
-	type Settings as SettingsType,
 	type SettingsHierarchy,
-} from '@/lib/api';
+	SettingsScope,
+	GetSettingsHierarchyRequestSchema,
+	UpdateSettingsRequestSchema,
+	SettingsSchema,
+} from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
-type Scope = 'global' | 'project';
+type ScopeTab = 'global' | 'project';
 
-interface EnvVar {
+// Convert UI scope tab to protobuf SettingsScope enum
+function toSettingsScope(scope: ScopeTab): SettingsScope {
+	return scope === 'global' ? SettingsScope.GLOBAL : SettingsScope.PROJECT;
+}
+
+// Permission key-value pair for editing
+interface PermissionEntry {
 	key: string;
-	value: string;
+	value: boolean;
 }
 
 export function Settings() {
@@ -32,20 +40,23 @@ export function Settings() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [scope, setScope] = useState<Scope>('project');
+	const [scope, setScope] = useState<ScopeTab>('project');
 
-	// Form state
-	const [envVars, setEnvVars] = useState<EnvVar[]>([]);
-	const [statusLineType, setStatusLineType] = useState<string>('');
-	const [statusLineCommand, setStatusLineCommand] = useState<string>('');
+	// Form state matching protobuf Settings schema
+	const [tools, setTools] = useState<string[]>([]);
+	const [mcpServers, setMcpServers] = useState<string[]>([]);
+	const [customInstructions, setCustomInstructions] = useState<string>('');
+	const [permissions, setPermissions] = useState<PermissionEntry[]>([]);
 	const [hasChanges, setHasChanges] = useState(false);
 
 	const loadSettings = useCallback(async () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await getSettingsHierarchy();
-			setHierarchy(data);
+			const response = await configClient.getSettingsHierarchy(
+				create(GetSettingsHierarchyRequestSchema, {})
+			);
+			setHierarchy(response.hierarchy ?? null);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load settings');
 		} finally {
@@ -61,42 +72,59 @@ export function Settings() {
 	useEffect(() => {
 		if (!hierarchy) return;
 
-		const settings =
-			scope === 'global' ? hierarchy.global.settings : hierarchy.project.settings;
+		const settings = scope === 'global' ? hierarchy.global : hierarchy.project;
 
-		// Convert env object to array
-		const env = settings?.env || {};
-		setEnvVars(Object.entries(env).map(([key, value]) => ({ key, value })));
+		// Tools
+		setTools(settings?.tools || []);
 
-		// Status line
-		setStatusLineType(settings?.statusLine?.type || '');
-		setStatusLineCommand(settings?.statusLine?.command || '');
+		// MCP Servers
+		setMcpServers(settings?.mcpServers || []);
+
+		// Custom Instructions
+		setCustomInstructions(settings?.customInstructions || '');
+
+		// Permissions (convert map to array for editing)
+		const perms = settings?.permissions || {};
+		setPermissions(Object.entries(perms).map(([key, value]) => ({ key, value })));
+
 		setHasChanges(false);
 	}, [hierarchy, scope]);
 
-	const handleEnvChange = (index: number, field: 'key' | 'value', value: string) => {
-		const newVars = [...envVars];
-		newVars[index] = { ...newVars[index], [field]: value };
-		setEnvVars(newVars);
+	const handleToolsChange = (value: string) => {
+		// Parse comma-separated tools
+		setTools(value.split(',').map((t) => t.trim()).filter(Boolean));
 		setHasChanges(true);
 	};
 
-	const handleAddEnvVar = () => {
-		setEnvVars([...envVars, { key: '', value: '' }]);
+	const handleMcpServersChange = (value: string) => {
+		// Parse comma-separated MCP servers
+		setMcpServers(value.split(',').map((s) => s.trim()).filter(Boolean));
 		setHasChanges(true);
 	};
 
-	const handleRemoveEnvVar = (index: number) => {
-		setEnvVars(envVars.filter((_, i) => i !== index));
+	const handleCustomInstructionsChange = (value: string) => {
+		setCustomInstructions(value);
 		setHasChanges(true);
 	};
 
-	const handleStatusLineChange = (field: 'type' | 'command', value: string) => {
-		if (field === 'type') {
-			setStatusLineType(value);
+	const handlePermissionChange = (index: number, field: 'key' | 'value', value: string | boolean) => {
+		const newPerms = [...permissions];
+		if (field === 'key') {
+			newPerms[index] = { ...newPerms[index], key: value as string };
 		} else {
-			setStatusLineCommand(value);
+			newPerms[index] = { ...newPerms[index], value: value as boolean };
 		}
+		setPermissions(newPerms);
+		setHasChanges(true);
+	};
+
+	const handleAddPermission = () => {
+		setPermissions([...permissions, { key: '', value: true }]);
+		setHasChanges(true);
+	};
+
+	const handleRemovePermission = (index: number) => {
+		setPermissions(permissions.filter((_, i) => i !== index));
 		setHasChanges(true);
 	};
 
@@ -105,32 +133,21 @@ export function Settings() {
 			setSaving(true);
 
 			// Build settings object
-			const settings: SettingsType = {};
+			const settings = create(SettingsSchema, {
+				tools,
+				mcpServers,
+				customInstructions: customInstructions || undefined,
+				permissions: Object.fromEntries(
+					permissions.filter((p) => p.key.trim()).map((p) => [p.key.trim(), p.value])
+				),
+			});
 
-			// Convert env vars array back to object (filtering empty keys)
-			const env: Record<string, string> = {};
-			for (const v of envVars) {
-				if (v.key.trim()) {
-					env[v.key.trim()] = v.value;
-				}
-			}
-			if (Object.keys(env).length > 0) {
-				settings.env = env;
-			}
-
-			// Status line
-			if (statusLineType || statusLineCommand) {
-				settings.statusLine = {};
-				if (statusLineType) settings.statusLine.type = statusLineType;
-				if (statusLineCommand) settings.statusLine.command = statusLineCommand;
-			}
-
-			// Save based on scope
-			if (scope === 'global') {
-				await updateGlobalSettings(settings);
-			} else {
-				await updateSettings(settings);
-			}
+			await configClient.updateSettings(
+				create(UpdateSettingsRequestSchema, {
+					scope: toSettingsScope(scope),
+					settings,
+				})
+			);
 
 			toast.success(`${scope === 'global' ? 'Global' : 'Project'} settings saved`);
 			setHasChanges(false);
@@ -148,13 +165,13 @@ export function Settings() {
 		// Re-apply current settings from hierarchy
 		if (!hierarchy) return;
 
-		const settings =
-			scope === 'global' ? hierarchy.global.settings : hierarchy.project.settings;
+		const settings = scope === 'global' ? hierarchy.global : hierarchy.project;
 
-		const env = settings?.env || {};
-		setEnvVars(Object.entries(env).map(([key, value]) => ({ key, value })));
-		setStatusLineType(settings?.statusLine?.type || '');
-		setStatusLineCommand(settings?.statusLine?.command || '');
+		setTools(settings?.tools || []);
+		setMcpServers(settings?.mcpServers || []);
+		setCustomInstructions(settings?.customInstructions || '');
+		const perms = settings?.permissions || {};
+		setPermissions(Object.entries(perms).map(([key, value]) => ({ key, value })));
 		setHasChanges(false);
 	};
 
@@ -179,8 +196,6 @@ export function Settings() {
 		);
 	}
 
-	const currentPath = scope === 'global' ? hierarchy?.global.path : hierarchy?.project.path;
-
 	return (
 		<div className="page environment-settings-page">
 			<div className="env-page-header">
@@ -199,57 +214,105 @@ export function Settings() {
 				</div>
 			</div>
 
-			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as Scope)}>
+			<Tabs.Root value={scope} onValueChange={(v) => setScope(v as ScopeTab)}>
 				<Tabs.List className="env-scope-tabs" aria-label="Settings scope">
 					<Tabs.Trigger value="project" className="env-scope-tab">
 						<Icon name="folder" size={16} />
 						Project
 					</Tabs.Trigger>
 					<Tabs.Trigger value="global" className="env-scope-tab">
-						<Icon name="user" size={16} />
+						<Icon name="globe" size={16} />
 						Global
 					</Tabs.Trigger>
 				</Tabs.List>
 
 				<Tabs.Content value={scope} className="settings-content">
-					{currentPath && (
-						<p className="claudemd-path">
-							<Icon name="file" size={14} /> {currentPath}
-						</p>
-					)}
-
-					{/* Environment Variables */}
+					{/* Tools */}
 					<div className="settings-section">
 						<h4 className="settings-section-title">
-							<Icon name="terminal" size={18} />
-							Environment Variables
+							<Icon name="tools" size={18} />
+							Enabled Tools
+						</h4>
+						<p className="settings-section-description">
+							Comma-separated list of tools to enable for Claude Code.
+						</p>
+						<Input
+							placeholder="Read, Write, Edit, Bash, Glob, Grep..."
+							value={tools.join(', ')}
+							onChange={(e) => handleToolsChange(e.target.value)}
+							size="sm"
+						/>
+					</div>
+
+					{/* MCP Servers */}
+					<div className="settings-section">
+						<h4 className="settings-section-title">
+							<Icon name="server" size={18} />
+							MCP Servers
+						</h4>
+						<p className="settings-section-description">
+							Comma-separated list of allowed MCP server names.
+						</p>
+						<Input
+							placeholder="filesystem, database, custom-server..."
+							value={mcpServers.join(', ')}
+							onChange={(e) => handleMcpServersChange(e.target.value)}
+							size="sm"
+						/>
+					</div>
+
+					{/* Custom Instructions */}
+					<div className="settings-section">
+						<h4 className="settings-section-title">
+							<Icon name="file-text" size={18} />
+							Custom Instructions
+						</h4>
+						<p className="settings-section-description">
+							Additional instructions to include in Claude Code prompts.
+						</p>
+						<textarea
+							className="settings-textarea"
+							placeholder="Enter custom instructions..."
+							value={customInstructions}
+							onChange={(e) => handleCustomInstructionsChange(e.target.value)}
+							rows={4}
+						/>
+					</div>
+
+					{/* Permissions */}
+					<div className="settings-section">
+						<h4 className="settings-section-title">
+							<Icon name="shield" size={18} />
+							Permission Overrides
 						</h4>
 						<div className="settings-env-vars">
-							{envVars.length === 0 ? (
+							{permissions.length === 0 ? (
 								<p className="env-empty" style={{ padding: 'var(--space-4)', textAlign: 'left' }}>
-									No environment variables configured
+									No permission overrides configured
 								</p>
 							) : (
-								envVars.map((v, i) => (
+								permissions.map((p, i) => (
 									<div key={i} className="settings-env-row">
 										<Input
-											placeholder="KEY"
-											value={v.key}
-											onChange={(e) => handleEnvChange(i, 'key', e.target.value)}
+											placeholder="permission.name"
+											value={p.key}
+											onChange={(e) => handlePermissionChange(i, 'key', e.target.value)}
 											size="sm"
 										/>
-										<Input
-											placeholder="value"
-											value={v.value}
-											onChange={(e) => handleEnvChange(i, 'value', e.target.value)}
-											size="sm"
-										/>
+										<label className="settings-checkbox-label">
+											<input
+												type="checkbox"
+												checked={p.value}
+												onChange={(e) => handlePermissionChange(i, 'value', e.target.checked)}
+											/>
+											Allowed
+										</label>
 										<Button
 											variant="ghost"
 											size="sm"
 											iconOnly
-											aria-label="Remove variable"
-											onClick={() => handleRemoveEnvVar(i)}
+											aria-label="Remove permission"
+											onClick={() => handleRemovePermission(i)}
 										>
 											<Icon name="trash" size={16} />
 										</Button>
@@ -261,49 +324,11 @@ export function Settings() {
 								size="sm"
 								className="settings-add-btn"
 								leftIcon={<Icon name="plus" size={16} />}
-								onClick={handleAddEnvVar}
+								onClick={handleAddPermission}
 							>
-								Add Variable
+								Add Permission
 							</Button>
 						</div>
-					</div>
-
-					{/* Status Line */}
-					<div className="settings-section">
-						<h4 className="settings-section-title">
-							<Icon name="statusline" size={18} />
-							Status Line
-						</h4>
-						<div className="settings-statusline-type">
-							<label>
-								<input
-									type="radio"
-									name="statusLineType"
-									value=""
-									checked={!statusLineType}
-									onChange={() => handleStatusLineChange('type', '')}
-								/>
-								None (default)
-							</label>
-							<label>
-								<input
-									type="radio"
-									name="statusLineType"
-									value="command"
-									checked={statusLineType === 'command'}
-									onChange={() => handleStatusLineChange('type', 'command')}
-								/>
-								Custom command
-							</label>
-						</div>
-						{statusLineType === 'command' && (
-							<Input
-								placeholder="echo -n '[$USER:${HOSTNAME%%.*}]:${PWD##*/}'"
-								value={statusLineCommand}
-								onChange={(e) => handleStatusLineChange('command', e.target.value)}
-								size="sm"
-							/>
-						)}
 					</div>
 				</Tabs.Content>
 			</Tabs.Root>

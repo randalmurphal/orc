@@ -13,7 +13,7 @@
 import { useState, useCallback } from 'react';
 import { RightPanel } from '@/components/layout/RightPanel';
 import { Button } from '@/components/ui';
-import type { PendingDecision } from '@/lib/types';
+import type { PendingDecision } from '@/gen/orc/v1/decision_pb';
 import './DecisionsPanel.css';
 
 export interface DecisionsPanelProps {
@@ -82,7 +82,7 @@ export function DecisionsPanel({ decisions, onDecide }: DecisionsPanelProps) {
 										</svg>
 									</div>
 									<div className="decision-content">
-										<span className="decision-task">{decision.task_id}</span>
+										<span className="decision-task">{decision.taskId}</span>
 										<span className="decision-question">{decision.question}</span>
 									</div>
 								</div>
@@ -90,7 +90,7 @@ export function DecisionsPanel({ decisions, onDecide }: DecisionsPanelProps) {
 									{decision.options.map((option, index) => {
 										// First option is recommended by default, unless explicitly marked
 										const isRecommended =
-											option.recommended ?? (index === 0 && !decision.options.some((o) => o.recommended));
+											option.recommended || (index === 0 && !decision.options.some((o) => o.recommended));
 
 										return (
 											<Button

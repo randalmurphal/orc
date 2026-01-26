@@ -4,8 +4,23 @@ import { MemoryRouter } from 'react-router-dom';
 import { BoardView, type BoardViewProps } from './BoardView';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { AppShellProvider } from '@/components/layout/AppShellContext';
-import { WebSocketProvider } from '@/hooks/useWebSocket';
-import type { Task, Initiative } from '@/lib/types';
+import { EventProvider } from '@/hooks';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
+import type { Initiative } from '@/gen/orc/v1/initiative_pb';
+import { createMockTask, createMockInitiative } from '@/test/factories';
+
+// Mock events module
+vi.mock('@/lib/events', () => ({
+	EventSubscription: vi.fn().mockImplementation(() => ({
+		connect: vi.fn(),
+		disconnect: vi.fn(),
+		on: vi.fn().mockReturnValue(() => {}),
+		onStatusChange: vi.fn().mockReturnValue(() => {}),
+		getStatus: vi.fn().mockReturnValue('disconnected'),
+	})),
+	handleEvent: vi.fn(),
+}));
 
 // Mock stores
 const mockSetRightPanelContent = vi.fn();
@@ -70,46 +85,16 @@ vi.mock('@/lib/api', () => ({
 	}),
 }));
 
-// Sample task factory
-function createTask(overrides: Partial<Task> = {}): Task {
-	return {
-		id: 'TASK-001',
-		title: 'Test Task',
-		description: 'A test task description',
-		weight: 'medium',
-		status: 'planned',
-		category: 'feature',
-		priority: 'normal',
-		branch: 'orc/TASK-001',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
-
-// Sample initiative factory
-function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
-	return {
-		version: 1,
-		id: 'INIT-001',
-		title: 'Test Initiative',
-		status: 'active',
-		created_at: '2024-01-01T00:00:00Z',
-		updated_at: '2024-01-01T00:00:00Z',
-		...overrides,
-	};
-}
-
 // Helper to render with required providers
 function renderBoardView(props: Partial<BoardViewProps> = {}) {
 	return render(
 		<TooltipProvider>
 			<MemoryRouter>
-				<WebSocketProvider autoConnect={false}>
+				<EventProvider>
 					<AppShellProvider>
 						<BoardView {...props} />
 					</AppShellProvider>
-				</WebSocketProvider>
+				</EventProvider>
 			</MemoryRouter>
 		</TooltipProvider>
 	);
@@ -148,8 +133,8 @@ describe('BoardView', () => {
 
 	describe('task filtering', () => {
 		it('passes queued tasks (planned status) to QueueColumn', () => {
-			const plannedTask = createTask({ id: 'T1', status: 'planned' });
-			const runningTask = createTask({ id: 'T2', status: 'running' });
+			const plannedTask = createMockTask({ id: 'T1', status: TaskStatus.PLANNED });
+			const runningTask = createMockTask({ id: 'T2', status: TaskStatus.RUNNING });
 			mockTasks.push(plannedTask, runningTask);
 
 			renderBoardView();
@@ -160,7 +145,7 @@ describe('BoardView', () => {
 		});
 
 		it('passes running tasks to RunningColumn', () => {
-			const runningTask = createTask({ id: 'T1', status: 'running' });
+			const runningTask = createMockTask({ id: 'T1', status: TaskStatus.RUNNING });
 			mockTasks.push(runningTask);
 
 			renderBoardView();
@@ -170,7 +155,7 @@ describe('BoardView', () => {
 		});
 
 		it('filters blocked tasks for right panel', () => {
-			const blockedTask = createTask({ id: 'T1', status: 'blocked' });
+			const blockedTask = createMockTask({ id: 'T1', status: TaskStatus.BLOCKED });
 			mockTasks.push(blockedTask);
 
 			renderBoardView();
@@ -195,7 +180,7 @@ describe('BoardView', () => {
 		});
 
 		it('includes BlockedPanel in right panel content when blocked tasks exist', () => {
-			const blockedTask = createTask({ id: 'T1', status: 'blocked' });
+			const blockedTask = createMockTask({ id: 'T1', status: TaskStatus.BLOCKED });
 			mockTasks.push(blockedTask);
 
 			renderBoardView();
@@ -248,9 +233,9 @@ describe('BoardView', () => {
 
 	describe('task grouping for swimlanes', () => {
 		it('groups queued tasks by initiative', () => {
-			const init = createInitiative({ id: 'INIT-001', title: 'Feature Work' });
-			const task1 = createTask({ id: 'T1', status: 'planned', initiative_id: 'INIT-001' });
-			const task2 = createTask({ id: 'T2', status: 'planned', initiative_id: 'INIT-001' });
+			const init = createMockInitiative({ id: 'INIT-001', title: 'Feature Work' });
+			const task1 = createMockTask({ id: 'T1', status: TaskStatus.PLANNED, initiativeId: 'INIT-001' });
+			const task2 = createMockTask({ id: 'T2', status: TaskStatus.PLANNED, initiativeId: 'INIT-001' });
 			mockTasks.push(task1, task2);
 			mockInitiatives.push(init);
 

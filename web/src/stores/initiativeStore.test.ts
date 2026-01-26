@@ -6,33 +6,32 @@ import {
 	getInitiativeBadgeTitle,
 } from './initiativeStore';
 import { resetUrlMocks, setMockSearch } from '../test-setup';
-import type { Initiative, Task } from '@/lib/types';
+import { type Initiative, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import { type Task, TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
 
 // Factory for creating test initiatives
 function createInitiative(overrides: Partial<Initiative> = {}): Initiative {
 	return {
+		$typeName: 'orc.v1.Initiative',
 		version: 1,
 		id: `INIT-${Math.random().toString(36).slice(2, 7)}`,
 		title: 'Test Initiative',
-		status: 'active',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
+		status: InitiativeStatus.ACTIVE,
 		...overrides,
-	};
+	} as Initiative;
 }
 
 // Factory for creating test tasks
 function createTask(overrides: Partial<Task> = {}): Task {
 	return {
+		$typeName: 'orc.v1.Task',
 		id: `TASK-${Math.random().toString(36).slice(2, 7)}`,
 		title: 'Test Task',
-		weight: 'medium',
-		status: 'planned',
+		weight: TaskWeight.MEDIUM,
+		status: TaskStatus.PLANNED,
 		branch: 'main',
-		created_at: new Date().toISOString(),
-		updated_at: new Date().toISOString(),
 		...overrides,
-	};
+	} as Task;
 }
 
 describe('InitiativeStore', () => {
@@ -287,10 +286,10 @@ describe('InitiativeStore', () => {
 	describe('getInitiativeProgress', () => {
 		it('should count tasks per initiative', () => {
 			const tasks = [
-				createTask({ id: 'TASK-001', initiative_id: 'INIT-001', status: 'completed' }),
-				createTask({ id: 'TASK-002', initiative_id: 'INIT-001', status: 'running' }),
-				createTask({ id: 'TASK-003', initiative_id: 'INIT-001', status: 'completed' }),
-				createTask({ id: 'TASK-004', initiative_id: 'INIT-002', status: 'completed' }),
+				createTask({ id: 'TASK-001', initiativeId: 'INIT-001', status: TaskStatus.COMPLETED }),
+				createTask({ id: 'TASK-002', initiativeId: 'INIT-001', status: TaskStatus.RUNNING }),
+				createTask({ id: 'TASK-003', initiativeId: 'INIT-001', status: TaskStatus.COMPLETED }),
+				createTask({ id: 'TASK-004', initiativeId: 'INIT-002', status: TaskStatus.COMPLETED }),
 			];
 
 			const progress = useInitiativeStore.getState().getInitiativeProgress(tasks);
@@ -309,8 +308,8 @@ describe('InitiativeStore', () => {
 
 		it('should skip tasks without initiative_id', () => {
 			const tasks = [
-				createTask({ id: 'TASK-001', initiative_id: 'INIT-001', status: 'completed' }),
-				createTask({ id: 'TASK-002', status: 'running' }), // No initiative_id
+				createTask({ id: 'TASK-001', initiativeId: 'INIT-001', status: TaskStatus.COMPLETED }),
+				createTask({ id: 'TASK-002', status: TaskStatus.RUNNING }), // No initiative_id
 			];
 
 			const progress = useInitiativeStore.getState().getInitiativeProgress(tasks);
@@ -424,14 +423,10 @@ describe('getInitiativeBadgeTitle', () => {
 	describe('id-only format (default)', () => {
 		it('should show just the initiative ID', () => {
 			const initiatives = [
-				{
-					version: 1,
+				createInitiative({
 					id: 'INIT-001',
 					title: 'Frontend Polish & UX Audit',
-					status: 'active' as const,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-				},
+				}),
 			];
 			useInitiativeStore.getState().setInitiatives(initiatives);
 
@@ -454,14 +449,10 @@ describe('getInitiativeBadgeTitle', () => {
 	describe('id-with-title format', () => {
 		it('should show initiative ID with truncated title', () => {
 			const initiatives = [
-				{
-					version: 1,
+				createInitiative({
 					id: 'INIT-001',
 					title: 'Frontend Polish & UX Audit',
-					status: 'active' as const,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-				},
+				}),
 			];
 			useInitiativeStore.getState().setInitiatives(initiatives);
 
@@ -475,14 +466,10 @@ describe('getInitiativeBadgeTitle', () => {
 
 		it('should handle short titles without truncation', () => {
 			const initiatives = [
-				{
-					version: 1,
+				createInitiative({
 					id: 'INIT-002',
 					title: 'Tests',
-					status: 'active' as const,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-				},
+				}),
 			];
 			useInitiativeStore.getState().setInitiatives(initiatives);
 
@@ -495,14 +482,10 @@ describe('getInitiativeBadgeTitle', () => {
 	describe('title-only format', () => {
 		it('should show just the truncated title (legacy behavior)', () => {
 			const initiatives = [
-				{
-					version: 1,
+				createInitiative({
 					id: 'INIT-001',
 					title: 'Systems Reliability Improvements',
-					status: 'active' as const,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-				},
+				}),
 			];
 			useInitiativeStore.getState().setInitiatives(initiatives);
 

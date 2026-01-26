@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import type { Initiative, InitiativeProgress, Task } from '@/lib/types';
+import { type Initiative, type InitiativeProgress } from '@/gen/orc/v1/initiative_pb';
+import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
 
 // Special value for filtering tasks without an initiative
 export const UNASSIGNED_INITIATIVE = '__unassigned__';
@@ -127,20 +128,24 @@ export const useInitiativeStore = create<InitiativeStore>()(
 
 			// Count tasks per initiative
 			for (const task of tasks) {
-				if (!task.initiative_id) continue;
+				if (!task.initiativeId) continue;
 
-				const existing = progress.get(task.initiative_id);
-				const isCompleted = task.status === 'completed';
+				const existing = progress.get(task.initiativeId);
+				const isCompleted = task.status === TaskStatus.COMPLETED;
 
 				if (existing) {
-					existing.total++;
-					if (isCompleted) existing.completed++;
+					// Create new progress object (proto types are immutable-like)
+					progress.set(task.initiativeId, {
+						...existing,
+						total: existing.total + 1,
+						completed: existing.completed + (isCompleted ? 1 : 0),
+					} as InitiativeProgress);
 				} else {
-					progress.set(task.initiative_id, {
-						id: task.initiative_id,
+					progress.set(task.initiativeId, {
+						id: task.initiativeId,
 						completed: isCompleted ? 1 : 0,
 						total: 1,
-					});
+					} as InitiativeProgress);
 				}
 			}
 

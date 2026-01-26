@@ -11,7 +11,8 @@
 
 import { useMemo, useCallback } from 'react';
 import { Swimlane } from './Swimlane';
-import type { Task, Initiative } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { type Initiative, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import './QueueColumn.css';
 
 export interface QueueColumnProps {
@@ -55,7 +56,7 @@ function groupAndSortTasks(
 	// Group tasks by initiative_id
 	const groups = new Map<string | null, Task[]>();
 	for (const task of tasks) {
-		const key = task.initiative_id ?? null;
+		const key = task.initiativeId ?? null;
 		if (!groups.has(key)) groups.set(key, []);
 		groups.get(key)!.push(task);
 	}
@@ -85,8 +86,8 @@ function groupAndSortTasks(
 	// Sort: active initiatives first, then by task count (descending)
 	swimlaneGroups.sort((a, b) => {
 		// Active initiatives first
-		const aActive = a.initiative?.status === 'active' ? 0 : 1;
-		const bActive = b.initiative?.status === 'active' ? 0 : 1;
+		const aActive = a.initiative?.status === InitiativeStatus.ACTIVE ? 0 : 1;
+		const bActive = b.initiative?.status === InitiativeStatus.ACTIVE ? 0 : 1;
 		if (aActive !== bActive) return aActive - bActive;
 
 		// Then by task count descending

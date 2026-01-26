@@ -17,7 +17,7 @@ import {
 	CreateWorkflowModal,
 } from '@/components/workflows';
 import { useWorkflowStore } from '@/stores/workflowStore';
-import type { Workflow } from '@/lib/types';
+import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import './WorkflowsPage.css';
 
 /**

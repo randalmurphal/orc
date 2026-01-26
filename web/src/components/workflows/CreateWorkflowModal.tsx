@@ -11,8 +11,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { createWorkflow } from '@/lib/api';
-import type { Workflow, WorkflowType } from '@/lib/types';
+import { workflowClient } from '@/lib/client';
+import { type Workflow, WorkflowType } from '@/gen/orc/v1/workflow_pb';
 import './CreateWorkflowModal.css';
 
 export interface CreateWorkflowModalProps {
@@ -37,17 +37,17 @@ function slugify(str: string): string {
 
 const WORKFLOW_TYPES: { value: WorkflowType; label: string; description: string }[] = [
 	{
-		value: 'task',
+		value: WorkflowType.TASK,
 		label: 'Task',
 		description: 'Standard task execution workflow',
 	},
 	{
-		value: 'branch',
+		value: WorkflowType.BRANCH,
 		label: 'Branch',
 		description: 'Works on existing branches',
 	},
 	{
-		value: 'standalone',
+		value: WorkflowType.STANDALONE,
 		label: 'Standalone',
 		description: 'Independent execution without task',
 	},
@@ -71,7 +71,7 @@ export function CreateWorkflowModal({
 	const [id, setId] = useState('');
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
-	const [workflowType, setWorkflowType] = useState<WorkflowType>('task');
+	const [workflowType, setWorkflowType] = useState<WorkflowType>(WorkflowType.TASK);
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -84,7 +84,7 @@ export function CreateWorkflowModal({
 			setId('');
 			setName('');
 			setDescription('');
-			setWorkflowType('task');
+			setWorkflowType(WorkflowType.TASK);
 			setDefaultModel('');
 			setDefaultThinking(false);
 			setError(null);
@@ -118,15 +118,17 @@ export function CreateWorkflowModal({
 			setError(null);
 
 			try {
-				const created = await createWorkflow({
+				const response = await workflowClient.createWorkflow({
 					id: id.trim(),
 					name: name.trim() || undefined,
 					description: description.trim() || undefined,
-					workflow_type: workflowType,
-					default_model: defaultModel || undefined,
-					default_thinking: defaultThinking,
+					workflowType: workflowType,
+					defaultModel: defaultModel || undefined,
+					defaultThinking: defaultThinking,
 				});
-				onCreated(created);
+				if (response.workflow) {
+					onCreated(response.workflow);
+				}
 				handleClose();
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Failed to create workflow');

@@ -14,27 +14,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useRoutes } from 'react-router-dom';
 import { routes } from './routes';
-import { WebSocketProvider } from '@/hooks';
+import { EventProvider } from '@/hooks';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useProjectStore, useInitiativeStore, useUIStore, useTaskStore } from '@/stores';
 
-// Mock WebSocket
-vi.mock('@/lib/websocket', () => ({
-	OrcWebSocket: vi.fn().mockImplementation(() => ({
+// Mock events module
+vi.mock('@/lib/events', () => ({
+	EventSubscription: vi.fn().mockImplementation(() => ({
 		connect: vi.fn(),
 		disconnect: vi.fn(),
-		subscribe: vi.fn(),
-		unsubscribe: vi.fn(),
-		subscribeGlobal: vi.fn(),
-		setPrimarySubscription: vi.fn(),
 		on: vi.fn().mockReturnValue(() => {}),
 		onStatusChange: vi.fn().mockReturnValue(() => {}),
-		isConnected: vi.fn().mockReturnValue(false),
-		getTaskId: vi.fn().mockReturnValue(null),
-		command: vi.fn(),
+		getStatus: vi.fn().mockReturnValue('disconnected'),
 	})),
-	GLOBAL_TASK_ID: '*',
+	handleEvent: vi.fn(),
 }));
 
 // Mock API for timeline page
@@ -72,7 +66,7 @@ function TestApp() {
 	const routeElements = useRoutes(routes);
 	return (
 		<TooltipProvider delayDuration={0}>
-			<WebSocketProvider autoConnect={false}>{routeElements}</WebSocketProvider>
+			<EventProvider>{routeElements}</EventProvider>
 		</TooltipProvider>
 	);
 }

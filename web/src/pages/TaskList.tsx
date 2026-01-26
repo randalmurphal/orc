@@ -33,12 +33,10 @@ import { TaskCard } from '@/components/board/TaskCard';
 import { InitiativeDropdown } from '@/components/board/InitiativeDropdown';
 import { DependencyDropdown } from '@/components/filters';
 import { Icon } from '@/components/ui/Icon';
-import {
-	runProjectTask,
-	pauseProjectTask,
-	deleteProjectTask,
-} from '@/lib/api';
-import type { Task, TaskWeight } from '@/lib/types';
+import { taskClient } from '@/lib/client';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskWeight, DependencyStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import './TaskList.css';
 
 // Status filter options
@@ -48,23 +46,32 @@ type StatusFilter = 'all' | 'active' | 'completed' | 'failed';
 type SortBy = 'recent' | 'oldest' | 'status';
 
 // Terminal statuses (not active anymore)
-const TERMINAL_STATUSES = ['finalizing', 'completed', 'failed'];
-const DONE_STATUSES = ['completed'];
+const TERMINAL_STATUSES = [TaskStatus.FINALIZING, TaskStatus.COMPLETED, TaskStatus.FAILED];
+const DONE_STATUSES = [TaskStatus.COMPLETED];
 
 // Status order for sorting
 const STATUS_ORDER = [
-	'running',
-	'paused',
-	'blocked',
-	'planned',
-	'created',
-	'finalizing',
-	'completed',
-	'failed',
+	TaskStatus.RUNNING,
+	TaskStatus.PAUSED,
+	TaskStatus.BLOCKED,
+	TaskStatus.PLANNED,
+	TaskStatus.CREATED,
+	TaskStatus.FINALIZING,
+	TaskStatus.COMPLETED,
+	TaskStatus.FAILED,
 ];
 
 // Available weights
-const WEIGHTS: TaskWeight[] = ['trivial', 'small', 'medium', 'large'];
+const WEIGHTS: TaskWeight[] = [TaskWeight.TRIVIAL, TaskWeight.SMALL, TaskWeight.MEDIUM, TaskWeight.LARGE];
+
+// Weight display labels
+const WEIGHT_LABELS: Record<TaskWeight, string> = {
+	[TaskWeight.UNSPECIFIED]: 'Unspecified',
+	[TaskWeight.TRIVIAL]: 'trivial',
+	[TaskWeight.SMALL]: 'small',
+	[TaskWeight.MEDIUM]: 'medium',
+	[TaskWeight.LARGE]: 'large',
+};
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -119,7 +126,7 @@ export function TaskList() {
 
 		// Handle unassigned filter - show only tasks with no initiative
 		if (currentInitiativeId === UNASSIGNED_INITIATIVE) {
-			return tasks.filter((task) => !task.initiative_id);
+			return tasks.filter((task) => !task.initiativeId);
 		}
 
 		// Get task IDs from the initiative
@@ -141,17 +148,36 @@ export function TaskList() {
 		} else if (statusFilter === 'completed') {
 			result = result.filter((t) => DONE_STATUSES.includes(t.status));
 		} else if (statusFilter === 'failed') {
-			result = result.filter((t) => t.status === 'failed');
+			result = result.filter((t) => t.status === TaskStatus.FAILED);
 		}
 
 		// Dependency status filter
 		if (currentDependencyStatus !== 'all') {
-			result = result.filter((t) => t.dependency_status === currentDependencyStatus);
+			// Map string filter to DependencyStatus enum
+			const depStatusMap: Record<string, DependencyStatus> = {
+				blocked: DependencyStatus.BLOCKED,
+				ready: DependencyStatus.READY,
+				none: DependencyStatus.NONE,
+			};
+			const targetDepStatus = depStatusMap[currentDependencyStatus];
+			if (targetDepStatus !== undefined) {
+				result = result.filter((t) => t.dependencyStatus === targetDepStatus);
+			}
 		}
 
 		// Weight filter
 		if (weightFilter !== 'all') {
-			result = result.filter((t) => t.weight === weightFilter);
+			// Map string filter to TaskWeight enum
+			const weightMap: Record<string, TaskWeight> = {
+				trivial: TaskWeight.TRIVIAL,
+				small: TaskWeight.SMALL,
+				medium: TaskWeight.MEDIUM,
+				large: TaskWeight.LARGE,
+			};
+			const targetWeight = weightMap[weightFilter];
+			if (targetWeight !== undefined) {
+				result = result.filter((t) => t.weight === targetWeight);
+			}
 		}
 
 		// Search filter (debounced)
@@ -165,13 +191,17 @@ export function TaskList() {
 
 		// Sort
 		if (sortBy === 'recent') {
-			result.sort(
-				(a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-			);
+			result.sort((a, b) => {
+				const aTime = timestampToDate(a.updatedAt)?.getTime() ?? 0;
+				const bTime = timestampToDate(b.updatedAt)?.getTime() ?? 0;
+				return bTime - aTime;
+			});
 		} else if (sortBy === 'oldest') {
-			result.sort(
-				(a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
-			);
+			result.sort((a, b) => {
+				const aTime = timestampToDate(a.updatedAt)?.getTime() ?? 0;
+				const bTime = timestampToDate(b.updatedAt)?.getTime() ?? 0;
+				return aTime - bTime;
+			});
 		} else if (sortBy === 'status') {
 			result.sort(
 				(a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status)
@@ -196,7 +226,7 @@ export function TaskList() {
 				.length,
 			completed: initiativeFilteredTasks.filter((t) => DONE_STATUSES.includes(t.status))
 				.length,
-			failed: initiativeFilteredTasks.filter((t) => t.status === 'failed').length,
+			failed: initiativeFilteredTasks.filter((t) => t.status === TaskStatus.FAILED).length,
 		}),
 		[initiativeFilteredTasks]
 	);
@@ -232,7 +262,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await runProjectTask(currentProjectId, taskId);
+				await taskClient.runTask({ id: taskId });
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : 'Failed to run task');
 			}
@@ -247,7 +277,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await pauseProjectTask(currentProjectId, taskId);
+				await taskClient.pauseTask({ id: taskId });
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : 'Failed to pause task');
 			}
@@ -262,7 +292,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await deleteProjectTask(currentProjectId, taskId);
+				await taskClient.deleteTask({ id: taskId });
 				removeTask(taskId);
 				toast.success(`Deleted task ${taskId}`);
 			} catch (e) {
@@ -298,14 +328,14 @@ export function TaskList() {
 		},
 		onRun: () => {
 			const task = getSelectedTask();
-			if (task && task.status !== 'running') {
+			if (task && task.status !== TaskStatus.RUNNING) {
 				handleRunTask(task.id);
 				toast.info(`Running task ${task.id}`);
 			}
 		},
 		onPause: () => {
 			const task = getSelectedTask();
-			if (task && task.status === 'running') {
+			if (task && task.status === TaskStatus.RUNNING) {
 				handlePauseTask(task.id);
 				toast.info(`Paused task ${task.id}`);
 			}
@@ -457,8 +487,8 @@ export function TaskList() {
 					>
 						<option value="all">All weights</option>
 						{WEIGHTS.map((w) => (
-							<option key={w} value={w}>
-								{w}
+							<option key={w} value={WEIGHT_LABELS[w]}>
+								{WEIGHT_LABELS[w]}
 							</option>
 						))}
 					</select>

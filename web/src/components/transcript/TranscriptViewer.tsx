@@ -11,10 +11,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
-import type { Transcript } from '@/lib/api';
-import type { TranscriptLine } from '@/hooks/useWebSocket';
-import { useTranscripts } from '@/hooks/useTranscripts';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import type { TranscriptLine } from '@/hooks/useEvents';
+import { useTranscripts, type FlatTranscriptEntry } from '@/hooks/useTranscripts';
 import { formatNumber } from '@/lib/format';
 import { TranscriptNav, type TranscriptNavPhase } from './TranscriptNav';
 import { TranscriptSection, type TranscriptSectionType } from './TranscriptSection';
@@ -63,7 +61,6 @@ export function TranscriptViewer({
 	const [currentResultIndex, setCurrentResultIndex] = useState(-1);
 	const [navCollapsed, setNavCollapsed] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const { on } = useWebSocket();
 
 	// Use paginated transcript hook
 	const {
@@ -80,7 +77,6 @@ export function TranscriptViewer({
 		currentPhase,
 		isAutoScrollEnabled,
 		toggleAutoScroll,
-		appendStreamingLine,
 		streamingLines,
 		clearStreamingLines,
 		refresh,
@@ -91,26 +87,8 @@ export function TranscriptViewer({
 		autoScroll: isRunning,
 	});
 
-	// Subscribe to transcript streaming when task is running
-	useEffect(() => {
-		if (!isRunning || !taskId) return;
-
-		const unsubscribe = on('transcript', (event) => {
-			if ('event' in event && event.task_id === taskId) {
-				const line = event.data as TranscriptLine;
-				appendStreamingLine(line);
-
-				// Auto-scroll to bottom
-				if (isAutoScrollEnabled && scrollContainerRef.current) {
-					scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-				}
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
-	}, [isRunning, taskId, on, appendStreamingLine, isAutoScrollEnabled]);
+	// TODO: Transcript streaming will be implemented via Connect RPC event streaming
+	// The event handler will dispatch transcript events to this component via stores
 
 	// Refresh to sync streaming lines to DB periodically
 	useEffect(() => {
@@ -206,7 +184,7 @@ export function TranscriptViewer({
 
 	// Build section hierarchy for current view
 	const buildSections = useCallback(
-		(transcriptList: Transcript[], streaming: TranscriptLine[]): SectionData[] => {
+		(transcriptList: FlatTranscriptEntry[], streaming: TranscriptLine[]): SectionData[] => {
 			const sections: SectionData[] = [];
 			let currentPhaseSection: SectionData | null = null;
 

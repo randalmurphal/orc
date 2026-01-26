@@ -4,7 +4,7 @@
  */
 
 import { Link } from 'react-router-dom';
-import type { Task } from '@/lib/types';
+import type { Task } from '@/gen/orc/v1/task_pb';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import './DashboardActiveTasks.css';
 
@@ -33,8 +33,8 @@ export function DashboardActiveTasks({ tasks }: DashboardActiveTasksProps) {
 							<span className="task-id">{task.id}</span>
 							<span className="task-title">{task.title}</span>
 						</div>
-						{task.current_phase && (
-							<span className="task-phase">{task.current_phase}</span>
+						{task.currentPhase && (
+							<span className="task-phase">{task.currentPhase}</span>
 						)}
 					</Link>
 				))}

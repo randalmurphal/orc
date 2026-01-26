@@ -11,14 +11,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Pipeline } from './Pipeline';
-import type { Task, TaskState } from '@/lib/types';
+import { type Task, type ExecutionState, PhaseStatus } from '@/gen/orc/v1/task_pb';
+import { timestampToDate } from '@/lib/time';
 import './RunningCard.css';
 
 export interface RunningCardProps {
 	/** The task being displayed */
 	task: Task;
-	/** Current execution state of the task */
-	state: TaskState;
+	/** Current execution state of the task (from WebSocket or task.execution) */
+	state?: ExecutionState;
 	/** Whether the output section is expanded */
 	expanded?: boolean;
 	/** Callback when card is clicked to toggle expand */
@@ -56,12 +57,13 @@ function mapPhaseToDisplay(phase: string): string {
 }
 
 /** Get completed phases based on task state */
-function getCompletedPhases(state: TaskState): string[] {
+function getCompletedPhases(state: ExecutionState | undefined): string[] {
 	const completed: string[] = [];
+	if (!state) return completed;
 	const phases = state.phases || {};
 
 	for (const [phaseName, phaseState] of Object.entries(phases)) {
-		if (phaseState.status === 'completed') {
+		if (phaseState.status === PhaseStatus.COMPLETED) {
 			const displayName = mapPhaseToDisplay(phaseName);
 			if (!completed.includes(displayName)) {
 				completed.push(displayName);
@@ -73,10 +75,10 @@ function getCompletedPhases(state: TaskState): string[] {
 }
 
 /** Format elapsed time as MM:SS or H:MM:SS */
-function formatElapsedTime(startedAt: string | undefined): string {
+function formatElapsedTime(startedAt: Date | null): string {
 	if (!startedAt) return '0:00';
 
-	const start = new Date(startedAt).getTime();
+	const start = startedAt.getTime();
 	const now = Date.now();
 	const elapsed = Math.max(0, Math.floor((now - start) / 1000));
 
@@ -117,13 +119,13 @@ function parseOutputLine(line: string): OutputLine {
 }
 
 /** Build accessible aria-label for running card */
-function buildAriaLabel(task: Task, state: TaskState, expanded: boolean): string {
-	const rawPhase = state.current_phase || task.current_phase || 'starting';
+function buildAriaLabel(task: Task, expanded: boolean): string {
+	const rawPhase = task.currentPhase || 'starting';
 	const displayPhase = mapPhaseToDisplay(rawPhase);
 	const parts = [`Running task ${task.id}: ${task.title}`, `phase: ${displayPhase}`];
 
-	if (task.initiative_id) {
-		parts.push(`initiative: ${task.initiative_id}`);
+	if (task.initiativeId) {
+		parts.push(`initiative: ${task.initiativeId}`);
 	}
 
 	parts.push(expanded ? 'expanded' : 'collapsed');
@@ -143,14 +145,16 @@ export function RunningCard({
 	className = '',
 	pendingDecisionCount = 0,
 }: RunningCardProps) {
+	// Get started timestamp from task (proto Timestamp -> Date)
+	const startedAt = useMemo(() => timestampToDate(task.startedAt), [task.startedAt]);
+
 	// Elapsed time with live updates
 	const [elapsedTime, setElapsedTime] = useState(() =>
-		formatElapsedTime(state.started_at || task.started_at)
+		formatElapsedTime(startedAt)
 	);
 
 	// Update elapsed time every second while task is running
 	useEffect(() => {
-		const startedAt = state.started_at || task.started_at;
 		if (!startedAt) return;
 
 		// Update immediately
@@ -162,13 +166,13 @@ export function RunningCard({
 		}, 1000);
 
 		return () => clearInterval(interval);
-	}, [state.started_at, task.started_at]);
+	}, [startedAt]);
 
 	// Current phase for display
 	const currentPhase = useMemo(() => {
-		const phase = state.current_phase || task.current_phase || '';
+		const phase = task.currentPhase || '';
 		return mapPhaseToDisplay(phase);
-	}, [state.current_phase, task.current_phase]);
+	}, [task.currentPhase]);
 
 	// Completed phases for pipeline
 	const completedPhases = useMemo(() => getCompletedPhases(state), [state]);
@@ -211,7 +215,7 @@ export function RunningCard({
 			onKeyDown={handleKeyDown}
 			tabIndex={0}
 			role="button"
-			aria-label={buildAriaLabel(task, state, expanded)}
+			aria-label={buildAriaLabel(task, expanded)}
 			aria-expanded={expanded}
 		>
 			{/* Header */}
@@ -219,10 +223,10 @@ export function RunningCard({
 				<div className="running-info">
 					<div className="running-id">{task.id}</div>
 					<h3 className="running-title">{task.title}</h3>
-					{task.initiative_id && (
+					{task.initiativeId && (
 						<div className="running-initiative">
 							<span className="running-initiative-dot" />
-							{task.initiative_id}
+							{task.initiativeId}
 						</div>
 					)}
 				</div>

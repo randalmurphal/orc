@@ -1,19 +1,94 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { create } from '@bufbuild/protobuf';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
-import {
-	getTaskDependencies,
-	addBlocker,
-	removeBlocker,
-	addRelated,
-	removeRelated,
-	listTasks,
-} from '@/lib/api';
+import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import type { Task, TaskStatus } from '@/lib/types';
-import type { DependencyGraph, DependencyInfo } from '@/lib/api';
+import type { Task } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
 import './DependencySidebar.css';
+
+// Local types for REST API responses (not yet in proto)
+interface DependencyInfo {
+	id: string;
+	title: string;
+	status: string;
+	is_met?: boolean;
+}
+
+interface DependencyGraphResponse {
+	task_id: string;
+	blocked_by: DependencyInfo[];
+	blocks: DependencyInfo[];
+	related_to: DependencyInfo[];
+	referenced_by: DependencyInfo[];
+	unmet_dependencies?: string[];
+	can_run: boolean;
+}
+
+// Convert string status from API to TaskStatus enum
+const STATUS_MAP: Record<string, TaskStatus> = {
+	created: TaskStatus.CREATED,
+	classifying: TaskStatus.CLASSIFYING,
+	planned: TaskStatus.PLANNED,
+	running: TaskStatus.RUNNING,
+	paused: TaskStatus.PAUSED,
+	blocked: TaskStatus.BLOCKED,
+	finalizing: TaskStatus.FINALIZING,
+	completed: TaskStatus.COMPLETED,
+	failed: TaskStatus.FAILED,
+	resolved: TaskStatus.RESOLVED,
+};
+
+function parseStatus(status: string): TaskStatus {
+	return STATUS_MAP[status.toLowerCase()] ?? TaskStatus.CREATED;
+}
+
+// Raw fetch helpers for dependency operations (not yet in proto)
+async function fetchJSON<T>(path: string, options: RequestInit = {}): Promise<T> {
+	const response = await fetch(`/api${path}`, {
+		...options,
+		headers: {
+			'Content-Type': 'application/json',
+			...options.headers,
+		},
+	});
+	if (!response.ok) {
+		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	}
+	return response.json();
+}
+
+async function getTaskDependencies(taskId: string): Promise<DependencyGraphResponse> {
+	return fetchJSON<DependencyGraphResponse>(`/tasks/${taskId}/dependencies`);
+}
+
+async function addBlocker(taskId: string, blockerId: string): Promise<Task> {
+	return fetchJSON<Task>(`/tasks/${taskId}/blockers`, {
+		method: 'POST',
+		body: JSON.stringify({ blocker_id: blockerId }),
+	});
+}
+
+async function removeBlocker(taskId: string, blockerId: string): Promise<void> {
+	await fetchJSON<void>(`/tasks/${taskId}/blockers/${blockerId}`, {
+		method: 'DELETE',
+	});
+}
+
+async function addRelated(taskId: string, relatedId: string): Promise<Task> {
+	return fetchJSON<Task>(`/tasks/${taskId}/related`, {
+		method: 'POST',
+		body: JSON.stringify({ related_id: relatedId }),
+	});
+}
+
+async function removeRelated(taskId: string, relatedId: string): Promise<void> {
+	await fetchJSON<void>(`/tasks/${taskId}/related/${relatedId}`, {
+		method: 'DELETE',
+	});
+}
 
 interface DependencySidebarProps {
 	task: Task;
@@ -22,7 +97,7 @@ interface DependencySidebarProps {
 }
 
 export function DependencySidebar({ task, collapsed, onToggle }: DependencySidebarProps) {
-	const [deps, setDeps] = useState<DependencyGraph | null>(null);
+	const [deps, setDeps] = useState<DependencyGraphResponse | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [showAddBlocker, setShowAddBlocker] = useState(false);
 	const [showAddRelated, setShowAddRelated] = useState(false);
@@ -46,13 +121,14 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		loadDependencies();
 	}, [loadDependencies]);
 
-	// Load available tasks for adding dependencies
+	// Load available tasks for adding dependencies (using Connect)
 	const loadAvailableTasks = useCallback(async () => {
 		try {
-			const result = await listTasks();
-			const tasks = Array.isArray(result) ? result : result.tasks;
+			const response = await taskClient.listTasks(
+				create(ListTasksRequestSchema, {})
+			);
 			// Filter out current task
-			setAvailableTasks(tasks.filter((t) => t.id !== task.id));
+			setAvailableTasks(response.tasks.filter((t) => t.id !== task.id));
 		} catch (e) {
 			console.error('Failed to load tasks:', e);
 		}
@@ -136,8 +212,8 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		);
 	}
 
-	const blockedByIds = deps?.blocked_by.map((d) => d.id) ?? [];
-	const relatedIds = deps?.related_to.map((d) => d.id) ?? [];
+	const blockedByIds = deps?.blocked_by?.map((d) => d.id) ?? [];
+	const relatedIds = deps?.related_to?.map((d) => d.id) ?? [];
 
 	return (
 		<aside className="dependency-sidebar">
@@ -257,7 +333,7 @@ function DependencySection({
 					{items.map((item) => (
 						<li key={item.id} className="dep-item">
 							<Link to={`/tasks/${item.id}`} className="dep-link">
-								<StatusIndicator status={item.status as TaskStatus} size="sm" />
+								<StatusIndicator status={parseStatus(item.status)} size="sm" />
 								<span className="dep-id">{item.id}</span>
 								<span className="dep-title">{item.title}</span>
 							</Link>

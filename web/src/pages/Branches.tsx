@@ -9,31 +9,64 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
-import { listBranches, updateBranchStatus, deleteBranch } from '@/lib/api';
+import { branchClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import type { Branch, BranchType, BranchStatus } from '@/lib/types';
-import { BRANCH_STATUS_CONFIG, BRANCH_TYPE_CONFIG } from '@/lib/types';
+import type { Branch } from '@/gen/orc/v1/project_pb';
+import { BranchType, BranchStatus } from '@/gen/orc/v1/project_pb';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import './Branches.css';
 
+// Display config for branch status
+const BRANCH_STATUS_CONFIG: Record<BranchStatus, { label: string; color: string }> = {
+	[BranchStatus.UNSPECIFIED]: { label: 'Unknown', color: 'var(--text-muted)' },
+	[BranchStatus.ACTIVE]: { label: 'Active', color: 'var(--status-success)' },
+	[BranchStatus.MERGED]: { label: 'Merged', color: 'var(--status-info)' },
+	[BranchStatus.STALE]: { label: 'Stale', color: 'var(--status-warning)' },
+	[BranchStatus.ORPHANED]: { label: 'Orphaned', color: 'var(--status-error)' },
+};
+
+// Display config for branch type
+const BRANCH_TYPE_CONFIG: Record<BranchType, { label: string; icon: string }> = {
+	[BranchType.UNSPECIFIED]: { label: 'Unknown', icon: 'help-circle' },
+	[BranchType.INITIATIVE]: { label: 'Initiative', icon: 'layers' },
+	[BranchType.STAGING]: { label: 'Staging', icon: 'git-branch' },
+	[BranchType.TASK]: { label: 'Task', icon: 'check-circle' },
+};
+
 // Filter options
-const BRANCH_TYPES: { value: BranchType | ''; label: string }[] = [
-	{ value: '', label: 'All Types' },
-	{ value: 'initiative', label: 'Initiative' },
-	{ value: 'staging', label: 'Staging' },
-	{ value: 'task', label: 'Task' },
+const BRANCH_TYPES: { value: BranchType | undefined; label: string }[] = [
+	{ value: undefined, label: 'All Types' },
+	{ value: BranchType.INITIATIVE, label: 'Initiative' },
+	{ value: BranchType.STAGING, label: 'Staging' },
+	{ value: BranchType.TASK, label: 'Task' },
 ];
 
-const BRANCH_STATUSES: { value: BranchStatus | ''; label: string }[] = [
-	{ value: '', label: 'All Statuses' },
-	{ value: 'active', label: 'Active' },
-	{ value: 'merged', label: 'Merged' },
-	{ value: 'stale', label: 'Stale' },
-	{ value: 'orphaned', label: 'Orphaned' },
+const BRANCH_STATUSES: { value: BranchStatus | undefined; label: string }[] = [
+	{ value: undefined, label: 'All Statuses' },
+	{ value: BranchStatus.ACTIVE, label: 'Active' },
+	{ value: BranchStatus.MERGED, label: 'Merged' },
+	{ value: BranchStatus.STALE, label: 'Stale' },
+	{ value: BranchStatus.ORPHANED, label: 'Orphaned' },
 ];
+
+// Status display entries for the summary bar
+const STATUS_DISPLAY_ENTRIES: { status: BranchStatus; config: { label: string; color: string } }[] = [
+	{ status: BranchStatus.ACTIVE, config: BRANCH_STATUS_CONFIG[BranchStatus.ACTIVE] },
+	{ status: BranchStatus.MERGED, config: BRANCH_STATUS_CONFIG[BranchStatus.MERGED] },
+	{ status: BranchStatus.STALE, config: BRANCH_STATUS_CONFIG[BranchStatus.STALE] },
+	{ status: BranchStatus.ORPHANED, config: BRANCH_STATUS_CONFIG[BranchStatus.ORPHANED] },
+];
+
+// Convert Timestamp to Date
+function timestampToDate(ts: Timestamp | undefined): Date {
+	if (!ts) return new Date(0);
+	// Timestamp has seconds (bigint) and nanos
+	return new Date(Number(ts.seconds) * 1000 + Math.floor(ts.nanos / 1_000_000));
+}
 
 // Format relative time
-function formatTimeAgo(dateStr: string): string {
-	const date = new Date(dateStr);
+function formatTimeAgo(ts: Timestamp | undefined): string {
+	const date = timestampToDate(ts);
 	const now = new Date();
 	const diff = now.getTime() - date.getTime();
 	const seconds = Math.floor(diff / 1000);
@@ -51,18 +84,18 @@ export function Branches() {
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [typeFilter, setTypeFilter] = useState<BranchType | ''>('');
-	const [statusFilter, setStatusFilter] = useState<BranchStatus | ''>('');
+	const [typeFilter, setTypeFilter] = useState<BranchType | undefined>(undefined);
+	const [statusFilter, setStatusFilter] = useState<BranchStatus | undefined>(undefined);
 	const [actionLoading, setActionLoading] = useState<string | null>(null);
 
 	const loadBranches = useCallback(async () => {
 		try {
 			setLoading(true);
-			const data = await listBranches({
-				type: typeFilter || undefined,
-				status: statusFilter || undefined,
+			const response = await branchClient.listBranches({
+				type: typeFilter,
+				status: statusFilter,
 			});
-			setBranches(data);
+			setBranches(response.branches);
 			setError(null);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load branches');
@@ -78,7 +111,14 @@ export function Branches() {
 
 	// Count branches by status
 	const statusCounts = useMemo(() => {
-		const counts = { active: 0, merged: 0, stale: 0, orphaned: 0, total: 0 };
+		const counts: Record<BranchStatus, number> & { total: number } = {
+			[BranchStatus.UNSPECIFIED]: 0,
+			[BranchStatus.ACTIVE]: 0,
+			[BranchStatus.MERGED]: 0,
+			[BranchStatus.STALE]: 0,
+			[BranchStatus.ORPHANED]: 0,
+			total: 0,
+		};
 		branches.forEach((b) => {
 			counts[b.status]++;
 			counts.total++;
@@ -91,8 +131,8 @@ export function Branches() {
 		async (name: string, newStatus: BranchStatus) => {
 			setActionLoading(name);
 			try {
-				await updateBranchStatus(name, newStatus);
-				toast.success(`Branch status updated to ${newStatus}`);
+				await branchClient.updateBranchStatus({ name, status: newStatus });
+				toast.success(`Branch status updated to ${BRANCH_STATUS_CONFIG[newStatus].label}`);
 				loadBranches();
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : 'Failed to update status');
@@ -111,7 +151,7 @@ export function Branches() {
 			}
 			setActionLoading(name);
 			try {
-				await deleteBranch(name);
+				await branchClient.deleteBranch({ name });
 				toast.success('Branch removed from registry');
 				loadBranches();
 			} catch (e) {
@@ -125,14 +165,14 @@ export function Branches() {
 
 	// Cleanup merged/orphaned branches
 	const handleCleanup = useCallback(async () => {
-		const toClean = branches.filter((b) => b.status === 'merged' || b.status === 'orphaned');
+		const toClean = branches.filter((b) => b.status === BranchStatus.MERGED || b.status === BranchStatus.ORPHANED);
 		if (toClean.length === 0) {
 			toast.info('No branches to clean up');
 			return;
 		}
 		if (
 			!confirm(
-				`Clean up ${toClean.length} branch(es)?\n\n${toClean.map((b) => `• ${b.name} (${b.status})`).join('\n')}\n\nThis removes tracking entries only, not actual git branches.`
+				`Clean up ${toClean.length} branch(es)?\n\n${toClean.map((b) => `- ${b.name} (${BRANCH_STATUS_CONFIG[b.status].label})`).join('\n')}\n\nThis removes tracking entries only, not actual git branches.`
 			)
 		) {
 			return;
@@ -141,7 +181,7 @@ export function Branches() {
 		let cleaned = 0;
 		for (const branch of toClean) {
 			try {
-				await deleteBranch(branch.name);
+				await branchClient.deleteBranch({ name: branch.name });
 				cleaned++;
 			} catch {
 				// Continue on error
@@ -153,14 +193,14 @@ export function Branches() {
 
 	// Get owner link based on branch type
 	const getOwnerLink = (branch: Branch) => {
-		if (!branch.owner_id) return null;
-		if (branch.type === 'initiative') {
-			return <Link to={`/initiatives/${branch.owner_id}`}>{branch.owner_id}</Link>;
+		if (!branch.ownerId) return null;
+		if (branch.type === BranchType.INITIATIVE) {
+			return <Link to={`/initiatives/${branch.ownerId}`}>{branch.ownerId}</Link>;
 		}
-		if (branch.type === 'task') {
-			return <Link to={`/tasks/${branch.owner_id}`}>{branch.owner_id}</Link>;
+		if (branch.type === BranchType.TASK) {
+			return <Link to={`/tasks/${branch.ownerId}`}>{branch.ownerId}</Link>;
 		}
-		return <span>{branch.owner_id}</span>;
+		return <span>{branch.ownerId}</span>;
 	};
 
 	return (
@@ -185,24 +225,24 @@ export function Branches() {
 						size="sm"
 						leftIcon={<Icon name="trash" size={14} />}
 						onClick={handleCleanup}
-						disabled={loading || (statusCounts.merged + statusCounts.orphaned === 0)}
+						disabled={loading || (statusCounts[BranchStatus.MERGED] + statusCounts[BranchStatus.ORPHANED] === 0)}
 					>
-						Cleanup ({statusCounts.merged + statusCounts.orphaned})
+						Cleanup ({statusCounts[BranchStatus.MERGED] + statusCounts[BranchStatus.ORPHANED]})
 					</Button>
 				</div>
 			</header>
 
 			{/* Status summary */}
 			<div className="status-summary">
-				{Object.entries(BRANCH_STATUS_CONFIG).map(([status, config]) => (
+				{STATUS_DISPLAY_ENTRIES.map(({ status, config }) => (
 					<div
 						key={status}
 						className={`status-card ${statusFilter === status ? 'active' : ''}`}
-						onClick={() => setStatusFilter(statusFilter === status ? '' : (status as BranchStatus))}
+						onClick={() => setStatusFilter(statusFilter === status ? undefined : status)}
 					>
 						<span className="status-dot" style={{ backgroundColor: config.color }} />
 						<span className="status-label">{config.label}</span>
-						<span className="status-count">{statusCounts[status as BranchStatus]}</span>
+						<span className="status-count">{statusCounts[status]}</span>
 					</div>
 				))}
 			</div>
@@ -213,11 +253,11 @@ export function Branches() {
 					<label htmlFor="type-filter">Type</label>
 					<select
 						id="type-filter"
-						value={typeFilter}
-						onChange={(e) => setTypeFilter(e.target.value as BranchType | '')}
+						value={typeFilter ?? ''}
+						onChange={(e) => setTypeFilter(e.target.value ? Number(e.target.value) as BranchType : undefined)}
 					>
 						{BRANCH_TYPES.map((opt) => (
-							<option key={opt.value} value={opt.value}>
+							<option key={opt.value ?? 'all'} value={opt.value ?? ''}>
 								{opt.label}
 							</option>
 						))}
@@ -227,11 +267,11 @@ export function Branches() {
 					<label htmlFor="status-filter">Status</label>
 					<select
 						id="status-filter"
-						value={statusFilter}
-						onChange={(e) => setStatusFilter(e.target.value as BranchStatus | '')}
+						value={statusFilter ?? ''}
+						onChange={(e) => setStatusFilter(e.target.value ? Number(e.target.value) as BranchStatus : undefined)}
 					>
 						{BRANCH_STATUSES.map((opt) => (
-							<option key={opt.value} value={opt.value}>
+							<option key={opt.value ?? 'all'} value={opt.value ?? ''}>
 								{opt.label}
 							</option>
 						))}
@@ -255,7 +295,7 @@ export function Branches() {
 					<Icon name="git-branch" size={48} />
 					<h3>No branches tracked</h3>
 					<p>
-						{typeFilter || statusFilter
+						{typeFilter !== undefined || statusFilter !== undefined
 							? 'No branches match the current filters.'
 							: 'Orc will track branches as you create initiatives or run tasks.'}
 					</p>
@@ -291,7 +331,7 @@ export function Branches() {
 												{typeConfig.label}
 											</span>
 										</td>
-										<td className="owner-cell">{getOwnerLink(branch) || '—'}</td>
+										<td className="owner-cell">{getOwnerLink(branch) || '-'}</td>
 										<td>
 											<span
 												className="status-badge"
@@ -301,32 +341,32 @@ export function Branches() {
 											</span>
 										</td>
 										<td className="activity-cell">
-											<span title={new Date(branch.last_activity).toLocaleString()}>
-												{formatTimeAgo(branch.last_activity)}
+											<span title={timestampToDate(branch.lastActivity).toLocaleString()}>
+												{formatTimeAgo(branch.lastActivity)}
 											</span>
 										</td>
 										<td className="actions-cell">
-											{branch.status === 'active' && (
+											{branch.status === BranchStatus.ACTIVE && (
 												<Button
 													variant="ghost"
 													size="sm"
 													iconOnly
 													title="Mark as stale"
 													aria-label="Mark as stale"
-													onClick={() => handleStatusChange(branch.name, 'stale')}
+													onClick={() => handleStatusChange(branch.name, BranchStatus.STALE)}
 													disabled={isLoading}
 												>
 													<Icon name="clock" size={14} />
 												</Button>
 											)}
-											{branch.status === 'stale' && (
+											{branch.status === BranchStatus.STALE && (
 												<Button
 													variant="ghost"
 													size="sm"
 													iconOnly
 													title="Mark as active"
 													aria-label="Mark as active"
-													onClick={() => handleStatusChange(branch.name, 'active')}
+													onClick={() => handleStatusChange(branch.name, BranchStatus.ACTIVE)}
 													disabled={isLoading}
 												>
 													<Icon name="check" size={14} />
