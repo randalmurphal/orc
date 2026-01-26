@@ -116,6 +116,16 @@ func (p *ProjectDB) GetGateDecisionForPhase(taskID, phase string) (*GateDecision
 	return &d, nil
 }
 
+// ClearGateDecisionsTx removes all gate decisions for a task within a transaction.
+// This should be called before re-adding gate decisions during task save to prevent duplicates.
+func ClearGateDecisionsTx(tx *TxOps, taskID string) error {
+	_, err := tx.Exec(`DELETE FROM gate_decisions WHERE task_id = ?`, taskID)
+	if err != nil {
+		return fmt.Errorf("clear gate decisions: %w", err)
+	}
+	return nil
+}
+
 // AddGateDecisionTx adds a gate decision within a transaction.
 func AddGateDecisionTx(tx *TxOps, d *GateDecision) error {
 	approved := 0

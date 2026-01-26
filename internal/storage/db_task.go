@@ -235,6 +235,10 @@ func (d *DatabaseBackend) SaveTaskCtx(ctx context.Context, t *orcv1.Task) error 
 		if err := db.ClearPhasesTx(tx, t.Id); err != nil {
 			return fmt.Errorf("clear phases: %w", err)
 		}
+		// Clear gate decisions before re-adding (prevents duplicate accumulation)
+		if err := db.ClearGateDecisionsTx(tx, t.Id); err != nil {
+			return fmt.Errorf("clear gate decisions: %w", err)
+		}
 		if t.Execution != nil {
 			for phaseID, ps := range t.Execution.Phases {
 				dbPhase := protoPhaseToDBPhase(t.Id, phaseID, ps)
