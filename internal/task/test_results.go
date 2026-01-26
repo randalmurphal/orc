@@ -2,16 +2,17 @@
 package task
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/util"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -27,143 +28,18 @@ const (
 	HTMLReportFile = "index.html"
 )
 
-// TestResultStatus represents the overall status of a test run.
-type TestResultStatus string
-
-const (
-	TestResultStatusPassed  TestResultStatus = "passed"
-	TestResultStatusFailed  TestResultStatus = "failed"
-	TestResultStatusSkipped TestResultStatus = "skipped"
-	TestResultStatusPending TestResultStatus = "pending"
-)
-
-// TestResult represents a single test case result.
-type TestResult struct {
-	// Name is the test name/title
-	Name string `json:"name"`
-
-	// Status is the test outcome
-	Status TestResultStatus `json:"status"`
-
-	// Duration is the test duration in milliseconds
-	Duration int64 `json:"duration"`
-
-	// Error contains failure details if the test failed
-	Error string `json:"error,omitempty"`
-
-	// Screenshots lists screenshot filenames taken during this test
-	Screenshots []string `json:"screenshots,omitempty"`
-
-	// Trace is the trace file path if available
-	Trace string `json:"trace,omitempty"`
+// protoJSONMarshaler configures JSON output for test report files.
+var protoJSONMarshaler = protojson.MarshalOptions{
+	Multiline:       true,
+	Indent:          "  ",
+	UseProtoNames:   true, // Use snake_case field names in JSON
+	UseEnumNumbers:  false,
+	EmitUnpopulated: false,
 }
 
-// TestSuite represents a group of related tests.
-type TestSuite struct {
-	// Name is the suite name (e.g., file path or describe block)
-	Name string `json:"name"`
-
-	// Tests contains individual test results
-	Tests []TestResult `json:"tests"`
-}
-
-// TestReport represents the complete test run report.
-type TestReport struct {
-	// Version of the report format
-	Version int `json:"version"`
-
-	// Framework used (playwright, jest, vitest, etc.)
-	Framework string `json:"framework"`
-
-	// StartedAt is when the test run started
-	StartedAt time.Time `json:"started_at"`
-
-	// CompletedAt is when the test run finished
-	CompletedAt time.Time `json:"completed_at"`
-
-	// Duration is the total duration in milliseconds
-	Duration int64 `json:"duration"`
-
-	// Summary contains aggregated counts
-	Summary TestSummary `json:"summary"`
-
-	// Suites contains test results grouped by suite
-	Suites []TestSuite `json:"suites"`
-
-	// Coverage contains code coverage data if available
-	Coverage *TestCoverage `json:"coverage,omitempty"`
-}
-
-// TestSummary contains aggregated test counts.
-type TestSummary struct {
-	Total   int `json:"total"`
-	Passed  int `json:"passed"`
-	Failed  int `json:"failed"`
-	Skipped int `json:"skipped"`
-}
-
-// TestCoverage contains code coverage information.
-type TestCoverage struct {
-	// Percentage is the overall coverage percentage
-	Percentage float64 `json:"percentage"`
-
-	// Lines contains line coverage details
-	Lines *CoverageDetail `json:"lines,omitempty"`
-
-	// Branches contains branch coverage details
-	Branches *CoverageDetail `json:"branches,omitempty"`
-
-	// Functions contains function coverage details
-	Functions *CoverageDetail `json:"functions,omitempty"`
-
-	// Statements contains statement coverage details
-	Statements *CoverageDetail `json:"statements,omitempty"`
-}
-
-// CoverageDetail contains coverage counts.
-type CoverageDetail struct {
-	Total   int     `json:"total"`
-	Covered int     `json:"covered"`
-	Percent float64 `json:"percent"`
-}
-
-// Screenshot represents a test screenshot.
-type Screenshot struct {
-	// Filename is the screenshot file name
-	Filename string `json:"filename"`
-
-	// PageName is the name of the page (extracted from filename)
-	PageName string `json:"page_name"`
-
-	// TestName is the associated test name
-	TestName string `json:"test_name,omitempty"`
-
-	// Size is the file size in bytes
-	Size int64 `json:"size"`
-
-	// CreatedAt is when the screenshot was taken
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// TestResultsInfo contains a summary of test results for a task.
-type TestResultsInfo struct {
-	// HasResults indicates if test results exist
-	HasResults bool `json:"has_results"`
-
-	// Report contains the test report if available
-	Report *TestReport `json:"report,omitempty"`
-
-	// Screenshots lists all available screenshots
-	Screenshots []Screenshot `json:"screenshots"`
-
-	// HasTraces indicates if trace files are available
-	HasTraces bool `json:"has_traces"`
-
-	// TraceFiles lists trace file names
-	TraceFiles []string `json:"trace_files,omitempty"`
-
-	// HasHTMLReport indicates if an HTML report is available
-	HasHTMLReport bool `json:"has_html_report"`
+// protoJSONUnmarshaler configures JSON input parsing.
+var protoJSONUnmarshaler = protojson.UnmarshalOptions{
+	DiscardUnknown: true,
 }
 
 // TestResultsPath returns the full path to the test-results directory for a task.
@@ -182,12 +58,12 @@ func TracesPath(projectDir, taskID string) string {
 }
 
 // GetTestResults retrieves test results for a task.
-func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
+func GetTestResults(projectDir, taskID string) (*orcv1.TestResultsInfo, error) {
 	resultsDir := TestResultsPath(projectDir, taskID)
 
-	info := &TestResultsInfo{
+	info := &orcv1.TestResultsInfo{
 		HasResults:  false,
-		Screenshots: []Screenshot{},
+		Screenshots: []*orcv1.Screenshot{},
 	}
 
 	// Check if test-results directory exists
@@ -200,8 +76,8 @@ func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
 	// Load report.json if it exists
 	reportPath := filepath.Join(resultsDir, ReportFile)
 	if data, err := os.ReadFile(reportPath); err == nil {
-		var report TestReport
-		if err := json.Unmarshal(data, &report); err == nil {
+		var report orcv1.TestReport
+		if err := protoJSONUnmarshaler.Unmarshal(data, &report); err == nil {
 			info.Report = &report
 		}
 	}
@@ -225,11 +101,11 @@ func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
 				continue
 			}
 
-			screenshot := Screenshot{
+			screenshot := &orcv1.Screenshot{
 				Filename:  filename,
 				PageName:  extractPageName(filename),
 				Size:      fileInfo.Size(),
-				CreatedAt: fileInfo.ModTime(),
+				CreatedAt: timestamppb.New(fileInfo.ModTime()),
 			}
 
 			info.Screenshots = append(info.Screenshots, screenshot)
@@ -237,7 +113,7 @@ func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
 
 		// Sort by creation time (newest first)
 		sort.Slice(info.Screenshots, func(i, j int) bool {
-			return info.Screenshots[i].CreatedAt.After(info.Screenshots[j].CreatedAt)
+			return info.Screenshots[i].CreatedAt.AsTime().After(info.Screenshots[j].CreatedAt.AsTime())
 		})
 	}
 
@@ -256,25 +132,25 @@ func GetTestResults(projectDir, taskID string) (*TestResultsInfo, error) {
 	// Check for HTML report
 	htmlReportPath := filepath.Join(resultsDir, HTMLReportFile)
 	if _, err := os.Stat(htmlReportPath); err == nil {
-		info.HasHTMLReport = true
+		info.HasHtmlReport = true
 	}
 
 	return info, nil
 }
 
 // ListScreenshots returns all screenshots for a task.
-func ListScreenshots(projectDir, taskID string) ([]Screenshot, error) {
+func ListScreenshots(projectDir, taskID string) ([]*orcv1.Screenshot, error) {
 	screenshotsDir := ScreenshotsPath(projectDir, taskID)
 
 	entries, err := os.ReadDir(screenshotsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []Screenshot{}, nil
+			return []*orcv1.Screenshot{}, nil
 		}
 		return nil, fmt.Errorf("read screenshots directory: %w", err)
 	}
 
-	screenshots := []Screenshot{}
+	screenshots := []*orcv1.Screenshot{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -291,11 +167,11 @@ func ListScreenshots(projectDir, taskID string) ([]Screenshot, error) {
 			continue
 		}
 
-		screenshot := Screenshot{
+		screenshot := &orcv1.Screenshot{
 			Filename:  filename,
 			PageName:  extractPageName(filename),
 			Size:      fileInfo.Size(),
-			CreatedAt: fileInfo.ModTime(),
+			CreatedAt: timestamppb.New(fileInfo.ModTime()),
 		}
 
 		screenshots = append(screenshots, screenshot)
@@ -303,14 +179,14 @@ func ListScreenshots(projectDir, taskID string) ([]Screenshot, error) {
 
 	// Sort by creation time (newest first)
 	sort.Slice(screenshots, func(i, j int) bool {
-		return screenshots[i].CreatedAt.After(screenshots[j].CreatedAt)
+		return screenshots[i].CreatedAt.AsTime().After(screenshots[j].CreatedAt.AsTime())
 	})
 
 	return screenshots, nil
 }
 
 // GetScreenshot returns a specific screenshot's metadata and reader.
-func GetScreenshot(projectDir, taskID, filename string) (*Screenshot, io.ReadCloser, error) {
+func GetScreenshot(projectDir, taskID, filename string) (*orcv1.Screenshot, io.ReadCloser, error) {
 	// Validate filename to prevent directory traversal
 	if strings.ContainsAny(filename, "/\\") || filename == ".." || filename == "." {
 		return nil, nil, fmt.Errorf("invalid filename")
@@ -332,18 +208,18 @@ func GetScreenshot(projectDir, taskID, filename string) (*Screenshot, io.ReadClo
 		return nil, nil, fmt.Errorf("stat screenshot: %w", err)
 	}
 
-	screenshot := &Screenshot{
+	screenshot := &orcv1.Screenshot{
 		Filename:  filename,
 		PageName:  extractPageName(filename),
 		Size:      info.Size(),
-		CreatedAt: info.ModTime(),
+		CreatedAt: timestamppb.New(info.ModTime()),
 	}
 
 	return screenshot, file, nil
 }
 
 // SaveTestReport saves a test report to the task's test-results directory.
-func SaveTestReport(projectDir, taskID string, report *TestReport) error {
+func SaveTestReport(projectDir, taskID string, report *orcv1.TestReport) error {
 	resultsDir := TestResultsPath(projectDir, taskID)
 
 	// Create test-results directory if it doesn't exist
@@ -351,7 +227,7 @@ func SaveTestReport(projectDir, taskID string, report *TestReport) error {
 		return fmt.Errorf("create test-results directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(report, "", "  ")
+	data, err := protoJSONMarshaler.Marshal(report)
 	if err != nil {
 		return fmt.Errorf("marshal report: %w", err)
 	}
@@ -365,7 +241,7 @@ func SaveTestReport(projectDir, taskID string, report *TestReport) error {
 }
 
 // SaveScreenshot saves a screenshot to the task's screenshots directory.
-func SaveScreenshot(projectDir, taskID, filename string, reader io.Reader) (*Screenshot, error) {
+func SaveScreenshot(projectDir, taskID, filename string, reader io.Reader) (*orcv1.Screenshot, error) {
 	// Validate filename to prevent directory traversal
 	if strings.ContainsAny(filename, "/\\") || filename == ".." || filename == "." {
 		return nil, fmt.Errorf("invalid filename")
@@ -406,11 +282,11 @@ func SaveScreenshot(projectDir, taskID, filename string, reader io.Reader) (*Scr
 		return nil, fmt.Errorf("save screenshot: %w", err)
 	}
 
-	return &Screenshot{
+	return &orcv1.Screenshot{
 		Filename:  filename,
 		PageName:  extractPageName(filename),
 		Size:      size,
-		CreatedAt: time.Now(),
+		CreatedAt: timestamppb.Now(),
 	}, nil
 }
 

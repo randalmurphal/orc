@@ -6,8 +6,16 @@ package workflow
 import (
 	"encoding/json"
 	"time"
+)
 
-	"github.com/randalmurphal/orc/internal/task"
+// Phase status constants for workflow run phases.
+// These are string values stored in the database.
+const (
+	PhaseStatusPending   = "pending"
+	PhaseStatusRunning   = "running"
+	PhaseStatusCompleted = "completed"
+	PhaseStatusFailed    = "failed"
+	PhaseStatusSkipped   = "skipped"
 )
 
 // PromptSource defines where a phase's prompt content comes from.
@@ -246,8 +254,8 @@ type WorkflowRunPhase struct {
 	PhaseTemplateID string `json:"phase_template_id" db:"phase_template_id"`
 
 	// Status
-	Status     task.PhaseStatus `json:"status" db:"status"`
-	Iterations int         `json:"iterations" db:"iterations"`
+	Status     string `json:"status" db:"status"`
+	Iterations int    `json:"iterations" db:"iterations"`
 
 	// Timing
 	StartedAt   *time.Time `json:"started_at,omitempty" db:"started_at"`
@@ -405,13 +413,13 @@ func (wr *WorkflowRun) GetPhaseByID(templateID string) *WorkflowRunPhase {
 func (wr *WorkflowRun) CurrentRunPhase() *WorkflowRunPhase {
 	// First look for running phase
 	for i := range wr.Phases {
-		if wr.Phases[i].Status == task.PhaseStatusRunning {
+		if wr.Phases[i].Status == PhaseStatusRunning {
 			return &wr.Phases[i]
 		}
 	}
 	// Then look for first pending phase
 	for i := range wr.Phases {
-		if wr.Phases[i].Status == task.PhaseStatusPending {
+		if wr.Phases[i].Status == PhaseStatusPending {
 			return &wr.Phases[i]
 		}
 	}
@@ -421,7 +429,7 @@ func (wr *WorkflowRun) CurrentRunPhase() *WorkflowRunPhase {
 // IsComplete returns true if all phases are completed or skipped.
 func (wr *WorkflowRun) IsComplete() bool {
 	for _, phase := range wr.Phases {
-		if phase.Status != task.PhaseStatusCompleted && phase.Status != task.PhaseStatusSkipped {
+		if phase.Status != PhaseStatusCompleted && phase.Status != PhaseStatusSkipped {
 			return false
 		}
 	}

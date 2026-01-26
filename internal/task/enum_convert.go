@@ -450,3 +450,43 @@ func IsValidCategoryProto(c orcv1.TaskCategory) bool {
 		return false
 	}
 }
+
+// ParseStatusProto parses a status string and returns the proto enum with validity.
+func ParseStatusProto(s string) (orcv1.TaskStatus, bool) {
+	status := StatusToProto(s)
+	// StatusToProto returns UNSPECIFIED for unknown strings
+	if status == orcv1.TaskStatus_TASK_STATUS_UNSPECIFIED {
+		return status, false
+	}
+	return status, true
+}
+
+// ParsePriorityProto parses a priority string and returns the proto enum with validity.
+func ParsePriorityProto(s string) (orcv1.TaskPriority, bool) {
+	priority := PriorityToProto(s)
+	// PriorityToProto returns UNSPECIFIED for unknown strings
+	if priority == orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED {
+		return priority, false
+	}
+	return priority, true
+}
+
+// ParseWeightProto parses a weight string and returns the proto enum with validity.
+func ParseWeightProto(s string) (orcv1.TaskWeight, bool) {
+	weight := WeightToProto(s)
+	// WeightToProto returns UNSPECIFIED for unknown strings
+	if weight == orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
+		return weight, false
+	}
+	return weight, true
+}
+
+// ParseCategoryProto parses a category string and returns the proto enum with validity.
+func ParseCategoryProto(s string) (orcv1.TaskCategory, bool) {
+	switch s {
+	case "feature", "bug", "refactor", "chore", "docs", "test":
+		return CategoryToProto(s), true
+	default:
+		return orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED, false
+	}
+}

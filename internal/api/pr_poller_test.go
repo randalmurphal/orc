@@ -290,11 +290,11 @@ func (b *emptyBackend) SaveEvents([]*db.EventLog) error                         
 func (b *emptyBackend) QueryEvents(db.QueryEventsOptions) ([]db.EventLog, error)   { return nil, nil }
 func (b *emptyBackend) ListGateDecisions(string) ([]db.GateDecision, error) { return nil, nil }
 func (b *emptyBackend) SaveGateDecision(*db.GateDecision) error             { return nil }
-func (b *emptyBackend) SaveReviewFindings(*storage.ReviewFindings) error           { return nil }
-func (b *emptyBackend) LoadReviewFindings(string, int) (*storage.ReviewFindings, error) {
+func (b *emptyBackend) SaveReviewFindings(*orcv1.ReviewRoundFindings) error { return nil }
+func (b *emptyBackend) LoadReviewFindings(string, int) (*orcv1.ReviewRoundFindings, error) {
 	return nil, nil
 }
-func (b *emptyBackend) LoadAllReviewFindings(string) ([]*storage.ReviewFindings, error) {
+func (b *emptyBackend) LoadAllReviewFindings(string) ([]*orcv1.ReviewRoundFindings, error) {
 	return nil, nil
 }
 func (b *emptyBackend) SaveQAResult(*storage.QAResult) error           { return nil }

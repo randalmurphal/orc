@@ -413,7 +413,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	finalizePhase := &executor.PhaseDisplay{
 		ID:     "finalize",
 		Name:   "Finalize",
-		Status: task.PhaseStatusPending,
+		Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
 	}
 
 	// Check for cancellation before creating git service

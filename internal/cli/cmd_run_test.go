@@ -8,6 +8,8 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// Tests for parseConflictFilesFromError are string-only and don't need proto types.
+
 func TestParseConflictFilesFromError_BasicFormat(t *testing.T) {
 	t.Parallel()
 	// Test basic bracket format: [file1 file2 file3]
@@ -109,9 +111,9 @@ func TestParseConflictFilesFromError_MultipleSpaces(t *testing.T) {
 
 func TestBuildBlockedContext_NilConfig(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 
-	ctx := buildBlockedContext(tk, nil)
+	ctx := buildBlockedContextProto(tk, nil)
 
 	if ctx == nil {
 		t.Fatal("expected non-nil context")
@@ -126,14 +128,14 @@ func TestBuildBlockedContext_NilConfig(t *testing.T) {
 
 func TestBuildBlockedContext_WorktreeDisabled(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
 			Enabled: false,
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if ctx.WorktreePath != "" {
 		t.Errorf("expected empty WorktreePath when worktree disabled, got %q", ctx.WorktreePath)
@@ -142,7 +144,7 @@ func TestBuildBlockedContext_WorktreeDisabled(t *testing.T) {
 
 func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
 			Enabled: true,
@@ -150,7 +152,7 @@ func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	expected := ".orc/worktrees/orc-TASK-001"
 	if ctx.WorktreePath != expected {
@@ -160,7 +162,7 @@ func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 
 func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-002", "Test task")
+	tk := task.NewProtoTask("TASK-002", "Test task")
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
 			Enabled: true,
@@ -168,7 +170,7 @@ func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	expected := ".orc/worktrees/orc-TASK-002"
 	if ctx.WorktreePath != expected {
@@ -178,7 +180,7 @@ func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 
 func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Metadata = map[string]string{
 		"blocked_error": "sync conflict: files [internal/foo.go internal/bar.go]",
 	}
@@ -188,7 +190,7 @@ func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if len(ctx.ConflictFiles) != 2 {
 		t.Fatalf("expected 2 conflict files, got %d", len(ctx.ConflictFiles))
@@ -200,7 +202,7 @@ func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
 
 func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Metadata = map[string]string{
 		"some_other_key": "value",
 	}
@@ -210,7 +212,7 @@ func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if len(ctx.ConflictFiles) != 0 {
 		t.Errorf("expected 0 conflict files, got %d", len(ctx.ConflictFiles))
@@ -219,7 +221,7 @@ func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
 
 func TestBuildBlockedContext_NilMetadata(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Metadata = nil
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
@@ -227,7 +229,7 @@ func TestBuildBlockedContext_NilMetadata(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if len(ctx.ConflictFiles) != 0 {
 		t.Errorf("expected 0 conflict files with nil metadata, got %d", len(ctx.ConflictFiles))
@@ -236,7 +238,7 @@ func TestBuildBlockedContext_NilMetadata(t *testing.T) {
 
 func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
 			Finalize: config.FinalizeConfig{
@@ -247,7 +249,7 @@ func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if ctx.SyncStrategy != progress.SyncStrategyRebase {
 		t.Errorf("SyncStrategy = %q, want %q", ctx.SyncStrategy, progress.SyncStrategyRebase)
@@ -256,7 +258,7 @@ func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
 
 func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
 			Finalize: config.FinalizeConfig{
@@ -267,7 +269,7 @@ func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if ctx.SyncStrategy != progress.SyncStrategyMerge {
 		t.Errorf("SyncStrategy = %q, want %q", ctx.SyncStrategy, progress.SyncStrategyMerge)
@@ -276,14 +278,14 @@ func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
 
 func TestBuildBlockedContext_TargetBranch(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
 			TargetBranch: "develop",
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if ctx.TargetBranch != "develop" {
 		t.Errorf("TargetBranch = %q, want 'develop'", ctx.TargetBranch)
@@ -292,14 +294,14 @@ func TestBuildBlockedContext_TargetBranch(t *testing.T) {
 
 func TestBuildBlockedContext_DefaultTargetBranch(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-001", "Test task")
+	tk := task.NewProtoTask("TASK-001", "Test task")
 	cfg := &config.Config{
 		Completion: config.CompletionConfig{
 			TargetBranch: "", // Empty should default to "main"
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	if ctx.TargetBranch != "main" {
 		t.Errorf("TargetBranch = %q, want 'main'", ctx.TargetBranch)
@@ -308,7 +310,7 @@ func TestBuildBlockedContext_DefaultTargetBranch(t *testing.T) {
 
 func TestBuildBlockedContext_FullContext(t *testing.T) {
 	t.Parallel()
-	tk := task.New("TASK-123", "Full context test")
+	tk := task.NewProtoTask("TASK-123", "Full context test")
 	tk.Metadata = map[string]string{
 		"blocked_error": "sync conflict: [pkg/api.go pkg/handler.go pkg/service.go]",
 	}
@@ -327,7 +329,7 @@ func TestBuildBlockedContext_FullContext(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContext(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg)
 
 	// Verify all fields are populated correctly
 	if ctx.WorktreePath != "custom/worktrees/orc-TASK-123" {

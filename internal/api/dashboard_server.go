@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
@@ -41,7 +40,7 @@ func (s *dashboardServer) GetStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetStatsRequest],
 ) (*connect.Response[orcv1.GetStatsResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -60,55 +59,55 @@ func (s *dashboardServer) GetStats(
 		statusCounts.All++
 
 		switch t.Status {
-		case task.StatusRunning:
+		case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 			statusCounts.Running++
 			statusCounts.Active++
 			runningTasks = append(runningTasks, &orcv1.RunningTaskInfo{
-				Id:           t.ID,
+				Id:           t.Id,
 				Title:        t.Title,
-				CurrentPhase: t.CurrentPhase,
+				CurrentPhase: ptrStringValue(t.CurrentPhase),
 				Iteration:    int32(t.Execution.CurrentIteration),
-				StartedAt:    timestampOrNil(t.StartedAt),
+				StartedAt:    t.StartedAt,
 			})
-		case task.StatusPlanned, task.StatusCreated:
+		case orcv1.TaskStatus_TASK_STATUS_PLANNED, orcv1.TaskStatus_TASK_STATUS_CREATED:
 			statusCounts.Active++
-		case task.StatusPaused:
+		case orcv1.TaskStatus_TASK_STATUS_PAUSED:
 			statusCounts.Active++
-		case task.StatusBlocked:
+		case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 			statusCounts.Blocked++
 			statusCounts.Active++
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			statusCounts.Completed++
-			if t.CompletedAt != nil && t.CompletedAt.After(today.Add(-7*24*time.Hour)) {
+			if t.CompletedAt != nil && t.CompletedAt.AsTime().After(today.Add(-7*24*time.Hour)) {
 				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
-					Id:          t.ID,
+					Id:          t.Id,
 					Title:       t.Title,
 					Success:     true,
-					CompletedAt: timestamppb.New(*t.CompletedAt),
+					CompletedAt: t.CompletedAt,
 				})
 			}
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			statusCounts.Failed++
-			if t.UpdatedAt.After(today.Add(-7 * 24 * time.Hour)) {
+			if t.UpdatedAt != nil && t.UpdatedAt.AsTime().After(today.Add(-7*24*time.Hour)) {
 				recentCompletions = append(recentCompletions, &orcv1.RecentCompletion{
-					Id:          t.ID,
+					Id:          t.Id,
 					Title:       t.Title,
 					Success:     false,
-					CompletedAt: timestamppb.New(t.UpdatedAt),
+					CompletedAt: t.UpdatedAt,
 				})
 			}
 		}
 
 		// Aggregate today's tokens and cost
-		if t.CreatedAt.After(today) || t.UpdatedAt.After(today) {
+		if (t.CreatedAt != nil && t.CreatedAt.AsTime().After(today)) || (t.UpdatedAt != nil && t.UpdatedAt.AsTime().After(today)) {
 			for _, phase := range t.Execution.Phases {
-				todayTokens.InputTokens += int32(phase.Tokens.InputTokens)
-				todayTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
-				todayTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
-				todayTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+				todayTokens.InputTokens += phase.Tokens.InputTokens
+				todayTokens.OutputTokens += phase.Tokens.OutputTokens
+				todayTokens.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+				todayTokens.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
 			}
 			todayTokens.TotalTokens = todayTokens.InputTokens + todayTokens.OutputTokens
-			todayCost += t.Execution.Cost.TotalCostUSD
+			todayCost += t.Execution.Cost.TotalCostUsd
 		}
 	}
 
@@ -144,7 +143,7 @@ func (s *dashboardServer) GetActivityHeatmap(
 		days = 90 // Default to 90 days
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -156,8 +155,8 @@ func (s *dashboardServer) GetActivityHeatmap(
 	dayMap := make(map[string]*orcv1.ActivityDay)
 
 	for _, t := range tasks {
-		if t.CompletedAt != nil && t.CompletedAt.After(startDate) {
-			dateStr := t.CompletedAt.Format("2006-01-02")
+		if t.CompletedAt != nil && t.CompletedAt.AsTime().After(startDate) {
+			dateStr := t.CompletedAt.AsTime().Format("2006-01-02")
 			if dayMap[dateStr] == nil {
 				dayMap[dateStr] = &orcv1.ActivityDay{Date: dateStr}
 			}
@@ -194,7 +193,7 @@ func (s *dashboardServer) GetCostSummary(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetCostSummaryRequest],
 ) (*connect.Response[orcv1.GetCostSummaryResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -221,19 +220,21 @@ func (s *dashboardServer) GetCostSummary(
 
 	for _, t := range tasks {
 		// Filter by time
-		taskTime := t.UpdatedAt
+		var taskTime time.Time
 		if t.CompletedAt != nil {
-			taskTime = *t.CompletedAt
+			taskTime = t.CompletedAt.AsTime()
+		} else if t.UpdatedAt != nil {
+			taskTime = t.UpdatedAt.AsTime()
 		}
 		if !since.IsZero() && taskTime.Before(since) {
 			continue
 		}
 
-		cost := t.Execution.Cost.TotalCostUSD
+		cost := t.Execution.Cost.TotalCostUsd
 		totalCost += cost
 
 		// By category
-		byCategory[string(t.Category)] += cost
+		byCategory[task.CategoryFromProto(t.Category)] += cost
 
 		// By period (day)
 		periodKey := taskTime.Format("2006-01-02")
@@ -271,7 +272,7 @@ func (s *dashboardServer) GetMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsRequest],
 ) (*connect.Response[orcv1.GetMetricsResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -300,32 +301,34 @@ func (s *dashboardServer) GetMetrics(
 
 	for _, t := range tasks {
 		// Filter by time
-		taskTime := t.UpdatedAt
+		var taskTime time.Time
 		if t.CompletedAt != nil {
-			taskTime = *t.CompletedAt
+			taskTime = t.CompletedAt.AsTime()
+		} else if t.UpdatedAt != nil {
+			taskTime = t.UpdatedAt.AsTime()
 		}
 		if !since.IsZero() && taskTime.Before(since) {
 			continue
 		}
 
 		switch t.Status {
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			completedCount++
 			if t.StartedAt != nil && t.CompletedAt != nil {
-				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
+				totalDuration += t.CompletedAt.AsTime().Sub(t.StartedAt.AsTime()).Seconds()
 				durationCount++
 			}
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			failedCount++
 		}
 
 		metrics.PhasesExecuted += int32(len(t.Execution.Phases))
 
 		for _, phase := range t.Execution.Phases {
-			metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
-			metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
-			metrics.TotalTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
-			metrics.TotalTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+			metrics.TotalTokens.InputTokens += phase.Tokens.InputTokens
+			metrics.TotalTokens.OutputTokens += phase.Tokens.OutputTokens
+			metrics.TotalTokens.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+			metrics.TotalTokens.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
 		}
 	}
 
@@ -356,7 +359,7 @@ func (s *dashboardServer) GetDailyMetrics(
 		days = 30
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -369,8 +372,8 @@ func (s *dashboardServer) GetDailyMetrics(
 
 	for _, t := range tasks {
 		// Check creation date
-		if t.CreatedAt.After(startDate) {
-			dateStr := t.CreatedAt.Format("2006-01-02")
+		if t.CreatedAt != nil && t.CreatedAt.AsTime().After(startDate) {
+			dateStr := t.CreatedAt.AsTime().Format("2006-01-02")
 			if dayMap[dateStr] == nil {
 				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
 			}
@@ -378,23 +381,23 @@ func (s *dashboardServer) GetDailyMetrics(
 		}
 
 		// Check completion date
-		if t.Status == task.StatusCompleted && t.CompletedAt != nil && t.CompletedAt.After(startDate) {
-			dateStr := t.CompletedAt.Format("2006-01-02")
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED && t.CompletedAt != nil && t.CompletedAt.AsTime().After(startDate) {
+			dateStr := t.CompletedAt.AsTime().Format("2006-01-02")
 			if dayMap[dateStr] == nil {
 				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
 			}
 			dayMap[dateStr].TasksCompleted++
-			dayMap[dateStr].CostUsd += t.Execution.Cost.TotalCostUSD
+			dayMap[dateStr].CostUsd += t.Execution.Cost.TotalCostUsd
 			dayMap[dateStr].PhasesCompleted += int32(len(t.Execution.Phases))
 
 			for _, phase := range t.Execution.Phases {
-				dayMap[dateStr].TokensUsed += int32(phase.Tokens.InputTokens + phase.Tokens.OutputTokens)
+				dayMap[dateStr].TokensUsed += phase.Tokens.InputTokens + phase.Tokens.OutputTokens
 			}
 		}
 
 		// Check failed date
-		if t.Status == task.StatusFailed && t.UpdatedAt.After(startDate) {
-			dateStr := t.UpdatedAt.Format("2006-01-02")
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED && t.UpdatedAt != nil && t.UpdatedAt.AsTime().After(startDate) {
+			dateStr := t.UpdatedAt.AsTime().Format("2006-01-02")
 			if dayMap[dateStr] == nil {
 				dayMap[dateStr] = &orcv1.DailyMetrics{Date: dateStr}
 			}
@@ -425,7 +428,7 @@ func (s *dashboardServer) GetMetricsByModel(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsByModelRequest],
 ) (*connect.Response[orcv1.GetMetricsByModelResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -451,23 +454,25 @@ func (s *dashboardServer) GetMetricsByModel(
 	}
 
 	for _, t := range tasks {
-		taskTime := t.UpdatedAt
+		var taskTime time.Time
 		if t.CompletedAt != nil {
-			taskTime = *t.CompletedAt
+			taskTime = t.CompletedAt.AsTime()
+		} else if t.UpdatedAt != nil {
+			taskTime = t.UpdatedAt.AsTime()
 		}
 		if !since.IsZero() && taskTime.Before(since) {
 			continue
 		}
 
 		mm.Tasks++
-		mm.CostUsd += t.Execution.Cost.TotalCostUSD
+		mm.CostUsd += t.Execution.Cost.TotalCostUsd
 
 		for _, phase := range t.Execution.Phases {
 			mm.Phases++
-			mm.Tokens.InputTokens += int32(phase.Tokens.InputTokens)
-			mm.Tokens.OutputTokens += int32(phase.Tokens.OutputTokens)
-			mm.Tokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
-			mm.Tokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+			mm.Tokens.InputTokens += phase.Tokens.InputTokens
+			mm.Tokens.OutputTokens += phase.Tokens.OutputTokens
+			mm.Tokens.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+			mm.Tokens.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
 		}
 	}
 
@@ -491,7 +496,7 @@ func (s *dashboardServer) GetOutcomes(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetOutcomesRequest],
 ) (*connect.Response[orcv1.GetOutcomesResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -513,22 +518,24 @@ func (s *dashboardServer) GetOutcomes(
 	outcomes := &orcv1.OutcomeStats{}
 
 	for _, t := range tasks {
-		taskTime := t.UpdatedAt
+		var taskTime time.Time
 		if t.CompletedAt != nil {
-			taskTime = *t.CompletedAt
+			taskTime = t.CompletedAt.AsTime()
+		} else if t.UpdatedAt != nil {
+			taskTime = t.UpdatedAt.AsTime()
 		}
 		if !since.IsZero() && taskTime.Before(since) {
 			continue
 		}
 
 		switch t.Status {
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			outcomes.Completed++
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			outcomes.Failed++
-		case task.StatusResolved:
+		case orcv1.TaskStatus_TASK_STATUS_RESOLVED:
 			outcomes.Resolved++
-		case task.StatusRunning, task.StatusPaused, task.StatusBlocked, task.StatusPlanned, task.StatusCreated, task.StatusClassifying:
+		case orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_PLANNED, orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_CLASSIFYING:
 			outcomes.InProgress++
 		}
 	}
@@ -548,7 +555,7 @@ func (s *dashboardServer) GetTopInitiatives(
 		limit = 10
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -557,22 +564,23 @@ func (s *dashboardServer) GetTopInitiatives(
 	initMap := make(map[string]*orcv1.TopInitiative)
 
 	for _, t := range tasks {
-		if t.InitiativeID == "" {
+		if t.InitiativeId == nil || *t.InitiativeId == "" {
 			continue
 		}
+		initID := *t.InitiativeId
 
-		if initMap[t.InitiativeID] == nil {
-			initMap[t.InitiativeID] = &orcv1.TopInitiative{
-				Id:    t.InitiativeID,
-				Title: t.InitiativeID, // Would need to load initiative for real title
+		if initMap[initID] == nil {
+			initMap[initID] = &orcv1.TopInitiative{
+				Id:    initID,
+				Title: initID, // Would need to load initiative for real title
 			}
 		}
 
-		initMap[t.InitiativeID].TaskCount++
-		if t.Status == task.StatusCompleted {
-			initMap[t.InitiativeID].CompletedCount++
+		initMap[initID].TaskCount++
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
+			initMap[initID].CompletedCount++
 		}
-		initMap[t.InitiativeID].CostUsd += t.Execution.Cost.TotalCostUSD
+		initMap[initID].CostUsd += t.Execution.Cost.TotalCostUsd
 	}
 
 	// Convert to sorted slice
@@ -611,7 +619,7 @@ func (s *dashboardServer) GetComparison(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetComparisonRequest],
 ) (*connect.Response[orcv1.GetComparisonResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -705,7 +713,7 @@ func (s *dashboardServer) GetTaskMetrics(
 
 // Helper functions
 
-func (s *dashboardServer) calculateMetricsForPeriod(tasks []*task.Task, start, end time.Time) *orcv1.MetricsSummary {
+func (s *dashboardServer) calculateMetricsForPeriod(tasks []*orcv1.Task, start, end time.Time) *orcv1.MetricsSummary {
 	metrics := &orcv1.MetricsSummary{
 		TotalTokens: &orcv1.TokenUsage{},
 	}
@@ -715,30 +723,32 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*task.Task, start, e
 	var durationCount int
 
 	for _, t := range tasks {
-		taskTime := t.UpdatedAt
+		var taskTime time.Time
 		if t.CompletedAt != nil {
-			taskTime = *t.CompletedAt
+			taskTime = t.CompletedAt.AsTime()
+		} else if t.UpdatedAt != nil {
+			taskTime = t.UpdatedAt.AsTime()
 		}
 		if taskTime.Before(start) || taskTime.After(end) {
 			continue
 		}
 
 		switch t.Status {
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			completedCount++
 			if t.StartedAt != nil && t.CompletedAt != nil {
-				totalDuration += t.CompletedAt.Sub(*t.StartedAt).Seconds()
+				totalDuration += t.CompletedAt.AsTime().Sub(t.StartedAt.AsTime()).Seconds()
 				durationCount++
 			}
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			failedCount++
 		}
 
 		metrics.PhasesExecuted += int32(len(t.Execution.Phases))
 
 		for _, phase := range t.Execution.Phases {
-			metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
-			metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
+			metrics.TotalTokens.InputTokens += phase.Tokens.InputTokens
+			metrics.TotalTokens.OutputTokens += phase.Tokens.OutputTokens
 		}
 	}
 
@@ -757,9 +767,10 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*task.Task, start, e
 	return metrics
 }
 
-func timestampOrNil(t *time.Time) *timestamppb.Timestamp {
-	if t == nil {
-		return nil
+// ptrStringValue returns the value of a string pointer, or empty string if nil.
+func ptrStringValue(s *string) string {
+	if s == nil {
+		return ""
 	}
-	return timestamppb.New(*t)
+	return *s
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -98,13 +99,13 @@ Example:
 			removeRelated, _ := cmd.Flags().GetStringSlice("remove-related")
 
 			// Load task to verify it exists
-			t, err := backend.LoadTask(taskID)
+			t, err := backend.LoadTaskProto(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Check if task is running (cannot edit running tasks)
-			if t.Status == task.StatusRunning {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 				return fmt.Errorf("cannot edit running task %s - pause it first", taskID)
 			}
 
@@ -123,17 +124,21 @@ Example:
 
 			// Update description if provided
 			if newDescription != "" {
-				if t.Description != newDescription {
-					t.Description = newDescription
+				currentDesc := ""
+				if t.Description != nil {
+					currentDesc = *t.Description
+				}
+				if currentDesc != newDescription {
+					t.Description = &newDescription
 					changes = append(changes, "description")
 				}
 			}
 
 			// Update weight if provided
 			if newWeight != "" {
-				w := task.Weight(newWeight)
-				if !task.IsValidWeight(w) {
-					return fmt.Errorf("invalid weight %q - valid options: trivial, small, medium, large, greenfield", newWeight)
+				w, valid := task.ParseWeightProto(newWeight)
+				if !valid {
+					return fmt.Errorf("invalid weight %q - valid options: trivial, small, medium, large", newWeight)
 				}
 				if t.Weight != w {
 					t.Weight = w
@@ -143,7 +148,10 @@ Example:
 			}
 
 			// Update workflow if flag was provided (even if empty, to allow clearing)
-			oldWorkflow := t.WorkflowID
+			oldWorkflow := ""
+			if t.WorkflowId != nil {
+				oldWorkflow = *t.WorkflowId
+			}
 			if workflowChanged {
 				if newWorkflow != "" {
 					// Verify workflow exists
@@ -159,17 +167,25 @@ Example:
 						return fmt.Errorf("workflow not found: %s\n\nRun 'orc workflows' to see available workflows", newWorkflow)
 					}
 				}
-				if t.WorkflowID != newWorkflow {
-					t.WorkflowID = newWorkflow
+				currentWorkflow := ""
+				if t.WorkflowId != nil {
+					currentWorkflow = *t.WorkflowId
+				}
+				if currentWorkflow != newWorkflow {
+					if newWorkflow == "" {
+						t.WorkflowId = nil
+					} else {
+						t.WorkflowId = &newWorkflow
+					}
 					changes = append(changes, "workflow")
 				}
 			}
 
 			// Update priority if provided
-			oldPriority := t.GetPriority()
+			oldPriority := task.GetPriorityProto(t)
 			if newPriority != "" {
-				p := task.Priority(newPriority)
-				if !task.IsValidPriority(p) {
+				p, valid := task.ParsePriorityProto(newPriority)
+				if !valid {
 					return fmt.Errorf("invalid priority %q - valid options: critical, high, normal, low", newPriority)
 				}
 				if t.Priority != p {
@@ -181,13 +197,9 @@ Example:
 			// Update status if provided
 			oldStatus := t.Status
 			if newStatus != "" {
-				s := task.Status(newStatus)
-				if !task.IsValidStatus(s) {
-					validOpts := make([]string, 0, len(task.ValidStatuses()))
-					for _, vs := range task.ValidStatuses() {
-						validOpts = append(validOpts, string(vs))
-					}
-					return fmt.Errorf("invalid status %q - valid options: %s", newStatus, strings.Join(validOpts, ", "))
+				s, ok := task.ParseStatusProto(newStatus)
+				if !ok {
+					return fmt.Errorf("invalid status %q - valid options: created, classifying, planned, running, paused, blocked, finalizing, completed, failed, resolved", newStatus)
 				}
 				if t.Status != s {
 					t.Status = s
@@ -196,7 +208,10 @@ Example:
 			}
 
 			// Update initiative if flag was provided (even if empty, to allow unlinking)
-			oldInitiative := t.InitiativeID
+			oldInitiative := ""
+			if t.InitiativeId != nil {
+				oldInitiative = *t.InitiativeId
+			}
 			if initiativeChanged {
 				if newInitiative != "" {
 					// Verify initiative exists
@@ -208,17 +223,22 @@ Example:
 						return fmt.Errorf("initiative %s not found", newInitiative)
 					}
 				}
-				if t.InitiativeID != newInitiative {
-					t.SetInitiative(newInitiative)
+				currentInit := ""
+				if t.InitiativeId != nil {
+					currentInit = *t.InitiativeId
+				}
+				if currentInit != newInitiative {
+					task.SetInitiativeProto(t, newInitiative)
 					changes = append(changes, "initiative")
 				}
 			}
 
 			// Update target branch if flag was provided (even if empty, to allow clearing)
-			oldTargetBranch := t.TargetBranch
+			oldTargetBranch := task.GetTargetBranchProto(t)
 			if targetBranchChanged {
-				if t.TargetBranch != newTargetBranch {
-					t.TargetBranch = newTargetBranch
+				currentBranch := task.GetTargetBranchProto(t)
+				if currentBranch != newTargetBranch {
+					task.SetTargetBranchProto(t, newTargetBranch)
 					changes = append(changes, "target_branch")
 				}
 			}
@@ -232,16 +252,16 @@ Example:
 
 			if hasDepChanges {
 				// Load all tasks for validation
-				allTasks, err := backend.LoadAllTasks()
+				allTasks, err := backend.LoadAllTasksProto()
 				if err != nil {
 					return fmt.Errorf("load tasks for validation: %w", err)
 				}
 
 				existingIDs := make(map[string]bool)
-				taskMap := make(map[string]*task.Task)
+				taskMap := make(map[string]*orcv1.Task)
 				for _, existing := range allTasks {
-					existingIDs[existing.ID] = true
-					taskMap[existing.ID] = existing
+					existingIDs[existing.Id] = true
+					taskMap[existing.Id] = existing
 				}
 
 				// Handle blocked_by changes
@@ -252,7 +272,7 @@ Example:
 							return errs[0]
 						}
 						// Check for circular dependencies with all new blockers at once
-						if cycle := task.DetectCircularDependencyWithAll(taskID, blockedBy, taskMap); cycle != nil {
+						if cycle := task.DetectCircularDependencyWithAllProto(taskID, blockedBy, taskMap); cycle != nil {
 							return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
 						}
 					}
@@ -265,7 +285,7 @@ Example:
 							return errs[0]
 						}
 						for _, newBlocker := range addBlockers {
-							if cycle := task.DetectCircularDependency(taskID, newBlocker, taskMap); cycle != nil {
+							if cycle := task.DetectCircularDependencyWithAllProto(taskID, []string{newBlocker}, taskMap); cycle != nil {
 								return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
 							}
 							// Add if not already present
@@ -361,32 +381,33 @@ Example:
 			}
 
 			// Save task
-			if err := backend.SaveTask(t); err != nil {
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
 			// Handle weight change - regenerate plan and reset state
 			if weightChanged {
-				if err := regeneratePlanForWeight(backend, t, oldWeight); err != nil {
+				if err := regeneratePlanForWeightProto(backend, t); err != nil {
 					return fmt.Errorf("regenerate plan: %w", err)
 				}
 			}
 
 			// Handle initiative change - sync bidirectionally
-			if initiativeChanged && oldInitiative != t.InitiativeID {
+			currentInit := task.GetInitiativeIDProto(t)
+			if initiativeChanged && oldInitiative != currentInit {
 				// Remove from old initiative if it was linked
 				if oldInitiative != "" {
 					if oldInit, err := backend.LoadInitiative(oldInitiative); err == nil {
-						oldInit.RemoveTask(t.ID)
+						oldInit.RemoveTask(t.Id)
 						if err := backend.SaveInitiative(oldInit); err != nil {
 							fmt.Printf("Warning: failed to remove task from old initiative: %v\n", err)
 						}
 					}
 				}
 				// Add to new initiative if linking
-				if t.HasInitiative() {
-					if newInit, err := backend.LoadInitiative(t.InitiativeID); err == nil {
-						newInit.AddTask(t.ID, t.Title, nil)
+				if task.HasInitiativeProto(t) {
+					if newInit, err := backend.LoadInitiative(currentInit); err == nil {
+						newInit.AddTask(t.Id, t.Title, nil)
 						if err := backend.SaveInitiative(newInit); err != nil {
 							fmt.Printf("Warning: failed to add task to new initiative: %v\n", err)
 						}
@@ -401,33 +422,40 @@ Example:
 					case "title":
 						fmt.Printf("   Title: %s\n", t.Title)
 					case "description":
-						desc := t.Description
+						desc := ""
+						if t.Description != nil {
+							desc = *t.Description
+						}
 						if len(desc) > 60 {
 							desc = desc[:57] + "..."
 						}
 						fmt.Printf("   Description: %s\n", desc)
 					case "weight":
-						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", oldWeight, t.Weight)
+						fmt.Printf("   Weight: %s -> %s (plan regenerated)\n", task.WeightFromProto(oldWeight), task.WeightFromProto(t.Weight))
 					case "workflow":
-						if t.WorkflowID != "" {
+						currentWorkflow := ""
+						if t.WorkflowId != nil {
+							currentWorkflow = *t.WorkflowId
+						}
+						if currentWorkflow != "" {
 							if oldWorkflow == "" {
-								fmt.Printf("   Workflow: set to %s\n", t.WorkflowID)
+								fmt.Printf("   Workflow: set to %s\n", currentWorkflow)
 							} else {
-								fmt.Printf("   Workflow: %s -> %s\n", oldWorkflow, t.WorkflowID)
+								fmt.Printf("   Workflow: %s -> %s\n", oldWorkflow, currentWorkflow)
 							}
 						} else {
 							fmt.Printf("   Workflow: cleared (was %s, task cannot run without workflow_id)\n", oldWorkflow)
 						}
 					case "priority":
-						fmt.Printf("   Priority: %s -> %s\n", oldPriority, t.Priority)
+						fmt.Printf("   Priority: %s -> %s\n", task.PriorityFromProto(oldPriority), task.PriorityFromProto(t.Priority))
 					case "status":
-						fmt.Printf("   Status: %s -> %s\n", oldStatus, t.Status)
+						fmt.Printf("   Status: %s -> %s\n", task.StatusFromProto(oldStatus), task.StatusFromProto(t.Status))
 					case "initiative":
-						if t.HasInitiative() {
+						if task.HasInitiativeProto(t) {
 							if oldInitiative == "" {
-								fmt.Printf("   Initiative: linked to %s\n", t.InitiativeID)
+								fmt.Printf("   Initiative: linked to %s\n", task.GetInitiativeIDProto(t))
 							} else {
-								fmt.Printf("   Initiative: %s -> %s\n", oldInitiative, t.InitiativeID)
+								fmt.Printf("   Initiative: %s -> %s\n", oldInitiative, task.GetInitiativeIDProto(t))
 							}
 						} else {
 							fmt.Printf("   Initiative: unlinked from %s\n", oldInitiative)
@@ -445,11 +473,12 @@ Example:
 							fmt.Printf("   Related to: (none)\n")
 						}
 					case "target_branch":
-						if t.TargetBranch != "" {
+						currentTargetBranch := task.GetTargetBranchProto(t)
+						if currentTargetBranch != "" {
 							if oldTargetBranch == "" {
-								fmt.Printf("   Target Branch: set to %s\n", t.TargetBranch)
+								fmt.Printf("   Target Branch: set to %s\n", currentTargetBranch)
 							} else {
-								fmt.Printf("   Target Branch: %s -> %s\n", oldTargetBranch, t.TargetBranch)
+								fmt.Printf("   Target Branch: %s -> %s\n", oldTargetBranch, currentTargetBranch)
 							}
 						} else {
 							fmt.Printf("   Target Branch: cleared (was %s)\n", oldTargetBranch)
@@ -482,21 +511,22 @@ Example:
 	return cmd
 }
 
-// regeneratePlanForWeight resets the execution state when task weight changes.
+// regeneratePlanForWeightProto resets the execution state when task weight changes.
 // Plans are created dynamically at execution time from task weight,
 // so we only need to reset the state for re-execution.
-func regeneratePlanForWeight(backend storage.Backend, t *task.Task, _ task.Weight) error {
+func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error {
 	// Reset execution state for fresh execution
 	// Note: task.Status is the source of truth (updated below)
-	t.CurrentPhase = ""
+	t.CurrentPhase = nil
+	task.EnsureExecutionProto(t)
 	t.Execution.CurrentIteration = 0
-	t.Execution.Error = ""
+	t.Execution.Error = nil
 	t.Execution.RetryContext = nil
-	t.Execution.Phases = make(map[string]*task.PhaseState)
+	t.Execution.Phases = make(map[string]*orcv1.PhaseState)
 
 	// Update task status to planned
-	t.Status = task.StatusPlanned
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 

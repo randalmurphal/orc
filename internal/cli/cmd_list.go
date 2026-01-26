@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -62,7 +63,7 @@ Example:
 				}
 			}
 
-			tasks, err := backend.LoadAllTasks()
+			tasks, err := backend.LoadAllTasksProto()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -75,17 +76,18 @@ Example:
 			}
 
 			// Apply filters
-			var filtered []*task.Task
+			var filtered []*orcv1.Task
 			for _, t := range tasks {
 				// Initiative filter
 				if initiativeFilterActive {
 					// Empty string or "unassigned" means show tasks without initiative
+					initID := task.GetInitiativeIDProto(t)
 					if initiativeFilter == "" || strings.ToLower(initiativeFilter) == "unassigned" {
-						if t.InitiativeID != "" {
+						if initID != "" {
 							continue
 						}
 					} else {
-						if t.InitiativeID != initiativeFilter {
+						if initID != initiativeFilter {
 							continue
 						}
 					}
@@ -93,14 +95,14 @@ Example:
 
 				// Status filter
 				if statusFilter != "" {
-					if string(t.Status) != statusFilter {
+					if !matchStatusProto(t.Status, statusFilter) {
 						continue
 					}
 				}
 
 				// Weight filter
 				if weightFilter != "" {
-					if string(t.Weight) != weightFilter {
+					if !matchWeightProto(t.Weight, weightFilter) {
 						continue
 					}
 				}
@@ -139,12 +141,12 @@ Example:
 
 			for _, t := range filtered {
 				status := statusIcon(t.Status)
-				phase := t.CurrentPhase
+				phase := task.GetCurrentPhaseProto(t)
 				if phase == "" {
 					phase = "-"
 				}
 				title := truncate(t.Title, 40)
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.ID, status, t.Weight, phase, title)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", t.Id, status, weightStringProto(t.Weight), phase, title)
 			}
 
 			_ = w.Flush()

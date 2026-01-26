@@ -608,8 +608,8 @@ func TestPublishHelpers(t *testing.T) {
 		if data.Phase != "implement" {
 			t.Errorf("expected phase implement, got %s", data.Phase)
 		}
-		if data.Status != string(task.PhaseStatusRunning) {
-			t.Errorf("expected status %s, got %s", task.PhaseStatusRunning, data.Status)
+		if data.Status != "running" {
+			t.Errorf("expected status running, got %s", data.Status)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for event")
@@ -796,10 +796,8 @@ func TestPublishState(t *testing.T) {
 	ch := pub.Subscribe("TASK-007")
 	defer pub.Unsubscribe("TASK-007", ch)
 
-	testExec := &task.ExecutionState{
-		Phases: make(map[string]*task.PhaseState),
-	}
-	testExec.StartPhase("implement")
+	testExec := task.InitProtoExecutionState()
+	task.StartPhaseProto(testExec, "implement")
 
 	e.publishState("TASK-007", testExec)
 

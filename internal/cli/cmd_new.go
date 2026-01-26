@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/detect"
@@ -255,9 +256,9 @@ See also:
 			}
 
 			// Create task
-			t := task.New(id, title)
+			t := task.NewProtoTask(id, title)
 			if description != "" {
-				t.Description = description
+				t.Description = &description
 			}
 
 			// If using template, get weight and phases from template
@@ -280,7 +281,12 @@ See also:
 
 				// Render title and description with variables
 				vars["TASK_TITLE"] = title
-				t.Description = template.Render(t.Description, vars)
+				currentDesc := ""
+				if t.Description != nil {
+					currentDesc = *t.Description
+				}
+				renderedDesc := template.Render(currentDesc, vars)
+				t.Description = &renderedDesc
 
 				if !quiet {
 					fmt.Printf("Using template: %s\n", tpl.Name)
@@ -289,15 +295,19 @@ See also:
 
 			// Set weight (defaults to medium if not specified via --weight flag)
 			if weight != "" {
-				t.Weight = task.Weight(weight)
+				w, valid := task.ParseWeightProto(weight)
+				if !valid {
+					return fmt.Errorf("invalid weight: %s (valid: trivial, small, medium, large)", weight)
+				}
+				t.Weight = w
 			} else {
-				t.Weight = task.WeightMedium
+				t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 			}
 
 			// Set category (defaults to feature if not specified)
 			if category != "" {
-				cat := task.Category(category)
-				if !task.IsValidCategory(cat) {
+				cat, valid := task.ParseCategoryProto(category)
+				if !valid {
 					return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", category)
 				}
 				t.Category = cat
@@ -305,8 +315,8 @@ See also:
 
 			// Set priority (defaults to normal if not specified)
 			if priority != "" {
-				pri := task.Priority(priority)
-				if !task.IsValidPriority(pri) {
+				pri, valid := task.ParsePriorityProto(priority)
+				if !valid {
 					return fmt.Errorf("invalid priority: %s (valid: critical, high, normal, low)", priority)
 				}
 				t.Priority = pri
@@ -314,7 +324,7 @@ See also:
 
 			// Set workflow if specified (already validated above)
 			if workflowID != "" {
-				t.WorkflowID = workflowID
+				t.WorkflowId = &workflowID
 			}
 
 			// Link to initiative if specified
@@ -327,12 +337,12 @@ See also:
 				if !exists {
 					return fmt.Errorf("initiative %s not found", initiativeID)
 				}
-				t.SetInitiative(initiativeID)
+				task.SetInitiativeProto(t, initiativeID)
 			}
 
 			// Set target branch if provided
 			if targetBranch != "" {
-				t.TargetBranch = targetBranch
+				task.SetTargetBranchProto(t, targetBranch)
 			}
 
 			// Set QA-specific task metadata
@@ -355,18 +365,18 @@ See also:
 			hasFrontend := detection != nil && detection.HasFrontend
 
 			// Set testing requirements based on project and task content
-			t.SetTestingRequirements(hasFrontend)
+			task.SetTestingRequirementsProto(t, hasFrontend)
 
 			// Set dependencies if provided
 			if len(blockedBy) > 0 || len(relatedTo) > 0 {
 				// Load existing tasks for validation
-				existingTasks, err := backend.LoadAllTasks()
+				existingTasks, err := backend.LoadAllTasksProto()
 				if err != nil {
 					return fmt.Errorf("load existing tasks: %w", err)
 				}
 				existingIDs := make(map[string]bool)
 				for _, existing := range existingTasks {
-					existingIDs[existing.ID] = true
+					existingIDs[existing.Id] = true
 				}
 
 				// Validate blocked_by references
@@ -385,19 +395,20 @@ See also:
 
 			// Save task with planned status
 			// Plans are created dynamically at runtime based on task weight
-			t.Status = task.StatusPlanned
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
 			// Sync task to initiative if linked
-			if t.HasInitiative() {
-				init, err := backend.LoadInitiative(t.InitiativeID)
+			if task.HasInitiativeProto(t) {
+				initID := task.GetInitiativeIDProto(t)
+				init, err := backend.LoadInitiative(initID)
 				if err != nil {
 					// Log warning but don't fail task creation
-					fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", t.InitiativeID, err)
+					fmt.Printf("Warning: failed to load initiative %s for sync: %v\n", initID, err)
 				} else {
-					init.AddTask(t.ID, t.Title, nil)
+					init.AddTask(t.Id, t.Title, nil)
 					if err := backend.SaveInitiative(init); err != nil {
 						fmt.Printf("Warning: failed to sync task to initiative: %v\n", err)
 					}
@@ -406,22 +417,22 @@ See also:
 
 			fmt.Printf("Task created: %s\n", id)
 			fmt.Printf("   Title:    %s\n", title)
-			fmt.Printf("   Weight:   %s\n", t.Weight)
-			fmt.Printf("   Category: %s\n", t.GetCategory())
-			fmt.Printf("   Priority: %s\n", t.GetPriority())
-			if t.WorkflowID != "" {
-				fmt.Printf("   Workflow: %s\n", t.WorkflowID)
+			fmt.Printf("   Weight:   %s\n", task.WeightFromProto(t.Weight))
+			fmt.Printf("   Category: %s\n", task.CategoryFromProto(t.Category))
+			fmt.Printf("   Priority: %s\n", task.PriorityFromProto(t.Priority))
+			if t.WorkflowId != nil && *t.WorkflowId != "" {
+				fmt.Printf("   Workflow: %s\n", *t.WorkflowId)
 			}
 			if tpl != nil {
 				fmt.Printf("   Template: %s\n", tpl.Name)
 			}
-			if t.HasInitiative() {
-				fmt.Printf("   Initiative: %s\n", t.InitiativeID)
+			if task.HasInitiativeProto(t) {
+				fmt.Printf("   Initiative: %s\n", task.GetInitiativeIDProto(t))
 			}
-			if t.TargetBranch != "" {
-				fmt.Printf("   Target Branch: %s\n", t.TargetBranch)
+			if task.GetTargetBranchProto(t) != "" {
+				fmt.Printf("   Target Branch: %s\n", task.GetTargetBranchProto(t))
 			}
-			if t.RequiresUITesting {
+			if t.RequiresUiTesting {
 				fmt.Printf("   UI Testing: required (detected from task description)\n")
 			}
 			if t.TestingRequirements != nil {

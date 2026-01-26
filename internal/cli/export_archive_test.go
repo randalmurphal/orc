@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestBuildManifest(t *testing.T) {
@@ -18,7 +18,7 @@ func TestBuildManifest(t *testing.T) {
 
 	// Create test data
 	testData := exportAllData{
-		tasks:       make([]*task.Task, 10),
+		tasks:       make([]*orcv1.Task, 10),
 		initiatives: make([]*initiative.Initiative, 2),
 	}
 	testOpts := exportAllOptions{

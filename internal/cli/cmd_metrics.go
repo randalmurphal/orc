@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // metricsResult holds aggregated quality metrics.
@@ -90,13 +90,13 @@ Examples:
 			}
 
 			// Load all tasks
-			tasks, err := backend.LoadAllTasks()
+			tasks, err := backend.LoadAllTasksProto()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
 
 			// Compute metrics
-			result := computeMetrics(tasks, sinceTime)
+			result := computeMetricsProto(tasks, sinceTime)
 
 			// Display results
 			displayMetrics(result, showAll)
@@ -111,15 +111,15 @@ Examples:
 	return cmd
 }
 
-// computeMetrics aggregates quality metrics from tasks.
-func computeMetrics(tasks []*task.Task, since time.Time) *metricsResult {
+// computeMetricsProto aggregates quality metrics from proto tasks.
+func computeMetricsProto(tasks []*orcv1.Task, since time.Time) *metricsResult {
 	result := &metricsResult{
 		RetryByPhase: make(map[string]int),
 	}
 
 	for _, t := range tasks {
 		// Filter by date if specified
-		if !since.IsZero() && t.CreatedAt.Before(since) {
+		if !since.IsZero() && t.CreatedAt != nil && t.CreatedAt.AsTime().Before(since) {
 			continue
 		}
 
@@ -135,17 +135,17 @@ func computeMetrics(tasks []*task.Task, since time.Time) *metricsResult {
 		// Aggregate retry counts
 		if t.Quality.TotalRetries > 0 {
 			result.TasksWithRetries++
-			result.TotalRetries += t.Quality.TotalRetries
+			result.TotalRetries += int(t.Quality.TotalRetries)
 			hasIssues = true
 
 			for phase, count := range t.Quality.PhaseRetries {
-				result.RetryByPhase[phase] += count
+				result.RetryByPhase[phase] += int(count)
 			}
 		}
 
 		// Aggregate review rejections
 		if t.Quality.ReviewRejections > 0 {
-			result.ReviewRejections += t.Quality.ReviewRejections
+			result.ReviewRejections += int(t.Quality.ReviewRejections)
 			hasIssues = true
 		}
 
@@ -157,13 +157,17 @@ func computeMetrics(tasks []*task.Task, since time.Time) *metricsResult {
 
 		// Track task summary if it has issues
 		if hasIssues {
+			reason := ""
+			if t.Quality.ManualInterventionReason != nil {
+				reason = *t.Quality.ManualInterventionReason
+			}
 			result.TasksWithIssues = append(result.TasksWithIssues, &taskMetricSummary{
-				ID:                 t.ID,
+				ID:                 t.Id,
 				Title:              t.Title,
-				TotalRetries:       t.Quality.TotalRetries,
-				ReviewRejections:   t.Quality.ReviewRejections,
+				TotalRetries:       int(t.Quality.TotalRetries),
+				ReviewRejections:   int(t.Quality.ReviewRejections),
 				ManualIntervention: t.Quality.ManualIntervention,
-				Reason:             t.Quality.ManualInterventionReason,
+				Reason:             reason,
 			})
 		}
 	}

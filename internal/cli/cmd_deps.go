@@ -11,27 +11,28 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // DepsOutput represents the JSON output structure for dependencies.
 type DepsOutput struct {
-	TaskID       string         `json:"task_id"`
-	Title        string         `json:"title"`
-	Status       task.Status    `json:"status"`
-	BlockedBy    []DepsTaskInfo `json:"blocked_by,omitempty"`
-	Blocks       []DepsTaskInfo `json:"blocks,omitempty"`
-	RelatedTo    []DepsTaskInfo `json:"related_to,omitempty"`
-	ReferencedBy []DepsTaskInfo `json:"referenced_by,omitempty"`
-	Summary      DepsSummary    `json:"summary"`
+	TaskID       string           `json:"task_id"`
+	Title        string           `json:"title"`
+	Status       orcv1.TaskStatus `json:"status"`
+	BlockedBy    []DepsTaskInfo   `json:"blocked_by,omitempty"`
+	Blocks       []DepsTaskInfo   `json:"blocks,omitempty"`
+	RelatedTo    []DepsTaskInfo   `json:"related_to,omitempty"`
+	ReferencedBy []DepsTaskInfo   `json:"referenced_by,omitempty"`
+	Summary      DepsSummary      `json:"summary"`
 }
 
 // DepsTaskInfo contains information about a related task.
 type DepsTaskInfo struct {
-	ID     string      `json:"id"`
-	Title  string      `json:"title"`
-	Status task.Status `json:"status"`
+	ID     string           `json:"id"`
+	Title  string           `json:"title"`
+	Status orcv1.TaskStatus `json:"status"`
 }
 
 // DepsSummary provides a status summary.
@@ -103,7 +104,7 @@ See also:
 			initFilter, _ := cmd.Flags().GetString("initiative")
 
 			// Load all tasks for dependency computation
-			allTasks, err := backend.LoadAllTasks()
+			allTasks, err := backend.LoadAllTasksProto()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}
@@ -114,12 +115,12 @@ See also:
 			}
 
 			// Populate computed fields (blocks, referenced_by)
-			task.PopulateComputedFields(allTasks)
+			task.PopulateComputedFieldsProto(allTasks)
 
 			// Build task map
-			taskMap := make(map[string]*task.Task)
+			taskMap := make(map[string]*orcv1.Task)
 			for _, t := range allTasks {
-				taskMap[t.ID] = t
+				taskMap[t.Id] = t
 			}
 
 			// If graph view requested
@@ -158,8 +159,8 @@ See also:
 	return cmd
 }
 
-func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
-	fmt.Printf("\n%s: %s\n", t.ID, t.Title)
+func showDepsHuman(t *orcv1.Task, taskMap map[string]*orcv1.Task) error {
+	fmt.Printf("\n%s: %s\n", t.Id, t.Title)
 	fmt.Println(strings.Repeat("─", 50))
 
 	// Blocked by
@@ -172,8 +173,8 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 			status := ""
 			if exists {
 				title = truncate(blocker.Title, 35)
-				status = string(blocker.Status)
-				if blocker.Status == task.StatusCompleted {
+				status = blocker.Status.String()
+				if blocker.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 					icon = "●" // completed
 				}
 			}
@@ -191,8 +192,8 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 			status := ""
 			if exists {
 				title = truncate(blocked.Title, 35)
-				status = string(blocked.Status)
-				if blocked.Status == task.StatusCompleted {
+				status = blocked.Status.String()
+				if blocked.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 					icon = "●"
 				}
 			}
@@ -228,7 +229,7 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 
 	// Status summary
 	fmt.Println()
-	unmet := t.GetUnmetDependencies(taskMap)
+	unmet := task.GetUnmetDependenciesProto(t, taskMap)
 	if len(unmet) > 0 {
 		if plain {
 			fmt.Printf("Status: BLOCKED (waiting on %d task(s): %s)\n",
@@ -254,9 +255,9 @@ func showDepsHuman(t *task.Task, taskMap map[string]*task.Task) error {
 	return nil
 }
 
-func showDepsJSON(t *task.Task, taskMap map[string]*task.Task) error {
+func showDepsJSON(t *orcv1.Task, taskMap map[string]*orcv1.Task) error {
 	output := DepsOutput{
-		TaskID: t.ID,
+		TaskID: t.Id,
 		Title:  t.Title,
 		Status: t.Status,
 	}
@@ -302,7 +303,7 @@ func showDepsJSON(t *task.Task, taskMap map[string]*task.Task) error {
 	}
 
 	// Summary
-	unmet := t.GetUnmetDependencies(taskMap)
+	unmet := task.GetUnmetDependenciesProto(t, taskMap)
 	output.Summary = DepsSummary{
 		IsBlocked:       len(unmet) > 0,
 		UnmetBlockers:   len(unmet),
@@ -317,17 +318,17 @@ func showDepsJSON(t *task.Task, taskMap map[string]*task.Task) error {
 	return enc.Encode(output)
 }
 
-func showDependencyTree(t *task.Task, taskMap map[string]*task.Task) error {
-	fmt.Printf("\n%s: %s\n", t.ID, truncate(t.Title, 40))
+func showDependencyTree(t *orcv1.Task, taskMap map[string]*orcv1.Task) error {
+	fmt.Printf("\n%s: %s\n", t.Id, truncate(t.Title, 40))
 
 	seen := make(map[string]bool)
-	seen[t.ID] = true
+	seen[t.Id] = true
 
 	printTree(t, taskMap, "", true, seen)
 	return nil
 }
 
-func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, _ bool, seen map[string]bool) {
+func printTree(t *orcv1.Task, taskMap map[string]*orcv1.Task, prefix string, _ bool, seen map[string]bool) {
 	if len(t.BlockedBy) == 0 {
 		return
 	}
@@ -352,7 +353,7 @@ func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, _ boo
 		}
 		if alreadySeen {
 			suffix = " ← already shown"
-		} else if exists && blocker.Status == task.StatusCompleted {
+		} else if exists && blocker.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			suffix = " ✓"
 		} else if exists && len(blocker.BlockedBy) == 0 {
 			suffix = " ← start here"
@@ -374,14 +375,14 @@ func printTree(t *task.Task, taskMap map[string]*task.Task, prefix string, _ boo
 	}
 }
 
-func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, initFilter string) error {
+func showDependencyGraph(allTasks []*orcv1.Task, taskMap map[string]*orcv1.Task, initFilter string) error {
 	// Filter tasks by initiative if specified
-	var filteredTasks []*task.Task
+	var filteredTasks []*orcv1.Task
 	if initFilter != "" {
 		// When filtering by initiative, just check if any tasks have that initiative
 		// (no need to verify initiative exists separately - if no tasks, we report that)
 		for _, t := range allTasks {
-			if t.InitiativeID == initFilter {
+			if t.InitiativeId != nil && *t.InitiativeId == initFilter {
 				filteredTasks = append(filteredTasks, t)
 			}
 		}
@@ -396,11 +397,11 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 	// Build filtered ID set
 	filteredIDs := make(map[string]bool)
 	for _, t := range filteredTasks {
-		filteredIDs[t.ID] = true
+		filteredIDs[t.Id] = true
 	}
 
 	// Find root tasks (no dependencies or all deps outside filter)
-	var roots []*task.Task
+	var roots []*orcv1.Task
 
 	for _, t := range filteredTasks {
 		hasInternalDep := false
@@ -417,7 +418,7 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 
 	// Sort roots by ID
 	sort.Slice(roots, func(i, j int) bool {
-		return roots[i].ID < roots[j].ID
+		return roots[i].Id < roots[j].Id
 	})
 
 	if initFilter != "" {
@@ -430,7 +431,7 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 	// Print each root and its downstream dependencies
 	printed := make(map[string]bool)
 	for _, root := range roots {
-		if printed[root.ID] {
+		if printed[root.Id] {
 			continue
 		}
 		printGraphNode(root, taskMap, filteredIDs, printed, "")
@@ -439,28 +440,28 @@ func showDependencyGraph(allTasks []*task.Task, taskMap map[string]*task.Task, i
 
 	// Print any orphaned tasks (shouldn't happen but just in case)
 	for _, t := range filteredTasks {
-		if !printed[t.ID] {
-			fmt.Printf("%s (orphaned)\n", t.ID)
+		if !printed[t.Id] {
+			fmt.Printf("%s (orphaned)\n", t.Id)
 		}
 	}
 
 	return nil
 }
 
-func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map[string]bool, printed map[string]bool, indent string) {
-	if printed[t.ID] {
+func printGraphNode(t *orcv1.Task, taskMap map[string]*orcv1.Task, filteredIDs map[string]bool, printed map[string]bool, indent string) {
+	if printed[t.Id] {
 		return
 	}
-	printed[t.ID] = true
+	printed[t.Id] = true
 
 	// Find downstream tasks (tasks blocked by this one) within the filter
-	var downstream []*task.Task
+	var downstream []*orcv1.Task
 	for _, other := range taskMap {
-		if !filteredIDs[other.ID] {
+		if !filteredIDs[other.Id] {
 			continue
 		}
 		for _, depID := range other.BlockedBy {
-			if depID == t.ID {
+			if depID == t.Id {
 				downstream = append(downstream, other)
 				break
 			}
@@ -469,28 +470,28 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 
 	// Sort downstream by ID
 	sort.Slice(downstream, func(i, j int) bool {
-		return downstream[i].ID < downstream[j].ID
+		return downstream[i].Id < downstream[j].Id
 	})
 
 	// Print this node
 	var status string
 	switch t.Status {
-	case task.StatusCompleted:
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 		status = " ✓"
-	case task.StatusRunning:
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 		status = " ◐"
 	}
 
 	if len(downstream) == 0 {
-		fmt.Printf("%s%s%s\n", indent, t.ID, status)
+		fmt.Printf("%s%s%s\n", indent, t.Id, status)
 		return
 	}
 
 	// Print with children
 	if indent == "" {
-		fmt.Printf("%s%s\n", t.ID, status)
+		fmt.Printf("%s%s\n", t.Id, status)
 	} else {
-		fmt.Printf("%s%s%s\n", indent, t.ID, status)
+		fmt.Printf("%s%s%s\n", indent, t.Id, status)
 	}
 
 	for i, child := range downstream {
@@ -502,8 +503,8 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 			nextIndent = indent + "    "
 		}
 
-		if printed[child.ID] {
-			fmt.Printf("%s%s%s (see above)\n", indent, childPrefix, child.ID)
+		if printed[child.Id] {
+			fmt.Printf("%s%s%s (see above)\n", indent, childPrefix, child.Id)
 			continue
 		}
 
@@ -512,15 +513,15 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 		if len(chain) > 0 {
 			var chainStr []string
 			for _, c := range chain {
-				s := c.ID
+				s := c.Id
 				switch c.Status {
-				case task.StatusCompleted:
+				case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 					s += " ✓"
-				case task.StatusRunning:
+				case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 					s += " ◐"
 				}
 				chainStr = append(chainStr, s)
-				printed[c.ID] = true
+				printed[c.Id] = true
 			}
 			fmt.Printf("%s%s%s\n", indent, childPrefix, strings.Join(chainStr, " ─> "))
 		} else {
@@ -531,21 +532,21 @@ func printGraphNode(t *task.Task, taskMap map[string]*task.Task, filteredIDs map
 }
 
 // getChain follows a single path of dependencies (no forks)
-func getChain(t *task.Task, taskMap map[string]*task.Task, filteredIDs map[string]bool, printed map[string]bool) []*task.Task {
-	var chain []*task.Task
+func getChain(t *orcv1.Task, taskMap map[string]*orcv1.Task, filteredIDs map[string]bool, printed map[string]bool) []*orcv1.Task {
+	var chain []*orcv1.Task
 	current := t
 
-	for !printed[current.ID] {
+	for !printed[current.Id] {
 		chain = append(chain, current)
 
 		// Find downstream tasks
-		var downstream []*task.Task
+		var downstream []*orcv1.Task
 		for _, other := range taskMap {
-			if !filteredIDs[other.ID] || printed[other.ID] {
+			if !filteredIDs[other.Id] || printed[other.Id] {
 				continue
 			}
 			for _, depID := range other.BlockedBy {
-				if depID == current.ID {
+				if depID == current.Id {
 					downstream = append(downstream, other)
 					break
 				}
@@ -566,12 +567,12 @@ func getChain(t *task.Task, taskMap map[string]*task.Task, filteredIDs map[strin
 	return chain
 }
 
-func showDependencyOverview(allTasks []*task.Task, taskMap map[string]*task.Task) error {
+func showDependencyOverview(allTasks []*orcv1.Task, taskMap map[string]*orcv1.Task) error {
 	// Categorize tasks by blocking status
-	var blocked, blocking, independent []*task.Task
+	var blocked, blocking, independent []*orcv1.Task
 
 	for _, t := range allTasks {
-		unmet := t.GetUnmetDependencies(taskMap)
+		unmet := task.GetUnmetDependenciesProto(t, taskMap)
 		if len(unmet) > 0 {
 			blocked = append(blocked, t)
 		} else if len(t.Blocks) > 0 {
@@ -596,7 +597,7 @@ func showDependencyOverview(allTasks []*task.Task, taskMap map[string]*task.Task
 			if len(t.Blocks) > 3 {
 				blocksStr += fmt.Sprintf(" +%d more", len(t.Blocks)-3)
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ blocks: %s\n", t.ID, truncate(t.Title, 30), blocksStr)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t→ blocks: %s\n", t.Id, truncate(t.Title, 30), blocksStr)
 		}
 		_ = w.Flush()
 		fmt.Println()
@@ -611,12 +612,12 @@ func showDependencyOverview(allTasks []*task.Task, taskMap map[string]*task.Task
 		}
 		fmt.Println()
 		for _, t := range blocked {
-			unmet := t.GetUnmetDependencies(taskMap)
+			unmet := task.GetUnmetDependenciesProto(t, taskMap)
 			waitingStr := strings.Join(unmet[:min(3, len(unmet))], ", ")
 			if len(unmet) > 3 {
 				waitingStr += fmt.Sprintf(" +%d more", len(unmet)-3)
 			}
-			_, _ = fmt.Fprintf(w, "  %s\t%s\t← waiting on: %s\n", t.ID, truncate(t.Title, 30), waitingStr)
+			_, _ = fmt.Fprintf(w, "  %s\t%s\t← waiting on: %s\n", t.Id, truncate(t.Title, 30), waitingStr)
 		}
 		_ = w.Flush()
 		fmt.Println()

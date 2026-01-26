@@ -105,8 +105,9 @@ func TestValidateTaskResumableProto(t *testing.T) {
 			status:  orcv1.TaskStatus_TASK_STATUS_FAILED,
 			wantErr: false,
 		},
-		// Running task cases - proto doesn't have executor tracking yet,
-		// so CheckOrphanedProto always returns false (task appears running)
+		// Running task cases - with executor tracking fields:
+		// - ExecutorPid=0 means orphaned (resumable without force)
+		// - ExecutorPid=alive PID means truly running (not resumable without force)
 		{
 			name:        "running task not resumable without force",
 			status:      orcv1.TaskStatus_TASK_STATUS_RUNNING,
@@ -127,6 +128,12 @@ func TestValidateTaskResumableProto(t *testing.T) {
 			tk := task.NewProtoTask("TASK-001", "Test task")
 			tk.Status = tt.status
 			task.SetCurrentPhaseProto(tk, "implement")
+
+			// For running task tests, set a valid PID so the task appears truly running
+			// (not orphaned). Otherwise CheckOrphanedProto would detect it as orphaned.
+			if tt.status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+				tk.ExecutorPid = int32(os.Getpid())
+			}
 
 			result, err := ValidateTaskResumableProto(tk, tt.forceResume)
 
@@ -151,19 +158,32 @@ func TestValidateTaskResumableProto(t *testing.T) {
 }
 
 // TestValidateTaskResumable_OrphanedTask tests orphan detection in validation.
-// NOTE: Skipped because proto Task type doesn't have executor tracking fields yet.
-// When executor_pid, executor_hostname, last_heartbeat are added to proto, re-enable.
 func TestValidateTaskResumable_OrphanedTask(t *testing.T) {
-	t.Skip("Skipped: proto Task doesn't have ExecutorPID field for orphan detection")
+	// Create a running task with no executor info (ExecutorPid=0)
+	// This should be detected as orphaned and be resumable without force
+	tk := task.NewProtoTask("TASK-001", "Test task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetCurrentPhaseProto(tk, "implement")
+	// ExecutorPid defaults to 0, which means orphaned
+
+	// Without force - should succeed because task is orphaned
+	result, err := ValidateTaskResumableProto(tk, false)
+	if err != nil {
+		t.Errorf("Expected orphaned running task to be resumable without force, got: %v", err)
+	}
+	if result == nil {
+		t.Error("Expected validation result, got nil")
+	}
 }
 
 // TestValidateTaskResumable_ForceRunning tests force flag with running task.
-// NOTE: Uses proto types. Since proto doesn't have ExecutorPID, the task always
-// appears to be running (not orphaned), which is the behavior we're testing.
+// Uses proto types. Set ExecutorPid to a live PID so the task appears truly running.
 func TestValidateTaskResumable_ForceRunning(t *testing.T) {
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.SetCurrentPhaseProto(tk, "implement")
+	// Set to current process PID so the task appears to be running (not orphaned)
+	tk.ExecutorPid = int32(os.Getpid())
 
 	// Without force - should fail (task appears to still be running)
 	_, err := ValidateTaskResumableProto(tk, false)

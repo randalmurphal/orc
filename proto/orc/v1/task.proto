@@ -212,6 +212,11 @@ message Task {
   optional google.protobuf.Timestamp completed_at = 25;
   map<string, string> metadata = 26;
 
+  // Executor tracking fields (for orphan detection and process signaling)
+  int32 executor_pid = 27;                               // Process ID of the executor
+  optional string executor_hostname = 28;                // Hostname where executor is running
+  optional google.protobuf.Timestamp last_heartbeat = 29; // Last heartbeat timestamp
+
   // Computed fields (populated by server, not stored)
   repeated string blocks = 100;
   repeated string referenced_by = 101;

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -35,17 +36,18 @@ func SetupSignalHandler() (context.Context, context.CancelFunc) {
 }
 
 // GracefulShutdown saves current execution state before exit
-func GracefulShutdown(backend storage.Backend, t *task.Task, phase string) error {
+func GracefulShutdown(backend storage.Backend, t *orcv1.Task, phase string) error {
 	// Mark phase as interrupted (not failed - can be resumed)
-	t.Execution.InterruptPhase(phase)
+	task.EnsureExecutionProto(t)
+	task.InterruptPhaseProto(t.Execution, phase)
 
 	// Update task status to interrupted so it can be resumed
-	t.Status = task.StatusBlocked
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	if err := backend.SaveTaskProto(t); err != nil {
 		return fmt.Errorf("save task on interrupt: %w", err)
 	}
 
-	fmt.Printf("✅ State saved. Resume with: orc resume %s\n", t.ID)
+	fmt.Printf("✅ State saved. Resume with: orc resume %s\n", t.Id)
 	return nil
 }
 
@@ -54,12 +56,12 @@ type InterruptHandler struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	backend   storage.Backend
-	task      *task.Task
+	task      *orcv1.Task
 	lastPhase string
 }
 
 // NewInterruptHandler creates a new interrupt handler
-func NewInterruptHandler(backend storage.Backend, t *task.Task) *InterruptHandler {
+func NewInterruptHandler(backend storage.Backend, t *orcv1.Task) *InterruptHandler {
 	ctx, cancel := SetupSignalHandler()
 	return &InterruptHandler{
 		ctx:     ctx,

@@ -137,7 +137,7 @@ Example:
 				ID:     "finalize",
 				Name:   "Finalize",
 				Prompt: "Sync with target branch, resolve conflicts, run tests, and assess risk",
-				Status: task.PhaseStatusPending,
+				Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
 			}
 
 			// Build FinalizeExecutor options

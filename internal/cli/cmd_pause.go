@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -49,28 +50,28 @@ Examples:
 
 			id := args[0]
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			if t.Status != task.StatusRunning {
+			if t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 				return fmt.Errorf("task is not running (status: %s)", t.Status)
 			}
 
 			// Check if executor process is alive and signal it
-			if t.ExecutorPID > 0 {
-				if task.IsPIDAlive(t.ExecutorPID) {
-					fmt.Printf("⏸️  Signaling executor (PID %d) to pause...\n", t.ExecutorPID)
+			if t.ExecutorPid > 0 {
+				if task.IsPIDAlive(int(t.ExecutorPid)) {
+					fmt.Printf("⏸️  Signaling executor (PID %d) to pause...\n", t.ExecutorPid)
 
-					proc, procErr := os.FindProcess(t.ExecutorPID)
+					proc, procErr := os.FindProcess(int(t.ExecutorPid))
 					if procErr == nil {
 						// Send SIGUSR1 for graceful pause
 						if sigErr := proc.Signal(syscall.SIGUSR1); sigErr != nil {
 							fmt.Printf("Warning: Could not signal executor: %v\n", sigErr)
 						} else {
 							// Wait for executor to save state
-							if waitErr := waitForTaskStatus(backend, id, task.StatusPaused, timeout); waitErr != nil {
+							if waitErr := waitForTaskStatusProto(backend, id, orcv1.TaskStatus_TASK_STATUS_PAUSED, timeout); waitErr != nil {
 								if !force {
 									return fmt.Errorf("executor did not pause in time: %w (use --force to override)", waitErr)
 								}
@@ -86,8 +87,8 @@ Examples:
 			}
 
 			// Fallback: Update status directly (executor not running or signal failed)
-			t.Status = task.StatusPaused
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -102,11 +103,11 @@ Examples:
 	return cmd
 }
 
-// waitForTaskStatus polls until task reaches expected status or timeout
-func waitForTaskStatus(backend storage.Backend, taskID string, expected task.Status, timeout time.Duration) error {
+// waitForTaskStatusProto polls until proto task reaches expected status or timeout
+func waitForTaskStatusProto(backend storage.Backend, taskID string, expected orcv1.TaskStatus, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		t, err := backend.LoadTask(taskID)
+		t, err := backend.LoadTaskProto(taskID)
 		if err == nil && t.Status == expected {
 			return nil
 		}
@@ -145,16 +146,16 @@ Examples:
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			if t.Status == task.StatusCompleted {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 				return fmt.Errorf("task is already completed")
 			}
 
-			if t.Status == task.StatusFailed {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED {
 				fmt.Printf("Task %s is already stopped/failed\n", id)
 				return nil
 			}
@@ -174,8 +175,8 @@ Examples:
 				}
 			}
 
-			t.Status = task.StatusFailed
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

@@ -104,29 +104,6 @@ type ReviewComment struct {
 	ResolvedBy  string
 }
 
-// ReviewFinding represents a single issue found during review.
-type ReviewFinding struct {
-	Severity              string `json:"severity"` // high, medium, low
-	File                  string `json:"file,omitempty"`
-	Line                  int    `json:"line,omitempty"`
-	Description           string `json:"description"`
-	Suggestion            string `json:"suggestion,omitempty"`
-	AgentID               string `json:"agent_id,omitempty"` // Which agent found this (e.g., "code-reviewer")
-	ConstitutionViolation string `json:"constitution_violation,omitempty"` // "invariant" (blocker) or "default" (warning)
-}
-
-// ReviewFindings represents the structured output from a review round.
-type ReviewFindings struct {
-	TaskID    string          `json:"task_id"`
-	Round     int             `json:"round"`
-	Summary   string          `json:"summary"`
-	Issues    []ReviewFinding `json:"issues"`
-	Questions []string        `json:"questions,omitempty"`
-	Positives []string        `json:"positives,omitempty"`
-	AgentID   string          `json:"agent_id,omitempty"` // Which agent produced these findings
-	CreatedAt time.Time       `json:"created_at"`
-}
-
 // QATest represents a test written during QA.
 type QATest struct {
 	File        string `json:"file"`
@@ -332,9 +309,10 @@ type Backend interface {
 	SaveReviewComment(c *ReviewComment) error
 
 	// Review findings operations (structured review output for multi-round review)
-	SaveReviewFindings(f *ReviewFindings) error
-	LoadReviewFindings(taskID string, round int) (*ReviewFindings, error)
-	LoadAllReviewFindings(taskID string) ([]*ReviewFindings, error)
+	// Uses proto types directly - orcv1.ReviewRoundFindings
+	SaveReviewFindings(f *orcv1.ReviewRoundFindings) error
+	LoadReviewFindings(taskID string, round int) (*orcv1.ReviewRoundFindings, error)
+	LoadAllReviewFindings(taskID string) ([]*orcv1.ReviewRoundFindings, error)
 
 	// QA result operations (structured QA output for reporting)
 	SaveQAResult(r *QAResult) error

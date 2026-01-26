@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -44,21 +45,22 @@ Example:
 			}
 
 			// Load task (execution state is in task.Execution)
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Check if phase is already completed
-			if ps := t.Execution.Phases[phaseID]; ps != nil && ps.Status == task.PhaseStatusCompleted {
+			task.EnsureExecutionProto(t)
+			if ps := t.Execution.Phases[phaseID]; ps != nil && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
 				return fmt.Errorf("phase %s is already completed", phaseID)
 			}
 
 			// Skip the phase
-			t.Execution.SkipPhase(phaseID, reason)
+			task.SkipPhaseProto(t.Execution, phaseID, reason)
 
 			// Save task (includes execution state)
-			if err := backend.SaveTask(t); err != nil {
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

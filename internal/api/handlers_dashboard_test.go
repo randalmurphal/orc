@@ -115,6 +115,8 @@ func TestHandleGetDashboardStats_CoreFields(t *testing.T) {
 	// Create tasks with different statuses
 	runningTask := task.NewProtoTask("TASK-001", "Running task")
 	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	// Set ExecutorPid to current process so task appears truly running (not orphaned)
+	runningTask.ExecutorPid = int32(os.Getpid())
 	if err := backend.SaveTaskProto(runningTask); err != nil {
 		t.Fatalf("failed to save running task: %v", err)
 	}

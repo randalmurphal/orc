@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
@@ -156,7 +157,7 @@ Examples:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -168,9 +169,9 @@ Examples:
 			// Only allow resolving failed tasks without --force.
 			// With --force, allow any status (useful for stuck running tasks with merged PRs).
 			// Blocked tasks get special guidance since users often confuse "resolve" with "resume".
-			if t.Status != task.StatusFailed {
+			if t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 				if !force {
-					if t.Status == task.StatusBlocked {
+					if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 						// Provide actionable guidance with task ID included for copy-paste
 						return fmt.Errorf(`task %s is blocked (status: blocked), not failed
 
@@ -189,25 +190,31 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			// Check PR merge status when force-resolving non-failed tasks
 			prWasMerged := false
 			if forceResolving {
-				if t.PR != nil {
-					prMerged := t.PR.Status == task.PRStatusMerged || t.PR.Merged
+				prStatus := task.GetPRStatusProto(t)
+				prNumber := int32(0)
+				if t.Pr != nil && t.Pr.Number != nil {
+					prNumber = *t.Pr.Number
+				}
+				hasPR := task.HasPRProto(t)
+				if hasPR {
+					prMerged := prStatus == orcv1.PRStatus_PR_STATUS_MERGED
 					if prMerged {
 						prWasMerged = true
 						if !quiet {
-							if t.PR.Number > 0 {
-								fmt.Printf("PR merged (PR #%d)\n", t.PR.Number)
+							if prNumber > 0 {
+								fmt.Printf("PR merged (PR #%d)\n", prNumber)
 							} else {
 								fmt.Println("PR merged")
 							}
 						}
 					} else if !quiet {
 						// PR exists but not merged - warn user
-						statusStr := string(t.PR.Status)
-						if statusStr == "" {
+						statusStr := prStatus.String()
+						if statusStr == "" || statusStr == "PR_STATUS_UNSPECIFIED" {
 							statusStr = "unknown"
 						}
-						if t.PR.Number > 0 {
-							fmt.Printf("Warning: PR #%d is not merged (status: %s). Work may be incomplete.\n", t.PR.Number, statusStr)
+						if prNumber > 0 {
+							fmt.Printf("Warning: PR #%d is not merged (status: %s). Work may be incomplete.\n", prNumber, statusStr)
 						} else {
 							fmt.Printf("Warning: PR is not merged (status: %s). Work may be incomplete.\n", statusStr)
 						}
@@ -332,7 +339,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			}
 
 			// Update task status to resolved (distinct from completed to indicate no actual work done)
-			t.Status = task.StatusResolved
+			t.Status = orcv1.TaskStatus_TASK_STATUS_RESOLVED
 			now := time.Now()
 
 			// Track manual intervention in quality metrics
@@ -340,12 +347,10 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			if message != "" {
 				reason = message
 			}
-			t.RecordManualIntervention(reason)
+			task.RecordManualInterventionProto(t, reason)
 
 			// Add resolution metadata
-			if t.Metadata == nil {
-				t.Metadata = make(map[string]string)
-			}
+			task.EnsureMetadataProto(t)
 			t.Metadata["resolved"] = "true"
 			t.Metadata["resolved_at"] = now.Format(time.RFC3339)
 			if message != "" {
@@ -354,7 +359,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			// Track force-resolve metadata for non-failed tasks
 			if forceResolving {
 				t.Metadata["force_resolved"] = "true"
-				t.Metadata["original_status"] = string(originalStatus)
+				t.Metadata["original_status"] = task.StatusFromProto(originalStatus)
 				if prWasMerged {
 					t.Metadata["pr_was_merged"] = "true"
 				}
@@ -372,7 +377,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				}
 			}
 
-			if err := backend.SaveTask(t); err != nil {
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

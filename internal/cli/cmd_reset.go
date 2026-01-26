@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -47,18 +48,18 @@ Examples:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Don't reset running tasks unless forced
-			if t.Status == task.StatusRunning && !force {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING && !force {
 				return fmt.Errorf("task is currently running; use --force to reset anyway or 'orc stop %s' first", id)
 			}
 
 			// Don't reset already-planned tasks (nothing to reset)
-			if t.Status == task.StatusPlanned || t.Status == task.StatusCreated {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_PLANNED || t.Status == orcv1.TaskStatus_TASK_STATUS_CREATED {
 				fmt.Printf("Task %s is already in %s state, nothing to reset\n", id, t.Status)
 				return nil
 			}
@@ -79,12 +80,13 @@ Examples:
 			}
 
 			// Reset execution state (task.Execution contains all execution-related state)
-			t.Execution.Reset()
-			t.CurrentPhase = ""
+			task.EnsureExecutionProto(t)
+			task.ResetExecutionStateProto(t.Execution)
+			task.SetCurrentPhaseProto(t, "")
 
 			// Update task status
-			t.Status = task.StatusPlanned
-			if err := backend.SaveTask(t); err != nil {
+			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+			if err := backend.SaveTaskProto(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

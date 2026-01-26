@@ -1064,7 +1064,7 @@ func (s *Server) getWorkflowPhasesWithPlan(backend storage.Backend, taskID strin
 		planPhases[i] = executor.PhaseDisplay{
 			ID:     p.ID,
 			Name:   p.Name,
-			Status: task.PhaseStatusPending,
+			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
 		}
 	}
 

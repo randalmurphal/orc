@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // newDeleteCmd creates the delete command
@@ -39,19 +39,19 @@ Example:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTask(taskID)
+			t, err := backend.LoadTaskProto(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Check if task is running
-			if t.Status == task.StatusRunning && !force {
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING && !force {
 				return fmt.Errorf("task %s is running - use --force to delete anyway", taskID)
 			}
 
 			// Confirm deletion
 			if !quiet {
-				fmt.Printf("Deleting task %s (%s)...\n", t.ID, t.Title)
+				fmt.Printf("Deleting task %s (%s)...\n", t.Id, t.Title)
 			}
 
 			// Delete from database

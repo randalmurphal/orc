@@ -7,10 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 const (
@@ -237,11 +237,11 @@ func (sb *SessionBroadcaster) buildUpdate() events.SessionUpdate {
 	// If no global DB, try to get running task count from backend
 	if sb.backend != nil && update.TasksRunning == 0 {
 		// Fall back to counting from backend if atomic counter is wrong
-		tasks, err := sb.backend.LoadAllTasks()
+		tasks, err := sb.backend.LoadAllTasksProto()
 		if err == nil {
 			count := 0
 			for _, t := range tasks {
-				if t.Status == task.StatusRunning {
+				if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 					count++
 				}
 			}

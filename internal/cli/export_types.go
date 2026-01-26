@@ -4,10 +4,10 @@ package cli
 import (
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ExportFormatVersion is the current version of the export format.
@@ -45,8 +45,8 @@ type ExportData struct {
 	ExportedAt time.Time `yaml:"exported_at"`
 
 	// Core task data (includes execution state in Task.Execution)
-	Task *task.Task `yaml:"task"`
-	Spec string     `yaml:"spec,omitempty"`
+	Task *orcv1.Task `yaml:"task"`
+	Spec string      `yaml:"spec,omitempty"`
 
 	// Execution history
 	Transcripts   []storage.Transcript `yaml:"transcripts,omitempty"`
@@ -128,7 +128,7 @@ type exportAllOptions struct {
 
 // exportAllData contains all data to be exported.
 type exportAllData struct {
-	tasks           []*task.Task
+	tasks           []*orcv1.Task
 	initiatives     []*initiative.Initiative
 	phaseTemplates  []*db.PhaseTemplate
 	workflows       []*db.Workflow

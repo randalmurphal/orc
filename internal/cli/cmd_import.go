@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -152,17 +154,25 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 
 	// Check if task exists
-	existing, _ := backend.LoadTask(export.Task.ID)
+	existing, _ := backend.LoadTaskProto(export.Task.Id)
 	if existing != nil {
 		if skipExisting {
-			return fmt.Errorf("task %s skipped (--skip-existing)", export.Task.ID)
+			return fmt.Errorf("task %s skipped (--skip-existing)", export.Task.Id)
 		}
 
 		if !force {
 			// Smart merge: compare updated_at timestamps
 			// Local wins on ties (equal timestamps)
-			if !export.Task.UpdatedAt.After(existing.UpdatedAt) {
-				return fmt.Errorf("task %s skipped (local version is newer or same)", export.Task.ID)
+			exportTime := time.Time{}
+			existingTime := time.Time{}
+			if export.Task.UpdatedAt != nil {
+				exportTime = export.Task.UpdatedAt.AsTime()
+			}
+			if existing.UpdatedAt != nil {
+				existingTime = existing.UpdatedAt.AsTime()
+			}
+			if !exportTime.After(existingTime) {
+				return fmt.Errorf("task %s skipped (local version is newer or same)", export.Task.Id)
 			}
 			// Incoming is newer, proceed with import
 		}
@@ -171,26 +181,26 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	// Handle "running" tasks from another machine - they can't actually be running here
 	// Set to paused/interrupted so user can resume with 'orc resume'
 	wasRunning := false
-	if export.Task.Status == task.StatusRunning {
+	if export.Task.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		wasRunning = true
-		export.Task.Status = task.StatusPaused
+		export.Task.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 		// Clear executor info - it's invalid on this machine
-		export.Task.ExecutorPID = 0
-		export.Task.ExecutorHostname = ""
+		export.Task.ExecutorPid = 0
+		export.Task.ExecutorHostname = nil
 		// Update timestamp to reflect this change
-		export.Task.UpdatedAt = time.Now()
+		export.Task.UpdatedAt = timestamppb.Now()
 		// Note: task.Status is the single source of truth - no state.Status update needed
 	}
 
 	// Save task (includes execution state in Task.Execution)
-	if err := backend.SaveTask(export.Task); err != nil {
+	if err := backend.SaveTaskProto(export.Task); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
 	// Import transcripts if present (with deduplication by MessageUUID)
 	if len(export.Transcripts) > 0 {
 		// Get existing transcripts to deduplicate
-		existingTranscripts, _ := backend.GetTranscripts(export.Task.ID)
+		existingTranscripts, _ := backend.GetTranscripts(export.Task.Id)
 		transcriptKeys := make(map[string]bool)
 		for _, t := range existingTranscripts {
 			// Use MessageUUID for deduplication (unique per message in JSONL)
@@ -251,7 +261,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	// Import attachments if present
 	if len(export.Attachments) > 0 {
 		for _, a := range export.Attachments {
-			if _, err := backend.SaveAttachment(export.Task.ID, a.Filename, a.ContentType, a.Data); err != nil {
+			if _, err := backend.SaveAttachment(export.Task.Id, a.Filename, a.ContentType, a.Data); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not import attachment %s: %v\n", a.Filename, err)
 			}
 		}
@@ -259,7 +269,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 
 	// Import spec if present
 	if export.Spec != "" {
-		if err := backend.SaveSpecForTask(export.Task.ID, export.Spec, "imported"); err != nil {
+		if err := backend.SaveSpecForTask(export.Task.Id, export.Spec, "imported"); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not import spec: %v\n", err)
 		}
 	}
@@ -268,9 +278,9 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	if existing != nil {
 		action = "Updated"
 	}
-	fmt.Printf("%s task %s from %s", action, export.Task.ID, sourceName)
+	fmt.Printf("%s task %s from %s", action, export.Task.Id, sourceName)
 	if wasRunning {
-		fmt.Printf(" (was running, now interrupted - use 'orc resume %s' to continue)", export.Task.ID)
+		fmt.Printf(" (was running, now interrupted - use 'orc resume %s' to continue)", export.Task.Id)
 	}
 	fmt.Println()
 	return nil
@@ -824,20 +834,30 @@ func importDryRun(path, format string) error {
 				fmt.Printf("  %-20s  [ERROR: %v]\n", filepath.Base(f.name), err)
 				continue
 			}
-			existing, _ := backend.LoadTask(export.Task.ID)
+			existing, _ := backend.LoadTaskProto(export.Task.Id)
 			statusNote := ""
-			if export.Task.Status == task.StatusRunning {
+			if export.Task.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 				statusNote = " (running->interrupted)"
 			}
 			if existing == nil {
-				fmt.Printf("  %-20s  [WOULD IMPORT] task %s%s\n", filepath.Base(f.name), export.Task.ID, statusNote)
+				fmt.Printf("  %-20s  [WOULD IMPORT] task %s%s\n", filepath.Base(f.name), export.Task.Id, statusNote)
 				wouldImport++
-			} else if export.Task.UpdatedAt.After(existing.UpdatedAt) {
-				fmt.Printf("  %-20s  [WOULD UPDATE] task %s (incoming newer)%s\n", filepath.Base(f.name), export.Task.ID, statusNote)
-				wouldUpdate++
 			} else {
-				fmt.Printf("  %-20s  [WOULD SKIP]   task %s (local newer or same)\n", filepath.Base(f.name), export.Task.ID)
-				wouldSkip++
+				exportTime := time.Time{}
+				existingTime := time.Time{}
+				if export.Task.UpdatedAt != nil {
+					exportTime = export.Task.UpdatedAt.AsTime()
+				}
+				if existing.UpdatedAt != nil {
+					existingTime = existing.UpdatedAt.AsTime()
+				}
+				if exportTime.After(existingTime) {
+					fmt.Printf("  %-20s  [WOULD UPDATE] task %s (incoming newer)%s\n", filepath.Base(f.name), export.Task.Id, statusNote)
+					wouldUpdate++
+				} else {
+					fmt.Printf("  %-20s  [WOULD SKIP]   task %s (local newer or same)\n", filepath.Base(f.name), export.Task.Id)
+					wouldSkip++
+				}
 			}
 		}
 	}

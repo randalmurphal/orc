@@ -13,9 +13,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // exportAllTasks exports all tasks to a directory, zip, or tar.gz archive.
@@ -29,7 +29,7 @@ func exportAllTasks(outputPath, format string, opts exportAllOptions) error {
 	data := exportAllData{}
 
 	// Load all tasks
-	data.tasks, err = backend.LoadAllTasks()
+	data.tasks, err = backend.LoadAllTasksProto()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}
@@ -172,11 +172,11 @@ func exportAllToTarGz(backend storage.Backend, data exportAllData, archivePath s
 		export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
 		yamlData, err := yaml.Marshal(export)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
+			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.Id, err)
 			continue
 		}
-		if err := writeTarFile(tarWriter, filepath.Join("tasks", t.ID+".yaml"), yamlData); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
+		if err := writeTarFile(tarWriter, filepath.Join("tasks", t.Id+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.Id, err)
 			continue
 		}
 		tasksExported++
@@ -365,11 +365,11 @@ func exportAllToZip(backend storage.Backend, data exportAllData, zipPath string,
 		export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
 		yamlData, err := yaml.Marshal(export)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
+			fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.Id, err)
 			continue
 		}
-		if err := writeZipFile(zipWriter, filepath.Join("tasks", t.ID+".yaml"), yamlData); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
+		if err := writeZipFile(zipWriter, filepath.Join("tasks", t.Id+".yaml"), yamlData); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.Id, err)
 			continue
 		}
 		tasksExported++
@@ -548,11 +548,11 @@ func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opt
 			export := buildExportDataWithBackend(backend, t, opts.withState, opts.withTranscripts)
 			yamlData, err := yaml.Marshal(export)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.ID, err)
+				fmt.Fprintf(os.Stderr, "Warning: %s: marshal error: %v\n", t.Id, err)
 				continue
 			}
-			if err := os.WriteFile(filepath.Join(tasksDir, t.ID+".yaml"), yamlData, 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.ID, err)
+			if err := os.WriteFile(filepath.Join(tasksDir, t.Id+".yaml"), yamlData, 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: %s: write error: %v\n", t.Id, err)
 				continue
 			}
 			tasksExported++
@@ -725,7 +725,7 @@ func exportAllToDir(backend storage.Backend, data exportAllData, dir string, opt
 // The task already contains execution state in Task.Execution (loaded by backend.LoadTask).
 // withState controls whether to include gate decisions (for completeness).
 // withTranscripts controls whether to include conversation history.
-func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState, withTranscripts bool) *ExportData {
+func buildExportDataWithBackend(backend storage.Backend, t *orcv1.Task, withState, withTranscripts bool) *ExportData {
 	export := &ExportData{
 		Version:    ExportFormatVersion,
 		ExportedAt: time.Now(),
@@ -733,38 +733,38 @@ func buildExportDataWithBackend(backend storage.Backend, t *task.Task, withState
 	}
 
 	// Always load spec
-	if spec, err := backend.GetSpecForTask(t.ID); err == nil {
+	if spec, err := backend.GetSpecForTask(t.Id); err == nil {
 		export.Spec = spec
 	}
 
 	// Load gate decisions if state export is requested
 	if withState {
-		if decisions, err := backend.ListGateDecisions(t.ID); err == nil {
+		if decisions, err := backend.ListGateDecisions(t.Id); err == nil {
 			export.GateDecisions = decisions
 		}
 	}
 
 	// Load transcripts if requested
 	if withTranscripts {
-		if transcripts, err := backend.GetTranscripts(t.ID); err == nil {
+		if transcripts, err := backend.GetTranscripts(t.Id); err == nil {
 			export.Transcripts = transcripts
 		}
 	}
 
 	// Always load collaboration data (small, important for context)
-	if comments, err := backend.ListTaskComments(t.ID); err == nil {
+	if comments, err := backend.ListTaskComments(t.Id); err == nil {
 		export.TaskComments = comments
 	}
-	if reviews, err := backend.ListReviewComments(t.ID); err == nil {
+	if reviews, err := backend.ListReviewComments(t.Id); err == nil {
 		export.ReviewComments = reviews
 	}
 
 	// Always load attachments (with data)
-	if attachments, err := backend.ListAttachments(t.ID); err == nil {
+	if attachments, err := backend.ListAttachments(t.Id); err == nil {
 		export.Attachments = make([]AttachmentExport, 0, len(attachments))
 		for _, a := range attachments {
 			// Get attachment data
-			_, data, err := backend.GetAttachment(t.ID, a.Filename)
+			_, data, err := backend.GetAttachment(t.Id, a.Filename)
 			if err != nil {
 				continue // Skip attachments we can't read
 			}

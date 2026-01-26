@@ -17,8 +17,10 @@ import (
 // ============================================================================
 
 // protoTaskToDBTask converts an orcv1.Task to db.Task for storage.
-// Note: Executor fields (ExecutorPID, ExecutorHostname, ExecutorStartedAt, LastHeartbeat)
-// are NOT in proto - they are db-internal fields managed separately.
+// Note: Executor fields (ExecutorPID, ExecutorHostname, LastHeartbeat) are now
+// included in the proto and will be converted. However, SaveTask implementations
+// should preserve existing executor values from the database when the proto values
+// are zero/nil to avoid accidentally clearing live executor state.
 func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 	if t == nil {
 		return nil
@@ -49,7 +51,7 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 	}
 
 	// Convert timestamps
-	var startedAt, completedAt *time.Time
+	var startedAt, completedAt, lastHeartbeat *time.Time
 	if t.StartedAt != nil {
 		ts := t.StartedAt.AsTime()
 		startedAt = &ts
@@ -57,6 +59,10 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 	if t.CompletedAt != nil {
 		ts := t.CompletedAt.AsTime()
 		completedAt = &ts
+	}
+	if t.LastHeartbeat != nil {
+		ts := t.LastHeartbeat.AsTime()
+		lastHeartbeat = &ts
 	}
 
 	createdAt := time.Now()
@@ -75,30 +81,31 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 	}
 
 	return &db.Task{
-		ID:           t.Id,
-		Title:        t.Title,
-		Description:  ptrToString(t.Description),
-		Weight:       task.WeightFromProto(t.Weight),
-		WorkflowID:   ptrToString(t.WorkflowId),
-		Status:       task.StatusFromProto(t.Status),
-		CurrentPhase: ptrToString(t.CurrentPhase),
-		Branch:       t.Branch,
-		TargetBranch: ptrToString(t.TargetBranch),
-		Queue:        task.QueueFromProto(t.Queue),
-		Priority:     task.PriorityFromProto(t.Priority),
-		Category:     task.CategoryFromProto(t.Category),
-		InitiativeID: ptrToString(t.InitiativeId),
-		CreatedAt:    createdAt,
-		StartedAt:    startedAt,
-		CompletedAt:  completedAt,
-		UpdatedAt:    updatedAt,
-		Metadata:     metadataJSON,
-		Quality:      qualityJSON,
-		IsAutomation: t.IsAutomation,
-		TotalCostUSD: totalCostUSD,
-		RetryContext: retryContextJSON,
-		// Executor fields are NOT set here - they're db-internal,
-		// managed by SetTaskExecutor/ClearTaskExecutor
+		ID:               t.Id,
+		Title:            t.Title,
+		Description:      ptrToString(t.Description),
+		Weight:           task.WeightFromProto(t.Weight),
+		WorkflowID:       ptrToString(t.WorkflowId),
+		Status:           task.StatusFromProto(t.Status),
+		CurrentPhase:     ptrToString(t.CurrentPhase),
+		Branch:           t.Branch,
+		TargetBranch:     ptrToString(t.TargetBranch),
+		Queue:            task.QueueFromProto(t.Queue),
+		Priority:         task.PriorityFromProto(t.Priority),
+		Category:         task.CategoryFromProto(t.Category),
+		InitiativeID:     ptrToString(t.InitiativeId),
+		CreatedAt:        createdAt,
+		StartedAt:        startedAt,
+		CompletedAt:      completedAt,
+		UpdatedAt:        updatedAt,
+		Metadata:         metadataJSON,
+		Quality:          qualityJSON,
+		IsAutomation:     t.IsAutomation,
+		TotalCostUSD:     totalCostUSD,
+		RetryContext:     retryContextJSON,
+		ExecutorPID:      int(t.ExecutorPid),
+		ExecutorHostname: ptrToString(t.ExecutorHostname),
+		LastHeartbeat:    lastHeartbeat,
 	}
 }
 
@@ -152,28 +159,37 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		}
 	}
 
+	// Build executor tracking fields
+	var lastHeartbeat *timestamppb.Timestamp
+	if dbTask.LastHeartbeat != nil {
+		lastHeartbeat = timestamppb.New(*dbTask.LastHeartbeat)
+	}
+
 	return &orcv1.Task{
-		Id:           dbTask.ID,
-		Title:        dbTask.Title,
-		Description:  stringToPtr(dbTask.Description),
-		Weight:       task.WeightToProto(dbTask.Weight),
-		WorkflowId:   stringToPtr(dbTask.WorkflowID),
-		Status:       task.StatusToProto(dbTask.Status),
-		CurrentPhase: stringToPtr(dbTask.CurrentPhase),
-		Branch:       dbTask.Branch,
-		TargetBranch: stringToPtr(dbTask.TargetBranch),
-		Queue:        task.QueueToProto(dbTask.Queue),
-		Priority:     task.PriorityToProto(dbTask.Priority),
-		Category:     task.CategoryToProto(dbTask.Category),
-		InitiativeId: stringToPtr(dbTask.InitiativeID),
-		CreatedAt:    timestamppb.New(dbTask.CreatedAt),
-		StartedAt:    startedAt,
-		CompletedAt:  completedAt,
-		UpdatedAt:    timestamppb.New(dbTask.UpdatedAt),
-		Metadata:     metadata,
-		Quality:      quality,
-		IsAutomation: dbTask.IsAutomation,
-		Execution:    execution,
+		Id:               dbTask.ID,
+		Title:            dbTask.Title,
+		Description:      stringToPtr(dbTask.Description),
+		Weight:           task.WeightToProto(dbTask.Weight),
+		WorkflowId:       stringToPtr(dbTask.WorkflowID),
+		Status:           task.StatusToProto(dbTask.Status),
+		CurrentPhase:     stringToPtr(dbTask.CurrentPhase),
+		Branch:           dbTask.Branch,
+		TargetBranch:     stringToPtr(dbTask.TargetBranch),
+		Queue:            task.QueueToProto(dbTask.Queue),
+		Priority:         task.PriorityToProto(dbTask.Priority),
+		Category:         task.CategoryToProto(dbTask.Category),
+		InitiativeId:     stringToPtr(dbTask.InitiativeID),
+		CreatedAt:        timestamppb.New(dbTask.CreatedAt),
+		StartedAt:        startedAt,
+		CompletedAt:      completedAt,
+		UpdatedAt:        timestamppb.New(dbTask.UpdatedAt),
+		Metadata:         metadata,
+		Quality:          quality,
+		IsAutomation:     dbTask.IsAutomation,
+		Execution:        execution,
+		ExecutorPid:      int32(dbTask.ExecutorPID),
+		ExecutorHostname: stringToPtr(dbTask.ExecutorHostname),
+		LastHeartbeat:    lastHeartbeat,
 	}
 }
 

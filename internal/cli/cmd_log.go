@@ -14,9 +14,9 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ANSI color codes for transcript display
@@ -434,15 +434,20 @@ func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 			}
 
 			// Check if task is still running (task.Status is single source of truth)
-			t, err := backend.LoadTask(taskID)
+			t, err := backend.LoadTaskProto(taskID)
 			if err == nil && t != nil {
 				// If task completed/failed/paused, show message and exit
 				switch t.Status {
-				case task.StatusCompleted, task.StatusFailed, task.StatusPaused, task.StatusBlocked:
+				case orcv1.TaskStatus_TASK_STATUS_COMPLETED,
+					orcv1.TaskStatus_TASK_STATUS_RESOLVED,
+					orcv1.TaskStatus_TASK_STATUS_FAILED,
+					orcv1.TaskStatus_TASK_STATUS_PAUSED,
+					orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+					statusStr := t.Status.String()
 					if opts.useColor {
-						fmt.Printf("\n%sTask %s (status: %s)%s\n", ansiDim, taskID, t.Status, ansiReset)
+						fmt.Printf("\n%sTask %s (status: %s)%s\n", ansiDim, taskID, statusStr, ansiReset)
 					} else {
-						fmt.Printf("\nTask %s (status: %s)\n", taskID, t.Status)
+						fmt.Printf("\nTask %s (status: %s)\n", taskID, statusStr)
 					}
 					return nil
 				}
