@@ -860,15 +860,28 @@ message GetReviewFindingsResponse {
   repeated ReviewRoundFindings rounds = 1;
 }
 
-// ExportTask
+// ExportTask - exports task artifacts to filesystem or branch
 message ExportTaskRequest {
   string task_id = 1;
-  bool include_transcripts = 2;
-  bool include_attachments = 3;
+  // Export task.yaml and plan.yaml
+  optional bool task_definition = 2;
+  // Export state.yaml
+  optional bool final_state = 3;
+  // Export full transcript files
+  optional bool transcripts = 4;
+  // Export context.md
+  optional bool context_summary = 5;
+  // Commit exports to the current branch
+  bool to_branch = 6;
 }
 
 message ExportTaskResponse {
-  bytes data = 1;
-  string filename = 2;
-  string content_type = 3;
+  bool success = 1;
+  string task_id = 2;
+  // Path where files were exported
+  string exported_to = 3;
+  // List of exported files
+  repeated string files = 4;
+  // Git commit SHA if to_branch was true
+  optional string committed_sha = 5;
 }

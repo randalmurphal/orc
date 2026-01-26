@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// Notification represents a user notification
+message Notification {
+  string id = 1;
+  string type = 2;
+  string title = 3;
+  optional string message = 4;
+  optional string source_type = 5;
+  optional string source_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  optional google.protobuf.Timestamp expires_at = 8;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service NotificationService {
+  // List all notifications
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // Dismiss a single notification
+  rpc DismissNotification(DismissNotificationRequest) returns (DismissNotificationResponse);
+  // Dismiss all notifications
+  rpc DismissAllNotifications(DismissAllNotificationsRequest) returns (DismissAllNotificationsResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// ListNotifications
+message ListNotificationsRequest {}
+
+message ListNotificationsResponse {
+  repeated Notification notifications = 1;
+}
+
+// DismissNotification
+message DismissNotificationRequest {
+  string id = 1;
+}
+
+message DismissNotificationResponse {}
+
+// DismissAllNotifications
+message DismissAllNotificationsRequest {}
+
+message DismissAllNotificationsResponse {}

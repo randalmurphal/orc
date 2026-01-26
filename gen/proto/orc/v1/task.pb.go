@@ -6821,14 +6821,22 @@ func (x *GetReviewFindingsResponse) GetRounds() []*ReviewRoundFindings {
 	return nil
 }
 
-// ExportTask
+// ExportTask - exports task artifacts to filesystem or branch
 type ExportTaskRequest struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	TaskId             string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	IncludeTranscripts bool                   `protobuf:"varint,2,opt,name=include_transcripts,json=includeTranscripts,proto3" json:"include_transcripts,omitempty"`
-	IncludeAttachments bool                   `protobuf:"varint,3,opt,name=include_attachments,json=includeAttachments,proto3" json:"include_attachments,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	// Export task.yaml and plan.yaml
+	TaskDefinition *bool `protobuf:"varint,2,opt,name=task_definition,json=taskDefinition,proto3,oneof" json:"task_definition,omitempty"`
+	// Export state.yaml
+	FinalState *bool `protobuf:"varint,3,opt,name=final_state,json=finalState,proto3,oneof" json:"final_state,omitempty"`
+	// Export full transcript files
+	Transcripts *bool `protobuf:"varint,4,opt,name=transcripts,proto3,oneof" json:"transcripts,omitempty"`
+	// Export context.md
+	ContextSummary *bool `protobuf:"varint,5,opt,name=context_summary,json=contextSummary,proto3,oneof" json:"context_summary,omitempty"`
+	// Commit exports to the current branch
+	ToBranch      bool `protobuf:"varint,6,opt,name=to_branch,json=toBranch,proto3" json:"to_branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExportTaskRequest) Reset() {
@@ -6868,25 +6876,51 @@ func (x *ExportTaskRequest) GetTaskId() string {
 	return ""
 }
 
-func (x *ExportTaskRequest) GetIncludeTranscripts() bool {
-	if x != nil {
-		return x.IncludeTranscripts
+func (x *ExportTaskRequest) GetTaskDefinition() bool {
+	if x != nil && x.TaskDefinition != nil {
+		return *x.TaskDefinition
 	}
 	return false
 }
 
-func (x *ExportTaskRequest) GetIncludeAttachments() bool {
+func (x *ExportTaskRequest) GetFinalState() bool {
+	if x != nil && x.FinalState != nil {
+		return *x.FinalState
+	}
+	return false
+}
+
+func (x *ExportTaskRequest) GetTranscripts() bool {
+	if x != nil && x.Transcripts != nil {
+		return *x.Transcripts
+	}
+	return false
+}
+
+func (x *ExportTaskRequest) GetContextSummary() bool {
+	if x != nil && x.ContextSummary != nil {
+		return *x.ContextSummary
+	}
+	return false
+}
+
+func (x *ExportTaskRequest) GetToBranch() bool {
 	if x != nil {
-		return x.IncludeAttachments
+		return x.ToBranch
 	}
 	return false
 }
 
 type ExportTaskResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	ContentType   string                 `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Success bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	TaskId  string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	// Path where files were exported
+	ExportedTo string `protobuf:"bytes,3,opt,name=exported_to,json=exportedTo,proto3" json:"exported_to,omitempty"`
+	// List of exported files
+	Files []string `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	// Git commit SHA if to_branch was true
+	CommittedSha  *string `protobuf:"bytes,5,opt,name=committed_sha,json=committedSha,proto3,oneof" json:"committed_sha,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6921,23 +6955,37 @@ func (*ExportTaskResponse) Descriptor() ([]byte, []int) {
 	return file_orc_v1_task_proto_rawDescGZIP(), []int{96}
 }
 
-func (x *ExportTaskResponse) GetData() []byte {
+func (x *ExportTaskResponse) GetSuccess() bool {
 	if x != nil {
-		return x.Data
+		return x.Success
 	}
-	return nil
+	return false
 }
 
-func (x *ExportTaskResponse) GetFilename() string {
+func (x *ExportTaskResponse) GetTaskId() string {
 	if x != nil {
-		return x.Filename
+		return x.TaskId
 	}
 	return ""
 }
 
-func (x *ExportTaskResponse) GetContentType() string {
+func (x *ExportTaskResponse) GetExportedTo() string {
 	if x != nil {
-		return x.ContentType
+		return x.ExportedTo
+	}
+	return ""
+}
+
+func (x *ExportTaskResponse) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ExportTaskResponse) GetCommittedSha() string {
+	if x != nil && x.CommittedSha != nil {
+		return *x.CommittedSha
 	}
 	return ""
 }
@@ -7556,15 +7604,27 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x18GetReviewFindingsRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\"P\n" +
 	"\x19GetReviewFindingsResponse\x123\n" +
-	"\x06rounds\x18\x01 \x03(\v2\x1b.orc.v1.ReviewRoundFindingsR\x06rounds\"\x8e\x01\n" +
+	"\x06rounds\x18\x01 \x03(\v2\x1b.orc.v1.ReviewRoundFindingsR\x06rounds\"\xba\x02\n" +
 	"\x11ExportTaskRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12/\n" +
-	"\x13include_transcripts\x18\x02 \x01(\bR\x12includeTranscripts\x12/\n" +
-	"\x13include_attachments\x18\x03 \x01(\bR\x12includeAttachments\"g\n" +
-	"\x12ExportTaskResponse\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType*\x88\x01\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12,\n" +
+	"\x0ftask_definition\x18\x02 \x01(\bH\x00R\x0etaskDefinition\x88\x01\x01\x12$\n" +
+	"\vfinal_state\x18\x03 \x01(\bH\x01R\n" +
+	"finalState\x88\x01\x01\x12%\n" +
+	"\vtranscripts\x18\x04 \x01(\bH\x02R\vtranscripts\x88\x01\x01\x12,\n" +
+	"\x0fcontext_summary\x18\x05 \x01(\bH\x03R\x0econtextSummary\x88\x01\x01\x12\x1b\n" +
+	"\tto_branch\x18\x06 \x01(\bR\btoBranchB\x12\n" +
+	"\x10_task_definitionB\x0e\n" +
+	"\f_final_stateB\x0e\n" +
+	"\f_transcriptsB\x12\n" +
+	"\x10_context_summary\"\xba\x01\n" +
+	"\x12ExportTaskResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x1f\n" +
+	"\vexported_to\x18\x03 \x01(\tR\n" +
+	"exportedTo\x12\x14\n" +
+	"\x05files\x18\x04 \x03(\tR\x05files\x12(\n" +
+	"\rcommitted_sha\x18\x05 \x01(\tH\x00R\fcommittedSha\x88\x01\x01B\x10\n" +
+	"\x0e_committed_sha*\x88\x01\n" +
 	"\n" +
 	"TaskWeight\x12\x1b\n" +
 	"\x17TASK_WEIGHT_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -8070,6 +8130,8 @@ func file_orc_v1_task_proto_init() {
 	}
 	file_orc_v1_task_proto_msgTypes[91].OneofWrappers = []any{}
 	file_orc_v1_task_proto_msgTypes[92].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[95].OneofWrappers = []any{}
+	file_orc_v1_task_proto_msgTypes[96].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

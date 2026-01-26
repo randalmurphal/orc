@@ -20,6 +20,8 @@ import { AutomationService } from '@/gen/orc/v1/automation_pb';
 import { GitHubService } from '@/gen/orc/v1/github_pb';
 import { KnowledgeService } from '@/gen/orc/v1/knowledge_pb';
 import { DecisionService } from '@/gen/orc/v1/decision_pb';
+import { NotificationService } from '@/gen/orc/v1/notification_pb';
+import { MCPService } from '@/gen/orc/v1/mcp_pb';
 
 /**
  * Connect transport configured for the orc API.
@@ -43,3 +45,5 @@ export const automationClient = createClient(AutomationService, transport);
 export const githubClient = createClient(GitHubService, transport);
 export const knowledgeClient = createClient(KnowledgeService, transport);
 export const decisionClient = createClient(DecisionService, transport);
+export const notificationClient = createClient(NotificationService, transport);
+export const mcpClient = createClient(MCPService, transport);
