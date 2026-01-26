@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package orc.v1;
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// MCP server scope
+enum MCPScope {
+  MCP_SCOPE_UNSPECIFIED = 0;
+  MCP_SCOPE_PROJECT = 1;  // .mcp.json in project root
+  MCP_SCOPE_GLOBAL = 2;   // ~/.claude/.mcp.json
+}
+
+// =============================================================================
+// MESSAGES
+// =============================================================================
+
+// MCPServerInfo is the summary view of an MCP server
+message MCPServerInfo {
+  string name = 1;
+  string type = 2;           // "stdio" or "sse"
+  optional string command = 3;
+  optional string url = 4;
+  bool disabled = 5;
+  bool has_env = 6;
+  int32 env_count = 7;
+  int32 args_count = 8;
+}
+
+// MCPServer is the full configuration of an MCP server
+message MCPServer {
+  string name = 1;
+  string type = 2;           // "stdio" or "sse"
+  optional string command = 3;
+  repeated string args = 4;
+  map<string, string> env = 5;
+  optional string url = 6;
+  repeated string headers = 7;
+  bool disabled = 8;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service MCPService {
+  // List all MCP servers
+  rpc ListMCPServers(ListMCPServersRequest) returns (ListMCPServersResponse);
+  // Get a single MCP server by name
+  rpc GetMCPServer(GetMCPServerRequest) returns (GetMCPServerResponse);
+  // Create a new MCP server
+  rpc CreateMCPServer(CreateMCPServerRequest) returns (CreateMCPServerResponse);
+  // Update an existing MCP server
+  rpc UpdateMCPServer(UpdateMCPServerRequest) returns (UpdateMCPServerResponse);
+  // Delete an MCP server
+  rpc DeleteMCPServer(DeleteMCPServerRequest) returns (DeleteMCPServerResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// ListMCPServers
+message ListMCPServersRequest {
+  MCPScope scope = 1;
+}
+
+message ListMCPServersResponse {
+  repeated MCPServerInfo servers = 1;
+}
+
+// GetMCPServer
+message GetMCPServerRequest {
+  string name = 1;
+}
+
+message GetMCPServerResponse {
+  MCPServer server = 1;
+}
+
+// CreateMCPServer
+message CreateMCPServerRequest {
+  string name = 1;
+  optional string type = 2;           // defaults to "stdio"
+  optional string command = 3;
+  repeated string args = 4;
+  map<string, string> env = 5;
+  optional string url = 6;
+  repeated string headers = 7;
+  bool disabled = 8;
+}
+
+message CreateMCPServerResponse {
+  MCPServerInfo server = 1;
+}
+
+// UpdateMCPServer
+message UpdateMCPServerRequest {
+  string name = 1;                    // Server to update (path param)
+  optional string type = 2;
+  optional string command = 3;
+  repeated string args = 4;
+  map<string, string> env = 5;
+  optional string url = 6;
+  repeated string headers = 7;
+  optional bool disabled = 8;
+}
+
+message UpdateMCPServerResponse {
+  MCPServerInfo server = 1;
+}
+
+// DeleteMCPServer
+message DeleteMCPServerRequest {
+  string name = 1;
+}
+
+message DeleteMCPServerResponse {}

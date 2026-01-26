@@ -4,26 +4,38 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/overlays/Modal';
 import { toast } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
+import { mcpClient } from '@/lib/client';
 import {
-	listMCPServers,
-	getMCPServer,
-	createMCPServer,
-	updateMCPServer,
-	deleteMCPServer,
+	ListMCPServersRequestSchema,
+	GetMCPServerRequestSchema,
+	CreateMCPServerRequestSchema,
+	UpdateMCPServerRequestSchema,
+	DeleteMCPServerRequestSchema,
 	type MCPServerInfo,
-	type MCPServerCreate,
-} from '@/lib/api';
+} from '@/gen/orc/v1/mcp_pb';
 import './environment.css';
 
 interface EnvVar {
 	key: string;
 	value: string;
+}
+
+// Local form data type for editing
+interface MCPFormData {
+	name: string;
+	type: 'stdio' | 'sse';
+	command: string;
+	args: string[];
+	env: Record<string, string>;
+	url: string;
+	disabled: boolean;
 }
 
 export function Mcp() {
@@ -35,12 +47,13 @@ export function Mcp() {
 	// Editor modal state
 	const [editingServer, setEditingServer] = useState<string | null>(null);
 	const [isNewServer, setIsNewServer] = useState(false);
-	const [formData, setFormData] = useState<MCPServerCreate>({
+	const [formData, setFormData] = useState<MCPFormData>({
 		name: '',
 		type: 'stdio',
 		command: '',
 		args: [],
 		env: {},
+		url: '',
 		disabled: false,
 	});
 	const [argsText, setArgsText] = useState('');
@@ -52,8 +65,10 @@ export function Mcp() {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await listMCPServers();
-			setServers(data);
+			const response = await mcpClient.listMCPServers(
+				create(ListMCPServersRequestSchema, {})
+			);
+			setServers(response.servers);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load MCP servers');
 		} finally {
@@ -72,6 +87,7 @@ export function Mcp() {
 			command: '',
 			args: [],
 			env: {},
+			url: '',
 			disabled: false,
 		});
 		setArgsText('');
@@ -85,10 +101,16 @@ export function Mcp() {
 		setEditingServer(serverName);
 		setIsNewServer(false);
 		try {
-			const server = await getMCPServer(serverName);
+			const response = await mcpClient.getMCPServer(
+				create(GetMCPServerRequestSchema, { name: serverName })
+			);
+			const server = response.server;
+			if (!server) {
+				throw new Error('Server not found');
+			}
 			setFormData({
 				name: server.name,
-				type: server.type,
+				type: server.type === 'sse' ? 'sse' : 'stdio',
 				command: server.command || '',
 				args: server.args || [],
 				env: server.env || {},
@@ -127,23 +149,33 @@ export function Mcp() {
 			}
 		});
 
-		const request: MCPServerCreate = {
-			name: formData.name.trim(),
-			type: formData.type,
-			command: formData.type === 'stdio' ? formData.command : undefined,
-			args: formData.type === 'stdio' && args.length > 0 ? args : undefined,
-			env: Object.keys(env).length > 0 ? env : undefined,
-			url: formData.type === 'sse' ? formData.url : undefined,
-			disabled: formData.disabled,
-		};
-
 		try {
 			setSaving(true);
 			if (isNewServer) {
-				await createMCPServer(request);
+				await mcpClient.createMCPServer(
+					create(CreateMCPServerRequestSchema, {
+						name: formData.name.trim(),
+						type: formData.type,
+						command: formData.type === 'stdio' ? formData.command : undefined,
+						args: formData.type === 'stdio' && args.length > 0 ? args : [],
+						env: Object.keys(env).length > 0 ? env : {},
+						url: formData.type === 'sse' ? formData.url : undefined,
+						disabled: formData.disabled,
+					})
+				);
 				toast.success('MCP server created');
 			} else {
-				await updateMCPServer(editingServer!, request);
+				await mcpClient.updateMCPServer(
+					create(UpdateMCPServerRequestSchema, {
+						name: editingServer!,
+						type: formData.type,
+						command: formData.type === 'stdio' ? formData.command : undefined,
+						args: formData.type === 'stdio' ? args : [],
+						env: Object.keys(env).length > 0 ? env : {},
+						url: formData.type === 'sse' ? formData.url : undefined,
+						disabled: formData.disabled,
+					})
+				);
 				toast.success('MCP server updated');
 			}
 			setEditingServer(null);
@@ -160,7 +192,9 @@ export function Mcp() {
 			return;
 		}
 		try {
-			await deleteMCPServer(serverName);
+			await mcpClient.deleteMCPServer(
+				create(DeleteMCPServerRequestSchema, { name: serverName })
+			);
 			toast.success('MCP server deleted');
 			await loadServers();
 		} catch (err) {
@@ -170,7 +204,12 @@ export function Mcp() {
 
 	const handleToggle = async (server: MCPServerInfo) => {
 		try {
-			await updateMCPServer(server.name, { disabled: !server.disabled });
+			await mcpClient.updateMCPServer(
+				create(UpdateMCPServerRequestSchema, {
+					name: server.name,
+					disabled: !server.disabled,
+				})
+			);
 			toast.success(`${server.name} ${server.disabled ? 'enabled' : 'disabled'}`);
 			await loadServers();
 		} catch (err) {
@@ -283,14 +322,14 @@ export function Mcp() {
 								<div className="mcp-card-url">{server.url}</div>
 							)}
 							<div className="mcp-card-meta">
-								{server.args_count > 0 && (
+								{server.argsCount > 0 && (
 									<span className="mcp-card-badge">
-										{server.args_count} arg{server.args_count !== 1 ? 's' : ''}
+										{server.argsCount} arg{server.argsCount !== 1 ? 's' : ''}
 									</span>
 								)}
-								{server.has_env && (
+								{server.hasEnv && (
 									<span className="mcp-card-badge">
-										{server.env_count} env var{server.env_count !== 1 ? 's' : ''}
+										{server.envCount} env var{server.envCount !== 1 ? 's' : ''}
 									</span>
 								)}
 								{server.disabled && (

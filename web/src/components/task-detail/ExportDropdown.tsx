@@ -6,9 +6,11 @@
  */
 
 import { useState, useCallback } from 'react';
+import { create } from '@bufbuild/protobuf';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Icon } from '@/components/ui/Icon';
-import { exportTask } from '@/lib/api';
+import { taskClient } from '@/lib/client';
+import { ExportTaskRequestSchema } from '@/gen/orc/v1/task_pb';
 import { toast } from '@/stores/uiStore';
 import './ExportDropdown.css';
 
@@ -22,17 +24,26 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 
 	const handleExport = useCallback(
 		async (options: {
-			task_definition?: boolean;
-			final_state?: boolean;
+			taskDefinition?: boolean;
+			finalState?: boolean;
 			transcripts?: boolean;
-			context_summary?: boolean;
-			to_branch?: boolean;
+			contextSummary?: boolean;
+			toBranch?: boolean;
 		}) => {
 			setExporting(true);
 			try {
-				const result = await exportTask(taskId, options);
+				const result = await taskClient.exportTask(
+					create(ExportTaskRequestSchema, {
+						taskId,
+						taskDefinition: options.taskDefinition,
+						finalState: options.finalState,
+						transcripts: options.transcripts,
+						contextSummary: options.contextSummary,
+						toBranch: options.toBranch ?? false,
+					})
+				);
 				if (result.success) {
-					toast.success(`Exported to ${result.exported_to}`);
+					toast.success(`Exported to ${result.exportedTo}`);
 				}
 				setIsOpen(false);
 			} catch (e) {
@@ -70,7 +81,7 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 						<DropdownMenu.Item
 							className="export-option"
 							disabled={exporting}
-							onSelect={() => handleExport({ task_definition: true })}
+							onSelect={() => handleExport({ taskDefinition: true })}
 						>
 							<Icon name="file-text" size={16} />
 							<span>Task Definition</span>
@@ -79,7 +90,7 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 						<DropdownMenu.Item
 							className="export-option"
 							disabled={exporting}
-							onSelect={() => handleExport({ final_state: true })}
+							onSelect={() => handleExport({ finalState: true })}
 						>
 							<Icon name="database" size={16} />
 							<span>Final State</span>
@@ -97,7 +108,7 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 						<DropdownMenu.Item
 							className="export-option"
 							disabled={exporting}
-							onSelect={() => handleExport({ context_summary: true })}
+							onSelect={() => handleExport({ contextSummary: true })}
 						>
 							<Icon name="clipboard" size={16} />
 							<span>Context Summary</span>
@@ -110,10 +121,10 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 							disabled={exporting}
 							onSelect={() =>
 								handleExport({
-									task_definition: true,
-									final_state: true,
+									taskDefinition: true,
+									finalState: true,
 									transcripts: true,
-									context_summary: true,
+									contextSummary: true,
 								})
 							}
 						>
@@ -124,7 +135,7 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 						<DropdownMenu.Item
 							className="export-option"
 							disabled={exporting}
-							onSelect={() => handleExport({ to_branch: true })}
+							onSelect={() => handleExport({ toBranch: true })}
 						>
 							<Icon name="branch" size={16} />
 							<span>Commit to Branch</span>

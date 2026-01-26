@@ -1672,3 +1672,87 @@ func attachmentToProto(a *task.Attachment) *orcv1.Attachment {
 		IsImage:     a.IsImage,
 	}
 }
+
+// ExportTask exports task artifacts to the filesystem or a git branch.
+func (s *taskServer) ExportTask(
+	ctx context.Context,
+	req *connect.Request[orcv1.ExportTaskRequest],
+) (*connect.Response[orcv1.ExportTaskResponse], error) {
+	taskID := req.Msg.TaskId
+	if taskID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("task ID required"))
+	}
+
+	// Check if task exists
+	exists, err := s.backend.TaskExists(taskID)
+	if err != nil || !exists {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", taskID))
+	}
+
+	// Load config for export settings
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load config: %w", err))
+	}
+
+	// Build export options from request or defaults
+	resolved := cfg.Storage.ResolveExportConfig()
+	opts := &storage.ExportOptions{
+		TaskDefinition: resolved.TaskDefinition,
+		FinalState:     resolved.FinalState,
+		Transcripts:    resolved.Transcripts,
+		ContextSummary: resolved.ContextSummary,
+	}
+
+	// Override with request values if provided
+	if req.Msg.TaskDefinition != nil {
+		opts.TaskDefinition = *req.Msg.TaskDefinition
+	}
+	if req.Msg.FinalState != nil {
+		opts.FinalState = *req.Msg.FinalState
+	}
+	if req.Msg.Transcripts != nil {
+		opts.Transcripts = *req.Msg.Transcripts
+	}
+	if req.Msg.ContextSummary != nil {
+		opts.ContextSummary = *req.Msg.ContextSummary
+	}
+
+	// Create export service
+	backend, err := storage.NewBackend(s.projectRoot, &cfg.Storage)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create storage backend: %w", err))
+	}
+	defer func() { _ = backend.Close() }()
+
+	exportSvc := storage.NewExportService(backend, &cfg.Storage)
+
+	// Perform export
+	if req.Msg.ToBranch {
+		// Get current branch for the task
+		t, err := s.backend.LoadTask(taskID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load task: %w", err))
+		}
+
+		if err := exportSvc.ExportToBranch(taskID, t.Branch, opts); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to export to branch: %w", err))
+		}
+
+		return connect.NewResponse(&orcv1.ExportTaskResponse{
+			Success:    true,
+			TaskId:     taskID,
+			ExportedTo: t.Branch,
+		}), nil
+	}
+
+	if err := exportSvc.Export(taskID, opts); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to export: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.ExportTaskResponse{
+		Success:    true,
+		TaskId:     taskID,
+		ExportedTo: ".orc/exports/" + taskID,
+	}), nil
+}
