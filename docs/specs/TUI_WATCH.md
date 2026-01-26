@@ -183,7 +183,7 @@ Build an interactive terminal UI using bubbletea:
 ```go
 type Model struct {
     // Data
-    tasks       []task.Task
+    tasks       []*orcv1.Task
     selectedIdx int
     transcript  []TranscriptLine
 
@@ -218,9 +218,9 @@ const (
 ```go
 type (
     // Data updates
-    TasksUpdatedMsg     []task.Task
+    TasksUpdatedMsg     []*orcv1.Task
     TranscriptLineMsg   TranscriptLine
-    TaskStateChangedMsg task.Task
+    TaskStateChangedMsg *orcv1.Task
 
     // Actions
     RunTaskMsg    string // task ID
@@ -381,7 +381,7 @@ func (m Model) listenForEvents() tea.Cmd {
         case events.EventTranscript:
             return TranscriptLineMsg(event.Data.(TranscriptLine))
         case events.EventState:
-            return TaskStateChangedMsg(event.Data.(task.Task))
+            return TaskStateChangedMsg(event.Data.(*orcv1.Task))
         }
         return nil
     }

@@ -112,50 +112,38 @@ When hovering/dragging, show what's required:
 
 ### API Changes
 
-#### New Endpoint: PATCH /api/tasks/{id}/move
+#### New RPC: MoveTask
 
-```json
-// Request
-{
-    "target_column": "implement",
-    "skip_requirements": false
+```protobuf
+// In orc/v1/task.proto
+rpc MoveTask(MoveTaskRequest) returns (MoveTaskResponse);
+
+message MoveTaskRequest {
+  string task_id = 1;
+  string target_column = 2;
+  bool skip_requirements = 3;
 }
 
-// Response (success)
-{
-    "task": { ... },
-    "skipped_phases": ["spec"],
-    "warnings": []
-}
-
-// Response (blocked)
-{
-    "error": "requirements_not_met",
-    "missing": [
-        {
-            "type": "artifact",
-            "name": "spec.md",
-            "hint": "Create spec.md or set skip_requirements=true"
-        }
-    ]
+message MoveTaskResponse {
+  Task task = 1;
+  repeated string skipped_phases = 2;
+  repeated string warnings = 3;
 }
 ```
 
-#### New Endpoint: POST /api/tasks/{id}/undo
+#### New RPC: UndoTaskMove
 
-```json
-// Request
-{
-    "action_id": "move_abc123"
+```protobuf
+rpc UndoTaskMove(UndoTaskMoveRequest) returns (UndoTaskMoveResponse);
+
+message UndoTaskMoveRequest {
+  string action_id = 1;
 }
 
-// Response
-{
-    "task": { ... },
-    "reverted_to": {
-        "current_phase": "spec",
-        "status": "planned"
-    }
+message UndoTaskMoveResponse {
+  Task task = 1;
+  string previous_phase = 2;
+  string previous_status = 3;
 }
 ```
 
@@ -235,49 +223,47 @@ func (e *Executor) shouldSkipPhase(task Task, phase Phase) bool {
 }
 ```
 
-### File Write Operations
+### Task Move Implementation
 
-When UI moves a task:
+When UI moves a task via Connect RPC:
 
 ```go
-func (s *Server) handleMoveTask(w http.ResponseWriter, r *http.Request) {
-    var req MoveRequest
-    json.NewDecoder(r.Body).Decode(&req)
-
-    task, err := task.LoadFrom(s.workDir, req.TaskID)
+func (s *taskServer) MoveTask(
+    ctx context.Context,
+    req *connect.Request[orcv1.MoveTaskRequest],
+) (*connect.Response[orcv1.MoveTaskResponse], error) {
+    task, err := s.backend.LoadTask(req.Msg.TaskId)
     if err != nil {
-        s.jsonError(w, "task not found", 404)
-        return
+        return nil, connect.NewError(connect.CodeNotFound, err)
     }
 
     // Validate move
-    validation := s.validateMove(task, req.TargetColumn)
-    if !validation.Allowed && !req.SkipRequirements {
-        s.jsonResponse(w, validation)
-        return
+    validation := s.validateMove(task, req.Msg.TargetColumn)
+    if !validation.Allowed && !req.Msg.SkipRequirements {
+        return nil, connect.NewError(connect.CodeFailedPrecondition,
+            fmt.Errorf("requirements not met: %v", validation.Missing))
     }
 
     // Record for undo
-    before := task.Snapshot()
+    before := task.Clone()
 
     // Update task state
-    task.CurrentPhase = columnToPhase(req.TargetColumn)
-    task.Status = deriveStatus(req.TargetColumn)
-    task.UpdatedAt = time.Now()
+    task.CurrentPhase = columnToPhase(req.Msg.TargetColumn)
+    task.Status = deriveStatus(req.Msg.TargetColumn)
+    task.UpdatedAt = timestamppb.Now()
 
-    // Write to file
-    if err := task.SaveTo(task.TaskDirIn(s.workDir, task.ID)); err != nil {
-        s.jsonError(w, "failed to save", 500)
-        return
+    // Save to database
+    if err := s.backend.SaveTask(task); err != nil {
+        return nil, connect.NewError(connect.CodeInternal, err)
     }
 
-    // File watcher will pick up change and broadcast via WebSocket
+    // Publish event for real-time updates
+    s.publisher.Publish(events.TaskUpdated(task))
 
-    s.jsonResponse(w, MoveResponse{
-        Task:     task,
-        ActionID: generateActionID(),
-        Before:   before,
-    })
+    return connect.NewResponse(&orcv1.MoveTaskResponse{
+        Task:          task,
+        SkippedPhases: validation.SkippedPhases,
+    }), nil
 }
 ```
 

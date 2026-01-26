@@ -6,7 +6,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 
 | Package | Responsibility | Key Types |
 |---------|----------------|-----------|
-| `api/` | HTTP server, REST endpoints, WebSocket | `Server`, handlers |
+| `api/` | Connect RPC server, WebSocket | `Server`, `*Server` (service impls) |
 | `automation/` | Trigger-based task automation | `Trigger`, `Service`, `Evaluator` |
 | `bootstrap/` | Instant project initialization (<500ms) | `Run`, `Options`, `Result` |
 | `cli/` | Command-line interface (Cobra) | Commands |
@@ -33,7 +33,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `setup/` | Claude-powered interactive setup | `Run`, `Spawner`, `Validator` |
 | `spec/` | Interactive spec sessions | `Options`, `Spawner`, `Result` |
 | `storage/` | Storage backend abstraction (SQLite) | `Backend`, `DatabaseBackend`, `ExportService` |
-| `task/` | Task model, execution state, attachments, orphan detection | `Task`, `ExecutionState`, `CheckOrphaned()` |
+| `task/` | Proto helpers, execution state utils, orphan detection | `proto_helpers.go`, `execution_helpers.go`, `CheckOrphaned()` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
 | `util/` | Common utilities (atomic file writes) | `AtomicWriteFile()` |
@@ -83,7 +83,7 @@ cmd/orc
 return fmt.Errorf("load task %s: %w", id, err)
 ```
 
-**Task Consistency:** Task status and execution state are unified in `task.Task.Execution`. When execution fails, update both `t.Status` and `t.Execution` fields, then save with `backend.SaveTask(t)`. See `executor/CLAUDE.md` for the complete error handling checklist.
+**Task Consistency:** Task status and execution state are unified in `orcv1.Task` (the proto domain model from `gen/proto/orc/v1/task.pb.go`). When execution fails, update both `t.Status` and `t.Execution` fields, then save with `backend.SaveTask(t)`. See `executor/CLAUDE.md` for the complete error handling checklist.
 
 ### Functional Options
 
@@ -136,7 +136,7 @@ See package-specific CLAUDE.md files for detailed usage:
 
 | Package | CLAUDE.md |
 |---------|-----------|
-| `api/` | API server and handlers |
+| `api/` | Connect RPC services, WebSocket |
 | `automation/` | Trigger-based automation |
 | `bootstrap/` | Instant project initialization |
 | `cli/` | CLI commands |

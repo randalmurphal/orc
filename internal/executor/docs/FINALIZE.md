@@ -92,6 +92,6 @@ type FinalizeConfig struct {
 When `AutoTriggerOnApproval` is enabled (default for `auto` profile):
 
 1. PR status poller detects approval via `OnStatusChange` callback
-2. Server calls `TriggerFinalizeOnApproval(taskID)` in `handlers_finalize.go`
+2. Server calls `TriggerFinalizeOnApproval(taskID)` in `finalize_tracker.go`
 3. Conditions checked: task weight supports finalize, finalize not already done
 4. Finalize runs asynchronously with WebSocket progress events

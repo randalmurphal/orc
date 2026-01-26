@@ -332,11 +332,11 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 
 ## Task/Execution State Consistency
 
-**CRITICAL:** Task status and execution state are unified in `task.Task.Execution`. When execution fails or is interrupted, update the task and save once:
+**CRITICAL:** Task status and execution state are unified in `orcv1.Task` (the proto domain model). When execution fails or is interrupted, update the task and save once:
 
 | Field | Must Update |
 |-------|-------------|
-| `t.Status` | Set to `Failed`, `Paused`, or `Blocked` |
+| `t.Status` | Set to `TASK_STATUS_FAILED`, `TASK_STATUS_PAUSED`, or `TASK_STATUS_BLOCKED` |
 | `t.Execution.Error` | Store error message for user visibility |
 | `t.Execution.Phases[phase]` | Update phase status via helper methods |
 
@@ -347,8 +347,8 @@ executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
 When adding new error paths:
 
 1. **Store the error:** `t.Execution.Error = err.Error()`
-2. **Update phase status:** `t.Execution.FailPhase(phaseID, err)` or `t.Execution.InterruptPhase(phaseID)`
-3. **Update task status:** `t.Status = task.StatusFailed`
+2. **Update phase status:** Use helpers in `internal/task/execution_helpers.go`
+3. **Update task status:** `t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED`
 4. **Save task:** `e.backend.SaveTask(t)` (saves both task and execution state)
 5. **Publish events:** `e.publishError()` and `e.publishState()`
 

@@ -61,7 +61,7 @@ See also:
 			}
 
 			if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
-				return fmt.Errorf("task is not blocked (status: %s)", t.Status)
+				return fmt.Errorf("task is not blocked (status: %s)", task.StatusFromProto(t.Status))
 			}
 
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED

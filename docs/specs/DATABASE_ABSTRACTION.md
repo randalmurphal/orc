@@ -70,21 +70,21 @@ type DatabaseBackend struct {
 }
 
 // Save writes directly to database
-func (d *DatabaseBackend) SaveTask(t *task.Task) error {
+func (d *DatabaseBackend) SaveTask(t *orcv1.Task) error {
     d.mu.Lock()
     defer d.mu.Unlock()
     return d.db.SaveTask(t)
 }
 
 // Load reads directly from database
-func (d *DatabaseBackend) LoadTask(id string) (*task.Task, error) {
+func (d *DatabaseBackend) LoadTask(id string) (*orcv1.Task, error) {
     d.mu.RLock()
     defer d.mu.RUnlock()
     return d.db.LoadTask(id)
 }
 
 // List queries database
-func (d *DatabaseBackend) LoadAllTasks() ([]*task.Task, error) {
+func (d *DatabaseBackend) LoadAllTasks() ([]*orcv1.Task, error) {
     d.mu.RLock()
     defer d.mu.RUnlock()
     return d.db.LoadAllTasks()

@@ -286,7 +286,7 @@ Examples:
 				if mt.Spec != "" {
 					specNote = " (spec stored)"
 				}
-				fmt.Printf("Created task: %s - %s [%s]%s\n", taskID, t.Title, t.Weight, specNote)
+				fmt.Printf("Created task: %s - %s [%s]%s\n", taskID, t.Title, task.WeightFromProto(t.Weight), specNote)
 			}
 
 			// Save initiative with updated task list

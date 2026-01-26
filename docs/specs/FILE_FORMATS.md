@@ -451,14 +451,14 @@ orc initiative show INIT-001 --format yaml
 
 ## Execution State (Embedded in Task)
 
-Execution state is embedded in `task.Task.Execution`, not stored as a separate entity. This consolidates task metadata and execution tracking into a single save operation.
+Execution state is embedded in `orcv1.Task.Execution`, not stored as a separate entity. This consolidates task metadata and execution tracking into a single save operation.
 
 ### ExecutionState Structure
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `current_iteration` | int | Iteration count within current phase |
-| `phases` | map[string]*PhaseState | Per-phase execution state |
+| `phases` | map[string]*orcv1.PhaseState | Per-phase execution state |
 | `gates` | []GateDecision | Gate evaluation results |
 | `tokens` | TokenUsage | Aggregate token usage |
 | `cost` | CostTracking | Cost tracking |

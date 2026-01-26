@@ -56,7 +56,7 @@ Examples:
 			}
 
 			if t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
-				return fmt.Errorf("task is not running (status: %s)", t.Status)
+				return fmt.Errorf("task is not running (status: %s)", task.StatusFromProto(t.Status))
 			}
 
 			// Check if executor process is alive and signal it

@@ -355,7 +355,7 @@ func checkTaskCanRunProto(t *orcv1.Task, force bool) error {
 	case orcv1.TaskStatus_TASK_STATUS_FAILED:
 		return fmt.Errorf("task %s has failed\n\nTo resume: orc resume %s\nTo view log: orc log %s", t.Id, t.Id, t.Id)
 	default:
-		return fmt.Errorf("task cannot be run (status: %s)", t.Status)
+		return fmt.Errorf("task cannot be run (status: %s)", task.StatusFromProto(t.Status))
 	}
 }
 
