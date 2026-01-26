@@ -67,3 +67,5 @@ internal/api/static/*
 # (specs are stored in the database, not as files)
 spec.md
 /artifacts/spec.md
+# But allow the system prompt template
+!templates/system_prompts/spec.md
