@@ -315,9 +315,58 @@ func PopulateComputedFieldsProto(tasks []*orcv1.Task) {
 		taskMap[t.Id] = t
 	}
 
+	// Build reverse lookup maps in O(N) instead of O(N²)
+	blocksMap := make(map[string][]string)    // blockerID -> []taskIDs that it blocks
+	referencedByMap := make(map[string][]string) // refID -> []taskIDs that reference it
+
 	for _, t := range tasks {
-		t.Blocks = ComputeBlocksProto(t.Id, tasks)
-		t.ReferencedBy = ComputeReferencedByProto(t.Id, tasks)
+		// Build blocks map: for each blocker, this task is blocked by it
+		for _, blockerID := range t.BlockedBy {
+			blocksMap[blockerID] = append(blocksMap[blockerID], t.Id)
+		}
+
+		// Build referencedBy map: extract task references from description
+		description := ""
+		if t.Description != nil {
+			description = *t.Description
+		}
+		refs := DetectTaskReferences(t.Title + " " + description)
+
+		// Create sets for quick lookup
+		blockedBySet := make(map[string]bool)
+		for _, id := range t.BlockedBy {
+			blockedBySet[id] = true
+		}
+		relatedToSet := make(map[string]bool)
+		for _, id := range t.RelatedTo {
+			relatedToSet[id] = true
+		}
+
+		for _, refID := range refs {
+			// Exclude self-references
+			if refID == t.Id {
+				continue
+			}
+			// Exclude if refID is already in BlockedBy or RelatedTo
+			if blockedBySet[refID] || relatedToSet[refID] {
+				continue
+			}
+			referencedByMap[refID] = append(referencedByMap[refID], t.Id)
+		}
+	}
+
+	// Sort the maps once
+	for k := range blocksMap {
+		sort.Strings(blocksMap[k])
+	}
+	for k := range referencedByMap {
+		sort.Strings(referencedByMap[k])
+	}
+
+	// Apply computed fields - O(N)
+	for _, t := range tasks {
+		t.Blocks = blocksMap[t.Id]
+		t.ReferencedBy = referencedByMap[t.Id]
 		t.UnmetBlockers = GetUnmetDependenciesProto(t, taskMap)
 		t.IsBlocked = len(t.UnmetBlockers) > 0
 		t.DependencyStatus = ComputeDependencyStatusProto(t)

@@ -25,10 +25,10 @@ import { MCPService } from '@/gen/orc/v1/mcp_pb';
 
 /**
  * Connect transport configured for the orc API.
- * Uses the Vite proxy (/api -> :8080).
+ * Requests go to same origin at /orc.v1.* paths.
  */
 const transport = createConnectTransport({
-	baseUrl: '/api',
+	baseUrl: '',
 });
 
 // Service clients - typed wrappers around the transport
