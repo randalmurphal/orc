@@ -44,13 +44,7 @@ func staticHandler() http.Handler {
 		}
 
 		// For SPA: serve index.html for all unmatched routes
-		// But not for /api/* routes (those should 404)
-		if strings.HasPrefix(r.URL.Path, "/api/") {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Serve index.html
+		// Connect RPC paths (/orc.v1.*) are handled by mux before this fallback
 		r.URL.Path = "/"
 		fileServer.ServeHTTP(w, r)
 	})
