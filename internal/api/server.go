@@ -675,63 +675,6 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}, nil
 }
 
-// ensureTaskStatusConsistent verifies task status matches execution outcome.
-// This is a safety net to prevent orphaned "running" tasks when the executor
-// fails to update task status (e.g., due to panic, unexpected error path).
-func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
-	// Reload task to get current values (task now contains execution state)
-	t, err := s.backend.LoadTask(id)
-	if err != nil {
-		s.logger.Warn("failed to reload task for status check", "task", id, "error", err)
-		return
-	}
-
-	// Get execution state from task
-	exec := t.GetExecution()
-
-	// If task is still "running" but execution finished, fix it
-	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
-		var newStatus orcv1.TaskStatus
-		var reason string
-
-		currentPhase := task.GetCurrentPhaseProto(t)
-		if execErr != nil {
-			// Execution failed - check if current phase was interrupted (has interruptedAt timestamp)
-			ps := exec.GetPhases()[currentPhase]
-			wasInterrupted := ps != nil && ps.InterruptedAt != nil
-			if wasInterrupted {
-				newStatus = orcv1.TaskStatus_TASK_STATUS_PAUSED
-				reason = "interrupted"
-			} else {
-				newStatus = orcv1.TaskStatus_TASK_STATUS_FAILED
-				reason = "execution error"
-			}
-		} else {
-			// Execution succeeded - this shouldn't happen if executor worked correctly
-			// but handle it anyway
-			newStatus = orcv1.TaskStatus_TASK_STATUS_COMPLETED
-			reason = "execution completed"
-		}
-
-		s.logger.Warn("fixing stale task status",
-			"task", id,
-			"old_status", t.Status,
-			"new_status", newStatus,
-			"reason", reason,
-		)
-
-		t.Status = newStatus
-		if err := s.backend.SaveTask(t); err != nil {
-			s.logger.Error("failed to fix task status", "task", id, "error", err)
-		}
-	}
-
-	// Always publish final execution state
-	if finalTask, err := s.backend.LoadTask(id); err == nil {
-		s.Publish(id, Event{Type: "state", Data: finalTask.GetExecution()})
-	}
-}
-
 // cancelTask cancels a running task (called by WebSocket handler).
 func (s *Server) cancelTask(id string) (map[string]any, error) {
 	s.runningTasksMu.RLock()
