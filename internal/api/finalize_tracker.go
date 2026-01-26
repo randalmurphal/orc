@@ -84,13 +84,6 @@ var finTracker = &finalizeTracker{
 	cancels: make(map[string]context.CancelFunc),
 }
 
-// get retrieves the finalize state for a task.
-func (ft *finalizeTracker) get(taskID string) *FinalizeState {
-	ft.mu.RLock()
-	defer ft.mu.RUnlock()
-	return ft.states[taskID]
-}
-
 // setCancel stores the cancel function for a task's finalize goroutine.
 func (ft *finalizeTracker) setCancel(taskID string, cancel context.CancelFunc) {
 	ft.mu.Lock()
