@@ -89,9 +89,17 @@ export class EventSubscription {
 			// Stream ended normally (server closed)
 			this.attemptReconnect();
 		} catch (error) {
-			// AbortError means intentional disconnect
-			if ((error as Error).name === 'AbortError') {
-				this.setStatus('disconnected');
+			// Check if this was an intentional abort/cancel
+			// AbortError = native fetch abort
+			// ConnectError with [canceled] = Connect RPC abort via signal
+			const isAbort =
+				(error as Error).name === 'AbortError' ||
+				(error instanceof Error && error.message.includes('[canceled]'));
+
+			if (isAbort) {
+				// Don't change status here - if a new connection was started,
+				// it will set its own status. If this was a true disconnect(),
+				// status was already set to 'disconnected'.
 				return;
 			}
 

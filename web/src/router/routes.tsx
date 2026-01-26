@@ -16,6 +16,7 @@ const TimelinePage = lazy(() => import('@/pages/TimelinePage').then(m => ({ defa
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
+const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m.Mcp })));
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
@@ -23,6 +24,7 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ defa
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
 const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
 const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
+const Memory = lazy(() => import('@/pages/settings/Memory').then(m => ({ default: m.Memory })));
 
 // Legacy pages (lower priority, separate chunks)
 const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
@@ -215,11 +217,7 @@ export const routes: RouteObject[] = [
 						path: 'mcp',
 						element: (
 							<LazyRoute>
-								<SettingsPlaceholder
-									title="MCP Servers"
-									description="Configure Model Context Protocol servers for extended capabilities"
-									icon="mcp"
-								/>
+								<Mcp />
 							</LazyRoute>
 						),
 					},
@@ -227,11 +225,7 @@ export const routes: RouteObject[] = [
 						path: 'memory',
 						element: (
 							<LazyRoute>
-								<SettingsPlaceholder
-									title="Memory"
-									description="Manage Claude's persistent memory across conversations"
-									icon="database"
-								/>
+								<Memory />
 							</LazyRoute>
 						),
 					},

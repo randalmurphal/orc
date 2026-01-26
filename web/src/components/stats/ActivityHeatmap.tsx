@@ -94,8 +94,11 @@ function formatDate(date: Date): string {
 
 /** Format date for display (e.g., "January 16, 2026") */
 function formatDateDisplay(dateStr: string): string {
+	if (!dateStr || !dateStr.includes('-')) return '';
 	const [year, month, day] = dateStr.split('-').map(Number);
+	if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
 	const date = new Date(year, month - 1, day);
+	if (isNaN(date.getTime())) return '';
 	return date.toLocaleDateString('en-US', {
 		month: 'long',
 		day: 'numeric',

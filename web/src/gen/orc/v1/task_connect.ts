@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, ExportTaskRequest, ExportTaskResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFileDiffRequest, GetFileDiffResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetReviewFindingsRequest, GetReviewFindingsResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, GetTestResultsRequest, GetTestResultsResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseAllTasksRequest, PauseAllTasksResponse, PauseTaskRequest, PauseTaskResponse, ResumeAllTasksRequest, ResumeAllTasksResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
+import { AddBlockerRequest, AddBlockerResponse, AddRelatedRequest, AddRelatedResponse, CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, ExportTaskRequest, ExportTaskResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFileDiffRequest, GetFileDiffResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetReviewFindingsRequest, GetReviewFindingsResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, GetTestResultsRequest, GetTestResultsResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseAllTasksRequest, PauseAllTasksResponse, PauseTaskRequest, PauseTaskResponse, RemoveBlockerRequest, RemoveBlockerResponse, RemoveRelatedRequest, RemoveRelatedResponse, ResumeAllTasksRequest, ResumeAllTasksResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -172,6 +172,42 @@ export const TaskService = {
       name: "GetDependencies",
       I: GetDependenciesRequest,
       O: GetDependenciesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.AddBlocker
+     */
+    addBlocker: {
+      name: "AddBlocker",
+      I: AddBlockerRequest,
+      O: AddBlockerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.RemoveBlocker
+     */
+    removeBlocker: {
+      name: "RemoveBlocker",
+      I: RemoveBlockerRequest,
+      O: RemoveBlockerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.AddRelated
+     */
+    addRelated: {
+      name: "AddRelated",
+      I: AddRelatedRequest,
+      O: AddRelatedResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.RemoveRelated
+     */
+    removeRelated: {
+      name: "RemoveRelated",
+      I: RemoveRelatedRequest,
+      O: RemoveRelatedResponse,
       kind: MethodKind.Unary,
     },
     /**

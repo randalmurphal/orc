@@ -5,6 +5,7 @@ import { dashboardClient } from '@/lib/client';
 import {
 	GetStatsRequestSchema,
 	GetCostSummaryRequestSchema,
+	GetDailyMetricsRequestSchema,
 } from '@/gen/orc/v1/dashboard_pb';
 
 // Types
@@ -205,24 +206,60 @@ export const useStatsStore = create<StatsStore>()(
 			set({ loading: true, error: null, _fetchingPeriod: period });
 
 			try {
-				// Fetch both endpoints in parallel using Connect RPC
-				const [statsResponse, costResponse] = await Promise.all([
+				// Determine days to fetch based on period
+				let daysToFetch: number;
+				switch (period) {
+					case '24h':
+						daysToFetch = 1;
+						break;
+					case '7d':
+						daysToFetch = 7;
+						break;
+					case '30d':
+						daysToFetch = 30;
+						break;
+					case 'all':
+						daysToFetch = 365; // Fetch up to a year for 'all'
+						break;
+				}
+
+				// Fetch all endpoints in parallel using Connect RPC
+				const [statsResponse, costResponse, dailyMetricsResponse] = await Promise.all([
 					dashboardClient.getStats(createProto(GetStatsRequestSchema, {})),
 					dashboardClient.getCostSummary(
 						createProto(GetCostSummaryRequestSchema, { period: periodToQueryParam(period) })
+					),
+					dashboardClient.getDailyMetrics(
+						createProto(GetDailyMetricsRequestSchema, { days: daysToFetch })
 					),
 				]);
 
 				// Extract data from proto responses
 				const dashboardStats = statsResponse.stats;
 				const costSummary = costResponse.summary;
+				const dailyMetrics = dailyMetricsResponse.stats?.days ?? [];
 
-				// Build tasksPerDay from available data
-				// For now, generate mock data based on period since the API
-				// doesn't return daily breakdown yet
-				const completedCount = dashboardStats?.taskCounts?.completed ?? 0;
-				const failedCount = dashboardStats?.taskCounts?.failed ?? 0;
-				const tasksPerDay = generateTasksPerDay(completedCount, period);
+				// Build tasksPerDay from daily metrics (real data now!)
+				const tasksPerDay: TasksPerDay[] = dailyMetrics.map((day) => ({
+					day: day.date,
+					count: day.tasksCompleted,
+				}));
+
+				// Calculate totals from daily metrics for the period
+				let periodTokensUsed = 0;
+				let periodCost = 0;
+				let periodCompleted = 0;
+				let periodFailed = 0;
+				for (const day of dailyMetrics) {
+					periodTokensUsed += day.tokensUsed;
+					periodCost += day.costUsd;
+					periodCompleted += day.tasksCompleted;
+					periodFailed += day.tasksFailed;
+				}
+
+				// Fall back to dashboard stats for task counts if daily metrics is empty
+				const completedCount = periodCompleted || (dashboardStats?.taskCounts?.completed ?? 0);
+				const failedCount = periodFailed || (dashboardStats?.taskCounts?.failed ?? 0);
 
 				// Build outcomes
 				const outcomes: Outcomes = {
@@ -246,14 +283,14 @@ export const useStatsStore = create<StatsStore>()(
 					? (completedCount / totalTasks) * 100
 					: 0;
 
-				// Get token count - prefer today's tokens from dashboard stats,
-				// or fall back to period cost which doesn't include token totals
-				const tokensUsed = dashboardStats?.todayTokens?.totalTokens ?? 0;
+				// Use period-accurate token count from daily metrics
+				// Fall back to cost summary or today's tokens if daily metrics unavailable
+				const tokensUsed = periodTokensUsed || (dashboardStats?.todayTokens?.totalTokens ?? 0);
 
 				const summaryStats: SummaryStats = {
 					tasksCompleted: completedCount,
 					tokensUsed: tokensUsed,
-					totalCost: costSummary?.totalCostUsd ?? dashboardStats?.todayCostUsd ?? 0,
+					totalCost: costSummary?.totalCostUsd ?? periodCost ?? dashboardStats?.todayCostUsd ?? 0,
 					avgTime: 0, // Would need execution time data from API
 					successRate: Math.round(successRate * 10) / 10,
 				};
@@ -316,52 +353,6 @@ export const useStatsStore = create<StatsStore>()(
 		},
 	}))
 );
-
-// Helper to generate mock tasks per day based on total count and period
-function generateTasksPerDay(
-	totalCompleted: number,
-	period: StatsPeriod
-): TasksPerDay[] {
-	const result: TasksPerDay[] = [];
-	const now = new Date();
-	let days: number;
-
-	switch (period) {
-		case '24h':
-			days = 1;
-			break;
-		case '7d':
-			days = 7;
-			break;
-		case '30d':
-			days = 30;
-			break;
-		case 'all':
-			days = 90; // Show last 90 days for 'all'
-			break;
-	}
-
-	// Distribute tasks across days (simple even distribution for now)
-	const avgPerDay = Math.ceil(totalCompleted / days);
-	let remaining = totalCompleted;
-
-	for (let i = days - 1; i >= 0; i--) {
-		const date = new Date(now);
-		date.setDate(date.getDate() - i);
-		const dateStr = date.toISOString().split('T')[0];
-
-		// Assign tasks, ensuring we don't exceed remaining
-		const count = Math.min(avgPerDay, remaining);
-		remaining -= count;
-
-		result.push({
-			day: dateStr,
-			count,
-		});
-	}
-
-	return result;
-}
 
 // Selector hooks
 export const useStatsPeriod = () => useStatsStore((state) => state.period);
