@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
@@ -67,13 +68,13 @@ func (we *WorkflowExecutor) executePhase(
 ) (PhaseResult, error) {
 	result := PhaseResult{
 		PhaseID: tmpl.ID,
-		Status:  orcv1.PhaseStatus_PHASE_STATUS_RUNNING.String(),
+		Status:  orcv1.PhaseStatus_PHASE_STATUS_PENDING.String(),
 	}
 
 	startTime := time.Now()
 
 	// Update phase status
-	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_RUNNING.String()
+	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 	runPhase.StartedAt = timePtr(startTime)
 	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
 		return result, fmt.Errorf("update phase status: %w", err)
@@ -93,7 +94,7 @@ func (we *WorkflowExecutor) executePhase(
 	// Load prompt template
 	promptContent, err := we.loadPhasePrompt(tmpl)
 	if err != nil {
-		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
 		return result, err
 	}
@@ -176,9 +177,9 @@ func (we *WorkflowExecutor) executePhase(
 	// Execute with ClaudeExecutor
 	execResult, err := we.executeWithClaude(ctx, execConfig)
 	if err != nil {
-		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
-		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
+		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
 		if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
@@ -314,32 +315,49 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		cfg.ClaudeConfig.Env["MAX_THINKING_TOKENS"] = "31999"
 	}
 
-	// Generate session ID
-	sessionID := fmt.Sprintf("%s-%s-%s", cfg.RunID, cfg.TaskID, cfg.PhaseID)
-	result.SessionID = sessionID
-
-	// Check if we're resuming an interrupted phase
-	// If the phase was interrupted/running and has a stored session ID,
-	// we should resume that session instead of starting fresh
+	// Determine session ID - either resume existing or generate new
+	var sessionID string
 	shouldResume := false
-	if we.task != nil {
+
+	// Check if we're resuming an interrupted/paused task
+	// Use stored session ID to continue Claude session where it left off
+	if we.task != nil && we.isResuming {
 		if ps, ok := we.task.Execution.Phases[cfg.PhaseID]; ok {
-			if ps.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED || ps.Status == orcv1.PhaseStatus_PHASE_STATUS_RUNNING {
-				// Use the stored session ID if available for proper resume
-				storedSessionID := ""
-				if ps.SessionId != nil {
-					storedSessionID = *ps.SessionId
-				}
-				if storedSessionID != "" {
-					sessionID = storedSessionID
-					shouldResume = true
-					we.logger.Info("resuming interrupted phase",
-						"phase", cfg.PhaseID,
-						"session_id", sessionID,
-					)
-				}
+			storedSessionID := ""
+			if ps.SessionId != nil {
+				storedSessionID = *ps.SessionId
+			}
+			// Resume if: phase has a stored session ID AND phase not completed
+			if storedSessionID != "" && ps.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
+				sessionID = storedSessionID
+				shouldResume = true
+				we.logger.Info("resuming paused session",
+					"phase", cfg.PhaseID,
+					"session_id", sessionID,
+				)
 			}
 		}
+	}
+
+	// If not resuming, generate new session ID (must be valid UUID for Claude CLI)
+	if !shouldResume {
+		sessionID = uuid.New().String()
+		// Save session ID to phase state BEFORE execution starts
+		// This ensures we can resume even if the process is killed mid-turn
+		if we.task != nil {
+			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, sessionID)
+			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
+			}
+		}
+	}
+	result.SessionID = sessionID
+
+	// When resuming, use simple "continue" prompt instead of full phase prompt
+	// Claude will have full context from the previous session
+	if shouldResume {
+		prompt = "continue"
+		we.logger.Info("using resume prompt", "prompt", prompt)
 	}
 
 	// Use injected TurnExecutor for testing, or create real ClaudeExecutor
@@ -402,15 +420,6 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		turnResult, err := turnExec.ExecuteTurn(ctx, prompt)
 		if err != nil {
 			return result, fmt.Errorf("turn %d: %w", i+1, err)
-		}
-
-		// Save session ID to phase state for resume capability
-		// Do this after first successful turn to capture the Claude session ID
-		if i == 0 && we.task != nil && turnResult.SessionID != "" {
-			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, turnResult.SessionID)
-			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
-			}
 		}
 
 		// Accumulate tokens

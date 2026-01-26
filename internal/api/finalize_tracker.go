@@ -315,11 +315,13 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 			finState.mu.Lock()
 			if ps := exec.Phases["finalize"]; ps != nil {
-				switch ps.Status {
-				case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
-					finState.StepPercent = 50
-				case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
+				// Phase status is completion-only (PENDING, COMPLETED, SKIPPED)
+				// Use startedAt and completedAt to determine progress
+				if ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
 					finState.StepPercent = 100
+				} else if ps.StartedAt != nil {
+					// Started but not completed = in progress
+					finState.StepPercent = 50
 				}
 			}
 			finState.mu.Unlock()
@@ -352,10 +354,11 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		return
 	}
 
-	switch result.Status {
-	case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
+	// Result.Status is COMPLETED for success, PENDING otherwise
+	// Check result.Error to determine if it failed
+	if result.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
 		task.CompletePhaseProto(t.Execution, "finalize", result.CommitSHA)
-	case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
+	} else if result.Error != nil {
 		task.FailPhaseProto(t.Execution, "finalize", result.Error)
 	}
 	_ = s.backend.SaveTask(t)

@@ -179,7 +179,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: orcv1.PhaseStatus_PHASE_STATUS_RUNNING,
+		Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
 	}
 
 	e.publisher.PhaseStart(t.Id, p.ID)
@@ -205,7 +205,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 	e.publishProgress(t.Id, p.ID, "Fetching latest changes from remote...")
 	if err := e.fetchTarget(); err != nil {
 		result.Error = fmt.Errorf("fetch target: %w", err)
-		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
@@ -215,7 +215,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 	ahead, behind, err := e.checkDivergence(targetBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("check divergence: %w", err)
-		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
@@ -237,11 +237,11 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 			// Check if we should escalate to implement phase
 			if e.shouldEscalate(finalizeResult, finalizeCfg) {
 				result.Error = fmt.Errorf("finalize failed, needs escalation to implement phase: %w", err)
-				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 				result.Output = buildEscalationContext(finalizeResult)
 			} else {
 				result.Error = fmt.Errorf("sync with target: %w", err)
-				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 			}
 			result.Duration = time.Since(start)
 			return result, result.Error
@@ -264,14 +264,14 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseD
 				fixed, fixErr := e.tryFixTests(ctx, t, p, exec, testResult)
 				if fixErr != nil || !fixed {
 					result.Error = fmt.Errorf("tests failed after sync and fix attempt: %v failures", len(testResult.Failures))
-					result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+					result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 					result.Output = buildTestFailureContext(testResult)
 					result.Duration = time.Since(start)
 					return result, result.Error
 				}
 			} else {
 				result.Error = fmt.Errorf("tests failed after sync: %v failures", len(testResult.Failures))
-				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
 				result.Output = buildTestFailureContext(testResult)
 				result.Duration = time.Since(start)
 				return result, result.Error

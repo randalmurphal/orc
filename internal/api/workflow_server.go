@@ -1069,20 +1069,13 @@ func stringToProtoPhaseStatus(s string) orcv1.PhaseStatus {
 	switch s {
 	case "pending":
 		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	case "running":
-		return orcv1.PhaseStatus_PHASE_STATUS_RUNNING
 	case "completed":
 		return orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
-	case "failed":
-		return orcv1.PhaseStatus_PHASE_STATUS_FAILED
-	case "paused":
-		return orcv1.PhaseStatus_PHASE_STATUS_PAUSED
-	case "interrupted":
-		return orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED
 	case "skipped":
 		return orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-	case "blocked":
-		return orcv1.PhaseStatus_PHASE_STATUS_BLOCKED
+	// Legacy values - all map to pending (not completed)
+	case "running", "failed", "paused", "interrupted", "blocked":
+		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
 	default:
 		return orcv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
 	}
