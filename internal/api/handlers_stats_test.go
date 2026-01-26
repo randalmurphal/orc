@@ -9,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestHandleGetActivityStats_DefaultWeeks(t *testing.T) {
@@ -285,11 +287,11 @@ func TestHandleGetActivityStats_WithTasks(t *testing.T) {
 	// Create 3 tasks completed today
 	for i := 1; i <= 3; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", i)
-		tsk := task.New(taskID, "Task today "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Task today "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := today.Add(time.Duration(i) * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -297,11 +299,11 @@ func TestHandleGetActivityStats_WithTasks(t *testing.T) {
 	// Create 5 tasks completed yesterday
 	for i := 1; i <= 5; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
-		tsk := task.New(taskID, "Task yesterday "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Task yesterday "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := yesterday.Add(time.Duration(i) * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -616,12 +618,12 @@ func TestHandleGetPerDayStats_WithTasks(t *testing.T) {
 	for _, td := range testData {
 		for i := 0; i < td.count; i++ {
 			taskID := "TASK-" + fmt.Sprintf("%03d", taskNum)
-			tsk := task.New(taskID, "Task "+fmt.Sprintf("%d", taskNum))
-			tsk.Status = task.StatusCompleted
+			tsk := task.NewProtoTask(taskID, "Task "+fmt.Sprintf("%d", taskNum))
+			tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 			// Set time to avoid any day boundary issues - use minutes instead of hours
 			completedAt := today.AddDate(0, 0, -td.daysAgo).Add(time.Duration(i) * time.Minute)
-			tsk.CompletedAt = &completedAt
-			if err := backend.SaveTask(tsk); err != nil {
+			tsk.CompletedAt = timestamppb.New(completedAt)
+			if err := backend.SaveTaskProto(tsk); err != nil {
 				t.Fatalf("failed to save task: %v", err)
 			}
 			taskNum++
@@ -843,11 +845,11 @@ func TestHandleGetOutcomesStats_WithTasks(t *testing.T) {
 	// Create 3 completed tasks (no retries)
 	for i := 1; i <= 3; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", i)
-		tsk := task.New(taskID, "Completed task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Completed task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := now.Add(-time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -855,9 +857,9 @@ func TestHandleGetOutcomesStats_WithTasks(t *testing.T) {
 	// Create 2 failed tasks
 	for i := 1; i <= 2; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
-		tsk := task.New(taskID, "Failed task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusFailed
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Failed task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -928,20 +930,20 @@ func TestHandleGetOutcomesStats_PeriodFilter(t *testing.T) {
 	now := time.Now()
 
 	// Create task completed 25 hours ago (outside 24h window)
-	tsk1 := task.New("TASK-001", "Old completed task")
-	tsk1.Status = task.StatusCompleted
+	tsk1 := task.NewProtoTask("TASK-001", "Old completed task")
+	tsk1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	completedAt1 := now.Add(-25 * time.Hour)
-	tsk1.CompletedAt = &completedAt1
-	if err := backend.SaveTask(tsk1); err != nil {
+	tsk1.CompletedAt = timestamppb.New(completedAt1)
+	if err := backend.SaveTaskProto(tsk1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Create task completed 1 hour ago (within 24h window)
-	tsk2 := task.New("TASK-002", "Recent completed task")
-	tsk2.Status = task.StatusCompleted
+	tsk2 := task.NewProtoTask("TASK-002", "Recent completed task")
+	tsk2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	completedAt2 := now.Add(-1 * time.Hour)
-	tsk2.CompletedAt = &completedAt2
-	if err := backend.SaveTask(tsk2); err != nil {
+	tsk2.CompletedAt = timestamppb.New(completedAt2)
+	if err := backend.SaveTaskProto(tsk2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1002,18 +1004,18 @@ func TestHandleGetOutcomesStats_PercentageSum(t *testing.T) {
 
 	// Create 10 completed, 3 failed
 	for i := 1; i <= 10; i++ {
-		tsk := task.New("TASK-"+fmt.Sprintf("%03d", i), "Completed")
-		tsk.Status = task.StatusCompleted
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask("TASK-"+fmt.Sprintf("%03d", i), "Completed")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
 
 	for i := 1; i <= 3; i++ {
-		tsk := task.New("TASK-"+fmt.Sprintf("%03d", 100+i), "Failed")
-		tsk.Status = task.StatusFailed
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask("TASK-"+fmt.Sprintf("%03d", 100+i), "Failed")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -1218,25 +1220,25 @@ func TestHandleGetTopInitiatives_WithData(t *testing.T) {
 	// Create tasks
 	for i := 1; i <= 3; i++ {
 		taskID := fmt.Sprintf("TASK-%03d", i)
-		tsk := task.New(taskID, fmt.Sprintf("Task %d", i))
+		tsk := task.NewProtoTask(taskID, fmt.Sprintf("Task %d", i))
 		if i <= 2 {
-			tsk.Status = task.StatusCompleted
+			tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 			completedAt := now.Add(-time.Hour)
-			tsk.CompletedAt = &completedAt
+			tsk.CompletedAt = timestamppb.New(completedAt)
 		} else {
-			tsk.Status = task.StatusRunning
+			tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 		}
-		if err := backend.SaveTask(tsk); err != nil {
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
 
 	// Create TASK-101
-	task101 := task.New("TASK-101", "Task 101")
-	task101.Status = task.StatusCompleted
+	task101 := task.NewProtoTask("TASK-101", "Task 101")
+	task101.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	completedAt := now.Add(-time.Hour)
-	task101.CompletedAt = &completedAt
-	if err := backend.SaveTask(task101); err != nil {
+	task101.CompletedAt = timestamppb.New(completedAt)
+	if err := backend.SaveTaskProto(task101); err != nil {
 		t.Fatalf("failed to save task 101: %v", err)
 	}
 
@@ -1337,11 +1339,10 @@ func TestHandleGetTopInitiatives_LimitWorks(t *testing.T) {
 		}
 
 		// Create task
-		tsk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
-		tsk.Status = task.StatusCompleted
-		now := time.Now()
-		tsk.CompletedAt = &now
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.CompletedAt = timestamppb.Now()
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -1415,11 +1416,10 @@ func TestHandleGetTopInitiatives_ExcludesZeroTaskInitiatives(t *testing.T) {
 	}
 
 	// Create task
-	tsk := task.New("TASK-001", "Task 1")
-	tsk.Status = task.StatusCompleted
-	now := time.Now()
-	tsk.CompletedAt = &now
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-001", "Task 1")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.CompletedAt = timestamppb.Now()
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -1487,20 +1487,20 @@ func TestHandleGetTopInitiatives_PeriodFilterWorks(t *testing.T) {
 	}
 
 	// Create task completed recently (within 7 days)
-	recentTask := task.New("TASK-001", "Recent Task")
-	recentTask.Status = task.StatusCompleted
+	recentTask := task.NewProtoTask("TASK-001", "Recent Task")
+	recentTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	recentTime := now.Add(-1 * time.Hour)
-	recentTask.CompletedAt = &recentTime
-	if err := backend.SaveTask(recentTask); err != nil {
+	recentTask.CompletedAt = timestamppb.New(recentTime)
+	if err := backend.SaveTaskProto(recentTask); err != nil {
 		t.Fatalf("failed to save recent task: %v", err)
 	}
 
 	// Create task completed long ago (30 days ago - outside 7d period)
-	oldTask := task.New("TASK-002", "Old Task")
-	oldTask.Status = task.StatusCompleted
+	oldTask := task.NewProtoTask("TASK-002", "Old Task")
+	oldTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	oldTime := now.Add(-30 * 24 * time.Hour)
-	oldTask.CompletedAt = &oldTime
-	if err := backend.SaveTask(oldTask); err != nil {
+	oldTask.CompletedAt = timestamppb.New(oldTime)
+	if err := backend.SaveTaskProto(oldTask); err != nil {
 		t.Fatalf("failed to save old task: %v", err)
 	}
 
@@ -1945,11 +1945,11 @@ func TestHandleGetComparisonStats_7DayPeriod(t *testing.T) {
 	// Create 3 completed tasks in current period (last 7 days)
 	for i := 1; i <= 3; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", i)
-		tsk := task.New(taskID, "Current task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Current task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := currentPeriod.Add(-time.Duration(i) * 24 * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -1957,11 +1957,11 @@ func TestHandleGetComparisonStats_7DayPeriod(t *testing.T) {
 	// Create 2 completed tasks in previous period (7-14 days ago)
 	for i := 1; i <= 2; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
-		tsk := task.New(taskID, "Previous task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Previous task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := previousPeriod.Add(-time.Duration(i) * 24 * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -2026,11 +2026,11 @@ func TestHandleGetComparisonStats_30DayPeriod(t *testing.T) {
 	// Create 5 completed tasks in current period (last 30 days)
 	for i := 1; i <= 5; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", i)
-		tsk := task.New(taskID, "Current task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Current task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := currentPeriod.Add(-time.Duration(i) * 24 * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}
@@ -2038,11 +2038,11 @@ func TestHandleGetComparisonStats_30DayPeriod(t *testing.T) {
 	// Create 3 completed tasks in previous period (30-60 days ago)
 	for i := 1; i <= 3; i++ {
 		taskID := "TASK-" + fmt.Sprintf("%03d", 100+i)
-		tsk := task.New(taskID, "Previous task "+fmt.Sprintf("%d", i))
-		tsk.Status = task.StatusCompleted
+		tsk := task.NewProtoTask(taskID, "Previous task "+fmt.Sprintf("%d", i))
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		completedAt := previousPeriod.Add(-time.Duration(i) * 24 * time.Hour)
-		tsk.CompletedAt = &completedAt
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk.CompletedAt = timestamppb.New(completedAt)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}
 	}

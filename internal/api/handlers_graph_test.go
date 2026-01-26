@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -179,16 +180,16 @@ func TestHandleGetInitiativeDependencyGraph(t *testing.T) {
 	}
 
 	// Create and save tasks
-	task1 := task.New("TASK-001", "First task")
-	task1.Status = task.StatusCompleted
-	if err := backend.SaveTask(task1); err != nil {
+	task1 := task.NewProtoTask("TASK-001", "First task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := backend.SaveTaskProto(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	task2 := task.New("TASK-002", "Second task")
-	task2.Status = task.StatusPlanned
+	task2 := task.NewProtoTask("TASK-002", "Second task")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	task2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(task2); err != nil {
+	if err := backend.SaveTaskProto(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -262,16 +263,16 @@ func TestHandleGetTasksDependencyGraph(t *testing.T) {
 	}
 
 	// Create and save tasks
-	task1 := task.New("TASK-001", "First task")
-	task1.Status = task.StatusCompleted
-	if err := backend.SaveTask(task1); err != nil {
+	task1 := task.NewProtoTask("TASK-001", "First task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := backend.SaveTaskProto(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	task2 := task.New("TASK-002", "Second task")
-	task2.Status = task.StatusPlanned
+	task2 := task.NewProtoTask("TASK-002", "Second task")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	task2.BlockedBy = []string{"TASK-001"}
-	if err := backend.SaveTask(task2); err != nil {
+	if err := backend.SaveTaskProto(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 

@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestHandleGetAgentStats_Empty(t *testing.T) {
@@ -83,28 +85,26 @@ func TestHandleGetAgentStats_WithTasks(t *testing.T) {
 	pdb := backend.DB()
 
 	// Create completed tasks with session_model
-	task1 := task.New("TASK-001", "First task")
-	task1.Status = task.StatusCompleted
 	now := time.Now()
-	task1.StartedAt = &now
-	completed := now.Add(3 * time.Minute)
-	task1.CompletedAt = &completed
-	if err := backend.SaveTask(task1); err != nil {
+	task1 := task.NewProtoTask("TASK-001", "First task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task1.StartedAt = timestamppb.Now()
+	task1.CompletedAt = timestamppb.New(now.Add(3 * time.Minute))
+	if err := backend.SaveTaskProto(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
-	// Update session_model directly in DB (SaveTask doesn't expose this field)
+	// Update session_model directly in DB (SaveTaskProto doesn't expose this field)
 	_, err = pdb.Exec(`UPDATE tasks SET session_model = ? WHERE id = ?`, "claude-sonnet-4-20250514", "TASK-001")
 	if err != nil {
 		t.Fatalf("failed to update session_model: %v", err)
 	}
 
-	task2 := task.New("TASK-002", "Second task")
-	task2.Status = task.StatusCompleted
-	task2.StartedAt = &now
-	completed2 := now.Add(1 * time.Minute)
-	task2.CompletedAt = &completed2
-	if err := backend.SaveTask(task2); err != nil {
+	task2 := task.NewProtoTask("TASK-002", "Second task")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task2.StartedAt = timestamppb.Now()
+	task2.CompletedAt = timestamppb.New(now.Add(1 * time.Minute))
+	if err := backend.SaveTaskProto(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -113,9 +113,9 @@ func TestHandleGetAgentStats_WithTasks(t *testing.T) {
 		t.Fatalf("failed to update session_model: %v", err)
 	}
 
-	task3 := task.New("TASK-003", "Failed task")
-	task3.Status = task.StatusFailed
-	if err := backend.SaveTask(task3); err != nil {
+	task3 := task.NewProtoTask("TASK-003", "Failed task")
+	task3.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTaskProto(task3); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -228,9 +228,9 @@ func TestHandleGetAgentStats_ActiveStatus(t *testing.T) {
 	pdb := backend.DB()
 
 	// Create a running task
-	runningTask := task.New("TASK-001", "Running task")
-	runningTask.Status = task.StatusRunning
-	if err := backend.SaveTask(runningTask); err != nil {
+	runningTask := task.NewProtoTask("TASK-001", "Running task")
+	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTaskProto(runningTask); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 

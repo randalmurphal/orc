@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -277,9 +278,8 @@ func (o *Orchestrator) spawnTask(taskID string) error {
 		return fmt.Errorf("load task: %w", err)
 	}
 
-	// Create plan dynamically from task weight (convert proto weight to domain)
-	weight := task.Weight(task.WeightFromProto(t.Weight))
-	pln := createPlanForWeight(taskID, weight)
+	// Create plan dynamically from task weight
+	pln := createPlanForWeight(taskID, t.Weight)
 
 	// Spawn worker (task's Execution field contains execution state)
 	_, err = o.workerPool.SpawnWorker(o.ctx, t, pln)
@@ -361,22 +361,22 @@ func (o *Orchestrator) Wait() {
 
 // createPlanForWeight creates an execution plan based on task weight.
 // Plans are created dynamically for execution, not stored.
-func createPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
+func createPlanForWeight(taskID string, weight orcv1.TaskWeight) *executor.Plan {
 	var phases []executor.PhaseDisplay
 
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightSmall:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -384,7 +384,7 @@ func createPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},

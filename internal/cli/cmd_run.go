@@ -223,8 +223,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse category
-	category := task.Category(categoryStr)
-	if !isValidCategory(category) {
+	category := task.CategoryToProto(categoryStr)
+	if !task.IsValidCategoryProto(category) {
 		return fmt.Errorf("invalid category: %s (valid: feature, bug, refactor, chore, docs, test)", categoryStr)
 	}
 
@@ -400,14 +400,4 @@ func checkTaskDependenciesProto(backend storage.Backend, t *orcv1.Task, force bo
 	}
 	fmt.Println("\nUse --force to run anyway")
 	return fmt.Errorf("task is blocked by incomplete dependencies")
-}
-
-// isValidCategory checks if a category is valid.
-func isValidCategory(c task.Category) bool {
-	switch c {
-	case task.CategoryFeature, task.CategoryBug, task.CategoryRefactor,
-		task.CategoryChore, task.CategoryDocs, task.CategoryTest:
-		return true
-	}
-	return false
 }

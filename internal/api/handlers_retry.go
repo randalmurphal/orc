@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/task"
@@ -52,7 +51,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task to get current state
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -68,13 +67,13 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 
 	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if t.Execution.RetryContext != nil {
-		attemptNumber = t.Execution.RetryContext.Attempt + 1
+	if exec := t.GetExecution(); exec != nil && exec.GetRetryContext() != nil {
+		attemptNumber = int(exec.GetRetryContext().Attempt) + 1
 	}
 
 	// Build retry options
 	opts := executor.RetryOptions{
-		FailedPhase:   t.CurrentPhase,
+		FailedPhase:   task.GetCurrentPhaseProto(t),
 		Instructions:  req.Instructions,
 		AttemptNumber: attemptNumber,
 		MaxAttempts:   3,
@@ -101,7 +100,7 @@ func (s *Server) handleRetryTask(w http.ResponseWriter, r *http.Request) {
 	fromPhase := req.FromPhase
 	if fromPhase == "" {
 		retryMap := executor.DefaultRetryMap()
-		if mapped, ok := retryMap[t.CurrentPhase]; ok {
+		if mapped, ok := retryMap[opts.FailedPhase]; ok {
 			fromPhase = mapped
 		} else {
 			fromPhase = "implement" // Default fallback
@@ -130,7 +129,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task to get current phase
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -153,13 +152,15 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 
 	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if t.Execution.RetryContext != nil {
-		attemptNumber = t.Execution.RetryContext.Attempt + 1
+	if exec := t.GetExecution(); exec != nil && exec.GetRetryContext() != nil {
+		attemptNumber = int(exec.GetRetryContext().Attempt) + 1
 	}
+
+	currentPhase := task.GetCurrentPhaseProto(t)
 
 	// Build preview context
 	opts := executor.RetryOptions{
-		FailedPhase:    t.CurrentPhase,
+		FailedPhase:    currentPhase,
 		ReviewComments: comments,
 		AttemptNumber:  attemptNumber,
 		MaxAttempts:    3,
@@ -169,7 +170,7 @@ func (s *Server) handleGetRetryPreview(w http.ResponseWriter, r *http.Request) {
 
 	resp := retryPreviewResponse{
 		TaskID:          taskID,
-		CurrentPhase:    t.CurrentPhase,
+		CurrentPhase:    currentPhase,
 		OpenComments:    len(comments),
 		ContextPreview:  context,
 		EstimatedTokens: len(context) / 4, // Rough estimate
@@ -200,7 +201,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load task
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found: "+err.Error(), http.StatusNotFound)
 		return
@@ -225,13 +226,15 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 
 	// Get attempt number from task's retry context
 	attemptNumber := 1
-	if t.Execution.RetryContext != nil {
-		attemptNumber = t.Execution.RetryContext.Attempt + 1
+	if exec := t.GetExecution(); exec != nil && exec.GetRetryContext() != nil {
+		attemptNumber = int(exec.GetRetryContext().Attempt) + 1
 	}
+
+	currentPhase := task.GetCurrentPhaseProto(t)
 
 	// Build comprehensive retry options
 	opts := executor.RetryOptions{
-		FailedPhase:     t.CurrentPhase,
+		FailedPhase:     currentPhase,
 		FailureReason:   req.FailureReason,
 		FailureOutput:   req.FailureOutput,
 		ReviewComments:  reviewComments,
@@ -249,7 +252,7 @@ func (s *Server) handleRetryWithFeedback(w http.ResponseWriter, r *http.Request)
 	fromPhase := req.FromPhase
 	if fromPhase == "" {
 		retryMap := executor.DefaultRetryMap()
-		if mapped, ok := retryMap[t.CurrentPhase]; ok {
+		if mapped, ok := retryMap[currentPhase]; ok {
 			fromPhase = mapped
 		} else {
 			fromPhase = "implement"

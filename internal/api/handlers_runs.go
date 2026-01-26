@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -186,9 +187,9 @@ func (s *Server) handleTriggerWorkflowRun(w http.ResponseWriter, r *http.Request
 	)
 
 	// Build options
-	category := task.CategoryFeature
+	category := orcv1.TaskCategory_TASK_CATEGORY_FEATURE
 	if req.Category != "" {
-		category = task.Category(req.Category)
+		category = task.CategoryToProto(req.Category)
 	}
 
 	opts := executor.WorkflowRunOptions{

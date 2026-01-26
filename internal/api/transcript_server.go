@@ -256,7 +256,7 @@ func (s *transcriptServer) GetSession(
 	}
 
 	// Load task to get session info
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("task not found"))
 	}
@@ -265,7 +265,7 @@ func (s *transcriptServer) GetSession(
 		Session: &orcv1.SessionInfo{
 			Id:     req.Msg.TaskId,
 			Model:  "", // Would need transcript scan to get model
-			Status: string(t.Status),
+			Status: t.Status.String(),
 		},
 	}), nil
 }

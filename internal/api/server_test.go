@@ -12,12 +12,14 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // newTestServer creates a server with an isolated temp database.
@@ -949,11 +951,12 @@ func TestListTasksEndpoint_WithTasks(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-001", "Test Task")
-	tsk.Description = "A test task"
-	tsk.Status = task.StatusCreated
-	tsk.Weight = "small"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-001", "Test Task")
+	desc := "A test task"
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1001,11 +1004,12 @@ func TestListTasksEndpoint_Pagination(t *testing.T) {
 	}
 
 	for i := 1; i <= 25; i++ {
-		tsk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Test Task %d", i))
-		tsk.Description = fmt.Sprintf("Test task number %d", i)
-		tsk.Status = task.StatusCreated
-		tsk.Weight = "small"
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Test Task %d", i))
+		desc := fmt.Sprintf("Test task number %d", i)
+		tsk.Description = &desc
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task %d: %v", i, err)
 		}
 	}
@@ -1059,11 +1063,12 @@ func TestGetTaskEndpoint(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-002", "Get Test Task")
-	tsk.Description = "For testing GET endpoint"
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-002", "Get Test Task")
+	desc := "For testing GET endpoint"
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1194,10 +1199,10 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-DEL-001", "Delete Test")
-	tsk.Status = task.StatusCompleted
-	tsk.Weight = task.WeightSmall
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-DEL-001", "Delete Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1214,7 +1219,7 @@ func TestDeleteTaskEndpoint_Success(t *testing.T) {
 	}
 
 	// Verify task was deleted
-	_, err = srv.Backend().LoadTask("TASK-DEL-001")
+	_, err = srv.Backend().LoadTaskProto("TASK-DEL-001")
 	if err == nil {
 		t.Error("task should have been deleted")
 	}
@@ -1252,10 +1257,10 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-RUN-001", "Running Task")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightSmall
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-RUN-001", "Running Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1272,7 +1277,7 @@ func TestDeleteTaskEndpoint_RunningTask(t *testing.T) {
 	}
 
 	// Verify task still exists
-	_, err = srv.Backend().LoadTask("TASK-RUN-001")
+	_, err = srv.Backend().LoadTaskProto("TASK-RUN-001")
 	if err != nil {
 		t.Error("running task should not have been deleted")
 	}
@@ -1655,10 +1660,10 @@ func TestGetPlanEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-010", "Plan Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-010", "Plan Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1691,11 +1696,12 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-RUN", "Test Task")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightMedium
-	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-RUN", "Test Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	workflowID := "implement-medium"
+	tsk.WorkflowId = &workflowID // Required: workflow_id must be set
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1735,12 +1741,12 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	}
 
 	// Verify task was updated in database
-	updatedTask, err := srv.Backend().LoadTask("TASK-RUN")
+	updatedTask, err := srv.Backend().LoadTaskProto("TASK-RUN")
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
-	if updatedTask.Status != task.StatusRunning {
-		t.Errorf("expected task status 'running', got '%s'", updatedTask.Status)
+	if updatedTask.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		t.Errorf("expected task status 'TASK_STATUS_RUNNING', got '%s'", updatedTask.Status)
 	}
 }
 
@@ -1762,11 +1768,12 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-PHASE", "Test Task")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightMedium
-	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-PHASE", "Test Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	workflowID := "implement-medium"
+	tsk.WorkflowId = &workflowID // Required: workflow_id must be set
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1799,12 +1806,12 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 	}
 
 	// Verify task has current_phase set
-	updatedTask, err := srv.Backend().LoadTask("TASK-PHASE")
+	updatedTask, err := srv.Backend().LoadTaskProto("TASK-PHASE")
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
-	if updatedTask.CurrentPhase != "spec" {
-		t.Errorf("expected task current_phase 'spec', got '%s'", updatedTask.CurrentPhase)
+	if updatedTask.GetCurrentPhase() != "spec" {
+		t.Errorf("expected task current_phase 'spec', got '%s'", updatedTask.GetCurrentPhase())
 	}
 }
 
@@ -1819,10 +1826,10 @@ func TestRunTaskEndpoint_TaskCannotRun(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-011", "Running Task")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-011", "Running Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -1853,19 +1860,19 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 	}
 
 	// Create blocking task (not completed)
-	blocker := task.New("TASK-BLOCKER", "Blocking Task")
-	blocker.Status = task.StatusPlanned
-	blocker.Weight = "medium"
-	if err := backend.SaveTask(blocker); err != nil {
+	blocker := task.NewProtoTask("TASK-BLOCKER", "Blocking Task")
+	blocker.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	blocker.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(blocker); err != nil {
 		t.Fatalf("failed to save blocker task: %v", err)
 	}
 
 	// Create task that is blocked by the incomplete task
-	blocked := task.New("TASK-BLOCKED", "Blocked Task")
-	blocked.Status = task.StatusPlanned
-	blocked.Weight = "medium"
+	blocked := task.NewProtoTask("TASK-BLOCKED", "Blocked Task")
+	blocked.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	blocked.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	blocked.BlockedBy = []string{"TASK-BLOCKER"}
-	if err := backend.SaveTask(blocked); err != nil {
+	if err := backend.SaveTaskProto(blocked); err != nil {
 		t.Fatalf("failed to save blocked task: %v", err)
 	}
 	_ = backend.Close()
@@ -1925,20 +1932,21 @@ func TestRunTaskEndpoint_BlockedByCompletedTask_CanRun(t *testing.T) {
 	}
 
 	// Create blocking task that is completed
-	blocker := task.New("TASK-DONE", "Completed Blocking Task")
-	blocker.Status = task.StatusCompleted
-	blocker.Weight = "medium"
-	if err := backend.SaveTask(blocker); err != nil {
+	blocker := task.NewProtoTask("TASK-DONE", "Completed Blocking Task")
+	blocker.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	blocker.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(blocker); err != nil {
 		t.Fatalf("failed to save blocker task: %v", err)
 	}
 
 	// Create task that is blocked by the completed task
-	ready := task.New("TASK-READY", "Ready Task")
-	ready.Status = task.StatusPlanned
-	ready.Weight = "medium"
-	ready.WorkflowID = "implement-medium" // Required: workflow_id must be set
+	ready := task.NewProtoTask("TASK-READY", "Ready Task")
+	ready.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	ready.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	readyWorkflowID := "implement-medium"
+	ready.WorkflowId = &readyWorkflowID // Required: workflow_id must be set
 	ready.BlockedBy = []string{"TASK-DONE"}
-	if err := backend.SaveTask(ready); err != nil {
+	if err := backend.SaveTaskProto(ready); err != nil {
 		t.Fatalf("failed to save ready task: %v", err)
 	}
 	_ = backend.Close()
@@ -1968,20 +1976,21 @@ func TestRunTaskEndpoint_BlockedWithForce(t *testing.T) {
 	}
 
 	// Create blocking task (not completed)
-	blocker := task.New("TASK-BLOCK2", "Blocking Task")
-	blocker.Status = task.StatusRunning
-	blocker.Weight = "medium"
-	if err := backend.SaveTask(blocker); err != nil {
+	blocker := task.NewProtoTask("TASK-BLOCK2", "Blocking Task")
+	blocker.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	blocker.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(blocker); err != nil {
 		t.Fatalf("failed to save blocker task: %v", err)
 	}
 
 	// Create task that is blocked
-	forced := task.New("TASK-FORCE", "Force Run Task")
-	forced.Status = task.StatusPlanned
-	forced.Weight = "medium"
-	forced.WorkflowID = "implement-medium" // Required: workflow_id must be set
+	forced := task.NewProtoTask("TASK-FORCE", "Force Run Task")
+	forced.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	forced.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	forcedWorkflowID := "implement-medium"
+	forced.WorkflowId = &forcedWorkflowID // Required: workflow_id must be set
 	forced.BlockedBy = []string{"TASK-BLOCK2"}
-	if err := backend.SaveTask(forced); err != nil {
+	if err := backend.SaveTaskProto(forced); err != nil {
 		t.Fatalf("failed to save forced task: %v", err)
 	}
 	_ = backend.Close()
@@ -2011,11 +2020,12 @@ func TestRunTaskEndpoint_NoBlockers_CanRun(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-FREE", "Free Task")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = "medium"
-	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-FREE", "Free Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	workflowID := "implement-medium"
+	tsk.WorkflowId = &workflowID // Required: workflow_id must be set
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2046,10 +2056,10 @@ func TestPauseTaskEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-013", "Running Task")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-013", "Running Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2102,14 +2112,15 @@ func TestResumeTaskEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-014", "Paused Task")
-	tsk.Status = task.StatusPaused
-	tsk.Weight = "medium"
+	tsk := task.NewProtoTask("TASK-014", "Paused Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	// Set execution state with a paused implement phase
-	tsk.CurrentPhase = "implement"
-	tsk.Execution = task.InitExecutionState()
-	tsk.Execution.Phases["implement"] = &task.PhaseState{Status: task.PhaseStatusInterrupted}
-	if err := backend.SaveTask(tsk); err != nil {
+	currentPhase := "implement"
+	tsk.CurrentPhase = &currentPhase
+	task.EnsureExecutionProto(tsk)
+	tsk.Execution.Phases["implement"] = &orcv1.PhaseState{Status: orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED}
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2184,10 +2195,10 @@ func TestGetTranscriptsEndpoint_Empty(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-TRANS-001", "Transcript Test")
-	tsk.Status = task.StatusCreated
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TRANS-001", "Transcript Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2226,10 +2237,10 @@ func TestGetTranscriptsEndpoint_WithTranscripts(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-TRANS-002", "Transcript Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TRANS-002", "Transcript Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -2411,19 +2422,21 @@ func setupProjectTestEnv(t *testing.T) (srv *Server, projectID, taskID, projectD
 		t.Fatalf("failed to seed workflows: %v", err)
 	}
 
-	tsk := task.New(taskID, "Test Task")
-	tsk.Weight = task.WeightMedium
-	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "Test Task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	workflowID := "implement-medium"
+	tsk.WorkflowId = &workflowID // Required: workflow_id must be set
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "orc/" + taskID
 	// Set execution state
-	tsk.CurrentPhase = "implement"
-	tsk.Execution = task.InitExecutionState()
+	currentPhase := "implement"
+	tsk.CurrentPhase = &currentPhase
+	task.EnsureExecutionProto(tsk)
 	tsk.Execution.CurrentIteration = 1
-	tsk.Execution.Phases["implement"] = &task.PhaseState{
-		Status: task.PhaseStatusRunning,
+	tsk.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_RUNNING,
 	}
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -2472,11 +2485,12 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "Test Project Task")
-	tsk.Weight = task.WeightMedium
-	tsk.WorkflowID = "implement-medium" // Required: workflow_id must be set
-	tsk.Status = task.StatusPlanned
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "Test Project Task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	workflowID := "implement-medium"
+	tsk.WorkflowId = &workflowID // Required: workflow_id must be set
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2548,12 +2562,12 @@ func TestProjectTaskPause_NotRunning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	tsk, err := backend.LoadTask(taskID)
+	tsk, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
-	tsk.Status = task.StatusCompleted
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2582,12 +2596,12 @@ func TestProjectTaskResume_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create backend: %v", err)
 	}
-	tsk, err := backend.LoadTask(taskID)
+	tsk, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
-	tsk.Status = task.StatusPaused
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2758,26 +2772,26 @@ func TestGetCostSummaryEndpoint_WithTasks(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-COST-001", "Cost Test Task")
-	tsk.Status = task.StatusCompleted
-	tsk.Weight = task.WeightMedium
+	tsk := task.NewProtoTask("TASK-COST-001", "Cost Test Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	// Set execution state with cost data
-	tsk.CurrentPhase = "implement"
-	tsk.Execution = task.InitExecutionState()
+	currentPhase := "implement"
+	tsk.CurrentPhase = &currentPhase
+	task.EnsureExecutionProto(tsk)
 	tsk.Execution.CurrentIteration = 1
-	tsk.Execution.Phases["implement"] = &task.PhaseState{
-		Status: task.PhaseStatusCompleted,
-		Tokens: task.TokenUsage{
+	tsk.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  1000,
 			OutputTokens: 500,
-			TotalTokens:  1500,
 		},
 	}
-	tsk.Execution.Cost = task.CostTracking{
-		TotalCostUSD: 0.025,
+	tsk.Execution.Cost = &orcv1.CostTracking{
+		TotalCostUsd: 0.025,
 		PhaseCosts:   map[string]float64{"implement": 0.025},
 	}
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -2830,51 +2844,49 @@ func TestGetCostSummaryEndpoint_PeriodFiltering(t *testing.T) {
 
 	// Create old task (more than a week old)
 	oldTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	oldTask := task.New("TASK-OLD", "Old Task")
-	oldTask.Status = task.StatusCompleted
-	oldTask.Weight = task.WeightSmall
-	oldTask.CreatedAt = oldTime
-	oldTask.UpdatedAt = oldTime
+	oldTask := task.NewProtoTask("TASK-OLD", "Old Task")
+	oldTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	oldTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	oldTask.CreatedAt = timestamppb.New(oldTime)
+	oldTask.UpdatedAt = timestamppb.New(oldTime)
 	// Set execution state with token/cost data for old task
-	oldTask.Execution = task.InitExecutionState()
-	oldTask.Execution.Phases["implement"] = &task.PhaseState{
-		Status:    task.PhaseStatusCompleted,
-		StartedAt: oldTime,
-		Tokens: task.TokenUsage{
+	task.EnsureExecutionProto(oldTask)
+	oldTask.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.New(oldTime),
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  100,
 			OutputTokens: 50,
-			TotalTokens:  150,
 		},
 	}
-	oldTask.Execution.Cost = task.CostTracking{
-		TotalCostUSD: 0.001,
+	oldTask.Execution.Cost = &orcv1.CostTracking{
+		TotalCostUsd: 0.001,
 	}
-	if err := backend.SaveTask(oldTask); err != nil {
+	if err := backend.SaveTaskProto(oldTask); err != nil {
 		t.Fatalf("failed to save old task: %v", err)
 	}
 
 	// Create recent task
 	now := time.Now()
-	recentTask := task.New("TASK-NEW", "New Task")
-	recentTask.Status = task.StatusCompleted
-	recentTask.Weight = task.WeightSmall
-	recentTask.CreatedAt = now
-	recentTask.UpdatedAt = now
+	recentTask := task.NewProtoTask("TASK-NEW", "New Task")
+	recentTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	recentTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	recentTask.CreatedAt = timestamppb.New(now)
+	recentTask.UpdatedAt = timestamppb.New(now)
 	// Set execution state with token/cost data for recent task
-	recentTask.Execution = task.InitExecutionState()
-	recentTask.Execution.Phases["implement"] = &task.PhaseState{
-		Status:    task.PhaseStatusCompleted,
-		StartedAt: now,
-		Tokens: task.TokenUsage{
+	task.EnsureExecutionProto(recentTask)
+	recentTask.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.New(now),
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  200,
 			OutputTokens: 100,
-			TotalTokens:  300,
 		},
 	}
-	recentTask.Execution.Cost = task.CostTracking{
-		TotalCostUSD: 0.002,
+	recentTask.Execution.Cost = &orcv1.CostTracking{
+		TotalCostUsd: 0.002,
 	}
-	if err := backend.SaveTask(recentTask); err != nil {
+	if err := backend.SaveTaskProto(recentTask); err != nil {
 		t.Fatalf("failed to save recent task: %v", err)
 	}
 	_ = backend.Close()
@@ -2968,12 +2980,13 @@ func TestUpdateTaskEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-001", "Original Title")
-	tsk.Description = "Original description"
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-001", "Original Title")
+	desc := "Original description"
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-001"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3017,11 +3030,11 @@ func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-002", "Weight Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-002", "Weight Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-002"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3061,11 +3074,11 @@ func TestUpdateTaskEndpoint_InvalidWeight(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-003", "Invalid Weight Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-003", "Invalid Weight Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-003"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3096,11 +3109,11 @@ func TestUpdateTaskEndpoint_EmptyTitle(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-004", "Empty Title Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-004", "Empty Title Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-004"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3151,11 +3164,11 @@ func TestUpdateTaskEndpoint_RunningTask(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-RUN", "Running Task")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-RUN", "Running Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-RUN"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3186,11 +3199,11 @@ func TestUpdateTaskEndpoint_InvalidJSON(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-JSON", "JSON Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-JSON", "JSON Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-JSON"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3220,11 +3233,11 @@ func TestUpdateTaskEndpoint_Metadata(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-META", "Metadata Test")
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightSmall
+	tsk := task.NewProtoTask("TASK-UPD-META", "Metadata Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	tsk.Branch = "orc/TASK-UPD-META"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -3267,12 +3280,13 @@ func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-UPD-PARTIAL", "Original Title")
-	tsk.Description = "Original description"
-	tsk.Status = task.StatusPlanned
-	tsk.Weight = task.WeightMedium
+	tsk := task.NewProtoTask("TASK-UPD-PARTIAL", "Original Title")
+	desc := "Original description"
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Branch = "orc/TASK-UPD-PARTIAL"
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -505,14 +506,14 @@ func TestHandleGetEvents_CombinedFilters(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	// Create tasks
-	task1 := task.New("TASK-001", "Task 1")
-	task1.Status = task.StatusCompleted
-	task2 := task.New("TASK-002", "Task 2")
-	task2.Status = task.StatusRunning
-	if err := backend.SaveTask(task1); err != nil {
+	task1 := task.NewProtoTask("TASK-001", "Task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task2 := task.NewProtoTask("TASK-002", "Task 2")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTaskProto(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
-	if err := backend.SaveTask(task2); err != nil {
+	if err := backend.SaveTaskProto(task2); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -586,9 +587,9 @@ func TestHandleGetEvents_UnknownEventTypes(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	// Create task
-	task1 := task.New("TASK-001", "Task 1")
-	task1.Status = task.StatusRunning
-	if err := backend.SaveTask(task1); err != nil {
+	task1 := task.NewProtoTask("TASK-001", "Task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTaskProto(task1); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 

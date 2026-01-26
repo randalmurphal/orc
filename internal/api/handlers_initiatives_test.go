@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -70,10 +71,11 @@ func TestHandleListInitiatives_AutoCompletes(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Completed task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
-	if err := srv.backend.SaveTask(tk); err != nil {
+	tk := task.NewProtoTask("TASK-001", "Completed task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	initID := "INIT-001"
+	tk.InitiativeId = &initID
+	if err := srv.backend.SaveTaskProto(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -134,10 +136,11 @@ func TestHandleListInitiatives_DoesNotAutoCompleteWithBranchBase(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
-	if err := srv.backend.SaveTask(tk); err != nil {
+	tk := task.NewProtoTask("TASK-001", "Task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	initID := "INIT-001"
+	tk.InitiativeId = &initID
+	if err := srv.backend.SaveTaskProto(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -174,10 +177,11 @@ func TestHandleGetInitiative_AutoCompletes(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Done task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
-	if err := srv.backend.SaveTask(tk); err != nil {
+	tk := task.NewProtoTask("TASK-001", "Done task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	initID := "INIT-001"
+	tk.InitiativeId = &initID
+	if err := srv.backend.SaveTaskProto(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -292,10 +296,11 @@ func TestHandleListInitiatives_AutoCompleteErrorHandling(t *testing.T) {
 		t.Fatalf("save init2: %v", err)
 	}
 
-	tk := task.New("TASK-001", "Done task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-002")
-	if err := srv.backend.SaveTask(tk); err != nil {
+	tk := task.NewProtoTask("TASK-001", "Done task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	initID := "INIT-002"
+	tk.InitiativeId = &initID
+	if err := srv.backend.SaveTaskProto(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 

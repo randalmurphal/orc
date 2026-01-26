@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -26,10 +27,10 @@ func setupTranscriptAPITest(t *testing.T) (*storage.DatabaseBackend, string) {
 	}
 
 	// Create a task
-	tsk := task.New("TASK-TEST", "Pagination Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TEST", "Pagination Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 

@@ -1739,19 +1739,19 @@ func (s *taskServer) ExportTask(
 	// Perform export
 	if req.Msg.ToBranch {
 		// Get current branch for the task
-		t, err := s.backend.LoadTask(taskID)
+		t, err := s.backend.LoadTaskProto(taskID)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load task: %w", err))
 		}
 
-		if err := exportSvc.ExportToBranch(taskID, t.Branch, opts); err != nil {
+		if err := exportSvc.ExportToBranch(taskID, t.GetBranch(), opts); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to export to branch: %w", err))
 		}
 
 		return connect.NewResponse(&orcv1.ExportTaskResponse{
 			Success:    true,
 			TaskId:     taskID,
-			ExportedTo: t.Branch,
+			ExportedTo: t.GetBranch(),
 		}), nil
 	}
 

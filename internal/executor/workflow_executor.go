@@ -70,7 +70,7 @@ type WorkflowRunOptions struct {
 	PRID int
 
 	// Category helps Claude understand the type of work.
-	Category task.Category
+	Category orcv1.TaskCategory
 
 	// Variables are additional variables to inject.
 	Variables map[string]string
@@ -895,24 +895,8 @@ func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions) (*orc
 	task.SetDescriptionProto(t, opts.Prompt)
 
 	// Set category from options or default to feature
-	if opts.Category != "" {
-		// Convert domain category to proto category
-		switch opts.Category {
-		case task.CategoryFeature:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
-		case task.CategoryBug:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_BUG
-		case task.CategoryRefactor:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_REFACTOR
-		case task.CategoryChore:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_CHORE
-		case task.CategoryDocs:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_DOCS
-		case task.CategoryTest:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_TEST
-		default:
-			t.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
-		}
+	if opts.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
+		t.Category = opts.Category
 	}
 
 	if err := we.backend.SaveTaskProto(t); err != nil {

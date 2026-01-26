@@ -11,10 +11,12 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // === GitHub PR Integration Tests ===
@@ -35,6 +37,7 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 
 	taskID = "TASK-GH-001"
 	startTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	startTimePb := timestamppb.New(startTime)
 
 	// Create backend and save test data
 	storageCfg := &config.StorageConfig{Mode: "database"}
@@ -44,23 +47,23 @@ func setupGitHubTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) 
 	}
 
 	// Create and save task with branch
-	tsk := task.New(taskID, "GitHub Test Task")
-	tsk.Description = "A task for testing GitHub handlers"
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
+	desc := "A task for testing GitHub handlers"
+	currentPhase := "implement"
+	tsk := task.NewProtoTask(taskID, "GitHub Test Task")
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	tsk.Branch = fmt.Sprintf("orc/%s", taskID)
-	tsk.CurrentPhase = "implement"
-	tsk.CreatedAt = startTime
-	tsk.UpdatedAt = startTime
-	tsk.StartedAt = &startTime
-	tsk.CurrentPhase = "implement"
-	tsk.Execution = task.InitExecutionState()
-	tsk.Execution.Phases["implement"] = &task.PhaseState{
-		Status:     task.PhaseStatusRunning,
-		StartedAt:  startTime,
+	tsk.CurrentPhase = &currentPhase
+	tsk.CreatedAt = startTimePb
+	tsk.UpdatedAt = startTimePb
+	tsk.StartedAt = startTimePb
+	tsk.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:     orcv1.PhaseStatus_PHASE_STATUS_RUNNING,
+		StartedAt:  startTimePb,
 		Iterations: 1,
 	}
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -176,7 +179,7 @@ func TestHandleAutoFixComment_BuildsRetryContext(t *testing.T) {
 	}
 
 	// Verify task execution state was updated with retry context
-	tsk, err := srv.Backend().LoadTask(taskID)
+	tsk, err := srv.Backend().LoadTaskProto(taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
@@ -216,7 +219,7 @@ func TestHandleAutoFixComment_StoresMetadata(t *testing.T) {
 	}
 
 	// Verify task metadata was updated
-	tsk, err := srv.Backend().LoadTask(taskID)
+	tsk, err := srv.Backend().LoadTaskProto(taskID)
 	if err != nil {
 		t.Fatalf("failed to load task: %v", err)
 	}
@@ -257,9 +260,9 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	}()
 
 	// Set task to completed status first
-	tsk, _ := srv.Backend().LoadTask(taskID)
-	tsk.Status = task.StatusCompleted
-	_ = srv.Backend().SaveTask(tsk)
+	tsk, _ := srv.Backend().LoadTaskProto(taskID)
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	_ = srv.Backend().SaveTaskProto(tsk)
 
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/tasks/%s/github/pr/comments/RC-status1/autofix", taskID), nil)
 	w := httptest.NewRecorder()
@@ -271,8 +274,8 @@ func TestHandleAutoFixComment_UpdatesCompletedTaskStatus(t *testing.T) {
 	}
 
 	// Verify task status was reset to planned for re-execution
-	reloadedTask, _ := srv.Backend().LoadTask(taskID)
-	if reloadedTask.Status != task.StatusPlanned {
+	reloadedTask, _ := srv.Backend().LoadTaskProto(taskID)
+	if reloadedTask.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
 		t.Errorf("expected status to be reset to planned, got %s", reloadedTask.Status)
 	}
 }
@@ -310,10 +313,10 @@ func TestHandleReplyToPRComment_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -426,10 +429,10 @@ func TestHandleImportPRComments_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -477,10 +480,10 @@ func TestHandleListPRChecks_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -585,10 +588,10 @@ func TestHandleCreatePR_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -607,14 +610,15 @@ func TestHandleCreatePR_NoBranch(t *testing.T) {
 
 func TestHandleCreatePR_DefaultsTitle(t *testing.T) {
 	t.Parallel()
-	// This tests that buildPRBody works correctly with a task
-	tsk := &task.Task{
-		ID:          "TASK-PR-001",
+	// This tests that buildPRBodyProto works correctly with a task
+	desc := "This implements feature X as requested"
+	tsk := &orcv1.Task{
+		Id:          "TASK-PR-001",
 		Title:       "Implement feature X",
-		Description: "This implements feature X as requested",
+		Description: &desc,
 	}
 
-	body := buildPRBody(tsk)
+	body := buildPRBodyProto(tsk)
 
 	if body == "" {
 		t.Error("expected non-empty PR body")
@@ -664,10 +668,10 @@ func TestHandleGetPR_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -715,10 +719,10 @@ func TestHandleMergePR_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -766,10 +770,10 @@ func TestHandleSyncPRComments_NoBranch(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No Branch Task")
-	tsk.Status = task.StatusRunning
+	tsk := task.NewProtoTask(taskID, "No Branch Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	tsk.Branch = "" // Clear auto-generated branch to test no-branch case
-	if err := backend.SaveTask(tsk); err != nil {
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -895,13 +899,14 @@ func TestTruncateString(t *testing.T) {
 
 func TestBuildPRBody_WithDescription(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{
-		ID:          "TASK-001",
+	desc := "Implement OAuth2 login flow with Google provider"
+	tsk := &orcv1.Task{
+		Id:          "TASK-001",
 		Title:       "Add user authentication",
-		Description: "Implement OAuth2 login flow with Google provider",
+		Description: &desc,
 	}
 
-	body := buildPRBody(tsk)
+	body := buildPRBodyProto(tsk)
 
 	// Should contain task title
 	if !bytes.Contains([]byte(body), []byte("Add user authentication")) {
@@ -921,12 +926,12 @@ func TestBuildPRBody_WithDescription(t *testing.T) {
 
 func TestBuildPRBody_WithoutDescription(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{
-		ID:    "TASK-002",
+	tsk := &orcv1.Task{
+		Id:    "TASK-002",
 		Title: "Fix bug",
 	}
 
-	body := buildPRBody(tsk)
+	body := buildPRBodyProto(tsk)
 
 	// Should contain task title
 	if !bytes.Contains([]byte(body), []byte("Fix bug")) {
@@ -971,7 +976,7 @@ func TestHandleAutoFixComment_LoadsPlanAndState(t *testing.T) {
 	}
 
 	// Verify task execution state has retry context
-	tsk, err := srv.Backend().LoadTask(taskID)
+	tsk, err := srv.Backend().LoadTaskProto(taskID)
 	if err != nil {
 		t.Errorf("expected task to be loadable: %v", err)
 	}

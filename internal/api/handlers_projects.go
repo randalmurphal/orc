@@ -114,38 +114,38 @@ func (s *Server) handleListProjectTasks(w http.ResponseWriter, r *http.Request) 
 	backend, err := s.getProjectBackend(proj.Path)
 	if err != nil {
 		// No database yet is OK - return empty list
-		s.jsonResponse(w, []*task.Task{})
+		s.jsonResponse(w, []*orcv1.Task{})
 		return
 	}
 	defer func() { _ = backend.Close() }()
 
-	tasks, err := backend.LoadAllTasks()
+	tasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		// No tasks is OK - return empty list
-		s.jsonResponse(w, []*task.Task{})
+		s.jsonResponse(w, []*orcv1.Task{})
 		return
 	}
 
 	if tasks == nil {
-		tasks = []*task.Task{}
+		tasks = []*orcv1.Task{}
 	}
 
 	// Populate computed dependency fields (Blocks, ReferencedBy, IsBlocked, UnmetBlockers, DependencyStatus)
-	task.PopulateComputedFields(tasks)
+	task.PopulateComputedFieldsProto(tasks)
 
 	// Filter by dependency status if requested
 	depStatusFilter := r.URL.Query().Get("dependency_status")
 	if depStatusFilter != "" {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if string(t.DependencyStatus) == depStatusFilter {
+			if task.DependencyStatusFromProto(t.DependencyStatus) == depStatusFilter {
 				filtered = append(filtered, t)
 			}
 		}
 		tasks = filtered
 		// Ensure we return an empty array after filtering, not null
 		if tasks == nil {
-			tasks = []*task.Task{}
+			tasks = []*orcv1.Task{}
 		}
 	}
 
@@ -225,29 +225,29 @@ func (s *Server) handleCreateProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	t := task.New(id, title)
-	t.Description = description
+	t := task.NewProtoTask(id, title)
+	task.SetDescriptionProto(t, description)
 	if weight != "" {
-		t.Weight = task.Weight(weight)
+		t.Weight = task.WeightToProto(weight)
 	} else {
-		t.Weight = task.WeightMedium
+		t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	}
 	if category != "" {
-		cat := task.Category(category)
-		if task.IsValidCategory(cat) {
+		cat := task.CategoryToProto(category)
+		if task.IsValidCategoryProto(cat) {
 			t.Category = cat
 		}
 	}
 
 	// Save task
-	if err := backend.SaveTask(t); err != nil {
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
 
 	// Task is now created - mark as planned (execution will determine phases)
-	t.Status = task.StatusPlanned
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -331,13 +331,13 @@ func (s *Server) handleDeleteProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
-	if t.Status == task.StatusRunning {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		s.jsonError(w, "cannot delete running task", http.StatusConflict)
 		return
 	}
@@ -410,7 +410,7 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	// Capture values for goroutine
 	projectPath := proj.Path
 	description := task.GetDescriptionProto(t)
-	category := task.Category(task.CategoryFromProto(t.Category))
+	category := t.Category
 
 	// Start execution in background
 	go func() {
@@ -498,13 +498,13 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
-	if t.Status != task.StatusRunning {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		s.jsonError(w, "task is not running", http.StatusBadRequest)
 		return
 	}
@@ -519,8 +519,8 @@ func (s *Server) handlePauseProjectTask(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Update task status
-	t.Status = task.StatusPaused
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
@@ -552,28 +552,28 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
 	// Task must be paused or failed to resume
-	if t.Status != task.StatusPaused && t.Status != task.StatusFailed {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_PAUSED && t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 		s.jsonError(w, "task is not paused or failed", http.StatusBadRequest)
 		return
 	}
 
 	// Get workflow ID from task - MUST be set
-	workflowID := t.WorkflowID
+	workflowID := t.GetWorkflowId()
 	if workflowID == "" {
 		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot resume", taskID), http.StatusBadRequest)
 		return
 	}
 
 	// Update task status
-	t.Status = task.StatusRunning
-	if err := backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
@@ -632,7 +632,7 @@ func (s *Server) handleResumeProjectTask(w http.ResponseWriter, r *http.Request)
 		opts := executor.WorkflowRunOptions{
 			ContextType: executor.ContextTask,
 			TaskID:      taskID,
-			Prompt:      t.Description,
+			Prompt:      task.GetDescriptionProto(t),
 			Category:    t.Category,
 		}
 
@@ -686,14 +686,14 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
 	// Get workflow phases from database to validate phase exists
-	phases, err := s.getWorkflowPhases(backend, t.WorkflowID)
+	phases, err := s.getWorkflowPhases(backend, t.GetWorkflowId())
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -712,6 +712,9 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Ensure execution state exists
+	task.EnsureExecutionProto(t)
+
 	// Mark target and all later phases as pending in task's execution state
 	foundTarget := false
 	for _, phase := range phases {
@@ -719,22 +722,19 @@ func (s *Server) handleRewindProjectTask(w http.ResponseWriter, r *http.Request)
 			foundTarget = true
 		}
 		if foundTarget {
-			if t.Execution.Phases[phase.ID] != nil {
-				t.Execution.Phases[phase.ID].Status = task.PhaseStatusPending
-				t.Execution.Phases[phase.ID].CompletedAt = nil
-			}
+			task.ResetPhaseProto(t.Execution, phase.ID)
 		}
 	}
 
 	// Update task to point to target phase
-	t.CurrentPhase = req.Phase
+	t.CurrentPhase = &req.Phase
 	t.Execution.CurrentIteration = 1
 	t.CompletedAt = nil
 
 	// Update task status to allow re-running (single source of truth)
-	t.Status = task.StatusPlanned
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	t.CompletedAt = nil
-	if err := backend.SaveTask(t); err != nil {
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -781,20 +781,20 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
 	// Task must be in paused or blocked state to be escalated
-	if t.Status != task.StatusPaused && t.Status != task.StatusBlocked {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_PAUSED && t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 		s.jsonError(w, "task must be paused or blocked to escalate", http.StatusBadRequest)
 		return
 	}
 
 	// Get workflow phases from database
-	phases, err := s.getWorkflowPhases(backend, t.WorkflowID)
+	phases, err := s.getWorkflowPhases(backend, t.GetWorkflowId())
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -814,13 +814,16 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Get current phase for context
-	currentPhase := t.CurrentPhase
+	currentPhase := task.GetCurrentPhaseProto(t)
 	if currentPhase == "" {
 		currentPhase = "review"
 	}
 
+	// Ensure execution state exists
+	task.EnsureExecutionProto(t)
+
 	// Get retry attempt number from existing context or start at 1
-	attempt := 1
+	attempt := int32(1)
 	if t.Execution.RetryContext != nil && t.Execution.RetryContext.Attempt > 0 {
 		attempt = t.Execution.RetryContext.Attempt + 1
 	}
@@ -833,7 +836,7 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 		"implement",
 		"Human escalation: "+req.Reason,
 		"", // No output, this is manual escalation
-		attempt,
+		int(attempt),
 	)
 	if saveErr != nil {
 		s.logger.Warn("failed to save escalation context file", "error", saveErr)
@@ -841,7 +844,7 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Set retry context in task's execution state
-	t.Execution.SetRetryContext(currentPhase, "implement", req.Reason, "", attempt)
+	task.SetRetryContextProto(t.Execution, currentPhase, "implement", req.Reason, "", attempt)
 
 	// Mark implement and all later phases as pending in task's execution state
 	foundTarget := false
@@ -850,22 +853,20 @@ func (s *Server) handleEscalateProjectTask(w http.ResponseWriter, r *http.Reques
 			foundTarget = true
 		}
 		if foundTarget {
-			if t.Execution.Phases[phase.ID] != nil {
-				t.Execution.Phases[phase.ID].Status = task.PhaseStatusPending
-				t.Execution.Phases[phase.ID].CompletedAt = nil
-			}
+			task.ResetPhaseProto(t.Execution, phase.ID)
 		}
 	}
 
 	// Update task to point to implement phase
-	t.CurrentPhase = "implement"
+	implement := "implement"
+	t.CurrentPhase = &implement
 	t.Execution.CurrentIteration = 1
 	t.CompletedAt = nil
 
 	// Update task status to allow re-running (single source of truth)
-	t.Status = task.StatusPlanned
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	t.CompletedAt = nil
-	if err := backend.SaveTask(t); err != nil {
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
@@ -899,13 +900,13 @@ func (s *Server) handleGetProjectTaskState(w http.ResponseWriter, r *http.Reques
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
-	s.jsonResponse(w, &t.Execution)
+	s.jsonResponse(w, t.GetExecution())
 }
 
 // handleGetProjectTaskPlan returns the plan for a project task.
@@ -926,14 +927,14 @@ func (s *Server) handleGetProjectTaskPlan(w http.ResponseWriter, r *http.Request
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
 	// Get plan from database workflow phases
-	p, err := s.getWorkflowPhasesWithPlan(backend, taskID, t.WorkflowID)
+	p, err := s.getWorkflowPhasesWithPlan(backend, taskID, t.GetWorkflowId())
 	if err != nil {
 		s.jsonError(w, "failed to get workflow phases", http.StatusInternalServerError)
 		return
@@ -1010,14 +1011,14 @@ func (s *Server) getProjectBackend(projectPath string) (storage.Backend, error) 
 }
 
 // loadProjectTask loads a task from a specific project using a backend.
-func (s *Server) loadProjectTask(projectPath, taskID string) (*task.Task, error) {
+func (s *Server) loadProjectTask(projectPath, taskID string) (*orcv1.Task, error) {
 	backend, err := s.getProjectBackend(projectPath)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = backend.Close() }()
 
-	return backend.LoadTask(taskID)
+	return backend.LoadTaskProto(taskID)
 }
 
 // phaseInfo represents basic phase information for API responses.

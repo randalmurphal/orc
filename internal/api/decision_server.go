@@ -99,22 +99,23 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	// Load task
-	t, err := s.backend.LoadTask(decision.TaskID)
+	t, err := s.backend.LoadTaskProto(decision.TaskID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", decision.TaskID))
 	}
 
 	// Verify task is blocked
-	if t.Status != task.StatusBlocked {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
-			fmt.Errorf("task is not blocked (status: %s)", t.Status))
+			fmt.Errorf("task is not blocked (status: %s)", t.Status.String()))
 	}
 
 	// Verify phase matches current task phase to prevent stale decisions
-	if t.CurrentPhase != decision.Phase {
+	currentPhase := task.GetCurrentPhaseProto(t)
+	if currentPhase != decision.Phase {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			fmt.Errorf("decision phase mismatch: task is at phase %q, decision is for phase %q",
-				t.CurrentPhase, decision.Phase))
+				currentPhase, decision.Phase))
 	}
 
 	// Extract optional fields
@@ -134,16 +135,20 @@ func (s *decisionServer) ResolveDecision(
 	now := time.Now()
 
 	// Record gate decision in task execution state
-	t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
+	task.EnsureExecutionProto(t)
+	gateDecision := &orcv1.GateDecision{
 		Phase:     decision.Phase,
 		GateType:  decision.GateType,
 		Approved:  req.Msg.Approved,
-		Reason:    reason,
-		Timestamp: now,
-	})
+		Timestamp: timestamppb.New(now),
+	}
+	if reason != "" {
+		gateDecision.Reason = &reason
+	}
+	t.Execution.Gates = append(t.Execution.Gates, gateDecision)
 
 	// Save task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
@@ -165,15 +170,15 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	// Update task status based on approval
-	var newStatus task.Status
+	var newStatus orcv1.TaskStatus
 	if req.Msg.Approved {
-		newStatus = task.StatusPlanned
+		newStatus = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	} else {
-		newStatus = task.StatusFailed
+		newStatus = orcv1.TaskStatus_TASK_STATUS_FAILED
 	}
 
 	t.Status = newStatus
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 

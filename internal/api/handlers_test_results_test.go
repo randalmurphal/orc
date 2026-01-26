@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -50,10 +51,10 @@ func TestGetTestResultsEndpoint_NoResults(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-001", "Test Results Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-001", "Test Results Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -88,10 +89,10 @@ func TestGetTestResultsEndpoint_WithReport(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-002", "Test Results Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-002", "Test Results Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -169,10 +170,10 @@ func TestListScreenshotsEndpoint_EmptyList(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-003", "Screenshot Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-003", "Screenshot Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -204,10 +205,10 @@ func TestListScreenshotsEndpoint_WithScreenshots(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-004", "Screenshot Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-004", "Screenshot Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -246,10 +247,10 @@ func TestGetScreenshotEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-005", "Screenshot Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-005", "Screenshot Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -287,10 +288,10 @@ func TestGetScreenshotEndpoint_NotFound(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-006", "Screenshot Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-006", "Screenshot Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -313,10 +314,10 @@ func TestGetScreenshotEndpoint_PathTraversal(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-007", "Screenshot Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-007", "Screenshot Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -341,10 +342,10 @@ func TestUploadScreenshotEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-008", "Screenshot Upload Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-008", "Screenshot Upload Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -410,10 +411,10 @@ func TestUploadScreenshotEndpoint_NoFile(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-009", "Screenshot Upload Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-009", "Screenshot Upload Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -441,10 +442,10 @@ func TestSaveTestReportEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-010", "Test Report Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-010", "Test Report Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -510,10 +511,10 @@ func TestSaveTestReportEndpoint_InvalidBody(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-011", "Test Report Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-011", "Test Report Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -537,10 +538,10 @@ func TestInitTestResultsEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-012", "Init Test Results Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-012", "Init Test Results Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -602,10 +603,10 @@ func TestGetHTMLReportEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-013", "HTML Report Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-013", "HTML Report Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -643,10 +644,10 @@ func TestGetHTMLReportEndpoint_NotFound(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend (no HTML report)
-	tsk := task.New("TASK-TR-014", "HTML Report Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-014", "HTML Report Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -669,10 +670,10 @@ func TestGetTraceEndpoint_Success(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-015", "Trace Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-015", "Trace Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -710,10 +711,10 @@ func TestGetTraceEndpoint_NotFound(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend (no trace file)
-	tsk := task.New("TASK-TR-016", "Trace Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-016", "Trace Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -736,10 +737,10 @@ func TestGetTraceEndpoint_PathTraversal(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-017", "Trace Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-017", "Trace Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()
@@ -764,10 +765,10 @@ func TestGetTestResultsEndpoint_WithScreenshotsAndTraces(t *testing.T) {
 	backend := createTestResultsBackend(t, tmpDir)
 
 	// Create task via backend
-	tsk := task.New("TASK-TR-018", "Full Test Results Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = task.WeightMedium
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-TR-018", "Full Test Results Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 	_ = backend.Close()

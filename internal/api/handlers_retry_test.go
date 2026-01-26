@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // === Retry Handler Tests ===
@@ -46,40 +48,40 @@ func setupRetryTestEnv(t *testing.T, opts ...func(*testing.T, string, string)) (
 	}
 
 	// Create and save task
-	tsk := task.New(taskID, "Retry Test Task")
-	tsk.Description = "A task for testing retry handlers"
-	tsk.Status = task.StatusFailed
-	tsk.Weight = task.WeightMedium
-	tsk.CurrentPhase = "test"
-	tsk.CreatedAt = startTime
-	tsk.UpdatedAt = startTime
-	tsk.StartedAt = &startTime
-	if err := backend.SaveTask(tsk); err != nil {
-		t.Fatalf("failed to save task: %v", err)
-	}
+	tsk := task.NewProtoTask(taskID, "Retry Test Task")
+	desc := "A task for testing retry handlers"
+	tsk.Description = &desc
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	phase := "test"
+	tsk.CurrentPhase = &phase
+	tsk.CreatedAt = timestamppb.New(startTime)
+	tsk.UpdatedAt = timestamppb.New(startTime)
+	tsk.StartedAt = timestamppb.New(startTime)
 
 	// Set execution state on task
+	task.EnsureExecutionProto(tsk)
 	tsk.Execution.CurrentIteration = 3
-	tsk.Execution.Phases = map[string]*task.PhaseState{
+	tsk.Execution.Phases = map[string]*orcv1.PhaseState{
 		"implement": {
-			Status:      task.PhaseStatusCompleted,
-			StartedAt:   startTime,
-			CompletedAt: &completedTime,
+			Status:      orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+			StartedAt:   timestamppb.New(startTime),
+			CompletedAt: timestamppb.New(completedTime),
 			Iterations:  5,
 		},
 		"test": {
-			Status:     task.PhaseStatusFailed,
-			StartedAt:  completedTime,
+			Status:     orcv1.PhaseStatus_PHASE_STATUS_FAILED,
+			StartedAt:  timestamppb.New(completedTime),
 			Iterations: 3,
 		},
 	}
-	tsk.Execution.Tokens = task.TokenUsage{
+	tsk.Execution.Tokens = &orcv1.TokenUsage{
 		InputTokens:  5000,
 		OutputTokens: 2500,
 		TotalTokens:  7500,
 	}
-	if err := backend.SaveTask(tsk); err != nil {
-		t.Fatalf("failed to save task with execution state: %v", err)
+	if err := backend.SaveTaskProto(tsk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
 	}
 
 	// Close backend before applying opts and creating server
@@ -133,20 +135,20 @@ func withRetryContext(attempt int) func(*testing.T, string, string) {
 		}
 		defer func() { _ = backend.Close() }()
 
-		tsk, err := backend.LoadTask(taskID)
+		tsk, err := backend.LoadTaskProto(taskID)
 		if err != nil {
 			t.Fatalf("failed to load task: %v", err)
 		}
 
-		tsk.Execution.RetryContext = &task.RetryContext{
-			FromPhase:   "test",
-			ToPhase:     "implement",
-			Reason:      "Tests failed",
-			Attempt:     attempt,
-			ContextFile: "",
+		task.EnsureExecutionProto(tsk)
+		tsk.Execution.RetryContext = &orcv1.RetryContext{
+			FromPhase: "test",
+			ToPhase:   "implement",
+			Reason:    "Tests failed",
+			Attempt:   int32(attempt),
 		}
 
-		if err := backend.SaveTask(tsk); err != nil {
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("failed to save task with retry context: %v", err)
 		}
 	}
@@ -853,10 +855,11 @@ func TestHandleRetryTask_NoState(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New(taskID, "No State Task")
-	tsk.Status = task.StatusFailed
-	tsk.CurrentPhase = "test"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "No State Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	phase := "test"
+	tsk.CurrentPhase = &phase
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// Note: Not saving state - that's the point of this test
