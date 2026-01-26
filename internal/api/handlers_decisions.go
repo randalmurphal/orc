@@ -101,16 +101,20 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Record gate decision in task execution state
-	t.Execution.Gates = append(t.Execution.Gates, task.GateDecision{
+	task.EnsureExecutionProto(t)
+	gateDecision := &orcv1.GateDecision{
 		Phase:     decision.Phase,
 		GateType:  decision.GateType,
 		Approved:  req.Approved,
-		Reason:    req.Reason,
-		Timestamp: time.Now(),
-	})
+		Timestamp: timestamppb.Now(),
+	}
+	if req.Reason != "" {
+		gateDecision.Reason = &req.Reason
+	}
+	t.Execution.Gates = append(t.Execution.Gates, gateDecision)
 
 	// Save task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -131,15 +135,15 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update task status based on approval
-	var newStatus task.Status
+	var newStatus orcv1.TaskStatus
 	if req.Approved {
-		newStatus = task.StatusPlanned
+		newStatus = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	} else {
-		newStatus = task.StatusFailed
+		newStatus = orcv1.TaskStatus_TASK_STATUS_FAILED
 	}
 
 	t.Status = newStatus
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -170,6 +174,6 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 		DecisionID: decisionID,
 		TaskID:     decision.TaskID,
 		Approved:   req.Approved,
-		NewStatus:  string(newStatus),
+		NewStatus:  task.StatusFromProto(newStatus),
 	})
 }

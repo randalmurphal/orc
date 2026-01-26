@@ -61,7 +61,7 @@ func (s *githubServer) CreatePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreatePRRequest],
 ) (*connect.Response[orcv1.CreatePRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -98,13 +98,13 @@ func (s *githubServer) CreatePR(
 	if req.Msg.Title != nil && *req.Msg.Title != "" {
 		opts.Title = *req.Msg.Title
 	} else {
-		opts.Title = fmt.Sprintf("[orc] %s: %s", t.ID, t.Title)
+		opts.Title = fmt.Sprintf("[orc] %s: %s", t.Id, t.Title)
 	}
 
 	if req.Msg.Body != nil && *req.Msg.Body != "" {
 		opts.Body = *req.Msg.Body
 	} else {
-		opts.Body = buildPRBodyForTask(t)
+		opts.Body = buildPRBodyForTaskProto(t)
 	}
 
 	if req.Msg.Base != nil && *req.Msg.Base != "" {
@@ -129,7 +129,7 @@ func (s *githubServer) GetPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetPRRequest],
 ) (*connect.Response[orcv1.GetPRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -161,7 +161,7 @@ func (s *githubServer) MergePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.MergePRRequest],
 ) (*connect.Response[orcv1.MergePRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -201,8 +201,8 @@ func (s *githubServer) MergePR(
 	}
 
 	// Update task status to completed
-	t.Status = task.StatusCompleted
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.logger.Error("failed to update task status after merge", "task", req.Msg.TaskId, "error", err)
 	}
 
@@ -216,7 +216,7 @@ func (s *githubServer) SyncComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.SyncCommentsRequest],
 ) (*connect.Response[orcv1.SyncCommentsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -292,7 +292,7 @@ func (s *githubServer) ImportComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.ImportCommentsRequest],
 ) (*connect.Response[orcv1.ImportCommentsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -391,7 +391,7 @@ func (s *githubServer) GetChecks(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetChecksRequest],
 ) (*connect.Response[orcv1.GetChecksResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -443,7 +443,7 @@ func (s *githubServer) RefreshPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.RefreshPRRequest],
 ) (*connect.Response[orcv1.RefreshPRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -472,23 +472,23 @@ func (s *githubServer) RefreshPR(
 	}
 
 	// Determine PR status
-	prStatus := DeterminePRStatus(pr, summary)
+	prStatus := DeterminePRStatusProto(pr, summary)
 
 	// Update task PR info
-	if t.PR == nil {
-		t.PR = &task.PRInfo{}
+	if t.Pr == nil {
+		t.Pr = &orcv1.PRInfo{}
 	}
-	t.PR.URL = pr.HTMLURL
-	t.PR.Number = pr.Number
-	t.PR.Status = prStatus
-	t.PR.ChecksStatus = summary.ChecksStatus
-	t.PR.Mergeable = summary.Mergeable
-	t.PR.ReviewCount = summary.ReviewCount
-	t.PR.ApprovalCount = summary.ApprovalCount
-	now := time.Now()
-	t.PR.LastCheckedAt = &now
+	t.Pr.Url = &pr.HTMLURL
+	prNumber := int32(pr.Number)
+	t.Pr.Number = &prNumber
+	t.Pr.Status = prStatus
+	t.Pr.ChecksStatus = &summary.ChecksStatus
+	t.Pr.Mergeable = summary.Mergeable
+	t.Pr.ReviewCount = int32(summary.ReviewCount)
+	t.Pr.ApprovalCount = int32(summary.ApprovalCount)
+	t.Pr.LastCheckedAt = timestamppb.Now()
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
@@ -502,7 +502,7 @@ func (s *githubServer) ReplyToComment(
 	ctx context.Context,
 	req *connect.Request[orcv1.ReplyToCommentRequest],
 ) (*connect.Response[orcv1.ReplyToCommentResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -553,14 +553,15 @@ func (s *githubServer) AutofixComment(
 
 // Helper functions
 
-func buildPRBodyForTask(t *task.Task) string {
+func buildPRBodyForTaskProto(t *orcv1.Task) string {
 	var sb strings.Builder
 	sb.WriteString("## Summary\n\n")
 	sb.WriteString(fmt.Sprintf("Task: **%s**\n\n", t.Title))
 
-	if t.Description != "" {
+	desc := task.GetDescriptionProto(t)
+	if desc != "" {
 		sb.WriteString("### Description\n\n")
-		sb.WriteString(t.Description)
+		sb.WriteString(desc)
 		sb.WriteString("\n\n")
 	}
 

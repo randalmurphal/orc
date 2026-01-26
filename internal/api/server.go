@@ -575,13 +575,13 @@ func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) 
 
 // pauseTask pauses a running task (called by WebSocket handler).
 func (s *Server) pauseTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
-	t.Status = task.StatusPaused
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -593,24 +593,24 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 
 // resumeTask resumes a paused, blocked, or failed task (called by WebSocket handler).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	// Check if task is resumable
 	switch t.Status {
-	case task.StatusPaused, task.StatusBlocked, task.StatusFailed:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskStatus_TASK_STATUS_BLOCKED, orcv1.TaskStatus_TASK_STATUS_FAILED:
 		// These are resumable
 	default:
 		return nil, fmt.Errorf("task cannot be resumed (status: %s)", t.Status)
 	}
 
 	// Get execution state from task
-	exec := &t.Execution
+	exec := t.GetExecution()
 
 	// Find resume phase with smart retry handling (mirrors CLI logic)
-	resumePhase := exec.GetResumePhase()
+	resumePhase := task.GetResumePhaseProto(exec)
 
 	// If no interrupted/running phase, check retry context
 	if resumePhase == "" {
@@ -622,18 +622,19 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 	// For failed phases (e.g., review), use retry map to go back to earlier phase
 	// This prevents the review-resume loop where failed reviews keep restarting from review
-	if resumePhase == "" && t.CurrentPhase != "" {
-		if ps, ok := exec.Phases[t.CurrentPhase]; ok && ps.Status == task.PhaseStatusFailed {
-			if retryFrom := s.orcConfig.ShouldRetryFrom(t.CurrentPhase); retryFrom != "" {
+	currentPhase := task.GetCurrentPhaseProto(t)
+	if resumePhase == "" && currentPhase != "" {
+		if ps := exec.GetPhases()[currentPhase]; ps != nil && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_FAILED {
+			if retryFrom := s.orcConfig.ShouldRetryFrom(currentPhase); retryFrom != "" {
 				resumePhase = retryFrom
-				s.logger.Info("using retry map for failed phase", "task", id, "from", t.CurrentPhase, "to", retryFrom)
+				s.logger.Info("using retry map for failed phase", "task", id, "from", currentPhase, "to", retryFrom)
 			}
 		}
 	}
 
 	// Final fallback to current phase
 	if resumePhase == "" {
-		resumePhase = t.CurrentPhase
+		resumePhase = currentPhase
 	}
 
 	if resumePhase == "" {
@@ -641,8 +642,8 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}
 
 	// Update task status
-	t.Status = task.StatusRunning
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -661,7 +662,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		}()
 
 		// Get workflow ID from task - MUST be set
-		workflowID := t.WorkflowID
+		workflowID := t.GetWorkflowId()
 		if workflowID == "" {
 			s.logger.Error("task has no workflow_id set", "task", id)
 			return
@@ -681,7 +682,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 		opts := executor.WorkflowRunOptions{
 			ContextType: executor.ContextTask,
 			TaskID:      id,
-			Prompt:      t.Description,
+			Prompt:      task.GetDescriptionProto(t),
 			Category:    t.Category,
 		}
 
@@ -704,33 +705,34 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 // fails to update task status (e.g., due to panic, unexpected error path).
 func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 	// Reload task to get current values (task now contains execution state)
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.logger.Warn("failed to reload task for status check", "task", id, "error", err)
 		return
 	}
 
 	// Get execution state from task
-	exec := &t.Execution
+	exec := t.GetExecution()
 
 	// If task is still "running" but execution finished, fix it
-	if t.Status == task.StatusRunning {
-		var newStatus task.Status
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		var newStatus orcv1.TaskStatus
 		var reason string
 
+		currentPhase := task.GetCurrentPhaseProto(t)
 		if execErr != nil {
 			// Execution failed - check if current phase was interrupted
-			if ps := exec.Phases[t.CurrentPhase]; ps != nil && ps.Status == task.PhaseStatusInterrupted {
-				newStatus = task.StatusPaused
+			if ps := exec.GetPhases()[currentPhase]; ps != nil && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED {
+				newStatus = orcv1.TaskStatus_TASK_STATUS_PAUSED
 				reason = "interrupted"
 			} else {
-				newStatus = task.StatusFailed
+				newStatus = orcv1.TaskStatus_TASK_STATUS_FAILED
 				reason = "execution error"
 			}
 		} else {
 			// Execution succeeded - this shouldn't happen if executor worked correctly
 			// but handle it anyway
-			newStatus = task.StatusCompleted
+			newStatus = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 			reason = "execution completed"
 		}
 
@@ -742,14 +744,14 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 		)
 
 		t.Status = newStatus
-		if err := s.backend.SaveTask(t); err != nil {
+		if err := s.backend.SaveTaskProto(t); err != nil {
 			s.logger.Error("failed to fix task status", "task", id, "error", err)
 		}
 	}
 
 	// Always publish final execution state
-	if finalTask, err := s.backend.LoadTask(id); err == nil {
-		s.Publish(id, Event{Type: "state", Data: &finalTask.Execution})
+	if finalTask, err := s.backend.LoadTaskProto(id); err == nil {
+		s.Publish(id, Event{Type: "state", Data: finalTask.GetExecution()})
 	}
 }
 
@@ -763,13 +765,13 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 		cancel()
 	}
 
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
-	t.Status = task.StatusFailed
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 

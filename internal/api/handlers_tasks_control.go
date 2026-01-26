@@ -131,7 +131,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 			ContextType: executor.ContextTask,
 			TaskID:      id,
 			Prompt:      description,
-			Category:    task.Category(task.CategoryFromProto(t.Category)),
+			Category:    t.Category,
 		}
 
 		// Execute workflow

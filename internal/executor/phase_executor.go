@@ -67,14 +67,14 @@ func (c ExecutorConfig) GetTargetBranch() string {
 }
 
 // DefaultConfigForWeight returns the recommended configuration for a task weight.
-func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
+func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 	// Base timeout settings (can be overridden by config)
 	baseTurnTimeout := 10 * time.Minute
 	baseHeartbeat := 30 * time.Second
 	baseIdleTimeout := 2 * time.Minute
 
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		return ExecutorConfig{
 			MaxIterations:      5,
 			CheckpointInterval: 0,
@@ -83,7 +83,7 @@ func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case task.WeightSmall:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		return ExecutorConfig{
 			MaxIterations:      10,
 			CheckpointInterval: 0,
@@ -92,7 +92,7 @@ func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		return ExecutorConfig{
 			MaxIterations:      20,
 			CheckpointInterval: 0,
@@ -101,7 +101,7 @@ func DefaultConfigForWeight(weight task.Weight) ExecutorConfig {
 			HeartbeatInterval:  baseHeartbeat,
 			IdleTimeout:        baseIdleTimeout,
 		}
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		return ExecutorConfig{
 			MaxIterations:      30,
 			CheckpointInterval: 1,

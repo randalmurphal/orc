@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestHandleGetSessionMetrics_EmptyState(t *testing.T) {
@@ -86,40 +88,26 @@ func TestHandleGetSessionMetrics_WithRunningTasks(t *testing.T) {
 	backend := createTestBackend(t)
 
 	// Create tasks with different statuses
-	tasks := []*task.Task{
-		{
-			ID:        "TASK-001",
-			Title:     "Running task 1",
-			Status:    task.StatusRunning,
-			Weight:    task.WeightMedium,
-			Execution: task.InitExecutionState(),
-		},
-		{
-			ID:        "TASK-002",
-			Title:     "Running task 2",
-			Status:    task.StatusRunning,
-			Weight:    task.WeightSmall,
-			Execution: task.InitExecutionState(),
-		},
-		{
-			ID:        "TASK-003",
-			Title:     "Completed task",
-			Status:    task.StatusCompleted,
-			Weight:    task.WeightMedium,
-			Execution: task.InitExecutionState(),
-		},
-		{
-			ID:        "TASK-004",
-			Title:     "Paused task",
-			Status:    task.StatusPaused,
-			Weight:    task.WeightSmall,
-			Execution: task.InitExecutionState(),
-		},
+	type taskDef struct {
+		id     string
+		title  string
+		status orcv1.TaskStatus
+		weight orcv1.TaskWeight
+	}
+	taskDefs := []taskDef{
+		{"TASK-001", "Running task 1", orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM},
+		{"TASK-002", "Running task 2", orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskWeight_TASK_WEIGHT_SMALL},
+		{"TASK-003", "Completed task", orcv1.TaskStatus_TASK_STATUS_COMPLETED, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM},
+		{"TASK-004", "Paused task", orcv1.TaskStatus_TASK_STATUS_PAUSED, orcv1.TaskWeight_TASK_WEIGHT_SMALL},
 	}
 
-	for _, tsk := range tasks {
-		if err := backend.SaveTask(tsk); err != nil {
-			t.Fatalf("save task %s: %v", tsk.ID, err)
+	for _, def := range taskDefs {
+		tsk := task.NewProtoTask(def.id, def.title)
+		tsk.Status = def.status
+		tsk.Weight = def.weight
+		task.EnsureExecutionProto(tsk)
+		if err := backend.SaveTaskProto(tsk); err != nil {
+			t.Fatalf("save task %s: %v", def.id, err)
 		}
 	}
 
@@ -181,70 +169,61 @@ func TestHandleGetSessionMetrics_TokenAggregation(t *testing.T) {
 	startedYesterday := today.Add(-1 * time.Hour) // 11pm yesterday (clearly before today)
 
 	// Create tasks with execution state containing tokens and cost
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test task 1",
-		Status:    task.StatusCompleted,
-		Weight:    task.WeightMedium,
-		StartedAt: &startedToday,
-		Execution: task.InitExecutionState(),
-	}
-	task1.Execution.Cost.TotalCostUSD = 0.50
-	task1.Execution.Phases["implement"] = &task.PhaseState{
-		Status:    task.PhaseStatusCompleted,
-		StartedAt: startedToday,
-		Tokens: task.TokenUsage{
+	task1 := task.NewProtoTask("TASK-001", "Test task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	task1.StartedAt = timestamppb.New(startedToday)
+	task.EnsureExecutionProto(task1)
+	task1.Execution.Cost = &orcv1.CostTracking{TotalCostUsd: 0.50}
+	task1.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.New(startedToday),
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  1000,
 			OutputTokens: 2000,
 		},
 	}
 
-	task2 := &task.Task{
-		ID:        "TASK-002",
-		Title:     "Test task 2",
-		Status:    task.StatusCompleted,
-		Weight:    task.WeightMedium,
-		StartedAt: &startedToday2,
-		Execution: task.InitExecutionState(),
-	}
-	task2.Execution.Cost.TotalCostUSD = 0.75
-	task2.Execution.Phases["implement"] = &task.PhaseState{
-		Status:    task.PhaseStatusCompleted,
-		StartedAt: startedToday2,
-		Tokens: task.TokenUsage{
+	task2 := task.NewProtoTask("TASK-002", "Test task 2")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	task2.StartedAt = timestamppb.New(startedToday2)
+	task.EnsureExecutionProto(task2)
+	task2.Execution.Cost = &orcv1.CostTracking{TotalCostUsd: 0.75}
+	task2.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.New(startedToday2),
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  1500,
 			OutputTokens: 2500,
 		},
 	}
 
-	task3 := &task.Task{
-		ID:        "TASK-003",
-		Title:     "Test task 3",
-		Status:    task.StatusCompleted,
-		Weight:    task.WeightMedium,
-		StartedAt: &startedYesterday,
-		Execution: task.InitExecutionState(),
-	}
-	task3.Execution.Cost.TotalCostUSD = 2.00
+	task3 := task.NewProtoTask("TASK-003", "Test task 3")
+	task3.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task3.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	task3.StartedAt = timestamppb.New(startedYesterday)
+	task.EnsureExecutionProto(task3)
+	task3.Execution.Cost = &orcv1.CostTracking{TotalCostUsd: 2.00}
 	// Yesterday's phase should not be counted
-	task3.Execution.Phases["implement"] = &task.PhaseState{
-		Status:    task.PhaseStatusCompleted,
-		StartedAt: startedYesterday,
-		Tokens: task.TokenUsage{
+	task3.Execution.Phases["implement"] = &orcv1.PhaseState{
+		Status:    orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+		StartedAt: timestamppb.New(startedYesterday),
+		Tokens: &orcv1.TokenUsage{
 			InputTokens:  5000,
 			OutputTokens: 5000,
 		},
 	}
 
-	tasks := []*task.Task{task1, task2, task3}
+	tasks := []*orcv1.Task{task1, task2, task3}
 	for _, tsk := range tasks {
-		if err := backend.SaveTask(tsk); err != nil {
-			t.Fatalf("save task %s: %v", tsk.ID, err)
+		if err := backend.SaveTaskProto(tsk); err != nil {
+			t.Fatalf("save task %s: %v", tsk.Id, err)
 		}
 	}
 
 	// Verify tasks were saved with execution state
-	loadedTasks, err := backend.LoadAllTasks()
+	loadedTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		t.Fatalf("load tasks: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -79,18 +80,11 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 	defer cleanup()
 
 	// Create task
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Title:  "Test Task",
-		Status: task.StatusBlocked,
-	}
-	if err := srv.backend.SaveTask(tsk); err != nil {
-		t.Fatal(err)
-	}
-
-	// Set current phase on task
-	tsk.CurrentPhase = "review"
-	if err := srv.backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-001", "Test Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	phase := "review"
+	tsk.CurrentPhase = &phase
+	if err := srv.backend.SaveTaskProto(tsk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -137,11 +131,11 @@ func TestHandlePostDecision_Approve(t *testing.T) {
 	}
 
 	// Verify task status changed
-	reloadedTask, err := srv.backend.LoadTask("TASK-001")
+	reloadedTask, err := srv.backend.LoadTaskProto("TASK-001")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloadedTask.Status != task.StatusPlanned {
+	if reloadedTask.Status != orcv1.TaskStatus_TASK_STATUS_PLANNED {
 		t.Errorf("expected task status planned, got %s", reloadedTask.Status)
 	}
 
@@ -272,18 +266,11 @@ func TestHandlePostDecision_Reject(t *testing.T) {
 	defer cleanup()
 
 	// Create task
-	tsk := &task.Task{
-		ID:     "TASK-002",
-		Title:  "Test Task 2",
-		Status: task.StatusBlocked,
-	}
-	if err := srv.backend.SaveTask(tsk); err != nil {
-		t.Fatal(err)
-	}
-
-	// Set current phase on task
-	tsk.CurrentPhase = "implement"
-	if err := srv.backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-002", "Test Task 2")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	phase := "implement"
+	tsk.CurrentPhase = &phase
+	if err := srv.backend.SaveTaskProto(tsk); err != nil {
 		t.Fatal(err)
 	}
 
@@ -326,11 +313,11 @@ func TestHandlePostDecision_Reject(t *testing.T) {
 	}
 
 	// Verify task status changed to failed
-	reloadedTask, err := srv.backend.LoadTask("TASK-002")
+	reloadedTask, err := srv.backend.LoadTaskProto("TASK-002")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloadedTask.Status != task.StatusFailed {
+	if reloadedTask.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 		t.Errorf("expected task status failed, got %s", reloadedTask.Status)
 	}
 }

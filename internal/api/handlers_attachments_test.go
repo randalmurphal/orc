@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -47,10 +48,10 @@ func TestListAttachmentsEndpoint_EmptyList(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-001", "Attachment Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-001", "Attachment Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -87,10 +88,10 @@ func TestListAttachmentsEndpoint_WithAttachments(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-002", "Attachment Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-002", "Attachment Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -162,10 +163,10 @@ func TestUploadAttachmentEndpoint_NoFile(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-003", "Upload Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-003", "Upload Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -199,10 +200,10 @@ func TestUploadAttachmentEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-004", "Upload Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-004", "Upload Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -267,10 +268,10 @@ func TestUploadAttachmentEndpoint_WithCustomFilename(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-005", "Upload Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-005", "Upload Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -332,10 +333,10 @@ func TestGetAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-006", "Get Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-006", "Get Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// No attachments saved - testing 404 response
@@ -364,10 +365,10 @@ func TestGetAttachmentEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-007", "Get Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-007", "Get Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -417,10 +418,10 @@ func TestGetAttachmentEndpoint_NonImageAttachment(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-008", "Get Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-008", "Get Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -477,10 +478,10 @@ func TestDeleteAttachmentEndpoint_AttachmentNotFound(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-009", "Delete Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-009", "Delete Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	// No attachments saved - testing 404 response
@@ -509,10 +510,10 @@ func TestDeleteAttachmentEndpoint_Success(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-ATT-010", "Delete Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-ATT-010", "Delete Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -557,10 +558,10 @@ func TestGetAttachmentEndpoint_PathTraversal(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-SEC-001", "Security Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-SEC-001", "Security Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -607,10 +608,10 @@ func TestUploadAttachmentEndpoint_PathTraversalInFilename(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-SEC-002", "Security Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-SEC-002", "Security Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -672,10 +673,10 @@ func TestDeleteAttachmentEndpoint_PathTraversal(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-SEC-003", "Security Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-SEC-003", "Security Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -731,10 +732,10 @@ func TestUploadAttachmentEndpoint_EmptyFilename(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-SEC-004", "Security Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-SEC-004", "Security Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()
@@ -772,10 +773,10 @@ func TestUploadAttachmentEndpoint_DotFilename(t *testing.T) {
 		t.Fatalf("failed to create backend: %v", err)
 	}
 
-	tsk := task.New("TASK-SEC-005", "Security Test")
-	tsk.Status = task.StatusRunning
-	tsk.Weight = "medium"
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask("TASK-SEC-005", "Security Test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 	_ = backend.Close()

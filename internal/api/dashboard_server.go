@@ -18,6 +18,15 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// protoTimestampToTime converts a protobuf timestamp to time.Time.
+// Returns zero time if the timestamp is nil.
+func protoTimestampToTime(ts *timestamppb.Timestamp) time.Time {
+	if ts == nil {
+		return time.Time{}
+	}
+	return ts.AsTime()
+}
+
 // dashboardServer implements the DashboardServiceHandler interface.
 type dashboardServer struct {
 	orcv1connect.UnimplementedDashboardServiceHandler
@@ -661,7 +670,7 @@ func (s *dashboardServer) GetTaskMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskMetricsRequest],
 ) (*connect.Response[orcv1.GetTaskMetricsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -670,26 +679,31 @@ func (s *dashboardServer) GetTaskMetrics(
 		TotalTokens: &orcv1.TokenUsage{},
 	}
 
-	if t.Status == task.StatusCompleted {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 		metrics.TasksCompleted = 1
 		metrics.SuccessRate = 1.0
-	} else if t.Status == task.StatusFailed {
+	} else if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED {
 		metrics.SuccessRate = 0.0
 	}
 
-	metrics.PhasesExecuted = int32(len(t.Execution.Phases))
+	exec := t.GetExecution()
+	if exec != nil {
+		metrics.PhasesExecuted = int32(len(exec.Phases))
 
-	if t.StartedAt != nil && t.CompletedAt != nil {
-		metrics.AvgTaskDurationSeconds = t.CompletedAt.Sub(*t.StartedAt).Seconds()
-	}
-
-	for _, phase := range t.Execution.Phases {
-		metrics.TotalTokens.InputTokens += int32(phase.Tokens.InputTokens)
-		metrics.TotalTokens.OutputTokens += int32(phase.Tokens.OutputTokens)
-		metrics.TotalTokens.CacheCreationInputTokens += int32(phase.Tokens.CacheCreationInputTokens)
-		metrics.TotalTokens.CacheReadInputTokens += int32(phase.Tokens.CacheReadInputTokens)
+		for _, phase := range exec.Phases {
+			if phase.GetTokens() != nil {
+				metrics.TotalTokens.InputTokens += phase.Tokens.InputTokens
+				metrics.TotalTokens.OutputTokens += phase.Tokens.OutputTokens
+				metrics.TotalTokens.CacheCreationInputTokens += phase.Tokens.CacheCreationInputTokens
+				metrics.TotalTokens.CacheReadInputTokens += phase.Tokens.CacheReadInputTokens
+			}
+		}
 	}
 	metrics.TotalTokens.TotalTokens = metrics.TotalTokens.InputTokens + metrics.TotalTokens.OutputTokens
+
+	if t.StartedAt != nil && t.CompletedAt != nil {
+		metrics.AvgTaskDurationSeconds = t.CompletedAt.AsTime().Sub(t.StartedAt.AsTime()).Seconds()
+	}
 
 	return connect.NewResponse(&orcv1.GetTaskMetricsResponse{
 		Metrics: metrics,

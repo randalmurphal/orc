@@ -39,35 +39,6 @@ func (we *WorkflowExecutor) buildContextData(opts WorkflowRunOptions) string {
 	return string(j)
 }
 
-// createTaskForRun creates a task for a default context run.
-func (we *WorkflowExecutor) createTaskForRun(opts WorkflowRunOptions) (*task.Task, error) {
-	taskID, err := we.backend.GetNextTaskID()
-	if err != nil {
-		return nil, fmt.Errorf("get next task ID: %w", err)
-	}
-
-	t := &task.Task{
-		ID:          taskID,
-		Title:       truncateTitle(opts.Prompt),
-		Description: opts.Prompt,
-		Category:    opts.Category,
-		Status:      task.StatusCreated,
-		Queue:       task.QueueActive,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if t.Category == "" {
-		t.Category = task.CategoryFeature
-	}
-
-	if err := we.backend.SaveTask(t); err != nil {
-		return nil, fmt.Errorf("save task: %w", err)
-	}
-
-	return t, nil
-}
-
 // buildResolutionContext creates the variable resolution context.
 func (we *WorkflowExecutor) buildResolutionContext(
 	opts WorkflowRunOptions,

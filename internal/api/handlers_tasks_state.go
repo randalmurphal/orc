@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -17,20 +18,21 @@ import (
 // handleGetState returns task execution state.
 func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
+	exec := t.GetExecution()
 	// Return execution state in the format expected by the frontend
 	s.jsonResponse(w, map[string]any{
-		"task_id":       t.ID,
-		"current_phase": t.CurrentPhase,
-		"phases":        t.Execution.Phases,
-		"gates":         t.Execution.Gates,
-		"cost":          t.Execution.Cost,
-		"retry_context": t.Execution.RetryContext,
+		"task_id":       t.Id,
+		"current_phase": task.GetCurrentPhaseProto(t),
+		"phases":        exec.GetPhases(),
+		"gates":         exec.GetGates(),
+		"cost":          exec.GetCost(),
+		"retry_context": exec.GetRetryContext(),
 	})
 }
 
@@ -39,7 +41,7 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Load task to get weight
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -53,7 +55,7 @@ func (s *Server) handleGetPlan(w http.ResponseWriter, r *http.Request) {
 // handleGetSession returns session information for a task.
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -62,9 +64,9 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	// Session info is now embedded in the task execution state
 	// Return minimal session info based on available execution data
 	s.jsonResponse(w, map[string]any{
-		"task_id":       t.ID,
-		"current_phase": t.CurrentPhase,
-		"status":        t.Status,
+		"task_id":       t.Id,
+		"current_phase": task.GetCurrentPhaseProto(t),
+		"status":        t.Status.String(),
 	})
 }
 
@@ -93,7 +95,7 @@ func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fall back to task execution state tokens
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -101,9 +103,13 @@ func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 
 	// Aggregate tokens from all phases
 	var totalInput, totalOutput int
-	for _, ps := range t.Execution.Phases {
-		totalInput += ps.Tokens.InputTokens
-		totalOutput += ps.Tokens.OutputTokens
+	if exec := t.GetExecution(); exec != nil {
+		for _, ps := range exec.GetPhases() {
+			if tokens := ps.GetTokens(); tokens != nil {
+				totalInput += int(tokens.InputTokens)
+				totalOutput += int(tokens.OutputTokens)
+			}
+		}
 	}
 
 	s.jsonResponse(w, map[string]any{
@@ -112,7 +118,7 @@ func (s *Server) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 			"output_tokens": totalOutput,
 			"total_tokens":  totalInput + totalOutput,
 		},
-		"cost": t.Execution.Cost,
+		"cost": t.GetExecution().GetCost(),
 	})
 }
 
@@ -151,7 +157,7 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load all tasks with execution state
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
@@ -166,30 +172,39 @@ func (s *Server) handleGetCostSummary(w http.ResponseWriter, r *http.Request) {
 
 	for _, t := range tasks {
 		// Filter by time range if specified
-		if !since.IsZero() && t.StartedAt.Before(since) {
+		if startedAt := t.GetStartedAt(); !since.IsZero() && startedAt != nil && startedAt.AsTime().Before(since) {
 			continue
 		}
 
+		exec := t.GetExecution()
 		// Aggregate tokens from all phases
 		var taskInput, taskOutput int
-		for phaseID, ps := range t.Execution.Phases {
-			taskInput += ps.Tokens.InputTokens
-			taskOutput += ps.Tokens.OutputTokens
-			// Phase costs are not tracked per-phase in new model, skip
-			_ = phaseID
+		if exec != nil {
+			for phaseID, ps := range exec.GetPhases() {
+				if tokens := ps.GetTokens(); tokens != nil {
+					taskInput += int(tokens.InputTokens)
+					taskOutput += int(tokens.OutputTokens)
+				}
+				// Phase costs are not tracked per-phase in new model, skip
+				_ = phaseID
+			}
 		}
 
-		totalCost += t.Execution.Cost.TotalCostUSD
+		var taskCostUSD float64
+		if exec != nil && exec.GetCost() != nil {
+			taskCostUSD = exec.GetCost().TotalCostUsd
+		}
+		totalCost += taskCostUSD
 		totalInputTokens += taskInput
 		totalOutputTokens += taskOutput
 		taskCount++
 
 		// Track per-task cost
 		taskCosts = append(taskCosts, map[string]any{
-			"task_id":    t.ID,
-			"cost_usd":   t.Execution.Cost.TotalCostUSD,
+			"task_id":    t.Id,
+			"cost_usd":   taskCostUSD,
 			"tokens":     taskInput + taskOutput,
-			"started_at": t.StartedAt,
+			"started_at": t.GetStartedAt().AsTime(),
 		})
 	}
 
@@ -235,23 +250,32 @@ func (s *Server) GetSessionMetrics() map[string]any {
 	// Skip backend queries if not available (e.g., in tests)
 	if s.backend != nil {
 		// Load all tasks - use for both running count and cost/tokens
-		tasks, err := s.backend.LoadAllTasks()
+		tasks, err := s.backend.LoadAllTasksProto()
 		if err != nil {
 			s.logger.Warn("failed to load tasks for session metrics", "error", err)
 		} else {
 			// Only count today's usage
 			today := time.Now().UTC().Truncate(24 * time.Hour)
 			for _, t := range tasks {
-				if t.Status == task.StatusRunning {
+				if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 					tasksRunning++
 				}
 
 				// Aggregate cost/tokens for tasks started today
-				if t.StartedAt.After(today) || t.StartedAt.Equal(today) {
-					totalCost += t.Execution.Cost.TotalCostUSD
-					for _, ps := range t.Execution.Phases {
-						totalInputTokens += ps.Tokens.InputTokens
-						totalOutputTokens += ps.Tokens.OutputTokens
+				if startedAt := t.GetStartedAt(); startedAt != nil {
+					taskStarted := startedAt.AsTime()
+					if taskStarted.After(today) || taskStarted.Equal(today) {
+						if exec := t.GetExecution(); exec != nil {
+							if cost := exec.GetCost(); cost != nil {
+								totalCost += cost.TotalCostUsd
+							}
+							for _, ps := range exec.GetPhases() {
+								if tokens := ps.GetTokens(); tokens != nil {
+									totalInputTokens += int(tokens.InputTokens)
+									totalOutputTokens += int(tokens.OutputTokens)
+								}
+							}
+						}
 					}
 				}
 			}
@@ -383,22 +407,22 @@ func (s *Server) transcriptToMap(t storage.Transcript) map[string]any {
 
 // createPlanForWeightState creates an execution plan based on task weight.
 // Plans are created dynamically for execution, not stored.
-func createPlanForWeightState(taskID string, weight task.Weight) *executor.Plan {
+func createPlanForWeightState(taskID string, weight orcv1.TaskWeight) *executor.Plan {
 	var phases []executor.PhaseDisplay
 
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightSmall:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -406,7 +430,7 @@ func createPlanForWeightState(taskID string, weight task.Weight) *executor.Plan 
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},

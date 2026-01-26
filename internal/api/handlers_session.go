@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/randalmurphal/orc/internal/task"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 // SessionMetricsResponse represents the response for GET /api/session.
@@ -41,7 +41,7 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 	duration := int64(time.Since(s.sessionStart).Seconds())
 
 	// Load all tasks
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
 		return
@@ -55,23 +55,35 @@ func (s *Server) handleGetSessionMetrics(w http.ResponseWriter, r *http.Request)
 	var totalCost float64
 	for _, t := range tasks {
 		switch t.Status {
-		case task.StatusRunning:
+		case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 			running++
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			completed++
 		}
 
 		// Aggregate tokens from phases that started today
 		// Skip if task has no phases (uninitialized execution state)
-		for _, ps := range t.Execution.Phases {
-			if ps != nil && !ps.StartedAt.IsZero() && (ps.StartedAt.After(today) || ps.StartedAt.Equal(today)) {
-				totalInput += ps.Tokens.InputTokens
-				totalOutput += ps.Tokens.OutputTokens
+		if exec := t.GetExecution(); exec != nil {
+			for _, ps := range exec.GetPhases() {
+				if ps != nil && ps.GetStartedAt() != nil {
+					startedAt := ps.GetStartedAt().AsTime()
+					if startedAt.After(today) || startedAt.Equal(today) {
+						if tokens := ps.GetTokens(); tokens != nil {
+							totalInput += int(tokens.InputTokens)
+							totalOutput += int(tokens.OutputTokens)
+						}
+					}
+				}
 			}
-		}
-		// Cost is tracked at the task level
-		if t.StartedAt != nil && (t.StartedAt.After(today) || t.StartedAt.Equal(today)) {
-			totalCost += t.Execution.Cost.TotalCostUSD
+			// Cost is tracked at execution level
+			if t.GetStartedAt() != nil {
+				startedAt := t.GetStartedAt().AsTime()
+				if startedAt.After(today) || startedAt.Equal(today) {
+					if cost := exec.GetCost(); cost != nil {
+						totalCost += cost.TotalCostUsd
+					}
+				}
+			}
 		}
 	}
 

@@ -130,7 +130,7 @@ Example:
 			}
 
 			// Build executor config (use task weight for appropriate settings)
-			execCfg := executor.DefaultConfigForWeight(task.Weight(task.WeightFromProto(t.Weight)))
+			execCfg := executor.DefaultConfigForWeight(t.Weight)
 
 			// Create finalize phase
 			finalizePhase := &executor.PhaseDisplay{

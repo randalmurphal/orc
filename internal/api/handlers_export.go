@@ -92,13 +92,14 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 	// Perform export
 	if req.ToBranch {
 		// Get current branch for the task
-		t, err := s.backend.LoadTask(taskID)
+		t, err := s.backend.LoadTaskProto(taskID)
 		if err != nil {
 			s.jsonError(w, "failed to load task: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		if err := exportSvc.ExportToBranch(taskID, t.Branch, opts); err != nil {
+		branch := t.GetBranch()
+		if err := exportSvc.ExportToBranch(taskID, branch, opts); err != nil {
 			s.jsonError(w, "failed to export to branch: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -106,7 +107,7 @@ func (s *Server) handleExportTask(w http.ResponseWriter, r *http.Request) {
 		s.jsonResponse(w, ExportResponse{
 			Success:    true,
 			TaskID:     taskID,
-			ExportedTo: t.Branch,
+			ExportedTo: branch,
 		})
 	} else {
 		if err := exportSvc.Export(taskID, opts); err != nil {
