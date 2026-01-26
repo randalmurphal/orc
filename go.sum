@@ -42,6 +42,8 @@ github.com/randalmurphal/devflow v1.1.0 h1:BZxLd+vgBYxV6VnkQsDrIlLEarSSvs/M3QOXO
 github.com/randalmurphal/devflow v1.1.0/go.mod h1:wPG37RHmrTIdJHnaQpMdF6I+tvvyhDsd0GYuXLeG13Y=
 github.com/randalmurphal/llmkit v1.4.1 h1:lyRt611JBtssxGDUtZwp8dqcPatF5nULtLl6baoRF+Y=
 github.com/randalmurphal/llmkit v1.4.1/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
+github.com/randalmurphal/llmkit v1.4.2 h1:VCzzhEG8I7jpOG6xIt4sLuK9bKgwYiMWkyb4dsleLAw=
+github.com/randalmurphal/llmkit v1.4.2/go.mod h1:fm+Y+Dsyu866vN5OR2Jl+HFxBV8SG5pdG1wv93zD8ic=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

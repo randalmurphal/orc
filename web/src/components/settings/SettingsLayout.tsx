@@ -4,13 +4,15 @@
  * Features:
  * - CSS Grid layout: 240px sidebar + 1fr content
  * - Grouped navigation sections: CLAUDE CODE, ORC, ACCOUNT
- * - Badge support for count indicators
+ * - Badge support for count indicators (fetched from API)
  * - Active nav item highlighting with primary color
  * - Independent scrolling for sidebar and content
  */
 
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
+import { configClient, knowledgeClient } from '@/lib/client';
 import './SettingsLayout.css';
 
 interface NavItemProps {
@@ -51,11 +53,49 @@ function NavGroup({ title, children }: NavGroupProps) {
 	);
 }
 
+interface SettingsCounts {
+	commandsCount: number;
+	mcpServersCount: number;
+	memoryCount: number;
+}
+
 export function SettingsLayout() {
-	// Mock badge counts - in a real implementation these would come from API/stores
-	const commandsCount = 5;
-	const mcpServersCount = 2;
-	const memoryCount = 12;
+	const [counts, setCounts] = useState<SettingsCounts>({
+		commandsCount: 0,
+		mcpServersCount: 0,
+		memoryCount: 0,
+	});
+
+	useEffect(() => {
+		const fetchCounts = async () => {
+			try {
+				// Fetch config stats (slash commands and MCP servers counts)
+				const configStatsPromise = configClient.getConfigStats({});
+				// Fetch knowledge status (memory/knowledge counts)
+				const knowledgeStatusPromise = knowledgeClient.getKnowledgeStatus({});
+
+				const [configStats, knowledgeStatus] = await Promise.all([
+					configStatsPromise,
+					knowledgeStatusPromise,
+				]);
+
+				const summary = knowledgeStatus.status;
+				// Total memory count = pending + approved (excluding rejected and stale)
+				const memoryTotal = (summary?.pendingCount ?? 0) + (summary?.approvedCount ?? 0);
+
+				setCounts({
+					commandsCount: configStats.stats?.slashCommandsCount ?? 0,
+					mcpServersCount: configStats.stats?.mcpServersCount ?? 0,
+					memoryCount: memoryTotal,
+				});
+			} catch (err) {
+				console.error('Failed to fetch settings counts:', err);
+				// Keep counts at 0 on error - badges won't show
+			}
+		};
+
+		fetchCounts();
+	}, []);
 
 	return (
 		<div className="settings-layout">
@@ -72,20 +112,20 @@ export function SettingsLayout() {
 							to="/settings/commands"
 							icon="terminal"
 							label="Slash Commands"
-							badge={commandsCount}
+							badge={counts.commandsCount}
 						/>
 						<NavItem to="/settings/claude-md" icon="file-text" label="CLAUDE.md" />
 						<NavItem
 							to="/settings/mcp"
 							icon="mcp"
 							label="MCP Servers"
-							badge={mcpServersCount}
+							badge={counts.mcpServersCount}
 						/>
 						<NavItem
 							to="/settings/memory"
 							icon="database"
 							label="Memory"
-							badge={memoryCount}
+							badge={counts.memoryCount}
 						/>
 						<NavItem to="/settings/permissions" icon="shield" label="Permissions" />
 					</NavGroup>

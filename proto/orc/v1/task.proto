@@ -436,6 +436,10 @@ service TaskService {
   rpc FinalizeTask(FinalizeTaskRequest) returns (FinalizeTaskResponse);
   rpc GetFinalizeState(GetFinalizeStateRequest) returns (GetFinalizeStateResponse);
   rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
+  rpc AddBlocker(AddBlockerRequest) returns (AddBlockerResponse);
+  rpc RemoveBlocker(RemoveBlockerRequest) returns (RemoveBlockerResponse);
+  rpc AddRelated(AddRelatedRequest) returns (AddRelatedResponse);
+  rpc RemoveRelated(RemoveRelatedRequest) returns (RemoveRelatedResponse);
   rpc GetDiff(GetDiffRequest) returns (GetDiffResponse);
   rpc GetDiffStats(GetDiffStatsRequest) returns (GetDiffStatsResponse);
   rpc GetFileDiff(GetFileDiffRequest) returns (GetFileDiffResponse);
@@ -665,6 +669,42 @@ message GetDependenciesRequest {
 message GetDependenciesResponse {
   DependencyGraph graph = 1;
 }
+
+// AddBlocker
+message AddBlockerRequest {
+  string id = 1;        // Task ID
+  string blocker_id = 2; // ID of task that blocks this one
+}
+
+message AddBlockerResponse {
+  Task task = 1;
+}
+
+// RemoveBlocker
+message RemoveBlockerRequest {
+  string id = 1;        // Task ID
+  string blocker_id = 2; // ID of blocker to remove
+}
+
+message RemoveBlockerResponse {}
+
+// AddRelated
+message AddRelatedRequest {
+  string id = 1;        // Task ID
+  string related_id = 2; // ID of related task
+}
+
+message AddRelatedResponse {
+  Task task = 1;
+}
+
+// RemoveRelated
+message RemoveRelatedRequest {
+  string id = 1;        // Task ID
+  string related_id = 2; // ID of related task to remove
+}
+
+message RemoveRelatedResponse {}
 
 // GetDiff
 message GetDiffRequest {

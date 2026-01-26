@@ -5,89 +5,75 @@ import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
+import type { Task, DependencyGraph } from '@/gen/orc/v1/task_pb';
+import {
+	TaskStatus,
+	ListTasksRequestSchema,
+	GetDependenciesRequestSchema,
+	AddBlockerRequestSchema,
+	RemoveBlockerRequestSchema,
+	AddRelatedRequestSchema,
+	RemoveRelatedRequestSchema,
+} from '@/gen/orc/v1/task_pb';
 import './DependencySidebar.css';
 
-// Local types for REST API responses (not yet in proto)
+// Transformed dependency data for display
 interface DependencyInfo {
 	id: string;
 	title: string;
-	status: string;
-	is_met?: boolean;
+	status: TaskStatus;
 }
 
-interface DependencyGraphResponse {
-	task_id: string;
-	blocked_by: DependencyInfo[];
+interface DependencyData {
+	blockedBy: DependencyInfo[];
 	blocks: DependencyInfo[];
-	related_to: DependencyInfo[];
-	referenced_by: DependencyInfo[];
-	unmet_dependencies?: string[];
-	can_run: boolean;
+	relatedTo: DependencyInfo[];
+	referencedBy: DependencyInfo[];
 }
 
-// Convert string status from API to TaskStatus enum
-const STATUS_MAP: Record<string, TaskStatus> = {
-	created: TaskStatus.CREATED,
-	classifying: TaskStatus.CLASSIFYING,
-	planned: TaskStatus.PLANNED,
-	running: TaskStatus.RUNNING,
-	paused: TaskStatus.PAUSED,
-	blocked: TaskStatus.BLOCKED,
-	finalizing: TaskStatus.FINALIZING,
-	completed: TaskStatus.COMPLETED,
-	failed: TaskStatus.FAILED,
-	resolved: TaskStatus.RESOLVED,
-};
-
-function parseStatus(status: string): TaskStatus {
-	return STATUS_MAP[status.toLowerCase()] ?? TaskStatus.CREATED;
-}
-
-// Raw fetch helpers for dependency operations (not yet in proto)
-async function fetchJSON<T>(path: string, options: RequestInit = {}): Promise<T> {
-	const response = await fetch(`/api${path}`, {
-		...options,
-		headers: {
-			'Content-Type': 'application/json',
-			...options.headers,
-		},
-	});
-	if (!response.ok) {
-		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+// Transform graph response to display format
+function transformGraphToData(graph: DependencyGraph | undefined, taskId: string): DependencyData {
+	if (!graph) {
+		return { blockedBy: [], blocks: [], relatedTo: [], referencedBy: [] };
 	}
-	return response.json();
-}
 
-async function getTaskDependencies(taskId: string): Promise<DependencyGraphResponse> {
-	return fetchJSON<DependencyGraphResponse>(`/tasks/${taskId}/dependencies`);
-}
+	const nodeMap = new Map(graph.nodes.map(n => [n.id, n]));
+	const blockedBy: DependencyInfo[] = [];
+	const blocks: DependencyInfo[] = [];
+	const relatedTo: DependencyInfo[] = [];
+	const referencedBy: DependencyInfo[] = [];
 
-async function addBlocker(taskId: string, blockerId: string): Promise<Task> {
-	return fetchJSON<Task>(`/tasks/${taskId}/blockers`, {
-		method: 'POST',
-		body: JSON.stringify({ blocker_id: blockerId }),
-	});
-}
+	for (const edge of graph.edges) {
+		if (edge.type === 'blocks') {
+			if (edge.to === taskId) {
+				// This task is blocked by edge.from
+				const node = nodeMap.get(edge.from);
+				if (node) {
+					blockedBy.push({ id: node.id, title: node.title, status: node.status });
+				}
+			} else if (edge.from === taskId) {
+				// This task blocks edge.to
+				const node = nodeMap.get(edge.to);
+				if (node) {
+					blocks.push({ id: node.id, title: node.title, status: node.status });
+				}
+			}
+		} else if (edge.type === 'related') {
+			if (edge.from === taskId) {
+				const node = nodeMap.get(edge.to);
+				if (node) {
+					relatedTo.push({ id: node.id, title: node.title, status: node.status });
+				}
+			} else if (edge.to === taskId) {
+				const node = nodeMap.get(edge.from);
+				if (node) {
+					referencedBy.push({ id: node.id, title: node.title, status: node.status });
+				}
+			}
+		}
+	}
 
-async function removeBlocker(taskId: string, blockerId: string): Promise<void> {
-	await fetchJSON<void>(`/tasks/${taskId}/blockers/${blockerId}`, {
-		method: 'DELETE',
-	});
-}
-
-async function addRelated(taskId: string, relatedId: string): Promise<Task> {
-	return fetchJSON<Task>(`/tasks/${taskId}/related`, {
-		method: 'POST',
-		body: JSON.stringify({ related_id: relatedId }),
-	});
-}
-
-async function removeRelated(taskId: string, relatedId: string): Promise<void> {
-	await fetchJSON<void>(`/tasks/${taskId}/related/${relatedId}`, {
-		method: 'DELETE',
-	});
+	return { blockedBy, blocks, relatedTo, referencedBy };
 }
 
 interface DependencySidebarProps {
@@ -97,18 +83,21 @@ interface DependencySidebarProps {
 }
 
 export function DependencySidebar({ task, collapsed, onToggle }: DependencySidebarProps) {
-	const [deps, setDeps] = useState<DependencyGraphResponse | null>(null);
+	const [deps, setDeps] = useState<DependencyData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [showAddBlocker, setShowAddBlocker] = useState(false);
 	const [showAddRelated, setShowAddRelated] = useState(false);
 	const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
 	const [addingDep, setAddingDep] = useState(false);
 
-	// Load dependencies
+	// Load dependencies using Connect RPC
 	const loadDependencies = useCallback(async () => {
 		setLoading(true);
 		try {
-			const data = await getTaskDependencies(task.id);
+			const response = await taskClient.getDependencies(
+				create(GetDependenciesRequestSchema, { id: task.id, transitive: true })
+			);
+			const data = transformGraphToData(response.graph, task.id);
 			setDeps(data);
 		} catch (e) {
 			console.error('Failed to load dependencies:', e);
@@ -138,7 +127,9 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 	const handleAddBlocker = useCallback(async (blockerId: string) => {
 		setAddingDep(true);
 		try {
-			await addBlocker(task.id, blockerId);
+			await taskClient.addBlocker(
+				create(AddBlockerRequestSchema, { id: task.id, blockerId })
+			);
 			await loadDependencies();
 			setShowAddBlocker(false);
 			toast.success('Blocker added');
@@ -152,7 +143,9 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 	// Handle remove blocker
 	const handleRemoveBlocker = useCallback(async (blockerId: string) => {
 		try {
-			await removeBlocker(task.id, blockerId);
+			await taskClient.removeBlocker(
+				create(RemoveBlockerRequestSchema, { id: task.id, blockerId })
+			);
 			await loadDependencies();
 			toast.success('Blocker removed');
 		} catch (e) {
@@ -164,7 +157,9 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 	const handleAddRelated = useCallback(async (relatedId: string) => {
 		setAddingDep(true);
 		try {
-			await addRelated(task.id, relatedId);
+			await taskClient.addRelated(
+				create(AddRelatedRequestSchema, { id: task.id, relatedId })
+			);
 			await loadDependencies();
 			setShowAddRelated(false);
 			toast.success('Related task added');
@@ -178,7 +173,9 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 	// Handle remove related
 	const handleRemoveRelated = useCallback(async (relatedId: string) => {
 		try {
-			await removeRelated(task.id, relatedId);
+			await taskClient.removeRelated(
+				create(RemoveRelatedRequestSchema, { id: task.id, relatedId })
+			);
 			await loadDependencies();
 			toast.success('Related task removed');
 		} catch (e) {
@@ -212,8 +209,8 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		);
 	}
 
-	const blockedByIds = deps?.blocked_by?.map((d) => d.id) ?? [];
-	const relatedIds = deps?.related_to?.map((d) => d.id) ?? [];
+	const blockedByIds = deps?.blockedBy?.map((d) => d.id) ?? [];
+	const relatedIds = deps?.relatedTo?.map((d) => d.id) ?? [];
 
 	return (
 		<aside className="dependency-sidebar">
@@ -236,7 +233,7 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 					{/* Blocked By Section */}
 					<DependencySection
 						title="Blocked By"
-						items={deps?.blocked_by ?? []}
+						items={deps?.blockedBy ?? []}
 						emptyText="No blockers"
 						canRemove
 						onRemove={handleRemoveBlocker}
@@ -254,7 +251,7 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 					{/* Related To Section */}
 					<DependencySection
 						title="Related To"
-						items={deps?.related_to ?? []}
+						items={deps?.relatedTo ?? []}
 						emptyText="No related tasks"
 						canRemove
 						onRemove={handleRemoveRelated}
@@ -264,7 +261,7 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 					{/* Referenced By Section (computed, read-only) */}
 					<DependencySection
 						title="Referenced By"
-						items={deps?.referenced_by ?? []}
+						items={deps?.referencedBy ?? []}
 						emptyText="Not referenced"
 						readonly
 					/>
@@ -333,7 +330,7 @@ function DependencySection({
 					{items.map((item) => (
 						<li key={item.id} className="dep-item">
 							<Link to={`/tasks/${item.id}`} className="dep-link">
-								<StatusIndicator status={parseStatus(item.status)} size="sm" />
+								<StatusIndicator status={item.status} size="sm" />
 								<span className="dep-id">{item.id}</span>
 								<span className="dep-title">{item.title}</span>
 							</Link>

@@ -420,9 +420,65 @@ func (s *taskServer) GetTaskPlan(
 		plan.Description = *t.Description
 	}
 
-	// Add phases from execution state (map iteration)
-	if t.Execution != nil && t.Execution.Phases != nil {
+	// Get workflow phases to determine correct order
+	var phaseOrder []string
+	if t.WorkflowId != nil && *t.WorkflowId != "" {
+		workflowPhases, err := s.projectDB.GetWorkflowPhases(*t.WorkflowId)
+		if err == nil && len(workflowPhases) > 0 {
+			// Build phase order from workflow (already sorted by sequence)
+			for _, wp := range workflowPhases {
+				phaseOrder = append(phaseOrder, wp.PhaseTemplateID)
+			}
+		}
+	}
+
+	// Build phase list from workflow (show all phases, not just started ones)
+	if len(phaseOrder) > 0 {
+		// Use workflow order - include ALL workflow phases
+		for _, phaseName := range phaseOrder {
+			if phaseName == "" {
+				continue // Skip empty phase names
+			}
+			planPhase := &orcv1.PlanPhase{
+				Name:   phaseName,
+				Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING, // Default
+			}
+			// If we have execution state for this phase, use it
+			if t.Execution != nil && t.Execution.Phases != nil {
+				if phase, exists := t.Execution.Phases[phaseName]; exists {
+					planPhase.Status = phase.Status
+				}
+			}
+			plan.Phases = append(plan.Phases, planPhase)
+		}
+		// Add any phases from execution state not in workflow (shouldn't happen but be safe)
+		if t.Execution != nil && t.Execution.Phases != nil {
+			for phaseName, phase := range t.Execution.Phases {
+				if phaseName == "" {
+					continue // Skip empty phase names
+				}
+				found := false
+				for _, orderedName := range phaseOrder {
+					if phaseName == orderedName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					planPhase := &orcv1.PlanPhase{
+						Name:   phaseName,
+						Status: phase.Status,
+					}
+					plan.Phases = append(plan.Phases, planPhase)
+				}
+			}
+		}
+	} else if t.Execution != nil && t.Execution.Phases != nil {
+		// Fallback: no workflow order available, use map iteration (random)
 		for phaseName, phase := range t.Execution.Phases {
+			if phaseName == "" {
+				continue // Skip empty phase names
+			}
 			planPhase := &orcv1.PlanPhase{
 				Name:   phaseName,
 				Status: phase.Status,
@@ -533,6 +589,148 @@ func (s *taskServer) GetDependencies(
 	return connect.NewResponse(&orcv1.GetDependenciesResponse{
 		Graph: graph,
 	}), nil
+}
+
+// AddBlocker adds a blocker relationship to a task.
+func (s *taskServer) AddBlocker(
+	ctx context.Context,
+	req *connect.Request[orcv1.AddBlockerRequest],
+) (*connect.Response[orcv1.AddBlockerResponse], error) {
+	if req.Msg.Id == "" || req.Msg.BlockerId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and blocker_id are required"))
+	}
+
+	t, err := s.backend.LoadTask(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+	}
+
+	// Check blocker exists
+	if _, err := s.backend.LoadTask(req.Msg.BlockerId); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("blocker task %s not found", req.Msg.BlockerId))
+	}
+
+	// Check for self-reference
+	if req.Msg.Id == req.Msg.BlockerId {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task cannot block itself"))
+	}
+
+	// Add blocker if not already present
+	for _, existing := range t.BlockedBy {
+		if existing == req.Msg.BlockerId {
+			return connect.NewResponse(&orcv1.AddBlockerResponse{Task: t}), nil
+		}
+	}
+
+	t.BlockedBy = append(t.BlockedBy, req.Msg.BlockerId)
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	return connect.NewResponse(&orcv1.AddBlockerResponse{Task: t}), nil
+}
+
+// RemoveBlocker removes a blocker relationship from a task.
+func (s *taskServer) RemoveBlocker(
+	ctx context.Context,
+	req *connect.Request[orcv1.RemoveBlockerRequest],
+) (*connect.Response[orcv1.RemoveBlockerResponse], error) {
+	if req.Msg.Id == "" || req.Msg.BlockerId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and blocker_id are required"))
+	}
+
+	t, err := s.backend.LoadTask(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+	}
+
+	// Remove blocker
+	filtered := make([]string, 0, len(t.BlockedBy))
+	for _, id := range t.BlockedBy {
+		if id != req.Msg.BlockerId {
+			filtered = append(filtered, id)
+		}
+	}
+	t.BlockedBy = filtered
+
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	return connect.NewResponse(&orcv1.RemoveBlockerResponse{}), nil
+}
+
+// AddRelated adds a related task relationship.
+func (s *taskServer) AddRelated(
+	ctx context.Context,
+	req *connect.Request[orcv1.AddRelatedRequest],
+) (*connect.Response[orcv1.AddRelatedResponse], error) {
+	if req.Msg.Id == "" || req.Msg.RelatedId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and related_id are required"))
+	}
+
+	t, err := s.backend.LoadTask(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+	}
+
+	// Check related task exists
+	if _, err := s.backend.LoadTask(req.Msg.RelatedId); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("related task %s not found", req.Msg.RelatedId))
+	}
+
+	// Check for self-reference
+	if req.Msg.Id == req.Msg.RelatedId {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task cannot be related to itself"))
+	}
+
+	// Add related if not already present
+	for _, existing := range t.RelatedTo {
+		if existing == req.Msg.RelatedId {
+			return connect.NewResponse(&orcv1.AddRelatedResponse{Task: t}), nil
+		}
+	}
+
+	t.RelatedTo = append(t.RelatedTo, req.Msg.RelatedId)
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	return connect.NewResponse(&orcv1.AddRelatedResponse{Task: t}), nil
+}
+
+// RemoveRelated removes a related task relationship.
+func (s *taskServer) RemoveRelated(
+	ctx context.Context,
+	req *connect.Request[orcv1.RemoveRelatedRequest],
+) (*connect.Response[orcv1.RemoveRelatedResponse], error) {
+	if req.Msg.Id == "" || req.Msg.RelatedId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and related_id are required"))
+	}
+
+	t, err := s.backend.LoadTask(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+	}
+
+	// Remove related
+	filtered := make([]string, 0, len(t.RelatedTo))
+	for _, id := range t.RelatedTo {
+		if id != req.Msg.RelatedId {
+			filtered = append(filtered, id)
+		}
+	}
+	t.RelatedTo = filtered
+
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	s.publisher.Publish(events.Event{Type: "task_updated", TaskID: t.Id, Data: t})
+	return connect.NewResponse(&orcv1.RemoveRelatedResponse{}), nil
 }
 
 // ============================================================================
