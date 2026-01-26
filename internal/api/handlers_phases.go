@@ -78,7 +78,8 @@ func (s *Server) handleCreatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		ThinkingEnabled  *bool  `json:"thinking_enabled,omitempty"`
 		GateType         string `json:"gate_type,omitempty"`
 		Checkpoint       bool   `json:"checkpoint,omitempty"`
-		ClaudeConfig     string `json:"claude_config,omitempty"` // JSON config for Claude CLI options
+		ClaudeConfig     string `json:"claude_config,omitempty"`  // JSON config for Claude CLI options
+		SystemPrompt     string `json:"system_prompt,omitempty"` // Role-framing system prompt
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -132,6 +133,7 @@ func (s *Server) handleCreatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		GateType:         req.GateType,
 		Checkpoint:       req.Checkpoint,
 		ClaudeConfig:     req.ClaudeConfig,
+		SystemPrompt:     req.SystemPrompt,
 		IsBuiltin:        false,
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -175,7 +177,8 @@ func (s *Server) handleUpdatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 		ProducesArtifact *bool   `json:"produces_artifact,omitempty"`
 		ArtifactType     *string `json:"artifact_type,omitempty"`
 		Checkpoint       *bool   `json:"checkpoint,omitempty"`
-		ClaudeConfig     *string `json:"claude_config,omitempty"` // JSON config for Claude CLI options
+		ClaudeConfig     *string `json:"claude_config,omitempty"`  // JSON config for Claude CLI options
+		SystemPrompt     *string `json:"system_prompt,omitempty"` // Role-framing system prompt
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -215,6 +218,9 @@ func (s *Server) handleUpdatePhaseTemplate(w http.ResponseWriter, r *http.Reques
 	}
 	if req.ClaudeConfig != nil {
 		tmpl.ClaudeConfig = *req.ClaudeConfig
+	}
+	if req.SystemPrompt != nil {
+		tmpl.SystemPrompt = *req.SystemPrompt
 	}
 	tmpl.UpdatedAt = time.Now()
 

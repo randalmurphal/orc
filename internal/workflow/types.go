@@ -105,6 +105,11 @@ type PhaseTemplate struct {
 	// See executor.PhaseClaudeConfig for structure
 	ClaudeConfig string `json:"claude_config,omitempty" db:"claude_config"`
 
+	// System prompt for the main phase agent (role-framing)
+	// This is passed via --system-prompt to Claude CLI
+	// Stored directly in DB for editability (not file references)
+	SystemPrompt string `json:"system_prompt,omitempty" db:"system_prompt"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin" db:"is_builtin"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
