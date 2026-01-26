@@ -44,7 +44,7 @@ func TestDetectMode(t *testing.T) {
 			name:   "existing task returns task mode",
 			target: "TASK-001",
 			setup: func(t *testing.T, backend storage.Backend) {
-				tsk := task.New("TASK-001", "Test task")
+				tsk := task.NewProtoTask("TASK-001", "Test task")
 				if err := backend.SaveTask(tsk); err != nil {
 					t.Fatalf("failed to save task: %v", err)
 				}
@@ -133,7 +133,7 @@ func TestDetectMode_MultipleTasksExist(t *testing.T) {
 
 	// Create multiple tasks
 	for _, id := range []string{"TASK-001", "TASK-002", "TASK-003"} {
-		tsk := task.New(id, "Test task "+id)
+		tsk := task.NewProtoTask(id, "Test task "+id)
 		if err := backend.SaveTask(tsk); err != nil {
 			t.Fatalf("failed to save task: %v", err)
 		}

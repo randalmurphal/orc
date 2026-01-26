@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -37,16 +38,10 @@ func TestCheckAndCompleteInitiativeNoBranch_AllTasksComplete(t *testing.T) {
 	}
 
 	// Create completed tasks in the backend
-	task1 := &task.Task{
-		ID:     "TASK-001",
-		Title:  "Task 1",
-		Status: task.StatusCompleted,
-	}
-	task2 := &task.Task{
-		ID:     "TASK-002",
-		Title:  "Task 2",
-		Status: task.StatusCompleted,
-	}
+	task1 := task.NewProtoTask("TASK-001", "Task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task2 := task.NewProtoTask("TASK-002", "Task 2")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
@@ -95,16 +90,10 @@ func TestCheckAndCompleteInitiativeNoBranch_SomeTasksPending(t *testing.T) {
 	}
 
 	// Create one completed task and one pending task
-	task1 := &task.Task{
-		ID:     "TASK-003",
-		Title:  "Task 3",
-		Status: task.StatusCompleted,
-	}
-	task2 := &task.Task{
-		ID:     "TASK-004",
-		Title:  "Task 4",
-		Status: task.StatusRunning, // Not complete
-	}
+	task1 := task.NewProtoTask("TASK-003", "Task 3")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task2 := task.NewProtoTask("TASK-004", "Task 4")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING // Not complete
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
@@ -234,11 +223,8 @@ func TestCheckAndCompleteInitiativeNoBranch_WithBranchBase_Skipped(t *testing.T)
 	}
 
 	// Create completed task
-	task1 := &task.Task{
-		ID:     "TASK-006",
-		Title:  "Task 6",
-		Status: task.StatusCompleted,
-	}
+	task1 := task.NewProtoTask("TASK-006", "Task 6")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -296,11 +282,8 @@ func TestCheckAndCompleteInitiativeNoBranch_WithBlockedByDeps(t *testing.T) {
 	}
 
 	// Create completed task
-	task1 := &task.Task{
-		ID:     "TASK-007",
-		Title:  "Task 7",
-		Status: task.StatusCompleted,
-	}
+	task1 := task.NewProtoTask("TASK-007", "Task 7")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -384,11 +367,8 @@ func TestCheckAndCompleteInitiative_BranchBasedStillWorks(t *testing.T) {
 	}
 
 	// Create completed task
-	task1 := &task.Task{
-		ID:     "TASK-B1",
-		Title:  "Branch Task 1",
-		Status: task.StatusCompleted,
-	}
+	task1 := task.NewProtoTask("TASK-B1", "Branch Task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -434,12 +414,9 @@ func TestWorkflowExecutor_TaskCompletion_TriggersInitiativeCheck(t *testing.T) {
 	}
 
 	// Create a task linked to the initiative
-	tsk := &task.Task{
-		ID:           "TASK-AUTO",
-		Title:        "Auto Task",
-		Status:       task.StatusCompleted, // Task is completed
-		InitiativeID: "INIT-AUTO",          // Linked to initiative
-	}
+	tsk := task.NewProtoTask("TASK-AUTO", "Auto Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED // Task is completed
+	task.SetInitiativeProto(tsk, "INIT-AUTO")            // Linked to initiative
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -450,8 +427,8 @@ func TestWorkflowExecutor_TaskCompletion_TriggersInitiativeCheck(t *testing.T) {
 	// Simulate what workflow executor should do after task completion
 	// When a task with InitiativeID completes, it should trigger this check
 	ctx := context.Background()
-	if tsk.InitiativeID != "" {
-		err := completer.CheckAndCompleteInitiativeNoBranch(ctx, tsk.InitiativeID)
+	if tsk.GetInitiativeId() != "" {
+		err := completer.CheckAndCompleteInitiativeNoBranch(ctx, tsk.GetInitiativeId())
 		if err != nil {
 			t.Fatalf("CheckAndCompleteInitiativeNoBranch() error = %v", err)
 		}
@@ -472,18 +449,15 @@ func TestWorkflowExecutor_TaskCompletion_NoInitiativeID_NoCheck(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 
 	// Create a task NOT linked to any initiative
-	tsk := &task.Task{
-		ID:           "TASK-SOLO",
-		Title:        "Solo Task",
-		Status:       task.StatusCompleted,
-		InitiativeID: "", // Not linked to initiative
-	}
+	tsk := task.NewProtoTask("TASK-SOLO", "Solo Task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	// Not linked to initiative (InitiativeId is nil by default)
 	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
 	// Assert: InitiativeID is empty, so no initiative check should be triggered
-	if tsk.InitiativeID != "" {
+	if tsk.GetInitiativeId() != "" {
 		t.Error("Task without initiative should not trigger initiative check")
 	}
 }
@@ -512,18 +486,12 @@ func TestInitiativeAutoComplete_IntegrationFlow(t *testing.T) {
 	}
 
 	// Create both tasks, both linked to initiative
-	task1 := &task.Task{
-		ID:           "TASK-I1",
-		Title:        "Task 1",
-		Status:       task.StatusCreated,
-		InitiativeID: "INIT-INTEG",
-	}
-	task2 := &task.Task{
-		ID:           "TASK-I2",
-		Title:        "Task 2",
-		Status:       task.StatusCreated,
-		InitiativeID: "INIT-INTEG",
-	}
+	task1 := task.NewProtoTask("TASK-I1", "Task 1")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	task.SetInitiativeProto(task1, "INIT-INTEG")
+	task2 := task.NewProtoTask("TASK-I2", "Task 2")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	task.SetInitiativeProto(task2, "INIT-INTEG")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
@@ -535,7 +503,7 @@ func TestInitiativeAutoComplete_IntegrationFlow(t *testing.T) {
 	ctx := context.Background()
 
 	// Step 1: Complete first task
-	task1.Status = task.StatusCompleted
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1 completed: %v", err)
 	}
@@ -554,7 +522,7 @@ func TestInitiativeAutoComplete_IntegrationFlow(t *testing.T) {
 	}
 
 	// Step 2: Complete second task
-	task2.Status = task.StatusCompleted
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2 completed: %v", err)
 	}

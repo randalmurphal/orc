@@ -463,12 +463,12 @@ func ParseStatusProto(s string) (orcv1.TaskStatus, bool) {
 
 // ParsePriorityProto parses a priority string and returns the proto enum with validity.
 func ParsePriorityProto(s string) (orcv1.TaskPriority, bool) {
-	priority := PriorityToProto(s)
-	// PriorityToProto returns UNSPECIFIED for unknown strings
-	if priority == orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED {
-		return priority, false
+	switch s {
+	case "critical", "high", "normal", "low":
+		return PriorityToProto(s), true
+	default:
+		return orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED, false
 	}
-	return priority, true
 }
 
 // ParseWeightProto parses a weight string and returns the proto enum with validity.

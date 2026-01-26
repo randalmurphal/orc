@@ -11,7 +11,6 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Default retry constants
@@ -69,21 +68,6 @@ func SaveRetryContextFile(workDir, taskID, fromPhase, toPhase, reason, output st
 	}
 
 	return path, nil
-}
-
-// LoadRetryContextFromExecution loads retry context from task.ExecutionState.
-// This is the Task-centric approach where execution state lives in task.Task.Execution.
-func LoadRetryContextFromExecution(e *task.ExecutionState) string {
-	if e == nil {
-		return ""
-	}
-
-	rc := e.GetRetryContext()
-	if rc == nil {
-		return ""
-	}
-
-	return BuildRetryContext(rc.FromPhase, rc.Reason, rc.FailureOutput, rc.Attempt, rc.ContextFile)
 }
 
 // LoadRetryContextFromExecutionProto loads retry context from proto ExecutionState.

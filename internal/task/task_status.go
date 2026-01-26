@@ -38,20 +38,8 @@ func IsValidStatus(s Status) bool {
 	}
 }
 
-// IsTerminal returns true if the task is in a terminal state.
-func (t *Task) IsTerminal() bool {
-	return t.Status == StatusCompleted || t.Status == StatusFailed || t.Status == StatusResolved
-}
-
-// CanRun returns true if the task can be executed.
-func (t *Task) CanRun() bool {
-	return t.Status == StatusCreated ||
-		t.Status == StatusPlanned ||
-		t.Status == StatusPaused ||
-		t.Status == StatusBlocked
-}
-
-// isDone returns true if the status indicates the task has completed its work.
-func isDone(s Status) bool {
+// IsDone returns true if the status indicates the task has completed its work.
+// This is used for dependency checking - a blocker is satisfied when it's done.
+func IsDone(s Status) bool {
 	return s == StatusCompleted || s == StatusResolved
 }

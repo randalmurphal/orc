@@ -41,17 +41,17 @@ function formatDate(date: Date | null): string {
 	});
 }
 
-// URL helpers (still use REST endpoints for serving files)
+// URL helpers (use /files/ endpoint for binary file serving)
 function getScreenshotUrl(taskId: string, filename: string): string {
-	return `/api/tasks/${taskId}/test-results/screenshots/${encodeURIComponent(filename)}`;
+	return `/files/tasks/${taskId}/test-results/screenshots/${encodeURIComponent(filename)}`;
 }
 
 function getHTMLReportUrl(taskId: string): string {
-	return `/api/tasks/${taskId}/test-results/html-report`;
+	return `/files/tasks/${taskId}/test-results/html-report`;
 }
 
 function getTraceUrl(taskId: string, filename: string): string {
-	return `/api/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
+	return `/files/tasks/${taskId}/test-results/traces/${encodeURIComponent(filename)}`;
 }
 
 // Helper to check test status

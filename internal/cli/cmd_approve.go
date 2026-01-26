@@ -55,7 +55,7 @@ See also:
 
 			id := args[0]
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -65,7 +65,7 @@ See also:
 			}
 
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -121,7 +121,7 @@ See also:
 			id := args[0]
 			reason, _ := cmd.Flags().GetString("reason")
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -141,7 +141,7 @@ See also:
 			})
 
 			t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

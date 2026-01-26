@@ -6,7 +6,6 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // PhaseExecutor defines the interface for executing a single phase.
@@ -15,7 +14,7 @@ import (
 type PhaseExecutor interface {
 	// Execute runs a phase to completion.
 	// Returns a Result containing the phase outcome.
-	Execute(ctx context.Context, t *orcv1.Task, p *PhaseDisplay, s *task.ExecutionState) (*Result, error)
+	Execute(ctx context.Context, t *orcv1.Task, p *PhaseDisplay, s *orcv1.ExecutionState) (*Result, error)
 
 	// Name returns a human-readable name for this executor type.
 	Name() string
@@ -133,13 +132,13 @@ const (
 )
 
 // ExecutorTypeForWeight returns the recommended executor type for a task weight.
-func ExecutorTypeForWeight(weight task.Weight) ExecutorType {
+func ExecutorTypeForWeight(weight orcv1.TaskWeight) ExecutorType {
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		return ExecutorTypeTrivial
-	case task.WeightSmall, task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		return ExecutorTypeStandard
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		return ExecutorTypeFull
 	default:
 		return ExecutorTypeStandard

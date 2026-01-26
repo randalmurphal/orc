@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -30,16 +31,16 @@ func TestAutoComplete_InitiativeNoBranchWithAllTasksComplete(t *testing.T) {
 	}
 
 	// Create completed tasks
-	task1 := task.New("TASK-001", "First task")
-	task1.Status = task.StatusCompleted
-	task1.SetInitiative("INIT-001")
+	task1 := task.NewProtoTask("TASK-001", "First task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(task1, "INIT-001")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
-	task2 := task.New("TASK-002", "Second task")
-	task2.Status = task.StatusCompleted
-	task2.SetInitiative("INIT-001")
+	task2 := task.NewProtoTask("TASK-002", "Second task")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(task2, "INIT-001")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -78,8 +79,8 @@ func TestAutoComplete_AlreadyCompleted(t *testing.T) {
 	}
 
 	// Create completed task
-	task1 := task.New("TASK-001", "Task")
-	task1.Status = task.StatusCompleted
+	task1 := task.NewProtoTask("TASK-001", "Task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -115,8 +116,8 @@ func TestAutoComplete_WithBranchBase(t *testing.T) {
 	}
 
 	// Create completed task
-	task1 := task.New("TASK-001", "Task")
-	task1.Status = task.StatusCompleted
+	task1 := task.NewProtoTask("TASK-001", "Task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -184,14 +185,14 @@ func TestAutoComplete_SomePending(t *testing.T) {
 	}
 
 	// One completed, one pending
-	task1 := task.New("TASK-001", "Done task")
-	task1.Status = task.StatusCompleted
+	task1 := task.NewProtoTask("TASK-001", "Done task")
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
-	task2 := task.New("TASK-002", "Pending task")
-	task2.Status = task.StatusCreated // Not completed!
+	task2 := task.NewProtoTask("TASK-002", "Pending task")
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED // Not completed!
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}

@@ -256,7 +256,7 @@ func (s *transcriptServer) GetSession(
 	}
 
 	// Load task to get session info
-	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("task not found"))
 	}

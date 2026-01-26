@@ -39,7 +39,7 @@ Example:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTaskProto(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}

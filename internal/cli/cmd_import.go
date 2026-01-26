@@ -154,7 +154,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 
 	// Check if task exists
-	existing, _ := backend.LoadTaskProto(export.Task.Id)
+	existing, _ := backend.LoadTask(export.Task.Id)
 	if existing != nil {
 		if skipExisting {
 			return fmt.Errorf("task %s skipped (--skip-existing)", export.Task.Id)
@@ -193,7 +193,7 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 	}
 
 	// Save task (includes execution state in Task.Execution)
-	if err := backend.SaveTaskProto(export.Task); err != nil {
+	if err := backend.SaveTask(export.Task); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
@@ -801,10 +801,10 @@ func importDryRun(path, format string) error {
 	// Analyze each file
 	var wouldImport, wouldUpdate, wouldSkip int
 	for _, f := range files {
-		// Detect type
+		// Detect type - just check if task key exists, actual parsing uses ExportData
 		var typeCheck struct {
-			Type string     `yaml:"type"`
-			Task *task.Task `yaml:"task"`
+			Type string `yaml:"type"`
+			Task any    `yaml:"task"`
 		}
 		if err := yaml.Unmarshal(f.data, &typeCheck); err != nil {
 			fmt.Printf("  %-20s  [ERROR: %v]\n", filepath.Base(f.name), err)
@@ -834,7 +834,7 @@ func importDryRun(path, format string) error {
 				fmt.Printf("  %-20s  [ERROR: %v]\n", filepath.Base(f.name), err)
 				continue
 			}
-			existing, _ := backend.LoadTaskProto(export.Task.Id)
+			existing, _ := backend.LoadTask(export.Task.Id)
 			statusNote := ""
 			if export.Task.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 				statusNote = " (running->interrupted)"

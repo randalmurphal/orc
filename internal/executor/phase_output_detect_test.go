@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -17,7 +18,7 @@ func TestPhaseOutputDetector_DetectSpecOutput(t *testing.T) {
 	tests := []struct {
 		name          string
 		specContent   string // Content to save to database (empty = no spec)
-		weight        task.Weight
+		weight        orcv1.TaskWeight
 		wantHasOutput bool
 		wantAutoSkip  bool
 		wantDescSub   string
@@ -25,7 +26,7 @@ func TestPhaseOutputDetector_DetectSpecOutput(t *testing.T) {
 		{
 			name:          "no spec in database",
 			specContent:   "",
-			weight:        task.WeightMedium,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantHasOutput: false,
 			wantDescSub:   "no spec found",
 		},
@@ -44,7 +45,7 @@ This task implements a new feature for output detection.
 - Unit tests for output detection
 - Integration tests for CLI
 `,
-			weight:        task.WeightMedium,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantHasOutput: true,
 			wantAutoSkip:  true,
 			wantDescSub:   "valid content",
@@ -52,14 +53,14 @@ This task implements a new feature for output detection.
 		{
 			name:          "empty spec in database",
 			specContent:   "",
-			weight:        task.WeightMedium,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantHasOutput: false,
 			wantDescSub:   "no spec found",
 		},
 		{
 			name:          "minimal spec - too short",
 			specContent:   "# Title",
-			weight:        task.WeightMedium,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantHasOutput: false,
 			wantDescSub:   "empty or minimal",
 		},
@@ -72,7 +73,7 @@ This task does something.
 
 But it's missing Success Criteria and Testing sections.
 `,
-			weight:        task.WeightMedium,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantHasOutput: true,
 			wantAutoSkip:  false, // Should not auto-skip invalid specs
 			wantDescSub:   "incomplete",
@@ -84,7 +85,7 @@ But it's missing Success Criteria and Testing sections.
 This is a trivial task to fix a small typo in the documentation.
 The fix is straightforward and doesn't need detailed specification.
 `,
-			weight:        task.WeightTrivial,
+			weight:        orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL,
 			wantHasOutput: true,
 			wantAutoSkip:  true, // Trivial tasks skip validation
 			wantDescSub:   "valid content",
@@ -106,12 +107,8 @@ The fix is straightforward and doesn't need detailed specification.
 			defer func() { _ = backend.Close() }()
 
 			// Create task first (required for spec save)
-			testTask := &task.Task{
-				ID:     taskID,
-				Title:  "Test task",
-				Status: task.StatusCreated,
-				Weight: tt.weight,
-			}
+			testTask := task.NewProtoTask(taskID, "Test task")
+			testTask.Weight = tt.weight
 			if err := backend.SaveTask(testTask); err != nil {
 				t.Fatalf("save task: %v", err)
 			}
@@ -180,7 +177,7 @@ This is the research content with sufficient detail to be meaningful.
 			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
-			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
+			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
 			status := detector.DetectPhaseOutput("research")
 
 			if status.HasOutput != tt.wantHasOutput {
@@ -201,7 +198,7 @@ func TestPhaseOutputDetector_ImplementTestNotAutoSkippable(t *testing.T) {
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
 
-	detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
+	detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
 
 	// These phases should never be auto-skippable
 	phases := []string{"implement", "test"}
@@ -247,7 +244,7 @@ func TestPhaseOutputDetector_DetectDocsOutput(t *testing.T) {
 			_ = os.MkdirAll(taskDir, 0755)
 			tt.setup(taskDir)
 
-			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, task.WeightMedium)
+			detector := NewPhaseOutputDetectorWithDir(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
 			status := detector.DetectPhaseOutput("docs")
 
 			if status.HasOutput != tt.wantHasOutput {
@@ -276,12 +273,8 @@ func TestPhaseOutputDetector_SuggestSkippablePhases(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	// Create task first
-	testTask := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCreated,
-		Weight: task.WeightMedium,
-	}
+	testTask := task.NewProtoTask(taskID, "Test task")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -312,7 +305,7 @@ and architectural decisions that will inform the implementation.
 `
 	_ = os.WriteFile(filepath.Join(outputDir, "research.md"), []byte(researchContent), 0644)
 
-	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, backend)
 
 	// Test with phases that have outputs
 	phases := []string{"spec", "research", "implement", "test", "docs"}
@@ -337,7 +330,7 @@ func TestPhaseOutputDetector_UnknownPhase(t *testing.T) {
 	taskDir := filepath.Join(tmpDir, "task")
 	_ = os.MkdirAll(taskDir, 0755)
 
-	detector := NewPhaseOutputDetectorWithDir(taskDir, "TEST-006", task.WeightMedium)
+	detector := NewPhaseOutputDetectorWithDir(taskDir, "TEST-006", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
 	status := detector.DetectPhaseOutput("unknown_phase")
 
 	if status.HasOutput {
@@ -369,12 +362,8 @@ func TestPhaseOutputDetector_DetectSpecFromDatabase(t *testing.T) {
 	taskID := "TEST-DB-001"
 
 	// Create task in database
-	testTask := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCreated,
-		Weight: task.WeightMedium,
-	}
+	testTask := task.NewProtoTask(taskID, "Test task")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -397,7 +386,7 @@ Test spec stored in database, not as file.
 	}
 
 	// Create detector with backend
-	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, backend)
 	status := detector.DetectPhaseOutput("spec")
 
 	// Should detect spec from database
@@ -439,12 +428,8 @@ func TestPhaseOutputDetector_PrefersDatabaseOverFile(t *testing.T) {
 	taskID := "TEST-DB-002"
 
 	// Create task in database
-	testTask := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCreated,
-		Weight: task.WeightMedium,
-	}
+	testTask := task.NewProtoTask(taskID, "Test task")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -482,7 +467,7 @@ This is the legacy file-based spec.
 	}
 
 	// Create detector with backend
-	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, task.WeightMedium, backend)
+	detector := NewPhaseOutputDetectorWithBackend(taskDir, taskID, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, backend)
 	status := detector.DetectPhaseOutput("spec")
 
 	// Should detect spec from database (not file)

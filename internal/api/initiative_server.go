@@ -299,7 +299,7 @@ func (s *initiativeServer) ListInitiativeTasks(
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasksProto()
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -339,13 +339,13 @@ func (s *initiativeServer) LinkTasks(
 
 	// Update each task's initiative ID
 	for _, taskID := range req.Msg.TaskIds {
-		t, err := s.backend.LoadTaskProto(taskID)
+		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			continue // Skip non-existent tasks
 		}
 		t.InitiativeId = &req.Msg.InitiativeId
 		task.UpdateTimestampProto(t)
-		if err := s.backend.SaveTaskProto(t); err != nil {
+		if err := s.backend.SaveTask(t); err != nil {
 			s.logger.Warn("failed to link task", "task_id", taskID, "error", err)
 			continue
 		}
@@ -375,7 +375,7 @@ func (s *initiativeServer) UnlinkTask(
 	}
 
 	// Load the task
-	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -388,7 +388,7 @@ func (s *initiativeServer) UnlinkTask(
 	// Unlink
 	t.InitiativeId = nil
 	task.UpdateTimestampProto(t)
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -455,7 +455,7 @@ func (s *initiativeServer) GetReadyTasks(
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasksProto()
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -506,7 +506,7 @@ func (s *initiativeServer) GetDependencyGraph(
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasksProto()
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -592,7 +592,7 @@ func (s *initiativeServer) RunInitiative(
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasksProto()
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}

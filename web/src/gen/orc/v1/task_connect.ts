@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, ExportTaskRequest, ExportTaskResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetReviewFindingsRequest, GetReviewFindingsResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, GetTestResultsRequest, GetTestResultsResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseAllTasksRequest, PauseAllTasksResponse, PauseTaskRequest, PauseTaskResponse, ResumeAllTasksRequest, ResumeAllTasksResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
+import { CreateCommentRequest, CreateCommentResponse, CreateReviewCommentRequest, CreateReviewCommentResponse, CreateTaskRequest, CreateTaskResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteCommentRequest, DeleteCommentResponse, DeleteReviewCommentRequest, DeleteReviewCommentResponse, DeleteTaskRequest, DeleteTaskResponse, DownloadAttachmentRequest, DownloadAttachmentResponse, ExportTaskRequest, ExportTaskResponse, FinalizeTaskRequest, FinalizeTaskResponse, GetDependenciesRequest, GetDependenciesResponse, GetDiffRequest, GetDiffResponse, GetDiffStatsRequest, GetDiffStatsResponse, GetFileDiffRequest, GetFileDiffResponse, GetFinalizeStateRequest, GetFinalizeStateResponse, GetReviewFindingsRequest, GetReviewFindingsResponse, GetTaskPlanRequest, GetTaskPlanResponse, GetTaskRequest, GetTaskResponse, GetTaskStateRequest, GetTaskStateResponse, GetTestResultsRequest, GetTestResultsResponse, ListAttachmentsRequest, ListAttachmentsResponse, ListCommentsRequest, ListCommentsResponse, ListReviewCommentsRequest, ListReviewCommentsResponse, ListTasksRequest, ListTasksResponse, PauseAllTasksRequest, PauseAllTasksResponse, PauseTaskRequest, PauseTaskResponse, ResumeAllTasksRequest, ResumeAllTasksResponse, ResumeTaskRequest, ResumeTaskResponse, RetryPreviewRequest, RetryPreviewResponse, RetryTaskRequest, RetryTaskResponse, RunTaskRequest, RunTaskResponse, SkipBlockRequest, SkipBlockResponse, UpdateCommentRequest, UpdateCommentResponse, UpdateReviewCommentRequest, UpdateReviewCommentResponse, UpdateTaskRequest, UpdateTaskResponse, UploadAttachmentRequest, UploadAttachmentResponse } from "./task_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -190,6 +190,15 @@ export const TaskService = {
       name: "GetDiffStats",
       I: GetDiffStatsRequest,
       O: GetDiffStatsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.TaskService.GetFileDiff
+     */
+    getFileDiff: {
+      name: "GetFileDiff",
+      I: GetFileDiffRequest,
+      O: GetFileDiffResponse,
       kind: MethodKind.Unary,
     },
     /**

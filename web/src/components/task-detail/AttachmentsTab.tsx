@@ -32,9 +32,9 @@ function formatDate(date: Date | null): string {
 	});
 }
 
-// Get attachment URL (still uses REST endpoint for serving files)
+// Get attachment URL (uses /files/ endpoint for binary file serving)
 function getAttachmentUrl(taskId: string, filename: string): string {
-	return `/api/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
+	return `/files/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
 }
 
 export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
@@ -74,11 +74,11 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 			setError(null);
 
 			try {
-				// Upload still uses REST for multipart file upload
+				// Upload uses /files/ endpoint for multipart file upload
 				for (const file of files) {
 					const formData = new FormData();
 					formData.append('file', file);
-					const res = await fetch(`/api/tasks/${taskId}/attachments`, {
+					const res = await fetch(`/files/tasks/${taskId}/attachments`, {
 						method: 'POST',
 						body: formData,
 					});

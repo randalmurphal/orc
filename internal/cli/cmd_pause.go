@@ -50,7 +50,7 @@ Examples:
 
 			id := args[0]
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -88,7 +88,7 @@ Examples:
 
 			// Fallback: Update status directly (executor not running or signal failed)
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -107,7 +107,7 @@ Examples:
 func waitForTaskStatusProto(backend storage.Backend, taskID string, expected orcv1.TaskStatus, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		t, err := backend.LoadTaskProto(taskID)
+		t, err := backend.LoadTask(taskID)
 		if err == nil && t.Status == expected {
 			return nil
 		}
@@ -146,7 +146,7 @@ Examples:
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -176,7 +176,7 @@ Examples:
 			}
 
 			t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

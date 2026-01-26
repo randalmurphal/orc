@@ -434,7 +434,7 @@ func followTranscripts(taskID string, opts transcriptDisplayOptions) error {
 			}
 
 			// Check if task is still running (task.Status is single source of truth)
-			t, err := backend.LoadTaskProto(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err == nil && t != nil {
 				// If task completed/failed/paused, show message and exit
 				switch t.Status {

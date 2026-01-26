@@ -27,7 +27,7 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err erro
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
+		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task status failed", "task_id", t.Id, "error", saveErr)
 		}
 		// Publish task updated event for real-time UI updates
@@ -53,7 +53,7 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err er
 	}
 	if we.task != nil {
 		task.SetErrorProto(we.task.Execution, err.Error())
-		if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
+		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on setup failure", "error", saveErr)
 		}
 	}
@@ -62,7 +62,7 @@ func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err er
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
+		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task on setup failure", "error", saveErr)
 		}
 	}
@@ -97,7 +97,7 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, cur
 	if we.task != nil {
 		task.InterruptPhaseProto(we.task.Execution, currentPhase)
 		task.SetErrorProto(we.task.Execution, fmt.Sprintf("interrupted during %s: %s", currentPhase, err.Error()))
-		if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
+		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
 			we.logger.Error("failed to save state on interrupt", "error", saveErr)
 		}
 	}
@@ -106,7 +106,7 @@ func (we *WorkflowExecutor) interruptRun(run *db.WorkflowRun, t *orcv1.Task, cur
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 		task.UpdateTimestampProto(t)
-		if saveErr := we.backend.SaveTaskProto(t); saveErr != nil {
+		if saveErr := we.backend.SaveTask(t); saveErr != nil {
 			we.logger.Error("failed to save task status paused", "task_id", t.Id, "error", saveErr)
 		}
 		// Publish task updated event for real-time UI updates

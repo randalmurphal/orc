@@ -5,16 +5,22 @@ import (
 	"fmt"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ProposedTask represents a task proposed by Claude.
 type ProposedTask struct {
-	Index       int         `yaml:"index" json:"index"`
-	Title       string      `yaml:"title" json:"title"`
-	Description string      `yaml:"description" json:"description"`
-	Weight      task.Weight `yaml:"weight" json:"weight"`
-	DependsOn   []int       `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+	Index       int    `yaml:"index" json:"index"`
+	Title       string `yaml:"title" json:"title"`
+	Description string `yaml:"description" json:"description"`
+	Weight      string `yaml:"weight" json:"weight"` // string for JSON/YAML compatibility
+	DependsOn   []int  `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+}
+
+// WeightProto returns the proto weight value for this task.
+func (t *ProposedTask) WeightProto() orcv1.TaskWeight {
+	return task.WeightToProto(t.Weight)
 }
 
 // TaskBreakdown represents the parsed output from Claude.
@@ -126,21 +132,21 @@ func extractJSON(content string) string {
 	return ""
 }
 
-// normalizeWeight converts a weight string to task.Weight.
-func normalizeWeight(s string) task.Weight {
+// normalizeWeight converts a weight string to a canonical weight string.
+func normalizeWeight(s string) string {
 	s = strings.ToLower(s)
 	switch s {
 	case "trivial":
-		return task.WeightTrivial
+		return "trivial"
 	case "small":
-		return task.WeightSmall
+		return "small"
 	case "medium":
-		return task.WeightMedium
+		return "medium"
 	case "large":
-		return task.WeightLarge
+		return "large"
 	default:
 		// Default to medium for unknown weights
-		return task.WeightMedium
+		return "medium"
 	}
 }
 

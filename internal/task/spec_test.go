@@ -2,7 +2,15 @@ package task
 
 import (
 	"testing"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
+
+// skipPersistenceTest skips tests that were for the removed file I/O functions.
+// These functions were removed as part of the database-first migration.
+func skipPersistenceTest(t *testing.T) {
+	t.Skip("File I/O functions removed - use storage.Backend for persistence")
+}
 
 func TestHashContent(t *testing.T) {
 	content := "Hello, World!"
@@ -78,11 +86,11 @@ Unit tests cover all public functions. Integration tests verify end-to-end behav
 
 	tests := []struct {
 		name   string
-		weight Weight
+		weight orcv1.TaskWeight
 	}{
-		{"small weight", WeightSmall},
-		{"medium weight", WeightMedium},
-		{"large weight", WeightLarge},
+		{"small weight", orcv1.TaskWeight_TASK_WEIGHT_SMALL},
+		{"medium weight", orcv1.TaskWeight_TASK_WEIGHT_MEDIUM},
+		{"large weight", orcv1.TaskWeight_TASK_WEIGHT_LARGE},
 	}
 
 	for _, tt := range tests {
@@ -121,7 +129,7 @@ func TestValidateSpec_MissingIntent(t *testing.T) {
 Unit tests cover all public functions.
 `
 
-	result := ValidateSpec(content, WeightSmall)
+	result := ValidateSpec(content, orcv1.TaskWeight_TASK_WEIGHT_SMALL)
 
 	if result.Valid {
 		t.Error("ValidateSpec() Valid = true, want false for missing Intent")
@@ -160,7 +168,7 @@ This is a well-defined intent section explaining the purpose of the task.
 Unit tests cover all public functions and edge cases.
 `
 
-	result := ValidateSpec(content, WeightMedium)
+	result := ValidateSpec(content, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM)
 
 	if result.Valid {
 		t.Error("ValidateSpec() Valid = true, want false for missing Success Criteria")
@@ -200,7 +208,7 @@ This is a well-defined intent section explaining the purpose of the task.
 - Criterion 2: All edge cases handled
 `
 
-	result := ValidateSpec(content, WeightLarge)
+	result := ValidateSpec(content, orcv1.TaskWeight_TASK_WEIGHT_LARGE)
 
 	if result.Valid {
 		t.Error("ValidateSpec() Valid = true, want false for missing Testing")
@@ -319,7 +327,7 @@ Valid testing content here for the test.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ValidateSpec(tt.content, WeightSmall)
+			result := ValidateSpec(tt.content, orcv1.TaskWeight_TASK_WEIGHT_SMALL)
 
 			if result.Valid {
 				t.Error("ValidateSpec() Valid = true, want false for empty section")
@@ -378,7 +386,7 @@ Short.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ValidateSpec(tt.content, WeightTrivial)
+			result := ValidateSpec(tt.content, orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL)
 
 			if !result.Valid {
 				t.Errorf("ValidateSpec() Valid = false, want true for trivial weight; issues: %v", result.Issues)
@@ -404,7 +412,7 @@ func TestHasValidSpec(t *testing.T) {
 	tests := []struct {
 		name        string
 		specContent string
-		weight      Weight
+		weight      orcv1.TaskWeight
 		wantValid   bool
 	}{
 		{
@@ -424,7 +432,7 @@ This is a well-defined intent section explaining the purpose of the task.
 
 Unit tests cover all public functions and edge cases.
 `,
-			weight:    WeightSmall,
+			weight:    orcv1.TaskWeight_TASK_WEIGHT_SMALL,
 			wantValid: true,
 		},
 		{
@@ -433,7 +441,7 @@ Unit tests cover all public functions and edge cases.
 
 Just some text without proper sections.
 `,
-			weight:    WeightMedium,
+			weight:    orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 			wantValid: false,
 		},
 		{
@@ -442,7 +450,7 @@ Just some text without proper sections.
 
 Minimal content.
 `,
-			weight:    WeightTrivial,
+			weight:    orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL,
 			wantValid: true,
 		},
 	}

@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -357,7 +358,7 @@ func SaveFromTask(taskID, name, description string, global bool, backend storage
 	template := &Template{
 		Name:        name,
 		Description: description,
-		Weight:      string(t.Weight),
+		Weight:      task.WeightFromProto(t.Weight),
 		Phases:      phases,
 		CreatedFrom: taskID,
 		CreatedAt:   time.Now(),
@@ -460,15 +461,15 @@ func Exists(name string) bool {
 }
 
 // phasesForWeight returns the phase IDs for a given task weight.
-func phasesForWeight(weight task.Weight) []string {
+func phasesForWeight(weight orcv1.TaskWeight) []string {
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		return []string{"tiny_spec", "implement"}
-	case task.WeightSmall:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		return []string{"tiny_spec", "implement", "review"}
-	case task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		return []string{"spec", "tdd_write", "implement", "review", "docs"}
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		return []string{"spec", "tdd_write", "breakdown", "implement", "review", "docs"}
 	default:
 		return []string{"spec", "implement", "review"}

@@ -157,7 +157,7 @@ Examples:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -377,7 +377,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				}
 			}
 
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

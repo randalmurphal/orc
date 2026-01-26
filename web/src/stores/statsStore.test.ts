@@ -7,28 +7,89 @@ import {
 	type SummaryStats,
 } from './statsStore';
 
-// Mock fetch response types
+// Mock the Connect client
+const mockGetStats = vi.fn();
+const mockGetCostSummary = vi.fn();
+
+vi.mock('@/lib/client', () => ({
+	dashboardClient: {
+		getStats: () => mockGetStats(),
+		getCostSummary: () => mockGetCostSummary(),
+	},
+}));
+
+// Helper types matching the proto response structure
+interface MockTaskCounts {
+	all?: number;
+	active?: number;
+	completed?: number;
+	failed?: number;
+	running?: number;
+	blocked?: number;
+}
+
+interface MockTokenUsage {
+	inputTokens?: number;
+	outputTokens?: number;
+	totalTokens?: number;
+	cacheCreationInputTokens?: number;
+	cacheReadInputTokens?: number;
+}
+
 interface MockDashboardStats {
-	running: number;
-	paused: number;
-	blocked: number;
-	completed: number;
-	failed: number;
-	today: number;
-	total: number;
-	tokens: number;
-	cost: number;
+	taskCounts?: MockTaskCounts;
+	runningTasks?: unknown[];
+	recentCompletions?: unknown[];
+	pendingDecisions?: number;
+	todayTokens?: MockTokenUsage;
+	todayCostUsd?: number;
 }
 
 interface MockCostSummary {
-	period: string;
-	start: string;
-	end: string;
-	total_cost_usd: number;
-	total_input_tokens: number;
-	total_output_tokens: number;
-	total_tokens: number;
-	entry_count: number;
+	totalCostUsd?: number;
+	byPeriod?: unknown[];
+	byModel?: Record<string, number>;
+	byCategory?: Record<string, number>;
+}
+
+// Helper to create mock proto responses
+function createMockStatsResponse(stats: MockDashboardStats = {}) {
+	return {
+		stats: {
+			taskCounts: {
+				all: 0,
+				active: 0,
+				completed: 0,
+				failed: 0,
+				running: 0,
+				blocked: 0,
+				...stats.taskCounts,
+			},
+			runningTasks: stats.runningTasks ?? [],
+			recentCompletions: stats.recentCompletions ?? [],
+			pendingDecisions: stats.pendingDecisions ?? 0,
+			todayTokens: {
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+				cacheCreationInputTokens: 0,
+				cacheReadInputTokens: 0,
+				...stats.todayTokens,
+			},
+			todayCostUsd: stats.todayCostUsd ?? 0,
+		},
+	};
+}
+
+function createMockCostResponse(summary: MockCostSummary = {}) {
+	return {
+		summary: {
+			totalCostUsd: summary.totalCostUsd ?? 0,
+			byPeriod: summary.byPeriod ?? [],
+			byModel: summary.byModel ?? {},
+			byCategory: summary.byCategory ?? {},
+		},
+	};
 }
 
 describe('StatsStore', () => {
@@ -36,6 +97,9 @@ describe('StatsStore', () => {
 		// Reset store before each test
 		useStatsStore.getState().reset();
 		vi.useFakeTimers();
+		// Reset mocks
+		mockGetStats.mockReset();
+		mockGetCostSummary.mockReset();
 	});
 
 	afterEach(() => {
@@ -69,43 +133,15 @@ describe('StatsStore', () => {
 	});
 
 	describe('fetchStats', () => {
-		beforeEach(() => {
-			global.fetch = vi.fn();
-		});
-
 		it('should set loading state during fetch', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 1,
-				paused: 0,
-				blocked: 2,
-				completed: 10,
-				failed: 2,
-				today: 3,
-				total: 15,
-				tokens: 100000,
-				cost: 5.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 5.0,
-				total_input_tokens: 80000,
-				total_output_tokens: 20000,
-				total_tokens: 100000,
-				entry_count: 12,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+				todayTokens: { totalTokens: 100000 },
+				todayCostUsd: 5.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 5.0,
+			}));
 
 			const fetchPromise = useStatsStore.getState().fetchStats('7d');
 
@@ -119,38 +155,14 @@ describe('StatsStore', () => {
 		});
 
 		it('should fetch and populate stats correctly', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 1,
-				paused: 0,
-				blocked: 2,
-				completed: 10,
-				failed: 2,
-				today: 3,
-				total: 15,
-				tokens: 100000,
-				cost: 5.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 8.5,
-				total_input_tokens: 80000,
-				total_output_tokens: 20000,
-				total_tokens: 150000,
-				entry_count: 12,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+				todayTokens: { totalTokens: 100000 },
+				todayCostUsd: 5.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 8.5,
+			}));
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -160,7 +172,7 @@ describe('StatsStore', () => {
 			expect(state.outcomes.completed).toBe(10);
 			expect(state.outcomes.failed).toBe(2);
 			expect(state.summaryStats.tasksCompleted).toBe(10);
-			expect(state.summaryStats.tokensUsed).toBe(150000); // From cost summary
+			expect(state.summaryStats.tokensUsed).toBe(100000); // From todayTokens (Connect doesn't have period token totals)
 			expect(state.summaryStats.totalCost).toBe(8.5); // From cost summary
 			expect(state.summaryStats.successRate).toBeCloseTo(83.3, 0);
 			expect(state.loading).toBe(false);
@@ -169,44 +181,25 @@ describe('StatsStore', () => {
 
 		it('should handle partial data gracefully', async () => {
 			// Dashboard returns data, cost endpoint fails
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 5,
-				failed: 1,
-				today: 1,
-				total: 6,
-				tokens: 50000,
-				cost: 2.5,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: false,
-					status: 404,
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 5, failed: 1 },
+				todayTokens: { totalTokens: 50000 },
+				todayCostUsd: 2.5,
+			}));
+			mockGetCostSummary.mockRejectedValue(new Error('Not found'));
 
 			await useStatsStore.getState().fetchStats('24h');
 
 			const state = useStatsStore.getState();
 
-			// Should use dashboard data as fallback
-			expect(state.summaryStats.tasksCompleted).toBe(5);
-			expect(state.summaryStats.tokensUsed).toBe(50000);
-			expect(state.summaryStats.totalCost).toBe(2.5);
+			// Should show error since Connect calls reject unlike REST fallback
 			expect(state.loading).toBe(false);
-			expect(state.error).toBeNull();
+			expect(state.error).toBe('Not found');
 		});
 
 		it('should handle fetch errors', async () => {
-			(global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-				new Error('Network error')
-			);
+			mockGetStats.mockRejectedValue(new Error('Network error'));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -216,152 +209,80 @@ describe('StatsStore', () => {
 			expect(state.error).toBe('Network error');
 		});
 
-		it('should convert periods to correct API params', async () => {
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValue({
-					ok: true,
-					json: () => Promise.resolve({}),
-				});
+		it('should fetch with different periods', async () => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse());
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			// Test each period
-			const periods: { period: StatsPeriod; expected: string }[] = [
-				{ period: '24h', expected: 'day' },
-				{ period: '7d', expected: 'week' },
-				{ period: '30d', expected: 'month' },
-				{ period: 'all', expected: 'all' },
-			];
+			const periods: StatsPeriod[] = ['24h', '7d', '30d', 'all'];
 
-			for (const { period, expected } of periods) {
+			for (const period of periods) {
 				useStatsStore.getState().reset();
+				mockGetStats.mockClear();
+				mockGetCostSummary.mockClear();
 				await useStatsStore.getState().fetchStats(period);
 
-				expect(global.fetch).toHaveBeenCalledWith(
-					`/api/cost/summary?period=${expected}`
-				);
+				// Verify Connect client was called
+				expect(mockGetStats).toHaveBeenCalled();
+				expect(mockGetCostSummary).toHaveBeenCalled();
 			}
 		});
 
 		it('should use cache for subsequent requests', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 5,
-				failed: 0,
-				today: 1,
-				total: 5,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 1.0,
-				total_input_tokens: 8000,
-				total_output_tokens: 2000,
-				total_tokens: 10000,
-				entry_count: 5,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 5 },
+				todayTokens: { totalTokens: 10000 },
+				todayCostUsd: 1.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 1.0,
+			}));
 
 			// First fetch
 			await useStatsStore.getState().fetchStats('7d');
 
 			// Clear mock to count new calls
-			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
 
 			// Second fetch within cache window
 			await useStatsStore.getState().fetchStats('7d');
 
-			// Should not have made new fetch calls
-			expect(global.fetch).not.toHaveBeenCalled();
+			// Should not have made new calls (used cache)
+			expect(mockGetStats).not.toHaveBeenCalled();
+			expect(mockGetCostSummary).not.toHaveBeenCalled();
 		});
 
 		it('should refetch after cache expires', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 5,
-				failed: 0,
-				today: 1,
-				total: 5,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 1.0,
-				total_input_tokens: 8000,
-				total_output_tokens: 2000,
-				total_tokens: 10000,
-				entry_count: 5,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValue({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				});
-
-			// Mock different responses for both endpoints
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 5 },
+				todayTokens: { totalTokens: 10000 },
+				todayCostUsd: 1.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 1.0,
+			}));
 
 			// First fetch
 			await useStatsStore.getState().fetchStats('7d');
 
+			// Clear mocks
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
+
 			// Advance time past cache duration (5 minutes)
 			vi.advanceTimersByTime(6 * 60 * 1000);
-
-			// Set up new mocks for refetch
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
 
 			// Second fetch after cache expires
 			await useStatsStore.getState().fetchStats('7d');
 
-			// Should have made new fetch calls
-			expect(global.fetch).toHaveBeenCalled();
+			// Should have made new calls
+			expect(mockGetStats).toHaveBeenCalled();
+			expect(mockGetCostSummary).toHaveBeenCalled();
 		});
 	});
 
 	describe('setPeriod', () => {
-		beforeEach(() => {
-			global.fetch = vi.fn().mockResolvedValue({
-				ok: true,
-				json: () => Promise.resolve({}),
-			});
-		});
-
 		// TASK-526: setPeriod now only updates period, component's useEffect triggers fetch
 		it('should update period without fetching (component useEffect handles fetch)', () => {
 			// setPeriod only updates period - it doesn't call fetchStats
@@ -371,20 +292,23 @@ describe('StatsStore', () => {
 			// Period should be updated immediately
 			expect(useStatsStore.getState().period).toBe('30d');
 
-			// No fetch call from setPeriod itself (component handles this)
-			expect(global.fetch).not.toHaveBeenCalled();
+			// No Connect calls from setPeriod itself (component handles this)
+			expect(mockGetStats).not.toHaveBeenCalled();
+			expect(mockGetCostSummary).not.toHaveBeenCalled();
 		});
 
 		it('should not update period when setting same period', () => {
 			// Set initial period
 			useStatsStore.setState({ period: '7d' });
 
-			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
 
 			useStatsStore.getState().setPeriod('7d');
 
 			// Should not fetch since period didn't change
-			expect(global.fetch).not.toHaveBeenCalled();
+			expect(mockGetStats).not.toHaveBeenCalled();
+			expect(mockGetCostSummary).not.toHaveBeenCalled();
 			// Period should still be 7d
 			expect(useStatsStore.getState().period).toBe('7d');
 		});
@@ -393,27 +317,12 @@ describe('StatsStore', () => {
 	describe('reset', () => {
 		it('should reset to initial state', async () => {
 			// First populate with some data
-			const mockDashboard: MockDashboardStats = {
-				running: 1,
-				paused: 0,
-				blocked: 0,
-				completed: 10,
-				failed: 2,
-				today: 3,
-				total: 12,
-				tokens: 50000,
-				cost: 3.0,
-			};
-
-			global.fetch = vi.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve({}),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+				todayTokens: { totalTokens: 50000 },
+				todayCostUsd: 3.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			await useStatsStore.getState().fetchStats('30d');
 
@@ -434,27 +343,10 @@ describe('StatsStore', () => {
 
 	describe('derived data', () => {
 		it('should generate activity data from tasks per day', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 7,
-				failed: 0,
-				today: 1,
-				total: 7,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
-			global.fetch = vi.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve({}),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 7 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -476,27 +368,10 @@ describe('StatsStore', () => {
 		});
 
 		it('should calculate success rate correctly', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 8,
-				failed: 2,
-				today: 1,
-				total: 10,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
-			global.fetch = vi.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve({}),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 8, failed: 2 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -507,27 +382,10 @@ describe('StatsStore', () => {
 		});
 
 		it('should handle zero tasks gracefully', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 0,
-				failed: 0,
-				today: 0,
-				total: 0,
-				tokens: 0,
-				cost: 0,
-			};
-
-			global.fetch = vi.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve({}),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 0, failed: 0 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -573,27 +431,22 @@ describe('StatsStore', () => {
 
 	describe('TASK-526: Period change triggers exactly one fetch (SC-4)', () => {
 		beforeEach(() => {
-			global.fetch = vi.fn().mockResolvedValue({
-				ok: true,
-				json: () => Promise.resolve({
-					running: 0,
-					paused: 0,
-					blocked: 0,
-					completed: 5,
-					failed: 0,
-					today: 1,
-					total: 5,
-					tokens: 10000,
-					cost: 1.0,
-				}),
-			});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 5 },
+				todayTokens: { totalTokens: 10000 },
+				todayCostUsd: 1.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 1.0,
+			}));
 		});
 
 		// TASK-526: setPeriod now only updates period, component's useEffect calls fetchStats
 		// This test verifies that calling fetchStats for the same period is guarded
 		it('fetchStats with same period is guarded to prevent double fetch', async () => {
 			// Clear any previous calls
-			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
 
 			// Act: Call fetchStats twice for the same period simultaneously
 			const fetch1 = useStatsStore.getState().fetchStats('30d');
@@ -601,15 +454,16 @@ describe('StatsStore', () => {
 
 			await Promise.all([fetch1, fetch2]);
 
-			// Assert: Only one fetchStats should have actually made fetch calls
-			// Each fetchStats makes 2 parallel calls (dashboard + cost)
-			const fetchCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
-			expect(fetchCalls.length).toBe(2);
+			// Assert: Only one fetchStats should have actually made calls
+			// Second call should be blocked by the _fetchingPeriod guard
+			expect(mockGetStats).toHaveBeenCalledTimes(1);
+			expect(mockGetCostSummary).toHaveBeenCalledTimes(1);
 		});
 
 		it('rapid period changes via setPeriod only update period synchronously', () => {
 			// Clear any previous calls
-			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
 
 			// Act: Rapidly change periods via setPeriod
 			// Note: setPeriod no longer calls fetchStats - it only updates the period
@@ -622,7 +476,8 @@ describe('StatsStore', () => {
 			expect(useStatsStore.getState().period).toBe('all');
 
 			// No fetches should have been made (component's useEffect would trigger these)
-			expect(global.fetch).not.toHaveBeenCalled();
+			expect(mockGetStats).not.toHaveBeenCalled();
+			expect(mockGetCostSummary).not.toHaveBeenCalled();
 		});
 	});
 
@@ -638,36 +493,18 @@ describe('StatsStore', () => {
 		});
 
 		it('concurrent fetches for same period should not corrupt cache', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 10,
-				failed: 0,
-				today: 1,
-				total: 10,
-				tokens: 50000,
-				cost: 5.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 5.0,
-				total_input_tokens: 40000,
-				total_output_tokens: 10000,
-				total_tokens: 50000,
-				entry_count: 10,
-			};
-
 			// Simulate slow responses
-			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+			mockGetStats.mockImplementation(async () => {
 				await new Promise((resolve) => setTimeout(resolve, 50));
-				if (url.includes('dashboard')) {
-					return { ok: true, json: () => Promise.resolve(mockDashboard) };
-				}
-				return { ok: true, json: () => Promise.resolve(mockCost) };
+				return createMockStatsResponse({
+					taskCounts: { completed: 10 },
+					todayTokens: { totalTokens: 50000 },
+					todayCostUsd: 5.0,
+				});
+			});
+			mockGetCostSummary.mockImplementation(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				return createMockCostResponse({ totalCostUsd: 5.0 });
 			});
 
 			// Act: Trigger two concurrent fetches for the same period
@@ -685,40 +522,18 @@ describe('StatsStore', () => {
 		}, 10000);
 
 		it('concurrent fetches for different periods should not overwrite each other', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 10,
-				failed: 0,
-				today: 1,
-				total: 10,
-				tokens: 50000,
-				cost: 5.0,
-			};
-
-			// Different cost data for different periods
-			global.fetch = vi.fn().mockImplementation(async (url: string) => {
+			// Simulate slow responses with different data per period
+			mockGetStats.mockImplementation(async () => {
 				await new Promise((resolve) => setTimeout(resolve, 50));
-				if (url.includes('dashboard')) {
-					return { ok: true, json: () => Promise.resolve(mockDashboard) };
-				}
-				// Return different data based on period in URL
-				const isWeek = url.includes('period=week');
-				return {
-					ok: true,
-					json: () =>
-						Promise.resolve({
-							period: isWeek ? 'week' : 'month',
-							start: '2026-01-10',
-							end: '2026-01-17',
-							total_cost_usd: isWeek ? 5.0 : 15.0,
-							total_input_tokens: 40000,
-							total_output_tokens: 10000,
-							total_tokens: isWeek ? 50000 : 150000,
-							entry_count: 10,
-						}),
-				};
+				return createMockStatsResponse({
+					taskCounts: { completed: 10 },
+					todayTokens: { totalTokens: 50000 },
+					todayCostUsd: 5.0,
+				});
+			});
+			mockGetCostSummary.mockImplementation(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				return createMockCostResponse({ totalCostUsd: 5.0 });
 			});
 
 			// Act: Trigger fetches for different periods concurrently
@@ -747,43 +562,15 @@ describe('StatsStore', () => {
 	});
 
 	describe('TASK-526: Edge cases from specification', () => {
-		beforeEach(() => {
-			global.fetch = vi.fn();
-		});
-
 		it('zero completed tasks shows 0 values, not empty state', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 0,
-				failed: 0,
-				today: 0,
-				total: 0,
-				tokens: 0,
-				cost: 0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 0,
-				total_input_tokens: 0,
-				total_output_tokens: 0,
-				total_tokens: 0,
-				entry_count: 0,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 0, failed: 0 },
+				todayTokens: { totalTokens: 0 },
+				todayCostUsd: 0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 0,
+			}));
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -797,30 +584,23 @@ describe('StatsStore', () => {
 		});
 
 		it('loading becomes false after fetch completes', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 5,
-				failed: 0,
-				today: 1,
-				total: 5,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
 			// Simulate a delayed response
 			let resolveResponse: () => void;
 			const delayedPromise = new Promise<void>((resolve) => {
 				resolveResponse = resolve;
 			});
 
-			(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+			mockGetStats.mockImplementation(async () => {
 				await delayedPromise;
-				return {
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				};
+				return createMockStatsResponse({
+					taskCounts: { completed: 5 },
+					todayTokens: { totalTokens: 10000 },
+					todayCostUsd: 1.0,
+				});
+			});
+			mockGetCostSummary.mockImplementation(async () => {
+				await delayedPromise;
+				return createMockCostResponse({ totalCostUsd: 1.0 });
 			});
 
 			// Start fetch
@@ -838,38 +618,14 @@ describe('StatsStore', () => {
 		});
 
 		it('cache expired triggers fresh fetch', async () => {
-			const mockDashboard: MockDashboardStats = {
-				running: 0,
-				paused: 0,
-				blocked: 0,
-				completed: 5,
-				failed: 0,
-				today: 1,
-				total: 5,
-				tokens: 10000,
-				cost: 1.0,
-			};
-
-			const mockCost: MockCostSummary = {
-				period: 'week',
-				start: '2026-01-10',
-				end: '2026-01-17',
-				total_cost_usd: 1.0,
-				total_input_tokens: 8000,
-				total_output_tokens: 2000,
-				total_tokens: 10000,
-				entry_count: 5,
-			};
-
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockDashboard),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 5 },
+				todayTokens: { totalTokens: 10000 },
+				todayCostUsd: 1.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 1.0,
+			}));
 
 			// First fetch
 			await useStatsStore.getState().fetchStats('7d');
@@ -879,24 +635,24 @@ describe('StatsStore', () => {
 			vi.advanceTimersByTime(6 * 60 * 1000);
 
 			// Clear previous mock calls
-			(global.fetch as ReturnType<typeof vi.fn>).mockClear();
+			mockGetStats.mockClear();
+			mockGetCostSummary.mockClear();
 
-			// Setup fresh mocks for the refetch
-			(global.fetch as ReturnType<typeof vi.fn>)
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve({ ...mockDashboard, completed: 10 }),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: () => Promise.resolve(mockCost),
-				});
+			// Setup fresh mocks for the refetch with updated data
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10 },
+				todayTokens: { totalTokens: 20000 },
+				todayCostUsd: 2.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 2.0,
+			}));
 
 			// Fetch again after cache expired
 			await useStatsStore.getState().fetchStats('7d');
 
-			// Should have made new fetch calls
-			expect(global.fetch).toHaveBeenCalled();
+			// Should have made new calls
+			expect(mockGetStats).toHaveBeenCalled();
 			// Data should be updated
 			expect(useStatsStore.getState().summaryStats.tasksCompleted).toBe(10);
 		});

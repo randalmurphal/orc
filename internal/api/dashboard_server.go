@@ -40,7 +40,7 @@ func (s *dashboardServer) GetStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetStatsRequest],
 ) (*connect.Response[orcv1.GetStatsResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -143,7 +143,7 @@ func (s *dashboardServer) GetActivityHeatmap(
 		days = 90 // Default to 90 days
 	}
 
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -193,7 +193,7 @@ func (s *dashboardServer) GetCostSummary(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetCostSummaryRequest],
 ) (*connect.Response[orcv1.GetCostSummaryResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -240,7 +240,7 @@ func (s *dashboardServer) GetCostSummary(
 		periodKey := taskTime.Format("2006-01-02")
 		periodCosts[periodKey] += cost
 
-		// Note: Model tracking per-phase not available in task.PhaseState
+		// Note: Model tracking per-phase not available in orcv1.PhaseState
 		// Cost tracking is at task level via t.Execution.Cost
 	}
 
@@ -272,7 +272,7 @@ func (s *dashboardServer) GetMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsRequest],
 ) (*connect.Response[orcv1.GetMetricsResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -359,7 +359,7 @@ func (s *dashboardServer) GetDailyMetrics(
 		days = 30
 	}
 
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -422,13 +422,13 @@ func (s *dashboardServer) GetDailyMetrics(
 }
 
 // GetMetricsByModel returns metrics grouped by model.
-// Note: Model tracking per-phase is not available in task.PhaseState.
+// Note: Model tracking per-phase is not available in orcv1.PhaseState.
 // This returns a single "unknown" model with aggregated metrics.
 func (s *dashboardServer) GetMetricsByModel(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsByModelRequest],
 ) (*connect.Response[orcv1.GetMetricsByModelResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -496,7 +496,7 @@ func (s *dashboardServer) GetOutcomes(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetOutcomesRequest],
 ) (*connect.Response[orcv1.GetOutcomesResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -555,7 +555,7 @@ func (s *dashboardServer) GetTopInitiatives(
 		limit = 10
 	}
 
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -619,7 +619,7 @@ func (s *dashboardServer) GetComparison(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetComparisonRequest],
 ) (*connect.Response[orcv1.GetComparisonResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -670,7 +670,7 @@ func (s *dashboardServer) GetTaskMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskMetricsRequest],
 ) (*connect.Response[orcv1.GetTaskMetricsResponse], error) {
-	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}

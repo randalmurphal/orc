@@ -15,6 +15,8 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// Tests use task.NewProtoTask() for proto-based task creation
+
 // withShowTestDir creates a temp directory with task structure, changes to it,
 // and restores the original working directory when the test completes.
 func withShowTestDir(t *testing.T) string {
@@ -89,7 +91,7 @@ func TestShowCommand_SpecFlag_Execution(t *testing.T) {
 	// Create backend and save a task without a spec
 	backend := createShowTestBackend(t, tmpDir)
 
-	tk := task.New("TASK-001", "Test task without spec")
+	tk := task.NewProtoTask("TASK-001", "Test task without spec")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -111,7 +113,7 @@ func TestShowCommand_SpecFlag_WithSpec_Execution(t *testing.T) {
 	// Create backend, task, and spec
 	backend := createShowTestBackend(t, tmpDir)
 
-	tk := task.New("TASK-002", "Test task with spec")
+	tk := task.NewProtoTask("TASK-002", "Test task with spec")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -146,7 +148,7 @@ func TestShowCommand_SpecFlag_JSON(t *testing.T) {
 	// Create backend, task, and spec
 	backend := createShowTestBackend(t, tmpDir)
 
-	tk := task.New("TASK-003", "Test task for JSON output")
+	tk := task.NewProtoTask("TASK-003", "Test task for JSON output")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -209,7 +211,7 @@ func TestShowCommand_SpecFlag_JSON_NoSpec(t *testing.T) {
 	// Create backend and task without spec
 	backend := createShowTestBackend(t, tmpDir)
 
-	tk := task.New("TASK-004", "Test task without spec for JSON")
+	tk := task.NewProtoTask("TASK-004", "Test task without spec for JSON")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -273,7 +275,7 @@ func TestLoadFullSpec(t *testing.T) {
 	}
 
 	// Create a task first (specs have foreign key to tasks)
-	tk := task.New("TASK-001", "Test task for spec")
+	tk := task.NewProtoTask("TASK-001", "Test task for spec")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}

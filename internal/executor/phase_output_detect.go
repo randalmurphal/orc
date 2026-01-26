@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -24,12 +25,12 @@ const (
 type PhaseOutputDetector struct {
 	taskDir string
 	taskID  string
-	weight  task.Weight
+	weight  orcv1.TaskWeight
 	backend storage.Backend // Optional: used for spec detection from database
 }
 
 // NewPhaseOutputDetector creates a detector for a task.
-func NewPhaseOutputDetector(taskID string, weight task.Weight) *PhaseOutputDetector {
+func NewPhaseOutputDetector(taskID string, weight orcv1.TaskWeight) *PhaseOutputDetector {
 	return &PhaseOutputDetector{
 		taskDir: task.TaskDir(taskID),
 		taskID:  taskID,
@@ -38,7 +39,7 @@ func NewPhaseOutputDetector(taskID string, weight task.Weight) *PhaseOutputDetec
 }
 
 // NewPhaseOutputDetectorWithDir creates a detector for a task in a specific directory.
-func NewPhaseOutputDetectorWithDir(taskDir, taskID string, weight task.Weight) *PhaseOutputDetector {
+func NewPhaseOutputDetectorWithDir(taskDir, taskID string, weight orcv1.TaskWeight) *PhaseOutputDetector {
 	return &PhaseOutputDetector{
 		taskDir: taskDir,
 		taskID:  taskID,
@@ -48,7 +49,7 @@ func NewPhaseOutputDetectorWithDir(taskDir, taskID string, weight task.Weight) *
 
 // NewPhaseOutputDetectorWithBackend creates a detector with database backend for spec detection.
 // This is the preferred constructor as it enables spec detection from the database.
-func NewPhaseOutputDetectorWithBackend(taskDir, taskID string, weight task.Weight, backend storage.Backend) *PhaseOutputDetector {
+func NewPhaseOutputDetectorWithBackend(taskDir, taskID string, weight orcv1.TaskWeight, backend storage.Backend) *PhaseOutputDetector {
 	return &PhaseOutputDetector{
 		taskDir: taskDir,
 		taskID:  taskID,

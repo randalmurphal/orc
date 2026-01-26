@@ -9,13 +9,14 @@ import {
 	CommentSeverity,
 	CommentStatus,
 	GetDiffRequestSchema,
+	GetFileDiffRequestSchema,
 	ListReviewCommentsRequestSchema,
 	CreateReviewCommentRequestSchema,
 	UpdateReviewCommentRequestSchema,
 	DeleteReviewCommentRequestSchema,
+	RetryTaskRequestSchema,
 } from '@/gen/orc/v1/task_pb';
-// Note: triggerReviewRetry doesn't have a proto endpoint yet
-import type { DiffResult, FileDiff } from '@/gen/orc/v1/common_pb';
+import type { DiffResult } from '@/gen/orc/v1/common_pb';
 import type { CreateCommentRequest } from '@/components/task-detail/diff/types';
 import { timestampToDate } from '@/lib/time';
 import { toast } from '@/stores/uiStore';
@@ -99,35 +100,24 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		Promise.all([loadDiff(), loadComments()]);
 	}, [loadDiff, loadComments]);
 
-	// Load file hunks
+	// Load file hunks using Connect RPC
 	const loadFileHunks = useCallback(async (filePath: string) => {
 		try {
-			const res = await fetch(`/api/tasks/${taskId}/diff/file/${encodeURIComponent(filePath)}`);
-			if (!res.ok) {
-				const errorMsg = `Failed to load file diff (${res.status})`;
+			const response = await taskClient.getFileDiff(
+				create(GetFileDiffRequestSchema, { id: taskId, filePath })
+			);
+			if (response.file) {
 				setDiff((prev) =>
 					prev
 						? {
 								...prev,
 								files: prev.files.map((f) =>
-									f.path === filePath ? { ...f, loadError: errorMsg } : f
+									f.path === filePath ? { ...f, hunks: response.file!.hunks, loadError: undefined } : f
 								),
 						  }
 						: null
 				);
-				return;
 			}
-			const fileDiff = (await res.json()) as FileDiff;
-			setDiff((prev) =>
-				prev
-					? {
-							...prev,
-							files: prev.files.map((f) =>
-								f.path === filePath ? { ...f, hunks: fileDiff.hunks, loadError: undefined } : f
-							),
-					  }
-					: null
-			);
 		} catch (e) {
 			const errorMsg = e instanceof Error ? e.message : 'Unknown error loading file';
 			setDiff((prev) =>
@@ -284,17 +274,14 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		}
 	}, [taskId, generalCommentContent, generalCommentSeverity, addingGeneralComment]);
 
-	// Send to agent - uses raw fetch until proto endpoint is added
+	// Send review comments to agent for retry
 	const handleSendToAgent = useCallback(async () => {
 		if (openComments.length === 0 || sendingToAgent) return;
 		setSendingToAgent(true);
 		try {
-			const res = await fetch(`/api/tasks/${taskId}/review/retry`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ include_comments: true }),
-			});
-			if (!res.ok) throw new Error('Failed to trigger review retry');
+			await taskClient.retryTask(
+				create(RetryTaskRequestSchema, { id: taskId, includeReviewComments: true })
+			);
 			toast.success('Comments sent to agent for review');
 		} catch (_e) {
 			toast.error('Failed to send comments to agent');

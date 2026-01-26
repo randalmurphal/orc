@@ -16,7 +16,44 @@ vi.mock('@/lib/events', () => ({
 	handleEvent: vi.fn(),
 }));
 
-// Mock API calls
+// Mock Connect RPC clients
+vi.mock('@/lib/client', () => ({
+	projectClient: {
+		listProjects: vi.fn().mockResolvedValue({
+			projects: [{ id: 'project-1', name: 'Test Project', path: '/path/to/project' }],
+		}),
+	},
+	taskClient: {
+		listTasks: vi.fn().mockResolvedValue({ tasks: [] }),
+	},
+	initiativeClient: {
+		listInitiatives: vi.fn().mockResolvedValue({ initiatives: [] }),
+	},
+	dashboardClient: {
+		getStats: vi.fn().mockResolvedValue({
+			stats: {
+				taskCounts: { all: 10, active: 3, completed: 5, failed: 0, running: 1, blocked: 2 },
+				runningTasks: [],
+				recentCompletions: [],
+				pendingDecisions: 0,
+				todayTokens: { totalTokens: 50000 },
+				todayCostUsd: 0.5,
+			},
+		}),
+	},
+	configClient: {
+		getConfigStats: vi.fn().mockResolvedValue({
+			stats: {
+				slashCommandsCount: 0,
+				claudeMdSize: 0,
+				mcpServersCount: 0,
+				permissionsProfile: 'default',
+			},
+		}),
+	},
+}));
+
+// Mock API calls (legacy - some components may still use these)
 vi.mock('@/lib/api', () => ({
 	listProjects: vi.fn().mockResolvedValue([
 		{ id: 'project-1', name: 'Test Project', path: '/path/to/project', created_at: new Date().toISOString() },

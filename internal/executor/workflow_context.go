@@ -184,7 +184,6 @@ func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.Resolutio
 
 // enrichContextForPhase adds phase-specific context to the resolution context.
 // Call this before executing each phase to load review findings, artifacts, etc.
-// Note: Uses Task-centric approach where execution state is in task.Task.Execution.
 func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionContext, phaseID string, t *orcv1.Task) {
 	if t == nil {
 		return
@@ -282,7 +281,7 @@ func formatRecentCompletedTasksForPrompt(tasks []*orcv1.Task, limit int) string 
 		}
 	}
 
-	// Sort by completion time (most recent first) - already done by LoadAllTasksProto
+	// Sort by completion time (most recent first) - already done by LoadAllTasks
 	if len(completed) > limit {
 		completed = completed[:limit]
 	}
@@ -414,7 +413,7 @@ func (we *WorkflowExecutor) loadPriorPhaseContentProto(taskID string, e *orcv1.E
 // loadAutomationContextProto loads automation task context using proto types.
 func (we *WorkflowExecutor) loadAutomationContextProto(rctx *variable.ResolutionContext, t *orcv1.Task) {
 	// Load recent completed tasks
-	tasks, err := we.backend.LoadAllTasksProto()
+	tasks, err := we.backend.LoadAllTasks()
 	if err == nil {
 		rctx.RecentCompletedTasks = formatRecentCompletedTasksForPrompt(tasks, 20)
 		rctx.RecentChangedFiles = collectRecentChangedFilesForPrompt(tasks, 10)

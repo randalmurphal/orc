@@ -121,59 +121,58 @@ func TestPRPoller_ShouldPoll(t *testing.T) {
 	}
 }
 
-func TestPRPoller_DeterminePRStatus(t *testing.T) {
+func TestDeterminePRStatusProto(t *testing.T) {
 	t.Parallel()
-	poller := &PRPoller{}
 
 	tests := []struct {
 		name     string
 		pr       *github.PR
 		summary  *github.PRStatusSummary
-		expected task.PRStatus
+		expected orcv1.PRStatus
 	}{
 		{
 			name:     "merged PR",
 			pr:       &github.PR{State: "MERGED"},
 			summary:  &github.PRStatusSummary{ReviewStatus: "approved"},
-			expected: task.PRStatusMerged,
+			expected: orcv1.PRStatus_PR_STATUS_MERGED,
 		},
 		{
 			name:     "closed PR",
 			pr:       &github.PR{State: "CLOSED"},
 			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
-			expected: task.PRStatusClosed,
+			expected: orcv1.PRStatus_PR_STATUS_CLOSED,
 		},
 		{
 			name:     "draft PR",
 			pr:       &github.PR{State: "OPEN", Draft: true},
 			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
-			expected: task.PRStatusDraft,
+			expected: orcv1.PRStatus_PR_STATUS_DRAFT,
 		},
 		{
 			name:     "pending review",
 			pr:       &github.PR{State: "OPEN"},
 			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
-			expected: task.PRStatusPendingReview,
+			expected: orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
 		},
 		{
 			name:     "approved",
 			pr:       &github.PR{State: "OPEN"},
 			summary:  &github.PRStatusSummary{ReviewStatus: "approved"},
-			expected: task.PRStatusApproved,
+			expected: orcv1.PRStatus_PR_STATUS_APPROVED,
 		},
 		{
 			name:     "changes requested",
 			pr:       &github.PR{State: "OPEN"},
 			summary:  &github.PRStatusSummary{ReviewStatus: "changes_requested"},
-			expected: task.PRStatusChangesRequested,
+			expected: orcv1.PRStatus_PR_STATUS_CHANGES_REQUESTED,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := poller.determinePRStatus(tt.pr, tt.summary)
+			got := DeterminePRStatusProto(tt.pr, tt.summary)
 			if got != tt.expected {
-				t.Errorf("determinePRStatus() = %v, want %v", got, tt.expected)
+				t.Errorf("DeterminePRStatusProto() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -211,10 +210,10 @@ func TestNewPRPoller(t *testing.T) {
 // Used for testing the poller's stop behavior without real task data.
 type emptyBackend struct{}
 
-func (b *emptyBackend) LoadAllTasks() ([]*task.Task, error) { return nil, nil }
-func (b *emptyBackend) SaveTask(*task.Task) error           { return nil }
-func (b *emptyBackend) LoadTask(string) (*task.Task, error) { return nil, nil }
-func (b *emptyBackend) DeleteTask(string) error             { return nil }
+func (b *emptyBackend) LoadAllTasks() ([]*orcv1.Task, error) { return nil, nil }
+func (b *emptyBackend) SaveTask(*orcv1.Task) error           { return nil }
+func (b *emptyBackend) LoadTask(string) (*orcv1.Task, error) { return nil, nil }
+func (b *emptyBackend) DeleteTask(string) error              { return nil }
 func (b *emptyBackend) TaskExists(string) (bool, error)     { return false, nil }
 func (b *emptyBackend) GetNextTaskID() (string, error)      { return "", nil }
 func (b *emptyBackend) GetTaskActivityByDate(string, string) ([]storage.ActivityCount, error) {
@@ -351,11 +350,8 @@ func (b *emptyBackend) DeleteProjectCommand(string) error            { return ni
 func (b *emptyBackend) SetProjectCommandEnabled(string, bool) error  { return nil }
 func (b *emptyBackend) DB() *db.ProjectDB { return nil }
 
-// Proto methods
-func (b *emptyBackend) SaveTaskProto(*orcv1.Task) error              { return nil }
-func (b *emptyBackend) LoadTaskProto(string) (*orcv1.Task, error)    { return nil, nil }
-func (b *emptyBackend) LoadAllTasksProto() ([]*orcv1.Task, error)    { return nil, nil }
-func (b *emptyBackend) SaveInitiativeProto(*orcv1.Initiative) error  { return nil }
+// Proto initiative methods
+func (b *emptyBackend) SaveInitiativeProto(*orcv1.Initiative) error { return nil }
 func (b *emptyBackend) LoadInitiativeProto(string) (*orcv1.Initiative, error) {
 	return nil, nil
 }

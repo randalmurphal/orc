@@ -45,7 +45,7 @@ Example:
 			}
 
 			// Load task (execution state is in task.Execution)
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -60,7 +60,7 @@ Example:
 			task.SkipPhaseProto(t.Execution, phaseID, reason)
 
 			// Save task (includes execution state)
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

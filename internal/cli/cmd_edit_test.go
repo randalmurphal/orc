@@ -40,7 +40,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 	tk.Execution.Phases["implement"] = &orcv1.PhaseState{
 		Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
 	}
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -50,7 +50,7 @@ func TestRegeneratePlanForWeight(t *testing.T) {
 	}
 
 	// Verify execution state was reset
-	reloadedTask, err := backend.LoadTaskProto("TASK-001")
+	reloadedTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestRegeneratePlanForWeight_NoExistingExecutionState(t *testing.T) {
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	// Execution state is uninitialized (zero value)
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -94,7 +94,7 @@ func TestRegeneratePlanForWeight_NoExistingExecutionState(t *testing.T) {
 	}
 
 	// Verify task was updated with reset execution state
-	reloadedTask, err := backend.LoadTaskProto("TASK-001")
+	reloadedTask, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestEditCommand_StatusValidation(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestEditCommand_StatusChange(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -241,7 +241,7 @@ func TestEditCommand_StatusChange(t *testing.T) {
 	}
 
 	// Verify status was updated
-	updated, err := backend.LoadTaskProto("TASK-001")
+	updated, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 
@@ -279,7 +279,7 @@ func TestEditCommand_StatusNoChangeIfSame(t *testing.T) {
 	}
 
 	// Verify task is still completed
-	updated, err := backend.LoadTaskProto("TASK-001")
+	updated, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("failed to reload task: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestEditCommand_CannotEditRunningTask(t *testing.T) {
 
 	tk := task.NewProtoTask("TASK-001", "Test task")
 	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	if err := backend.SaveTaskProto(tk); err != nil {
+	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
 

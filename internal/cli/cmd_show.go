@@ -61,7 +61,7 @@ Examples:
 
 			id := args[0]
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}

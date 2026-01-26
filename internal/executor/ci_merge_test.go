@@ -474,28 +474,29 @@ func TestParseChecksJSON(t *testing.T) {
 
 func TestTask_GetPRURL(t *testing.T) {
 	t.Parallel()
+	prURL := "https://github.com/owner/repo/pull/123"
 	tests := []struct {
 		name     string
-		task     *task.Task
+		task     *orcv1.Task
 		expected string
 	}{
 		{
 			name:     "nil PR",
-			task:     &task.Task{},
+			task:     &orcv1.Task{},
 			expected: "",
 		},
 		{
 			name: "empty PR URL",
-			task: &task.Task{
-				PR: &task.PRInfo{},
+			task: &orcv1.Task{
+				Pr: &orcv1.PRInfo{},
 			},
 			expected: "",
 		},
 		{
 			name: "valid PR URL",
-			task: &task.Task{
-				PR: &task.PRInfo{
-					URL: "https://github.com/owner/repo/pull/123",
+			task: &orcv1.Task{
+				Pr: &orcv1.PRInfo{
+					Url: &prURL,
 				},
 			},
 			expected: "https://github.com/owner/repo/pull/123",
@@ -504,8 +505,8 @@ func TestTask_GetPRURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.task.GetPRURL(); got != tt.expected {
-				t.Errorf("GetPRURL() = %v, want %v", got, tt.expected)
+			if got := task.GetPRURLProto(tt.task); got != tt.expected {
+				t.Errorf("GetPRURLProto() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -513,27 +514,27 @@ func TestTask_GetPRURL(t *testing.T) {
 
 func TestTask_SetMergedInfo(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{ID: "TASK-001"}
+	tsk := &orcv1.Task{Id: "TASK-001"}
 
-	tsk.SetMergedInfo("https://github.com/owner/repo/pull/123", "main")
+	task.SetMergedInfoProto(tsk, "https://github.com/owner/repo/pull/123", "main")
 
-	if tsk.PR == nil {
+	if tsk.Pr == nil {
 		t.Fatal("expected PR to be set")
 	}
-	if tsk.PR.URL != "https://github.com/owner/repo/pull/123" {
-		t.Errorf("expected URL to be set, got %s", tsk.PR.URL)
+	if tsk.Pr.Url == nil || *tsk.Pr.Url != "https://github.com/owner/repo/pull/123" {
+		t.Errorf("expected URL to be set, got %v", tsk.Pr.Url)
 	}
-	if !tsk.PR.Merged {
+	if !tsk.Pr.Merged {
 		t.Error("expected Merged to be true")
 	}
-	if tsk.PR.MergedAt == nil {
+	if tsk.Pr.MergedAt == nil {
 		t.Error("expected MergedAt to be set")
 	}
-	if tsk.PR.TargetBranch != "main" {
-		t.Errorf("expected TargetBranch to be 'main', got %s", tsk.PR.TargetBranch)
+	if tsk.Pr.TargetBranch == nil || *tsk.Pr.TargetBranch != "main" {
+		t.Errorf("expected TargetBranch to be 'main', got %v", tsk.Pr.TargetBranch)
 	}
-	if tsk.PR.Status != task.PRStatusMerged {
-		t.Errorf("expected Status to be PRStatusMerged, got %s", tsk.PR.Status)
+	if tsk.Pr.Status != orcv1.PRStatus_PR_STATUS_MERGED {
+		t.Errorf("expected Status to be PR_STATUS_MERGED, got %s", tsk.Pr.Status)
 	}
 }
 

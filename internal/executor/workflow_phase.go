@@ -288,7 +288,7 @@ func (we *WorkflowExecutor) executePhase(
 			currentPhase = *we.task.CurrentPhase
 		}
 		task.AddCostProto(we.task.Execution, currentPhase, result.CostUSD)
-		if err := we.backend.SaveTaskProto(we.task); err != nil {
+		if err := we.backend.SaveTask(we.task); err != nil {
 			we.logger.Warn("failed to save task execution state", "error", err)
 		}
 	}
@@ -408,16 +408,18 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		// Do this after first successful turn to capture the Claude session ID
 		if i == 0 && we.task != nil && turnResult.SessionID != "" {
 			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, turnResult.SessionID)
-			if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
+			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
 				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
 			}
 		}
 
 		// Accumulate tokens
-		result.InputTokens += turnResult.Usage.InputTokens
-		result.OutputTokens += turnResult.Usage.OutputTokens
-		result.CacheCreationTokens += turnResult.Usage.CacheCreationInputTokens
-		result.CacheReadTokens += turnResult.Usage.CacheReadInputTokens
+		if turnResult.Usage != nil {
+			result.InputTokens += int(turnResult.Usage.InputTokens)
+			result.OutputTokens += int(turnResult.Usage.OutputTokens)
+			result.CacheCreationTokens += int(turnResult.Usage.CacheCreationInputTokens)
+			result.CacheReadTokens += int(turnResult.Usage.CacheReadInputTokens)
+		}
 		result.CostUSD += turnResult.CostUSD
 
 		// Check for completion

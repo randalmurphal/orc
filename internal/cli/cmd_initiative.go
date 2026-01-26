@@ -11,10 +11,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 func newInitiativeCmd() *cobra.Command {
@@ -750,13 +752,17 @@ Examples:
 				pattern := strings.ToLower(allMatching)
 				for _, t := range allTasks {
 					// Match against ID or title
-					if strings.Contains(strings.ToLower(t.ID), pattern) ||
+					if strings.Contains(strings.ToLower(t.Id), pattern) ||
 						strings.Contains(strings.ToLower(t.Title), pattern) {
 						// Skip only if fully linked (both initiative_id set AND in task list)
-						if t.InitiativeID == initID && init.HasTask(t.ID) {
+						taskInitID := ""
+						if t.InitiativeId != nil {
+							taskInitID = *t.InitiativeId
+						}
+						if taskInitID == initID && init.HasTask(t.Id) {
 							continue
 						}
-						tasksToLink = append(tasksToLink, taskInfo{ID: t.ID, Title: t.Title, InitiativeID: t.InitiativeID})
+						tasksToLink = append(tasksToLink, taskInfo{ID: t.Id, Title: t.Title, InitiativeID: taskInitID})
 					}
 				}
 
@@ -772,12 +778,17 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("load task %s: %w", taskID, err)
 				}
+				// Get initiative ID (handling *string)
+				taskInitID := ""
+				if t.InitiativeId != nil {
+					taskInitID = *t.InitiativeId
+				}
 				// Skip only if fully linked (both initiative_id set AND in task list)
-				if t.InitiativeID == initID && init.HasTask(t.ID) {
+				if taskInitID == initID && init.HasTask(t.Id) {
 					fmt.Printf("Skipping %s: already linked to %s\n", taskID, initID)
 					continue
 				}
-				tasksToLink = append(tasksToLink, taskInfo{ID: t.ID, Title: t.Title, InitiativeID: t.InitiativeID})
+				tasksToLink = append(tasksToLink, taskInfo{ID: t.Id, Title: t.Title, InitiativeID: taskInitID})
 			}
 
 			if len(tasksToLink) == 0 {
@@ -801,15 +812,15 @@ Examples:
 					return fmt.Errorf("load task %s for update: %w", ti.ID, err)
 				}
 
-				// Update task
-				t.SetInitiative(initID)
+				// Update task - set initiative ID directly (proto has no methods)
+				t.InitiativeId = &initID
 				if err := backend.SaveTask(t); err != nil {
-					return fmt.Errorf("save task %s: %w", t.ID, err)
+					return fmt.Errorf("save task %s: %w", t.Id, err)
 				}
 
 				// Update initiative
-				init.AddTask(t.ID, t.Title, nil)
-				linked = append(linked, t.ID)
+				init.AddTask(t.Id, t.Title, nil)
+				linked = append(linked, t.Id)
 			}
 
 			// Save initiative
@@ -898,17 +909,21 @@ Examples:
 				}
 
 				// Check if task belongs to this initiative
-				if t.InitiativeID != initID {
-					if t.InitiativeID == "" {
+				taskInitID := ""
+				if t.InitiativeId != nil {
+					taskInitID = *t.InitiativeId
+				}
+				if taskInitID != initID {
+					if taskInitID == "" {
 						fmt.Printf("Skipping %s: not linked to any initiative\n", taskID)
 					} else {
-						fmt.Printf("Skipping %s: linked to %s, not %s\n", taskID, t.InitiativeID, initID)
+						fmt.Printf("Skipping %s: linked to %s, not %s\n", taskID, taskInitID, initID)
 					}
 					continue
 				}
 
-				// Update task
-				t.SetInitiative("")
+				// Update task - clear initiative ID
+				t.InitiativeId = nil
 				if err := backend.SaveTask(t); err != nil {
 					return fmt.Errorf("save task %s: %w", taskID, err)
 				}
@@ -1207,7 +1222,7 @@ Examples:
 				}
 
 				// Check if can run
-				if !t.CanRun() && t.Status != "running" {
+				if !task.CanRunProto(t) && t.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 					fmt.Printf("  ✗ Cannot run (status: %s)\n", t.Status)
 					continue
 				}

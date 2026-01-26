@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -133,15 +134,15 @@ func TestInitiativeLinkMultipleTasks(t *testing.T) {
 	}
 
 	// Create tasks
-	task1 := task.New("TASK-001", "Task One")
+	task1 := task.NewProtoTask("TASK-001", "Task One")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
-	task2 := task.New("TASK-002", "Task Two")
+	task2 := task.NewProtoTask("TASK-002", "Task Two")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
-	task3 := task.New("TASK-003", "Task Three")
+	task3 := task.NewProtoTask("TASK-003", "Task Three")
 	if err := backend.SaveTask(task3); err != nil {
 		t.Fatalf("save task3: %v", err)
 	}
@@ -162,18 +163,18 @@ func TestInitiativeLinkMultipleTasks(t *testing.T) {
 
 	// Verify tasks are linked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
-	if reloadedTask1.InitiativeID != "INIT-001" {
-		t.Errorf("task1 InitiativeID = %q, want %q", reloadedTask1.InitiativeID, "INIT-001")
+	if reloadedTask1.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task1 InitiativeId = %q, want %q", reloadedTask1.GetInitiativeId(), "INIT-001")
 	}
 
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "INIT-001" {
-		t.Errorf("task2 InitiativeID = %q, want %q", reloadedTask2.InitiativeID, "INIT-001")
+	if reloadedTask2.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task2 InitiativeId = %q, want %q", reloadedTask2.GetInitiativeId(), "INIT-001")
 	}
 
 	reloadedTask3, _ := backend.LoadTask("TASK-003")
-	if reloadedTask3.InitiativeID != "INIT-001" {
-		t.Errorf("task3 InitiativeID = %q, want %q", reloadedTask3.InitiativeID, "INIT-001")
+	if reloadedTask3.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task3 InitiativeId = %q, want %q", reloadedTask3.GetInitiativeId(), "INIT-001")
 	}
 
 	// Verify initiative has all tasks
@@ -195,15 +196,15 @@ func TestInitiativeLinkWithPattern(t *testing.T) {
 	}
 
 	// Create tasks with different titles
-	authTask1 := task.New("TASK-001", "User Authentication")
+	authTask1 := task.NewProtoTask("TASK-001", "User Authentication")
 	if err := backend.SaveTask(authTask1); err != nil {
 		t.Fatalf("save authTask1: %v", err)
 	}
-	authTask2 := task.New("TASK-002", "Auth Token Validation")
+	authTask2 := task.NewProtoTask("TASK-002", "Auth Token Validation")
 	if err := backend.SaveTask(authTask2); err != nil {
 		t.Fatalf("save authTask2: %v", err)
 	}
-	otherTask := task.New("TASK-003", "Database Migration")
+	otherTask := task.NewProtoTask("TASK-003", "Database Migration")
 	if err := backend.SaveTask(otherTask); err != nil {
 		t.Fatalf("save otherTask: %v", err)
 	}
@@ -224,18 +225,18 @@ func TestInitiativeLinkWithPattern(t *testing.T) {
 
 	// Verify only auth tasks are linked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
-	if reloadedTask1.InitiativeID != "INIT-001" {
-		t.Errorf("auth task1 should be linked, got InitiativeID = %q", reloadedTask1.InitiativeID)
+	if reloadedTask1.GetInitiativeId() != "INIT-001" {
+		t.Errorf("auth task1 should be linked, got InitiativeID = %q", reloadedTask1.GetInitiativeId())
 	}
 
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "INIT-001" {
-		t.Errorf("auth task2 should be linked, got InitiativeID = %q", reloadedTask2.InitiativeID)
+	if reloadedTask2.GetInitiativeId() != "INIT-001" {
+		t.Errorf("auth task2 should be linked, got InitiativeID = %q", reloadedTask2.GetInitiativeId())
 	}
 
 	reloadedTask3, _ := backend.LoadTask("TASK-003")
-	if reloadedTask3.InitiativeID != "" {
-		t.Errorf("other task should not be linked, got InitiativeID = %q", reloadedTask3.InitiativeID)
+	if reloadedTask3.GetInitiativeId() != "" {
+		t.Errorf("other task should not be linked, got InitiativeID = %q", reloadedTask3.GetInitiativeId())
 	}
 
 	// Verify initiative has only 2 tasks
@@ -254,22 +255,22 @@ func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 	init := initiative.New("INIT-001", "Test Initiative")
 
 	// Create and link tasks
-	task1 := task.New("TASK-001", "Task One")
-	task1.SetInitiative("INIT-001")
+	task1 := task.NewProtoTask("TASK-001", "Task One")
+	task.SetInitiativeProto(task1,"INIT-001")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 	init.AddTask("TASK-001", "Task One", nil)
 
-	task2 := task.New("TASK-002", "Task Two")
-	task2.SetInitiative("INIT-001")
+	task2 := task.NewProtoTask("TASK-002", "Task Two")
+	task.SetInitiativeProto(task2,"INIT-001")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
 	init.AddTask("TASK-002", "Task Two", nil)
 
-	task3 := task.New("TASK-003", "Task Three")
-	task3.SetInitiative("INIT-001")
+	task3 := task.NewProtoTask("TASK-003", "Task Three")
+	task.SetInitiativeProto(task3,"INIT-001")
 	if err := backend.SaveTask(task3); err != nil {
 		t.Fatalf("save task3: %v", err)
 	}
@@ -295,19 +296,19 @@ func TestInitiativeUnlinkMultipleTasks(t *testing.T) {
 
 	// Verify tasks 1 and 2 are unlinked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
-	if reloadedTask1.InitiativeID != "" {
-		t.Errorf("task1 should be unlinked, got InitiativeID = %q", reloadedTask1.InitiativeID)
+	if reloadedTask1.GetInitiativeId() != "" {
+		t.Errorf("task1 should be unlinked, got InitiativeID = %q", reloadedTask1.GetInitiativeId())
 	}
 
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "" {
-		t.Errorf("task2 should be unlinked, got InitiativeID = %q", reloadedTask2.InitiativeID)
+	if reloadedTask2.GetInitiativeId() != "" {
+		t.Errorf("task2 should be unlinked, got InitiativeID = %q", reloadedTask2.GetInitiativeId())
 	}
 
 	// Task 3 should still be linked
 	reloadedTask3, _ := backend.LoadTask("TASK-003")
-	if reloadedTask3.InitiativeID != "INIT-001" {
-		t.Errorf("task3 should still be linked, got InitiativeID = %q", reloadedTask3.InitiativeID)
+	if reloadedTask3.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task3 should still be linked, got InitiativeID = %q", reloadedTask3.GetInitiativeId())
 	}
 
 	// Verify initiative has only 1 task
@@ -326,15 +327,15 @@ func TestInitiativeUnlinkAll(t *testing.T) {
 	init := initiative.New("INIT-001", "Test Initiative")
 
 	// Create and link tasks
-	task1 := task.New("TASK-001", "Task One")
-	task1.SetInitiative("INIT-001")
+	task1 := task.NewProtoTask("TASK-001", "Task One")
+	task.SetInitiativeProto(task1,"INIT-001")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 	init.AddTask("TASK-001", "Task One", nil)
 
-	task2 := task.New("TASK-002", "Task Two")
-	task2.SetInitiative("INIT-001")
+	task2 := task.NewProtoTask("TASK-002", "Task Two")
+	task.SetInitiativeProto(task2,"INIT-001")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -360,13 +361,13 @@ func TestInitiativeUnlinkAll(t *testing.T) {
 
 	// Verify all tasks are unlinked
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
-	if reloadedTask1.InitiativeID != "" {
-		t.Errorf("task1 should be unlinked, got InitiativeID = %q", reloadedTask1.InitiativeID)
+	if reloadedTask1.GetInitiativeId() != "" {
+		t.Errorf("task1 should be unlinked, got InitiativeID = %q", reloadedTask1.GetInitiativeId())
 	}
 
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "" {
-		t.Errorf("task2 should be unlinked, got InitiativeID = %q", reloadedTask2.InitiativeID)
+	if reloadedTask2.GetInitiativeId() != "" {
+		t.Errorf("task2 should be unlinked, got InitiativeID = %q", reloadedTask2.GetInitiativeId())
 	}
 
 	// Verify initiative has no tasks
@@ -393,14 +394,14 @@ func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 	}
 
 	// Create task linked to INIT-002
-	task1 := task.New("TASK-001", "Task One")
-	task1.SetInitiative("INIT-002")
+	task1 := task.NewProtoTask("TASK-001", "Task One")
+	task.SetInitiativeProto(task1,"INIT-002")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Create unlinked task
-	task2 := task.New("TASK-002", "Task Two")
+	task2 := task.NewProtoTask("TASK-002", "Task Two")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -421,14 +422,14 @@ func TestInitiativeLinkSkipsAlreadyLinkedToOther(t *testing.T) {
 
 	// TASK-001 should still be linked to INIT-002 (skipped)
 	reloadedTask1, _ := backend.LoadTask("TASK-001")
-	if reloadedTask1.InitiativeID != "INIT-002" {
-		t.Errorf("task1 should still be linked to INIT-002, got %q", reloadedTask1.InitiativeID)
+	if reloadedTask1.GetInitiativeId() != "INIT-002" {
+		t.Errorf("task1 should still be linked to INIT-002, got %q", reloadedTask1.GetInitiativeId())
 	}
 
 	// TASK-002 should now be linked to INIT-001
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "INIT-001" {
-		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.InitiativeID)
+	if reloadedTask2.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.GetInitiativeId())
 	}
 }
 
@@ -446,8 +447,8 @@ func TestInitiativeLinkFixesPartialLink(t *testing.T) {
 	}
 
 	// Create task that claims to be linked to INIT-001 but isn't in the list
-	task1 := task.New("TASK-001", "Task One")
-	task1.SetInitiative("INIT-001") // Set initiative_id
+	task1 := task.NewProtoTask("TASK-001", "Task One")
+	task.SetInitiativeProto(task1,"INIT-001") // Set initiative_id
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
@@ -456,8 +457,8 @@ func TestInitiativeLinkFixesPartialLink(t *testing.T) {
 	if len(init.Tasks) != 0 {
 		t.Fatalf("expected 0 tasks in initiative, got %d", len(init.Tasks))
 	}
-	if task1.InitiativeID != "INIT-001" {
-		t.Fatalf("task should have initiative_id INIT-001, got %q", task1.InitiativeID)
+	if task1.GetInitiativeId() != "INIT-001" {
+		t.Fatalf("task should have initiative_id INIT-001, got %q", task1.GetInitiativeId())
 	}
 
 	// Close backend before running command
@@ -502,14 +503,14 @@ func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
 	}
 
 	// Create task with initiative_id set
-	task1 := task.New("TASK-001", "Task One")
-	task1.SetInitiative("INIT-001")
+	task1 := task.NewProtoTask("TASK-001", "Task One")
+	task.SetInitiativeProto(task1,"INIT-001")
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Also create a second task that should be linked
-	task2 := task.New("TASK-002", "Task Two")
+	task2 := task.NewProtoTask("TASK-002", "Task Two")
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -539,8 +540,8 @@ func TestInitiativeLinkSkipsFullyLinkedTask(t *testing.T) {
 
 	// Verify TASK-002 is now linked
 	reloadedTask2, _ := backend.LoadTask("TASK-002")
-	if reloadedTask2.InitiativeID != "INIT-001" {
-		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.InitiativeID)
+	if reloadedTask2.GetInitiativeId() != "INIT-001" {
+		t.Errorf("task2 should be linked to INIT-001, got %q", reloadedTask2.GetInitiativeId())
 	}
 }
 
@@ -557,8 +558,8 @@ func TestInitiativeLinkPatternFixesPartialLink(t *testing.T) {
 	}
 
 	// Create task that claims to be linked to INIT-001 but isn't in the list
-	task1 := task.New("TASK-001", "Auth Login")
-	task1.SetInitiative("INIT-001") // Set initiative_id, but not in initiative's list
+	task1 := task.NewProtoTask("TASK-001", "Auth Login")
+	task.SetInitiativeProto(task1,"INIT-001") // Set initiative_id, but not in initiative's list
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
@@ -688,7 +689,7 @@ tasks:
 	}
 
 	// Verify dependencies
-	var secondTask *task.Task
+	var secondTask *orcv1.Task
 	for _, tk := range allTasks {
 		if tk.Title == "Second task" {
 			secondTask = tk
@@ -767,7 +768,7 @@ tasks:
 	}
 
 	// Verify spec was stored
-	spec, err := backend.GetSpecForTask(tasks[0].ID)
+	spec, err := backend.GetSpecForTask(tasks[0].Id)
 	if err != nil {
 		t.Fatalf("get spec: %v", err)
 	}
@@ -965,7 +966,7 @@ tasks:
 	}
 
 	// Verify dependencies reference correct task IDs
-	taskByTitle := make(map[string]*task.Task)
+	taskByTitle := make(map[string]*orcv1.Task)
 	for _, tk := range tasks {
 		taskByTitle[tk.Title] = tk
 	}
@@ -993,8 +994,8 @@ tasks:
 	if firstTask == nil {
 		t.Fatal("could not find first task")
 	}
-	if secondTask.BlockedBy[0] != firstTask.ID {
-		t.Errorf("second task blocker = %q, want %q", secondTask.BlockedBy[0], firstTask.ID)
+	if secondTask.BlockedBy[0] != firstTask.Id {
+		t.Errorf("second task blocker = %q, want %q", secondTask.BlockedBy[0], firstTask.Id)
 	}
 }
 
@@ -1043,8 +1044,8 @@ tasks:
 		t.Fatalf("load tasks: %v", err)
 	}
 	for _, tk := range tasks {
-		if tk.InitiativeID != "INIT-001" {
-			t.Errorf("task %s InitiativeID = %q, want INIT-001", tk.ID, tk.InitiativeID)
+		if tk.GetInitiativeId() != "INIT-001" {
+			t.Errorf("task %s InitiativeID = %q, want INIT-001", tk.Id, tk.GetInitiativeId())
 		}
 	}
 }
@@ -1070,9 +1071,9 @@ func TestInitiativeListAutoCompletes(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Completed task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
+	tk := task.NewProtoTask("TASK-001", "Completed task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(tk,"INIT-001")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -1119,9 +1120,9 @@ func TestInitiativeListDoesNotAutoCompleteWithBranchBase(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
+	tk := task.NewProtoTask("TASK-001", "Task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(tk,"INIT-001")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -1225,9 +1226,9 @@ func TestInitiativeShowAutoCompletes(t *testing.T) {
 	}
 
 	// Create completed task
-	tk := task.New("TASK-001", "Done task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-001")
+	tk := task.NewProtoTask("TASK-001", "Done task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(tk,"INIT-001")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -1283,9 +1284,9 @@ func TestInitiativeListAutoCompleteDoesNotBreakOnError(t *testing.T) {
 	}
 
 	// Create the task for init2
-	tk := task.New("TASK-001", "Completed task")
-	tk.Status = task.StatusCompleted
-	tk.SetInitiative("INIT-002")
+	tk := task.NewProtoTask("TASK-001", "Completed task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	task.SetInitiativeProto(tk,"INIT-002")
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}

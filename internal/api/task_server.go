@@ -60,7 +60,7 @@ func (s *taskServer) ListTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListTasksRequest],
 ) (*connect.Response[orcv1.ListTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		// Return empty list if no tasks yet
 		return connect.NewResponse(&orcv1.ListTasksResponse{
@@ -191,13 +191,13 @@ func (s *taskServer) GetTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Populate computed fields
-	allTasks, _ := s.backend.LoadAllTasksProto()
+	allTasks, _ := s.backend.LoadAllTasks()
 	if allTasks != nil {
 		t.Blocks = task.ComputeBlocksProto(t.Id, allTasks)
 		t.ReferencedBy = task.ComputeReferencedByProto(t.Id, allTasks)
@@ -266,7 +266,7 @@ func (s *taskServer) CreateTask(
 	}
 
 	// Save the task
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -290,7 +290,7 @@ func (s *taskServer) UpdateTask(
 	}
 
 	// Load existing task
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -331,7 +331,7 @@ func (s *taskServer) UpdateTask(
 	task.UpdateTimestampProto(t)
 
 	// Save the task
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -355,7 +355,7 @@ func (s *taskServer) DeleteTask(
 	}
 
 	// Check task exists
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -387,7 +387,7 @@ func (s *taskServer) GetTaskState(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -406,7 +406,7 @@ func (s *taskServer) GetTaskPlan(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -445,13 +445,13 @@ func (s *taskServer) GetDependencies(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
 	// Load all tasks to compute dependencies
-	allTasks, err := s.backend.LoadAllTasksProto()
+	allTasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -548,7 +548,7 @@ func (s *taskServer) RunTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -559,7 +559,7 @@ func (s *taskServer) RunTask(
 	}
 
 	// Check if task is blocked by dependencies
-	allTasks, _ := s.backend.LoadAllTasksProto()
+	allTasks, _ := s.backend.LoadAllTasks()
 	if allTasks != nil {
 		taskMap := make(map[string]*orcv1.Task)
 		for _, at := range allTasks {
@@ -574,7 +574,7 @@ func (s *taskServer) RunTask(
 	// Set task to running
 	task.MarkStartedProto(t)
 
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -597,7 +597,7 @@ func (s *taskServer) PauseTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -611,7 +611,7 @@ func (s *taskServer) PauseTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -634,7 +634,7 @@ func (s *taskServer) ResumeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -650,7 +650,7 @@ func (s *taskServer) ResumeTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -673,7 +673,7 @@ func (s *taskServer) SkipBlock(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -686,7 +686,7 @@ func (s *taskServer) SkipBlock(
 		}
 		task.UpdateTimestampProto(t)
 
-		if err := s.backend.SaveTaskProto(t); err != nil {
+		if err := s.backend.SaveTask(t); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 		}
 
@@ -714,7 +714,7 @@ func (s *taskServer) RetryTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -759,7 +759,7 @@ func (s *taskServer) RetryTask(
 	task.EnsureQualityMetricsProto(t)
 	t.Quality.TotalRetries++
 
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -783,7 +783,7 @@ func (s *taskServer) RetryPreview(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -831,7 +831,7 @@ func (s *taskServer) FinalizeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -846,7 +846,7 @@ func (s *taskServer) FinalizeTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_FINALIZING
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -878,7 +878,7 @@ func (s *taskServer) GetFinalizeState(
 	}
 
 	// Load task to get finalization state
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -919,7 +919,7 @@ func (s *taskServer) GetDiff(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -974,7 +974,7 @@ func (s *taskServer) GetDiffStats(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	t, err := s.backend.LoadTaskProto(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
@@ -1016,6 +1016,63 @@ func (s *taskServer) GetDiffStats(
 			Additions:    int32(stats.Additions),
 			Deletions:    int32(stats.Deletions),
 		},
+	}), nil
+}
+
+// GetFileDiff returns the diff for a single file with hunks.
+func (s *taskServer) GetFileDiff(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetFileDiffRequest],
+) (*connect.Response[orcv1.GetFileDiffResponse], error) {
+	if req.Msg.Id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	}
+	if req.Msg.FilePath == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_path is required"))
+	}
+
+	t, err := s.backend.LoadTask(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+	}
+
+	diffSvc := diff.NewService(s.projectRoot, s.diffCache)
+
+	var fileDiff *diff.FileDiff
+
+	// Strategy 1: Merged PR with merge commit SHA
+	if t.Pr != nil && t.Pr.Merged && t.Pr.MergeCommitSha != nil && *t.Pr.MergeCommitSha != "" {
+		fileDiff, err = diffSvc.GetMergeCommitFileDiff(ctx, *t.Pr.MergeCommitSha, req.Msg.FilePath)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get merge commit file diff: %w", err))
+		}
+	} else {
+		// Strategy 2: Branch comparison
+		base := "main"
+		head := t.Branch
+		if head == "" {
+			head = "HEAD"
+		}
+
+		base = diffSvc.ResolveRef(ctx, base)
+		head = diffSvc.ResolveRef(ctx, head)
+
+		useWorkingTree, effectiveHead := diffSvc.ShouldIncludeWorkingTree(ctx, base, head)
+		if useWorkingTree {
+			head = effectiveHead
+		}
+
+		fileDiff, err = diffSvc.GetFileDiff(ctx, base, head, req.Msg.FilePath)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get file diff: %w", err))
+		}
+	}
+
+	// Convert to proto
+	protoFileDiff := fileDiffToProto(fileDiff)
+
+	return connect.NewResponse(&orcv1.GetFileDiffResponse{
+		File: protoFileDiff,
 	}), nil
 }
 
@@ -1486,6 +1543,49 @@ func (s *taskServer) DeleteAttachment(
 // Conversion Helpers
 // ============================================================================
 
+func fileDiffToProto(f *diff.FileDiff) *orcv1.FileDiff {
+	if f == nil {
+		return nil
+	}
+	fileDiff := &orcv1.FileDiff{
+		Path:      f.Path,
+		Status:    f.Status,
+		Additions: int32(f.Additions),
+		Deletions: int32(f.Deletions),
+		Binary:    f.Binary,
+		Syntax:    f.Syntax,
+	}
+	if f.OldPath != "" {
+		fileDiff.OldPath = &f.OldPath
+	}
+	fileDiff.Hunks = make([]*orcv1.DiffHunk, len(f.Hunks))
+	for j, h := range f.Hunks {
+		fileDiff.Hunks[j] = &orcv1.DiffHunk{
+			OldStart: int32(h.OldStart),
+			OldLines: int32(h.OldLines),
+			NewStart: int32(h.NewStart),
+			NewLines: int32(h.NewLines),
+		}
+		fileDiff.Hunks[j].Lines = make([]*orcv1.DiffLine, len(h.Lines))
+		for k, l := range h.Lines {
+			line := &orcv1.DiffLine{
+				Type:    l.Type,
+				Content: l.Content,
+			}
+			if l.OldLine > 0 {
+				oldLine := int32(l.OldLine)
+				line.OldLine = &oldLine
+			}
+			if l.NewLine > 0 {
+				newLine := int32(l.NewLine)
+				line.NewLine = &newLine
+			}
+			fileDiff.Hunks[j].Lines[k] = line
+		}
+	}
+	return fileDiff
+}
+
 func diffResultToProto(d *diff.DiffResult) *orcv1.DiffResult {
 	if d == nil {
 		return nil
@@ -1739,7 +1839,7 @@ func (s *taskServer) ExportTask(
 	// Perform export
 	if req.Msg.ToBranch {
 		// Get current branch for the task
-		t, err := s.backend.LoadTaskProto(taskID)
+		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load task: %w", err))
 		}
@@ -1771,7 +1871,7 @@ func (s *taskServer) PauseAllTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.PauseAllTasksRequest],
 ) (*connect.Response[orcv1.PauseAllTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -1780,7 +1880,7 @@ func (s *taskServer) PauseAllTasks(
 	for _, t := range tasks {
 		if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-			if err := s.backend.SaveTaskProto(t); err != nil {
+			if err := s.backend.SaveTask(t); err != nil {
 				s.logger.Warn("failed to pause task", "task_id", t.Id, "error", err)
 				continue
 			}
@@ -1804,7 +1904,7 @@ func (s *taskServer) ResumeAllTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ResumeAllTasksRequest],
 ) (*connect.Response[orcv1.ResumeAllTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasksProto()
+	tasks, err := s.backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -1813,7 +1913,7 @@ func (s *taskServer) ResumeAllTasks(
 	for _, t := range tasks {
 		if t.Status == orcv1.TaskStatus_TASK_STATUS_PAUSED {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-			if err := s.backend.SaveTaskProto(t); err != nil {
+			if err := s.backend.SaveTask(t); err != nil {
 				s.logger.Warn("failed to resume task", "task_id", t.Id, "error", err)
 				continue
 			}
