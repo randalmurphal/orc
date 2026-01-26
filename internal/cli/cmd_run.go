@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -171,26 +172,26 @@ func runRun(cmd *cobra.Command, args []string) error {
 	defer func() { _ = backend.Close() }()
 
 	// If we have an existing task, load it and use its workflow_id
-	var existingTask *task.Task
+	var existingTask *orcv1.Task
 	if existingTaskID != "" {
-		existingTask, err = backend.LoadTask(existingTaskID)
+		existingTask, err = backend.LoadTaskProto(existingTaskID)
 		if err != nil {
 			return fmt.Errorf("load task: %w", err)
 		}
 
 		// Check task status
-		if err := checkTaskCanRun(existingTask, force); err != nil {
+		if err := checkTaskCanRunProto(existingTask, force); err != nil {
 			return err
 		}
 
 		// Check dependencies
-		if err := checkTaskDependencies(backend, existingTask, force); err != nil {
+		if err := checkTaskDependenciesProto(backend, existingTask, force); err != nil {
 			return err
 		}
 
 		// If no workflow specified, use task's workflow - MUST be set
 		if workflowID == "" {
-			workflowID = existingTask.WorkflowID
+			workflowID = task.GetWorkflowIDProto(existingTask)
 			if workflowID == "" {
 				return fmt.Errorf("task %s has no workflow_id set - cannot run\n\nSet workflow with: orc edit %s --workflow <workflow-id>\nSee available workflows: orc workflows", existingTaskID, existingTaskID)
 			}
@@ -198,7 +199,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 		// Use task description as prompt if not provided
 		if prompt == "" {
-			prompt = existingTask.Description
+			prompt = task.GetDescriptionProto(existingTask)
 		}
 	}
 
@@ -335,49 +336,49 @@ func runRun(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// checkTaskCanRun verifies that a task is in a runnable state.
-func checkTaskCanRun(t *task.Task, force bool) error {
-	if t.CanRun() || t.Status == task.StatusRunning {
+// checkTaskCanRunProto verifies that a task is in a runnable state.
+func checkTaskCanRunProto(t *orcv1.Task, force bool) error {
+	if task.CanRunProto(t) || t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		return nil
 	}
 
 	switch t.Status {
-	case task.StatusPaused:
-		return fmt.Errorf("task %s is paused\n\nTo resume: orc resume %s", t.ID, t.ID)
-	case task.StatusBlocked:
-		return fmt.Errorf("task %s is blocked and needs user input\n\nTo view: orc show %s", t.ID, t.ID)
-	case task.StatusCompleted:
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED:
+		return fmt.Errorf("task %s is paused\n\nTo resume: orc resume %s", t.Id, t.Id)
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		return fmt.Errorf("task %s is blocked and needs user input\n\nTo view: orc show %s", t.Id, t.Id)
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 		if force {
 			return nil
 		}
-		return fmt.Errorf("task %s is already completed\n\nTo rerun: use --force flag", t.ID)
-	case task.StatusFailed:
-		return fmt.Errorf("task %s has failed\n\nTo resume: orc resume %s\nTo view log: orc log %s", t.ID, t.ID, t.ID)
+		return fmt.Errorf("task %s is already completed\n\nTo rerun: use --force flag", t.Id)
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
+		return fmt.Errorf("task %s has failed\n\nTo resume: orc resume %s\nTo view log: orc log %s", t.Id, t.Id, t.Id)
 	default:
 		return fmt.Errorf("task cannot be run (status: %s)", t.Status)
 	}
 }
 
-// checkTaskDependencies verifies that task dependencies are satisfied.
-func checkTaskDependencies(backend storage.Backend, t *task.Task, force bool) error {
+// checkTaskDependenciesProto verifies that task dependencies are satisfied.
+func checkTaskDependenciesProto(backend storage.Backend, t *orcv1.Task, force bool) error {
 	if len(t.BlockedBy) == 0 {
 		return nil
 	}
 
 	// Load all tasks to check blocker status
-	allTasks, err := backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasksProto()
 	if err != nil {
 		return fmt.Errorf("load tasks for dependency check: %w", err)
 	}
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, tsk := range allTasks {
-		taskMap[tsk.ID] = tsk
+		taskMap[tsk.Id] = tsk
 	}
 
 	// Get incomplete blockers
-	blockers := t.GetIncompleteBlockers(taskMap)
+	blockers := task.GetIncompleteBlockersProto(t, taskMap)
 	if len(blockers) == 0 {
 		return nil
 	}

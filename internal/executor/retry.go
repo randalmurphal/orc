@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -83,6 +84,25 @@ func LoadRetryContextFromExecution(e *task.ExecutionState) string {
 	}
 
 	return BuildRetryContext(rc.FromPhase, rc.Reason, rc.FailureOutput, rc.Attempt, rc.ContextFile)
+}
+
+// LoadRetryContextFromExecutionProto loads retry context from proto ExecutionState.
+func LoadRetryContextFromExecutionProto(e *orcv1.ExecutionState) string {
+	if e == nil || e.RetryContext == nil {
+		return ""
+	}
+
+	rc := e.RetryContext
+	failureOutput := ""
+	if rc.FailureOutput != nil {
+		failureOutput = *rc.FailureOutput
+	}
+	contextFile := ""
+	if rc.ContextFile != nil {
+		contextFile = *rc.ContextFile
+	}
+
+	return BuildRetryContext(rc.FromPhase, rc.Reason, failureOutput, int(rc.Attempt), contextFile)
 }
 
 // BuildRetryContext constructs the retry context string for prompt injection.

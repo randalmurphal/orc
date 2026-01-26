@@ -6,99 +6,105 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestPRPoller_ShouldPoll(t *testing.T) {
 	t.Parallel()
 	poller := &PRPoller{}
 
+	prURL := "https://github.com/owner/repo/pull/123"
+	recentTime := timestamppb.New(time.Now().Add(-10 * time.Second))
+	oldTime := timestamppb.New(time.Now().Add(-60 * time.Second))
+
 	tests := []struct {
 		name     string
-		task     *task.Task
+		task     *orcv1.Task
 		expected bool
 	}{
 		{
 			name:     "no PR info",
-			task:     &task.Task{ID: "TASK-001"},
+			task:     &orcv1.Task{Id: "TASK-001"},
 			expected: false,
 		},
 		{
 			name: "empty PR URL",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{},
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{},
 			},
 			expected: false,
 		},
 		{
 			name: "merged PR",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:    "https://github.com/owner/repo/pull/123",
-					Status: task.PRStatusMerged,
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:    &prURL,
+					Status: orcv1.PRStatus_PR_STATUS_MERGED,
 				},
 			},
 			expected: false,
 		},
 		{
 			name: "closed PR",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:    "https://github.com/owner/repo/pull/123",
-					Status: task.PRStatusClosed,
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:    &prURL,
+					Status: orcv1.PRStatus_PR_STATUS_CLOSED,
 				},
 			},
 			expected: false,
 		},
 		{
 			name: "pending review - should poll",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:    "https://github.com/owner/repo/pull/123",
-					Status: task.PRStatusPendingReview,
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:    &prURL,
+					Status: orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
 				},
 			},
 			expected: true,
 		},
 		{
 			name: "approved - should poll",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:    "https://github.com/owner/repo/pull/123",
-					Status: task.PRStatusApproved,
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:    &prURL,
+					Status: orcv1.PRStatus_PR_STATUS_APPROVED,
 				},
 			},
 			expected: true,
 		},
 		{
 			name: "recently checked - skip",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:           "https://github.com/owner/repo/pull/123",
-					Status:        task.PRStatusPendingReview,
-					LastCheckedAt: ptrTime(time.Now().Add(-10 * time.Second)),
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:           &prURL,
+					Status:        orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
+					LastCheckedAt: recentTime,
 				},
 			},
 			expected: false,
 		},
 		{
 			name: "checked a while ago - should poll",
-			task: &task.Task{
-				ID: "TASK-001",
-				PR: &task.PRInfo{
-					URL:           "https://github.com/owner/repo/pull/123",
-					Status:        task.PRStatusPendingReview,
-					LastCheckedAt: ptrTime(time.Now().Add(-60 * time.Second)),
+			task: &orcv1.Task{
+				Id: "TASK-001",
+				Pr: &orcv1.PRInfo{
+					Url:           &prURL,
+					Status:        orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
+					LastCheckedAt: oldTime,
 				},
 			},
 			expected: true,
@@ -199,11 +205,6 @@ func TestNewPRPoller(t *testing.T) {
 	if poller2.interval != 30*time.Second {
 		t.Errorf("custom interval = %v, want 30s", poller2.interval)
 	}
-}
-
-// Helper for pointer to time
-func ptrTime(t time.Time) *time.Time {
-	return &t
 }
 
 // emptyBackend implements storage.Backend with LoadAllTasks returning empty list.
@@ -348,7 +349,19 @@ func (b *emptyBackend) GetProjectCommandsMap() (map[string]*db.ProjectCommand, e
 }
 func (b *emptyBackend) DeleteProjectCommand(string) error            { return nil }
 func (b *emptyBackend) SetProjectCommandEnabled(string, bool) error  { return nil }
-func (b *emptyBackend) DB() *db.ProjectDB                            { return nil }
+func (b *emptyBackend) DB() *db.ProjectDB { return nil }
+
+// Proto methods
+func (b *emptyBackend) SaveTaskProto(*orcv1.Task) error              { return nil }
+func (b *emptyBackend) LoadTaskProto(string) (*orcv1.Task, error)    { return nil, nil }
+func (b *emptyBackend) LoadAllTasksProto() ([]*orcv1.Task, error)    { return nil, nil }
+func (b *emptyBackend) SaveInitiativeProto(*orcv1.Initiative) error  { return nil }
+func (b *emptyBackend) LoadInitiativeProto(string) (*orcv1.Initiative, error) {
+	return nil, nil
+}
+func (b *emptyBackend) LoadAllInitiativesProto() ([]*orcv1.Initiative, error) {
+	return nil, nil
+}
 
 func TestPRPoller_StopTwice(t *testing.T) {
 	t.Parallel()

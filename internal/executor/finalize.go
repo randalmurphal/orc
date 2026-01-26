@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // FinalizeExecutor executes the finalize phase which prepares the task branch
@@ -45,7 +45,7 @@ type FinalizeExecutor struct {
 	orcConfig        *config.Config
 	workingDir       string
 	taskDir          string
-	executionUpdater func(*task.ExecutionState)
+	executionUpdater func(*orcv1.ExecutionState)
 	backend          storage.Backend
 
 	// turnExecutor allows injection of a mock for testing
@@ -95,7 +95,7 @@ func WithFinalizeTaskDir(dir string) FinalizeExecutorOption {
 }
 
 // WithFinalizeExecutionUpdater sets the execution state updater callback.
-func WithFinalizeExecutionUpdater(fn func(*task.ExecutionState)) FinalizeExecutorOption {
+func WithFinalizeExecutionUpdater(fn func(*orcv1.ExecutionState)) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.executionUpdater = fn }
 }
 
@@ -175,20 +175,20 @@ type FinalizeResult struct {
 }
 
 // Execute runs the finalize phase.
-func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDisplay, exec *task.ExecutionState) (*Result, error) {
+func (e *FinalizeExecutor) Execute(ctx context.Context, t *orcv1.Task, p *PhaseDisplay, exec *orcv1.ExecutionState) (*Result, error) {
 	start := time.Now()
 	result := &Result{
 		Phase:  p.ID,
-		Status: task.PhaseStatusRunning,
+		Status: orcv1.PhaseStatus_PHASE_STATUS_RUNNING,
 	}
 
-	e.publisher.PhaseStart(t.ID, p.ID)
+	e.publisher.PhaseStart(t.Id, p.ID)
 
 	// Get finalize configuration
 	finalizeCfg := e.getFinalizeConfig()
 	if !finalizeCfg.Enabled {
-		e.logger.Info("finalize phase disabled, skipping", "task", t.ID)
-		result.Status = task.PhaseStatusCompleted
+		e.logger.Info("finalize phase disabled, skipping", "task", t.Id)
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
 		result.Duration = time.Since(start)
 		return result, nil
 	}
@@ -196,26 +196,26 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 	targetBranch := ResolveTargetBranchForTask(t, e.backend, e.orcConfig)
 
 	e.logger.Info("starting finalize phase",
-		"task", t.ID,
+		"task", t.Id,
 		"target_branch", targetBranch,
 		"sync_strategy", finalizeCfg.Sync.Strategy,
 	)
 
 	// Step 1: Fetch latest target branch
-	e.publishProgress(t.ID, p.ID, "Fetching latest changes from remote...")
+	e.publishProgress(t.Id, p.ID, "Fetching latest changes from remote...")
 	if err := e.fetchTarget(); err != nil {
 		result.Error = fmt.Errorf("fetch target: %w", err)
-		result.Status = task.PhaseStatusFailed
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
 
 	// Step 2: Check divergence
-	e.publishProgress(t.ID, p.ID, "Checking branch divergence...")
+	e.publishProgress(t.Id, p.ID, "Checking branch divergence...")
 	ahead, behind, err := e.checkDivergence(targetBranch)
 	if err != nil {
 		result.Error = fmt.Errorf("check divergence: %w", err)
-		result.Status = task.PhaseStatusFailed
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 		result.Duration = time.Since(start)
 		return result, result.Error
 	}
@@ -228,27 +228,27 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 	// If already up-to-date, skip sync
 	if behind == 0 {
 		e.logger.Info("branch already up-to-date with target")
-		e.publishProgress(t.ID, p.ID, "Branch already up-to-date with target branch")
+		e.publishProgress(t.Id, p.ID, "Branch already up-to-date with target branch")
 	} else {
 		// Step 3: Sync with target branch
-		e.publishProgress(t.ID, p.ID, fmt.Sprintf("Syncing with %s (%d commits behind)...", targetBranch, behind))
+		e.publishProgress(t.Id, p.ID, fmt.Sprintf("Syncing with %s (%d commits behind)...", targetBranch, behind))
 		finalizeResult, err := e.syncWithTarget(ctx, t, p, exec, targetBranch, finalizeCfg)
 		if err != nil {
 			// Check if we should escalate to implement phase
 			if e.shouldEscalate(finalizeResult, finalizeCfg) {
 				result.Error = fmt.Errorf("finalize failed, needs escalation to implement phase: %w", err)
-				result.Status = task.PhaseStatusFailed
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 				result.Output = buildEscalationContext(finalizeResult)
 			} else {
 				result.Error = fmt.Errorf("sync with target: %w", err)
-				result.Status = task.PhaseStatusFailed
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 			}
 			result.Duration = time.Since(start)
 			return result, result.Error
 		}
 
 		// Step 4: Run tests after sync
-		e.publishProgress(t.ID, p.ID, "Running test suite after sync...")
+		e.publishProgress(t.Id, p.ID, "Running test suite after sync...")
 		testResult, err := e.runTests(ctx, t, finalizeCfg)
 		if err != nil {
 			finalizeResult.TestsPassed = false
@@ -260,18 +260,18 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 
 			// Try to fix tests using Claude
 			if finalizeCfg.ConflictResolution.Enabled {
-				e.publishProgress(t.ID, p.ID, "Tests failed, attempting to fix...")
+				e.publishProgress(t.Id, p.ID, "Tests failed, attempting to fix...")
 				fixed, fixErr := e.tryFixTests(ctx, t, p, exec, testResult)
 				if fixErr != nil || !fixed {
 					result.Error = fmt.Errorf("tests failed after sync and fix attempt: %v failures", len(testResult.Failures))
-					result.Status = task.PhaseStatusFailed
+					result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 					result.Output = buildTestFailureContext(testResult)
 					result.Duration = time.Since(start)
 					return result, result.Error
 				}
 			} else {
 				result.Error = fmt.Errorf("tests failed after sync: %v failures", len(testResult.Failures))
-				result.Status = task.PhaseStatusFailed
+				result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED
 				result.Output = buildTestFailureContext(testResult)
 				result.Duration = time.Since(start)
 				return result, result.Error
@@ -280,7 +280,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 		finalizeResult.TestsPassed = true
 
 		// Step 5: Risk assessment
-		e.publishProgress(t.ID, p.ID, "Performing risk assessment...")
+		e.publishProgress(t.Id, p.ID, "Performing risk assessment...")
 		if err := e.assessRisk(finalizeResult, targetBranch, finalizeCfg); err != nil {
 			e.logger.Warn("risk assessment failed", "error", err)
 		}
@@ -295,7 +295,7 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 		}
 
 		// Step 6: Create finalization commit
-		e.publishProgress(t.ID, p.ID, "Creating finalization commit...")
+		e.publishProgress(t.Id, p.ID, "Creating finalization commit...")
 		commitSHA, err := e.createFinalizeCommit(t, finalizeResult)
 		if err != nil {
 			e.logger.Warn("failed to create finalize commit", "error", err)
@@ -305,14 +305,14 @@ func (e *FinalizeExecutor) Execute(ctx context.Context, t *task.Task, p *PhaseDi
 		}
 
 		// Build result output
-		result.Output = buildFinalizeReport(t.ID, targetBranch, finalizeResult)
+		result.Output = buildFinalizeReport(t.Id, targetBranch, finalizeResult)
 	}
 
-	result.Status = task.PhaseStatusCompleted
+	result.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED
 	result.Duration = time.Since(start)
 
 	e.logger.Info("finalize phase complete",
-		"task", t.ID,
+		"task", t.Id,
 		"duration", result.Duration,
 	)
 
@@ -383,9 +383,9 @@ func (e *FinalizeExecutor) checkDivergence(targetBranch string) (ahead int, behi
 // syncWithTarget syncs the task branch with the target branch.
 func (e *FinalizeExecutor) syncWithTarget(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	targetBranch string,
 	cfg config.FinalizeConfig,
 ) (*FinalizeResult, error) {
@@ -418,7 +418,7 @@ func (e *FinalizeExecutor) syncWithTarget(
 	// Restore .orc/ from target branch to prevent worktree contamination
 	// This ensures any modifications to .orc/ during task execution don't get merged
 	if syncResult.Synced {
-		restored, restoreErr := e.gitSvc.RestoreOrcDir(target, t.ID)
+		restored, restoreErr := e.gitSvc.RestoreOrcDir(target, t.Id)
 		if restoreErr != nil {
 			e.logger.Warn("failed to restore .orc/ directory", "error", restoreErr)
 			// Don't fail the sync - restoration is defense-in-depth
@@ -430,7 +430,7 @@ func (e *FinalizeExecutor) syncWithTarget(
 
 		// Restore .claude/settings.json to prevent worktree isolation hooks from being merged
 		// Worktrees inject hooks with machine-specific paths that shouldn't be shared
-		restoredSettings, restoreErr := e.gitSvc.RestoreClaudeSettings(target, t.ID)
+		restoredSettings, restoreErr := e.gitSvc.RestoreClaudeSettings(target, t.Id)
 		if restoreErr != nil {
 			e.logger.Warn("failed to restore .claude/settings.json", "error", restoreErr)
 		} else if restoredSettings {
@@ -446,9 +446,9 @@ func (e *FinalizeExecutor) syncWithTarget(
 // syncViaMerge syncs by merging target into the task branch.
 func (e *FinalizeExecutor) syncViaMerge(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
 	result *FinalizeResult,
@@ -531,9 +531,9 @@ func (e *FinalizeExecutor) syncViaMerge(
 // syncViaRebase syncs by rebasing onto the target branch.
 func (e *FinalizeExecutor) syncViaRebase(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	target string,
 	cfg config.FinalizeConfig,
 	result *FinalizeResult,
@@ -573,9 +573,9 @@ func (e *FinalizeExecutor) syncViaRebase(
 // resolveConflicts uses Claude to resolve merge conflicts.
 func (e *FinalizeExecutor) resolveConflicts(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
 ) (bool, error) {
@@ -591,7 +591,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
 	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
-	sessionID := fmt.Sprintf("%s-conflict-resolution", t.ID)
+	sessionID := fmt.Sprintf("%s-conflict-resolution", t.Id)
 	if e.turnExecutor != nil {
 		turnExec = e.turnExecutor
 	} else {
@@ -605,7 +605,7 @@ func (e *FinalizeExecutor) resolveConflicts(
 			WithClaudePhaseID(p.ID),
 			// Transcript storage options - handled internally
 			WithClaudeBackend(e.backend),
-			WithClaudeTaskID(t.ID),
+			WithClaudeTaskID(t.Id),
 		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
@@ -630,9 +630,9 @@ func (e *FinalizeExecutor) resolveConflicts(
 // resolveRebaseConflicts resolves conflicts during rebase.
 func (e *FinalizeExecutor) resolveRebaseConflicts(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	conflictFiles []string,
 	cfg config.FinalizeConfig,
 ) (bool, error) {
@@ -696,7 +696,7 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 }
 
 // runTests runs the test suite after sync.
-func (e *FinalizeExecutor) runTests(ctx context.Context, t *task.Task, cfg config.FinalizeConfig) (*ParsedTestResult, error) {
+func (e *FinalizeExecutor) runTests(ctx context.Context, t *orcv1.Task, cfg config.FinalizeConfig) (*ParsedTestResult, error) {
 	// Get test command from config
 	testCmd := "go test ./... -v -race"
 	if e.orcConfig != nil && e.orcConfig.Testing.Commands.Unit != "" {
@@ -744,9 +744,9 @@ func (e *FinalizeExecutor) runTests(ctx context.Context, t *task.Task, cfg confi
 // tryFixTests attempts to fix test failures using Claude.
 func (e *FinalizeExecutor) tryFixTests(
 	ctx context.Context,
-	t *task.Task,
+	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *task.ExecutionState,
+	exec *orcv1.ExecutionState,
 	testResult *ParsedTestResult,
 ) (bool, error) {
 	// Build fix prompt
@@ -761,7 +761,7 @@ func (e *FinalizeExecutor) tryFixTests(
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
 	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
 	var turnExec TurnExecutor
-	sessionID := fmt.Sprintf("%s-test-fix", t.ID)
+	sessionID := fmt.Sprintf("%s-test-fix", t.Id)
 	if e.turnExecutor != nil {
 		turnExec = e.turnExecutor
 	} else {
@@ -775,7 +775,7 @@ func (e *FinalizeExecutor) tryFixTests(
 			WithClaudePhaseID(p.ID),
 			// Transcript storage options - handled internally
 			WithClaudeBackend(e.backend),
-			WithClaudeTaskID(t.ID),
+			WithClaudeTaskID(t.Id),
 		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
@@ -851,7 +851,7 @@ func (e *FinalizeExecutor) assessRisk(result *FinalizeResult, targetBranch strin
 }
 
 // createFinalizeCommit creates a commit documenting the finalization.
-func (e *FinalizeExecutor) createFinalizeCommit(t *task.Task, result *FinalizeResult) (string, error) {
+func (e *FinalizeExecutor) createFinalizeCommit(t *orcv1.Task, result *FinalizeResult) (string, error) {
 	if e.gitSvc == nil {
 		return "", fmt.Errorf("git service not available")
 	}
@@ -870,12 +870,12 @@ func (e *FinalizeExecutor) createFinalizeCommit(t *task.Task, result *FinalizeRe
 
 	// Build commit message
 	msg := fmt.Sprintf("[orc] %s: finalize - completed\n\nPhase: finalize\nStatus: completed\nConflicts resolved: %d\nRisk level: %s\nReady for merge: YES",
-		t.ID,
+		t.Id,
 		result.ConflictsResolved,
 		result.RiskLevel,
 	)
 
-	checkpoint, err := e.gitSvc.CreateCheckpoint(t.ID, "finalize", "completed")
+	checkpoint, err := e.gitSvc.CreateCheckpoint(t.Id, "finalize", "completed")
 	if err != nil {
 		// Try direct commit as fallback
 		if err := e.gitSvc.Context().StageAll(); err != nil {
@@ -918,13 +918,13 @@ func (e *FinalizeExecutor) publishProgress(taskID, phaseID, message string) {
 // Helper functions
 
 // buildConflictResolutionPrompt creates the prompt for conflict resolution.
-func buildConflictResolutionPrompt(t *task.Task, conflictFiles []string, cfg config.FinalizeConfig) string {
+func buildConflictResolutionPrompt(t *orcv1.Task, conflictFiles []string, cfg config.FinalizeConfig) string {
 	conflictCfg := cfg.ConflictResolution
 	var sb strings.Builder
 
 	sb.WriteString("# Conflict Resolution Task\n\n")
 	sb.WriteString("You are resolving merge conflicts for task: ")
-	sb.WriteString(t.ID)
+	sb.WriteString(t.Id)
 	sb.WriteString(" - ")
 	sb.WriteString(t.Title)
 	sb.WriteString("\n\n")
@@ -970,12 +970,12 @@ func buildConflictResolutionPrompt(t *task.Task, conflictFiles []string, cfg con
 }
 
 // buildTestFixPrompt creates the prompt for fixing test failures.
-func buildTestFixPrompt(t *task.Task, testResult *ParsedTestResult) string {
+func buildTestFixPrompt(t *orcv1.Task, testResult *ParsedTestResult) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Test Failure Fix Task\n\n")
 	sb.WriteString("You are fixing test failures for task: ")
-	sb.WriteString(t.ID)
+	sb.WriteString(t.Id)
 	sb.WriteString(" - ")
 	sb.WriteString(t.Title)
 	sb.WriteString("\n\n")

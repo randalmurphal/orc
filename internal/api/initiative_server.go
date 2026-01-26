@@ -44,7 +44,7 @@ func (s *initiativeServer) ListInitiatives(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListInitiativesRequest],
 ) (*connect.Response[orcv1.ListInitiativesResponse], error) {
-	initiatives, err := s.backend.LoadAllInitiatives()
+	initiatives, err := s.backend.LoadAllInitiativesProto()
 	if err != nil {
 		// Return empty list if no initiatives yet
 		return connect.NewResponse(&orcv1.ListInitiativesResponse{
@@ -54,15 +54,14 @@ func (s *initiativeServer) ListInitiatives(
 	}
 
 	if initiatives == nil {
-		initiatives = []*initiative.Initiative{}
+		initiatives = []*orcv1.Initiative{}
 	}
 
 	// Filter by status if requested
 	if req.Msg.Status != nil && *req.Msg.Status != orcv1.InitiativeStatus_INITIATIVE_STATUS_UNSPECIFIED {
-		var filtered []*initiative.Initiative
-		targetStatus := protoToInitiativeStatus(*req.Msg.Status)
+		var filtered []*orcv1.Initiative
 		for _, init := range initiatives {
-			if init.Status == targetStatus {
+			if init.Status == *req.Msg.Status {
 				filtered = append(filtered, init)
 			}
 		}
@@ -70,7 +69,7 @@ func (s *initiativeServer) ListInitiatives(
 	}
 
 	// Compute blocks (reverse dependency)
-	s.computeInitiativeBlocks(initiatives)
+	initiative.PopulateComputedFieldsProto(initiatives)
 
 	totalCount := int32(len(initiatives))
 
@@ -98,13 +97,7 @@ func (s *initiativeServer) ListInitiatives(
 	if offset < totalCount {
 		initiatives = initiatives[offset:endIdx]
 	} else {
-		initiatives = []*initiative.Initiative{}
-	}
-
-	// Convert to proto
-	protoInitiatives := make([]*orcv1.Initiative, len(initiatives))
-	for i, init := range initiatives {
-		protoInitiatives[i] = InitiativeToProto(init)
+		initiatives = []*orcv1.Initiative{}
 	}
 
 	// Calculate pagination response
@@ -114,7 +107,7 @@ func (s *initiativeServer) ListInitiatives(
 	}
 
 	return connect.NewResponse(&orcv1.ListInitiativesResponse{
-		Initiatives: protoInitiatives,
+		Initiatives: initiatives,
 		Page: &orcv1.PageResponse{
 			Page:       page,
 			Limit:      limit,
@@ -134,19 +127,19 @@ func (s *initiativeServer) GetInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	init, err := s.backend.LoadInitiative(req.Msg.Id)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
 	}
 
 	// Compute blocks
-	allInits, _ := s.backend.LoadAllInitiatives()
+	allInits, _ := s.backend.LoadAllInitiativesProto()
 	if allInits != nil {
-		init.Blocks = s.computeBlocksForInitiative(init.ID, allInits)
+		init.Blocks = initiative.ComputeBlocksProto(init.Id, allInits)
 	}
 
 	return connect.NewResponse(&orcv1.GetInitiativeResponse{
-		Initiative: InitiativeToProto(init),
+		Initiative: init,
 	}), nil
 }
 
@@ -165,34 +158,21 @@ func (s *initiativeServer) CreateInitiative(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("generate initiative ID: %w", err))
 	}
 
-	// Create the initiative
-	init := &initiative.Initiative{
-		Version: 1,
-		ID:      id,
-		Title:   req.Msg.Title,
-		Status:  initiative.StatusDraft,
-	}
+	// Create the initiative using proto types
+	init := initiative.NewProtoInitiative(id, req.Msg.Title)
 
 	// Set optional fields
 	if req.Msg.Vision != nil {
-		init.Vision = *req.Msg.Vision
+		init.Vision = req.Msg.Vision
 	}
 	if req.Msg.Owner != nil {
-		init.Owner = initiative.Identity{
-			Initials: req.Msg.Owner.Initials,
-		}
-		if req.Msg.Owner.DisplayName != nil {
-			init.Owner.DisplayName = *req.Msg.Owner.DisplayName
-		}
-		if req.Msg.Owner.Email != nil {
-			init.Owner.Email = *req.Msg.Owner.Email
-		}
+		init.Owner = req.Msg.Owner
 	}
 	if req.Msg.BranchBase != nil {
-		init.BranchBase = *req.Msg.BranchBase
+		init.BranchBase = req.Msg.BranchBase
 	}
 	if req.Msg.BranchPrefix != nil {
-		init.BranchPrefix = *req.Msg.BranchPrefix
+		init.BranchPrefix = req.Msg.BranchPrefix
 	}
 	if len(req.Msg.ContextFiles) > 0 {
 		init.ContextFiles = req.Msg.ContextFiles
@@ -202,17 +182,17 @@ func (s *initiativeServer) CreateInitiative(
 	}
 
 	// Save the initiative
-	if err := s.backend.SaveInitiative(init); err != nil {
+	if err := s.backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeCreated, init.ID, init))
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeCreated, init.Id, init))
 	}
 
 	return connect.NewResponse(&orcv1.CreateInitiativeResponse{
-		Initiative: InitiativeToProto(init),
+		Initiative: init,
 	}), nil
 }
 
@@ -226,7 +206,7 @@ func (s *initiativeServer) UpdateInitiative(
 	}
 
 	// Load existing initiative
-	init, err := s.backend.LoadInitiative(req.Msg.Id)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
 	}
@@ -236,27 +216,19 @@ func (s *initiativeServer) UpdateInitiative(
 		init.Title = *req.Msg.Title
 	}
 	if req.Msg.Vision != nil {
-		init.Vision = *req.Msg.Vision
+		init.Vision = req.Msg.Vision
 	}
 	if req.Msg.Status != nil && *req.Msg.Status != orcv1.InitiativeStatus_INITIATIVE_STATUS_UNSPECIFIED {
-		init.Status = protoToInitiativeStatus(*req.Msg.Status)
+		init.Status = *req.Msg.Status
 	}
 	if req.Msg.Owner != nil {
-		init.Owner = initiative.Identity{
-			Initials: req.Msg.Owner.Initials,
-		}
-		if req.Msg.Owner.DisplayName != nil {
-			init.Owner.DisplayName = *req.Msg.Owner.DisplayName
-		}
-		if req.Msg.Owner.Email != nil {
-			init.Owner.Email = *req.Msg.Owner.Email
-		}
+		init.Owner = req.Msg.Owner
 	}
 	if req.Msg.BranchBase != nil {
-		init.BranchBase = *req.Msg.BranchBase
+		init.BranchBase = req.Msg.BranchBase
 	}
 	if req.Msg.BranchPrefix != nil {
-		init.BranchPrefix = *req.Msg.BranchPrefix
+		init.BranchPrefix = req.Msg.BranchPrefix
 	}
 	if req.Msg.ContextFiles != nil {
 		init.ContextFiles = req.Msg.ContextFiles
@@ -265,18 +237,21 @@ func (s *initiativeServer) UpdateInitiative(
 		init.BlockedBy = req.Msg.BlockedBy
 	}
 
+	// Update timestamp
+	initiative.UpdateTimestampProto(init)
+
 	// Save the initiative
-	if err := s.backend.SaveInitiative(init); err != nil {
+	if err := s.backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, init.ID, init))
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, init.Id, init))
 	}
 
 	return connect.NewResponse(&orcv1.UpdateInitiativeResponse{
-		Initiative: InitiativeToProto(init),
+		Initiative: init,
 	}), nil
 }
 
@@ -290,7 +265,7 @@ func (s *initiativeServer) DeleteInitiative(
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiative(req.Msg.Id)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
 	}
@@ -318,35 +293,29 @@ func (s *initiativeServer) ListInitiativeTasks(
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
 
-	var tasks []*task.Task
+	var tasks []*orcv1.Task
 	for _, t := range allTasks {
-		if t.InitiativeID == req.Msg.InitiativeId {
+		if task.GetInitiativeIDProto(t) == req.Msg.InitiativeId {
 			tasks = append(tasks, t)
 		}
 	}
 
 	// Populate computed fields
-	task.PopulateComputedFields(tasks)
-
-	// Convert to proto
-	protoTasks := make([]*orcv1.Task, len(tasks))
-	for i, t := range tasks {
-		protoTasks[i] = TaskToProto(t)
-	}
+	task.PopulateComputedFieldsProto(tasks)
 
 	return connect.NewResponse(&orcv1.ListInitiativeTasksResponse{
-		Tasks: protoTasks,
+		Tasks: tasks,
 	}), nil
 }
 
@@ -363,32 +332,33 @@ func (s *initiativeServer) LinkTasks(
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Update each task's initiative ID
 	for _, taskID := range req.Msg.TaskIds {
-		t, err := s.backend.LoadTask(taskID)
+		t, err := s.backend.LoadTaskProto(taskID)
 		if err != nil {
 			continue // Skip non-existent tasks
 		}
-		t.InitiativeID = req.Msg.InitiativeId
-		if err := s.backend.SaveTask(t); err != nil {
+		t.InitiativeId = &req.Msg.InitiativeId
+		task.UpdateTimestampProto(t)
+		if err := s.backend.SaveTaskProto(t); err != nil {
 			s.logger.Warn("failed to link task", "task_id", taskID, "error", err)
 			continue
 		}
 	}
 
 	// Reload initiative to include task updates
-	init, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.LinkTasksResponse{
-		Initiative: InitiativeToProto(init),
+		Initiative: init,
 	}), nil
 }
 
@@ -405,19 +375,20 @@ func (s *initiativeServer) UnlinkTask(
 	}
 
 	// Load the task
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := s.backend.LoadTaskProto(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check task is linked to the initiative
-	if t.InitiativeID != req.Msg.InitiativeId {
+	if task.GetInitiativeIDProto(t) != req.Msg.InitiativeId {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task %s is not linked to initiative %s", req.Msg.TaskId, req.Msg.InitiativeId))
 	}
 
 	// Unlink
-	t.InitiativeID = ""
-	if err := s.backend.SaveTask(t); err != nil {
+	t.InitiativeId = nil
+	task.UpdateTimestampProto(t)
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -437,38 +408,34 @@ func (s *initiativeServer) AddDecision(
 	}
 
 	// Load initiative
-	init, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
-	// Create decision
-	decision := initiative.Decision{
-		ID:       fmt.Sprintf("DEC-%03d", len(init.Decisions)+1),
-		Decision: req.Msg.Decision,
-	}
+	// Add decision using proto helper
+	rationale := ""
+	by := ""
 	if req.Msg.Rationale != nil {
-		decision.Rationale = *req.Msg.Rationale
+		rationale = *req.Msg.Rationale
 	}
 	if req.Msg.By != nil {
-		decision.By = *req.Msg.By
+		by = *req.Msg.By
 	}
-
-	// Add to initiative
-	init.Decisions = append(init.Decisions, decision)
+	initiative.AddDecisionProto(init, req.Msg.Decision, rationale, by)
 
 	// Save
-	if err := s.backend.SaveInitiative(init); err != nil {
+	if err := s.backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, init.ID, init))
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeUpdated, init.Id, init))
 	}
 
 	return connect.NewResponse(&orcv1.AddDecisionResponse{
-		Initiative: InitiativeToProto(init),
+		Initiative: init,
 	}), nil
 }
 
@@ -482,50 +449,44 @@ func (s *initiativeServer) GetReadyTasks(
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
 
 	// Build task map for dependency checking
-	taskMap := make(map[string]*task.Task)
-	var initiativeTasks []*task.Task
+	taskMap := make(map[string]*orcv1.Task)
+	var initiativeTasks []*orcv1.Task
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
-		if t.InitiativeID == req.Msg.InitiativeId {
+		taskMap[t.Id] = t
+		if task.GetInitiativeIDProto(t) == req.Msg.InitiativeId {
 			initiativeTasks = append(initiativeTasks, t)
 		}
 	}
 
 	// Find ready tasks (not completed, not running, no unmet blockers)
-	var readyTasks []*task.Task
+	var readyTasks []*orcv1.Task
 	for _, t := range initiativeTasks {
 		// Skip completed or running tasks
-		if t.Status == task.StatusCompleted || t.Status == task.StatusRunning {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED || t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 			continue
 		}
 
 		// Check if all blockers are satisfied
-		unmet := t.GetUnmetDependencies(taskMap)
+		unmet := task.GetUnmetDependenciesProto(t, taskMap)
 		if len(unmet) == 0 {
 			readyTasks = append(readyTasks, t)
 		}
 	}
 
-	// Convert to proto
-	protoTasks := make([]*orcv1.Task, len(readyTasks))
-	for i, t := range readyTasks {
-		protoTasks[i] = TaskToProto(t)
-	}
-
 	return connect.NewResponse(&orcv1.GetReadyTasksResponse{
-		Tasks: protoTasks,
+		Tasks: readyTasks,
 	}), nil
 }
 
@@ -539,13 +500,13 @@ func (s *initiativeServer) GetDependencyGraph(
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -560,25 +521,25 @@ func (s *initiativeServer) GetDependencyGraph(
 	addedNodes := make(map[string]bool)
 
 	for _, t := range allTasks {
-		if t.InitiativeID != req.Msg.InitiativeId {
+		if task.GetInitiativeIDProto(t) != req.Msg.InitiativeId {
 			continue
 		}
 
 		// Add task as node
-		if !addedNodes[t.ID] {
+		if !addedNodes[t.Id] {
 			graph.Nodes = append(graph.Nodes, &orcv1.DependencyNode{
-				Id:     t.ID,
+				Id:     t.Id,
 				Title:  t.Title,
-				Status: taskStatusToProto(t.Status),
+				Status: t.Status,
 			})
-			addedNodes[t.ID] = true
+			addedNodes[t.Id] = true
 		}
 
 		// Add edges for blockers
 		for _, blockerID := range t.BlockedBy {
 			graph.Edges = append(graph.Edges, &orcv1.DependencyEdge{
 				From: blockerID,
-				To:   t.ID,
+				To:   t.Id,
 				Type: "blocks",
 			})
 		}
@@ -601,61 +562,61 @@ func (s *initiativeServer) RunInitiative(
 	}
 
 	// Load initiative
-	init, err := s.backend.LoadInitiative(req.Msg.InitiativeId)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all initiatives to check blocking status
-	allInits, err := s.backend.LoadAllInitiatives()
+	allInits, err := s.backend.LoadAllInitiativesProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load initiatives: %w", err))
 	}
-	initMap := make(map[string]*initiative.Initiative)
+	initMap := make(map[string]*orcv1.Initiative)
 	for _, i := range allInits {
-		initMap[i.ID] = i
+		initMap[i.Id] = i
 	}
 
 	// Check if initiative is blocked by other initiatives
-	if init.IsBlocked(initMap) {
-		blockers := init.GetIncompleteBlockers(initMap)
+	if initiative.IsBlockedProto(init, initMap) {
+		blockers := initiative.GetIncompleteBlockersProto(init, initMap)
 		blockerIDs := make([]string, len(blockers))
 		for i, b := range blockers {
 			blockerIDs[i] = b.ID
 		}
 		return connect.NewResponse(&orcv1.RunInitiativeResponse{
-			Initiative:     InitiativeToProto(init),
+			Initiative:     init,
 			StartedTaskIds: []string{},
 			Message:        fmt.Sprintf("Initiative is blocked by: %v. Complete blocking initiatives first.", blockerIDs),
 		}), nil
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
 
 	// Build task map for dependency checking
-	taskMap := make(map[string]*task.Task)
-	var initiativeTasks []*task.Task
+	taskMap := make(map[string]*orcv1.Task)
+	var initiativeTasks []*orcv1.Task
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
-		if t.InitiativeID == req.Msg.InitiativeId {
+		taskMap[t.Id] = t
+		if task.GetInitiativeIDProto(t) == req.Msg.InitiativeId {
 			initiativeTasks = append(initiativeTasks, t)
 		}
 	}
 
 	// Find ready tasks (not completed, not running, no unmet blockers)
-	var readyTasks []*task.Task
+	var readyTasks []*orcv1.Task
 	for _, t := range initiativeTasks {
 		// Skip completed or running tasks
-		if t.Status == task.StatusCompleted || t.Status == task.StatusRunning {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED || t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 			continue
 		}
 
 		// Check if all blockers are satisfied
-		unmet := t.GetUnmetDependencies(taskMap)
+		unmet := task.GetUnmetDependenciesProto(t, taskMap)
 		if len(unmet) == 0 {
 			readyTasks = append(readyTasks, t)
 		}
@@ -669,12 +630,12 @@ func (s *initiativeServer) RunInitiative(
 		blockedCount := 0
 		for _, t := range initiativeTasks {
 			switch t.Status {
-			case task.StatusCompleted:
+			case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 				completedCount++
-			case task.StatusRunning:
+			case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 				runningCount++
 			default:
-				if len(t.GetUnmetDependencies(taskMap)) > 0 {
+				if len(task.GetUnmetDependenciesProto(t, taskMap)) > 0 {
 					blockedCount++
 				}
 			}
@@ -688,7 +649,7 @@ func (s *initiativeServer) RunInitiative(
 		}
 
 		return connect.NewResponse(&orcv1.RunInitiativeResponse{
-			Initiative:     InitiativeToProto(init),
+			Initiative:     init,
 			StartedTaskIds: []string{},
 			Message:        message,
 		}), nil
@@ -703,45 +664,14 @@ func (s *initiativeServer) RunInitiative(
 	// Return the ready task IDs - client should call RunTask for each
 	readyTaskIDs := make([]string, len(readyTasks))
 	for i, t := range readyTasks {
-		readyTaskIDs[i] = t.ID
+		readyTaskIDs[i] = t.Id
 	}
 
 	return connect.NewResponse(&orcv1.RunInitiativeResponse{
-		Initiative:     InitiativeToProto(init),
+		Initiative:     init,
 		StartedTaskIds: readyTaskIDs,
 		Message:        fmt.Sprintf("%d task(s) ready to run. Call RunTask for each to start execution.", len(readyTasks)),
 	}), nil
 }
 
-// Helper functions
-
-// computeInitiativeBlocks computes the Blocks field for all initiatives.
-func (s *initiativeServer) computeInitiativeBlocks(initiatives []*initiative.Initiative) {
-	// Build map of initiative ID -> []IDs that it blocks
-	blocksMap := make(map[string][]string)
-	for _, init := range initiatives {
-		for _, blockedBy := range init.BlockedBy {
-			blocksMap[blockedBy] = append(blocksMap[blockedBy], init.ID)
-		}
-	}
-
-	// Apply to each initiative
-	for _, init := range initiatives {
-		init.Blocks = blocksMap[init.ID]
-	}
-}
-
-// computeBlocksForInitiative computes what initiatives this one blocks.
-func (s *initiativeServer) computeBlocksForInitiative(id string, allInits []*initiative.Initiative) []string {
-	var blocks []string
-	for _, init := range allInits {
-		for _, blockedBy := range init.BlockedBy {
-			if blockedBy == id {
-				blocks = append(blocks, init.ID)
-				break
-			}
-		}
-	}
-	return blocks
-}
 

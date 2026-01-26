@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -92,16 +93,16 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load all tasks
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Build execution state map from tasks (tasks now contain embedded execution state)
-	tasksByID := make(map[string]*task.Task, len(tasks))
+	tasksByID := make(map[string]*orcv1.Task, len(tasks))
 	for _, t := range tasks {
-		tasksByID[t.ID] = t
+		tasksByID[t.Id] = t
 	}
 
 	// Calculate current period stats
@@ -130,7 +131,7 @@ func (s *Server) handleGetDashboardStats(w http.ResponseWriter, r *http.Request)
 // For current period (periodEnd == now), include current status counts.
 // For historical periods, only compute completion-based metrics.
 // Uses pre-loaded tasksByID map to avoid N+1 queries.
-func (s *Server) calculatePeriodStats(tasks []*task.Task, tasksByID map[string]*task.Task, periodStart, periodEnd, today time.Time) DashboardStats {
+func (s *Server) calculatePeriodStats(tasks []*orcv1.Task, tasksByID map[string]*orcv1.Task, periodStart, periodEnd, today time.Time) DashboardStats {
 	stats := DashboardStats{}
 	isCurrentPeriod := periodEnd.After(time.Now().Add(-1 * time.Second)) // Check if this is the current period
 
@@ -143,63 +144,78 @@ func (s *Server) calculatePeriodStats(tasks []*task.Task, tasksByID map[string]*
 			stats.Total++
 
 			switch t.Status {
-			case task.StatusRunning:
+			case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 				// Check if task is orphaned using task's executor fields (optimized)
-				if isOrphaned, _ := t.CheckOrphaned(); isOrphaned {
+				if isOrphaned, _ := task.CheckOrphanedProto(t); isOrphaned {
 					stats.Orphaned++
 				} else {
 					stats.Running++
 				}
-			case task.StatusPaused:
+			case orcv1.TaskStatus_TASK_STATUS_PAUSED:
 				stats.Paused++
-			case task.StatusBlocked:
+			case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
 				stats.Blocked++
 			}
 
 			// Count tasks created or updated today
-			if t.CreatedAt.After(today) || (!t.UpdatedAt.IsZero() && t.UpdatedAt.After(today)) {
+			createdAt := t.CreatedAt.AsTime()
+			updatedAt := t.UpdatedAt.AsTime()
+			if createdAt.After(today) || (!updatedAt.IsZero() && updatedAt.After(today)) {
 				stats.Today++
 			}
 		}
 
 		// Period filtering for completed tasks
-		if t.Status == task.StatusCompleted {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			// For "all" period, include all completed tasks
 			// For specific periods, check if CompletedAt is within the range
-			inPeriod := periodStart.IsZero() || (t.CompletedAt != nil && t.CompletedAt.After(periodStart) && !t.CompletedAt.After(periodEnd))
+			var inPeriod bool
+			if periodStart.IsZero() {
+				inPeriod = true
+			} else if t.CompletedAt != nil {
+				completedAt := t.CompletedAt.AsTime()
+				inPeriod = completedAt.After(periodStart) && !completedAt.After(periodEnd)
+			}
 
 			if inPeriod {
 				stats.Completed++
 
 				// Calculate task duration for average
 				if t.StartedAt != nil && t.CompletedAt != nil {
-					duration := t.CompletedAt.Sub(*t.StartedAt).Seconds()
+					startedAt := t.StartedAt.AsTime()
+					completedAt := t.CompletedAt.AsTime()
+					duration := completedAt.Sub(startedAt).Seconds()
 					completedTaskTimes = append(completedTaskTimes, duration)
 				}
 
 				// Look up task from pre-loaded map (O(1) instead of DB queries)
-				if tsk, ok := tasksByID[t.ID]; ok && tsk != nil {
+				if tsk, ok := tasksByID[t.Id]; ok && tsk != nil && tsk.Execution != nil {
 					// Sum tokens from all phases in task's execution state
 					// Note: DB only stores InputTokens and OutputTokens per phase
 					// CacheCreation and CacheRead tokens are not persisted at phase level
-					var inputTokens, outputTokens int
+					var inputTokens, outputTokens int32
 					for _, phase := range tsk.Execution.Phases {
-						inputTokens += phase.Tokens.InputTokens
-						outputTokens += phase.Tokens.OutputTokens
+						if phase.Tokens != nil {
+							inputTokens += phase.Tokens.InputTokens
+							outputTokens += phase.Tokens.OutputTokens
+						}
 					}
 
 					stats.Tokens += int64(inputTokens + outputTokens)
 					// Cache tokens not available from DB phase storage
-					stats.Cost += tsk.Execution.Cost.TotalCostUSD
+					if tsk.Execution.Cost != nil {
+						stats.Cost += tsk.Execution.Cost.TotalCostUsd
+					}
 				}
 			}
 		}
 
 		// Period filtering for failed tasks
-		if t.Status == task.StatusFailed {
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED {
 			// Note: UpdatedAt is not persisted by database (SaveTask doesn't include it in INSERT)
 			// Use CreatedAt as proxy for failure time since tasks typically fail soon after creation
-			if periodStart.IsZero() || (t.CreatedAt.After(periodStart) && !t.CreatedAt.After(periodEnd)) {
+			createdAt := t.CreatedAt.AsTime()
+			if periodStart.IsZero() || (createdAt.After(periodStart) && !createdAt.After(periodEnd)) {
 				stats.Failed++
 			}
 		}

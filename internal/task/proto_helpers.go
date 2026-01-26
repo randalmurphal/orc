@@ -370,9 +370,9 @@ func GetUnmetDependenciesProto(t *orcv1.Task, tasks map[string]*orcv1.Task) []st
 
 // ProtoBlockerInfo contains information about a blocking task for display purposes.
 type ProtoBlockerInfo struct {
-	ID     string            `json:"id"`
-	Title  string            `json:"title"`
-	Status orcv1.TaskStatus  `json:"status"`
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Status string `json:"status"`
 }
 
 // GetIncompleteBlockersProto returns full information about blocking tasks that aren't completed.
@@ -388,7 +388,7 @@ func GetIncompleteBlockersProto(t *orcv1.Task, tasks map[string]*orcv1.Task) []P
 			blockers = append(blockers, ProtoBlockerInfo{
 				ID:     blockerID,
 				Title:  "(task not found)",
-				Status: orcv1.TaskStatus_TASK_STATUS_UNSPECIFIED,
+				Status: orcv1.TaskStatus_TASK_STATUS_UNSPECIFIED.String(),
 			})
 			continue
 		}
@@ -396,7 +396,7 @@ func GetIncompleteBlockersProto(t *orcv1.Task, tasks map[string]*orcv1.Task) []P
 			blockers = append(blockers, ProtoBlockerInfo{
 				ID:     blocker.Id,
 				Title:  blocker.Title,
-				Status: blocker.Status,
+				Status: blocker.Status.String(),
 			})
 		}
 	}
@@ -615,4 +615,103 @@ func EnsureMetadataProto(t *orcv1.Task) {
 	if t.Metadata == nil {
 		t.Metadata = make(map[string]string)
 	}
+}
+
+// CheckOrphanedProto checks if a task is orphaned (executor process died mid-run).
+// Note: Proto Task type doesn't yet have executor tracking fields.
+// This is a stub that returns false until those fields are added to the proto schema.
+// TODO: Add executor_pid, executor_hostname, and last_heartbeat fields to proto Task
+// and implement proper orphan detection.
+func CheckOrphanedProto(t *orcv1.Task) (bool, string) {
+	if t == nil {
+		return false, ""
+	}
+	// Proto tasks don't yet support orphan detection
+	// When running status is set, assume the task is actively running
+	return false, ""
+}
+
+// InterruptPhaseOnTaskProto marks a phase as interrupted on a task's execution state.
+// This is a convenience wrapper around the ExecutionState-level function.
+func InterruptPhaseOnTaskProto(t *orcv1.Task, phaseID string) {
+	if t == nil {
+		return
+	}
+	EnsureExecutionProto(t)
+	InterruptPhaseProto(t.Execution, phaseID)
+}
+
+// GetTotalTokensProto returns the total token count from the task's execution state.
+func GetTotalTokensProto(t *orcv1.Task) int {
+	if t == nil || t.Execution == nil || t.Execution.Tokens == nil {
+		return 0
+	}
+	return int(t.Execution.Tokens.TotalTokens)
+}
+
+// DetectCircularDependencyWithAllProto checks if adding newBlockers to taskID creates a cycle.
+// Returns the cycle path if found, nil otherwise.
+func DetectCircularDependencyWithAllProto(taskID string, newBlockers []string, tasks map[string]*orcv1.Task) []string {
+	// Build adjacency list: task -> tasks it's blocked by
+	// Copy slices to avoid mutating original task data
+	blockedByMap := make(map[string][]string)
+	for _, t := range tasks {
+		if t.Id == taskID {
+			// Use the new blockers for this task
+			blockedByMap[t.Id] = append([]string(nil), newBlockers...)
+		} else {
+			blockedByMap[t.Id] = append([]string(nil), t.BlockedBy...)
+		}
+	}
+
+	// If the task doesn't exist in the map yet, add it with new blockers
+	if _, exists := blockedByMap[taskID]; !exists {
+		blockedByMap[taskID] = append([]string(nil), newBlockers...)
+	}
+
+	// DFS to detect cycle starting from taskID
+	visited := make(map[string]bool)
+	path := make(map[string]bool)
+	var cyclePath []string
+
+	var dfs func(id string) bool
+	dfs = func(id string) bool {
+		if path[id] {
+			// Found a cycle, reconstruct path
+			cyclePath = append(cyclePath, id)
+			return true
+		}
+		if visited[id] {
+			return false
+		}
+		visited[id] = true
+		path[id] = true
+
+		for _, blocker := range blockedByMap[id] {
+			if dfs(blocker) {
+				cyclePath = append(cyclePath, id)
+				return true
+			}
+		}
+
+		path[id] = false
+		return false
+	}
+
+	// Start DFS from each of the new blockers to see if they can reach taskID
+	for _, blocker := range newBlockers {
+		if dfs(blocker) {
+			// Reverse to get proper order
+			for i, j := 0, len(cyclePath)-1; i < j; i, j = i+1, j-1 {
+				cyclePath[i], cyclePath[j] = cyclePath[j], cyclePath[i]
+			}
+			return cyclePath
+		}
+		// Reset for next blocker
+		visited = make(map[string]bool)
+		path = make(map[string]bool)
+		cyclePath = nil
+	}
+
+	return nil
 }

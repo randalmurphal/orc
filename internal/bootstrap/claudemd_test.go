@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/randalmurphal/orc/internal/task"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 func TestInjectOrcSection(t *testing.T) {
@@ -186,11 +186,12 @@ func TestUpdateTaskContext(t *testing.T) {
 	// Create CLAUDE.md with orc section
 	_ = InjectOrcSection(projectDir)
 
-	activeTask := &task.Task{
-		ID:           "TASK-001",
+	currentPhase := "implement"
+	activeTask := &orcv1.Task{
+		Id:           "TASK-001",
 		Title:        "Test Task",
-		CurrentPhase: "implement",
-		Status:       task.StatusRunning,
+		CurrentPhase: &currentPhase,
+		Status:       orcv1.TaskStatus_TASK_STATUS_RUNNING,
 	}
 
 	err := UpdateTaskContext(projectDir, activeTask)
@@ -219,11 +220,12 @@ func TestClearTaskContext(t *testing.T) {
 
 	// Create CLAUDE.md with orc section and context
 	_ = InjectOrcSection(projectDir)
-	_ = UpdateTaskContext(projectDir, &task.Task{
-		ID:           "TASK-001",
+	testPhase := "test"
+	_ = UpdateTaskContext(projectDir, &orcv1.Task{
+		Id:           "TASK-001",
 		Title:        "Test",
-		CurrentPhase: "test",
-		Status:       task.StatusRunning,
+		CurrentPhase: &testPhase,
+		Status:       orcv1.TaskStatus_TASK_STATUS_RUNNING,
 	})
 
 	err := ClearTaskContext(projectDir)

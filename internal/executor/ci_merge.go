@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -115,30 +116,30 @@ var ErrMergeFailed = errors.New("PR merge failed")
 // 1. Push finalize changes if any
 // 2. Poll CI checks until all pass (or timeout)
 // 3. Merge PR directly with gh pr merge
-func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *task.Task) error {
+func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *orcv1.Task) error {
 	if !m.config.ShouldWaitForCI() {
-		m.logger.Debug("CI wait disabled, skipping", "task", t.ID)
+		m.logger.Debug("CI wait disabled, skipping", "task", t.Id)
 		return nil
 	}
 
-	prURL := t.GetPRURL()
+	prURL := task.GetPRURLProto(t)
 	if prURL == "" {
-		m.logger.Debug("no PR URL found, skipping CI wait", "task", t.ID)
+		m.logger.Debug("no PR URL found, skipping CI wait", "task", t.Id)
 		return nil
 	}
 
 	m.logger.Info("starting CI wait and merge flow",
-		"task", t.ID,
+		"task", t.Id,
 		"pr", prURL,
 		"timeout", m.config.CITimeout(),
 		"poll_interval", m.config.CIPollInterval(),
 	)
 
 	// Publish initial progress
-	m.publishProgress(t.ID, "Waiting for CI checks to pass...")
+	m.publishProgress(t.Id, "Waiting for CI checks to pass...")
 
 	// Wait for CI
-	result, err := m.WaitForCI(ctx, prURL, t.ID)
+	result, err := m.WaitForCI(ctx, prURL, t.Id)
 	if err != nil {
 		return err
 	}
@@ -146,29 +147,30 @@ func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *task.Task) error {
 	// Check if we should merge
 	if !m.config.ShouldMergeOnCIPass() {
 		m.logger.Info("CI checks passed, merge_on_ci_pass disabled",
-			"task", t.ID,
+			"task", t.Id,
 			"status", result.Status,
 		)
-		m.publishProgress(t.ID, "CI checks passed. Auto-merge disabled.")
+		m.publishProgress(t.Id, "CI checks passed. Auto-merge disabled.")
 		return nil
 	}
 
 	// Merge the PR
-	m.publishProgress(t.ID, "CI checks passed. Merging PR...")
+	m.publishProgress(t.Id, "CI checks passed. Merging PR...")
 
 	if err := m.MergePR(ctx, prURL, t); err != nil {
 		return fmt.Errorf("merge PR: %w", err)
 	}
 
-	m.publishProgress(t.ID, "PR merged successfully!")
+	m.publishProgress(t.Id, "PR merged successfully!")
 	m.logger.Info("PR merged successfully",
-		"task", t.ID,
+		"task", t.Id,
 		"pr", prURL,
 		"merge_method", m.config.MergeMethod(),
 	)
 
 	return nil
 }
+
 
 // WaitForCI polls CI checks until they pass or timeout.
 func (m *CIMerger) WaitForCI(ctx context.Context, prURL, taskID string) (*CICheckResult, error) {
@@ -347,7 +349,7 @@ func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckRes
 //   - Retry merge (up to 3 attempts)
 //
 // 3. If rebase has conflicts or max retries exceeded, return ErrMergeFailed
-func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) error {
+func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) error {
 	const maxRetries = 3
 
 	method := m.config.MergeMethod()
@@ -359,7 +361,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 	}
 
 	m.logger.Info("merging PR via API",
-		"task", t.ID,
+		"task", t.Id,
 		"pr", prURL,
 		"owner", owner,
 		"repo", repo,
@@ -383,7 +385,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 			m.logger.Info("waiting before merge retry",
 				"attempt", attempt,
 				"backoff", backoff,
-				"task", t.ID,
+				"task", t.Id,
 			)
 			select {
 			case <-ctx.Done():
@@ -395,7 +397,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 			if err := m.rebaseOnTarget(ctx, t); err != nil {
 				// If rebase fails (conflicts or other error), return ErrMergeFailed
 				m.logger.Error("rebase before merge retry failed",
-					"task", t.ID,
+					"task", t.Id,
 					"attempt", attempt,
 					"error", err,
 				)
@@ -412,7 +414,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 			if isRetryableMergeError(err, output) {
 				lastErr = err
 				m.logger.Warn("merge failed with retryable error",
-					"task", t.ID,
+					"task", t.Id,
 					"attempt", attempt,
 					"error", err,
 				)
@@ -437,8 +439,9 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 		if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
 			m.logger.Warn("failed to parse merge response", "error", err, "output", output)
 		} else if mergeResponse.SHA != "" {
-			if t.PR != nil {
-				t.PR.MergeCommitSHA = mergeResponse.SHA
+			if t.Pr != nil {
+				sha := mergeResponse.SHA
+				t.Pr.MergeCommitSha = &sha
 			}
 			m.logger.Info("PR merged", "sha", mergeResponse.SHA)
 		}
@@ -455,9 +458,9 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *task.Task) erro
 		}
 
 		// Update task with merge info
-		t.SetMergedInfo(prURL, m.config.Completion.TargetBranch)
+		task.SetMergedInfoProto(t, prURL, m.config.Completion.TargetBranch)
 		if m.backend != nil {
-			if saveErr := m.backend.SaveTask(t); saveErr != nil {
+			if saveErr := m.backend.SaveTaskProto(t); saveErr != nil {
 				m.logger.Warn("failed to save task after merge", "error", saveErr)
 			}
 		}
@@ -502,14 +505,14 @@ func isValidationMergeError(err error, output string) bool {
 
 // rebaseOnTarget rebases the task branch onto the target branch.
 // This is called before merge retries to incorporate upstream changes.
-func (m *CIMerger) rebaseOnTarget(ctx context.Context, t *task.Task) error {
+func (m *CIMerger) rebaseOnTarget(ctx context.Context, t *orcv1.Task) error {
 	targetBranch := m.config.Completion.TargetBranch
 	if targetBranch == "" {
 		targetBranch = "main"
 	}
 
 	m.logger.Info("rebasing onto target branch before merge retry",
-		"task", t.ID,
+		"task", t.Id,
 		"branch", t.Branch,
 		"target", targetBranch,
 	)
@@ -548,7 +551,7 @@ func (m *CIMerger) rebaseOnTarget(ctx context.Context, t *task.Task) error {
 	}
 
 	m.logger.Info("successfully rebased and pushed",
-		"task", t.ID,
+		"task", t.Id,
 		"branch", t.Branch,
 		"target", targetBranch,
 	)
@@ -626,3 +629,4 @@ func (m *CIMerger) runGH(ctx context.Context, args ...string) (string, error) {
 
 	return string(output), nil
 }
+

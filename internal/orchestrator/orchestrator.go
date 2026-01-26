@@ -272,13 +272,14 @@ func (o *Orchestrator) scheduleNext() {
 // spawnTask spawns a worker for a task.
 func (o *Orchestrator) spawnTask(taskID string) error {
 	// Load task (includes execution state in task.Execution)
-	t, err := o.backend.LoadTask(taskID)
+	t, err := o.backend.LoadTaskProto(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}
 
-	// Create plan dynamically from task weight
-	pln := createPlanForWeight(taskID, t.Weight)
+	// Create plan dynamically from task weight (convert proto weight to domain)
+	weight := task.Weight(task.WeightFromProto(t.Weight))
+	pln := createPlanForWeight(taskID, weight)
 
 	// Spawn worker (task's Execution field contains execution state)
 	_, err = o.workerPool.SpawnWorker(o.ctx, t, pln)

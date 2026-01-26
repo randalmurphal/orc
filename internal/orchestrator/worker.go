@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -17,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // WorkerStatus represents the status of a worker.
@@ -75,13 +77,13 @@ func NewWorkerPool(maxWorkers int, publisher events.Publisher, cfg *config.Confi
 
 // SpawnWorker creates and starts a worker for a task.
 // The task's Execution field contains all execution state.
-func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executor.Plan) (*Worker, error) {
+func (p *WorkerPool) SpawnWorker(ctx context.Context, t *orcv1.Task, pln *executor.Plan) (*Worker, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	// Check if worker already exists
-	if _, exists := p.workers[t.ID]; exists {
-		return nil, fmt.Errorf("worker already exists for task %s", t.ID)
+	if _, exists := p.workers[t.Id]; exists {
+		return nil, fmt.Errorf("worker already exists for task %s", t.Id)
 	}
 
 	// Check capacity
@@ -99,8 +101,8 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executo
 	workerCtx, cancel := context.WithCancel(ctx)
 
 	worker := &Worker{
-		ID:           fmt.Sprintf("worker-%s", t.ID),
-		TaskID:       t.ID,
+		ID:           fmt.Sprintf("worker-%s", t.Id),
+		TaskID:       t.Id,
 		WorktreePath: setup.Path,
 		Status:       WorkerStatusRunning,
 		StartedAt:    time.Now(),
@@ -109,7 +111,7 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executo
 		eventChan:    p.eventChan,
 	}
 
-	p.workers[t.ID] = worker
+	p.workers[t.Id] = worker
 
 	// Start execution in goroutine
 	go worker.run(p, t, pln)
@@ -120,7 +122,7 @@ func (p *WorkerPool) SpawnWorker(ctx context.Context, t *task.Task, pln *executo
 // run executes the task in the worktree.
 // Iterates through all phases until completion, failure, or cancellation.
 // The task's Execution field contains all execution state.
-func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
+func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 	defer func() {
 		w.mu.Lock()
 		if w.Status == WorkerStatusRunning {
@@ -152,7 +154,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 
 		// Create ralph state file in worktree
 		mgr := executor.NewRalphStateManager(w.WorktreePath)
-		err = mgr.Create(t.ID, currentPhase.ID, phasePrompt,
+		err = mgr.Create(t.Id, currentPhase.ID, phasePrompt,
 			executor.WithMaxIterations(30),
 			executor.WithCompletionPromise("PHASE_COMPLETE"),
 		)
@@ -180,7 +182,7 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 		// Publish start event
 		pool.publishEvent(events.Event{
 			Type:   events.EventPhase,
-			TaskID: t.ID,
+			TaskID: t.Id,
 			Data: map[string]any{
 				"phase":    currentPhase.ID,
 				"status":   "started",
@@ -205,14 +207,15 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 		// Check if ralph state file was removed (completion)
 		if !mgr.Exists() {
 			// Phase completed - update task's execution state
-			t.Execution.CompletePhase(currentPhase.ID, "")
+			task.EnsureExecutionProto(t)
+			task.CompletePhaseProto(t.Execution, currentPhase.ID, "")
 			if pool.backend != nil {
-				_ = pool.backend.SaveTask(t)
+				_ = pool.backend.SaveTaskProto(t)
 			}
 
 			pool.publishEvent(events.Event{
 				Type:   events.EventPhase,
-				TaskID: t.ID,
+				TaskID: t.Id,
 				Data: map[string]any{
 					"phase":  currentPhase.ID,
 					"status": "completed",
@@ -226,10 +229,10 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 			nextPhase := pln.CurrentPhase()
 			if nextPhase == nil {
 				// Task complete - update task status
-				t.Status = task.StatusCompleted
-				t.CompletedAt = timePtr(time.Now())
+				t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+				t.CompletedAt = timestamppb.Now()
 				if pool.backend != nil {
-					_ = pool.backend.SaveTask(t)
+					_ = pool.backend.SaveTaskProto(t)
 				}
 				w.setStatus(WorkerStatusComplete)
 				return
@@ -241,11 +244,6 @@ func (w *Worker) run(pool *WorkerPool, t *task.Task, pln *executor.Plan) {
 		// Ralph state file still exists - phase not complete, wait for external completion
 		return
 	}
-}
-
-// timePtr returns a pointer to the given time.
-func timePtr(t time.Time) *time.Time {
-	return &t
 }
 
 // setStatus sets the worker status.

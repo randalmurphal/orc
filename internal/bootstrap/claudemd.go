@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -150,7 +151,7 @@ func HasOrcSection(projectDir string) bool {
 
 // UpdateTaskContext updates the current task context in CLAUDE.md (optional feature)
 // This can be used to show the current active task in CLAUDE.md
-func UpdateTaskContext(projectDir string, activeTask *task.Task) error {
+func UpdateTaskContext(projectDir string, activeTask *orcv1.Task) error {
 	if activeTask == nil {
 		return nil
 	}
@@ -164,13 +165,14 @@ func UpdateTaskContext(projectDir string, activeTask *task.Task) error {
 	content := string(data)
 
 	// Build context section
+	currentPhase := task.GetCurrentPhaseProto(activeTask)
 	contextSection := fmt.Sprintf(`### Current Task
 
 - **Task**: %s
 - **Title**: %s
 - **Phase**: %s
 - **Status**: %s
-`, activeTask.ID, activeTask.Title, activeTask.CurrentPhase, activeTask.Status)
+`, activeTask.Id, activeTask.Title, currentPhase, task.StatusFromProto(activeTask.Status))
 
 	// Check if context section exists
 	contextStart := "<!-- orc:context:begin -->"

@@ -12,10 +12,10 @@ import (
 	"sync"
 	"text/template"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/templates"
 )
 
@@ -128,7 +128,7 @@ type ResolutionResult struct {
 
 // Resolve attempts to resolve merge conflicts in the given files.
 // Returns a ResolutionResult indicating what was resolved.
-func (r *ConflictResolver) Resolve(ctx context.Context, t *task.Task, conflictFiles []string) (*ResolutionResult, error) {
+func (r *ConflictResolver) Resolve(ctx context.Context, t *orcv1.Task, conflictFiles []string) (*ResolutionResult, error) {
 	result := &ResolutionResult{
 		Unresolved: conflictFiles, // Start with all files unresolved
 	}
@@ -180,7 +180,7 @@ func (r *ConflictResolver) Resolve(ctx context.Context, t *task.Task, conflictFi
 }
 
 // resolveWithClaude uses Claude to resolve conflicts.
-func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, conflictFiles []string) (bool, error) {
+func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *orcv1.Task, conflictFiles []string) (bool, error) {
 	// Build conflict resolution prompt
 	prompt, err := r.buildConflictResolutionPrompt(t, conflictFiles)
 	if err != nil {
@@ -190,7 +190,7 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 	// Inject "ultrathink" for extended thinking mode
 	if r.thinking {
 		prompt = "ultrathink\n\n" + prompt
-		r.logger.Debug("extended thinking enabled for conflict resolution", "task", t.ID)
+		r.logger.Debug("extended thinking enabled for conflict resolution", "task", t.Id)
 	}
 
 	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
@@ -208,7 +208,7 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 			WithClaudePhaseID("conflict-resolution"),
 			// Transcript storage options - handled internally
 			WithClaudeBackend(r.backend),
-			WithClaudeTaskID(t.ID),
+			WithClaudeTaskID(t.Id),
 		}
 		turnExec = NewClaudeExecutor(claudeOpts...)
 	}
@@ -232,7 +232,7 @@ func (r *ConflictResolver) resolveWithClaude(ctx context.Context, t *task.Task, 
 }
 
 // buildConflictResolutionPrompt creates the prompt for conflict resolution.
-func (r *ConflictResolver) buildConflictResolutionPrompt(t *task.Task, conflictFiles []string) (string, error) {
+func (r *ConflictResolver) buildConflictResolutionPrompt(t *orcv1.Task, conflictFiles []string) (string, error) {
 	// Load template from centralized templates
 	tmplContent, err := templates.Prompts.ReadFile("prompts/conflict_resolution.md")
 	if err != nil {
@@ -245,7 +245,7 @@ func (r *ConflictResolver) buildConflictResolutionPrompt(t *task.Task, conflictF
 	}
 
 	data := map[string]any{
-		"TaskID":        t.ID,
+		"TaskID":        t.Id,
 		"TaskTitle":     t.Title,
 		"ConflictFiles": conflictFiles,
 		"Instructions":  r.config.ConflictResolution.Instructions,

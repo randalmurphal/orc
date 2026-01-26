@@ -1730,8 +1730,8 @@ func TestRunTaskEndpoint_Success_UpdatesStatusAndReturnsTask(t *testing.T) {
 	if response.Task.ID != "TASK-RUN" {
 		t.Errorf("expected task id 'TASK-RUN', got '%s'", response.Task.ID)
 	}
-	if response.Task.Status != "running" {
-		t.Errorf("expected task status 'running', got '%s'", response.Task.Status)
+	if response.Task.Status != "TASK_STATUS_RUNNING" {
+		t.Errorf("expected task status 'TASK_STATUS_RUNNING', got '%s'", response.Task.Status)
 	}
 
 	// Verify task was updated in database
@@ -1786,7 +1786,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 		Task struct {
 			ID           string `json:"id"`
 			Status       string `json:"status"`
-			CurrentPhase string `json:"current_phase"`
+			CurrentPhase string `json:"currentPhase"` // protojson uses camelCase
 		} `json:"task"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
@@ -1795,7 +1795,7 @@ func TestRunTaskEndpoint_SetsCurrentPhase(t *testing.T) {
 
 	// Verify response includes task with current_phase set to first phase
 	if response.Task.CurrentPhase != "spec" {
-		t.Errorf("expected response task current_phase 'spec', got '%s'", response.Task.CurrentPhase)
+		t.Errorf("expected response task currentPhase 'spec', got '%s'", response.Task.CurrentPhase)
 	}
 
 	// Verify task has current_phase set
@@ -1905,7 +1905,7 @@ func TestRunTaskEndpoint_BlockedByIncompleteTasks(t *testing.T) {
 	if response.BlockedBy[0].ID != "TASK-BLOCKER" {
 		t.Errorf("expected blocker ID 'TASK-BLOCKER', got '%s'", response.BlockedBy[0].ID)
 	}
-	if response.BlockedBy[0].Status != "planned" {
+	if response.BlockedBy[0].Status != "TASK_STATUS_PLANNED" {
 		t.Errorf("expected blocker status 'planned', got '%s'", response.BlockedBy[0].Status)
 	}
 	if !response.ForceAvailable {
@@ -2321,8 +2321,8 @@ func TestCreateTaskEndpoint_WithWeight(t *testing.T) {
 
 	var resp map[string]interface{}
 	_ = json.NewDecoder(w.Body).Decode(&resp)
-	if resp["weight"] != "large" {
-		t.Errorf("weight = %v, want large", resp["weight"])
+	if resp["weight"] != "TASK_WEIGHT_LARGE" {
+		t.Errorf("weight = %v, want TASK_WEIGHT_LARGE", resp["weight"])
 	}
 }
 
@@ -2512,8 +2512,8 @@ func TestProjectTaskRun_ReturnsTask(t *testing.T) {
 	if response.Task.ID != taskID {
 		t.Errorf("expected task id '%s', got '%s'", taskID, response.Task.ID)
 	}
-	if response.Task.Status != "running" {
-		t.Errorf("expected task status 'running', got '%s'", response.Task.Status)
+	if response.Task.Status != "TASK_STATUS_RUNNING" {
+		t.Errorf("expected task status 'TASK_STATUS_RUNNING', got '%s'", response.Task.Status)
 	}
 }
 
@@ -3040,13 +3040,13 @@ func TestUpdateTaskEndpoint_UpdateWeight(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var respTask task.Task
+	var respTask map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&respTask); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if respTask.Weight != task.WeightLarge {
-		t.Errorf("expected weight 'large', got %q", respTask.Weight)
+	if respTask["weight"] != "TASK_WEIGHT_LARGE" {
+		t.Errorf("expected weight 'TASK_WEIGHT_LARGE', got %q", respTask["weight"])
 	}
 }
 
@@ -3291,20 +3291,20 @@ func TestUpdateTaskEndpoint_PartialUpdate(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var respTask task.Task
+	var respTask map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&respTask); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if respTask.Title != "Updated Title Only" {
-		t.Errorf("expected title 'Updated Title Only', got %q", respTask.Title)
+	if respTask["title"] != "Updated Title Only" {
+		t.Errorf("expected title 'Updated Title Only', got %q", respTask["title"])
 	}
 	// Other fields should remain unchanged
-	if respTask.Description != "Original description" {
-		t.Errorf("expected description 'Original description', got %q", respTask.Description)
+	if respTask["description"] != "Original description" {
+		t.Errorf("expected description 'Original description', got %q", respTask["description"])
 	}
-	if respTask.Weight != task.WeightMedium {
-		t.Errorf("expected weight 'medium', got %q", respTask.Weight)
+	if respTask["weight"] != "TASK_WEIGHT_MEDIUM" {
+		t.Errorf("expected weight 'TASK_WEIGHT_MEDIUM', got %q", respTask["weight"])
 	}
 }
 

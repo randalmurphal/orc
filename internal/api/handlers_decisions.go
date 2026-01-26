@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // DecisionRequest represents the request body for decision resolution.
@@ -79,21 +81,22 @@ func (s *Server) handlePostDecision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load task
-	t, err := s.backend.LoadTask(decision.TaskID)
+	t, err := s.backend.LoadTaskProto(decision.TaskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
 	// Verify task is blocked
-	if t.Status != task.StatusBlocked {
+	if t.Status != orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 		s.jsonError(w, fmt.Sprintf("task is not blocked (status: %s)", t.Status), http.StatusBadRequest)
 		return
 	}
 
 	// Verify phase matches current task phase to prevent stale decisions
-	if t.CurrentPhase != decision.Phase {
-		s.jsonError(w, fmt.Sprintf("decision phase mismatch: task is at phase %q, decision is for phase %q", t.CurrentPhase, decision.Phase), http.StatusConflict)
+	currentPhase := task.GetCurrentPhaseProto(t)
+	if currentPhase != decision.Phase {
+		s.jsonError(w, fmt.Sprintf("decision phase mismatch: task is at phase %q, decision is for phase %q", currentPhase, decision.Phase), http.StatusConflict)
 		return
 	}
 

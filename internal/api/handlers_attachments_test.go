@@ -834,21 +834,22 @@ func TestCreateTaskEndpoint_WithAttachments(t *testing.T) {
 		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var createdTask task.Task
+	var createdTask map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&createdTask); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if createdTask.Title != "Test Task with Attachments" {
-		t.Errorf("expected title 'Test Task with Attachments', got %q", createdTask.Title)
+	if createdTask["title"] != "Test Task with Attachments" {
+		t.Errorf("expected title 'Test Task with Attachments', got %q", createdTask["title"])
 	}
 
-	if createdTask.Category != task.CategoryBug {
-		t.Errorf("expected category 'bug', got %q", createdTask.Category)
+	if createdTask["category"] != "TASK_CATEGORY_BUG" {
+		t.Errorf("expected category 'TASK_CATEGORY_BUG', got %q", createdTask["category"])
 	}
 
 	// Verify attachments were saved by listing them via API
-	req = httptest.NewRequest("GET", "/api/tasks/"+createdTask.ID+"/attachments", nil)
+	taskID := createdTask["id"].(string)
+	req = httptest.NewRequest("GET", "/api/tasks/"+taskID+"/attachments", nil)
 	w = httptest.NewRecorder()
 	srv.mux.ServeHTTP(w, req)
 
@@ -932,17 +933,17 @@ func TestCreateTaskEndpoint_JSONStillWorks(t *testing.T) {
 		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var createdTask task.Task
+	var createdTask map[string]any
 	if err := json.NewDecoder(w.Body).Decode(&createdTask); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if createdTask.Title != "JSON Task" {
-		t.Errorf("expected title 'JSON Task', got %q", createdTask.Title)
+	if createdTask["title"] != "JSON Task" {
+		t.Errorf("expected title 'JSON Task', got %q", createdTask["title"])
 	}
 
-	if createdTask.Category != task.CategoryFeature {
-		t.Errorf("expected category 'feature', got %q", createdTask.Category)
+	if createdTask["category"] != "TASK_CATEGORY_FEATURE" {
+		t.Errorf("expected category 'TASK_CATEGORY_FEATURE', got %q", createdTask["category"])
 	}
 }
 

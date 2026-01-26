@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
@@ -27,6 +28,8 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // Server is the orc API server.
@@ -306,7 +309,7 @@ func (s *Server) StartContext(ctx context.Context) error {
 		Logger:    s.logger,
 		OrcConfig: s.orcConfig,
 		Backend:   s.backend,
-		OnStatusChange: func(taskID string, pr *task.PRInfo) {
+		OnStatusChange: func(taskID string, pr *orcv1.PRInfo) {
 			// Publish task update event when PR status changes
 			s.logger.Info("PR status changed", "task", taskID, "status", pr.Status)
 			s.publisher.Publish(events.Event{
@@ -316,7 +319,7 @@ func (s *Server) StartContext(ctx context.Context) error {
 			})
 
 			// Auto-trigger finalize when PR is approved (if enabled in config)
-			if pr.Status == task.PRStatusApproved {
+			if pr.Status == orcv1.PRStatus_PR_STATUS_APPROVED {
 				triggered, err := s.TriggerFinalizeOnApproval(taskID)
 				if err != nil {
 					s.logger.Error("failed to auto-trigger finalize", "task", taskID, "error", err)
@@ -393,10 +396,150 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+// protoJSONMarshaler is configured to produce frontend-compatible JSON.
+var protoJSONMarshaler = protojson.MarshalOptions{
+	UseEnumNumbers:  false, // Use string enum names for backward compatibility
+	EmitUnpopulated: false, // Don't emit zero values
+}
+
 // jsonResponse writes a JSON response.
+// For proto messages and slices of proto messages, uses protojson for proper serialization.
+// For maps containing proto messages, converts proto fields using protojson first.
 func (s *Server) jsonResponse(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
+
+	// Check if data is a proto message
+	if msg, ok := data.(proto.Message); ok {
+		bytes, err := protoJSONMarshaler.Marshal(msg)
+		if err != nil {
+			s.logger.Error("failed to marshal proto message", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error":"internal server error"}`))
+			return
+		}
+		_, _ = w.Write(bytes)
+		return
+	}
+
+	// Check if data is a slice of proto tasks (common case)
+	if tasks, ok := data.([]*orcv1.Task); ok {
+		s.writeProtoSlice(w, tasks)
+		return
+	}
+
+	// Check if data is a map that might contain proto messages
+	if m, ok := data.(map[string]any); ok {
+		data = s.convertMapProtos(m)
+	}
+
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+// convertMapProtos recursively converts proto messages in a map to JSON-compatible maps.
+func (s *Server) convertMapProtos(m map[string]any) map[string]any {
+	result := make(map[string]any, len(m))
+	for k, v := range m {
+		switch val := v.(type) {
+		case proto.Message:
+			// Convert proto to map via protojson
+			bytes, err := protoJSONMarshaler.Marshal(val)
+			if err != nil {
+				s.logger.Error("failed to marshal proto in map", "key", k, "error", err)
+				result[k] = nil
+				continue
+			}
+			var converted map[string]any
+			if err := json.Unmarshal(bytes, &converted); err != nil {
+				s.logger.Error("failed to unmarshal proto json", "key", k, "error", err)
+				result[k] = nil
+				continue
+			}
+			result[k] = converted
+		case []*orcv1.Task:
+			// Handle slice of proto tasks
+			result[k] = s.convertProtoTaskSlice(val)
+		case map[string]any:
+			result[k] = s.convertMapProtos(val)
+		case []any:
+			result[k] = s.convertSliceProtos(val)
+		default:
+			result[k] = v
+		}
+	}
+	return result
+}
+
+// convertSliceProtos recursively converts proto messages in a slice to JSON-compatible values.
+func (s *Server) convertSliceProtos(slice []any) []any {
+	result := make([]any, len(slice))
+	for i, v := range slice {
+		switch val := v.(type) {
+		case proto.Message:
+			bytes, err := protoJSONMarshaler.Marshal(val)
+			if err != nil {
+				s.logger.Error("failed to marshal proto in slice", "index", i, "error", err)
+				result[i] = nil
+				continue
+			}
+			var converted map[string]any
+			if err := json.Unmarshal(bytes, &converted); err != nil {
+				s.logger.Error("failed to unmarshal proto json in slice", "index", i, "error", err)
+				result[i] = nil
+				continue
+			}
+			result[i] = converted
+		case map[string]any:
+			result[i] = s.convertMapProtos(val)
+		case []any:
+			result[i] = s.convertSliceProtos(val)
+		default:
+			result[i] = v
+		}
+	}
+	return result
+}
+
+// convertProtoTaskSlice converts a slice of proto tasks to JSON-compatible maps.
+func (s *Server) convertProtoTaskSlice(tasks []*orcv1.Task) []any {
+	result := make([]any, len(tasks))
+	for i, t := range tasks {
+		bytes, err := protoJSONMarshaler.Marshal(t)
+		if err != nil {
+			s.logger.Error("failed to marshal proto task in slice", "index", i, "error", err)
+			result[i] = nil
+			continue
+		}
+		var converted map[string]any
+		if err := json.Unmarshal(bytes, &converted); err != nil {
+			s.logger.Error("failed to unmarshal proto task json", "index", i, "error", err)
+			result[i] = nil
+			continue
+		}
+		result[i] = converted
+	}
+	return result
+}
+
+// writeProtoSlice marshals a slice of proto messages to JSON array.
+func (s *Server) writeProtoSlice(w http.ResponseWriter, tasks []*orcv1.Task) {
+	if len(tasks) == 0 {
+		_, _ = w.Write([]byte("[]"))
+		return
+	}
+
+	_, _ = w.Write([]byte("["))
+	for i, msg := range tasks {
+		if i > 0 {
+			_, _ = w.Write([]byte(","))
+		}
+		bytes, err := protoJSONMarshaler.Marshal(msg)
+		if err != nil {
+			s.logger.Error("failed to marshal proto message in slice", "error", err, "index", i)
+			continue
+		}
+		_, _ = w.Write(bytes)
+	}
+	_, _ = w.Write([]byte("]"))
 }
 
 // jsonError writes a JSON error response.
@@ -404,6 +547,20 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// jsonResponseWithStatus writes a JSON response with a custom status code.
+// For maps containing proto messages, converts proto fields using protojson first.
+func (s *Server) jsonResponseWithStatus(w http.ResponseWriter, status int, data any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	// Check if data is a map that might contain proto messages
+	if m, ok := data.(map[string]any); ok {
+		data = s.convertMapProtos(m)
+	}
+
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // handleOrcError writes a structured JSON error response for OrcErrors.

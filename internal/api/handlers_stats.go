@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/initiative"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // ============================================================================
@@ -358,7 +358,7 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Load all tasks
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -370,30 +370,32 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 	for _, t := range allTasks {
 		// Apply time filter - only include tasks completed within the period
 		// Skip tasks with no completion time or completed before the cutoff
-		if cutoffTime != nil && (t.CompletedAt == nil || t.CompletedAt.Before(*cutoffTime)) {
+		if cutoffTime != nil && (t.CompletedAt == nil || t.CompletedAt.AsTime().Before(*cutoffTime)) {
 			continue
 		}
 
 		// Categorize by outcome
 		switch t.Status {
-		case task.StatusCompleted:
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
 			// Check execution state for retries (execution state is embedded in task)
-			exec := &t.Execution
+			exec := t.Execution
 
 			// Check if any phase has status "failed" (indicating a retry occurred)
 			hasRetry := false
-			for _, ps := range exec.Phases {
-				// A phase that failed and was later retried will have status "failed"
-				// in the phase history even if task ultimately completed
-				if ps.Status == task.PhaseStatusFailed && ps.Error != "" {
-					hasRetry = true
-					break
+			if exec != nil {
+				for _, ps := range exec.Phases {
+					// A phase that failed and was later retried will have status "failed"
+					// in the phase history even if task ultimately completed
+					if ps.Status == orcv1.PhaseStatus_PHASE_STATUS_FAILED && ps.Error != nil && *ps.Error != "" {
+						hasRetry = true
+						break
+					}
 				}
-			}
 
-			// Also check if there's retry context
-			if exec.RetryContext != nil {
-				hasRetry = true
+				// Also check if there's retry context
+				if exec.RetryContext != nil {
+					hasRetry = true
+				}
 			}
 
 			if hasRetry {
@@ -402,7 +404,7 @@ func (s *Server) handleGetOutcomesStats(w http.ResponseWriter, r *http.Request) 
 				completed++
 			}
 
-		case task.StatusFailed:
+		case orcv1.TaskStatus_TASK_STATUS_FAILED:
 			failed++
 		}
 	}
@@ -516,7 +518,7 @@ func (s *Server) handleGetTopInitiatives(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load all tasks to build the statistics
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -532,16 +534,33 @@ func (s *Server) handleGetTopInitiatives(w http.ResponseWriter, r *http.Request)
 
 	for _, t := range allTasks {
 		// Get token and cost data from task's execution state (embedded in task)
-		taskStatsMap[t.ID] = struct {
+		var totalTokens int
+		var totalCostUSD float64
+		if t.Execution != nil {
+			if t.Execution.Tokens != nil {
+				totalTokens = int(t.Execution.Tokens.TotalTokens)
+			}
+			if t.Execution.Cost != nil {
+				totalCostUSD = t.Execution.Cost.TotalCostUsd
+			}
+		}
+
+		var completedAt *time.Time
+		if t.CompletedAt != nil {
+			ts := t.CompletedAt.AsTime()
+			completedAt = &ts
+		}
+
+		taskStatsMap[t.Id] = struct {
 			totalTokens  int
 			totalCostUSD float64
 			isCompleted  bool
 			completedAt  *time.Time
 		}{
-			totalTokens:  t.Execution.Tokens.TotalTokens,
-			totalCostUSD: t.Execution.Cost.TotalCostUSD,
-			isCompleted:  t.Status == task.StatusCompleted,
-			completedAt:  t.CompletedAt,
+			totalTokens:  totalTokens,
+			totalCostUSD: totalCostUSD,
+			isCompleted:  t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED,
+			completedAt:  completedAt,
 		}
 	}
 
@@ -700,14 +719,14 @@ func (s *Server) handleGetTopFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load all tasks
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Filter to completed tasks within period and aggregate file modifications
-	fileAgg := s.aggregateFileModifications(r.Context(), allTasks, cutoffTime)
+	fileAgg := s.aggregateFileModificationsProto(r.Context(), allTasks, cutoffTime)
 
 	// Convert to slice and sort by modification count
 	files := make([]TopFile, 0, len(fileAgg))
@@ -752,27 +771,27 @@ type fileModInfo struct {
 	lastModified time.Time
 }
 
-// aggregateFileModifications aggregates file modification data across tasks.
+// aggregateFileModificationsProto aggregates file modification data across tasks.
 // Returns a map of file path -> modification info.
-func (s *Server) aggregateFileModifications(ctx context.Context, allTasks []*task.Task, cutoffTime *time.Time) map[string]*fileModInfo {
+func (s *Server) aggregateFileModificationsProto(ctx context.Context, allTasks []*orcv1.Task, cutoffTime *time.Time) map[string]*fileModInfo {
 	fileMap := make(map[string]*fileModInfo)
 
 	for _, t := range allTasks {
 		// Only include completed tasks
-		if t.Status != task.StatusCompleted {
+		if t.Status != orcv1.TaskStatus_TASK_STATUS_COMPLETED {
 			continue
 		}
 
 		// Apply time filter
-		if cutoffTime != nil && t.CompletedAt != nil && t.CompletedAt.Before(*cutoffTime) {
+		if cutoffTime != nil && t.CompletedAt != nil && t.CompletedAt.AsTime().Before(*cutoffTime) {
 			continue
 		}
 
 		// Get file list for this task
-		files, err := s.getTaskFileList(ctx, t)
+		files, err := s.getTaskFileListProto(ctx, t)
 		if err != nil {
 			// Log and skip tasks where we can't get diff data
-			s.logger.Debug("failed to get file list for task", "task", t.ID, "error", err)
+			s.logger.Debug("failed to get file list for task", "task", t.Id, "error", err)
 			continue
 		}
 
@@ -787,11 +806,14 @@ func (s *Server) aggregateFileModifications(ctx context.Context, allTasks []*tas
 			}
 
 			info.count++
-			info.tasks = append(info.tasks, t.ID)
+			info.tasks = append(info.tasks, t.Id)
 
 			// Update last modified time
-			if t.CompletedAt != nil && (info.lastModified.IsZero() || t.CompletedAt.After(info.lastModified)) {
-				info.lastModified = *t.CompletedAt
+			if t.CompletedAt != nil {
+				completedAt := t.CompletedAt.AsTime()
+				if info.lastModified.IsZero() || completedAt.After(info.lastModified) {
+					info.lastModified = completedAt
+				}
 			}
 		}
 	}
@@ -799,19 +821,19 @@ func (s *Server) aggregateFileModifications(ctx context.Context, allTasks []*tas
 	return fileMap
 }
 
-// getTaskFileList gets the file list for a task using the appropriate diff strategy.
+// getTaskFileListProto gets the file list for a task using the appropriate diff strategy.
 // Consolidates the three diff strategies from handlers_diff.go.
-func (s *Server) getTaskFileList(ctx context.Context, t *task.Task) ([]diff.FileDiff, error) {
+func (s *Server) getTaskFileListProto(ctx context.Context, t *orcv1.Task) ([]diff.FileDiff, error) {
 	diffSvc := diff.NewService(s.getProjectRoot(), s.diffCache)
 
 	// Strategy 1: Merged PR with merge commit SHA
-	if t.PR != nil && t.PR.Merged && t.PR.MergeCommitSHA != "" {
-		files, _, err := diffSvc.GetMergeCommitFileList(ctx, t.PR.MergeCommitSHA)
+	if t.Pr != nil && t.Pr.Merged && t.Pr.GetMergeCommitSha() != "" {
+		files, _, err := diffSvc.GetMergeCommitFileList(ctx, t.Pr.GetMergeCommitSha())
 		return files, err
 	}
 
 	// Strategy 2: Use commit SHAs from task state if available
-	firstCommit, lastCommit := s.getTaskCommitRange(t.ID)
+	firstCommit, lastCommit := s.getTaskCommitRange(t.Id)
 	if firstCommit != "" && lastCommit != "" {
 		files, _, err := diffSvc.GetCommitRangeFileList(ctx, firstCommit, lastCommit)
 		return files, err
@@ -911,16 +933,16 @@ func (s *Server) handleGetComparisonStats(w http.ResponseWriter, r *http.Request
 	previousStart := previousEnd.AddDate(0, 0, -days)
 
 	// Load all tasks
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Build task map for accessing execution state (tasks now contain embedded execution state)
-	tasksByID := make(map[string]*task.Task, len(allTasks))
+	tasksByID := make(map[string]*orcv1.Task, len(allTasks))
 	for _, t := range allTasks {
-		tasksByID[t.ID] = t
+		tasksByID[t.Id] = t
 	}
 
 	// Calculate stats for both periods

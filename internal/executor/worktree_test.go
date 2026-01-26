@@ -15,7 +15,7 @@ import (
 
 func TestSetupWorktreeForTask_NilGitOps(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{ID: "TASK-001"}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 	_, err := SetupWorktreeForTask(tsk, nil, nil, nil)
 	if err == nil {
 		t.Error("expected error when gitOps is nil")
@@ -65,7 +65,7 @@ func TestSetupWorktreeForTask_CreatesWorktree(t *testing.T) {
 	cfg := config.Default()
 	cfg.Completion.TargetBranch = "main"
 
-	tsk := &task.Task{ID: "TASK-001"}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 
 	result, err := SetupWorktreeForTask(tsk, cfg, gitOps, nil)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestSetupWorktreeForTask_ReusesExisting(t *testing.T) {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
 
-	tsk := &task.Task{ID: "TASK-REUSE"}
+	tsk := task.NewProtoTask("TASK-REUSE", "Test task")
 
 	// Create worktree first time
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
@@ -160,7 +160,7 @@ func TestSetupWorktreeForTask_SwitchesToCorrectBranch(t *testing.T) {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
 
-	tsk := &task.Task{ID: "TASK-BRANCH2"}
+	tsk := task.NewProtoTask("TASK-BRANCH2", "Test task")
 
 	// Create worktree
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
@@ -232,10 +232,8 @@ func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
 	}
 
 	// Create a task with explicit target branch
-	tsk := &task.Task{
-		ID:           "TASK-TARGET",
-		TargetBranch: "develop",
-	}
+	tsk := task.NewProtoTask("TASK-TARGET", "Test task")
+	task.SetTargetBranchProto(tsk, "develop")
 
 	// Create develop branch first (since it's a default branch name)
 	if err := runGitCmd(tmpDir, "branch", "develop"); err != nil {
@@ -270,7 +268,7 @@ func TestSetupWorktreeForTask_ReturnsAbsolutePath(t *testing.T) {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
 
-	tsk := &task.Task{ID: "TASK-PATH"}
+	tsk := task.NewProtoTask("TASK-PATH", "Test task")
 	result, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)
@@ -309,7 +307,7 @@ func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
 	}
 
 	// Create worktree
-	tsk := &task.Task{ID: "TASK-004"}
+	tsk := task.NewProtoTask("TASK-004", "Test task")
 	result, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)
@@ -403,7 +401,7 @@ func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
 	}
 
 	// Create worktree
-	tsk := &task.Task{ID: "TASK-005"}
+	tsk := task.NewProtoTask("TASK-005", "Test task")
 	if _, err := SetupWorktreeForTask(tsk, nil, gitOps, nil); err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)
 	}
@@ -527,7 +525,7 @@ func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
 
-	tsk := &task.Task{ID: "TASK-STALE2"}
+	tsk := task.NewProtoTask("TASK-STALE2", "Test task")
 
 	// Create worktree first time
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
@@ -583,7 +581,7 @@ func TestSetupWorktreeForTask_CleansDirtyWorktree(t *testing.T) {
 	}
 
 	// Create worktree
-	tsk := &task.Task{ID: "TASK-DIRTY"}
+	tsk := task.NewProtoTask("TASK-DIRTY", "Test task")
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)
@@ -654,7 +652,7 @@ func TestSetupWorktreeForTask_AbortsRebaseInProgress(t *testing.T) {
 	}
 
 	// Create worktree
-	tsk := &task.Task{ID: "TASK-REBASE"}
+	tsk := task.NewProtoTask("TASK-REBASE", "Test task")
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)
@@ -736,7 +734,7 @@ func TestSetupWorktreeForTask_AbortsMergeInProgress(t *testing.T) {
 	}
 
 	// Create worktree
-	tsk := &task.Task{ID: "TASK-MERGE"}
+	tsk := task.NewProtoTask("TASK-MERGE", "Test task")
 	result1, err := SetupWorktreeForTask(tsk, nil, gitOps, nil)
 	if err != nil {
 		t.Fatalf("SetupWorktreeForTask failed: %v", err)

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
@@ -17,7 +18,7 @@ import (
 // Returns a closure that looks up tasks from the pre-loaded map.
 func (s *Server) makeBatchTaskLoader() initiative.TaskLoader {
 	// Load all tasks once (2 queries: tasks + dependencies)
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		// Fallback: return empty loader that won't update any statuses
 		return func(taskID string) (string, string, error) {
@@ -26,14 +27,14 @@ func (s *Server) makeBatchTaskLoader() initiative.TaskLoader {
 	}
 
 	// Build lookup map
-	taskMap := make(map[string]*task.Task, len(allTasks))
+	taskMap := make(map[string]*orcv1.Task, len(allTasks))
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
+		taskMap[t.Id] = t
 	}
 
 	return func(taskID string) (status string, title string, err error) {
 		if t, ok := taskMap[taskID]; ok {
-			return string(t.Status), t.Title, nil
+			return task.StatusFromProto(t.Status), t.Title, nil
 		}
 		return "", "", nil
 	}
@@ -366,7 +367,7 @@ func (s *Server) handleAddInitiativeTask(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Load task to get title
-	t, err := s.backend.LoadTask(req.TaskID)
+	t, err := s.backend.LoadTaskProto(req.TaskID)
 	if err != nil {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return

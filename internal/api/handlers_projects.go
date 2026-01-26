@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
@@ -19,6 +20,7 @@ import (
 	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // handleListProjects returns all registered projects.
@@ -370,32 +372,31 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = backend.Close() }()
 
-	t, err := backend.LoadTask(taskID)
+	t, err := backend.LoadTaskProto(taskID)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(taskID))
 		return
 	}
 
-	s.logger.Info("loaded task", "id", t.ID, "title", t.Title)
+	s.logger.Info("loaded task", "id", t.Id, "title", t.Title)
 
-	if !t.CanRun() {
+	if !task.CanRunProto(t) {
 		s.jsonError(w, "task cannot be run in current state", http.StatusBadRequest)
 		return
 	}
 
 	// Get workflow ID from task - MUST be set
-	workflowID := t.WorkflowID
+	workflowID := task.GetWorkflowIDProto(t)
 	if workflowID == "" {
 		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot run", taskID), http.StatusBadRequest)
 		return
 	}
 
 	// Mark task as running
-	t.Status = task.StatusRunning
-	now := time.Now()
-	t.StartedAt = &now
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t.StartedAt = timestamppb.New(time.Now())
 	s.logger.Info("saving task", "taskID", taskID)
-	if err := backend.SaveTask(t); err != nil {
+	if err := backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
@@ -406,8 +407,10 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 	s.runningTasks[taskID] = cancel
 	s.runningTasksMu.Unlock()
 
-	// Capture project path for goroutine
+	// Capture values for goroutine
 	projectPath := proj.Path
+	description := task.GetDescriptionProto(t)
+	category := task.Category(task.CategoryFromProto(t.Category))
 
 	// Start execution in background
 	go func() {
@@ -452,8 +455,8 @@ func (s *Server) handleRunProjectTask(w http.ResponseWriter, r *http.Request) {
 		opts := executor.WorkflowRunOptions{
 			ContextType: executor.ContextTask,
 			TaskID:      taskID,
-			Prompt:      t.Description,
-			Category:    t.Category,
+			Prompt:      description,
+			Category:    category,
 		}
 
 		// Execute workflow

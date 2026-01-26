@@ -8,21 +8,21 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
 // runCompletion executes the completion action (sync, PR/merge) for a task.
-func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *task.Task) error {
+func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) error {
 	if we.orcConfig == nil {
 		return nil
 	}
 
 	// Resolve action based on task weight
-	action := we.orcConfig.ResolveCompletionAction(string(t.Weight))
+	action := we.orcConfig.ResolveCompletionAction(t.Weight.String())
 	if action == "" || action == "none" {
 		we.logger.Info("skipping completion action", "weight", t.Weight, "action", action)
 		return nil
@@ -78,7 +78,7 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *task.Task) err
 		if err != nil {
 			if errors.Is(err, git.ErrMergeConflict) {
 				we.logger.Warn("sync encountered conflicts",
-					"task", t.ID,
+					"task", t.Id,
 					"conflict_files", result.ConflictFiles)
 				if we.orcConfig.Completion.Sync.FailOnConflict {
 					return fmt.Errorf("%w: %d conflict files", ErrSyncConflict, len(result.ConflictFiles))
@@ -106,7 +106,7 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *task.Task) err
 }
 
 // directMerge merges the task branch directly into target.
-func (we *WorkflowExecutor) directMerge(ctx context.Context, t *task.Task, gitOps *git.Git, targetBranch string) error {
+func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	we.logger.Info("direct merge to target branch", "target", targetBranch)
 
 	// Push task branch first
@@ -136,22 +136,21 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *task.Task, gitOp
 	}
 
 	// Update task with merge info
-	t.Status = task.StatusResolved
-	now := time.Now()
-	t.CompletedAt = &now
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task after direct merge", "task", t.ID, "error", err)
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RESOLVED
+	task.MarkCompletedProto(t)
+	if err := we.backend.SaveTaskProto(t); err != nil {
+		we.logger.Warn("failed to save task after direct merge", "task", t.Id, "error", err)
 	}
 
-	we.logger.Info("direct merge completed", "task", t.ID, "target", targetBranch)
+	we.logger.Info("direct merge completed", "task", t.Id, "target", targetBranch)
 	return nil
 }
 
 // createPR creates a pull request for the task branch.
-func (we *WorkflowExecutor) createPR(ctx context.Context, t *task.Task, gitOps *git.Git, targetBranch string) error {
+func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	// Check if PR already exists
-	if t.PR != nil && t.PR.URL != "" {
-		we.logger.Info("PR already exists", "url", t.PR.URL)
+	if task.HasPRProto(t) {
+		we.logger.Info("PR already exists", "url", task.GetPRURLProto(t))
 		return nil
 	}
 
@@ -163,23 +162,21 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *task.Task, gitOps *
 	}
 
 	// Build PR body
+	description := task.GetDescriptionProto(t)
 	body := fmt.Sprintf("## Task: %s\n\n%s\n\n---\nCreated by orc workflow execution.",
-		t.Title, t.Description)
+		t.Title, description)
 
 	// Create PR via gh cli
-	prTitle := fmt.Sprintf("[orc] %s: %s", t.ID, t.Title)
+	prTitle := fmt.Sprintf("[orc] %s: %s", t.Id, t.Title)
 	prURL, err := we.runGHCreatePR(ctx, prTitle, body, targetBranch)
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
 	}
 
 	// Update task with PR info
-	t.PR = &task.PRInfo{
-		URL:    prURL,
-		Status: task.PRStatusPendingReview,
-	}
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task with PR info", "task", t.ID, "error", err)
+	task.SetPRInfoProto(t, prURL, 0) // Number will be populated by PR status sync
+	if err := we.backend.SaveTaskProto(t); err != nil {
+		we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
 	}
 
 	we.logger.Info("PR created", "url", prURL)
@@ -210,7 +207,7 @@ func (we *WorkflowExecutor) runGHCreatePR(ctx context.Context, title, body, targ
 }
 
 // setupWorktree creates or reuses an isolated worktree for the given task.
-func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
+func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
 	result, err := SetupWorktreeForTask(t, we.orcConfig, we.gitOps, we.backend)
 	if err != nil {
 		return fmt.Errorf("setup worktree: %w", err)
@@ -222,23 +219,24 @@ func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
 	// Calculate and set task branch for git operations (push, PR creation, etc.)
 	// Get initiative prefix for branch name calculation
 	var initiativePrefix string
-	if t.InitiativeID != "" {
-		if init, loadErr := we.backend.LoadInitiative(t.InitiativeID); loadErr == nil && init != nil {
+	initiativeID := task.GetInitiativeIDProto(t)
+	if initiativeID != "" {
+		if init, loadErr := we.backend.LoadInitiative(initiativeID); loadErr == nil && init != nil {
 			initiativePrefix = init.BranchPrefix
 		}
 	}
 
 	// Set task branch before any git operations reference it
-	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.ID, initiativePrefix)
-	if err := we.backend.SaveTask(t); err != nil {
-		we.logger.Warn("failed to save task branch", "task_id", t.ID, "error", err)
+	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+	if err := we.backend.SaveTaskProto(t); err != nil {
+		we.logger.Warn("failed to save task branch", "task_id", t.Id, "error", err)
 	}
 
 	logMsg := "created worktree"
 	if result.Reused {
 		logMsg = "reusing existing worktree"
 	}
-	we.logger.Info(logMsg, "task", t.ID, "path", result.Path, "target_branch", result.TargetBranch, "branch", t.Branch)
+	we.logger.Info(logMsg, "task", t.Id, "path", result.Path, "target_branch", result.TargetBranch, "branch", t.Branch)
 
 	// Update the resolver to use worktree path
 	we.resolver = variable.NewResolver(result.Path)
@@ -247,21 +245,21 @@ func (we *WorkflowExecutor) setupWorktree(t *task.Task) error {
 }
 
 // cleanupWorktree removes the worktree based on config and task status.
-func (we *WorkflowExecutor) cleanupWorktree(t *task.Task) {
+func (we *WorkflowExecutor) cleanupWorktree(t *orcv1.Task) {
 	if we.worktreePath == "" {
 		return
 	}
 
 	// StatusResolved is treated like StatusCompleted for cleanup - both are terminal success states
-	shouldCleanup := ((t.Status == task.StatusCompleted || t.Status == task.StatusResolved) && we.orcConfig.Worktree.CleanupOnComplete) ||
-		(t.Status == task.StatusFailed && we.orcConfig.Worktree.CleanupOnFail)
+	shouldCleanup := ((t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED || t.Status == orcv1.TaskStatus_TASK_STATUS_RESOLVED) && we.orcConfig.Worktree.CleanupOnComplete) ||
+		(t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED && we.orcConfig.Worktree.CleanupOnFail)
 	if !shouldCleanup {
 		return
 	}
 
 	// Cleanup Playwright user data directory (task-specific browser profile)
-	if err := CleanupPlaywrightUserData(t.ID); err != nil {
-		we.logger.Warn("failed to cleanup playwright user data", "task", t.ID, "error", err)
+	if err := CleanupPlaywrightUserData(t.Id); err != nil {
+		we.logger.Warn("failed to cleanup playwright user data", "task", t.Id, "error", err)
 	}
 
 	// Use stored worktree path directly instead of reconstructing from task ID.
@@ -269,7 +267,7 @@ func (we *WorkflowExecutor) cleanupWorktree(t *task.Task) {
 	if err := we.gitOps.CleanupWorktreeAtPath(we.worktreePath); err != nil {
 		we.logger.Warn("failed to cleanup worktree", "path", we.worktreePath, "error", err)
 	} else {
-		we.logger.Info("cleaned up worktree", "task", t.ID, "path", we.worktreePath)
+		we.logger.Info("cleaned up worktree", "task", t.Id, "path", we.worktreePath)
 	}
 }
 
@@ -284,7 +282,7 @@ func (we *WorkflowExecutor) effectiveWorkingDir() string {
 
 // syncOnTaskStart syncs the task branch with target before execution starts.
 // This catches conflicts from parallel tasks early.
-func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) error {
+func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) error {
 	cfg := we.orcConfig.Completion
 	targetBranch := cfg.TargetBranch
 	if targetBranch == "" {
@@ -305,14 +303,14 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) e
 	// Skip sync if no remote is configured (e.g., E2E sandbox projects)
 	if !gitOps.HasRemote("origin") {
 		we.logger.Debug("skipping sync-on-start: no remote configured",
-			"task", t.ID,
+			"task", t.Id,
 			"reason", "repository has no 'origin' remote")
 		return nil
 	}
 
 	we.logger.Info("syncing with target before execution",
 		"target", targetBranch,
-		"task", t.ID,
+		"task", t.Id,
 		"reason", "catch stale worktree from parallel tasks")
 
 	// Fetch latest from remote
@@ -347,7 +345,7 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) e
 		if errors.Is(err, git.ErrMergeConflict) {
 			// Log conflict details
 			we.logger.Warn("sync-on-start encountered conflicts",
-				"task", t.ID,
+				"task", t.Id,
 				"conflict_files", result.ConflictFiles,
 				"commits_behind", result.CommitsBehind)
 
@@ -367,7 +365,7 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) e
 
 			// Continue execution - implement phase may resolve conflicts
 			we.logger.Warn("continuing despite conflicts (fail_on_conflict: false)",
-				"task", t.ID,
+				"task", t.Id,
 				"conflict_count", conflictCount)
 			return nil
 		}
@@ -383,7 +381,7 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *task.Task) e
 
 // autoCommitBeforeCompletion commits any uncommitted changes before PR/merge.
 // This is a safety net for when Claude doesn't commit during implement phase.
-func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *task.Task) error {
+func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *orcv1.Task) error {
 	hasChanges, err := gitOps.HasUncommittedChanges()
 	if err != nil {
 		return fmt.Errorf("check uncommitted changes: %w", err)
@@ -394,7 +392,7 @@ func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *task.
 	}
 
 	we.logger.Info("uncommitted changes detected, auto-committing",
-		"task", t.ID)
+		"task", t.Id)
 
 	// Stage all changes
 	ctx := gitOps.Context()
@@ -403,11 +401,11 @@ func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *task.
 	}
 
 	// Commit with standard message format
-	msg := fmt.Sprintf("[orc] %s: Auto-commit before PR creation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>", t.ID)
+	msg := fmt.Sprintf("[orc] %s: Auto-commit before PR creation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>", t.Id)
 	if _, err := ctx.RunGit("commit", "-m", msg); err != nil {
 		return fmt.Errorf("commit changes: %w", err)
 	}
 
-	we.logger.Info("auto-committed changes", "task", t.ID)
+	we.logger.Info("auto-committed changes", "task", t.Id)
 	return nil
 }

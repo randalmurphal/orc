@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -216,18 +217,16 @@ func TestFinalizeExecutor_Execute_DisabledPhase(t *testing.T) {
 
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Title:  "Test task",
-		Weight: task.WeightLarge,
-	}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
 
-	result, err := exec.Execute(context.Background(), tsk, phase, &tsk.Execution)
+	result, err := exec.Execute(context.Background(), tsk, phase, tsk.Execution)
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	if result.Status != task.PhaseStatusCompleted {
+	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
 		t.Errorf("expected status = completed, got %s", result.Status)
 	}
 }
@@ -236,18 +235,16 @@ func TestFinalizeExecutor_Execute_NoGitService(t *testing.T) {
 	t.Parallel()
 	exec := NewFinalizeExecutor(nil) // No git service
 
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Title:  "Test task",
-		Weight: task.WeightLarge,
-	}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
 
-	result, err := exec.Execute(context.Background(), tsk, phase, &tsk.Execution)
+	result, err := exec.Execute(context.Background(), tsk, phase, tsk.Execution)
 	if err == nil {
 		t.Error("expected error when git service is not available")
 	}
-	if result.Status != task.PhaseStatusFailed {
+	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_FAILED {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }
@@ -473,10 +470,7 @@ func TestParseTotalLines(t *testing.T) {
 
 func TestBuildConflictResolutionPrompt(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{
-		ID:    "TASK-001",
-		Title: "Test task",
-	}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 	conflictFiles := []string{"file1.go", "file2.go"}
 	cfg := config.FinalizeConfig{
 		ConflictResolution: config.ConflictResolutionConfig{
@@ -510,10 +504,7 @@ func TestBuildConflictResolutionPrompt(t *testing.T) {
 
 func TestBuildTestFixPrompt(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{
-		ID:    "TASK-001",
-		Title: "Test task",
-	}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 	testResult := &ParsedTestResult{
 		Failed: 2,
 		Failures: []TestFailure{
@@ -692,7 +683,7 @@ func TestWithFinalizeExecutionUpdater(t *testing.T) {
 	}
 
 	called := false
-	updater := func(e *task.ExecutionState) {
+	updater := func(e *orcv1.ExecutionState) {
 		called = true
 	}
 
@@ -744,11 +735,14 @@ func TestFinalizeExecutor_syncWithTarget_NoGitService(t *testing.T) {
 		Sync: config.FinalizeSyncConfig{Strategy: config.FinalizeSyncMerge},
 	}
 
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	task.EnsureExecutionProto(tsk)
+
 	result, err := exec.syncWithTarget(
 		context.Background(),
-		&task.Task{ID: "TASK-001"},
+		tsk,
 		&PhaseDisplay{ID: "finalize"},
-		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
+		tsk.Execution,
 		"main",
 		cfg,
 	)
@@ -803,7 +797,7 @@ func TestFinalizeExecutor_createFinalizeCommit_NoGitService(t *testing.T) {
 	t.Parallel()
 	exec := NewFinalizeExecutor(nil)
 	result := &FinalizeResult{}
-	tsk := &task.Task{ID: "TASK-001"}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 
 	sha, err := exec.createFinalizeCommit(tsk, result)
 	if err == nil {
@@ -913,10 +907,7 @@ func TestBuildTestFailureContext_WithFailures(t *testing.T) {
 
 func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{
-		ID:    "TASK-001",
-		Title: "Test task",
-	}
+	tsk := task.NewProtoTask("TASK-001", "Test task")
 	conflictFiles := []string{"file.go"}
 	cfg := config.FinalizeConfig{
 		ConflictResolution: config.ConflictResolutionConfig{
@@ -937,7 +928,7 @@ func TestBuildConflictResolutionPrompt_NoCustomInstructions(t *testing.T) {
 
 func TestBuildTestFixPrompt_ManyFailures(t *testing.T) {
 	t.Parallel()
-	tsk := &task.Task{ID: "TASK-001", Title: "Test"}
+	tsk := task.NewProtoTask("TASK-001", "Test")
 	testResult := &ParsedTestResult{
 		Failed: 10,
 		Failures: []TestFailure{
@@ -976,11 +967,14 @@ func TestFinalizeExecutor_tryFixTests_ExecutorError(t *testing.T) {
 	)
 	testResult := &ParsedTestResult{}
 
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	task.EnsureExecutionProto(tsk)
+
 	fixed, err := exec.tryFixTests(
 		context.Background(),
-		&task.Task{ID: "TASK-001"},
+		tsk,
 		&PhaseDisplay{ID: "finalize"},
-		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
+		tsk.Execution,
 		testResult,
 	)
 
@@ -1003,11 +997,14 @@ func TestFinalizeExecutor_resolveConflicts_ExecutorError(t *testing.T) {
 	)
 	cfg := config.FinalizeConfig{}
 
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	task.EnsureExecutionProto(tsk)
+
 	resolved, err := exec.resolveConflicts(
 		context.Background(),
-		&task.Task{ID: "TASK-001"},
+		tsk,
 		&PhaseDisplay{ID: "finalize"},
-		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
+		tsk.Execution,
 		[]string{"conflict.go"},
 		cfg,
 	)
@@ -1130,12 +1127,15 @@ func TestSyncStrategy_DefaultMerge(t *testing.T) {
 		},
 	}
 
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	task.EnsureExecutionProto(tsk)
+
 	// This should fall through to default merge behavior
 	result, err := exec.syncWithTarget(
 		context.Background(),
-		&task.Task{ID: "TASK-001"},
+		tsk,
 		&PhaseDisplay{ID: "finalize"},
-		&task.ExecutionState{Phases: make(map[string]*task.PhaseState)},
+		tsk.Execution,
 		"main",
 		cfg,
 	)
@@ -1163,17 +1163,18 @@ func TestFinalizeExecutor_Execute_BranchUpToDate(t *testing.T) {
 
 	exec := NewFinalizeExecutor(nil, WithFinalizeOrcConfig(orcCfg))
 
-	tsk := &task.Task{ID: "TASK-001", Title: "Test", Weight: task.WeightLarge}
+	tsk := task.NewProtoTask("TASK-001", "Test")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	task.EnsureExecutionProto(tsk)
 	phase := &PhaseDisplay{ID: "finalize"}
-	s := &task.ExecutionState{Phases: make(map[string]*task.PhaseState)}
 
-	result, err := exec.Execute(context.Background(), tsk, phase, s)
+	result, err := exec.Execute(context.Background(), tsk, phase, tsk.Execution)
 
 	// Should fail because no git service
 	if err == nil {
 		t.Error("expected error when git service not available")
 	}
-	if result.Status != task.PhaseStatusFailed {
+	if result.Status != orcv1.PhaseStatus_PHASE_STATUS_FAILED {
 		t.Errorf("expected status = failed, got %s", result.Status)
 	}
 }

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
+	"github.com/randalmurphal/orc/internal/task"
 )
 
 // retryRequest is the request body for triggering a retry.

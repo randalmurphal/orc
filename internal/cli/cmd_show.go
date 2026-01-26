@@ -12,6 +12,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
@@ -61,16 +62,16 @@ Examples:
 
 			id := args[0]
 
-			t, err := backend.LoadTask(id)
+			t, err := backend.LoadTaskProto(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
 
 			// Create plan dynamically from task weight
-			p := createShowPlanForWeight(id, t.Weight)
+			p := createShowPlanForWeightProto(id, t.Weight)
 
 			// Merge phase states from task's execution state into the plan
-			mergePhaseStates(p, t)
+			mergePhaseStatesProto(p, t)
 
 			// --full enables everything
 			if showFull {
@@ -99,10 +100,10 @@ Examples:
 					"status":    t.Status,
 					"execution": t.Execution,
 				}
-				if showSession && t.Execution.Session != nil {
+				if showSession && t.Execution != nil && t.Execution.Session != nil {
 					result["session"] = t.Execution.Session
 				}
-				if showCost {
+				if showCost && t.Execution != nil {
 					result["cost"] = map[string]any{
 						"tokens": t.Execution.Tokens,
 						"cost":   t.Execution.Cost,
@@ -130,22 +131,24 @@ Examples:
 			}
 
 			// Print task details
-			fmt.Printf("\n%s - %s\n", t.ID, t.Title)
+			fmt.Printf("\n%s - %s\n", t.Id, t.Title)
 			fmt.Printf("────────────────────────────────────────────\n")
 			fmt.Printf("Status:    %s\n", t.Status)
 			fmt.Printf("Weight:    %s\n", t.Weight)
 			fmt.Printf("Branch:    %s\n", t.Branch)
-			fmt.Printf("Created:   %s\n", t.CreatedAt.Format(time.RFC3339))
+			if t.CreatedAt != nil {
+				fmt.Printf("Created:   %s\n", t.CreatedAt.AsTime().Format(time.RFC3339))
+			}
 
 			if t.StartedAt != nil {
-				fmt.Printf("Started:   %s\n", t.StartedAt.Format(time.RFC3339))
+				fmt.Printf("Started:   %s\n", t.StartedAt.AsTime().Format(time.RFC3339))
 			}
 			if t.CompletedAt != nil {
-				fmt.Printf("Completed: %s\n", t.CompletedAt.Format(time.RFC3339))
+				fmt.Printf("Completed: %s\n", t.CompletedAt.AsTime().Format(time.RFC3339))
 			}
 
-			if t.Description != "" {
-				fmt.Printf("\nDescription:\n%s\n", t.Description)
+			if t.Description != nil && *t.Description != "" {
+				fmt.Printf("\nDescription:\n%s\n", *t.Description)
 			}
 
 			// Print phases
@@ -162,18 +165,18 @@ Examples:
 			}
 
 			// Print execution state (tokens summary - always shown)
-			if t.Execution.Tokens.TotalTokens > 0 {
+			if t.Execution != nil && t.Execution.Tokens != nil && t.Execution.Tokens.TotalTokens > 0 {
 				fmt.Printf("\nTokens Used: %d\n", t.Execution.Tokens.TotalTokens)
 			}
 
 			// Print session info if requested
 			if showSession {
-				printSessionInfo(t, id)
+				printSessionInfoProto(t, id)
 			}
 
 			// Print cost info if requested
 			if showCost {
-				printCostInfo(t, id, period)
+				printCostInfoProto(t, id, period)
 			}
 
 			// Print spec info if requested
@@ -200,42 +203,54 @@ Examples:
 	return cmd
 }
 
-// printSessionInfo displays session information for a task.
-func printSessionInfo(t *task.Task, id string) {
+// printSessionInfoProto displays session information for a task (proto version).
+func printSessionInfoProto(t *orcv1.Task, id string) {
 	fmt.Printf("\nSession\n")
 	fmt.Printf("─────────────────────────\n")
 
-	if t.Execution.Session == nil {
+	if t.Execution == nil || t.Execution.Session == nil {
 		fmt.Printf("No session information recorded.\n")
 		fmt.Println("Session info is recorded after the task starts running.")
 		return
 	}
 
-	fmt.Printf("Session ID:    %s\n", t.Execution.Session.ID)
-	fmt.Printf("Model:         %s\n", t.Execution.Session.Model)
-	fmt.Printf("Status:        %s\n", t.Execution.Session.Status)
-	fmt.Printf("Turn Count:    %d\n", t.Execution.Session.TurnCount)
-	fmt.Printf("Created:       %s\n", t.Execution.Session.CreatedAt.Format("2006-01-02 15:04:05"))
-	fmt.Printf("Last Activity: %s\n", t.Execution.Session.LastActivity.Format("2006-01-02 15:04:05"))
+	session := t.Execution.Session
+	fmt.Printf("Session ID:    %s\n", session.Id)
+	fmt.Printf("Model:         %s\n", session.Model)
+	fmt.Printf("Status:        %s\n", session.Status)
+	fmt.Printf("Turn Count:    %d\n", session.TurnCount)
+	if session.CreatedAt != nil {
+		fmt.Printf("Created:       %s\n", session.CreatedAt.AsTime().Format("2006-01-02 15:04:05"))
+	}
+	if session.LastActivity != nil {
+		fmt.Printf("Last Activity: %s\n", session.LastActivity.AsTime().Format("2006-01-02 15:04:05"))
+	}
 
 	// Show resume hint if task is paused or blocked (task.Status is single source of truth)
-	if t.Status == task.StatusPaused || t.Status == task.StatusBlocked {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_PAUSED || t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
 		fmt.Println()
-		fmt.Printf("💡 To resume: orc resume %s\n", id)
+		fmt.Printf("To resume: orc resume %s\n", id)
 	}
 }
 
-// printCostInfo displays cost information for a task.
-func printCostInfo(t *task.Task, id string, _ string) {
+// printCostInfoProto displays cost information for a task (proto version).
+func printCostInfoProto(t *orcv1.Task, _ string, _ string) {
 	fmt.Printf("\nCost\n")
 	fmt.Printf("─────────────────────────\n")
 
-	fmt.Printf("Total Cost:    $%.4f\n", t.Execution.Cost.TotalCostUSD)
+	if t.Execution == nil || t.Execution.Cost == nil {
+		fmt.Printf("No cost information recorded.\n")
+		return
+	}
+
+	fmt.Printf("Total Cost:    $%.4f\n", t.Execution.Cost.TotalCostUsd)
 	fmt.Println()
 	fmt.Println("Token Usage:")
-	fmt.Printf("  Input:       %d tokens\n", t.Execution.Tokens.InputTokens)
-	fmt.Printf("  Output:      %d tokens\n", t.Execution.Tokens.OutputTokens)
-	fmt.Printf("  Total:       %d tokens\n", t.Execution.Tokens.TotalTokens)
+	if t.Execution.Tokens != nil {
+		fmt.Printf("  Input:       %d tokens\n", t.Execution.Tokens.InputTokens)
+		fmt.Printf("  Output:      %d tokens\n", t.Execution.Tokens.OutputTokens)
+		fmt.Printf("  Total:       %d tokens\n", t.Execution.Tokens.TotalTokens)
+	}
 
 	if len(t.Execution.Cost.PhaseCosts) > 0 {
 		fmt.Println()
@@ -388,24 +403,24 @@ func showWithPager(content string) bool {
 	return true
 }
 
-// createShowPlanForWeight creates an execution plan based on task weight.
+// createShowPlanForWeightProto creates an execution plan based on task weight (proto version).
 // Plans are created dynamically for display, not stored.
-func createShowPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
+func createShowPlanForWeightProto(taskID string, weight orcv1.TaskWeight) *executor.Plan {
 	var phases []executor.PhaseDisplay
 
 	switch weight {
-	case task.WeightTrivial:
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightSmall:
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
 		phases = []executor.PhaseDisplay{
 			{ID: "tiny_spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "implement", Name: "Implementation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightMedium:
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -413,7 +428,7 @@ func createShowPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
 			{ID: "review", Name: "Review", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "docs", Name: "Documentation", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 		}
-	case task.WeightLarge:
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
 		phases = []executor.PhaseDisplay{
 			{ID: "spec", Name: "Specification", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
 			{ID: "tdd_write", Name: "TDD Tests", Status: task.PhaseStatusPending, Gate: gate.Gate{Type: gate.GateAuto}},
@@ -436,9 +451,9 @@ func createShowPlanForWeight(taskID string, weight task.Weight) *executor.Plan {
 	}
 }
 
-// mergePhaseStates updates plan phase statuses from the execution state.
-func mergePhaseStates(p *executor.Plan, t *task.Task) {
-	if t.Execution.Phases == nil {
+// mergePhaseStatesProto updates plan phase statuses from the execution state (proto version).
+func mergePhaseStatesProto(p *executor.Plan, t *orcv1.Task) {
+	if t.Execution == nil || t.Execution.Phases == nil {
 		return
 	}
 	for i := range p.Phases {
@@ -447,16 +462,16 @@ func mergePhaseStates(p *executor.Plan, t *task.Task) {
 			continue
 		}
 		switch ps.Status {
-		case task.PhaseStatusCompleted:
+		case orcv1.PhaseStatus_PHASE_STATUS_COMPLETED:
 			p.Phases[i].Status = task.PhaseStatusCompleted
-			p.Phases[i].CommitSHA = ps.CommitSHA
-		case task.PhaseStatusFailed:
+			p.Phases[i].CommitSHA = ps.GetCommitSha()
+		case orcv1.PhaseStatus_PHASE_STATUS_FAILED:
 			p.Phases[i].Status = task.PhaseStatusFailed
-		case task.PhaseStatusSkipped:
+		case orcv1.PhaseStatus_PHASE_STATUS_SKIPPED:
 			p.Phases[i].Status = task.PhaseStatusSkipped
-		case task.PhaseStatusRunning:
+		case orcv1.PhaseStatus_PHASE_STATUS_RUNNING:
 			p.Phases[i].Status = task.PhaseStatusRunning
-		case task.PhaseStatusPaused, task.PhaseStatusInterrupted:
+		case orcv1.PhaseStatus_PHASE_STATUS_PAUSED, orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED:
 			p.Phases[i].Status = task.PhaseStatusPending // Show as pending when interrupted/paused
 		}
 	}

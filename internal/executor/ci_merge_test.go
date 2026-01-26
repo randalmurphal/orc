@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -312,8 +313,8 @@ func TestCIMerger_WaitForCIAndMerge_NoPR(t *testing.T) {
 	merger := NewCIMerger(cfg)
 
 	// Task without PR should skip CI wait
-	tsk := &task.Task{
-		ID: "TASK-001",
+	tsk := &orcv1.Task{
+		Id: "TASK-001",
 	}
 
 	err := merger.WaitForCIAndMerge(context.Background(), tsk)
@@ -330,11 +331,13 @@ func TestCIMerger_WaitForCIAndMerge_CIDisabled(t *testing.T) {
 	merger := NewCIMerger(cfg)
 
 	// Task with PR but CI disabled should skip
-	tsk := &task.Task{
-		ID: "TASK-001",
-		PR: &task.PRInfo{
-			URL:    "https://github.com/owner/repo/pull/1",
-			Number: 1,
+	prURL := "https://github.com/owner/repo/pull/1"
+	prNumber := int32(1)
+	tsk := &orcv1.Task{
+		Id: "TASK-001",
+		Pr: &orcv1.PRInfo{
+			Url:    &prURL,
+			Number: &prNumber,
 		},
 	}
 

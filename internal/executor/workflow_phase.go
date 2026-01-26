@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/git"
@@ -61,17 +62,17 @@ func (we *WorkflowExecutor) executePhase(
 	rctx *variable.ResolutionContext,
 	run *db.WorkflowRun,
 	runPhase *db.WorkflowRunPhase,
-	t *task.Task,
+	t *orcv1.Task,
 ) (PhaseResult, error) {
 	result := PhaseResult{
 		PhaseID: tmpl.ID,
-		Status:  string(task.PhaseStatusRunning),
+		Status:  orcv1.PhaseStatus_PHASE_STATUS_RUNNING.String(),
 	}
 
 	startTime := time.Now()
 
 	// Update phase status
-	runPhase.Status = string(task.PhaseStatusRunning)
+	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_RUNNING.String()
 	runPhase.StartedAt = timePtr(startTime)
 	if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
 		return result, fmt.Errorf("update phase status: %w", err)
@@ -85,13 +86,13 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Publish phase start event for real-time UI updates
 	if t != nil {
-		we.publisher.PhaseStart(t.ID, tmpl.ID)
+		we.publisher.PhaseStart(t.Id, tmpl.ID)
 	}
 
 	// Load prompt template
 	promptContent, err := we.loadPhasePrompt(tmpl)
 	if err != nil {
-		result.Status = string(task.PhaseStatusFailed)
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
 		result.Error = err.Error()
 		return result, err
 	}
@@ -174,9 +175,9 @@ func (we *WorkflowExecutor) executePhase(
 	// Execute with ClaudeExecutor
 	execResult, err := we.executeWithClaude(ctx, execConfig)
 	if err != nil {
-		result.Status = string(task.PhaseStatusFailed)
+		result.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
 		result.Error = err.Error()
-		runPhase.Status = string(task.PhaseStatusFailed)
+		runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_FAILED.String()
 		runPhase.Error = result.Error
 		runPhase.CompletedAt = timePtr(time.Now())
 		if saveErr := we.backend.SaveWorkflowRunPhase(runPhase); saveErr != nil {
@@ -184,13 +185,13 @@ func (we *WorkflowExecutor) executePhase(
 		}
 		// Publish phase failed event for real-time UI updates
 		if t != nil {
-			we.publisher.PhaseFailed(t.ID, tmpl.ID, err)
+			we.publisher.PhaseFailed(t.Id, tmpl.ID, err)
 		}
 		return result, err
 	}
 
 	// Update result
-	result.Status = string(task.PhaseStatusCompleted)
+	result.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
 	result.Iterations = execResult.Iterations
 	result.DurationMS = time.Since(startTime).Milliseconds()
 	result.InputTokens = execResult.InputTokens
@@ -224,7 +225,7 @@ func (we *WorkflowExecutor) executePhase(
 			}
 		}
 
-		taskID := t.ID
+		taskID := t.Id
 		output := &storage.PhaseOutputInfo{
 			WorkflowRunID:   run.ID,
 			PhaseTemplateID: tmpl.ID,
@@ -237,7 +238,7 @@ func (we *WorkflowExecutor) executePhase(
 		}
 		if err := we.backend.SavePhaseOutput(output); err != nil {
 			we.logger.Warn("failed to save phase output",
-				"task", t.ID,
+				"task", t.Id,
 				"phase", tmpl.ID,
 				"output_var", outputVarName,
 				"error", err,
@@ -246,7 +247,7 @@ func (we *WorkflowExecutor) executePhase(
 	}
 
 	// Update phase record
-	runPhase.Status = string(task.PhaseStatusCompleted)
+	runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_COMPLETED.String()
 	runPhase.Iterations = result.Iterations
 	runPhase.CompletedAt = timePtr(time.Now())
 	runPhase.InputTokens = result.InputTokens
@@ -261,7 +262,7 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Publish phase complete event for real-time UI updates
 	if t != nil {
-		we.publisher.PhaseComplete(t.ID, tmpl.ID, "")
+		we.publisher.PhaseComplete(t.Id, tmpl.ID, "")
 		// Trigger automation event for phase completion
 		we.triggerAutomationEvent(ctx, automation.EventPhaseCompleted, t, tmpl.ID)
 	}
@@ -280,9 +281,13 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Update execution state if available (Task-centric approach)
 	if we.task != nil {
-		we.task.Execution.CompletePhase(tmpl.ID, "") // Empty commit SHA for workflow phases
-		we.task.Execution.AddCost(we.task.CurrentPhase, result.CostUSD)
-		if err := we.backend.SaveTask(we.task); err != nil {
+		task.CompletePhaseProto(we.task.Execution, tmpl.ID, "") // Empty commit SHA for workflow phases
+		currentPhase := ""
+		if we.task.CurrentPhase != nil {
+			currentPhase = *we.task.CurrentPhase
+		}
+		task.AddCostProto(we.task.Execution, currentPhase, result.CostUSD)
+		if err := we.backend.SaveTaskProto(we.task); err != nil {
 			we.logger.Warn("failed to save task execution state", "error", err)
 		}
 	}
@@ -318,10 +323,14 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 	shouldResume := false
 	if we.task != nil {
 		if ps, ok := we.task.Execution.Phases[cfg.PhaseID]; ok {
-			if ps.Status == task.PhaseStatusInterrupted || ps.Status == task.PhaseStatusRunning {
+			if ps.Status == orcv1.PhaseStatus_PHASE_STATUS_INTERRUPTED || ps.Status == orcv1.PhaseStatus_PHASE_STATUS_RUNNING {
 				// Use the stored session ID if available for proper resume
-				if ps.SessionID != "" {
-					sessionID = ps.SessionID
+				storedSessionID := ""
+				if ps.SessionId != nil {
+					storedSessionID = *ps.SessionId
+				}
+				if storedSessionID != "" {
+					sessionID = storedSessionID
 					shouldResume = true
 					we.logger.Info("resuming interrupted phase",
 						"phase", cfg.PhaseID,
@@ -397,8 +406,8 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 		// Save session ID to phase state for resume capability
 		// Do this after first successful turn to capture the Claude session ID
 		if i == 0 && we.task != nil && turnResult.SessionID != "" {
-			we.task.Execution.SetPhaseSessionID(cfg.PhaseID, turnResult.SessionID)
-			if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+			task.SetPhaseSessionIDProto(we.task.Execution, cfg.PhaseID, turnResult.SessionID)
+			if saveErr := we.backend.SaveTaskProto(we.task); saveErr != nil {
 				we.logger.Warn("failed to save session ID", "phase", cfg.PhaseID, "error", saveErr)
 			}
 		}
@@ -611,7 +620,7 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 	rctx *variable.ResolutionContext,
 	run *db.WorkflowRun,
 	runPhase *db.WorkflowRunPhase,
-	t *task.Task,
+	t *orcv1.Task,
 ) (PhaseResult, error) {
 	phaseMax := time.Duration(0)
 	if we.orcConfig != nil {
@@ -630,7 +639,7 @@ func (we *WorkflowExecutor) executePhaseWithTimeout(
 	// Get task ID for logging
 	taskID := ""
 	if t != nil {
-		taskID = t.ID
+		taskID = t.Id
 	}
 
 	// Start timeout monitoring goroutine for warnings at 50% and 75%

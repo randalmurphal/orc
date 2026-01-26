@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
@@ -179,8 +179,8 @@ func TestExecutePhaseWithTimeout_TimeoutReached(t *testing.T) {
 		PhaseTemplateID: "slow_phase",
 	}
 
-	tsk := &task.Task{
-		ID: "TASK-001",
+	tsk := &orcv1.Task{
+		Id: "TASK-001",
 	}
 
 	// Use existing MockTurnExecutor with Delay

@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/task"
@@ -46,25 +48,35 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 	}
 
 	// Load from backend
-	t, err := s.backend.LoadTask(taskID)
+	t, err := s.backend.LoadTaskProto(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}
 
+	var startedAt, completedAt *time.Time
+	if t.StartedAt != nil {
+		st := t.StartedAt.AsTime()
+		startedAt = &st
+	}
+	if t.CompletedAt != nil {
+		ct := t.CompletedAt.AsTime()
+		completedAt = &ct
+	}
+
 	dbTask := &db.Task{
-		ID:           t.ID,
+		ID:           t.Id,
 		Title:        t.Title,
-		Description:  t.Description,
-		Weight:       string(t.Weight),
-		Status:       string(t.Status),
-		CurrentPhase: t.CurrentPhase,
+		Description:  task.GetDescriptionProto(t),
+		Weight:       t.Weight.String(),
+		Status:       t.Status.String(),
+		CurrentPhase: task.GetCurrentPhaseProto(t),
 		Branch:       t.Branch,
-		Queue:        string(t.GetQueue()),
-		Priority:     string(t.GetPriority()),
-		Category:     string(t.GetCategory()),
-		CreatedAt:    t.CreatedAt,
-		StartedAt:    t.StartedAt,
-		CompletedAt:  t.CompletedAt,
+		Queue:        task.GetQueueProto(t).String(),
+		Priority:     task.GetPriorityProto(t).String(),
+		Category:     task.GetCategoryProto(t).String(),
+		CreatedAt:    t.CreatedAt.AsTime(),
+		StartedAt:    startedAt,
+		CompletedAt:  completedAt,
 	}
 
 	if err := pdb.SaveTask(dbTask); err != nil {
@@ -84,51 +96,51 @@ func (s *Server) syncTaskToDB(pdb *db.ProjectDB, taskID string) error {
 // Note: This endpoint uses the server's workDir which may not be a valid orc project.
 // Prefer using /api/projects/{id}/tasks for explicit project-scoped operations.
 func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		// If there's no tasks yet, return empty list
 		// This handles the case where server is started from a non-project directory
-		s.jsonResponse(w, []*task.Task{})
+		s.jsonResponse(w, []*orcv1.Task{})
 		return
 	}
 
 	// Ensure we return an empty array, not null
 	if tasks == nil {
-		tasks = []*task.Task{}
+		tasks = []*orcv1.Task{}
 	}
 
 	// Filter by initiative if requested
 	initiativeFilter := r.URL.Query().Get("initiative")
 	if initiativeFilter != "" {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if t.InitiativeID == initiativeFilter {
+			if task.GetInitiativeIDProto(t) == initiativeFilter {
 				filtered = append(filtered, t)
 			}
 		}
 		tasks = filtered
 		// Ensure we return an empty array after filtering, not null
 		if tasks == nil {
-			tasks = []*task.Task{}
+			tasks = []*orcv1.Task{}
 		}
 	}
 
 	// Populate computed dependency fields (Blocks, ReferencedBy, DependencyStatus)
-	task.PopulateComputedFields(tasks)
+	task.PopulateComputedFieldsProto(tasks)
 
 	// Filter by dependency status if requested
 	depStatusFilter := r.URL.Query().Get("dependency_status")
 	if depStatusFilter != "" {
-		var filtered []*task.Task
+		var filtered []*orcv1.Task
 		for _, t := range tasks {
-			if string(t.DependencyStatus) == depStatusFilter {
+			if t.DependencyStatus.String() == depStatusFilter {
 				filtered = append(filtered, t)
 			}
 		}
 		tasks = filtered
 		// Ensure we return an empty array after filtering, not null
 		if tasks == nil {
-			tasks = []*task.Task{}
+			tasks = []*orcv1.Task{}
 		}
 	}
 
@@ -273,29 +285,27 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := task.New(id, req.Title)
-	t.Description = req.Description
+	t := task.NewProtoTask(id, req.Title)
+	task.SetDescriptionProto(t, req.Description)
 
 	// Set all fields first, then validate
 	if req.Weight != "" {
-		t.Weight = task.Weight(req.Weight)
+		t.Weight = task.WeightToProto(req.Weight)
+		if t.Weight == orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
+			s.jsonError(w, fmt.Sprintf("invalid weight: %s", req.Weight), http.StatusBadRequest)
+			return
+		}
 	} else {
-		t.Weight = task.WeightMedium
+		t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 	}
 	if req.Queue != "" {
-		t.Queue = task.Queue(req.Queue)
+		t.Queue = task.QueueToProto(req.Queue)
 	}
 	if req.Priority != "" {
-		t.Priority = task.Priority(req.Priority)
+		t.Priority = task.PriorityToProto(req.Priority)
 	}
 	if req.Category != "" {
-		t.Category = task.Category(req.Category)
-	}
-
-	// Validate all fields at once
-	if errs := t.Validate(); errs.HasErrors() {
-		s.jsonError(w, errs.Error(), http.StatusBadRequest)
-		return
+		t.Category = task.CategoryToProto(req.Category)
 	}
 
 	// Link to initiative if specified
@@ -306,20 +316,20 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 			s.jsonError(w, fmt.Sprintf("initiative %s not found", req.InitiativeID), http.StatusBadRequest)
 			return
 		}
-		t.SetInitiative(req.InitiativeID)
+		task.SetInitiativeProto(t, req.InitiativeID)
 	}
 
 	// Set dependencies
 	if len(req.BlockedBy) > 0 || len(req.RelatedTo) > 0 {
 		// Build map of existing task IDs for validation
-		existingTasks, err := s.backend.LoadAllTasks()
+		existingTasks, err := s.backend.LoadAllTasksProto()
 		if err != nil {
 			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
 			return
 		}
 		existingIDs := make(map[string]bool)
 		for _, existing := range existingTasks {
-			existingIDs[existing.ID] = true
+			existingIDs[existing.Id] = true
 		}
 
 		// Validate blocked_by references
@@ -339,21 +349,21 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Task is ready to run - executor will use assigned workflow_id
-	t.Status = task.StatusPlanned
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to save task", http.StatusInternalServerError)
 		return
 	}
 
 	// Sync task to initiative if linked
-	if t.HasInitiative() {
-		init, err := s.backend.LoadInitiative(t.InitiativeID)
+	if task.HasInitiativeProto(t) {
+		init, err := s.backend.LoadInitiative(task.GetInitiativeIDProto(t))
 		if err == nil {
-			init.AddTask(t.ID, t.Title, nil)
+			init.AddTask(t.Id, t.Title, nil)
 			if err := s.backend.SaveInitiative(init); err != nil {
 				s.logger.Warn("failed to sync task to initiative",
 					"taskID", id,
-					"initiativeID", t.InitiativeID,
+					"initiativeID", task.GetInitiativeIDProto(t),
 					"error", err,
 				)
 			}
@@ -404,26 +414,26 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 // handleGetTask returns a specific task.
 func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Load all tasks to compute Blocks, ReferencedBy, and DependencyStatus
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err == nil && len(allTasks) > 0 {
 		// Build task map for dependency checking
-		taskMap := make(map[string]*task.Task)
+		taskMap := make(map[string]*orcv1.Task)
 		for _, other := range allTasks {
-			taskMap[other.ID] = other
+			taskMap[other.Id] = other
 		}
 
-		t.Blocks = task.ComputeBlocks(t.ID, allTasks)
-		t.ReferencedBy = task.ComputeReferencedBy(t.ID, allTasks)
-		t.UnmetBlockers = t.GetUnmetDependencies(taskMap)
+		t.Blocks = task.ComputeBlocksProto(t.Id, allTasks)
+		t.ReferencedBy = task.ComputeReferencedByProto(t.Id, allTasks)
+		t.UnmetBlockers = task.GetUnmetDependenciesProto(t, taskMap)
 		t.IsBlocked = len(t.UnmetBlockers) > 0
-		t.DependencyStatus = t.ComputeDependencyStatus()
+		t.DependencyStatus = task.ComputeDependencyStatusProto(t)
 	}
 
 	s.jsonResponse(w, t)
@@ -434,25 +444,25 @@ func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Check if task is running
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
-	if t.Status == task.StatusRunning {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		s.jsonError(w, "cannot delete running task", http.StatusConflict)
 		return
 	}
 
 	// Remove from initiative if linked
-	if t.HasInitiative() {
-		if init, err := s.backend.LoadInitiative(t.InitiativeID); err == nil {
-			init.RemoveTask(t.ID)
+	if task.HasInitiativeProto(t) {
+		if init, err := s.backend.LoadInitiative(task.GetInitiativeIDProto(t)); err == nil {
+			init.RemoveTask(t.Id)
 			if err := s.backend.SaveInitiative(init); err != nil {
 				s.logger.Warn("failed to remove task from initiative on delete",
 					"taskID", id,
-					"initiativeID", t.InitiativeID,
+					"initiativeID", task.GetInitiativeIDProto(t),
 					"error", err,
 				)
 			}
@@ -473,14 +483,14 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
 	// Load existing task
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Cannot update running tasks
-	if t.Status == task.StatusRunning {
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		s.jsonError(w, "cannot update running task", http.StatusConflict)
 		return
 	}
@@ -514,31 +524,30 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Description != nil {
-		t.Description = *req.Description
+		task.SetDescriptionProto(t, *req.Description)
 	}
 
-	// Set all enum fields first, then validate together
+	// Set all enum fields first
 	if req.Weight != nil {
-		t.Weight = task.Weight(*req.Weight)
+		wt := task.WeightToProto(*req.Weight)
+		if wt == orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
+			s.jsonError(w, fmt.Sprintf("invalid weight: %s", *req.Weight), http.StatusBadRequest)
+			return
+		}
+		t.Weight = wt
 	}
 	if req.Queue != nil {
-		t.Queue = task.Queue(*req.Queue)
+		t.Queue = task.QueueToProto(*req.Queue)
 	}
 	if req.Priority != nil {
-		t.Priority = task.Priority(*req.Priority)
+		t.Priority = task.PriorityToProto(*req.Priority)
 	}
 	if req.Category != nil {
-		t.Category = task.Category(*req.Category)
-	}
-
-	// Validate all fields at once
-	if errs := t.Validate(); errs.HasErrors() {
-		s.jsonError(w, errs.Error(), http.StatusBadRequest)
-		return
+		t.Category = task.CategoryToProto(*req.Category)
 	}
 
 	// Track initiative change for bidirectional sync
-	oldInitiative := t.InitiativeID
+	oldInitiative := task.GetInitiativeIDProto(t)
 	initiativeChanged := false
 
 	if req.InitiativeID != nil {
@@ -550,16 +559,14 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if t.InitiativeID != *req.InitiativeID {
-			t.SetInitiative(*req.InitiativeID)
+		if task.GetInitiativeIDProto(t) != *req.InitiativeID {
+			task.SetInitiativeProto(t, *req.InitiativeID)
 			initiativeChanged = true
 		}
 	}
 
 	if req.Metadata != nil {
-		if t.Metadata == nil {
-			t.Metadata = make(map[string]string)
-		}
+		task.EnsureMetadataProto(t)
 		for k, v := range req.Metadata {
 			if v == "" {
 				delete(t.Metadata, k)
@@ -572,16 +579,16 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	// Handle dependency updates
 	if req.BlockedBy != nil || req.RelatedTo != nil {
 		// Build map of existing task IDs for validation
-		existingTasks, err := s.backend.LoadAllTasks()
+		existingTasks, err := s.backend.LoadAllTasksProto()
 		if err != nil {
 			s.jsonError(w, "failed to load existing tasks for validation", http.StatusInternalServerError)
 			return
 		}
 		existingIDs := make(map[string]bool)
-		taskMap := make(map[string]*task.Task)
+		taskMap := make(map[string]*orcv1.Task)
 		for _, existing := range existingTasks {
-			existingIDs[existing.ID] = true
-			taskMap[existing.ID] = existing
+			existingIDs[existing.Id] = true
+			taskMap[existing.Id] = existing
 		}
 
 		if req.BlockedBy != nil {
@@ -593,7 +600,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 
 			// Check for circular dependencies with all new blockers at once
 			// This catches cases where individual blockers are fine but combined they create a cycle
-			if cycle := task.DetectCircularDependencyWithAll(id, *req.BlockedBy, taskMap); cycle != nil {
+			if cycle := task.DetectCircularDependencyWithAllProto(id, *req.BlockedBy, taskMap); cycle != nil {
 				s.jsonError(w, fmt.Sprintf("circular dependency detected: %s", strings.Join(cycle, " -> ")), http.StatusBadRequest)
 				return
 			}
@@ -612,7 +619,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save updated task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save task: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -622,7 +629,7 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 		// Remove from old initiative if it was linked
 		if oldInitiative != "" {
 			if oldInit, err := s.backend.LoadInitiative(oldInitiative); err == nil {
-				oldInit.RemoveTask(t.ID)
+				oldInit.RemoveTask(t.Id)
 				if err := s.backend.SaveInitiative(oldInit); err != nil {
 					s.logger.Warn("failed to remove task from old initiative",
 						"taskID", id,
@@ -633,13 +640,13 @@ func (s *Server) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// Add to new initiative if linking
-		if t.HasInitiative() {
-			if newInit, err := s.backend.LoadInitiative(t.InitiativeID); err == nil {
-				newInit.AddTask(t.ID, t.Title, nil)
+		if task.HasInitiativeProto(t) {
+			if newInit, err := s.backend.LoadInitiative(task.GetInitiativeIDProto(t)); err == nil {
+				newInit.AddTask(t.Id, t.Title, nil)
 				if err := s.backend.SaveInitiative(newInit); err != nil {
 					s.logger.Warn("failed to add task to new initiative",
 						"taskID", id,
-						"initiativeID", t.InitiativeID,
+						"initiativeID", task.GetInitiativeIDProto(t),
 						"error", err,
 					)
 				}
@@ -672,23 +679,23 @@ type DependencyInfo struct {
 // handleGetDependencies returns the full dependency graph for a task.
 func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
 	// Load all tasks to build the graph
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
 	}
 
 	// Build task map for lookups
-	taskMap := make(map[string]*task.Task)
-	for _, t := range allTasks {
-		taskMap[t.ID] = t
+	taskMap := make(map[string]*orcv1.Task)
+	for _, tsk := range allTasks {
+		taskMap[tsk.Id] = tsk
 	}
 
 	// Helper to create DependencyInfo
@@ -696,9 +703,9 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 		info := DependencyInfo{ID: taskID}
 		if dep, exists := taskMap[taskID]; exists {
 			info.Title = dep.Title
-			info.Status = string(dep.Status)
+			info.Status = task.StatusFromProto(dep.Status)
 			if checkMet {
-				info.IsMet = dep.Status == task.StatusCompleted
+				info.IsMet = dep.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED
 			}
 		} else {
 			info.Title = "(not found)"
@@ -720,7 +727,7 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	for _, other := range allTasks {
 		for _, blocker := range other.BlockedBy {
 			if blocker == id {
-				blocks = append(blocks, toInfo(other.ID, false))
+				blocks = append(blocks, toInfo(other.Id, false))
 				break
 			}
 		}
@@ -732,13 +739,13 @@ func (s *Server) handleGetDependencies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	referencedBy := make([]DependencyInfo, 0)
-	refs := task.ComputeReferencedBy(id, allTasks)
+	refs := task.ComputeReferencedByProto(id, allTasks)
 	for _, refID := range refs {
 		referencedBy = append(referencedBy, toInfo(refID, false))
 	}
 
 	// Check for unmet dependencies
-	unmet := t.GetUnmetDependencies(taskMap)
+	unmet := task.GetUnmetDependenciesProto(t, taskMap)
 
 	graph := DependencyGraph{
 		TaskID:       id,

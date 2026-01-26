@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -233,64 +234,64 @@ func TestFinalizeCommand_StreamFlag(t *testing.T) {
 func TestValidateFinalizeState(t *testing.T) {
 	tests := []struct {
 		name      string
-		status    task.Status
+		status    orcv1.TaskStatus
 		wantErr   bool
 		errSubstr string
 	}{
 		{
 			name:      "completed task not allowed",
-			status:    task.StatusCompleted,
+			status:    orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 			wantErr:   true,
 			errSubstr: "already completed",
 		},
 		{
 			name:      "running task not allowed",
-			status:    task.StatusRunning,
+			status:    orcv1.TaskStatus_TASK_STATUS_RUNNING,
 			wantErr:   true,
 			errSubstr: "currently running",
 		},
 		{
 			name:    "planned task allowed",
-			status:  task.StatusPlanned,
+			status:  orcv1.TaskStatus_TASK_STATUS_PLANNED,
 			wantErr: false,
 		},
 		{
 			name:    "paused task allowed",
-			status:  task.StatusPaused,
+			status:  orcv1.TaskStatus_TASK_STATUS_PAUSED,
 			wantErr: false,
 		},
 		{
 			name:    "blocked task allowed",
-			status:  task.StatusBlocked,
+			status:  orcv1.TaskStatus_TASK_STATUS_BLOCKED,
 			wantErr: false,
 		},
 		{
 			name:    "failed task allowed",
-			status:  task.StatusFailed,
+			status:  orcv1.TaskStatus_TASK_STATUS_FAILED,
 			wantErr: false,
 		},
 		{
 			name:    "created task allowed",
-			status:  task.StatusCreated,
+			status:  orcv1.TaskStatus_TASK_STATUS_CREATED,
 			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tk := &task.Task{
-				ID:     "TASK-001",
+			tk := &orcv1.Task{
+				Id:     "TASK-001",
 				Status: tt.status,
 			}
 
-			err := validateFinalizeState(tk)
+			err := validateFinalizeStateProto(tk)
 
 			if tt.wantErr && err == nil {
-				t.Errorf("validateFinalizeState() should return error for status %s", tt.status)
+				t.Errorf("validateFinalizeStateProto() should return error for status %s", tt.status)
 			}
 
 			if !tt.wantErr && err != nil {
-				t.Errorf("validateFinalizeState() should not return error for status %s, got: %v", tt.status, err)
+				t.Errorf("validateFinalizeStateProto() should not return error for status %s, got: %v", tt.status, err)
 			}
 
 			if tt.wantErr && err != nil && tt.errSubstr != "" {

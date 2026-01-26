@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // setupWorkflowExecutorTest creates a test WorkflowExecutor with a real git repo
@@ -104,9 +104,9 @@ func TestAutoCommitBeforeCompletion_DetectsAndCommitsChanges(t *testing.T) {
 	}
 
 	// Create task
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Weight: task.WeightMedium,
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion (this function doesn't exist yet - test will fail)
@@ -169,9 +169,9 @@ func TestAutoCommitBeforeCompletion_SkipsCleanWorktree(t *testing.T) {
 	initialCount := strings.TrimSpace(string(out))
 
 	// Create task
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Weight: task.WeightMedium,
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion with clean worktree
@@ -254,9 +254,9 @@ func TestAutoCommitBeforeCompletion_IncludesAllChanges(t *testing.T) {
 	}
 
 	// Create task
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Weight: task.WeightMedium,
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	// Call autoCommitBeforeCompletion
@@ -302,9 +302,9 @@ func TestRunCompletion_CallsAutoCommitBeforePR(t *testing.T) {
 	}
 
 	// Create task with PR action
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Weight: task.WeightMedium, // maps to "pr" action in test config
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM, // maps to "pr" action in test config
 	}
 
 	// Mock remote (runCompletion checks for remote and skips if missing)
@@ -352,9 +352,9 @@ func TestRunCompletion_SkipsAutoCommitWhenActionNone(t *testing.T) {
 	}
 
 	// Create task with "none" action
-	tsk := &task.Task{
-		ID:     "TASK-001",
-		Weight: task.WeightMedium,
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
 	}
 
 	ctx := context.Background()

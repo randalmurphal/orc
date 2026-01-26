@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -47,20 +48,20 @@ func (s *Server) handleGetInitiativeDependencyGraph(w http.ResponseWriter, r *ht
 	}
 
 	// Load all tasks to get full dependency data (TaskRef doesn't store blocked_by)
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
 	}
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
+		taskMap[t.Id] = t
 	}
 
 	// Build graph from full task data
-	graph := buildGraphFromTasks(taskMap, taskIDs)
+	graph := buildGraphFromTasksProto(taskMap, taskIDs)
 
 	s.jsonResponse(w, graph)
 }
@@ -95,20 +96,20 @@ func (s *Server) handleGetTasksDependencyGraph(w http.ResponseWriter, r *http.Re
 	}
 
 	// Load all tasks
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := s.backend.LoadAllTasksProto()
 	if err != nil {
 		s.jsonError(w, "failed to load tasks", http.StatusInternalServerError)
 		return
 	}
 
 	// Build task map
-	taskMap := make(map[string]*task.Task)
+	taskMap := make(map[string]*orcv1.Task)
 	for _, t := range allTasks {
-		taskMap[t.ID] = t
+		taskMap[t.Id] = t
 	}
 
 	// Build graph from requested tasks
-	graph := buildGraphFromTasks(taskMap, requestedIDs)
+	graph := buildGraphFromTasksProto(taskMap, requestedIDs)
 
 	s.jsonResponse(w, graph)
 }
@@ -167,7 +168,61 @@ func buildGraphFromTasks(taskMap map[string]*task.Task, requestedIDs map[string]
 	}
 }
 
-// mapTaskStatus maps internal task status to display status for the graph.
+// buildGraphFromTasksProto creates a dependency graph from a set of proto tasks.
+func buildGraphFromTasksProto(taskMap map[string]*orcv1.Task, requestedIDs map[string]bool) *DependencyGraphResponse {
+	nodes := make([]GraphNode, 0, len(requestedIDs))
+	edges := make([]GraphEdge, 0)
+	edgeSet := make(map[string]bool) // Deduplicate edges
+
+	for id := range requestedIDs {
+		t, exists := taskMap[id]
+		if !exists {
+			// Skip non-existent tasks but continue with others
+			continue
+		}
+
+		// Add node
+		nodes = append(nodes, GraphNode{
+			ID:     t.Id,
+			Title:  t.Title,
+			Status: mapTaskStatusProto(t.Status),
+		})
+
+		// Add edges for blocked_by relationships within the requested set
+		for _, blockerID := range t.BlockedBy {
+			if requestedIDs[blockerID] {
+				edgeKey := blockerID + "->" + t.Id
+				if !edgeSet[edgeKey] {
+					edges = append(edges, GraphEdge{
+						From: blockerID,
+						To:   t.Id,
+					})
+					edgeSet[edgeKey] = true
+				}
+			}
+		}
+	}
+
+	// Sort nodes by ID for consistent output
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].ID < nodes[j].ID
+	})
+
+	// Sort edges for consistent output
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].From != edges[j].From {
+			return edges[i].From < edges[j].From
+		}
+		return edges[i].To < edges[j].To
+	})
+
+	return &DependencyGraphResponse{
+		Nodes: nodes,
+		Edges: edges,
+	}
+}
+
+// mapTaskStatus maps internal task status to display status for the graph (domain types).
 // Returns simplified status values for visualization: done, running, blocked, ready, pending
 func mapTaskStatus(status string) string {
 	switch status {
@@ -182,6 +237,27 @@ func mapTaskStatus(status string) string {
 	case "failed":
 		return "failed"
 	case "created", "planned":
+		return "ready"
+	default:
+		return "pending"
+	}
+}
+
+// mapTaskStatusProto maps proto task status to display status for the graph.
+// Returns simplified status values for visualization: done, running, blocked, ready, pending
+func mapTaskStatusProto(status orcv1.TaskStatus) string {
+	switch status {
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
+		return "done"
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING, orcv1.TaskStatus_TASK_STATUS_FINALIZING:
+		return "running"
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		return "blocked"
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED:
+		return "paused"
+	case orcv1.TaskStatus_TASK_STATUS_FAILED:
+		return "failed"
+	case orcv1.TaskStatus_TASK_STATUS_CREATED, orcv1.TaskStatus_TASK_STATUS_PLANNED:
 		return "ready"
 	default:
 		return "pending"

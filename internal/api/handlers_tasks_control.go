@@ -3,10 +3,10 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	orcerrors "github.com/randalmurphal/orc/internal/errors"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
@@ -24,20 +24,21 @@ func truncate(s string, maxLen int) string {
 // handleRunTask starts task execution using WorkflowExecutor.
 func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
+	description := task.GetDescriptionProto(t)
 	s.logger.Debug("handleRunTask: task loaded",
-		"task_id", t.ID,
+		"task_id", t.Id,
 		"title", t.Title,
-		"description_len", len(t.Description),
-		"description_preview", truncate(t.Description, 100),
+		"description_len", len(description),
+		"description_preview", truncate(description, 100),
 	)
 
-	if !t.CanRun() {
+	if !task.CanRunProto(t) {
 		s.jsonError(w, fmt.Sprintf("task cannot run in status: %s", t.Status), http.StatusBadRequest)
 		return
 	}
@@ -46,19 +47,17 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	if len(t.BlockedBy) > 0 {
 		force := r.URL.Query().Get("force") == "true"
 		if !force {
-			allTasks, err := s.backend.LoadAllTasks()
+			allTasks, err := s.backend.LoadAllTasksProto()
 			if err != nil {
 				s.logger.Warn("failed to load tasks for dependency check", "error", err)
 			} else {
-				taskMap := make(map[string]*task.Task)
+				taskMap := make(map[string]*orcv1.Task)
 				for _, tsk := range allTasks {
-					taskMap[tsk.ID] = tsk
+					taskMap[tsk.Id] = tsk
 				}
-				blockers := t.GetIncompleteBlockers(taskMap)
+				blockers := task.GetIncompleteBlockersProto(t, taskMap)
 				if len(blockers) > 0 {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusConflict)
-					_ = json.NewEncoder(w).Encode(map[string]any{
+					s.jsonResponseWithStatus(w, http.StatusConflict, map[string]any{
 						"error":           "task_blocked",
 						"message":         "Task is blocked by incomplete dependencies",
 						"blocked_by":      blockers,
@@ -71,7 +70,7 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get workflow ID from task - MUST be set
-	workflowID := t.WorkflowID
+	workflowID := task.GetWorkflowIDProto(t)
 	if workflowID == "" {
 		s.jsonError(w, fmt.Sprintf("task %s has no workflow_id set - cannot run", id), http.StatusBadRequest)
 		return
@@ -80,12 +79,12 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 	// Get first phase of workflow to set current_phase
 	phases, err := s.backend.GetWorkflowPhases(workflowID)
 	if err == nil && len(phases) > 0 {
-		t.CurrentPhase = phases[0].PhaseTemplateID
+		task.SetCurrentPhaseProto(t, phases[0].PhaseTemplateID)
 	}
 
 	// Update task status to running BEFORE spawning executor
-	t.Status = task.StatusRunning
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task status", http.StatusInternalServerError)
 		return
 	}
@@ -131,8 +130,8 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 		opts := executor.WorkflowRunOptions{
 			ContextType: executor.ContextTask,
 			TaskID:      id,
-			Prompt:      t.Description,
-			Category:    t.Category,
+			Prompt:      description,
+			Category:    task.Category(task.CategoryFromProto(t.Category)),
 		}
 
 		// Execute workflow
@@ -155,14 +154,14 @@ func (s *Server) handleRunTask(w http.ResponseWriter, r *http.Request) {
 // handlePauseTask pauses task execution.
 func (s *Server) handlePauseTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
 	}
 
-	t.Status = task.StatusPaused
-	if err := s.backend.SaveTask(t); err != nil {
+	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}
@@ -194,7 +193,7 @@ func (s *Server) handleResumeTask(w http.ResponseWriter, r *http.Request) {
 // This allows a blocked task to become ready for execution.
 func (s *Server) handleSkipBlock(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	t, err := s.backend.LoadTask(id)
+	t, err := s.backend.LoadTaskProto(id)
 	if err != nil {
 		s.handleOrcError(w, orcerrors.ErrTaskNotFound(id))
 		return
@@ -209,11 +208,11 @@ func (s *Server) handleSkipBlock(w http.ResponseWriter, r *http.Request) {
 	t.UnmetBlockers = nil
 
 	// If task was in blocked status, reset to planned so it can be run
-	if t.Status == task.StatusBlocked {
-		t.Status = task.StatusPlanned
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
+		t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 	}
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := s.backend.SaveTaskProto(t); err != nil {
 		s.jsonError(w, "failed to update task", http.StatusInternalServerError)
 		return
 	}

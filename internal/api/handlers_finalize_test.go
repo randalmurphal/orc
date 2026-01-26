@@ -14,10 +14,12 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // testLogger returns a logger that discards output.
@@ -45,13 +47,10 @@ func TestHandleFinalizeTask(t *testing.T) {
 
 	// Create a task
 	taskID := "TASK-001"
-	tsk := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCompleted,
-		Weight: task.WeightMedium,
-	}
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "Test task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -184,13 +183,10 @@ func TestHandleFinalizeTask(t *testing.T) {
 	t.Run("rejects non-finalizable task status without force", func(t *testing.T) {
 		// Create a running task
 		runningTaskID := "TASK-002"
-		runningTask := &task.Task{
-			ID:     runningTaskID,
-			Title:  "Running task",
-			Status: task.StatusRunning,
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(runningTask); err != nil {
+		runningTask := task.NewProtoTask(runningTaskID, "Running task")
+		runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+		runningTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		if err := backend.SaveTaskProto(runningTask); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -211,16 +207,11 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 
 	// Create a task
 	taskID := "TASK-001"
-	tsk := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCompleted,
-		Weight: task.WeightMedium,
-		Execution: task.ExecutionState{
-			Phases: make(map[string]*task.PhaseState),
-		},
-	}
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "Test task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	task.EnsureExecutionProto(tsk)
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -395,13 +386,14 @@ func TestHandleGetFinalizeStatus(t *testing.T) {
 
 		// Update task with completed finalize phase
 		now := time.Now()
-		tsk.Execution.Phases["finalize"] = &task.PhaseState{
-			Status:      task.PhaseStatusCompleted,
-			StartedAt:   now.Add(-5 * time.Minute),
-			CompletedAt: &now,
-			CommitSHA:   "def456",
+		commitSHA := "def456"
+		tsk.Execution.Phases["finalize"] = &orcv1.PhaseState{
+			Status:      orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
+			StartedAt:   timestamppb.New(now.Add(-5 * time.Minute)),
+			CompletedAt: timestamppb.New(now),
+			CommitSha:   &commitSHA,
 		}
-		if err := backend.SaveTask(tsk); err != nil {
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -1037,13 +1029,10 @@ func TestHandleFinalizeTask_ConcurrentRequests(t *testing.T) {
 
 	// Create a task
 	taskID := "TASK-CONCURRENT"
-	tsk := &task.Task{
-		ID:     taskID,
-		Title:  "Concurrent test task",
-		Status: task.StatusCompleted,
-		Weight: task.WeightMedium,
-	}
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "Concurrent test task")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -1126,13 +1115,10 @@ func TestTriggerFinalizeOnApproval_ConcurrentCalls(t *testing.T) {
 	backend := createTestBackend(t)
 
 	taskID := "TASK-CONCURRENT-APPROVAL"
-	tsk := &task.Task{
-		ID:     taskID,
-		Title:  "Concurrent approval test",
-		Status: task.StatusCompleted,
-		Weight: task.WeightMedium,
-	}
-	if err := backend.SaveTask(tsk); err != nil {
+	tsk := task.NewProtoTask(taskID, "Concurrent approval test")
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	if err := backend.SaveTaskProto(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
@@ -1207,13 +1193,10 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 
 		// Create a completed task
 		taskID := "TASK-001"
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Test task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Test task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -1221,12 +1204,17 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		orcCfg := config.Default()
 		orcCfg.Completion.Finalize.AutoTriggerOnApproval = false
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -1242,13 +1230,10 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		backend := createTestBackend(t)
 
 		taskID := "TASK-002"
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Test task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Test task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -1259,13 +1244,18 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		})
 		defer finTracker.delete(taskID)
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -1281,23 +1271,25 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		backend := createTestBackend(t)
 
 		taskID := "TASK-003"
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Trivial task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightTrivial, // Trivial weight
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Trivial task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL // Trivial weight
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -1313,23 +1305,25 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		backend := createTestBackend(t)
 
 		taskID := "TASK-004"
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Running task",
-			Status: task.StatusRunning, // Not completed
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Running task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING // Not completed
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -1345,32 +1339,35 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 		backend := createTestBackend(t)
 
 		taskID := "TASK-005"
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Completed task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Completed task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		task.EnsureExecutionProto(tsk)
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
 		// Update task with completed finalize
-		tsk.Execution.Phases = make(map[string]*task.PhaseState)
-		tsk.Execution.Phases["finalize"] = &task.PhaseState{
-			Status: task.PhaseStatusCompleted,
+		tsk.Execution.Phases = make(map[string]*orcv1.PhaseState)
+		tsk.Execution.Phases["finalize"] = &orcv1.PhaseState{
+			Status: orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
 		}
-		if err := backend.SaveTask(tsk); err != nil {
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		triggered, err := srv.TriggerFinalizeOnApproval(taskID)
@@ -1387,13 +1384,10 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 
 		taskID := "TASK-006"
 		// Create a completed task with medium weight
-		tsk := &task.Task{
-			ID:     taskID,
-			Title:  "Valid task",
-			Status: task.StatusCompleted,
-			Weight: task.WeightMedium,
-		}
-		if err := backend.SaveTask(tsk); err != nil {
+		tsk := task.NewProtoTask(taskID, "Valid task")
+		tsk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+		tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+		if err := backend.SaveTaskProto(tsk); err != nil {
 			t.Fatalf("save task: %v", err)
 		}
 
@@ -1438,13 +1432,18 @@ func TestTriggerFinalizeOnApproval(t *testing.T) {
 	t.Run("returns error for non-existent task", func(t *testing.T) {
 		backend := createTestBackend(t)
 
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(func() { cancel() })
+
 		orcCfg := config.Default()
 		srv := &Server{
-			workDir:   t.TempDir(),
-			orcConfig: orcCfg,
-			logger:    testLogger(),
-			publisher: events.NewNopPublisher(),
-			backend:   backend,
+			workDir:         t.TempDir(),
+			orcConfig:       orcCfg,
+			logger:          testLogger(),
+			publisher:       events.NewNopPublisher(),
+			backend:         backend,
+			serverCtx:       ctx,
+			serverCtxCancel: cancel,
 		}
 
 		_, err := srv.TriggerFinalizeOnApproval("TASK-NONEXISTENT")
