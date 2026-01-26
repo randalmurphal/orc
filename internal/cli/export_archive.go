@@ -29,7 +29,7 @@ func exportAllTasks(outputPath, format string, opts exportAllOptions) error {
 	data := exportAllData{}
 
 	// Load all tasks
-	data.tasks, err = backend.LoadAllTasksProto()
+	data.tasks, err = backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}

@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // withStatusTestDir creates a temp directory with task structure, changes to it,
@@ -94,28 +96,28 @@ func TestStatusCommand_InitiativeFilter(t *testing.T) {
 
 	// Create tasks with different statuses and initiatives
 	// INIT-001 tasks
-	t1 := task.New("TASK-001", "Running in INIT-001")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusRunning
-	t1.Priority = task.PriorityHigh
-	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
+	t1 := task.NewProtoTask("TASK-001", "Running in INIT-001")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t1.Priority = orcv1.TaskPriority_TASK_PRIORITY_HIGH
+	t1.ExecutorPid = int32(os.Getpid()) // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Ready in INIT-001")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCreated
-	t2.Priority = task.PriorityNormal
+	t2 := task.NewProtoTask("TASK-002", "Ready in INIT-001")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	t2.Priority = orcv1.TaskPriority_TASK_PRIORITY_NORMAL
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	// INIT-002 task (should not appear)
-	t3 := task.New("TASK-003", "Ready in INIT-002")
-	t3.InitiativeID = "INIT-002"
-	t3.Status = task.StatusCreated
-	t3.Priority = task.PriorityHigh
+	t3 := task.NewProtoTask("TASK-003", "Ready in INIT-002")
+	task.SetInitiativeProto(t3, "INIT-002")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	t3.Priority = orcv1.TaskPriority_TASK_PRIORITY_HIGH
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
@@ -170,14 +172,14 @@ func TestStatusCommand_InitiativeShorthand(t *testing.T) {
 	}
 
 	// Create task in initiative
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 
 	// Create task outside initiative
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -220,7 +222,7 @@ func TestStatusCommand_EmptyInitiativeFilter(t *testing.T) {
 	}
 
 	// Create task NOT in the initiative
-	t1 := task.New("TASK-001", "Task without initiative")
+	t1 := task.NewProtoTask("TASK-001", "Task without initiative")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -262,16 +264,16 @@ func TestStatusCommand_UnassignedFilter(t *testing.T) {
 	}
 
 	// Create task with initiative
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusCreated
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	// Create task without initiative
-	t2 := task.New("TASK-002", "Task without initiative")
-	t2.Status = task.StatusRunning
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -309,13 +311,13 @@ func TestStatusCommand_EmptyStringFilter(t *testing.T) {
 	backend := createStatusTestBackend(t, tmpDir)
 
 	// Create tasks
-	t1 := task.New("TASK-001", "Task with initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task with initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -357,26 +359,26 @@ func TestStatusCommand_InitiativeWithAllFlag(t *testing.T) {
 	}
 
 	// Create tasks in INIT-001
-	t1 := task.New("TASK-001", "Running in INIT-001")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusRunning
+	t1 := task.NewProtoTask("TASK-001", "Running in INIT-001")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Completed in INIT-001")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCompleted
-	t2.UpdatedAt = time.Now().Add(-48 * time.Hour) // More than 24h ago
+	t2 := task.NewProtoTask("TASK-002", "Completed in INIT-001")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	t2.UpdatedAt = timestamppb.New(time.Now().Add(-48 * time.Hour)) // More than 24h ago
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	// Create task in INIT-002
-	t3 := task.New("TASK-003", "Completed in INIT-002")
-	t3.InitiativeID = "INIT-002"
-	t3.Status = task.StatusCompleted
-	t3.UpdatedAt = time.Now().Add(-48 * time.Hour)
+	t3 := task.NewProtoTask("TASK-003", "Completed in INIT-002")
+	task.SetInitiativeProto(t3, "INIT-002")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	t3.UpdatedAt = timestamppb.New(time.Now().Add(-48 * time.Hour))
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
@@ -419,7 +421,7 @@ func TestStatusCommand_NonexistentInitiative(t *testing.T) {
 	backend := createStatusTestBackend(t, tmpDir)
 
 	// Create a task
-	t1 := task.New("TASK-001", "Test task")
+	t1 := task.NewProtoTask("TASK-001", "Test task")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -460,31 +462,31 @@ func TestStatusCommand_InitiativeSummaryLine(t *testing.T) {
 	}
 
 	// Create tasks in INIT-001
-	t1 := task.New("TASK-001", "Running in INIT-001")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusRunning
-	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
+	t1 := task.NewProtoTask("TASK-001", "Running in INIT-001")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t1.ExecutorPid = int32(os.Getpid()) // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Ready in INIT-001")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCreated
+	t2 := task.NewProtoTask("TASK-002", "Ready in INIT-001")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
 	// Create tasks NOT in initiative (should not affect counts)
-	t3 := task.New("TASK-003", "Running without initiative")
-	t3.Status = task.StatusRunning
-	t3.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
+	t3 := task.NewProtoTask("TASK-003", "Running without initiative")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t3.ExecutorPid = int32(os.Getpid()) // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
 
-	t4 := task.New("TASK-004", "Completed without initiative")
-	t4.Status = task.StatusCompleted
+	t4 := task.NewProtoTask("TASK-004", "Completed without initiative")
+	t4.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	if err := backend.SaveTask(t4); err != nil {
 		t.Fatalf("save task 4: %v", err)
 	}
@@ -539,16 +541,16 @@ func TestStatusCommand_DependencyBlockedWithInitiative(t *testing.T) {
 	}
 
 	// Create blocker task (not in initiative)
-	t1 := task.New("TASK-001", "Blocker task")
-	t1.Status = task.StatusRunning
+	t1 := task.NewProtoTask("TASK-001", "Blocker task")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	// Create blocked task in initiative
-	t2 := task.New("TASK-002", "Blocked task in INIT-001")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCreated
+	t2 := task.NewProtoTask("TASK-002", "Blocked task in INIT-001")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	t2.BlockedBy = []string{"TASK-001"}
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
@@ -597,34 +599,34 @@ func TestStatusCommand_MultipleCategories(t *testing.T) {
 	}
 
 	// Create tasks in various states, all in INIT-001
-	t1 := task.New("TASK-001", "Running")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusRunning
-	t1.ExecutorPID = os.Getpid() // Set PID so task appears running, not orphaned
+	t1 := task.NewProtoTask("TASK-001", "Running")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t1.ExecutorPid = int32(os.Getpid()) // Set PID so task appears running, not orphaned
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Ready")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCreated
+	t2 := task.NewProtoTask("TASK-002", "Ready")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
-	t3 := task.New("TASK-003", "Paused")
-	t3.InitiativeID = "INIT-001"
-	t3.Status = task.StatusPaused
+	t3 := task.NewProtoTask("TASK-003", "Paused")
+	task.SetInitiativeProto(t3, "INIT-001")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
 
-	t4 := task.New("TASK-004", "Recent")
-	t4.InitiativeID = "INIT-001"
-	t4.Status = task.StatusCompleted
+	t4 := task.NewProtoTask("TASK-004", "Recent")
+	task.SetInitiativeProto(t4, "INIT-001")
+	t4.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 	completedTime := time.Now().Add(-1 * time.Hour)
-	t4.CompletedAt = &completedTime
-	t4.UpdatedAt = time.Now().Add(-1 * time.Hour) // Within 24h
+	t4.CompletedAt = timestamppb.New(completedTime)
+	t4.UpdatedAt = timestamppb.New(time.Now().Add(-1 * time.Hour)) // Within 24h
 	if err := backend.SaveTask(t4); err != nil {
 		t.Fatalf("save task 4: %v", err)
 	}
@@ -692,8 +694,8 @@ func TestStatusCommand_CaseSensitiveInitiative(t *testing.T) {
 	}
 
 	// Create task in initiative
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -732,13 +734,13 @@ func TestStatusCommand_NoInitiativeFilterShowsAll(t *testing.T) {
 	}
 
 	// Create tasks with and without initiative
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -786,16 +788,16 @@ func TestStatusCommand_SystemBlockedWithInitiative(t *testing.T) {
 	}
 
 	// Create system-blocked task in initiative
-	t1 := task.New("TASK-001", "Blocked task in INIT-001")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusBlocked
+	t1 := task.NewProtoTask("TASK-001", "Blocked task in INIT-001")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
 	// Create system-blocked task NOT in initiative
-	t2 := task.New("TASK-002", "Blocked task without initiative")
-	t2.Status = task.StatusBlocked
+	t2 := task.NewProtoTask("TASK-002", "Blocked task without initiative")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -843,8 +845,8 @@ func TestStatusCommand_UnassignedWithNoUnassignedTasks(t *testing.T) {
 	}
 
 	// Create task with initiative (no unassigned tasks)
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -888,26 +890,26 @@ func TestStatusCommand_PriorityOrderingPreserved(t *testing.T) {
 	}
 
 	// Create tasks with different priorities (all in READY state)
-	t1 := task.New("TASK-001", "Critical priority")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusCreated
-	t1.Priority = task.PriorityCritical
+	t1 := task.NewProtoTask("TASK-001", "Critical priority")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	t1.Priority = orcv1.TaskPriority_TASK_PRIORITY_CRITICAL
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Low priority")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCreated
-	t2.Priority = task.PriorityLow
+	t2 := task.NewProtoTask("TASK-002", "Low priority")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	t2.Priority = orcv1.TaskPriority_TASK_PRIORITY_LOW
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
-	t3 := task.New("TASK-003", "High priority")
-	t3.InitiativeID = "INIT-001"
-	t3.Status = task.StatusCreated
-	t3.Priority = task.PriorityHigh
+	t3 := task.NewProtoTask("TASK-003", "High priority")
+	task.SetInitiativeProto(t3, "INIT-001")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	t3.Priority = orcv1.TaskPriority_TASK_PRIORITY_HIGH
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}

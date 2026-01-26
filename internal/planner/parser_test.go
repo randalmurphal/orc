@@ -2,8 +2,6 @@ package planner
 
 import (
 	"testing"
-
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 func TestParseTaskBreakdown_Valid(t *testing.T) {
@@ -56,8 +54,8 @@ func TestParseTaskBreakdown_Valid(t *testing.T) {
 	if breakdown.Tasks[0].Title != "Create User model" {
 		t.Errorf("Task 1 title = %q, want %q", breakdown.Tasks[0].Title, "Create User model")
 	}
-	if breakdown.Tasks[0].Weight != task.WeightSmall {
-		t.Errorf("Task 1 weight = %q, want %q", breakdown.Tasks[0].Weight, task.WeightSmall)
+	if breakdown.Tasks[0].Weight != "small" {
+		t.Errorf("Task 1 weight = %q, want %q", breakdown.Tasks[0].Weight, "small")
 	}
 	if len(breakdown.Tasks[0].DependsOn) != 0 {
 		t.Errorf("Task 1 should have no dependencies, got %v", breakdown.Tasks[0].DependsOn)
@@ -178,15 +176,15 @@ func TestExtractJSON(t *testing.T) {
 func TestNormalizeWeight(t *testing.T) {
 	tests := []struct {
 		input string
-		want  task.Weight
+		want  string
 	}{
-		{"trivial", task.WeightTrivial},
-		{"TRIVIAL", task.WeightTrivial},
-		{"small", task.WeightSmall},
-		{"medium", task.WeightMedium},
-		{"large", task.WeightLarge},
-		{"unknown", task.WeightMedium}, // default
-		{"", task.WeightMedium},
+		{"trivial", "trivial"},
+		{"TRIVIAL", "trivial"},
+		{"small", "small"},
+		{"medium", "medium"},
+		{"large", "large"},
+		{"unknown", "medium"}, // default
+		{"", "medium"},
 	}
 
 	for _, tt := range tests {

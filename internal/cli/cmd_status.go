@@ -108,7 +108,7 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		}
 	}
 
-	allTasks, err := backend.LoadAllTasksProto()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks: %w", err)
 	}

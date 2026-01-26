@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -151,11 +152,11 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 			return nil, fmt.Errorf("generate task ID: %w", err)
 		}
 
-		// Create task
-		t := task.New(id, proposed.Title)
-		t.Description = proposed.Description
-		t.Weight = proposed.Weight
-		t.Status = task.StatusPlanned // Plans are created dynamically at runtime
+		// Create task using proto type
+		t := task.NewProtoTask(id, proposed.Title)
+		t.Description = &proposed.Description
+		t.Weight = task.WeightToProto(string(proposed.Weight))
+		t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED // Plans are created dynamically at runtime
 
 		// Save task
 		if err := p.opts.Backend.SaveTask(t); err != nil {

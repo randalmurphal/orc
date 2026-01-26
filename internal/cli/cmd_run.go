@@ -174,7 +174,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	// If we have an existing task, load it and use its workflow_id
 	var existingTask *orcv1.Task
 	if existingTaskID != "" {
-		existingTask, err = backend.LoadTaskProto(existingTaskID)
+		existingTask, err = backend.LoadTask(existingTaskID)
 		if err != nil {
 			return fmt.Errorf("load task: %w", err)
 		}
@@ -366,7 +366,7 @@ func checkTaskDependenciesProto(backend storage.Backend, t *orcv1.Task, force bo
 	}
 
 	// Load all tasks to check blocker status
-	allTasks, err := backend.LoadAllTasksProto()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return fmt.Errorf("load tasks for dependency check: %w", err)
 	}

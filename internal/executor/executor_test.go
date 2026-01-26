@@ -818,35 +818,6 @@ func TestPublishState(t *testing.T) {
 	}
 }
 
-func TestLoadRetryContextFromExecution(t *testing.T) {
-	t.Parallel()
-	// Test with no retry context
-	testExec := &task.ExecutionState{
-		Phases: make(map[string]*task.PhaseState),
-	}
-	ctx := LoadRetryContextFromExecution(testExec)
-	if ctx != "" {
-		t.Errorf("expected empty retry context, got %s", ctx)
-	}
-}
-
-func TestLoadRetryContextFromExecution_WithContext(t *testing.T) {
-	t.Parallel()
-	// Test with retry context set
-	testExec := &task.ExecutionState{
-		Phases: make(map[string]*task.PhaseState),
-	}
-	testExec.SetRetryContext("test", "implement", "test failed", "output here", 1)
-
-	ctx := LoadRetryContextFromExecution(testExec)
-	if ctx == "" {
-		t.Error("expected retry context, got empty")
-	}
-	if !strings.Contains(ctx, "test failed") {
-		t.Errorf("expected retry context to contain failure reason, got %s", ctx)
-	}
-}
-
 func TestSaveRetryContextFile(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()

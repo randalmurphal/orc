@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 )
 
 // Note: time is still used by SpecMetadata
@@ -56,14 +58,14 @@ type SpecValidation struct {
 
 // ValidateSpec validates a spec against requirements based on task weight.
 // Trivial tasks skip validation entirely.
-func ValidateSpec(content string, weight Weight) *SpecValidation {
+func ValidateSpec(content string, weight orcv1.TaskWeight) *SpecValidation {
 	result := &SpecValidation{
 		Valid:  true,
 		Issues: []string{},
 	}
 
 	// Trivial tasks skip validation entirely
-	if weight == WeightTrivial {
+	if weight == orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL {
 		result.HasIntent = true
 		result.HasSuccessCriteria = true
 		result.HasTesting = true

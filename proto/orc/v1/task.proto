@@ -440,6 +440,7 @@ service TaskService {
   rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
   rpc GetDiff(GetDiffRequest) returns (GetDiffResponse);
   rpc GetDiffStats(GetDiffStatsRequest) returns (GetDiffStatsResponse);
+  rpc GetFileDiff(GetFileDiffRequest) returns (GetFileDiffResponse);
   rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
   rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
   rpc UpdateComment(UpdateCommentRequest) returns (UpdateCommentResponse);
@@ -683,6 +684,16 @@ message GetDiffStatsRequest {
 
 message GetDiffStatsResponse {
   DiffStats stats = 1;
+}
+
+// GetFileDiff - Get diff hunks for a specific file
+message GetFileDiffRequest {
+  string id = 1;        // Task ID
+  string file_path = 2; // Path of the file to get diff for
+}
+
+message GetFileDiffResponse {
+  FileDiff file = 1; // File diff with hunks
 }
 
 // ListComments

@@ -210,7 +210,7 @@ func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 			task.EnsureExecutionProto(t)
 			task.CompletePhaseProto(t.Execution, currentPhase.ID, "")
 			if pool.backend != nil {
-				_ = pool.backend.SaveTaskProto(t)
+				_ = pool.backend.SaveTask(t)
 			}
 
 			pool.publishEvent(events.Event{
@@ -232,7 +232,7 @@ func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 				t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 				t.CompletedAt = timestamppb.Now()
 				if pool.backend != nil {
-					_ = pool.backend.SaveTaskProto(t)
+					_ = pool.backend.SaveTask(t)
 				}
 				w.setStatus(WorkerStatusComplete)
 				return

@@ -36,7 +36,7 @@ func withFinalizeTestDir(t *testing.T) string {
 }
 
 // createFinalizeTestTask creates a task suitable for finalize testing
-func createFinalizeTestTask(t *testing.T, tmpDir, id string, status task.Status) *task.Task {
+func createFinalizeTestTask(t *testing.T, tmpDir, id string, status orcv1.TaskStatus) *orcv1.Task {
 	t.Helper()
 
 	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
@@ -45,11 +45,11 @@ func createFinalizeTestTask(t *testing.T, tmpDir, id string, status task.Status)
 	}
 	defer func() { _ = backend.Close() }()
 
-	tk := task.New(id, "Test task for finalize")
+	tk := task.NewProtoTask(id, "Test task for finalize")
 	tk.Status = status
-	tk.Weight = task.WeightLarge
-	tk.CurrentPhase = "finalize"
-	tk.Execution = task.InitExecutionState()
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	currentPhase := "finalize"
+	tk.CurrentPhase = &currentPhase
 
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -62,7 +62,7 @@ func TestFinalizeCommand_CompletedTaskNotAllowed(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a completed task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusCompleted)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_COMPLETED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -81,7 +81,7 @@ func TestFinalizeCommand_RunningTaskNotAllowed(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a running task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusRunning)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_RUNNING)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -116,7 +116,7 @@ func TestFinalizeCommand_PausedTaskAllowed(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a paused task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusPaused)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_PAUSED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -136,7 +136,7 @@ func TestFinalizeCommand_FailedTaskAllowed(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a failed task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusFailed)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_FAILED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -153,7 +153,7 @@ func TestFinalizeCommand_BlockedTaskAllowed(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a blocked task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusBlocked)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_BLOCKED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001"})
@@ -170,7 +170,7 @@ func TestFinalizeCommand_InvalidGateType(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusPaused)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_PAUSED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001", "--gate", "invalid"})
@@ -201,7 +201,7 @@ func TestFinalizeCommand_ForceFlag(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusPaused)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_PAUSED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001", "--force"})
@@ -218,7 +218,7 @@ func TestFinalizeCommand_StreamFlag(t *testing.T) {
 	tmpDir := withFinalizeTestDir(t)
 
 	// Create a task
-	createFinalizeTestTask(t, tmpDir, "TASK-001", task.StatusPaused)
+	createFinalizeTestTask(t, tmpDir, "TASK-001", orcv1.TaskStatus_TASK_STATUS_PAUSED)
 
 	cmd := newFinalizeCmd()
 	cmd.SetArgs([]string{"TASK-001", "--stream"})

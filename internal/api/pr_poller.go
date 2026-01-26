@@ -12,7 +12,6 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -103,7 +102,7 @@ func (p *PRPoller) run(ctx context.Context) {
 
 func (p *PRPoller) pollAll(ctx context.Context) {
 	// Load all tasks from the backend
-	tasks, err := p.backend.LoadAllTasksProto()
+	tasks, err := p.backend.LoadAllTasks()
 	if err != nil {
 		p.logger.Debug("failed to load tasks for PR polling", "error", err)
 		return
@@ -208,39 +207,6 @@ func (p *PRPoller) pollTask(ctx context.Context, client *github.Client, t *orcv1
 	return nil
 }
 
-func (p *PRPoller) determinePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {
-	return DeterminePRStatus(pr, summary)
-}
-
-// DeterminePRStatus derives the task.PRStatus from a PR and its review summary.
-// This is used by both the poller and the API handler.
-func DeterminePRStatus(pr *github.PR, summary *github.PRStatusSummary) task.PRStatus {
-	// Check if PR is merged
-	if pr.State == "MERGED" {
-		return task.PRStatusMerged
-	}
-
-	// Check if PR is closed
-	if pr.State == "CLOSED" {
-		return task.PRStatusClosed
-	}
-
-	// Check if PR is draft
-	if pr.Draft {
-		return task.PRStatusDraft
-	}
-
-	// Use review status
-	switch summary.ReviewStatus {
-	case "approved":
-		return task.PRStatusApproved
-	case "changes_requested":
-		return task.PRStatusChangesRequested
-	default:
-		return task.PRStatusPendingReview
-	}
-}
-
 // DeterminePRStatusProto derives the proto PRStatus from a PR and its review summary.
 func DeterminePRStatusProto(pr *github.PR, summary *github.PRStatusSummary) orcv1.PRStatus {
 	// Check if PR is merged
@@ -270,13 +236,13 @@ func DeterminePRStatusProto(pr *github.PR, summary *github.PRStatusSummary) orcv
 }
 
 func (p *PRPoller) saveTask(t *orcv1.Task) error {
-	return p.backend.SaveTaskProto(t)
+	return p.backend.SaveTask(t)
 }
 
 // PollTask manually triggers a poll for a specific task.
 // This is useful for on-demand refresh.
 func (p *PRPoller) PollTask(ctx context.Context, taskID string) error {
-	t, err := p.backend.LoadTaskProto(taskID)
+	t, err := p.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}

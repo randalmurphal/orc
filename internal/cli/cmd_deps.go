@@ -104,7 +104,7 @@ See also:
 			initFilter, _ := cmd.Flags().GetString("initiative")
 
 			// Load all tasks for dependency computation
-			allTasks, err := backend.LoadAllTasksProto()
+			allTasks, err := backend.LoadAllTasks()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}

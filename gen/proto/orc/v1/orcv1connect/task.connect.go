@@ -81,6 +81,8 @@ const (
 	// TaskServiceGetDiffStatsProcedure is the fully-qualified name of the TaskService's GetDiffStats
 	// RPC.
 	TaskServiceGetDiffStatsProcedure = "/orc.v1.TaskService/GetDiffStats"
+	// TaskServiceGetFileDiffProcedure is the fully-qualified name of the TaskService's GetFileDiff RPC.
+	TaskServiceGetFileDiffProcedure = "/orc.v1.TaskService/GetFileDiff"
 	// TaskServiceListCommentsProcedure is the fully-qualified name of the TaskService's ListComments
 	// RPC.
 	TaskServiceListCommentsProcedure = "/orc.v1.TaskService/ListComments"
@@ -149,6 +151,7 @@ type TaskServiceClient interface {
 	GetDependencies(context.Context, *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error)
 	GetDiff(context.Context, *connect.Request[v1.GetDiffRequest]) (*connect.Response[v1.GetDiffResponse], error)
 	GetDiffStats(context.Context, *connect.Request[v1.GetDiffStatsRequest]) (*connect.Response[v1.GetDiffStatsResponse], error)
+	GetFileDiff(context.Context, *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error)
 	ListComments(context.Context, *connect.Request[v1.ListCommentsRequest]) (*connect.Response[v1.ListCommentsResponse], error)
 	CreateComment(context.Context, *connect.Request[v1.CreateCommentRequest]) (*connect.Response[v1.CreateCommentResponse], error)
 	UpdateComment(context.Context, *connect.Request[v1.UpdateCommentRequest]) (*connect.Response[v1.UpdateCommentResponse], error)
@@ -299,6 +302,12 @@ func NewTaskServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(taskServiceMethods.ByName("GetDiffStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getFileDiff: connect.NewClient[v1.GetFileDiffRequest, v1.GetFileDiffResponse](
+			httpClient,
+			baseURL+TaskServiceGetFileDiffProcedure,
+			connect.WithSchema(taskServiceMethods.ByName("GetFileDiff")),
+			connect.WithClientOptions(opts...),
+		),
 		listComments: connect.NewClient[v1.ListCommentsRequest, v1.ListCommentsResponse](
 			httpClient,
 			baseURL+TaskServiceListCommentsProcedure,
@@ -414,6 +423,7 @@ type taskServiceClient struct {
 	getDependencies     *connect.Client[v1.GetDependenciesRequest, v1.GetDependenciesResponse]
 	getDiff             *connect.Client[v1.GetDiffRequest, v1.GetDiffResponse]
 	getDiffStats        *connect.Client[v1.GetDiffStatsRequest, v1.GetDiffStatsResponse]
+	getFileDiff         *connect.Client[v1.GetFileDiffRequest, v1.GetFileDiffResponse]
 	listComments        *connect.Client[v1.ListCommentsRequest, v1.ListCommentsResponse]
 	createComment       *connect.Client[v1.CreateCommentRequest, v1.CreateCommentResponse]
 	updateComment       *connect.Client[v1.UpdateCommentRequest, v1.UpdateCommentResponse]
@@ -531,6 +541,11 @@ func (c *taskServiceClient) GetDiffStats(ctx context.Context, req *connect.Reque
 	return c.getDiffStats.CallUnary(ctx, req)
 }
 
+// GetFileDiff calls orc.v1.TaskService.GetFileDiff.
+func (c *taskServiceClient) GetFileDiff(ctx context.Context, req *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error) {
+	return c.getFileDiff.CallUnary(ctx, req)
+}
+
 // ListComments calls orc.v1.TaskService.ListComments.
 func (c *taskServiceClient) ListComments(ctx context.Context, req *connect.Request[v1.ListCommentsRequest]) (*connect.Response[v1.ListCommentsResponse], error) {
 	return c.listComments.CallUnary(ctx, req)
@@ -628,6 +643,7 @@ type TaskServiceHandler interface {
 	GetDependencies(context.Context, *connect.Request[v1.GetDependenciesRequest]) (*connect.Response[v1.GetDependenciesResponse], error)
 	GetDiff(context.Context, *connect.Request[v1.GetDiffRequest]) (*connect.Response[v1.GetDiffResponse], error)
 	GetDiffStats(context.Context, *connect.Request[v1.GetDiffStatsRequest]) (*connect.Response[v1.GetDiffStatsResponse], error)
+	GetFileDiff(context.Context, *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error)
 	ListComments(context.Context, *connect.Request[v1.ListCommentsRequest]) (*connect.Response[v1.ListCommentsResponse], error)
 	CreateComment(context.Context, *connect.Request[v1.CreateCommentRequest]) (*connect.Response[v1.CreateCommentResponse], error)
 	UpdateComment(context.Context, *connect.Request[v1.UpdateCommentRequest]) (*connect.Response[v1.UpdateCommentResponse], error)
@@ -774,6 +790,12 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(taskServiceMethods.ByName("GetDiffStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	taskServiceGetFileDiffHandler := connect.NewUnaryHandler(
+		TaskServiceGetFileDiffProcedure,
+		svc.GetFileDiff,
+		connect.WithSchema(taskServiceMethods.ByName("GetFileDiff")),
+		connect.WithHandlerOptions(opts...),
+	)
 	taskServiceListCommentsHandler := connect.NewUnaryHandler(
 		TaskServiceListCommentsProcedure,
 		svc.ListComments,
@@ -906,6 +928,8 @@ func NewTaskServiceHandler(svc TaskServiceHandler, opts ...connect.HandlerOption
 			taskServiceGetDiffHandler.ServeHTTP(w, r)
 		case TaskServiceGetDiffStatsProcedure:
 			taskServiceGetDiffStatsHandler.ServeHTTP(w, r)
+		case TaskServiceGetFileDiffProcedure:
+			taskServiceGetFileDiffHandler.ServeHTTP(w, r)
 		case TaskServiceListCommentsProcedure:
 			taskServiceListCommentsHandler.ServeHTTP(w, r)
 		case TaskServiceCreateCommentProcedure:
@@ -1023,6 +1047,10 @@ func (UnimplementedTaskServiceHandler) GetDiff(context.Context, *connect.Request
 
 func (UnimplementedTaskServiceHandler) GetDiffStats(context.Context, *connect.Request[v1.GetDiffStatsRequest]) (*connect.Response[v1.GetDiffStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.GetDiffStats is not implemented"))
+}
+
+func (UnimplementedTaskServiceHandler) GetFileDiff(context.Context, *connect.Request[v1.GetFileDiffRequest]) (*connect.Response[v1.GetFileDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TaskService.GetFileDiff is not implemented"))
 }
 
 func (UnimplementedTaskServiceHandler) ListComments(context.Context, *connect.Request[v1.ListCommentsRequest]) (*connect.Response[v1.ListCommentsResponse], error) {

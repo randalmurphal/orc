@@ -189,7 +189,7 @@ func exportToYAML(taskID, outputFile string, withState, withTranscripts bool) er
 	defer func() { _ = backend.Close() }()
 
 	// Load task
-	t, err := backend.LoadTaskProto(taskID)
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}

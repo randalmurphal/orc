@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -110,19 +111,19 @@ func TestListCommand_InitiativeFilter(t *testing.T) {
 	}
 
 	// Create tasks with different initiative assignments
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
-	t3 := task.New("TASK-003", "Another task in initiative")
-	t3.InitiativeID = "INIT-001"
+	t3 := task.NewProtoTask("TASK-003", "Another task in initiative")
+	task.SetInitiativeProto(t3, "INIT-001")
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
@@ -164,13 +165,13 @@ func TestListCommand_UnassignedFilter(t *testing.T) {
 	}
 
 	// Create tasks with different initiative assignments
-	t1 := task.New("TASK-001", "Task in initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -203,13 +204,13 @@ func TestListCommand_EmptyInitiativeFilter(t *testing.T) {
 	backend := createListTestBackend(t, tmpDir)
 
 	// Create tasks
-	t1 := task.New("TASK-001", "Task with initiative")
-	t1.InitiativeID = "INIT-001"
+	t1 := task.NewProtoTask("TASK-001", "Task with initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Task without initiative")
+	t2 := task.NewProtoTask("TASK-002", "Task without initiative")
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
@@ -242,7 +243,7 @@ func TestListCommand_InvalidInitiative(t *testing.T) {
 	backend := createListTestBackend(t, tmpDir)
 
 	// Create a task
-	t1 := task.New("TASK-001", "Test task")
+	t1 := task.NewProtoTask("TASK-001", "Test task")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -279,25 +280,25 @@ func TestListCommand_CombinedFilters(t *testing.T) {
 	}
 
 	// Create tasks with different properties
-	t1 := task.New("TASK-001", "Running task in initiative")
-	t1.InitiativeID = "INIT-001"
-	t1.Status = task.StatusRunning
-	t1.Weight = task.WeightSmall
+	t1 := task.NewProtoTask("TASK-001", "Running task in initiative")
+	task.SetInitiativeProto(t1, "INIT-001")
+	t1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task 1: %v", err)
 	}
 
-	t2 := task.New("TASK-002", "Completed task in initiative")
-	t2.InitiativeID = "INIT-001"
-	t2.Status = task.StatusCompleted
-	t2.Weight = task.WeightSmall
+	t2 := task.NewProtoTask("TASK-002", "Completed task in initiative")
+	task.SetInitiativeProto(t2, "INIT-001")
+	t2.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	t2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t2); err != nil {
 		t.Fatalf("save task 2: %v", err)
 	}
 
-	t3 := task.New("TASK-003", "Running task without initiative")
-	t3.Status = task.StatusRunning
-	t3.Weight = task.WeightSmall
+	t3 := task.NewProtoTask("TASK-003", "Running task without initiative")
+	t3.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	t3.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
 	if err := backend.SaveTask(t3); err != nil {
 		t.Fatalf("save task 3: %v", err)
 	}
@@ -339,7 +340,7 @@ func TestListCommand_NoMatchingTasks(t *testing.T) {
 	}
 
 	// Create a task NOT in the initiative
-	t1 := task.New("TASK-001", "Task without initiative")
+	t1 := task.NewProtoTask("TASK-001", "Task without initiative")
 	if err := backend.SaveTask(t1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -481,7 +482,7 @@ func TestListCommand_LimitFlag(t *testing.T) {
 
 	// Create 5 tasks
 	for i := 1; i <= 5; i++ {
-		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task %d: %v", i, err)
 		}
@@ -527,7 +528,7 @@ func TestListCommand_LimitZero(t *testing.T) {
 
 	// Create 3 tasks
 	for i := 1; i <= 3; i++ {
-		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task %d: %v", i, err)
 		}
@@ -567,11 +568,11 @@ func TestListCommand_LimitWithFilters(t *testing.T) {
 
 	// Create tasks with different statuses
 	for i := 1; i <= 5; i++ {
-		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
 		if i <= 3 {
-			tk.Status = task.StatusCreated
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 		} else {
-			tk.Status = task.StatusCompleted
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		}
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task %d: %v", i, err)
@@ -618,7 +619,7 @@ func TestListCommand_LimitExceedsTotal(t *testing.T) {
 
 	// Create only 3 tasks
 	for i := 1; i <= 3; i++ {
-		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task %d: %v", i, err)
 		}
@@ -658,7 +659,7 @@ func TestListCommand_LimitShorthand(t *testing.T) {
 
 	// Create 5 tasks
 	for i := 1; i <= 5; i++ {
-		tk := task.New(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
+		tk := task.NewProtoTask(fmt.Sprintf("TASK-%03d", i), fmt.Sprintf("Task %d", i))
 		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task %d: %v", i, err)
 		}

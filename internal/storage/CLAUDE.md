@@ -185,10 +185,10 @@ The database stores task-level and phase-level status:
 
 | Field | Type | Values | Purpose |
 |-------|------|--------|---------|
-| `task.Status` | `task.Status` | created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed | UI display, workflow |
-| Phase status | `task.PhaseStatus` | pending, running, completed, failed, paused, interrupted, skipped, blocked | Per-phase execution state |
+| Task status | `orcv1.TaskStatus` | created, classifying, planned, running, paused, blocked, finalizing, completed, finished, failed | UI display, workflow |
+| Phase status | `orcv1.PhaseStatus` | pending, running, completed, failed, paused, interrupted, skipped, blocked | Per-phase execution state |
 
-Phase status is stored in `task.Task.Execution.Phases[phaseID].Status`.
+Phase status is stored in `orcv1.Task.Execution.Phases[phaseID].Status`.
 
 ## Transcript Batch Persistence
 

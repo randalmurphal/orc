@@ -237,7 +237,7 @@ func (sb *SessionBroadcaster) buildUpdate() events.SessionUpdate {
 	// If no global DB, try to get running task count from backend
 	if sb.backend != nil && update.TasksRunning == 0 {
 		// Fall back to counting from backend if atomic counter is wrong
-		tasks, err := sb.backend.LoadAllTasksProto()
+		tasks, err := sb.backend.LoadAllTasks()
 		if err == nil {
 			count := 0
 			for _, t := range tasks {

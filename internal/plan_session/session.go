@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -170,16 +171,22 @@ func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db
 
 	// Override weight if specified
 	if opts.Weight != "" {
-		t.Weight = task.Weight(opts.Weight)
+		t.Weight = task.WeightToProto(opts.Weight)
+	}
+
+	// Get description as string (proto uses *string)
+	description := ""
+	if t.Description != nil {
+		description = *t.Description
 	}
 
 	// Generate prompt
 	prompt, err := GeneratePrompt(PromptData{
 		Mode:        ModeTask,
 		Title:       t.Title,
-		TaskID:      t.ID,
-		TaskWeight:  string(t.Weight),
-		Description: t.Description,
+		TaskID:      t.Id,
+		TaskWeight:  task.WeightFromProto(t.Weight),
+		Description: description,
 		WorkDir:     opts.WorkDir,
 		Detection:   detection,
 		Initiative:  init,
@@ -224,7 +231,7 @@ func runTaskMode(ctx context.Context, taskID string, opts Options, detection *db
 		}
 
 		// Update task status to planned (spec created)
-		t.Status = task.StatusPlanned
+		t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 		if saveErr := opts.Backend.SaveTask(t); saveErr != nil {
 			// Log but don't fail - spec was created successfully
 			fmt.Fprintf(os.Stderr, "Warning: could not update task status: %v\n", saveErr)

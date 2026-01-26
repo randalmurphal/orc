@@ -272,7 +272,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 	case ContextTask:
 		// Load existing task
-		t, err = we.backend.LoadTaskProto(opts.TaskID)
+		t, err = we.backend.LoadTask(opts.TaskID)
 		if err != nil {
 			return nil, fmt.Errorf("load task %s: %w", opts.TaskID, err)
 		}
@@ -394,7 +394,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	// Sync task status to Running
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-		if err := we.backend.SaveTaskProto(t); err != nil {
+		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status running", "task_id", t.Id, "error", err)
 		}
 		// Publish task updated event for real-time UI updates
@@ -545,7 +545,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 									ps.Iterations++
 								}
 							}
-							if err := we.backend.SaveTaskProto(we.task); err != nil {
+							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save loop state", "error", err)
 							}
 						}
@@ -576,14 +576,14 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				we.logger.Info("gate decision pending", "phase", tmpl.ID)
 				if t != nil {
 					t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-					if err := we.backend.SaveTaskProto(t); err != nil {
+					if err := we.backend.SaveTask(t); err != nil {
 						we.logger.Error("failed to save blocked task", "error", err)
 					}
 				}
 				if we.task != nil {
 					errMsg := fmt.Sprintf("blocked at gate: %s (phase %s)", gateResult.Reason, tmpl.ID)
 					task.SetErrorProto(we.task.Execution, errMsg)
-					if err := we.backend.SaveTaskProto(we.task); err != nil {
+					if err := we.backend.SaveTask(we.task); err != nil {
 						we.logger.Warn("failed to save blocked state", "error", err)
 					}
 				}
@@ -617,7 +617,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							if tmpl.ID == "review" {
 								task.RecordReviewRejectionProto(t)
 							}
-							if err := we.backend.SaveTaskProto(t); err != nil {
+							if err := we.backend.SaveTask(t); err != nil {
 								we.logger.Warn("failed to save task after retry", "task", t.Id, "error", err)
 							}
 						}
@@ -626,7 +626,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						if we.task != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
 							task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCounts[tmpl.ID]))
-							if err := we.backend.SaveTaskProto(we.task); err != nil {
+							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save retry state", "error", err)
 							}
 						}
@@ -647,7 +647,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Record gate decision in state
 			if we.task != nil {
 				task.RecordGateDecisionProto(we.task.Execution, tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
-				if err := we.backend.SaveTaskProto(we.task); err != nil {
+				if err := we.backend.SaveTask(we.task); err != nil {
 					we.logger.Warn("failed to save gate decision state", "error", err)
 				}
 			}
@@ -678,7 +678,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				if err := we.backend.ClearTaskExecutor(t.Id); err != nil {
 					we.logger.Warn("failed to clear task executor", "error", err)
 				}
-				if err := we.backend.SaveTaskProto(t); err != nil {
+				if err := we.backend.SaveTask(t); err != nil {
 					we.logger.Warn("failed to save blocked task", "task", t.Id, "error", err)
 				}
 
@@ -701,7 +701,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			task.EnsureMetadataProto(t)
 			t.Metadata["failed_reason"] = "completion_failed"
 			t.Metadata["failed_error"] = completionErr.Error()
-			if err := we.backend.SaveTaskProto(t); err != nil {
+			if err := we.backend.SaveTask(t); err != nil {
 				we.logger.Warn("failed to save failed task", "task", t.Id, "error", err)
 			}
 			result.Success = false
@@ -721,7 +721,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if t != nil {
 		t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 		t.CompletedAt = timestamppb.Now()
-		if err := we.backend.SaveTaskProto(t); err != nil {
+		if err := we.backend.SaveTask(t); err != nil {
 			we.logger.Error("failed to save task status completed", "task_id", t.Id, "error", err)
 		}
 		// Publish task updated event for real-time UI updates
@@ -899,7 +899,7 @@ func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions) (*orc
 		t.Category = opts.Category
 	}
 
-	if err := we.backend.SaveTaskProto(t); err != nil {
+	if err := we.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("save task: %w", err)
 	}
 

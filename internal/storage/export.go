@@ -124,7 +124,7 @@ func (e *ExportService) ExportToBranch(taskID, branch string, opts *ExportOption
 
 // exportTaskDefinition exports task.yaml.
 func (e *ExportService) exportTaskDefinition(taskID, exportDir string) error {
-	t, err := e.backend.LoadTaskProto(taskID)
+	t, err := e.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (e *ExportService) exportTaskDefinition(taskID, exportDir string) error {
 // exportState exports state.yaml using task.Execution.
 // Note: This uses the Task-centric approach where execution state is in task.Execution.
 func (e *ExportService) exportState(taskID, exportDir string) error {
-	t, err := e.backend.LoadTaskProto(taskID)
+	t, err := e.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (e *ExportService) exportState(taskID, exportDir string) error {
 // exportContextSummary generates and exports context.md.
 // Note: This uses the Task-centric approach where execution state is in task.Execution.
 func (e *ExportService) exportContextSummary(taskID, exportDir string) error {
-	t, err := e.backend.LoadTaskProto(taskID)
+	t, err := e.backend.LoadTask(taskID)
 	if err != nil {
 		return err
 	}

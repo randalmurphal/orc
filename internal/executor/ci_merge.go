@@ -460,7 +460,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) err
 		// Update task with merge info
 		task.SetMergedInfoProto(t, prURL, m.config.Completion.TargetBranch)
 		if m.backend != nil {
-			if saveErr := m.backend.SaveTaskProto(t); saveErr != nil {
+			if saveErr := m.backend.SaveTask(t); saveErr != nil {
 				m.logger.Warn("failed to save task after merge", "error", saveErr)
 			}
 		}

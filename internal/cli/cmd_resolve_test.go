@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -103,8 +104,8 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task
-	tk := task.New("TASK-001", "Test task")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-001", "Test task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -128,8 +129,8 @@ func TestResolveCommand_FailedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify metadata (resolved_at is stored in metadata, not as a separate field)
@@ -155,8 +156,8 @@ func TestResolveCommand_WithMessage(t *testing.T) {
 	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task
-	tk := task.New("TASK-001", "Test task")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-001", "Test task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -193,20 +194,20 @@ func TestResolveCommand_WithoutForceStillRequiresFailed(t *testing.T) {
 	tmpDir := withResolveTestDir(t)
 
 	// Test various non-failed statuses WITHOUT --force
-	statuses := []task.Status{
-		task.StatusCreated,
-		task.StatusPlanned,
-		task.StatusRunning,
-		task.StatusPaused,
-		task.StatusBlocked,
-		task.StatusCompleted,
+	statuses := []orcv1.TaskStatus{
+		orcv1.TaskStatus_TASK_STATUS_CREATED,
+		orcv1.TaskStatus_TASK_STATUS_PLANNED,
+		orcv1.TaskStatus_TASK_STATUS_RUNNING,
+		orcv1.TaskStatus_TASK_STATUS_PAUSED,
+		orcv1.TaskStatus_TASK_STATUS_BLOCKED,
+		orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 	}
 
 	for _, status := range statuses {
-		t.Run(string(status), func(t *testing.T) {
+		t.Run(status.String(), func(t *testing.T) {
 			// Create backend and save task with this status
 			backend := createResolveTestBackend(t, tmpDir)
-			tk := task.New("TASK-001", "Test task")
+			tk := task.NewProtoTask("TASK-001", "Test task")
 			tk.Status = status
 			if err := backend.SaveTask(tk); err != nil {
 				t.Fatalf("failed to save task: %v", err)
@@ -236,8 +237,8 @@ func TestResolveCommand_BlockedTask_GuidesToCorrectCommand(t *testing.T) {
 
 	// Create backend and save a blocked task
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-BLOCKED", "Test blocked task")
-	tk.Status = task.StatusBlocked
+	tk := task.NewProtoTask("TASK-BLOCKED", "Test blocked task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -302,8 +303,8 @@ func TestResolveCommand_PreservesExistingMetadata(t *testing.T) {
 	backend := createResolveTestBackend(t, tmpDir)
 
 	// Create a failed task with existing metadata
-	tk := task.New("TASK-001", "Test task")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-001", "Test task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	tk.Metadata = map[string]string{
 		"existing_key": "existing_value",
 		"another_key":  "another_value",
@@ -922,8 +923,8 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 		t.Fatalf("create backend: %v", err)
 	}
 
-	tk := task.New("TASK-CLEANUP", "Test cleanup")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-CLEANUP", "Test cleanup")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -965,8 +966,8 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 	// Create backend and save a failed task (no worktree)
 	backend := createResolveTestBackend(t, tmpDir)
 
-	tk := task.New("TASK-NO-WT", "Test task without worktree")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-NO-WT", "Test task without worktree")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -988,8 +989,8 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 	if reloaded.Metadata["resolved"] != "true" {
 		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
@@ -1039,8 +1040,8 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 		t.Fatalf("create backend: %v", err)
 	}
 
-	tk := task.New("TASK-FORCE", "Test force flag")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-FORCE", "Test force flag")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1066,8 +1067,8 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify dirty file still exists (--force doesn't clean up)
@@ -1124,8 +1125,8 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 		t.Fatalf("create backend: %v", err)
 	}
 
-	tk := task.New("TASK-CLEAN-WT", "Test clean worktree")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-CLEAN-WT", "Test clean worktree")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1151,8 +1152,8 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify no worktree issues recorded in metadata
@@ -1177,8 +1178,8 @@ func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
 
 	// Create a running task
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-RUNNING", "Test running task")
-	tk.Status = task.StatusRunning
+	tk := task.NewProtoTask("TASK-RUNNING", "Test running task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1200,8 +1201,8 @@ func TestResolveCommand_ForceOnRunningTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify force_resolved metadata
@@ -1219,8 +1220,8 @@ func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
 
 	// Create a paused task
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-PAUSED", "Test paused task")
-	tk.Status = task.StatusPaused
+	tk := task.NewProtoTask("TASK-PAUSED", "Test paused task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1242,8 +1243,8 @@ func TestResolveCommand_ForceOnPausedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify force_resolved metadata
@@ -1262,8 +1263,8 @@ func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
 
 	// Create a blocked task
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-BLOCKED-FORCE", "Test blocked task for force")
-	tk.Status = task.StatusBlocked
+	tk := task.NewProtoTask("TASK-BLOCKED-FORCE", "Test blocked task for force")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1285,8 +1286,8 @@ func TestResolveCommand_ForceOnBlockedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify force_resolved metadata
@@ -1304,7 +1305,7 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 
 	// Create a task in 'created' status (default)
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-CREATED", "Test created task")
+	tk := task.NewProtoTask("TASK-CREATED", "Test created task")
 	// Status is already StatusCreated by default
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -1327,8 +1328,8 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify force_resolved metadata
@@ -1347,40 +1348,46 @@ func TestResolveCommand_ForceOnCreatedTask(t *testing.T) {
 func TestResolveCommand_ForceWithMergedPR(t *testing.T) {
 	// Test that the PR merge detection logic works correctly
 	// by checking the condition directly
-	tk := task.New("TASK-TEST", "Test task")
-	tk.PR = &task.PRInfo{
-		URL:    "https://github.com/owner/repo/pull/123",
-		Number: 123,
-		Status: task.PRStatusMerged,
+	tk := task.NewProtoTask("TASK-TEST", "Test task")
+	url := "https://github.com/owner/repo/pull/123"
+	num := int32(123)
+	tk.Pr = &orcv1.PRInfo{
+		Url:    &url,
+		Number: &num,
+		Status: orcv1.PRStatus_PR_STATUS_MERGED,
 		Merged: true,
 	}
 
 	// Verify the merge detection logic
-	prMerged := tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+	prMerged := tk.Pr.Status == orcv1.PRStatus_PR_STATUS_MERGED || tk.Pr.Merged
 	if !prMerged {
 		t.Error("expected prMerged to be true for merged PR")
 	}
 
 	// Also test with just the Merged flag (Status might not be set)
-	tk2 := task.New("TASK-TEST2", "Test task 2")
-	tk2.PR = &task.PRInfo{
-		URL:    "https://github.com/owner/repo/pull/124",
-		Number: 124,
+	tk2 := task.NewProtoTask("TASK-TEST2", "Test task 2")
+	url2 := "https://github.com/owner/repo/pull/124"
+	num2 := int32(124)
+	tk2.Pr = &orcv1.PRInfo{
+		Url:    &url2,
+		Number: &num2,
 		Merged: true,
 	}
-	prMerged2 := tk2.PR.Status == task.PRStatusMerged || tk2.PR.Merged
+	prMerged2 := tk2.Pr.Status == orcv1.PRStatus_PR_STATUS_MERGED || tk2.Pr.Merged
 	if !prMerged2 {
 		t.Error("expected prMerged to be true when Merged=true")
 	}
 
 	// Test with just Status (Merged might not be set)
-	tk3 := task.New("TASK-TEST3", "Test task 3")
-	tk3.PR = &task.PRInfo{
-		URL:    "https://github.com/owner/repo/pull/125",
-		Number: 125,
-		Status: task.PRStatusMerged,
+	tk3 := task.NewProtoTask("TASK-TEST3", "Test task 3")
+	url3 := "https://github.com/owner/repo/pull/125"
+	num3 := int32(125)
+	tk3.Pr = &orcv1.PRInfo{
+		Url:    &url3,
+		Number: &num3,
+		Status: orcv1.PRStatus_PR_STATUS_MERGED,
 	}
-	prMerged3 := tk3.PR.Status == task.PRStatusMerged || tk3.PR.Merged
+	prMerged3 := tk3.Pr.Status == orcv1.PRStatus_PR_STATUS_MERGED || tk3.Pr.Merged
 	if !prMerged3 {
 		t.Error("expected prMerged to be true when Status=merged")
 	}
@@ -1392,8 +1399,8 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 
 	// Create a running task without a PR
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-NO-PR", "Test task without PR")
-	tk.Status = task.StatusRunning
+	tk := task.NewProtoTask("TASK-NO-PR", "Test task without PR")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	// No PR set
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
@@ -1416,8 +1423,8 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// Verify pr_was_merged is NOT set (because there was no merged PR)
@@ -1437,33 +1444,35 @@ func TestResolveCommand_ForceWithoutPR(t *testing.T) {
 // verifies the behavior at the code level.
 func TestResolveCommand_ForceWithOpenPR(t *testing.T) {
 	// Test that open PRs are correctly identified as not merged
-	tk := task.New("TASK-TEST", "Test task")
-	tk.PR = &task.PRInfo{
-		URL:    "https://github.com/owner/repo/pull/45",
-		Number: 45,
-		Status: task.PRStatusPendingReview,
+	tk := task.NewProtoTask("TASK-TEST", "Test task")
+	url := "https://github.com/owner/repo/pull/45"
+	num := int32(45)
+	tk.Pr = &orcv1.PRInfo{
+		Url:    &url,
+		Number: &num,
+		Status: orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
 		Merged: false,
 	}
 
 	// Verify the merge detection returns false for open PRs
-	prMerged := tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+	prMerged := tk.Pr.Status == orcv1.PRStatus_PR_STATUS_MERGED || tk.Pr.Merged
 	if prMerged {
 		t.Error("expected prMerged to be false for open PR")
 	}
 
 	// Test various non-merged statuses
-	nonMergedStatuses := []task.PRStatus{
-		task.PRStatusDraft,
-		task.PRStatusPendingReview,
-		task.PRStatusChangesRequested,
-		task.PRStatusApproved,
-		task.PRStatusClosed,
+	nonMergedStatuses := []orcv1.PRStatus{
+		orcv1.PRStatus_PR_STATUS_DRAFT,
+		orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
+		orcv1.PRStatus_PR_STATUS_CHANGES_REQUESTED,
+		orcv1.PRStatus_PR_STATUS_APPROVED,
+		orcv1.PRStatus_PR_STATUS_CLOSED,
 	}
 
 	for _, status := range nonMergedStatuses {
-		tk.PR.Status = status
-		tk.PR.Merged = false
-		prMerged = tk.PR.Status == task.PRStatusMerged || tk.PR.Merged
+		tk.Pr.Status = status
+		tk.Pr.Merged = false
+		prMerged = tk.Pr.Status == orcv1.PRStatus_PR_STATUS_MERGED || tk.Pr.Merged
 		if prMerged {
 			t.Errorf("expected prMerged to be false for status %s", status)
 		}
@@ -1477,8 +1486,8 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 
 	// Create a failed task
 	backend := createResolveTestBackend(t, tmpDir)
-	tk := task.New("TASK-FAILED-NO-FORCE", "Test failed task")
-	tk.Status = task.StatusFailed
+	tk := task.NewProtoTask("TASK-FAILED-NO-FORCE", "Test failed task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("failed to save task: %v", err)
 	}
@@ -1500,8 +1509,8 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 		t.Fatalf("failed to reload task: %v", err)
 	}
 
-	if reloaded.Status != task.StatusResolved {
-		t.Errorf("task status = %s, want %s", reloaded.Status, task.StatusResolved)
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
 	}
 
 	// force_resolved should NOT be set for failed tasks (they don't need forcing)

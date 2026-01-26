@@ -99,7 +99,7 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	// Load task
-	t, err := s.backend.LoadTaskProto(decision.TaskID)
+	t, err := s.backend.LoadTask(decision.TaskID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", decision.TaskID))
 	}
@@ -148,7 +148,7 @@ func (s *decisionServer) ResolveDecision(
 	t.Execution.Gates = append(t.Execution.Gates, gateDecision)
 
 	// Save task
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
@@ -178,7 +178,7 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	t.Status = newStatus
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 

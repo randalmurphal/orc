@@ -48,7 +48,7 @@ Examples:
 			force, _ := cmd.Flags().GetBool("force")
 
 			// Load task to verify it exists and check status
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -86,7 +86,7 @@ Examples:
 
 			// Update task status
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

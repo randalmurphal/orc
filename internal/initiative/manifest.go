@@ -180,8 +180,7 @@ func ValidateManifest(m *Manifest) []error {
 
 		// Validate weight if specified
 		if t.Weight != "" {
-			w := task.Weight(t.Weight)
-			if !task.IsValidWeight(w) {
+			if _, valid := task.ParseWeightProto(t.Weight); !valid {
 				errs = append(errs, &ValidationError{
 					Field:   taskPrefix + ".weight",
 					Message: fmt.Sprintf("invalid weight %q (valid: %s)", t.Weight, formatWeights()),
@@ -191,8 +190,7 @@ func ValidateManifest(m *Manifest) []error {
 
 		// Validate category if specified
 		if t.Category != "" {
-			c := task.Category(t.Category)
-			if !task.IsValidCategory(c) {
+			if _, valid := task.ParseCategoryProto(t.Category); !valid {
 				errs = append(errs, &ValidationError{
 					Field:   taskPrefix + ".category",
 					Message: fmt.Sprintf("invalid category %q (valid: %s)", t.Category, formatCategories()),
@@ -202,8 +200,7 @@ func ValidateManifest(m *Manifest) []error {
 
 		// Validate priority if specified
 		if t.Priority != "" {
-			p := task.Priority(t.Priority)
-			if !task.IsValidPriority(p) {
+			if _, valid := task.ParsePriorityProto(t.Priority); !valid {
 				errs = append(errs, &ValidationError{
 					Field:   taskPrefix + ".priority",
 					Message: fmt.Sprintf("invalid priority %q (valid: %s)", t.Priority, formatPriorities()),
@@ -367,28 +364,28 @@ func TopologicalSort(tasks []ManifestTask) ([]int, error) {
 // Helper functions for formatting valid values
 
 func formatWeights() string {
-	weights := task.ValidWeights()
+	weights := task.ValidWeightsProto()
 	strs := make([]string, len(weights))
 	for i, w := range weights {
-		strs[i] = string(w)
+		strs[i] = task.WeightFromProto(w)
 	}
 	return strings.Join(strs, ", ")
 }
 
 func formatCategories() string {
-	cats := task.ValidCategories()
+	cats := task.ValidCategoriesProto()
 	strs := make([]string, len(cats))
 	for i, c := range cats {
-		strs[i] = string(c)
+		strs[i] = task.CategoryFromProto(c)
 	}
 	return strings.Join(strs, ", ")
 }
 
 func formatPriorities() string {
-	pris := task.ValidPriorities()
+	pris := task.ValidPrioritiesProto()
 	strs := make([]string, len(pris))
 	for i, p := range pris {
-		strs[i] = string(p)
+		strs[i] = task.PriorityFromProto(p)
 	}
 	return strings.Join(strs, ", ")
 }

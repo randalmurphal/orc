@@ -214,7 +214,7 @@ func New(cfg *Config) *Server {
 	// Create WebSocket handler
 	s.wsHandler = NewWSHandler(pub, s, logger)
 
-	s.registerRoutes()
+	s.registerFileRoutes()
 	s.registerConnectHandlers()
 	return s
 }
@@ -575,13 +575,13 @@ func (s *Server) handleOrcError(w http.ResponseWriter, err *orcerrors.OrcError) 
 
 // pauseTask pauses a running task (called by WebSocket handler).
 func (s *Server) pauseTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTaskProto(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -593,7 +593,7 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 
 // resumeTask resumes a paused, blocked, or failed task (called by WebSocket handler).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTaskProto(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
@@ -643,7 +643,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 	// Update task status
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -705,7 +705,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 // fails to update task status (e.g., due to panic, unexpected error path).
 func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 	// Reload task to get current values (task now contains execution state)
-	t, err := s.backend.LoadTaskProto(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		s.logger.Warn("failed to reload task for status check", "task", id, "error", err)
 		return
@@ -744,13 +744,13 @@ func (s *Server) ensureTaskStatusConsistent(id string, execErr error) {
 		)
 
 		t.Status = newStatus
-		if err := s.backend.SaveTaskProto(t); err != nil {
+		if err := s.backend.SaveTask(t); err != nil {
 			s.logger.Error("failed to fix task status", "task", id, "error", err)
 		}
 	}
 
 	// Always publish final execution state
-	if finalTask, err := s.backend.LoadTaskProto(id); err == nil {
+	if finalTask, err := s.backend.LoadTask(id); err == nil {
 		s.Publish(id, Event{Type: "state", Data: finalTask.GetExecution()})
 	}
 }
@@ -765,13 +765,13 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 		cancel()
 	}
 
-	t, err := s.backend.LoadTaskProto(id)
+	t, err := s.backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-	if err := s.backend.SaveTaskProto(t); err != nil {
+	if err := s.backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -806,6 +806,93 @@ func (s *Server) getProjectRoot() string {
 		return wd
 	}
 	return root
+}
+
+// SessionMetricsResponse represents session metrics for the TopBar.
+type SessionMetricsResponse struct {
+	SessionID        string    `json:"session_id"`
+	StartedAt        time.Time `json:"started_at"`
+	DurationSeconds  int64     `json:"duration_seconds"`
+	TotalTokens      int       `json:"total_tokens"`
+	InputTokens      int       `json:"input_tokens"`
+	OutputTokens     int       `json:"output_tokens"`
+	EstimatedCostUSD float64   `json:"estimated_cost_usd"`
+	TasksCompleted   int       `json:"tasks_completed"`
+	TasksRunning     int       `json:"tasks_running"`
+	IsPaused         bool      `json:"is_paused"`
+}
+
+// GetSessionMetrics returns current session metrics (used by WebSocket handler).
+func (s *Server) GetSessionMetrics() SessionMetricsResponse {
+	duration := int64(time.Since(s.sessionStart).Seconds())
+
+	// Handle nil backend (can happen in tests)
+	if s.backend == nil {
+		return SessionMetricsResponse{
+			SessionID:       s.sessionID,
+			StartedAt:       s.sessionStart,
+			DurationSeconds: duration,
+		}
+	}
+
+	tasks, err := s.backend.LoadAllTasks()
+	if err != nil {
+		s.logger.Error("failed to load tasks for session metrics", "error", err)
+		return SessionMetricsResponse{
+			SessionID:       s.sessionID,
+			StartedAt:       s.sessionStart,
+			DurationSeconds: duration,
+		}
+	}
+
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	var running, completed int
+	var totalInput, totalOutput int
+	var totalCost float64
+
+	for _, t := range tasks {
+		switch t.Status {
+		case orcv1.TaskStatus_TASK_STATUS_RUNNING:
+			running++
+		case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
+			completed++
+		}
+
+		if exec := t.GetExecution(); exec != nil {
+			for _, ps := range exec.GetPhases() {
+				if ps != nil && ps.GetStartedAt() != nil {
+					startedAt := ps.GetStartedAt().AsTime()
+					if startedAt.After(today) || startedAt.Equal(today) {
+						if tokens := ps.GetTokens(); tokens != nil {
+							totalInput += int(tokens.InputTokens)
+							totalOutput += int(tokens.OutputTokens)
+						}
+					}
+				}
+			}
+			if t.GetStartedAt() != nil {
+				startedAt := t.GetStartedAt().AsTime()
+				if startedAt.After(today) || startedAt.Equal(today) {
+					if cost := exec.GetCost(); cost != nil {
+						totalCost += cost.TotalCostUsd
+					}
+				}
+			}
+		}
+	}
+
+	return SessionMetricsResponse{
+		SessionID:        s.sessionID,
+		StartedAt:        s.sessionStart,
+		DurationSeconds:  duration,
+		TotalTokens:      totalInput + totalOutput,
+		InputTokens:      totalInput,
+		OutputTokens:     totalOutput,
+		EstimatedCostUSD: totalCost,
+		TasksCompleted:   completed,
+		TasksRunning:     running,
+		IsPaused:         false,
+	}
 }
 
 // pruneStaleWorktrees removes stale worktree entries from git's tracking.

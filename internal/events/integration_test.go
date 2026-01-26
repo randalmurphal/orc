@@ -21,10 +21,7 @@ func TestEventPersistence_RoundTrip(t *testing.T) {
 
 	// Create task to satisfy foreign key constraint
 	taskID := "TASK-001"
-	testTask := &task.Task{
-		ID:    taskID,
-		Title: "Test Task",
-	}
+	testTask := task.NewProtoTask(taskID, "Test Task")
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save test task: %v", err)
 	}

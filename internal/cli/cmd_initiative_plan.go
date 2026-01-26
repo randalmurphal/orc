@@ -258,7 +258,7 @@ Examples:
 				task.SetTestingRequirementsProto(t, hasFrontend)
 
 				// Save task
-				if err := backend.SaveTaskProto(t); err != nil {
+				if err := backend.SaveTask(t); err != nil {
 					return fmt.Errorf("save task %s: %w", taskID, err)
 				}
 
@@ -273,7 +273,7 @@ Examples:
 
 				// Update task status to planned
 				t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-				if err := backend.SaveTaskProto(t); err != nil {
+				if err := backend.SaveTask(t); err != nil {
 					return fmt.Errorf("update task %s: %w", taskID, err)
 				}
 

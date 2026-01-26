@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TestTryClaimTaskExecution_SuccessfulClaim tests basic claim operation.
@@ -18,15 +20,12 @@ func TestTryClaimTaskExecution_SuccessfulClaim(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a failed task (resumable)
-	tk := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusFailed,
-		CurrentPhase: "implement",
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	currentPhase := "implement"
+	tk.CurrentPhase = &currentPhase
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -47,10 +46,10 @@ func TestTryClaimTaskExecution_SuccessfulClaim(t *testing.T) {
 		t.Fatalf("load task: %v", err)
 	}
 
-	if updatedTask.ExecutorPID != pid {
-		t.Errorf("Expected PID %d, got %d", pid, updatedTask.ExecutorPID)
+	if updatedTask.ExecutorPid != int32(pid) {
+		t.Errorf("Expected PID %d, got %d", pid, updatedTask.ExecutorPid)
 	}
-	if updatedTask.Status != task.StatusRunning {
+	if updatedTask.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		t.Errorf("Expected status running, got %s", updatedTask.Status)
 	}
 }
@@ -63,15 +62,12 @@ func TestTryClaimTaskExecution_ConcurrentAttempts(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a paused task
-	tk := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusPaused,
-		CurrentPhase: "implement",
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	currentPhase := "implement"
+	tk.CurrentPhase = &currentPhase
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -123,8 +119,8 @@ func TestTryClaimTaskExecution_ConcurrentAttempts(t *testing.T) {
 		t.Fatalf("load task: %v", err)
 	}
 	// PID should be our process PID
-	if finalTask.ExecutorPID != pid {
-		t.Errorf("Expected PID %d, got %d", pid, finalTask.ExecutorPID)
+	if finalTask.ExecutorPid != int32(pid) {
+		t.Errorf("Expected PID %d, got %d", pid, finalTask.ExecutorPid)
 	}
 }
 
@@ -136,15 +132,12 @@ func TestTryClaimTaskExecution_AlreadyClaimed(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a blocked task
-	tk := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusBlocked,
-		CurrentPhase: "implement",
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+	currentPhase := "implement"
+	tk.CurrentPhase = &currentPhase
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -181,16 +174,13 @@ func TestTryClaimTaskExecution_StalePID(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a running task with a dead PID
-	tk := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusRunning,
-		CurrentPhase: "implement",
-		ExecutorPID:  999999, // Dead PID - very high number unlikely to exist
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	currentPhase := "implement"
+	tk.CurrentPhase = &currentPhase
+	tk.ExecutorPid = 999999 // Dead PID - very high number unlikely to exist
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -210,8 +200,8 @@ func TestTryClaimTaskExecution_StalePID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load task: %v", err)
 	}
-	if updatedTask.ExecutorPID != newPID {
-		t.Errorf("Expected new PID %d, got %d", newPID, updatedTask.ExecutorPID)
+	if updatedTask.ExecutorPid != int32(newPID) {
+		t.Errorf("Expected new PID %d, got %d", newPID, updatedTask.ExecutorPid)
 	}
 }
 
@@ -223,14 +213,10 @@ func TestTryClaimTaskExecution_NonResumableStatus(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a completed task
-	tk := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCompleted,
-		CreatedAt: time.Now(),
-		Execution: task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -259,15 +245,12 @@ func TestTryClaimTaskExecution_PausedTask(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a paused task
-	tk := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Test Task",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusPaused,
-		CurrentPhase: "implement",
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
+	currentPhase := "implement"
+	tk.CurrentPhase = &currentPhase
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -286,7 +269,7 @@ func TestTryClaimTaskExecution_PausedTask(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load task: %v", err)
 	}
-	if updatedTask.Status != task.StatusRunning {
+	if updatedTask.Status != orcv1.TaskStatus_TASK_STATUS_RUNNING {
 		t.Errorf("Expected status running, got %s", updatedTask.Status)
 	}
 }
@@ -321,14 +304,10 @@ func TestTryClaimTaskExecution_HeartbeatUpdated(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a failed task
-	tk := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusFailed,
-		CreatedAt: time.Now(),
-		Execution: task.InitExecutionState(),
-	}
+	tk := task.NewProtoTask("TASK-001", "Test Task")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	tk.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(tk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -352,9 +331,12 @@ func TestTryClaimTaskExecution_HeartbeatUpdated(t *testing.T) {
 	}
 
 	// Heartbeat should be at or after beforeClaim (comparing at second precision)
-	heartbeatTrunc := updatedTask.LastHeartbeat.Truncate(time.Second)
-	if heartbeatTrunc.Before(beforeClaim) {
-		t.Errorf("Heartbeat should be updated, got %v before claim at %v", heartbeatTrunc, beforeClaim)
+	if updatedTask.LastHeartbeat == nil {
+		t.Fatal("LastHeartbeat should be set")
+	}
+	heartbeatTime := updatedTask.LastHeartbeat.AsTime().Truncate(time.Second)
+	if heartbeatTime.Before(beforeClaim) {
+		t.Errorf("Heartbeat should be updated, got %v before claim at %v", heartbeatTime, beforeClaim)
 	}
 }
 
@@ -371,3 +353,6 @@ func findSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+// Ensure timestamppb is used (for compiler check)
+var _ = timestamppb.Now

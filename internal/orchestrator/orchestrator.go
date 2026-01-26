@@ -16,7 +16,6 @@ import (
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // Config holds orchestrator configuration.
@@ -273,7 +272,7 @@ func (o *Orchestrator) scheduleNext() {
 // spawnTask spawns a worker for a task.
 func (o *Orchestrator) spawnTask(taskID string) error {
 	// Load task (includes execution state in task.Execution)
-	t, err := o.backend.LoadTaskProto(taskID)
+	t, err := o.backend.LoadTask(taskID)
 	if err != nil {
 		return fmt.Errorf("load task: %w", err)
 	}
@@ -314,8 +313,8 @@ func (o *Orchestrator) AddPendingTasks() error {
 	}
 
 	for _, t := range tasks {
-		if t.Status == task.StatusCreated || t.Status == task.StatusPlanned {
-			o.AddTask(t.ID, t.Title, nil, PriorityDefault)
+		if t.Status == orcv1.TaskStatus_TASK_STATUS_CREATED || t.Status == orcv1.TaskStatus_TASK_STATUS_PLANNED {
+			o.AddTask(t.Id, t.Title, nil, PriorityDefault)
 		}
 	}
 	return nil

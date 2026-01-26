@@ -19,10 +19,7 @@ func setupTestBackend(t *testing.T, taskID string) storage.Backend {
 	}
 
 	// Create task to satisfy foreign key constraint
-	testTask := &task.Task{
-		ID:    taskID,
-		Title: "Test Task",
-	}
+	testTask := task.NewProtoTask(taskID, "Test Task")
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("failed to save test task: %v", err)
 	}

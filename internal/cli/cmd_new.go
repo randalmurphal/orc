@@ -370,7 +370,7 @@ See also:
 			// Set dependencies if provided
 			if len(blockedBy) > 0 || len(relatedTo) > 0 {
 				// Load existing tasks for validation
-				existingTasks, err := backend.LoadAllTasksProto()
+				existingTasks, err := backend.LoadAllTasks()
 				if err != nil {
 					return fmt.Errorf("load existing tasks: %w", err)
 				}
@@ -396,7 +396,7 @@ See also:
 			// Save task with planned status
 			// Plans are created dynamically at runtime based on task weight
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

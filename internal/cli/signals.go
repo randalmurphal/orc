@@ -43,7 +43,7 @@ func GracefulShutdown(backend storage.Backend, t *orcv1.Task, phase string) erro
 
 	// Update task status to interrupted so it can be resumed
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-	if err := backend.SaveTaskProto(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task on interrupt: %w", err)
 	}
 

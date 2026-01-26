@@ -82,7 +82,7 @@ func ApplyResumeStateUpdatesProto(t *orcv1.Task, result *ResumeValidationResult,
 	task.InterruptPhaseProto(t.Execution, task.GetCurrentPhaseProto(t))
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-	if err := backend.SaveTaskProto(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 
@@ -120,7 +120,7 @@ Use --force to resume a task even if it appears to still be running.`,
 
 			id := args[0]
 
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -261,7 +261,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
-					t, _ = backend.LoadTaskProto(id)
+					t, _ = backend.LoadTask(id)
 					blockedCtx := buildBlockedContextProto(t, cfg)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
@@ -272,7 +272,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 
 			// Reload task for summary (execution state is in task.Execution)
-			t, _ = backend.LoadTaskProto(id)
+			t, _ = backend.LoadTask(id)
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats

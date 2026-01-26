@@ -90,7 +90,7 @@ Examples:
 			}
 
 			// Load all tasks
-			tasks, err := backend.LoadAllTasksProto()
+			tasks, err := backend.LoadAllTasks()
 			if err != nil {
 				return fmt.Errorf("load tasks: %w", err)
 			}

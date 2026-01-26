@@ -144,7 +144,7 @@ func TestGracefulShutdown(t *testing.T) {
 	task.StartPhaseProto(tsk.Execution, "implement")
 
 	// Save task to backend first
-	if err := backend.SaveTaskProto(tsk); err != nil {
+	if err := backend.SaveTask(tsk); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
 

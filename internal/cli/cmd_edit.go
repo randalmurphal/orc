@@ -99,7 +99,7 @@ Example:
 			removeRelated, _ := cmd.Flags().GetStringSlice("remove-related")
 
 			// Load task to verify it exists
-			t, err := backend.LoadTaskProto(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -252,7 +252,7 @@ Example:
 
 			if hasDepChanges {
 				// Load all tasks for validation
-				allTasks, err := backend.LoadAllTasksProto()
+				allTasks, err := backend.LoadAllTasks()
 				if err != nil {
 					return fmt.Errorf("load tasks for validation: %w", err)
 				}
@@ -381,7 +381,7 @@ Example:
 			}
 
 			// Save task
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 
@@ -526,7 +526,7 @@ func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error 
 
 	// Update task status to planned
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-	if err := backend.SaveTaskProto(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
 

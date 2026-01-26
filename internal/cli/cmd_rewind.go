@@ -46,7 +46,7 @@ Examples:
 			}
 
 			// Load task (execution state is embedded in task.Execution)
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -116,7 +116,7 @@ Examples:
 
 			// Update task status to allow re-running (task.Status is single source of truth)
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
-			if err := backend.SaveTaskProto(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
 			}
 

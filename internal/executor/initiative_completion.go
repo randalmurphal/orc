@@ -138,7 +138,7 @@ func (c *InitiativeCompleter) CheckAndCompleteInitiative(ctx context.Context, in
 // createTaskLoader creates a TaskLoader function that fetches task status from the backend.
 func (c *InitiativeCompleter) createTaskLoader() initiative.TaskLoader {
 	return func(taskID string) (status string, title string, err error) {
-		t, err := c.backend.LoadTaskProto(taskID)
+		t, err := c.backend.LoadTask(taskID)
 		if err != nil {
 			return "", "", err
 		}

@@ -138,7 +138,7 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 	// Update task with merge info
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RESOLVED
 	task.MarkCompletedProto(t)
-	if err := we.backend.SaveTaskProto(t); err != nil {
+	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task after direct merge", "task", t.Id, "error", err)
 	}
 
@@ -175,7 +175,7 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 
 	// Update task with PR info
 	task.SetPRInfoProto(t, prURL, 0) // Number will be populated by PR status sync
-	if err := we.backend.SaveTaskProto(t); err != nil {
+	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
 	}
 
@@ -228,7 +228,7 @@ func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
 
 	// Set task branch before any git operations reference it
 	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
-	if err := we.backend.SaveTaskProto(t); err != nil {
+	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task branch", "task_id", t.Id, "error", err)
 	}
 

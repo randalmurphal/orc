@@ -78,7 +78,7 @@ Example:
 			id := args[0]
 
 			// Load task
-			t, err := backend.LoadTaskProto(id)
+			t, err := backend.LoadTask(id)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}
@@ -153,7 +153,7 @@ Example:
 				executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 					// Persist execution state updates during finalization
 					t.Execution = exec
-					if saveErr := backend.SaveTaskProto(t); saveErr != nil {
+					if saveErr := backend.SaveTask(t); saveErr != nil {
 						slog.Warn("failed to save task update", "error", saveErr)
 					}
 				}),
@@ -177,7 +177,7 @@ Example:
 					task.EnsureExecutionProto(t)
 					task.InterruptPhaseProto(t.Execution, "finalize")
 					t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
-					if saveErr := backend.SaveTaskProto(t); saveErr != nil {
+					if saveErr := backend.SaveTask(t); saveErr != nil {
 						disp.Warning(fmt.Sprintf("failed to save task on interrupt: %v", saveErr))
 					}
 					disp.TaskInterrupted()
@@ -187,7 +187,7 @@ Example:
 				// Check if task is blocked (phases succeeded but completion failed)
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task to get updated metadata with conflict info
-					t, _ = backend.LoadTaskProto(id)
+					t, _ = backend.LoadTask(id)
 					blockedCtx := buildBlockedContextProto(t, cfg)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), finalizeElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
@@ -198,7 +198,7 @@ Example:
 			}
 
 			// Reload task for final display (execution state is in task.Execution)
-			t, _ = backend.LoadTaskProto(id)
+			t, _ = backend.LoadTask(id)
 
 			// Compute file change stats for completion summary
 			var fileStats *progress.FileChangeStats

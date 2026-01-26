@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -81,14 +82,15 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 		return "", fmt.Errorf("generate automation task ID: %w", err)
 	}
 
-	// Create the task
-	t := task.New(taskID, tmpl.Title)
-	t.Description = fmt.Sprintf("%s\n\nTriggered by: %s\nReason: %s", tmpl.Description, triggerID, reason)
-	t.Weight = task.Weight(tmpl.Weight)
-	t.Category = task.Category(tmpl.Category)
-	t.Queue = task.QueueActive
+	// Create the task using proto type
+	t := task.NewProtoTask(taskID, tmpl.Title)
+	desc := fmt.Sprintf("%s\n\nTriggered by: %s\nReason: %s", tmpl.Description, triggerID, reason)
+	t.Description = &desc
+	t.Weight = task.WeightToProto(tmpl.Weight)
+	t.Category = task.CategoryToProto(tmpl.Category)
+	t.Queue = orcv1.TaskQueue_TASK_QUEUE_ACTIVE
 	// Priority can be set via trigger action, default to normal
-	t.Priority = task.PriorityNormal
+	t.Priority = orcv1.TaskPriority_TASK_PRIORITY_NORMAL
 	// Mark as automation task for efficient database querying
 	t.IsAutomation = true
 
@@ -100,7 +102,7 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	t.Metadata["automation_template_id"] = templateID
 	t.Metadata["automation_reason"] = reason
 
-	// Save the task (task.Execution is initialized by task.New())
+	// Save the task (Execution is initialized by NewProtoTask())
 	if err := c.backend.SaveTask(t); err != nil {
 		return "", fmt.Errorf("save automation task: %w", err)
 	}

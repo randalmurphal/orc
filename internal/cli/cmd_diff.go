@@ -41,7 +41,7 @@ Example:
 			nameOnly, _ := cmd.Flags().GetBool("name-only")
 
 			// Load task
-			t, err := backend.LoadTaskProto(taskID)
+			t, err := backend.LoadTask(taskID)
 			if err != nil {
 				return fmt.Errorf("load task: %w", err)
 			}

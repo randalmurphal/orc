@@ -57,12 +57,7 @@ func TestExtractPhaseContent(t *testing.T) {
 // createPhaseContentTestTask creates a task in the backend for testing spec operations.
 func createPhaseContentTestTask(t *testing.T, backend storage.Backend, taskID string) {
 	t.Helper()
-	testTask := &task.Task{
-		ID:     taskID,
-		Title:  "Test task",
-		Status: task.StatusCreated,
-		Weight: task.WeightSmall,
-	}
+	testTask := task.NewProtoTask(taskID, "Test task")
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("create test task: %v", err)
 	}

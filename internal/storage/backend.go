@@ -206,19 +206,13 @@ type PhaseOutputInfo struct {
 // Backend defines the storage operations for orc.
 // All implementations must be safe for concurrent access.
 type Backend interface {
-	// Task operations (legacy - using task.Task)
-	SaveTask(t *task.Task) error
-	LoadTask(id string) (*task.Task, error)
-	LoadAllTasks() ([]*task.Task, error)
+	// Task operations (using orcv1.Task - the ONLY task type)
+	SaveTask(t *orcv1.Task) error
+	LoadTask(id string) (*orcv1.Task, error)
+	LoadAllTasks() ([]*orcv1.Task, error)
 	DeleteTask(id string) error
 	TaskExists(id string) (bool, error)
 	GetNextTaskID() (string, error)
-
-	// Task operations (proto types - preferred for new code)
-	// These methods use orcv1.Task directly for proto-first development
-	SaveTaskProto(t *orcv1.Task) error
-	LoadTaskProto(id string) (*orcv1.Task, error)
-	LoadAllTasksProto() ([]*orcv1.Task, error)
 
 	// Task heartbeat (for orphan detection during long-running phases)
 	UpdateTaskHeartbeat(taskID string) error

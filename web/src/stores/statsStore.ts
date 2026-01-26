@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { create as createProto } from '@bufbuild/protobuf';
+import { dashboardClient } from '@/lib/client';
+import {
+	GetStatsRequestSchema,
+	GetCostSummaryRequestSchema,
+} from '@/gen/orc/v1/dashboard_pb';
 
 // Types
 export type StatsPeriod = '24h' | '7d' | '30d' | 'all';
@@ -114,33 +120,7 @@ const initialState: StatsState = {
 	_fetchingPeriod: null, // TASK-526: fetch guard for preventing double fetches
 };
 
-// API response types (matching backend)
-interface DashboardStatsResponse {
-	running: number;
-	paused: number;
-	blocked: number;
-	completed: number;
-	failed: number;
-	today: number;
-	total: number;
-	tokens: number;
-	cache_creation_input_tokens?: number;
-	cache_read_input_tokens?: number;
-	cost: number;
-}
-
-interface CostSummaryResponse {
-	period: string;
-	start: string;
-	end: string;
-	total_cost_usd: number;
-	total_input_tokens: number;
-	total_output_tokens: number;
-	total_tokens: number;
-	entry_count: number;
-	by_project?: Record<string, number>;
-	by_phase?: Record<string, number>;
-}
+// No longer needed - using Connect RPC types directly from proto
 
 // Helper to convert period to API query param
 function periodToQueryParam(period: StatsPeriod): string {
@@ -225,37 +205,30 @@ export const useStatsStore = create<StatsStore>()(
 			set({ loading: true, error: null, _fetchingPeriod: period });
 
 			try {
-				// Fetch both endpoints in parallel
-				const [dashboardRes, costRes] = await Promise.all([
-					fetch('/api/dashboard/stats'),
-					fetch(`/api/cost/summary?period=${periodToQueryParam(period)}`),
+				// Fetch both endpoints in parallel using Connect RPC
+				const [statsResponse, costResponse] = await Promise.all([
+					dashboardClient.getStats(createProto(GetStatsRequestSchema, {})),
+					dashboardClient.getCostSummary(
+						createProto(GetCostSummaryRequestSchema, { period: periodToQueryParam(period) })
+					),
 				]);
 
-				// Handle dashboard stats
-				let dashboardData: DashboardStatsResponse | null = null;
-				if (dashboardRes.ok) {
-					dashboardData = await dashboardRes.json();
-				}
-
-				// Handle cost summary (may not exist yet)
-				let costData: CostSummaryResponse | null = null;
-				if (costRes.ok) {
-					costData = await costRes.json();
-				}
+				// Extract data from proto responses
+				const dashboardStats = statsResponse.stats;
+				const costSummary = costResponse.summary;
 
 				// Build tasksPerDay from available data
 				// For now, generate mock data based on period since the API
 				// doesn't return daily breakdown yet
-				const tasksPerDay = generateTasksPerDay(
-					dashboardData?.completed ?? 0,
-					period
-				);
+				const completedCount = dashboardStats?.taskCounts?.completed ?? 0;
+				const failedCount = dashboardStats?.taskCounts?.failed ?? 0;
+				const tasksPerDay = generateTasksPerDay(completedCount, period);
 
 				// Build outcomes
 				const outcomes: Outcomes = {
-					completed: dashboardData?.completed ?? 0,
+					completed: completedCount,
 					withRetries: 0, // Not tracked separately in current API
-					failed: dashboardData?.failed ?? 0,
+					failed: failedCount,
 				};
 
 				// Build activity data from tasks per day
@@ -268,15 +241,19 @@ export const useStatsStore = create<StatsStore>()(
 				const topFiles: TopFile[] = [];
 
 				// Calculate summary stats
-				const totalTasks = (dashboardData?.completed ?? 0) + (dashboardData?.failed ?? 0);
+				const totalTasks = completedCount + failedCount;
 				const successRate = totalTasks > 0
-					? ((dashboardData?.completed ?? 0) / totalTasks) * 100
+					? (completedCount / totalTasks) * 100
 					: 0;
 
+				// Get token count - prefer today's tokens from dashboard stats,
+				// or fall back to period cost which doesn't include token totals
+				const tokensUsed = dashboardStats?.todayTokens?.totalTokens ?? 0;
+
 				const summaryStats: SummaryStats = {
-					tasksCompleted: dashboardData?.completed ?? 0,
-					tokensUsed: costData?.total_tokens ?? dashboardData?.tokens ?? 0,
-					totalCost: costData?.total_cost_usd ?? dashboardData?.cost ?? 0,
+					tasksCompleted: completedCount,
+					tokensUsed: tokensUsed,
+					totalCost: costSummary?.totalCostUsd ?? dashboardStats?.todayCostUsd ?? 0,
 					avgTime: 0, // Would need execution time data from API
 					successRate: Math.round(successRate * 10) / 10,
 				};

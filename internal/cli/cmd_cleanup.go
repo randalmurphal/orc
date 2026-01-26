@@ -165,7 +165,7 @@ Examples:
 
 // findOrphanedWorktrees finds worktrees that should be cleaned up.
 func findOrphanedWorktrees(gitOps *git.Git, backend interface {
-	LoadTaskProto(id string) (*orcv1.Task, error)
+	LoadTask(id string) (*orcv1.Task, error)
 }, includeFailed bool) ([]orphanedWorktree, error) {
 	var orphans []orphanedWorktree
 
@@ -217,7 +217,7 @@ func findOrphanedWorktrees(gitOps *git.Git, backend interface {
 		}
 
 		// Load task to check status
-		t, err := backend.LoadTaskProto(taskID)
+		t, err := backend.LoadTask(taskID)
 		if err != nil {
 			orphans = append(orphans, orphanedWorktree{
 				TaskID: taskID,

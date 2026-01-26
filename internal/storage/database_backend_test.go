@@ -56,26 +56,18 @@ func TestSaveTask_Transaction(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a task with dependencies
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Dependency Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "Dependency Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Create another task that depends on task1
-	task2 := &task.Task{
-		ID:        "TASK-002",
-		Title:     "Test Task",
-		Weight:    task.WeightMedium,
-		Status:    task.StatusCreated,
-		BlockedBy: []string{"TASK-001"},
-		CreatedAt: time.Now(),
-	}
+	task2 := task.NewProtoTask("TASK-002", "Test Task")
+	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	task2.BlockedBy = []string{"TASK-001"}
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -114,20 +106,16 @@ func TestSaveTask_QualityMetrics(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a task with quality metrics
-	testTask := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task with Quality",
-		Weight:    task.WeightMedium,
-		Status:    task.StatusFailed,
-		CreatedAt: time.Now(),
-	}
+	testTask := task.NewProtoTask("TASK-001", "Test Task with Quality")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 
-	// Add quality metrics
-	testTask.RecordPhaseRetry("implement")
-	testTask.RecordPhaseRetry("implement")
-	testTask.RecordPhaseRetry("review")
-	testTask.RecordReviewRejection()
-	testTask.RecordManualIntervention("Fixed manually via resolve command")
+	// Add quality metrics using proto helpers
+	task.RecordPhaseRetryProto(testTask, "implement")
+	task.RecordPhaseRetryProto(testTask, "implement")
+	task.RecordPhaseRetryProto(testTask, "review")
+	task.RecordReviewRejectionProto(testTask)
+	task.RecordManualInterventionProto(testTask, "Fixed manually via resolve command")
 
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -164,8 +152,8 @@ func TestSaveTask_QualityMetrics(t *testing.T) {
 	if !loaded.Quality.ManualIntervention {
 		t.Error("expected ManualIntervention=true")
 	}
-	if loaded.Quality.ManualInterventionReason != "Fixed manually via resolve command" {
-		t.Errorf("expected ManualInterventionReason to match, got %q", loaded.Quality.ManualInterventionReason)
+	if loaded.Quality.ManualInterventionReason == nil || *loaded.Quality.ManualInterventionReason != "Fixed manually via resolve command" {
+		t.Errorf("expected ManualInterventionReason to match, got %v", loaded.Quality.ManualInterventionReason)
 	}
 }
 
@@ -176,13 +164,9 @@ func TestSaveTask_QualityMetrics_Empty(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a task without quality metrics
-	testTask := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task without Quality",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCompleted,
-		CreatedAt: time.Now(),
-	}
+	testTask := task.NewProtoTask("TASK-001", "Test Task without Quality")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
 
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
@@ -207,13 +191,9 @@ func TestSaveInitiative_Transaction(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// First create a task to link
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "First Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "First Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -299,26 +279,18 @@ func TestTransactionRollback_SaveTask(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a valid task first
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "First Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "First Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task1: %v", err)
 	}
 
 	// Create a task with valid dependencies
-	task2 := &task.Task{
-		ID:        "TASK-002",
-		Title:     "Second Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		BlockedBy: []string{"TASK-001"},
-		CreatedAt: time.Now(),
-	}
+	task2 := task.NewProtoTask("TASK-002", "Second Task")
+	task2.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task2.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	task2.BlockedBy = []string{"TASK-001"}
 	if err := backend.SaveTask(task2); err != nil {
 		t.Fatalf("save task2: %v", err)
 	}
@@ -341,14 +313,10 @@ func TestTransactionAtomicity_SaveInitiative(t *testing.T) {
 
 	// Create tasks first
 	for i := 1; i <= 3; i++ {
-		task := &task.Task{
-			ID:        taskID(i),
-			Title:     taskTitle(i),
-			Weight:    task.WeightSmall,
-			Status:    task.StatusCreated,
-			CreatedAt: time.Now(),
-		}
-		if err := backend.SaveTask(task); err != nil {
+		tk := task.NewProtoTask(taskID(i), taskTitle(i))
+		tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+		tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+		if err := backend.SaveTask(tk); err != nil {
 			t.Fatalf("save task%d: %v", i, err)
 		}
 	}
@@ -405,13 +373,9 @@ func TestConcurrentAccess(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create initial task
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Concurrent Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "Concurrent Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -420,14 +384,10 @@ func TestConcurrentAccess(t *testing.T) {
 	done := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		go func(iteration int) {
-			task := &task.Task{
-				ID:        "TASK-001",
-				Title:     taskTitle(iteration),
-				Weight:    task.WeightSmall,
-				Status:    task.StatusCreated,
-				CreatedAt: time.Now(),
-			}
-			done <- backend.SaveTask(task)
+			tk := task.NewProtoTask("TASK-001", taskTitle(iteration))
+			tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+			tk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+			done <- backend.SaveTask(tk)
 		}(i)
 	}
 
@@ -477,13 +437,9 @@ func TestSaveTaskCtx_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	// Try to save with canceled context
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "Test Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	err := backend.SaveTaskCtx(ctx, task1)
 
 	// Should return context canceled error
@@ -547,13 +503,9 @@ func TestSaveTaskCtx_ValidContext(t *testing.T) {
 	defer cancel()
 
 	// Save with valid context
-	task1 := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task",
-		Weight:    task.WeightSmall,
-		Status:    task.StatusCreated,
-		CreatedAt: time.Now(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "Test Task")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	err := backend.SaveTaskCtx(ctx, task1)
 	if err != nil {
 		t.Fatalf("save with valid context should succeed: %v", err)
@@ -583,15 +535,12 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Step 1: Create task
-	task1 := &task.Task{
-		ID:           "TASK-001",
-		Title:        "Original Title",
-		Weight:       task.WeightSmall,
-		Status:       task.StatusRunning,
-		CurrentPhase: "implement",
-		CreatedAt:    time.Now(),
-		Execution:    task.InitExecutionState(),
-	}
+	task1 := task.NewProtoTask("TASK-001", "Original Title")
+	task1.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	currentPhase := "implement"
+	task1.CurrentPhase = &currentPhase
+	task1.Execution = task.InitProtoExecutionState()
 	if err := backend.SaveTask(task1); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -606,14 +555,15 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load task: %v", err)
 	}
-	if loaded.ExecutorPID != 12345 {
-		t.Fatalf("executor fields not set properly: expected PID 12345, got %d", loaded.ExecutorPID)
+	if loaded.ExecutorPid != 12345 {
+		t.Fatalf("executor fields not set properly: expected PID 12345, got %d", loaded.ExecutorPid)
 	}
 
 	// Step 3: Someone updates task metadata via SaveTask (e.g., CLI edit, API update)
 	// This should NOT clear the executor fields!
 	loaded.Title = "Updated Title"
-	loaded.Description = "Added description"
+	desc := "Added description"
+	loaded.Description = &desc
 	if err := backend.SaveTask(loaded); err != nil {
 		t.Fatalf("update task: %v", err)
 	}
@@ -625,11 +575,11 @@ func TestSaveTask_PreservesExecutorFields(t *testing.T) {
 	}
 
 	// This is the critical assertion that was failing before TASK-249 fix
-	if reloaded.ExecutorPID != 12345 {
-		t.Errorf("REGRESSION: SaveTask overwrote ExecutorPID: expected 12345, got %d", reloaded.ExecutorPID)
+	if reloaded.ExecutorPid != 12345 {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorPid: expected 12345, got %d", reloaded.ExecutorPid)
 	}
-	if reloaded.ExecutorHostname != "worker-1" {
-		t.Errorf("REGRESSION: SaveTask overwrote ExecutorHostname: expected 'worker-1', got %s", reloaded.ExecutorHostname)
+	if reloaded.ExecutorHostname == nil || *reloaded.ExecutorHostname != "worker-1" {
+		t.Errorf("REGRESSION: SaveTask overwrote ExecutorHostname: expected 'worker-1', got %v", reloaded.ExecutorHostname)
 	}
 
 	// Verify task metadata was updated correctly
@@ -1213,13 +1163,9 @@ func TestReviewFindings_SaveAndLoad(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a task first (foreign key constraint)
-	testTask := &task.Task{
-		ID:        "TASK-001",
-		Title:     "Test Task for Review",
-		Weight:    task.WeightMedium,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
+	testTask := task.NewProtoTask("TASK-001", "Test Task for Review")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
@@ -1295,13 +1241,9 @@ func TestReviewFindings_LoadAll(t *testing.T) {
 	defer teardownTestDB(t, backend, tmpDir)
 
 	// Create a task
-	testTask := &task.Task{
-		ID:        "TASK-002",
-		Title:     "Test Task",
-		Weight:    task.WeightLarge,
-		Status:    task.StatusRunning,
-		CreatedAt: time.Now(),
-	}
+	testTask := task.NewProtoTask("TASK-002", "Test Task")
+	testTask.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	testTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	if err := backend.SaveTask(testTask); err != nil {
 		t.Fatalf("save task: %v", err)
 	}
