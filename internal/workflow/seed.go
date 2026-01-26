@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // DefaultCodeQualityChecks is the JSON for standard code quality checks.
@@ -13,6 +14,17 @@ const DefaultCodeQualityChecks = `[{"type":"code","name":"tests","enabled":true,
 
 // boolPtr is a helper to create a pointer to a bool.
 func boolPtr(b bool) *bool { return &b }
+
+// loadSystemPrompt loads a system prompt from embedded files.
+// Returns empty string if file doesn't exist (some phases may not have system prompts).
+func loadSystemPrompt(phaseID string) string {
+	path := fmt.Sprintf("system_prompts/%s.md", phaseID)
+	content, err := templates.SystemPrompts.ReadFile(path)
+	if err != nil {
+		return "" // Phase doesn't have a system prompt file
+	}
+	return string(content)
+}
 
 // Built-in phase template definitions.
 // These are seeded into the database on first run.
@@ -35,7 +47,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(true), // Decision phase: needs deep reasoning
 		GateType:         "auto",
 		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: planning, not writing
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -54,7 +66,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(false), // Short task, no extended thinking needed
 		GateType:         "auto",
 		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit"]}`, // Read-only: planning, not writing
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit"]}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -74,6 +86,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		GateType:         "auto",
 		Checkpoint:       true,
 		RetryFromPhase:   "spec",
+		ClaudeConfig:     `{}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -92,6 +105,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
+		ClaudeConfig:     `{}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -146,7 +160,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(false), // Execution phase
 		GateType:         "auto",
 		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Bash"]}`, // Docs don't need shell commands
+		ClaudeConfig:     `{"disallowed_tools": ["Bash"]}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -163,6 +177,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(false),
 		GateType:         "human",
 		Checkpoint:       false,
+		ClaudeConfig:     `{}`,
 		IsBuiltin:        true,
 	},
 	{
@@ -181,7 +196,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		ThinkingEnabled:  boolPtr(true), // Research needs deep reasoning
 		GateType:         "auto",
 		Checkpoint:       true,
-		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`, // Read-only: research, not writing
+		ClaudeConfig:     `{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}`,
 		IsBuiltin:        true,
 	},
 	// ==========================================================================
@@ -244,6 +259,7 @@ var builtinPhaseTemplates = []db.PhaseTemplate{
 		GateType:         "auto",
 		Checkpoint:       true,
 		RetryFromPhase:   "qa_e2e_test", // On failure, re-run QA testing
+		ClaudeConfig:     `{}`,
 		IsBuiltin:        true,
 	},
 }
@@ -413,6 +429,9 @@ func SeedBuiltins(pdb *db.ProjectDB) (int, error) {
 			continue // Already seeded
 		}
 
+		// Load system prompt from embedded files (DB-first: store content directly)
+		pt.SystemPrompt = loadSystemPrompt(pt.ID)
+
 		pt.CreatedAt = now
 		pt.UpdatedAt = now
 		if err := pdb.SavePhaseTemplate(&pt); err != nil {
@@ -471,9 +490,9 @@ func ListBuiltinPhaseIDs() []string {
 	return ids
 }
 
-// MigratePhaseTemplateModels updates existing builtin phase templates with model settings
-// and Claude configuration. This should be called on startup to ensure existing databases
-// have the latest defaults.
+// MigratePhaseTemplateModels updates existing builtin phase templates with model settings,
+// Claude configuration, and system prompts. This should be called on startup to ensure
+// existing databases have the latest defaults.
 // Returns the number of templates updated.
 func MigratePhaseTemplateModels(pdb *db.ProjectDB) (int, error) {
 	now := time.Now()
@@ -507,9 +526,21 @@ func MigratePhaseTemplateModels(pdb *db.ProjectDB) (int, error) {
 			needsUpdate = true
 		}
 
-		// Update ClaudeConfig if not set
-		if existing.ClaudeConfig == "" && builtin.ClaudeConfig != "" {
+		// Update ClaudeConfig to latest builtin config
+		// For builtin templates, always use the latest config to ensure new features
+		// are applied. User customizations should go in workflow_phases.claude_config_override,
+		// not the phase template.
+		if builtin.ClaudeConfig != "" && existing.ClaudeConfig != builtin.ClaudeConfig {
 			existing.ClaudeConfig = builtin.ClaudeConfig
+			needsUpdate = true
+		}
+
+		// Update SystemPrompt from embedded files (DB-first: store content directly)
+		// For builtin templates, always load the latest system prompt to ensure
+		// improvements are applied. User customizations can clone the phase template.
+		latestSystemPrompt := loadSystemPrompt(builtin.ID)
+		if latestSystemPrompt != "" && existing.SystemPrompt != latestSystemPrompt {
+			existing.SystemPrompt = latestSystemPrompt
 			needsUpdate = true
 		}
 

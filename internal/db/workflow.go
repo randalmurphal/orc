@@ -81,6 +81,10 @@ type PhaseTemplate struct {
 	// Claude configuration (JSON)
 	ClaudeConfig string `json:"claude_config,omitempty"`
 
+	// System prompt for the main phase agent (role-framing)
+	// This is passed via --system-prompt to Claude CLI
+	SystemPrompt string `json:"system_prompt,omitempty"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin"`
 	CreatedAt time.Time `json:"created_at"`
@@ -260,8 +264,8 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			retry_from_phase, retry_prompt_path, claude_config, system_prompt, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -283,12 +287,13 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			retry_from_phase = excluded.retry_from_phase,
 			retry_prompt_path = excluded.retry_prompt_path,
 			claude_config = excluded.claude_config,
+			system_prompt = excluded.system_prompt,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, pt.PromptSource, pt.PromptContent, pt.PromptPath,
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.OutputType, pt.QualityChecks,
 		pt.MaxIterations, pt.ModelOverride, thinkingEnabled, pt.GateType, pt.Checkpoint,
-		pt.RetryFromPhase, pt.RetryPromptPath, pt.ClaudeConfig, pt.IsBuiltin,
+		pt.RetryFromPhase, pt.RetryPromptPath, pt.ClaudeConfig, pt.SystemPrompt, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save phase template: %w", err)
@@ -303,7 +308,7 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at
+			retry_from_phase, retry_prompt_path, claude_config, system_prompt, is_builtin, created_at, updated_at
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -324,7 +329,7 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
 			output_type, quality_checks,
 			max_iterations, model_override, thinking_enabled, gate_type, checkpoint,
-			retry_from_phase, retry_prompt_path, claude_config, is_builtin, created_at, updated_at
+			retry_from_phase, retry_prompt_path, claude_config, system_prompt, is_builtin, created_at, updated_at
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -883,14 +888,14 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	var thinkingEnabled sql.NullBool
 	var description, promptContent, promptPath, inputVars, outputSchema, artifactType, outputVarName sql.NullString
 	var outputType, qualityChecks sql.NullString
-	var modelOverride, retryFromPhase, retryPromptPath, claudeConfig sql.NullString
+	var modelOverride, retryFromPhase, retryPromptPath, claudeConfig, systemPrompt sql.NullString
 
 	err := row.Scan(
 		&pt.ID, &pt.Name, &description, &pt.PromptSource, &promptContent, &promptPath,
 		&inputVars, &outputSchema, &pt.ProducesArtifact, &artifactType, &outputVarName,
 		&outputType, &qualityChecks,
 		&pt.MaxIterations, &modelOverride, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
-		&retryFromPhase, &retryPromptPath, &claudeConfig, &pt.IsBuiltin, &createdAt, &updatedAt,
+		&retryFromPhase, &retryPromptPath, &claudeConfig, &systemPrompt, &pt.IsBuiltin, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -910,6 +915,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt.RetryFromPhase = retryFromPhase.String
 	pt.RetryPromptPath = retryPromptPath.String
 	pt.ClaudeConfig = claudeConfig.String
+	pt.SystemPrompt = systemPrompt.String
 	pt.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	pt.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 

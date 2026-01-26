@@ -19,6 +19,7 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // PhaseExecutionConfig holds configuration for a phase execution.
@@ -543,6 +544,41 @@ func (we *WorkflowExecutor) loadFilePrompt(path string) (string, error) {
 	return string(content), nil
 }
 
+// loadSystemPromptFile loads a system prompt from embedded templates or user files.
+// Path resolution:
+//   - Paths starting with "system_prompts/" → load from embedded templates.SystemPrompts
+//   - Absolute paths → load directly from filesystem
+//   - Relative paths → load from .orc/system_prompts/ in working directory
+func (we *WorkflowExecutor) loadSystemPromptFile(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	// Check if it's an embedded system prompt (built-in)
+	if strings.HasPrefix(path, "system_prompts/") {
+		content, err := templates.SystemPrompts.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("load embedded system prompt %s: %w", path, err)
+		}
+		return string(content), nil
+	}
+
+	// Otherwise, load from filesystem (user-configured)
+	var fullPath string
+	if filepath.IsAbs(path) {
+		fullPath = path
+	} else {
+		// User system prompts in .orc/system_prompts/
+		fullPath = filepath.Join(we.workingDir, ".orc", "system_prompts", path)
+	}
+
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("load system prompt file %s: %w", fullPath, err)
+	}
+	return string(content), nil
+}
+
 // resolvePhaseModel determines which model to use for a phase.
 // Priority: workflow phase override > phase template default > config default
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
@@ -776,6 +812,7 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 // After merging, it also:
 //  3. Resolves agent_ref to merge agent configuration
 //  4. Loads skill_refs to inject skill content into AppendSystemPrompt
+//  5. Sets system prompt from DB-stored content (DB-first approach)
 func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) (*PhaseClaudeConfig, error) {
 	var cfg *PhaseClaudeConfig
 
@@ -809,9 +846,9 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 		}
 	}
 
-	// If no config at all, return nil (no special configuration)
-	if cfg == nil || cfg.IsEmpty() {
-		return nil, nil
+	// Ensure we have a config to set system prompt
+	if cfg == nil {
+		cfg = &PhaseClaudeConfig{}
 	}
 
 	// 3. Resolve agent reference
@@ -838,6 +875,50 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 			)
 			// Continue without skills - it's not fatal
 		}
+	}
+
+	// 5. Resolve system prompt (DB-first approach)
+	// Priority: phase_templates.system_prompt (DB) > claude_config.system_prompt_file > claude_config.system_prompt
+	if tmpl != nil && tmpl.SystemPrompt != "" {
+		// DB-stored system prompt takes precedence (editable via UI)
+		cfg.SystemPrompt = tmpl.SystemPrompt
+	} else if cfg.SystemPromptFile != "" {
+		// Fallback: file reference (for backward compatibility)
+		content, err := we.loadSystemPromptFile(cfg.SystemPromptFile)
+		if err != nil {
+			we.logger.Warn("failed to load system prompt file",
+				"file", cfg.SystemPromptFile,
+				"error", err,
+			)
+			// Continue without system prompt - it's not fatal
+		} else if content != "" {
+			cfg.SystemPrompt = content
+		}
+	}
+	// cfg.SystemPrompt (inline in JSON) is already set if present
+
+	// 6. Resolve AppendSystemPromptFile to content
+	if cfg.AppendSystemPromptFile != "" {
+		content, err := we.loadSystemPromptFile(cfg.AppendSystemPromptFile)
+		if err != nil {
+			we.logger.Warn("failed to load append system prompt file",
+				"file", cfg.AppendSystemPromptFile,
+				"error", err,
+			)
+			// Continue without append system prompt - it's not fatal
+		} else if content != "" {
+			// Append to existing AppendSystemPrompt if any
+			if cfg.AppendSystemPrompt != "" {
+				cfg.AppendSystemPrompt = content + "\n\n" + cfg.AppendSystemPrompt
+			} else {
+				cfg.AppendSystemPrompt = content
+			}
+		}
+	}
+
+	// Return nil if config is empty (no special configuration)
+	if cfg.IsEmpty() {
+		return nil, nil
 	}
 
 	return cfg, nil
