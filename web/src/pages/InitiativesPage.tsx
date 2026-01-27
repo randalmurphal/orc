@@ -4,11 +4,13 @@
  */
 
 import { InitiativesView } from '@/components/initiatives';
+import { useDocumentTitle } from '@/hooks';
 
 /**
  * InitiativesPage displays the initiatives overview.
  * This is the page-level wrapper used in the router.
  */
 export function InitiativesPage() {
+	useDocumentTitle('Initiatives');
 	return <InitiativesView />;
 }
