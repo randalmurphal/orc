@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
+import { useTaskStore } from '@/stores/taskStore';
 
 // Lazy-loaded page components for code splitting
 // Each becomes a separate chunk, loaded on-demand when the route is visited
@@ -95,6 +96,7 @@ function AppShellLayout() {
 			<NewTaskModal
 				open={showNewTaskModal}
 				onClose={() => setShowNewTaskModal(false)}
+				onCreate={(task) => useTaskStore.getState().addTask(task)}
 			/>
 			<ProjectSwitcher
 				open={showProjectSwitcher}

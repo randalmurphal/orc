@@ -140,6 +140,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | WebSocket clients don't receive real-time updates | Fixed: EventServer wasn't forwarding events to WebSocketHub; added `SetWebSocketHub()` method and `handleInternalEvent()` to wire event flow; `internalToWSEventType()` converts internal event types to WebSocket EventType constants | TASK-537 |
 | UI Run button only updates status, doesn't execute | Fixed: `RunTask` RPC now uses `TaskExecutorFunc` callback pattern; `NewTaskServerWithExecutor()` wires `s.startTask` to spawn actual executor; status reverts on spawn failure; API server must be initialized with executor callback or RunTask only validates | TASK-538 |
 | Header session stats (Session, Tokens, Cost) always show 0 | Fixed: API server's `startTask`/`resumeTask` now pass `WithWorkflowSessionBroadcaster(s.sessionBroadcaster)` to WorkflowExecutor; Server struct has `sessionBroadcaster` field initialized in `New()`; without this wiring, session_update events never broadcast | TASK-539 |
+| Board doesn't show newly created tasks | Fixed: Board component wasn't subscribed to WebSocket events; added `useWebSocket()` hook call to subscribe to real-time updates; event handlers in `lib/events/handlers.ts` dispatch `taskStore.addTask()` on `taskCreated` events, but components must subscribe to receive them | TASK-555 |
 
 ## Decisions
 
