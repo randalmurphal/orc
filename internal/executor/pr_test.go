@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"github.com/randalmurphal/orc/internal/git"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -430,9 +431,9 @@ func TestIsNonFastForwardError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isNonFastForwardError(tt.err)
+			got := git.IsNonFastForwardError(tt.err)
 			if got != tt.expected {
-				t.Errorf("isNonFastForwardError(%v) = %v, want %v", tt.err, got, tt.expected)
+				t.Errorf("git.IsNonFastForwardError(%v) = %v, want %v", tt.err, got, tt.expected)
 			}
 		})
 	}

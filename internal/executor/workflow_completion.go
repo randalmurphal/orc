@@ -109,8 +109,8 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	we.logger.Info("direct merge to target branch", "target", targetBranch)
 
-	// Push task branch first
-	if err := gitOps.Push("origin", t.Branch, false); err != nil {
+	// Push task branch first (with force fallback for divergent history from previous runs)
+	if err := gitOps.PushWithForceFallback("origin", t.Branch, false, we.logger); err != nil {
 		return fmt.Errorf("push failed: %w", err)
 	}
 
@@ -156,8 +156,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 
 	we.logger.Info("creating PR", "branch", t.Branch, "target", targetBranch)
 
-	// Push task branch
-	if err := gitOps.Push("origin", t.Branch, true); err != nil {
+	// Push task branch (with force fallback for divergent history from previous runs)
+	if err := gitOps.PushWithForceFallback("origin", t.Branch, true, we.logger); err != nil {
 		return fmt.Errorf("push failed: %w", err)
 	}
 

@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -201,6 +202,63 @@ func (g *Git) PushForce(remote, branch string, setUpstream bool) error {
 	args = append(args, remote, branch)
 	_, err := g.ctx.RunGit(args...)
 	return err
+}
+
+// PushWithForceFallback attempts a normal push, and if it fails with a
+// non-fast-forward error (divergent history), retries with --force-with-lease.
+// This is designed for task branches that may have been rebased, causing
+// divergence with the remote feature branch.
+//
+// SAFETY:
+// - Requires worktree context
+// - NEVER uses force push on protected branches (returns ErrProtectedBranch)
+// - Uses --force-with-lease, not --force (fails if remote has unexpected changes)
+//
+// When force push is used, a warning is logged if logger is non-nil.
+func (g *Git) PushWithForceFallback(remote, branch string, setUpstream bool, logger *slog.Logger) error {
+	// CRITICAL: Require worktree context for all push operations
+	if err := g.RequireWorktreeContext("git push"); err != nil {
+		return err
+	}
+
+	// CRITICAL: Never force push to protected branches
+	if IsProtectedBranch(branch, g.protectedBranches) {
+		return fmt.Errorf("%w: cannot push to '%s'", ErrProtectedBranch, branch)
+	}
+
+	// Try normal push first
+	err := g.ctx.Push(remote, branch, setUpstream)
+	if err == nil {
+		return nil
+	}
+
+	// Check if this is a non-fast-forward error (divergent history)
+	if !IsNonFastForwardError(err) {
+		// Not a divergence issue - return the original error
+		return err
+	}
+
+	// Log warning about force push
+	if logger != nil {
+		logger.Warn("push failed with non-fast-forward, retrying with --force-with-lease",
+			"branch", branch,
+			"reason", "divergent history from previous run")
+	}
+
+	// Retry with --force-with-lease
+	return g.PushForce(remote, branch, setUpstream)
+}
+
+// IsNonFastForwardError checks if a push error is due to non-fast-forward
+// (divergent history) that can be resolved with force push.
+func IsNonFastForwardError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "non-fast-forward") ||
+		(strings.Contains(errStr, "rejected") && strings.Contains(errStr, "fetch first")) ||
+		(strings.Contains(errStr, "failed to push") && strings.Contains(errStr, "behind"))
 }
 
 // RemoteBranchExists checks if a branch exists on the remote.
