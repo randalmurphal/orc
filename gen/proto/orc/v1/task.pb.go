@@ -3430,6 +3430,7 @@ type UpdateTaskRequest struct {
 	BlockedBy     []string               `protobuf:"bytes,10,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
 	RelatedTo     []string               `protobuf:"bytes,11,rep,name=related_to,json=relatedTo,proto3" json:"related_to,omitempty"`
 	Metadata      map[string]string      `protobuf:"bytes,12,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	WorkflowId    *string                `protobuf:"bytes,13,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3546,6 +3547,13 @@ func (x *UpdateTaskRequest) GetMetadata() map[string]string {
 		return x.Metadata
 	}
 	return nil
+}
+
+func (x *UpdateTaskRequest) GetWorkflowId() string {
+	if x != nil && x.WorkflowId != nil {
+		return *x.WorkflowId
+	}
+	return ""
 }
 
 type UpdateTaskResponse struct {
@@ -7842,7 +7850,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\f_workflow_idB\x10\n" +
 	"\x0e_target_branch\"6\n" +
 	"\x12CreateTaskResponse\x12 \n" +
-	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\xb3\x05\n" +
+	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\xe9\x05\n" +
 	"\x11UpdateTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
@@ -7858,7 +7866,9 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	" \x03(\tR\tblockedBy\x12\x1d\n" +
 	"\n" +
 	"related_to\x18\v \x03(\tR\trelatedTo\x12C\n" +
-	"\bmetadata\x18\f \x03(\v2'.orc.v1.UpdateTaskRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\f \x03(\v2'.orc.v1.UpdateTaskRequest.MetadataEntryR\bmetadata\x12$\n" +
+	"\vworkflow_id\x18\r \x01(\tH\bR\n" +
+	"workflowId\x88\x01\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
@@ -7869,7 +7879,8 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\t_priorityB\v\n" +
 	"\t_categoryB\x10\n" +
 	"\x0e_initiative_idB\x10\n" +
-	"\x0e_target_branch\"6\n" +
+	"\x0e_target_branchB\x0e\n" +
+	"\f_workflow_id\"6\n" +
 	"\x12UpdateTaskResponse\x12 \n" +
 	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"#\n" +
 	"\x11DeleteTaskRequest\x12\x0e\n" +

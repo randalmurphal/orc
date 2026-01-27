@@ -10,9 +10,13 @@ import {
 	TaskSchema,
 	TaskPlanSchema,
 	PlanPhaseSchema,
+	CreateTaskResponseSchema,
+	UpdateTaskResponseSchema,
 	type Task,
 	type TaskPlan,
 	type PlanPhase,
+	type CreateTaskResponse,
+	type UpdateTaskResponse,
 	TaskStatus,
 	TaskWeight,
 	TaskCategory,
@@ -34,6 +38,12 @@ import {
 	type PendingDecision,
 	type DecisionOption,
 } from '@/gen/orc/v1/decision_pb';
+import {
+	WorkflowSchema,
+	ListWorkflowsResponseSchema,
+	type Workflow,
+	type ListWorkflowsResponse,
+} from '@/gen/orc/v1/workflow_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -164,6 +174,43 @@ export function createMockPhase(overrides: Partial<Omit<PlanPhase, '$typeName' |
 		status: PhaseStatus.PENDING,
 	});
 	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock Workflow with proto-compatible types
+ */
+export function createMockWorkflow(overrides: Partial<Omit<Workflow, '$typeName' | '$unknown'>> = {}): Workflow {
+	const base = create(WorkflowSchema, {
+		id: 'medium',
+		name: 'Medium',
+		isBuiltin: true,
+		description: 'For features needing thought',
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock ListWorkflowsResponse with proto-compatible types
+ */
+export function createMockListWorkflowsResponse(workflows: Workflow[] = []): ListWorkflowsResponse {
+	return create(ListWorkflowsResponseSchema, {
+		workflows,
+		phaseCounts: {},
+	});
+}
+
+/**
+ * Create a mock CreateTaskResponse with proto-compatible types
+ */
+export function createMockCreateTaskResponse(task: Task): CreateTaskResponse {
+	return create(CreateTaskResponseSchema, { task });
+}
+
+/**
+ * Create a mock UpdateTaskResponse with proto-compatible types
+ */
+export function createMockUpdateTaskResponse(task: Task): UpdateTaskResponse {
+	return create(UpdateTaskResponseSchema, { task });
 }
 
 // Status helper functions

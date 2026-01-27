@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Modal } from '@/components/overlays/Modal';
 import { Icon } from '@/components/ui/Icon';
-import { taskClient } from '@/lib/client';
+import { taskClient, workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { useInitiatives } from '@/stores';
 import {
@@ -13,6 +13,7 @@ import {
 	TaskQueue,
 } from '@/gen/orc/v1/task_pb';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import './TaskEditModal.css';
 
 const WEIGHTS: TaskWeight[] = [
@@ -76,6 +77,8 @@ const INITIATIVE_STATUS_LABELS: Record<InitiativeStatus, string> = {
 
 // Internal value for "no initiative" since Radix Select requires string values
 const NO_INITIATIVE_VALUE = '__none__';
+// Internal value for "no workflow" since Radix Select requires string values
+const NO_WORKFLOW_VALUE = '__none__';
 
 interface TaskEditModalProps {
 	open: boolean;
@@ -92,10 +95,39 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [category, setCategory] = useState<TaskCategory>(task.category || TaskCategory.FEATURE);
 	const [queue, setQueue] = useState<TaskQueue>(task.queue || TaskQueue.ACTIVE);
 	const [initiativeId, setInitiativeId] = useState<string | undefined>(task.initiativeId);
+	const [workflowId, setWorkflowId] = useState<string | undefined>(task.workflowId);
 	const [targetBranch, setTargetBranch] = useState(task.targetBranch ?? '');
 	const [saving, setSaving] = useState(false);
 
 	const initiatives = useInitiatives();
+
+	// Workflow loading state
+	const [workflows, setWorkflows] = useState<Workflow[]>([]);
+	const [workflowsLoading, setWorkflowsLoading] = useState(false);
+	const [workflowsError, setWorkflowsError] = useState<string | null>(null);
+
+	const loadWorkflows = useCallback(async () => {
+		setWorkflowsLoading(true);
+		setWorkflowsError(null);
+		try {
+			const response = await workflowClient.listWorkflows({
+				includeBuiltin: true,
+			});
+			setWorkflows(response.workflows);
+		} catch (e) {
+			setWorkflowsError('Failed to load workflows');
+			console.error('Failed to load workflows:', e);
+		} finally {
+			setWorkflowsLoading(false);
+		}
+	}, []);
+
+	// Load workflows when modal opens
+	useEffect(() => {
+		if (open) {
+			loadWorkflows();
+		}
+	}, [open, loadWorkflows]);
 
 	// Reset form when modal opens or task changes
 	useEffect(() => {
@@ -107,6 +139,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 			setCategory(task.category || TaskCategory.FEATURE);
 			setQueue(task.queue || TaskQueue.ACTIVE);
 			setInitiativeId(task.initiativeId);
+			setWorkflowId(task.workflowId);
 			setTargetBranch(task.targetBranch ?? '');
 		}
 	}, [open, task]);
@@ -122,8 +155,33 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		});
 	}, [initiatives]);
 
+	// Sort workflows: builtin first, then by name
+	const sortedWorkflows = useMemo(() => {
+		return [...workflows].sort((a, b) => {
+			if (a.isBuiltin && !b.isBuiltin) return -1;
+			if (b.isBuiltin && !a.isBuiltin) return 1;
+			return a.name.localeCompare(b.name);
+		});
+	}, [workflows]);
+
 	// Convert external value (undefined for none) to internal Select value
 	const selectInitiativeValue = initiativeId ?? NO_INITIATIVE_VALUE;
+	const selectWorkflowValue = workflowId ?? NO_WORKFLOW_VALUE;
+
+	// Check if the current workflow exists in the list
+	const workflowExists = useMemo(() => {
+		if (!workflowId) return true; // No workflow is always valid
+		return workflows.some((wf) => wf.id === workflowId);
+	}, [workflowId, workflows]);
+
+	// Get display name for workflow
+	const getWorkflowDisplayName = useCallback(() => {
+		if (!workflowId) return 'None';
+		const workflow = workflows.find((wf) => wf.id === workflowId);
+		if (workflow) return workflow.name;
+		// Workflow doesn't exist in list - show as unknown
+		return `Unknown (${workflowId})`;
+	}, [workflowId, workflows]);
 
 	// Handle initiative selection change
 	const handleInitiativeChange = (value: string) => {
@@ -131,6 +189,15 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 			setInitiativeId(undefined);
 		} else {
 			setInitiativeId(value);
+		}
+	};
+
+	// Handle workflow selection change
+	const handleWorkflowChange = (value: string) => {
+		if (value === NO_WORKFLOW_VALUE) {
+			setWorkflowId(undefined);
+		} else {
+			setWorkflowId(value);
 		}
 	};
 
@@ -151,6 +218,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 				category,
 				queue,
 				initiativeId: initiativeId || undefined,
+				workflowId: workflowId || undefined,
 				targetBranch: targetBranch.trim() || undefined,
 			});
 			toast.success('Task updated');
@@ -163,7 +231,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [task.id, title, description, weight, priority, category, queue, initiativeId, targetBranch, onUpdate, onClose]);
+	}, [task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>
@@ -257,6 +325,82 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 							))}
 						</select>
 					</div>
+				</div>
+
+				{/* Workflow */}
+				<div className="form-group">
+					<label htmlFor="task-workflow">Workflow</label>
+					{workflowsError ? (
+						<div className="workflow-error">
+							<span>Failed to load workflows</span>
+							<button type="button" onClick={loadWorkflows} className="retry-btn">
+								Retry
+							</button>
+						</div>
+					) : (
+						<Select.Root value={selectWorkflowValue} onValueChange={handleWorkflowChange}>
+							<Select.Trigger
+								id="task-workflow"
+								className="initiative-select-trigger"
+								aria-label="Workflow"
+								disabled={workflowsLoading}
+							>
+								<Select.Value>
+									{workflowsLoading ? 'Loading...' : getWorkflowDisplayName()}
+								</Select.Value>
+								<Select.Icon className="initiative-select-icon">
+									<Icon name="chevron-down" size={14} />
+								</Select.Icon>
+							</Select.Trigger>
+
+							<Select.Portal>
+								<Select.Content
+									className="initiative-select-content"
+									position="popper"
+									sideOffset={4}
+								>
+									<Select.Viewport className="initiative-select-viewport">
+										{/* No workflow option */}
+										<Select.Item value={NO_WORKFLOW_VALUE} className="initiative-select-item">
+											<Select.ItemText>None</Select.ItemText>
+										</Select.Item>
+
+										{sortedWorkflows.length > 0 && (
+											<Select.Separator className="initiative-select-separator" />
+										)}
+
+										{/* Workflow list */}
+										{sortedWorkflows.map((wf) => (
+											<Select.Item
+												key={wf.id}
+												value={wf.id}
+												className="initiative-select-item"
+											>
+												<Select.ItemText>{wf.name}</Select.ItemText>
+												{!wf.isBuiltin && (
+													<span className="initiative-status-badge">custom</span>
+												)}
+											</Select.Item>
+										))}
+
+										{/* Show current workflow if it doesn't exist in the list */}
+										{workflowId && !workflowExists && (
+											<>
+												<Select.Separator className="initiative-select-separator" />
+												<Select.Item value={workflowId} className="initiative-select-item">
+													<Select.ItemText>Unknown ({workflowId})</Select.ItemText>
+													<span className="initiative-status-badge">deleted?</span>
+												</Select.Item>
+											</>
+										)}
+									</Select.Viewport>
+								</Select.Content>
+							</Select.Portal>
+						</Select.Root>
+					)}
+					<span className="form-hint">
+						Workflow controls which phases the task executes
+					</span>
 				</div>
 
 				{/* Initiative */}

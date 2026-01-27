@@ -1,6 +1,6 @@
 # React 19 Frontend
 
-React 19 application for orc web UI.
+Orc web UI built with React 19 + Vite.
 
 ## Tech Stack
 
@@ -8,9 +8,11 @@ React 19 application for orc web UI.
 |-------|------------|
 | Framework | React 19, Vite |
 | Language | TypeScript 5.6+ |
-| State | Zustand |
+| State | React Context (WebSocket, Settings, Toast) |
+| Data Fetching | SWR |
 | Routing | React Router 7 |
-| Styling | CSS design tokens |
+| Styling | Tailwind CSS |
+| Components | Radix UI, Headless UI |
 | Testing | Vitest (unit), Playwright (E2E) |
 
 ## Quick Start
@@ -30,130 +32,89 @@ bun run build           # Production build
 web/src/
 ├── main.tsx              # Entry point
 ├── App.tsx               # Root (routes + providers)
-├── index.css             # Global styles (imports tokens)
-├── styles/               # Design system (tokens.css, animations.css)
-├── router/               # Route configuration
-├── lib/                  # Utilities (types, api, websocket, shortcuts, format, errors)
-├── components/           # UI components
-│   ├── agents/           # Agent components (AgentCard, ExecutionSettings, ToolPermissions)
-│   ├── board/            # Board (BoardView, QueueColumn, RunningColumn, TaskCard, Pipeline)
-│   ├── core/             # Domain primitives (Badge, Card, Progress, SearchInput, Select, Slider, Stat, Toggle)
-│   ├── dashboard/        # Dashboard sections
-│   ├── initiatives/      # Initiative components (InitiativeCard, StatsRow, InitiativesView)
-│   ├── layout/           # AppShell, IconNav, TopBar, RightPanel
-│   ├── overlays/         # Modal, NewTaskModal, ProjectSwitcher, KeyboardShortcutsHelp
-│   ├── settings/         # Settings (SettingsLayout, SettingsView, CommandEditor)
-│   ├── stats/            # Statistics (StatsView, ActivityHeatmap, charts)
-│   ├── task-detail/      # TaskHeader, TabNav, tabs (Transcript, Changes, Review, etc.)
-│   ├── timeline/         # TimelineView, TimelineEvent, TimelineFilters, TimelineGroup
-│   ├── transcript/       # TranscriptViewer, TranscriptNav, TranscriptSection, TranscriptSearch, TranscriptVirtualList
-│   ├── ui/               # Base primitives (Button, Icon, Input, Tooltip, StatusIndicator, Breadcrumbs, Toast, EmptyState, Skeleton)
-│   └── workflows/        # WorkflowsView, WorkflowCard, WorkflowDetailPanel
+├── index.css             # Global styles (Tailwind)
+├── api/                  # API client
+│   ├── index.ts          # Fetch functions
+│   └── types.ts          # API response types
+├── components/
+│   ├── atoms/            # Base primitives (Button, Input, Modal, Badge, etc.)
+│   ├── molecules/        # Compound components (FormField, StatusIndicator)
+│   └── [feature].tsx     # Feature components (TaskCard, TaskList, etc.)
+├── context/              # React Context providers
+│   ├── SettingsContext.tsx
+│   ├── ToastContext.tsx
+│   └── WebSocketContext.tsx
+├── hooks/                # Custom hooks
 ├── pages/                # Route pages
-├── stores/               # Zustand stores
-└── hooks/                # Custom hooks
+├── types/                # TypeScript definitions
+├── utils/                # Utility functions (format.ts)
+└── test/                 # Test utilities and mocks
 ```
 
-## Configuration
+## Routes
 
-| Setting | Value |
-|---------|-------|
-| API Proxy | `/api` -> `:8080` |
-| Path Alias | `@/` -> `src/` |
-| Build Output | `build/` |
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | TasksPage | Dashboard with task list and board |
+| `/tasks/:taskId` | TaskDetailPanel | Task details, transcript, review |
+| `/initiatives` | InitiativesPage | Initiative list and stats |
+| `/initiatives/:id` | InitiativeDetailPanel | Initiative detail view |
+| `/settings` | SettingsPage | Configuration editor |
+| `/knowledge` | KnowledgePage | Knowledge service config |
 
-## Core Architecture
+## Key Components
 
-### Stores (Zustand)
+| Component | Purpose |
+|-----------|---------|
+| `TaskCard` | Task display with status, actions |
+| `TaskList` | Filterable task list |
+| `TaskDetailPanel` | Full task view with tabs |
+| `TaskMonitor` | Real-time task execution view |
+| `NewTaskModal` | Task creation with WorkflowSelector |
+| `TranscriptViewer` | Claude conversation display |
+| `KnowledgePanel` | Knowledge service configuration |
+| `WorkflowSelector` | Workflow dropdown for task forms |
 
-| Store | Purpose |
-|-------|---------|
-| `taskStore` | Task data and states |
-| `projectStore` | Project selection (URL + localStorage) |
-| `initiativeStore` | Initiative data and filter |
-| `sessionStore` | Session metrics (duration, tokens, cost), pause/resume |
-| `uiStore` | Sidebar, toasts, WebSocket status |
-| `workflowStore` | Workflows and phase templates |
-| `statsStore` | Statistics and analytics data |
-| `preferencesStore` | User preferences |
-| `dependencyStore` | Task dependency graph |
-
-### Shared Utilities (`lib/`)
-
-| Module | Exports | Usage |
-|--------|---------|-------|
-| `format.ts` | `formatNumber`, `formatCost`, `formatLargeNumber`, `formatDuration`, `formatPercentage`, `formatTrend` | Display formatting for numbers, tokens, costs |
-| `errors.ts` | `APIError`, `handleStoreError` | Centralized error handling |
-| `api.ts` | `fetchJSON`, automation/notification/session API functions | All API calls |
-| `types.ts` | `Task`, `PhaseStatus`, `PhaseState`, etc. | TypeScript definitions aligned with Go backend |
-
-### Custom Hooks (`hooks/`)
+## Custom Hooks
 
 | Hook | Purpose |
 |------|---------|
-| `useClickKeyboard` | Handles Enter/Space on interactive non-button elements for a11y |
-| `useShortcuts` | Global keyboard shortcut registration |
-| `useWebSocket` | WebSocket connection with auto-reconnect |
+| `useTasks` | Task CRUD with SWR caching |
+| `useInitiatives` | Initiative data fetching |
+| `useKnowledge` | Knowledge service state |
+| `useWebSocket` | WebSocket connection + events |
+| `useSettings` | Settings state management |
+| `useKeyboard` | Keyboard shortcut registration |
 
-### WebSocket Events
+## WebSocket Events
 
 | Event | Payload |
 |-------|---------|
 | `task_created/updated/deleted` | Task or `{ id }` |
 | `state_updated` | TaskState |
 | `transcript` | `{ task_id, content, tokens }` |
-| `activity` | `{ phase, activity }` - see `ActivityState` in types.ts |
-| `heartbeat` | `{ phase, iteration, timestamp }` |
-| `finalize` | `{ task_id, status, step }` |
-| `decision_required` | `{ decision_id, task_id, task_title, phase, gate_type, question, context, requested_at }` |
-| `decision_resolved` | `{ decision_id, task_id, phase, approved, reason, resolved_by, resolved_at }` |
+| `activity` | `{ phase, activity }` |
 
-### Keyboard Shortcuts
+## Atoms (components/atoms/)
 
-| Shortcut | Action |
-|----------|--------|
-| `Shift+Alt+K` | Command palette |
-| `Shift+Alt+N` | New task |
-| `Shift+Alt+P` | Project switcher |
-| `g b / g i / g s` | Go to board/initiatives/stats |
-| `g a / g ,` | Go to agents/settings |
+Base primitives built on Radix UI:
 
-## Component Library
-
-Built on Radix UI primitives for accessibility.
-
-| Component | Use |
-|-----------|-----|
-| `Button` | Variants: primary, secondary, danger, ghost, success |
+| Component | Variants/Notes |
+|-----------|----------------|
+| `Button` | primary, secondary, danger, ghost |
+| `Input` | text, number, search |
 | `Modal` | Radix Dialog with focus trap |
-| `Tooltip` | Replaces native title |
-| `DropdownMenu` | TaskCard menu, ExportDropdown |
-| `Select` | InitiativeDropdown, ViewModeDropdown |
-| `Tabs` | TabNav in task detail |
-
-See [docs/components.md](docs/components.md) for full API.
-
-## Pages
-
-| Route | Component |
-|-------|-----------|
-| `/` | Redirects to `/board` |
-| `/board` | Board (flat/swimlane views) |
-| `/initiatives` | InitiativesPage (aggregate stats, cards grid) |
-| `/initiatives/:id` | InitiativeDetailPage |
-| `/timeline` | TimelinePage (activity feed) |
-| `/workflows` | WorkflowsPage (workflow cards, phase templates) |
-| `/agents` | Agents (agent configuration) |
-| `/stats` | StatsPage (summary cards, charts, leaderboards) |
-| `/tasks/:id` | TaskDetail (tabs: Transcript, Changes, Review, Tests, Timeline, Comments) |
-| `/settings/*` | SettingsPage with nested routes (commands, constitution, etc.) |
+| `Badge` | Status colors |
+| `Select` | Radix Select dropdown |
+| `Tabs` | Radix Tabs |
+| `Tooltip` | Radix Tooltip |
+| `Checkbox`, `TextArea`, `ProgressBar` | Standard inputs |
 
 ## Testing
 
 ```bash
-bun run test                                    # Vitest
-bunx playwright test                            # E2E
-bunx playwright test --project=visual           # Visual regression
+bun run test                    # Vitest unit tests
+bunx playwright test            # E2E tests
 ```
 
 **CRITICAL:** E2E tests use sandbox in `/tmp`. Always import from `./fixtures`:
@@ -162,20 +123,18 @@ bunx playwright test --project=visual           # Visual regression
 import { test, expect } from './fixtures';  // CORRECT
 ```
 
-See [docs/testing.md](docs/testing.md) for details.
+## Configuration
 
-## Reference Docs
-
-| Topic | Location |
-|-------|----------|
-| Styling & Tokens | [docs/styling.md](docs/styling.md) |
-| Components | [docs/components.md](docs/components.md) |
-| Architecture | [docs/architecture.md](docs/architecture.md) |
-| Page Components | [docs/pages.md](docs/pages.md) |
-| Testing | [docs/testing.md](docs/testing.md) |
+| Setting | Value |
+|---------|-------|
+| API Proxy | `/api` -> `:8080` (vite.config.ts) |
+| Path Alias | `@/` -> `src/` |
+| Build Output | `dist/` |
 
 ## Dependencies
 
-**Production:** react, react-router-dom, zustand, @radix-ui/* (dialog, dropdown-menu, select, tabs, tooltip)
+**Core:** react, react-dom, react-router-dom, swr, tailwindcss
 
-**Development:** vite, typescript, vitest, playwright, @fontsource/inter, @fontsource/jetbrains-mono
+**UI:** @radix-ui/* (dialog, select, tabs, tooltip), @headlessui/react, lucide-react
+
+**Dev:** vite, typescript, vitest, playwright
