@@ -4,6 +4,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -11,13 +12,14 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func init() {
 	rootCmd.AddCommand(runsCmd)
 	runsCmd.AddCommand(runShowCmd)
-	runsCmd.AddCommand(runCancelCmd)
+	runsCmd.AddCommand(newRunCancelCmd())
 
 	// List flags
 	runsCmd.Flags().Bool("running", false, "Show only running workflows")
@@ -203,60 +205,93 @@ Examples:
 	},
 }
 
-var runCancelCmd = &cobra.Command{
-	Use:   "cancel <run-id>",
-	Short: "Cancel a running workflow",
-	Long: `Cancel a workflow that is currently running.
+// newRunCancelCmd creates the runs cancel command.
+func newRunCancelCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "cancel <run-id>",
+		Short: "Cancel a running workflow",
+		Long: `Cancel a workflow that is currently running.
 
 This will stop the current phase execution and mark the run as cancelled.
 
 Examples:
   orc runs cancel RUN-001`,
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		runID := args[0]
+		Args: cobra.ExactArgs(1),
+		RunE: runCancelRunE,
+	}
+}
 
-		projectRoot, err := config.FindProjectRoot()
-		if err != nil {
-			return err
+func runCancelRunE(cmd *cobra.Command, args []string) error {
+	runID := args[0]
+
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		return err
+	}
+
+	pdb, err := db.OpenProject(projectRoot)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer func() { _ = pdb.Close() }()
+
+	run, err := pdb.GetWorkflowRun(runID)
+	if err != nil {
+		return fmt.Errorf("get workflow run: %w", err)
+	}
+	if run == nil {
+		return fmt.Errorf("workflow run not found: %s", runID)
+	}
+
+	if run.Status != string(workflow.RunStatusRunning) &&
+		run.Status != string(workflow.RunStatusPending) {
+		return fmt.Errorf("cannot cancel run with status: %s", run.Status)
+	}
+
+	// Update status
+	run.Status = string(workflow.RunStatusCancelled)
+	run.Error = "cancelled by user"
+	now := time.Now()
+	run.CompletedAt = &now
+
+	if err := pdb.SaveWorkflowRun(run); err != nil {
+		return fmt.Errorf("save workflow run: %w", err)
+	}
+
+	// Signal the executor process if there's a linked task with a live PID
+	processSignaled := false
+	if run.TaskID != nil {
+		backend, backendErr := getBackend()
+		if backendErr == nil {
+			defer func() { _ = backend.Close() }()
+
+			t, loadErr := backend.LoadTask(*run.TaskID)
+			if loadErr != nil {
+				// Log warning but don't fail - task may have been deleted
+				cmd.Printf("Warning: Could not load linked task %s: %v\n", *run.TaskID, loadErr)
+			} else if t != nil && t.ExecutorPid > 0 {
+				if task.IsPIDAlive(int(t.ExecutorPid)) {
+					proc, procErr := os.FindProcess(int(t.ExecutorPid))
+					if procErr == nil {
+						if sigErr := proc.Signal(syscall.SIGTERM); sigErr != nil {
+							// Log warning but don't fail - process may have just exited
+							cmd.Printf("Warning: Could not signal executor (PID %d): %v\n", t.ExecutorPid, sigErr)
+						} else {
+							processSignaled = true
+						}
+					}
+				}
+			}
 		}
+	}
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		run, err := pdb.GetWorkflowRun(runID)
-		if err != nil {
-			return fmt.Errorf("get workflow run: %w", err)
-		}
-		if run == nil {
-			return fmt.Errorf("workflow run not found: %s", runID)
-		}
-
-		if run.Status != string(workflow.RunStatusRunning) &&
-			run.Status != string(workflow.RunStatusPending) {
-			return fmt.Errorf("cannot cancel run with status: %s", run.Status)
-		}
-
-		// Update status
-		run.Status = string(workflow.RunStatusCancelled)
-		run.Error = "cancelled by user"
-		now := time.Now()
-		run.CompletedAt = &now
-
-		if err := pdb.SaveWorkflowRun(run); err != nil {
-			return fmt.Errorf("save workflow run: %w", err)
-		}
-
-		// TODO: Actually signal the running process to stop
-		// This requires inter-process communication
-
-		fmt.Printf("Cancelled workflow run '%s'\n", runID)
-		fmt.Println("Note: The running Claude session may still need to be terminated manually.")
-		return nil
-	},
+	cmd.Printf("Cancelled workflow run '%s'\n", runID)
+	if processSignaled {
+		cmd.Println("Executor process has been signaled to terminate.")
+	} else {
+		cmd.Println("Note: The running Claude session may still need to be terminated manually.")
+	}
+	return nil
 }
 
 // formatRelativeTime formats a time as relative (e.g., "2 hours ago")
