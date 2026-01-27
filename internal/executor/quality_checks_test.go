@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -303,6 +305,41 @@ func TestNewQualityCheckRunner(t *testing.T) {
 	}
 	if runner.shell == "" {
 		t.Error("shell not detected")
+	}
+}
+
+func TestQualityCheckRunner_SetsGOWORKOff(t *testing.T) {
+	t.Parallel()
+
+	// Create a check that echoes the GOWORK environment variable
+	checks := []db.QualityCheck{
+		{
+			Type:      "custom",
+			Name:      "check_gowork",
+			Enabled:   true,
+			Command:   "printenv GOWORK",
+			OnFailure: "block",
+		},
+	}
+
+	runner := NewQualityCheckRunner("/tmp", checks, nil, nil)
+	result := runner.Run(context.Background())
+
+	// The check should pass (command should succeed)
+	if len(result.Checks) != 1 {
+		t.Fatalf("expected 1 check result, got %d", len(result.Checks))
+	}
+
+	checkResult := result.Checks[0]
+	
+	// The command should have run successfully
+	if !checkResult.Passed {
+		t.Errorf("check failed unexpectedly: %s", checkResult.Output)
+	}
+
+	// The output should contain "off" (GOWORK=off)
+	if !strings.Contains(checkResult.Output, "off") {
+		t.Errorf("GOWORK should be 'off', got output: %q", checkResult.Output)
 	}
 }
 
