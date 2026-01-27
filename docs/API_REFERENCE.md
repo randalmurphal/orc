@@ -1052,6 +1052,42 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 {"method": "squash", "delete_branch": true}
 ```
 
+**Autofix comment:**
+
+Triggers an auto-fix for a specific PR comment. Fetches the comment from GitHub, sets up retry context, and spawns an executor to re-run the implement phase.
+
+```
+POST /api/tasks/:id/github/pr/comments/:commentId/autofix
+```
+
+**Response:**
+```json
+{
+  "result": {
+    "success": true
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `result.success` | `true` if autofix was started successfully |
+
+**Behavior:**
+- Returns immediately (~10ms) after spawning executor
+- Task status changes to `running`
+- Comment content is injected into `{{RETRY_CONTEXT}}` template variable
+- Long comments (>10KB) are truncated
+
+**Error responses:**
+| Status | Code | Condition |
+|--------|------|-----------|
+| 400 | `InvalidArgument` | Missing task_id or comment_id |
+| 404 | `NotFound` | Task or comment not found |
+| 409 | `FailedPrecondition` | Task already running or completed |
+| 401 | `Unauthenticated` | GitHub CLI not authenticated |
+| 429 | `ResourceExhausted` | GitHub API rate limited |
+
 ### MCP Servers
 
 | Method | Endpoint | Description |
