@@ -8,8 +8,8 @@ Orc web UI built with React 19 + Vite.
 |-------|------------|
 | Framework | React 19, Vite |
 | Language | TypeScript 5.6+ |
-| State | React Context (WebSocket, Settings, Toast) |
-| Data Fetching | SWR |
+| State | Zustand stores (taskStore, initiativeStore, etc.) |
+| Events | Connect RPC streaming (useEvents, EventProvider) |
 | Routing | React Router 7 |
 | Styling | Tailwind CSS |
 | Components | Radix UI, Headless UI |
@@ -79,7 +79,7 @@ web/src/
 
 | Hook | Purpose |
 |------|---------|
-| `useTasks` | Task CRUD with SWR caching |
+| `useTaskStore` | Task state from Zustand store |
 | `useInitiatives` | Initiative data fetching |
 | `useKnowledge` | Knowledge service state |
 | `useWebSocket` | WebSocket connection + events |
@@ -132,7 +132,7 @@ import { test, expect } from './fixtures';  // CORRECT
 
 ## Dependencies
 
-**Core:** react, react-dom, react-router-dom, swr, tailwindcss
+**Core:** react, react-dom, react-router-dom, zustand, tailwindcss
 
 **UI:** @radix-ui/* (dialog, select, tabs, tooltip), @headlessui/react, lucide-react
 
