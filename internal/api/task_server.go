@@ -20,6 +20,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // TaskExecutorFunc is the callback type for spawning task executors.
@@ -285,8 +286,14 @@ func (s *taskServer) CreateTask(
 	if req.Msg.InitiativeId != nil {
 		t.InitiativeId = req.Msg.InitiativeId
 	}
+	// Auto-assign workflow based on weight if not explicitly provided
 	if req.Msg.WorkflowId != nil {
 		t.WorkflowId = req.Msg.WorkflowId
+	} else if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
+		wfID := workflow.WeightToWorkflowID(t.Weight)
+		if wfID != "" {
+			t.WorkflowId = &wfID
+		}
 	}
 	if req.Msg.TargetBranch != nil {
 		t.TargetBranch = req.Msg.TargetBranch

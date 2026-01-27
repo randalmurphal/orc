@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/templates"
 )
@@ -488,6 +489,23 @@ func ListBuiltinPhaseIDs() []string {
 		ids[i] = pt.ID
 	}
 	return ids
+}
+
+// WeightToWorkflowID returns the default workflow ID for a task weight.
+// Returns empty string for unspecified or invalid weight.
+func WeightToWorkflowID(weight orcv1.TaskWeight) string {
+	switch weight {
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+		return "implement-trivial"
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+		return "implement-small"
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+		return "implement-medium"
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+		return "implement-large"
+	default:
+		return ""
+	}
 }
 
 // MigratePhaseTemplateModels updates existing builtin phase templates with model settings,

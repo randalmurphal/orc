@@ -120,6 +120,16 @@ Supports both JSON and multipart/form-data. Use multipart when attaching files d
 
 All fields except `title` are optional. Defaults: `queue: "active"`, `priority: "normal"`, `category: "feature"`, `initiative_id: ""` (standalone).
 
+**Workflow auto-assignment:** When `weight` is specified without an explicit `workflow_id`, the workflow is auto-assigned based on weight:
+| Weight | Workflow ID |
+|--------|-------------|
+| trivial | `implement-trivial` |
+| small | `implement-small` |
+| medium | `implement-medium` |
+| large | `implement-large` |
+
+Explicit `workflow_id` takes precedence over weight-derived assignment.
+
 **Query parameters for GET `/api/tasks`:**
 | Parameter | Description | Values |
 |-----------|-------------|--------|
