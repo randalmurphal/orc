@@ -5,6 +5,7 @@
  * - orc:select-workflow → Opens detail panel
  * - orc:clone-workflow → Opens clone modal
  * - orc:add-workflow → Opens create modal
+ * - orc:edit-workflow → Opens edit modal
  *
  * Manages state for modals and detail panel.
  */
@@ -15,6 +16,7 @@ import {
 	WorkflowDetailPanel,
 	CloneWorkflowModal,
 	CreateWorkflowModal,
+	EditWorkflowModal,
 } from '@/components/workflows';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
@@ -36,8 +38,12 @@ export function WorkflowsPage() {
 	// Create modal state
 	const [createModalOpen, setCreateModalOpen] = useState(false);
 
+	// Edit modal state
+	const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
+	const [editModalOpen, setEditModalOpen] = useState(false);
+
 	// Store for refreshing data
-	const { addWorkflow, removeWorkflow } = useWorkflowStore();
+	const { addWorkflow, removeWorkflow, updateWorkflow } = useWorkflowStore();
 
 	// Handle orc:select-workflow event
 	const handleSelectWorkflow = useCallback((event: CustomEvent<{ workflow: Workflow }>) => {
@@ -56,22 +62,31 @@ export function WorkflowsPage() {
 		setCreateModalOpen(true);
 	}, []);
 
+	// Handle orc:edit-workflow event
+	const handleEditWorkflow = useCallback((event: CustomEvent<{ workflow: Workflow }>) => {
+		setEditWorkflow(event.detail.workflow);
+		setEditModalOpen(true);
+	}, []);
+
 	// Register event listeners
 	useEffect(() => {
 		const selectHandler = handleSelectWorkflow as EventListener;
 		const cloneHandler = handleCloneWorkflow as EventListener;
 		const addHandler = handleAddWorkflow;
+		const editHandler = handleEditWorkflow as EventListener;
 
 		window.addEventListener('orc:select-workflow', selectHandler);
 		window.addEventListener('orc:clone-workflow', cloneHandler);
 		window.addEventListener('orc:add-workflow', addHandler);
+		window.addEventListener('orc:edit-workflow', editHandler);
 
 		return () => {
 			window.removeEventListener('orc:select-workflow', selectHandler);
 			window.removeEventListener('orc:clone-workflow', cloneHandler);
 			window.removeEventListener('orc:add-workflow', addHandler);
+			window.removeEventListener('orc:edit-workflow', editHandler);
 		};
-	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow]);
+	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow, handleEditWorkflow]);
 
 	// Handle workflow cloned
 	const handleWorkflowCloned = useCallback(
@@ -130,6 +145,24 @@ export function WorkflowsPage() {
 		setCloneModalOpen(true);
 	}, []);
 
+	// Handle edit modal close
+	const handleEditModalClose = useCallback(() => {
+		setEditModalOpen(false);
+		setEditWorkflow(null);
+	}, []);
+
+	// Handle workflow updated
+	const handleWorkflowUpdated = useCallback(
+		(workflow: Workflow) => {
+			updateWorkflow(workflow.id, workflow);
+			// Close edit modal and update selection
+			setEditModalOpen(false);
+			setEditWorkflow(null);
+			setSelectedWorkflow(workflow);
+		},
+		[updateWorkflow]
+	);
+
 	return (
 		<div className="workflows-page">
 			<div className="workflows-page-content">
@@ -159,6 +192,16 @@ export function WorkflowsPage() {
 				onClose={handleCreateModalClose}
 				onCreated={handleWorkflowCreated}
 			/>
+
+			{/* Edit Modal */}
+			{editWorkflow && (
+				<EditWorkflowModal
+					open={editModalOpen}
+					workflow={editWorkflow}
+					onClose={handleEditModalClose}
+					onUpdated={handleWorkflowUpdated}
+				/>
+			)}
 		</div>
 	);
 }
