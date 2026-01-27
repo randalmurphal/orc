@@ -422,6 +422,96 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 			}
 		}
 
+	case events.EventActivity:
+		if update, ok := e.Data.(*events.ActivityUpdate); ok {
+			result.Payload = &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   e.TaskID,
+					PhaseId:  update.Phase,
+					Activity: stringToProtoActivityState(update.Activity),
+				},
+			}
+		} else if update, ok := e.Data.(events.ActivityUpdate); ok {
+			result.Payload = &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   e.TaskID,
+					PhaseId:  update.Phase,
+					Activity: stringToProtoActivityState(update.Activity),
+				},
+			}
+		} else {
+			return nil
+		}
+
+	case events.EventSessionUpdate:
+		if update, ok := e.Data.(*events.SessionUpdate); ok {
+			result.Payload = &orcv1.Event_SessionMetrics{
+				SessionMetrics: &orcv1.SessionMetricsEvent{
+					DurationSeconds:  update.DurationSeconds,
+					TotalTokens:      int32(update.TotalTokens),
+					EstimatedCostUsd: update.EstimatedCostUSD,
+					InputTokens:      int32(update.InputTokens),
+					OutputTokens:     int32(update.OutputTokens),
+					TasksRunning:     int32(update.TasksRunning),
+					IsPaused:         update.IsPaused,
+				},
+			}
+		} else if update, ok := e.Data.(events.SessionUpdate); ok {
+			result.Payload = &orcv1.Event_SessionMetrics{
+				SessionMetrics: &orcv1.SessionMetricsEvent{
+					DurationSeconds:  update.DurationSeconds,
+					TotalTokens:      int32(update.TotalTokens),
+					EstimatedCostUsd: update.EstimatedCostUSD,
+					InputTokens:      int32(update.InputTokens),
+					OutputTokens:     int32(update.OutputTokens),
+					TasksRunning:     int32(update.TasksRunning),
+					IsPaused:         update.IsPaused,
+				},
+			}
+		} else {
+			return nil
+		}
+
+	case events.EventWarning:
+		if data, ok := e.Data.(*events.WarningData); ok {
+			warning := &orcv1.WarningEvent{
+				TaskId:  e.TaskID,
+				Message: data.Message,
+			}
+			if data.Phase != "" {
+				warning.Phase = &data.Phase
+			}
+			result.Payload = &orcv1.Event_Warning{Warning: warning}
+		} else if data, ok := e.Data.(events.WarningData); ok {
+			warning := &orcv1.WarningEvent{
+				TaskId:  e.TaskID,
+				Message: data.Message,
+			}
+			if data.Phase != "" {
+				warning.Phase = &data.Phase
+			}
+			result.Payload = &orcv1.Event_Warning{Warning: warning}
+		} else {
+			return nil
+		}
+
+	case events.EventHeartbeat:
+		if data, ok := e.Data.(*events.HeartbeatData); ok {
+			result.Payload = &orcv1.Event_Heartbeat{
+				Heartbeat: &orcv1.HeartbeatEvent{
+					Timestamp: timestamppb.New(data.Timestamp),
+				},
+			}
+		} else if data, ok := e.Data.(events.HeartbeatData); ok {
+			result.Payload = &orcv1.Event_Heartbeat{
+				Heartbeat: &orcv1.HeartbeatEvent{
+					Timestamp: timestamppb.New(data.Timestamp),
+				},
+			}
+		} else {
+			return nil
+		}
+
 	default:
 		// Unknown event type, skip
 		return nil
@@ -582,4 +672,26 @@ func getInt32(m map[string]any, key string) int32 {
 		}
 	}
 	return 0
+}
+
+// stringToProtoActivityState converts a string activity state to proto ActivityState enum.
+func stringToProtoActivityState(activity string) orcv1.ActivityState {
+	switch activity {
+	case "idle":
+		return orcv1.ActivityState_ACTIVITY_STATE_IDLE
+	case "waiting_api":
+		return orcv1.ActivityState_ACTIVITY_STATE_WAITING_API
+	case "streaming":
+		return orcv1.ActivityState_ACTIVITY_STATE_STREAMING
+	case "running_tool":
+		return orcv1.ActivityState_ACTIVITY_STATE_RUNNING_TOOL
+	case "processing":
+		return orcv1.ActivityState_ACTIVITY_STATE_PROCESSING
+	case "spec_analyzing":
+		return orcv1.ActivityState_ACTIVITY_STATE_SPEC_ANALYZING
+	case "spec_writing":
+		return orcv1.ActivityState_ACTIVITY_STATE_SPEC_WRITING
+	default:
+		return orcv1.ActivityState_ACTIVITY_STATE_UNSPECIFIED
+	}
 }
