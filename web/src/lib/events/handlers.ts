@@ -9,6 +9,8 @@ import type { Event } from '@/gen/orc/v1/events_pb';
 import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, toast } from '@/stores';
 import { create } from '@bufbuild/protobuf';
 import { PendingDecisionSchema } from '@/gen/orc/v1/decision_pb';
+import { TaskSchema, TaskStatus, TaskQueue, TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
+import { InitiativeSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 
 /**
  * Handle an incoming event by dispatching to the appropriate store.
@@ -22,9 +24,27 @@ export function handleEvent(event: Event): void {
 
 	switch (event.payload.case) {
 		case 'taskCreated': {
-			// TaskCreatedEvent has partial info - trigger refresh or add minimal task
-			const { taskId, title } = event.payload.value;
-			console.log(`Task created: ${taskId} - ${title}`);
+			// TaskCreatedEvent has partial info - add minimal task to store
+			const { taskId, title, weight, initiativeId } = event.payload.value;
+			// Check if task already exists to avoid duplicates
+			const existingTask = taskStore.getTask(taskId);
+			if (!existingTask) {
+				// Create minimal task with required fields from the event
+				const task = create(TaskSchema, {
+					id: taskId,
+					title,
+					weight,
+					initiativeId,
+					status: TaskStatus.CREATED,
+					queue: TaskQueue.ACTIVE,
+					priority: TaskPriority.NORMAL,
+					category: TaskCategory.FEATURE,
+					branch: '',
+					blockedBy: [],
+					relatedTo: [],
+				});
+				taskStore.addTask(task);
+			}
 			break;
 		}
 
@@ -79,7 +99,20 @@ export function handleEvent(event: Event): void {
 
 		case 'initiativeCreated': {
 			const { initiativeId, title } = event.payload.value;
-			console.log(`Initiative created: ${initiativeId} - ${title}`);
+			// Check if initiative already exists to avoid duplicates
+			const existingInitiative = initiativeStore.getInitiative(initiativeId);
+			if (!existingInitiative) {
+				// Create minimal initiative with required fields from the event
+				const initiative = create(InitiativeSchema, {
+					id: initiativeId,
+					title,
+					status: InitiativeStatus.ACTIVE,
+					decisions: [],
+					contextFiles: [],
+					blockedBy: [],
+				});
+				initiativeStore.addInitiative(initiative);
+			}
 			break;
 		}
 
