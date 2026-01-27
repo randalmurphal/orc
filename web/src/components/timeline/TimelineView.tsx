@@ -25,6 +25,7 @@ import { TimelineEmptyState } from './TimelineEmptyState';
 import { TimelineFilters } from './TimelineFilters';
 import { TimeRangeSelector, getDateRange, type TimeRange, type CustomDateRange } from './TimeRangeSelector';
 import { groupEventsByDate, getDateGroupLabel } from './utils';
+import { Button } from '@/components/ui/Button';
 import './TimelineView.css';
 
 // Helper to convert ISO string to Timestamp
@@ -482,9 +483,9 @@ export function TimelineView() {
 				{headerContent}
 				<div className="timeline-view-error">
 					<p>Failed to load events: {error}</p>
-					<button type="button" onClick={handleRetry}>
+					<Button variant="secondary" onClick={handleRetry}>
 						Retry
-					</button>
+					</Button>
 				</div>
 			</div>
 		);
@@ -530,9 +531,9 @@ export function TimelineView() {
 				{paginationError && (
 					<div className="timeline-view-pagination-error">
 						<p>Failed to load more events</p>
-						<button type="button" onClick={() => fetchEvents(false)}>
+						<Button variant="secondary" size="sm" onClick={() => fetchEvents(false)}>
 							Retry
-						</button>
+						</Button>
 					</div>
 				)}
 

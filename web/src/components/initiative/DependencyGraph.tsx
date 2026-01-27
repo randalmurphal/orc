@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 import { computeLayout, getEdgePath, type LayoutConfig } from '@/lib/graph-layout';
 import { type DependencyNode, type DependencyEdge, TaskStatus } from '@/gen/orc/v1/task_pb';
 import './DependencyGraph.css';
@@ -238,7 +239,7 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 		<div className="dependency-graph">
 			<div className="graph-toolbar">
 				<div className="toolbar-group">
-					<button className="toolbar-btn" onClick={handleZoomIn} title="Zoom In">
+					<Button variant="ghost" iconOnly onClick={handleZoomIn} title="Zoom In" aria-label="Zoom In" className="toolbar-btn">
 						<svg
 							width="16"
 							height="16"
@@ -250,8 +251,8 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 							<circle cx="11" cy="11" r="8" />
 							<path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
 						</svg>
-					</button>
-					<button className="toolbar-btn" onClick={handleZoomOut} title="Zoom Out">
+					</Button>
+					<Button variant="ghost" iconOnly onClick={handleZoomOut} title="Zoom Out" aria-label="Zoom Out" className="toolbar-btn">
 						<svg
 							width="16"
 							height="16"
@@ -263,8 +264,8 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 							<circle cx="11" cy="11" r="8" />
 							<path d="M21 21l-4.35-4.35M8 11h6" />
 						</svg>
-					</button>
-					<button className="toolbar-btn" onClick={handleFit} title="Fit to View">
+					</Button>
+					<Button variant="ghost" iconOnly onClick={handleFit} title="Fit to View" aria-label="Fit to View" className="toolbar-btn">
 						<svg
 							width="16"
 							height="16"
@@ -275,10 +276,10 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 						>
 							<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
 						</svg>
-					</button>
+					</Button>
 				</div>
 				<div className="toolbar-group">
-					<button className="toolbar-btn" onClick={handleExport} title="Export PNG">
+					<Button variant="ghost" iconOnly onClick={handleExport} title="Export PNG" aria-label="Export PNG" className="toolbar-btn">
 						<svg
 							width="16"
 							height="16"
@@ -289,7 +290,7 @@ export function DependencyGraph({ nodes, edges, onNodeClick }: DependencyGraphPr
 						>
 							<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
 						</svg>
-					</button>
+					</Button>
 				</div>
 			</div>
 

@@ -5,6 +5,7 @@
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import { Badge } from '@/components/core/Badge';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 
 export interface WorkflowCardProps {
 	workflow: Workflow;
@@ -75,19 +76,27 @@ export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: Workfl
 
 			<div className="workflow-card-actions">
 				{workflow.isBuiltin ? (
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						className="workflow-card-action"
 						onClick={handleClone}
 						title="Clone to customize"
+						leftIcon={<Icon name="clipboard" size={14} />}
 					>
-						<Icon name="clipboard" size={14} />
-						<span>Clone</span>
-					</button>
+						Clone
+					</Button>
 				) : (
-					<button className="workflow-card-action" onClick={handleClick} title="Edit workflow">
-						<Icon name="edit" size={14} />
-						<span>Edit</span>
-					</button>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="workflow-card-action"
+						onClick={handleClick}
+						title="Edit workflow"
+						leftIcon={<Icon name="edit" size={14} />}
+					>
+						Edit
+					</Button>
 				)}
 			</div>
 		</article>

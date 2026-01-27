@@ -12,6 +12,7 @@ import { AttachmentsTab } from '@/components/task-detail/AttachmentsTab';
 import { CommentsTab } from '@/components/task-detail/CommentsTab';
 import { ReviewFindingsTab } from '@/components/task-detail/ReviewFindingsTab';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
 import { useTaskSubscription } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
@@ -133,9 +134,9 @@ export function TaskDetail() {
 					<Icon name="alert-circle" size={32} />
 					<h2>Failed to load task</h2>
 					<p>{error || 'Task not found'}</p>
-					<button className="retry-btn" onClick={loadTask}>
+					<Button variant="secondary" onClick={loadTask}>
 						Retry
-					</button>
+					</Button>
 				</div>
 			</div>
 		);

@@ -9,6 +9,7 @@ import {
 } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import './TestResultsTab.css';
 
 interface TestResultsTabProps {
@@ -160,27 +161,33 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 		<div className="test-results-container">
 			{/* Tab navigation */}
 			<div className="tabs">
-				<button
+				<Button
+					variant={activeTab === 'summary' ? 'primary' : 'ghost'}
+					size="sm"
 					className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
 					onClick={() => setActiveTab('summary')}
 				>
 					Summary
-				</button>
+				</Button>
 				{hasScreenshots && (
-					<button
+					<Button
+						variant={activeTab === 'screenshots' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`tab ${activeTab === 'screenshots' ? 'active' : ''}`}
 						onClick={() => setActiveTab('screenshots')}
 					>
 						Screenshots ({results.screenshots?.length})
-					</button>
+					</Button>
 				)}
 				{hasSuites && (
-					<button
+					<Button
+						variant={activeTab === 'suites' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`tab ${activeTab === 'suites' ? 'active' : ''}`}
 						onClick={() => setActiveTab('suites')}
 					>
 						Test Suites
-					</button>
+					</Button>
 				)}
 			</div>
 
@@ -329,17 +336,19 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 					<div className="screenshots-grid">
 						{results.screenshots.map((screenshot) => (
 							<div key={screenshot.filename} className="screenshot-card">
-								<button
+								<Button
+									variant="ghost"
 									className="screenshot-preview"
 									onClick={() => openLightbox(screenshot.filename)}
 									title="Click to enlarge"
+									aria-label={`Preview ${screenshot.pageName}`}
 								>
 									<img
 										src={getScreenshotUrl(taskId, screenshot.filename)}
 										alt={screenshot.pageName}
 										loading="lazy"
 									/>
-								</button>
+								</Button>
 								<div className="screenshot-info">
 									<span className="screenshot-name" title={screenshot.pageName}>
 										{screenshot.pageName}
@@ -399,9 +408,9 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 					tabIndex={-1}
 				>
 					<div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-						<button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+						<Button variant="ghost" iconOnly className="lightbox-close" onClick={closeLightbox} aria-label="Close">
 							<Icon name="x" size={24} />
-						</button>
+						</Button>
 						<img src={lightboxImage} alt={lightboxFilename ?? 'Screenshot'} />
 						{lightboxFilename && <div className="lightbox-filename">{lightboxFilename}</div>}
 					</div>

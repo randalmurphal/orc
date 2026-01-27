@@ -33,6 +33,7 @@ import { TaskCard } from '@/components/board/TaskCard';
 import { InitiativeDropdown } from '@/components/board/InitiativeDropdown';
 import { DependencyDropdown } from '@/components/filters';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus, TaskWeight, DependencyStatus } from '@/gen/orc/v1/task_pb';
@@ -406,13 +407,14 @@ export function TaskList() {
 							</>
 						)}
 					</span>
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="sm"
 						className="banner-clear"
 						onClick={() => selectInitiative(null)}
 					>
 						Clear filter
-					</button>
+					</Button>
 				</div>
 			)}
 
@@ -420,38 +422,42 @@ export function TaskList() {
 			<div className="filter-bar">
 				{/* Status Tabs */}
 				<div className="status-tabs">
-					<button
-						type="button"
+					<Button
+						variant={statusFilter === 'all' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`status-tab ${statusFilter === 'all' ? 'active' : ''}`}
 						onClick={() => setStatusFilter('all')}
 					>
 						All
 						<span className="tab-count">{statusCounts.all}</span>
-					</button>
-					<button
-						type="button"
+					</Button>
+					<Button
+						variant={statusFilter === 'active' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`status-tab ${statusFilter === 'active' ? 'active' : ''}`}
 						onClick={() => setStatusFilter('active')}
 					>
 						Active
 						<span className="tab-count">{statusCounts.active}</span>
-					</button>
-					<button
-						type="button"
+					</Button>
+					<Button
+						variant={statusFilter === 'completed' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`status-tab ${statusFilter === 'completed' ? 'active' : ''}`}
 						onClick={() => setStatusFilter('completed')}
 					>
 						Completed
 						<span className="tab-count">{statusCounts.completed}</span>
-					</button>
-					<button
-						type="button"
+					</Button>
+					<Button
+						variant={statusFilter === 'failed' ? 'primary' : 'ghost'}
+						size="sm"
 						className={`status-tab ${statusFilter === 'failed' ? 'active' : ''}`}
 						onClick={() => setStatusFilter('failed')}
 					>
 						Failed
 						<span className="tab-count">{statusCounts.failed}</span>
-					</button>
+					</Button>
 				</div>
 
 				{/* Filters Row */}
@@ -547,16 +553,15 @@ export function TaskList() {
 							</div>
 							<h3>No project selected</h3>
 							<p>Select a project to view and manage tasks</p>
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={() =>
 									window.dispatchEvent(new CustomEvent('orc:switch-project'))
 								}
+								leftIcon={<Icon name="folder" size={14} />}
 							>
-								<Icon name="folder" size={14} />
 								Select Project
-							</button>
+							</Button>
 						</>
 					) : initiativeFilteredTasks.length === 0 ? (
 						<>
@@ -565,14 +570,13 @@ export function TaskList() {
 							</div>
 							<h3>No tasks yet</h3>
 							<p>Create your first task to get started with orc</p>
-							<button
-								type="button"
-								className="primary"
+							<Button
+								variant="primary"
 								onClick={() => window.dispatchEvent(new CustomEvent('orc:new-task'))}
+								leftIcon={<Icon name="plus" size={14} />}
 							>
-								<Icon name="plus" size={14} />
 								Create Task
-							</button>
+							</Button>
 						</>
 					) : (
 						<>
@@ -581,9 +585,9 @@ export function TaskList() {
 							</div>
 							<h3>No matching tasks</h3>
 							<p>Try adjusting your filters or search query</p>
-							<button type="button" onClick={clearFilters}>
+							<Button variant="secondary" onClick={clearFilters}>
 								Clear filters
-							</button>
+							</Button>
 						</>
 					)}
 				</div>

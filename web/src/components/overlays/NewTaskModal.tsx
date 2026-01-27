@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Modal } from './Modal';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { taskClient, workflowClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
@@ -252,9 +253,9 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 					{workflowsError ? (
 						<div className="workflow-error">
 							<span>Failed to load workflows</span>
-							<button type="button" onClick={loadWorkflows} className="retry-btn">
+							<Button type="button" variant="ghost" size="sm" onClick={loadWorkflows}>
 								Retry
-							</button>
+							</Button>
 						</div>
 					) : workflows.length === 0 && !workflowsLoading ? (
 						<div className="workflow-empty">No workflows available</div>
@@ -313,17 +314,18 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 
 				{/* Actions */}
 				<div className="form-actions">
-					<button type="button" onClick={onClose} className="btn-secondary cancel-btn">
+					<Button type="button" variant="secondary" onClick={onClose}>
 						Cancel
-					</button>
-					<button
+					</Button>
+					<Button
 						type="button"
+						variant="primary"
 						onClick={handleSave}
-						disabled={saving || !title.trim()}
-						className="btn-primary save-btn"
+						disabled={!title.trim()}
+						loading={saving}
 					>
-						{saving ? 'Creating...' : 'Create Task'}
-					</button>
+						Create Task
+					</Button>
 				</div>
 			</div>
 		</Modal>
