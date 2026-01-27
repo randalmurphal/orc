@@ -145,7 +145,7 @@
 	border: 1px solid var(--border-light);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-lg);
-	z-index: var(--z-dropdown);
+	z-index: 1100; /* Above modal-backdrop (1000) and modal-content (1001) */
 	min-width: var(--radix-select-trigger-width);
 	max-height: 300px;
 	overflow: hidden;
