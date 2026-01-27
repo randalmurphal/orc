@@ -104,6 +104,9 @@ type Database interface {
 	GetActiveNotifications(ctx context.Context) ([]*Notification, error)
 	DismissNotification(ctx context.Context, id string) error
 	DismissAllNotifications(ctx context.Context) error
+
+	// Stats
+	GetExecutionStats(ctx context.Context) (*ExecutionStats, error)
 }
 
 // NewService creates a new automation service.
@@ -492,7 +495,17 @@ func (s *Service) GetStats(ctx context.Context) (*Stats, error) {
 		}
 	}
 
-	// TODO: Get execution stats from database
+	// Get execution stats from database
+	execStats, err := s.db.GetExecutionStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get execution stats: %w", err)
+	}
+
+	stats.PendingTasks = execStats.Pending
+	stats.RunningTasks = execStats.Running
+	stats.CompletedTasks = execStats.Completed
+	stats.FailedTasks = execStats.Failed
+
 	return stats, nil
 }
 

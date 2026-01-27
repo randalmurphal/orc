@@ -734,3 +734,28 @@ type TaskSummary struct {
 	CompletedAt *time.Time
 	Metadata    map[string]string
 }
+
+// GetExecutionStats returns counts of executions by status.
+func (a *ProjectDBAdapter) GetExecutionStats(ctx context.Context) (*ExecutionStats, error) {
+	query := `
+		SELECT
+			COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+			COUNT(CASE WHEN status = 'running' THEN 1 END) as running,
+			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+			COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+		FROM trigger_executions
+	`
+
+	var stats ExecutionStats
+	err := a.pdb.Driver().QueryRow(ctx, query).Scan(
+		&stats.Pending,
+		&stats.Running,
+		&stats.Completed,
+		&stats.Failed,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get execution stats: %w", err)
+	}
+
+	return &stats, nil
+}
