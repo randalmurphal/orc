@@ -138,6 +138,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Initiative shows BLOCKED when all tasks complete | Fixed: Initiative completion only triggered for branch-based initiatives; added `CheckAndCompleteInitiativeNoBranch()` called after task completion to auto-complete initiatives without `BranchBase` when all tasks finish; updates initiative status from `active` to `completed` | TASK-525 |
 | Stats page stuck in infinite loading skeleton | Fixed: Race condition in statsStore where `setPeriod` and component `useEffect` both triggered fetches; added `_fetchingPeriod` guard to prevent duplicate concurrent fetches for same period; changed initial loading state to `true` (show skeleton immediately); `setPeriod` now only updates period (component `useEffect` triggers fetch) | TASK-526 |
 | WebSocket clients don't receive real-time updates | Fixed: EventServer wasn't forwarding events to WebSocketHub; added `SetWebSocketHub()` method and `handleInternalEvent()` to wire event flow; `internalToWSEventType()` converts internal event types to WebSocket EventType constants | TASK-537 |
+| UI Run button only updates status, doesn't execute | Fixed: `RunTask` RPC now uses `TaskExecutorFunc` callback pattern; `NewTaskServerWithExecutor()` wires `s.startTask` to spawn actual executor; status reverts on spawn failure; API server must be initialized with executor callback or RunTask only validates | TASK-538 |
 
 ## Decisions
 

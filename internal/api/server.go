@@ -675,6 +675,62 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 	}, nil
 }
 
+// startTask starts a task execution (called by taskServer.RunTask).
+// This spawns a WorkflowExecutor goroutine similar to resumeTask.
+func (s *Server) startTask(id string) error {
+	t, err := s.backend.LoadTask(id)
+	if err != nil {
+		return fmt.Errorf("task not found: %w", err)
+	}
+
+	// Get workflow ID from task - should already be validated by RunTask
+	workflowID := t.GetWorkflowId()
+	if workflowID == "" {
+		return fmt.Errorf("task has no workflow_id set")
+	}
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	s.runningTasksMu.Lock()
+	s.runningTasks[id] = cancel
+	s.runningTasksMu.Unlock()
+
+	go func() {
+		defer func() {
+			s.runningTasksMu.Lock()
+			delete(s.runningTasks, id)
+			s.runningTasksMu.Unlock()
+		}()
+
+		// Create WorkflowExecutor
+		we := executor.NewWorkflowExecutor(
+			s.backend,
+			s.backend.DB(),
+			s.orcConfig,
+			s.workDir,
+			executor.WithWorkflowPublisher(s.publisher),
+			executor.WithWorkflowLogger(s.logger),
+			executor.WithWorkflowAutomationService(s.automationSvc),
+		)
+
+		opts := executor.WorkflowRunOptions{
+			ContextType: executor.ContextTask,
+			TaskID:      id,
+			Prompt:      task.GetDescriptionProto(t),
+			Category:    t.Category,
+		}
+
+		// Run workflow
+		_, err := we.Run(ctx, workflowID, opts)
+		if err != nil {
+			s.logger.Error("task execution failed", "task", id, "error", err)
+		}
+	}()
+
+	return nil
+}
+
 // cancelTask cancels a running task (called by WebSocket handler).
 func (s *Server) cancelTask(id string) (map[string]any, error) {
 	s.runningTasksMu.RLock()

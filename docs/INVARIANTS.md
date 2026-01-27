@@ -35,6 +35,13 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 |-----------|------|-----|-------------|
 | **Wire All Event Consumers** | EventServer must call `SetWebSocketHub()` at startup to forward events to WebSocket clients | Separate event systems must be explicitly connected | UI never receives real-time updates |
 
+## Canonical: RPC Actions
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **Status + Side Effect** | RPC methods that change status MUST also trigger the actual side effect (e.g., RunTask must spawn executor, not just set status to running) | Status-only updates create inconsistent state | UI shows "running" but nothing executes (from TASK-538) |
+| **Rollback on Failure** | If side effect fails after status change, revert status to original | Partial updates cause orphaned state | Task stuck in "running" with no executor |
+
 ## Canonical: Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |
