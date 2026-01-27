@@ -106,7 +106,13 @@ func (s *eventServer) Subscribe(
 			}
 
 			// Filter by initiative if specified
-			// TODO: Add initiative filtering (would need to load task to check initiative)
+			initFilter := ""
+			if req.Msg.InitiativeId != nil {
+				initFilter = *req.Msg.InitiativeId
+			}
+			if filterEventByInitiative(event, initFilter, s.backend) {
+				continue
+			}
 
 			// Convert to proto event
 			protoEvent := internalEventToProto(event)
@@ -675,6 +681,41 @@ func getInt32(m map[string]any, key string) int32 {
 		}
 	}
 	return 0
+}
+
+// filterEventByInitiative returns true if the event should be filtered out based on initiative.
+// When initiativeID is empty, no filtering occurs (backward compatible).
+// When set, only events from tasks belonging to that initiative pass through.
+func filterEventByInitiative(event events.Event, initiativeID string, backend storage.Backend) bool {
+	// No filter set - pass everything through (backward compatible)
+	if initiativeID == "" {
+		return false
+	}
+
+	// Global events or events without a task ID are filtered when initiative is set
+	if event.TaskID == "" || event.TaskID == globalTaskID {
+		return true
+	}
+
+	// Load the task to check its initiative
+	task, err := backend.LoadTask(event.TaskID)
+	if err != nil || task == nil {
+		// Task not found - filter out
+		return true
+	}
+
+	// Task has no initiative - filter out
+	if task.InitiativeId == nil {
+		return true
+	}
+
+	// Check if task's initiative matches the filter
+	if *task.InitiativeId != initiativeID {
+		return true
+	}
+
+	// Task belongs to the filtered initiative - pass through
+	return false
 }
 
 // stringToProtoActivityState converts a string activity state to proto ActivityState enum.
