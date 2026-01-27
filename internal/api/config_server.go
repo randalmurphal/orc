@@ -345,16 +345,40 @@ func (s *configServer) DeleteHook(
 }
 
 // ListSkills returns all skills.
+// When no scope is specified, returns ALL skills (global + project) to match GetConfigStats behavior.
+// When a specific scope is provided, returns only skills from that scope.
 func (s *configServer) ListSkills(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListSkillsRequest],
 ) (*connect.Response[orcv1.ListSkillsResponse], error) {
-	var claudeDir string
-	var scope orcv1.SettingsScope
+	// When no scope specified, return ALL skills (global + project)
+	// This matches GetConfigStats.slashCommandsCount behavior
+	if req.Msg.Scope == nil {
+		var protoSkills []*orcv1.Skill
 
-	if req.Msg.Scope != nil {
-		scope = *req.Msg.Scope
+		// Collect global skills
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			globalSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(homeDir, ".claude"))
+			for _, skill := range globalSkills {
+				protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL))
+			}
+		}
+
+		// Collect project skills
+		projectSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(s.workDir, ".claude"))
+		for _, skill := range projectSkills {
+			protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT))
+		}
+
+		return connect.NewResponse(&orcv1.ListSkillsResponse{
+			Skills: protoSkills,
+		}), nil
 	}
+
+	// Scope-specific behavior (preserved from original)
+	var claudeDir string
+	scope := *req.Msg.Scope
 
 	if scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		homeDir, err := os.UserHomeDir()
@@ -364,7 +388,6 @@ func (s *configServer) ListSkills(
 		claudeDir = filepath.Join(homeDir, ".claude")
 	} else {
 		claudeDir = filepath.Join(s.workDir, ".claude")
-		scope = orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT
 	}
 
 	skills, err := claudeconfig.DiscoverSkills(claudeDir)
