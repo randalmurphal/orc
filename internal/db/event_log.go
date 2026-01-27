@@ -52,22 +52,33 @@ func (p *ProjectDB) SaveEvent(event *EventLog) error {
 		dataJSON = &s
 	}
 
-	// Use UTC for timestamp storage
-	createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+	// Use UTC for timestamp storage with nanosecond precision
+	// Nanoseconds enable deduplication of true duplicates (same timestamp) while
+	// preserving different events created in quick succession
+	createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000000")
 
+	// INSERT OR IGNORE silently skips duplicates based on the unique index
+	// (task_id, event_type, COALESCE(phase, ''), created_at) - see project_039.sql
 	result, err := p.Exec(`
-		INSERT INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
+		INSERT OR IGNORE INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, event.TaskID, event.Phase, event.Iteration, event.EventType, dataJSON, event.Source, createdAt, event.DurationMs)
 	if err != nil {
 		return fmt.Errorf("save event: %w", err)
 	}
 
-	id, err := result.LastInsertId()
+	// RowsAffected is 0 if duplicate was ignored, 1 if inserted
+	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("get event id: %w", err)
+		return fmt.Errorf("check rows affected: %w", err)
 	}
-	event.ID = id
+	if rows > 0 {
+		id, err := result.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("get event id: %w", err)
+		}
+		event.ID = id
+	}
 	return nil
 }
 
@@ -89,10 +100,12 @@ func (p *ProjectDB) SaveEvents(events []*EventLog) error {
 				dataJSON = &s
 			}
 
-			createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05")
+			createdAt := event.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000000")
 
+			// INSERT OR IGNORE silently skips duplicates based on the unique index
+			// (task_id, event_type, COALESCE(phase, ''), created_at) - see project_039.sql
 			result, err := tx.Exec(`
-				INSERT INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
+				INSERT OR IGNORE INTO event_log (task_id, phase, iteration, event_type, data, source, created_at, duration_ms)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			`, event.TaskID, event.Phase, event.Iteration,
 				event.EventType, dataJSON, event.Source,
@@ -101,11 +114,18 @@ func (p *ProjectDB) SaveEvents(events []*EventLog) error {
 				return fmt.Errorf("insert event: %w", err)
 			}
 
-			id, err := result.LastInsertId()
+			// RowsAffected is 0 if duplicate was ignored, 1 if inserted
+			rows, err := result.RowsAffected()
 			if err != nil {
-				return fmt.Errorf("get event id: %w", err)
+				return fmt.Errorf("check rows affected: %w", err)
 			}
-			event.ID = id
+			if rows > 0 {
+				id, err := result.LastInsertId()
+				if err != nil {
+					return fmt.Errorf("get event id: %w", err)
+				}
+				event.ID = id
+			}
 		}
 		return nil
 	})
@@ -232,10 +252,8 @@ func scanEventLogs(rows *sql.Rows) ([]EventLog, error) {
 			e.DurationMs = &durationMs.Int64
 		}
 
-		// Parse created_at timestamp
-		if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
-			e.CreatedAt = t.UTC()
-		}
+		// Parse created_at timestamp - try formats in order of precision
+		e.CreatedAt = parseEventTimestamp(createdAt)
 
 		// Parse JSON data
 		if dataJSON.Valid && dataJSON.String != "" {
@@ -255,6 +273,22 @@ func scanEventLogs(rows *sql.Rows) ([]EventLog, error) {
 	}
 
 	return events, nil
+}
+
+// parseEventTimestamp parses timestamps in various formats (nanoseconds, microseconds, seconds).
+// Returns zero time if parsing fails.
+func parseEventTimestamp(s string) time.Time {
+	formats := []string{
+		"2006-01-02 15:04:05.000000000", // nanoseconds
+		"2006-01-02 15:04:05.000000",    // microseconds
+		"2006-01-02 15:04:05",           // seconds
+	}
+	for _, format := range formats {
+		if t, err := time.Parse(format, s); err == nil {
+			return t.UTC()
+		}
+	}
+	return time.Time{}
 }
 
 // QueryEventsWithTitles retrieves events with task titles joined from tasks table.
@@ -356,10 +390,8 @@ func (p *ProjectDB) QueryEventsWithTitles(opts QueryEventsOptions) ([]EventLogWi
 			e.DurationMs = &durationMs.Int64
 		}
 
-		// Parse created_at timestamp
-		if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
-			e.CreatedAt = t.UTC()
-		}
+		// Parse created_at timestamp - try formats in order of precision
+		e.CreatedAt = parseEventTimestamp(createdAt)
 
 		// Parse JSON data
 		if dataJSON.Valid && dataJSON.String != "" {
