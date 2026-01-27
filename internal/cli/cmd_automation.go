@@ -13,6 +13,7 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -252,14 +253,73 @@ Example:
 				fmt.Printf("    Phases:   %s\n", strings.Join(tmpl.Phases, " → "))
 			}
 
-			// TODO: Show execution history from database when service is implemented
-			fmt.Println("\n  History: (not yet implemented)")
+			// Get database connection for history display
+			backend, err := getBackend()
+			if err != nil {
+				return fmt.Errorf("get backend: %w", err)
+			}
+			defer func() { _ = backend.Close() }()
+
+			dbBackend, ok := backend.(*storage.DatabaseBackend)
+			if !ok {
+				return fmt.Errorf("database backend required")
+			}
+
+			fmt.Println("\n  History:")
+			if err := showTriggerExecutionHistory(dbBackend.DB(), triggerID, 5); err != nil {
+				return fmt.Errorf("show execution history: %w", err)
+			}
 
 			return nil
 		},
 	}
 
 	return cmd
+}
+
+// showTriggerExecutionHistory displays recent execution history for a trigger.
+// It queries the trigger_executions table and displays task ID, status, time, and reason.
+func showTriggerExecutionHistory(pdb *db.ProjectDB, triggerID string, limit int) error {
+	rows, err := pdb.Query(`
+		SELECT task_id, status, triggered_at, trigger_reason
+		FROM trigger_executions
+		WHERE trigger_id = ?
+		ORDER BY triggered_at DESC
+		LIMIT ?
+	`, triggerID, limit)
+	if err != nil {
+		return fmt.Errorf("query executions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	count := 0
+	for rows.Next() {
+		var taskID, status, triggeredAt, reason string
+		if err := rows.Scan(&taskID, &status, &triggeredAt, &reason); err != nil {
+			return fmt.Errorf("scan execution: %w", err)
+		}
+
+		// Format timestamp
+		displayTime := triggeredAt
+		if t, parseErr := time.Parse("2006-01-02 15:04:05", triggeredAt); parseErr == nil {
+			displayTime = formatTimeAgo(t)
+		} else if t, parseErr := time.Parse(time.RFC3339, triggeredAt); parseErr == nil {
+			displayTime = formatTimeAgo(t)
+		}
+
+		fmt.Printf("    %s: %s (%s) - %s\n", taskID, status, displayTime, reason)
+		count++
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate executions: %w", err)
+	}
+
+	if count == 0 {
+		fmt.Println("    No executions")
+	}
+
+	return nil
 }
 
 func newAutomationEnableCmd() *cobra.Command {
