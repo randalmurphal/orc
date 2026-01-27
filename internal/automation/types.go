@@ -217,3 +217,11 @@ type Stats struct {
 	CompletedTasks  int `json:"completed_tasks"`
 	FailedTasks     int `json:"failed_tasks"`
 }
+
+// ExecutionStats holds counts of executions by status.
+type ExecutionStats struct {
+	Pending   int `json:"pending"`
+	Running   int `json:"running"`
+	Completed int `json:"completed"`
+	Failed    int `json:"failed"`
+}
