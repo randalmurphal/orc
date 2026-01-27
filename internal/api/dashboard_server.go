@@ -570,9 +570,14 @@ func (s *dashboardServer) GetTopInitiatives(
 		initID := *t.InitiativeId
 
 		if initMap[initID] == nil {
+			// Load initiative title from storage (TASK-553)
+			title := initID // Default to ID
+			if init, err := s.backend.LoadInitiative(initID); err == nil && init != nil && init.Title != "" {
+				title = init.Title
+			}
 			initMap[initID] = &orcv1.TopInitiative{
 				Id:    initID,
-				Title: initID, // Would need to load initiative for real title
+				Title: title,
 			}
 		}
 

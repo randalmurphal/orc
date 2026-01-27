@@ -6,6 +6,8 @@ import {
 	GetStatsRequestSchema,
 	GetCostSummaryRequestSchema,
 	GetDailyMetricsRequestSchema,
+	GetMetricsRequestSchema,
+	GetTopInitiativesRequestSchema,
 } from '@/gen/orc/v1/dashboard_pb';
 
 // Types
@@ -224,13 +226,19 @@ export const useStatsStore = create<StatsStore>()(
 				}
 
 				// Fetch all endpoints in parallel using Connect RPC
-				const [statsResponse, costResponse, dailyMetricsResponse] = await Promise.all([
+				const [statsResponse, costResponse, dailyMetricsResponse, metricsResponse, topInitiativesResponse] = await Promise.all([
 					dashboardClient.getStats(createProto(GetStatsRequestSchema, {})),
 					dashboardClient.getCostSummary(
 						createProto(GetCostSummaryRequestSchema, { period: periodToQueryParam(period) })
 					),
 					dashboardClient.getDailyMetrics(
 						createProto(GetDailyMetricsRequestSchema, { days: daysToFetch })
+					),
+					dashboardClient.getMetrics(
+						createProto(GetMetricsRequestSchema, { period: periodToQueryParam(period) })
+					),
+					dashboardClient.getTopInitiatives(
+						createProto(GetTopInitiativesRequestSchema, { limit: 4 })
 					),
 				]);
 
@@ -271,8 +279,11 @@ export const useStatsStore = create<StatsStore>()(
 				// Build activity data from tasks per day
 				const activityData = generateActivityData(tasksPerDay);
 
-				// Build top initiatives (placeholder - would need new API endpoint)
-				const topInitiatives: TopInitiative[] = [];
+				// Build top initiatives from GetTopInitiatives API (TASK-553)
+				const topInitiatives: TopInitiative[] = (topInitiativesResponse.initiatives ?? []).map((init) => ({
+					name: init.title || init.id,
+					taskCount: init.taskCount,
+				}));
 
 				// Build top files (placeholder - would need new API endpoint)
 				const topFiles: TopFile[] = [];
@@ -287,11 +298,14 @@ export const useStatsStore = create<StatsStore>()(
 				// Fall back to cost summary or today's tokens if daily metrics unavailable
 				const tokensUsed = periodTokensUsed || (dashboardStats?.todayTokens?.totalTokens ?? 0);
 
+				// Extract avgTime from GetMetrics API (TASK-553)
+				const avgTime = metricsResponse.metrics?.avgTaskDurationSeconds ?? 0;
+
 				const summaryStats: SummaryStats = {
 					tasksCompleted: completedCount,
 					tokensUsed: tokensUsed,
 					totalCost: costSummary?.totalCostUsd ?? periodCost ?? dashboardStats?.todayCostUsd ?? 0,
-					avgTime: 0, // Would need execution time data from API
+					avgTime: avgTime,
 					successRate: Math.round(successRate * 10) / 10,
 				};
 
