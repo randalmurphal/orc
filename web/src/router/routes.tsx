@@ -27,6 +27,7 @@ const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m =>
 const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
 const ClaudeMdPage = lazy(() => import('@/pages/settings/ClaudeMdPage').then(m => ({ default: m.ClaudeMdPage })));
 const Memory = lazy(() => import('@/pages/settings/Memory').then(m => ({ default: m.Memory })));
+const ImportExportPage = lazy(() => import('@/pages/settings/ImportExport').then(m => ({ default: m.ImportExportPage })));
 
 // Legacy pages (lower priority, separate chunks)
 const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
@@ -269,11 +270,7 @@ export const routes: RouteObject[] = [
 						path: 'import-export',
 						element: (
 							<LazyRoute>
-								<SettingsPlaceholder
-									title="Import / Export"
-									description="Import and export tasks, initiatives, and settings"
-									icon="export"
-								/>
+								<ImportExportPage />
 							</LazyRoute>
 						),
 					},
