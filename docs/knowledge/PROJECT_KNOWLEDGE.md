@@ -141,6 +141,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | UI Run button only updates status, doesn't execute | Fixed: `RunTask` RPC now uses `TaskExecutorFunc` callback pattern; `NewTaskServerWithExecutor()` wires `s.startTask` to spawn actual executor; status reverts on spawn failure; API server must be initialized with executor callback or RunTask only validates | TASK-538 |
 | Header session stats (Session, Tokens, Cost) always show 0 | Fixed: API server's `startTask`/`resumeTask` now pass `WithWorkflowSessionBroadcaster(s.sessionBroadcaster)` to WorkflowExecutor; Server struct has `sessionBroadcaster` field initialized in `New()`; without this wiring, session_update events never broadcast | TASK-539 |
 | Board doesn't show newly created tasks | Fixed: Board component wasn't subscribed to WebSocket events; added `useWebSocket()` hook call to subscribe to real-time updates; event handlers in `lib/events/handlers.ts` dispatch `taskStore.addTask()` on `taskCreated` events, but components must subscribe to receive them | TASK-555 |
+| Radix dropdown options unclickable in modals | Fixed: Dropdown trigger button needs explicit z-index when open to prevent modal backdrop from intercepting clicks; add ref to trigger, use useEffect to set `style.zIndex = '50'` when `dropdownOpen` is true; occurs with Radix DropdownMenu inside Radix Dialog | TASK-556 |
 
 ## Decisions
 
