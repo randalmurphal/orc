@@ -277,6 +277,8 @@ func (r *QualityCheckRunner) runCommand(ctx context.Context, command, checkName 
 	// Create command with context for cancellation/timeout
 	cmd := exec.CommandContext(ctx, r.shell, "-c", command)
 	cmd.Dir = r.workDir
+	// Set GOWORK=off to avoid go.work issues in worktrees
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 
 	// Capture both stdout and stderr
 	var stdout, stderr bytes.Buffer
