@@ -8,10 +8,12 @@
 import { usePreferencesStore, useDateFormat } from '@/stores';
 import { Button, Icon } from '@/components/ui';
 import { formatDate } from '@/lib/formatDate';
+import { useDocumentTitle } from '@/hooks';
 import type { DateFormat } from '@/stores';
 import './Preferences.css';
 
 export function Preferences() {
+	useDocumentTitle('Preferences');
 	const theme = usePreferencesStore((s) => s.theme);
 	const sidebarDefault = usePreferencesStore((s) => s.sidebarDefault);
 	const boardViewMode = usePreferencesStore((s) => s.boardViewMode);

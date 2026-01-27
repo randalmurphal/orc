@@ -6,9 +6,11 @@
 
 import { Link, useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/Icon';
+import { useDocumentTitle } from '@/hooks';
 import './NotFoundPage.css';
 
 export function NotFoundPage() {
+	useDocumentTitle('Page Not Found');
 	const navigate = useNavigate();
 
 	const handleGoBack = () => {

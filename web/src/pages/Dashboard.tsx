@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { useTaskStore, useWsStatus } from '@/stores';
 import { dashboardClient, initiativeClient } from '@/lib/client';
+import { useDocumentTitle } from '@/hooks';
 import { GetStatsRequestSchema, type DashboardStats } from '@/gen/orc/v1/dashboard_pb';
 import { ListInitiativesRequestSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { Task, TaskStatus } from '@/gen/orc/v1/task_pb';
@@ -35,6 +36,7 @@ const ACTIVE_STATUSES: TaskStatus[] = [TaskStatusEnum.RUNNING, TaskStatusEnum.BL
 const RECENT_STATUSES: TaskStatus[] = [TaskStatusEnum.COMPLETED, TaskStatusEnum.FAILED];
 
 export function Dashboard() {
+	useDocumentTitle('Dashboard');
 	const navigate = useNavigate();
 	const wsStatus = useWsStatus();
 	const tasks = useTaskStore((state) => state.tasks);

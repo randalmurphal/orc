@@ -4,11 +4,13 @@
  */
 
 import { StatsView } from '@/components/stats';
+import { useDocumentTitle } from '@/hooks';
 
 /**
  * StatsPage displays the statistics overview.
  * This is the page-level wrapper used in the router.
  */
 export function StatsPage() {
+	useDocumentTitle('Statistics');
 	return <StatsView />;
 }

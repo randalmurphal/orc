@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWsStatus, useTaskStore } from '@/stores';
 import { Button, Icon, StatusIndicator } from '@/components/ui';
 import { automationClient } from '@/lib/client';
+import { useDocumentTitle } from '@/hooks';
 import { create } from '@bufbuild/protobuf';
 import {
 	ListTriggersRequestSchema,
@@ -87,6 +88,7 @@ function buildTriggerConfig(trigger: Trigger): object {
 }
 
 export function AutomationPage() {
+	useDocumentTitle('Automation');
 	const navigate = useNavigate();
 	const wsStatus = useWsStatus();
 	const allTasks = useTaskStore((state) => state.tasks);

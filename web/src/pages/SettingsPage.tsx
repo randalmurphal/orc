@@ -7,7 +7,9 @@
  */
 
 import { SettingsLayout } from '@/components/settings/SettingsLayout';
+import { useDocumentTitle } from '@/hooks';
 
 export function SettingsPage() {
+	useDocumentTitle('Settings');
 	return <SettingsLayout />;
 }

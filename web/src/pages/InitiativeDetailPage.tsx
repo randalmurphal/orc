@@ -21,6 +21,7 @@ import { type Task, TaskStatus, type DependencyGraph as DependencyGraphData } fr
 import { initiativeClient, taskClient } from '@/lib/client';
 import { timestampToDate } from '@/lib/time';
 import { useInitiativeStore } from '@/stores';
+import { useDocumentTitle } from '@/hooks';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/overlays/Modal';
@@ -98,6 +99,10 @@ export function InitiativeDetailPage() {
 	const updateInitiativeInStore = useInitiativeStore((state) => state.updateInitiative);
 
 	const [initiative, setInitiative] = useState<Initiative | null>(null);
+
+	// Set document title based on initiative
+	useDocumentTitle(initiative?.title ?? id);
+
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui';
 import { branchClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
+import { useDocumentTitle } from '@/hooks';
 import type { Branch } from '@/gen/orc/v1/project_pb';
 import { BranchType, BranchStatus } from '@/gen/orc/v1/project_pb';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
@@ -81,6 +82,7 @@ function formatTimeAgo(ts: Timestamp | undefined): string {
 }
 
 export function Branches() {
+	useDocumentTitle('Branches');
 	const [branches, setBranches] = useState<Branch[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
