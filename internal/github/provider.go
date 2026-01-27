@@ -18,6 +18,7 @@ type Provider interface {
 	ListPRComments(ctx context.Context, number int) ([]PRComment, error)
 	CreatePRComment(ctx context.Context, number int, comment PRCommentCreate) (*PRComment, error)
 	ReplyToComment(ctx context.Context, number int, threadID int64, body string) (*PRComment, error)
+	GetPRComment(ctx context.Context, commentID int64) (*PRComment, error)
 
 	// Checks/Status
 	GetCheckRuns(ctx context.Context, ref string) ([]CheckRun, error)
