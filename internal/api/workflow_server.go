@@ -47,14 +47,18 @@ func (s *workflowServer) ListWorkflows(
 		}), nil
 	}
 
-	// Convert to proto
+	// Convert to proto and collect phase counts
 	protoWorkflows := make([]*orcv1.Workflow, len(workflows))
+	phaseCounts := make(map[string]int32, len(workflows))
 	for i, w := range workflows {
 		protoWorkflows[i] = dbWorkflowToProto(w)
+		phases, _ := s.backend.GetWorkflowPhases(w.ID)
+		phaseCounts[w.ID] = int32(len(phases))
 	}
 
 	return connect.NewResponse(&orcv1.ListWorkflowsResponse{
-		Workflows: protoWorkflows,
+		Workflows:   protoWorkflows,
+		PhaseCounts: phaseCounts,
 	}), nil
 }
 
