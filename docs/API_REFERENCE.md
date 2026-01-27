@@ -1605,32 +1605,29 @@ Query parameters:
 
 ### Top Files Leaderboard
 
-Returns most frequently modified files across completed tasks, ranked by modification count.
+Returns most frequently modified files across completed tasks, ranked by change count. Aggregates file modification statistics from git diffs of completed task branches.
 
-**GET `/api/stats/top-files`**
+**GET `/api/stats/top-files`** (Connect RPC: `DashboardService.GetTopFiles`)
 
 Query parameters:
 - `limit` - Maximum number of files to return (default: 10, min: 1, max: 50)
-- `period` - Time filter based on task completion date: `24h`, `7d`, `30d`, `all` (default: `all`)
+- `task_id` - Optional filter to get files for a specific task only
 
 **Response:**
 ```json
 {
-  "period": "30d",
   "files": [
     {
-      "rank": 1,
       "path": "internal/api/dashboard_server.go",
-      "modification_count": 5,
-      "last_modified": "2026-01-20T10:00:00Z",
-      "tasks": ["TASK-380", "TASK-375", "TASK-372", "TASK-368", "TASK-365"]
+      "change_count": 3,
+      "additions": 450,
+      "deletions": 120
     },
     {
-      "rank": 2,
       "path": "web/src/components/Board.tsx",
-      "modification_count": 3,
-      "last_modified": "2026-01-18T14:30:00Z",
-      "tasks": ["TASK-379", "TASK-370", "TASK-355"]
+      "change_count": 2,
+      "additions": 180,
+      "deletions": 45
     }
   ]
 }
@@ -1638,31 +1635,24 @@ Query parameters:
 
 | Field | Description |
 |-------|-------------|
-| `period` | Applied time filter |
-| `files` | Array of files sorted by modification count (descending) |
-| `files[].rank` | Position in leaderboard (1-indexed) |
+| `files` | Array of files sorted by change_count (descending) |
 | `files[].path` | File path relative to project root |
-| `files[].modification_count` | Number of completed tasks that modified this file |
-| `files[].last_modified` | Most recent task completion timestamp for this file |
-| `files[].tasks` | Array of task IDs that modified this file |
+| `files[].change_count` | Number of completed tasks that modified this file |
+| `files[].additions` | Total lines added across all tasks |
+| `files[].deletions` | Total lines deleted across all tasks |
 
-**Diff retrieval strategy:**
-
-The endpoint uses three strategies to determine which files a task modified:
-
-1. **Merged PR** - If task has a merged PR with merge commit SHA, uses the commit's changed files
-2. **Commit range** - If task state contains first/last commit SHAs, compares those commits
-3. **Branch comparison** - Falls back to comparing task branch against `main`
+**How it works:**
+1. Loads all completed tasks with branches (or single task if `task_id` specified)
+2. For each task, gets git diff against `main` branch via DiffService
+3. Aggregates file statistics: counts modifications, sums additions/deletions
+4. Returns top N files sorted by change_count descending
 
 **Notes:**
-- Only completed tasks are included in the aggregation
-- Returns empty `files` array (not error) when no data matches the criteria
-- Deleted files are included (they were still modified as part of the task work)
-- Files are sorted by `modification_count` descending, then by `path` ascending for stability
-
-**Error responses:**
-- 400: `limit must be a number between 1 and 50`
-- 400: `period must be one of: 24h, 7d, 30d, all`
+- Only completed tasks with branches are included
+- Tasks without branches are skipped gracefully
+- Git diff errors are logged and skipped (graceful degradation)
+- Returns empty `files` array (not error) when no data matches
+- Binary files are included with 0 additions/deletions
 
 ### Stats Comparison
 
