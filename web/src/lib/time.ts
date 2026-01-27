@@ -7,10 +7,12 @@ import { timestampFromDate, timestampDate } from '@bufbuild/protobuf/wkt';
 
 /**
  * Convert protobuf Timestamp to JavaScript Date.
- * Returns null if timestamp is undefined.
+ * Returns null if timestamp is undefined or represents Go's zero time.
  */
 export function timestampToDate(ts: Timestamp | undefined): Date | null {
 	if (!ts) return null;
+	// Go's zero time (0001-01-01) has negative seconds - treat as unset
+	if (ts.seconds < 0n) return null;
 	return timestampDate(ts);
 }
 
