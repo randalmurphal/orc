@@ -42,6 +42,7 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 |-----------|------|-----|-------------|
 | **Status + Side Effect** | RPC methods that change status MUST also trigger the actual side effect (e.g., RunTask must spawn executor, not just set status to running) | Status-only updates create inconsistent state | UI shows "running" but nothing executes (from TASK-538) |
 | **Rollback on Failure** | If side effect fails after status change, revert status to original | Partial updates cause orphaned state | Task stuck in "running" with no executor |
+| **Reload After Write** | API handlers returning modified objects MUST reload from database after save | Save may modify timestamps, normalize data | Stale data returned to clients (from TASK-552) |
 
 ## Canonical: Git & Worktrees
 
@@ -83,6 +84,11 @@ client.Complete(ctx, CompletionRequest{
 
 // ❌ File-based spec in worktree
 os.WriteFile(filepath.Join(worktree, ".orc", "spec.md"), content, 0644)  // BUG: use database
+
+// ❌ Return stale object after save
+task.BlockedBy = append(task.BlockedBy, blockerID)
+backend.UpdateTask(ctx, task)
+respondJSON(w, http.StatusOK, task)  // BUG: timestamps/computed fields are stale
 ```
 
 ## Correct Patterns
@@ -109,6 +115,12 @@ client := claude.NewClient(claude.WithModel(model))
 // ✅ Spec in database
 backend.SaveSpec(taskID, content, "spec")
 content, _ := backend.LoadSpec(taskID)
+
+// ✅ Reload after write for API response
+task.BlockedBy = append(task.BlockedBy, blockerID)
+backend.UpdateTask(ctx, task)
+updated, _ := backend.GetTask(ctx, task.ID)  // Reload to get fresh state
+respondJSON(w, http.StatusOK, updated)
 ```
 
 ## Verification

@@ -142,6 +142,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Header session stats (Session, Tokens, Cost) always show 0 | Fixed: API server's `startTask`/`resumeTask` now pass `WithWorkflowSessionBroadcaster(s.sessionBroadcaster)` to WorkflowExecutor; Server struct has `sessionBroadcaster` field initialized in `New()`; without this wiring, session_update events never broadcast | TASK-539 |
 | Board doesn't show newly created tasks | Fixed: Board component wasn't subscribed to WebSocket events; added `useWebSocket()` hook call to subscribe to real-time updates; event handlers in `lib/events/handlers.ts` dispatch `taskStore.addTask()` on `taskCreated` events, but components must subscribe to receive them | TASK-555 |
 | Radix dropdown options unclickable in modals | Fixed: Dropdown trigger button needs explicit z-index when open to prevent modal backdrop from intercepting clicks; add ref to trigger, use useEffect to set `style.zIndex = '50'` when `dropdownOpen` is true; occurs with Radix DropdownMenu inside Radix Dialog | TASK-556 |
+| Initiatives page shows 0/0 tasks for all initiatives | Fixed: `LinkTasks` and `UnlinkTasks` handlers returned stale task object after modification instead of reloading; added `GetTask()` reload after `UpdateTask()` to return fresh state with updated timestamps and normalized data; follows "reload after write" pattern for API response consistency | TASK-552 |
 
 ## Decisions
 
