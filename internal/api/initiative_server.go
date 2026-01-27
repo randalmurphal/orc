@@ -320,6 +320,7 @@ func (s *initiativeServer) ListInitiativeTasks(
 }
 
 // LinkTasks links tasks to an initiative.
+// Updates BOTH task.initiative_id AND initiative_tasks junction table.
 func (s *initiativeServer) LinkTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.LinkTasksRequest],
@@ -337,18 +338,47 @@ func (s *initiativeServer) LinkTasks(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
-	// Update each task's initiative ID
+	// Get current max sequence for the initiative's tasks
+	existingTaskIDs, err := s.backend.DB().GetInitiativeTasks(req.Msg.InitiativeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get existing tasks: %w", err))
+	}
+	sequence := len(existingTaskIDs)
+
+	// Update each task's initiative ID and add to junction table
 	for _, taskID := range req.Msg.TaskIds {
 		t, err := s.backend.LoadTask(taskID)
 		if err != nil {
 			continue // Skip non-existent tasks
 		}
+
+		// If task was linked to a different initiative, remove from that junction table
+		if t.InitiativeId != nil && *t.InitiativeId != req.Msg.InitiativeId {
+			if err := s.backend.DB().RemoveTaskFromInitiative(*t.InitiativeId, taskID); err != nil {
+				if s.logger != nil {
+					s.logger.Warn("failed to remove task from old initiative", "task_id", taskID, "old_initiative", *t.InitiativeId, "error", err)
+				}
+			}
+		}
+
+		// Update task.initiative_id
 		t.InitiativeId = &req.Msg.InitiativeId
 		task.UpdateTimestampProto(t)
 		if err := s.backend.SaveTask(t); err != nil {
-			s.logger.Warn("failed to link task", "task_id", taskID, "error", err)
+			if s.logger != nil {
+				s.logger.Warn("failed to link task", "task_id", taskID, "error", err)
+			}
 			continue
 		}
+
+		// Add to junction table (uses ON CONFLICT to handle duplicates)
+		if err := s.backend.DB().AddTaskToInitiative(req.Msg.InitiativeId, taskID, sequence); err != nil {
+			if s.logger != nil {
+				s.logger.Warn("failed to add task to junction table", "task_id", taskID, "error", err)
+			}
+			continue
+		}
+		sequence++
 	}
 
 	// Reload initiative to include task updates
@@ -363,6 +393,7 @@ func (s *initiativeServer) LinkTasks(
 }
 
 // UnlinkTask unlinks a task from an initiative.
+// Clears BOTH task.initiative_id AND removes from initiative_tasks junction table.
 func (s *initiativeServer) UnlinkTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.UnlinkTaskRequest],
@@ -385,11 +416,16 @@ func (s *initiativeServer) UnlinkTask(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task %s is not linked to initiative %s", req.Msg.TaskId, req.Msg.InitiativeId))
 	}
 
-	// Unlink
+	// Clear task.initiative_id
 	t.InitiativeId = nil
 	task.UpdateTimestampProto(t)
 	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	// Remove from junction table
+	if err := s.backend.DB().RemoveTaskFromInitiative(req.Msg.InitiativeId, req.Msg.TaskId); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("remove from junction table: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.UnlinkTaskResponse{}), nil
