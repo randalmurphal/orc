@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -521,9 +522,10 @@ func internalEventToProto(e events.Event) *orcv1.Event {
 }
 
 // dbEventToProto converts a db event to a proto event.
+// Uses the database event ID to ensure stable, deterministic IDs for deduplication.
 func dbEventToProto(e *db.EventLog) *orcv1.Event {
 	result := &orcv1.Event{
-		Id:        uuid.New().String(),
+		Id:        strconv.FormatInt(e.ID, 10),
 		Timestamp: timestamppb.New(e.CreatedAt),
 	}
 	if e.TaskID != "" {
@@ -572,9 +574,10 @@ func dbEventToProto(e *db.EventLog) *orcv1.Event {
 }
 
 // dbEventToTimelineEvent converts a db event to a timeline event.
+// Uses the database event ID to ensure stable, deterministic IDs for deduplication.
 func dbEventToTimelineEvent(e *db.EventLogWithTitle) *orcv1.TimelineEvent {
 	result := &orcv1.TimelineEvent{
-		Id:        uuid.New().String(),
+		Id:        strconv.FormatInt(e.ID, 10),
 		TaskId:    e.TaskID,
 		TaskTitle: e.TaskTitle,
 		EventType: stringToProtoTimelineType(e.EventType),
