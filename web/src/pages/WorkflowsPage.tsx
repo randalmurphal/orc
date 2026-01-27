@@ -19,6 +19,7 @@ import {
 	EditWorkflowModal,
 } from '@/components/workflows';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { useDocumentTitle } from '@/hooks';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import './WorkflowsPage.css';
 
@@ -27,6 +28,7 @@ import './WorkflowsPage.css';
  * This is the page-level wrapper used in the router.
  */
 export function WorkflowsPage() {
+	useDocumentTitle('Workflows');
 	// Selected workflow for detail panel
 	const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 	const [detailPanelOpen, setDetailPanelOpen] = useState(false);

@@ -9,7 +9,9 @@
  */
 
 import { BoardView } from '@/components/board';
+import { useDocumentTitle } from '@/hooks';
 
 export function Board() {
+	useDocumentTitle('Board');
 	return <BoardView />;
 }

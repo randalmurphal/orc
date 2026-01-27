@@ -14,7 +14,7 @@ import { ReviewFindingsTab } from '@/components/task-detail/ReviewFindingsTab';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
-import { useTaskSubscription } from '@/hooks';
+import { useTaskSubscription, useDocumentTitle } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
 import { GetTaskRequestSchema, GetTaskPlanRequestSchema } from '@/gen/orc/v1/task_pb';
@@ -43,6 +43,9 @@ export function TaskDetail() {
 
 	// State
 	const [task, setTask] = useState<Task | null>(null);
+
+	// Set document title based on task
+	useDocumentTitle(task ? `${task.id}: ${task.title}` : id);
 	const [plan, setPlan] = useState<TaskPlan | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
