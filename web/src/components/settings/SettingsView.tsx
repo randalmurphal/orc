@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { CommandList, type Command } from './CommandList';
 import { ConfigEditor } from './ConfigEditor';
+import { NewCommandModal } from './NewCommandModal';
 import { configClient } from '@/lib/client';
 import type { Skill } from '@/gen/orc/v1/config_pb';
 import { SettingsScope } from '@/gen/orc/v1/config_pb';
@@ -33,6 +34,7 @@ export function SettingsView() {
 	const [skills, setSkills] = useState<Skill[]>([]);
 	const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 	const [editorContent, setEditorContent] = useState('');
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	// Convert skills to commands for CommandList
 	const commands: Command[] = useMemo(() => {
@@ -117,7 +119,16 @@ export function SettingsView() {
 	}, [selectedId, selectedSkill, editorContent]);
 
 	const handleNewCommand = useCallback(() => {
-		// TODO: Open modal to create a new command when implemented
+		setIsModalOpen(true);
+	}, []);
+
+	const handleModalClose = useCallback(() => {
+		setIsModalOpen(false);
+	}, []);
+
+	const handleSkillCreate = useCallback((skill: Skill) => {
+		setSkills((prev) => [...prev, skill]);
+		setSelectedId(skill.name);
 	}, []);
 
 	return (
@@ -170,6 +181,13 @@ export function SettingsView() {
 					)}
 				</div>
 			</div>
+
+			{/* New Command Modal */}
+			<NewCommandModal
+				open={isModalOpen}
+				onClose={handleModalClose}
+				onCreate={handleSkillCreate}
+			/>
 		</div>
 	);
 }
