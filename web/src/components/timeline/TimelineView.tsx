@@ -283,12 +283,15 @@ export function TimelineView() {
 			const response = await eventClient.getEvents(request);
 
 			// Map proto Event to TimelineEventData
+			// Use proto event ID for stable identification and deduplication
 			const newEvents: TimelineEventData[] = response.events.map((e, idx) => {
 				const eventType = mapPayloadToEventType(e.payload);
 				const eventData = extractEventData(e.payload);
+				// Use proto event ID if available, fallback to offset-based ID
+				const eventId = e.id ? parseInt(e.id, 10) : currentOffset + idx;
 
 				return {
-					id: currentOffset + idx, // Generate sequential ID
+					id: eventId,
 					task_id: e.taskId ?? '',
 					task_title: eventData.taskTitle ?? '',
 					phase: eventData.phase,
@@ -301,9 +304,21 @@ export function TimelineView() {
 			});
 
 			if (reset) {
-				setEvents(newEvents);
+				// Deduplicate events in case backend returns duplicates in single response
+				const seenIds = new Set<number>();
+				const dedupedEvents = newEvents.filter(e => {
+					if (seenIds.has(e.id)) return false;
+					seenIds.add(e.id);
+					return true;
+				});
+				setEvents(dedupedEvents);
 			} else {
-				setEvents(prev => [...prev, ...newEvents]);
+				// Deduplicate events when appending (same event may appear in overlapping pages)
+				setEvents(prev => {
+					const existingIds = new Set(prev.map(e => e.id));
+					const dedupedNew = newEvents.filter(e => !existingIds.has(e.id));
+					return [...prev, ...dedupedNew];
+				});
 			}
 
 			setHasMore(response.page?.hasMore ?? false);
