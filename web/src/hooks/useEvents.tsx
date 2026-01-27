@@ -21,6 +21,7 @@ import {
 	handleEvent,
 } from '@/lib/events';
 import { useUIStore } from '@/stores';
+import { useTaskState } from '@/stores/taskStore';
 
 // Re-export for convenience
 export type { ConnectionStatus } from '@/lib/events';
@@ -196,8 +197,10 @@ export function useTaskSubscription(taskId: string | undefined): {
 	transcript: TranscriptLine[];
 } {
 	const { subscribe, subscribeGlobal } = useEvents();
-	const [state, setState] = useState<import('@/gen/orc/v1/task_pb').ExecutionState | null>(null);
 	const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+
+	// Get execution state from taskStore (updated via event handlers)
+	const state = useTaskState(taskId ?? '') ?? null;
 
 	// Subscribe to task-specific events when taskId changes
 	useEffect(() => {
@@ -207,15 +210,9 @@ export function useTaskSubscription(taskId: string | undefined): {
 			subscribeGlobal();
 		}
 
-		// Reset state when task changes
-		setState(null);
+		// Reset transcript when task changes
 		setTranscript([]);
 	}, [taskId, subscribe, subscribeGlobal]);
-
-	// Get execution state from task store when available
-	// This will be updated via the event handler when state_updated events arrive
-	// For now, we return what's tracked locally
-	// TODO: Connect to taskStore for execution state updates
 
 	return { state, transcript };
 }
