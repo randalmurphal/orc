@@ -1,6 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import * as Select from '@radix-ui/react-select';
 import { Modal } from './Modal';
-import { taskClient } from '@/lib/client';
+import { Icon } from '@/components/ui/Icon';
+import { taskClient, workflowClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
 import { toast } from '@/stores/uiStore';
 import { useCurrentProjectId } from '@/stores';
@@ -10,6 +12,7 @@ import {
 	TaskCategory,
 	CreateTaskRequestSchema,
 } from '@/gen/orc/v1/task_pb';
+import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 import '../task-detail/TaskEditModal.css';
 
 // Weight options with enum values and display labels
@@ -30,6 +33,18 @@ const CATEGORY_OPTIONS = [
 	{ value: TaskCategory.TEST, label: 'test' },
 ] as const;
 
+// Map weight enum values to workflow IDs
+const WEIGHT_TO_WORKFLOW: Record<TaskWeight, string | undefined> = {
+	[TaskWeight.UNSPECIFIED]: undefined,
+	[TaskWeight.TRIVIAL]: 'trivial',
+	[TaskWeight.SMALL]: 'small',
+	[TaskWeight.MEDIUM]: 'medium',
+	[TaskWeight.LARGE]: 'large',
+};
+
+// Internal value for "no workflow" since Radix Select requires string values
+const NO_WORKFLOW_VALUE = '__none__';
+
 interface NewTaskModalProps {
 	open: boolean;
 	onClose: () => void;
@@ -42,7 +57,37 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 	const [description, setDescription] = useState('');
 	const [weight, setWeight] = useState<TaskWeight>(TaskWeight.MEDIUM);
 	const [category, setCategory] = useState<TaskCategory>(TaskCategory.FEATURE);
+	const [workflowId, setWorkflowId] = useState<string | undefined>('medium');
+	const [manualWorkflowSelection, setManualWorkflowSelection] = useState(false);
 	const [saving, setSaving] = useState(false);
+
+	// Workflow loading state
+	const [workflows, setWorkflows] = useState<Workflow[]>([]);
+	const [workflowsLoading, setWorkflowsLoading] = useState(false);
+	const [workflowsError, setWorkflowsError] = useState<string | null>(null);
+
+	const loadWorkflows = useCallback(async () => {
+		setWorkflowsLoading(true);
+		setWorkflowsError(null);
+		try {
+			const response = await workflowClient.listWorkflows({
+				includeBuiltin: true,
+			});
+			setWorkflows(response.workflows);
+		} catch (e) {
+			setWorkflowsError('Failed to load workflows');
+			console.error('Failed to load workflows:', e);
+		} finally {
+			setWorkflowsLoading(false);
+		}
+	}, []);
+
+	// Load workflows when modal opens
+	useEffect(() => {
+		if (open) {
+			loadWorkflows();
+		}
+	}, [open, loadWorkflows]);
 
 	// Reset form when modal opens
 	useEffect(() => {
@@ -51,8 +96,46 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 			setDescription('');
 			setWeight(TaskWeight.MEDIUM);
 			setCategory(TaskCategory.FEATURE);
+			setWorkflowId('medium');
+			setManualWorkflowSelection(false);
 		}
 	}, [open]);
+
+	// Auto-select workflow when weight changes (unless manually selected)
+	useEffect(() => {
+		if (!manualWorkflowSelection) {
+			const newWorkflowId = WEIGHT_TO_WORKFLOW[weight];
+			setWorkflowId(newWorkflowId);
+		}
+	}, [weight, manualWorkflowSelection]);
+
+	// Convert internal Select value (string) to external workflow ID
+	const selectWorkflowValue = workflowId ?? NO_WORKFLOW_VALUE;
+
+	// Handle workflow selection change
+	const handleWorkflowChange = useCallback((value: string) => {
+		setManualWorkflowSelection(true);
+		if (value === NO_WORKFLOW_VALUE) {
+			setWorkflowId(undefined);
+		} else {
+			setWorkflowId(value);
+		}
+	}, []);
+
+	// Handle weight change
+	const handleWeightChange = useCallback((newWeight: TaskWeight) => {
+		setWeight(newWeight);
+		// Don't reset manualWorkflowSelection here - that's preserved
+	}, []);
+
+	// Sort workflows: builtin first, then by name
+	const sortedWorkflows = useMemo(() => {
+		return [...workflows].sort((a, b) => {
+			if (a.isBuiltin && !b.isBuiltin) return -1;
+			if (b.isBuiltin && !a.isBuiltin) return 1;
+			return a.name.localeCompare(b.name);
+		});
+	}, [workflows]);
 
 	const handleSave = useCallback(async () => {
 		if (!title.trim()) {
@@ -73,6 +156,7 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 					description: description.trim() || undefined,
 					weight,
 					category,
+					workflowId: workflowId || undefined,
 				})
 			);
 			if (response.task) {
@@ -85,7 +169,7 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 		} finally {
 			setSaving(false);
 		}
-	}, [currentProjectId, title, description, weight, category, onCreate, onClose]);
+	}, [currentProjectId, title, description, weight, category, workflowId, onCreate, onClose]);
 
 	// Handle Enter key to submit
 	const handleKeyDown = useCallback(
@@ -134,7 +218,7 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 						<select
 							id="new-task-weight"
 							value={weight}
-							onChange={(e) => setWeight(Number(e.target.value) as TaskWeight)}
+							onChange={(e) => handleWeightChange(Number(e.target.value) as TaskWeight)}
 						>
 							{WEIGHT_OPTIONS.map((w) => (
 								<option key={w.value} value={w.value}>
@@ -162,16 +246,81 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 					</div>
 				</div>
 
+				{/* Workflow */}
+				<div className="form-group">
+					<label htmlFor="new-task-workflow">Workflow</label>
+					{workflowsError ? (
+						<div className="workflow-error">
+							<span>Failed to load workflows</span>
+							<button type="button" onClick={loadWorkflows} className="retry-btn">
+								Retry
+							</button>
+						</div>
+					) : workflows.length === 0 && !workflowsLoading ? (
+						<div className="workflow-empty">No workflows available</div>
+					) : (
+						<Select.Root value={selectWorkflowValue} onValueChange={handleWorkflowChange}>
+							<Select.Trigger
+								id="new-task-workflow"
+								className="initiative-select-trigger"
+								aria-label="Workflow"
+								disabled={workflowsLoading}
+							>
+								<Select.Value placeholder={workflowsLoading ? 'Loading...' : 'None'} />
+								<Select.Icon className="initiative-select-icon">
+									<Icon name="chevron-down" size={14} />
+								</Select.Icon>
+							</Select.Trigger>
+
+							<Select.Portal>
+								<Select.Content
+									className="initiative-select-content"
+									position="popper"
+									sideOffset={4}
+								>
+									<Select.Viewport className="initiative-select-viewport">
+										{/* No workflow option */}
+										<Select.Item value={NO_WORKFLOW_VALUE} className="initiative-select-item">
+											<Select.ItemText>None</Select.ItemText>
+										</Select.Item>
+
+										{sortedWorkflows.length > 0 && (
+											<Select.Separator className="initiative-select-separator" />
+										)}
+
+										{/* Workflow list */}
+										{sortedWorkflows.map((wf) => (
+											<Select.Item
+												key={wf.id}
+												value={wf.id}
+												className="initiative-select-item"
+											>
+												<Select.ItemText>{wf.name}</Select.ItemText>
+												{!wf.isBuiltin && (
+													<span className="initiative-status-badge">custom</span>
+												)}
+											</Select.Item>
+										))}
+									</Select.Viewport>
+								</Select.Content>
+							</Select.Portal>
+						</Select.Root>
+					)}
+					<span className="form-hint">
+						Workflow controls which phases the task executes
+					</span>
+				</div>
+
 				{/* Actions */}
 				<div className="form-actions">
-					<button type="button" onClick={onClose} className="btn-secondary">
+					<button type="button" onClick={onClose} className="btn-secondary cancel-btn">
 						Cancel
 					</button>
 					<button
 						type="button"
 						onClick={handleSave}
 						disabled={saving || !title.trim()}
-						className="btn-primary"
+						className="btn-primary save-btn"
 					>
 						{saving ? 'Creating...' : 'Create Task'}
 					</button>

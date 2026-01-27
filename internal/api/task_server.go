@@ -326,6 +326,9 @@ func (s *taskServer) UpdateTask(
 	if req.Msg.RelatedTo != nil {
 		t.RelatedTo = req.Msg.RelatedTo
 	}
+	if req.Msg.WorkflowId != nil {
+		t.WorkflowId = req.Msg.WorkflowId
+	}
 
 	// Update timestamp
 	task.UpdateTimestampProto(t)

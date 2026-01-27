@@ -526,6 +526,7 @@ message UpdateTaskRequest {
   repeated string blocked_by = 10;
   repeated string related_to = 11;
   map<string, string> metadata = 12;
+  optional string workflow_id = 13;
 }
 
 message UpdateTaskResponse {
