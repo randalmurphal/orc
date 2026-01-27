@@ -19,6 +19,7 @@ import { TranscriptSection, type TranscriptSectionType } from './TranscriptSecti
 import { TranscriptVirtualList } from './TranscriptVirtualList';
 import { TranscriptSearch } from './TranscriptSearch';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import './TranscriptViewer.css';
 
 export interface TranscriptViewerProps {
@@ -343,9 +344,9 @@ export function TranscriptViewer({
 				<div className="transcript-viewer-error">
 					<Icon name="alert-circle" size={24} />
 					<p>{error}</p>
-					<button onClick={refresh} className="retry-btn">
+					<Button variant="secondary" onClick={refresh}>
 						Retry
-					</button>
+					</Button>
 				</div>
 			</div>
 		);
@@ -373,13 +374,17 @@ export function TranscriptViewer({
 			<div className="transcript-viewer-header">
 				<div className="header-left">
 					{showNav && (
-						<button
+						<Button
+							variant="ghost"
+							iconOnly
+							size="sm"
 							className="nav-toggle-btn"
 							onClick={() => setNavCollapsed((prev) => !prev)}
 							title={navCollapsed ? 'Show navigation' : 'Hide navigation'}
+							aria-label={navCollapsed ? 'Show navigation' : 'Hide navigation'}
 						>
 							<Icon name={navCollapsed ? 'panel-left-open' : 'panel-left-close'} size={16} />
-						</button>
+						</Button>
 					)}
 					<span className="transcript-count">
 						{transcripts.length} messages
@@ -400,19 +405,21 @@ export function TranscriptViewer({
 					)}
 
 					{isRunning && (
-						<button
+						<Button
+							variant={isAutoScrollEnabled ? 'primary' : 'ghost'}
+							size="sm"
 							className={`auto-scroll-btn ${isAutoScrollEnabled ? 'active' : ''}`}
 							onClick={toggleAutoScroll}
 							title={isAutoScrollEnabled ? 'Auto-scroll enabled' : 'Auto-scroll disabled'}
+							leftIcon={<Icon name="chevrons-down" size={14} />}
 						>
-							<Icon name="chevrons-down" size={14} />
-							<span>Auto-scroll</span>
-						</button>
+							Auto-scroll
+						</Button>
 					)}
 
-					<button className="refresh-btn" onClick={refresh} title="Refresh">
+					<Button variant="ghost" iconOnly size="sm" className="refresh-btn" onClick={refresh} title="Refresh" aria-label="Refresh">
 						<Icon name="refresh" size={14} />
-					</button>
+					</Button>
 				</div>
 			</div>
 

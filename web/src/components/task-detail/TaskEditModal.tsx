@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Select from '@radix-ui/react-select';
 import { Modal } from '@/components/overlays/Modal';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { taskClient, workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import { useInitiatives } from '@/stores';
@@ -333,9 +334,9 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 					{workflowsError ? (
 						<div className="workflow-error">
 							<span>Failed to load workflows</span>
-							<button type="button" onClick={loadWorkflows} className="retry-btn">
+							<Button variant="secondary" size="sm" onClick={loadWorkflows}>
 								Retry
-							</button>
+							</Button>
 						</div>
 					) : (
 						<Select.Root value={selectWorkflowValue} onValueChange={handleWorkflowChange}>
@@ -473,22 +474,21 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 
 				{/* Actions */}
 				<div className="form-actions">
-					<button
-						type="button"
-						className="cancel-btn"
+					<Button
+						variant="secondary"
 						onClick={onClose}
 						disabled={saving}
 					>
 						Cancel
-					</button>
-					<button
-						type="button"
-						className="save-btn"
+					</Button>
+					<Button
+						variant="primary"
 						onClick={handleSave}
-						disabled={saving || !title.trim()}
+						disabled={!title.trim()}
+						loading={saving}
 					>
-						{saving ? 'Saving...' : 'Save Changes'}
-					</button>
+						Save Changes
+					</Button>
 				</div>
 			</div>
 		</Modal>

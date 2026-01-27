@@ -22,6 +22,7 @@ import { initiativeClient, taskClient } from '@/lib/client';
 import { timestampToDate } from '@/lib/time';
 import { useInitiativeStore } from '@/stores';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/overlays/Modal';
 import { DependencyGraph } from '@/components/initiative/DependencyGraph';
 import './InitiativeDetailPage.css';
@@ -429,9 +430,9 @@ export function InitiativeDetailPage() {
 			<div className="error-state">
 				<div className="error-icon">!</div>
 				<p>{error}</p>
-				<button className="btn btn-primary" onClick={loadInitiative}>
+				<Button variant="primary" onClick={loadInitiative}>
 					Retry
-				</button>
+				</Button>
 			</div>
 		);
 	}
@@ -473,49 +474,49 @@ export function InitiativeDetailPage() {
 							</span>
 							{/* Status transition buttons based on current status */}
 							{initiative.status === InitiativeStatus.DRAFT && (
-								<button
-									className="btn btn-primary"
+								<Button
+									variant="primary"
 									onClick={handleActivate}
-									disabled={statusActionLoading}
+									loading={statusActionLoading}
+									leftIcon={<Icon name="play" size={16} />}
 								>
-									<Icon name="play" size={16} />
-									{statusActionLoading ? 'Activating...' : 'Activate'}
-								</button>
+									Activate
+								</Button>
 							)}
 							{initiative.status === InitiativeStatus.ACTIVE && (
-								<button
-									className="btn btn-success"
+								<Button
+									variant="success"
 									onClick={handleComplete}
-									disabled={statusActionLoading}
+									loading={statusActionLoading}
+									leftIcon={<Icon name="check" size={16} />}
 								>
-									<Icon name="check" size={16} />
-									{statusActionLoading ? 'Completing...' : 'Complete'}
-								</button>
+									Complete
+								</Button>
 							)}
 							{initiative.status === InitiativeStatus.COMPLETED && (
-								<button
-									className="btn btn-secondary"
+								<Button
+									variant="secondary"
 									onClick={handleActivate}
-									disabled={statusActionLoading}
+									loading={statusActionLoading}
+									leftIcon={<Icon name="rotate-ccw" size={16} />}
 								>
-									<Icon name="rotate-ccw" size={16} />
-									{statusActionLoading ? 'Reopening...' : 'Reopen'}
-								</button>
+									Reopen
+								</Button>
 							)}
 
-							<button className="btn btn-secondary" onClick={openEditModal}>
-								<Icon name="edit" size={16} />
+							<Button variant="secondary" onClick={openEditModal} leftIcon={<Icon name="edit" size={16} />}>
 								Edit
-							</button>
+							</Button>
 
 							{initiative.status !== InitiativeStatus.ARCHIVED && (
-								<button
-									className="btn btn-ghost btn-danger-hover"
+								<Button
+									variant="ghost"
+									className="btn-danger-hover"
 									onClick={() => setConfirmArchiveOpen(true)}
+									leftIcon={<Icon name="archive" size={16} />}
 								>
-									<Icon name="archive" size={16} />
 									Archive
-								</button>
+								</Button>
 							)}
 						</div>
 					</div>
@@ -561,13 +562,14 @@ export function InitiativeDetailPage() {
 				<section className="decisions-section">
 					<div className="section-header">
 						<h2>Decisions</h2>
-						<button
-							className="btn btn-secondary btn-sm"
+						<Button
+							variant="secondary"
+							size="sm"
 							onClick={openAddDecisionModal}
+							leftIcon={<Icon name="plus" size={14} />}
 						>
-							<Icon name="plus" size={14} />
 							Add Decision
-						</button>
+						</Button>
 					</div>
 
 					{initiative.decisions && initiative.decisions.length > 0 ? (
@@ -616,13 +618,14 @@ export function InitiativeDetailPage() {
 								<option value="running">In Progress</option>
 								<option value="planned">Planned</option>
 							</select>
-							<button
-								className="btn btn-secondary btn-sm"
+							<Button
+								variant="secondary"
+								size="sm"
 								onClick={openLinkTaskModal}
+								leftIcon={<Icon name="link" size={14} />}
 							>
-								<Icon name="link" size={14} />
 								Link Existing
-							</button>
+							</Button>
 						</div>
 					</div>
 
@@ -650,13 +653,17 @@ export function InitiativeDetailPage() {
 											{getTaskStatusDisplay(task.status)}
 										</span>
 									</Link>
-									<button
+									<Button
+										variant="ghost"
+										iconOnly
+										size="sm"
 										className="btn-icon btn-remove"
 										onClick={() => unlinkTask(task.id)}
 										title="Remove from initiative"
+										aria-label="Remove from initiative"
 									>
 										<Icon name="x" size={14} />
-									</button>
+									</Button>
 								</div>
 							))}
 						</div>
@@ -668,12 +675,9 @@ export function InitiativeDetailPage() {
 						<div className="empty-state">
 							<Icon name="clipboard" size={32} />
 							<p>No tasks in this initiative yet</p>
-							<button
-								className="btn btn-primary"
-								onClick={openLinkTaskModal}
-							>
+							<Button variant="primary" onClick={openLinkTaskModal}>
 								Link a Task
-							</button>
+							</Button>
 						</div>
 					)}
 				</section>
@@ -682,14 +686,15 @@ export function InitiativeDetailPage() {
 				<section className="graph-section">
 					<div className="section-header section-header-collapsible">
 						<h2>Dependency Graph</h2>
-						<button
-							className="btn btn-ghost btn-sm"
+						<Button
+							variant="ghost"
+							size="sm"
 							onClick={toggleGraph}
 							aria-expanded={graphExpanded}
+							leftIcon={<Icon name={graphExpanded ? 'chevron-up' : 'chevron-down'} size={16} />}
 						>
-							<Icon name={graphExpanded ? 'chevron-up' : 'chevron-down'} size={16} />
 							{graphExpanded ? 'Collapse' : 'Expand'}
-						</button>
+						</Button>
 					</div>
 
 					{graphExpanded && (
@@ -702,15 +707,15 @@ export function InitiativeDetailPage() {
 							) : graphError ? (
 								<div className="graph-error">
 									<p>{graphError}</p>
-									<button
-										className="btn btn-secondary"
+									<Button
+										variant="secondary"
 										onClick={() => {
 											setGraphData(null);
 											loadGraphData();
 										}}
 									>
 										Retry
-									</button>
+									</Button>
 								</div>
 							) : graphData && graphData.nodes.length > 0 ? (
 								<div className="graph-container-wrapper">
@@ -811,16 +816,12 @@ export function InitiativeDetailPage() {
 					</div>
 
 					<div className="modal-actions">
-						<button
-							type="button"
-							className="btn btn-secondary"
-							onClick={() => setEditModalOpen(false)}
-						>
+						<Button variant="secondary" onClick={() => setEditModalOpen(false)}>
 							Cancel
-						</button>
-						<button type="submit" className="btn btn-primary">
+						</Button>
+						<Button variant="primary" type="submit">
 							Save Changes
-						</button>
+						</Button>
 					</div>
 				</form>
 			</Modal>
@@ -851,8 +852,9 @@ export function InitiativeDetailPage() {
 					) : filteredAvailableTasks.length > 0 ? (
 						<div className="available-tasks">
 							{filteredAvailableTasks.map((task) => (
-								<button
+								<Button
 									key={task.id}
+									variant="ghost"
 									className="available-task-item"
 									onClick={() => linkTask(task.id)}
 								>
@@ -861,7 +863,7 @@ export function InitiativeDetailPage() {
 									<span className={`task-status-badge status-${getTaskStatusDisplay(task.status)}`}>
 										{getTaskStatusDisplay(task.status)}
 									</span>
-								</button>
+								</Button>
 							))}
 						</div>
 					) : (
@@ -917,20 +919,17 @@ export function InitiativeDetailPage() {
 					</div>
 
 					<div className="modal-actions">
-						<button
-							type="button"
-							className="btn btn-secondary"
-							onClick={() => setAddDecisionModalOpen(false)}
-						>
+						<Button variant="secondary" onClick={() => setAddDecisionModalOpen(false)}>
 							Cancel
-						</button>
-						<button
+						</Button>
+						<Button
+							variant="primary"
 							type="submit"
-							className="btn btn-primary"
-							disabled={addingDecision || !decisionText.trim()}
+							disabled={!decisionText.trim()}
+							loading={addingDecision}
 						>
-							{addingDecision ? 'Adding...' : 'Add Decision'}
-						</button>
+							Add Decision
+						</Button>
 					</div>
 				</form>
 			</Modal>
@@ -949,21 +948,16 @@ export function InitiativeDetailPage() {
 						Archived initiatives are hidden from most views but can be restored later.
 					</p>
 					<div className="modal-actions">
-						<button
-							type="button"
-							className="btn btn-secondary"
-							onClick={() => setConfirmArchiveOpen(false)}
-						>
+						<Button variant="secondary" onClick={() => setConfirmArchiveOpen(false)}>
 							Cancel
-						</button>
-						<button
-							type="button"
-							className="btn btn-danger"
+						</Button>
+						<Button
+							variant="danger"
 							onClick={handleArchive}
-							disabled={statusActionLoading}
+							loading={statusActionLoading}
 						>
-							{statusActionLoading ? 'Archiving...' : 'Archive Initiative'}
-						</button>
+							Archive Initiative
+						</Button>
 					</div>
 				</div>
 			</Modal>
@@ -972,7 +966,7 @@ export function InitiativeDetailPage() {
 			{error && initiative && (
 				<div className="error-toast">
 					<span>{error}</span>
-					<button onClick={() => setError(null)}>×</button>
+					<Button variant="ghost" iconOnly size="sm" onClick={() => setError(null)} aria-label="Dismiss">×</Button>
 				</div>
 			)}
 		</div>
