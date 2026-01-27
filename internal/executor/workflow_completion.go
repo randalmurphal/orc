@@ -318,6 +318,49 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 		we.logger.Warn("fetch failed, continuing anyway", "error", err)
 	}
 
+	// CRITICAL: Sync with remote feature branch first
+	// This prevents push failures when the remote branch already exists with different commits
+	// (e.g., from a previous run that was interrupted/resumed)
+	if t.Branch != "" {
+		remoteFeature := "origin/" + t.Branch
+		featureExists, err := gitOps.RemoteBranchExists("origin", t.Branch)
+		if err != nil {
+			we.logger.Debug("could not check remote feature branch, continuing", "error", err)
+		} else if featureExists {
+			// Check if we're behind the remote feature branch
+			featureAhead, featureBehind, err := gitOps.GetCommitCounts(remoteFeature)
+			if err != nil {
+				we.logger.Debug("could not determine feature branch commit counts", "error", err)
+			} else if featureBehind > 0 {
+				we.logger.Info("task branch is behind remote feature branch",
+					"remote", remoteFeature,
+					"commits_behind", featureBehind,
+					"commits_ahead", featureAhead)
+
+				// Merge from remote feature branch to incorporate previous work
+				if _, err := gitOps.Context().RunGit("merge", remoteFeature, "--no-edit"); err != nil {
+					// If merge fails, try reset to remote (previous work takes precedence)
+					we.logger.Warn("merge from remote feature branch failed, resetting to remote",
+						"error", err,
+						"remote", remoteFeature)
+					if _, resetErr := gitOps.Context().RunGit("merge", "--abort"); resetErr != nil {
+						we.logger.Debug("merge abort failed (may not be in conflict state)", "error", resetErr)
+					}
+					if _, resetErr := gitOps.Context().RunGit("reset", "--hard", remoteFeature); resetErr != nil {
+						we.logger.Warn("reset to remote feature branch failed", "error", resetErr)
+					} else {
+						we.logger.Info("reset to remote feature branch", "remote", remoteFeature)
+					}
+				} else {
+					we.logger.Info("merged remote feature branch", "remote", remoteFeature)
+				}
+			} else {
+				we.logger.Debug("local branch is up-to-date with remote feature branch",
+					"remote", remoteFeature)
+			}
+		}
+	}
+
 	target := "origin/" + targetBranch
 
 	// Check if we're behind target
