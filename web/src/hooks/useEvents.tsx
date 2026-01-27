@@ -36,6 +36,8 @@ interface EventContextValue {
 	disconnect: () => void;
 	/** Check if currently connected */
 	isConnected: () => boolean;
+	/** Register a custom event handler. Returns unsubscribe function. */
+	onEvent: (handler: (event: import('@/gen/orc/v1/events_pb').Event) => void) => () => void;
 }
 
 const EventContext = createContext<EventContextValue | null>(null);
@@ -107,6 +109,17 @@ export function EventProvider({
 		return subscriptionRef.current?.isConnected() ?? false;
 	}, []);
 
+	const onEvent = useCallback(
+		(handler: (event: import('@/gen/orc/v1/events_pb').Event) => void) => {
+			if (!subscriptionRef.current) {
+				// Return no-op unsubscribe if subscription not ready
+				return () => {};
+			}
+			return subscriptionRef.current.on(handler);
+		},
+		[]
+	);
+
 	const contextValue = useMemo<EventContextValue>(
 		() => ({
 			status,
@@ -114,8 +127,9 @@ export function EventProvider({
 			subscribeGlobal,
 			disconnect,
 			isConnected,
+			onEvent,
 		}),
-		[status, subscribe, subscribeGlobal, disconnect, isConnected]
+		[status, subscribe, subscribeGlobal, disconnect, isConnected, onEvent]
 	);
 
 	return (

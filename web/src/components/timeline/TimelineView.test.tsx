@@ -80,8 +80,13 @@ vi.mock('@/hooks', () => ({
 		subscribeGlobal: vi.fn(),
 		disconnect: vi.fn(),
 		isConnected: vi.fn().mockReturnValue(true),
+		onEvent: mockOn,
 	})),
 	useConnectionStatus: () => mockConnectionStatus.value,
+	useTimelineEvents: vi.fn(() => ({
+		newEvents: [],
+		clearEvents: vi.fn(),
+	})),
 	EventProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
