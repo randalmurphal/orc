@@ -10,9 +10,11 @@
  * - Syntax highlighting for code blocks
  */
 
-import { useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import type { TranscriptLine } from '@/hooks/useEvents';
 import { useTranscripts, type FlatTranscriptEntry } from '@/hooks/useTranscripts';
+import { useTask, useTaskState } from '@/stores/taskStore';
+import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { formatNumber } from '@/lib/format';
 import { TranscriptNav, type TranscriptNavPhase } from './TranscriptNav';
 import { TranscriptSection, type TranscriptSectionType } from './TranscriptSection';
@@ -20,6 +22,7 @@ import { TranscriptVirtualList } from './TranscriptVirtualList';
 import { TranscriptSearch } from './TranscriptSearch';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { computePhaseIterations, getPhaseNavStatus } from './transcript-utils';
 import './TranscriptViewer.css';
 
 export interface TranscriptViewerProps {
@@ -87,6 +90,16 @@ export function TranscriptViewer({
 		pageSize: 50,
 		autoScroll: isRunning,
 	});
+
+	// Get task and execution state for phase status computation
+	const task = useTask(taskId);
+	const executionState = useTaskState(taskId);
+
+	// Compute iterations per phase from transcript data
+	const phaseIterations = useMemo(
+		() => computePhaseIterations(transcripts),
+		[transcripts]
+	);
 
 	// TODO: Transcript streaming will be implemented via Connect RPC event streaming
 	// The event handler will dispatch transcript events to this component via stores
@@ -178,9 +191,14 @@ export function TranscriptViewer({
 	// Compute phase stats for nav
 	const phaseStats: TranscriptNavPhase[] = phases.map((p) => ({
 		phase: p.phase,
-		iterations: 0, // TODO: Calculate from transcripts
+		iterations: phaseIterations.get(p.phase) ?? 0,
 		transcript_count: p.transcript_count,
-		status: 'completed' as const, // TODO: Get actual status from task state
+		status: getPhaseNavStatus(
+			p.phase,
+			executionState,
+			task?.currentPhase,
+			task?.status ?? TaskStatus.UNSPECIFIED
+		),
 	}));
 
 	// Build section hierarchy for current view
