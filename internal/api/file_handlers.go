@@ -39,6 +39,11 @@ func (s *Server) registerFileRoutes() {
 	s.mux.HandleFunc("GET /files/tasks/{id}/test-results/traces/{filename}", cors(s.serveTrace))
 	s.mux.HandleFunc("GET /files/tasks/{id}/test-results/html-report", cors(s.serveHTMLReport))
 
+	// Export/Import API (tar.gz archive operations)
+	exportServer := NewExportServer(s.backend, s.workDir, s.logger)
+	s.mux.HandleFunc("POST /api/export", cors(exportServer.HandleExport))
+	s.mux.HandleFunc("POST /api/import", cors(exportServer.HandleImport))
+
 	// Static files (embedded frontend) - catch-all for non-API routes
 	s.mux.Handle("/", staticHandler())
 }
