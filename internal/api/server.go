@@ -75,6 +75,9 @@ type Server struct {
 	// Session tracking
 	sessionID    string
 	sessionStart time.Time
+
+	// Session broadcaster for real-time metrics
+	sessionBroadcaster *executor.SessionBroadcaster
 }
 
 // Event represents a WebSocket event.
@@ -213,6 +216,17 @@ func New(cfg *Config) *Server {
 	// Create WebSocket handler
 	s.wsHandler = NewWSHandler(pub, s, logger)
 
+	// Create session broadcaster for real-time metrics
+	// Open global DB for cost tracking (best-effort, may be nil)
+	globalDB, _ := db.OpenGlobal()
+	s.sessionBroadcaster = executor.NewSessionBroadcaster(
+		events.NewPublishHelper(pub),
+		backend,
+		globalDB,
+		workDir,
+		logger,
+	)
+
 	s.registerFileRoutes()
 	s.registerConnectHandlers()
 	return s
@@ -342,6 +356,12 @@ func (s *Server) StartContext(ctx context.Context) error {
 		if s.prPoller != nil {
 			s.prPoller.Stop()
 		}
+
+		// Stop session broadcaster
+		if s.sessionBroadcaster != nil {
+			s.sessionBroadcaster.Stop()
+		}
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
@@ -652,6 +672,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
+			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
 		)
 
 		opts := executor.WorkflowRunOptions{
@@ -712,6 +733,7 @@ func (s *Server) startTask(id string) error {
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
+			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
 		)
 
 		opts := executor.WorkflowRunOptions{
