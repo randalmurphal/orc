@@ -7,12 +7,15 @@ Connect RPC server with WebSocket support for real-time updates.
 ```
 Server
 ├── Connect RPC Services (13) → *_server.go
-├── WebSocket Handler         → websocket.go (legacy + EventService)
+├── EventServer               → event_server.go (internal events)
+│   └── WebSocketHub          → websocket.go (forwards to web clients)
 ├── Interceptors              → interceptors.go
 ├── PR Poller                 → Background PR status updates
 ├── Finalize Tracker          → Async finalize operations
 └── Event Publisher           → Real-time task updates
 ```
+
+**Event Flow**: EventServer.Publish() → WebSocketHub.handleInternalEvent() → WebSocket clients. Critical: `SetWebSocketHub()` must be called at startup to wire these together.
 
 ## Connect RPC Services
 
