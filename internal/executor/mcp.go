@@ -94,6 +94,12 @@ func applyPlaywrightRuntimeSettings(
 		}
 	}
 
+	// Disable hardware video decode to prevent NVIDIA driver crashes (libnvcuvid.so bug)
+	// This affects headless and headed modes - the driver bug crashes the entire X session
+	if !slices.Contains(args, "--disable-gpu-video-decode") {
+		args = append(args, "--disable-gpu-video-decode")
+	}
+
 	server.Args = args
 	return server
 }
