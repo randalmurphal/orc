@@ -66,24 +66,6 @@ func isAuthError(err error) bool {
 		strings.Contains(errStr, "unauthorized") ||
 		strings.Contains(errStr, "auth token")
 }
-
-// isNonFastForwardError checks if an error is a git non-fast-forward push rejection.
-// This occurs when the local branch has diverged from the remote branch,
-// typically when re-running a completed task from scratch.
-// Common patterns:
-// - "non-fast-forward" (standard git message)
-// - "rejected" + "fetch first" (alternative git message)
-// - "failed to push some refs" + "behind" (hint text)
-func isNonFastForwardError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := strings.ToLower(err.Error())
-	return strings.Contains(errStr, "non-fast-forward") ||
-		(strings.Contains(errStr, "rejected") && strings.Contains(errStr, "fetch first")) ||
-		(strings.Contains(errStr, "failed to push") && strings.Contains(errStr, "behind"))
-}
-
 // isAutoMergeConfigError checks if an error is due to auto-merge not being available
 // on the repository. This is expected behavior for repos without auto-merge enabled
 // (requires branch protection rules or explicit repo settings).
