@@ -34,6 +34,7 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
 | **Wire All Event Consumers** | EventServer must call `SetWebSocketHub()` at startup to forward events to WebSocket clients | Separate event systems must be explicitly connected | UI never receives real-time updates |
+| **SessionBroadcaster Wiring** | WorkflowExecutor must receive SessionBroadcaster via `WithWorkflowSessionBroadcaster()` in API server | Session metrics need event publishing to reach WebSocket clients | Header stats always show 0, no real-time session updates (from TASK-539) |
 
 ## Canonical: RPC Actions
 
