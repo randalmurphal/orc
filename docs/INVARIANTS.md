@@ -29,6 +29,12 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **Ultrathink in User Message** | `ultrathink\n\n` must prefix user message, not system | System prompt position doesn't work | No extended thinking |
 | **Schema = Pure JSON** | With `--json-schema`, output is ONLY JSON | No text/JSON mixing | Parse failures |
 
+## Canonical: Event Systems
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **Wire All Event Consumers** | EventServer must call `SetWebSocketHub()` at startup to forward events to WebSocket clients | Separate event systems must be explicitly connected | UI never receives real-time updates |
+
 ## Canonical: Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |
