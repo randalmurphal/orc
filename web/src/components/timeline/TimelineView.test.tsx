@@ -710,3 +710,126 @@ describe('TimelineView', () => {
 		});
 	});
 });
+
+describe('Event Deduplication (TASK-587)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockOn.mockImplementation(() => () => {});
+		mockConnectionStatus.value = 'connected';
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+	});
+
+	afterEach(() => {
+		cleanup();
+		vi.useRealTimers();
+	});
+
+	it('should deduplicate events with same ID from backend', async () => {
+		// Simulate backend returning duplicate events (same event ID)
+		// This can happen due to race conditions or caching issues
+		const duplicateEvent = {
+			...createMockProtoEvent(1, {
+				taskId: 'TASK-001',
+				taskTitle: 'Duplicate Event Test',
+			}),
+			id: 'stable-dup-123', // Explicit ID - backend now provides stable IDs
+		};
+
+		// Create response with the same event appearing twice
+		// Frontend should deduplicate based on event ID
+		mockGetEvents.mockResolvedValue({
+			events: [duplicateEvent, duplicateEvent],
+			page: { hasMore: false, total: 2 },
+		});
+
+		renderTimelineView();
+
+		await waitFor(() => {
+			// Should only render ONE instance of the event, not two
+			const taskElements = screen.getAllByText('TASK-001');
+			// Each event has one TASK-001 in the task link - duplicates would show 2+
+			expect(taskElements.length).toBe(1);
+		});
+	});
+
+	it('should use stable IDs from backend proto events', async () => {
+		// Mock events with stable IDs (simulating fixed backend)
+		// Backend returns database IDs as numeric strings (e.g., "12345")
+		const event1 = {
+			...createMockProtoEvent(1, { taskId: 'TASK-001' }),
+			id: '123', // Numeric ID string - matches backend format
+		};
+		const event2 = {
+			...createMockProtoEvent(2, { taskId: 'TASK-002' }),
+			id: '456', // Different numeric ID
+		};
+
+		mockGetEvents.mockResolvedValue({
+			events: [event1, event2],
+			page: { hasMore: false, total: 2 },
+		});
+
+		const { container } = renderTimelineView();
+
+		await waitFor(() => {
+			// Events should be rendered with their stable IDs as keys
+			// If frontend uses proto IDs, duplicate events would be deduped by React
+			const events = container.querySelectorAll('.timeline-event');
+			expect(events.length).toBe(2);
+		});
+
+		// Verify task IDs are visible (basic render check)
+		expect(screen.getByText('TASK-001')).toBeInTheDocument();
+		expect(screen.getByText('TASK-002')).toBeInTheDocument();
+	});
+
+	it('should not create duplicate entries when same event ID appears in multiple fetches', async () => {
+		// First fetch returns event with ID "123" (numeric string from backend)
+		const event1 = {
+			...createMockProtoEvent(1, { taskId: 'TASK-001', taskTitle: 'First Fetch' }),
+			id: '123', // Numeric ID string - matches backend format
+		};
+		const event2 = {
+			...createMockProtoEvent(2, { taskId: 'TASK-002' }),
+			id: '456', // Different numeric ID
+		};
+		mockGetEvents
+			.mockResolvedValueOnce({
+				events: [event1],
+				page: { hasMore: true, total: 2 },
+			})
+			// Second fetch returns SAME event (overlap scenario)
+			.mockResolvedValueOnce({
+				events: [event1, event2],
+				page: { hasMore: false, total: 2 },
+			});
+
+		const { container } = renderTimelineView();
+
+		await waitFor(() => {
+			expect(screen.getByText('TASK-001')).toBeInTheDocument();
+		});
+
+		// Wait for potential state update
+		await vi.advanceTimersByTimeAsync(0);
+
+		// Trigger pagination
+		const scrollContainer = container.querySelector('.timeline-view');
+		if (scrollContainer) {
+			Object.defineProperty(scrollContainer, 'scrollHeight', { value: 1000, configurable: true });
+			Object.defineProperty(scrollContainer, 'scrollTop', { value: 800, writable: true, configurable: true });
+			Object.defineProperty(scrollContainer, 'clientHeight', { value: 100, configurable: true });
+			fireEvent.scroll(scrollContainer);
+		}
+
+		await waitFor(() => {
+			expect(mockGetEvents).toHaveBeenCalledTimes(2);
+		});
+
+		// TASK-001 should appear only ONCE even though it was in both responses
+		await waitFor(() => {
+			const task001Elements = screen.getAllByText('TASK-001');
+			expect(task001Elements.length).toBe(1);
+		});
+	});
+});
