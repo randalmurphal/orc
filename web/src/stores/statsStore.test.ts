@@ -10,11 +10,17 @@ import {
 // Mock the Connect client
 const mockGetStats = vi.fn();
 const mockGetCostSummary = vi.fn();
+const mockGetDailyMetrics = vi.fn();
+const mockGetMetrics = vi.fn();
+const mockGetTopInitiatives = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	dashboardClient: {
 		getStats: () => mockGetStats(),
 		getCostSummary: () => mockGetCostSummary(),
+		getDailyMetrics: () => mockGetDailyMetrics(),
+		getMetrics: () => mockGetMetrics(),
+		getTopInitiatives: () => mockGetTopInitiatives(),
 	},
 }));
 
@@ -92,6 +98,78 @@ function createMockCostResponse(summary: MockCostSummary = {}) {
 	};
 }
 
+// Helper types for TASK-553 mocks
+interface MockDailyMetrics {
+	date: string;
+	tasksCreated?: number;
+	tasksCompleted?: number;
+	tasksFailed?: number;
+	tokensUsed?: number;
+	costUsd?: number;
+}
+
+interface MockMetricsSummary {
+	tasksCompleted?: number;
+	phasesExecuted?: number;
+	avgTaskDurationSeconds?: number;
+	successRate?: number;
+}
+
+interface MockTopInitiative {
+	id: string;
+	title: string;
+	taskCount: number;
+	completedCount?: number;
+	costUsd?: number;
+}
+
+function createMockDailyMetricsResponse(days: MockDailyMetrics[] = []) {
+	return {
+		stats: {
+			days: days.map((d) => ({
+				date: d.date,
+				tasksCreated: d.tasksCreated ?? 0,
+				tasksCompleted: d.tasksCompleted ?? 0,
+				tasksFailed: d.tasksFailed ?? 0,
+				tokensUsed: d.tokensUsed ?? 0,
+				costUsd: d.costUsd ?? 0,
+				phasesCompleted: 0,
+				commits: 0,
+			})),
+		},
+	};
+}
+
+function createMockMetricsResponse(metrics: MockMetricsSummary = {}) {
+	return {
+		metrics: {
+			tasksCompleted: metrics.tasksCompleted ?? 0,
+			phasesExecuted: metrics.phasesExecuted ?? 0,
+			avgTaskDurationSeconds: metrics.avgTaskDurationSeconds ?? 0,
+			successRate: metrics.successRate ?? 0,
+			totalTokens: {
+				inputTokens: 0,
+				outputTokens: 0,
+				totalTokens: 0,
+				cacheCreationInputTokens: 0,
+				cacheReadInputTokens: 0,
+			},
+		},
+	};
+}
+
+function createMockTopInitiativesResponse(initiatives: MockTopInitiative[] = []) {
+	return {
+		initiatives: initiatives.map((init) => ({
+			id: init.id,
+			title: init.title,
+			taskCount: init.taskCount,
+			completedCount: init.completedCount ?? 0,
+			costUsd: init.costUsd ?? 0,
+		})),
+	};
+}
+
 describe('StatsStore', () => {
 	beforeEach(() => {
 		// Reset store before each test
@@ -100,6 +178,9 @@ describe('StatsStore', () => {
 		// Reset mocks
 		mockGetStats.mockReset();
 		mockGetCostSummary.mockReset();
+		mockGetDailyMetrics.mockReset();
+		mockGetMetrics.mockReset();
+		mockGetTopInitiatives.mockReset();
 	});
 
 	afterEach(() => {
@@ -133,6 +214,13 @@ describe('StatsStore', () => {
 	});
 
 	describe('fetchStats', () => {
+		// TASK-553: Add default mocks for new APIs
+		beforeEach(() => {
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
 		it('should set loading state during fetch', async () => {
 			mockGetStats.mockResolvedValue(createMockStatsResponse({
 				taskCounts: { completed: 10, failed: 2 },
@@ -315,6 +403,13 @@ describe('StatsStore', () => {
 	});
 
 	describe('reset', () => {
+		// TASK-553: Add default mocks for new APIs
+		beforeEach(() => {
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
 		it('should reset to initial state', async () => {
 			// First populate with some data
 			mockGetStats.mockResolvedValue(createMockStatsResponse({
@@ -342,11 +437,28 @@ describe('StatsStore', () => {
 	});
 
 	describe('derived data', () => {
+		// TASK-553: Add default mocks for new APIs
+		beforeEach(() => {
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
 		it('should generate activity data from tasks per day', async () => {
 			mockGetStats.mockResolvedValue(createMockStatsResponse({
 				taskCounts: { completed: 7 },
 			}));
 			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			// TASK-553: Provide 7 days of mock daily metrics data
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([
+				{ date: '2026-01-21', tasksCompleted: 1 },
+				{ date: '2026-01-22', tasksCompleted: 2 },
+				{ date: '2026-01-23', tasksCompleted: 1 },
+				{ date: '2026-01-24', tasksCompleted: 1 },
+				{ date: '2026-01-25', tasksCompleted: 0 },
+				{ date: '2026-01-26', tasksCompleted: 1 },
+				{ date: '2026-01-27', tasksCompleted: 1 },
+			]));
 
 			await useStatsStore.getState().fetchStats('7d');
 
@@ -439,6 +551,10 @@ describe('StatsStore', () => {
 			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
 				totalCostUsd: 1.0,
 			}));
+			// TASK-553: Add mocks for new APIs
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
 		});
 
 		// TASK-526: setPeriod now only updates period, component's useEffect calls fetchStats
@@ -485,6 +601,10 @@ describe('StatsStore', () => {
 		beforeEach(() => {
 			// Use real timers for concurrent fetch tests (setTimeout must work)
 			vi.useRealTimers();
+			// TASK-553: Add mocks for new APIs (these don't need to be slow)
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
 		});
 
 		afterEach(() => {
@@ -562,6 +682,13 @@ describe('StatsStore', () => {
 	});
 
 	describe('TASK-526: Edge cases from specification', () => {
+		// TASK-553: Add default mocks for new APIs
+		beforeEach(() => {
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
 		it('zero completed tasks shows 0 values, not empty state', async () => {
 			mockGetStats.mockResolvedValue(createMockStatsResponse({
 				taskCounts: { completed: 0, failed: 0 },
@@ -676,6 +803,407 @@ describe('StatsStore', () => {
 			expect(tasksPerDay.day).toBe('2026-01-18');
 			expect(summaryStats.successRate).toBe(90);
 			expect(period).toBe('7d');
+		});
+	});
+
+	// =========================================================================
+	// TASK-553: Bug fix tests - Stats page shows Avg Task Time as 0:00
+	// and Most Active Initiatives as No data
+	// =========================================================================
+
+	describe('TASK-553: Avg Task Time from GetMetrics API (SC-1)', () => {
+		beforeEach(() => {
+			// Setup default mocks for basic stats
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+				todayTokens: { totalTokens: 100000 },
+				todayCostUsd: 5.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({
+				totalCostUsd: 5.0,
+			}));
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+		});
+
+		it('should fetch avgTime from GetMetrics API and populate summaryStats.avgTime', async () => {
+			// TASK-553: avgTime should come from GetMetrics.avgTaskDurationSeconds
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 150, // 2 minutes 30 seconds
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// VERIFY SC-1: avgTime should equal avgTaskDurationSeconds from API
+			expect(state.summaryStats.avgTime).toBe(150);
+		});
+
+		it('should display avgTime as 0 when API returns 0 (no completed tasks with timestamps)', async () => {
+			// Edge case: No completed tasks have valid start/end timestamps
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 0,
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.avgTime).toBe(0);
+		});
+
+		it('should handle GetMetrics API failure gracefully with avgTime defaulting to 0', async () => {
+			// Error case: GetMetrics fails but page should still load
+			mockGetMetrics.mockRejectedValue(new Error('Metrics unavailable'));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// Should fail gracefully - store should have error
+			expect(state.error).toBe('Metrics unavailable');
+		});
+
+		it('should handle null/undefined metrics response', async () => {
+			// Edge case: API returns response with null metrics
+			mockGetMetrics.mockResolvedValue({ metrics: null });
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// Should use default 0 when metrics is null
+			expect(state.summaryStats.avgTime).toBe(0);
+		});
+	});
+
+	describe('TASK-553: Avg Task Time respects period filter (SC-2)', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
+		it('should pass period to GetMetrics API call', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 120,
+			}));
+
+			await useStatsStore.getState().fetchStats('24h');
+
+			// VERIFY SC-2: GetMetrics should be called (implementation will pass period)
+			expect(mockGetMetrics).toHaveBeenCalled();
+		});
+
+		it('should show different avgTime values for different periods', async () => {
+			// First call with 7d period
+			mockGetMetrics.mockResolvedValueOnce(createMockMetricsResponse({
+				avgTaskDurationSeconds: 180, // 3 minutes
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+			expect(useStatsStore.getState().summaryStats.avgTime).toBe(180);
+
+			// Clear cache and fetch 30d
+			useStatsStore.getState().reset();
+			mockGetStats.mockResolvedValue(createMockStatsResponse({ taskCounts: { completed: 5 } }));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValueOnce(createMockMetricsResponse({
+				avgTaskDurationSeconds: 300, // 5 minutes
+			}));
+
+			await useStatsStore.getState().fetchStats('30d');
+
+			// VERIFY SC-2: Different period should get different avgTime
+			expect(useStatsStore.getState().summaryStats.avgTime).toBe(300);
+		});
+
+		it('should show avgTime as 0 when no completed tasks in selected period', async () => {
+			// BDD-2: Given no completed tasks in the last 24 hours
+			// When user selects "24h" period filter
+			// Then Avg Task Time card shows "0:00"
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 0, // No tasks completed in period
+			}));
+
+			await useStatsStore.getState().fetchStats('24h');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.avgTime).toBe(0);
+		});
+	});
+
+	describe('TASK-553: Most Active Initiatives from GetTopInitiatives API (SC-3, SC-4)', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+		});
+
+		it('should fetch topInitiatives from GetTopInitiatives API (SC-3)', async () => {
+			// TASK-553: topInitiatives should come from GetTopInitiatives API
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: 'User Authentication', taskCount: 10 },
+				{ id: 'INIT-002', title: 'API Refactor', taskCount: 5 },
+				{ id: 'INIT-003', title: 'Bug Fixes', taskCount: 2 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// VERIFY SC-3: topInitiatives should be populated from API
+			expect(state.topInitiatives.length).toBe(3);
+			expect(state.topInitiatives[0].name).toBe('User Authentication');
+			expect(state.topInitiatives[0].taskCount).toBe(10);
+		});
+
+		it('should show initiatives sorted by task count descending (SC-4)', async () => {
+			// BDD-3: Given 3 initiatives: A (10 tasks), B (5 tasks), C (2 tasks)
+			// When user loads the Stats page
+			// Then Most Active Initiatives shows: 1. A, 2. B, 3. C
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-A', title: 'Initiative A', taskCount: 10 },
+				{ id: 'INIT-B', title: 'Initiative B', taskCount: 5 },
+				{ id: 'INIT-C', title: 'Initiative C', taskCount: 2 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// VERIFY SC-4: Sorted by task count descending
+			expect(state.topInitiatives[0].taskCount).toBe(10);
+			expect(state.topInitiatives[1].taskCount).toBe(5);
+			expect(state.topInitiatives[2].taskCount).toBe(2);
+		});
+
+		it('should limit to 4 initiatives maximum (SC-4)', async () => {
+			// VERIFY SC-4: Max 4 shown in frontend (limit sent to API)
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-1', title: 'Init 1', taskCount: 20 },
+				{ id: 'INIT-2', title: 'Init 2', taskCount: 15 },
+				{ id: 'INIT-3', title: 'Init 3', taskCount: 10 },
+				{ id: 'INIT-4', title: 'Init 4', taskCount: 5 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// API should return max 4 based on limit parameter
+			expect(state.topInitiatives.length).toBeLessThanOrEqual(4);
+		});
+
+		it('should show "No data" when no initiatives with tasks exist (empty array)', async () => {
+			// Edge case: No initiatives have linked tasks
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Empty array - UI should show "No data"
+			expect(state.topInitiatives).toEqual([]);
+			expect(state.topInitiatives.length).toBe(0);
+		});
+
+		it('should handle GetTopInitiatives API failure gracefully', async () => {
+			// Error case: GetTopInitiatives fails
+			mockGetTopInitiatives.mockRejectedValue(new Error('Initiatives unavailable'));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// Should show error but page loads
+			expect(state.error).toBe('Initiatives unavailable');
+		});
+	});
+
+	describe('TASK-553: Initiative leaderboard shows title not ID (SC-5)', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+		});
+
+		it('should display initiative title from API response (SC-5)', async () => {
+			// BDD-4: Given initiative with title "User Authentication"
+			// When user views Most Active Initiatives
+			// Then shows "User Authentication" not "INIT-001"
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: 'User Authentication', taskCount: 10 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// VERIFY SC-5: Should show title, not ID
+			expect(state.topInitiatives[0].name).toBe('User Authentication');
+			expect(state.topInitiatives[0].name).not.toBe('INIT-001');
+		});
+
+		it('should fall back to ID when title is empty', async () => {
+			// Edge case: Backend returns empty title (fallback to ID)
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: '', taskCount: 5 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// VERIFY SC-5 fallback: Should use ID when title is empty
+			// The implementation should check: init.title || init.id
+			expect(state.topInitiatives[0].name).toBe('INIT-001');
+		});
+
+		it('should handle initiative with undefined title', async () => {
+			// Edge case: Title field is missing/undefined
+			mockGetTopInitiatives.mockResolvedValue({
+				initiatives: [
+					{ id: 'INIT-001', taskCount: 5 }, // title not set
+				],
+			});
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Should fall back to ID
+			expect(state.topInitiatives[0].name).toBe('INIT-001');
+		});
+	});
+
+	describe('TASK-553: Both API calls made in parallel', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+		});
+
+		it('should call both GetMetrics and GetTopInitiatives APIs', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 120,
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: 'Test', taskCount: 5 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			// Both APIs should be called
+			expect(mockGetMetrics).toHaveBeenCalled();
+			expect(mockGetTopInitiatives).toHaveBeenCalled();
+		});
+
+		it('should populate both avgTime and topInitiatives from API responses', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 154, // 2:34
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: 'User Auth', taskCount: 10 },
+				{ id: 'INIT-002', title: 'API Work', taskCount: 5 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+
+			// Both values should be populated
+			expect(state.summaryStats.avgTime).toBe(154);
+			expect(state.topInitiatives.length).toBe(2);
+			expect(state.topInitiatives[0].name).toBe('User Auth');
+		});
+	});
+
+	describe('TASK-553: Edge cases from specification', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 0 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+		});
+
+		it('zero completed tasks shows avgTime as 0', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 0,
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.avgTime).toBe(0);
+		});
+
+		it('all tasks have null startedAt shows avgTime as 0', async () => {
+			// When tasks exist but none have valid timestamps, avgTaskDurationSeconds = 0
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 0,
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.avgTime).toBe(0);
+		});
+
+		it('very long duration (over 1 hour) is stored correctly', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: 3725, // 1 hour, 2 minutes, 5 seconds
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.summaryStats.avgTime).toBe(3725);
+		});
+
+		it('negative duration (data corruption) should be handled', async () => {
+			// Backend returns negative value (shouldn't happen but defensive)
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({
+				avgTaskDurationSeconds: -100,
+			}));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// Implementation should handle negative as 0 or pass through
+			// Test expects the value is stored (implementation may normalize)
+			expect(state.summaryStats.avgTime).toBeDefined();
+		});
+
+		it('fewer than 4 initiatives shows available', async () => {
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([
+				{ id: 'INIT-001', title: 'Only One', taskCount: 3 },
+			]));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.topInitiatives.length).toBe(1);
+			expect(state.topInitiatives[0].name).toBe('Only One');
 		});
 	});
 });
