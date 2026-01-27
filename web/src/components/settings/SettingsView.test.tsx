@@ -1,9 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { SettingsView } from './SettingsView';
 import { configClient } from '@/lib/client';
 import type { Skill } from '@/gen/orc/v1/config_pb';
 import { SettingsScope } from '@/gen/orc/v1/config_pb';
+
+// Mock browser APIs not available in jsdom (required for Radix)
+beforeAll(() => {
+	Element.prototype.scrollIntoView = vi.fn();
+	global.ResizeObserver = vi.fn().mockImplementation(() => ({
+		observe: vi.fn(),
+		unobserve: vi.fn(),
+		disconnect: vi.fn(),
+	}));
+});
 
 // Mock the configClient
 vi.mock('@/lib/client', () => ({
@@ -11,6 +21,14 @@ vi.mock('@/lib/client', () => ({
 		listSkills: vi.fn(),
 		updateSkill: vi.fn(),
 		deleteSkill: vi.fn(),
+		createSkill: vi.fn(),
+	},
+}));
+
+vi.mock('@/stores/uiStore', () => ({
+	toast: {
+		success: vi.fn(),
+		error: vi.fn(),
 	},
 }));
 
@@ -59,6 +77,13 @@ describe('SettingsView', () => {
 	});
 
 	afterEach(() => {
+		// Cleanup React components first (before touching DOM)
+		cleanup();
+		// Then clean up any remaining portal content
+		const portalContent = document.querySelector('.modal-backdrop');
+		if (portalContent) {
+			portalContent.remove();
+		}
 		vi.clearAllMocks();
 	});
 
@@ -286,6 +311,60 @@ describe('SettingsView', () => {
 			// Button should be clickable
 			fireEvent.click(newButton);
 			expect(newButton).toBeInTheDocument();
+		});
+
+		// SC-1: Integration - clicking button opens modal
+		it('clicking New Command opens the modal', async () => {
+			render(<SettingsView />);
+
+			// Wait for initial load to complete
+			await waitFor(() => {
+				expect(configClient.listSkills).toHaveBeenCalled();
+			});
+
+			const newButton = screen.getByRole('button', { name: /new command/i });
+			fireEvent.click(newButton);
+
+			await waitFor(() => {
+				expect(screen.getByRole('dialog')).toBeInTheDocument();
+				// Modal title is in h2 with class modal-title
+				expect(screen.getByRole('heading', { name: 'New Command' })).toBeInTheDocument();
+			});
+		});
+
+		// SC-3: Integration - creating command adds to list
+		it('creating command adds it to the list', async () => {
+			vi.mocked(configClient.createSkill).mockResolvedValue({
+				skill: {
+					name: 'new-cmd',
+					description: 'New command',
+					content: '# New',
+					scope: SettingsScope.GLOBAL,
+					userInvocable: true,
+				} as Skill,
+				$typeName: 'orc.v1.CreateSkillResponse',
+			});
+
+			render(<SettingsView />);
+
+			// Wait for initial load
+			await waitFor(() => {
+				expect(screen.getByText('/commit')).toBeInTheDocument();
+			});
+
+			// Open modal and create
+			fireEvent.click(screen.getByRole('button', { name: /new command/i }));
+			await waitFor(() => {
+				expect(screen.getByRole('dialog')).toBeInTheDocument();
+			});
+
+			fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'new-cmd' } });
+			fireEvent.click(screen.getByRole('button', { name: /create/i }));
+
+			// New command should appear in list
+			await waitFor(() => {
+				expect(screen.getByText('/new-cmd')).toBeInTheDocument();
+			});
 		});
 	});
 
