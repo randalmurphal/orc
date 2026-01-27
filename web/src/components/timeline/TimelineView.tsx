@@ -18,7 +18,7 @@ import { GetEventsRequestSchema } from '@/gen/orc/v1/events_pb';
 import { ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
 import { ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
 import { PageRequestSchema } from '@/gen/orc/v1/common_pb';
-import { useConnectionStatus } from '@/hooks';
+import { useConnectionStatus, useTimelineEvents } from '@/hooks';
 import { TimelineGroup } from './TimelineGroup';
 import { type TimelineEventData } from './TimelineEvent';
 import { TimelineEmptyState } from './TimelineEmptyState';
@@ -213,16 +213,36 @@ export function TimelineView() {
 		const types = searchParams.get('types')?.split(',').filter(Boolean) || [];
 		const taskId = searchParams.get('task_id') || undefined;
 		const initiativeId = searchParams.get('initiative_id') || undefined;
-		
+
 		// Get date range from current timeRange setting
 		const dateRange = getDateRange(timeRange, customRange);
 		const since = dateRange.since.toISOString();
 		const until = dateRange.until.toISOString();
-		
+
 		return { types, taskId, initiativeId, since, until };
 	}, [searchParams, timeRange, customRange]);
 
+	// Create set of existing event IDs for deduplication
+	const existingIds = useMemo(() => new Set(events.map((e) => e.id)), [events]);
 
+	// Subscribe to real-time events
+	const { newEvents, clearEvents } = useTimelineEvents({
+		taskId: filters.taskId,
+		existingIds,
+	});
+
+	// Merge new events into events state
+	useEffect(() => {
+		if (newEvents.length > 0) {
+			setEvents((prev) => {
+				// Prepend new events, maintaining deduplication
+				const existingSet = new Set(prev.map((e) => e.id));
+				const uniqueNew = newEvents.filter((e) => !existingSet.has(e.id));
+				return [...uniqueNew, ...prev];
+			});
+			clearEvents();
+		}
+	}, [newEvents, clearEvents]);
 
 	// Check if any filters are active
 	const hasActiveFilters = useMemo(() => {
@@ -378,9 +398,6 @@ export function TimelineView() {
 		container.addEventListener('scroll', handleScroll);
 		return () => container.removeEventListener('scroll', handleScroll);
 	}, [handleScroll]);
-
-	// TODO: Real-time event updates will be implemented via Connect RPC event streaming
-	// The event handler will dispatch timeline events to this component
 
 	// Group events by date
 	const groupedEvents = useMemo(() => {

@@ -8,6 +8,9 @@ export {
 	type TranscriptLine,
 } from './useEvents';
 
+// Timeline event streaming hook
+export { useTimelineEvents, convertEventToTimelineData } from './useTimelineEvents';
+
 // Shortcut hooks
 export {
 	ShortcutProvider,
