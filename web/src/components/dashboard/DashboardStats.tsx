@@ -6,6 +6,7 @@
 import type { ConnectionStatus } from '@/lib/events';
 import type { DashboardStats as ProtoDashboardStats } from '@/gen/orc/v1/dashboard_pb';
 import { formatNumber } from '@/lib/format';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import './DashboardStats.css';
 
@@ -65,7 +66,7 @@ export function DashboardStats({
 				</div>
 			</div>
 			<div className="stats-grid">
-				<button className="stat-card running" onClick={() => onFilterClick('running')}>
+				<Button variant="ghost" className="stat-card running" onClick={() => onFilterClick('running')}>
 					<div className="stat-icon">
 						<Icon name="clock" size={24} />
 					</div>
@@ -73,9 +74,10 @@ export function DashboardStats({
 						<span className="stat-value">{taskCounts?.running ?? 0}</span>
 						<span className="stat-label">Running</span>
 					</div>
-				</button>
+				</Button>
 
-				<button
+				<Button
+					variant="ghost"
 					className="stat-card blocked"
 					onClick={() =>
 						onDependencyFilterClick?.('blocked') ?? onFilterClick('blocked')
@@ -88,9 +90,9 @@ export function DashboardStats({
 						<span className="stat-value">{taskCounts?.blocked ?? 0}</span>
 						<span className="stat-label">Blocked</span>
 					</div>
-				</button>
+				</Button>
 
-				<button className="stat-card today" onClick={() => onFilterClick('all')}>
+				<Button variant="ghost" className="stat-card today" onClick={() => onFilterClick('all')}>
 					<div className="stat-icon">
 						<Icon name="calendar" size={24} />
 					</div>
@@ -98,7 +100,7 @@ export function DashboardStats({
 						<span className="stat-value">{todayCompleted}</span>
 						<span className="stat-label">Today</span>
 					</div>
-				</button>
+				</Button>
 
 				<div className="stat-card tokens" title={tokenTooltip}>
 					<div className="stat-icon">

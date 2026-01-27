@@ -8,6 +8,7 @@ import {
 } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { toast } from '@/stores/uiStore';
 import './AttachmentsTab.css';
 
@@ -215,30 +216,36 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 							<div className="images-grid">
 								{images.map((attachment) => (
 									<div key={attachment.filename} className="image-card">
-										<button
+										<Button
+											variant="ghost"
 											className="image-preview"
 											onClick={() => openLightbox(attachment.filename)}
 											title="Click to enlarge"
+											aria-label={`Preview ${attachment.filename}`}
 										>
 											<img
 												src={getAttachmentUrl(taskId, attachment.filename)}
 												alt={attachment.filename}
 												loading="lazy"
 											/>
-										</button>
+										</Button>
 										<div className="image-info">
 											<span className="image-name" title={attachment.filename}>
 												{attachment.filename}
 											</span>
 											<span className="image-meta">{formatSize(attachment.size)}</span>
 										</div>
-										<button
+										<Button
+											variant="ghost"
+											iconOnly
+											size="sm"
 											className="delete-btn"
 											onClick={() => handleDelete(attachment.filename)}
 											title="Delete"
+											aria-label="Delete attachment"
 										>
 											<Icon name="trash" size={14} />
-										</button>
+										</Button>
 									</div>
 								))}
 							</div>
@@ -263,13 +270,17 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 										</a>
 										<span className="file-meta">{formatSize(attachment.size)}</span>
 										<span className="file-date">{formatDate(timestampToDate(attachment.createdAt))}</span>
-										<button
+										<Button
+											variant="ghost"
+											iconOnly
+											size="sm"
 											className="delete-btn"
 											onClick={() => handleDelete(attachment.filename)}
 											title="Delete"
+											aria-label="Delete file"
 										>
 											<Icon name="trash" size={14} />
-										</button>
+										</Button>
 									</div>
 								))}
 							</div>
@@ -288,9 +299,9 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 					tabIndex={-1}
 				>
 					<div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-						<button className="lightbox-close" onClick={closeLightbox} aria-label="Close">
+						<Button variant="ghost" iconOnly className="lightbox-close" onClick={closeLightbox} aria-label="Close">
 							<Icon name="x" size={24} />
-						</button>
+						</Button>
 						<img src={lightboxImage} alt={lightboxFilename ?? 'Image'} />
 						{lightboxFilename && <div className="lightbox-filename">{lightboxFilename}</div>}
 					</div>

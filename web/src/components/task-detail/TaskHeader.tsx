@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -136,37 +137,47 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 
 	// Determine which action button to show
 	const getActionButton = () => {
-		if (actionLoading) {
-			return (
-				<button className="action-btn" disabled>
-					<div className="btn-spinner" />
-				</button>
-			);
-		}
-
 		switch (task.status) {
 			case TaskStatus.CREATED:
 			case TaskStatus.PLANNED:
 			case TaskStatus.FAILED:
 				return (
-					<button className="action-btn run" onClick={handleRun} title="Run task">
-						<Icon name="play" size={16} />
-						<span>Run</span>
-					</button>
+					<Button
+						variant="primary"
+						onClick={handleRun}
+						title="Run task"
+						loading={actionLoading}
+						leftIcon={<Icon name="play" size={16} />}
+						className="action-btn run"
+					>
+						Run
+					</Button>
 				);
 			case TaskStatus.RUNNING:
 				return (
-					<button className="action-btn pause" onClick={handlePause} title="Pause task">
-						<Icon name="pause" size={16} />
-						<span>Pause</span>
-					</button>
+					<Button
+						variant="secondary"
+						onClick={handlePause}
+						title="Pause task"
+						loading={actionLoading}
+						leftIcon={<Icon name="pause" size={16} />}
+						className="action-btn pause"
+					>
+						Pause
+					</Button>
 				);
 			case TaskStatus.PAUSED:
 				return (
-					<button className="action-btn resume" onClick={handleResume} title="Resume task">
-						<Icon name="play" size={16} />
-						<span>Resume</span>
-					</button>
+					<Button
+						variant="primary"
+						onClick={handleResume}
+						title="Resume task"
+						loading={actionLoading}
+						leftIcon={<Icon name="play" size={16} />}
+						className="action-btn resume"
+					>
+						Resume
+					</Button>
 				);
 			default:
 				return null;
@@ -192,9 +203,16 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 	return (
 		<header className="task-header">
 			<div className="task-header-top">
-				<button className="back-btn" onClick={() => navigate(-1)} title="Go back">
+				<Button
+					variant="ghost"
+					iconOnly
+					onClick={() => navigate(-1)}
+					title="Go back"
+					aria-label="Go back"
+					className="back-btn"
+				>
 					<Icon name="arrow-left" size={20} />
-				</button>
+				</Button>
 
 				<div className="task-identity">
 					<span className="task-id">{task.id}</span>
@@ -231,13 +249,15 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 					</Tooltip>
 					{initiativeBadge && (
 						<Tooltip content={initiativeBadge.full}>
-							<button
+							<Button
+								variant="ghost"
+								size="sm"
 								className="initiative-badge"
 								onClick={() => navigate(`/initiatives/${task.initiativeId}`)}
 							>
 								<Icon name="layers" size={12} />
 								{initiativeBadge.display}
-							</button>
+							</Button>
 						</Tooltip>
 					)}
 				</div>
@@ -245,20 +265,26 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 				<div className="task-actions">
 					{getActionButton()}
 					<ExportDropdown taskId={task.id} />
-					<button
-						className="icon-btn"
+					<Button
+						variant="ghost"
+						iconOnly
 						onClick={() => setShowEditModal(true)}
 						title="Edit task"
+						aria-label="Edit task"
+						className="icon-btn"
 					>
 						<Icon name="edit" size={18} />
-					</button>
-					<button
-						className="icon-btn danger"
+					</Button>
+					<Button
+						variant="danger"
+						iconOnly
 						onClick={() => setShowDeleteConfirm(true)}
 						title="Delete task"
+						aria-label="Delete task"
+						className="icon-btn"
 					>
 						<Icon name="trash" size={18} />
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -293,20 +319,20 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 							be undone.
 						</p>
 						<div className="confirm-actions">
-							<button
-								className="cancel-btn"
+							<Button
+								variant="secondary"
 								onClick={() => setShowDeleteConfirm(false)}
 								disabled={isDeleting}
 							>
 								Cancel
-							</button>
-							<button
-								className="delete-btn"
+							</Button>
+							<Button
+								variant="danger"
 								onClick={handleDelete}
-								disabled={isDeleting}
+								loading={isDeleting}
 							>
-								{isDeleting ? 'Deleting...' : 'Delete'}
-							</button>
+								Delete
+							</Button>
 						</div>
 					</div>
 				</div>

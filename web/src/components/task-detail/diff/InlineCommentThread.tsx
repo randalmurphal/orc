@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { ReviewComment } from '@/gen/orc/v1/task_pb';
 import { CommentSeverity, CommentStatus } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
+import { Button } from '@/components/ui/Button';
 import type { CreateCommentRequest } from './types';
 import './InlineCommentThread.css';
 
@@ -87,11 +88,11 @@ export function InlineCommentThread({
 						</div>
 						<div className="comment-content">{comment.content}</div>
 						<div className="comment-actions">
-							<button onClick={() => onResolveComment(comment.id)}>Resolve</button>
-							<button onClick={() => onWontFixComment(comment.id)}>Won't Fix</button>
-							<button className="delete" onClick={() => onDeleteComment(comment.id)}>
+							<Button variant="ghost" size="sm" onClick={() => onResolveComment(comment.id)}>Resolve</Button>
+							<Button variant="ghost" size="sm" onClick={() => onWontFixComment(comment.id)}>Won't Fix</Button>
+							<Button variant="danger" size="sm" className="delete" onClick={() => onDeleteComment(comment.id)}>
 								Delete
-							</button>
+							</Button>
 						</div>
 					</div>
 				);
@@ -115,14 +116,15 @@ export function InlineCommentThread({
 							{ value: CommentSeverity.ISSUE, label: 'issue' },
 							{ value: CommentSeverity.BLOCKER, label: 'blocker' },
 						]).map((sev) => (
-							<button
+							<Button
 								key={sev.label}
-								type="button"
+								variant={severity === sev.value ? 'primary' : 'ghost'}
+								size="sm"
 								className={`severity-pill ${severity === sev.value ? 'selected' : ''}`}
 								onClick={() => setSeverity(sev.value)}
 							>
 								{sev.label}
-							</button>
+							</Button>
 						))}
 					</div>
 					<textarea
@@ -134,16 +136,18 @@ export function InlineCommentThread({
 						autoFocus
 					/>
 					<div className="form-actions">
-						<button className="cancel-btn" onClick={onCloseThread} disabled={submitting}>
+						<Button variant="secondary" className="cancel-btn" onClick={onCloseThread} disabled={submitting}>
 							Cancel
-						</button>
-						<button
+						</Button>
+						<Button
+							variant="primary"
 							className="submit-btn"
 							onClick={handleSubmit}
-							disabled={!content.trim() || submitting}
+							disabled={!content.trim()}
+							loading={submitting}
 						>
-							{submitting ? 'Adding...' : 'Add Comment'}
-						</button>
+							Add Comment
+						</Button>
 					</div>
 				</div>
 			)}

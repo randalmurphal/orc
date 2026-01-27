@@ -12,11 +12,15 @@ import {
 	PlanPhaseSchema,
 	CreateTaskResponseSchema,
 	UpdateTaskResponseSchema,
+	TaskCommentSchema,
+	ListCommentsResponseSchema,
 	type Task,
 	type TaskPlan,
 	type PlanPhase,
 	type CreateTaskResponse,
 	type UpdateTaskResponse,
+	type TaskComment,
+	type ListCommentsResponse,
 	TaskStatus,
 	TaskWeight,
 	TaskCategory,
@@ -24,6 +28,7 @@ import {
 	TaskQueue,
 	PhaseStatus,
 	DependencyStatus,
+	AuthorType,
 } from '@/gen/orc/v1/task_pb';
 import {
 	InitiativeSchema,
@@ -250,4 +255,27 @@ export function getCategoryLabel(category: TaskCategory): string {
 		case TaskCategory.TEST: return 'test';
 		default: return 'feature';
 	}
+}
+
+/**
+ * Create a mock TaskComment with proto-compatible types
+ */
+export function createMockTaskComment(overrides: Partial<Omit<TaskComment, '$typeName' | '$unknown'>> = {}): TaskComment {
+	const base = create(TaskCommentSchema, {
+		id: 'comment-001',
+		taskId: 'TASK-001',
+		content: 'Test comment',
+		author: 'Test User',
+		authorType: AuthorType.HUMAN,
+		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock ListCommentsResponse with proto-compatible types
+ */
+export function createMockListCommentsResponse(comments: TaskComment[] = []): ListCommentsResponse {
+	return create(ListCommentsResponseSchema, { comments });
 }

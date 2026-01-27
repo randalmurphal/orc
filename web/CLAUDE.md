@@ -37,9 +37,9 @@ web/src/
 │   ├── index.ts          # Fetch functions
 │   └── types.ts          # API response types
 ├── components/
-│   ├── atoms/            # Base primitives (Button, Input, Modal, Badge, etc.)
-│   ├── molecules/        # Compound components (FormField, StatusIndicator)
-│   └── [feature].tsx     # Feature components (TaskCard, TaskList, etc.)
+│   ├── ui/               # Base primitives (Button, Input, Tooltip, etc.)
+│   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
+│   └── [feature]/        # Feature components (board/, task-detail/, etc.)
 ├── context/              # React Context providers
 │   ├── SettingsContext.tsx
 │   ├── ToastContext.tsx
@@ -95,20 +95,19 @@ web/src/
 | `transcript` | `{ task_id, content, tokens }` |
 | `activity` | `{ phase, activity }` |
 
-## Atoms (components/atoms/)
+## UI Components (components/ui/)
 
 Base primitives built on Radix UI:
 
 | Component | Variants/Notes |
 |-----------|----------------|
-| `Button` | primary, secondary, danger, ghost |
+| `Button` | primary, secondary, danger, ghost, success; sizes: sm, md, lg; props: loading, iconOnly, leftIcon, rightIcon |
 | `Input` | text, number, search |
-| `Modal` | Radix Dialog with focus trap |
-| `Badge` | Status colors |
-| `Select` | Radix Select dropdown |
-| `Tabs` | Radix Tabs |
-| `Tooltip` | Radix Tooltip |
-| `Checkbox`, `TextArea`, `ProgressBar` | Standard inputs |
+| `Tooltip` | Radix Tooltip (TooltipProvider at App root) |
+| `Icon` | Lucide icon wrapper |
+| `StatusIndicator` | Task/phase status display |
+| `Skeleton` | Loading placeholder |
+| `Textarea` | Multi-line input |
 
 ## Testing
 

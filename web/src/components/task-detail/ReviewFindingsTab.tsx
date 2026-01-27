@@ -8,6 +8,7 @@ import { taskClient } from '@/lib/client';
 import type { ReviewFinding, ReviewRoundFindings } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import './ReviewFindingsTab.css';
 
 interface ReviewFindingsTabProps {
@@ -105,7 +106,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 
 	return (
 		<div className={`round-section ${isExpanded ? 'expanded' : ''} ${hasInvariantViolation ? 'has-blocker' : ''}`}>
-			<button className="round-header" onClick={onToggle}>
+			<Button variant="ghost" className="round-header" onClick={onToggle}>
 				<div className="round-title">
 					<Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={16} />
 					<span>Round {findings.round}</span>
@@ -134,7 +135,7 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 					)}
 					<span className="timestamp">{formatRelativeTime(timestampToDate(findings.createdAt))}</span>
 				</div>
-			</button>
+			</Button>
 
 			{isExpanded && (
 				<div className="round-content">
@@ -252,7 +253,7 @@ export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
 				<div className="error-message">
 					<Icon name="alert-circle" size={14} />
 					{error}
-					<button onClick={loadFindings}>Retry</button>
+					<Button variant="secondary" size="sm" onClick={loadFindings}>Retry</Button>
 				</div>
 			</div>
 		);

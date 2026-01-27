@@ -27,6 +27,7 @@ import {
 	DashboardSummary,
 	DashboardInitiatives,
 } from '@/components/dashboard';
+import { Button } from '@/components/ui/Button';
 import './Dashboard.css';
 
 // Filter tasks by status
@@ -152,7 +153,7 @@ export function Dashboard() {
 			<div className="dashboard">
 				<div className="error">
 					<p>{error}</p>
-					<button onClick={loadDashboardData}>Retry</button>
+					<Button variant="secondary" onClick={loadDashboardData}>Retry</Button>
 				</div>
 			</div>
 		);
