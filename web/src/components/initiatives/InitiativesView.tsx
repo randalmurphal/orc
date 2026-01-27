@@ -12,7 +12,6 @@ import { create } from '@bufbuild/protobuf';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { InitiativeStatus, ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
-import { timestampToDate } from '@/lib/time';
 import { StatsRow, type InitiativeStats } from './StatsRow';
 import { InitiativeCard } from './InitiativeCard';
 import { Button } from '@/components/ui/Button';
@@ -129,7 +128,6 @@ function InitiativesViewError({ error, onRetry }: InitiativesViewErrorProps) {
  */
 export function InitiativesView({ className = '' }: InitiativesViewProps) {
 	const navigate = useNavigate();
-	const tasks = useTaskStore((state) => state.tasks);
 	const taskStates = useTaskStore((state) => state.taskStates);
 
 	const [initiatives, setInitiatives] = useState<Initiative[]>([]);
@@ -155,71 +153,52 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		loadInitiatives();
 	}, [loadInitiatives]);
 
-	// Pre-compute task lookups in a single pass (O(n) instead of O(n*m))
-	// This builds a Map from initiative_id -> Task[] and tracks aggregate stats
-	const { tasksByInitiative, linkedTasks, tasksThisWeek, completedCount } = useMemo(() => {
-		const byInitiative = new Map<string, typeof tasks>();
-		const linked: typeof tasks = [];
-		let thisWeek = 0;
+	// Compute aggregate task stats from initiative.tasks (from API)
+	// This is more accurate than task store since it includes all linked tasks
+	const { totalLinkedTasks, completedCount } = useMemo(() => {
+		let total = 0;
 		let completed = 0;
 
-		const oneWeekAgo = new Date();
-		oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-		for (const task of tasks) {
-			if (task.initiativeId) {
-				// Build initiative -> tasks lookup
-				const existing = byInitiative.get(task.initiativeId);
-				if (existing) {
-					existing.push(task);
-				} else {
-					byInitiative.set(task.initiativeId, [task]);
-				}
-
-				// Track linked tasks and compute stats in same pass
-				linked.push(task);
-				if (task.status === TaskStatus.COMPLETED) {
-					completed++;
-				}
-				if ((timestampToDate(task.createdAt) ?? new Date(0)) > oneWeekAgo) {
-					thisWeek++;
-				}
-			}
+		for (const initiative of initiatives) {
+			const initiativeTasks = initiative.tasks || [];
+			total += initiativeTasks.length;
+			completed += initiativeTasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 		}
 
-		return {
-			tasksByInitiative: byInitiative,
-			linkedTasks: linked,
-			tasksThisWeek: thisWeek,
-			completedCount: completed,
-		};
-	}, [tasks]);
+		return { totalLinkedTasks: total, completedCount: completed };
+	}, [initiatives]);
 
-	// Compute progress for each initiative using pre-computed lookup (O(n) total)
+	// Compute progress for each initiative using initiative.tasks from API
+	// This is more accurate than task store since initiatives return their linked tasks directly
 	const progressMap = useMemo(() => {
 		const map = new Map<string, ProgressData>();
 
 		for (const initiative of initiatives) {
-			const initiativeTasks = tasksByInitiative.get(initiative.id) || [];
+			// Use initiative.tasks directly from API (TaskRef[] with status field)
+			const initiativeTasks = initiative.tasks || [];
 			const completed = initiativeTasks.filter((t) => t.status === TaskStatus.COMPLETED).length;
 			map.set(initiative.id, { completed, total: initiativeTasks.length });
 		}
 
 		return map;
-	}, [initiatives, tasksByInitiative]);
+	}, [initiatives]);
 
-	// Compute aggregate stats
+	// Compute aggregate stats from initiative.tasks
 	const stats: InitiativeStats = useMemo(() => {
 		// Count active initiatives
 		const activeInitiatives = initiatives.filter((i) => i.status === InitiativeStatus.ACTIVE).length;
 
-		// Use pre-computed values from single-pass task processing
-		const totalTasks = linkedTasks.length;
-		const completionRate = totalTasks > 0 ? (completedCount / totalTasks) * 100 : 0;
+		// Use totals computed from initiative.tasks
+		const completionRate = totalLinkedTasks > 0 ? (completedCount / totalLinkedTasks) * 100 : 0;
 
 		// Calculate total cost from task states (tokens * rate)
 		// Build Set of linked task IDs for O(1) lookup
-		const linkedTaskIds = new Set(linkedTasks.map((t) => t.id));
+		const linkedTaskIds = new Set<string>();
+		for (const initiative of initiatives) {
+			for (const task of initiative.tasks || []) {
+				linkedTaskIds.add(task.id);
+			}
+		}
 		let totalCost = 0;
 		for (const [taskId, state] of taskStates) {
 			if (linkedTaskIds.has(taskId) && state?.tokens) {
@@ -232,12 +211,12 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 
 		return {
 			activeInitiatives,
-			totalTasks,
-			tasksThisWeek,
+			totalTasks: totalLinkedTasks,
+			tasksThisWeek: 0, // Not available from initiative.tasks (no createdAt)
 			completionRate,
 			totalCost,
 		};
-	}, [initiatives, linkedTasks, completedCount, tasksThisWeek, taskStates]);
+	}, [initiatives, totalLinkedTasks, completedCount, taskStates]);
 
 	// Get progress for a specific initiative
 	const getProgress = useCallback(
