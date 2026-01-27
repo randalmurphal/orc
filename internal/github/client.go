@@ -443,6 +443,54 @@ func (c *Client) ReplyToComment(ctx context.Context, number int, threadID int64,
 	}, nil
 }
 
+// GetPRComment fetches a single PR review comment by ID.
+// Uses the GitHub API: GET /repos/{owner}/{repo}/pulls/comments/{comment_id}
+func (c *Client) GetPRComment(ctx context.Context, commentID int64) (*PRComment, error) {
+	output, err := c.runGH(ctx, "api",
+		fmt.Sprintf("/repos/%s/%s/pulls/comments/%d", c.owner, c.repo, commentID))
+	if err != nil {
+		// Check for 404 in error message
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			return nil, fmt.Errorf("comment not found: %d", commentID)
+		}
+		return nil, err
+	}
+
+	var rawComment struct {
+		ID           int64  `json:"id"`
+		Body         string `json:"body"`
+		Path         string `json:"path"`
+		OriginalLine int    `json:"original_line"`
+		Line         int    `json:"line"`
+		Side         string `json:"side"`
+		InReplyToID  int64  `json:"in_reply_to_id"`
+		User         struct {
+			Login string `json:"login"`
+		} `json:"user"`
+		CreatedAt string `json:"created_at"`
+	}
+
+	if err := json.Unmarshal(output, &rawComment); err != nil {
+		return nil, fmt.Errorf("parse PR comment: %w", err)
+	}
+
+	line := rawComment.Line
+	if line == 0 {
+		line = rawComment.OriginalLine
+	}
+
+	return &PRComment{
+		ID:        rawComment.ID,
+		Body:      rawComment.Body,
+		Path:      rawComment.Path,
+		Line:      line,
+		Side:      rawComment.Side,
+		ThreadID:  rawComment.InReplyToID,
+		Author:    rawComment.User.Login,
+		CreatedAt: rawComment.CreatedAt,
+	}, nil
+}
+
 // MergePR merges a pull request.
 func (c *Client) MergePR(ctx context.Context, number int, opts PRMergeOptions) error {
 	args := []string{"pr", "merge", fmt.Sprintf("%d", number)}

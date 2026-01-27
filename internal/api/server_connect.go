@@ -27,7 +27,7 @@ func (s *Server) registerConnectHandlers() {
 	transcriptSvc := NewTranscriptServer(s.backend)
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
-	githubSvc := NewGitHubServer(s.backend, s.workDir, s.logger)
+	githubSvc := NewGitHubServerWithExecutor(s.backend, s.workDir, s.logger, s.publisher, s.orcConfig, s.startTask, nil)
 	dashboardSvc := NewDashboardServer(s.backend, s.logger)
 	projectSvc := NewProjectServer(s.backend, s.logger)
 	branchSvc := NewBranchServer(s.backend, s.logger)

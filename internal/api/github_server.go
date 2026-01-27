@@ -15,18 +15,27 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/github"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// GitHubClientFactory creates a GitHub provider for dependency injection in tests.
+type GitHubClientFactory func(ctx context.Context) (github.Provider, error)
+
 // githubServer implements the GitHubServiceHandler interface.
 type githubServer struct {
 	orcv1connect.UnimplementedGitHubServiceHandler
-	backend    storage.Backend
-	projectDir string
-	logger     *slog.Logger
+	backend       storage.Backend
+	projectDir    string
+	logger        *slog.Logger
+	publisher     events.Publisher
+	config        *config.Config
+	taskExecutor  TaskExecutorFunc    // Optional: spawns executor for autofix
+	clientFactory GitHubClientFactory // Optional: for testing dependency injection
 }
 
 // NewGitHubServer creates a new GitHubService handler.
@@ -39,6 +48,29 @@ func NewGitHubServer(
 		backend:    backend,
 		projectDir: projectDir,
 		logger:     logger,
+	}
+}
+
+// NewGitHubServerWithExecutor creates a GitHubService handler with autofix execution support.
+// The executor callback is called by AutofixComment to spawn a WorkflowExecutor goroutine.
+// The clientFactory is optional - if nil, uses the default getClient method.
+func NewGitHubServerWithExecutor(
+	backend storage.Backend,
+	projectDir string,
+	logger *slog.Logger,
+	publisher events.Publisher,
+	cfg *config.Config,
+	taskExecutor TaskExecutorFunc,
+	clientFactory GitHubClientFactory,
+) orcv1connect.GitHubServiceHandler {
+	return &githubServer{
+		backend:       backend,
+		projectDir:    projectDir,
+		logger:        logger,
+		publisher:     publisher,
+		config:        cfg,
+		taskExecutor:  taskExecutor,
+		clientFactory: clientFactory,
 	}
 }
 
@@ -538,17 +570,186 @@ func (s *githubServer) ReplyToComment(
 	}), nil
 }
 
+// maxCommentBodySize is the maximum size of comment body to include in retry context.
+const maxCommentBodySize = 10 * 1024 // 10KB
+
 // AutofixComment triggers an auto-fix for a PR comment.
-// Note: This is a complex operation that involves rerunning the task.
-// The Connect RPC version returns the result without starting background execution.
+// This fetches the comment from GitHub, sets up retry context, and spawns an executor.
+// The operation returns immediately with success=true once the executor is spawned.
 func (s *githubServer) AutofixComment(
 	ctx context.Context,
 	req *connect.Request[orcv1.AutofixCommentRequest],
 ) (*connect.Response[orcv1.AutofixCommentResponse], error) {
-	// Autofix requires the full server context (running tasks map, etc.)
-	// For now, return unimplemented - the REST handler should be used
-	return nil, connect.NewError(connect.CodeUnimplemented,
-		fmt.Errorf("autofix via Connect RPC not implemented - use REST endpoint"))
+	// Validate required fields
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
+	}
+	if req.Msg.CommentId == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
+	}
+
+	// Load the task
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
+	}
+
+	// Validate task state
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is already running"))
+	}
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task already completed"))
+	}
+	if t.Branch == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task has no branch"))
+	}
+
+	// Get GitHub client - use factory if provided (for tests), otherwise default getClient
+	var ghProvider github.Provider
+	if s.clientFactory != nil {
+		ghProvider, err = s.clientFactory(ctx)
+	} else {
+		ghProvider, err = s.getClient(ctx)
+	}
+	if err != nil {
+		// Check for auth errors
+		if strings.Contains(err.Error(), "not logged in") || strings.Contains(err.Error(), "auth") {
+			return nil, connect.NewError(connect.CodeUnauthenticated,
+				errors.New("GitHub CLI not authenticated. Run 'gh auth login'"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get GitHub client: %w", err))
+	}
+
+	// Fetch the comment from GitHub
+	comment, err := ghProvider.GetPRComment(ctx, req.Msg.CommentId)
+	if err != nil {
+		// Check for specific error types
+		errStr := err.Error()
+		if strings.Contains(errStr, "not found") || strings.Contains(errStr, "404") {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("comment not found: %d", req.Msg.CommentId))
+		}
+		if strings.Contains(errStr, "rate limit") {
+			return nil, connect.NewError(connect.CodeResourceExhausted,
+				errors.New("GitHub API rate limited, try again later"))
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("fetch comment: %w", err))
+	}
+
+	// Build retry context from the comment
+	retryContext := buildAutofixRetryContext(comment)
+
+	// Ensure execution state exists
+	task.EnsureExecutionProto(t)
+
+	// Get current retry count for tracking
+	var currentRetries int32
+	if t.Quality != nil {
+		currentRetries = t.Quality.TotalRetries
+	}
+
+	// Set retry context pointing to implement phase
+	task.SetRetryContextProto(t.Execution, "implement", "", "autofix PR comment", retryContext, currentRetries+1)
+
+	// Update task status to running
+	task.MarkStartedProto(t)
+	implement := "implement"
+	t.CurrentPhase = &implement
+
+	// Increment retry counter
+	task.EnsureQualityMetricsProto(t)
+	t.Quality.TotalRetries++
+
+	// Save task before spawning executor
+	if err := s.backend.SaveTask(t); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
+	}
+
+	// Publish task updated event
+	if s.publisher != nil {
+		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	// Spawn executor if callback is set
+	// We check for immediate failures (spawn errors) but don't block on slow executors.
+	// This satisfies SC-4's "returns immediately" while also catching spawn failures.
+	if s.taskExecutor != nil {
+		taskID := t.Id
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- s.taskExecutor(taskID)
+		}()
+
+		// Wait briefly for immediate spawn failures, but don't block on slow executors
+		select {
+		case err := <-errChan:
+			if err != nil {
+				// Executor failed to spawn - revert task state
+				t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+				errStr := fmt.Sprintf("failed to spawn executor: %v", err)
+				task.EnsureExecutionProto(t)
+				t.Execution.Error = &errStr
+				task.UpdateTimestampProto(t)
+				if saveErr := s.backend.SaveTask(t); saveErr != nil {
+					if s.logger != nil {
+						s.logger.Error("failed to save task after executor failure",
+							"task", taskID, "error", saveErr)
+					}
+				}
+				// Publish failure event
+				if s.publisher != nil {
+					s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, taskID, t))
+				}
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to spawn executor: %w", err))
+			}
+			// Executor completed immediately (unusual but valid)
+		case <-time.After(10 * time.Millisecond):
+			// Executor is still running, return success
+		}
+	}
+
+	// Return success - autofix has started
+	return connect.NewResponse(&orcv1.AutofixCommentResponse{
+		Result: &orcv1.AutofixResult{
+			Success: true,
+		},
+	}), nil
+}
+
+// buildAutofixRetryContext builds the retry context string from a PR comment.
+// This is what gets injected into the {{RETRY_CONTEXT}} template variable.
+func buildAutofixRetryContext(comment *github.PRComment) string {
+	var sb strings.Builder
+
+	sb.WriteString("## PR Feedback to Address\n\n")
+
+	// Add file and line info if available
+	if comment.Path != "" {
+		sb.WriteString(fmt.Sprintf("**%s", comment.Path))
+		if comment.Line > 0 {
+			sb.WriteString(fmt.Sprintf(":%d", comment.Line))
+		}
+		sb.WriteString("**")
+		if comment.Author != "" {
+			sb.WriteString(fmt.Sprintf(" (@%s)", comment.Author))
+		}
+		sb.WriteString("\n")
+	} else if comment.Author != "" {
+		sb.WriteString(fmt.Sprintf("**@%s**\n", comment.Author))
+	}
+
+	// Add the comment body
+	body := comment.Body
+	if len(body) > maxCommentBodySize {
+		body = body[:maxCommentBodySize] + "\n\n(truncated)"
+	}
+	sb.WriteString("> ")
+	// Indent the body for blockquote
+	sb.WriteString(strings.ReplaceAll(body, "\n", "\n> "))
+	sb.WriteString("\n\n---\n\n")
+	sb.WriteString("Please address this feedback and make the necessary changes.\n")
+
+	return sb.String()
 }
 
 // Helper functions
