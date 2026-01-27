@@ -1,0 +1,179 @@
+/* =============================================================================
+   BudgetGauge Component Styles
+   Budget status display with progress bar and metrics
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.budget-gauge {
+	background: var(--bg-card);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xl);
+	padding: var(--space-5);
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.budget-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--space-4);
+}
+
+.budget-title {
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+}
+
+/* ==========================================================================
+   SUMMARY ROW
+   ========================================================================== */
+
+.budget-summary {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	margin-bottom: var(--space-3);
+}
+
+.budget-amount {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-1);
+}
+
+.budget-spent {
+	font-family: var(--font-mono);
+	font-size: var(--text-4xl);
+	font-weight: var(--font-bold);
+	color: var(--text-primary);
+}
+
+.budget-separator {
+	font-size: var(--text-xl);
+	color: var(--text-muted);
+}
+
+.budget-limit {
+	font-family: var(--font-mono);
+	font-size: var(--text-xl);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+}
+
+.budget-percent {
+	font-family: var(--font-mono);
+	font-size: var(--text-xl);
+	font-weight: var(--font-semibold);
+	color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   PROGRESS BAR
+   ========================================================================== */
+
+.budget-bar {
+	width: 100%;
+	height: 8px;
+	background: var(--bg-surface);
+	border-radius: var(--radius-full);
+	overflow: hidden;
+	margin-bottom: var(--space-4);
+}
+
+.budget-fill {
+	height: 100%;
+	border-radius: var(--radius-full);
+	background: var(--green);
+	transition: width 0.3s var(--ease-out), background-color 0.3s var(--ease-out);
+}
+
+/* Warning state: 61-80% */
+.budget-fill.warning {
+	background: var(--amber);
+}
+
+/* Danger state: 81-100% */
+.budget-fill.danger {
+	background: var(--red);
+}
+
+/* Over-budget state: >100% with pulse animation */
+.budget-fill.over {
+	background: var(--red);
+	animation: budget-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes budget-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+
+/* ==========================================================================
+   DETAILS GRID
+   ========================================================================== */
+
+.budget-details {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: var(--space-3);
+}
+
+.budget-stat {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.budget-stat-label {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+}
+
+.budget-stat-value {
+	font-family: var(--font-mono);
+	font-size: var(--text-md);
+	font-weight: var(--font-medium);
+	color: var(--text-primary);
+}
+
+/* ==========================================================================
+   STATUS INDICATOR
+   ========================================================================== */
+
+.budget-status {
+	font-size: var(--text-md);
+	font-weight: var(--font-semibold);
+}
+
+.budget-status.on-track {
+	color: var(--green);
+}
+
+.budget-status.off-track {
+	color: var(--red);
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.budget-fill {
+		transition: none;
+	}
+
+	.budget-fill.over {
+		animation: none;
+	}
+}
