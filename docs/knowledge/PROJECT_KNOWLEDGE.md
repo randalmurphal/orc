@@ -95,6 +95,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Cursor-based transcript pagination | `useTranscripts` hook uses cursor-based pagination with `getTranscriptsPaginated()` API; maintains forward/backward cursors for bidirectional infinite scroll; streaming lines stored temporarily then merged on periodic refresh (5s interval); enables viewing 15-30MB transcripts without loading all into memory | TASK-404 |
 | Virtual scrolling for large lists | `TranscriptVirtualList` uses windowing technique (only renders visible items + overscan); `ResizeObserver` tracks container height; measured heights cached in `Map<number, number>` for accurate positioning; threshold at 100 items triggers virtual mode; handles dynamic item heights via estimate + measurement | TASK-404 |
 | Streaming + DB sync pattern | `TranscriptViewer` accumulates WebSocket `transcript` events in `streamingLines` state; periodic refresh (5s) calls API to sync persisted data and clears streaming buffer; provides immediate feedback while ensuring data consistency; auto-scroll follows new content when enabled | TASK-404 |
+| Weight-to-workflow auto-assignment | CreateTask (API and CLI) auto-assigns `workflow_id` based on `weight` when not explicitly provided: trivial→implement-trivial, small→implement-small, medium→implement-medium, large→implement-large; explicit `workflow_id` takes precedence; enables running tasks without manually specifying workflow | TASK-590 |
 
 ## Known Gotchas
 
