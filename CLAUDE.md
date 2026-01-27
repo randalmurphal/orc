@@ -335,3 +335,22 @@ See `.orc/` for configuration and task details.
 See [docs/knowledge/PROJECT_KNOWLEDGE.md](docs/knowledge/PROJECT_KNOWLEDGE.md) for patterns, gotchas, and decisions learned during development.
 
 <!-- orc:knowledge:target:docs/knowledge/PROJECT_KNOWLEDGE.md -->
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+Patterns, gotchas, and decisions learned during development.
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+
+<!-- orc:knowledge:end -->
