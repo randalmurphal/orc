@@ -208,3 +208,338 @@ func TestParseTable(t *testing.T) {
 		t.Errorf("first row name = %q, want 'Entry1'", rows[0][0])
 	}
 }
+
+func TestWriteKnowledgeToClaudeMD_SinglePattern(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	// Create CLAUDE.md with empty knowledge section
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	// Write a pattern entry
+	entry := &knowledgeEntryForWrite{
+		Type:        "pattern",
+		Name:        "Repository Pattern",
+		Description: "Data access abstraction layer",
+		SourceTask:  "TASK-001",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err != nil {
+		t.Fatalf("writeKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	// Verify the entry was written
+	data, _ := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
+	content := string(data)
+
+	if !strings.Contains(content, "Repository Pattern") {
+		t.Error("pattern name not written")
+	}
+	if !strings.Contains(content, "Data access abstraction layer") {
+		t.Error("pattern description not written")
+	}
+	if !strings.Contains(content, "TASK-001") {
+		t.Error("pattern source not written")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_SingleGotcha(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	entry := &knowledgeEntryForWrite{
+		Type:        "gotcha",
+		Name:        "SQLite locks",
+		Description: "Use WAL mode",
+		SourceTask:  "TASK-002",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err != nil {
+		t.Fatalf("writeKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
+	content := string(data)
+
+	if !strings.Contains(content, "SQLite locks") {
+		t.Error("gotcha name not written")
+	}
+	if !strings.Contains(content, "Use WAL mode") {
+		t.Error("gotcha resolution not written")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_SingleDecision(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	entry := &knowledgeEntryForWrite{
+		Type:        "decision",
+		Name:        "Use PostgreSQL",
+		Description: "Better concurrency than SQLite",
+		SourceTask:  "TASK-003",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err != nil {
+		t.Fatalf("writeKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
+	content := string(data)
+
+	if !strings.Contains(content, "Use PostgreSQL") {
+		t.Error("decision name not written")
+	}
+	if !strings.Contains(content, "Better concurrency than SQLite") {
+		t.Error("decision rationale not written")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_MultipleEntries(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	entries := []*knowledgeEntryForWrite{
+		{Type: "pattern", Name: "Pattern1", Description: "Desc1", SourceTask: "TASK-001"},
+		{Type: "gotcha", Name: "Gotcha1", Description: "Fix1", SourceTask: "TASK-002"},
+		{Type: "decision", Name: "Decision1", Description: "Reason1", SourceTask: "TASK-003"},
+	}
+
+	err = writeMultipleKnowledgeToClaudeMD(tmpDir, entries)
+	if err != nil {
+		t.Fatalf("writeMultipleKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
+	content := string(data)
+
+	if !strings.Contains(content, "Pattern1") {
+		t.Error("pattern not written")
+	}
+	if !strings.Contains(content, "Gotcha1") {
+		t.Error("gotcha not written")
+	}
+	if !strings.Contains(content, "Decision1") {
+		t.Error("decision not written")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_NoKnowledgeSection(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	// CLAUDE.md without knowledge section
+	claudeMD := `# Project
+
+Just some content without knowledge section.
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	entry := &knowledgeEntryForWrite{
+		Type:        "pattern",
+		Name:        "Test",
+		Description: "Test",
+		SourceTask:  "TASK-001",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err == nil {
+		t.Error("expected error when knowledge section is missing")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_PreservesExistingEntries(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	// CLAUDE.md with existing entries
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+| Existing | Already here | TASK-OLD |
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	entry := &knowledgeEntryForWrite{
+		Type:        "pattern",
+		Name:        "New Pattern",
+		Description: "New description",
+		SourceTask:  "TASK-NEW",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err != nil {
+		t.Fatalf("writeKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(tmpDir, "CLAUDE.md"))
+	content := string(data)
+
+	// Both old and new entries should exist
+	if !strings.Contains(content, "Existing") {
+		t.Error("existing entry was removed")
+	}
+	if !strings.Contains(content, "New Pattern") {
+		t.Error("new entry was not added")
+	}
+}
+
+func TestWriteKnowledgeToClaudeMD_EscapesPipes(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+
+	claudeMD := `# Project
+
+<!-- orc:knowledge:begin -->
+## Project Knowledge
+
+### Patterns Learned
+| Pattern | Description | Source |
+|---------|-------------|--------|
+
+### Known Gotchas
+| Issue | Resolution | Source |
+|-------|------------|--------|
+
+### Decisions
+| Decision | Rationale | Source |
+|----------|-----------|--------|
+<!-- orc:knowledge:end -->
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "CLAUDE.md"), []byte(claudeMD), 0644)
+	if err != nil {
+		t.Fatalf("failed to write CLAUDE.md: %v", err)
+	}
+
+	// Entry with pipe character that needs escaping
+	entry := &knowledgeEntryForWrite{
+		Type:        "pattern",
+		Name:        "A | B",
+		Description: "Use A or B | but not C",
+		SourceTask:  "TASK-001",
+	}
+
+	err = writeKnowledgeToClaudeMD(tmpDir, entry)
+	if err != nil {
+		t.Fatalf("writeKnowledgeToClaudeMD() error = %v", err)
+	}
+
+	// Verify table is still parseable (pipes escaped)
+	patterns, _, _, _ := parseKnowledgeSection(tmpDir)
+	if len(patterns) != 1 {
+		t.Errorf("expected 1 pattern, got %d", len(patterns))
+	}
+}

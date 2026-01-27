@@ -478,6 +478,100 @@ func formatDecisionsFile(decisions [][]string) string {
 	return sb.String()
 }
 
+// knowledgeEntryForWrite represents a knowledge entry to be written to CLAUDE.md.
+type knowledgeEntryForWrite struct {
+	Type        string // "pattern", "gotcha", or "decision"
+	Name        string
+	Description string
+	SourceTask  string
+}
+
+// escapeTablePipe escapes pipe characters in markdown table cell values.
+func escapeTablePipe(s string) string {
+	return strings.ReplaceAll(s, "|", "\\|")
+}
+
+// writeKnowledgeToClaudeMD writes a single knowledge entry to the appropriate table in CLAUDE.md.
+func writeKnowledgeToClaudeMD(projectDir string, entry *knowledgeEntryForWrite) error {
+	claudeMDPath := filepath.Join(projectDir, "CLAUDE.md")
+
+	data, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		return fmt.Errorf("read CLAUDE.md: %w", err)
+	}
+
+	content := string(data)
+
+	// Check if knowledge section exists
+	sectionStart := "<!-- orc:knowledge:begin -->"
+	sectionEnd := "<!-- orc:knowledge:end -->"
+
+	startIdx := strings.Index(content, sectionStart)
+	endIdx := strings.Index(content, sectionEnd)
+
+	if startIdx == -1 || endIdx == -1 {
+		return fmt.Errorf("knowledge section not found in CLAUDE.md")
+	}
+
+	// Determine which table header to find based on entry type
+	var tableHeader string
+	switch entry.Type {
+	case "pattern":
+		tableHeader = "### Patterns Learned"
+	case "gotcha":
+		tableHeader = "### Known Gotchas"
+	case "decision":
+		tableHeader = "### Decisions"
+	default:
+		return fmt.Errorf("unknown knowledge type: %s", entry.Type)
+	}
+
+	// Find the table header
+	headerIdx := strings.Index(content, tableHeader)
+	if headerIdx == -1 {
+		return fmt.Errorf("table header %q not found in CLAUDE.md", tableHeader)
+	}
+
+	// Find the separator row (|---|---|---|) after the header
+	afterHeader := content[headerIdx:]
+	lines := strings.Split(afterHeader, "\n")
+
+	separatorIdx := -1
+	absoluteSeparatorEnd := headerIdx
+	for i, line := range lines {
+		absoluteSeparatorEnd += len(line) + 1 // +1 for newline
+		if strings.Contains(line, "|---") {
+			separatorIdx = i
+			break
+		}
+	}
+
+	if separatorIdx == -1 {
+		return fmt.Errorf("table separator not found after %q", tableHeader)
+	}
+
+	// Format the new row with escaped pipe characters
+	newRow := fmt.Sprintf("| %s | %s | %s |\n",
+		escapeTablePipe(entry.Name),
+		escapeTablePipe(entry.Description),
+		escapeTablePipe(entry.SourceTask))
+
+	// Insert the new row after the separator
+	newContent := content[:absoluteSeparatorEnd] + newRow + content[absoluteSeparatorEnd:]
+
+	return os.WriteFile(claudeMDPath, []byte(newContent), 0644)
+}
+
+// writeMultipleKnowledgeToClaudeMD writes multiple knowledge entries to CLAUDE.md.
+func writeMultipleKnowledgeToClaudeMD(projectDir string, entries []*knowledgeEntryForWrite) error {
+	for _, entry := range entries {
+		if err := writeKnowledgeToClaudeMD(projectDir, entry); err != nil {
+			return fmt.Errorf("write entry %s: %w", entry.Name, err)
+		}
+	}
+	return nil
+}
+
 // replaceKnowledgeSectionWithPointer updates CLAUDE.md to point to agent_docs/.
 func replaceKnowledgeSectionWithPointer(projectDir string, patternsCount, gotchasCount, decisionsCount int) error {
 	claudeMDPath := filepath.Join(projectDir, "CLAUDE.md")
@@ -616,16 +710,40 @@ Use --all to approve all pending entries at once.`,
 			defer func() { _ = pdb.Close() }()
 
 			if approveAll {
+				// Get pending entries before approving (ApproveAllPending only returns count)
+				pendingEntries, err := pdb.ListPendingKnowledge()
+				if err != nil {
+					return fmt.Errorf("list pending: %w", err)
+				}
+
+				if len(pendingEntries) == 0 {
+					fmt.Println("No pending entries to approve.")
+					return nil
+				}
+
+				// Approve in database
 				count, err := pdb.ApproveAllPending("cli")
 				if err != nil {
 					return fmt.Errorf("approve all: %w", err)
 				}
-				if count == 0 {
-					fmt.Println("No pending entries to approve.")
-				} else {
-					fmt.Printf("Approved %d entries.\n", count)
-					// TODO: Write approved entries to CLAUDE.md
+
+				// Convert to write entries
+				var writeEntries []*knowledgeEntryForWrite
+				for _, e := range pendingEntries {
+					writeEntries = append(writeEntries, &knowledgeEntryForWrite{
+						Type:        string(e.Type),
+						Name:        e.Name,
+						Description: e.Description,
+						SourceTask:  e.SourceTask,
+					})
 				}
+
+				// Write approved entries to CLAUDE.md
+				if err := writeMultipleKnowledgeToClaudeMD(wd, writeEntries); err != nil {
+					return fmt.Errorf("write to CLAUDE.md: %w", err)
+				}
+
+				fmt.Printf("Approved %d entries.\n", count)
 				return nil
 			}
 
@@ -635,9 +753,18 @@ Use --all to approve all pending entries at once.`,
 				return fmt.Errorf("approve %s: %w", id, err)
 			}
 
-			fmt.Printf("Approved: %s (%s: %s)\n", entry.ID, entry.Type, entry.Name)
+			// Write approved entry to CLAUDE.md
+			writeEntry := &knowledgeEntryForWrite{
+				Type:        string(entry.Type),
+				Name:        entry.Name,
+				Description: entry.Description,
+				SourceTask:  entry.SourceTask,
+			}
+			if err := writeKnowledgeToClaudeMD(wd, writeEntry); err != nil {
+				return fmt.Errorf("write to CLAUDE.md: %w", err)
+			}
 
-			// TODO: Write approved entry to CLAUDE.md
+			fmt.Printf("Approved: %s (%s: %s)\n", entry.ID, entry.Type, entry.Name)
 
 			return nil
 		},
