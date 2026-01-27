@@ -20,7 +20,8 @@ func (s *Server) registerConnectHandlers() {
 	)
 
 	// Create service implementations
-	taskSvc := NewTaskServer(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB)
+	// Use NewTaskServerWithExecutor to enable RunTask to spawn actual executor
+	taskSvc := NewTaskServerWithExecutor(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB, s.startTask)
 	initiativeSvc := NewInitiativeServer(s.backend, s.logger, s.publisher)
 	workflowSvc := NewWorkflowServer(s.backend, s.logger)
 	transcriptSvc := NewTranscriptServer(s.backend)
