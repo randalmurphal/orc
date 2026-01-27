@@ -322,7 +322,12 @@ See also:
 				t.Priority = pri
 			}
 
-			// Set workflow if specified (already validated above)
+			// Auto-assign workflow based on weight if not explicitly provided
+			if workflowID == "" {
+				workflowID = workflow.WeightToWorkflowID(t.Weight)
+			}
+
+			// Set workflow if we have one (either explicit or from weight)
 			if workflowID != "" {
 				t.WorkflowId = &workflowID
 			}
