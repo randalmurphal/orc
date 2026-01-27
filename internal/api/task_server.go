@@ -22,19 +22,27 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// TaskExecutorFunc is the callback type for spawning task executors.
+// It takes a task ID and spawns a WorkflowExecutor goroutine.
+// Returns error if the executor fails to spawn (not execution errors).
+type TaskExecutorFunc func(taskID string) error
+
 // taskServer implements the TaskServiceHandler interface.
 type taskServer struct {
 	orcv1connect.UnimplementedTaskServiceHandler
-	backend     storage.Backend
-	config      *config.Config
-	logger      *slog.Logger
-	publisher   events.Publisher
-	projectRoot string
-	diffCache   *diff.Cache
-	projectDB   *db.ProjectDB
+	backend      storage.Backend
+	config       *config.Config
+	logger       *slog.Logger
+	publisher    events.Publisher
+	projectRoot  string
+	diffCache    *diff.Cache
+	projectDB    *db.ProjectDB
+	taskExecutor TaskExecutorFunc // Optional: spawns executor for RunTask
 }
 
 // NewTaskServer creates a new TaskService handler.
+// Note: Without an executor callback, RunTask will only update status (legacy behavior).
+// Use NewTaskServerWithExecutor for full execution support.
 func NewTaskServer(
 	backend storage.Backend,
 	cfg *config.Config,
@@ -45,13 +53,38 @@ func NewTaskServer(
 	projectDB *db.ProjectDB,
 ) orcv1connect.TaskServiceHandler {
 	return &taskServer{
-		backend:     backend,
-		config:      cfg,
-		logger:      logger,
-		publisher:   publisher,
-		projectRoot: projectRoot,
-		diffCache:   diffCache,
-		projectDB:   projectDB,
+		backend:      backend,
+		config:       cfg,
+		logger:       logger,
+		publisher:    publisher,
+		projectRoot:  projectRoot,
+		diffCache:    diffCache,
+		projectDB:    projectDB,
+		taskExecutor: nil, // No executor - RunTask validates only
+	}
+}
+
+// NewTaskServerWithExecutor creates a TaskService handler with execution support.
+// The executor callback is called by RunTask to spawn a WorkflowExecutor goroutine.
+func NewTaskServerWithExecutor(
+	backend storage.Backend,
+	cfg *config.Config,
+	logger *slog.Logger,
+	publisher events.Publisher,
+	projectRoot string,
+	diffCache *diff.Cache,
+	projectDB *db.ProjectDB,
+	executor TaskExecutorFunc,
+) *taskServer {
+	return &taskServer{
+		backend:      backend,
+		config:       cfg,
+		logger:       logger,
+		publisher:    publisher,
+		projectRoot:  projectRoot,
+		diffCache:    diffCache,
+		projectDB:    projectDB,
+		taskExecutor: executor,
 	}
 }
 
@@ -741,6 +774,7 @@ func (s *taskServer) RemoveRelated(
 // ============================================================================
 
 // RunTask starts execution of a task.
+// This validates the task can be run and spawns an executor via callback.
 func (s *taskServer) RunTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.RunTaskRequest],
@@ -754,9 +788,28 @@ func (s *taskServer) RunTask(
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
 	}
 
-	// Check if task is already running
-	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+	// Validate workflow_id BEFORE any status changes
+	workflowID := t.GetWorkflowId()
+	if workflowID == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task has no workflow_id set"))
+	}
+
+	// Validate task status allows running
+	switch t.Status {
+	case orcv1.TaskStatus_TASK_STATUS_RUNNING:
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is already running"))
+	case orcv1.TaskStatus_TASK_STATUS_COMPLETED:
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is already completed"))
+	case orcv1.TaskStatus_TASK_STATUS_PAUSED:
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is paused - use resume instead"))
+	case orcv1.TaskStatus_TASK_STATUS_BLOCKED:
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task is blocked"))
+	case orcv1.TaskStatus_TASK_STATUS_CREATED,
+		orcv1.TaskStatus_TASK_STATUS_PLANNED,
+		orcv1.TaskStatus_TASK_STATUS_FAILED: // Failed tasks can be retried
+		// OK to run
+	default:
+		// Allow other statuses (FINALIZING, etc.) to proceed for flexibility
 	}
 
 	// Check if task is blocked by dependencies
@@ -772,6 +825,9 @@ func (s *taskServer) RunTask(
 		}
 	}
 
+	// Store original status for rollback if executor fails
+	originalStatus := t.Status
+
 	// Set task to running
 	task.MarkStartedProto(t)
 
@@ -779,9 +835,30 @@ func (s *taskServer) RunTask(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
-	// Publish event
+	// Publish status update event
 	if s.publisher != nil {
 		s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+	}
+
+	// Spawn executor if callback is set
+	if s.taskExecutor != nil {
+		if err := s.taskExecutor(t.Id); err != nil {
+			// Executor failed to spawn - revert status
+			t.Status = originalStatus
+			task.UpdateTimestampProto(t)
+			if saveErr := s.backend.SaveTask(t); saveErr != nil {
+				// Log but don't mask the original error
+				if s.logger != nil {
+					s.logger.Error("failed to revert task status after executor failure",
+						"task", t.Id, "error", saveErr)
+				}
+			}
+			// Publish status revert event
+			if s.publisher != nil {
+				s.publisher.Publish(events.NewEvent(events.EventTaskUpdated, t.Id, t))
+			}
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("spawn executor: %w", err))
+		}
 	}
 
 	return connect.NewResponse(&orcv1.RunTaskResponse{
