@@ -182,6 +182,14 @@ export function WorkflowDetailPanel({
 		}
 	}, [workflow, onClone]);
 
+	const handleEdit = useCallback(() => {
+		if (workflow && !workflow.isBuiltin) {
+			window.dispatchEvent(
+				new CustomEvent('orc:edit-workflow', { detail: { workflow } })
+			);
+		}
+	}, [workflow]);
+
 	if (!workflow) {
 		return null;
 	}
@@ -238,6 +246,16 @@ export function WorkflowDetailPanel({
 
 				{/* Actions */}
 				<div className="workflow-detail-actions">
+					{!displayWorkflow.isBuiltin && (
+						<Button
+							variant="primary"
+							size="sm"
+							leftIcon={<Icon name="edit" size={12} />}
+							onClick={handleEdit}
+						>
+							Edit
+						</Button>
+					)}
 					<Button
 						variant="secondary"
 						size="sm"
