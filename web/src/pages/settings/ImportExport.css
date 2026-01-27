@@ -1,0 +1,198 @@
+/* =============================================================================
+   IMPORT/EXPORT PAGE STYLES
+   ============================================================================= */
+
+.import-export-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  max-width: 900px;
+}
+
+.import-export-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.import-export-header h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.import-export-description {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+}
+
+.import-export-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgba(var(--red-rgb), 0.1);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-md);
+  color: var(--red);
+  font-size: var(--text-sm);
+}
+
+.import-export-result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgba(var(--green-rgb), 0.1);
+  border: 1px solid var(--green);
+  border-radius: var(--radius-md);
+  color: var(--green);
+  font-size: var(--text-sm);
+}
+
+.import-export-result.dry-run {
+  background: rgba(var(--blue-rgb), 0.1);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.import-export-result ul {
+  margin: var(--space-1) 0 0;
+  padding: 0 0 0 var(--space-4);
+}
+
+.import-export-result li {
+  margin: var(--space-0-5) 0;
+}
+
+.import-errors {
+  margin-top: var(--space-2);
+  color: var(--red);
+}
+
+.import-errors ul {
+  margin: var(--space-1) 0 0;
+}
+
+/* Export Options */
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.export-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.export-option input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-option span:first-of-type {
+  color: var(--text-primary);
+}
+
+.option-hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Import File Input */
+.import-file-section {
+  position: relative;
+}
+
+.import-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.import-file-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-inset);
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.import-file-label:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.import-file-input:focus + .import-file-label {
+  border-color: var(--accent);
+  outline: 2px solid rgba(var(--accent-rgb), 0.3);
+  outline-offset: 2px;
+}
+
+.import-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Info Section */
+.import-export-info {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.import-export-info h4 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3);
+}
+
+.import-export-info ul {
+  margin: 0;
+  padding: 0 0 0 var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.import-export-info li strong {
+  color: var(--text-primary);
+}
