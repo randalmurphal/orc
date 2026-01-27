@@ -45,9 +45,32 @@ import {
 } from '@/gen/orc/v1/decision_pb';
 import {
 	WorkflowSchema,
+	WorkflowWithDetailsSchema,
+	WorkflowPhaseSchema,
+	WorkflowVariableSchema,
+	PhaseTemplateSchema,
+	GetWorkflowResponseSchema,
 	ListWorkflowsResponseSchema,
+	ListPhaseTemplatesResponseSchema,
+	UpdateWorkflowResponseSchema,
+	AddPhaseResponseSchema,
+	UpdatePhaseResponseSchema,
+	RemovePhaseResponseSchema,
+	GateType,
+	PromptSource,
+	VariableSourceType,
 	type Workflow,
+	type WorkflowWithDetails,
+	type WorkflowPhase,
+	type WorkflowVariable,
+	type PhaseTemplate,
+	type GetWorkflowResponse,
 	type ListWorkflowsResponse,
+	type ListPhaseTemplatesResponse,
+	type UpdateWorkflowResponse,
+	type AddPhaseResponse,
+	type UpdatePhaseResponse,
+	type RemovePhaseResponse,
 } from '@/gen/orc/v1/workflow_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
@@ -278,4 +301,109 @@ export function createMockTaskComment(overrides: Partial<Omit<TaskComment, '$typ
  */
 export function createMockListCommentsResponse(comments: TaskComment[] = []): ListCommentsResponse {
 	return create(ListCommentsResponseSchema, { comments });
+}
+
+/**
+ * Create a mock PhaseTemplate with proto-compatible types
+ */
+export function createMockPhaseTemplate(overrides: Partial<Omit<PhaseTemplate, '$typeName' | '$unknown'>> = {}): PhaseTemplate {
+	const base = create(PhaseTemplateSchema, {
+		id: 'implement',
+		name: 'Implement',
+		description: 'Implement the feature',
+		promptSource: PromptSource.FILE,
+		inputVariables: [],
+		producesArtifact: false,
+		maxIterations: 3,
+		gateType: GateType.AUTO,
+		checkpoint: false,
+		isBuiltin: true,
+		createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+		updatedAt: createTimestamp('2024-01-01T00:00:00Z'),
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock WorkflowPhase with proto-compatible types
+ */
+export function createMockWorkflowPhase(overrides: Partial<Omit<WorkflowPhase, '$typeName' | '$unknown'>> = {}): WorkflowPhase {
+	const base = create(WorkflowPhaseSchema, {
+		id: 1,
+		workflowId: 'medium',
+		phaseTemplateId: 'implement',
+		sequence: 1,
+		dependsOn: [],
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock WorkflowVariable with proto-compatible types
+ */
+export function createMockWorkflowVariable(overrides: Partial<Omit<WorkflowVariable, '$typeName' | '$unknown'>> = {}): WorkflowVariable {
+	const base = create(WorkflowVariableSchema, {
+		id: 1,
+		workflowId: 'medium',
+		name: 'TEST_VAR',
+		sourceType: VariableSourceType.STATIC,
+		sourceConfig: '',
+		required: false,
+		cacheTtlSeconds: 0,
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock WorkflowWithDetails with proto-compatible types
+ */
+export function createMockWorkflowWithDetails(overrides: Partial<Omit<WorkflowWithDetails, '$typeName' | '$unknown'>> = {}): WorkflowWithDetails {
+	const base = create(WorkflowWithDetailsSchema, {
+		workflow: createMockWorkflow(),
+		phases: [],
+		variables: [],
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock GetWorkflowResponse with proto-compatible types
+ */
+export function createMockGetWorkflowResponse(workflow: WorkflowWithDetails): GetWorkflowResponse {
+	return create(GetWorkflowResponseSchema, { workflow });
+}
+
+/**
+ * Create a mock ListPhaseTemplatesResponse with proto-compatible types
+ */
+export function createMockListPhaseTemplatesResponse(templates: PhaseTemplate[] = []): ListPhaseTemplatesResponse {
+	return create(ListPhaseTemplatesResponseSchema, { templates });
+}
+
+/**
+ * Create a mock UpdateWorkflowResponse with proto-compatible types
+ */
+export function createMockUpdateWorkflowResponse(workflow: Workflow): UpdateWorkflowResponse {
+	return create(UpdateWorkflowResponseSchema, { workflow });
+}
+
+/**
+ * Create a mock AddPhaseResponse with proto-compatible types
+ */
+export function createMockAddPhaseResponse(phase: WorkflowPhase): AddPhaseResponse {
+	return create(AddPhaseResponseSchema, { phase });
+}
+
+/**
+ * Create a mock UpdatePhaseResponse with proto-compatible types
+ */
+export function createMockUpdatePhaseResponse(phase: WorkflowPhase): UpdatePhaseResponse {
+	return create(UpdatePhaseResponseSchema, { phase });
+}
+
+/**
+ * Create a mock RemovePhaseResponse with proto-compatible types
+ */
+export function createMockRemovePhaseResponse(workflow: Workflow): RemovePhaseResponse {
+	return create(RemovePhaseResponseSchema, { workflow });
 }

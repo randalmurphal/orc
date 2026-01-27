@@ -27,6 +27,13 @@ export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: Workfl
 		onClone?.(workflow);
 	};
 
+	const handleEdit = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		window.dispatchEvent(
+			new CustomEvent('orc:edit-workflow', { detail: { workflow } })
+		);
+	};
+
 	return (
 		<article
 			className="workflow-card"
@@ -91,7 +98,7 @@ export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: Workfl
 						variant="ghost"
 						size="sm"
 						className="workflow-card-action"
-						onClick={handleClick}
+						onClick={handleEdit}
 						title="Edit workflow"
 						leftIcon={<Icon name="edit" size={14} />}
 					>

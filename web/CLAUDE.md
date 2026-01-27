@@ -61,6 +61,7 @@ web/src/
 | `/initiatives/:id` | InitiativeDetailPanel | Initiative detail view |
 | `/settings` | SettingsPage | Configuration editor |
 | `/knowledge` | KnowledgePage | Knowledge service config |
+| `/workflows` | WorkflowsPage | Workflow and phase template management |
 
 ## Key Components
 
@@ -74,6 +75,8 @@ web/src/
 | `TranscriptViewer` | Claude conversation display |
 | `KnowledgePanel` | Knowledge service configuration |
 | `WorkflowSelector` | Workflow dropdown for task forms |
+| `EditWorkflowModal` | Workflow metadata and phase editing |
+| `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
 
 ## Custom Hooks
 
