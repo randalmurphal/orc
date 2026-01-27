@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -720,3 +721,72 @@ func TestInternalEventToProto_TaskEvents(t *testing.T) {
 	})
 }
 
+
+// TestDbEventToProto_UsesDatabaseID verifies that dbEventToProto uses the database
+// event ID instead of generating a new UUID. This prevents duplicate events from
+// appearing in the timeline when the same event is fetched multiple times.
+//
+// BUG FIX: TASK-587 - Timeline shows duplicate events because each call to
+// dbEventToProto generated a new UUID, making deduplication impossible.
+func TestDbEventToProto_UsesDatabaseID(t *testing.T) {
+	// Create a database event with a known ID
+	dbEvent := &db.EventLog{
+		ID:        12345,
+		TaskID:    "TASK-001",
+		EventType: "phase",
+		Source:    "executor",
+		CreatedAt: time.Now(),
+	}
+	phase := "implement"
+	dbEvent.Phase = &phase
+
+	// Convert to proto - should use database ID
+	protoEvent := dbEventToProto(dbEvent)
+
+	if protoEvent == nil {
+		t.Fatal("dbEventToProto returned nil")
+	}
+
+	// The proto event ID should be the database ID as a string, not a random UUID
+	expectedID := "12345"
+	if protoEvent.Id != expectedID {
+		t.Errorf("expected proto event ID to be database ID %q, got %q", expectedID, protoEvent.Id)
+	}
+
+	// Verify calling again with same input returns same ID (deterministic)
+	protoEvent2 := dbEventToProto(dbEvent)
+	if protoEvent2.Id != protoEvent.Id {
+		t.Errorf("dbEventToProto should be deterministic: first call returned %q, second returned %q",
+			protoEvent.Id, protoEvent2.Id)
+	}
+}
+
+// TestDbEventToTimelineEvent_UsesDatabaseID verifies that dbEventToTimelineEvent
+// uses the database event ID for consistent identification.
+func TestDbEventToTimelineEvent_UsesDatabaseID(t *testing.T) {
+	dbEvent := &db.EventLogWithTitle{
+		EventLog: db.EventLog{
+			ID:        67890,
+			TaskID:    "TASK-002",
+			EventType: "phase",
+			Source:    "executor",
+			CreatedAt: time.Now(),
+		},
+		TaskTitle: "Test Task",
+	}
+	phase := "spec"
+	dbEvent.Phase = &phase
+
+	// Convert to timeline event - should use database ID
+	timelineEvent := dbEventToTimelineEvent(dbEvent)
+
+	if timelineEvent == nil {
+		t.Fatal("dbEventToTimelineEvent returned nil")
+	}
+
+	// The event ID should be the database ID as a string
+	expectedID := "67890"
+	if timelineEvent.Id != expectedID {
+		t.Errorf("expected timeline event ID to be database ID %q, got %q", expectedID, timelineEvent.Id)
+	}
+}
