@@ -527,6 +527,48 @@ type PlanConfig struct {
 	MinimumSections []string `yaml:"minimum_sections,omitempty"`
 }
 
+// WeightsConfig defines which workflow to use for each task weight.
+// This replaces the hardcoded WeightToWorkflowID() function.
+type WeightsConfig struct {
+	// Trivial is the workflow ID for trivial weight tasks (default: implement-trivial)
+	Trivial string `yaml:"trivial,omitempty"`
+	// Small is the workflow ID for small weight tasks (default: implement-small)
+	Small string `yaml:"small,omitempty"`
+	// Medium is the workflow ID for medium weight tasks (default: implement-medium)
+	Medium string `yaml:"medium,omitempty"`
+	// Large is the workflow ID for large weight tasks (default: implement-large)
+	Large string `yaml:"large,omitempty"`
+}
+
+// GetWorkflowID returns the workflow ID for a given weight.
+// Falls back to "implement-{weight}" if not configured.
+func (w WeightsConfig) GetWorkflowID(weight string) string {
+	switch weight {
+	case "trivial":
+		if w.Trivial != "" {
+			return w.Trivial
+		}
+		return "implement-trivial"
+	case "small":
+		if w.Small != "" {
+			return w.Small
+		}
+		return "implement-small"
+	case "medium":
+		if w.Medium != "" {
+			return w.Medium
+		}
+		return "implement-medium"
+	case "large":
+		if w.Large != "" {
+			return w.Large
+		}
+		return "implement-large"
+	default:
+		return ""
+	}
+}
+
 // ArtifactSkipConfig defines artifact detection and auto-skip behavior.
 type ArtifactSkipConfig struct {
 	// Enabled enables artifact detection for phases (default: true)

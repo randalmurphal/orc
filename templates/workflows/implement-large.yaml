@@ -1,0 +1,28 @@
+id: implement-large
+name: "Implement (Large)"
+description: "Full implementation workflow: spec, TDD, breakdown, implement, review, docs"
+workflow_type: task
+
+phases:
+  - template: spec
+    sequence: 0
+
+  - template: tdd_write
+    sequence: 1
+    depends_on: ["spec"]
+
+  - template: breakdown
+    sequence: 2
+    depends_on: ["tdd_write"]
+
+  - template: implement
+    sequence: 3
+    depends_on: ["breakdown"]
+
+  - template: review
+    sequence: 4
+    depends_on: ["implement"]
+
+  - template: docs
+    sequence: 5
+    depends_on: ["review"]

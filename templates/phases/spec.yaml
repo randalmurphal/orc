@@ -1,0 +1,20 @@
+id: spec
+name: "Specification"
+description: "Generate technical specification with user stories and success criteria"
+
+prompt_source: embedded
+prompt_path: prompts/spec.md
+
+input_variables: ["TASK_DESCRIPTION", "TASK_CATEGORY", "INITIATIVE_CONTEXT"]
+output_var_name: "SPEC_CONTENT"
+output_type: document
+produces_artifact: true
+artifact_type: spec
+
+max_iterations: 20
+model: opus
+thinking: true
+gate_type: auto
+checkpoint: true
+
+claude_config: '{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}'

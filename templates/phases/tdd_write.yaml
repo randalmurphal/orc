@@ -1,0 +1,21 @@
+id: tdd_write
+name: "TDD - Write Tests"
+description: "Write failing tests before implementation (TDD-first)"
+
+prompt_source: embedded
+prompt_path: prompts/tdd_write.md
+
+input_variables: ["SPEC_CONTENT"]
+output_var_name: "TDD_TESTS_CONTENT"
+output_type: tests
+produces_artifact: true
+artifact_type: tests
+
+max_iterations: 20
+model: opus
+thinking: false
+gate_type: auto
+checkpoint: true
+retry_from_phase: spec
+
+claude_config: '{}'

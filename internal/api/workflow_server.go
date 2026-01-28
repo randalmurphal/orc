@@ -15,23 +15,27 @@ import (
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // workflowServer implements the WorkflowServiceHandler interface.
 type workflowServer struct {
 	orcv1connect.UnimplementedWorkflowServiceHandler
-	backend storage.Backend
-	logger  *slog.Logger
+	backend  storage.Backend
+	resolver *workflow.Resolver
+	logger   *slog.Logger
 }
 
 // NewWorkflowServer creates a new WorkflowService handler.
 func NewWorkflowServer(
 	backend storage.Backend,
+	resolver *workflow.Resolver,
 	logger *slog.Logger,
 ) orcv1connect.WorkflowServiceHandler {
 	return &workflowServer{
-		backend: backend,
-		logger:  logger,
+		backend:  backend,
+		resolver: resolver,
+		logger:   logger,
 	}
 }
 
@@ -47,18 +51,40 @@ func (s *workflowServer) ListWorkflows(
 		}), nil
 	}
 
-	// Convert to proto and collect phase counts
+	// Convert to proto and collect phase counts and sources
 	protoWorkflows := make([]*orcv1.Workflow, len(workflows))
 	phaseCounts := make(map[string]int32, len(workflows))
+	sources := make(map[string]orcv1.DefinitionSource, len(workflows))
+
+	// Build source map from resolver if available
+	var resolvedWorkflows []workflow.ResolvedWorkflow
+	if s.resolver != nil {
+		resolvedWorkflows, _ = s.resolver.ListWorkflows()
+	}
+	sourceMap := make(map[string]workflow.Source)
+	for _, rw := range resolvedWorkflows {
+		sourceMap[rw.Workflow.ID] = rw.Source
+	}
+
 	for i, w := range workflows {
 		protoWorkflows[i] = dbWorkflowToProto(w)
 		phases, _ := s.backend.GetWorkflowPhases(w.ID)
 		phaseCounts[w.ID] = int32(len(phases))
+
+		// Get source from resolver map or fall back to builtin check
+		if src, ok := sourceMap[w.ID]; ok {
+			sources[w.ID] = workflowSourceToProto(src)
+		} else if w.IsBuiltin {
+			sources[w.ID] = orcv1.DefinitionSource_DEFINITION_SOURCE_EMBEDDED
+		} else {
+			sources[w.ID] = orcv1.DefinitionSource_DEFINITION_SOURCE_PROJECT
+		}
 	}
 
 	return connect.NewResponse(&orcv1.ListWorkflowsResponse{
 		Workflows:   protoWorkflows,
 		PhaseCounts: phaseCounts,
+		Sources:     sources,
 	}), nil
 }
 
@@ -583,13 +609,35 @@ func (s *workflowServer) ListPhaseTemplates(
 		templates = filtered
 	}
 
+	// Build source map from resolver if available
+	var resolvedPhases []workflow.ResolvedPhase
+	if s.resolver != nil {
+		resolvedPhases, _ = s.resolver.ListPhases()
+	}
+	sourceMap := make(map[string]workflow.Source)
+	for _, rp := range resolvedPhases {
+		sourceMap[rp.Phase.ID] = rp.Source
+	}
+
 	protoTemplates := make([]*orcv1.PhaseTemplate, len(templates))
+	sources := make(map[string]orcv1.DefinitionSource, len(templates))
+
 	for i, t := range templates {
 		protoTemplates[i] = dbPhaseTemplateToProto(t)
+
+		// Get source from resolver map or fall back to builtin check
+		if src, ok := sourceMap[t.ID]; ok {
+			sources[t.ID] = workflowSourceToProto(src)
+		} else if t.IsBuiltin {
+			sources[t.ID] = orcv1.DefinitionSource_DEFINITION_SOURCE_EMBEDDED
+		} else {
+			sources[t.ID] = orcv1.DefinitionSource_DEFINITION_SOURCE_PROJECT
+		}
 	}
 
 	return connect.NewResponse(&orcv1.ListPhaseTemplatesResponse{
 		Templates: protoTemplates,
+		Sources:   sources,
 	}), nil
 }
 
@@ -1298,4 +1346,22 @@ func dependsOnToJSON(deps []string) string {
 	}
 	b, _ := json.Marshal(deps)
 	return string(b)
+}
+
+// workflowSourceToProto converts a workflow.Source to a proto DefinitionSource.
+func workflowSourceToProto(s workflow.Source) orcv1.DefinitionSource {
+	switch s {
+	case workflow.SourceEmbedded:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_EMBEDDED
+	case workflow.SourceProject:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_PROJECT
+	case workflow.SourceProjectShared:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_SHARED
+	case workflow.SourceProjectLocal:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_LOCAL
+	case workflow.SourcePersonalGlobal:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_PERSONAL
+	default:
+		return orcv1.DefinitionSource_DEFINITION_SOURCE_UNSPECIFIED
+	}
 }

@@ -19,3 +19,15 @@ var SystemPrompts embed.FS
 //
 //go:embed agents/*.md
 var Agents embed.FS
+
+// Workflows contains embedded workflow definition files.
+// Each file is a YAML definition of a workflow with its phases and variables.
+//
+//go:embed workflows/*.yaml
+var Workflows embed.FS
+
+// Phases contains embedded phase template definition files.
+// Each file is a YAML definition of a phase template with its configuration.
+//
+//go:embed phases/*.yaml
+var Phases embed.FS

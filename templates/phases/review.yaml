@@ -1,0 +1,18 @@
+id: review
+name: "Code Review"
+description: "Multi-agent code review with specialized reviewers"
+
+prompt_source: embedded
+prompt_path: prompts/review.md
+
+input_variables: ["SPEC_CONTENT", "REVIEW_ROUND", "REVIEW_FINDINGS"]
+output_type: none
+produces_artifact: false
+
+max_iterations: 3
+model: opus
+thinking: true
+gate_type: auto
+checkpoint: true
+
+claude_config: '{"disallowed_tools": ["Write", "Edit", "NotebookEdit"], "append_system_prompt": "Sub-agents available for specialized review: code-reviewer (guidelines), silent-failure-hunter (error handling), pr-test-analyzer (test coverage), comment-analyzer (documentation), type-design-analyzer (type design). Delegate to relevant agents based on task weight - small tasks use fewer agents, large tasks use all. Synthesize findings from all agents into cohesive review output."}'

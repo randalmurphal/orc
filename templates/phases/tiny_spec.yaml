@@ -1,0 +1,20 @@
+id: tiny_spec
+name: "Lightweight Spec"
+description: "Combined spec and TDD plan for trivial/small tasks"
+
+prompt_source: embedded
+prompt_path: prompts/tiny_spec.md
+
+input_variables: ["TASK_DESCRIPTION", "TASK_CATEGORY"]
+output_var_name: "SPEC_CONTENT"
+output_type: document
+produces_artifact: true
+artifact_type: spec
+
+max_iterations: 10
+model: opus
+thinking: false
+gate_type: auto
+checkpoint: true
+
+claude_config: '{"disallowed_tools": ["Write", "Edit"]}'

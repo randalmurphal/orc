@@ -1,0 +1,14 @@
+id: qa-e2e
+name: "E2E QA Testing"
+description: "Browser-based E2E testing with automatic fix loop. Run via 'orc qa TASK-XXX'."
+workflow_type: branch
+
+phases:
+  - template: qa_e2e_test
+    sequence: 0
+
+  - template: qa_e2e_fix
+    sequence: 1
+    depends_on: ["qa_e2e_test"]
+    # Loop back to qa_e2e_test after fixing, max 3 iterations
+    # loop_config: {"condition":"has_findings","loop_to_phase":"qa_e2e_test","max_iterations":3}

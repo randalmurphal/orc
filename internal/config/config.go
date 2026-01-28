@@ -100,6 +100,9 @@ type Config struct {
 	// Plan/spec configuration
 	Plan PlanConfig `yaml:"plan"`
 
+	// Weights configuration - maps task weights to workflow IDs
+	Weights WeightsConfig `yaml:"weights"`
+
 	// Artifact skip configuration
 	ArtifactSkip ArtifactSkipConfig `yaml:"artifact_skip"`
 

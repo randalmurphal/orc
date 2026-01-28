@@ -1,0 +1,16 @@
+id: implement-small
+name: "Implement (Small)"
+description: "Lightweight workflow: tiny_spec, implement, review"
+workflow_type: task
+
+phases:
+  - template: tiny_spec
+    sequence: 0
+
+  - template: implement
+    sequence: 1
+    depends_on: ["tiny_spec"]
+
+  - template: review
+    sequence: 2
+    depends_on: ["implement"]

@@ -1,0 +1,20 @@
+id: qa_e2e_fix
+name: "E2E QA Fix"
+description: "Investigate and fix issues found by QA E2E testing"
+
+prompt_source: embedded
+prompt_path: prompts/qa_e2e_fix.md
+
+input_variables: ["SPEC_CONTENT", "QA_FINDINGS", "QA_ITERATION", "QA_MAX_ITERATIONS"]
+output_type: code
+produces_artifact: false
+
+max_iterations: 30
+model: opus
+thinking: true
+gate_type: auto
+checkpoint: true
+retry_from_phase: qa_e2e_test
+
+quality_checks: '[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]'
+claude_config: '{}'

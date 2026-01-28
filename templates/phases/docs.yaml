@@ -1,0 +1,20 @@
+id: docs
+name: "Documentation"
+description: "Update or create documentation"
+
+prompt_source: embedded
+prompt_path: prompts/docs.md
+
+input_variables: ["SPEC_CONTENT"]
+output_var_name: "DOCS_CONTENT"
+output_type: document
+produces_artifact: true
+artifact_type: docs
+
+max_iterations: 10
+model: opus
+thinking: false
+gate_type: auto
+checkpoint: true
+
+claude_config: '{"disallowed_tools": ["Bash"]}'

@@ -4,10 +4,12 @@ package api
 
 import (
 	"net/http"
+	"path/filepath"
 
 	"connectrpc.com/connect"
 
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // registerConnectHandlers sets up Connect RPC service handlers.
@@ -23,7 +25,10 @@ func (s *Server) registerConnectHandlers() {
 	// Use NewTaskServerWithExecutor to enable RunTask to spawn actual executor
 	taskSvc := NewTaskServerWithExecutor(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB, s.startTask)
 	initiativeSvc := NewInitiativeServer(s.backend, s.logger, s.publisher)
-	workflowSvc := NewWorkflowServer(s.backend, s.logger)
+	// Create resolver for workflow/phase source tracking
+	orcDir := filepath.Join(s.workDir, ".orc")
+	resolver := workflow.NewResolverFromOrcDir(orcDir)
+	workflowSvc := NewWorkflowServer(s.backend, resolver, s.logger)
 	transcriptSvc := NewTranscriptServer(s.backend)
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
