@@ -737,57 +737,76 @@ func (s *workflowServer) UpdatePhaseTemplate(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.Id)
-	if err != nil || tmpl == nil {
+	// Resolve the phase template to get source info
+	resolved, err := s.resolver.ResolvePhase(req.Msg.Id)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.Id))
 	}
-	if tmpl.IsBuiltin {
+	if resolved.Source == workflow.SourceEmbedded {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in phase template"))
 	}
 
-	// Apply updates
+	// Apply updates to the phase template
+	pt := resolved.Phase
 	if req.Msg.Name != nil {
-		tmpl.Name = *req.Msg.Name
+		pt.Name = *req.Msg.Name
 	}
 	if req.Msg.Description != nil {
-		tmpl.Description = *req.Msg.Description
+		pt.Description = *req.Msg.Description
 	}
 	if req.Msg.PromptSource != nil {
-		tmpl.PromptSource = protoPromptSourceToString(*req.Msg.PromptSource)
+		pt.PromptSource = workflow.PromptSource(protoPromptSourceToString(*req.Msg.PromptSource))
 	}
 	if req.Msg.PromptContent != nil {
-		tmpl.PromptContent = *req.Msg.PromptContent
+		pt.PromptContent = *req.Msg.PromptContent
 	}
 	if req.Msg.PromptPath != nil {
-		tmpl.PromptPath = *req.Msg.PromptPath
+		pt.PromptPath = *req.Msg.PromptPath
 	}
 	if req.Msg.OutputSchema != nil {
-		tmpl.OutputSchema = *req.Msg.OutputSchema
+		pt.OutputSchema = *req.Msg.OutputSchema
 	}
 	if req.Msg.ProducesArtifact != nil {
-		tmpl.ProducesArtifact = *req.Msg.ProducesArtifact
+		pt.ProducesArtifact = *req.Msg.ProducesArtifact
 	}
 	if req.Msg.ArtifactType != nil {
-		tmpl.ArtifactType = *req.Msg.ArtifactType
+		pt.ArtifactType = *req.Msg.ArtifactType
 	}
 	if req.Msg.MaxIterations != nil {
-		tmpl.MaxIterations = int(*req.Msg.MaxIterations)
+		pt.MaxIterations = int(*req.Msg.MaxIterations)
 	}
 	if req.Msg.ModelOverride != nil {
-		tmpl.ModelOverride = *req.Msg.ModelOverride
+		pt.ModelOverride = *req.Msg.ModelOverride
 	}
 	if req.Msg.ThinkingEnabled != nil {
-		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
+		pt.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
 	if req.Msg.GateType != nil {
-		tmpl.GateType = protoGateTypeToString(*req.Msg.GateType)
+		pt.GateType = workflow.GateType(protoGateTypeToString(*req.Msg.GateType))
 	}
 	if req.Msg.Checkpoint != nil {
-		tmpl.Checkpoint = *req.Msg.Checkpoint
+		pt.Checkpoint = *req.Msg.Checkpoint
 	}
 
-	if err := s.backend.SavePhaseTemplate(tmpl); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase template: %w", err))
+	// Write back to file if source is file-based (not embedded/database)
+	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
+	if writeLevel != "" {
+		writer := workflow.NewWriterFromOrcDir(s.resolver.OrcDir())
+		if _, writeErr := writer.WritePhase(pt, writeLevel); writeErr != nil {
+			s.logger.Warn("failed to write phase file", "id", req.Msg.Id, "error", writeErr)
+			// Fall through to DB update
+		}
+	}
+
+	// Sync cache to update DB
+	if _, err := s.cache.SyncAll(); err != nil {
+		s.logger.Warn("failed to sync cache after phase update", "error", err)
+	}
+
+	// Get updated phase template from DB for response
+	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get updated phase template: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.UpdatePhaseTemplateResponse{
