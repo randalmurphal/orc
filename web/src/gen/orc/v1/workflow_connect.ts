@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateWorkflowRequest, UpdateWorkflowResponse } from "./workflow_pb.js";
+import { AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateWorkflowRequest, UpdateWorkflowResponse } from "./workflow_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -154,6 +154,15 @@ export const WorkflowService = {
       name: "DeletePhaseTemplate",
       I: DeletePhaseTemplateRequest,
       O: DeletePhaseTemplateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.ClonePhaseTemplate
+     */
+    clonePhaseTemplate: {
+      name: "ClonePhaseTemplate",
+      I: ClonePhaseTemplateRequest,
+      O: ClonePhaseTemplateResponse,
       kind: MethodKind.Unary,
     },
     /**

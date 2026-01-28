@@ -90,7 +90,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 	const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
 	const [workflowSources, setWorkflowSources] = useState<Record<string, DefinitionSource>>({});
 	const [phaseSources, setPhaseSources] = useState<Record<string, DefinitionSource>>({});
-	const { workflows, phaseTemplates, setWorkflows, setPhaseTemplates } = useWorkflowStore();
+	const { workflows, phaseTemplates, setWorkflows, setPhaseTemplates, refreshKey } = useWorkflowStore();
 
 	const loadData = useCallback(async () => {
 		setLoading(true);
@@ -128,7 +128,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 
 	useEffect(() => {
 		loadData();
-	}, [loadData]);
+	}, [loadData, refreshKey]);
 
 	const handleSelectWorkflow = useCallback((workflow: Workflow) => {
 		window.dispatchEvent(new CustomEvent('orc:select-workflow', { detail: { workflow } }));
@@ -140,9 +140,11 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 
 	const handleSelectPhaseTemplate = useCallback((template: PhaseTemplate) => {
 		window.dispatchEvent(
-			new CustomEvent('orc:select-phase-template', { detail: { template } })
+			new CustomEvent('orc:select-phase-template', {
+				detail: { template, source: phaseSources[template.id] }
+			})
 		);
-	}, []);
+	}, [phaseSources]);
 
 	const handleAddWorkflow = useCallback(() => {
 		window.dispatchEvent(new CustomEvent('orc:add-workflow'));

@@ -21,6 +21,7 @@ interface WorkflowStore {
 	selectedRun: WorkflowRunWithDetails | null;
 	loading: boolean;
 	error: string | null;
+	refreshKey: number; // Incremented to trigger re-fetches
 
 	// Derived state
 	getBuiltinWorkflows: () => Workflow[];
@@ -41,6 +42,7 @@ interface WorkflowStore {
 	addPhaseTemplate: (template: PhaseTemplate) => void;
 	updatePhaseTemplate: (id: string, updates: Partial<PhaseTemplate>) => void;
 	removePhaseTemplate: (id: string) => void;
+	refreshPhaseTemplates: () => void;
 	addWorkflowRun: (run: WorkflowRun) => void;
 	updateWorkflowRun: (id: string, updates: Partial<WorkflowRun>) => void;
 	setLoading: (loading: boolean) => void;
@@ -58,6 +60,7 @@ const initialState = {
 	selectedRun: null as WorkflowRunWithDetails | null,
 	loading: false,
 	error: null as string | null,
+	refreshKey: 0,
 };
 
 export const useWorkflowStore = create<WorkflowStore>()(
@@ -144,6 +147,9 @@ export const useWorkflowStore = create<WorkflowStore>()(
 				phaseTemplates: state.phaseTemplates.filter((pt) => pt.id !== id),
 			})),
 
+		refreshPhaseTemplates: () =>
+			set((state) => ({ refreshKey: state.refreshKey + 1 })),
+
 		addWorkflowRun: (run) =>
 			set((state) => {
 				if (state.workflowRuns.some((r) => r.id === run.id)) {
@@ -180,3 +186,4 @@ export const useCustomPhases = () => useWorkflowStore((state) => state.getCustom
 export const useRunningRuns = () => useWorkflowStore((state) => state.getRunningRuns());
 export const useSelectedWorkflow = () => useWorkflowStore((state) => state.selectedWorkflow);
 export const useSelectedRun = () => useWorkflowStore((state) => state.selectedRun);
+export const useRefreshKey = () => useWorkflowStore((state) => state.refreshKey);

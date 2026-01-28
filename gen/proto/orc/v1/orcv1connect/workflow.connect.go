@@ -81,6 +81,9 @@ const (
 	// WorkflowServiceDeletePhaseTemplateProcedure is the fully-qualified name of the WorkflowService's
 	// DeletePhaseTemplate RPC.
 	WorkflowServiceDeletePhaseTemplateProcedure = "/orc.v1.WorkflowService/DeletePhaseTemplate"
+	// WorkflowServiceClonePhaseTemplateProcedure is the fully-qualified name of the WorkflowService's
+	// ClonePhaseTemplate RPC.
+	WorkflowServiceClonePhaseTemplateProcedure = "/orc.v1.WorkflowService/ClonePhaseTemplate"
 	// WorkflowServiceGetPromptContentProcedure is the fully-qualified name of the WorkflowService's
 	// GetPromptContent RPC.
 	WorkflowServiceGetPromptContentProcedure = "/orc.v1.WorkflowService/GetPromptContent"
@@ -116,6 +119,7 @@ type WorkflowServiceClient interface {
 	CreatePhaseTemplate(context.Context, *connect.Request[v1.CreatePhaseTemplateRequest]) (*connect.Response[v1.CreatePhaseTemplateResponse], error)
 	UpdatePhaseTemplate(context.Context, *connect.Request[v1.UpdatePhaseTemplateRequest]) (*connect.Response[v1.UpdatePhaseTemplateResponse], error)
 	DeletePhaseTemplate(context.Context, *connect.Request[v1.DeletePhaseTemplateRequest]) (*connect.Response[v1.DeletePhaseTemplateResponse], error)
+	ClonePhaseTemplate(context.Context, *connect.Request[v1.ClonePhaseTemplateRequest]) (*connect.Response[v1.ClonePhaseTemplateResponse], error)
 	GetPromptContent(context.Context, *connect.Request[v1.GetPromptContentRequest]) (*connect.Response[v1.GetPromptContentResponse], error)
 	ListWorkflowRuns(context.Context, *connect.Request[v1.ListWorkflowRunsRequest]) (*connect.Response[v1.ListWorkflowRunsResponse], error)
 	GetWorkflowRun(context.Context, *connect.Request[v1.GetWorkflowRunRequest]) (*connect.Response[v1.GetWorkflowRunResponse], error)
@@ -230,6 +234,12 @@ func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(workflowServiceMethods.ByName("DeletePhaseTemplate")),
 			connect.WithClientOptions(opts...),
 		),
+		clonePhaseTemplate: connect.NewClient[v1.ClonePhaseTemplateRequest, v1.ClonePhaseTemplateResponse](
+			httpClient,
+			baseURL+WorkflowServiceClonePhaseTemplateProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("ClonePhaseTemplate")),
+			connect.WithClientOptions(opts...),
+		),
 		getPromptContent: connect.NewClient[v1.GetPromptContentRequest, v1.GetPromptContentResponse](
 			httpClient,
 			baseURL+WorkflowServiceGetPromptContentProcedure,
@@ -281,6 +291,7 @@ type workflowServiceClient struct {
 	createPhaseTemplate *connect.Client[v1.CreatePhaseTemplateRequest, v1.CreatePhaseTemplateResponse]
 	updatePhaseTemplate *connect.Client[v1.UpdatePhaseTemplateRequest, v1.UpdatePhaseTemplateResponse]
 	deletePhaseTemplate *connect.Client[v1.DeletePhaseTemplateRequest, v1.DeletePhaseTemplateResponse]
+	clonePhaseTemplate  *connect.Client[v1.ClonePhaseTemplateRequest, v1.ClonePhaseTemplateResponse]
 	getPromptContent    *connect.Client[v1.GetPromptContentRequest, v1.GetPromptContentResponse]
 	listWorkflowRuns    *connect.Client[v1.ListWorkflowRunsRequest, v1.ListWorkflowRunsResponse]
 	getWorkflowRun      *connect.Client[v1.GetWorkflowRunRequest, v1.GetWorkflowRunResponse]
@@ -368,6 +379,11 @@ func (c *workflowServiceClient) DeletePhaseTemplate(ctx context.Context, req *co
 	return c.deletePhaseTemplate.CallUnary(ctx, req)
 }
 
+// ClonePhaseTemplate calls orc.v1.WorkflowService.ClonePhaseTemplate.
+func (c *workflowServiceClient) ClonePhaseTemplate(ctx context.Context, req *connect.Request[v1.ClonePhaseTemplateRequest]) (*connect.Response[v1.ClonePhaseTemplateResponse], error) {
+	return c.clonePhaseTemplate.CallUnary(ctx, req)
+}
+
 // GetPromptContent calls orc.v1.WorkflowService.GetPromptContent.
 func (c *workflowServiceClient) GetPromptContent(ctx context.Context, req *connect.Request[v1.GetPromptContentRequest]) (*connect.Response[v1.GetPromptContentResponse], error) {
 	return c.getPromptContent.CallUnary(ctx, req)
@@ -411,6 +427,7 @@ type WorkflowServiceHandler interface {
 	CreatePhaseTemplate(context.Context, *connect.Request[v1.CreatePhaseTemplateRequest]) (*connect.Response[v1.CreatePhaseTemplateResponse], error)
 	UpdatePhaseTemplate(context.Context, *connect.Request[v1.UpdatePhaseTemplateRequest]) (*connect.Response[v1.UpdatePhaseTemplateResponse], error)
 	DeletePhaseTemplate(context.Context, *connect.Request[v1.DeletePhaseTemplateRequest]) (*connect.Response[v1.DeletePhaseTemplateResponse], error)
+	ClonePhaseTemplate(context.Context, *connect.Request[v1.ClonePhaseTemplateRequest]) (*connect.Response[v1.ClonePhaseTemplateResponse], error)
 	GetPromptContent(context.Context, *connect.Request[v1.GetPromptContentRequest]) (*connect.Response[v1.GetPromptContentResponse], error)
 	ListWorkflowRuns(context.Context, *connect.Request[v1.ListWorkflowRunsRequest]) (*connect.Response[v1.ListWorkflowRunsResponse], error)
 	GetWorkflowRun(context.Context, *connect.Request[v1.GetWorkflowRunRequest]) (*connect.Response[v1.GetWorkflowRunResponse], error)
@@ -521,6 +538,12 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 		connect.WithSchema(workflowServiceMethods.ByName("DeletePhaseTemplate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workflowServiceClonePhaseTemplateHandler := connect.NewUnaryHandler(
+		WorkflowServiceClonePhaseTemplateProcedure,
+		svc.ClonePhaseTemplate,
+		connect.WithSchema(workflowServiceMethods.ByName("ClonePhaseTemplate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workflowServiceGetPromptContentHandler := connect.NewUnaryHandler(
 		WorkflowServiceGetPromptContentProcedure,
 		svc.GetPromptContent,
@@ -585,6 +608,8 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 			workflowServiceUpdatePhaseTemplateHandler.ServeHTTP(w, r)
 		case WorkflowServiceDeletePhaseTemplateProcedure:
 			workflowServiceDeletePhaseTemplateHandler.ServeHTTP(w, r)
+		case WorkflowServiceClonePhaseTemplateProcedure:
+			workflowServiceClonePhaseTemplateHandler.ServeHTTP(w, r)
 		case WorkflowServiceGetPromptContentProcedure:
 			workflowServiceGetPromptContentHandler.ServeHTTP(w, r)
 		case WorkflowServiceListWorkflowRunsProcedure:
@@ -666,6 +691,10 @@ func (UnimplementedWorkflowServiceHandler) UpdatePhaseTemplate(context.Context, 
 
 func (UnimplementedWorkflowServiceHandler) DeletePhaseTemplate(context.Context, *connect.Request[v1.DeletePhaseTemplateRequest]) (*connect.Response[v1.DeletePhaseTemplateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.DeletePhaseTemplate is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) ClonePhaseTemplate(context.Context, *connect.Request[v1.ClonePhaseTemplateRequest]) (*connect.Response[v1.ClonePhaseTemplateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.ClonePhaseTemplate is not implemented"))
 }
 
 func (UnimplementedWorkflowServiceHandler) GetPromptContent(context.Context, *connect.Request[v1.GetPromptContentRequest]) (*connect.Response[v1.GetPromptContentResponse], error) {
