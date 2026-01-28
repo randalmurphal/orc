@@ -71,6 +71,9 @@ web/src/
 | `TaskList` | Filterable task list |
 | `TaskDetailPanel` | Full task view with tabs |
 | `TaskMonitor` | Real-time task execution view |
+| `RunningCard` | Active task card with pipeline, timer, output (board/) |
+| `RunningColumn` | Column for running tasks with live updates (board/) |
+| `Pipeline` | Phase progress visualization: Plan→Code→Test→Review→Done (board/) |
 | `NewTaskModal` | Task creation with WorkflowSelector |
 | `TranscriptViewer` | Claude conversation display |
 | `KnowledgePanel` | Knowledge service configuration |
