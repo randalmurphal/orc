@@ -389,18 +389,16 @@ export function ActivityHeatmap({
 		setFocusIndex(index);
 	}, []);
 
-	// Calculate month label positions
+	// Calculate month label positions using percentage-based positioning
 	const monthLabelStyle = useCallback(
 		(weekIndex: number) => {
-			// Each cell is 12px + 3px gap = 15px
-			const cellWidth = 15;
+			const percent = (weekIndex / weeks) * 100;
 			return {
-				marginLeft: weekIndex === 0 ? 0 : undefined,
 				position: 'absolute' as const,
-				left: `${28 + weekIndex * cellWidth}px`,
+				left: `calc(28px + ${percent}%)`,
 			};
 		},
-		[]
+		[weeks]
 	);
 
 	// Loading state
@@ -469,8 +467,9 @@ export function ActivityHeatmap({
 					{/* Grid */}
 					<div
 						ref={gridRef}
-						className="heatmap-grid"
+						className="heatmap-grid heatmap-grid--dense"
 						data-weeks={weeks}
+						style={{ '--heatmap-weeks': weeks } as React.CSSProperties}
 						role="img"
 						aria-label={`Task activity heatmap showing ${weeks} weeks of data`}
 						onKeyDown={handleKeyDown}

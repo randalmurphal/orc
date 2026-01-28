@@ -358,4 +358,30 @@ describe('ActivityHeatmap', () => {
 			expect(legendCells.length).toBe(5);
 		});
 	});
+	describe('density and responsive sizing', () => {
+		it('sets --heatmap-weeks CSS custom property to 16 by default', () => {
+			const { container } = render(<ActivityHeatmap data={mockData} />);
+			const grid = container.querySelector('.heatmap-grid');
+			expect(grid).toHaveStyle({ '--heatmap-weeks': '16' });
+		});
+
+		it('sets --heatmap-weeks CSS custom property to custom weeks value', () => {
+			const { container } = render(<ActivityHeatmap data={mockData} weeks={8} />);
+			const grid = container.querySelector('.heatmap-grid');
+			expect(grid).toHaveStyle({ '--heatmap-weeks': '8' });
+		});
+
+		it('has data-weeks attribute set to 16 by default', () => {
+			const { container } = render(<ActivityHeatmap data={mockData} />);
+			const grid = container.querySelector('.heatmap-grid');
+			expect(grid).toHaveAttribute('data-weeks', '16');
+		});
+
+		it('renders grid with heatmap-grid--dense class by default', () => {
+			const { container } = render(<ActivityHeatmap data={mockData} />);
+			const grid = container.querySelector('.heatmap-grid');
+			expect(grid).toHaveClass('heatmap-grid--dense');
+		});
+	});
+
 });
