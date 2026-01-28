@@ -324,6 +324,14 @@ type ExecutionConfig struct {
 	// up to this many times before giving up.
 	// Default: 5
 	MaxRetries int `yaml:"max_retries"`
+
+	// ParallelTasks is the maximum number of tasks to run simultaneously.
+	// Range: 1-5, default 2. Used by the UI for execution settings.
+	ParallelTasks int `yaml:"parallel_tasks"`
+
+	// CostLimit is the daily spending limit in dollars before pausing.
+	// Range: 0-100, default 25. Used by the UI for execution settings.
+	CostLimit int `yaml:"cost_limit"`
 }
 
 // PoolConfig defines token pool settings for automatic account switching.
@@ -800,6 +808,10 @@ type AutomationTemplateConfig struct {
 type AutomationConfig struct {
 	// Enabled enables the automation system (default: true)
 	Enabled bool `yaml:"enabled"`
+
+	// AutoApprove automatically approves safe operations without prompting (default: true)
+	// This is the UI-facing setting that controls auto-approval behavior.
+	AutoApprove bool `yaml:"auto_approve"`
 
 	// GlobalCooldown is the minimum time between any automation tasks (default: 30m)
 	// Prevents trigger storms
