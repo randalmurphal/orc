@@ -198,16 +198,18 @@
    SYNTAX HIGHLIGHTING CLASSES
    ========================================================================== */
 
-.md-header {
+.code-comment {
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.code-key {
 	color: var(--primary-bright);
 	font-weight: var(--font-semibold);
 }
 
-.md-code {
-	background: var(--bg-card);
-	border-radius: var(--radius-sm);
-	color: var(--cyan);
-	padding: 0 var(--space-0-5);
+.code-string {
+	color: var(--green);
 }
 
 .md-code-block {

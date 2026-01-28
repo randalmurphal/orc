@@ -41,16 +41,22 @@ function highlightMarkdown(content: string): string {
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;');
 
-	// Headers (# to ######)
+	// H1 headers (# only) - muted comment style
 	html = html.replace(
-		/^(#{1,6}\s.*)$/gm,
-		'<span class="md-header">$1</span>'
+		/^(#\s.*)$/gm,
+		'<span class="code-comment">$1</span>'
+	);
+
+	// H2-H6 headers (## through ######) - key/keyword style
+	html = html.replace(
+		/^(#{2,6}\s.*)$/gm,
+		'<span class="code-key">$1</span>'
 	);
 
 	// Inline code (backticks)
 	html = html.replace(
 		/`([^`\n]+)`/g,
-		'<span class="md-code">`$1`</span>'
+		'<span class="code-string">`$1`</span>'
 	);
 
 	// Code blocks (triple backticks) - preserve the block structure
