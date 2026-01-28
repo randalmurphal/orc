@@ -16,7 +16,7 @@ const StatsPage = lazy(() => import('@/pages/StatsPage').then(m => ({ default: m
 const TimelinePage = lazy(() => import('@/pages/TimelinePage').then(m => ({ default: m.TimelinePage })));
 const TaskDetail = lazy(() => import('@/pages/TaskDetail').then(m => ({ default: m.TaskDetail })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
+const AgentsView = lazy(() => import('@/components/agents/AgentsView').then(m => ({ default: m.AgentsView })));
 const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m.Mcp })));
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
@@ -169,7 +169,7 @@ export const routes: RouteObject[] = [
 				path: 'agents',
 				element: (
 					<LazyRoute>
-						<Agents />
+						<AgentsView />
 					</LazyRoute>
 				),
 			},

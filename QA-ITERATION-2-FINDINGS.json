@@ -1,0 +1,169 @@
+{
+  "test_iteration": 2,
+  "test_date": "2026-01-28",
+  "method": "Code inspection + automated test readiness",
+  "status": "complete",
+  "summary": "Critical routing issue prevents new AgentsView from loading. All required components have been implemented correctly, but the route configuration at /agents still points to the old Agents component instead of the new AgentsView. This means the entire fix from iteration 1 is not accessible to users.",
+  "findings": [
+    {
+      "id": "QA-004",
+      "severity": "critical",
+      "confidence": 100,
+      "category": "functional",
+      "title": "Routing configuration not updated - AgentsView component unreachable",
+      "steps_to_reproduce": [
+        "Open web/src/router/routes.tsx",
+        "Check line 19: imports old Agents from '@/pages/environment/Agents'",
+        "Check line 169-175: route definition uses imported Agents component",
+        "Navigate to http://localhost:5173/agents",
+        "Observe old component loads instead of new AgentsView"
+      ],
+      "expected": "Route should import and use the new AgentsView component:\nimport { AgentsView } from '@/components/agents/AgentsView';\n\nAnd render it in the route:\n{\n  path: 'agents',\n  element: (\n    <LazyRoute>\n      <AgentsView />\n    </LazyRoute>\n  ),\n}",
+      "actual": "Route still imports and uses the OLD Agents component from pages/environment/Agents.tsx, which shows sub-agent definitions with Project/Global tabs instead of the agent configuration interface from the reference design.",
+      "screenshot_path": "/tmp/qa-TASK-613/bug-QA-004-code.png",
+      "suggested_fix": "Update web/src/router/routes.tsx:\n\n1. Line 19: Change import from:\n   const Agents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));\n   \n   To:\n   const AgentsView = lazy(() => import('@/components/agents/AgentsView').then(m => ({ default: m.AgentsView })));\n\n2. Lines 169-175: Update route element to use AgentsView:\n   {\n     path: 'agents',\n     element: (\n       <LazyRoute>\n         <AgentsView />\n       </LazyRoute>\n     ),\n   }\n\n3. The old Agents component can remain at pages/environment/Agents.tsx if sub-agent configuration is still needed, or be deleted if obsolete.",
+      "impact": "BLOCKING - Users cannot access the new agent configuration interface. All work implementing AgentsView, AgentCard, ExecutionSettings, and ToolPermissions components is inaccessible.",
+      "files_affected": [
+        "web/src/router/routes.tsx (lines 19, 169-175)"
+      ]
+    }
+  ],
+  "verification": {
+    "previous_issues_verified": [
+      {
+        "id": "QA-001",
+        "original_issue": "Complete Page Implementation Mismatch - wrong feature implemented",
+        "status": "NOT FIXED",
+        "reason": "While the correct AgentsView component has been implemented with all required sections (Active Agents, Execution Settings, Tool Permissions), the routing configuration was not updated. The /agents route still loads the old Agents component showing sub-agent definitions.",
+        "confidence": 100,
+        "evidence": [
+          "web/src/components/agents/AgentsView.tsx exists and is correctly implemented",
+          "web/src/components/agents/AgentCard.tsx exists with proper stats and tool badges",
+          "web/src/components/agents/ExecutionSettings.tsx exists with all 4 controls",
+          "web/src/components/agents/ToolPermissions.tsx exists with 6 permission toggles",
+          "web/src/router/routes.tsx line 19 still imports old Agents component",
+          "web/src/pages/environment/Agents.tsx still shows sub-agent UI (unchanged)"
+        ],
+        "blocking": true
+      }
+    ]
+  },
+  "component_implementation_status": {
+    "AgentsView": {
+      "status": "IMPLEMENTED",
+      "file": "web/src/components/agents/AgentsView.tsx",
+      "quality": "Good - matches reference design structure",
+      "issues": []
+    },
+    "AgentCard": {
+      "status": "IMPLEMENTED",
+      "file": "web/src/components/agents/AgentCard.tsx",
+      "quality": "Good - proper stats display, tool badges, status indicators",
+      "issues": []
+    },
+    "ExecutionSettings": {
+      "status": "IMPLEMENTED",
+      "file": "web/src/components/agents/ExecutionSettings.tsx",
+      "quality": "Good - all 4 settings present with correct controls",
+      "issues": []
+    },
+    "ToolPermissions": {
+      "status": "IMPLEMENTED",
+      "file": "web/src/components/agents/ToolPermissions.tsx",
+      "quality": "Good - 6 permission toggles with icons and warnings",
+      "issues": []
+    }
+  },
+  "reference_design_comparison": {
+    "file": "example_ui/agents-config.png",
+    "cannot_verify_visually": true,
+    "reason": "Component is implemented but not accessible via routing",
+    "expected_elements": {
+      "header": {
+        "title": "Agents (h1)",
+        "subtitle": "Configure Claude models and execution settings",
+        "button": "+ Add Agent"
+      },
+      "active_agents_section": {
+        "title": "Active Agents",
+        "subtitle": "Currently configured Claude instances",
+        "cards": [
+          "Primary Coder (🧠)",
+          "Quick Tasks (⚡)",
+          "Code Review (🔍)"
+        ]
+      },
+      "execution_settings_section": {
+        "title": "Execution Settings",
+        "subtitle": "Global configuration for all agents",
+        "controls": [
+          "Parallel Tasks (slider)",
+          "Auto-Approve (toggle)",
+          "Default Model (dropdown)",
+          "Cost Limit (slider with $ format)"
+        ]
+      },
+      "tool_permissions_section": {
+        "title": "Tool Permissions",
+        "subtitle": "Control what actions agents can perform",
+        "permissions": [
+          "File Read",
+          "File Write",
+          "Bash Commands",
+          "Web Search",
+          "Git Operations",
+          "MCP Servers"
+        ]
+      }
+    },
+    "implementation_status": "All elements implemented in components, but routing blocks access"
+  },
+  "test_environment": {
+    "working_directory": "/home/randy/repos/orc/.orc/worktrees/orc-TASK-613",
+    "dev_server_required": true,
+    "dev_server_checked": false,
+    "automated_tests_available": true,
+    "automated_test_script": "web/qa-agents-test.mjs",
+    "manual_testing_possible": true
+  },
+  "next_steps": [
+    {
+      "priority": 1,
+      "action": "Update routing configuration in web/src/router/routes.tsx",
+      "details": "Change line 19 import and lines 169-175 route definition to use AgentsView",
+      "estimated_time": "2 minutes"
+    },
+    {
+      "priority": 2,
+      "action": "Run automated tests",
+      "details": "Start dev server (bun run dev) and execute web/qa-agents-test.mjs to verify visual/functional correctness",
+      "estimated_time": "5 minutes"
+    },
+    {
+      "priority": 3,
+      "action": "Visual comparison with reference design",
+      "details": "Compare screenshots with example_ui/agents-config.png to verify layout, spacing, colors",
+      "estimated_time": "10 minutes"
+    },
+    {
+      "priority": 4,
+      "action": "Mobile responsive testing",
+      "details": "Test at 375x667 viewport to ensure proper stacking and no horizontal scroll",
+      "estimated_time": "5 minutes"
+    }
+  ],
+  "confidence_assessment": {
+    "routing_issue": 100,
+    "reason": "Direct code inspection of routes.tsx confirms old component is imported and used",
+    "component_implementation": 95,
+    "reason": "All required components exist with correct structure, but cannot verify runtime behavior without running dev server",
+    "overall": 98
+  },
+  "recommendations": [
+    "Fix routing immediately - this is a 2-minute fix that unblocks all other testing",
+    "After routing fix, run full automated test suite (web/qa-agents-test.mjs)",
+    "Perform visual regression testing against reference design",
+    "Test all interactive elements (sliders, toggles, buttons)",
+    "Verify console has no errors after routing fix"
+  ]
+}
