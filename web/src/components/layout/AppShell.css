@@ -46,6 +46,8 @@
 .app-shell__topbar {
 	grid-column: 2 / -1;
 	grid-row: 1;
+	position: relative;
+	z-index: var(--z-header, 400);
 }
 
 /* =============================================================================
