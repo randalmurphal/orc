@@ -1,0 +1,18 @@
+[
+  {
+    "id": "QA-001",
+    "severity": "critical",
+    "confidence": 100,
+    "category": "functional",
+    "title": "Complete page implementation mismatch - wrong feature implemented",
+    "steps_to_reproduce": [
+      "Navigate to http://localhost:5173/agents",
+      "Compare visible elements to reference design at example_ui/agents-config.png",
+      "Observe that page shows sub-agent configuration instead of model configuration"
+    ],
+    "expected": "Page should display: (1) Header with h1 'Agents', subtitle 'Configure Claude models and execution settings', and '+ Add Agent' button; (2) Active Agents section with 3 agent cards showing emoji, name, model, status, stats (tokens/tasks/success rate), and tool badges; (3) Execution Settings section with 2x2 grid containing Parallel Tasks slider, Auto-Approve toggle, Default Model dropdown, and Cost Limit slider; (4) Tool Permissions section with 3-column grid of 6 permission toggles (File Read, File Write, Bash Commands, Web Search, Git Operations, MCP Servers)",
+    "actual": "Page displays: (1) h3 'Agents' title (wrong level), subtitle 'Sub-agent definitions for specialized Claude Code tasks' (wrong text), no Add Agent button; (2) Project/Global scope tabs (not in design); (3) Simple card grid showing agent definitions; (4) NO Active Agents section; (5) NO Execution Settings section; (6) NO Tool Permissions section; (7) Preview modal for agent details (not in design)",
+    "screenshot_path": null,
+    "suggested_fix": "Complete reimplementation required. Current file src/pages/environment/Agents.tsx (lines 96-236) implements wrong feature. Required: (1) Create AgentCard component with emoji, name, model, status badge, stats row, tool badges; (2) Create ExecutionSettings component with 2x2 responsive grid containing Slider (Parallel Tasks, Cost Limit), Toggle (Auto-Approve), Select (Default Model); (3) Create ToolPermissions component with 3-column grid of 6 Toggle components; (4) Update page structure to match design with proper h1 heading, correct subtitle, and Add Agent button; (5) Remove Project/Global tabs and preview modal unless requirements changed"
+  }
+]
