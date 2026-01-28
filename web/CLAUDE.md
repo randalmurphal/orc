@@ -11,8 +11,8 @@ Orc web UI built with React 19 + Vite.
 | State | Zustand stores (taskStore, initiativeStore, etc.) |
 | Events | Connect RPC streaming (useEvents, EventProvider) |
 | Routing | React Router 7 |
-| Styling | Tailwind CSS |
-| Components | Radix UI, Headless UI |
+| Styling | CSS custom properties + design tokens (`styles/tokens.css`) |
+| Components | Radix UI, custom primitives (`components/core/`) |
 | Testing | Vitest (unit), Playwright (E2E) |
 
 ## Quick Start
@@ -32,12 +32,14 @@ bun run build           # Production build
 web/src/
 ├── main.tsx              # Entry point
 ├── App.tsx               # Root (routes + providers)
-├── index.css             # Global styles (Tailwind)
+├── index.css             # Global styles (design tokens)
 ├── api/                  # API client
 │   ├── index.ts          # Fetch functions
 │   └── types.ts          # API response types
 ├── components/
 │   ├── ui/               # Base primitives (Button, Input, Tooltip, etc.)
+│   ├── core/             # Shared primitives (Badge, Card, Select, Slider, Toggle, etc.)
+│   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings, ToolPermissions)
 │   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
 │   └── [feature]/        # Feature components (board/, task-detail/, etc.)
 ├── context/              # React Context providers
@@ -59,10 +61,10 @@ web/src/
 | `/tasks/:taskId` | TaskDetailPanel | Task details, transcript, review |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
 | `/initiatives/:id` | InitiativeDetailPanel | Initiative detail view |
+| `/agents` | Agents | Agent configuration, execution settings, tool permissions |
 | `/settings` | SettingsPage | Configuration editor |
 | `/knowledge` | KnowledgePage | Knowledge service config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
-| `/agents` | AgentsPage | Agent configuration and execution settings |
 
 ## Key Components
 
@@ -78,10 +80,10 @@ web/src/
 | `WorkflowSelector` | Workflow dropdown for task forms |
 | `EditWorkflowModal` | Workflow metadata and phase editing |
 | `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
-| `AgentCard` | Agent card with stats, tools, status display |
-| `AgentsView` | Agents page container with grid layout |
-| `ExecutionSettings` | Global execution config (parallel tasks, model, cost) |
-| `ToolPermissions` | Tool permission toggles grid |
+| `AgentsView` | Agent page container (cards + execution settings + tool permissions) |
+| `AgentCard` | Individual agent display with stats and tool badges |
+| `ExecutionSettings` | Global settings: parallel tasks, auto-approve, model, cost limit |
+| `ToolPermissions` | 3-column grid of tool permission toggles |
 
 ## Custom Hooks
 
@@ -117,6 +119,21 @@ Base primitives built on Radix UI:
 | `Skeleton` | Loading placeholder |
 | `Textarea` | Multi-line input |
 
+## Core Components (components/core/)
+
+Shared primitives exported via `core/index.ts`:
+
+| Component | Variants/Notes |
+|-----------|----------------|
+| `Badge` | Status badges with variants |
+| `Card` | Container with padding options |
+| `Progress` | Progress bar with color/size variants |
+| `SearchInput` | Search input with icon |
+| `Select` | Dropdown select with options |
+| `Slider` | Range slider with keyboard nav, step snapping, custom formatting |
+| `Stat` | Stat display with trend, icon, value color |
+| `Toggle` | Accessible switch with sizes: sm, md; animated transitions |
+
 ## Testing
 
 ```bash
@@ -140,8 +157,8 @@ import { test, expect } from './fixtures';  // CORRECT
 
 ## Dependencies
 
-**Core:** react, react-dom, react-router-dom, zustand, tailwindcss
+**Core:** react, react-dom, react-router-dom, zustand
 
-**UI:** @radix-ui/* (dialog, select, tabs, tooltip), @headlessui/react, lucide-react
+**UI:** @radix-ui/* (dialog, select, tabs, tooltip), lucide-react
 
 **Dev:** vite, typescript, vitest, playwright
