@@ -46,6 +46,45 @@
 }
 
 /* =============================================================================
+   Command Panel Column
+   Fixed 280px right panel for blocked, decisions, config, files, completed
+   ============================================================================= */
+
+.board-view__panel.command-panel {
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* Custom scrollbar for command panel */
+.command-panel::-webkit-scrollbar {
+	width: 4px;
+}
+
+.command-panel::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.command-panel::-webkit-scrollbar-thumb {
+	background: var(--border-light);
+	border-radius: 2px;
+}
+
+.command-panel {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-light) transparent;
+}
+
+/* Generic panel-section collapse behavior */
+.panel-section.collapsed .panel-body {
+	display: none;
+}
+
+/* =============================================================================
    Loading State - Skeleton Placeholders
    Shown while task data is loading
    ============================================================================= */

@@ -25,11 +25,11 @@ import { DecisionsPanel } from './DecisionsPanel';
 import { ConfigPanel } from './ConfigPanel';
 import { FilesPanel, type ChangedFile } from './FilesPanel';
 import { CompletedPanel } from './CompletedPanel';
-import { useAppShell } from '@/components/layout/AppShellContext';
 import { useTaskStore } from '@/stores/taskStore';
 import { useInitiatives } from '@/stores/initiativeStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePendingDecisions, useUIStore } from '@/stores/uiStore';
+import { useAppShell } from '@/components/layout/AppShellContext';
 import { decisionClient, taskClient, configClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
 import { ResolveDecisionRequestSchema } from '@/gen/orc/v1/decision_pb';
@@ -67,7 +67,7 @@ function isCompletedToday(task: Task): boolean {
  */
 export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	const navigate = useNavigate();
-	const { setRightPanelContent } = useAppShell();
+	const { setRightPanelContent, isRightPanelOpen, toggleRightPanel } = useAppShell();
 
 	// Store hooks with explicit state types
 	const tasks = useTaskStore((state) => state.tasks);
@@ -280,10 +280,15 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 		};
 	}, []);
 
-	// Set right panel content on mount
+	// Set right panel content via AppShell context and ensure panel is open
 	useEffect(() => {
-		const panelContent = (
-			<>
+		// Ensure panel is open when board is mounted
+		if (!isRightPanelOpen) {
+			toggleRightPanel();
+		}
+
+		setRightPanelContent(
+			<div className="board-view__panel command-panel">
 				<BlockedPanel
 					tasks={blockedTasks}
 					onSkip={handleSkipBlock}
@@ -298,29 +303,14 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 					todayCost={totalCost}
 					recentTasks={completedToday}
 				/>
-			</>
+			</div>
 		);
 
-		setRightPanelContent(panelContent);
-
-		// Cleanup: clear right panel content on unmount
 		return () => {
 			setRightPanelContent(null);
 		};
-	}, [
-		blockedTasks,
-		pendingDecisions,
-		configStats,
-		changedFiles,
-		completedToday,
-		totalTokens,
-		totalCost,
-		handleSkipBlock,
-		handleForceBlock,
-		handleDecide,
-		handleFileClick,
-		setRightPanelContent,
-	]);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [blockedTasks, pendingDecisions, configStats, changedFiles, completedToday, totalTokens, totalCost]);
 
 	// Loading state
 	if (loading) {
