@@ -362,4 +362,95 @@ describe('CommandEditor', () => {
 			expect(screen.getByText('2')).toBeInTheDocument();
 		});
 	});
+
+	describe('syntax highlighting classes', () => {
+		it('applies code-comment class to H1 headers', () => {
+			const command: EditableCommand = {
+				id: 'cmd-h1',
+				name: '/test',
+				path: '.claude/commands/test.md',
+				content: '# Title\nsome text',
+			};
+
+			const { container } = render(
+				<CommandEditor command={command} onSave={onSave} onCancel={onCancel} />
+			);
+
+			const overlay = container.querySelector('.editor-highlight');
+			expect(overlay).not.toBeNull();
+			expect(overlay!.innerHTML).toContain('<span class="code-comment">');
+		});
+
+		it('applies code-key class to H2+ headers', () => {
+			const command: EditableCommand = {
+				id: 'cmd-h2',
+				name: '/test',
+				path: '.claude/commands/test.md',
+				content: '## Section\n### Subsection',
+			};
+
+			const { container } = render(
+				<CommandEditor command={command} onSave={onSave} onCancel={onCancel} />
+			);
+
+			const overlay = container.querySelector('.editor-highlight');
+			expect(overlay).not.toBeNull();
+			const html = overlay!.innerHTML;
+			// Both ## and ### should use code-key
+			const codeKeyMatches = html.match(/<span class="code-key">/g);
+			expect(codeKeyMatches).not.toBeNull();
+			expect(codeKeyMatches!.length).toBeGreaterThanOrEqual(2);
+		});
+
+		it('applies code-string class to inline code', () => {
+			const command: EditableCommand = {
+				id: 'cmd-code',
+				name: '/test',
+				path: '.claude/commands/test.md',
+				content: 'run \`hello\` now',
+			};
+
+			const { container } = render(
+				<CommandEditor command={command} onSave={onSave} onCancel={onCancel} />
+			);
+
+			const overlay = container.querySelector('.editor-highlight');
+			expect(overlay).not.toBeNull();
+			expect(overlay!.innerHTML).toContain('<span class="code-string">');
+		});
+
+		it('does not use old md-header class', () => {
+			const command: EditableCommand = {
+				id: 'cmd-no-md-header',
+				name: '/test',
+				path: '.claude/commands/test.md',
+				content: '# Title\n## Section',
+			};
+
+			const { container } = render(
+				<CommandEditor command={command} onSave={onSave} onCancel={onCancel} />
+			);
+
+			const overlay = container.querySelector('.editor-highlight');
+			expect(overlay).not.toBeNull();
+			expect(overlay!.innerHTML).not.toContain('md-header');
+		});
+
+		it('does not use old md-code class', () => {
+			const command: EditableCommand = {
+				id: 'cmd-no-md-code',
+				name: '/test',
+				path: '.claude/commands/test.md',
+				content: 'run \`hello\` now',
+			};
+
+			const { container } = render(
+				<CommandEditor command={command} onSave={onSave} onCancel={onCancel} />
+			);
+
+			const overlay = container.querySelector('.editor-highlight');
+			expect(overlay).not.toBeNull();
+			expect(overlay!.innerHTML).not.toContain('md-code');
+		});
+	});
 });
