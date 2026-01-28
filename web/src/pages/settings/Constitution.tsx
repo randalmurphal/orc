@@ -182,7 +182,7 @@ export function ConstitutionPage() {
 
 			{exists ? (
 				<ConfigEditor
-					filePath=".orc/constitution.md"
+					filePath=".orc/CONSTITUTION.md"
 					content={content}
 					onChange={setContent}
 					onSave={handleSave}
@@ -195,7 +195,7 @@ export function ConstitutionPage() {
 						Preview mode - click Save to create the constitution
 					</div>
 					<ConfigEditor
-						filePath=".orc/constitution.md (new)"
+						filePath=".orc/CONSTITUTION.md (new)"
 						content={content}
 						onChange={setContent}
 						onSave={handleSave}

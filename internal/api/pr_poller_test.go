@@ -298,8 +298,8 @@ func (b *emptyBackend) LoadAllReviewFindings(string) ([]*orcv1.ReviewRoundFindin
 }
 func (b *emptyBackend) SaveQAResult(*storage.QAResult) error           { return nil }
 func (b *emptyBackend) LoadQAResult(string) (*storage.QAResult, error) { return nil, nil }
-func (b *emptyBackend) SaveConstitution(string, string) error          { return nil }
-func (b *emptyBackend) LoadConstitution() (string, string, error)      { return "", "", nil }
+func (b *emptyBackend) SaveConstitution(string) error            { return nil }
+func (b *emptyBackend) LoadConstitution() (string, string, error) { return "", "", nil }
 func (b *emptyBackend) ConstitutionExists() (bool, error)              { return false, nil }
 func (b *emptyBackend) DeleteConstitution() error                      { return nil }
 

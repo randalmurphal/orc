@@ -1,23 +1,24 @@
 package db
 
 import (
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 )
 
+// ConstitutionFileName is the name of the constitution file in the .orc directory.
+const ConstitutionFileName = "CONSTITUTION.md"
+
 // Constitution represents project-level principles that guide all task execution.
-// It uses a singleton pattern - only one constitution per project (id=1).
+// Stored as a file at .orc/CONSTITUTION.md for git-trackability.
 type Constitution struct {
-	Content     string    // Markdown content with principles
-	Version     string    // Semantic version for tracking changes
-	ContentHash string    // SHA256 hash of content for change detection
-	CreatedAt   time.Time // When first created
-	UpdatedAt   time.Time // When last modified
+	Content   string    // Markdown content with principles
+	Path      string    // File path (always .orc/CONSTITUTION.md)
+	UpdatedAt time.Time // File modification time
 }
 
 // ConstitutionCheck records validation of a spec against the constitution.
@@ -33,85 +34,76 @@ type ConstitutionCheck struct {
 // ErrNoConstitution is returned when no constitution exists for the project.
 var ErrNoConstitution = errors.New("no constitution configured for this project")
 
-// SaveConstitution saves or updates the project's constitution.
-// Uses upsert pattern - creates new or updates existing.
-func (p *ProjectDB) SaveConstitution(c *Constitution) error {
-	// Compute content hash
-	hash := sha256.Sum256([]byte(c.Content))
-	c.ContentHash = hex.EncodeToString(hash[:])
+// constitutionPath returns the path to the constitution file.
+func (p *ProjectDB) constitutionPath() string {
+	// DB path is .orc/orc.db, so dir is .orc
+	orcDir := filepath.Dir(p.Path())
+	return filepath.Join(orcDir, ConstitutionFileName)
+}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+// SaveConstitution saves the project's constitution to .orc/CONSTITUTION.md.
+func (p *ProjectDB) SaveConstitution(content string) error {
+	path := p.constitutionPath()
 
-	// Use INSERT OR REPLACE for upsert (SQLite)
-	// The CHECK constraint ensures id=1
-	query := `
-		INSERT INTO constitutions (id, content, version, content_hash, created_at, updated_at)
-		VALUES (1, ?, ?, ?, COALESCE((SELECT created_at FROM constitutions WHERE id = 1), ?), ?)
-		ON CONFLICT(id) DO UPDATE SET
-			content = excluded.content,
-			version = excluded.version,
-			content_hash = excluded.content_hash,
-			updated_at = excluded.updated_at
-	`
+	// Ensure .orc directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create .orc directory: %w", err)
+	}
 
-	_, err := p.Exec(query, c.Content, c.Version, c.ContentHash, now, now)
-	if err != nil {
+	// Write content to file
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("save constitution: %w", err)
 	}
 
 	return nil
 }
 
-// LoadConstitution loads the project's constitution.
-// Returns ErrNoConstitution if no constitution is configured.
+// LoadConstitution loads the project's constitution from .orc/CONSTITUTION.md.
+// Returns ErrNoConstitution if no constitution file exists.
 func (p *ProjectDB) LoadConstitution() (*Constitution, error) {
-	query := `
-		SELECT content, version, content_hash, created_at, updated_at
-		FROM constitutions
-		WHERE id = 1
-	`
+	path := p.constitutionPath()
 
-	var c Constitution
-	var createdAt, updatedAt string
-
-	err := p.QueryRow(query).Scan(
-		&c.Content,
-		&c.Version,
-		&c.ContentHash,
-		&createdAt,
-		&updatedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
 		return nil, ErrNoConstitution
 	}
 	if err != nil {
 		return nil, fmt.Errorf("load constitution: %w", err)
 	}
 
-	// Parse timestamps
-	if createdAt != "" {
-		c.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	}
-	if updatedAt != "" {
-		c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+	// Get file modification time
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat constitution: %w", err)
 	}
 
-	return &c, nil
+	return &Constitution{
+		Content:   string(content),
+		Path:      path,
+		UpdatedAt: info.ModTime(),
+	}, nil
 }
 
-// ConstitutionExists checks if a constitution is configured for the project.
+// ConstitutionExists checks if a constitution file exists for the project.
 func (p *ProjectDB) ConstitutionExists() (bool, error) {
-	var count int
-	err := p.QueryRow("SELECT COUNT(*) FROM constitutions WHERE id = 1").Scan(&count)
+	path := p.constitutionPath()
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("check constitution exists: %w", err)
 	}
-	return count > 0, nil
+	return true, nil
 }
 
-// DeleteConstitution removes the project's constitution.
+// DeleteConstitution removes the project's constitution file.
 func (p *ProjectDB) DeleteConstitution() error {
-	_, err := p.Exec("DELETE FROM constitutions WHERE id = 1")
+	path := p.constitutionPath()
+	err := os.Remove(path)
+	if os.IsNotExist(err) {
+		return nil // Already doesn't exist
+	}
 	if err != nil {
 		return fmt.Errorf("delete constitution: %w", err)
 	}

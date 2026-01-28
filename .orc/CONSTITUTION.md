@@ -1,8 +1,21 @@
-# Orc Invariants
+# Orc Project Constitution
 
-Hard rules that must never be violated. Breaking these causes bugs that waste hours.
+These rules guide all AI-assisted task execution on the orc codebase.
+Invariants CANNOT be ignored or overridden. Breaking these causes bugs that waste hours.
 
-## Canonical: Database & State
+## Priority Hierarchy
+
+When rules conflict, higher priority wins:
+
+1. Safety & correctness (invariants)
+2. Security (invariants)
+3. Existing patterns (defaults)
+4. Performance (defaults)
+5. Style (defaults)
+
+## Invariants (MUST NOT violate)
+
+### Database & State
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
@@ -11,7 +24,7 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **Per-Phase Sessions** | Each phase gets fresh Claude session, not resumed | Shared sessions contaminate context | TDD context leaks to implement, wrong decisions |
 | **State Matches Task** | On failure: update BOTH `task.Status` AND `state.Error` | Out-of-sync causes orphaned tasks | Tasks stuck in "running" forever, invisible errors |
 
-## Canonical: Error Handling
+### Error Handling
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
@@ -20,7 +33,7 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **Fail on Parse Error** | JSON parse failure → ERROR, not default value | Silent defaults cause wrong state | Invisible corruption |
 | **Error Both Places** | Use `failTask()`, `interruptTask()` helpers which update both task+state | Manual updates miss one side | Orphaned tasks |
 
-## Canonical: LLM Calls
+### LLM Calls
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
@@ -29,22 +42,22 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **Ultrathink in User Message** | `ultrathink\n\n` must prefix user message, not system | System prompt position doesn't work | No extended thinking |
 | **Schema = Pure JSON** | With `--json-schema`, output is ONLY JSON | No text/JSON mixing | Parse failures |
 
-## Canonical: Event Systems
+### Event Systems
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
 | **Wire All Event Consumers** | EventServer must call `SetWebSocketHub()` at startup to forward events to WebSocket clients | Separate event systems must be explicitly connected | UI never receives real-time updates |
-| **SessionBroadcaster Wiring** | WorkflowExecutor must receive SessionBroadcaster via `WithWorkflowSessionBroadcaster()` in API server | Session metrics need event publishing to reach WebSocket clients | Header stats always show 0, no real-time session updates (from TASK-539) |
+| **SessionBroadcaster Wiring** | WorkflowExecutor must receive SessionBroadcaster via `WithWorkflowSessionBroadcaster()` in API server | Session metrics need event publishing to reach WebSocket clients | Header stats always show 0, no real-time session updates |
 
-## Canonical: RPC Actions
+### RPC Actions
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
-| **Status + Side Effect** | RPC methods that change status MUST also trigger the actual side effect (e.g., RunTask must spawn executor, not just set status to running) | Status-only updates create inconsistent state | UI shows "running" but nothing executes (from TASK-538) |
+| **Status + Side Effect** | RPC methods that change status MUST also trigger the actual side effect (e.g., RunTask must spawn executor, not just set status to running) | Status-only updates create inconsistent state | UI shows "running" but nothing executes |
 | **Rollback on Failure** | If side effect fails after status change, revert status to original | Partial updates cause orphaned state | Task stuck in "running" with no executor |
-| **Reload After Write** | API handlers returning modified objects MUST reload from database after save | Save may modify timestamps, normalize data | Stale data returned to clients (from TASK-552) |
+| **Reload After Write** | API handlers returning modified objects MUST reload from database after save | Save may modify timestamps, normalize data | Stale data returned to clients |
 
-## Canonical: Git & Worktrees
+### Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
@@ -52,13 +65,25 @@ Hard rules that must never be violated. Breaking these causes bugs that waste ho
 | **No os.Chdir in Tests** | Use explicit path parameters, never `os.Chdir()` | Process-wide, not goroutine-safe | Flaky tests, wrong directory |
 | **Worktree Isolation** | Each task runs in its own worktree | Main repo must stay clean | Conflicts between parallel tasks |
 
-## Canonical: Testing
+### Testing
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
 | **Mock TurnExecutor** | Tests inject mock via `WithStandardTurnExecutor(mock)` | Avoid real Claude API calls | Slow tests, API costs, flaky |
 | **Dynamic Validation Client** | Validation clients created per-call with correct workdir | Pre-created clients have wrong paths | Can't find worktree files |
 | **In-Memory Backend for Tests** | Use `storage.NewTestBackend(t)` for fast tests | No disk I/O needed | Slow tests, temp file leaks |
+
+## Defaults (SHOULD follow)
+
+**These are defaults. Can deviate with documented justification.**
+
+| ID | Default | When to Deviate |
+|----|---------|-----------------|
+| DEF-1 | Functions < 50 lines | Complex state machines, switch statements |
+| DEF-2 | One file = one responsibility | Test helpers, related utilities |
+| DEF-3 | Follow existing patterns | When spec explicitly requests new pattern |
+| DEF-4 | Error messages include context | Simple wrappers that add no value |
+| DEF-5 | Use table-driven tests | Single edge case being tested |
 
 ## Anti-Patterns (NEVER DO)
 
@@ -128,7 +153,6 @@ respondJSON(w, http.StatusOK, updated)
 Run `make test` to verify invariants aren't violated. Key test files:
 - `internal/executor/executor_test.go` - Error handling paths
 - `internal/storage/database_backend_test.go` - DB operations
-- `internal/db/constitution_test.go` - Constitution CRUD
 
 ## Adding New Invariants
 

@@ -53,9 +53,9 @@ Example:
 
 			bootstrap.PrintResult(result)
 
-			// Offer to set INVARIANTS.md as constitution if found
-			if result.FoundInvariants {
-				fmt.Printf("\nFound invariants at %s\n", result.InvariantsPath)
+			// Offer to set constitution file if found
+			if result.FoundConstitution {
+				fmt.Printf("\nFound constitution at %s\n", result.ConstitutionPath)
 				fmt.Print("Set as project constitution? [Y/n] ")
 
 				reader := bufio.NewReader(os.Stdin)
@@ -64,24 +64,24 @@ Example:
 
 				if response == "" || response == "y" || response == "yes" {
 					// Load and save as constitution
-					content, err := os.ReadFile(result.InvariantsPath)
+					content, err := os.ReadFile(result.ConstitutionPath)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Warning: could not read invariants: %v\n", err)
+						fmt.Fprintf(os.Stderr, "Warning: could not read constitution file: %v\n", err)
 					} else {
 						backend, err := storage.NewBackend(".", &config.StorageConfig{})
 						if err != nil {
 							fmt.Fprintf(os.Stderr, "Warning: could not open storage: %v\n", err)
 						} else {
 							defer func() { _ = backend.Close() }()
-							if err := backend.SaveConstitution(string(content), "1.0.0"); err != nil {
+							if err := backend.SaveConstitution(string(content)); err != nil {
 								fmt.Fprintf(os.Stderr, "Warning: could not save constitution: %v\n", err)
 							} else {
-								fmt.Printf("Constitution set from %s\n", result.InvariantsPath)
+								fmt.Printf("Constitution set from %s\n", result.ConstitutionPath)
 							}
 						}
 					}
 				} else {
-					fmt.Println("Skipped. You can set it later with: orc constitution set --file INVARIANTS.md")
+					fmt.Println("Skipped. You can set it later with: orc constitution set --file your-principles.md")
 				}
 			}
 

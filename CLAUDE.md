@@ -156,11 +156,12 @@ See `docs/specs/CONFIG_HIERARCHY.md` for all options.
 
 ### Constitution
 
-Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`:
+Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`.
+Stored at `.orc/CONSTITUTION.md` (git-tracked):
 
 ```bash
-orc constitution set --file INVARIANTS.md   # Set from file
 orc constitution show                        # View current
+orc constitution set --file myprinciples.md  # Set from file
 orc constitution delete                      # Remove
 ```
 
@@ -281,7 +282,7 @@ make e2e        # E2E (Playwright)
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
-| Invariants | `docs/INVARIANTS.md` |
+| Constitution | `.orc/CONSTITUTION.md` |
 | Web Components | `web/CLAUDE.md` |
 
 <!-- orc:begin -->

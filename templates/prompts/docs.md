@@ -107,20 +107,20 @@ Staleness audit:
 - [file:line] - [what was stale] → [what it was changed to]
 ```
 
-### Step 1.5: Invariants Update (CRITICAL for bug fixes)
+### Step 1.5: Constitution Update (CRITICAL for bug fixes)
 
 **This creates a feedback loop: bugs → invariants → prevention.**
 
 If this task fixed a bug caused by violating an implicit rule, capture the invariant:
 
-1. **Check if INVARIANTS.md exists:**
+1. **Check if constitution exists:**
    ```bash
-   ls docs/INVARIANTS.md INVARIANTS.md 2>/dev/null
+   cat .orc/CONSTITUTION.md 2>/dev/null || orc constitution show
    ```
 
 2. **If bug was caused by pattern violation, ADD the invariant:**
 
-   Open INVARIANTS.md and add a row to the Invariants table:
+   Edit `.orc/CONSTITUTION.md` directly (it's git-tracked) and add a row to the Invariants table:
    ```markdown
    | INV-XX | [Rule that was violated] | [How to verify] | [Why it matters] |
    ```
@@ -135,11 +135,6 @@ If this task fixed a bug caused by violating an implicit rule, capture the invar
    - Does this pattern apply broadly across the codebase?
    - Would violating it cause bugs or confusion?
    - Add to Defaults table if yes
-
-4. **Update constitution if INVARIANTS.md changed:**
-   ```bash
-   orc constitution set -f docs/INVARIANTS.md
-   ```
 
 **If testing commands or patterns changed:**
 - Update the test command in CLAUDE.md/README.md
@@ -297,10 +292,9 @@ If any file exceeds threshold + tolerance (BLOCK status):
 - [ ] All ADRs have correct status (Accepted/Superseded)
 - [ ] Code examples match current implementation
 
-### Invariants (for bug fixes)
-- [ ] If bug was caused by pattern violation, invariant added to INVARIANTS.md
+### Constitution (for bug fixes)
+- [ ] If bug was caused by pattern violation, invariant added to `.orc/CONSTITUTION.md`
 - [ ] If new pattern established, considered for Defaults table
-- [ ] If INVARIANTS.md updated, `orc constitution set -f` run
 
 ### Line Counts
 - [ ] Root CLAUDE.md ≤ 180 lines (excluding knowledge tables)
