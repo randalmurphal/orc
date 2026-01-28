@@ -9,8 +9,8 @@ import (
 func TestDetectMulti_GoOnlyProject(t *testing.T) {
 	// Create a temp directory with only Go
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -36,8 +36,8 @@ func TestDetectMulti_GoOnlyProject(t *testing.T) {
 
 func TestDetectMulti_TypeScriptOnlyProject(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"dependencies":{"react":"^18"}}`), 0644)
-	os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte(`{}`), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"dependencies":{"react":"^18"}}`), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "tsconfig.json"), []byte(`{}`), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -66,13 +66,13 @@ func TestDetectMulti_GoWithTypeScriptFrontend(t *testing.T) {
 	dir := t.TempDir()
 
 	// Go at root
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21\nrequire github.com/spf13/cobra v1.8.0"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21\nrequire github.com/spf13/cobra v1.8.0"), 0644)
 
 	// TypeScript in web/
 	webDir := filepath.Join(dir, "web")
-	os.MkdirAll(webDir, 0755)
-	os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{"dependencies":{"react":"^18"}}`), 0644)
-	os.WriteFile(filepath.Join(webDir, "tsconfig.json"), []byte(`{}`), 0644)
+	_ = os.MkdirAll(webDir, 0755)
+	_ = os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{"dependencies":{"react":"^18"}}`), 0644)
+	_ = os.WriteFile(filepath.Join(webDir, "tsconfig.json"), []byte(`{}`), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -126,9 +126,9 @@ func TestDetectMulti_CommandsWithRelativePaths(t *testing.T) {
 
 	// TypeScript in web/
 	webDir := filepath.Join(dir, "web")
-	os.MkdirAll(webDir, 0755)
-	os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{}`), 0644)
-	os.WriteFile(filepath.Join(webDir, "tsconfig.json"), []byte(`{}`), 0644)
+	_ = os.MkdirAll(webDir, 0755)
+	_ = os.WriteFile(filepath.Join(webDir, "package.json"), []byte(`{}`), 0644)
+	_ = os.WriteFile(filepath.Join(webDir, "tsconfig.json"), []byte(`{}`), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestDetectMulti_CommandsWithRelativePaths(t *testing.T) {
 
 func TestDetectMulti_ToLegacyDetection(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -165,8 +165,8 @@ func TestDetectMulti_ToLegacyDetection(t *testing.T) {
 
 func TestDetectMulti_BunPackageManager(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{}`), 0644)
-	os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte{}, 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{}`), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "bun.lockb"), []byte{}, 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {
@@ -188,7 +188,7 @@ func TestDetectMulti_BunPackageManager(t *testing.T) {
 
 func TestDetectMulti_PythonProject(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte(`[project]\nname = "test"\n[tool.poetry.dependencies]\nfastapi = "^0.100"`), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte(`[project]\nname = "test"\n[tool.poetry.dependencies]\nfastapi = "^0.100"`), 0644)
 
 	d, err := DetectMulti(dir)
 	if err != nil {

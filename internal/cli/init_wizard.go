@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/wizard"
 )
@@ -312,26 +311,4 @@ func extractWizardResults(wizardState wizard.State, state *InitWizardState) {
 
 	// Always update gitignore
 	state.UpdateGitignore = true
-}
-
-// applyWizardConfig applies the wizard configuration to bootstrap options.
-func applyWizardConfig(state *InitWizardState) config.Config {
-	cfg := config.Config{}
-
-	if state.Profile != "" {
-		cfg.Profile = config.AutomationProfile(state.Profile)
-	}
-
-	if state.TargetBranch != "" {
-		cfg.Completion.TargetBranch = state.TargetBranch
-	}
-
-	// MCP config
-	if state.EnablePlaywright {
-		cfg.MCP.Playwright.Enabled = true
-		cfg.MCP.Playwright.Headless = state.PlaywrightConfig.Headless
-		cfg.MCP.Playwright.Browser = state.PlaywrightConfig.Browser
-	}
-
-	return cfg
 }
