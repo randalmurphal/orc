@@ -62,6 +62,7 @@ web/src/
 | `/settings` | SettingsPage | Configuration editor |
 | `/knowledge` | KnowledgePage | Knowledge service config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
+| `/agents` | AgentsPage | Agent configuration and execution settings |
 
 ## Key Components
 
@@ -71,18 +72,16 @@ web/src/
 | `TaskList` | Filterable task list |
 | `TaskDetailPanel` | Full task view with tabs |
 | `TaskMonitor` | Real-time task execution view |
-| `RunningCard` | Active task card with pipeline, timer, output (board/) |
-| `RunningColumn` | Column for running tasks with live updates (board/) |
-| `Pipeline` | Phase progress visualization: Plan→Code→Test→Review→Done (board/) |
 | `NewTaskModal` | Task creation with WorkflowSelector |
 | `TranscriptViewer` | Claude conversation display |
 | `KnowledgePanel` | Knowledge service configuration |
 | `WorkflowSelector` | Workflow dropdown for task forms |
 | `EditWorkflowModal` | Workflow metadata and phase editing |
 | `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
-| `Swimlane` | Collapsible initiative group in Queue column |
-| `QueueColumn` | Queue column with initiative swimlanes |
-| `Pipeline` | Phase progress visualization for running tasks |
+| `AgentCard` | Agent card with stats, tools, status display |
+| `AgentsView` | Agents page container with grid layout |
+| `ExecutionSettings` | Global execution config (parallel tasks, model, cost) |
+| `ToolPermissions` | Tool permission toggles grid |
 
 ## Custom Hooks
 
