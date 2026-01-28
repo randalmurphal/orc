@@ -25,10 +25,12 @@ func (s *Server) registerConnectHandlers() {
 	// Use NewTaskServerWithExecutor to enable RunTask to spawn actual executor
 	taskSvc := NewTaskServerWithExecutor(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB, s.startTask)
 	initiativeSvc := NewInitiativeServer(s.backend, s.logger, s.publisher)
-	// Create resolver for workflow/phase source tracking
+	// Create resolver, cloner, and cache for workflow/phase source tracking
 	orcDir := filepath.Join(s.workDir, ".orc")
 	resolver := workflow.NewResolverFromOrcDir(orcDir)
-	workflowSvc := NewWorkflowServer(s.backend, resolver, s.logger)
+	cloner := workflow.NewClonerFromOrcDir(orcDir)
+	cache := workflow.NewCacheService(resolver, s.projectDB)
+	workflowSvc := NewWorkflowServer(s.backend, resolver, cloner, cache, s.logger)
 	transcriptSvc := NewTranscriptServer(s.backend)
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)

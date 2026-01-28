@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,6 +12,9 @@ import (
 	"github.com/randalmurphal/orc/templates"
 	"gopkg.in/yaml.v3"
 )
+
+// ErrNotFound is returned when a workflow or phase template is not found.
+var ErrNotFound = errors.New("not found")
 
 // ResolvedWorkflow contains the resolved workflow and its source.
 type ResolvedWorkflow struct {
@@ -83,6 +87,11 @@ func NewResolver(opts ...ResolverOption) *Resolver {
 		opt(r)
 	}
 	return r
+}
+
+// OrcDir returns the project directory (.orc/).
+func (r *Resolver) OrcDir() string {
+	return r.projectDir
 }
 
 // NewResolverFromOrcDir creates a Resolver configured for a project.

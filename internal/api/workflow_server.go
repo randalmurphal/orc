@@ -23,6 +23,8 @@ type workflowServer struct {
 	orcv1connect.UnimplementedWorkflowServiceHandler
 	backend  storage.Backend
 	resolver *workflow.Resolver
+	cloner   *workflow.Cloner
+	cache    *workflow.CacheService
 	logger   *slog.Logger
 }
 
@@ -30,11 +32,15 @@ type workflowServer struct {
 func NewWorkflowServer(
 	backend storage.Backend,
 	resolver *workflow.Resolver,
+	cloner *workflow.Cloner,
+	cache *workflow.CacheService,
 	logger *slog.Logger,
 ) orcv1connect.WorkflowServiceHandler {
 	return &workflowServer{
 		backend:  backend,
 		resolver: resolver,
+		cloner:   cloner,
+		cache:    cache,
 		logger:   logger,
 	}
 }
@@ -265,74 +271,45 @@ func (s *workflowServer) CloneWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("new_id is required"))
 	}
 
-	// Check source exists
-	source, err := s.backend.GetWorkflow(req.Msg.SourceId)
-	if err != nil || source == nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("source workflow %s not found", req.Msg.SourceId))
-	}
-
-	// Check target doesn't exist
-	existing, _ := s.backend.GetWorkflow(req.Msg.NewId)
-	if existing != nil {
-		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("workflow %s already exists", req.Msg.NewId))
-	}
-
-	// Create clone
-	clone := &db.Workflow{
-		ID:              req.Msg.NewId,
-		Name:            req.Msg.NewId,
-		Description:     source.Description,
-		WorkflowType:    source.WorkflowType,
-		DefaultModel:    source.DefaultModel,
-		DefaultThinking: source.DefaultThinking,
-		IsBuiltin:       false,
-		BasedOn:         req.Msg.SourceId,
-	}
-	if req.Msg.NewName != nil {
-		clone.Name = *req.Msg.NewName
-	}
-
-	if err := s.backend.SaveWorkflow(clone); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow clone: %w", err))
-	}
-
-	// Clone phases
-	phases, _ := s.backend.GetWorkflowPhases(req.Msg.SourceId)
-	for _, p := range phases {
-		newPhase := &db.WorkflowPhase{
-			WorkflowID:            req.Msg.NewId,
-			PhaseTemplateID:       p.PhaseTemplateID,
-			Sequence:              p.Sequence,
-			DependsOn:             p.DependsOn,
-			MaxIterationsOverride: p.MaxIterationsOverride,
-			ModelOverride:         p.ModelOverride,
-			ThinkingOverride:      p.ThinkingOverride,
-			GateTypeOverride:      p.GateTypeOverride,
-			Condition:             p.Condition,
-			ClaudeConfigOverride:  p.ClaudeConfigOverride,
+	// Use file-based cloner to create YAML file at project level
+	result, err := s.cloner.CloneWorkflow(req.Msg.SourceId, req.Msg.NewId, workflow.WriteLevelProject, false)
+	if err != nil {
+		// Check for specific error types
+		if errors.Is(err, workflow.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("source workflow %s not found", req.Msg.SourceId))
 		}
-		if err := s.backend.SaveWorkflowPhase(newPhase); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("clone phase: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("clone workflow: %w", err))
+	}
+
+	// Update name if provided
+	if req.Msg.NewName != nil && *req.Msg.NewName != "" {
+		// Re-read the cloned workflow, update name, and re-write
+		resolved, err := s.resolver.ResolveWorkflow(req.Msg.NewId)
+		if err == nil && resolved != nil {
+			resolved.Workflow.Name = *req.Msg.NewName
+			writer := workflow.NewWriterFromOrcDir(s.resolver.OrcDir())
+			if _, writeErr := writer.WriteWorkflow(resolved.Workflow, workflow.WriteLevelProject); writeErr != nil {
+				s.logger.Warn("failed to update cloned workflow name", "error", writeErr)
+			}
 		}
 	}
 
-	// Clone variables
-	vars, _ := s.backend.GetWorkflowVariables(req.Msg.SourceId)
-	for _, v := range vars {
-		newVar := &db.WorkflowVariable{
-			WorkflowID:      req.Msg.NewId,
-			Name:            v.Name,
-			Description:     v.Description,
-			SourceType:      v.SourceType,
-			SourceConfig:    v.SourceConfig,
-			Required:        v.Required,
-			DefaultValue:    v.DefaultValue,
-			CacheTTLSeconds: v.CacheTTLSeconds,
-		}
-		if err := s.backend.SaveWorkflowVariable(newVar); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("clone variable: %w", err))
-		}
+	// Sync to database cache
+	if _, err := s.cache.SyncAll(); err != nil {
+		s.logger.Warn("failed to sync cache after clone", "error", err)
 	}
+
+	// Get the cloned workflow from DB for response
+	clone, err := s.backend.GetWorkflow(req.Msg.NewId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get cloned workflow: %w", err))
+	}
+
+	s.logger.Info("cloned workflow",
+		"source", req.Msg.SourceId,
+		"dest", req.Msg.NewId,
+		"path", result.DestPath,
+	)
 
 	return connect.NewResponse(&orcv1.CloneWorkflowResponse{
 		Workflow: dbWorkflowToProto(clone),
