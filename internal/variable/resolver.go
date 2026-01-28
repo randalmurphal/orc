@@ -365,6 +365,7 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	if rctx.QAMaxIterations > 0 {
 		vars["QA_MAX_ITERATIONS"] = fmt.Sprintf("%d", rctx.QAMaxIterations)
 	}
+	vars["QA_FINDINGS"] = rctx.QAFindings
 	vars["BEFORE_IMAGES"] = rctx.BeforeImages
 	vars["PREVIOUS_FINDINGS"] = rctx.PreviousFindings
 
@@ -386,7 +387,6 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 		case "implement":
 			vars["IMPLEMENT_CONTENT"] = content
 			vars["IMPLEMENTATION_SUMMARY"] = content // Alias for template compatibility
-			// Note: qa_e2e_test QA_FINDINGS is set by applyPhaseContentToVars with proper formatting
 		}
 	}
 }
