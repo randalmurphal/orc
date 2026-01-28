@@ -24,6 +24,13 @@ type Options struct {
 
 	// Profile sets the initial automation profile (default: auto)
 	Profile config.AutomationProfile
+
+	// Skip options allow the wizard to handle these separately
+	SkipClaudeMD     bool // Don't auto-inject orc section into CLAUDE.md
+	SkipKnowledge    bool // Don't auto-inject knowledge section into CLAUDE.md
+	SkipHooks        bool // Don't install Claude Code hooks
+	SkipGitignore    bool // Don't update .gitignore
+	SkipConstitution bool // Don't check for constitution files
 }
 
 // Result contains the results of initialization.
@@ -163,56 +170,66 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// 6. Update .gitignore
-	if err := updateGitignore(opts.WorkDir); err != nil {
-		// Non-fatal - just warn
-		fmt.Fprintf(os.Stderr, "Warning: could not update .gitignore: %v\n", err)
+	// 6. Update .gitignore (unless skipped)
+	if !opts.SkipGitignore {
+		if err := updateGitignore(opts.WorkDir); err != nil {
+			// Non-fatal - just warn
+			fmt.Fprintf(os.Stderr, "Warning: could not update .gitignore: %v\n", err)
+		}
 	}
 
-	// 7. Install orc stop hook for ralph-style loops
-	if err := InstallHooks(opts.WorkDir); err != nil {
-		// Non-fatal - just warn
-		fmt.Fprintf(os.Stderr, "Warning: could not install hooks: %v\n", err)
-	} else {
-		fmt.Printf("Installed: .claude/hooks/orc-stop.sh (ralph-style loop hook)\n")
+	// 7. Install orc stop hook for ralph-style loops (unless skipped)
+	if !opts.SkipHooks {
+		if err := InstallHooks(opts.WorkDir); err != nil {
+			// Non-fatal - just warn
+			fmt.Fprintf(os.Stderr, "Warning: could not install hooks: %v\n", err)
+		} else {
+			fmt.Printf("Installed: .claude/hooks/orc-stop.sh (ralph-style loop hook)\n")
+		}
 	}
 
 	// 8. Plugin installation is manual - user runs commands in Claude Code
 	// (extraKnownMarketplaces in settings.json doesn't work reliably)
 
-	// 9. Inject orc section into CLAUDE.md
-	if err := InjectOrcSection(opts.WorkDir); err != nil {
-		// Non-fatal - just warn
-		fmt.Fprintf(os.Stderr, "Warning: could not update CLAUDE.md: %v\n", err)
-	} else {
-		fmt.Printf("Updated: CLAUDE.md (orc workflow documentation)\n")
+	// 9. Inject orc section into CLAUDE.md (unless skipped)
+	if !opts.SkipClaudeMD {
+		if err := InjectOrcSection(opts.WorkDir); err != nil {
+			// Non-fatal - just warn
+			fmt.Fprintf(os.Stderr, "Warning: could not update CLAUDE.md: %v\n", err)
+		} else {
+			fmt.Printf("Updated: CLAUDE.md (orc workflow documentation)\n")
+		}
 	}
 
-	// 10. Inject knowledge section into CLAUDE.md
-	if err := InjectKnowledgeSection(opts.WorkDir); err != nil {
-		// Non-fatal - just warn
-		fmt.Fprintf(os.Stderr, "Warning: could not add knowledge section to CLAUDE.md: %v\n", err)
-	} else {
-		fmt.Printf("Updated: CLAUDE.md (knowledge capture section)\n")
+	// 10. Inject knowledge section into CLAUDE.md (unless skipped)
+	if !opts.SkipKnowledge {
+		if err := InjectKnowledgeSection(opts.WorkDir); err != nil {
+			// Non-fatal - just warn
+			fmt.Fprintf(os.Stderr, "Warning: could not add knowledge section to CLAUDE.md: %v\n", err)
+		} else {
+			fmt.Printf("Updated: CLAUDE.md (knowledge capture section)\n")
+		}
 	}
 
-	// 11. Check for constitution file to offer as constitution
+	// 11. Check for constitution file to offer as constitution (unless skipped)
 	var foundConstitution bool
 	var constitutionPath string
 
-	// Check common locations for constitution files
-	constitutionPaths := []string{
-		filepath.Join(opts.WorkDir, "CONSTITUTION.md"),
-		filepath.Join(opts.WorkDir, "constitution.md"),
-		filepath.Join(opts.WorkDir, "INVARIANTS.md"),
-		filepath.Join(opts.WorkDir, "docs", "CONSTITUTION.md"),
-		filepath.Join(opts.WorkDir, "docs", "INVARIANTS.md"),
-	}
-	for _, path := range constitutionPaths {
-		if _, err := os.Stat(path); err == nil {
-			foundConstitution = true
-			constitutionPath = path
-			break
+	if !opts.SkipConstitution {
+		// Check common locations for constitution files
+		constitutionPaths := []string{
+			filepath.Join(opts.WorkDir, "CONSTITUTION.md"),
+			filepath.Join(opts.WorkDir, "constitution.md"),
+			filepath.Join(opts.WorkDir, "INVARIANTS.md"),
+			filepath.Join(opts.WorkDir, "docs", "CONSTITUTION.md"),
+			filepath.Join(opts.WorkDir, "docs", "INVARIANTS.md"),
+		}
+		for _, path := range constitutionPaths {
+			if _, err := os.Stat(path); err == nil {
+				foundConstitution = true
+				constitutionPath = path
+				break
+			}
 		}
 	}
 

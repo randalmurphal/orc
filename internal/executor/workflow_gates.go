@@ -25,14 +25,11 @@ type GateEvaluationResult struct {
 func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *orcv1.Task) (*GateEvaluationResult, error) {
 	result := &GateEvaluationResult{}
 
-	// Determine effective gate type
-	gateType := tmpl.GateType
-	if phase.GateTypeOverride != "" {
-		gateType = phase.GateTypeOverride
-	}
+	// Use gate resolver if available, fall back to legacy resolution
+	gateType := we.resolveGateType(tmpl, phase, t)
 
 	// If no gate or auto with auto-approve, just approve
-	if gateType == "" || gateType == "auto" {
+	if gateType == "" || gateType == gate.GateAuto {
 		if we.orcConfig != nil && we.orcConfig.Gates.AutoApproveOnSuccess {
 			result.Approved = true
 			result.Reason = "auto-approved on success"
@@ -40,9 +37,16 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		}
 	}
 
+	// Skip gate if disabled
+	if gateType == gate.GateSkip {
+		result.Approved = true
+		result.Reason = "gate skipped by configuration"
+		return result, nil
+	}
+
 	// Create gate struct for evaluator
 	g := &gate.Gate{
-		Type: gate.GateType(gateType),
+		Type: gateType,
 	}
 
 	// Evaluate
@@ -66,6 +70,60 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	}
 
 	return result, nil
+}
+
+// resolveGateType determines the effective gate type for a phase.
+// Uses the GateResolver if available (when we have a task with potential overrides),
+// otherwise falls back to legacy resolution (template + phase override).
+func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, t *orcv1.Task) gate.GateType {
+	// If we have a task and project DB, use full resolution
+	if t != nil && we.projectDB != nil {
+		// Load task overrides from database
+		taskOverrides, err := we.projectDB.GetTaskGateOverridesMap(t.Id)
+		if err != nil {
+			we.logger.Warn("failed to load task gate overrides", "task", t.Id, "error", err)
+			taskOverrides = nil
+		}
+
+		// Load phase gates from database
+		phaseGates, err := we.projectDB.GetPhaseGatesMap()
+		if err != nil {
+			we.logger.Warn("failed to load phase gates", "error", err)
+			phaseGates = nil
+		}
+
+		// Build resolver with task context
+		resolver := gate.NewResolver(
+			we.orcConfig,
+			gate.WithTaskOverrides(taskOverrides),
+			gate.WithPhaseGates(phaseGates),
+		)
+
+		// Resolve gate type
+		taskWeight := ""
+		if t.Weight != 0 {
+			taskWeight = t.Weight.String()
+		}
+		resolved := resolver.Resolve(tmpl.ID, taskWeight)
+
+		// Log resolution for debugging
+		we.logger.Debug("gate type resolved",
+			"phase", tmpl.ID,
+			"gate_type", resolved.GateType,
+			"source", resolved.Source,
+			"task", t.Id,
+		)
+
+		return resolved.GateType
+	}
+
+	// Legacy resolution: template gate type with optional phase override
+	gateType := tmpl.GateType
+	if phase.GateTypeOverride != "" {
+		gateType = phase.GateTypeOverride
+	}
+
+	return gate.GateType(gateType)
 }
 
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.

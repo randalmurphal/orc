@@ -117,6 +117,7 @@ func init() {
 	// Configuration
 	addCmd(newConfigCmd(), groupConfig)
 	addCmd(newConstitutionCmd(), groupConfig)
+	addCmd(newDocsCmd(), groupConfig)
 	addCmd(newTemplateCmd(), groupConfig)
 	addCmd(newServeCmd(), groupConfig)
 
