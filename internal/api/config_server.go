@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/randalmurphal/llmkit/claudeconfig"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/randalmurphal/orc/internal/storage"
 
@@ -802,6 +804,122 @@ func (s *configServer) ListPromptVariables(
 	return connect.NewResponse(&orcv1.ListPromptVariablesResponse{
 		Variables: protoVars,
 	}), nil
+}
+
+// ListAgents returns agents with runtime statistics and status.
+// When no scope is specified, returns agents from both project (SQLite) and global sources.
+// When scope is PROJECT, returns only SQLite agents.
+// When scope is GLOBAL, returns only global agents from .claude/agents/ directory.
+func (s *configServer) ListAgents(
+	ctx context.Context,
+	req *connect.Request[orcv1.ListAgentsRequest],
+) (*connect.Response[orcv1.ListAgentsResponse], error) {
+	pdb := s.backend.(*storage.DatabaseBackend).DB()
+
+	// Determine scope
+	var scope orcv1.SettingsScope
+	if req.Msg.Scope != nil {
+		scope = *req.Msg.Scope
+	}
+
+	var protoAgents []*orcv1.Agent
+
+	// Get stats (keyed by model) for all agents
+	today := time.Now().Truncate(24 * time.Hour)
+	stats, err := pdb.GetAgentStats(today)
+	if err != nil {
+		// Log but don't fail - stats are optional (graceful degradation)
+		if s.logger != nil {
+			s.logger.Warn("failed to get agent stats", "error", err)
+		}
+		stats = make(map[string]*db.AgentStats)
+	}
+
+	// Handle scope-based filtering
+	switch scope {
+	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
+		// Return only global agents (from .claude/agents/ directory)
+		// For now, we don't have global agent discovery, return empty
+		// Future: use claudeconfig.DiscoverAgents() when available
+
+	case orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT:
+		// Return only project agents from SQLite
+		dbAgents, err := pdb.ListAgents()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list agents: %w", err))
+		}
+		protoAgents = make([]*orcv1.Agent, len(dbAgents))
+		for i, a := range dbAgents {
+			protoAgents[i] = dbAgentToProto(a, stats[a.Model], orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT)
+		}
+
+	default:
+		// No scope specified - return all agents (project + global)
+		// First, get project agents from SQLite
+		dbAgents, err := pdb.ListAgents()
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list agents: %w", err))
+		}
+		for _, a := range dbAgents {
+			protoAgents = append(protoAgents, dbAgentToProto(a, stats[a.Model], orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT))
+		}
+		// Future: also append global agents from .claude/agents/ when available
+	}
+
+	return connect.NewResponse(&orcv1.ListAgentsResponse{
+		Agents: protoAgents,
+	}), nil
+}
+
+// dbAgentToProto converts a db.Agent to proto Agent with stats and status.
+func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope) *orcv1.Agent {
+	agent := &orcv1.Agent{
+		Name:        a.Name,
+		Description: a.Description,
+		Scope:       scope,
+	}
+
+	// Set model if present
+	if a.Model != "" {
+		agent.Model = &a.Model
+	}
+
+	// Set prompt if present
+	if a.Prompt != "" {
+		agent.Prompt = &a.Prompt
+	}
+
+	// Set tools if present
+	if len(a.Tools) > 0 {
+		agent.Tools = &orcv1.ToolPermissions{
+			Allow: a.Tools,
+		}
+	}
+
+	// Set status - "active" if running tasks exist for this model, else "idle"
+	status := "idle"
+	if stats != nil && stats.IsActive {
+		status = "active"
+	}
+	agent.Status = &status
+
+	// Set stats
+	if stats != nil {
+		agent.Stats = &orcv1.AgentStats{
+			TokensToday: int64(stats.TokensToday),
+			TasksDone:   int32(stats.TasksDoneTotal),
+			SuccessRate: stats.SuccessRate,
+		}
+	} else {
+		// Return zero stats if no stats available
+		agent.Stats = &orcv1.AgentStats{
+			TokensToday: 0,
+			TasksDone:   0,
+			SuccessRate: 0,
+		}
+	}
+
+	return agent
 }
 
 // === Conversion helpers ===

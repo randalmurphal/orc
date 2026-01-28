@@ -17,7 +17,8 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `task.go` | Task CRUD, ListOpts, TaskFull, dependencies, scanners, Tx functions |
 | `initiative.go` | Initiative, decisions, task refs, dependencies, batch loading |
 | `phase.go` | Phase CRUD, Tx variants |
-| `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics |
+| `agents.go` | Agent CRUD, builtin vs custom agent management |
+| `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics, agent stats |
 | `plan.go` | Plan CRUD |
 | `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD, QualityCheck type |
 | `phase_output.go` | Phase output CRUD (unified specs + artifacts) |
