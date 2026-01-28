@@ -75,7 +75,7 @@ export default async function globalSetup() {
 
 	// Initialize orc in sandbox
 	console.log('   Initializing orc...');
-	execSync(`${ORC_BIN} init`, { cwd: sandboxPath, stdio: 'pipe' });
+	execSync(`${ORC_BIN} init --yes`, { cwd: sandboxPath, stdio: 'pipe' });
 
 	// Get the project ID from registry
 	const homeDir = process.env.HOME || '/home/runner';
