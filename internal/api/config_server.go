@@ -62,17 +62,81 @@ func (s *configServer) GetConfig(
 	}), nil
 }
 
-// UpdateConfig updates the ORC configuration.
-// Note: This returns the current config - actual config editing should be done via file.
-// Full config update would require implementing config.Save() properly.
+// ValidModels is the list of allowed model identifiers for the DefaultModel setting.
+var ValidModels = []string{
+	"claude-sonnet-4-20250514",
+	"claude-opus-4-20250514",
+	"claude-haiku-3-5-20241022",
+}
+
+// UpdateConfig updates the ORC configuration and persists to config.yaml.
 func (s *configServer) UpdateConfig(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateConfigRequest],
 ) (*connect.Response[orcv1.UpdateConfigResponse], error) {
-	// For now, return unimplemented since config editing is complex
-	// and typically done via file editing
-	return nil, connect.NewError(connect.CodeUnimplemented,
-		errors.New("config updates should be done via orc.yaml file"))
+	configPath := filepath.Join(s.workDir, config.OrcDir, config.ConfigFileName)
+
+	cfg, err := config.LoadFile(configPath)
+	if err != nil {
+		cfg = config.Default()
+	}
+
+	// Apply automation updates
+	if req.Msg.Automation != nil {
+		cfg.Automation.AutoApprove = req.Msg.Automation.AutoApprove
+	}
+
+	// Apply execution updates
+	if req.Msg.Execution != nil {
+		// parallel_tasks: 0 means "not provided" in proto3 (valid range is 1-5)
+		if req.Msg.Execution.ParallelTasks != 0 {
+			if req.Msg.Execution.ParallelTasks < 1 || req.Msg.Execution.ParallelTasks > 5 {
+				return nil, connect.NewError(connect.CodeInvalidArgument,
+					fmt.Errorf("parallel_tasks must be between 1 and 5, got %d", req.Msg.Execution.ParallelTasks))
+			}
+			cfg.Execution.ParallelTasks = int(req.Msg.Execution.ParallelTasks)
+		}
+
+		// cost_limit: 0 is valid (means $0), range 0-100
+		if req.Msg.Execution.CostLimit < 0 || req.Msg.Execution.CostLimit > 100 {
+			return nil, connect.NewError(connect.CodeInvalidArgument,
+				fmt.Errorf("cost_limit must be between 0 and 100, got %d", req.Msg.Execution.CostLimit))
+		}
+		cfg.Execution.CostLimit = int(req.Msg.Execution.CostLimit)
+	}
+
+	// Apply claude/model updates
+	if req.Msg.Claude != nil && req.Msg.Claude.Model != "" {
+		valid := false
+		for _, m := range ValidModels {
+			if req.Msg.Claude.Model == m {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return nil, connect.NewError(connect.CodeInvalidArgument,
+				fmt.Errorf("invalid model: %s", req.Msg.Claude.Model))
+		}
+		cfg.Model = req.Msg.Claude.Model
+	}
+
+	// Persist to file
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return nil, connect.NewError(connect.CodeInternal,
+			fmt.Errorf("create config directory: %w", err))
+	}
+	if err := cfg.SaveTo(configPath); err != nil {
+		return nil, connect.NewError(connect.CodeInternal,
+			fmt.Errorf("save config: %w", err))
+	}
+
+	// Update in-memory config
+	s.orcConfig = cfg
+
+	return connect.NewResponse(&orcv1.UpdateConfigResponse{
+		Config: orcConfigToProto(cfg),
+	}), nil
 }
 
 // GetSettings returns Claude Code settings.
@@ -925,16 +989,31 @@ func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope
 // === Conversion helpers ===
 
 func orcConfigToProto(cfg *config.Config) *orcv1.Config {
+	parallelTasks := cfg.Execution.ParallelTasks
+	if parallelTasks == 0 {
+		parallelTasks = 2 // Default
+	}
+	costLimit := cfg.Execution.CostLimit
+	if costLimit == 0 && cfg.Execution.ParallelTasks == 0 {
+		costLimit = 25 // Default when no execution config exists
+	}
+
 	result := &orcv1.Config{
 		Automation: &orcv1.AutomationConfig{
-			Profile: string(cfg.Profile),
+			Profile:     string(cfg.Profile),
+			AutoApprove: cfg.Automation.AutoApprove,
 		},
 		Completion: &orcv1.CompletionConfig{
 			Action:    cfg.Completion.Action,
-			AutoMerge: cfg.Completion.MergeOnCIPass, // MergeOnCIPass is the equivalent
+			AutoMerge: cfg.Completion.MergeOnCIPass,
 		},
-		// Note: config.Config doesn't have Claude-specific settings
-		// Claude settings are in claudeconfig.Settings, not orc config
+		Claude: &orcv1.ClaudeConfig{
+			Model: cfg.Model,
+		},
+		Execution: &orcv1.ExecutionConfig{
+			ParallelTasks: int32(parallelTasks),
+			CostLimit:     int32(costLimit),
+		},
 	}
 	if cfg.Completion.TargetBranch != "" {
 		result.Completion.TargetBranch = &cfg.Completion.TargetBranch

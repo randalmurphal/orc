@@ -10,7 +10,7 @@ import { Select, type SelectOption } from '../core/Select';
 import './ExecutionSettings.css';
 
 export interface ExecutionSettingsData {
-	/** Maximum parallel tasks (1-4) */
+	/** Maximum parallel tasks (1-5) */
 	parallelTasks: number;
 	/** Auto-approve safe operations */
 	autoApprove: boolean;
@@ -75,7 +75,7 @@ export const ExecutionSettings = forwardRef<HTMLDivElement, ExecutionSettingsPro
 							value={settings.parallelTasks}
 							onChange={(value) => onChange({ parallelTasks: value })}
 							min={1}
-							max={4}
+							max={5}
 							step={1}
 							showValue
 							disabled={isSaving}

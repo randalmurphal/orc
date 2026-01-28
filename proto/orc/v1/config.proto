@@ -40,6 +40,8 @@ message Config {
   ExportConfig export = 3;
   // Claude settings
   ClaudeConfig claude = 4;
+  // Execution settings (parallel tasks, cost limits)
+  ExecutionConfig execution = 5;
 }
 
 message AutomationConfig {
@@ -78,6 +80,14 @@ message ClaudeConfig {
   int32 max_turns = 3;
   // Temperature
   double temperature = 4;
+}
+
+// Execution settings for UI (parallel tasks, cost limits)
+message ExecutionConfig {
+  // Maximum parallel tasks (1-5, default 2)
+  int32 parallel_tasks = 1;
+  // Daily cost limit in dollars (0-100, default 25)
+  int32 cost_limit = 2;
 }
 
 // Claude Code settings (from settings.json)
@@ -347,6 +357,7 @@ message UpdateConfigRequest {
   optional CompletionConfig completion = 2;
   optional ExportConfig export = 3;
   optional ClaudeConfig claude = 4;
+  optional ExecutionConfig execution = 5;
 }
 
 message UpdateConfigResponse {
