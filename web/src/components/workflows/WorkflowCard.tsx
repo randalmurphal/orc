@@ -2,14 +2,51 @@
  * WorkflowCard displays a single workflow with its phases and metadata.
  */
 
-import type { Workflow } from '@/gen/orc/v1/workflow_pb';
+import type { Workflow, DefinitionSource } from '@/gen/orc/v1/workflow_pb';
+import { DefinitionSource as DS } from '@/gen/orc/v1/workflow_pb';
 import { Badge } from '@/components/core/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 
+/** Get display name for a definition source */
+function getSourceLabel(source?: DefinitionSource): string {
+	switch (source) {
+		case DS.EMBEDDED:
+			return 'Built-in';
+		case DS.PROJECT:
+			return 'Project';
+		case DS.SHARED:
+			return 'Shared';
+		case DS.LOCAL:
+			return 'Local';
+		case DS.PERSONAL:
+			return 'Personal';
+		default:
+			return 'Unknown';
+	}
+}
+
+/** Get badge variant for source */
+function getSourceVariant(source?: DefinitionSource): 'active' | 'idle' | 'completed' | 'paused' {
+	switch (source) {
+		case DS.EMBEDDED:
+			return 'active';
+		case DS.PROJECT:
+			return 'completed';
+		case DS.SHARED:
+			return 'paused';
+		case DS.LOCAL:
+		case DS.PERSONAL:
+			return 'idle';
+		default:
+			return 'idle';
+	}
+}
+
 export interface WorkflowCardProps {
 	workflow: Workflow;
 	phaseCount?: number;
+	source?: DefinitionSource;
 	onSelect?: (workflow: Workflow) => void;
 	onClone?: (workflow: Workflow) => void;
 }
@@ -17,7 +54,7 @@ export interface WorkflowCardProps {
 /**
  * WorkflowCard displays a workflow with its name, phase count, and actions.
  */
-export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: WorkflowCardProps) {
+export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone }: WorkflowCardProps) {
 	const handleClick = () => {
 		onSelect?.(workflow);
 	};
@@ -50,15 +87,9 @@ export function WorkflowCard({ workflow, phaseCount, onSelect, onClone }: Workfl
 					<h3 className="workflow-card-name">{workflow.name}</h3>
 					<span className="workflow-card-id">{workflow.id}</span>
 				</div>
-				{workflow.isBuiltin ? (
-					<Badge variant="status" status="active">
-						Built-in
-					</Badge>
-				) : (
-					<Badge variant="status" status="idle">
-						Custom
-					</Badge>
-				)}
+				<Badge variant="status" status={getSourceVariant(source)}>
+					{getSourceLabel(source)}
+				</Badge>
 			</header>
 
 			{workflow.description && (

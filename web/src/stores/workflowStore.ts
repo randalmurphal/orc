@@ -7,6 +7,7 @@ import {
 	type WorkflowRun,
 	type WorkflowRunWithDetails,
 	RunStatus,
+	DefinitionSource,
 } from '@/gen/orc/v1/workflow_pb';
 
 interface WorkflowStore {
@@ -14,6 +15,8 @@ interface WorkflowStore {
 	workflows: Workflow[];
 	phaseTemplates: PhaseTemplate[];
 	workflowRuns: WorkflowRun[];
+	workflowSources: Record<string, DefinitionSource>;
+	phaseSources: Record<string, DefinitionSource>;
 	selectedWorkflow: WorkflowWithDetails | null;
 	selectedRun: WorkflowRunWithDetails | null;
 	loading: boolean;
@@ -27,8 +30,8 @@ interface WorkflowStore {
 	getRunningRuns: () => WorkflowRun[];
 
 	// Actions
-	setWorkflows: (workflows: Workflow[]) => void;
-	setPhaseTemplates: (templates: PhaseTemplate[]) => void;
+	setWorkflows: (workflows: Workflow[], sources?: Record<string, DefinitionSource>) => void;
+	setPhaseTemplates: (templates: PhaseTemplate[], sources?: Record<string, DefinitionSource>) => void;
 	setWorkflowRuns: (runs: WorkflowRun[]) => void;
 	setSelectedWorkflow: (workflow: WorkflowWithDetails | null) => void;
 	setSelectedRun: (run: WorkflowRunWithDetails | null) => void;
@@ -49,6 +52,8 @@ const initialState = {
 	workflows: [] as Workflow[],
 	phaseTemplates: [] as PhaseTemplate[],
 	workflowRuns: [] as WorkflowRun[],
+	workflowSources: {} as Record<string, DefinitionSource>,
+	phaseSources: {} as Record<string, DefinitionSource>,
 	selectedWorkflow: null as WorkflowWithDetails | null,
 	selectedRun: null as WorkflowRunWithDetails | null,
 	loading: false,
@@ -81,9 +86,17 @@ export const useWorkflowStore = create<WorkflowStore>()(
 		},
 
 		// Actions
-		setWorkflows: (workflows) => set({ workflows, error: null }),
+		setWorkflows: (workflows, sources) => set({
+			workflows,
+			workflowSources: sources ?? {},
+			error: null
+		}),
 
-		setPhaseTemplates: (phaseTemplates) => set({ phaseTemplates, error: null }),
+		setPhaseTemplates: (phaseTemplates, sources) => set({
+			phaseTemplates,
+			phaseSources: sources ?? {},
+			error: null
+		}),
 
 		setWorkflowRuns: (workflowRuns) => set({ workflowRuns, error: null }),
 
@@ -158,6 +171,8 @@ export const useWorkflowStore = create<WorkflowStore>()(
 export const useWorkflows = () => useWorkflowStore((state) => state.workflows);
 export const usePhaseTemplates = () => useWorkflowStore((state) => state.phaseTemplates);
 export const useWorkflowRuns = () => useWorkflowStore((state) => state.workflowRuns);
+export const useWorkflowSources = () => useWorkflowStore((state) => state.workflowSources);
+export const usePhaseSources = () => useWorkflowStore((state) => state.phaseSources);
 export const useBuiltinWorkflows = () => useWorkflowStore((state) => state.getBuiltinWorkflows());
 export const useCustomWorkflows = () => useWorkflowStore((state) => state.getCustomWorkflows());
 export const useBuiltinPhases = () => useWorkflowStore((state) => state.getBuiltinPhases());

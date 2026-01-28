@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Workflow, PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
+import type { Workflow, PhaseTemplate, DefinitionSource } from '@/gen/orc/v1/workflow_pb';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { WorkflowCard } from './WorkflowCard';
@@ -88,6 +88,8 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
+	const [workflowSources, setWorkflowSources] = useState<Record<string, DefinitionSource>>({});
+	const [phaseSources, setPhaseSources] = useState<Record<string, DefinitionSource>>({});
 	const { workflows, phaseTemplates, setWorkflows, setPhaseTemplates } = useWorkflowStore();
 
 	const loadData = useCallback(async () => {
@@ -98,8 +100,19 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 				workflowClient.listWorkflows({ includeBuiltin: true }),
 				workflowClient.listPhaseTemplates({ includeBuiltin: true }),
 			]);
-			setWorkflows(workflowsRes.workflows);
-			setPhaseTemplates(templatesRes.templates);
+			// Convert sources to plain objects
+			const wfSources: Record<string, DefinitionSource> = {};
+			for (const [key, value] of Object.entries(workflowsRes.sources)) {
+				wfSources[key] = value;
+			}
+			const phSources: Record<string, DefinitionSource> = {};
+			for (const [key, value] of Object.entries(templatesRes.sources)) {
+				phSources[key] = value;
+			}
+			setWorkflows(workflowsRes.workflows, wfSources);
+			setPhaseTemplates(templatesRes.templates, phSources);
+			setWorkflowSources(wfSources);
+			setPhaseSources(phSources);
 			// Convert Map to plain object for phase counts
 			const counts: Record<string, number> = {};
 			for (const [key, value] of Object.entries(workflowsRes.phaseCounts)) {
@@ -182,6 +195,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 									key={workflow.id}
 									workflow={workflow}
 									phaseCount={phaseCounts[workflow.id]}
+									source={workflowSources[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
 								/>
@@ -206,6 +220,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 									key={workflow.id}
 									workflow={workflow}
 									phaseCount={phaseCounts[workflow.id]}
+									source={workflowSources[workflow.id]}
 									onSelect={handleSelectWorkflow}
 									onClone={handleCloneWorkflow}
 								/>
@@ -230,6 +245,7 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 								<PhaseTemplateCard
 									key={template.id}
 									template={template}
+									source={phaseSources[template.id]}
 									onSelect={handleSelectPhaseTemplate}
 								/>
 							))}
