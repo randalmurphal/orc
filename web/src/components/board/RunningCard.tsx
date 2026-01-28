@@ -237,7 +237,7 @@ export function RunningCard({
 			</div>
 
 			{/* Pipeline */}
-			<div className="running-pipeline">
+			<div className="running-card__pipeline">
 				<Pipeline
 					phases={DISPLAY_PHASES}
 					currentPhase={currentPhase}

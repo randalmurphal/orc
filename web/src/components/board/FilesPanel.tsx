@@ -178,11 +178,6 @@ export function FilesPanel({
 
 	const hiddenCount = files.length - visibleFiles.length;
 
-	// Don't render if no files
-	if (files.length === 0) {
-		return null;
-	}
-
 	return (
 		<div className={`files-panel panel-section ${collapsed ? 'collapsed' : ''}`}>
 			<button
@@ -208,7 +203,9 @@ export function FilesPanel({
 			</button>
 
 			<div id="files-panel-body" className="panel-body" role="region">
-				{hasMultipleGroups ? (
+				{files.length === 0 ? (
+					<div className="files-empty">No changed files</div>
+				) : hasMultipleGroups ? (
 					// Grouped by task
 					Array.from(groupedFiles.entries()).map(([taskId, taskFiles]) => (
 						<div key={taskId} className="files-task-group">

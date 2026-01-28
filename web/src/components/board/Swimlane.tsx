@@ -149,7 +149,7 @@ export function Swimlane({
 			{/* Content area */}
 			<div
 				id={`swimlane-content-${swimlaneId}`}
-				className="swimlane-content"
+				className="swimlane-tasks swimlane-content"
 				aria-hidden={isCollapsed}
 			>
 				{tasks.length === 0 ? (

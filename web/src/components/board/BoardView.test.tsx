@@ -3,12 +3,21 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView, type BoardViewProps } from './BoardView';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { AppShellProvider } from '@/components/layout/AppShellContext';
+import { AppShellProvider, useAppShell } from '@/components/layout/AppShellContext';
 import { EventProvider } from '@/hooks';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { createMockTask, createMockInitiative } from '@/test/factories';
+
+/**
+ * Renders the right panel content set via AppShell context.
+ * BoardView uses setRightPanelContent to inject command panel into the AppShell.
+ */
+function RightPanelRenderer() {
+	const { rightPanelContent } = useAppShell();
+	return <div data-testid="right-panel-content">{rightPanelContent}</div>;
+}
 
 // Mock events module
 vi.mock('@/lib/events', () => ({
@@ -23,29 +32,12 @@ vi.mock('@/lib/events', () => ({
 }));
 
 // Mock stores
-const mockSetRightPanelContent = vi.fn();
 const mockTasks: Task[] = [];
 const mockTaskStates = new Map();
 const mockLoading = false;
 const mockInitiatives: Initiative[] = [];
 const mockTotalTokens = 0;
 const mockTotalCost = 0;
-
-// Mock useAppShell
-vi.mock('@/components/layout/AppShellContext', async () => {
-	const actual = await vi.importActual('@/components/layout/AppShellContext');
-	return {
-		...actual,
-		useAppShell: () => ({
-			setRightPanelContent: mockSetRightPanelContent,
-			isRightPanelOpen: true,
-			toggleRightPanel: vi.fn(),
-			rightPanelContent: null,
-			isMobileNavMode: false,
-			panelToggleRef: { current: null },
-		}),
-	};
-});
 
 // Mock taskStore
 vi.mock('@/stores/taskStore', () => ({
@@ -85,6 +77,43 @@ vi.mock('@/lib/api', () => ({
 	}),
 }));
 
+// Mock client to prevent actual RPC calls
+vi.mock('@/lib/client', () => ({
+	decisionClient: {
+		resolveDecision: vi.fn().mockResolvedValue({}),
+	},
+	taskClient: {
+		skipBlock: vi.fn().mockResolvedValue({}),
+		runTask: vi.fn().mockResolvedValue({}),
+	},
+	configClient: {
+		getConfigStats: vi.fn().mockResolvedValue({
+			stats: {
+				slashCommandsCount: 0,
+				claudeMdSize: BigInt(0),
+				mcpServersCount: 0,
+				permissionsProfile: 'default',
+			},
+		}),
+	},
+}));
+
+// Mock uiStore for pending decisions
+vi.mock('@/stores/uiStore', () => ({
+	useUIStore: (selector: (state: unknown) => unknown) => {
+		const state = {
+			pendingDecisions: [],
+			removePendingDecision: vi.fn(),
+			wsStatus: 'disconnected',
+			setWsStatus: vi.fn(),
+			toasts: [],
+			addToast: vi.fn(),
+		};
+		return selector(state);
+	},
+	usePendingDecisions: () => [],
+}));
+
 // Helper to render with required providers
 function renderBoardView(props: Partial<BoardViewProps> = {}) {
 	return render(
@@ -93,6 +122,7 @@ function renderBoardView(props: Partial<BoardViewProps> = {}) {
 				<EventProvider>
 					<AppShellProvider>
 						<BoardView {...props} />
+						<RightPanelRenderer />
 					</AppShellProvider>
 				</EventProvider>
 			</MemoryRouter>
@@ -154,40 +184,32 @@ describe('BoardView', () => {
 			expect(screen.getByText('Running')).toBeInTheDocument();
 		});
 
-		it('filters blocked tasks for right panel', () => {
+		it('renders blocked tasks in command panel via AppShell context', () => {
 			const blockedTask = createMockTask({ id: 'T1', status: TaskStatus.BLOCKED });
 			mockTasks.push(blockedTask);
 
 			renderBoardView();
 
-			// Blocked tasks should be passed to BlockedPanel via right panel content
-			expect(mockSetRightPanelContent).toHaveBeenCalled();
+			// Command panel is rendered via AppShell right panel context
+			expect(screen.getByText('Blocked')).toBeInTheDocument();
 		});
 	});
 
-	describe('right panel content', () => {
-		it('sets right panel content on mount', () => {
+	describe('command panel via AppShell context', () => {
+		it('renders command panel via AppShell right panel', () => {
 			renderBoardView();
-			expect(mockSetRightPanelContent).toHaveBeenCalled();
+			// Command panel content is injected into AppShell right panel
+			expect(screen.getByTestId('right-panel-content').querySelector('.command-panel')).toBeInTheDocument();
 		});
 
-		it('clears right panel content on unmount', () => {
-			const { unmount } = renderBoardView();
-			unmount();
-
-			// Should be called with null on cleanup
-			expect(mockSetRightPanelContent).toHaveBeenLastCalledWith(null);
-		});
-
-		it('includes BlockedPanel in right panel content when blocked tasks exist', () => {
-			const blockedTask = createMockTask({ id: 'T1', status: TaskStatus.BLOCKED });
-			mockTasks.push(blockedTask);
-
+		it('renders all panel sections in command panel', () => {
 			renderBoardView();
 
-			// The content passed to setRightPanelContent should include BlockedPanel
-			const callArg = mockSetRightPanelContent.mock.calls[0][0];
-			expect(callArg).toBeTruthy();
+			// All panel sections rendered via AppShell right panel context
+			expect(screen.getByText('Blocked')).toBeInTheDocument();
+			expect(screen.getByText('Decisions')).toBeInTheDocument();
+			expect(screen.getByText('Files Changed')).toBeInTheDocument();
+			expect(screen.getByText('Completed')).toBeInTheDocument();
 		});
 	});
 

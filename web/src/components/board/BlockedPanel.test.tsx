@@ -10,22 +10,22 @@ describe('BlockedPanel', () => {
 	});
 
 	describe('empty state', () => {
-		it('returns null when no blocked tasks', () => {
+		it('renders panel section even when no blocked tasks', () => {
 			const onSkip = vi.fn();
 			const onForce = vi.fn();
 			const { container } = render(
 				<BlockedPanel tasks={[]} onSkip={onSkip} onForce={onForce} />
 			);
 
-			expect(container.firstChild).toBeNull();
+			expect(container.querySelector('.panel-section')).toBeTruthy();
 		});
 
-		it('does not render when tasks array is empty', () => {
+		it('shows Blocked title when tasks array is empty', () => {
 			const onSkip = vi.fn();
 			const onForce = vi.fn();
 			render(<BlockedPanel tasks={[]} onSkip={onSkip} onForce={onForce} />);
 
-			expect(screen.queryByText('Blocked')).not.toBeInTheDocument();
+			expect(screen.getByText('Blocked')).toBeInTheDocument();
 		});
 	});
 

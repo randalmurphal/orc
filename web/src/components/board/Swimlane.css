@@ -158,6 +158,7 @@
 }
 
 /* Collapsible content area */
+.swimlane-tasks,
 .swimlane-content {
 	display: flex;
 	flex-direction: column;

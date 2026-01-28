@@ -127,17 +127,17 @@ export function QueueColumn({
 
 	return (
 		<div
-			className="queue-column"
+			className="queue-column column queued"
 			role="region"
 			aria-label="Queue column"
 		>
 			{/* Column header */}
-			<div className="queue-column-header">
-				<div className="queue-column-title">
+			<div className="queue-column-header column-header">
+				<div className="queue-column-title column-title">
 					<span className="queue-column-indicator" aria-hidden="true" />
 					<span>Queue</span>
 				</div>
-				<span className="queue-column-count" aria-label={`${totalCount} tasks`}>
+				<span className="queue-column-count column-count" aria-label={`${totalCount} tasks`}>
 					{totalCount}
 				</span>
 			</div>

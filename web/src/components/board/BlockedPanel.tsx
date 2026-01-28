@@ -92,11 +92,6 @@ export function BlockedPanel({ tasks, onSkip, onForce }: BlockedPanelProps) {
 		setConfirmingForce(null);
 	}, []);
 
-	// Don't render if no blocked tasks
-	if (tasks.length === 0) {
-		return null;
-	}
-
 	const taskCount = tasks.length;
 	const confirmingTask = confirmingForce
 		? tasks.find((t) => t.id === confirmingForce)

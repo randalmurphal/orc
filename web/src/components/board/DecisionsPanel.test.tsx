@@ -62,20 +62,21 @@ describe('DecisionsPanel', () => {
 	});
 
 	describe('empty state', () => {
-		it('returns null when decisions array is empty', () => {
+		it('renders panel section even when decisions array is empty', () => {
 			const onDecide = vi.fn();
 			const { container } = render(<DecisionsPanel decisions={[]} onDecide={onDecide} />);
 
-			// Component should render nothing
-			expect(container.firstChild).toBeNull();
+			// Component should still render the panel section
+			expect(container.querySelector('.panel-section')).toBeTruthy();
 		});
 
-		it('does not render when decisions is empty', () => {
+		it('shows empty state text when decisions is empty', () => {
 			const onDecide = vi.fn();
 			render(<DecisionsPanel decisions={[]} onDecide={onDecide} />);
 
-			// No section should be present
-			expect(screen.queryByText('Decisions')).not.toBeInTheDocument();
+			// Should show "Decisions" title and empty state
+			expect(screen.getByText('Decisions')).toBeInTheDocument();
+			expect(screen.getByText('No pending decisions')).toBeInTheDocument();
 		});
 	});
 

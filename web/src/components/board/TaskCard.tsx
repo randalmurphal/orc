@@ -150,7 +150,7 @@ export function TaskCard({
 		>
 			{/* Position number (optional) */}
 			{position !== undefined && (
-				<span className="task-card-position">{position}</span>
+				<span className="task-position task-card-position">{position}</span>
 			)}
 
 			{/* Category icon */}

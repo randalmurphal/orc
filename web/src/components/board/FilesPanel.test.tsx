@@ -26,11 +26,11 @@ describe('FilesPanel', () => {
 	});
 
 	describe('basic rendering', () => {
-		it('renders nothing when files array is empty', () => {
+		it('renders panel section when files array is empty', () => {
 			const { container } = render(
 				<FilesPanel files={[]} onFileClick={mockOnFileClick} />
 			);
-			expect(container.firstChild).toBeNull();
+			expect(container.querySelector('.panel-section')).toBeTruthy();
 		});
 
 		it('renders panel with header and file count', () => {
