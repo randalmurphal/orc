@@ -1,5 +1,11 @@
 # Bidirectional Sync: Files ↔ UI
 
+> **Status: SUPERSEDED** (January 2026)
+>
+> This spec was written for the original YAML-based storage model where files were the source of truth.
+> The storage model was migrated to pure SQLite in January 2026 - see `ADR-002-storage-model.md`.
+> File-based synchronization is no longer applicable; the database is now the sole source of truth.
+
 ## Summary
 
 Enable true bidirectional synchronization between the file system and web UI, where files remain the source of truth but UI actions write back to files.
