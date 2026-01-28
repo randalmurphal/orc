@@ -77,6 +77,9 @@ web/src/
 | `WorkflowSelector` | Workflow dropdown for task forms |
 | `EditWorkflowModal` | Workflow metadata and phase editing |
 | `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
+| `Swimlane` | Collapsible initiative group in Queue column |
+| `QueueColumn` | Queue column with initiative swimlanes |
+| `Pipeline` | Phase progress visualization for running tasks |
 
 ## Custom Hooks
 
