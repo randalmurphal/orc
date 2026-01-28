@@ -1,0 +1,10 @@
+id: implement-trivial
+name: "Implement (Trivial)"
+description: "Direct implementation: short tests + build, no spec overhead"
+workflow_type: task
+
+phases:
+  - template: implement
+    sequence: 0
+    # Trivial tasks use short tests, lint, and build
+    # quality_checks_override uses use_short:true for language-agnostic short tests

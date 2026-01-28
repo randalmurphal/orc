@@ -4,12 +4,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func init() {
@@ -17,10 +19,16 @@ func init() {
 	phasesCmd.AddCommand(phaseShowCmd)
 	phasesCmd.AddCommand(phaseNewCmd)
 	phasesCmd.AddCommand(phaseConfigCmd)
+	phasesCmd.AddCommand(phaseCloneCmd)
 
 	// List flags
 	phasesCmd.Flags().Bool("custom", false, "Show only custom phase templates")
 	phasesCmd.Flags().Bool("builtin", false, "Show only built-in phase templates")
+	phasesCmd.Flags().Bool("sources", false, "Show source locations for each phase")
+
+	// Clone flags
+	phaseCloneCmd.Flags().StringP("level", "l", "project", "Target level: personal, local, shared, project")
+	phaseCloneCmd.Flags().BoolP("force", "f", false, "Overwrite if exists")
 
 	// New flags
 	phaseNewCmd.Flags().String("prompt", "", "Inline prompt content")
@@ -44,11 +52,19 @@ var phasesCmd = &cobra.Command{
 
 Phase templates define reusable execution units with prompts, configuration,
 and input/output contracts. Built-in templates provide standard phases like
-'spec', 'implement', 'review'. You can create custom templates for specialized
-workflows.
+'spec', 'implement', 'review'. You can create custom templates by cloning
+and modifying them.
+
+Sources (--sources flag):
+  personal  - ~/.orc/phases/ (user machine-wide)
+  local     - .orc/local/phases/ (personal project-specific)
+  shared    - .orc/shared/phases/ (team defaults)
+  project   - .orc/phases/ (project defaults)
+  embedded  - Built into the binary
 
 Examples:
   orc phases                   # List all phase templates
+  orc phases --sources         # Show where each phase comes from
   orc phases --custom          # List only custom templates
   orc phases --builtin         # List only built-in templates`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,30 +73,29 @@ Examples:
 			return err
 		}
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		orcDir := filepath.Join(projectRoot, ".orc")
+		resolver := workflow.NewResolverFromOrcDir(orcDir)
 
-		templates, err := pdb.ListPhaseTemplates()
-		if err != nil {
-			return fmt.Errorf("list phase templates: %w", err)
-		}
-
+		showSources, _ := cmd.Flags().GetBool("sources")
 		customOnly, _ := cmd.Flags().GetBool("custom")
 		builtinOnly, _ := cmd.Flags().GetBool("builtin")
 
-		// Filter templates
-		var filtered []*db.PhaseTemplate
-		for _, t := range templates {
-			if customOnly && t.IsBuiltin {
+		phases, err := resolver.ListPhases()
+		if err != nil {
+			return fmt.Errorf("list phases: %w", err)
+		}
+
+		// Filter phases
+		var filtered []workflow.ResolvedPhase
+		for _, rp := range phases {
+			isBuiltin := rp.Source == workflow.SourceEmbedded
+			if customOnly && isBuiltin {
 				continue
 			}
-			if builtinOnly && !t.IsBuiltin {
+			if builtinOnly && !isBuiltin {
 				continue
 			}
-			filtered = append(filtered, t)
+			filtered = append(filtered, rp)
 		}
 
 		if len(filtered) == 0 {
@@ -90,18 +105,29 @@ Examples:
 
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "ID\tNAME\tSOURCE\tMAX ITER\tGATE\tARTIFACT\tBUILT-IN")
-		for _, t := range filtered {
-			artifact := ""
-			if t.ProducesArtifact {
-				artifact = "yes"
+		if showSources {
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tMAX ITER\tGATE\tSOURCE")
+		} else {
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tMAX ITER\tGATE\tARTIFACT\tBUILT-IN")
+		}
+		for _, rp := range filtered {
+			p := rp.Phase
+			if showSources {
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+					p.ID, p.Name, p.MaxIterations, p.GateType,
+					workflow.SourceDisplayName(rp.Source))
+			} else {
+				artifact := ""
+				if p.ProducesArtifact {
+					artifact = "yes"
+				}
+				builtin := ""
+				if rp.Source == workflow.SourceEmbedded {
+					builtin = "yes"
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+					p.ID, p.Name, p.MaxIterations, p.GateType, artifact, builtin)
 			}
-			builtin := ""
-			if t.IsBuiltin {
-				builtin = "yes"
-			}
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
-				t.ID, t.Name, t.PromptSource, t.MaxIterations, t.GateType, artifact, builtin)
 		}
 		_ = w.Flush()
 
@@ -349,6 +375,59 @@ Examples:
 		}
 
 		fmt.Printf("Updated phase template '%s'\n", phaseID)
+		return nil
+	},
+}
+
+var phaseCloneCmd = &cobra.Command{
+	Use:   "clone <source-id> <dest-id>",
+	Short: "Clone a phase template to a new file",
+	Long: `Clone a phase template (built-in or custom) to create a new customizable copy.
+
+The cloned phase is written to a YAML file and can be edited directly.
+Use --level to control where the clone is created:
+
+Levels:
+  personal  - ~/.orc/phases/ (user machine-wide, not shared)
+  local     - .orc/local/phases/ (personal project-specific, gitignored)
+  shared    - .orc/shared/phases/ (team defaults, git-tracked)
+  project   - .orc/phases/ (project defaults, git-tracked) [default]
+
+Examples:
+  orc phase clone implement my-implement           # Clone to .orc/phases/
+  orc phase clone implement my-implement -l local  # Clone to .orc/local/phases/
+  orc phase clone spec my-spec --force             # Overwrite if exists`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		sourceID := args[0]
+		destID := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		levelStr, _ := cmd.Flags().GetString("level")
+		force, _ := cmd.Flags().GetBool("force")
+
+		level, err := workflow.ParseWriteLevel(levelStr)
+		if err != nil {
+			return err
+		}
+
+		orcDir := filepath.Join(projectRoot, ".orc")
+		cloner := workflow.NewClonerFromOrcDir(orcDir)
+
+		result, err := cloner.ClonePhase(sourceID, destID, level, force)
+		if err != nil {
+			return fmt.Errorf("clone phase: %w", err)
+		}
+
+		fmt.Printf("Cloned phase '%s' to '%s'\n", sourceID, destID)
+		fmt.Printf("File: %s\n", result.DestPath)
+		fmt.Printf("Source: %s\n", workflow.SourceDisplayName(result.SourceLoc))
+		fmt.Printf("Level: %s\n", result.DestLevel)
+
 		return nil
 	},
 }

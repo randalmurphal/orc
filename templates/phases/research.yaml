@@ -1,0 +1,20 @@
+id: research
+name: "Research"
+description: "Research patterns and approaches"
+
+prompt_source: embedded
+prompt_path: prompts/research.md
+
+input_variables: ["TASK_DESCRIPTION"]
+output_var_name: "RESEARCH_CONTENT"
+output_type: research
+produces_artifact: true
+artifact_type: research
+
+max_iterations: 10
+model: opus
+thinking: true
+gate_type: auto
+checkpoint: true
+
+claude_config: '{"disallowed_tools": ["Write", "Edit", "NotebookEdit"]}'

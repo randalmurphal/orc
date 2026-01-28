@@ -170,6 +170,12 @@ func Default() *Config {
 		Plan: PlanConfig{
 			MinimumSections: []string{"intent", "success_criteria", "testing"},
 		},
+		Weights: WeightsConfig{
+			Trivial: "implement-trivial",
+			Small:   "implement-small",
+			Medium:  "implement-medium",
+			Large:   "implement-large",
+		},
 		ArtifactSkip: ArtifactSkipConfig{
 			Enabled:  true,                                 // Check for existing artifacts
 			AutoSkip: false,                                // Prompt user by default

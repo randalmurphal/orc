@@ -1,0 +1,43 @@
+id: qa_e2e_test
+name: "E2E QA Testing"
+description: "Browser-based E2E testing with Playwright MCP"
+
+prompt_source: embedded
+prompt_path: prompts/qa_e2e_test.md
+
+input_variables: ["SPEC_CONTENT", "WORKTREE_PATH", "BEFORE_IMAGES", "PREVIOUS_FINDINGS", "QA_ITERATION", "QA_MAX_ITERATIONS"]
+output_var_name: "QA_FINDINGS"
+output_type: findings
+produces_artifact: true
+artifact_type: qa_findings
+
+max_iterations: 20
+model: sonnet
+thinking: false
+gate_type: auto
+checkpoint: false
+
+claude_config: |
+  {
+    "allowed_tools": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_press_key",
+      "Read", "Write", "Glob", "Grep"
+    ],
+    "disallowed_tools": ["Edit", "NotebookEdit"],
+    "mcp_servers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["@playwright/mcp@latest", "--isolated"]
+      }
+    },
+    "append_system_prompt": "Sub-agents available: qa-functional (happy path + edge cases), qa-visual (visual regression), qa-accessibility (a11y audit). Delegate based on test scope. Report only findings with confidence >= 80."
+  }

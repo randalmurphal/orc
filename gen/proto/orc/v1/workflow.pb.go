@@ -358,6 +358,66 @@ func (VariableSourceType) EnumDescriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{5}
 }
 
+// DefinitionSource indicates where a workflow or phase template is defined.
+// Used for file-based customization with 5-level hierarchy resolution.
+type DefinitionSource int32
+
+const (
+	DefinitionSource_DEFINITION_SOURCE_UNSPECIFIED DefinitionSource = 0
+	DefinitionSource_DEFINITION_SOURCE_EMBEDDED    DefinitionSource = 1 // Built into binary
+	DefinitionSource_DEFINITION_SOURCE_PROJECT     DefinitionSource = 2 // .orc/ (project defaults)
+	DefinitionSource_DEFINITION_SOURCE_SHARED      DefinitionSource = 3 // .orc/shared/ (team defaults)
+	DefinitionSource_DEFINITION_SOURCE_LOCAL       DefinitionSource = 4 // .orc/local/ (personal project-specific)
+	DefinitionSource_DEFINITION_SOURCE_PERSONAL    DefinitionSource = 5 // ~/.orc/ (user machine-wide)
+)
+
+// Enum value maps for DefinitionSource.
+var (
+	DefinitionSource_name = map[int32]string{
+		0: "DEFINITION_SOURCE_UNSPECIFIED",
+		1: "DEFINITION_SOURCE_EMBEDDED",
+		2: "DEFINITION_SOURCE_PROJECT",
+		3: "DEFINITION_SOURCE_SHARED",
+		4: "DEFINITION_SOURCE_LOCAL",
+		5: "DEFINITION_SOURCE_PERSONAL",
+	}
+	DefinitionSource_value = map[string]int32{
+		"DEFINITION_SOURCE_UNSPECIFIED": 0,
+		"DEFINITION_SOURCE_EMBEDDED":    1,
+		"DEFINITION_SOURCE_PROJECT":     2,
+		"DEFINITION_SOURCE_SHARED":      3,
+		"DEFINITION_SOURCE_LOCAL":       4,
+		"DEFINITION_SOURCE_PERSONAL":    5,
+	}
+)
+
+func (x DefinitionSource) Enum() *DefinitionSource {
+	p := new(DefinitionSource)
+	*p = x
+	return p
+}
+
+func (x DefinitionSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DefinitionSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_orc_v1_workflow_proto_enumTypes[6].Descriptor()
+}
+
+func (DefinitionSource) Type() protoreflect.EnumType {
+	return &file_orc_v1_workflow_proto_enumTypes[6]
+}
+
+func (x DefinitionSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DefinitionSource.Descriptor instead.
+func (DefinitionSource) EnumDescriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{6}
+}
+
 type PhaseTemplate struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1543,10 +1603,12 @@ func (x *ListWorkflowsRequest) GetWorkflowType() WorkflowType {
 }
 
 type ListWorkflowsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workflows     []*Workflow            `protobuf:"bytes,1,rep,name=workflows,proto3" json:"workflows,omitempty"`
-	PhaseCounts   map[string]int32       `protobuf:"bytes,2,rep,name=phase_counts,json=phaseCounts,proto3" json:"phase_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	Page          *PageResponse          `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Workflows   []*Workflow            `protobuf:"bytes,1,rep,name=workflows,proto3" json:"workflows,omitempty"`
+	PhaseCounts map[string]int32       `protobuf:"bytes,2,rep,name=phase_counts,json=phaseCounts,proto3" json:"phase_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	Page        *PageResponse          `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Map of workflow ID to definition source (where the workflow is defined)
+	Sources       map[string]DefinitionSource `protobuf:"bytes,4,rep,name=sources,proto3" json:"sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=orc.v1.DefinitionSource"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1598,6 +1660,13 @@ func (x *ListWorkflowsResponse) GetPhaseCounts() map[string]int32 {
 func (x *ListWorkflowsResponse) GetPage() *PageResponse {
 	if x != nil {
 		return x.Page
+	}
+	return nil
+}
+
+func (x *ListWorkflowsResponse) GetSources() map[string]DefinitionSource {
+	if x != nil {
+		return x.Sources
 	}
 	return nil
 }
@@ -2831,9 +2900,11 @@ func (x *ListPhaseTemplatesRequest) GetIncludeBuiltin() bool {
 }
 
 type ListPhaseTemplatesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Templates     []*PhaseTemplate       `protobuf:"bytes,1,rep,name=templates,proto3" json:"templates,omitempty"`
-	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Templates []*PhaseTemplate       `protobuf:"bytes,1,rep,name=templates,proto3" json:"templates,omitempty"`
+	Page      *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	// Map of template ID to definition source (where the template is defined)
+	Sources       map[string]DefinitionSource `protobuf:"bytes,3,rep,name=sources,proto3" json:"sources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=orc.v1.DefinitionSource"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2878,6 +2949,13 @@ func (x *ListPhaseTemplatesResponse) GetTemplates() []*PhaseTemplate {
 func (x *ListPhaseTemplatesResponse) GetPage() *PageResponse {
 	if x != nil {
 		return x.Page
+	}
+	return nil
+}
+
+func (x *ListPhaseTemplatesResponse) GetSources() map[string]DefinitionSource {
+	if x != nil {
+		return x.Sources
 	}
 	return nil
 }
@@ -4167,14 +4245,18 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\vcustom_only\x18\x03 \x01(\bR\n" +
 	"customOnly\x12>\n" +
 	"\rworkflow_type\x18\x04 \x01(\x0e2\x14.orc.v1.WorkflowTypeH\x00R\fworkflowType\x88\x01\x01B\x10\n" +
-	"\x0e_workflow_type\"\x84\x02\n" +
+	"\x0e_workflow_type\"\xa0\x03\n" +
 	"\x15ListWorkflowsResponse\x12.\n" +
 	"\tworkflows\x18\x01 \x03(\v2\x10.orc.v1.WorkflowR\tworkflows\x12Q\n" +
 	"\fphase_counts\x18\x02 \x03(\v2..orc.v1.ListWorkflowsResponse.PhaseCountsEntryR\vphaseCounts\x12(\n" +
-	"\x04page\x18\x03 \x01(\v2\x14.orc.v1.PageResponseR\x04page\x1a>\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.orc.v1.PageResponseR\x04page\x12D\n" +
+	"\asources\x18\x04 \x03(\v2*.orc.v1.ListWorkflowsResponse.SourcesEntryR\asources\x1a>\n" +
 	"\x10PhaseCountsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"$\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aT\n" +
+	"\fSourcesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12.\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x18.orc.v1.DefinitionSourceR\x05value:\x028\x01\"$\n" +
 	"\x12GetWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"N\n" +
 	"\x13GetWorkflowResponse\x127\n" +
@@ -4285,10 +4367,14 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"m\n" +
 	"\x19ListPhaseTemplatesRequest\x12'\n" +
 	"\x04page\x18\x01 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12'\n" +
-	"\x0finclude_builtin\x18\x02 \x01(\bR\x0eincludeBuiltin\"{\n" +
+	"\x0finclude_builtin\x18\x02 \x01(\bR\x0eincludeBuiltin\"\x9c\x02\n" +
 	"\x1aListPhaseTemplatesResponse\x123\n" +
 	"\ttemplates\x18\x01 \x03(\v2\x15.orc.v1.PhaseTemplateR\ttemplates\x12(\n" +
-	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\")\n" +
+	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\x12I\n" +
+	"\asources\x18\x03 \x03(\v2/.orc.v1.ListPhaseTemplatesResponse.SourcesEntryR\asources\x1aT\n" +
+	"\fSourcesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12.\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x18.orc.v1.DefinitionSourceR\x05value:\x028\x01\")\n" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
@@ -4440,7 +4526,14 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x1bVARIABLE_SOURCE_TYPE_SCRIPT\x10\x03\x12\x1c\n" +
 	"\x18VARIABLE_SOURCE_TYPE_API\x10\x04\x12%\n" +
 	"!VARIABLE_SOURCE_TYPE_PHASE_OUTPUT\x10\x05\x12(\n" +
-	"$VARIABLE_SOURCE_TYPE_PROMPT_FRAGMENT\x10\x062\xd4\r\n" +
+	"$VARIABLE_SOURCE_TYPE_PROMPT_FRAGMENT\x10\x06*\xcf\x01\n" +
+	"\x10DefinitionSource\x12!\n" +
+	"\x1dDEFINITION_SOURCE_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aDEFINITION_SOURCE_EMBEDDED\x10\x01\x12\x1d\n" +
+	"\x19DEFINITION_SOURCE_PROJECT\x10\x02\x12\x1c\n" +
+	"\x18DEFINITION_SOURCE_SHARED\x10\x03\x12\x1b\n" +
+	"\x17DEFINITION_SOURCE_LOCAL\x10\x04\x12\x1e\n" +
+	"\x1aDEFINITION_SOURCE_PERSONAL\x10\x052\xd4\r\n" +
 	"\x0fWorkflowService\x12L\n" +
 	"\rListWorkflows\x12\x1c.orc.v1.ListWorkflowsRequest\x1a\x1d.orc.v1.ListWorkflowsResponse\x12F\n" +
 	"\vGetWorkflow\x12\x1a.orc.v1.GetWorkflowRequest\x1a\x1b.orc.v1.GetWorkflowResponse\x12O\n" +
@@ -4478,8 +4571,8 @@ func file_orc_v1_workflow_proto_rawDescGZIP() []byte {
 	return file_orc_v1_workflow_proto_rawDescData
 }
 
-var file_orc_v1_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
+var file_orc_v1_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_orc_v1_workflow_proto_goTypes = []any{
 	(PromptSource)(0),                   // 0: orc.v1.PromptSource
 	(GateType)(0),                       // 1: orc.v1.GateType
@@ -4487,180 +4580,187 @@ var file_orc_v1_workflow_proto_goTypes = []any{
 	(ContextType)(0),                    // 3: orc.v1.ContextType
 	(RunStatus)(0),                      // 4: orc.v1.RunStatus
 	(VariableSourceType)(0),             // 5: orc.v1.VariableSourceType
-	(*PhaseTemplate)(nil),               // 6: orc.v1.PhaseTemplate
-	(*Workflow)(nil),                    // 7: orc.v1.Workflow
-	(*WorkflowPhase)(nil),               // 8: orc.v1.WorkflowPhase
-	(*WorkflowVariable)(nil),            // 9: orc.v1.WorkflowVariable
-	(*WorkflowWithDetails)(nil),         // 10: orc.v1.WorkflowWithDetails
-	(*ContextData)(nil),                 // 11: orc.v1.ContextData
-	(*WorkflowRun)(nil),                 // 12: orc.v1.WorkflowRun
-	(*WorkflowRunPhase)(nil),            // 13: orc.v1.WorkflowRunPhase
-	(*WorkflowRunWithDetails)(nil),      // 14: orc.v1.WorkflowRunWithDetails
-	(*ListWorkflowsRequest)(nil),        // 15: orc.v1.ListWorkflowsRequest
-	(*ListWorkflowsResponse)(nil),       // 16: orc.v1.ListWorkflowsResponse
-	(*GetWorkflowRequest)(nil),          // 17: orc.v1.GetWorkflowRequest
-	(*GetWorkflowResponse)(nil),         // 18: orc.v1.GetWorkflowResponse
-	(*CreateWorkflowRequest)(nil),       // 19: orc.v1.CreateWorkflowRequest
-	(*CreateWorkflowResponse)(nil),      // 20: orc.v1.CreateWorkflowResponse
-	(*UpdateWorkflowRequest)(nil),       // 21: orc.v1.UpdateWorkflowRequest
-	(*UpdateWorkflowResponse)(nil),      // 22: orc.v1.UpdateWorkflowResponse
-	(*DeleteWorkflowRequest)(nil),       // 23: orc.v1.DeleteWorkflowRequest
-	(*DeleteWorkflowResponse)(nil),      // 24: orc.v1.DeleteWorkflowResponse
-	(*CloneWorkflowRequest)(nil),        // 25: orc.v1.CloneWorkflowRequest
-	(*CloneWorkflowResponse)(nil),       // 26: orc.v1.CloneWorkflowResponse
-	(*AddPhaseRequest)(nil),             // 27: orc.v1.AddPhaseRequest
-	(*AddPhaseResponse)(nil),            // 28: orc.v1.AddPhaseResponse
-	(*UpdatePhaseRequest)(nil),          // 29: orc.v1.UpdatePhaseRequest
-	(*UpdatePhaseResponse)(nil),         // 30: orc.v1.UpdatePhaseResponse
-	(*RemovePhaseRequest)(nil),          // 31: orc.v1.RemovePhaseRequest
-	(*RemovePhaseResponse)(nil),         // 32: orc.v1.RemovePhaseResponse
-	(*AddVariableRequest)(nil),          // 33: orc.v1.AddVariableRequest
-	(*AddVariableResponse)(nil),         // 34: orc.v1.AddVariableResponse
-	(*RemoveVariableRequest)(nil),       // 35: orc.v1.RemoveVariableRequest
-	(*RemoveVariableResponse)(nil),      // 36: orc.v1.RemoveVariableResponse
-	(*ListPhaseTemplatesRequest)(nil),   // 37: orc.v1.ListPhaseTemplatesRequest
-	(*ListPhaseTemplatesResponse)(nil),  // 38: orc.v1.ListPhaseTemplatesResponse
-	(*GetPhaseTemplateRequest)(nil),     // 39: orc.v1.GetPhaseTemplateRequest
-	(*GetPhaseTemplateResponse)(nil),    // 40: orc.v1.GetPhaseTemplateResponse
-	(*CreatePhaseTemplateRequest)(nil),  // 41: orc.v1.CreatePhaseTemplateRequest
-	(*CreatePhaseTemplateResponse)(nil), // 42: orc.v1.CreatePhaseTemplateResponse
-	(*UpdatePhaseTemplateRequest)(nil),  // 43: orc.v1.UpdatePhaseTemplateRequest
-	(*UpdatePhaseTemplateResponse)(nil), // 44: orc.v1.UpdatePhaseTemplateResponse
-	(*DeletePhaseTemplateRequest)(nil),  // 45: orc.v1.DeletePhaseTemplateRequest
-	(*DeletePhaseTemplateResponse)(nil), // 46: orc.v1.DeletePhaseTemplateResponse
-	(*GetPromptContentRequest)(nil),     // 47: orc.v1.GetPromptContentRequest
-	(*GetPromptContentResponse)(nil),    // 48: orc.v1.GetPromptContentResponse
-	(*ListWorkflowRunsRequest)(nil),     // 49: orc.v1.ListWorkflowRunsRequest
-	(*ListWorkflowRunsResponse)(nil),    // 50: orc.v1.ListWorkflowRunsResponse
-	(*GetWorkflowRunRequest)(nil),       // 51: orc.v1.GetWorkflowRunRequest
-	(*GetWorkflowRunResponse)(nil),      // 52: orc.v1.GetWorkflowRunResponse
-	(*StartWorkflowRunRequest)(nil),     // 53: orc.v1.StartWorkflowRunRequest
-	(*StartWorkflowRunResponse)(nil),    // 54: orc.v1.StartWorkflowRunResponse
-	(*CancelWorkflowRunRequest)(nil),    // 55: orc.v1.CancelWorkflowRunRequest
-	(*CancelWorkflowRunResponse)(nil),   // 56: orc.v1.CancelWorkflowRunResponse
-	nil,                                 // 57: orc.v1.WorkflowRun.VariablesSnapshotEntry
-	nil,                                 // 58: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	nil,                                 // 59: orc.v1.StartWorkflowRunRequest.VariablesEntry
-	(*timestamppb.Timestamp)(nil),       // 60: google.protobuf.Timestamp
-	(PhaseStatus)(0),                    // 61: orc.v1.PhaseStatus
-	(*PageRequest)(nil),                 // 62: orc.v1.PageRequest
-	(*PageResponse)(nil),                // 63: orc.v1.PageResponse
+	(DefinitionSource)(0),               // 6: orc.v1.DefinitionSource
+	(*PhaseTemplate)(nil),               // 7: orc.v1.PhaseTemplate
+	(*Workflow)(nil),                    // 8: orc.v1.Workflow
+	(*WorkflowPhase)(nil),               // 9: orc.v1.WorkflowPhase
+	(*WorkflowVariable)(nil),            // 10: orc.v1.WorkflowVariable
+	(*WorkflowWithDetails)(nil),         // 11: orc.v1.WorkflowWithDetails
+	(*ContextData)(nil),                 // 12: orc.v1.ContextData
+	(*WorkflowRun)(nil),                 // 13: orc.v1.WorkflowRun
+	(*WorkflowRunPhase)(nil),            // 14: orc.v1.WorkflowRunPhase
+	(*WorkflowRunWithDetails)(nil),      // 15: orc.v1.WorkflowRunWithDetails
+	(*ListWorkflowsRequest)(nil),        // 16: orc.v1.ListWorkflowsRequest
+	(*ListWorkflowsResponse)(nil),       // 17: orc.v1.ListWorkflowsResponse
+	(*GetWorkflowRequest)(nil),          // 18: orc.v1.GetWorkflowRequest
+	(*GetWorkflowResponse)(nil),         // 19: orc.v1.GetWorkflowResponse
+	(*CreateWorkflowRequest)(nil),       // 20: orc.v1.CreateWorkflowRequest
+	(*CreateWorkflowResponse)(nil),      // 21: orc.v1.CreateWorkflowResponse
+	(*UpdateWorkflowRequest)(nil),       // 22: orc.v1.UpdateWorkflowRequest
+	(*UpdateWorkflowResponse)(nil),      // 23: orc.v1.UpdateWorkflowResponse
+	(*DeleteWorkflowRequest)(nil),       // 24: orc.v1.DeleteWorkflowRequest
+	(*DeleteWorkflowResponse)(nil),      // 25: orc.v1.DeleteWorkflowResponse
+	(*CloneWorkflowRequest)(nil),        // 26: orc.v1.CloneWorkflowRequest
+	(*CloneWorkflowResponse)(nil),       // 27: orc.v1.CloneWorkflowResponse
+	(*AddPhaseRequest)(nil),             // 28: orc.v1.AddPhaseRequest
+	(*AddPhaseResponse)(nil),            // 29: orc.v1.AddPhaseResponse
+	(*UpdatePhaseRequest)(nil),          // 30: orc.v1.UpdatePhaseRequest
+	(*UpdatePhaseResponse)(nil),         // 31: orc.v1.UpdatePhaseResponse
+	(*RemovePhaseRequest)(nil),          // 32: orc.v1.RemovePhaseRequest
+	(*RemovePhaseResponse)(nil),         // 33: orc.v1.RemovePhaseResponse
+	(*AddVariableRequest)(nil),          // 34: orc.v1.AddVariableRequest
+	(*AddVariableResponse)(nil),         // 35: orc.v1.AddVariableResponse
+	(*RemoveVariableRequest)(nil),       // 36: orc.v1.RemoveVariableRequest
+	(*RemoveVariableResponse)(nil),      // 37: orc.v1.RemoveVariableResponse
+	(*ListPhaseTemplatesRequest)(nil),   // 38: orc.v1.ListPhaseTemplatesRequest
+	(*ListPhaseTemplatesResponse)(nil),  // 39: orc.v1.ListPhaseTemplatesResponse
+	(*GetPhaseTemplateRequest)(nil),     // 40: orc.v1.GetPhaseTemplateRequest
+	(*GetPhaseTemplateResponse)(nil),    // 41: orc.v1.GetPhaseTemplateResponse
+	(*CreatePhaseTemplateRequest)(nil),  // 42: orc.v1.CreatePhaseTemplateRequest
+	(*CreatePhaseTemplateResponse)(nil), // 43: orc.v1.CreatePhaseTemplateResponse
+	(*UpdatePhaseTemplateRequest)(nil),  // 44: orc.v1.UpdatePhaseTemplateRequest
+	(*UpdatePhaseTemplateResponse)(nil), // 45: orc.v1.UpdatePhaseTemplateResponse
+	(*DeletePhaseTemplateRequest)(nil),  // 46: orc.v1.DeletePhaseTemplateRequest
+	(*DeletePhaseTemplateResponse)(nil), // 47: orc.v1.DeletePhaseTemplateResponse
+	(*GetPromptContentRequest)(nil),     // 48: orc.v1.GetPromptContentRequest
+	(*GetPromptContentResponse)(nil),    // 49: orc.v1.GetPromptContentResponse
+	(*ListWorkflowRunsRequest)(nil),     // 50: orc.v1.ListWorkflowRunsRequest
+	(*ListWorkflowRunsResponse)(nil),    // 51: orc.v1.ListWorkflowRunsResponse
+	(*GetWorkflowRunRequest)(nil),       // 52: orc.v1.GetWorkflowRunRequest
+	(*GetWorkflowRunResponse)(nil),      // 53: orc.v1.GetWorkflowRunResponse
+	(*StartWorkflowRunRequest)(nil),     // 54: orc.v1.StartWorkflowRunRequest
+	(*StartWorkflowRunResponse)(nil),    // 55: orc.v1.StartWorkflowRunResponse
+	(*CancelWorkflowRunRequest)(nil),    // 56: orc.v1.CancelWorkflowRunRequest
+	(*CancelWorkflowRunResponse)(nil),   // 57: orc.v1.CancelWorkflowRunResponse
+	nil,                                 // 58: orc.v1.WorkflowRun.VariablesSnapshotEntry
+	nil,                                 // 59: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	nil,                                 // 60: orc.v1.ListWorkflowsResponse.SourcesEntry
+	nil,                                 // 61: orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	nil,                                 // 62: orc.v1.StartWorkflowRunRequest.VariablesEntry
+	(*timestamppb.Timestamp)(nil),       // 63: google.protobuf.Timestamp
+	(PhaseStatus)(0),                    // 64: orc.v1.PhaseStatus
+	(*PageRequest)(nil),                 // 65: orc.v1.PageRequest
+	(*PageResponse)(nil),                // 66: orc.v1.PageResponse
 }
 var file_orc_v1_workflow_proto_depIdxs = []int32{
 	0,  // 0: orc.v1.PhaseTemplate.prompt_source:type_name -> orc.v1.PromptSource
 	1,  // 1: orc.v1.PhaseTemplate.gate_type:type_name -> orc.v1.GateType
-	60, // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
-	60, // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	63, // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
+	63, // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: orc.v1.Workflow.workflow_type:type_name -> orc.v1.WorkflowType
-	60, // 5: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
-	60, // 6: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
+	63, // 5: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
+	63, // 6: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: orc.v1.WorkflowPhase.gate_type_override:type_name -> orc.v1.GateType
-	6,  // 8: orc.v1.WorkflowPhase.template:type_name -> orc.v1.PhaseTemplate
+	7,  // 8: orc.v1.WorkflowPhase.template:type_name -> orc.v1.PhaseTemplate
 	5,  // 9: orc.v1.WorkflowVariable.source_type:type_name -> orc.v1.VariableSourceType
-	7,  // 10: orc.v1.WorkflowWithDetails.workflow:type_name -> orc.v1.Workflow
-	8,  // 11: orc.v1.WorkflowWithDetails.phases:type_name -> orc.v1.WorkflowPhase
-	9,  // 12: orc.v1.WorkflowWithDetails.variables:type_name -> orc.v1.WorkflowVariable
+	8,  // 10: orc.v1.WorkflowWithDetails.workflow:type_name -> orc.v1.Workflow
+	9,  // 11: orc.v1.WorkflowWithDetails.phases:type_name -> orc.v1.WorkflowPhase
+	10, // 12: orc.v1.WorkflowWithDetails.variables:type_name -> orc.v1.WorkflowVariable
 	3,  // 13: orc.v1.WorkflowRun.context_type:type_name -> orc.v1.ContextType
-	11, // 14: orc.v1.WorkflowRun.context_data:type_name -> orc.v1.ContextData
+	12, // 14: orc.v1.WorkflowRun.context_data:type_name -> orc.v1.ContextData
 	4,  // 15: orc.v1.WorkflowRun.status:type_name -> orc.v1.RunStatus
-	60, // 16: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
-	60, // 17: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
-	57, // 18: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
-	60, // 19: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
-	60, // 20: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
-	61, // 21: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
-	60, // 22: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
-	60, // 23: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
-	6,  // 24: orc.v1.WorkflowRunPhase.template:type_name -> orc.v1.PhaseTemplate
-	12, // 25: orc.v1.WorkflowRunWithDetails.run:type_name -> orc.v1.WorkflowRun
-	7,  // 26: orc.v1.WorkflowRunWithDetails.workflow:type_name -> orc.v1.Workflow
-	13, // 27: orc.v1.WorkflowRunWithDetails.phases:type_name -> orc.v1.WorkflowRunPhase
-	62, // 28: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
+	63, // 16: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
+	63, // 17: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
+	58, // 18: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
+	63, // 19: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
+	63, // 20: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
+	64, // 21: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
+	63, // 22: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
+	63, // 23: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
+	7,  // 24: orc.v1.WorkflowRunPhase.template:type_name -> orc.v1.PhaseTemplate
+	13, // 25: orc.v1.WorkflowRunWithDetails.run:type_name -> orc.v1.WorkflowRun
+	8,  // 26: orc.v1.WorkflowRunWithDetails.workflow:type_name -> orc.v1.Workflow
+	14, // 27: orc.v1.WorkflowRunWithDetails.phases:type_name -> orc.v1.WorkflowRunPhase
+	65, // 28: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
 	2,  // 29: orc.v1.ListWorkflowsRequest.workflow_type:type_name -> orc.v1.WorkflowType
-	7,  // 30: orc.v1.ListWorkflowsResponse.workflows:type_name -> orc.v1.Workflow
-	58, // 31: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	63, // 32: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
-	10, // 33: orc.v1.GetWorkflowResponse.workflow:type_name -> orc.v1.WorkflowWithDetails
-	2,  // 34: orc.v1.CreateWorkflowRequest.workflow_type:type_name -> orc.v1.WorkflowType
-	7,  // 35: orc.v1.CreateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
-	7,  // 36: orc.v1.UpdateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
-	7,  // 37: orc.v1.CloneWorkflowResponse.workflow:type_name -> orc.v1.Workflow
-	1,  // 38: orc.v1.AddPhaseRequest.gate_type_override:type_name -> orc.v1.GateType
-	8,  // 39: orc.v1.AddPhaseResponse.phase:type_name -> orc.v1.WorkflowPhase
-	1,  // 40: orc.v1.UpdatePhaseRequest.gate_type_override:type_name -> orc.v1.GateType
-	8,  // 41: orc.v1.UpdatePhaseResponse.phase:type_name -> orc.v1.WorkflowPhase
-	7,  // 42: orc.v1.RemovePhaseResponse.workflow:type_name -> orc.v1.Workflow
-	5,  // 43: orc.v1.AddVariableRequest.source_type:type_name -> orc.v1.VariableSourceType
-	9,  // 44: orc.v1.AddVariableResponse.variable:type_name -> orc.v1.WorkflowVariable
-	7,  // 45: orc.v1.RemoveVariableResponse.workflow:type_name -> orc.v1.Workflow
-	62, // 46: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
-	6,  // 47: orc.v1.ListPhaseTemplatesResponse.templates:type_name -> orc.v1.PhaseTemplate
-	63, // 48: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
-	6,  // 49: orc.v1.GetPhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
-	0,  // 50: orc.v1.CreatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
-	1,  // 51: orc.v1.CreatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
-	6,  // 52: orc.v1.CreatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
-	0,  // 53: orc.v1.UpdatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
-	1,  // 54: orc.v1.UpdatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
-	6,  // 55: orc.v1.UpdatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
-	0,  // 56: orc.v1.GetPromptContentResponse.source:type_name -> orc.v1.PromptSource
-	62, // 57: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
-	4,  // 58: orc.v1.ListWorkflowRunsRequest.status:type_name -> orc.v1.RunStatus
-	12, // 59: orc.v1.ListWorkflowRunsResponse.runs:type_name -> orc.v1.WorkflowRun
-	63, // 60: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
-	14, // 61: orc.v1.GetWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRunWithDetails
-	3,  // 62: orc.v1.StartWorkflowRunRequest.context_type:type_name -> orc.v1.ContextType
-	11, // 63: orc.v1.StartWorkflowRunRequest.context_data:type_name -> orc.v1.ContextData
-	59, // 64: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
-	12, // 65: orc.v1.StartWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
-	12, // 66: orc.v1.CancelWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
-	15, // 67: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
-	17, // 68: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
-	19, // 69: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
-	21, // 70: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
-	23, // 71: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
-	25, // 72: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
-	27, // 73: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
-	29, // 74: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
-	31, // 75: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
-	33, // 76: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
-	35, // 77: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
-	37, // 78: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
-	39, // 79: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
-	41, // 80: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
-	43, // 81: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
-	45, // 82: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
-	47, // 83: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
-	49, // 84: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
-	51, // 85: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
-	53, // 86: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
-	55, // 87: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
-	16, // 88: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
-	18, // 89: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
-	20, // 90: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
-	22, // 91: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
-	24, // 92: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
-	26, // 93: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
-	28, // 94: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
-	30, // 95: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
-	32, // 96: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
-	34, // 97: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
-	36, // 98: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
-	38, // 99: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
-	40, // 100: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
-	42, // 101: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
-	44, // 102: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
-	46, // 103: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
-	48, // 104: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
-	50, // 105: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
-	52, // 106: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
-	54, // 107: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
-	56, // 108: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
-	88, // [88:109] is the sub-list for method output_type
-	67, // [67:88] is the sub-list for method input_type
-	67, // [67:67] is the sub-list for extension type_name
-	67, // [67:67] is the sub-list for extension extendee
-	0,  // [0:67] is the sub-list for field type_name
+	8,  // 30: orc.v1.ListWorkflowsResponse.workflows:type_name -> orc.v1.Workflow
+	59, // 31: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	66, // 32: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
+	60, // 33: orc.v1.ListWorkflowsResponse.sources:type_name -> orc.v1.ListWorkflowsResponse.SourcesEntry
+	11, // 34: orc.v1.GetWorkflowResponse.workflow:type_name -> orc.v1.WorkflowWithDetails
+	2,  // 35: orc.v1.CreateWorkflowRequest.workflow_type:type_name -> orc.v1.WorkflowType
+	8,  // 36: orc.v1.CreateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
+	8,  // 37: orc.v1.UpdateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
+	8,  // 38: orc.v1.CloneWorkflowResponse.workflow:type_name -> orc.v1.Workflow
+	1,  // 39: orc.v1.AddPhaseRequest.gate_type_override:type_name -> orc.v1.GateType
+	9,  // 40: orc.v1.AddPhaseResponse.phase:type_name -> orc.v1.WorkflowPhase
+	1,  // 41: orc.v1.UpdatePhaseRequest.gate_type_override:type_name -> orc.v1.GateType
+	9,  // 42: orc.v1.UpdatePhaseResponse.phase:type_name -> orc.v1.WorkflowPhase
+	8,  // 43: orc.v1.RemovePhaseResponse.workflow:type_name -> orc.v1.Workflow
+	5,  // 44: orc.v1.AddVariableRequest.source_type:type_name -> orc.v1.VariableSourceType
+	10, // 45: orc.v1.AddVariableResponse.variable:type_name -> orc.v1.WorkflowVariable
+	8,  // 46: orc.v1.RemoveVariableResponse.workflow:type_name -> orc.v1.Workflow
+	65, // 47: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
+	7,  // 48: orc.v1.ListPhaseTemplatesResponse.templates:type_name -> orc.v1.PhaseTemplate
+	66, // 49: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
+	61, // 50: orc.v1.ListPhaseTemplatesResponse.sources:type_name -> orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	7,  // 51: orc.v1.GetPhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
+	0,  // 52: orc.v1.CreatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
+	1,  // 53: orc.v1.CreatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
+	7,  // 54: orc.v1.CreatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
+	0,  // 55: orc.v1.UpdatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
+	1,  // 56: orc.v1.UpdatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
+	7,  // 57: orc.v1.UpdatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
+	0,  // 58: orc.v1.GetPromptContentResponse.source:type_name -> orc.v1.PromptSource
+	65, // 59: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
+	4,  // 60: orc.v1.ListWorkflowRunsRequest.status:type_name -> orc.v1.RunStatus
+	13, // 61: orc.v1.ListWorkflowRunsResponse.runs:type_name -> orc.v1.WorkflowRun
+	66, // 62: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
+	15, // 63: orc.v1.GetWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRunWithDetails
+	3,  // 64: orc.v1.StartWorkflowRunRequest.context_type:type_name -> orc.v1.ContextType
+	12, // 65: orc.v1.StartWorkflowRunRequest.context_data:type_name -> orc.v1.ContextData
+	62, // 66: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
+	13, // 67: orc.v1.StartWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
+	13, // 68: orc.v1.CancelWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
+	6,  // 69: orc.v1.ListWorkflowsResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	6,  // 70: orc.v1.ListPhaseTemplatesResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	16, // 71: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
+	18, // 72: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
+	20, // 73: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
+	22, // 74: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
+	24, // 75: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
+	26, // 76: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
+	28, // 77: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
+	30, // 78: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
+	32, // 79: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
+	34, // 80: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
+	36, // 81: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
+	38, // 82: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
+	40, // 83: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
+	42, // 84: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
+	44, // 85: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
+	46, // 86: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
+	48, // 87: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
+	50, // 88: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
+	52, // 89: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
+	54, // 90: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
+	56, // 91: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
+	17, // 92: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
+	19, // 93: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
+	21, // 94: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
+	23, // 95: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
+	25, // 96: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
+	27, // 97: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
+	29, // 98: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
+	31, // 99: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
+	33, // 100: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
+	35, // 101: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
+	37, // 102: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
+	39, // 103: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
+	41, // 104: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
+	43, // 105: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
+	45, // 106: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
+	47, // 107: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
+	49, // 108: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
+	51, // 109: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
+	53, // 110: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
+	55, // 111: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
+	57, // 112: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
+	92, // [92:113] is the sub-list for method output_type
+	71, // [71:92] is the sub-list for method input_type
+	71, // [71:71] is the sub-list for extension type_name
+	71, // [71:71] is the sub-list for extension extendee
+	0,  // [0:71] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_workflow_proto_init() }
@@ -4694,8 +4794,8 @@ func file_orc_v1_workflow_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_workflow_proto_rawDesc), len(file_orc_v1_workflow_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   54,
+			NumEnums:      7,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

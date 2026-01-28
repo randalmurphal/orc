@@ -4,12 +4,14 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 func init() {
@@ -22,10 +24,17 @@ func init() {
 	workflowsCmd.AddCommand(workflowRemovePhaseCmd)
 	workflowsCmd.AddCommand(workflowAddVariableCmd)
 	workflowsCmd.AddCommand(workflowRemoveVariableCmd)
+	workflowsCmd.AddCommand(workflowCloneCmd)
+	workflowsCmd.AddCommand(workflowSyncCmd)
 
 	// List flags
 	workflowsCmd.Flags().Bool("custom", false, "Show only custom workflows")
 	workflowsCmd.Flags().Bool("builtin", false, "Show only built-in workflows")
+	workflowsCmd.Flags().Bool("sources", false, "Show source locations for each workflow")
+
+	// Clone flags
+	workflowCloneCmd.Flags().StringP("level", "l", "project", "Target level: personal, local, shared, project")
+	workflowCloneCmd.Flags().BoolP("force", "f", false, "Overwrite if exists")
 
 	// New flags
 	workflowNewCmd.Flags().String("from", "", "Clone from existing workflow")
@@ -59,10 +68,18 @@ var workflowsCmd = &cobra.Command{
 
 Workflows define the sequence of phases to execute. Built-in workflows
 (trivial, small, medium, large) are provided by orc. You can create
-custom workflows that compose phases differently.
+custom workflows by cloning and modifying them.
+
+Sources (--sources flag):
+  personal  - ~/.orc/workflows/ (user machine-wide)
+  local     - .orc/local/workflows/ (personal project-specific)
+  shared    - .orc/shared/workflows/ (team defaults)
+  project   - .orc/workflows/ (project defaults)
+  embedded  - Built into the binary
 
 Examples:
   orc workflows                 # List all workflows
+  orc workflows --sources       # Show where each workflow comes from
   orc workflows --custom        # List only custom workflows
   orc workflows --builtin       # List only built-in workflows`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,30 +88,29 @@ Examples:
 			return err
 		}
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		orcDir := filepath.Join(projectRoot, ".orc")
+		resolver := workflow.NewResolverFromOrcDir(orcDir)
 
-		workflows, err := pdb.ListWorkflows()
+		showSources, _ := cmd.Flags().GetBool("sources")
+		customOnly, _ := cmd.Flags().GetBool("custom")
+		builtinOnly, _ := cmd.Flags().GetBool("builtin")
+
+		workflows, err := resolver.ListWorkflows()
 		if err != nil {
 			return fmt.Errorf("list workflows: %w", err)
 		}
 
-		customOnly, _ := cmd.Flags().GetBool("custom")
-		builtinOnly, _ := cmd.Flags().GetBool("builtin")
-
 		// Filter workflows
-		var filtered []*db.Workflow
-		for _, wf := range workflows {
-			if customOnly && wf.IsBuiltin {
+		var filtered []workflow.ResolvedWorkflow
+		for _, rw := range workflows {
+			isBuiltin := rw.Source == workflow.SourceEmbedded
+			if customOnly && isBuiltin {
 				continue
 			}
-			if builtinOnly && !wf.IsBuiltin {
+			if builtinOnly && !isBuiltin {
 				continue
 			}
-			filtered = append(filtered, wf)
+			filtered = append(filtered, rw)
 		}
 
 		if len(filtered) == 0 {
@@ -104,15 +120,26 @@ Examples:
 
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tBUILT-IN")
-		for _, wf := range filtered {
-			phases, _ := pdb.GetWorkflowPhases(wf.ID)
-			builtinStr := ""
-			if wf.IsBuiltin {
-				builtinStr = "yes"
+		if showSources {
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tSOURCE")
+		} else {
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tBUILT-IN")
+		}
+		for _, rw := range filtered {
+			phaseCount := len(rw.Workflow.Phases)
+			if showSources {
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+					rw.Workflow.ID, rw.Workflow.Name, rw.Workflow.WorkflowType,
+					phaseCount, workflow.SourceDisplayName(rw.Source))
+			} else {
+				builtinStr := ""
+				if rw.Source == workflow.SourceEmbedded {
+					builtinStr = "yes"
+				}
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+					rw.Workflow.ID, rw.Workflow.Name, rw.Workflow.WorkflowType,
+					phaseCount, builtinStr)
 			}
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
-				wf.ID, wf.Name, wf.WorkflowType, len(phases), builtinStr)
 		}
 		_ = w.Flush()
 
@@ -796,4 +823,122 @@ Examples:
 		fmt.Printf("Removed variable '%s' from workflow '%s'\n", varName, workflowID)
 		return nil
 	},
+}
+
+var workflowCloneCmd = &cobra.Command{
+	Use:   "clone <source-id> <dest-id>",
+	Short: "Clone a workflow to a new file",
+	Long: `Clone a workflow to a YAML file for customization.
+
+This creates a standalone copy that can be edited. The cloned workflow
+becomes file-based and can be customized without affecting the original.
+
+Levels:
+  personal - ~/.orc/workflows/ (user machine-wide)
+  local    - .orc/local/workflows/ (personal project-specific, gitignored)
+  shared   - .orc/shared/workflows/ (team defaults, git-tracked)
+  project  - .orc/workflows/ (project defaults)
+
+Examples:
+  orc workflow clone implement-medium my-medium           # Clone to project level
+  orc workflow clone implement-medium my-medium -l local  # Clone to local level
+  orc workflow clone implement-medium my-medium -f        # Overwrite if exists`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		sourceID := args[0]
+		destID := args[1]
+
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		orcDir := filepath.Join(projectRoot, ".orc")
+		cloner := workflow.NewClonerFromOrcDir(orcDir)
+
+		levelStr, _ := cmd.Flags().GetString("level")
+		level, err := workflow.ParseWriteLevel(levelStr)
+		if err != nil {
+			return err
+		}
+
+		force, _ := cmd.Flags().GetBool("force")
+
+		result, err := cloner.CloneWorkflow(sourceID, destID, level, force)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Cloned workflow '%s' to '%s'\n", sourceID, destID)
+		fmt.Printf("File: %s\n", result.DestPath)
+		fmt.Printf("Source: %s\n", workflow.SourceDisplayName(result.SourceLoc))
+		fmt.Printf("Level: %s\n", result.DestLevel)
+
+		if result.WasOverwrite {
+			fmt.Println("(overwrote existing file)")
+		}
+
+		return nil
+	},
+}
+
+var workflowSyncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "Sync workflow files to database cache",
+	Long: `Synchronize workflow YAML files to the database cache.
+
+This scans all workflow directories (personal, local, shared, project, embedded)
+and updates the database to match. The database acts as a runtime cache.
+
+Use this when:
+  - You've manually edited workflow YAML files
+  - You want to force refresh embedded workflows after a binary update
+
+Examples:
+  orc workflow sync             # Sync all workflows
+  orc workflow sync --force     # Force update all (including embedded)`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		projectRoot, err := config.FindProjectRoot()
+		if err != nil {
+			return err
+		}
+
+		orcDir := filepath.Join(projectRoot, ".orc")
+		pdb, err := db.OpenProject(projectRoot)
+		if err != nil {
+			return fmt.Errorf("open database: %w", err)
+		}
+		defer func() { _ = pdb.Close() }()
+
+		cache := workflow.NewCacheServiceFromOrcDir(orcDir, pdb)
+
+		force, _ := cmd.Flags().GetBool("force")
+
+		var result *workflow.SyncResult
+		if force {
+			result, err = cache.ForceSync()
+		} else {
+			result, err = cache.SyncAll()
+		}
+		if err != nil {
+			return fmt.Errorf("sync failed: %w", err)
+		}
+
+		fmt.Printf("Sync complete:\n")
+		fmt.Printf("  Workflows: %d added, %d updated\n", result.WorkflowsAdded, result.WorkflowsUpdated)
+		fmt.Printf("  Phases: %d added, %d updated\n", result.PhasesAdded, result.PhasesUpdated)
+
+		if len(result.Errors) > 0 {
+			fmt.Printf("\nWarnings (%d):\n", len(result.Errors))
+			for _, e := range result.Errors {
+				fmt.Printf("  - %s\n", e)
+			}
+		}
+
+		return nil
+	},
+}
+
+func init() {
+	workflowSyncCmd.Flags().Bool("force", false, "Force update all workflows including embedded")
 }

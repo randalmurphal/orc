@@ -1,0 +1,24 @@
+id: implement-medium
+name: "Implement (Medium)"
+description: "Standard implementation workflow: spec, TDD, implement, review, docs"
+workflow_type: task
+
+phases:
+  - template: spec
+    sequence: 0
+
+  - template: tdd_write
+    sequence: 1
+    depends_on: ["spec"]
+
+  - template: implement
+    sequence: 2
+    depends_on: ["tdd_write"]
+
+  - template: review
+    sequence: 3
+    depends_on: ["implement"]
+
+  - template: docs
+    sequence: 4
+    depends_on: ["review"]

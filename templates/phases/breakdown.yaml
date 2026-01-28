@@ -1,0 +1,20 @@
+id: breakdown
+name: "Task Breakdown"
+description: "Break spec into checkboxed implementation tasks"
+
+prompt_source: embedded
+prompt_path: prompts/breakdown.md
+
+input_variables: ["SPEC_CONTENT", "TDD_TESTS_CONTENT"]
+output_var_name: "BREAKDOWN_CONTENT"
+output_type: document
+produces_artifact: true
+artifact_type: breakdown
+
+max_iterations: 10
+model: opus
+thinking: false
+gate_type: auto
+checkpoint: true
+
+claude_config: '{}'

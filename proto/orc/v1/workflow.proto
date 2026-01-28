@@ -62,6 +62,17 @@ enum VariableSourceType {
   VARIABLE_SOURCE_TYPE_PROMPT_FRAGMENT = 6;
 }
 
+// DefinitionSource indicates where a workflow or phase template is defined.
+// Used for file-based customization with 5-level hierarchy resolution.
+enum DefinitionSource {
+  DEFINITION_SOURCE_UNSPECIFIED = 0;
+  DEFINITION_SOURCE_EMBEDDED = 1;     // Built into binary
+  DEFINITION_SOURCE_PROJECT = 2;      // .orc/ (project defaults)
+  DEFINITION_SOURCE_SHARED = 3;       // .orc/shared/ (team defaults)
+  DEFINITION_SOURCE_LOCAL = 4;        // .orc/local/ (personal project-specific)
+  DEFINITION_SOURCE_PERSONAL = 5;     // ~/.orc/ (user machine-wide)
+}
+
 // =============================================================================
 // DOMAIN MESSAGES
 // =============================================================================
@@ -235,6 +246,8 @@ message ListWorkflowsResponse {
   repeated Workflow workflows = 1;
   map<string, int32> phase_counts = 2;
   PageResponse page = 3;
+  // Map of workflow ID to definition source (where the workflow is defined)
+  map<string, DefinitionSource> sources = 4;
 }
 
 message GetWorkflowRequest {
@@ -362,6 +375,8 @@ message ListPhaseTemplatesRequest {
 message ListPhaseTemplatesResponse {
   repeated PhaseTemplate templates = 1;
   PageResponse page = 2;
+  // Map of template ID to definition source (where the template is defined)
+  map<string, DefinitionSource> sources = 3;
 }
 
 message GetPhaseTemplateRequest {
