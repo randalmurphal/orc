@@ -179,6 +179,13 @@ message Constitution {
   google.protobuf.Timestamp updated_at = 3;
 }
 
+// Agent runtime statistics
+message AgentStats {
+  int64 tokens_today = 1;     // Total tokens used today
+  int32 tasks_done = 2;       // Completed tasks (all time)
+  double success_rate = 3;    // Success rate 0.0-1.0
+}
+
 // SubAgent definition
 message Agent {
   string name = 1;
@@ -191,6 +198,8 @@ message Agent {
   optional string timeout = 8;
   optional string path = 9; // for global agents from .md files
   SettingsScope scope = 10;
+  optional string status = 11;     // "active" or "idle"
+  optional AgentStats stats = 12;  // Runtime statistics
 }
 
 // Tool permissions
