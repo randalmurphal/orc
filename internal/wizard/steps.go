@@ -85,13 +85,6 @@ type selectModel struct {
 	options  []SelectOption
 	cursor   int
 	selected int
-	styles   selectStyles
-}
-
-type selectStyles struct {
-	cursor      lipgloss.Style
-	selected    lipgloss.Style
-	description lipgloss.Style
 }
 
 func (m *selectModel) Init() tea.Cmd { return nil }
@@ -241,12 +234,10 @@ func (m *confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *confirmModel) View() string {
-	yes := "Yes"
-	no := "No"
-
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
 	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 
+	var yes, no string
 	if m.value {
 		yes = selectedStyle.Render("[Yes]")
 		no = normalStyle.Render(" No ")
