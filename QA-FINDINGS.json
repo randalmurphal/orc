@@ -1,0 +1,224 @@
+{
+  "test_date": "2026-01-28",
+  "test_environment": "Code inspection + E2E screenshot analysis",
+  "reference_design": "example_ui/statistics-charts.png",
+  "testing_method": "Black-box code inspection",
+  "coverage_limitations": [
+    "No live browser interaction (worktree isolation)",
+    "Cannot access /tmp/qa-TASK-615/ for screenshots",
+    "E2E screenshot only shows top 40% of page",
+    "Cannot run Playwright tests",
+    "Cannot verify interactive functionality",
+    "Cannot check console errors",
+    "Cannot test mobile viewport (375x667)"
+  ],
+  "previous_issues_status": {
+    "QA-001": {
+      "title": "WebSocket event subscription fails",
+      "status": "NEEDS_VERIFICATION",
+      "reason": "Stats page doesn't use WebSocket subscriptions; uses REST API calls. Issue may be obsolete or mischaracterized. Requires manual browser testing with console open."
+    },
+    "QA-002": {
+      "title": "Touch targets too small on mobile",
+      "status": "STILL_PRESENT",
+      "confidence": 95
+    },
+    "QA-003": {
+      "title": "Most Modified Files table shows no data",
+      "status": "STILL_PRESENT",
+      "confidence": 100
+    }
+  },
+  "findings": [
+    {
+      "id": "QA-002",
+      "severity": "medium",
+      "confidence": 95,
+      "category": "accessibility",
+      "status": "STILL_PRESENT",
+      "title": "Time filter buttons have touch targets smaller than 44x44px (WCAG violation)",
+      "steps_to_reproduce": [
+        "Step 1: Navigate to /stats",
+        "Step 2: Resize browser to mobile viewport (375x667)",
+        "Step 3: Inspect time filter buttons (24h, 7d, 30d, All) in dev tools",
+        "Step 4: Measure button dimensions"
+      ],
+      "expected": "Touch targets should be at least 44x44px to meet WCAG 2.1 Level AAA standards for mobile accessibility",
+      "actual": "Time filter buttons have padding of 6px 12px, resulting in approximate dimensions of 25px height × 29px width (far below 44px minimum)",
+      "impact": "Users with motor impairments or on mobile devices will have difficulty tapping these buttons. Violates accessibility standards.",
+      "evidence": {
+        "file": "web/src/components/stats/StatsView.css",
+        "line": 69,
+        "code": ".stats-view-time-btn { padding: 6px 12px; font-size: 11px; }",
+        "calculation": "Font size (11px) + padding top/bottom (12px) = ~25px height"
+      },
+      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
+      "suggested_fix": "Update CSS:\n.stats-view-time-btn {\n  min-height: 44px;\n  padding: 12px 16px;\n  font-size: 12px;\n}\n\n@media (max-width: 768px) {\n  .stats-view-time-btn {\n    min-height: 44px;\n    min-width: 44px;\n    padding: 14px 18px;\n  }\n}",
+      "wcag_reference": "WCAG 2.1 Level AAA - Success Criterion 2.5.5 Target Size"
+    },
+    {
+      "id": "QA-003",
+      "severity": "high",
+      "confidence": 100,
+      "category": "functional",
+      "status": "STILL_PRESENT",
+      "title": "Most Modified Files table is always empty (feature not implemented)",
+      "steps_to_reproduce": [
+        "Step 1: Navigate to /stats",
+        "Step 2: Scroll down to 'Most Modified Files' section (bottom-right table)",
+        "Step 3: Observe table content"
+      ],
+      "expected": "Table should display 4 most frequently modified files with modification counts, e.g.:\n1. src/lib/auth.ts (34×)\n2. src/components/Button.tsx (28×)\n3. src/stores/session.ts (21×)\n4. src/lib/redis.ts (18×)",
+      "actual": "Table always shows 0 rows or 'No data' because topFiles array is hardcoded to []",
+      "impact": "Complete feature non-functional. Users cannot see file modification patterns. One of two leaderboard tables (50% of bottom section) is broken. Reduces value of statistics page.",
+      "evidence": {
+        "file": "web/src/stores/statsStore.ts",
+        "line": 273,
+        "code": "// Build top files (placeholder - would need new API endpoint)\nconst topFiles: TopFile[] = [];",
+        "comment": "Code explicitly acknowledges this is a placeholder"
+      },
+      "root_cause": "Backend API endpoint for fetching top modified files does not exist. Frontend is waiting for /api/v1/stats/top-files endpoint.",
+      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png (table not visible; screenshot cuts off)",
+      "suggested_fix": "1. Implement backend API endpoint: GET /api/v1/stats/top-files?limit=4\n   - Query git history or task metadata for file modification counts\n   - Return: { files: [{ path: string, modifyCount: number }] }\n\n2. Update statsStore.ts line 272-273 to call the new endpoint:\n   const topFilesResponse = await dashboardClient.getTopFiles(...);\n   const topFiles = topFilesResponse.files.map(f => ({ path: f.path, modifyCount: f.modifyCount }));\n\n3. Test with real git history data",
+      "technical_requirements": [
+        "Backend endpoint implementation",
+        "Git history analysis (or task metadata query)",
+        "Frontend API client update",
+        "Integration testing"
+      ],
+      "severity_upgrade": "Upgraded from Medium to High because this is not a degraded feature but a completely non-functional feature that was never implemented"
+    },
+    {
+      "id": "QA-004",
+      "severity": "medium",
+      "confidence": 85,
+      "category": "visual",
+      "status": "NEW_ISSUE",
+      "title": "Activity heatmap shows sparse data compared to reference design",
+      "steps_to_reproduce": [
+        "Step 1: Navigate to /stats",
+        "Step 2: Observe 'Task Activity' heatmap section",
+        "Step 3: Compare density to reference design (example_ui/statistics-charts.png)"
+      ],
+      "expected": "Dense GitHub-style contribution graph showing 16 weeks of activity with many cells filled at varying intensities (per TASK-609 changelog)",
+      "actual": "Sparse grid with only 6-7 isolated teal/green squares scattered across Oct-Jan timeframe",
+      "impact": "Reduces visual impact of statistics page. Makes it harder to see activity patterns at a glance. Doesn't match user expectations from reference design.",
+      "possible_root_causes": [
+        "Test environment (sandbox) has minimal task history - MOST LIKELY",
+        "Rendering issue in ActivityHeatmap component not displaying all cells",
+        "Date range calculation error (not showing 16 weeks correctly)",
+        "Cell sizing issue (cells rendering but too small to see)"
+      ],
+      "evidence": {
+        "reference_design": "Shows dense activity grid with many filled cells",
+        "screenshot": "Shows only 6-7 sparse cells",
+        "component": "web/src/components/stats/ActivityHeatmap.tsx",
+        "data_source": "statsStore.activityData (Map<string, number>)",
+        "data_generator": "web/src/stores/statsStore.ts:146-154 generateActivityData()"
+      },
+      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
+      "recommended_actions": [
+        "Test with production data (not sandbox) to verify if this is data availability issue",
+        "Review ActivityHeatmap rendering logic for bugs",
+        "Verify date range calculation shows 16 weeks correctly",
+        "Test with mock dense data to isolate rendering vs data issues",
+        "Add E2E test: expect(heatmap cells).toBeGreaterThan(50) for 16 weeks"
+      ],
+      "needs_verification": true,
+      "verification_method": "Requires testing with real production data or mock dense activity data"
+    }
+  ],
+  "test_coverage": {
+    "tested": [
+      "Code structure and implementation",
+      "Data flow from API to UI components",
+      "CSS styling and layout rules",
+      "Component hierarchy and props",
+      "State management (Zustand stores)",
+      "API endpoint calls",
+      "Data transformation logic"
+    ],
+    "not_tested": [
+      "Live browser interaction",
+      "Mobile viewport (375x667) responsive behavior",
+      "Console errors / JavaScript exceptions",
+      "Network requests (API call success/failure)",
+      "Export CSV functionality",
+      "Time filter button interactions (state changes)",
+      "Hover states and tooltips",
+      "Visual regression against reference image",
+      "Keyboard navigation",
+      "Screen reader compatibility"
+    ]
+  },
+  "summary": {
+    "total_issues": 3,
+    "breakdown": {
+      "critical": 0,
+      "high": 1,
+      "medium": 2,
+      "low": 0
+    },
+    "status_breakdown": {
+      "still_present": 2,
+      "new_issues": 1,
+      "needs_verification": 1
+    },
+    "functional_issues": 1,
+    "accessibility_issues": 1,
+    "visual_issues": 1
+  },
+  "recommendations": {
+    "immediate_actions": [
+      {
+        "priority": "HIGH",
+        "issue": "QA-003",
+        "action": "Implement backend API endpoint for top modified files",
+        "estimated_effort": "4-6 hours (backend + frontend + testing)",
+        "blocking": true
+      },
+      {
+        "priority": "MEDIUM",
+        "issue": "QA-002",
+        "action": "Update CSS for time filter buttons to meet WCAG AAA",
+        "estimated_effort": "30 minutes",
+        "blocking": false
+      },
+      {
+        "priority": "MEDIUM",
+        "issue": "QA-004",
+        "action": "Investigate heatmap sparsity with production data",
+        "estimated_effort": "2-3 hours",
+        "blocking": false
+      }
+    ],
+    "follow_up_testing": [
+      "Manual browser testing with console monitoring (QA-001)",
+      "Mobile viewport testing on real devices (QA-002)",
+      "Full E2E test suite with complete screenshots",
+      "Accessibility audit with axe DevTools",
+      "Production data testing (QA-004)"
+    ]
+  },
+  "artifacts": {
+    "created": [
+      "QA-REPORT-TASK-615.md",
+      "QA-FINDINGS-VISUAL.md",
+      "QA-FINDINGS.json"
+    ],
+    "referenced": [
+      "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
+      "example_ui/statistics-charts.png",
+      "web/src/components/stats/StatsView.tsx",
+      "web/src/components/stats/StatsView.css",
+      "web/src/stores/statsStore.ts"
+    ],
+    "missing": [
+      "/tmp/qa-TASK-615/ (blocked by worktree isolation)",
+      "Full-page screenshots (charts + tables)",
+      "Mobile viewport screenshots (375x667)",
+      "Console error logs",
+      "Network request traces"
+    ]
+  }
+}
