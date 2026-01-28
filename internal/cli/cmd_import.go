@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -17,8 +18,91 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 )
+
+// deferredInitiativeDeps tracks initiative dependencies that couldn't be added
+// during import because the referenced initiative hadn't been imported yet.
+// After all initiatives are imported, we retry adding these dependencies.
+var (
+	deferredInitiativeDeps   = make(map[string][]string) // initiativeID -> []dependsOnIDs
+	deferredInitiativeDepsMu sync.Mutex
+)
+
+// registerDeferredInitiativeDeps records dependencies that failed to import
+// so they can be retried after all initiatives are imported.
+func registerDeferredInitiativeDeps(initiativeID string, deps []string) {
+	deferredInitiativeDepsMu.Lock()
+	defer deferredInitiativeDepsMu.Unlock()
+	deferredInitiativeDeps[initiativeID] = deps
+}
+
+// processDeferredInitiativeDeps retries adding deferred dependencies after
+// all initiatives have been imported.
+func processDeferredInitiativeDeps() {
+	deferredInitiativeDepsMu.Lock()
+	defer deferredInitiativeDepsMu.Unlock()
+
+	if len(deferredInitiativeDeps) == 0 {
+		return
+	}
+
+	backend, err := getBackend()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not process deferred dependencies: %v\n", err)
+		return
+	}
+	defer func() { _ = backend.Close() }()
+
+	var resolved, failed int
+	for initID, deps := range deferredInitiativeDeps {
+		// Load the initiative and set dependencies
+		init, err := backend.LoadInitiative(initID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not load initiative %s for deferred deps: %v\n", initID, err)
+			failed++
+			continue
+		}
+
+		// Check which dependencies now exist
+		var validDeps []string
+		var missingDeps []string
+		for _, depID := range deps {
+			exists, _ := backend.InitiativeExists(depID)
+			if exists {
+				validDeps = append(validDeps, depID)
+			} else {
+				missingDeps = append(missingDeps, depID)
+			}
+		}
+
+		if len(missingDeps) > 0 {
+			fmt.Fprintf(os.Stderr, "Warning: %s: blocked_by references non-existent initiative(s): %v\n", initID, missingDeps)
+		}
+
+		if len(validDeps) > 0 {
+			init.BlockedBy = validDeps
+			if err := backend.SaveInitiative(init); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not add dependencies to %s: %v\n", initID, err)
+				failed++
+			} else {
+				resolved++
+			}
+		}
+	}
+
+	if resolved > 0 || failed > 0 {
+		fmt.Printf("Resolved %d deferred initiative dependencies", resolved)
+		if failed > 0 {
+			fmt.Printf(", %d failed", failed)
+		}
+		fmt.Println()
+	}
+
+	// Clear the deferred deps map
+	deferredInitiativeDeps = make(map[string][]string)
+}
 
 // newImportCmd creates the import command
 func newImportCmd() *cobra.Command {
@@ -135,6 +219,8 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 			return importWorkflowData(data, sourceName, force, skipExisting)
 		case "workflow_run":
 			return importWorkflowRunData(data, sourceName, force, skipExisting)
+		case "project_commands":
+			return importProjectCommandsData(data, sourceName, force, skipExisting)
 		}
 	}
 
@@ -287,6 +373,8 @@ func importData(data []byte, sourceName string, force, skipExisting bool) error 
 }
 
 // importInitiativeData imports an initiative with smart merge logic.
+// Dependencies (blocked_by) are deferred and added after the base initiative is saved,
+// to handle cases where dependencies are imported in arbitrary order.
 func importInitiativeData(data []byte, sourceName string, force, skipExisting bool) error {
 	backend, err := getBackend()
 	if err != nil {
@@ -319,9 +407,25 @@ func importInitiativeData(data []byte, sourceName string, force, skipExisting bo
 		}
 	}
 
-	// Save initiative
+	// Defer dependencies - save without them first to avoid foreign key issues
+	// when initiatives are imported in arbitrary order
+	deferredDeps := export.Initiative.BlockedBy
+	export.Initiative.BlockedBy = nil
+
+	// Save initiative without dependencies
 	if err := backend.SaveInitiative(export.Initiative); err != nil {
 		return fmt.Errorf("save initiative: %w", err)
+	}
+
+	// Now try to add dependencies - they may fail if referenced initiatives
+	// haven't been imported yet; we'll collect these for a second pass
+	if len(deferredDeps) > 0 {
+		// Restore dependencies and save again to add them
+		export.Initiative.BlockedBy = deferredDeps
+		if err := backend.SaveInitiative(export.Initiative); err != nil {
+			// Dependencies failed - record for deferred processing
+			registerDeferredInitiativeDeps(export.Initiative.ID, deferredDeps)
+		}
 	}
 
 	action := "Imported"
@@ -509,6 +613,67 @@ func importWorkflowRunData(data []byte, sourceName string, force, skipExisting b
 	return nil
 }
 
+// importProjectCommandsData imports project commands (quality check commands).
+func importProjectCommandsData(data []byte, sourceName string, force, skipExisting bool) error {
+	var export ProjectCommandsExportData
+	if err := yaml.Unmarshal(data, &export); err != nil {
+		return fmt.Errorf("parse yaml: %w", err)
+	}
+
+	if len(export.Commands) == 0 {
+		return fmt.Errorf("no commands found in %s", sourceName)
+	}
+
+	// Get project database directly for project commands
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		return fmt.Errorf("find project root: %w", err)
+	}
+
+	pdb, err := db.OpenProject(projectRoot)
+	if err != nil {
+		return fmt.Errorf("open project database: %w", err)
+	}
+	defer func() { _ = pdb.Close() }()
+
+	var imported, skipped int
+	for _, cmd := range export.Commands {
+		// Check if command exists
+		existing, _ := pdb.GetProjectCommand(cmd.Name)
+		if existing != nil {
+			if skipExisting {
+				skipped++
+				continue
+			}
+
+			if !force {
+				// Smart merge: compare updated_at timestamps
+				if !cmd.UpdatedAt.After(existing.UpdatedAt) {
+					skipped++
+					continue
+				}
+			}
+		}
+
+		// Save command
+		if err := pdb.SaveProjectCommand(cmd); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not save command %s: %v\n", cmd.Name, err)
+			continue
+		}
+		imported++
+	}
+
+	if imported > 0 || skipped > 0 {
+		fmt.Printf("Imported %d project command(s) from %s", imported, sourceName)
+		if skipped > 0 {
+			fmt.Printf(", skipped %d", skipped)
+		}
+		fmt.Println()
+	}
+
+	return nil
+}
+
 // findLatestExport finds the most recent export file or falls back to directory.
 func findLatestExport(exportDir string) (string, error) {
 	// Check if export directory exists
@@ -665,6 +830,9 @@ func importTarGz(archivePath string, force, skipExisting bool) error {
 		}
 		fmt.Println()
 	}
+
+	// Process any deferred initiative dependencies now that all items are imported
+	processDeferredInitiativeDeps()
 
 	return nil
 }
@@ -925,6 +1093,9 @@ func importZip(zipPath string, force, skipExisting bool) error {
 		fmt.Println()
 	}
 
+	// Process any deferred initiative dependencies now that all items are imported
+	processDeferredInitiativeDeps()
+
 	return nil
 }
 
@@ -1013,6 +1184,9 @@ func importDirectory(dir string, force, skipExisting bool) error {
 			fmt.Println()
 		}
 	}
+
+	// Process any deferred initiative dependencies now that all items are imported
+	processDeferredInitiativeDeps()
 
 	return nil
 }
