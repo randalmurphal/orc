@@ -89,8 +89,10 @@ func Default() *Config {
 		Execution: ExecutionConfig{
 			UseSessionExecution: false, // Default to flowgraph for compatibility
 			SessionPersistence:  true,
-			CheckpointInterval:  0, // Default to phase-complete only
-			MaxRetries:          5, // Default retry limit for phase failures
+			CheckpointInterval:  0,  // Default to phase-complete only
+			MaxRetries:          5,  // Default retry limit for phase failures
+			ParallelTasks:       2,  // Default parallel tasks for UI
+			CostLimit:           25, // Default cost limit ($25/day) for UI
 		},
 		Pool: PoolConfig{
 			Enabled:    false, // Disabled by default
@@ -239,6 +241,7 @@ func Default() *Config {
 		},
 		Automation: AutomationConfig{
 			Enabled:        true,               // Automation enabled by default
+			AutoApprove:    true,               // Auto-approve safe operations by default
 			GlobalCooldown: 30 * time.Minute,   // 30 minute global cooldown
 			MaxConcurrent:  1,                  // One automation task at a time
 			DefaultMode:    AutomationModeAuto, // Auto mode by default
