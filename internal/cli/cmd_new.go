@@ -203,6 +203,7 @@ See also:
 			targetBranch, _ := cmd.Flags().GetString("target-branch")
 			beforeImages, _ := cmd.Flags().GetStringSlice("before-images")
 			qaMaxIterations, _ := cmd.Flags().GetInt("qa-max-iterations")
+			gateOverrides, _ := cmd.Flags().GetStringSlice("gate")
 
 			// Validate target branch if specified
 			if targetBranch != "" {
@@ -405,6 +406,47 @@ See also:
 				return fmt.Errorf("save task: %w", err)
 			}
 
+			// Save gate overrides if provided
+			if len(gateOverrides) > 0 {
+				// Need project DB if not already opened
+				if pdb == nil {
+					projectRoot, rootErr := config.FindProjectRoot()
+					if rootErr != nil {
+						return fmt.Errorf("find project root for gate overrides: %w", rootErr)
+					}
+					pdb, err = db.OpenProject(projectRoot)
+					if err != nil {
+						return fmt.Errorf("open project database for gate overrides: %w", err)
+					}
+					defer func() { _ = pdb.Close() }()
+				}
+
+				for _, gateSpec := range gateOverrides {
+					parts := strings.SplitN(gateSpec, ":", 2)
+					if len(parts) != 2 {
+						return fmt.Errorf("invalid gate format: %q (expected phase:type, e.g., spec:human)", gateSpec)
+					}
+					phaseID, gateType := parts[0], parts[1]
+
+					// Validate gate type
+					validGateTypes := map[string]bool{
+						"auto": true, "human": true, "ai": true, "skip": true,
+					}
+					if !validGateTypes[gateType] {
+						return fmt.Errorf("invalid gate type: %q (valid: auto, human, ai, skip)", gateType)
+					}
+
+					override := &db.TaskGateOverride{
+						TaskID:   id,
+						PhaseID:  phaseID,
+						GateType: gateType,
+					}
+					if err := pdb.SaveTaskGateOverride(override); err != nil {
+						return fmt.Errorf("save gate override %s: %w", gateSpec, err)
+					}
+				}
+			}
+
 			// Sync task to initiative if linked
 			if task.HasInitiativeProto(t) {
 				initID := task.GetInitiativeIDProto(t)
@@ -467,6 +509,9 @@ See also:
 			if qaMaxIterations > 0 {
 				fmt.Printf("   Max QA Iterations: %d\n", qaMaxIterations)
 			}
+			if len(gateOverrides) > 0 {
+				fmt.Printf("   Gate Overrides: %s\n", strings.Join(gateOverrides, ", "))
+			}
 
 			// Upload attachments if provided
 			if len(attachments) > 0 {
@@ -526,5 +571,6 @@ See also:
 	cmd.Flags().String("target-branch", "", "override target branch for PR (instead of project default)")
 	cmd.Flags().StringSlice("before-images", nil, "baseline images for visual comparison (QA E2E workflow)")
 	cmd.Flags().Int("qa-max-iterations", 0, "max QA iterations before stopping (default: 3)")
+	cmd.Flags().StringSlice("gate", nil, "gate overrides (phase:type, e.g., spec:human, review:ai)")
 	return cmd
 }

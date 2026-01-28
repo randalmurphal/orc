@@ -33,6 +33,20 @@ type GateConfig struct {
 	// e.g., {"large": {"spec": "human"}}
 	WeightOverrides map[string]map[string]string `yaml:"weight_overrides,omitempty"`
 
+	// AllPhases enables gates for ALL phases when true.
+	// When false (default), only phases in EnabledPhases have gates.
+	AllPhases bool `yaml:"all_phases"`
+
+	// EnabledPhases is a whitelist of phases that have gates.
+	// Only used when AllPhases is false.
+	// e.g., ["spec", "implement", "test", "review"]
+	EnabledPhases []string `yaml:"enabled_phases,omitempty"`
+
+	// DisabledPhases is a blacklist of phases that should NOT have gates.
+	// Takes precedence over EnabledPhases.
+	// e.g., ["breakdown", "docs"]
+	DisabledPhases []string `yaml:"disabled_phases,omitempty"`
+
 	// AutoApproveOnSuccess - if true, auto gates approve when phase completes
 	// without checking criteria (default: true)
 	AutoApproveOnSuccess bool `yaml:"auto_approve_on_success"`
