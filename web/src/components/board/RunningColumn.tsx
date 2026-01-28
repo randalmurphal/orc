@@ -124,15 +124,15 @@ export function RunningColumn({
 
 	return (
 		<div
-			className="running-column"
+			className="running-column column running"
 			role="region"
 			aria-label="Running tasks column"
 			aria-live="polite"
 		>
 			{/* Column Header */}
-			<div className="running-column-header">
-				<div className="running-column-title">
-					<span className="running-indicator" aria-hidden="true" />
+			<div className="running-column-header column-header">
+				<div className="running-column-title column-title">
+					<span className="running-indicator column-indicator" aria-hidden="true" />
 					<span>Running</span>
 				</div>
 				<span className="running-count" aria-label={`${taskCount} running tasks`}>
