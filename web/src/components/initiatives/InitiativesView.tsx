@@ -218,6 +218,32 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		};
 	}, [initiatives, totalLinkedTasks, completedCount, taskStates]);
 
+	// Compute per-initiative cost and token aggregates from taskStates
+	const initiativeMetaMap = useMemo(() => {
+		const map = new Map<string, { costSpent: number; tokensUsed: number }>();
+
+		for (const initiative of initiatives) {
+			let costSpent = 0;
+			let tokensUsed = 0;
+
+			for (const task of initiative.tasks || []) {
+				const state = taskStates.get(task.id);
+				if (state?.cost) {
+					costSpent += state.cost.totalCostUsd;
+				}
+				if (state?.tokens) {
+					tokensUsed += state.tokens.totalTokens;
+				}
+			}
+
+			if (costSpent > 0 || tokensUsed > 0) {
+				map.set(initiative.id, { costSpent, tokensUsed });
+			}
+		}
+
+		return map;
+	}, [initiatives, taskStates]);
+
 	// Get progress for a specific initiative
 	const getProgress = useCallback(
 		(initiativeId: string): ProgressData => {
@@ -274,12 +300,15 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 					<div className="initiatives-view-grid">
 						{initiatives.map((initiative) => {
 							const progress = getProgress(initiative.id);
+							const meta = initiativeMetaMap.get(initiative.id);
 							return (
 								<InitiativeCard
 									key={initiative.id}
 									initiative={initiative}
 									completedTasks={progress.completed}
 									totalTasks={progress.total}
+									costSpent={meta?.costSpent}
+									tokensUsed={meta?.tokensUsed}
 									onClick={() => handleCardClick(initiative.id)}
 								/>
 							);
