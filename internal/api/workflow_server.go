@@ -854,6 +854,64 @@ func (s *workflowServer) DeletePhaseTemplate(
 	}), nil
 }
 
+// ClonePhaseTemplate clones a phase template to a new ID.
+func (s *workflowServer) ClonePhaseTemplate(
+	ctx context.Context,
+	req *connect.Request[orcv1.ClonePhaseTemplateRequest],
+) (*connect.Response[orcv1.ClonePhaseTemplateResponse], error) {
+	if req.Msg.SourceId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("source_id is required"))
+	}
+	if req.Msg.NewId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("new_id is required"))
+	}
+
+	// Use file-based cloner to create YAML file at project level
+	result, err := s.cloner.ClonePhase(req.Msg.SourceId, req.Msg.NewId, workflow.WriteLevelProject, false)
+	if err != nil {
+		// Check for specific error types
+		if errors.Is(err, workflow.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("source phase template %s not found", req.Msg.SourceId))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("clone phase template: %w", err))
+	}
+
+	// Update name if provided
+	if req.Msg.NewName != nil && *req.Msg.NewName != "" {
+		// Re-read the cloned phase, update name, and re-write
+		resolved, err := s.resolver.ResolvePhase(req.Msg.NewId)
+		if err == nil && resolved != nil {
+			resolved.Phase.Name = *req.Msg.NewName
+			writer := workflow.NewWriterFromOrcDir(s.resolver.OrcDir())
+			if _, writeErr := writer.WritePhase(resolved.Phase, workflow.WriteLevelProject); writeErr != nil {
+				s.logger.Warn("failed to update cloned phase template name", "error", writeErr)
+			}
+		}
+	}
+
+	// Sync to database cache
+	if _, err := s.cache.SyncAll(); err != nil {
+		s.logger.Warn("failed to sync cache after clone", "error", err)
+	}
+
+	// Get the cloned phase template from DB for response
+	clone, err := s.backend.GetPhaseTemplate(req.Msg.NewId)
+	if err != nil {
+		s.logger.Warn("failed to get cloned phase template from DB", "id", req.Msg.NewId, "error", err)
+		// Return a partial response with the result info
+		return connect.NewResponse(&orcv1.ClonePhaseTemplateResponse{
+			Template: &orcv1.PhaseTemplate{
+				Id:   result.DestID,
+				Name: result.DestID,
+			},
+		}), nil
+	}
+
+	return connect.NewResponse(&orcv1.ClonePhaseTemplateResponse{
+		Template: dbPhaseTemplateToProto(clone),
+	}), nil
+}
+
 // GetPromptContent returns the prompt content for a phase template.
 func (s *workflowServer) GetPromptContent(
 	ctx context.Context,

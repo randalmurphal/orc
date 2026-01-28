@@ -224,6 +224,7 @@ service WorkflowService {
   rpc CreatePhaseTemplate(CreatePhaseTemplateRequest) returns (CreatePhaseTemplateResponse);
   rpc UpdatePhaseTemplate(UpdatePhaseTemplateRequest) returns (UpdatePhaseTemplateResponse);
   rpc DeletePhaseTemplate(DeletePhaseTemplateRequest) returns (DeletePhaseTemplateResponse);
+  rpc ClonePhaseTemplate(ClonePhaseTemplateRequest) returns (ClonePhaseTemplateResponse);
   rpc GetPromptContent(GetPromptContentRequest) returns (GetPromptContentResponse);
   rpc ListWorkflowRuns(ListWorkflowRunsRequest) returns (ListWorkflowRunsResponse);
   rpc GetWorkflowRun(GetWorkflowRunRequest) returns (GetWorkflowRunResponse);
@@ -435,6 +436,16 @@ message DeletePhaseTemplateRequest {
 
 message DeletePhaseTemplateResponse {
   string message = 1;
+}
+
+message ClonePhaseTemplateRequest {
+  string source_id = 1;
+  string new_id = 2;
+  optional string new_name = 3;
+}
+
+message ClonePhaseTemplateResponse {
+  PhaseTemplate template = 1;
 }
 
 message GetPromptContentRequest {
