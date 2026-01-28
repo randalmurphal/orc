@@ -95,9 +95,12 @@ func applyPlaywrightRuntimeSettings(
 	}
 
 	// Disable hardware video decode to prevent NVIDIA driver crashes (libnvcuvid.so bug)
-	// This affects headless and headed modes - the driver bug crashes the entire X session
-	if !slices.Contains(args, "--disable-gpu-video-decode") {
-		args = append(args, "--disable-gpu-video-decode")
+	// This must be passed via env var, not CLI arg — Playwright MCP CLI doesn't accept browser flags
+	if server.Env == nil {
+		server.Env = make(map[string]string)
+	}
+	if _, ok := server.Env["PLAYWRIGHT_CHROMIUM_ARGS"]; !ok {
+		server.Env["PLAYWRIGHT_CHROMIUM_ARGS"] = "--disable-gpu-video-decode"
 	}
 
 	server.Args = args
