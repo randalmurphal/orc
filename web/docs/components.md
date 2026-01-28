@@ -620,7 +620,8 @@ import { AgentsView } from '@/components/agents';
 SubAgent API objects are transformed to display-friendly Agent objects:
 - Icon color derived from index (purple, blue, green, amber rotation)
 - Emoji assigned from preset list
-- Stats initialized with defaults (tokens: 0, tasksDone: 0, successRate: 100)
+- Stats populated from API response (tokens_today, tasks_done, success_rate) - defaults to zero if unavailable
+- Status field reflects running task state ("active" or "idle")
 
 ## RunningCard
 

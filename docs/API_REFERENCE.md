@@ -872,13 +872,61 @@ Claude Code settings from `settings.json` files. Both global (`~/.claude/setting
 
 ### Agents
 
+Sub-agent definitions stored in SQLite with runtime statistics.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/agents` | List sub-agents |
-| POST | `/api/agents` | Create sub-agent |
+| GET | `/api/agents` | List agents with stats (`?scope=global\|project`) |
+| POST | `/api/agents` | Create agent |
 | GET | `/api/agents/:name` | Get agent details |
 | PUT | `/api/agents/:name` | Update agent |
-| DELETE | `/api/agents/:name` | Delete agent |
+| DELETE | `/api/agents/:name` | Delete agent (custom only) |
+
+**Query parameters for GET `/api/agents`:**
+
+| Parameter | Description | Values |
+|-----------|-------------|--------|
+| `scope` | Filter by scope | `global` (from `~/.claude/`), `project` (from SQLite) |
+
+When no scope is specified, returns agents from both project (SQLite) and global sources.
+
+**Agent response:**
+```json
+{
+  "name": "code-reviewer",
+  "description": "Reviews code for quality issues",
+  "model": "sonnet",
+  "prompt": "You are a code reviewer...",
+  "tools": {
+    "allow": ["Read", "Grep", "Edit"]
+  },
+  "scope": "PROJECT",
+  "status": "idle",
+  "stats": {
+    "tokens_today": 45000,
+    "tasks_done": 12,
+    "success_rate": 0.92
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Agent identifier |
+| `description` | string | When to use this agent |
+| `model` | string | Model override (`sonnet`, `opus`, `haiku`) |
+| `prompt` | string | System prompt for the agent |
+| `tools` | object | Tool permissions with `allow` list |
+| `scope` | string | `PROJECT` or `GLOBAL` |
+| `status` | string | `active` (running tasks) or `idle` |
+| `stats.tokens_today` | number | Tokens used today for this model |
+| `stats.tasks_done` | number | Completed tasks (all time) |
+| `stats.success_rate` | number | Success rate 0.0-1.0 |
+
+**Notes:**
+- Stats are computed per model, not per agent (agents sharing a model share stats)
+- Status is `active` if any task is running with the agent's model
+- Returns empty array (not error) when no agents exist
 
 ### Scripts
 
