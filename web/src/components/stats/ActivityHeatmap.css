@@ -112,6 +112,11 @@
 	grid-template-rows: repeat(7, 1fr);
 	grid-auto-flow: column;
 	gap: 3px;
+	flex: 1;
+}
+
+.heatmap-grid.heatmap-grid--dense {
+	grid-template-columns: repeat(var(--heatmap-weeks), 1fr);
 }
 
 /* ==========================================================================
@@ -119,8 +124,8 @@
    ========================================================================== */
 
 .heatmap-cell {
-	width: 12px;
-	height: 12px;
+	width: 100%;
+	aspect-ratio: 1;
 	border-radius: 2px;
 	cursor: pointer;
 	transition: transform 0.1s ease;
