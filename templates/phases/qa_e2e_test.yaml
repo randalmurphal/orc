@@ -30,14 +30,14 @@ claude_config: |
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_evaluate",
       "mcp__playwright__browser_press_key",
-      "Read", "Write", "Glob", "Grep"
+      "Bash", "Read", "Write", "Glob", "Grep"
     ],
     "disallowed_tools": ["Edit", "NotebookEdit"],
     "mcp_servers": {
       "playwright": {
         "command": "npx",
-        "args": ["@playwright/mcp@latest", "--isolated"]
+        "args": ["-y", "@playwright/mcp@latest", "--isolated"]
       }
     },
-    "append_system_prompt": "Sub-agents available: qa-functional (happy path + edge cases), qa-visual (visual regression), qa-accessibility (a11y audit). Delegate based on test scope. Report only findings with confidence >= 80."
+    "append_system_prompt": "You are the QA tester. Use Playwright MCP tools directly to test the UI. Do NOT delegate to sub-agents. Test functional behavior (happy path, edge cases, error handling), visual consistency (layout, spacing, responsive), and basic accessibility (keyboard nav, ARIA labels). Report only findings with confidence >= 80."
   }
