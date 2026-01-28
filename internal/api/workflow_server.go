@@ -160,24 +160,46 @@ func (s *workflowServer) UpdateWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	w, err := s.backend.GetWorkflow(req.Msg.Id)
+	// Resolve the workflow to get source info
+	resolved, err := s.resolver.ResolveWorkflow(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.Id))
 	}
 
-	// Apply updates
+	// Apply updates to the workflow
+	wf := resolved.Workflow
 	if req.Msg.Name != nil {
-		w.Name = *req.Msg.Name
+		wf.Name = *req.Msg.Name
 	}
 	if req.Msg.Description != nil {
-		w.Description = *req.Msg.Description
+		wf.Description = *req.Msg.Description
 	}
 	if req.Msg.DefaultModel != nil {
-		w.DefaultModel = *req.Msg.DefaultModel
+		wf.DefaultModel = *req.Msg.DefaultModel
+	}
+	if req.Msg.DefaultThinking != nil {
+		wf.DefaultThinking = *req.Msg.DefaultThinking
 	}
 
-	if err := s.backend.SaveWorkflow(w); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
+	// Write back to file if source is file-based (not embedded/database)
+	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
+	if writeLevel != "" {
+		writer := workflow.NewWriterFromOrcDir(s.resolver.OrcDir())
+		if _, writeErr := writer.WriteWorkflow(wf, writeLevel); writeErr != nil {
+			s.logger.Warn("failed to write workflow file", "id", req.Msg.Id, "error", writeErr)
+			// Fall through to DB update
+		}
+	}
+
+	// Sync cache to update DB
+	if _, err := s.cache.SyncAll(); err != nil {
+		s.logger.Warn("failed to sync cache after update", "error", err)
+	}
+
+	// Get updated workflow from DB for response
+	w, err := s.backend.GetWorkflow(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get updated workflow: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.UpdateWorkflowResponse{

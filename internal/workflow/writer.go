@@ -51,6 +51,23 @@ func WriteLevelToSource(level WriteLevel) Source {
 	}
 }
 
+// SourceToWriteLevel converts a Source to a WriteLevel.
+// Returns empty string for non-writable sources (embedded, database).
+func SourceToWriteLevel(source Source) WriteLevel {
+	switch source {
+	case SourcePersonalGlobal:
+		return WriteLevelPersonal
+	case SourceProjectLocal:
+		return WriteLevelLocal
+	case SourceProjectShared:
+		return WriteLevelShared
+	case SourceProject:
+		return WriteLevelProject
+	default:
+		return ""
+	}
+}
+
 // Writer writes workflow and phase YAML files.
 type Writer struct {
 	personalDir string // ~/.orc/
