@@ -24,6 +24,8 @@ interface TaskCardProps {
 	className?: string;
 	/** Number of pending decisions for this task */
 	pendingDecisionCount?: number;
+	/** Position number to display (1-based, for queue ordering) */
+	position?: number;
 }
 
 // Priority dot colors
@@ -60,13 +62,16 @@ function getPriorityLabel(priority: TaskPriority): string {
 /**
  * Build accessible aria-label for task card
  */
-function buildAriaLabel(task: Task): string {
+function buildAriaLabel(task: Task, position?: number): string {
 	const priority = task.priority || TaskPriority.NORMAL;
 	const category = task.category || TaskCategory.FEATURE;
 	const priorityLabel = getPriorityLabel(priority);
 	const categoryConfig = CATEGORY_CONFIG[category];
 	const parts = [`${task.id}: ${task.title}`, `${priorityLabel} priority`, categoryConfig.label.toLowerCase()];
 
+	if (position !== undefined) {
+		parts.push(`position ${position}`);
+	}
 	if (task.isBlocked) {
 		parts.push('blocked');
 	}
@@ -85,6 +90,7 @@ export function TaskCard({
 	showInitiative = false,
 	className = '',
 	pendingDecisionCount = 0,
+	position,
 }: TaskCardProps) {
 	const priority = task.priority || TaskPriority.NORMAL;
 	const category = task.category || TaskCategory.FEATURE;
@@ -140,8 +146,13 @@ export function TaskCard({
 			onKeyDown={handleKeyDown}
 			tabIndex={0}
 			role="button"
-			aria-label={buildAriaLabel(task)}
+			aria-label={buildAriaLabel(task, position)}
 		>
+			{/* Position number (optional) */}
+			{position !== undefined && (
+				<span className="task-card-position">{position}</span>
+			)}
+
 			{/* Category icon */}
 			<div
 				className="task-card-category"

@@ -155,10 +155,11 @@ export function Swimlane({
 				{tasks.length === 0 ? (
 					<div className="swimlane-empty">No tasks</div>
 				) : (
-					tasks.map((task) => (
+					tasks.map((task, index) => (
 						<TaskCard
 							key={task.id}
 							task={task}
+							position={index + 1}
 							onClick={() => onTaskClick?.(task)}
 							onContextMenu={(e) => onContextMenu?.(task, e)}
 							pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}

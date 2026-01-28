@@ -463,4 +463,120 @@ describe('Swimlane', () => {
 			expect(screen.getByTestId('swimlane-unassigned')).toBeInTheDocument();
 		});
 	});
+
+	describe('task position numbers', () => {
+		it('passes 1-based position index to each TaskCard', () => {
+			const { container } = renderSwimlane({
+				tasks: [
+					createMockTask({ id: 'TASK-001', title: 'First Task' }),
+					createMockTask({ id: 'TASK-002', title: 'Second Task' }),
+					createMockTask({ id: 'TASK-003', title: 'Third Task' }),
+				],
+			});
+
+			// Find all position elements in order
+			const positionElements = container.querySelectorAll('.task-card-position');
+			expect(positionElements).toHaveLength(3);
+			expect(positionElements[0]?.textContent).toBe('1');
+			expect(positionElements[1]?.textContent).toBe('2');
+			expect(positionElements[2]?.textContent).toBe('3');
+		});
+
+		it('position numbers increment correctly with task order (1, 2, 3)', () => {
+			const { container } = renderSwimlane({
+				tasks: [
+					createMockTask({ id: 'TASK-A', title: 'Alpha' }),
+					createMockTask({ id: 'TASK-B', title: 'Beta' }),
+					createMockTask({ id: 'TASK-C', title: 'Gamma' }),
+					createMockTask({ id: 'TASK-D', title: 'Delta' }),
+					createMockTask({ id: 'TASK-E', title: 'Epsilon' }),
+				],
+			});
+
+			const taskCards = container.querySelectorAll('.task-card');
+			expect(taskCards).toHaveLength(5);
+
+			// Verify each task card has the correct position number
+			taskCards.forEach((card, index) => {
+				const positionElement = card.querySelector('.task-card-position');
+				expect(positionElement).toBeInTheDocument();
+				expect(positionElement?.textContent).toBe(String(index + 1));
+			});
+		});
+
+		it('single task has position 1', () => {
+			const { container } = renderSwimlane({
+				tasks: [createMockTask({ id: 'TASK-001', title: 'Only Task' })],
+			});
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).toBeInTheDocument();
+			expect(positionElement?.textContent).toBe('1');
+		});
+
+		it('empty swimlane has no position elements', () => {
+			const { container } = renderSwimlane({
+				tasks: [],
+			});
+
+			const positionElements = container.querySelectorAll('.task-card-position');
+			expect(positionElements).toHaveLength(0);
+
+			// Verify empty state message is shown
+			expect(screen.getByText('No tasks')).toBeInTheDocument();
+		});
+
+		it('position numbers are associated with correct task cards', () => {
+			const { container } = renderSwimlane({
+				tasks: [
+					createMockTask({ id: 'TASK-AAA', title: 'First' }),
+					createMockTask({ id: 'TASK-BBB', title: 'Second' }),
+				],
+			});
+
+			// Find task cards by their data-task-id attribute
+			const firstCard = container.querySelector('[data-task-id="TASK-AAA"]');
+			const secondCard = container.querySelector('[data-task-id="TASK-BBB"]');
+
+			expect(firstCard).toBeInTheDocument();
+			expect(secondCard).toBeInTheDocument();
+
+			const firstPosition = firstCard?.querySelector('.task-card-position');
+			const secondPosition = secondCard?.querySelector('.task-card-position');
+
+			expect(firstPosition?.textContent).toBe('1');
+			expect(secondPosition?.textContent).toBe('2');
+		});
+
+		it('position numbers work with mixed task statuses', () => {
+			const { container } = renderSwimlane({
+				tasks: [
+					createMockTask({ id: 'T1', status: TaskStatus.CREATED }),
+					createMockTask({ id: 'T2', status: TaskStatus.RUNNING }),
+					createMockTask({ id: 'T3', status: TaskStatus.COMPLETED }),
+				],
+			});
+
+			const positionElements = container.querySelectorAll('.task-card-position');
+			expect(positionElements).toHaveLength(3);
+			expect(positionElements[0]?.textContent).toBe('1');
+			expect(positionElements[1]?.textContent).toBe('2');
+			expect(positionElements[2]?.textContent).toBe('3');
+		});
+
+		it('position numbers work for unassigned swimlane', () => {
+			const { container } = renderSwimlane({
+				initiative: null,
+				tasks: [
+					createMockTask({ id: 'TASK-001' }),
+					createMockTask({ id: 'TASK-002' }),
+				],
+			});
+
+			const positionElements = container.querySelectorAll('.task-card-position');
+			expect(positionElements).toHaveLength(2);
+			expect(positionElements[0]?.textContent).toBe('1');
+			expect(positionElements[1]?.textContent).toBe('2');
+		});
+	});
 });

@@ -315,4 +315,70 @@ describe('TaskCard', () => {
 			expect(card).toHaveClass('custom-class');
 		});
 	});
+
+	describe('position prop', () => {
+		it('renders position number when position prop is provided', () => {
+			const { container } = renderTaskCard(createTask(), { position: 1 });
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).toBeInTheDocument();
+			expect(positionElement?.textContent).toBe('1');
+		});
+
+		it('does not render position element when position prop is not provided', () => {
+			const { container } = renderTaskCard(createTask());
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).not.toBeInTheDocument();
+		});
+
+		it('does not render position element when position is undefined', () => {
+			const { container } = renderTaskCard(createTask(), { position: undefined });
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).not.toBeInTheDocument();
+		});
+
+		it('renders position 0 when position prop is 0', () => {
+			// Edge case: position=0 should display "0" (shouldn't happen in practice with 1-based indexing)
+			const { container } = renderTaskCard(createTask(), { position: 0 });
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).toBeInTheDocument();
+			expect(positionElement?.textContent).toBe('0');
+		});
+
+		it('renders large position numbers correctly', () => {
+			const { container } = renderTaskCard(createTask(), { position: 99 });
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).toBeInTheDocument();
+			expect(positionElement?.textContent).toBe('99');
+		});
+
+		it('position element has task-card-position class', () => {
+			const { container } = renderTaskCard(createTask(), { position: 5 });
+
+			const positionElement = container.querySelector('.task-card-position');
+			expect(positionElement).toBeInTheDocument();
+			expect(positionElement).toHaveClass('task-card-position');
+		});
+
+		it('includes position in aria-label when position is provided', () => {
+			renderTaskCard(
+				createTask({ priority: TaskPriority.HIGH, category: TaskCategory.FEATURE }),
+				{ position: 3 }
+			);
+
+			const card = screen.getByRole('button');
+			expect(card.getAttribute('aria-label')).toContain('position 3');
+		});
+
+		it('does not include position in aria-label when position is not provided', () => {
+			renderTaskCard(createTask({ priority: TaskPriority.HIGH, category: TaskCategory.FEATURE }));
+
+			const card = screen.getByRole('button');
+			expect(card.getAttribute('aria-label')).not.toContain('position');
+		});
+	});
 });
