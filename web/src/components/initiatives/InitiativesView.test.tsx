@@ -7,7 +7,9 @@ import { useTaskStore } from '@/stores';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { Task } from '@/gen/orc/v1/task_pb';
-import { TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
+import { TaskStatus, TaskWeight, ExecutionStateSchema } from '@/gen/orc/v1/task_pb';
+import { TokenUsageSchema, CostTrackingSchema } from '@/gen/orc/v1/common_pb';
+import { create } from '@bufbuild/protobuf';
 import { createMockInitiative, createMockTask, createMockTaskRef } from '@/test/factories';
 
 // Mock the Connect RPC client
@@ -383,4 +385,64 @@ describe('InitiativesView', () => {
 			});
 		});
 	});
+
+	describe('per-initiative meta info', () => {
+		it('passes cost and tokens to initiative cards when task state data exists', async () => {
+			// Arrange - set up taskStates with token/cost data for tasks in INIT-001
+			const taskStates = new Map();
+			taskStates.set(
+				'TASK-001',
+				create(ExecutionStateSchema, {
+					tokens: create(TokenUsageSchema, {
+						inputTokens: 50000,
+						outputTokens: 10000,
+						totalTokens: 60000,
+					}),
+					cost: create(CostTrackingSchema, { totalCostUsd: 2.34 }),
+				})
+			);
+			taskStates.set(
+				'TASK-002',
+				create(ExecutionStateSchema, {
+					tokens: create(TokenUsageSchema, {
+						inputTokens: 80000,
+						outputTokens: 20000,
+						totalTokens: 100000,
+					}),
+					cost: create(CostTrackingSchema, { totalCostUsd: 5.0 }),
+				})
+			);
+
+			useTaskStore.setState({ tasks: mockTasks, taskStates });
+
+			renderInitiativesView();
+
+			// Assert - INIT-001 card should show aggregated cost ($2.34 + $5.00 = $7.34)
+			// and aggregated tokens (60000 + 100000 = 160000 -> "160K")
+			await waitFor(() => {
+				expect(screen.getByText('Frontend Polish')).toBeInTheDocument();
+			});
+
+			// Cost: $7.34 spent
+			expect(screen.getByText('$7.34 spent')).toBeInTheDocument();
+			// Tokens: 160K tokens
+			expect(screen.getByText('160K tokens')).toBeInTheDocument();
+		});
+
+		it('does not render meta row when no task state data exists', async () => {
+			// Arrange - empty taskStates (already set in beforeEach)
+			useTaskStore.setState({ tasks: mockTasks, taskStates: new Map() });
+
+			renderInitiativesView();
+
+			await waitFor(() => {
+				expect(screen.getByText('Frontend Polish')).toBeInTheDocument();
+			});
+
+			// Assert - no meta rows should be rendered
+			const metaElements = document.querySelectorAll('.initiative-card-meta');
+			expect(metaElements).toHaveLength(0);
+		});
+	});
+
 });
