@@ -422,20 +422,24 @@ func (s *configServer) ListSkills(
 	if req.Msg.Scope == nil {
 		var protoSkills []*orcv1.Skill
 
-		// Collect global skills
+		// Collect global skills and commands
 		homeDir, err := os.UserHomeDir()
 		if err == nil {
-			globalSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(homeDir, ".claude"))
+			globalClaudeDir := filepath.Join(homeDir, ".claude")
+			globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
 			for _, skill := range globalSkills {
 				protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL))
 			}
+			protoSkills = append(protoSkills, discoverCommands(globalClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL)...)
 		}
 
-		// Collect project skills
-		projectSkills, _ := claudeconfig.DiscoverSkills(filepath.Join(s.workDir, ".claude"))
+		// Collect project skills and commands
+		projectClaudeDir := filepath.Join(s.workDir, ".claude")
+		projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
 		for _, skill := range projectSkills {
 			protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT))
 		}
+		protoSkills = append(protoSkills, discoverCommands(projectClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT)...)
 
 		return connect.NewResponse(&orcv1.ListSkillsResponse{
 			Skills: protoSkills,
@@ -456,17 +460,16 @@ func (s *configServer) ListSkills(
 		claudeDir = filepath.Join(s.workDir, ".claude")
 	}
 
+	var protoSkills []*orcv1.Skill
+
 	skills, err := claudeconfig.DiscoverSkills(claudeDir)
-	if err != nil {
-		return connect.NewResponse(&orcv1.ListSkillsResponse{
-			Skills: []*orcv1.Skill{},
-		}), nil
+	if err == nil {
+		for _, skill := range skills {
+			protoSkills = append(protoSkills, claudeSkillToProto(skill, scope))
+		}
 	}
 
-	protoSkills := make([]*orcv1.Skill, len(skills))
-	for i, skill := range skills {
-		protoSkills[i] = claudeSkillToProto(skill, scope)
-	}
+	protoSkills = append(protoSkills, discoverCommands(claudeDir, scope)...)
 
 	return connect.NewResponse(&orcv1.ListSkillsResponse{
 		Skills: protoSkills,
@@ -716,7 +719,9 @@ func (s *configServer) GetConfigStats(
 
 	globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
 	projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
-	stats.SlashCommandsCount = int32(len(globalSkills) + len(projectSkills))
+	globalCommands := discoverCommands(globalClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL)
+	projectCommands := discoverCommands(projectClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT)
+	stats.SlashCommandsCount = int32(len(globalSkills) + len(projectSkills) + len(globalCommands) + len(projectCommands))
 
 	// Get CLAUDE.md size (sum of global + project)
 	var claudeMdSize int64
@@ -984,6 +989,37 @@ func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope
 	}
 
 	return agent
+}
+
+// discoverCommands reads .claude/commands/ for flat .md files and returns them as proto Skills.
+// Non-.md files and subdirectories are ignored.
+func discoverCommands(claudeDir string, scope orcv1.SettingsScope) []*orcv1.Skill {
+	commandsDir := filepath.Join(claudeDir, "commands")
+	entries, err := os.ReadDir(commandsDir)
+	if err != nil {
+		return nil
+	}
+
+	var commands []*orcv1.Skill
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".md" {
+			continue
+		}
+		name := entry.Name()[:len(entry.Name())-len(".md")]
+		content, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		commands = append(commands, &orcv1.Skill{
+			Name:    name,
+			Content: string(content),
+			Scope:   scope,
+		})
+	}
+	return commands
 }
 
 // === Conversion helpers ===
