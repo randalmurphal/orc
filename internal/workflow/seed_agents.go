@@ -51,11 +51,6 @@ var builtinAgentFiles = []string{
 	"agents/pr-test-analyzer.md",
 	"agents/silent-failure-hunter.md",
 	"agents/type-design-analyzer.md",
-	// QA E2E testing agents
-	"agents/qa-functional.md",
-	"agents/qa-visual.md",
-	"agents/qa-accessibility.md",
-	"agents/qa-investigator.md",
 }
 
 // builtinPhaseAgents defines which agents run for which phases.
@@ -71,14 +66,6 @@ var builtinPhaseAgents = []db.PhaseAgent{
 	// Implement phase - code-simplifier runs AFTER main implementation (sequence 1)
 	{PhaseTemplateID: "implement", AgentID: "code-simplifier", Sequence: 1, Role: "simplifier", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
 
-	// QA E2E Test phase - parallel testing agents (sequence 0)
-	// All weights use functional testing, medium+ adds visual, large adds accessibility
-	{PhaseTemplateID: "qa_e2e_test", AgentID: "qa-functional", Sequence: 0, Role: "functional", WeightFilter: nil, IsBuiltin: true},
-	{PhaseTemplateID: "qa_e2e_test", AgentID: "qa-visual", Sequence: 0, Role: "visual", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
-	{PhaseTemplateID: "qa_e2e_test", AgentID: "qa-accessibility", Sequence: 0, Role: "accessibility", WeightFilter: []string{"large"}, IsBuiltin: true},
-
-	// QA E2E Fix phase - investigator runs first to analyze root causes
-	{PhaseTemplateID: "qa_e2e_fix", AgentID: "qa-investigator", Sequence: 0, Role: "investigation", WeightFilter: nil, IsBuiltin: true},
 }
 
 // SeedAgents populates the database with built-in agent definitions and phase associations.
@@ -183,10 +170,5 @@ func ListBuiltinAgentIDs() []string {
 		"pr-test-analyzer",
 		"silent-failure-hunter",
 		"type-design-analyzer",
-		// QA E2E testing agents
-		"qa-functional",
-		"qa-visual",
-		"qa-accessibility",
-		"qa-investigator",
 	}
 }
