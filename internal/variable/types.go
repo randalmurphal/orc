@@ -255,6 +255,7 @@ type ResolutionContext struct {
 	// QA E2E testing context
 	QAIteration      int    // Current QA iteration (1, 2, 3, ...)
 	QAMaxIterations  int    // Maximum QA iterations before stopping
+	QAFindings       string // Formatted QA findings from qa_e2e_test phase (survives ResolveAll)
 	BeforeImages     string // Newline-separated paths to baseline images for visual comparison
 	PreviousFindings string // Formatted findings from previous QA iteration (for verification)
 }

@@ -438,7 +438,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					// Load content from completed phase for variable chaining
 					// Phase outputs are stored in unified phase_outputs table keyed by run ID
 					if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
-						applyPhaseContentToVars(vars, rctx.PriorOutputs, phase.PhaseTemplateID, output.Content)
+						applyPhaseContentToVars(vars, rctx, phase.PhaseTemplateID, output.Content)
 					}
 					continue
 				}
@@ -508,7 +508,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update variables with phase output content
 		if phaseResult.Content != "" {
-			applyPhaseContentToVars(vars, rctx.PriorOutputs, phaseResult.PhaseID, phaseResult.Content)
+			applyPhaseContentToVars(vars, rctx, phaseResult.PhaseID, phaseResult.Content)
 		}
 
 		// Check for loop configuration and handle iterative loops
@@ -816,7 +816,7 @@ type PhaseResult struct {
 // Called both when resuming from completed phases and after phase completion.
 // For phases with structured JSON output, this formats the content appropriately
 // for injection into subsequent phase prompts.
-func applyPhaseContentToVars(vars map[string]string, priorOutputs map[string]string, phaseID, content string) {
+func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionContext, phaseID, content string) {
 	// Store raw output for OUTPUT_* variable (used by loop condition evaluation)
 	vars["OUTPUT_"+phaseID] = content
 
@@ -840,11 +840,13 @@ func applyPhaseContentToVars(vars map[string]string, priorOutputs map[string]str
 			// Fallback to raw if parse fails
 			vars["QA_FINDINGS"] = content
 		}
+		// Persist to rctx so QA_FINDINGS survives ResolveAll() on next loop iteration
+		rctx.QAFindings = vars["QA_FINDINGS"]
 	}
 
 	// Store raw content in priorOutputs for loop condition evaluation
-	if priorOutputs != nil {
-		priorOutputs[phaseID] = content
+	if rctx.PriorOutputs != nil {
+		rctx.PriorOutputs[phaseID] = content
 	}
 }
 

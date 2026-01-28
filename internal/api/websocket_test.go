@@ -37,9 +37,7 @@ func TestWSHandler_Connect(t *testing.T) {
 		t.Errorf("failed to send message: %v", err)
 	}
 
-	if handler.ConnectionCount() != 1 {
-		t.Errorf("expected 1 connection, got %d", handler.ConnectionCount())
-	}
+	waitForConnectionCount(t, handler, 1, 2*time.Second)
 }
 
 func TestWSHandler_Subscribe(t *testing.T) {
@@ -282,20 +280,11 @@ func TestWSHandler_MultipleConnections(t *testing.T) {
 		}
 	}()
 
-	// Allow connections to register
-	time.Sleep(50 * time.Millisecond)
-
-	if handler.ConnectionCount() != 3 {
-		t.Errorf("expected 3 connections, got %d", handler.ConnectionCount())
-	}
+	waitForConnectionCount(t, handler, 3, 2*time.Second)
 
 	// Close one connection
 	_ = conns[0].Close()
-	time.Sleep(100 * time.Millisecond)
-
-	if handler.ConnectionCount() != 2 {
-		t.Errorf("expected 2 connections after close, got %d", handler.ConnectionCount())
-	}
+	waitForConnectionCount(t, handler, 2, 2*time.Second)
 }
 
 func TestWSHandler_Broadcast(t *testing.T) {
@@ -367,21 +356,12 @@ func TestWSHandler_Close(t *testing.T) {
 	}
 	defer func() { _ = ws.Close() }()
 
-	// Allow connection to register
-	time.Sleep(50 * time.Millisecond)
-
-	if handler.ConnectionCount() != 1 {
-		t.Errorf("expected 1 connection, got %d", handler.ConnectionCount())
-	}
+	waitForConnectionCount(t, handler, 1, 2*time.Second)
 
 	// Close handler
 	handler.Close()
 
-	time.Sleep(100 * time.Millisecond)
-
-	if handler.ConnectionCount() != 0 {
-		t.Errorf("expected 0 connections after close, got %d", handler.ConnectionCount())
-	}
+	waitForConnectionCount(t, handler, 0, 2*time.Second)
 }
 
 func TestWSHandler_CORSUpgrader(t *testing.T) {
@@ -919,4 +899,17 @@ func TestWSHandler_FilesChanged(t *testing.T) {
 	if eventData["total_deletions"].(float64) != 5 {
 		t.Errorf("expected total_deletions 5, got %v", eventData["total_deletions"])
 	}
+}
+
+// waitForConnectionCount polls until the handler reaches the expected connection count or timeout.
+func waitForConnectionCount(t *testing.T, handler *WSHandler, expected int, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if handler.ConnectionCount() == expected {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("expected %d connections, got %d (after %v)", expected, handler.ConnectionCount(), timeout)
 }

@@ -10,5 +10,5 @@ phases:
   - template: qa_e2e_fix
     sequence: 1
     depends_on: ["qa_e2e_test"]
-    # Loop back to qa_e2e_test after fixing, max 3 iterations
-    # loop_config: {"condition":"has_findings","loop_to_phase":"qa_e2e_test","max_iterations":3}
+    # Loop back to qa_e2e_test after fixing, max 6 iterations
+    # loop_config: {"condition":"has_findings","loop_to_phase":"qa_e2e_test","max_iterations":6}
