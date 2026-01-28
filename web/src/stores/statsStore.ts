@@ -8,6 +8,7 @@ import {
 	GetDailyMetricsRequestSchema,
 	GetMetricsRequestSchema,
 	GetTopInitiativesRequestSchema,
+	GetComparisonRequestSchema,
 } from '@/gen/orc/v1/dashboard_pb';
 
 // Types
@@ -61,6 +62,7 @@ interface StatsData {
 	topInitiatives: TopInitiative[];
 	topFiles: TopFile[];
 	summaryStats: SummaryStats;
+	weeklyChanges: WeeklyChanges | null;
 }
 
 interface StatsState {
@@ -151,27 +153,6 @@ function generateActivityData(
 	return activityMap;
 }
 
-// Helper to calculate weekly changes
-function calculateWeeklyChanges(
-	currentStats: SummaryStats,
-	_period: StatsPeriod
-): WeeklyChanges | null {
-	// For now, return null since we'd need historical data from the API
-	// to calculate actual weekly changes. This is a placeholder for
-	// when the backend provides comparison data.
-	if (currentStats.tasksCompleted === 0) {
-		return null;
-	}
-
-	// Placeholder: return zeros indicating no change data available
-	return {
-		tasks: 0,
-		tokens: 0,
-		cost: 0,
-		successRate: 0,
-	};
-}
-
 export const useStatsStore = create<StatsStore>()(
 	subscribeWithSelector((set, get) => ({
 		...initialState,
@@ -197,7 +178,7 @@ export const useStatsStore = create<StatsStore>()(
 					topInitiatives: cached.data.topInitiatives,
 					topFiles: cached.data.topFiles,
 					summaryStats: cached.data.summaryStats,
-					weeklyChanges: calculateWeeklyChanges(cached.data.summaryStats, period),
+					weeklyChanges: cached.data.weeklyChanges,
 					loading: false,
 					error: null,
 				});
@@ -226,7 +207,7 @@ export const useStatsStore = create<StatsStore>()(
 				}
 
 				// Fetch all endpoints in parallel using Connect RPC
-				const [statsResponse, costResponse, dailyMetricsResponse, metricsResponse, topInitiativesResponse] = await Promise.all([
+				const [statsResponse, costResponse, dailyMetricsResponse, metricsResponse, topInitiativesResponse, comparisonResponse] = await Promise.all([
 					dashboardClient.getStats(createProto(GetStatsRequestSchema, {})),
 					dashboardClient.getCostSummary(
 						createProto(GetCostSummaryRequestSchema, { period: periodToQueryParam(period) })
@@ -239,6 +220,9 @@ export const useStatsStore = create<StatsStore>()(
 					),
 					dashboardClient.getTopInitiatives(
 						createProto(GetTopInitiativesRequestSchema, { limit: 4 })
+					),
+					dashboardClient.getComparison(
+						createProto(GetComparisonRequestSchema, { period: periodToQueryParam(period) })
 					),
 				]);
 
@@ -309,6 +293,24 @@ export const useStatsStore = create<StatsStore>()(
 					successRate: Math.round(successRate * 10) / 10,
 				};
 
+				// Build weekly changes from GetComparison API (TASK-608)
+				const comparison = comparisonResponse.comparison;
+				let weeklyChanges: WeeklyChanges | null = null;
+				if (comparison) {
+					const prevTokens = comparison.previous?.totalTokens?.totalTokens ?? 0;
+					const currTokens = comparison.current?.totalTokens?.totalTokens ?? 0;
+					const tokensChangePct = prevTokens > 0
+						? ((currTokens - prevTokens) / prevTokens) * 100
+						: 0;
+
+					weeklyChanges = {
+						tasks: comparison.tasksChangePct ?? 0,
+						tokens: tokensChangePct,
+						cost: comparison.costChangePct ?? 0,
+						successRate: comparison.successRateChangePct ?? 0,
+					};
+				}
+
 				const statsData: StatsData = {
 					activityData,
 					outcomes,
@@ -316,6 +318,7 @@ export const useStatsStore = create<StatsStore>()(
 					topInitiatives,
 					topFiles,
 					summaryStats,
+					weeklyChanges,
 				};
 
 				// TASK-526: Get fresh state for cache update to avoid overwriting
@@ -335,7 +338,7 @@ export const useStatsStore = create<StatsStore>()(
 					topInitiatives,
 					topFiles,
 					summaryStats,
-					weeklyChanges: calculateWeeklyChanges(summaryStats, period),
+					weeklyChanges,
 					loading: false,
 					error: null,
 					_cache: newCache,

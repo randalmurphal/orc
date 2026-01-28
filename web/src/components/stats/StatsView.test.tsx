@@ -633,3 +633,85 @@ describe('TASK-526: Error recovery behavior', () => {
 		expect(retryBtn).not.toBeDisabled();
 	});
 });
+
+// =============================================================================
+// TASK-608: Change indicator rendering
+// =============================================================================
+
+describe('TASK-608: Change indicators display on stat cards (SC-2)', () => {
+	beforeEach(() => {
+		resetMockState();
+		mockState.activityData = new Map([['2026-01-15', 5]]);
+		mockState.summaryStats = {
+			tasksCompleted: 52,
+			tokensUsed: 2400000,
+			totalCost: 47.82,
+			avgTime: 204,
+			successRate: 94.2,
+		};
+	});
+
+	it('displays positive change with green up arrow', () => {
+		mockState.weeklyChanges = {
+			tasks: 23,
+			tokens: 18,
+			cost: -8,
+			successRate: 2.1,
+		};
+
+		const { container } = renderWithProvider(<StatsView />);
+
+		// Find change indicators with 'up' class (positive changes)
+		const upChanges = container.querySelectorAll('.stats-view-stat-change--up');
+		expect(upChanges.length).toBeGreaterThan(0);
+
+		// Tasks card should show "+23% from last period"
+		const changeTexts = Array.from(container.querySelectorAll('.stats-view-stat-change'))
+			.map(el => el.textContent);
+		expect(changeTexts.some(t => t?.includes('+23%'))).toBe(true);
+	});
+
+	it('displays negative change with red down arrow', () => {
+		mockState.weeklyChanges = {
+			tasks: -15,
+			tokens: -10,
+			cost: -8,
+			successRate: -3,
+		};
+
+		const { container } = renderWithProvider(<StatsView />);
+
+		// Find change indicators with 'down' class (negative changes)
+		const downChanges = container.querySelectorAll('.stats-view-stat-change--down');
+		expect(downChanges.length).toBeGreaterThan(0);
+	});
+
+	it('shows "No change data" when weeklyChanges is null', () => {
+		mockState.weeklyChanges = null;
+
+		const { container } = renderWithProvider(<StatsView />);
+
+		const neutralChanges = container.querySelectorAll('.stats-view-stat-change--neutral');
+		// All 5 cards should show "No change data"
+		expect(neutralChanges.length).toBe(5);
+	});
+
+	it('change indicator text includes percentage value', () => {
+		mockState.weeklyChanges = {
+			tasks: 23,
+			tokens: 18,
+			cost: -8,
+			successRate: 2.1,
+		};
+
+		const { container } = renderWithProvider(<StatsView />);
+
+		// Check that change percentages are rendered
+		const allChangeTexts = Array.from(container.querySelectorAll('.stats-view-stat-change'))
+			.map(el => el.textContent)
+			.join(' ');
+
+		expect(allChangeTexts).toContain('23%');
+		expect(allChangeTexts).toContain('18%');
+	});
+});

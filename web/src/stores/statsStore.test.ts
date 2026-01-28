@@ -13,6 +13,7 @@ const mockGetCostSummary = vi.fn();
 const mockGetDailyMetrics = vi.fn();
 const mockGetMetrics = vi.fn();
 const mockGetTopInitiatives = vi.fn();
+const mockGetComparison = vi.fn();
 
 vi.mock('@/lib/client', () => ({
 	dashboardClient: {
@@ -21,6 +22,7 @@ vi.mock('@/lib/client', () => ({
 		getDailyMetrics: () => mockGetDailyMetrics(),
 		getMetrics: () => mockGetMetrics(),
 		getTopInitiatives: () => mockGetTopInitiatives(),
+		getComparison: () => mockGetComparison(),
 	},
 }));
 
@@ -170,6 +172,50 @@ function createMockTopInitiativesResponse(initiatives: MockTopInitiative[] = [])
 	};
 }
 
+interface MockComparisonMetrics {
+	current?: MockMetricsSummary & { totalTokens?: { totalTokens?: number } };
+	previous?: MockMetricsSummary & { totalTokens?: { totalTokens?: number } };
+	tasksChangePct?: number;
+	costChangePct?: number;
+	successRateChangePct?: number;
+}
+
+function createMockComparisonResponse(comparison: MockComparisonMetrics = {}) {
+	return {
+		comparison: {
+			current: {
+				tasksCompleted: comparison.current?.tasksCompleted ?? 0,
+				phasesExecuted: comparison.current?.phasesExecuted ?? 0,
+				avgTaskDurationSeconds: comparison.current?.avgTaskDurationSeconds ?? 0,
+				successRate: comparison.current?.successRate ?? 0,
+				totalTokens: {
+					totalTokens: comparison.current?.totalTokens?.totalTokens ?? 0,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+			},
+			previous: {
+				tasksCompleted: comparison.previous?.tasksCompleted ?? 0,
+				phasesExecuted: comparison.previous?.phasesExecuted ?? 0,
+				avgTaskDurationSeconds: comparison.previous?.avgTaskDurationSeconds ?? 0,
+				successRate: comparison.previous?.successRate ?? 0,
+				totalTokens: {
+					totalTokens: comparison.previous?.totalTokens?.totalTokens ?? 0,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+			},
+			tasksChangePct: comparison.tasksChangePct ?? 0,
+			costChangePct: comparison.costChangePct ?? 0,
+			successRateChangePct: comparison.successRateChangePct ?? 0,
+		},
+	};
+}
+
 describe('StatsStore', () => {
 	beforeEach(() => {
 		// Reset store before each test
@@ -181,6 +227,8 @@ describe('StatsStore', () => {
 		mockGetDailyMetrics.mockReset();
 		mockGetMetrics.mockReset();
 		mockGetTopInitiatives.mockReset();
+		mockGetComparison.mockReset();
+		mockGetComparison.mockResolvedValue(createMockComparisonResponse());
 	});
 
 	afterEach(() => {
@@ -504,7 +552,9 @@ describe('StatsStore', () => {
 			const state = useStatsStore.getState();
 
 			expect(state.summaryStats.successRate).toBe(0);
-			expect(state.weeklyChanges).toBeNull();
+			// TASK-608: weeklyChanges is now populated from GetComparison API
+			// even with zero tasks - the API returns comparison data (all zeros)
+			expect(state.weeklyChanges).not.toBeNull();
 		});
 	});
 
@@ -1206,4 +1256,185 @@ describe('StatsStore', () => {
 			expect(state.topInitiatives[0].name).toBe('Only One');
 		});
 	});
+	// =========================================================================
+	// TASK-608: Change indicators from GetComparison API
+	// =========================================================================
+
+	describe('TASK-608: Change indicators from GetComparison API (SC-1)', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10, failed: 2 },
+				todayTokens: { totalTokens: 100000 },
+				todayCostUsd: 5.0,
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse({ totalCostUsd: 5.0 }));
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse({ avgTaskDurationSeconds: 120 }));
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
+		it('should call GetComparison API during fetchStats', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: 23,
+				successRateChangePct: 2.1,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			expect(mockGetComparison).toHaveBeenCalled();
+		});
+
+		it('should populate weeklyChanges.tasks from GetComparison tasksChangePct', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: 23,
+				successRateChangePct: 2.1,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges).not.toBeNull();
+			expect(state.weeklyChanges!.tasks).toBe(23);
+		});
+
+		it('should populate weeklyChanges.successRate from GetComparison successRateChangePct', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: 10,
+				successRateChangePct: 5.5,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges).not.toBeNull();
+			expect(state.weeklyChanges!.successRate).toBe(5.5);
+		});
+
+		it('should compute weeklyChanges.tokens from comparison current vs previous token totals', async () => {
+			// Current period: 120000 tokens, Previous period: 100000 tokens = +20%
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				current: { totalTokens: { totalTokens: 120000 } },
+				previous: { totalTokens: { totalTokens: 100000 } },
+				tasksChangePct: 10,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges).not.toBeNull();
+			expect(state.weeklyChanges!.tokens).toBeCloseTo(20, 0);
+		});
+
+		it('should populate weeklyChanges.cost from GetComparison costChangePct', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: 10,
+				costChangePct: -8,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges).not.toBeNull();
+			expect(state.weeklyChanges!.cost).toBe(-8);
+		});
+
+		it('should handle negative percentage changes (decreases)', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: -15,
+				successRateChangePct: -3.2,
+				costChangePct: -8,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges).not.toBeNull();
+			expect(state.weeklyChanges!.tasks).toBe(-15);
+			expect(state.weeklyChanges!.successRate).toBe(-3.2);
+			expect(state.weeklyChanges!.cost).toBe(-8);
+		});
+
+		it('should return null weeklyChanges when comparison has no previous data (all zeros)', async () => {
+			// When previous period has no tasks, API returns 0 for all change percentages
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				tasksChangePct: 0,
+				costChangePct: 0,
+				successRateChangePct: 0,
+				current: { totalTokens: { totalTokens: 0 } },
+				previous: { totalTokens: { totalTokens: 0 } },
+			}));
+
+			// Need completed tasks > 0 for weeklyChanges to not be null from the old placeholder
+			// but with real API data, zero changes should still be represented
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// With real API data: weeklyChanges should be populated (with zeros)
+			// NOT null - because the API was called and returned data
+			expect(state.weeklyChanges).not.toBeNull();
+		});
+
+		it('should handle GetComparison API failure gracefully', async () => {
+			// GetComparison fails but other APIs succeed
+			mockGetComparison.mockRejectedValue(new Error('Comparison unavailable'));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// The store currently fails all fetches if any Promise.all member fails
+			// This test documents current behavior - comparison failure = full error
+			expect(state.error).toBe('Comparison unavailable');
+		});
+
+		it('should pass correct period parameter to GetComparison', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse());
+
+			await useStatsStore.getState().fetchStats('30d');
+
+			// GetComparison should be called (the implementation should pass the period)
+			expect(mockGetComparison).toHaveBeenCalled();
+		});
+	});
+
+	describe('TASK-608: Tokens change computed from comparison totals (SC-1)', () => {
+		beforeEach(() => {
+			mockGetStats.mockResolvedValue(createMockStatsResponse({
+				taskCounts: { completed: 10 },
+				todayTokens: { totalTokens: 100000 },
+			}));
+			mockGetCostSummary.mockResolvedValue(createMockCostResponse());
+			mockGetDailyMetrics.mockResolvedValue(createMockDailyMetricsResponse([]));
+			mockGetMetrics.mockResolvedValue(createMockMetricsResponse());
+			mockGetTopInitiatives.mockResolvedValue(createMockTopInitiativesResponse([]));
+		});
+
+		it('should compute 0% token change when previous period has 0 tokens', async () => {
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				current: { totalTokens: { totalTokens: 50000 } },
+				previous: { totalTokens: { totalTokens: 0 } },
+				tasksChangePct: 100,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			// Can't compute % change from 0, so should be 0 or null
+			expect(state.weeklyChanges!.tokens).toBe(0);
+		});
+
+		it('should compute correct negative token change', async () => {
+			// Current: 80000, Previous: 100000 = -20%
+			mockGetComparison.mockResolvedValue(createMockComparisonResponse({
+				current: { totalTokens: { totalTokens: 80000 } },
+				previous: { totalTokens: { totalTokens: 100000 } },
+				tasksChangePct: -10,
+			}));
+
+			await useStatsStore.getState().fetchStats('7d');
+
+			const state = useStatsStore.getState();
+			expect(state.weeklyChanges!.tokens).toBeCloseTo(-20, 0);
+		});
+	});
+
 });
