@@ -1,224 +1,264 @@
 {
-  "test_date": "2026-01-28",
-  "test_environment": "Code inspection + E2E screenshot analysis",
-  "reference_design": "example_ui/statistics-charts.png",
-  "testing_method": "Black-box code inspection",
-  "coverage_limitations": [
-    "No live browser interaction (worktree isolation)",
-    "Cannot access /tmp/qa-TASK-615/ for screenshots",
-    "E2E screenshot only shows top 40% of page",
-    "Cannot run Playwright tests",
-    "Cannot verify interactive functionality",
-    "Cannot check console errors",
-    "Cannot test mobile viewport (375x667)"
-  ],
-  "previous_issues_status": {
-    "QA-001": {
-      "title": "WebSocket event subscription fails",
-      "status": "NEEDS_VERIFICATION",
-      "reason": "Stats page doesn't use WebSocket subscriptions; uses REST API calls. Issue may be obsolete or mischaracterized. Requires manual browser testing with console open."
-    },
-    "QA-002": {
-      "title": "Touch targets too small on mobile",
-      "status": "STILL_PRESENT",
-      "confidence": 95
-    },
-    "QA-003": {
-      "title": "Most Modified Files table shows no data",
-      "status": "STILL_PRESENT",
-      "confidence": 100
-    }
+  "test_metadata": {
+    "task_id": "TASK-614",
+    "test_date": "2026-01-28",
+    "methodology": "Code analysis against reference design",
+    "test_scope": "Initiatives page (/initiatives) - Desktop (1920x1080) and Mobile (375x667)",
+    "reference_design": "example_ui/initiatives-dashboard.png"
   },
-  "findings": [
+
+  "previous_issues": [
     {
-      "id": "QA-002",
+      "id": "QA-001",
+      "status": "STILL_PRESENT",
       "severity": "medium",
       "confidence": 95,
-      "category": "accessibility",
-      "status": "STILL_PRESENT",
-      "title": "Time filter buttons have touch targets smaller than 44x44px (WCAG violation)",
-      "steps_to_reproduce": [
-        "Step 1: Navigate to /stats",
-        "Step 2: Resize browser to mobile viewport (375x667)",
-        "Step 3: Inspect time filter buttons (24h, 7d, 30d, All) in dev tools",
-        "Step 4: Measure button dimensions"
-      ],
-      "expected": "Touch targets should be at least 44x44px to meet WCAG 2.1 Level AAA standards for mobile accessibility",
-      "actual": "Time filter buttons have padding of 6px 12px, resulting in approximate dimensions of 25px height × 29px width (far below 44px minimum)",
-      "impact": "Users with motor impairments or on mobile devices will have difficulty tapping these buttons. Violates accessibility standards.",
+      "category": "functional",
+      "title": "Task trend indicator missing - tasksThisWeek hardcoded to 0",
       "evidence": {
-        "file": "web/src/components/stats/StatsView.css",
-        "line": 69,
-        "code": ".stats-view-time-btn { padding: 6px 12px; font-size: 11px; }",
-        "calculation": "Font size (11px) + padding top/bottom (12px) = ~25px height"
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "line": 215,
+        "code": "tasksThisWeek: 0, // Not available from initiative.tasks (no createdAt)"
       },
-      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
-      "suggested_fix": "Update CSS:\n.stats-view-time-btn {\n  min-height: 44px;\n  padding: 12px 16px;\n  font-size: 12px;\n}\n\n@media (max-width: 768px) {\n  .stats-view-time-btn {\n    min-height: 44px;\n    min-width: 44px;\n    padding: 14px 18px;\n  }\n}",
-      "wcag_reference": "WCAG 2.1 Level AAA - Success Criterion 2.5.5 Target Size"
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Observe the 'Total Tasks' stat card",
+        "Look for trend indicator (e.g., '+12 this week')"
+      ],
+      "expected": "Total Tasks card shows green trend indicator like '+12 this week' as shown in reference design",
+      "actual": "tasksThisWeek is hardcoded to 0 with comment explaining it's not available from initiative.tasks (no createdAt field)",
+      "impact": "Users cannot see task velocity trends, making it harder to assess project momentum"
+    },
+    {
+      "id": "QA-002",
+      "status": "STILL_PRESENT",
+      "severity": "medium",
+      "confidence": 100,
+      "category": "functional",
+      "title": "Stat card trends not calculated or displayed",
+      "evidence": {
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "lines": "212-218",
+        "code_snippet": "return {\n  activeInitiatives,\n  totalTasks: totalLinkedTasks,\n  tasksThisWeek: 0,\n  completionRate,\n  totalCost,\n  // NO 'trends' property\n};"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Observe all 4 stat cards (Active Initiatives, Total Tasks, Completion Rate, Total Cost)",
+        "Look for trend indicators with up/down arrows and values"
+      ],
+      "expected": "All stat cards show trend indicators (up/down arrows with numerical changes) as shown in reference design",
+      "actual": "stats object does not include a 'trends' property. StatsRow component expects stats.trends?.initiatives, stats.trends?.tasks, etc. (StatsRow.tsx:233, 240, 247, 254) but these are undefined, so no trends render",
+      "impact": "Users cannot see trend data for any metrics, losing critical insight into initiative progress over time"
     },
     {
       "id": "QA-003",
-      "severity": "high",
+      "status": "STILL_PRESENT",
+      "severity": "medium",
       "confidence": 100,
       "category": "functional",
-      "status": "STILL_PRESENT",
-      "title": "Most Modified Files table is always empty (feature not implemented)",
-      "steps_to_reproduce": [
-        "Step 1: Navigate to /stats",
-        "Step 2: Scroll down to 'Most Modified Files' section (bottom-right table)",
-        "Step 3: Observe table content"
-      ],
-      "expected": "Table should display 4 most frequently modified files with modification counts, e.g.:\n1. src/lib/auth.ts (34×)\n2. src/components/Button.tsx (28×)\n3. src/stores/session.ts (21×)\n4. src/lib/redis.ts (18×)",
-      "actual": "Table always shows 0 rows or 'No data' because topFiles array is hardcoded to []",
-      "impact": "Complete feature non-functional. Users cannot see file modification patterns. One of two leaderboard tables (50% of bottom section) is broken. Reduces value of statistics page.",
+      "title": "Initiative cards missing estimated time remaining",
       "evidence": {
-        "file": "web/src/stores/statsStore.ts",
-        "line": 273,
-        "code": "// Build top files (placeholder - would need new API endpoint)\nconst topFiles: TopFile[] = [];",
-        "comment": "Code explicitly acknowledges this is a placeholder"
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "lines": "305-312",
+        "code_snippet": "<InitiativeCard\n  key={initiative.id}\n  initiative={initiative}\n  completedTasks={progress.completed}\n  totalTasks={progress.total}\n  costSpent={meta?.costSpent}\n  tokensUsed={meta?.tokensUsed}\n  // estimatedTimeRemaining NOT PASSED\n  onClick={() => handleCardClick(initiative.id)}\n/>"
       },
-      "root_cause": "Backend API endpoint for fetching top modified files does not exist. Frontend is waiting for /api/v1/stats/top-files endpoint.",
-      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png (table not visible; screenshot cuts off)",
-      "suggested_fix": "1. Implement backend API endpoint: GET /api/v1/stats/top-files?limit=4\n   - Query git history or task metadata for file modification counts\n   - Return: { files: [{ path: string, modifyCount: number }] }\n\n2. Update statsStore.ts line 272-273 to call the new endpoint:\n   const topFilesResponse = await dashboardClient.getTopFiles(...);\n   const topFiles = topFilesResponse.files.map(f => ({ path: f.path, modifyCount: f.modifyCount }));\n\n3. Test with real git history data",
-      "technical_requirements": [
-        "Backend endpoint implementation",
-        "Git history analysis (or task metadata query)",
-        "Frontend API client update",
-        "Integration testing"
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Observe any initiative card's meta row (bottom section)",
+        "Look for clock icon with text like 'Est. 8h remaining'"
       ],
-      "severity_upgrade": "Upgraded from Medium to High because this is not a degraded feature but a completely non-functional feature that was never implemented"
+      "expected": "Initiative cards show estimated time remaining with clock icon (e.g., 'Est. 8h remaining', 'Est. 2h remaining') as shown in reference design",
+      "actual": "estimatedTimeRemaining prop is not calculated or passed to InitiativeCard component. InitiativeCard.tsx accepts the prop (line 24) but InitiativesView.tsx never provides it",
+      "impact": "Users cannot see time estimates for completing initiatives, making planning and prioritization difficult"
     },
     {
       "id": "QA-004",
-      "severity": "medium",
-      "confidence": 85,
+      "status": "STILL_PRESENT",
+      "severity": "low",
+      "confidence": 90,
       "category": "visual",
-      "status": "NEW_ISSUE",
-      "title": "Activity heatmap shows sparse data compared to reference design",
-      "steps_to_reproduce": [
-        "Step 1: Navigate to /stats",
-        "Step 2: Observe 'Task Activity' heatmap section",
-        "Step 3: Compare density to reference design (example_ui/statistics-charts.png)"
-      ],
-      "expected": "Dense GitHub-style contribution graph showing 16 weeks of activity with many cells filled at varying intensities (per TASK-609 changelog)",
-      "actual": "Sparse grid with only 6-7 isolated teal/green squares scattered across Oct-Jan timeframe",
-      "impact": "Reduces visual impact of statistics page. Makes it harder to see activity patterns at a glance. Doesn't match user expectations from reference design.",
-      "possible_root_causes": [
-        "Test environment (sandbox) has minimal task history - MOST LIKELY",
-        "Rendering issue in ActivityHeatmap component not displaying all cells",
-        "Date range calculation error (not showing 16 weeks correctly)",
-        "Cell sizing issue (cells rendering but too small to see)"
-      ],
+      "title": "Grid layout uses auto-fill instead of fixed 2-column design",
       "evidence": {
-        "reference_design": "Shows dense activity grid with many filled cells",
-        "screenshot": "Shows only 6-7 sparse cells",
-        "component": "web/src/components/stats/ActivityHeatmap.tsx",
-        "data_source": "statsStore.activityData (Map<string, number>)",
-        "data_generator": "web/src/stores/statsStore.ts:146-154 generateActivityData()"
+        "file": "web/src/components/initiatives/InitiativesView.css",
+        "line": 80,
+        "code": "grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));"
       },
-      "screenshot_path": "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
-      "recommended_actions": [
-        "Test with production data (not sandbox) to verify if this is data availability issue",
-        "Review ActivityHeatmap rendering logic for bugs",
-        "Verify date range calculation shows 16 weeks correctly",
-        "Test with mock dense data to isolate rendering vs data issues",
-        "Add E2E test: expect(heatmap cells).toBeGreaterThan(50) for 16 weeks"
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives on a 1920px wide screen",
+        "Observe the initiative cards grid layout",
+        "Count the number of columns"
       ],
-      "needs_verification": true,
-      "verification_method": "Requires testing with real production data or mock dense activity data"
+      "expected": "Exactly 2 columns of initiative cards as shown in reference design",
+      "actual": "CSS uses 'repeat(auto-fill, minmax(360px, 1fr))' which creates as many columns as fit. On 1920px screen: 1920 / 360 = 5.3, so could display 4-5 columns instead of 2",
+      "impact": "Cards appear too narrow on wide screens, deviating from design intent and reducing readability"
     }
   ],
+
+  "new_issues": [
+    {
+      "id": "QA-005",
+      "severity": "low",
+      "confidence": 85,
+      "category": "accessibility",
+      "title": "Stat cards missing descriptive aria-label for trend direction",
+      "evidence": {
+        "file": "web/src/components/initiatives/StatsRow.tsx",
+        "lines": "148-158",
+        "code_snippet": "aria-label={`Trend: ${formatTrend(trend!)} ${isPositiveTrend ? 'increase' : 'decrease'}`}"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Use screen reader on stat cards with trends",
+        "Listen to trend announcement"
+      ],
+      "expected": "Screen reader announces trend with context, e.g., 'Total Tasks trend: 12 increase'",
+      "actual": "Trend aria-label says 'increase' or 'decrease' but for Total Cost, a decrease is actually positive (cost savings). The semantic meaning is inverted",
+      "suggested_fix": "Add contextual aria-label that accounts for metric type. For cost, 'decrease' should be announced as 'savings' or 'improvement'"
+    },
+    {
+      "id": "QA-006",
+      "severity": "low",
+      "confidence": 80,
+      "category": "ux",
+      "title": "Empty search state not implemented",
+      "evidence": {
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "observation": "No search functionality exists in InitiativesView. Reference design may show search/filter but code does not implement it"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Look for search or filter controls"
+      ],
+      "expected": "Search/filter UI present based on common initiative list patterns",
+      "actual": "No search or filter functionality implemented. Only empty state (no initiatives) and error state are handled",
+      "impact": "Users with many initiatives cannot easily find specific ones"
+    },
+    {
+      "id": "QA-007",
+      "severity": "low",
+      "confidence": 82,
+      "category": "functional",
+      "title": "Initiative card click navigation has no loading state",
+      "evidence": {
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "lines": "261-266",
+        "code": "const handleCardClick = useCallback((initiativeId: string) => {\n  navigate(`/initiatives/${initiativeId}`);\n}, [navigate]);"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Click an initiative card",
+        "Observe feedback during navigation"
+      ],
+      "expected": "Visual feedback (loading spinner, card state change) during navigation",
+      "actual": "Immediate navigation with no loading state. On slow connections, user may click multiple times thinking nothing happened",
+      "suggested_fix": "Add loading state or disable card during navigation"
+    },
+    {
+      "id": "QA-008",
+      "severity": "medium",
+      "confidence": 88,
+      "category": "error-handling",
+      "title": "Cost calculation uses hardcoded token rates",
+      "evidence": {
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "lines": "205-209",
+        "code": "// Rough estimate: $3/1M input tokens, $15/1M output tokens\nconst inputCost = (state.tokens?.inputTokens / 1_000_000) * 3;\nconst outputCost = (state.tokens?.outputTokens / 1_000_000) * 15;\ntotalCost += inputCost + outputCost;"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Observe Total Cost stat card value",
+        "Compare with actual API costs if rates change"
+      ],
+      "expected": "Cost calculated using actual rate data from backend or configuration",
+      "actual": "Hardcoded rates: $3/1M input, $15/1M output. These are Claude Sonnet 4 rates but may not match future pricing or different models",
+      "impact": "Cost estimates will be inaccurate if pricing changes or different models are used",
+      "suggested_fix": "Fetch pricing from backend or configuration, or use state.cost.totalCostUsd if available"
+    },
+    {
+      "id": "QA-009",
+      "severity": "low",
+      "confidence": 95,
+      "category": "performance",
+      "title": "Cost and token calculations run on every render",
+      "evidence": {
+        "file": "web/src/components/initiatives/InitiativesView.tsx",
+        "lines": "186-219",
+        "observation": "Stats calculation is in useMemo with dependency on [initiatives, totalLinkedTasks, completedCount, taskStates]. taskStates Map updates frequently, triggering recalculation even when values haven't changed"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives",
+        "Leave page open while tasks update",
+        "Monitor React DevTools for render count"
+      ],
+      "expected": "Stats only recalculate when underlying data changes",
+      "actual": "taskStates dependency causes stats to recalculate on every task state update, even for tasks not linked to initiatives",
+      "impact": "Unnecessary CPU usage, especially with many task updates",
+      "suggested_fix": "Filter taskStates to only linked tasks before passing to useMemo, or use more granular dependencies"
+    },
+    {
+      "id": "QA-010",
+      "severity": "low",
+      "confidence": 85,
+      "category": "mobile",
+      "title": "Stat cards may require horizontal scrolling on small mobile devices",
+      "evidence": {
+        "file": "web/src/components/initiatives/StatsRow.css",
+        "lines": "159-164",
+        "code": "@media (max-width: 480px) {\n  .stats-row {\n    grid-template-columns: 1fr;\n  }\n}"
+      },
+      "steps_to_reproduce": [
+        "Navigate to http://localhost:5173/initiatives on 375px viewport",
+        "Observe stat cards layout",
+        "Check if horizontal scrolling is required"
+      ],
+      "expected": "All stat cards visible without scrolling on 375px viewport",
+      "actual": "Mobile breakpoint (480px) switches to single column. On 375px width, this should work correctly. However, the breakpoint could be more aggressive (e.g., 560px) to avoid cramped 2-column on small tablets",
+      "impact": "Minimal - current breakpoint should work, but could be optimized for better UX on tablets"
+    }
+  ],
+
   "test_coverage": {
-    "tested": [
-      "Code structure and implementation",
-      "Data flow from API to UI components",
-      "CSS styling and layout rules",
-      "Component hierarchy and props",
-      "State management (Zustand stores)",
-      "API endpoint calls",
-      "Data transformation logic"
-    ],
-    "not_tested": [
-      "Live browser interaction",
-      "Mobile viewport (375x667) responsive behavior",
-      "Console errors / JavaScript exceptions",
-      "Network requests (API call success/failure)",
-      "Export CSV functionality",
-      "Time filter button interactions (state changes)",
-      "Hover states and tooltips",
-      "Visual regression against reference image",
-      "Keyboard navigation",
-      "Screen reader compatibility"
-    ]
+    "desktop_viewport": {
+      "happy_path": "Analyzed via code review",
+      "edge_cases": [
+        "Empty state (no initiatives) - IMPLEMENTED (InitiativesViewEmpty)",
+        "Error state - IMPLEMENTED (InitiativesViewError with retry)",
+        "Loading state - IMPLEMENTED (InitiativesViewSkeleton)",
+        "Very long initiative titles - HANDLED (CSS truncation with -webkit-line-clamp: 2)",
+        "Special characters - NO SPECIAL HANDLING (relies on React's XSS protection)",
+        "Zero tasks in initiative - HANDLED (shows 0 / 0 tasks)",
+        "100% completion - HANDLED (progress bar fills to 100%)"
+      ],
+      "console_errors": "Cannot verify without live testing"
+    },
+    "mobile_viewport": {
+      "responsive_design": "Analyzed via CSS media queries",
+      "breakpoints": {
+        "tablet_768px": "Stats row: 2x2 grid",
+        "mobile_480px": "Stats row: single column, Header: column layout (align-items: flex-start)"
+      },
+      "touch_targets": "Initiative cards are clickable with adequate size (min 20px padding)"
+    }
   },
+
   "summary": {
-    "total_issues": 3,
-    "breakdown": {
-      "critical": 0,
-      "high": 1,
-      "medium": 2,
-      "low": 0
-    },
-    "status_breakdown": {
-      "still_present": 2,
-      "new_issues": 1,
-      "needs_verification": 1
-    },
-    "functional_issues": 1,
-    "accessibility_issues": 1,
-    "visual_issues": 1
+    "total_issues": 10,
+    "critical": 0,
+    "high": 0,
+    "medium": 4,
+    "low": 6,
+    "previous_issues_fixed": 0,
+    "previous_issues_still_present": 4,
+    "new_issues_found": 6
   },
-  "recommendations": {
-    "immediate_actions": [
-      {
-        "priority": "HIGH",
-        "issue": "QA-003",
-        "action": "Implement backend API endpoint for top modified files",
-        "estimated_effort": "4-6 hours (backend + frontend + testing)",
-        "blocking": true
-      },
-      {
-        "priority": "MEDIUM",
-        "issue": "QA-002",
-        "action": "Update CSS for time filter buttons to meet WCAG AAA",
-        "estimated_effort": "30 minutes",
-        "blocking": false
-      },
-      {
-        "priority": "MEDIUM",
-        "issue": "QA-004",
-        "action": "Investigate heatmap sparsity with production data",
-        "estimated_effort": "2-3 hours",
-        "blocking": false
-      }
-    ],
-    "follow_up_testing": [
-      "Manual browser testing with console monitoring (QA-001)",
-      "Mobile viewport testing on real devices (QA-002)",
-      "Full E2E test suite with complete screenshots",
-      "Accessibility audit with axe DevTools",
-      "Production data testing (QA-004)"
-    ]
-  },
-  "artifacts": {
-    "created": [
-      "QA-REPORT-TASK-615.md",
-      "QA-FINDINGS-VISUAL.md",
-      "QA-FINDINGS.json"
-    ],
-    "referenced": [
-      "web/e2e/__snapshots__/stats.spec.ts-snapshots/stats-page-full.png",
-      "example_ui/statistics-charts.png",
-      "web/src/components/stats/StatsView.tsx",
-      "web/src/components/stats/StatsView.css",
-      "web/src/stores/statsStore.ts"
-    ],
-    "missing": [
-      "/tmp/qa-TASK-615/ (blocked by worktree isolation)",
-      "Full-page screenshots (charts + tables)",
-      "Mobile viewport screenshots (375x667)",
-      "Console error logs",
-      "Network request traces"
-    ]
-  }
+
+  "recommendations": [
+    "PRIORITY 1: Implement trends calculation for all stat cards (QA-002) - This is core functionality shown in design",
+    "PRIORITY 2: Calculate and display estimatedTimeRemaining for initiative cards (QA-003)",
+    "PRIORITY 3: Fix grid layout to enforce 2-column max on desktop (QA-004)",
+    "PRIORITY 4: Add temporal data to enable tasksThisWeek calculation (QA-001) - Requires backend support",
+    "Consider: Replace hardcoded token rates with configurable pricing (QA-008)",
+    "Consider: Add search/filter functionality for initiatives (QA-006)",
+    "Nice-to-have: Optimize performance by filtering taskStates before useMemo (QA-009)"
+  ]
 }
