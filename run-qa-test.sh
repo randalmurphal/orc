@@ -1,14 +1,17 @@
 #!/bin/bash
+# Run QA test script for Initiatives page and capture output
+
 set -e
 
-echo "Starting QA testing for Agents page..."
+cd "$(dirname "$0")/web"
 
-cd /home/randy/repos/orc/.orc/worktrees/orc-TASK-613/web
+echo "Running QA test for Initiatives page..."
+echo "========================================"
+echo ""
 
-# Create output directory
-mkdir -p /tmp/qa-TASK-613
+# Run the test script
+node qa-initiatives-test.mjs 2>&1 | tee ../qa-test-output.txt
 
-# Run the test script using node with the local node_modules
-node ../test-agents-page.mjs
-
-echo "Test complete! Check /tmp/qa-TASK-613/ for screenshots and findings."
+echo ""
+echo "Test complete! Output saved to qa-test-output.txt"
+echo "Screenshots saved to qa-screenshots/"
