@@ -43,11 +43,11 @@ type Result struct {
 	// DatabasePath is the path to the project database
 	DatabasePath string
 
-	// FoundInvariants indicates if INVARIANTS.md was found
-	FoundInvariants bool
+	// FoundConstitution indicates if a constitution file was found
+	FoundConstitution bool
 
-	// InvariantsPath is the path to the found INVARIANTS.md
-	InvariantsPath string
+	// ConstitutionPath is the path to the found constitution file
+	ConstitutionPath string
 }
 
 // Run performs instant project initialization.
@@ -196,31 +196,34 @@ func Run(opts Options) (*Result, error) {
 		fmt.Printf("Updated: CLAUDE.md (knowledge capture section)\n")
 	}
 
-	// 11. Check for INVARIANTS.md to offer as constitution
-	var foundInvariants bool
-	var invariantsPath string
+	// 11. Check for constitution file to offer as constitution
+	var foundConstitution bool
+	var constitutionPath string
 
-	// Check common locations for INVARIANTS.md
-	invariantsPaths := []string{
+	// Check common locations for constitution files
+	constitutionPaths := []string{
+		filepath.Join(opts.WorkDir, "CONSTITUTION.md"),
+		filepath.Join(opts.WorkDir, "constitution.md"),
 		filepath.Join(opts.WorkDir, "INVARIANTS.md"),
+		filepath.Join(opts.WorkDir, "docs", "CONSTITUTION.md"),
 		filepath.Join(opts.WorkDir, "docs", "INVARIANTS.md"),
 	}
-	for _, path := range invariantsPaths {
+	for _, path := range constitutionPaths {
 		if _, err := os.Stat(path); err == nil {
-			foundInvariants = true
-			invariantsPath = path
+			foundConstitution = true
+			constitutionPath = path
 			break
 		}
 	}
 
 	return &Result{
-		Duration:        time.Since(start),
-		ProjectID:       proj.ID,
-		Detection:       detection,
-		ConfigPath:      configPath,
-		DatabasePath:    pdb.Path(),
-		FoundInvariants: foundInvariants,
-		InvariantsPath:  invariantsPath,
+		Duration:          time.Since(start),
+		ProjectID:         proj.ID,
+		Detection:         detection,
+		ConfigPath:        configPath,
+		DatabasePath:      pdb.Path(),
+		FoundConstitution: foundConstitution,
+		ConstitutionPath:  constitutionPath,
 	}, nil
 }
 

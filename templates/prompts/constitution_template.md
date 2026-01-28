@@ -53,6 +53,6 @@ Project-specific patterns that must be followed.
 
 When a bug reveals an implicit rule that was violated:
 
-1. Add the rule to the Invariants table
-2. Include the task ID that discovered it: `(from TASK-XXX)`
-3. Run `orc constitution set -f docs/INVARIANTS.md` to update
+1. Edit `.orc/CONSTITUTION.md` directly (it's git-tracked)
+2. Add the rule to the Invariants table
+3. Include the task ID that discovered it: `(from TASK-XXX)`

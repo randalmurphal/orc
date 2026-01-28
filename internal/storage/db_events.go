@@ -27,21 +27,16 @@ func (d *DatabaseBackend) QueryEvents(opts db.QueryEventsOptions) ([]db.EventLog
 }
 
 // ============================================================================
-// Constitution
+// Constitution (file-based at .orc/CONSTITUTION.md)
 // ============================================================================
 
-func (d *DatabaseBackend) SaveConstitution(content, version string) error {
+func (d *DatabaseBackend) SaveConstitution(content string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	c := &db.Constitution{
-		Content: content,
-		Version: version,
-	}
-	return d.db.SaveConstitution(c)
+	return d.db.SaveConstitution(content)
 }
 
-func (d *DatabaseBackend) LoadConstitution() (content string, version string, err error) {
+func (d *DatabaseBackend) LoadConstitution() (content string, path string, err error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
@@ -49,7 +44,7 @@ func (d *DatabaseBackend) LoadConstitution() (content string, version string, er
 	if err != nil {
 		return "", "", err
 	}
-	return c.Content, c.Version, nil
+	return c.Content, c.Path, nil
 }
 
 func (d *DatabaseBackend) ConstitutionExists() (bool, error) {

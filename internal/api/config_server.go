@@ -585,7 +585,7 @@ func (s *configServer) GetConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetConstitutionRequest],
 ) (*connect.Response[orcv1.GetConstitutionResponse], error) {
-	content, _, err := s.backend.LoadConstitution()
+	content, path, err := s.backend.LoadConstitution()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("constitution not found"))
 	}
@@ -593,6 +593,7 @@ func (s *configServer) GetConstitution(
 	return connect.NewResponse(&orcv1.GetConstitutionResponse{
 		Constitution: &orcv1.Constitution{
 			Content: content,
+			Path:    &path,
 		},
 	}), nil
 }
@@ -606,13 +607,17 @@ func (s *configServer) UpdateConstitution(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	if err := s.backend.SaveConstitution(req.Msg.Content, ""); err != nil {
+	if err := s.backend.SaveConstitution(req.Msg.Content); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
+	// Reload to get the path
+	_, path, _ := s.backend.LoadConstitution()
 
 	return connect.NewResponse(&orcv1.UpdateConstitutionResponse{
 		Constitution: &orcv1.Constitution{
 			Content: req.Msg.Content,
+			Path:    &path,
 		},
 	}), nil
 }

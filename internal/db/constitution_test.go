@@ -1,31 +1,38 @@
 package db
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestConstitution(t *testing.T) {
-	db, err := OpenProjectInMemory()
+	// Constitution is file-based, needs a real directory
+	tmpDir := t.TempDir()
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	db, err := OpenProject(tmpDir)
 	if err != nil {
-		t.Fatalf("OpenProjectInMemory: %v", err)
+		t.Fatalf("OpenProject: %v", err)
 	}
 	defer func() { _ = db.Close() }()
 
 	t.Run("SaveAndLoad", func(t *testing.T) {
-		c := &Constitution{
-			Content: "# Project Principles\n\n1. No silent failures\n2. Always test",
-			Version: "1.0.0",
-		}
+		content := "# Project Principles\n\n1. No silent failures\n2. Always test"
 
 		// Save
-		err := db.SaveConstitution(c)
+		err := db.SaveConstitution(content)
 		if err != nil {
 			t.Fatalf("SaveConstitution: %v", err)
 		}
 
-		// Verify hash was computed
-		if c.ContentHash == "" {
-			t.Error("ContentHash should be set after save")
+		// Verify file was created
+		constitutionPath := filepath.Join(orcDir, "CONSTITUTION.md")
+		if _, err := os.Stat(constitutionPath); os.IsNotExist(err) {
+			t.Error("Constitution file should exist at .orc/CONSTITUTION.md")
 		}
 
 		// Load
@@ -34,25 +41,22 @@ func TestConstitution(t *testing.T) {
 			t.Fatalf("LoadConstitution: %v", err)
 		}
 
-		if loaded.Content != c.Content {
-			t.Errorf("Content mismatch: got %q, want %q", loaded.Content, c.Content)
+		if loaded.Content != content {
+			t.Errorf("Content mismatch: got %q, want %q", loaded.Content, content)
 		}
-		if loaded.Version != c.Version {
-			t.Errorf("Version mismatch: got %q, want %q", loaded.Version, c.Version)
+		if loaded.Path != constitutionPath {
+			t.Errorf("Path mismatch: got %q, want %q", loaded.Path, constitutionPath)
 		}
-		if loaded.ContentHash != c.ContentHash {
-			t.Errorf("ContentHash mismatch: got %q, want %q", loaded.ContentHash, c.ContentHash)
+		if loaded.UpdatedAt.IsZero() {
+			t.Error("UpdatedAt should be set from file mtime")
 		}
 	})
 
-	t.Run("Upsert", func(t *testing.T) {
+	t.Run("Update", func(t *testing.T) {
 		// Update existing constitution
-		c := &Constitution{
-			Content: "# Updated Principles\n\n1. Test everything",
-			Version: "2.0.0",
-		}
+		newContent := "# Updated Principles\n\n1. Test everything"
 
-		err := db.SaveConstitution(c)
+		err := db.SaveConstitution(newContent)
 		if err != nil {
 			t.Fatalf("SaveConstitution (update): %v", err)
 		}
@@ -62,8 +66,8 @@ func TestConstitution(t *testing.T) {
 			t.Fatalf("LoadConstitution: %v", err)
 		}
 
-		if loaded.Version != "2.0.0" {
-			t.Errorf("Version should be 2.0.0, got %q", loaded.Version)
+		if loaded.Content != newContent {
+			t.Errorf("Content should be updated, got %q", loaded.Content)
 		}
 	})
 
@@ -91,15 +95,30 @@ func TestConstitution(t *testing.T) {
 			t.Error("Constitution should not exist after delete")
 		}
 
+		// Verify file is gone
+		constitutionPath := filepath.Join(orcDir, "CONSTITUTION.md")
+		if _, err := os.Stat(constitutionPath); !os.IsNotExist(err) {
+			t.Error("Constitution file should be deleted")
+		}
+
 		// Load should return ErrNoConstitution
 		_, err = db.LoadConstitution()
 		if err != ErrNoConstitution {
 			t.Errorf("LoadConstitution should return ErrNoConstitution, got %v", err)
 		}
 	})
+
+	t.Run("DeleteNonExistent", func(t *testing.T) {
+		// Deleting when no file exists should not error
+		err := db.DeleteConstitution()
+		if err != nil {
+			t.Errorf("DeleteConstitution on non-existent should not error: %v", err)
+		}
+	})
 }
 
 func TestConstitutionCheck(t *testing.T) {
+	// Constitution checks are still database-backed
 	db, err := OpenProjectInMemory()
 	if err != nil {
 		t.Fatalf("OpenProjectInMemory: %v", err)
@@ -115,15 +134,6 @@ func TestConstitutionCheck(t *testing.T) {
 	}
 	if err := db.SaveTask(task); err != nil {
 		t.Fatalf("SaveTask: %v", err)
-	}
-
-	// First save a constitution
-	c := &Constitution{
-		Content: "# Rules",
-		Version: "1.0.0",
-	}
-	if err := db.SaveConstitution(c); err != nil {
-		t.Fatalf("SaveConstitution: %v", err)
 	}
 
 	t.Run("SaveAndLoadCheck", func(t *testing.T) {

@@ -338,9 +338,9 @@ type Backend interface {
 	DeleteBranch(name string) error
 	GetStaleBranches(since time.Time) ([]*Branch, error)
 
-	// Constitution operations (project-level principles)
-	SaveConstitution(content, version string) error
-	LoadConstitution() (content string, version string, err error)
+	// Constitution operations (file-based at .orc/CONSTITUTION.md)
+	SaveConstitution(content string) error
+	LoadConstitution() (content string, path string, err error)
 	ConstitutionExists() (bool, error)
 	DeleteConstitution() error
 

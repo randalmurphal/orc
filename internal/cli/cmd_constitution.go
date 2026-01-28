@@ -33,10 +33,10 @@ Subcommands:
 
 Examples:
   # Generate a template
-  orc constitution template > CONSTITUTION.md
+  orc constitution template > principles.md
 
   # Set from file
-  orc constitution set --file INVARIANTS.md
+  orc constitution set --file principles.md
 
   # Set interactively (Ctrl+D to finish)
   orc constitution set
@@ -44,7 +44,7 @@ Examples:
   # Set from stdin
   echo "# Rules" | orc constitution set
 
-  # Show current constitution
+  # Show current constitution (stored at .orc/CONSTITUTION.md)
   orc constitution show
 
   # Remove constitution
@@ -62,15 +62,15 @@ Examples:
 // newConstitutionSetCmd creates the 'constitution set' subcommand.
 func newConstitutionSetCmd() *cobra.Command {
 	var file string
-	var version string
 
 	cmd := &cobra.Command{
 		Use:   "set",
 		Short: "Set the project constitution",
 		Long: `Set the project constitution from a file or stdin.
 
-The constitution should contain markdown-formatted principles and rules
-that apply to all task execution. Common sections include:
+The constitution is stored at .orc/CONSTITUTION.md and is git-tracked.
+It should contain markdown-formatted principles and rules that apply
+to all task execution. Common sections include:
 
   - Coding standards
   - Architectural invariants
@@ -79,10 +79,10 @@ that apply to all task execution. Common sections include:
 
 Examples:
   # From file
-  orc constitution set --file INVARIANTS.md
+  orc constitution set --file principles.md
 
   # From stdin (pipe)
-  cat INVARIANTS.md | orc constitution set
+  cat principles.md | orc constitution set
 
   # Interactive (Ctrl+D or Ctrl+C to finish)
   orc constitution set`,
@@ -136,23 +136,17 @@ Examples:
 				return fmt.Errorf("constitution content cannot be empty")
 			}
 
-			// Default version
-			if version == "" {
-				version = "1.0.0"
-			}
-
-			// Save
-			if err := backend.SaveConstitution(content, version); err != nil {
+			// Save to .orc/CONSTITUTION.md
+			if err := backend.SaveConstitution(content); err != nil {
 				return fmt.Errorf("save constitution: %w", err)
 			}
 
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Constitution saved (version %s, %d bytes)\n", version, len(content))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Constitution saved to .orc/CONSTITUTION.md (%d bytes)\n", len(content))
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&file, "file", "f", "", "Read constitution from file")
-	cmd.Flags().StringVarP(&version, "version", "V", "", "Version string (default: 1.0.0)")
 
 	return cmd
 }
@@ -166,7 +160,7 @@ func newConstitutionShowCmd() *cobra.Command {
 		Short: "Display the current constitution",
 		Long: `Display the current project constitution.
 
-Use --meta to see version and hash information.`,
+Use --meta to see file path information.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
 				return err
@@ -178,21 +172,21 @@ Use --meta to see version and hash information.`,
 			}
 			defer func() { _ = backend.Close() }()
 
-			content, version, err := backend.LoadConstitution()
+			content, path, err := backend.LoadConstitution()
 			if err != nil {
 				return fmt.Errorf("load constitution: %w", err)
 			}
 
 			out := cmd.OutOrStdout()
 			if showMeta {
-				_, _ = fmt.Fprintf(out, "# Constitution (version: %s)\n\n", version)
+				_, _ = fmt.Fprintf(out, "# Constitution (path: %s)\n\n", path)
 			}
 			_, _ = fmt.Fprintln(out, content)
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVar(&showMeta, "meta", false, "Show version and metadata")
+	cmd.Flags().BoolVar(&showMeta, "meta", false, "Show file path and metadata")
 
 	return cmd
 }
