@@ -30,7 +30,7 @@ Services are registered in `server_connect.go:15-79`. Each implements a handler 
 | `EventService` | `event_server.go` | Subscribe (streaming), GetEvents, GetTimeline |
 | `ConfigService` | `config_server.go` | Get/Update orc config |
 | `HostingService` | `hosting_server.go` | PR CRUD, Refresh, AutofixComment (GitHub + GitLab via Provider interface) |
-| `DashboardService` | `dashboard_server.go` | Stats, Metrics |
+| `DashboardService` | `dashboard_server.go` | Stats, Metrics (TTL cache + singleflight) |
 | `ProjectService` | `project_server.go` | Multi-project management |
 | `BranchService` | `branch_server.go` | Branch operations |
 | `DecisionService` | `decision_server.go` | Gate decisions (approve/reject) |
