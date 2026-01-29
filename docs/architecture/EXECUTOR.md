@@ -199,13 +199,13 @@ Specialized executor for explicit `orc finalize TASK-XXX` command.
 
 ## CI Wait and Auto-Merge
 
-After finalize, orc waits for CI and merges via GitHub REST API:
+After finalize, orc waits for CI and merges via hosting provider API (GitHub REST or GitLab API):
 
 ```
 1. Push finalize changes     -> Sync commits, conflict resolutions
 2. Poll CI checks            -> Wait for all checks to pass
-3. Merge PR via API          -> PUT /repos/{owner}/{repo}/pulls/{number}/merge
-4. Delete branch via API     -> DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
+3. Merge PR via API          -> Provider.MergePR() with commit title, templates, SHA
+4. Delete branch via API     -> Provider deletes branch (if configured)
 5. Update task state         -> Record merge commit SHA
 ```
 
@@ -259,10 +259,11 @@ completion:
     conflict_resolution:
       enabled: true
   ci:
-    wait_for_ci: true
+    wait_for_ci: false           # Disabled by default (opt-in)
     ci_timeout: 10m
-    merge_on_ci_pass: true
+    merge_on_ci_pass: false      # Disabled by default (opt-in)
     merge_method: squash
+    verify_sha_on_merge: true    # Prevent stale PR merges
   delete_branch: true
 
 timeouts:

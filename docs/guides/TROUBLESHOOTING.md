@@ -799,8 +799,8 @@ grep "Duration:" .orc/tasks/TASK-XXX/transcripts/*.md
 
 ### Missing Labels (Silent Fallback)
 
-**Behavior**: When configured `completion.pr.labels` reference labels that don't exist on the GitHub repository, orc gracefully handles this by:
-1. Detecting the label error from GitHub CLI
+**Behavior**: When configured `completion.pr.labels` reference labels that don't exist on the repository, orc gracefully handles this by:
+1. Detecting the label error from the hosting provider API
 2. Logging at DEBUG level (silent in normal operation)
 3. Retrying PR creation without labels
 4. PR is created successfully without the missing labels
@@ -811,56 +811,44 @@ grep "Duration:" .orc/tasks/TASK-XXX/transcripts/*.md
 
 | Approach | Action |
 |----------|--------|
-| Create missing labels | Go to GitHub repo → Issues → Labels → New label |
+| Create missing labels | Go to your repository settings to create the label (GitHub: Issues → Labels → New label; GitLab: Project → Labels) |
 | Remove from config | Edit `completion.pr.labels` in `.orc/config.yaml` |
 | Leave as-is | No action needed - PR creation succeeds without labels |
 
 **Note**: This is normal behavior for repos without pre-configured labels. The PR will be created successfully; labels are simply omitted.
 
-### GitHub CLI Not Authenticated
+### Hosting Provider Not Authenticated
 
 **Symptoms**:
 ```
-GitHub CLI not authenticated: exit status 1: ...
+hosting provider not configured: ...
+failed to create PR: authentication failed
 ```
 
-**Cause**: The `gh` CLI is not logged in to GitHub. This happens when:
-- Fresh machine setup without `gh auth login`
-- Auth token expired
-- Wrong account authenticated for this repository
-
-**Error Message Includes Fix**:
-
-When PR creation fails due to auth, orc shows:
-```
-GitHub CLI not authenticated: ...
-
-  To fix this, run:
-    gh auth login
-
-  Then retry with:
-    orc resume TASK-XXX
-```
+**Cause**: The hosting provider (GitHub or GitLab) is not configured. This happens when:
+- No `ORC_GITHUB_TOKEN` or `ORC_GITLAB_TOKEN` environment variable is set
+- Token is expired or revoked
+- Token doesn't have required scopes (repo for GitHub, api for GitLab)
 
 **Solutions**:
 
-| Method | Command | Notes |
-|--------|---------|-------|
-| Interactive login | `gh auth login` | Follow prompts for browser/token auth |
-| Token-based | `gh auth login --with-token < token.txt` | For CI/automation |
-| Check status | `gh auth status` | Verify which account is authenticated |
-| Switch account | `gh auth switch` | If multiple accounts configured |
+| Method | Provider | Command / Action |
+|--------|----------|-----------------|
+| GitHub token | GitHub | Set `ORC_GITHUB_TOKEN` env var with a PAT (repo scope) |
+| GitLab token | GitLab | Set `ORC_GITLAB_TOKEN` env var with a PAT (api scope) |
+| GitHub App | GitHub | Configure app installation in `.orc/config.yaml` |
+| Check status | Both | `orc status` shows hosting provider status |
 
-**After Authenticating**:
+**After Configuring**:
 ```bash
 orc resume TASK-XXX    # Continues from where it left off
 ```
 
-**Note**: Auto-merge enablement also requires authentication. If auto-merge fails:
-- **Auth errors**: Logged as WARN with hint to run `gh auth login` (actionable)
-- **Config errors** (repo doesn't support auto-merge): Logged at DEBUG level (silent in normal operation)
+**Note**: Auto-merge requires provider support:
+- **GitHub**: Requires GraphQL API (not currently supported by orc - returns ErrAutoMergeNotSupported)
+- **GitLab**: Uses MergeWhenPipelineSucceeds API (fully supported)
 
-In both cases, the PR is created successfully; only auto-merge is skipped.
+In both cases, the PR is created successfully; only auto-merge may be skipped.
 
 ---
 

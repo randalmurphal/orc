@@ -181,7 +181,7 @@ completion:
   action: pr           # pr | merge | none
   target_branch: main
   pr:
-    auto_merge: true   # Merge when CI passes
+    auto_merge: false  # Set true to merge after finalize
 
 # Worktree isolation (parallel execution)
 worktree:
@@ -374,18 +374,18 @@ After implementation, before tests:
 
 ### PR Status Detection
 
-When tasks create PRs, orc automatically polls GitHub for status updates:
+When tasks create PRs, orc polls the hosting provider (GitHub or GitLab) for status updates:
 
 - Review state (pending, changes requested, approved)
 - CI check status (pending, success, failure)
 - Mergeability status
 - Review and approval counts
 
-Status is stored in `task.yaml` and visible in the web UI. Polling runs every 60 seconds for tasks with open PRs, with a 30-second rate limit per task.
+Status is stored in the database and visible in the web UI. Polling runs every 60 seconds for tasks with open PRs, with a 30-second rate limit per task.
 
 ```bash
-# Manual refresh
-POST /api/tasks/:id/github/pr/refresh
+# Manual refresh via Connect RPC
+orc.v1.HostingService/RefreshPR
 ```
 
 ### Sub-task Proposals

@@ -569,7 +569,7 @@ This provides visibility without interrupting the automated workflow.
 
 ## CI Wait and Auto-Merge
 
-After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR. This provides a complete automation flow without requiring GitHub's auto-merge feature (which requires branch protection).
+After the finalize phase completes, orc can automatically wait for CI checks to pass and then merge the PR. This provides a complete automation flow without requiring hosting provider auto-merge features (which require branch protection).
 
 ### Flow After Finalize
 
@@ -579,36 +579,31 @@ finalize completes → push changes → poll CI → merge PR via API → cleanup
 
 1. **Push finalize changes**: Any commits from conflict resolution or sync
 2. **Poll CI checks**: Wait for all required checks to pass
-3. **Merge PR via API**: Use GitHub REST API directly (avoids worktree conflicts)
+3. **Merge PR via API**: Use hosting provider API directly (GitHub REST API or GitLab API, avoids worktree conflicts)
 4. **Cleanup**: Delete branch via API if configured
 
 ### Why API Instead of CLI?
 
-The `gh pr merge` CLI command has a "helpful" feature that tries to fast-forward the local target branch after a server-side merge. When running from a worktree while the target branch (e.g., `main`) is checked out in the main repo (the common workflow), git refuses with:
+CLI merge commands (e.g., `gh pr merge`) often try to fast-forward the local target branch after a server-side merge. When running from a worktree while the target branch (e.g., `main`) is checked out in the main repo (the common workflow), git refuses with:
 
 ```
 fatal: 'main' is already used by worktree at '/path/to/main/repo'
 ```
 
-By using the GitHub REST API directly via `gh api`, we:
-- Merge server-side only (no local git operations)
-- Work regardless of which branch is checked out locally
-- Get the merge commit SHA directly from the response
+By using the hosting provider API directly via the Provider interface, we merge server-side only without any local git operations. This works regardless of which branch is checked out locally and returns the merge commit SHA directly from the response.
 
 ### API Endpoints Used
 
-| Operation | Endpoint | Method |
-|-----------|----------|--------|
-| Merge PR | `/repos/{owner}/{repo}/pulls/{pull_number}/merge` | PUT |
-| Delete branch | `/repos/{owner}/{repo}/git/refs/heads/{branch}` | DELETE |
+| Operation | GitHub | GitLab |
+|-----------|--------|--------|
+| Merge PR | PUT /repos/{owner}/{repo}/pulls/{number}/merge | PUT /projects/{id}/merge_requests/{iid}/merge |
+| Delete branch | DELETE /repos/{owner}/{repo}/git/refs/heads/{branch} | DELETE /projects/{id}/repository/branches/{branch} |
+| Enable auto-merge | Requires GraphQL (not supported) | Accept MR with merge_when_pipeline_succeeds |
+| Update branch | POST /repos/{owner}/{repo}/pulls/{number}/update-branch | POST /projects/{id}/merge_requests/{iid}/rebase |
 
 ### CI Polling
 
-The CI merger uses `gh pr checks` to poll status:
-
-```bash
-gh pr checks <PR_URL> --json name,state,bucket
-```
+The CI merger uses the Provider interface's `GetCheckRuns()` method to poll status.
 
 | Bucket | Meaning |
 |--------|---------|
@@ -623,26 +618,29 @@ gh pr checks <PR_URL> --json name,state,bucket
 ```yaml
 completion:
   ci:
-    wait_for_ci: true       # Enable CI polling (default: true)
-    ci_timeout: 10m         # Max wait time (default: 10m)
-    poll_interval: 30s      # Polling frequency (default: 30s)
-    merge_on_ci_pass: true  # Auto-merge when CI passes (default: true)
-    merge_method: squash    # squash | merge | rebase (default: squash)
-  delete_branch: true       # Delete branch after merge (default: true)
+    wait_for_ci: false              # Enable CI polling (default: false)
+    ci_timeout: 10m                 # Max wait time (default: 10m)
+    poll_interval: 30s              # Polling frequency (default: 30s)
+    merge_on_ci_pass: false         # Auto-merge when CI passes (default: false)
+    merge_method: squash            # squash | merge | rebase (default: squash)
+    verify_sha_on_merge: true       # Verify HEAD SHA before merge (default: true)
+  delete_branch: true               # Delete branch after merge (default: true)
+  merge_commit_template: ""         # Custom merge commit message template
+  squash_commit_template: ""        # Custom squash commit message template
 ```
 
 ### Profile Restrictions
 
-CI wait and auto-merge only run for `auto` and `fast` profiles:
+CI wait and auto-merge default to OFF for all profiles. Users must explicitly enable them via configuration (`wait_for_ci: true` and `merge_on_ci_pass: true`).
 
-| Profile | CI Wait | Auto-Merge |
-|---------|---------|------------|
-| `auto` | ✓ | ✓ |
-| `fast` | ✓ | ✓ |
-| `safe` | ✗ | ✗ |
-| `strict` | ✗ | ✗ |
+| Profile | CI Wait | Auto-Merge | Notes |
+|---------|---------|------------|-------|
+| `auto` | Off (opt-in) | Off (opt-in) | Enable via config for full automation |
+| `fast` | Off (opt-in) | Off (opt-in) | Enable via config for full automation |
+| `safe` | Off (opt-in) | Off (opt-in) | Human review still required before merge |
+| `strict` | Off (opt-in) | Off (opt-in) | Human gates required throughout |
 
-For `safe` and `strict` profiles, the PR is created but must be merged manually after human review.
+When enabled, `safe` and `strict` profiles still require human approval before the merge executes. The CI wait simply polls for check status, and auto-merge only triggers after all configured gates have been satisfied.
 
 ---
 

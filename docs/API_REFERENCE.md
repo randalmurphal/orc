@@ -1040,17 +1040,17 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 
 ## Integration
 
-### GitHub PR
+### Hosting / Pull Requests
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/tasks/:id/github/pr` | Create PR for task branch |
-| GET | `/api/tasks/:id/github/pr` | Get PR details, comments, checks |
-| POST | `/api/tasks/:id/github/pr/merge` | Merge PR |
-| POST | `/api/tasks/:id/github/pr/refresh` | Refresh PR status (reviews, checks, approval state) |
-| POST | `/api/tasks/:id/github/pr/comments/sync` | Sync local comments to PR |
-| POST | `/api/tasks/:id/github/pr/comments/:commentId/autofix` | Queue auto-fix |
-| GET | `/api/tasks/:id/github/pr/checks` | Get CI check status |
+| RPC Method | Service | Description |
+|------------|---------|-------------|
+| CreatePR | HostingService | Create PR for task branch |
+| GetPR | HostingService | Get PR details |
+| MergePR | HostingService | Merge PR |
+| RefreshPR | HostingService | Refresh PR status (reviews, checks, approval state) |
+| SyncComments | HostingService | Sync local comments to PR |
+| AutofixComment | HostingService | Queue auto-fix for a PR comment |
+| GetChecks | HostingService | Get CI check status |
 
 **PR Status Polling:**
 - PRs are automatically polled every 60 seconds for tasks with open PRs
@@ -1082,7 +1082,7 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 {
   "pr": { "number": 123, "state": "OPEN", ... },
   "status": {
-    "url": "https://github.com/owner/repo/pull/123",
+    "url": "https://github.com/owner/repo/pull/123 (or GitLab equivalent)",
     "number": 123,
     "status": "approved",
     "checks_status": "success",
@@ -1102,7 +1102,7 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 
 **Autofix comment:**
 
-Triggers an auto-fix for a specific PR comment. Fetches the comment from GitHub, sets up retry context, and spawns an executor to re-run the implement phase.
+Triggers an auto-fix for a specific PR comment. Fetches the comment from the hosting provider (GitHub or GitLab), sets up retry context, and spawns an executor to re-run the implement phase.
 
 ```
 POST /api/tasks/:id/github/pr/comments/:commentId/autofix
@@ -1133,8 +1133,8 @@ POST /api/tasks/:id/github/pr/comments/:commentId/autofix
 | 400 | `InvalidArgument` | Missing task_id or comment_id |
 | 404 | `NotFound` | Task or comment not found |
 | 409 | `FailedPrecondition` | Task already running or completed |
-| 401 | `Unauthenticated` | GitHub CLI not authenticated |
-| 429 | `ResourceExhausted` | GitHub API rate limited |
+| 401 | `Unauthenticated` | Hosting provider not authenticated |
+| 429 | `ResourceExhausted` | Hosting provider API rate limited |
 
 ### MCP Servers
 
