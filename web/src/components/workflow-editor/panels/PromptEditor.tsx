@@ -88,7 +88,7 @@ export function PromptEditor({
 			if (fetchId === fetchIdRef.current) {
 				setFetchedContent(response.content);
 			}
-		} catch (err) {
+		} catch {
 			if (fetchId === fetchIdRef.current) {
 				setFetchError('Failed to load prompt content');
 			}
@@ -147,20 +147,7 @@ export function PromptEditor({
 		);
 	}
 
-	// Handle empty content
-	if (
-		resolvedContent === '' ||
-		resolvedContent === null ||
-		resolvedContent === undefined
-	) {
-		return (
-			<div className="prompt-editor prompt-editor-empty">
-				<span>No prompt content configured</span>
-			</div>
-		);
-	}
-
-	// Editable mode for custom templates
+	// Editable mode for custom templates - show textarea even if empty
 	if (!readOnly) {
 		const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 			const newValue = e.target.value;
@@ -197,6 +184,19 @@ export function PromptEditor({
 					{saveStatus === 'saved' && <span>Saved</span>}
 					{saveStatus === 'error' && <span>Save failed</span>}
 				</div>
+			</div>
+		);
+	}
+
+	// Handle empty content (read-only mode only)
+	if (
+		resolvedContent === '' ||
+		resolvedContent === null ||
+		resolvedContent === undefined
+	) {
+		return (
+			<div className="prompt-editor prompt-editor-empty">
+				<span>No prompt content configured</span>
 			</div>
 		);
 	}

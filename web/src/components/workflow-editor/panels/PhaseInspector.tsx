@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { workflowClient } from '@/lib/client';
 import {
@@ -19,19 +19,6 @@ interface PhaseInspectorProps {
 	workflowDetails: WorkflowWithDetails | null;
 	readOnly: boolean;
 	onWorkflowRefresh?: () => void;
-}
-
-function formatGateType(gt: GateType): string {
-	switch (gt) {
-		case GateType.HUMAN:
-			return 'Human';
-		case GateType.SKIP:
-			return 'Skip';
-		case GateType.AUTO:
-			return 'Auto';
-		default:
-			return 'Auto';
-	}
 }
 
 function formatSourceType(st: VariableSourceType): string {
@@ -61,16 +48,16 @@ export function PhaseInspector({
 }: PhaseInspectorProps) {
 	const [activeTab, setActiveTab] = useState<InspectorTab>('prompt');
 	const [settingsError, setSettingsError] = useState<string | null>(null);
-	const prevPhaseIdRef = useState<number | null>(null);
+	const prevPhaseIdRef = useRef<number | null>(null);
 
 	// Reset to Prompt tab when selected phase changes
 	useEffect(() => {
-		if (phase && phase.id !== prevPhaseIdRef[0]) {
+		if (phase && phase.id !== prevPhaseIdRef.current) {
 			setActiveTab('prompt');
 			setSettingsError(null);
 		}
-		prevPhaseIdRef[0] = phase?.id ?? null;
-	}, [phase, prevPhaseIdRef]);
+		prevPhaseIdRef.current = phase?.id ?? null;
+	}, [phase]);
 
 	if (!phase) {
 		return null;
@@ -85,14 +72,26 @@ export function PhaseInspector({
 	}
 
 	const template = phase.template;
-	const isBuiltin = template?.isBuiltin ?? false;
+
+	// If no template, show error state with just the template ID (no "Phase not found" duplication)
+	if (!template) {
+		return (
+			<div className="phase-inspector">
+				<div className="phase-inspector-header">
+					<h3 className="phase-inspector-title">{phase.phaseTemplateId}</h3>
+				</div>
+			</div>
+		);
+	}
+
+	const isBuiltin = template.isBuiltin ?? false;
 	const workflowIsBuiltin = workflowDetails.workflow?.isBuiltin ?? false;
 
 	return (
 		<div className="phase-inspector">
 			<div className="phase-inspector-header">
 				<h3 className="phase-inspector-title">
-					{template?.name ?? phase.phaseTemplateId}
+					{template.name ?? phase.phaseTemplateId}
 				</h3>
 				<span className="phase-inspector-id">{phase.phaseTemplateId}</span>
 				<span className={`phase-inspector-badge phase-inspector-badge--${isBuiltin ? 'builtin' : 'custom'}`}>
@@ -117,20 +116,16 @@ export function PhaseInspector({
 					</Tabs.Trigger>
 				</Tabs.List>
 
-				<Tabs.Content value="prompt" className="phase-inspector-tab-content">
-					{template ? (
-						<PromptEditor
-							phaseTemplateId={template.id}
-							promptSource={template.promptSource}
-							promptContent={template.promptContent}
-							readOnly={readOnly}
-						/>
-					) : (
-						<div className="phase-inspector-empty">Phase not found</div>
-					)}
+				<Tabs.Content value="prompt" className="phase-inspector-tab-content" >
+					<PromptEditor
+						phaseTemplateId={template.id}
+						promptSource={template.promptSource}
+						promptContent={template.promptContent}
+						readOnly={readOnly}
+					/>
 				</Tabs.Content>
 
-				<Tabs.Content value="variables" className="phase-inspector-tab-content">
+				<Tabs.Content value="variables" className="phase-inspector-tab-content" forceMount>
 					<VariablesTab
 						phase={phase}
 						workflowDetails={workflowDetails}
@@ -139,7 +134,7 @@ export function PhaseInspector({
 					/>
 				</Tabs.Content>
 
-				<Tabs.Content value="settings" className="phase-inspector-tab-content">
+				<Tabs.Content value="settings" className="phase-inspector-tab-content" >
 					<SettingsTab
 						phase={phase}
 						workflowDetails={workflowDetails}
@@ -166,8 +161,11 @@ interface VariablesTabProps {
 function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: VariablesTabProps) {
 	const template = phase.template;
 	const inputVariables = template?.inputVariables ?? [];
+	const inputVariableNames = new Set(inputVariables);
 	const workflowVariables = workflowDetails.variables;
 	const workflowVariableNames = new Set(workflowVariables.map((v) => v.name));
+	// Filter out workflow variables that are already shown in Input Variables
+	const availableVariables = workflowVariables.filter((wv) => !inputVariableNames.has(wv.name));
 
 	return (
 		<div className="phase-inspector-variables">
@@ -200,16 +198,16 @@ function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: V
 			{/* Available Workflow Variables Section */}
 			<div className="phase-inspector-section">
 				<h4 className="phase-inspector-section-title">Available Variables</h4>
-				{workflowVariables.length === 0 ? (
+				{availableVariables.length === 0 ? (
 					<div className="phase-inspector-empty">No workflow variables</div>
 				) : (
 					<ul className="phase-inspector-var-list">
-						{workflowVariables.map((wv) => (
-							<li key={wv.id} className="phase-inspector-var-item">
-								<span className="phase-inspector-var-name">{wv.name}</span>
+						{availableVariables.map((wv) => (
+							<li key={wv.id} className="phase-inspector-var-item" title={wv.name}>
 								<span className="phase-inspector-var-source-badge">
 									{formatSourceType(wv.sourceType)}
 								</span>
+								<code className="phase-inspector-wf-var-code">{wv.name}</code>
 								{wv.required && (
 									<span
 										className="phase-inspector-var-required"
