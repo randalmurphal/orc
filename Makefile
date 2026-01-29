@@ -45,7 +45,7 @@ all: build
 setup:
 	@echo "==> Creating go.work for local development..."
 	@if [ ! -f go.work ]; then \
-		echo "go 1.24.0\n\nuse .\nuse ../llmkit\nuse ../flowgraph\nuse ../devflow" > go.work; \
+		echo "go 1.24.0\n\nuse .\nuse ../llmkit\nuse ../flowgraph" > go.work; \
 		echo "Created go.work"; \
 	else \
 		echo "go.work already exists"; \

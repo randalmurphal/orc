@@ -3,19 +3,17 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -61,6 +59,7 @@ type CIMerger struct {
 	logger    *slog.Logger
 	workDir   string
 	backend   storage.Backend
+	provider  hosting.Provider
 }
 
 // CIMergerOption configures a CIMerger.
@@ -76,7 +75,7 @@ func WithCIMergerLogger(l *slog.Logger) CIMergerOption {
 	return func(m *CIMerger) { m.logger = l }
 }
 
-// WithCIMergerWorkDir sets the working directory for gh commands.
+// WithCIMergerWorkDir sets the working directory for git commands.
 func WithCIMergerWorkDir(dir string) CIMergerOption {
 	return func(m *CIMerger) { m.workDir = dir }
 }
@@ -84,6 +83,11 @@ func WithCIMergerWorkDir(dir string) CIMergerOption {
 // WithCIMergerBackend sets the storage backend for task persistence.
 func WithCIMergerBackend(b storage.Backend) CIMergerOption {
 	return func(m *CIMerger) { m.backend = b }
+}
+
+// WithCIMergerHostingProvider sets the hosting provider for CI and merge operations.
+func WithCIMergerHostingProvider(p hosting.Provider) CIMergerOption {
+	return func(m *CIMerger) { m.provider = p }
 }
 
 // NewCIMerger creates a new CIMerger.
@@ -115,7 +119,7 @@ var ErrMergeFailed = errors.New("PR merge failed")
 // Flow:
 // 1. Push finalize changes if any
 // 2. Poll CI checks until all pass (or timeout)
-// 3. Merge PR directly with gh pr merge
+// 3. Merge PR via hosting provider
 func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *orcv1.Task) error {
 	if !m.config.ShouldWaitForCI() {
 		m.logger.Debug("CI wait disabled, skipping", "task", t.Id)
@@ -138,8 +142,8 @@ func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *orcv1.Task) error {
 	// Publish initial progress
 	m.publishProgress(t.Id, "Waiting for CI checks to pass...")
 
-	// Wait for CI
-	result, err := m.WaitForCI(ctx, prURL, t.Id)
+	// Wait for CI using the task's branch as the ref
+	result, err := m.WaitForCI(ctx, t.Branch, t.Id)
 	if err != nil {
 		return err
 	}
@@ -157,7 +161,7 @@ func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *orcv1.Task) error {
 	// Merge the PR
 	m.publishProgress(t.Id, "CI checks passed. Merging PR...")
 
-	if err := m.MergePR(ctx, prURL, t); err != nil {
+	if err := m.MergePR(ctx, t); err != nil {
 		return fmt.Errorf("merge PR: %w", err)
 	}
 
@@ -171,9 +175,8 @@ func (m *CIMerger) WaitForCIAndMerge(ctx context.Context, t *orcv1.Task) error {
 	return nil
 }
 
-
 // WaitForCI polls CI checks until they pass or timeout.
-func (m *CIMerger) WaitForCI(ctx context.Context, prURL, taskID string) (*CICheckResult, error) {
+func (m *CIMerger) WaitForCI(ctx context.Context, ref, taskID string) (*CICheckResult, error) {
 	timeout := m.config.CITimeout()
 	pollInterval := m.config.CIPollInterval()
 
@@ -182,7 +185,7 @@ func (m *CIMerger) WaitForCI(ctx context.Context, prURL, taskID string) (*CIChec
 	defer ticker.Stop()
 
 	// Initial check
-	result, err := m.CheckCIStatus(ctx, prURL)
+	result, err := m.CheckCIStatus(ctx, ref)
 	if err != nil {
 		return nil, fmt.Errorf("check CI status: %w", err)
 	}
@@ -217,7 +220,7 @@ func (m *CIMerger) WaitForCI(ctx context.Context, prURL, taskID string) (*CIChec
 					ErrCITimeout, timeout, result.PendingChecks, result.PendingNames)
 			}
 
-			result, err = m.CheckCIStatus(ctx, prURL)
+			result, err = m.CheckCIStatus(ctx, ref)
 			if err != nil {
 				m.logger.Warn("failed to check CI status, retrying",
 					"task", taskID,
@@ -259,38 +262,15 @@ func (m *CIMerger) WaitForCI(ctx context.Context, prURL, taskID string) (*CIChec
 	}
 }
 
-// CheckCIStatus checks the current status of CI checks for a PR.
-func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckResult, error) {
-	// Use gh pr checks to get status
-	output, err := m.runGH(ctx, "pr", "checks", prURL, "--json", "name,state,bucket")
+// CheckCIStatus checks the current status of CI checks for a git ref (branch).
+func (m *CIMerger) CheckCIStatus(ctx context.Context, ref string) (*CICheckResult, error) {
+	if m.provider == nil {
+		return nil, fmt.Errorf("hosting provider not configured")
+	}
+
+	checks, err := m.provider.GetCheckRuns(ctx, ref)
 	if err != nil {
-		// If no checks configured, that's OK
-		if strings.Contains(err.Error(), "no checks") || strings.Contains(output, "[]") {
-			return &CICheckResult{
-				Status:  CIStatusNoChecks,
-				Details: "No CI checks configured",
-			}, nil
-		}
-		return nil, fmt.Errorf("get PR checks: %w", err)
-	}
-
-	// Handle empty response
-	output = strings.TrimSpace(output)
-	if output == "" || output == "[]" {
-		return &CICheckResult{
-			Status:  CIStatusNoChecks,
-			Details: "No CI checks configured",
-		}, nil
-	}
-
-	// Parse the JSON output
-	var checks []struct {
-		Name   string `json:"name"`
-		State  string `json:"state"`
-		Bucket string `json:"bucket"` // pass, fail, pending, skipping, cancel
-	}
-	if err := json.Unmarshal([]byte(output), &checks); err != nil {
-		return nil, fmt.Errorf("parse checks: %w", err)
+		return nil, fmt.Errorf("get check runs: %w", err)
 	}
 
 	if len(checks) == 0 {
@@ -305,23 +285,21 @@ func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckRes
 	}
 
 	for _, c := range checks {
-		switch c.Bucket {
-		case "pass", "skipping":
-			result.PassedChecks++
-		case "fail", "cancel":
-			result.FailedChecks++
-			result.FailedNames = append(result.FailedNames, c.Name)
-		case "pending":
-			result.PendingChecks++
-			result.PendingNames = append(result.PendingNames, c.Name)
+		switch c.Status {
+		case "completed":
+			switch c.Conclusion {
+			case "success", "neutral", "skipped":
+				result.PassedChecks++
+			default:
+				result.FailedChecks++
+				result.FailedNames = append(result.FailedNames, c.Name)
+			}
 		default:
-			// Unknown state, treat as pending
 			result.PendingChecks++
 			result.PendingNames = append(result.PendingNames, c.Name)
 		}
 	}
 
-	// Determine overall status
 	if result.FailedChecks > 0 {
 		result.Status = CIStatusFailed
 		result.Details = fmt.Sprintf("%d/%d checks failed", result.FailedChecks, result.TotalChecks)
@@ -336,51 +314,47 @@ func (m *CIMerger) CheckCIStatus(ctx context.Context, prURL string) (*CICheckRes
 	return result, nil
 }
 
-// MergePR merges a PR using the configured merge method.
-// Uses the GitHub REST API directly to avoid local git checkout issues
-// when the target branch is checked out in another worktree.
+// MergePR merges a PR using the configured merge method via the hosting provider.
 //
-// Implements retry logic for "Base branch was modified" errors (HTTP 405):
+// Implements retry logic for "Base branch was modified" errors:
 // 1. Attempt merge
-// 2. If 405 received:
+// 2. If retryable error:
 //   - Wait with exponential backoff (2^attempt seconds, max 8s)
 //   - Fetch and rebase onto target branch
 //   - Push rebased branch (force-with-lease)
 //   - Retry merge (up to 3 attempts)
 //
 // 3. If rebase has conflicts or max retries exceeded, return ErrMergeFailed
-func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) error {
+func (m *CIMerger) MergePR(ctx context.Context, t *orcv1.Task) error {
+	if m.provider == nil {
+		return fmt.Errorf("hosting provider not configured")
+	}
+
 	const maxRetries = 3
 
 	method := m.config.MergeMethod()
-
-	// Extract owner, repo, and PR number from the URL
-	owner, repo, prNumber, err := parsePRURL(prURL)
-	if err != nil {
-		return fmt.Errorf("parse PR URL: %w", err)
+	if method == "" {
+		method = "squash"
 	}
 
-	m.logger.Info("merging PR via API",
+	prNumber := int(0)
+	if t.Pr != nil && t.Pr.Number != nil {
+		prNumber = int(*t.Pr.Number)
+	}
+	if prNumber == 0 {
+		return fmt.Errorf("task has no PR number")
+	}
+
+	m.logger.Info("merging PR",
 		"task", t.Id,
-		"pr", prURL,
-		"owner", owner,
-		"repo", repo,
 		"pr_number", prNumber,
 		"method", method,
 		"delete_branch", m.config.Completion.DeleteBranch,
 	)
 
-	// GitHub API uses "merge", "squash", or "rebase" for merge_method
-	mergeMethod := method
-	if mergeMethod == "" {
-		mergeMethod = "squash" // Default to squash
-	}
-
-	// Retry loop for handling "Base branch was modified" errors
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff: 2s, 4s, 8s
 			backoff := min(time.Duration(1<<attempt)*time.Second, 8*time.Second)
 			m.logger.Info("waiting before merge retry",
 				"attempt", attempt,
@@ -393,9 +367,7 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) err
 			case <-time.After(backoff):
 			}
 
-			// Rebase before retry
 			if err := m.rebaseOnTarget(ctx, t); err != nil {
-				// If rebase fails (conflicts or other error), return ErrMergeFailed
 				m.logger.Error("rebase before merge retry failed",
 					"task", t.Id,
 					"attempt", attempt,
@@ -405,13 +377,13 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) err
 			}
 		}
 
-		// Call GitHub API to merge the PR
-		// PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
-		apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
-		output, err := m.runGH(ctx, "api", "-X", "PUT", apiPath, "-f", fmt.Sprintf("merge_method=%s", mergeMethod))
+		err := m.provider.MergePR(ctx, prNumber, hosting.PRMergeOptions{
+			Method:       method,
+			DeleteBranch: m.config.Completion.DeleteBranch,
+		})
 		if err != nil {
-			// Check if this is a retryable error
-			if isRetryableMergeError(err, output) {
+			errStr := strings.ToLower(err.Error())
+			if strings.Contains(errStr, "base branch was modified") || strings.Contains(errStr, "405") {
 				lastErr = err
 				m.logger.Warn("merge failed with retryable error",
 					"task", t.Id,
@@ -420,44 +392,11 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) err
 				)
 				continue
 			}
-
-			// Non-retryable error - check if it's a validation error
-			if isValidationMergeError(err, output) {
-				return fmt.Errorf("%w: merge validation failed: %v\nOutput: %s", ErrMergeFailed, err, output)
-			}
-
-			// Other non-retryable errors
-			return fmt.Errorf("merge PR via API: %w\nOutput: %s", err, output)
+			return fmt.Errorf("merge PR: %w", err)
 		}
 
-		// Parse the response to get the merge commit SHA
-		var mergeResponse struct {
-			SHA     string `json:"sha"`
-			Merged  bool   `json:"merged"`
-			Message string `json:"message"`
-		}
-		if err := json.Unmarshal([]byte(output), &mergeResponse); err != nil {
-			m.logger.Warn("failed to parse merge response", "error", err, "output", output)
-		} else if mergeResponse.SHA != "" {
-			if t.Pr != nil {
-				sha := mergeResponse.SHA
-				t.Pr.MergeCommitSha = &sha
-			}
-			m.logger.Info("PR merged", "sha", mergeResponse.SHA)
-		}
-
-		// Delete the branch if configured
-		if m.config.Completion.DeleteBranch {
-			if err := m.deleteBranch(ctx, owner, repo, t.Branch); err != nil {
-				// Log but don't fail - the merge succeeded
-				m.logger.Warn("failed to delete branch after merge",
-					"branch", t.Branch,
-					"error", err,
-				)
-			}
-		}
-
-		// Update task with merge info
+		// Merge succeeded - update task with merge info
+		prURL := task.GetPRURLProto(t)
 		task.SetMergedInfoProto(t, prURL, m.config.Completion.TargetBranch)
 		if m.backend != nil {
 			if saveErr := m.backend.SaveTask(t); saveErr != nil {
@@ -465,42 +404,11 @@ func (m *CIMerger) MergePR(ctx context.Context, prURL string, t *orcv1.Task) err
 			}
 		}
 
+		m.logger.Info("PR merged successfully", "task", t.Id, "pr_number", prNumber)
 		return nil
 	}
 
-	// All retries exhausted
 	return fmt.Errorf("%w: max retries (%d) exceeded: %v", ErrMergeFailed, maxRetries, lastErr)
-}
-
-// isRetryableMergeError checks if a merge error can be retried.
-// HTTP 405 "Base branch was modified" is the primary retryable case.
-func isRetryableMergeError(err error, output string) bool {
-	if err == nil {
-		return false
-	}
-	errStr := strings.ToLower(err.Error())
-	outputStr := strings.ToLower(output)
-
-	// GitHub returns 405 "Method Not Allowed" with "Base branch was modified"
-	// when another PR merged first, modifying the base branch
-	return (strings.Contains(errStr, "405") || strings.Contains(outputStr, "405")) &&
-		(strings.Contains(errStr, "base branch was modified") ||
-			strings.Contains(outputStr, "base branch was modified") ||
-			strings.Contains(errStr, "review and try the merge again") ||
-			strings.Contains(outputStr, "review and try the merge again"))
-}
-
-// isValidationMergeError checks if a merge error is a validation failure.
-// HTTP 422 typically indicates validation errors that won't be fixed by retry.
-func isValidationMergeError(err error, output string) bool {
-	if err == nil {
-		return false
-	}
-	errStr := strings.ToLower(err.Error())
-	outputStr := strings.ToLower(output)
-
-	// 422 Unprocessable Entity - validation failed (conflicts, required checks, etc.)
-	return strings.Contains(errStr, "422") || strings.Contains(outputStr, "422")
 }
 
 // rebaseOnTarget rebases the task branch onto the target branch.
@@ -518,13 +426,10 @@ func (m *CIMerger) rebaseOnTarget(ctx context.Context, t *orcv1.Task) error {
 	)
 
 	// Fetch latest from origin
-	if _, err := m.runGH(ctx, "api", "-X", "GET", "/rate_limit"); err == nil {
-		// gh is available, use git commands via shell
-		fetchOutput, fetchErr := m.runGitCmd(ctx, "fetch", "origin", targetBranch)
-		if fetchErr != nil {
-			m.logger.Warn("fetch failed", "error", fetchErr, "output", fetchOutput)
-			// Continue anyway - we might be able to rebase without fresh fetch
-		}
+	fetchOutput, fetchErr := m.runGitCmd(ctx, "fetch", "origin", targetBranch)
+	if fetchErr != nil {
+		m.logger.Warn("fetch failed", "error", fetchErr, "output", fetchOutput)
+		// Continue anyway - we might be able to rebase without fresh fetch
 	}
 
 	// Attempt rebase onto origin/target
@@ -574,59 +479,7 @@ func (m *CIMerger) runGitCmd(ctx context.Context, args ...string) (string, error
 	return string(output), nil
 }
 
-// deleteBranch deletes a branch via the GitHub API.
-func (m *CIMerger) deleteBranch(ctx context.Context, owner, repo, branch string) error {
-	// Strip the "refs/heads/" prefix if present, or add nothing if it's a simple branch name
-	branchName := strings.TrimPrefix(branch, "refs/heads/")
-
-	// DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
-	apiPath := fmt.Sprintf("/repos/%s/%s/git/refs/heads/%s", owner, repo, branchName)
-	output, err := m.runGH(ctx, "api", "-X", "DELETE", apiPath)
-	if err != nil {
-		return fmt.Errorf("delete branch: %w\nOutput: %s", err, output)
-	}
-	m.logger.Info("deleted branch", "branch", branchName)
-	return nil
-}
-
-// parsePRURL extracts owner, repo, and PR number from a GitHub PR URL.
-// Supports formats like:
-//   - https://github.com/owner/repo/pull/123
-//   - github.com/owner/repo/pull/123
-func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
-	// Regex to match GitHub PR URLs
-	// Captures: owner, repo, PR number
-	pattern := regexp.MustCompile(`(?:https?://)?github\.com/([^/]+)/([^/]+)/pull/(\d+)`)
-	matches := pattern.FindStringSubmatch(prURL)
-	if len(matches) != 4 {
-		return "", "", 0, fmt.Errorf("invalid PR URL format: %s", prURL)
-	}
-
-	prNumber, err = strconv.Atoi(matches[3])
-	if err != nil {
-		return "", "", 0, fmt.Errorf("invalid PR number in URL: %s", prURL)
-	}
-
-	return matches[1], matches[2], prNumber, nil
-}
-
 // publishProgress publishes a progress message.
 func (m *CIMerger) publishProgress(taskID, message string) {
 	m.publisher.Transcript(taskID, "ci_merge", 0, "progress", message)
 }
-
-// runGH executes a gh CLI command.
-func (m *CIMerger) runGH(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "gh", args...)
-	if m.workDir != "" {
-		cmd.Dir = m.workDir
-	}
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return string(output), fmt.Errorf("%w: %s", err, output)
-	}
-
-	return string(output), nil
-}
-

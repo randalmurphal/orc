@@ -1,5 +1,5 @@
 // Package api provides the Connect RPC and REST API server for orc.
-// This file implements the GitHubService Connect RPC service.
+// This file implements the HostingService Connect RPC service.
 package api
 
 import (
@@ -18,52 +18,54 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/hosting"
+	_ "github.com/randalmurphal/orc/internal/hosting/github"
+	_ "github.com/randalmurphal/orc/internal/hosting/gitlab"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
-// GitHubClientFactory creates a GitHub provider for dependency injection in tests.
-type GitHubClientFactory func(ctx context.Context) (github.Provider, error)
+// HostingProviderFactory creates a hosting provider for dependency injection in tests.
+type HostingProviderFactory func(ctx context.Context) (hosting.Provider, error)
 
-// githubServer implements the GitHubServiceHandler interface.
-type githubServer struct {
-	orcv1connect.UnimplementedGitHubServiceHandler
+// hostingServer implements the HostingServiceHandler interface.
+type hostingServer struct {
+	orcv1connect.UnimplementedHostingServiceHandler
 	backend       storage.Backend
 	projectDir    string
 	logger        *slog.Logger
 	publisher     events.Publisher
 	config        *config.Config
-	taskExecutor  TaskExecutorFunc    // Optional: spawns executor for autofix
-	clientFactory GitHubClientFactory // Optional: for testing dependency injection
+	taskExecutor  TaskExecutorFunc       // Optional: spawns executor for autofix
+	clientFactory HostingProviderFactory // Optional: for testing dependency injection
 }
 
-// NewGitHubServer creates a new GitHubService handler.
-func NewGitHubServer(
+// NewHostingServer creates a new HostingService handler.
+func NewHostingServer(
 	backend storage.Backend,
 	projectDir string,
 	logger *slog.Logger,
-) orcv1connect.GitHubServiceHandler {
-	return &githubServer{
+) orcv1connect.HostingServiceHandler {
+	return &hostingServer{
 		backend:    backend,
 		projectDir: projectDir,
 		logger:     logger,
 	}
 }
 
-// NewGitHubServerWithExecutor creates a GitHubService handler with autofix execution support.
+// NewHostingServerWithExecutor creates a HostingService handler with autofix execution support.
 // The executor callback is called by AutofixComment to spawn a WorkflowExecutor goroutine.
-// The clientFactory is optional - if nil, uses the default getClient method.
-func NewGitHubServerWithExecutor(
+// The clientFactory is optional - if nil, uses the default getProvider method.
+func NewHostingServerWithExecutor(
 	backend storage.Backend,
 	projectDir string,
 	logger *slog.Logger,
 	publisher events.Publisher,
 	cfg *config.Config,
 	taskExecutor TaskExecutorFunc,
-	clientFactory GitHubClientFactory,
-) orcv1connect.GitHubServiceHandler {
-	return &githubServer{
+	clientFactory HostingProviderFactory,
+) orcv1connect.HostingServiceHandler {
+	return &hostingServer{
 		backend:       backend,
 		projectDir:    projectDir,
 		logger:        logger,
@@ -74,22 +76,29 @@ func NewGitHubServerWithExecutor(
 	}
 }
 
-// getClient creates a GitHub client, checking auth first.
-func (s *githubServer) getClient(ctx context.Context) (*github.Client, error) {
-	if err := github.CheckGHAuth(ctx); err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated,
-			fmt.Errorf("GitHub CLI not authenticated. Run 'gh auth login' first"))
+// getProvider creates a hosting provider, checking auth first.
+func (s *hostingServer) getProvider(ctx context.Context) (hosting.Provider, error) {
+	cfg := hosting.Config{}
+	if s.config != nil {
+		cfg = hosting.Config{
+			Provider:    s.config.Hosting.Provider,
+			BaseURL:     s.config.Hosting.BaseURL,
+			TokenEnvVar: s.config.Hosting.TokenEnvVar,
+		}
 	}
-
-	client, err := github.NewClient(s.projectDir)
+	provider, err := hosting.NewProvider(s.projectDir, cfg)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create GitHub client: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create hosting provider: %w", err))
 	}
-	return client, nil
+	if err := provider.CheckAuth(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated,
+			fmt.Errorf("hosting provider auth failed: %w", err))
+	}
+	return provider, nil
 }
 
 // CreatePR creates a PR for a task.
-func (s *githubServer) CreatePR(
+func (s *hostingServer) CreatePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreatePRRequest],
 ) (*connect.Response[orcv1.CreatePRResponse], error) {
@@ -102,25 +111,25 @@ func (s *githubServer) CreatePR(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if PR already exists
-	existingPR, err := client.FindPRByBranch(ctx, t.Branch)
-	if err != nil && !errors.Is(err, github.ErrNoPRFound) {
+	existingPR, err := provider.FindPRByBranch(ctx, t.Branch)
+	if err != nil && !errors.Is(err, hosting.ErrNoPRFound) {
 		s.logger.Warn("failed to check for existing PR", "error", err)
 	}
 	if err == nil && existingPR != nil {
 		return connect.NewResponse(&orcv1.CreatePRResponse{
-			Pr:      ghPRToProto(existingPR),
+			Pr:      prToProto(existingPR),
 			Created: false,
 		}), nil
 	}
 
 	// Build PR options
-	opts := github.PRCreateOptions{
+	opts := hosting.PRCreateOptions{
 		Head:      t.Branch,
 		Draft:     req.Msg.Draft,
 		Labels:    req.Msg.Labels,
@@ -145,19 +154,19 @@ func (s *githubServer) CreatePR(
 		opts.Base = "main"
 	}
 
-	pr, err := client.CreatePR(ctx, opts)
+	pr, err := provider.CreatePR(ctx, opts)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create PR: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.CreatePRResponse{
-		Pr:      ghPRToProto(pr),
+		Pr:      prToProto(pr),
 		Created: true,
 	}), nil
 }
 
 // GetPR gets the PR for a task.
-func (s *githubServer) GetPR(
+func (s *hostingServer) GetPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetPRRequest],
 ) (*connect.Response[orcv1.GetPRResponse], error) {
@@ -170,26 +179,26 @@ func (s *githubServer) GetPR(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.GetPRResponse{
-		Pr: ghPRToProto(pr),
+		Pr: prToProto(pr),
 	}), nil
 }
 
 // MergePR merges the PR for a task.
-func (s *githubServer) MergePR(
+func (s *hostingServer) MergePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.MergePRRequest],
 ) (*connect.Response[orcv1.MergePRResponse], error) {
@@ -202,14 +211,14 @@ func (s *githubServer) MergePR(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
@@ -220,7 +229,7 @@ func (s *githubServer) MergePR(
 		method = *req.Msg.Method
 	}
 
-	err = client.MergePR(ctx, pr.Number, github.PRMergeOptions{
+	err = provider.MergePR(ctx, pr.Number, hosting.PRMergeOptions{
 		Method:       method,
 		DeleteBranch: true,
 	})
@@ -244,7 +253,7 @@ func (s *githubServer) MergePR(
 }
 
 // SyncComments syncs local review comments to PR.
-func (s *githubServer) SyncComments(
+func (s *hostingServer) SyncComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.SyncCommentsRequest],
 ) (*connect.Response[orcv1.SyncCommentsResponse], error) {
@@ -275,14 +284,14 @@ func (s *githubServer) SyncComments(
 		}), nil
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
@@ -302,7 +311,7 @@ func (s *githubServer) SyncComments(
 
 		body := formatReviewCommentForPR(c)
 
-		_, err := client.CreatePRComment(ctx, pr.Number, github.PRCommentCreate{
+		_, err := provider.CreatePRComment(ctx, pr.Number, hosting.PRCommentCreate{
 			Body: body,
 			Path: c.FilePath,
 			Line: c.LineNumber,
@@ -320,7 +329,7 @@ func (s *githubServer) SyncComments(
 }
 
 // ImportComments imports PR comments as local review comments.
-func (s *githubServer) ImportComments(
+func (s *hostingServer) ImportComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.ImportCommentsRequest],
 ) (*connect.Response[orcv1.ImportCommentsResponse], error) {
@@ -333,20 +342,20 @@ func (s *githubServer) ImportComments(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
 	}
 
-	prComments, err := client.ListPRComments(ctx, pr.Number)
+	prComments, err := provider.ListPRComments(ctx, pr.Number)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list PR comments: %w", err))
 	}
@@ -408,7 +417,7 @@ func (s *githubServer) ImportComments(
 		} else {
 			imported++
 			existingMap[key] = true
-			importedComments = append(importedComments, ghPRCommentToProto(&pc))
+			importedComments = append(importedComments, prCommentToProto(&pc))
 		}
 	}
 
@@ -419,7 +428,7 @@ func (s *githubServer) ImportComments(
 }
 
 // GetChecks gets CI check runs for a task's PR.
-func (s *githubServer) GetChecks(
+func (s *hostingServer) GetChecks(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetChecksRequest],
 ) (*connect.Response[orcv1.GetChecksResponse], error) {
@@ -432,12 +441,12 @@ func (s *githubServer) GetChecks(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	checks, err := client.GetCheckRuns(ctx, t.Branch)
+	checks, err := provider.GetCheckRuns(ctx, t.Branch)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get check runs: %w", err))
 	}
@@ -447,7 +456,7 @@ func (s *githubServer) GetChecks(
 	var protoChecks []*orcv1.CheckRun
 
 	for _, check := range checks {
-		protoChecks = append(protoChecks, ghCheckRunToProto(&check))
+		protoChecks = append(protoChecks, checkRunToProto(&check))
 
 		switch check.Status {
 		case "completed":
@@ -471,7 +480,7 @@ func (s *githubServer) GetChecks(
 }
 
 // RefreshPR refreshes PR status for a task.
-func (s *githubServer) RefreshPR(
+func (s *hostingServer) RefreshPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.RefreshPRRequest],
 ) (*connect.Response[orcv1.RefreshPRResponse], error) {
@@ -484,21 +493,21 @@ func (s *githubServer) RefreshPR(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
 	}
 
 	// Get PR status summary
-	summary, err := client.GetPRStatusSummary(ctx, pr)
+	summary, err := provider.GetPRStatusSummary(ctx, pr)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get PR status: %w", err))
 	}
@@ -525,12 +534,12 @@ func (s *githubServer) RefreshPR(
 	}
 
 	return connect.NewResponse(&orcv1.RefreshPRResponse{
-		Pr: ghPRToProto(pr),
+		Pr: prToProto(pr),
 	}), nil
 }
 
 // ReplyToComment replies to a PR comment thread.
-func (s *githubServer) ReplyToComment(
+func (s *hostingServer) ReplyToComment(
 	ctx context.Context,
 	req *connect.Request[orcv1.ReplyToCommentRequest],
 ) (*connect.Response[orcv1.ReplyToCommentResponse], error) {
@@ -547,26 +556,26 @@ func (s *githubServer) ReplyToComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("content is required"))
 	}
 
-	client, err := s.getClient(ctx)
+	provider, err := s.getProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to find PR: %w", err))
 	}
 
-	reply, err := client.ReplyToComment(ctx, pr.Number, req.Msg.CommentId, req.Msg.Content)
+	reply, err := provider.ReplyToComment(ctx, pr.Number, req.Msg.CommentId, req.Msg.Content)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to reply to comment: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.ReplyToCommentResponse{
-		Comment: ghPRCommentToProto(reply),
+		Comment: prCommentToProto(reply),
 	}), nil
 }
 
@@ -576,7 +585,7 @@ const maxCommentBodySize = 10 * 1024 // 10KB
 // AutofixComment triggers an auto-fix for a PR comment.
 // This fetches the comment from GitHub, sets up retry context, and spawns an executor.
 // The operation returns immediately with success=true once the executor is spawned.
-func (s *githubServer) AutofixComment(
+func (s *hostingServer) AutofixComment(
 	ctx context.Context,
 	req *connect.Request[orcv1.AutofixCommentRequest],
 ) (*connect.Response[orcv1.AutofixCommentResponse], error) {
@@ -605,24 +614,24 @@ func (s *githubServer) AutofixComment(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("task has no branch"))
 	}
 
-	// Get GitHub client - use factory if provided (for tests), otherwise default getClient
-	var ghProvider github.Provider
+	// Get hosting provider - use factory if provided (for tests), otherwise default getProvider
+	var provider hosting.Provider
 	if s.clientFactory != nil {
-		ghProvider, err = s.clientFactory(ctx)
+		provider, err = s.clientFactory(ctx)
 	} else {
-		ghProvider, err = s.getClient(ctx)
+		provider, err = s.getProvider(ctx)
 	}
 	if err != nil {
 		// Check for auth errors
 		if strings.Contains(err.Error(), "not logged in") || strings.Contains(err.Error(), "auth") {
 			return nil, connect.NewError(connect.CodeUnauthenticated,
-				errors.New("GitHub CLI not authenticated. Run 'gh auth login'"))
+				errors.New("hosting provider not authenticated"))
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get GitHub client: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get hosting provider: %w", err))
 	}
 
-	// Fetch the comment from GitHub
-	comment, err := ghProvider.GetPRComment(ctx, req.Msg.CommentId)
+	// Fetch the comment from the hosting provider
+	comment, err := provider.GetPRComment(ctx, req.Msg.CommentId)
 	if err != nil {
 		// Check for specific error types
 		errStr := err.Error()
@@ -631,7 +640,7 @@ func (s *githubServer) AutofixComment(
 		}
 		if strings.Contains(errStr, "rate limit") {
 			return nil, connect.NewError(connect.CodeResourceExhausted,
-				errors.New("GitHub API rate limited, try again later"))
+				errors.New("API rate limited, try again later"))
 		}
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("fetch comment: %w", err))
 	}
@@ -718,7 +727,7 @@ func (s *githubServer) AutofixComment(
 
 // buildAutofixRetryContext builds the retry context string from a PR comment.
 // This is what gets injected into the {{RETRY_CONTEXT}} template variable.
-func buildAutofixRetryContext(comment *github.PRComment) string {
+func buildAutofixRetryContext(comment *hosting.PRComment) string {
 	var sb strings.Builder
 
 	sb.WriteString("## PR Feedback to Address\n\n")
@@ -785,7 +794,7 @@ func formatReviewCommentForPR(c db.ReviewComment) string {
 	return fmt.Sprintf("**[%s]** %s", severity, c.Content)
 }
 
-func ghPRToProto(pr *github.PR) *orcv1.PR {
+func prToProto(pr *hosting.PR) *orcv1.PR {
 	result := &orcv1.PR{
 		Number:  int32(pr.Number),
 		Title:   pr.Title,
@@ -815,7 +824,7 @@ func ghPRToProto(pr *github.PR) *orcv1.PR {
 	return result
 }
 
-func ghPRCommentToProto(c *github.PRComment) *orcv1.PRComment {
+func prCommentToProto(c *hosting.PRComment) *orcv1.PRComment {
 	result := &orcv1.PRComment{
 		Id:     c.ID,
 		Body:   c.Body,
@@ -840,7 +849,7 @@ func ghPRCommentToProto(c *github.PRComment) *orcv1.PRComment {
 	return result
 }
 
-func ghCheckRunToProto(c *github.CheckRun) *orcv1.CheckRun {
+func checkRunToProto(c *hosting.CheckRun) *orcv1.CheckRun {
 	result := &orcv1.CheckRun{
 		Id:     c.ID,
 		Name:   c.Name,
@@ -849,7 +858,7 @@ func ghCheckRunToProto(c *github.CheckRun) *orcv1.CheckRun {
 	if c.Conclusion != "" {
 		result.Conclusion = &c.Conclusion
 	}
-	// Note: Go type github.CheckRun doesn't have StartedAt, CompletedAt, HTMLURL
+	// Note: Go type hosting.CheckRun doesn't have StartedAt, CompletedAt, HTMLURL
 	// Proto fields left unset (optional fields remain nil)
 	return result
 }

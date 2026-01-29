@@ -2,20 +2,20 @@
 package executor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
-	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+
+	_ "github.com/randalmurphal/orc/internal/hosting/github"
+	_ "github.com/randalmurphal/orc/internal/hosting/gitlab"
 )
 
 // InitiativeCompletionResult contains the result of an initiative completion operation.
@@ -37,7 +37,7 @@ type InitiativeCompletionResult struct {
 // InitiativeCompleter handles the completion flow for initiatives with branch bases.
 type InitiativeCompleter struct {
 	gitOps     *git.Git
-	ghClient   *github.Client
+	provider   hosting.Provider
 	backend    storage.Backend
 	cfg        *config.Config
 	logger     *slog.Logger
@@ -47,7 +47,7 @@ type InitiativeCompleter struct {
 // NewInitiativeCompleter creates a new initiative completer.
 func NewInitiativeCompleter(
 	gitOps *git.Git,
-	ghClient *github.Client,
+	provider hosting.Provider,
 	backend storage.Backend,
 	cfg *config.Config,
 	logger *slog.Logger,
@@ -55,7 +55,7 @@ func NewInitiativeCompleter(
 ) *InitiativeCompleter {
 	return &InitiativeCompleter{
 		gitOps:     gitOps,
-		ghClient:   ghClient,
+		provider:   provider,
 		backend:    backend,
 		cfg:        cfg,
 		logger:     logger,
@@ -185,17 +185,17 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 		"target", targetBranch)
 
 	// Create a PR for the initiative branch
-	if c.ghClient == nil {
-		c.logger.Warn("no GitHub client configured, cannot create PR for initiative",
+	if c.provider == nil {
+		c.logger.Warn("no hosting provider configured, cannot create PR for initiative",
 			"initiative", init.ID)
 		init.MergeStatus = initiative.MergeStatusFailed
 		init.UpdatedAt = time.Now()
 		if saveErr := c.backend.SaveInitiative(init); saveErr != nil {
-			c.logger.Error("failed to record failed status after GitHub client error",
+			c.logger.Error("failed to record failed status after hosting provider error",
 				"initiative", init.ID,
 				"error", saveErr)
 		}
-		result.Error = fmt.Errorf("no GitHub client configured")
+		result.Error = fmt.Errorf("no hosting provider configured")
 		return result, nil
 	}
 
@@ -204,7 +204,7 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 	prBody := c.buildInitiativePRBody(init)
 
 	// Create the PR
-	prOpts := github.PRCreateOptions{
+	prOpts := hosting.PRCreateOptions{
 		Title:  prTitle,
 		Body:   prBody,
 		Head:   init.BranchBase,
@@ -212,7 +212,7 @@ func (c *InitiativeCompleter) autoMergeInitiative(ctx context.Context, init *ini
 		Labels: c.getPRLabels(),
 	}
 
-	pr, err := c.ghClient.CreatePR(ctx, prOpts)
+	pr, err := c.provider.CreatePR(ctx, prOpts)
 	if err != nil {
 		c.logger.Error("failed to create initiative PR",
 			"initiative", init.ID,
@@ -335,7 +335,7 @@ func (c *InitiativeCompleter) buildInitiativePRBody(init *initiative.Initiative)
 
 // waitAndMerge waits for CI to pass and then merges the PR.
 // Returns the merge commit SHA on success.
-func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative.Initiative, pr *github.PR) (string, error) {
+func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative.Initiative, pr *hosting.PR) (string, error) {
 	// Wait for CI if configured
 	if c.cfg != nil && c.cfg.Completion.CI.WaitForCI {
 		timeout := c.cfg.Completion.CI.CITimeout
@@ -351,7 +351,7 @@ func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative
 		ciCtx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		if err := c.waitForCI(ciCtx, pr.HTMLURL); err != nil {
+		if err := c.waitForCI(ciCtx, pr.HeadBranch); err != nil {
 			return "", fmt.Errorf("CI wait: %w", err)
 		}
 	}
@@ -359,7 +359,7 @@ func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative
 	// Approve PR if configured for auto profiles
 	if c.cfg != nil && c.cfg.Completion.PR.AutoApprove {
 		comment := fmt.Sprintf("Auto-approving initiative %s after all tasks completed successfully.", init.ID)
-		if err := c.approvePR(ctx, pr.HTMLURL, comment); err != nil {
+		if err := c.approvePR(ctx, pr.Number, comment); err != nil {
 			c.logger.Warn("failed to auto-approve initiative PR",
 				"initiative", init.ID,
 				"pr", pr.Number,
@@ -368,7 +368,7 @@ func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative
 		}
 	}
 
-	// Merge the PR using GitHub client
+	// Merge the PR
 	mergeMethod := "squash"
 	if c.cfg != nil && c.cfg.Completion.CI.MergeMethod != "" {
 		mergeMethod = c.cfg.Completion.CI.MergeMethod
@@ -379,16 +379,16 @@ func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative
 		"pr", pr.Number,
 		"method", mergeMethod)
 
-	mergeOpts := github.PRMergeOptions{
+	mergeOpts := hosting.PRMergeOptions{
 		Method:       mergeMethod,
 		DeleteBranch: true, // Clean up initiative branch after merge
 	}
-	if err := c.ghClient.MergePR(ctx, pr.Number, mergeOpts); err != nil {
+	if err := c.provider.MergePR(ctx, pr.Number, mergeOpts); err != nil {
 		return "", fmt.Errorf("merge PR: %w", err)
 	}
 
 	// Get the merge commit SHA by fetching the updated PR
-	mergedPR, err := c.ghClient.GetPR(ctx, pr.Number)
+	mergedPR, err := c.provider.GetPR(ctx, pr.Number)
 	if err != nil {
 		c.logger.Warn("failed to get merged PR details",
 			"initiative", init.ID,
@@ -398,21 +398,16 @@ func (c *InitiativeCompleter) waitAndMerge(ctx context.Context, init *initiative
 	}
 
 	// For merged PRs, the state will be "MERGED" and we can try to get the commit
-	// Note: gh pr view doesn't return merge_commit_sha directly, so we may need
-	// to get it differently. For now, use a placeholder if we can't get it.
 	mergeCommit := "merged"
 	if mergedPR.State == "MERGED" {
-		// The merge commit might be available via the API, but gh CLI doesn't expose it
-		// For simplicity, just mark as merged
 		mergeCommit = "merged"
 	}
 
 	return mergeCommit, nil
 }
 
-// waitForCI polls PR checks until they pass or timeout.
-func (c *InitiativeCompleter) waitForCI(ctx context.Context, prURL string) error {
-	// Use CIMerger-style polling
+// waitForCI polls CI checks until they pass or timeout.
+func (c *InitiativeCompleter) waitForCI(ctx context.Context, branch string) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -421,74 +416,40 @@ func (c *InitiativeCompleter) waitForCI(ctx context.Context, prURL string) error
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			status, err := c.checkCIStatus(ctx, prURL)
+			checks, err := c.provider.GetCheckRuns(ctx, branch)
 			if err != nil {
-				c.logger.Warn("failed to get CI status, will retry",
-					"pr", prURL,
-					"error", err)
+				c.logger.Warn("failed to get CI status, will retry", "error", err)
 				continue
 			}
-
-			switch status {
-			case "passed", "no_checks":
-				return nil
-			case "failed":
-				return fmt.Errorf("CI checks failed")
-			case "pending":
-				c.logger.Debug("CI checks still pending", "pr", prURL)
-				// Continue polling
+			if len(checks) == 0 {
+				return nil // no checks configured
 			}
+
+			allComplete := true
+			anyFailed := false
+			for _, check := range checks {
+				if check.Status != "completed" {
+					allComplete = false
+					break
+				}
+				if check.Conclusion == "failure" || check.Conclusion == "cancelled" {
+					anyFailed = true
+				}
+			}
+			if anyFailed {
+				return fmt.Errorf("CI checks failed")
+			}
+			if allComplete {
+				return nil
+			}
+			c.logger.Debug("CI checks still pending", "branch", branch)
 		}
 	}
-}
-
-// checkCIStatus checks the current CI status for a PR.
-func (c *InitiativeCompleter) checkCIStatus(ctx context.Context, prURL string) (string, error) {
-	output, err := c.runGH(ctx, "pr", "checks", prURL, "--json", "name,state,bucket")
-	if err != nil {
-		if strings.Contains(err.Error(), "no checks") || strings.Contains(output, "[]") {
-			return "no_checks", nil
-		}
-		return "", err
-	}
-
-	output = strings.TrimSpace(output)
-	if output == "" || output == "[]" {
-		return "no_checks", nil
-	}
-
-	// Simple status detection: if any failed, return failed; if any pending, return pending
-	if strings.Contains(output, `"bucket":"fail"`) {
-		return "failed", nil
-	}
-	if strings.Contains(output, `"bucket":"pending"`) {
-		return "pending", nil
-	}
-	return "passed", nil
 }
 
 // approvePR approves a PR with a comment.
-func (c *InitiativeCompleter) approvePR(ctx context.Context, prURL, comment string) error {
-	_, err := c.runGH(ctx, "pr", "review", prURL, "--approve", "--body", comment)
-	return err
-}
-
-// runGH runs a gh command and returns the output.
-func (c *InitiativeCompleter) runGH(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "gh", args...)
-	if c.projectDir != "" {
-		cmd.Dir = c.projectDir
-	}
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return stdout.String(), fmt.Errorf("gh %s: %s: %w", strings.Join(args, " "), stderr.String(), err)
-	}
-
-	return stdout.String(), nil
+func (c *InitiativeCompleter) approvePR(ctx context.Context, prNumber int, comment string) error {
+	return c.provider.ApprovePR(ctx, prNumber, comment)
 }
 
 // ManualCompleteInitiative triggers completion for an initiative that's in pending state.

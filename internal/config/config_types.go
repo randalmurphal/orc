@@ -831,6 +831,21 @@ type AutomationConfig struct {
 	Templates map[string]AutomationTemplateConfig `yaml:"templates,omitempty"`
 }
 
+// HostingConfig defines git hosting provider settings.
+type HostingConfig struct {
+	// Provider type: "github", "gitlab", or "auto" (default).
+	// When "auto", the provider is detected from the git remote URL.
+	Provider string `yaml:"provider" json:"provider"`
+
+	// BaseURL for self-hosted instances (e.g., "https://gitlab.company.com").
+	// Leave empty for github.com / gitlab.com.
+	BaseURL string `yaml:"base_url" json:"base_url,omitempty"`
+
+	// TokenEnvVar overrides the default token environment variable name.
+	// Default: GITHUB_TOKEN for GitHub, GITLAB_TOKEN for GitLab.
+	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
+}
+
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"
@@ -1021,6 +1036,9 @@ var (
 
 	// DefaultProtectedBranches are branches that cannot be directly merged to
 	DefaultProtectedBranches = []string{"main", "master", "develop", "release"}
+
+	// ValidHostingProviders are the allowed values for hosting.provider
+	ValidHostingProviders = []string{"auto", "github", "gitlab", ""}
 
 	// ValidStorageModes are the allowed values for storage.mode
 	ValidStorageModes = []string{string(StorageModeHybrid), string(StorageModeFiles), string(StorageModeDatabase)}

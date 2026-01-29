@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	devgit "github.com/randalmurphal/devflow/git"
 )
 
 // BranchName returns the full branch name for a task.
@@ -296,7 +294,7 @@ func (g *Git) CreateCheckpoint(taskID, phase, message string) (*Checkpoint, erro
 	err := g.ctx.Commit(commitMsg)
 	if err != nil {
 		// If nothing to commit, create empty commit for checkpoint
-		if err == devgit.ErrNothingToCommit {
+		if err == ErrNothingToCommit {
 			if _, runErr := g.ctx.RunGit("commit", "--allow-empty", "-m", commitMsg); runErr != nil {
 				return nil, fmt.Errorf("create empty checkpoint: %w", runErr)
 			}
