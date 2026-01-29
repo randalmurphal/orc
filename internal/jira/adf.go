@@ -116,7 +116,7 @@ func renderNode(b *strings.Builder, node *models.CommentNodeScheme, depth int, i
 
 	default:
 		// Don't silently drop content
-		b.WriteString(fmt.Sprintf("[unsupported: %s]", node.Type))
+		fmt.Fprintf(b, "[unsupported: %s]", node.Type)
 		renderChildren(b, node, depth, false)
 	}
 }
