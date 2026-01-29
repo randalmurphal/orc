@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { type Task, TaskStatus, type ExecutionState } from '@/gen/orc/v1/task_pb';
 import { ActivityState } from '@/gen/orc/v1/events_pb';
@@ -192,10 +193,12 @@ export const useTaskStore = create<TaskStore>()(
 );
 
 // Selector hooks for derived state (memoized via subscribeWithSelector)
-export const useActiveTasks = () => useTaskStore((state) => state.getActiveTasks());
-export const useRecentTasks = () => useTaskStore((state) => state.getRecentTasks());
-export const useRunningTasks = () => useTaskStore((state) => state.getRunningTasks());
-export const useStatusCounts = () => useTaskStore((state) => state.getStatusCounts());
+// useShallow prevents re-renders when filter results haven't changed —
+// these methods return new arrays/objects on every call, but useShallow compares shallowly.
+export const useActiveTasks = () => useTaskStore(useShallow((state) => state.getActiveTasks()));
+export const useRecentTasks = () => useTaskStore(useShallow((state) => state.getRecentTasks()));
+export const useRunningTasks = () => useTaskStore(useShallow((state) => state.getRunningTasks()));
+export const useStatusCounts = () => useTaskStore(useShallow((state) => state.getStatusCounts()));
 
 // Individual task selector
 export const useTask = (taskId: string) =>

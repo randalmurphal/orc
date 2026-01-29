@@ -1,6 +1,30 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+
+// Mock API clients used by SettingsLayout for badge counts
+vi.mock('@/lib/client', () => ({
+	configClient: {
+		getConfigStats: vi.fn().mockResolvedValue({
+			stats: {
+				slashCommandsCount: 5,
+				claudeMdSize: BigInt(0),
+				mcpServersCount: 3,
+				permissionsProfile: 'default',
+			},
+		}),
+	},
+	knowledgeClient: {
+		getKnowledgeStatus: vi.fn().mockResolvedValue({
+			status: {
+				pendingCount: 2,
+				approvedCount: 4,
+				rejectedCount: 0,
+			},
+		}),
+	},
+}));
+
 import { SettingsLayout } from './SettingsLayout';
 
 /**
@@ -151,24 +175,28 @@ describe('SettingsLayout', () => {
 	});
 
 	describe('badges', () => {
-		it('displays badges for items with counts', () => {
+		it('displays badges for items with counts', async () => {
 			const { container } = renderWithRouter();
 
-			// Find badges
-			const badges = container.querySelectorAll('.settings-nav-item__badge');
-			expect(badges.length).toBeGreaterThan(0);
+			// Wait for async API mock to resolve and badges to render
+			await waitFor(() => {
+				const badges = container.querySelectorAll('.settings-nav-item__badge');
+				expect(badges.length).toBeGreaterThan(0);
+			});
 		});
 
-		it('Slash Commands badge shows count', () => {
+		it('Slash Commands badge shows count', async () => {
 			renderWithRouter();
 
-			// Find the Slash Commands nav item
-			const slashCommandsItem = screen.getByText('Slash Commands').closest('.settings-nav-item');
-			expect(slashCommandsItem).toBeInTheDocument();
+			// Wait for API mock to resolve and badge to appear
+			await waitFor(() => {
+				const slashCommandsItem = screen.getByText('Slash Commands').closest('.settings-nav-item');
+				expect(slashCommandsItem).toBeInTheDocument();
 
-			const badge = slashCommandsItem?.querySelector('.settings-nav-item__badge');
-			expect(badge).toBeInTheDocument();
-			expect(badge?.textContent).toBe('5'); // Mock count
+				const badge = slashCommandsItem?.querySelector('.settings-nav-item__badge');
+				expect(badge).toBeInTheDocument();
+				expect(badge?.textContent).toBe('5'); // Mock count from configClient.getConfigStats
+			});
 		});
 	});
 

@@ -3,21 +3,10 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BoardView, type BoardViewProps } from './BoardView';
 import { TooltipProvider } from '@/components/ui/Tooltip';
-import { AppShellProvider, useAppShell } from '@/components/layout/AppShellContext';
-import { EventProvider } from '@/hooks';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { createMockTask, createMockInitiative } from '@/test/factories';
-
-/**
- * Renders the right panel content set via AppShell context.
- * BoardView uses setRightPanelContent to inject command panel into the AppShell.
- */
-function RightPanelRenderer() {
-	const { rightPanelContent } = useAppShell();
-	return <div data-testid="right-panel-content">{rightPanelContent}</div>;
-}
 
 // Mock events module
 vi.mock('@/lib/events', () => ({
@@ -36,8 +25,6 @@ const mockTasks: Task[] = [];
 const mockTaskStates = new Map();
 const mockLoading = false;
 const mockInitiatives: Initiative[] = [];
-const mockTotalTokens = 0;
-const mockTotalCost = 0;
 
 // Mock taskStore
 vi.mock('@/stores/taskStore', () => ({
@@ -56,53 +43,12 @@ vi.mock('@/stores/initiativeStore', () => ({
 	useInitiatives: () => mockInitiatives,
 }));
 
-// Mock sessionStore
-vi.mock('@/stores/sessionStore', () => ({
-	useSessionStore: (selector: (state: unknown) => unknown) => {
-		const state = {
-			totalTokens: mockTotalTokens,
-			totalCost: mockTotalCost,
-		};
-		return selector(state);
-	},
-}));
-
-// Mock API to prevent actual fetch calls
-vi.mock('@/lib/api', () => ({
-	getConfigStats: vi.fn().mockResolvedValue({
-		slashCommandsCount: 0,
-		claudeMdSize: 0,
-		mcpServersCount: 0,
-		permissionsProfile: 'default',
-	}),
-}));
-
-// Mock client to prevent actual RPC calls
-vi.mock('@/lib/client', () => ({
-	decisionClient: {
-		resolveDecision: vi.fn().mockResolvedValue({}),
-	},
-	taskClient: {
-		skipBlock: vi.fn().mockResolvedValue({}),
-		runTask: vi.fn().mockResolvedValue({}),
-	},
-	configClient: {
-		getConfigStats: vi.fn().mockResolvedValue({
-			stats: {
-				slashCommandsCount: 0,
-				claudeMdSize: BigInt(0),
-				mcpServersCount: 0,
-				permissionsProfile: 'default',
-			},
-		}),
-	},
-}));
-
-// Mock uiStore for pending decisions
+// Mock uiStore — stable reference to prevent re-render loops
+const mockPendingDecisions: unknown[] = [];
 vi.mock('@/stores/uiStore', () => ({
 	useUIStore: (selector: (state: unknown) => unknown) => {
 		const state = {
-			pendingDecisions: [],
+			pendingDecisions: mockPendingDecisions,
 			removePendingDecision: vi.fn(),
 			wsStatus: 'disconnected',
 			setWsStatus: vi.fn(),
@@ -111,20 +57,16 @@ vi.mock('@/stores/uiStore', () => ({
 		};
 		return selector(state);
 	},
-	usePendingDecisions: () => [],
+	usePendingDecisions: () => mockPendingDecisions,
 }));
 
 // Helper to render with required providers
+// No AppShellProvider needed — BoardView no longer touches context
 function renderBoardView(props: Partial<BoardViewProps> = {}) {
 	return render(
 		<TooltipProvider>
 			<MemoryRouter>
-				<EventProvider>
-					<AppShellProvider>
-						<BoardView {...props} />
-						<RightPanelRenderer />
-					</AppShellProvider>
-				</EventProvider>
+				<BoardView {...props} />
 			</MemoryRouter>
 		</TooltipProvider>
 	);
@@ -170,7 +112,6 @@ describe('BoardView', () => {
 			renderBoardView();
 
 			// QueueColumn should receive the planned task
-			// We can verify by checking the Queue column renders expected content
 			expect(screen.getByText('Queue')).toBeInTheDocument();
 		});
 
@@ -182,34 +123,6 @@ describe('BoardView', () => {
 
 			// RunningColumn should receive the running task
 			expect(screen.getByText('Running')).toBeInTheDocument();
-		});
-
-		it('renders blocked tasks in command panel via AppShell context', () => {
-			const blockedTask = createMockTask({ id: 'T1', status: TaskStatus.BLOCKED });
-			mockTasks.push(blockedTask);
-
-			renderBoardView();
-
-			// Command panel is rendered via AppShell right panel context
-			expect(screen.getByText('Blocked')).toBeInTheDocument();
-		});
-	});
-
-	describe('command panel via AppShell context', () => {
-		it('renders command panel via AppShell right panel', () => {
-			renderBoardView();
-			// Command panel content is injected into AppShell right panel
-			expect(screen.getByTestId('right-panel-content').querySelector('.command-panel')).toBeInTheDocument();
-		});
-
-		it('renders all panel sections in command panel', () => {
-			renderBoardView();
-
-			// All panel sections rendered via AppShell right panel context
-			expect(screen.getByText('Blocked')).toBeInTheDocument();
-			expect(screen.getByText('Decisions')).toBeInTheDocument();
-			expect(screen.getByText('Files Changed')).toBeInTheDocument();
-			expect(screen.getByText('Completed')).toBeInTheDocument();
 		});
 	});
 
@@ -228,7 +141,6 @@ describe('BoardView', () => {
 			}));
 
 			// Note: Due to module caching, this test documents expected behavior
-			// The actual loading state is tested via the CSS class
 			const { container } = renderBoardView();
 
 			// When not loading, skeleton should not be visible
@@ -238,17 +150,12 @@ describe('BoardView', () => {
 
 	describe('empty state', () => {
 		it('renders empty state when no queued tasks', () => {
-			// No tasks added to mockTasks
 			renderBoardView();
-
-			// QueueColumn should show empty state
 			expect(screen.getByText('No queued tasks')).toBeInTheDocument();
 		});
 
 		it('renders empty state when no running tasks', () => {
 			renderBoardView();
-
-			// RunningColumn should show empty state
 			expect(screen.getByText('No running tasks')).toBeInTheDocument();
 		});
 	});
@@ -263,7 +170,6 @@ describe('BoardView', () => {
 
 			renderBoardView();
 
-			// Tasks should be grouped in swimlane
 			expect(screen.getByText('Feature Work')).toBeInTheDocument();
 		});
 	});

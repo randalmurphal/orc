@@ -10,7 +10,7 @@
  * - useTaskListShortcuts: Hook for task list shortcuts
  */
 
-import { createContext, useContext, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
 	getShortcutManager,
@@ -47,18 +47,26 @@ interface ShortcutProviderProps {
 export function ShortcutProvider({ children }: ShortcutProviderProps) {
 	const manager = getShortcutManager();
 
-	const contextValue: ShortcutContextValue = {
-		registerShortcut: useCallback((shortcut: Shortcut) => manager.register(shortcut), [manager]),
-		registerSequence: useCallback(
-			(sequence: ShortcutSequence) => manager.registerSequence(sequence),
-			[manager]
-		),
-		setContext: useCallback((context: ShortcutCtx) => manager.setContext(context), [manager]),
-		getContext: useCallback(() => manager.getContext(), [manager]),
-		setEnabled: useCallback((enabled: boolean) => manager.setEnabled(enabled), [manager]),
-		isEnabled: useCallback(() => manager.isEnabled(), [manager]),
-		getShortcuts: useCallback(() => manager.getShortcuts(), [manager]),
-	};
+	const registerShortcut = useCallback((shortcut: Shortcut) => manager.register(shortcut), [manager]);
+	const registerSequence = useCallback(
+		(sequence: ShortcutSequence) => manager.registerSequence(sequence),
+		[manager]
+	);
+	const setContext = useCallback((context: ShortcutCtx) => manager.setContext(context), [manager]);
+	const getContext = useCallback(() => manager.getContext(), [manager]);
+	const setEnabled = useCallback((enabled: boolean) => manager.setEnabled(enabled), [manager]);
+	const isEnabled = useCallback(() => manager.isEnabled(), [manager]);
+	const getShortcuts = useCallback(() => manager.getShortcuts(), [manager]);
+
+	const contextValue = useMemo<ShortcutContextValue>(() => ({
+		registerShortcut,
+		registerSequence,
+		setContext,
+		getContext,
+		setEnabled,
+		isEnabled,
+		getShortcuts,
+	}), [registerShortcut, registerSequence, setContext, getContext, setEnabled, isEnabled, getShortcuts]);
 
 	return <ShortcutContext.Provider value={contextValue}>{children}</ShortcutContext.Provider>;
 }

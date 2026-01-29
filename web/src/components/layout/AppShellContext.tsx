@@ -4,10 +4,12 @@
  *
  * Manages:
  * - Right panel open/collapsed state
- * - Right panel content
  * - localStorage persistence for collapsed state
  * - Keyboard shortcut for panel toggle (Shift+Alt+R)
  * - Responsive behavior (auto-collapse at breakpoints)
+ *
+ * NOTE: Right panel CONTENT is NOT managed here. Components like
+ * BoardCommandPanel read directly from stores — no JSX-through-context.
  */
 
 import {
@@ -16,6 +18,7 @@ import {
 	useState,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	type ReactNode,
 } from 'react';
@@ -37,10 +40,6 @@ export interface AppShellContextValue {
 	isRightPanelOpen: boolean;
 	/** Toggle the right panel open/closed */
 	toggleRightPanel: () => void;
-	/** Set custom content for the right panel */
-	setRightPanelContent: (content: ReactNode) => void;
-	/** Current right panel content (null for default) */
-	rightPanelContent: ReactNode;
 	/** Whether mobile nav is in hamburger mode */
 	isMobileNavMode: boolean;
 	/** Ref to attach to the panel toggle button for focus management */
@@ -118,7 +117,6 @@ const AppShellContext = createContext<AppShellContextValue | null>(null);
 export function AppShellProvider({ children }: AppShellProviderProps) {
 	// State initialization uses extracted helpers for clarity and testability
 	const [isRightPanelOpen, setIsRightPanelOpen] = useState(getInitialPanelState);
-	const [rightPanelContent, setRightPanelContent] = useState<ReactNode>(null);
 	const [isMobileNavMode, setIsMobileNavMode] = useState(getInitialMobileNavMode);
 
 	// Ref to track if initial render is done (for focus management)
@@ -201,14 +199,16 @@ export function AppShellProvider({ children }: AppShellProviderProps) {
 		}
 	}, [isRightPanelOpen]);
 
-	const value: AppShellContextValue = {
-		isRightPanelOpen,
-		toggleRightPanel,
-		setRightPanelContent,
-		rightPanelContent,
-		isMobileNavMode,
-		panelToggleRef,
-	};
+	// Memoize context value to prevent unnecessary consumer re-renders.
+	const value = useMemo<AppShellContextValue>(
+		() => ({
+			isRightPanelOpen,
+			toggleRightPanel,
+			isMobileNavMode,
+			panelToggleRef,
+		}),
+		[isRightPanelOpen, toggleRightPanel, isMobileNavMode],
+	);
 
 	return (
 		<AppShellContext.Provider value={value}>

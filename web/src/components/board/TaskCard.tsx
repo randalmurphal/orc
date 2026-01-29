@@ -9,7 +9,7 @@
  * - Status indicators (blocked warning, running progress)
  */
 
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { type Task, TaskStatus, TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
@@ -17,8 +17,13 @@ import './TaskCard.css';
 
 interface TaskCardProps {
 	task: Task;
+	/** Simple click handler (creates new reference per task — use onTaskClick for memo-friendly lists) */
 	onClick?: () => void;
+	/** Memo-friendly click handler — receives task, stable across renders */
+	onTaskClick?: (task: Task) => void;
 	onContextMenu?: (e: React.MouseEvent) => void;
+	/** Memo-friendly context menu handler — receives task, stable across renders */
+	onTaskContextMenu?: (task: Task, e: React.MouseEvent) => void;
 	isSelected?: boolean;
 	showInitiative?: boolean;
 	className?: string;
@@ -82,10 +87,12 @@ function buildAriaLabel(task: Task, position?: number): string {
 	return parts.join(', ');
 }
 
-export function TaskCard({
+export const TaskCard = memo(function TaskCard({
 	task,
 	onClick,
+	onTaskClick,
 	onContextMenu,
+	onTaskContextMenu,
 	isSelected = false,
 	showInitiative = false,
 	className = '',
@@ -101,28 +108,40 @@ export function TaskCard({
 	const isBlocked = task.isBlocked;
 	const hasPendingDecision = pendingDecisionCount > 0;
 
-	// Click handler
+	// Click handler — prefers memo-friendly onTaskClick over onClick
 	const handleClick = useCallback(() => {
-		onClick?.();
-	}, [onClick]);
+		if (onTaskClick) {
+			onTaskClick(task);
+		} else {
+			onClick?.();
+		}
+	}, [onClick, onTaskClick, task]);
 
 	// Keyboard handler for accessibility
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === 'Enter' || e.key === ' ') {
 				e.preventDefault();
-				onClick?.();
+				if (onTaskClick) {
+					onTaskClick(task);
+				} else {
+					onClick?.();
+				}
 			}
 		},
-		[onClick]
+		[onClick, onTaskClick, task]
 	);
 
-	// Context menu handler
+	// Context menu handler — prefers memo-friendly onTaskContextMenu
 	const handleContextMenu = useCallback(
 		(e: React.MouseEvent) => {
-			onContextMenu?.(e);
+			if (onTaskContextMenu) {
+				onTaskContextMenu(task, e);
+			} else {
+				onContextMenu?.(e);
+			}
 		},
-		[onContextMenu]
+		[onContextMenu, onTaskContextMenu, task]
 	);
 
 	// Build class names
@@ -207,4 +226,4 @@ export function TaskCard({
 			</div>
 		</article>
 	);
-}
+});

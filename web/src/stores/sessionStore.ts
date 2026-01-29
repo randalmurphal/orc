@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { create as createProto } from '@bufbuild/protobuf';
 import { taskClient } from '@/lib/client';
@@ -353,9 +354,11 @@ export const useFormattedDuration = () => useSessionStore((state) => state.durat
 export const useFormattedCost = () => useSessionStore((state) => state.formattedCost);
 export const useFormattedTokens = () => useSessionStore((state) => state.formattedTokens);
 
-// Session metrics as a single object (for components that need all metrics)
+// Session metrics as a single object (for components that need all metrics).
+// useShallow prevents re-renders when individual values haven't changed —
+// without it, a new object is created every render, failing reference equality.
 export const useSessionMetrics = () =>
-	useSessionStore((state) => ({
+	useSessionStore(useShallow((state) => ({
 		duration: state.duration,
 		formattedCost: state.formattedCost,
 		formattedTokens: state.formattedTokens,
@@ -363,7 +366,7 @@ export const useSessionMetrics = () =>
 		totalCost: state.totalCost,
 		inputTokens: state.inputTokens,
 		outputTokens: state.outputTokens,
-	}));
+	})));
 
 // Export storage keys for testing
 export const STORAGE_KEYS = {

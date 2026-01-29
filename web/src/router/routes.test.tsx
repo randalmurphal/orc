@@ -93,9 +93,19 @@ vi.mock('@/lib/client', () => ({
 		listSkills: vi.fn().mockResolvedValue({
 			skills: [],
 		}),
+		getClaudeMd: vi.fn().mockResolvedValue({
+			files: [],
+		}),
 	},
 	decisionClient: {
 		resolveDecision: vi.fn().mockResolvedValue({}),
+	},
+	knowledgeClient: {
+		listKnowledge: vi.fn().mockResolvedValue({ entries: [] }),
+		getKnowledgeStatus: vi.fn().mockResolvedValue({ status: null }),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
 	},
 }));
 
@@ -484,24 +494,24 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders placeholder at /settings/claude-md', async () => {
+		it('renders ClaudeMdPage at /settings/claude-md', async () => {
 			renderWithRouter('/settings/claude-md');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 2, name: 'CLAUDE.md' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 3, name: 'CLAUDE.md Editor' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/mcp', async () => {
+		it('renders Mcp at /settings/mcp', async () => {
 			renderWithRouter('/settings/mcp');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 2, name: 'MCP Servers' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 3, name: 'MCP Servers' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/memory', async () => {
+		it('renders Memory at /settings/memory', async () => {
 			renderWithRouter('/settings/memory');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 2, name: 'Memory' })).toBeInTheDocument();
+				expect(screen.getByRole('heading', { level: 3, name: 'Memory' })).toBeInTheDocument();
 			});
 		});
 
@@ -526,10 +536,11 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders placeholder at /settings/import-export', async () => {
+		it('renders ImportExportPage at /settings/import-export', async () => {
 			renderWithRouter('/settings/import-export');
 			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 2, name: 'Import / Export' })).toBeInTheDocument();
+				// ImportExportPage renders separate Export and Import sections (h3)
+				expect(screen.getByRole('heading', { level: 3, name: 'Export' })).toBeInTheDocument();
 			});
 		});
 

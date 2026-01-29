@@ -62,6 +62,7 @@ describe('AgentsView', () => {
 		completion: {
 			action: 'finalize',
 			autoMerge: false,
+			deleteBranch: false,
 			targetBranch: 'main',
 			$typeName: 'orc.v1.CompletionConfig',
 		},

@@ -8,7 +8,7 @@
  * - Collapsible output section with color-coded lines
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { Pipeline } from './Pipeline';
 import { type Task, type ExecutionState, PhaseStatus } from '@/gen/orc/v1/task_pb';
@@ -136,7 +136,7 @@ function buildAriaLabel(task: Task, expanded: boolean): string {
 /**
  * RunningCard component for displaying active task execution.
  */
-export function RunningCard({
+export const RunningCard = memo(function RunningCard({
 	task,
 	state,
 	expanded = false,
@@ -181,6 +181,11 @@ export function RunningCard({
 	const parsedOutputLines = useMemo(() => {
 		return rawOutputLines.map(parseOutputLine);
 	}, [rawOutputLines]);
+
+	// Slice to last 50 lines — memoized to avoid recomputing on every render
+	const visibleOutputLines = useMemo(() => {
+		return parsedOutputLines.slice(-50);
+	}, [parsedOutputLines]);
 
 	// Click handler
 	const handleClick = useCallback(() => {
@@ -248,8 +253,8 @@ export function RunningCard({
 
 			{/* Output section (collapsible) */}
 			<div className={`running-output ${expanded ? 'expanded' : ''}`}>
-				{parsedOutputLines.length > 0 ? (
-					parsedOutputLines.slice(-50).map((line, index) => (
+				{visibleOutputLines.length > 0 ? (
+					visibleOutputLines.map((line, index) => (
 						<span key={`line-${index}`} className={`output-line ${line.type}`}>
 							{line.content}
 						</span>
@@ -265,7 +270,7 @@ export function RunningCard({
 			</div>
 		</article>
 	);
-}
+});
 
 // Export utilities for parent components
 export { parseOutputLine, formatElapsedTime, mapPhaseToDisplay };
