@@ -169,6 +169,23 @@ describe('workflowEditorStore', () => {
 			useWorkflowEditorStore.getState().selectNode(null);
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
 		});
+
+		it('replaces previous selection when selecting a different node', () => {
+			useWorkflowEditorStore.getState().selectNode('node-1');
+			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe('node-1');
+
+			useWorkflowEditorStore.getState().selectNode('node-2');
+			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe('node-2');
+
+			useWorkflowEditorStore.getState().selectNode('node-3');
+			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe('node-3');
+		});
+
+		it('selecting the same node again keeps it selected', () => {
+			useWorkflowEditorStore.getState().selectNode('node-1');
+			useWorkflowEditorStore.getState().selectNode('node-1');
+			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe('node-1');
+		});
 	});
 
 	describe('reset', () => {
