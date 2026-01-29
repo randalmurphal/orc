@@ -2,15 +2,31 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
+import { GateType } from '@/gen/orc/v1/workflow_pb';
+import type { PhaseNodeData } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import './WorkflowEditorPage.css';
+
+function formatGateType(gt: GateType): string {
+	switch (gt) {
+		case GateType.HUMAN:
+			return 'Human';
+		case GateType.SKIP:
+			return 'Skip';
+		case GateType.AUTO:
+			return 'Auto';
+		default:
+			return 'Auto';
+	}
+}
 
 export function WorkflowEditorPage() {
 	const { id } = useParams<{ id: string }>();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
-	const readOnly = useWorkflowEditorStore((s) => s.readOnly);
+	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
+	const nodes = useWorkflowEditorStore((s) => s.nodes);
 	const loadFromWorkflow = useWorkflowEditorStore((s) => s.loadFromWorkflow);
 	const reset = useWorkflowEditorStore((s) => s.reset);
 
@@ -70,7 +86,29 @@ export function WorkflowEditorPage() {
 		);
 	}
 
-	const workflowName = workflowDetails?.workflow?.name ?? 'Workflow';
+	const workflow = workflowDetails?.workflow;
+	const workflowName = workflow?.name || id || 'Workflow';
+	const isBuiltin = workflow?.isBuiltin ?? false;
+	const inspectorOpen = selectedNodeId !== null;
+
+	// Find selected node data for the inspector panel
+	const selectedNode = selectedNodeId
+		? nodes.find((n) => n.id === selectedNodeId)
+		: null;
+	const selectedPhaseData = selectedNode
+		? (selectedNode.data as unknown as PhaseNodeData)
+		: null;
+
+	const handleClone = () => {
+		if (workflow) {
+			window.dispatchEvent(
+				new CustomEvent('orc:clone-workflow', { detail: { workflow } })
+			);
+		}
+	};
+
+	const bodyClasses = ['workflow-editor-body'];
+	if (inspectorOpen) bodyClasses.push('workflow-editor-body--inspector-open');
 
 	return (
 		<div className="workflow-editor-page">
@@ -82,13 +120,21 @@ export function WorkflowEditorPage() {
 						{workflowName}
 					</span>
 				</nav>
-				{readOnly && (
-					<span className="workflow-editor-badge">
-						Read-only &middot; Clone to customize
-					</span>
-				)}
+				<div className="workflow-editor-header-actions">
+					{isBuiltin && (
+						<span className="workflow-editor-badge">Built-in</span>
+					)}
+					{isBuiltin && (
+						<button
+							className="workflow-editor-clone-btn"
+							onClick={handleClone}
+						>
+							Clone
+						</button>
+					)}
+				</div>
 			</div>
-			<div className="workflow-editor-body">
+			<div className={bodyClasses.join(' ')}>
 				<aside className="workflow-editor-palette">
 					<span>Phase Palette</span>
 					<span>(coming soon)</span>
@@ -96,10 +142,42 @@ export function WorkflowEditorPage() {
 				<div className="workflow-editor-canvas">
 					<WorkflowCanvas />
 				</div>
-				<aside className="workflow-editor-inspector">
-					<span>Phase Inspector</span>
-					<span>(coming soon)</span>
-				</aside>
+				{inspectorOpen && selectedPhaseData && (
+					<aside className="workflow-editor-inspector">
+						<div className="workflow-editor-inspector-header">
+							<h3 className="workflow-editor-inspector-title">
+								{selectedPhaseData.templateName || selectedPhaseData.phaseTemplateId}
+							</h3>
+						</div>
+						{selectedPhaseData.description && (
+							<p className="workflow-editor-inspector-description">
+								{selectedPhaseData.description}
+							</p>
+						)}
+						<div className="workflow-editor-inspector-details">
+							<div className="workflow-editor-inspector-field">
+								<span className="workflow-editor-inspector-label">Gate Type</span>
+								<span className="workflow-editor-inspector-value">
+									{formatGateType(selectedPhaseData.gateType)}
+								</span>
+							</div>
+							<div className="workflow-editor-inspector-field">
+								<span className="workflow-editor-inspector-label">Max Iterations</span>
+								<span className="workflow-editor-inspector-value">
+									{selectedPhaseData.maxIterations}
+								</span>
+							</div>
+							{selectedPhaseData.modelOverride && (
+								<div className="workflow-editor-inspector-field">
+									<span className="workflow-editor-inspector-label">Model Override</span>
+									<span className="workflow-editor-inspector-value">
+										{selectedPhaseData.modelOverride}
+									</span>
+								</div>
+							)}
+						</div>
+					</aside>
+				)}
 			</div>
 		</div>
 	);

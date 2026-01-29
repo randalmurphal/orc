@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Workflow, PhaseTemplate, DefinitionSource } from '@/gen/orc/v1/workflow_pb';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowStore } from '@/stores/workflowStore';
@@ -85,6 +86,7 @@ function WorkflowsViewError({ error, onRetry }: WorkflowsViewErrorProps) {
  * WorkflowsView displays all workflows and phase templates.
  */
 export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
+	const navigate = useNavigate();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
@@ -131,8 +133,8 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 	}, [loadData, refreshKey]);
 
 	const handleSelectWorkflow = useCallback((workflow: Workflow) => {
-		window.dispatchEvent(new CustomEvent('orc:select-workflow', { detail: { workflow } }));
-	}, []);
+		navigate(`/workflows/${workflow.id}`);
+	}, [navigate]);
 
 	const handleCloneWorkflow = useCallback((workflow: Workflow) => {
 		window.dispatchEvent(new CustomEvent('orc:clone-workflow', { detail: { workflow } }));
