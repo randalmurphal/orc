@@ -422,6 +422,12 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			return result, fmt.Errorf("turn %d: %w", i+1, err)
 		}
 
+		// Update session ID for subsequent turns so executor uses --resume
+		// instead of --session-id (which fails if session already exists)
+		if turnResult.SessionID != "" {
+			turnExec.UpdateSessionID(turnResult.SessionID)
+		}
+
 		// Accumulate tokens
 		if turnResult.Usage != nil {
 			result.InputTokens += int(turnResult.Usage.InputTokens)
