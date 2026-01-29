@@ -121,7 +121,7 @@ export function PhaseInspector({
 						phaseTemplateId={template.id}
 						promptSource={template.promptSource}
 						promptContent={template.promptContent}
-						readOnly={readOnly}
+						readOnly={isBuiltin}
 					/>
 				</Tabs.Content>
 
