@@ -111,12 +111,14 @@
 	background: var(--bg-secondary);
 	color: var(--text-muted);
 	font-size: var(--text-sm);
-	/* QA-003 fix: Use CSS containment to create strict isolation boundary.
-	   This prevents hit-testing from returning palette elements when clicking canvas. */
+	/* QA-003 fix: Use CSS containment + explicit stacking context to prevent
+	   palette elements from intercepting canvas pointer events. */
 	overflow: hidden;
 	max-width: 240px;
 	min-width: 0;
 	contain: strict;
+	position: relative;
+	z-index: 1;
 }
 
 /* Center canvas */
@@ -125,6 +127,9 @@
 	overflow: hidden;
 	min-width: 0;
 	min-height: 0;
+	/* QA-003 fix: Higher z-index ensures canvas receives pointer events
+	   over palette elements that may visually overlap at grid boundaries. */
+	z-index: 2;
 }
 
 /* Right panel (inspector) */
