@@ -66,6 +66,7 @@ When rules conflict, higher priority wins:
 | **No os.Chdir in Tests** | Use explicit path parameters, never `os.Chdir()` | Process-wide, not goroutine-safe | Flaky tests, wrong directory |
 | **Worktree Isolation** | Each task runs in its own worktree | Main repo must stay clean | Conflicts between parallel tasks |
 | **Sync Failure Cleanup** | Sync-on-start failures MUST cleanup worktree+branch unconditionally (TASK-499) | No phases ran, no work to preserve; zombies block retry | Zombie worktrees accumulate, retry fails with "branch exists" |
+| **Remote Feature First** | On resume, sync with remote feature branch BEFORE target branch (TASK-521) | Remote may have commits from previous interrupted run | Push rejected due to divergent history |
 
 ### Testing
 

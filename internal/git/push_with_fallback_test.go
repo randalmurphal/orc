@@ -295,6 +295,153 @@ func TestPushWithForceFallback_ForceAlsoFailsReturnsError(t *testing.T) {
 	t.Skip("Requires mock git implementation or complex multi-process setup")
 }
 
+// TestPushWithForceFallback_ErrorMessageContainsContext verifies SC-3:
+// Error message clearly indicates push failure reason.
+// This tests that error messages contain useful context for debugging.
+func TestPushWithForceFallback_ErrorMessageContainsContext(t *testing.T) {
+	t.Parallel()
+
+	remoteDir, localDir, cleanup := setupRemoteAndLocalRepos(t)
+	defer cleanup()
+
+	baseGit, _ := New(localDir, DefaultConfig())
+	g := baseGit.InWorktree(localDir)
+
+	// Create task branch with commit
+	if err := g.CreateBranch("TASK-ERR"); err != nil {
+		t.Fatalf("CreateBranch() failed: %v", err)
+	}
+
+	testFile := filepath.Join(localDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("commit 1"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	cmd := exec.Command("git", "add", ".")
+	cmd.Dir = localDir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "First commit")
+	cmd.Dir = localDir
+	_ = cmd.Run()
+
+	// Push first time
+	cmd = exec.Command("git", "push", "-u", "origin", "orc/TASK-ERR")
+	cmd.Dir = localDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("initial push failed: %v", err)
+	}
+
+	// Create divergent history to trigger force-with-lease
+	cmd = exec.Command("git", "reset", "--hard", "HEAD~1")
+	cmd.Dir = localDir
+	_ = cmd.Run()
+
+	if err := os.WriteFile(testFile, []byte("divergent commit"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = localDir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "commit", "-m", "Divergent commit")
+	cmd.Dir = localDir
+	_ = cmd.Run()
+
+	// Capture log to verify warning message contains context
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	// This should succeed using force-with-lease
+	err := g.PushWithForceFallback("origin", "orc/TASK-ERR", false, logger)
+	if err != nil {
+		// If push fails, error should contain useful context
+		errStr := err.Error()
+		if !strings.Contains(errStr, "push") &&
+			!strings.Contains(errStr, "TASK-ERR") &&
+			!strings.Contains(errStr, "origin") {
+			t.Errorf("SC-3 FAILED: error message lacks context, got: %v", err)
+		}
+	}
+
+	// SC-3: Verify warning log contains context about the push failure
+	logOutput := logBuf.String()
+	if strings.Contains(logOutput, "force-with-lease") {
+		// The log should contain:
+		// 1. Branch name
+		// 2. Reason for retry
+		if !strings.Contains(logOutput, "TASK-ERR") {
+			t.Error("SC-3 FAILED: warning log should contain branch name")
+		}
+		if !strings.Contains(logOutput, "non-fast-forward") &&
+			!strings.Contains(logOutput, "divergent") {
+			t.Error("SC-3 FAILED: warning log should indicate divergent history reason")
+		}
+	}
+
+	_ = remoteDir
+}
+
+// TestIsNonFastForwardError_VariousPatterns verifies that IsNonFastForwardError
+// correctly identifies different error message patterns from git.
+// Covers: SC-3 (error detection for retry logic)
+func TestIsNonFastForwardError_VariousPatterns(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		errMsg   string
+		expected bool
+	}{
+		{
+			name:     "explicit non-fast-forward",
+			errMsg:   "error: failed to push some refs - non-fast-forward update",
+			expected: true,
+		},
+		{
+			name:     "rejected fetch first",
+			errMsg:   "Updates were rejected because the remote contains work that you do not have locally. Please fetch first",
+			expected: true,
+		},
+		{
+			name:     "failed to push behind",
+			errMsg:   "failed to push: your branch is behind 'origin/orc/TASK-001'",
+			expected: true,
+		},
+		{
+			name:     "network error",
+			errMsg:   "Could not resolve host: github.com",
+			expected: false,
+		},
+		{
+			name:     "permission denied",
+			errMsg:   "Permission denied (publickey)",
+			expected: false,
+		},
+		{
+			name:     "repository not found",
+			errMsg:   "remote: Repository not found",
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			errMsg:   "",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			if tc.errMsg != "" {
+				err = errors.New(tc.errMsg)
+			}
+
+			got := IsNonFastForwardError(err)
+			if got != tc.expected {
+				t.Errorf("IsNonFastForwardError(%q) = %v, want %v", tc.errMsg, got, tc.expected)
+			}
+		})
+	}
+}
+
 // TestPushWithForceFallback_LogsWarningOnForce verifies that when force push
 // is used, a warning is logged.
 // Covers: SC-5 (warning logged when force push is used)

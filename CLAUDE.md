@@ -369,6 +369,7 @@ Patterns, gotchas, and decisions learned during development.
 ### Known Gotchas
 | Issue | Resolution | Source |
 |-------|------------|--------|
+| Resume push rejected due to divergent history with remote feature branch | Sync local with remote feature branch BEFORE syncing with target; merge from remote (or reset on conflict) | TASK-521 |
 | Review schema missing `status` field → blocked reviews silently pass | JSON schema `required` array must include ALL fields the Go struct validates against; added post-loop validation | TASK-630 |
 | Phase labels stuck on "starting" in `orc status` | Read `task.CurrentPhase` directly from task record (set by executor before each phase), not from `workflow_runs` | TASK-617 |
 | N+1 queries in dashboard endpoints (e.g., per-initiative title lookups) | Use batch loading (`GetInitiativeTitlesBatch`) — single query returns all titles | TASK-531 |
