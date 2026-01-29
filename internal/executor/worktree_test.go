@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -628,9 +629,18 @@ func TestSetupWorktreeForTask_CleansDirtyWorktree(t *testing.T) {
 		t.Error("worktree should be clean after reuse")
 	}
 
-	// Verify dirty file was removed
-	if _, err := os.Stat(dirtyFile); !os.IsNotExist(err) {
-		t.Error("dirty file should be removed after reuse")
+	// Verify dirty file was rescued (committed, not discarded)
+	if _, err := os.Stat(dirtyFile); err != nil {
+		t.Error("dirty file should still exist after rescue commit")
+	}
+
+	// Verify a rescue commit was created
+	out, err := exec.Command("git", "-C", result2.Path, "log", "--oneline", "-1").Output()
+	if err != nil {
+		t.Fatalf("failed to get latest commit: %v", err)
+	}
+	if !strings.Contains(string(out), "Rescue uncommitted changes") {
+		t.Errorf("expected rescue commit, got: %s", strings.TrimSpace(string(out)))
 	}
 }
 
