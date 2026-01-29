@@ -465,7 +465,9 @@ func TestCheckAuth_MockServer(t *testing.T) {
 				"displayName": "Test User",
 				"emailAddress": "test@example.com",
 			}
-			_ = json.NewEncoder(w).Encode(resp)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Errorf("failed to encode response: %v", err)
+			}
 		}))
 		defer server.Close()
 
@@ -519,7 +521,9 @@ func TestFetchCustomFields_MockServer(t *testing.T) {
 			},
 			"total": 1,
 		}
-		_ = json.NewEncoder(w).Encode(resp)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			t.Errorf("failed to encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 

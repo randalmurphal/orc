@@ -50,6 +50,12 @@
 	max-width: 300px;
 }
 
+.workflow-editor-header-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
 .workflow-editor-badge {
 	display: inline-flex;
 	align-items: center;
@@ -63,12 +69,36 @@
 	white-space: nowrap;
 }
 
-/* 3-panel layout */
+.workflow-editor-clone-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--accent);
+	background: transparent;
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.workflow-editor-clone-btn:hover {
+	background: var(--bg-tertiary);
+}
+
+/* Dynamic 2/3-panel layout */
 .workflow-editor-body {
 	display: grid;
-	grid-template-columns: 240px 1fr 280px;
+	grid-template-columns: 240px 1fr;
 	flex: 1;
 	overflow: hidden;
+	transition: grid-template-columns 0.2s ease;
+}
+
+.workflow-editor-body--inspector-open {
+	grid-template-columns: 240px 1fr 360px;
 }
 
 /* Left sidebar (palette placeholder) */
@@ -91,17 +121,62 @@
 	overflow: hidden;
 }
 
-/* Right panel (inspector placeholder) */
+/* Right panel (inspector) */
 .workflow-editor-inspector {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-2);
+	align-items: stretch;
+	gap: var(--space-3);
 	padding: var(--space-4);
 	border-left: 1px solid var(--border);
 	background: var(--bg-secondary);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	overflow-y: auto;
+}
+
+.workflow-editor-inspector-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.workflow-editor-inspector-title {
+	margin: 0;
+	font-size: var(--text-base);
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+.workflow-editor-inspector-description {
+	margin: 0;
 	color: var(--text-muted);
+	font-size: var(--text-sm);
+	line-height: 1.5;
+}
+
+.workflow-editor-inspector-details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.workflow-editor-inspector-field {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: var(--space-2) 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.workflow-editor-inspector-label {
+	color: var(--text-muted);
+	font-size: var(--text-xs);
+	font-weight: 500;
+}
+
+.workflow-editor-inspector-value {
+	color: var(--text-primary);
 	font-size: var(--text-sm);
 }
 

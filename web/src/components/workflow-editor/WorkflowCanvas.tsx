@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
 	ReactFlow,
 	ReactFlowProvider,
@@ -5,6 +6,7 @@ import {
 	MiniMap,
 	Background,
 	BackgroundVariant,
+	type NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './WorkflowCanvas.css';
@@ -16,6 +18,19 @@ export function WorkflowCanvas() {
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
 	const edges = useWorkflowEditorStore((s) => s.edges);
 	const readOnly = useWorkflowEditorStore((s) => s.readOnly);
+	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
+
+	const onNodeClick: NodeMouseHandler = useCallback(
+		(_event, node) => {
+			if (node.type === 'startEnd') return;
+			selectNode(node.id);
+		},
+		[selectNode]
+	);
+
+	const onPaneClick = useCallback(() => {
+		selectNode(null);
+	}, [selectNode]);
 
 	return (
 		<ReactFlowProvider>
@@ -27,7 +42,9 @@ export function WorkflowCanvas() {
 					nodeTypes={nodeTypes}
 					nodesDraggable={!readOnly}
 					nodesConnectable={!readOnly}
-					elementsSelectable={!readOnly}
+					elementsSelectable={true}
+					onNodeClick={onNodeClick}
+					onPaneClick={onPaneClick}
 					fitView
 				>
 					<Controls />
