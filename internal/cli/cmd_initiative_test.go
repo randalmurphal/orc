@@ -1316,3 +1316,398 @@ func TestInitiativeListAutoCompleteDoesNotBreakOnError(t *testing.T) {
 		t.Errorf("INIT-002 Status = %q, want %q", reloaded2.Status, initiative.StatusCompleted)
 	}
 }
+
+// =============================================================================
+// Tests for initiative show dependency display (TASK-644)
+// =============================================================================
+
+// TestInitiativeShowDisplaysDepsForTaskWithBlockedBy verifies that when a task
+// has blocked_by dependencies, `orc initiative show` displays them in the
+// deps column instead of "-".
+// Covers SC-1: Task with blocked_by shows deps: TASK-XXX
+// Covers SC-2: Task with no dependencies shows deps: -
+func TestInitiativeShowDisplaysDepsForTaskWithBlockedBy(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative with two tasks
+	init := initiative.New("INIT-001", "Deps Test Initiative")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "Independent Task", nil)
+	init.AddTask("TASK-002", "Dependent Task", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create TASK-001 with no dependencies
+	tk1 := task.NewProtoTask("TASK-001", "Independent Task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	task.SetInitiativeProto(tk1, "INIT-001")
+	if err := backend.SaveTask(tk1); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	// Create TASK-002 that depends on TASK-001
+	tk2 := task.NewProtoTask("TASK-002", "Dependent Task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tk2.BlockedBy = []string{"TASK-001"}
+	task.SetInitiativeProto(tk2, "INIT-001")
+	if err := backend.SaveTask(tk2); err != nil {
+		t.Fatalf("save task2: %v", err)
+	}
+
+	// Close backend before running command (command creates its own)
+	_ = backend.Close()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeShowCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("show command failed: %v", err)
+	}
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// Find lines for each task (use HasPrefix to avoid matching deps column)
+	lines := strings.Split(output, "\n")
+	var task1Line, task2Line string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "TASK-001") {
+			task1Line = line
+		}
+		if strings.HasPrefix(trimmed, "TASK-002") {
+			task2Line = line
+		}
+	}
+
+	// SC-2: Task with no deps should show "deps: -"
+	if task1Line == "" {
+		t.Fatal("TASK-001 not found in output")
+	}
+	if !strings.Contains(task1Line, "deps: -") {
+		t.Errorf("TASK-001 should show 'deps: -', got line: %s", task1Line)
+	}
+
+	// SC-1: Task with blocked_by should show the dependency
+	if task2Line == "" {
+		t.Fatal("TASK-002 not found in output")
+	}
+	if !strings.Contains(task2Line, "deps: TASK-001") {
+		t.Errorf("TASK-002 should show 'deps: TASK-001', got line: %s", task2Line)
+	}
+}
+
+// TestInitiativeShowDisplaysMultipleDeps verifies that tasks with multiple
+// blocked_by dependencies show all of them comma-separated.
+// Covers SC-3: Multiple dependencies shown comma-separated
+func TestInitiativeShowDisplaysMultipleDeps(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative with three tasks
+	init := initiative.New("INIT-001", "Multi Deps Initiative")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "First", nil)
+	init.AddTask("TASK-002", "Second", nil)
+	init.AddTask("TASK-003", "Third", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create TASK-001 and TASK-002 (no deps)
+	tk1 := task.NewProtoTask("TASK-001", "First")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	task.SetInitiativeProto(tk1, "INIT-001")
+	if err := backend.SaveTask(tk1); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	tk2 := task.NewProtoTask("TASK-002", "Second")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	task.SetInitiativeProto(tk2, "INIT-001")
+	if err := backend.SaveTask(tk2); err != nil {
+		t.Fatalf("save task2: %v", err)
+	}
+
+	// Create TASK-003 that depends on both TASK-001 and TASK-002
+	tk3 := task.NewProtoTask("TASK-003", "Third")
+	tk3.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tk3.BlockedBy = []string{"TASK-001", "TASK-002"}
+	task.SetInitiativeProto(tk3, "INIT-001")
+	if err := backend.SaveTask(tk3); err != nil {
+		t.Fatalf("save task3: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeShowCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("show command failed: %v", err)
+	}
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// Find TASK-003 line
+	lines := strings.Split(output, "\n")
+	var task3Line string
+	for _, line := range lines {
+		if strings.Contains(line, "TASK-003") {
+			task3Line = line
+			break
+		}
+	}
+
+	if task3Line == "" {
+		t.Fatal("TASK-003 not found in output")
+	}
+
+	// SC-3: Should show both deps comma-separated
+	if !strings.Contains(task3Line, "TASK-001") || !strings.Contains(task3Line, "TASK-002") {
+		t.Errorf("TASK-003 should show both deps, got line: %s", task3Line)
+	}
+	// Verify comma separation format
+	if !strings.Contains(task3Line, "deps: TASK-001, TASK-002") {
+		t.Errorf("TASK-003 deps should be comma-separated, got line: %s", task3Line)
+	}
+}
+
+// TestInitiativeShowDepsWhenBlockerTaskDeletedFromDB verifies graceful handling
+// when a task's blocker dependency no longer exists in the database.
+// The task itself exists, but one of its blocked_by tasks was deleted.
+// Edge case: deps still show the ID even if the blocker task is gone
+func TestInitiativeShowDepsWhenBlockerTaskDeletedFromDB(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative with TASK-001
+	init := initiative.New("INIT-001", "Deleted Blocker Initiative")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "Task with deleted blocker", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create TASK-001 that depends on TASK-999 (which doesn't exist in DB)
+	tk := task.NewProtoTask("TASK-001", "Task with deleted blocker")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tk.BlockedBy = []string{"TASK-999"}
+	task.SetInitiativeProto(tk, "INIT-001")
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeShowCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("show command failed: %v", err)
+	}
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// TASK-001 should show deps: TASK-999 even though TASK-999 doesn't exist
+	// (the dependency is stored on TASK-001, not on the blocker)
+	lines := strings.Split(output, "\n")
+	var taskLine string
+	for _, line := range lines {
+		if strings.Contains(line, "TASK-001") {
+			taskLine = line
+			break
+		}
+	}
+
+	if taskLine == "" {
+		t.Fatalf("TASK-001 not found in output. Full output:\n%s", output)
+	}
+	if !strings.Contains(taskLine, "deps: TASK-999") {
+		t.Errorf("task should show 'deps: TASK-999' even if blocker is deleted, got line: %s", taskLine)
+	}
+}
+
+// TestInitiativeShowDepsOnExternalTask verifies that when a task depends on
+// a task NOT in the initiative, the dep is still shown.
+// Edge case: dependency on task outside the initiative
+func TestInitiativeShowDepsOnExternalTask(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative with only TASK-002
+	init := initiative.New("INIT-001", "External Dep Initiative")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-002", "Dependent Task", nil)
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create TASK-099 (NOT in the initiative, but exists in DB)
+	tkExternal := task.NewProtoTask("TASK-099", "External Task")
+	tkExternal.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
+	if err := backend.SaveTask(tkExternal); err != nil {
+		t.Fatalf("save external task: %v", err)
+	}
+
+	// Create TASK-002 that depends on TASK-099 (which is not in the initiative)
+	tk2 := task.NewProtoTask("TASK-002", "Dependent Task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tk2.BlockedBy = []string{"TASK-099"}
+	task.SetInitiativeProto(tk2, "INIT-001")
+	if err := backend.SaveTask(tk2); err != nil {
+		t.Fatalf("save task2: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeShowCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("show command failed: %v", err)
+	}
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// TASK-002 should show deps: TASK-099 even though TASK-099 is not in initiative
+	lines := strings.Split(output, "\n")
+	var task2Line string
+	for _, line := range lines {
+		if strings.Contains(line, "TASK-002") {
+			task2Line = line
+			break
+		}
+	}
+
+	if task2Line == "" {
+		t.Fatal("TASK-002 not found in output")
+	}
+	if !strings.Contains(task2Line, "deps: TASK-099") {
+		t.Errorf("TASK-002 should show 'deps: TASK-099', got line: %s", task2Line)
+	}
+}
+
+// TestInitiativeRunDisplaysDeps verifies that the `orc initiative run` command
+// also displays correct dependency information when no tasks are ready.
+// Covers SC-4: initiative run output shows correct deps
+func TestInitiativeRunDisplaysDeps(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative with tasks that have deps (all blocked, none ready)
+	init := initiative.New("INIT-001", "Run Deps Initiative")
+	init.Status = initiative.StatusActive
+	init.AddTask("TASK-001", "First Task", nil)
+	init.AddTask("TASK-002", "Second Task", []string{"TASK-001"})
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create TASK-001 as running (not completed, so TASK-002 stays blocked)
+	tk1 := task.NewProtoTask("TASK-001", "First Task")
+	tk1.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	task.SetInitiativeProto(tk1, "INIT-001")
+	if err := backend.SaveTask(tk1); err != nil {
+		t.Fatalf("save task1: %v", err)
+	}
+
+	// Create TASK-002 that depends on TASK-001
+	tk2 := task.NewProtoTask("TASK-002", "Second Task")
+	tk2.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	tk2.BlockedBy = []string{"TASK-001"}
+	task.SetInitiativeProto(tk2, "INIT-001")
+	if err := backend.SaveTask(tk2); err != nil {
+		t.Fatalf("save task2: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newInitiativeRunCmd()
+	cmd.SetArgs([]string{"INIT-001"})
+	// Don't use --execute; just preview mode (default)
+	if err := cmd.Execute(); err != nil {
+		os.Stdout = oldStdout
+		t.Fatalf("run command failed: %v", err)
+	}
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	// The run command should show "No tasks ready to run" with task status
+	// TASK-002 should show its dependency on TASK-001
+	if !strings.Contains(output, "TASK-002") {
+		t.Fatalf("output should contain TASK-002, got:\n%s", output)
+	}
+
+	// SC-4: TASK-002's line should show depends on TASK-001
+	lines := strings.Split(output, "\n")
+	var task2Line string
+	for _, line := range lines {
+		if strings.Contains(line, "TASK-002") {
+			task2Line = line
+			break
+		}
+	}
+
+	if task2Line == "" {
+		t.Fatal("TASK-002 not found in output")
+	}
+	if !strings.Contains(task2Line, "TASK-001") {
+		t.Errorf("TASK-002 line should reference dependency TASK-001, got: %s", task2Line)
+	}
+}

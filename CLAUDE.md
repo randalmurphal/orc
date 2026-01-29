@@ -208,7 +208,8 @@ Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for fu
 | Command | Purpose |
 |---------|---------|
 | `orc initiative new "title"` | Create initiative with `--vision` |
-| `orc initiative decide ID "decision"` | Record decision with `--rationale` |
+| `orc initiative decide ID "decision"` | Record decision with `--rationale`, `--supersedes N` |
+| `orc initiative edit ID` | Edit properties (`--title`, `--status`, `--vision`, `--priority`, `--add-blocked-by`) |
 | `orc initiative link ID TASK...` | Batch link tasks |
 | `orc initiative run ID` | Run all ready tasks in order |
 

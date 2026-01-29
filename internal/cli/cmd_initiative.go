@@ -614,6 +614,15 @@ func newInitiativeShowCmd() *cobra.Command {
 				}
 				init.EnrichTaskStatuses(taskLoader)
 
+				// Populate DependsOn from each task's BlockedBy field
+				for i, taskRef := range init.Tasks {
+					loadedTask, err := backend.LoadTask(taskRef.ID)
+					if err != nil {
+						continue
+					}
+					init.Tasks[i].DependsOn = loadedTask.BlockedBy
+				}
+
 				fmt.Printf("\nTasks (%d):\n", len(init.Tasks))
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				for _, t := range init.Tasks {
@@ -1149,6 +1158,15 @@ Examples:
 				}
 				fmt.Println("\nComplete the blocking initiatives first, or use --force to run anyway.")
 				return nil
+			}
+
+			// Populate DependsOn from each task's BlockedBy field
+			for i, taskRef := range init.Tasks {
+				loadedTask, err := backend.LoadTask(taskRef.ID)
+				if err != nil {
+					continue
+				}
+				init.Tasks[i].DependsOn = loadedTask.BlockedBy
 			}
 
 			ready := init.GetReadyTasksWithLoader(nil)
