@@ -1,14 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
-import { RunStatus, type WorkflowRunWithDetails } from '@/gen/orc/v1/workflow_pb';
+import { RunStatus, type WorkflowRunWithDetails, type Workflow } from '@/gen/orc/v1/workflow_pb';
 import { PhaseStatus } from '@/gen/orc/v1/task_pb';
 import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
 import { PhaseInspector } from './panels/PhaseInspector';
 import { ExecutionHeader } from './ExecutionHeader';
+import { CloneWorkflowModal } from '@/components/workflows/CloneWorkflowModal';
 import { formatDuration } from '@/stores/sessionStore';
 import './WorkflowEditorPage.css';
 
@@ -40,6 +41,7 @@ function mapPhaseStatusToUI(
 
 export function WorkflowEditorPage() {
 	const { id } = useParams<{ id: string }>();
+	const navigate = useNavigate();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
@@ -47,6 +49,9 @@ export function WorkflowEditorPage() {
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
 	const loadFromWorkflow = useWorkflowEditorStore((s) => s.loadFromWorkflow);
 	const reset = useWorkflowEditorStore((s) => s.reset);
+
+	// Clone modal state (QA-002 fix)
+	const [cloneModalOpen, setCloneModalOpen] = useState(false);
 
 	// Execution tracking state (TASK-639)
 	const activeRun = useWorkflowEditorStore((s) => s.activeRun);
@@ -192,6 +197,21 @@ export function WorkflowEditorPage() {
 		}
 	}, [activeRun, setActiveRun, clearExecution]);
 
+	// Clone modal handlers (QA-002 fix) - must be before early returns
+	const handleClone = useCallback(() => {
+		setCloneModalOpen(true);
+	}, []);
+
+	const handleCloneModalClose = useCallback(() => {
+		setCloneModalOpen(false);
+	}, []);
+
+	const handleWorkflowCloned = useCallback((clonedWorkflow: Workflow) => {
+		setCloneModalOpen(false);
+		// Navigate to the cloned workflow
+		navigate(`/workflows/${clonedWorkflow.id}`);
+	}, [navigate]);
+
 	if (loading) {
 		return (
 			<div className="workflow-editor-page">
@@ -235,14 +255,6 @@ export function WorkflowEditorPage() {
 	const selectedPhase = selectedPhaseData
 		? workflowDetails?.phases.find((p) => p.id === selectedPhaseData.phaseId) ?? null
 		: null;
-
-	const handleClone = () => {
-		if (workflow) {
-			window.dispatchEvent(
-				new CustomEvent('orc:clone-workflow', { detail: { workflow } })
-			);
-		}
-	};
 
 	const bodyClasses = ['workflow-editor-body'];
 	if (inspectorOpen) bodyClasses.push('workflow-editor-body--inspector-open');
@@ -304,6 +316,14 @@ export function WorkflowEditorPage() {
 					</aside>
 				)}
 			</div>
+
+			{/* Clone modal (QA-002 fix) */}
+			<CloneWorkflowModal
+				open={cloneModalOpen}
+				workflow={workflow ?? null}
+				onClose={handleCloneModalClose}
+				onCloned={handleWorkflowCloned}
+			/>
 		</div>
 	);
 }
