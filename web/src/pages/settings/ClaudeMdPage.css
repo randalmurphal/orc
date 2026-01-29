@@ -274,3 +274,18 @@
   content: '';
   margin: var(--space-2) 0;
 }
+
+/* Mobile responsive: stack split view vertically */
+@media (max-width: 768px) {
+  .claudemd-page {
+    padding: var(--space-4);
+  }
+
+  .claudemd-split-view {
+    grid-template-columns: 1fr;
+  }
+
+  .claudemd-preview-pane {
+    display: none;
+  }
+}
