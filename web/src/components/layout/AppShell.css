@@ -162,7 +162,7 @@
 	.app-shell__panel {
 		/* Panel becomes overlay on tablet */
 		position: fixed;
-		top: 0;
+		top: 48px; /* Below TopBar (matches grid-template-rows first row height) */
 		right: 0;
 		bottom: 0;
 		z-index: var(--z-sidebar, 300);
