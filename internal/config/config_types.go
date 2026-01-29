@@ -870,6 +870,70 @@ type HostingConfig struct {
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
 }
 
+// JiraConfig defines Jira Cloud import settings.
+type JiraConfig struct {
+	// URL is the Jira Cloud base URL (e.g., "https://acme.atlassian.net").
+	URL string `yaml:"url" json:"url"`
+
+	// Email for basic auth with API token.
+	Email string `yaml:"email" json:"email"`
+
+	// TokenEnvVar is the environment variable containing the API token.
+	// Default: ORC_JIRA_TOKEN.
+	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
+
+	// EpicToInitiative maps Jira epics to orc initiatives on import.
+	// Default: true.
+	EpicToInitiative *bool `yaml:"epic_to_initiative" json:"epic_to_initiative,omitempty"`
+
+	// DefaultWeight for imported tasks. One of: trivial, small, medium, large.
+	// Default: medium.
+	DefaultWeight string `yaml:"default_weight" json:"default_weight,omitempty"`
+
+	// DefaultQueue for imported tasks. One of: active, backlog.
+	// Default: backlog.
+	DefaultQueue string `yaml:"default_queue" json:"default_queue,omitempty"`
+
+	// DefaultProjects are project keys imported by default when --project is not specified.
+	DefaultProjects []string `yaml:"default_projects" json:"default_projects,omitempty"`
+
+	// CustomFields maps Jira custom field IDs to metadata key names.
+	// Example: {"customfield_10020": "jira_sprint", "customfield_10028": "jira_story_points"}
+	// These fields are extracted from Jira issues and stored in task metadata.
+	CustomFields map[string]string `yaml:"custom_fields" json:"custom_fields,omitempty"`
+
+	// StatusOverrides maps Jira status names to orc queue placement.
+	// Values: "active", "backlog". Overrides the default status-category-based mapping.
+	// Example: {"In Review": "active", "Waiting": "backlog"}
+	StatusOverrides map[string]string `yaml:"status_overrides" json:"status_overrides,omitempty"`
+
+	// CategoryOverrides maps Jira issue type names to orc task categories.
+	// Values: "bug", "feature", "refactor", "chore", "docs", "test".
+	// Example: {"Spike": "refactor", "Tech Debt": "refactor"}
+	CategoryOverrides map[string]string `yaml:"category_overrides" json:"category_overrides,omitempty"`
+
+	// PriorityOverrides maps Jira priority names to orc task priorities.
+	// Values: "critical", "high", "normal", "low".
+	// Example: {"Blocker": "critical", "Trivial": "low"}
+	PriorityOverrides map[string]string `yaml:"priority_overrides" json:"priority_overrides,omitempty"`
+}
+
+// GetEpicToInitiative returns the epic-to-initiative setting, defaulting to true.
+func (j JiraConfig) GetEpicToInitiative() bool {
+	if j.EpicToInitiative == nil {
+		return true
+	}
+	return *j.EpicToInitiative
+}
+
+// GetTokenEnvVar returns the token env var, defaulting to ORC_JIRA_TOKEN.
+func (j JiraConfig) GetTokenEnvVar() string {
+	if j.TokenEnvVar == "" {
+		return "ORC_JIRA_TOKEN"
+	}
+	return j.TokenEnvVar
+}
+
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"

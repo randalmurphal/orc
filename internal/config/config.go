@@ -124,6 +124,9 @@ type Config struct {
 	// Hosting provider configuration (GitHub, GitLab, auto-detect)
 	Hosting HostingConfig `yaml:"hosting"`
 
+	// Jira Cloud import configuration
+	Jira JiraConfig `yaml:"jira"`
+
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
 
