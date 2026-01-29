@@ -34,7 +34,7 @@ func (s *Server) registerConnectHandlers() {
 	transcriptSvc := NewTranscriptServer(s.backend)
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
-	githubSvc := NewGitHubServerWithExecutor(s.backend, s.workDir, s.logger, s.publisher, s.orcConfig, s.startTask, nil)
+	hostingSvc := NewHostingServerWithExecutor(s.backend, s.workDir, s.logger, s.publisher, s.orcConfig, s.startTask, nil)
 	dashboardSvc := NewDashboardServer(s.backend, s.logger)
 	projectSvc := NewProjectServer(s.backend, s.logger)
 	branchSvc := NewBranchServer(s.backend, s.logger)
@@ -64,8 +64,8 @@ func (s *Server) registerConnectHandlers() {
 	configPath, configHandler := orcv1connect.NewConfigServiceHandler(configSvc, interceptors)
 	s.mux.Handle(configPath, corsHandler(configHandler))
 
-	githubPath, githubHandler := orcv1connect.NewGitHubServiceHandler(githubSvc, interceptors)
-	s.mux.Handle(githubPath, corsHandler(githubHandler))
+	hostingPath, hostingHandler := orcv1connect.NewHostingServiceHandler(hostingSvc, interceptors)
+	s.mux.Handle(hostingPath, corsHandler(hostingHandler))
 
 	dashboardPath, dashboardHandler := orcv1connect.NewDashboardServiceHandler(dashboardSvc, interceptors)
 	s.mux.Handle(dashboardPath, corsHandler(dashboardHandler))

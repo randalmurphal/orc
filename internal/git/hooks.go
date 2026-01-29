@@ -1,4 +1,4 @@
-// Package git provides git operations for orc, wrapping devflow/git.
+// Package git provides git operations for orc.
 package git
 
 import (

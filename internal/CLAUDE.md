@@ -21,7 +21,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `executor/` | Phase execution engine | `WorkflowExecutor`, `Result` |
 | `gate/` | Quality gates, approval workflow | `Gate`, `Evaluator`, `PendingDecisionStore` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
-| `github/` | GitHub API client, PR operations | `Client`, `PR`, `PRStatusSummary` |
+| `hosting/` | Multi-provider git hosting (GitHub, GitLab) | `Provider`, `PR`, `PRStatusSummary` |
 | `initiative/` | Initiative/feature grouping | `Initiative`, `Store`, `Manifest` |
 | `llmutil/` | **Shared LLM utilities - schema execution** | `ExecuteWithSchema[T]()` |
 | `orchestrator/` | Multi-task parallel coordination | `Orchestrator`, `Scheduler`, `WorkerPool` |
@@ -50,14 +50,14 @@ cmd/orc
         │   ├── executor/
         │   │   ├── events/
         │   │   ├── git/
-        │   │   ├── github/
+        │   │   ├── hosting/
         │   │   ├── prompt/
         │   │   ├── storage/
         │   │   ├── task/
         │   │   ├── variable/
         │   │   ├── workflow/
         │   │   └── tokenpool/
-        │   ├── github/
+        │   ├── hosting/
         │   ├── project/
         │   ├── prompt/
         │   ├── storage/

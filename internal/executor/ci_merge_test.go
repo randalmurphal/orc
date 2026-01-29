@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -10,6 +9,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -298,8 +298,10 @@ func TestConfig_MergeMethod(t *testing.T) {
 			cfg := config.Default()
 			cfg.Completion.CI.MergeMethod = tt.method
 
-			if got := cfg.MergeMethod(); got != tt.expected {
-				t.Errorf("MergeMethod() = %v, want %v", got, tt.expected)
+			// Verify the merge method is returned correctly
+			method := cfg.MergeMethod()
+			if method != tt.expected {
+				t.Errorf("expected method %q, got %q", tt.expected, method)
 			}
 		})
 	}
@@ -347,128 +349,164 @@ func TestCIMerger_WaitForCIAndMerge_CIDisabled(t *testing.T) {
 	}
 }
 
-func TestParseChecksJSON(t *testing.T) {
+func TestCIMerger_CheckCIStatus_NoProvider(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name          string
-		jsonStr       string
-		expectStatus  CIStatus
-		expectPassed  int
-		expectPending int
-		expectFailed  int
-	}{
-		{
-			name:          "empty array",
-			jsonStr:       "[]",
-			expectStatus:  CIStatusNoChecks,
-			expectPassed:  0,
-			expectPending: 0,
-			expectFailed:  0,
-		},
-		{
-			name: "all passed",
-			jsonStr: `[
-				{"name": "build", "state": "completed", "bucket": "pass"},
-				{"name": "test", "state": "completed", "bucket": "pass"}
-			]`,
-			expectStatus:  CIStatusPassed,
-			expectPassed:  2,
-			expectPending: 0,
-			expectFailed:  0,
-		},
-		{
-			name: "some pending",
-			jsonStr: `[
-				{"name": "build", "state": "completed", "bucket": "pass"},
-				{"name": "test", "state": "in_progress", "bucket": "pending"}
-			]`,
-			expectStatus:  CIStatusPending,
-			expectPassed:  1,
-			expectPending: 1,
-			expectFailed:  0,
-		},
-		{
-			name: "one failed",
-			jsonStr: `[
-				{"name": "build", "state": "completed", "bucket": "pass"},
-				{"name": "test", "state": "completed", "bucket": "fail"}
-			]`,
-			expectStatus:  CIStatusFailed,
-			expectPassed:  1,
-			expectPending: 0,
-			expectFailed:  1,
-		},
-		{
-			name: "skipping counts as passed",
-			jsonStr: `[
-				{"name": "build", "state": "completed", "bucket": "skipping"},
-				{"name": "test", "state": "completed", "bucket": "pass"}
-			]`,
-			expectStatus:  CIStatusPassed,
-			expectPassed:  2,
-			expectPending: 0,
-			expectFailed:  0,
+	cfg := config.Default()
+	merger := NewCIMerger(cfg)
+
+	_, err := merger.CheckCIStatus(context.Background(), "main")
+	if err == nil {
+		t.Error("expected error when provider is nil")
+	}
+	if !errors.Is(err, nil) && err.Error() != "hosting provider not configured" {
+		t.Errorf("expected 'hosting provider not configured' error, got %v", err)
+	}
+}
+
+func TestCIMerger_CheckCIStatus_NoChecks(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{
+		checkRuns: []hosting.CheckRun{},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	result, err := merger.CheckCIStatus(context.Background(), "feature-branch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != CIStatusNoChecks {
+		t.Errorf("expected no_checks status, got %v", result.Status)
+	}
+}
+
+func TestCIMerger_CheckCIStatus_AllPassed(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{
+		checkRuns: []hosting.CheckRun{
+			{Name: "build", Status: "completed", Conclusion: "success"},
+			{Name: "test", Status: "completed", Conclusion: "success"},
 		},
 	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Parse checks like CIMerger.CheckCIStatus does
-			var checks []struct {
-				Name   string `json:"name"`
-				State  string `json:"state"`
-				Bucket string `json:"bucket"`
-			}
-			if err := json.Unmarshal([]byte(tt.jsonStr), &checks); err != nil {
-				t.Fatalf("failed to parse JSON: %v", err)
-			}
+	result, err := merger.CheckCIStatus(context.Background(), "feature-branch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != CIStatusPassed {
+		t.Errorf("expected passed status, got %v", result.Status)
+	}
+	if result.PassedChecks != 2 {
+		t.Errorf("expected 2 passed, got %d", result.PassedChecks)
+	}
+}
 
-			if len(checks) == 0 {
-				if tt.expectStatus != CIStatusNoChecks {
-					t.Errorf("expected status %v, got no_checks", tt.expectStatus)
-				}
-				return
-			}
+func TestCIMerger_CheckCIStatus_SomePending(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{
+		checkRuns: []hosting.CheckRun{
+			{Name: "build", Status: "completed", Conclusion: "success"},
+			{Name: "test", Status: "in_progress", Conclusion: ""},
+		},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
 
-			result := &CICheckResult{
-				TotalChecks: len(checks),
-			}
+	result, err := merger.CheckCIStatus(context.Background(), "feature-branch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != CIStatusPending {
+		t.Errorf("expected pending status, got %v", result.Status)
+	}
+	if result.PassedChecks != 1 {
+		t.Errorf("expected 1 passed, got %d", result.PassedChecks)
+	}
+	if result.PendingChecks != 1 {
+		t.Errorf("expected 1 pending, got %d", result.PendingChecks)
+	}
+}
 
-			for _, c := range checks {
-				switch c.Bucket {
-				case "pass", "skipping":
-					result.PassedChecks++
-				case "fail", "cancel":
-					result.FailedChecks++
-					result.FailedNames = append(result.FailedNames, c.Name)
-				case "pending":
-					result.PendingChecks++
-					result.PendingNames = append(result.PendingNames, c.Name)
-				}
-			}
+func TestCIMerger_CheckCIStatus_OneFailed(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{
+		checkRuns: []hosting.CheckRun{
+			{Name: "build", Status: "completed", Conclusion: "success"},
+			{Name: "test", Status: "completed", Conclusion: "failure"},
+		},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
 
-			// Determine status
-			if result.FailedChecks > 0 {
-				result.Status = CIStatusFailed
-			} else if result.PendingChecks > 0 {
-				result.Status = CIStatusPending
-			} else {
-				result.Status = CIStatusPassed
-			}
+	result, err := merger.CheckCIStatus(context.Background(), "feature-branch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != CIStatusFailed {
+		t.Errorf("expected failed status, got %v", result.Status)
+	}
+	if result.FailedChecks != 1 {
+		t.Errorf("expected 1 failed, got %d", result.FailedChecks)
+	}
+	if len(result.FailedNames) != 1 || result.FailedNames[0] != "test" {
+		t.Errorf("expected failed name 'test', got %v", result.FailedNames)
+	}
+}
 
-			if result.Status != tt.expectStatus {
-				t.Errorf("expected status %v, got %v", tt.expectStatus, result.Status)
-			}
-			if result.PassedChecks != tt.expectPassed {
-				t.Errorf("expected %d passed, got %d", tt.expectPassed, result.PassedChecks)
-			}
-			if result.PendingChecks != tt.expectPending {
-				t.Errorf("expected %d pending, got %d", tt.expectPending, result.PendingChecks)
-			}
-			if result.FailedChecks != tt.expectFailed {
-				t.Errorf("expected %d failed, got %d", tt.expectFailed, result.FailedChecks)
-			}
-		})
+func TestCIMerger_CheckCIStatus_NeutralAndSkipped(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{
+		checkRuns: []hosting.CheckRun{
+			{Name: "build", Status: "completed", Conclusion: "neutral"},
+			{Name: "optional", Status: "completed", Conclusion: "skipped"},
+			{Name: "test", Status: "completed", Conclusion: "success"},
+		},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	result, err := merger.CheckCIStatus(context.Background(), "feature-branch")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != CIStatusPassed {
+		t.Errorf("expected passed status, got %v", result.Status)
+	}
+	if result.PassedChecks != 3 {
+		t.Errorf("expected 3 passed (neutral+skipped count as passed), got %d", result.PassedChecks)
+	}
+}
+
+func TestCIMerger_MergePR_NoProvider(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	merger := NewCIMerger(cfg)
+
+	prNumber := int32(1)
+	tsk := &orcv1.Task{
+		Id: "TASK-001",
+		Pr: &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err == nil {
+		t.Error("expected error when provider is nil")
+	}
+}
+
+func TestCIMerger_MergePR_NoPRNumber(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	tsk := &orcv1.Task{Id: "TASK-001"}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err == nil {
+		t.Error("expected error for task without PR number")
 	}
 }
 
@@ -538,111 +576,9 @@ func TestTask_SetMergedInfo(t *testing.T) {
 	}
 }
 
-func TestParsePRURL(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name           string
-		url            string
-		expectedOwner  string
-		expectedRepo   string
-		expectedNumber int
-		expectError    bool
-	}{
-		{
-			name:           "standard HTTPS URL",
-			url:            "https://github.com/owner/repo/pull/123",
-			expectedOwner:  "owner",
-			expectedRepo:   "repo",
-			expectedNumber: 123,
-			expectError:    false,
-		},
-		{
-			name:           "URL with organization name",
-			url:            "https://github.com/my-org/my-repo/pull/456",
-			expectedOwner:  "my-org",
-			expectedRepo:   "my-repo",
-			expectedNumber: 456,
-			expectError:    false,
-		},
-		{
-			name:           "URL without https prefix",
-			url:            "github.com/owner/repo/pull/789",
-			expectedOwner:  "owner",
-			expectedRepo:   "repo",
-			expectedNumber: 789,
-			expectError:    false,
-		},
-		{
-			name:           "URL with http prefix",
-			url:            "http://github.com/owner/repo/pull/101",
-			expectedOwner:  "owner",
-			expectedRepo:   "repo",
-			expectedNumber: 101,
-			expectError:    false,
-		},
-		{
-			name:           "large PR number",
-			url:            "https://github.com/owner/repo/pull/99999",
-			expectedOwner:  "owner",
-			expectedRepo:   "repo",
-			expectedNumber: 99999,
-			expectError:    false,
-		},
-		{
-			name:        "invalid URL - not a PR URL",
-			url:         "https://github.com/owner/repo/issues/123",
-			expectError: true,
-		},
-		{
-			name:        "invalid URL - missing PR number",
-			url:         "https://github.com/owner/repo/pull/",
-			expectError: true,
-		},
-		{
-			name:        "invalid URL - completely wrong format",
-			url:         "not-a-url",
-			expectError: true,
-		},
-		{
-			name:        "invalid URL - GitLab URL",
-			url:         "https://gitlab.com/owner/repo/merge_requests/123",
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, prNumber, err := parsePRURL(tt.url)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
-
-			if owner != tt.expectedOwner {
-				t.Errorf("expected owner %q, got %q", tt.expectedOwner, owner)
-			}
-			if repo != tt.expectedRepo {
-				t.Errorf("expected repo %q, got %q", tt.expectedRepo, repo)
-			}
-			if prNumber != tt.expectedNumber {
-				t.Errorf("expected PR number %d, got %d", tt.expectedNumber, prNumber)
-			}
-		})
-	}
-}
-
 func TestMergeMethodTranslation(t *testing.T) {
 	t.Parallel()
 	// Test that merge method values are passed correctly to the API
-	// GitHub API expects: "squash", "merge", or "rebase"
 	tests := []struct {
 		name           string
 		configMethod   string
@@ -679,216 +615,6 @@ func TestMergeMethodTranslation(t *testing.T) {
 			method := cfg.MergeMethod()
 			if method != tt.expectedMethod {
 				t.Errorf("expected method %q, got %q", tt.expectedMethod, method)
-			}
-		})
-	}
-}
-
-func TestMergeAPIPathConstruction(t *testing.T) {
-	t.Parallel()
-	// Test that the API path is constructed correctly for different PR URLs
-	// This verifies the format: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
-	tests := []struct {
-		name         string
-		prURL        string
-		expectedPath string
-	}{
-		{
-			name:         "standard PR URL",
-			prURL:        "https://github.com/owner/repo/pull/123",
-			expectedPath: "/repos/owner/repo/pulls/123/merge",
-		},
-		{
-			name:         "org with hyphens",
-			prURL:        "https://github.com/my-org/my-repo/pull/456",
-			expectedPath: "/repos/my-org/my-repo/pulls/456/merge",
-		},
-		{
-			name:         "large PR number",
-			prURL:        "https://github.com/acme/project/pull/99999",
-			expectedPath: "/repos/acme/project/pulls/99999/merge",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, prNumber, err := parsePRURL(tt.prURL)
-			if err != nil {
-				t.Fatalf("failed to parse PR URL: %v", err)
-			}
-
-			// Reconstruct the API path as MergePR does (using fmt.Sprintf like the real code)
-			apiPath := fmt.Sprintf("/repos/%s/%s/pulls/%d/merge", owner, repo, prNumber)
-			if apiPath != tt.expectedPath {
-				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
-			}
-		})
-	}
-}
-
-func TestDeleteBranchAPIPathConstruction(t *testing.T) {
-	t.Parallel()
-	// Test that delete branch API path is constructed correctly
-	// This verifies the format: DELETE /repos/{owner}/{repo}/git/refs/heads/{branch}
-	tests := []struct {
-		name         string
-		owner        string
-		repo         string
-		branch       string
-		expectedPath string
-	}{
-		{
-			name:         "simple branch name",
-			owner:        "owner",
-			repo:         "repo",
-			branch:       "feature-branch",
-			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
-		},
-		{
-			name:         "branch with refs/heads prefix",
-			owner:        "owner",
-			repo:         "repo",
-			branch:       "refs/heads/feature-branch",
-			expectedPath: "/repos/owner/repo/git/refs/heads/feature-branch",
-		},
-		{
-			name:         "orc task branch",
-			owner:        "my-org",
-			repo:         "my-repo",
-			branch:       "orc/TASK-001",
-			expectedPath: "/repos/my-org/my-repo/git/refs/heads/orc/TASK-001",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Strip refs/heads/ prefix if present, as deleteBranch does
-			branchName := tt.branch
-			if len(branchName) > 11 && branchName[:11] == "refs/heads/" {
-				branchName = branchName[11:]
-			}
-
-			apiPath := "/repos/" + tt.owner + "/" + tt.repo + "/git/refs/heads/" + branchName
-			if apiPath != tt.expectedPath {
-				t.Errorf("expected API path %q, got %q", tt.expectedPath, apiPath)
-			}
-		})
-	}
-}
-
-func TestIsRetryableMergeError(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		err      error
-		output   string
-		expected bool
-	}{
-		{
-			name:     "nil error",
-			err:      nil,
-			output:   "",
-			expected: false,
-		},
-		{
-			name:     "405 with base branch modified message",
-			err:      fmt.Errorf("exit status 1: HTTP 405 Base branch was modified. Review and try the merge again."),
-			output:   "",
-			expected: true,
-		},
-		{
-			name:     "405 in output with message",
-			err:      fmt.Errorf("exit status 1"),
-			output:   `{"message": "Base branch was modified. Review and try the merge again.", "status": "405"}`,
-			expected: true,
-		},
-		{
-			name:     "405 with review message variant",
-			err:      fmt.Errorf("HTTP 405: review and try the merge again"),
-			output:   "",
-			expected: true,
-		},
-		{
-			name:     "422 validation error - not retryable",
-			err:      fmt.Errorf("HTTP 422 Unprocessable Entity"),
-			output:   `{"message": "Pull Request is not mergeable"}`,
-			expected: false,
-		},
-		{
-			name:     "404 not found - not retryable",
-			err:      fmt.Errorf("HTTP 404 Not Found"),
-			output:   "",
-			expected: false,
-		},
-		{
-			name:     "405 without base branch message - not retryable",
-			err:      fmt.Errorf("HTTP 405 Method Not Allowed"),
-			output:   "",
-			expected: false,
-		},
-		{
-			name:     "generic network error - not retryable",
-			err:      fmt.Errorf("network timeout"),
-			output:   "",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isRetryableMergeError(tt.err, tt.output)
-			if result != tt.expected {
-				t.Errorf("isRetryableMergeError(%v, %q) = %v, want %v", tt.err, tt.output, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestIsValidationMergeError(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		err      error
-		output   string
-		expected bool
-	}{
-		{
-			name:     "nil error",
-			err:      nil,
-			output:   "",
-			expected: false,
-		},
-		{
-			name:     "422 error in error string",
-			err:      fmt.Errorf("HTTP 422 Unprocessable Entity: validation failed"),
-			output:   "",
-			expected: true,
-		},
-		{
-			name:     "422 in output",
-			err:      fmt.Errorf("exit status 1"),
-			output:   `{"message": "Pull Request is not mergeable", "status": "422"}`,
-			expected: true,
-		},
-		{
-			name:     "405 - not a validation error",
-			err:      fmt.Errorf("HTTP 405"),
-			output:   "",
-			expected: false,
-		},
-		{
-			name:     "404 - not a validation error",
-			err:      fmt.Errorf("HTTP 404"),
-			output:   "",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isValidationMergeError(tt.err, tt.output)
-			if result != tt.expected {
-				t.Errorf("isValidationMergeError(%v, %q) = %v, want %v", tt.err, tt.output, result, tt.expected)
 			}
 		})
 	}
@@ -932,4 +658,63 @@ func TestMergePR_ExponentialBackoffValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockProvider implements hosting.Provider for testing.
+type mockProvider struct {
+	checkRuns    []hosting.CheckRun
+	checkRunsErr error
+	mergeErr     error
+}
+
+func (m *mockProvider) CreatePR(_ context.Context, _ hosting.PRCreateOptions) (*hosting.PR, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) GetPR(_ context.Context, _ int) (*hosting.PR, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) UpdatePR(_ context.Context, _ int, _ hosting.PRUpdateOptions) error {
+	return fmt.Errorf("not implemented")
+}
+func (m *mockProvider) MergePR(_ context.Context, _ int, _ hosting.PRMergeOptions) error {
+	return m.mergeErr
+}
+func (m *mockProvider) FindPRByBranch(_ context.Context, _ string) (*hosting.PR, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) ListPRComments(_ context.Context, _ int) ([]hosting.PRComment, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) CreatePRComment(_ context.Context, _ int, _ hosting.PRCommentCreate) (*hosting.PRComment, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) ReplyToComment(_ context.Context, _ int, _ int64, _ string) (*hosting.PRComment, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) GetPRComment(_ context.Context, _ int64) (*hosting.PRComment, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) GetCheckRuns(_ context.Context, _ string) ([]hosting.CheckRun, error) {
+	return m.checkRuns, m.checkRunsErr
+}
+func (m *mockProvider) GetPRReviews(_ context.Context, _ int) ([]hosting.PRReview, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) ApprovePR(_ context.Context, _ int, _ string) error {
+	return fmt.Errorf("not implemented")
+}
+func (m *mockProvider) GetPRStatusSummary(_ context.Context, _ *hosting.PR) (*hosting.PRStatusSummary, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) DeleteBranch(_ context.Context, _ string) error {
+	return fmt.Errorf("not implemented")
+}
+func (m *mockProvider) CheckAuth(_ context.Context) error {
+	return nil
+}
+func (m *mockProvider) Name() hosting.ProviderType {
+	return "mock"
+}
+func (m *mockProvider) OwnerRepo() (string, string) {
+	return "owner", "repo"
 }

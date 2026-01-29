@@ -207,6 +207,9 @@ func Default() *Config {
 				TimeoutNavigation: 60000,      // 60s navigation timeout
 			},
 		},
+		Hosting: HostingConfig{
+			Provider: "auto", // Auto-detect from git remote URL
+		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",
 			SQLite: SQLiteConfig{

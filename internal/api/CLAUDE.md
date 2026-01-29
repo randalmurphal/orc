@@ -29,7 +29,7 @@ Services are registered in `server_connect.go:15-79`. Each implements a handler 
 | `TranscriptService` | `transcript_server.go` | Get, Stream transcripts |
 | `EventService` | `event_server.go` | Subscribe (streaming), GetEvents, GetTimeline |
 | `ConfigService` | `config_server.go` | Get/Update orc config |
-| `GitHubService` | `github_server.go` | PR CRUD, Refresh, AutofixComment |
+| `HostingService` | `hosting_server.go` | PR CRUD, Refresh, AutofixComment |
 | `DashboardService` | `dashboard_server.go` | Stats, Metrics |
 | `ProjectService` | `project_server.go` | Multi-project management |
 | `BranchService` | `branch_server.go` | Branch operations |

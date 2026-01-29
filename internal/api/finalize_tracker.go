@@ -10,6 +10,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -377,11 +378,27 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		finState.mu.Unlock()
 		s.publishFinalizeEvent(taskID, finState)
 
-		ciMerger := executor.NewCIMerger(
-			s.orcConfig,
+		hostingCfg := hosting.Config{}
+		if s.orcConfig != nil {
+			hostingCfg = hosting.Config{
+				Provider:    s.orcConfig.Hosting.Provider,
+				BaseURL:     s.orcConfig.Hosting.BaseURL,
+				TokenEnvVar: s.orcConfig.Hosting.TokenEnvVar,
+			}
+		}
+		hostingProvider, providerErr := hosting.NewProvider(s.workDir, hostingCfg)
+		if providerErr != nil {
+			s.logger.Warn("failed to create hosting provider for CI merge", "error", providerErr)
+		}
+
+		ciMergerOpts := []executor.CIMergerOption{
 			executor.WithCIMergerLogger(s.logger),
 			executor.WithCIMergerWorkDir(s.workDir),
-		)
+		}
+		if hostingProvider != nil {
+			ciMergerOpts = append(ciMergerOpts, executor.WithCIMergerHostingProvider(hostingProvider))
+		}
+		ciMerger := executor.NewCIMerger(s.orcConfig, ciMergerOpts...)
 
 		ciErr := ciMerger.WaitForCIAndMerge(ctx, t)
 		if ciErr != nil {

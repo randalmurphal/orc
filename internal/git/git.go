@@ -1,12 +1,10 @@
-// Package git provides git operations for orc, wrapping devflow/git.
+// Package git provides git operations for orc.
 package git
 
 import (
 	"fmt"
 	"sync"
 	"time"
-
-	devgit "github.com/randalmurphal/devflow/git"
 )
 
 // Checkpoint represents a git checkpoint (commit) for a phase.
@@ -24,7 +22,7 @@ type Checkpoint struct {
 // as they are atomic at the process level.
 type Git struct {
 	mu                sync.Mutex // Protects compound operations that must be atomic
-	ctx               *devgit.Context
+	ctx               *Context
 	branchPrefix      string
 	commitPrefix      string
 	worktreeDir       string
@@ -54,7 +52,7 @@ func DefaultConfig() Config {
 
 // New creates a new Git instance for the repository at workDir.
 func New(workDir string, cfg Config) (*Git, error) {
-	ctx, err := devgit.NewContext(workDir, devgit.WithWorktreeDir(cfg.WorktreeDir))
+	ctx, err := NewContext(workDir, WithWorktreeDir(cfg.WorktreeDir))
 	if err != nil {
 		return nil, fmt.Errorf("init git context: %w", err)
 	}
@@ -74,7 +72,7 @@ func New(workDir string, cfg Config) (*Git, error) {
 	}, nil
 }
 
-// Context returns the underlying devflow git context.
-func (g *Git) Context() *devgit.Context {
+// Context returns the underlying git context.
+func (g *Git) Context() *Context {
 	return g.ctx
 }

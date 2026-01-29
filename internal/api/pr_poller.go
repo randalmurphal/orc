@@ -10,7 +10,9 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/hosting"
+	_ "github.com/randalmurphal/orc/internal/hosting/github"
+	_ "github.com/randalmurphal/orc/internal/hosting/gitlab"
 	"github.com/randalmurphal/orc/internal/storage"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -122,16 +124,24 @@ func (p *PRPoller) pollAll(ctx context.Context) {
 
 	p.logger.Debug("polling PR status", "task_count", len(tasksToCheck))
 
-	// Create GitHub client
-	client, err := github.NewClient(p.workDir)
+	// Create hosting provider
+	cfg := hosting.Config{}
+	if p.orcConfig != nil {
+		cfg = hosting.Config{
+			Provider:    p.orcConfig.Hosting.Provider,
+			BaseURL:     p.orcConfig.Hosting.BaseURL,
+			TokenEnvVar: p.orcConfig.Hosting.TokenEnvVar,
+		}
+	}
+	provider, err := hosting.NewProvider(p.workDir, cfg)
 	if err != nil {
-		p.logger.Debug("failed to create GitHub client for PR polling", "error", err)
+		p.logger.Debug("failed to create hosting provider for PR polling", "error", err)
 		return
 	}
 
 	// Poll each task
 	for _, t := range tasksToCheck {
-		if err := p.pollTask(ctx, client, t); err != nil {
+		if err := p.pollTask(ctx, provider, t); err != nil {
 			if !errors.Is(err, context.Canceled) {
 				p.logger.Debug("failed to poll PR for task", "task", t.Id, "error", err)
 			}
@@ -161,11 +171,11 @@ func (p *PRPoller) shouldPoll(t *orcv1.Task) bool {
 	return true
 }
 
-func (p *PRPoller) pollTask(ctx context.Context, client *github.Client, t *orcv1.Task) error {
+func (p *PRPoller) pollTask(ctx context.Context, provider hosting.Provider, t *orcv1.Task) error {
 	// Find PR by branch
-	pr, err := client.FindPRByBranch(ctx, t.Branch)
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
 	if err != nil {
-		if errors.Is(err, github.ErrNoPRFound) {
+		if errors.Is(err, hosting.ErrNoPRFound) {
 			// PR was likely closed/deleted
 			t.Pr.Status = orcv1.PRStatus_PR_STATUS_CLOSED
 			return p.saveTask(t)
@@ -174,7 +184,7 @@ func (p *PRPoller) pollTask(ctx context.Context, client *github.Client, t *orcv1
 	}
 
 	// Get PR status summary
-	summary, err := client.GetPRStatusSummary(ctx, pr)
+	summary, err := provider.GetPRStatusSummary(ctx, pr)
 	if err != nil {
 		return err
 	}
@@ -208,7 +218,7 @@ func (p *PRPoller) pollTask(ctx context.Context, client *github.Client, t *orcv1
 }
 
 // DeterminePRStatusProto derives the proto PRStatus from a PR and its review summary.
-func DeterminePRStatusProto(pr *github.PR, summary *github.PRStatusSummary) orcv1.PRStatus {
+func DeterminePRStatusProto(pr *hosting.PR, summary *hosting.PRStatusSummary) orcv1.PRStatus {
 	// Check if PR is merged
 	if pr.State == "MERGED" {
 		return orcv1.PRStatus_PR_STATUS_MERGED
@@ -251,10 +261,18 @@ func (p *PRPoller) PollTask(ctx context.Context, taskID string) error {
 		return errors.New("task has no PR")
 	}
 
-	client, err := github.NewClient(p.workDir)
+	cfg := hosting.Config{}
+	if p.orcConfig != nil {
+		cfg = hosting.Config{
+			Provider:    p.orcConfig.Hosting.Provider,
+			BaseURL:     p.orcConfig.Hosting.BaseURL,
+			TokenEnvVar: p.orcConfig.Hosting.TokenEnvVar,
+		}
+	}
+	provider, err := hosting.NewProvider(p.workDir, cfg)
 	if err != nil {
 		return err
 	}
 
-	return p.pollTask(ctx, client, t)
+	return p.pollTask(ctx, provider, t)
 }

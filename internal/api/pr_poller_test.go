@@ -8,7 +8,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -126,44 +126,44 @@ func TestDeterminePRStatusProto(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		pr       *github.PR
-		summary  *github.PRStatusSummary
+		pr       *hosting.PR
+		summary  *hosting.PRStatusSummary
 		expected orcv1.PRStatus
 	}{
 		{
 			name:     "merged PR",
-			pr:       &github.PR{State: "MERGED"},
-			summary:  &github.PRStatusSummary{ReviewStatus: "approved"},
+			pr:       &hosting.PR{State: "MERGED"},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "approved"},
 			expected: orcv1.PRStatus_PR_STATUS_MERGED,
 		},
 		{
 			name:     "closed PR",
-			pr:       &github.PR{State: "CLOSED"},
-			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
+			pr:       &hosting.PR{State: "CLOSED"},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "pending_review"},
 			expected: orcv1.PRStatus_PR_STATUS_CLOSED,
 		},
 		{
 			name:     "draft PR",
-			pr:       &github.PR{State: "OPEN", Draft: true},
-			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
+			pr:       &hosting.PR{State: "OPEN", Draft: true},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "pending_review"},
 			expected: orcv1.PRStatus_PR_STATUS_DRAFT,
 		},
 		{
 			name:     "pending review",
-			pr:       &github.PR{State: "OPEN"},
-			summary:  &github.PRStatusSummary{ReviewStatus: "pending_review"},
+			pr:       &hosting.PR{State: "OPEN"},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "pending_review"},
 			expected: orcv1.PRStatus_PR_STATUS_PENDING_REVIEW,
 		},
 		{
 			name:     "approved",
-			pr:       &github.PR{State: "OPEN"},
-			summary:  &github.PRStatusSummary{ReviewStatus: "approved"},
+			pr:       &hosting.PR{State: "OPEN"},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "approved"},
 			expected: orcv1.PRStatus_PR_STATUS_APPROVED,
 		},
 		{
 			name:     "changes requested",
-			pr:       &github.PR{State: "OPEN"},
-			summary:  &github.PRStatusSummary{ReviewStatus: "changes_requested"},
+			pr:       &hosting.PR{State: "OPEN"},
+			summary:  &hosting.PRStatusSummary{ReviewStatus: "changes_requested"},
 			expected: orcv1.PRStatus_PR_STATUS_CHANGES_REQUESTED,
 		},
 	}

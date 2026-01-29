@@ -440,7 +440,7 @@ func (e *Executor) publishState(taskID string, s *orcv1.ExecutionState) {
 // Task execution methods (ExecuteTask, ResumeFromPhase, evaluateGate, etc.)
 // are defined in task_execution.go
 
-// PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody, runGH)
+// PR and completion methods (runCompletion, syncWithTarget, directMerge, createPR, buildPRBody)
 // are defined in pr.go
 
 // TokenPool returns the token pool if configured.

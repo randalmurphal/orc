@@ -375,6 +375,73 @@ func TestConfig_Validate_ErrorMessages(t *testing.T) {
 	}
 }
 
+func TestConfig_Validate_HostingProvider(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		provider  string
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:     "auto is valid",
+			provider: "auto",
+			wantErr:  false,
+		},
+		{
+			name:     "github is valid",
+			provider: "github",
+			wantErr:  false,
+		},
+		{
+			name:     "gitlab is valid",
+			provider: "gitlab",
+			wantErr:  false,
+		},
+		{
+			name:     "empty is valid",
+			provider: "",
+			wantErr:  false,
+		},
+		{
+			name:      "bitbucket is invalid",
+			provider:  "bitbucket",
+			wantErr:   true,
+			errSubstr: "hosting.provider",
+		},
+		{
+			name:      "random string is invalid",
+			provider:  "azure-devops",
+			wantErr:   true,
+			errSubstr: "hosting.provider",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Hosting:  HostingConfig{Provider: tt.provider},
+				Worktree: WorktreeConfig{Enabled: true},
+			}
+			err := cfg.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errSubstr != "" {
+				if err == nil {
+					t.Errorf("Validate() expected error containing %q, got nil", tt.errSubstr)
+				} else if !strings.Contains(err.Error(), tt.errSubstr) {
+					t.Errorf("Validate() error = %q, want error containing %q", err.Error(), tt.errSubstr)
+				}
+			}
+		})
+	}
+}
+
 func TestConfig_ShouldValidateForWeight(t *testing.T) {
 	tests := []struct {
 		name   string
