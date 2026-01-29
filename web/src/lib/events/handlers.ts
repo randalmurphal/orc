@@ -7,10 +7,51 @@
 
 import type { Event } from '@/gen/orc/v1/events_pb';
 import { useTaskStore, useInitiativeStore, useSessionStore, useUIStore, toast } from '@/stores';
+import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { create } from '@bufbuild/protobuf';
 import { PendingDecisionSchema } from '@/gen/orc/v1/decision_pb';
-import { TaskSchema, TaskStatus, TaskQueue, TaskPriority, TaskCategory } from '@/gen/orc/v1/task_pb';
+import { TaskSchema, TaskStatus, TaskQueue, TaskPriority, TaskCategory, PhaseStatus } from '@/gen/orc/v1/task_pb';
 import { InitiativeSchema, InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
+import type { PhaseStatus as UIPhaseStatus } from '@/components/workflow-editor/nodes';
+
+/**
+ * Map proto PhaseStatus to UI PhaseStatus string
+ * Used for updating workflow editor nodes from events
+ *
+ * AMENDMENT AMEND-001: Proto PhaseStatus only has UNSPECIFIED(0), PENDING(1), COMPLETED(3), SKIPPED(7)
+ * Values RUNNING, FAILED, BLOCKED were removed - these are now derived from context:
+ * - 'running': derived when this phase is the current running phase
+ * - 'failed': derived when the phase has an error message
+ * - 'blocked': derived from gate blocking conditions (future)
+ *
+ * @param protoStatus - The PhaseStatus from the proto event
+ * @param isCurrentPhase - Whether this phase is the current running phase in a RUNNING run
+ * @param hasError - Whether this phase has an error
+ */
+function mapPhaseStatus(
+	protoStatus: PhaseStatus,
+	isCurrentPhase: boolean = false,
+	hasError: boolean = false
+): UIPhaseStatus {
+	// Derive failed status from error
+	if (hasError) {
+		return 'failed';
+	}
+
+	// Check proto status for completed/skipped
+	switch (protoStatus) {
+		case PhaseStatus.COMPLETED:
+			return 'completed';
+		case PhaseStatus.SKIPPED:
+			return 'skipped';
+		case PhaseStatus.PENDING:
+		case PhaseStatus.UNSPECIFIED:
+		default:
+			// If this is the current phase in a running run, it's "running"
+			// Otherwise it's "pending"
+			return isCurrentPhase ? 'running' : 'pending';
+	}
+}
 
 /**
  * Handle an incoming event by dispatching to the appropriate store.
@@ -68,10 +109,37 @@ export function handleEvent(event: Event): void {
 		}
 
 		case 'phaseChanged': {
-			const { taskId, phaseName } = event.payload.value;
+			const { taskId, phaseName, status, iteration, error } = event.payload.value;
+			// Update task store with current phase
 			taskStore.updateTask(taskId, {
 				currentPhase: phaseName,
 			});
+
+			// TASK-639: Also update workflow editor store if this event matches active run
+			const editorStore = useWorkflowEditorStore.getState();
+			const activeRun = editorStore.activeRun;
+			if (activeRun?.run?.taskId === taskId) {
+				// Derive whether this is the current running phase
+				// (PENDING status + being the current phase in a RUNNING run = running)
+				const isCurrentPhase =
+					status === PhaseStatus.PENDING && activeRun.run.currentPhase === phaseName;
+				const hasError = !!error;
+
+				// Update node status using context-aware mapping
+				const uiStatus = mapPhaseStatus(status, isCurrentPhase, hasError);
+				editorStore.updateNodeStatus(phaseName, uiStatus, {
+					iterations: iteration,
+				});
+
+				// Update edge animations: animate edges when phase is running
+				if (uiStatus === 'running') {
+					editorStore.updateEdgesForActivePhase(phaseName);
+				} else if (uiStatus === 'completed' || uiStatus === 'failed') {
+					// When a phase completes/fails, clear edge animations
+					// (next phase will start and set them again if needed)
+					editorStore.updateEdgesForActivePhase(null);
+				}
+			}
 			break;
 		}
 

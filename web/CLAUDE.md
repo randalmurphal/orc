@@ -82,7 +82,7 @@ Zustand stores in `stores/`. Each exports the base store hook + granular selecto
 | `projectStore` | `useCurrentProject`, `useProjects` | |
 | `uiStore` | `usePendingDecisions`, `useWsStatus`, `useToasts` | |
 | `preferencesStore` | `useTheme`, `useBoardViewMode` | |
-| `workflowEditorStore` | `useEditorNodes`, `useEditorEdges` | React Flow state |
+| `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun` | React Flow state + execution tracking |
 
 **Pattern — `useShallow` for derived selectors:**
 ```tsx
@@ -104,6 +104,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
+| `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
 | `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs for selected phase |
 | `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: available phase templates for drag-to-add |
@@ -161,6 +162,8 @@ See `stores/index.ts` for all exported store selector hooks (60+ hooks).
 | `state_updated` | TaskState |
 | `transcript` | `{ task_id, content, tokens }` |
 | `activity` | `{ phase, activity }` |
+| `phaseChanged` | `{ taskId, phaseName, status, iteration, error }` |
+| `tokensUpdated` | `{ taskId, tokens: { inputTokens, outputTokens } }` |
 
 ## Testing
 

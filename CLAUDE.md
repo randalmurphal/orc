@@ -365,6 +365,7 @@ Patterns, gotchas, and decisions learned during development.
 | Pure layout function | `layoutWorkflow()` is a pure function (workflow → nodes+edges) using dagre, testable without React Flow | TASK-633 |
 | Singleflight + TTL cache | `dashboardCache` uses `sync.singleflight` to coalesce concurrent requests + 30s TTL; double-check locking for fast read path | TASK-531 |
 | SQL aggregation over in-memory | Dashboard stats use `GROUP BY`/`COUNT` queries (`db/dashboard.go`) instead of loading all tasks into Go | TASK-531 |
+| Event-driven node updates | WebSocket `phaseChanged` events route through `handlers.ts` to `workflowEditorStore.updateNodeStatus()`; store updates trigger React Flow re-render with new status/cost | TASK-639 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -382,5 +383,6 @@ Patterns, gotchas, and decisions learned during development.
 | dagre over ELKjs for layout | Workflows are mostly-linear (<20 nodes), dagre is synchronous and simpler | TASK-633 |
 | Loop/retry edges visual-only | Not fed into topological sort — prevents false cycle errors from runtime control flow | TASK-633 |
 | task.CurrentPhase as authoritative phase source | Executor writes phase to task record before execution; eliminates multi-source sync with workflow_runs | TASK-617 |
+| Derive running status from PENDING + currentPhase | Proto `PhaseStatus` only has PENDING/COMPLETED/SKIPPED; derive "running" in UI when `status=PENDING && phaseName=currentPhase`; avoids proto schema bloat | TASK-639 |
 
 <!-- orc:knowledge:end -->

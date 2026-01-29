@@ -351,7 +351,7 @@ describe('PhaseNode', () => {
 			expect(screen.queryByText(/\$/)).toBeNull();
 		});
 
-		it('shows $0.00 when costUsd is 0', () => {
+		it('does NOT show cost badge when costUsd is 0 (SC-4: avoid clutter)', () => {
 			renderPhaseNode(
 				createDefaultData({
 					status: 'running' as any,
@@ -359,7 +359,7 @@ describe('PhaseNode', () => {
 				})
 			);
 
-			expect(screen.getByText(/\$0\.00/)).toBeTruthy();
+			expect(screen.queryByText(/\$0\.00/)).toBeNull();
 		});
 	});
 
