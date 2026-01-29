@@ -20,7 +20,7 @@
 .right-panel.open {
 	width: 300px;
 	min-width: 300px;
-	/* Re-enable pointer events (parent .app-shell__panel has pointer-events: none) */
+	/* Re-enable pointer events (parent .app-shell__panel disables them) */
 	pointer-events: auto;
 }
 
@@ -232,10 +232,10 @@
    ============================================================================= */
 
 @media (max-width: 767px) {
-	/* On mobile, panel overlays content */
+	/* On mobile, panel overlays content below the 48px header */
 	.right-panel {
 		position: fixed;
-		top: 0;
+		top: 48px;
 		right: 0;
 		bottom: 0;
 		z-index: var(--z-sidebar, 300);
