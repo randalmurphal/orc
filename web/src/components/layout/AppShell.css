@@ -102,6 +102,8 @@
 	transition:
 		transform 0.2s ease,
 		opacity 0.2s ease;
+	/* Wrapper should not intercept pointer events - let inner .right-panel handle it */
+	pointer-events: none;
 }
 
 /* Collapsed state - slide out with transform instead of width change */
