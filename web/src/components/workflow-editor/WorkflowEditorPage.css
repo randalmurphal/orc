@@ -119,6 +119,9 @@
 	contain: strict;
 	position: relative;
 	z-index: 1;
+	/* QA-003 iter5 fix: Prevent palette from intercepting pointer events
+	   that should reach the canvas. Children restore pointer-events. */
+	pointer-events: none;
 }
 
 /* Center canvas */
