@@ -126,6 +126,9 @@ message WorkflowPhase {
   optional GateType gate_type_override = 9;
   optional string condition = 10;
   optional string claude_config_override = 11;
+  optional double position_x = 12;
+  optional double position_y = 13;
+  optional string loop_config = 14;
   PhaseTemplate template = 100;
 }
 
