@@ -76,6 +76,9 @@ export const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
 
 		return (
 			<label className={wrapperClasses} htmlFor={inputId}>
+				<span className="toggle__track">
+					<span className="toggle__knob" />
+				</span>
 				<input
 					ref={ref}
 					type="checkbox"
@@ -88,9 +91,6 @@ export const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
 					aria-checked={checked}
 					{...props}
 				/>
-				<span className="toggle__track">
-					<span className="toggle__knob" />
-				</span>
 			</label>
 		);
 	}

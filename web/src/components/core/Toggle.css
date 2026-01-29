@@ -100,7 +100,7 @@
    FOCUS STATE
    ========================================================================== */
 
-.toggle__input:focus-visible + .toggle__track {
+.toggle:has(.toggle__input:focus-visible) .toggle__track {
 	box-shadow: 0 0 0 2px var(--primary-glow), 0 0 0 3px var(--primary);
 }
 
