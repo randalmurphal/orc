@@ -13,7 +13,14 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Icon, Tooltip } from '@/components/ui';
-import { useSessionStore, useCurrentProject } from '@/stores';
+import {
+	useFormattedDuration,
+	useFormattedCost,
+	useFormattedTokens,
+	useIsPaused,
+	useSessionStore,
+	useCurrentProject,
+} from '@/stores';
 import { AppShellContext } from './AppShellContext';
 import './TopBar.css';
 
@@ -51,14 +58,12 @@ export function TopBar({
 	className = '',
 }: TopBarProps) {
 	const currentProject = useCurrentProject();
-	const {
-		duration,
-		formattedTokens,
-		formattedCost,
-		isPaused,
-		pauseAll,
-		resumeAll,
-	} = useSessionStore();
+	const duration = useFormattedDuration();
+	const formattedTokens = useFormattedTokens();
+	const formattedCost = useFormattedCost();
+	const isPaused = useIsPaused();
+	const pauseAll = useSessionStore((s) => s.pauseAll);
+	const resumeAll = useSessionStore((s) => s.resumeAll);
 
 	// Get right panel state from AppShell context (null if not in AppShellProvider)
 	const appShell = useContext(AppShellContext);
@@ -77,18 +82,19 @@ export function TopBar({
 	};
 
 	// Focus search on Cmd+K / Ctrl+K
+	// No dependency on searchExpanded — Escape always calls setSearchExpanded(false) (idempotent)
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
 		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 			e.preventDefault();
 			setSearchExpanded(true);
 			searchInputRef.current?.focus();
 		}
-		// Close expanded search on Escape
-		if (e.key === 'Escape' && searchExpanded) {
+		// Close expanded search on Escape (idempotent — safe to call when already collapsed)
+		if (e.key === 'Escape') {
 			setSearchExpanded(false);
 			searchInputRef.current?.blur();
 		}
-	}, [searchExpanded]);
+	}, []);
 
 	useEffect(() => {
 		document.addEventListener('keydown', handleKeyDown);

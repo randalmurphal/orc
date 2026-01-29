@@ -13,3 +13,4 @@ export { DecisionsPanel, type DecisionsPanelProps } from './DecisionsPanel';
 export { FilesPanel, type FilesPanelProps, type ChangedFile, type FileStatus } from './FilesPanel';
 export { CompletedPanel, type CompletedPanelProps } from './CompletedPanel';
 export { ConfigPanel, type ConfigPanelProps, type ConfigStats } from './ConfigPanel';
+export { BoardCommandPanel } from './BoardCommandPanel';

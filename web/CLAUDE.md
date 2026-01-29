@@ -8,8 +8,8 @@ Orc web UI built with React 19 + Vite.
 |-------|------------|
 | Framework | React 19, Vite |
 | Language | TypeScript 5.6+ |
-| State | Zustand stores (taskStore, initiativeStore, etc.) |
-| Events | Connect RPC streaming (useEvents, EventProvider) |
+| State | Zustand stores (`stores/`) with `useShallow` for derived selectors |
+| Events | Connect RPC streaming (`useEvents`, `EventProvider`) |
 | Routing | React Router 7 |
 | Styling | CSS custom properties + design tokens (`styles/tokens.css`) |
 | Components | Radix UI, custom primitives (`components/core/`) |
@@ -33,76 +33,122 @@ web/src/
 ├── main.tsx              # Entry point
 ├── App.tsx               # Root (routes + providers)
 ├── index.css             # Global styles (design tokens)
-├── api/                  # API client
-│   ├── index.ts          # Fetch functions
-│   └── types.ts          # API response types
 ├── components/
-│   ├── ui/               # Base primitives (Button, Input, Tooltip, etc.)
+│   ├── ui/               # Base primitives (Button, Input, Tooltip, Icon, etc.)
 │   ├── core/             # Shared primitives (Badge, Card, Select, Slider, Toggle, etc.)
-│   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings, ToolPermissions)
+│   ├── board/            # Board view (TaskCard, RunningCard, Swimlane, BoardCommandPanel)
+│   ├── layout/           # Shell (AppShell, TopBar, IconNav, RightPanel, AppShellContext)
+│   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings)
 │   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
+│   ├── task-detail/      # Task detail tabs (Overview, Transcript, TestResults, etc.)
+│   ├── timeline/         # Timeline event view
 │   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
-│   │   └── utils/        # layoutWorkflow (dagre), graph helpers
-│   └── [feature]/        # Feature components (board/, task-detail/, etc.)
-├── context/              # React Context providers
-│   ├── SettingsContext.tsx
-│   ├── ToastContext.tsx
-│   └── WebSocketContext.tsx
-├── hooks/                # Custom hooks
+│   └── [8 more dirs]     # dashboard/, settings/, stats/, initiatives/, etc.
+├── stores/               # Zustand stores (10 stores — see State Management)
+├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
-├── types/                # TypeScript definitions
-├── lib/                  # Generic utilities (graph-layout.ts)
-├── utils/                # Utility functions (format.ts)
-└── test/                 # Test utilities and mocks
+├── lib/                  # Generic utilities (client.ts, time.ts, format.ts)
+├── gen/                  # Generated protobuf types (orc/v1/)
+└── test/                 # Test utilities and mock factories
 ```
 
 ## Routes
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | TasksPage | Dashboard with task list and board |
-| `/tasks/:taskId` | TaskDetailPanel | Task details, transcript, review |
+| `/` | — | Redirects to `/board` |
+| `/board` | BoardView | Kanban board (queue + running columns) |
+| `/tasks/:taskId` | TaskDetail | Task details, transcript, review |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
-| `/initiatives/:id` | InitiativeDetailPanel | Initiative detail view |
-| `/agents` | Agents | Agent configuration, execution settings, tool permissions |
+| `/initiatives/:id` | InitiativeDetailPage | Initiative detail view |
+| `/agents` | AgentsView | Agent configuration, execution settings |
 | `/settings` | SettingsPage | Configuration editor |
 | `/knowledge` | KnowledgePage | Knowledge service config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
+| `/timeline` | TimelinePage | Event timeline with filters |
+| `/stats` | StatsPage | Dashboard statistics |
+
+## State Management
+
+Zustand stores in `stores/`. Each exports the base store hook + granular selector hooks.
+
+| Store | Key Selectors | Notes |
+|-------|--------------|-------|
+| `taskStore` | `useActiveTasks`, `useRunningTasks`, `useStatusCounts`, `useTask(id)` | Derived selectors use `useShallow` |
+| `sessionStore` | `useFormattedDuration`, `useFormattedCost`, `useIsPaused`, `useSessionMetrics` | `useSessionMetrics` uses `useShallow` |
+| `workflowStore` | `useBuiltinWorkflows`, `useCustomWorkflows`, `useRunningRuns` | Filter selectors use `useShallow` |
+| `initiativeStore` | `useInitiatives`, `useCurrentInitiative` | |
+| `projectStore` | `useCurrentProject`, `useProjects` | |
+| `uiStore` | `usePendingDecisions`, `useWsStatus`, `useToasts` | |
+| `preferencesStore` | `useTheme`, `useBoardViewMode` | |
+| `workflowEditorStore` | `useEditorNodes`, `useEditorEdges` | React Flow state |
+
+**Pattern — `useShallow` for derived selectors:**
+```tsx
+// Store methods that return new arrays/objects need useShallow to prevent re-renders
+import { useShallow } from 'zustand/react/shallow';
+export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTasks()));
+```
 
 ## Key Components
 
-| Component | Purpose |
-|-----------|---------|
-| `TaskCard` | Task display with status, actions |
-| `TaskList` | Filterable task list |
-| `TaskDetailPanel` | Full task view with tabs |
-| `TaskMonitor` | Real-time task execution view |
-| `NewTaskModal` | Task creation with WorkflowSelector |
-| `TranscriptViewer` | Claude conversation display |
-| `KnowledgePanel` | Knowledge service configuration |
-| `WorkflowSelector` | Workflow dropdown for task forms |
-| `EditWorkflowModal` | Workflow metadata and phase editing |
-| `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
-| `WorkflowEditorPage` | 3-panel visual editor: palette \| canvas \| inspector |
-| `WorkflowCanvas` | React Flow wrapper with nodes/edges from `workflowEditorStore` |
-| `AgentsView` | Agent page container (cards + execution settings + tool permissions) |
-| `AgentCard` | Individual agent display with stats and tool badges |
-| `ExecutionSettings` | Global settings: parallel tasks, auto-approve, model, cost limit |
-| `ToolPermissions` | 3-column grid of tool permission toggles |
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `BoardView` | `board/` | Two-column grid (queue + running). Pure layout, no side effects |
+| `BoardCommandPanel` | `board/` | Right panel for board: blocked, decisions, config, files, completed. Reads stores directly |
+| `TaskCard` | `board/` | Compact task card. `memo()`-wrapped with memo-friendly callbacks |
+| `RunningCard` | `board/` | Active task card with pipeline + output. `memo()`-wrapped |
+| `Swimlane` | `board/` | Initiative group in queue column. `memo()`-wrapped |
+| `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
+| `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
+| `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
+| `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
+
+## React Patterns
+
+### Memo Boundaries
+
+`TaskCard`, `RunningCard`, and `Swimlane` are wrapped with `React.memo`. To avoid defeating memo:
+
+| Pattern | Do | Don't |
+|---------|------|-------|
+| List callbacks | Pass `onTaskClick={handler}` (stable ref) | Pass `onClick={() => handler(task)}` (new closure per render) |
+| Store selectors | `useTaskStore((s) => s.tasks)` | `useTaskStore()` (subscribes to ALL state) |
+| Context values | `useMemo(() => ({ isOpen }), [isOpen])` | `value={{ isOpen }}` (new object per render) |
+
+**TaskCard memo-friendly props:** `onTaskClick(task)` and `onTaskContextMenu(task, e)` accept the task as argument, allowing parents to pass a single stable callback for all items in a list.
+
+### Right Panel Architecture
+
+AppShell renders route-specific panel content:
+- `/board` → `<BoardCommandPanel />` (reads stores directly, no props needed)
+- Other routes → `defaultPanelContent` prop
+
+**No JSX through context.** Panel content components read from stores. AppShellContext only manages: `isRightPanelOpen`, `toggleRightPanel`, `isMobileNavMode`.
+
+### Async Effects
+
+Always use mounted guards for async effects that set state:
+```tsx
+useEffect(() => {
+  let mounted = true;
+  fetchData().then((data) => { if (mounted) setState(data); });
+  return () => { mounted = false; };
+}, []);
+```
 
 ## Custom Hooks
 
 | Hook | Purpose |
 |------|---------|
-| `useTaskStore` | Task state from Zustand store |
-| `useInitiatives` | Initiative data fetching |
-| `useKnowledge` | Knowledge service state |
-| `useWebSocket` | WebSocket connection + events |
-| `useSettings` | Settings state management |
-| `useKeyboard` | Keyboard shortcut registration |
-| `useEditorNodes/Edges` | Workflow editor React Flow state selectors |
-| `workflowEditorStore` | Zustand store: nodes, edges, readOnly, selectedNodeId |
+| `useShortcuts` / `ShortcutProvider` | Keyboard shortcut registration + context (`hooks/useShortcuts.tsx`) |
+| `useEvents` / `EventProvider` | Connect RPC streaming, WebSocket events (`hooks/useEvents.tsx`) |
+| `useDocumentTitle` | Dynamic page title (`hooks/useDocumentTitle.ts`) |
+| `useClickKeyboard` | Click/keyboard combo handler (`hooks/useClickKeyboard.ts`) |
+| `useTaskSubscription` | Subscribe to individual task events (`hooks/useEvents.tsx`) |
+
+See `stores/index.ts` for all exported store selector hooks (60+ hooks).
 
 ## WebSocket Events
 
@@ -112,35 +158,6 @@ web/src/
 | `state_updated` | TaskState |
 | `transcript` | `{ task_id, content, tokens }` |
 | `activity` | `{ phase, activity }` |
-
-## UI Components (components/ui/)
-
-Base primitives built on Radix UI:
-
-| Component | Variants/Notes |
-|-----------|----------------|
-| `Button` | primary, secondary, danger, ghost, success; sizes: sm, md, lg; props: loading, iconOnly, leftIcon, rightIcon |
-| `Input` | text, number, search |
-| `Tooltip` | Radix Tooltip (TooltipProvider at App root) |
-| `Icon` | Lucide icon wrapper |
-| `StatusIndicator` | Task/phase status display |
-| `Skeleton` | Loading placeholder |
-| `Textarea` | Multi-line input |
-
-## Core Components (components/core/)
-
-Shared primitives exported via `core/index.ts`:
-
-| Component | Variants/Notes |
-|-----------|----------------|
-| `Badge` | Status badges with variants |
-| `Card` | Container with padding options |
-| `Progress` | Progress bar with color/size variants |
-| `SearchInput` | Search input with icon |
-| `Select` | Dropdown select with options |
-| `Slider` | Range slider with keyboard nav, step snapping, custom formatting |
-| `Stat` | Stat display with trend, icon, value color |
-| `Toggle` | Accessible switch with sizes: sm, md; animated transitions |
 
 ## Testing
 

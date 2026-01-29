@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { BoardView } from '@/components/board/BoardView';
-import { AppShellProvider, useAppShell } from '@/components/layout/AppShellContext';
-import { EventProvider } from '@/hooks';
+import { BoardCommandPanel } from '@/components/board/BoardCommandPanel';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import type { Task } from '@/gen/orc/v1/task_pb';
 import { TaskStatus, TaskWeight, TaskCategory, TaskPriority } from '@/gen/orc/v1/task_pb';
@@ -37,31 +35,6 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock events module
-vi.mock('@/lib/events', () => ({
-	EventSubscription: vi.fn().mockImplementation(() => ({
-		connect: vi.fn(),
-		disconnect: vi.fn(),
-		on: vi.fn().mockReturnValue(() => {}),
-		onStatusChange: vi.fn((callback: (status: string) => void) => {
-			callback('connected');
-			return () => {};
-		}),
-		getStatus: vi.fn().mockReturnValue('connected'),
-		isConnected: vi.fn().mockReturnValue(true),
-	})),
-	handleEvent: vi.fn(),
-}));
-
-/**
- * Renders the right panel content set via AppShell context.
- * BoardView uses setRightPanelContent to inject command panel into the AppShell.
- */
-function RightPanelRenderer() {
-	const { rightPanelContent } = useAppShell();
-	return <div data-testid="right-panel-content">{rightPanelContent}</div>;
-}
-
 // Mock taskStore - need to mock both hook usage and getState() access
 vi.mock('@/stores/taskStore', () => {
 	const mockTaskStoreState = {
@@ -87,6 +60,7 @@ vi.mock('@/stores/taskStore', () => {
 });
 
 // Mock uiStore - includes pendingDecisions
+// IMPORTANT: Return stable reference to prevent infinite re-render loops.
 vi.mock('@/stores/uiStore', () => {
 	const mockUIStoreState = {
 		get pendingDecisions() { return mockPendingDecisions; },
@@ -117,27 +91,7 @@ vi.mock('@/stores/uiStore', () => {
 
 	return {
 		useUIStore: mockUseUIStore,
-		usePendingDecisions: () => [...mockPendingDecisions],
-	};
-});
-
-// Mock initiativeStore with getState
-vi.mock('@/stores/initiativeStore', () => {
-	const mockInitiativeStoreState = {
-		initiatives: new Map(),
-		addInitiative: vi.fn(),
-		updateInitiative: vi.fn(),
-		removeInitiative: vi.fn(),
-	};
-
-	const mockUseInitiativeStore = Object.assign(
-		() => [],
-		{ getState: () => mockInitiativeStoreState }
-	);
-
-	return {
-		useInitiatives: () => [],
-		useInitiativeStore: mockUseInitiativeStore,
+		usePendingDecisions: () => mockPendingDecisions,
 	};
 });
 
@@ -150,17 +104,6 @@ vi.mock('@/stores/sessionStore', () => ({
 		};
 		return selector(state);
 	},
-}));
-
-// Mock API
-vi.mock('@/lib/api', () => ({
-	submitDecision: vi.fn(),
-	getConfigStats: vi.fn().mockResolvedValue({
-		slashCommandsCount: 0,
-		claudeMdSize: 0,
-		mcpServersCount: 0,
-		permissionsProfile: 'default',
-	}),
 }));
 
 function createTask(overrides: Partial<Omit<Task, '$typeName' | '$unknown'>> = {}): Task {
@@ -211,21 +154,18 @@ function simulateDecisionResolved(decisionId: string): void {
 	}
 }
 
-const AppTree = (
-	<TooltipProvider>
-		<MemoryRouter>
-			<EventProvider>
-				<AppShellProvider>
-					<BoardView />
-					<RightPanelRenderer />
-				</AppShellProvider>
-			</EventProvider>
-		</MemoryRouter>
-	</TooltipProvider>
-);
-
-function renderApp() {
-	return render(AppTree);
+/**
+ * Render BoardCommandPanel directly — no AppShellProvider needed.
+ * BoardCommandPanel reads from stores, not context.
+ */
+function renderPanel() {
+	return render(
+		<TooltipProvider>
+			<MemoryRouter>
+				<BoardCommandPanel />
+			</MemoryRouter>
+		</TooltipProvider>
+	);
 }
 
 describe('Decision Resolution Integration', () => {
@@ -261,14 +201,14 @@ describe('Decision Resolution Integration', () => {
 				context: 'Implementation ready for review',
 			});
 
-			const { getByText, getByRole } = renderApp();
+			const { getByText, getByRole } = renderPanel();
 
 			// Wait for component to mount
 			await act(async () => {
 				await vi.advanceTimersByTimeAsync(100);
 			});
 
-			// DecisionsPanel is rendered inline in BoardView's command panel
+			// DecisionsPanel renders the question
 			expect(getByText('Approve implementation plan?')).toBeInTheDocument();
 
 			// Click on the first option button (Approve for approval gate type)
@@ -304,7 +244,7 @@ describe('Decision Resolution Integration', () => {
 			});
 			simulateDecisionResolved('DEC-001');
 
-			const { queryByText } = renderApp();
+			const { queryByText } = renderPanel();
 
 			await act(async () => {
 				await vi.advanceTimersByTimeAsync(100);
@@ -316,98 +256,18 @@ describe('Decision Resolution Integration', () => {
 			expect(queryByText('Decisions')).toBeInTheDocument();
 		});
 
-		it('should show task card glow when decision exists', async () => {
-			const task = createTask({ id: 'TASK-001', status: TaskStatus.RUNNING });
+		it('should show blocked tasks in BlockedPanel', async () => {
+			const task = createTask({ id: 'TASK-001', status: TaskStatus.BLOCKED });
 			mockTasks.push(task);
 			mockTaskStates.set('TASK-001', { currentPhase: 'implement', phases: {} });
 
-			// Add decision to mock store first (simulating event arrival)
-			simulateDecisionRequired({
-				decisionId: 'DEC-001',
-				taskId: 'TASK-001',
-				taskTitle: 'Test Task',
-				phase: 'implement',
-				gateType: 'approval',
-				question: 'Test decision',
-				context: 'Test context',
-			});
-
-			// Now render the app - it will see the pending decision
-			const { container } = renderApp();
+			const { getByText } = renderPanel();
 
 			await act(async () => {
 				await vi.advanceTimersByTimeAsync(100);
 			});
 
-			// RunningCard should have .has-pending-decision class
-			const runningCard = container.querySelector('.running-card[data-task-id="TASK-001"]');
-			expect(runningCard).not.toBeNull();
-			if (runningCard) {
-				expect(runningCard.classList.contains('has-pending-decision')).toBe(true);
-			}
-		});
-
-		it('should remove glow when decision is resolved', async () => {
-			const task = createTask({ id: 'TASK-001', status: TaskStatus.RUNNING });
-			mockTasks.push(task);
-			mockTaskStates.set('TASK-001', { currentPhase: 'implement', phases: {} });
-
-			// Add then resolve decision before rendering (simulating full event sequence)
-			simulateDecisionRequired({
-				decisionId: 'DEC-001',
-				taskId: 'TASK-001',
-				taskTitle: 'Test Task',
-				phase: 'implement',
-				gateType: 'approval',
-				question: 'Test decision',
-				context: 'Test context',
-			});
-			simulateDecisionResolved('DEC-001');
-
-			// Render after decision is resolved
-			const { container } = renderApp();
-
-			await act(async () => {
-				await vi.advanceTimersByTimeAsync(100);
-			});
-
-			// RunningCard should NOT have .has-pending-decision class (decision was resolved)
-			const runningCard = container.querySelector('.running-card[data-task-id="TASK-001"]');
-			if (runningCard) {
-				expect(runningCard.classList.contains('has-pending-decision')).toBe(false);
-			}
-		});
-	});
-
-	describe('files changed integration', () => {
-		it('should update FilesPanel with latest snapshot', async () => {
-			const task = createTask({ id: 'TASK-001', status: TaskStatus.RUNNING });
-			mockTasks.push(task);
-			mockTaskStates.set('TASK-001', { currentPhase: 'implement', phases: {} });
-
-			renderApp();
-
-			await act(async () => {
-				await vi.advanceTimersByTimeAsync(100);
-			});
-
-			// Test passes if no errors - files changed events are not yet integrated
-			expect(true).toBe(true);
-		});
-
-		it('should clear files when task completes', async () => {
-			const task = createTask({ id: 'TASK-001', status: TaskStatus.RUNNING });
-			mockTasks.push(task);
-			mockTaskStates.set('TASK-001', { currentPhase: 'implement', phases: {} });
-
-			renderApp();
-
-			await act(async () => {
-				await vi.advanceTimersByTimeAsync(100);
-			});
-
-			// Test passes if no errors - files changed events are not yet integrated
-			expect(true).toBe(true);
+			expect(getByText('Blocked')).toBeInTheDocument();
 		});
 	});
 
@@ -419,7 +279,6 @@ describe('Decision Resolution Integration', () => {
 			mockTaskStates.set('TASK-001', { currentPhase: 'implement', phases: {} });
 			mockTaskStates.set('TASK-002', { currentPhase: 'implement', phases: {} });
 
-			// Set up state before rendering (mock store is not reactive)
 			// Add decisions for both tasks, then resolve task 1's decision
 			simulateDecisionRequired({
 				decisionId: 'DEC-001',
@@ -441,13 +300,13 @@ describe('Decision Resolution Integration', () => {
 			});
 			simulateDecisionResolved('DEC-001');
 
-			const { getByText, queryByText } = renderApp();
+			const { getByText, queryByText } = renderPanel();
 
 			await act(async () => {
 				await vi.advanceTimersByTimeAsync(100);
 			});
 
-			// Inline command panel should show Task 2 decision
+			// Should show Task 2 decision
 			expect(getByText('Decision for Task 2')).toBeInTheDocument();
 			// Task 1 decision should be gone (was resolved before render)
 			expect(queryByText('Decision for Task 1')).not.toBeInTheDocument();

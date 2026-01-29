@@ -1,6 +1,7 @@
 import {
 	useState,
 	useCallback,
+	useMemo,
 	useRef,
 	useEffect,
 	createContext,
@@ -198,8 +199,10 @@ function RightPanelRoot({ isOpen, onClose, children, className = '' }: RightPane
 	// Don't render content when closed (performance optimization)
 	const shouldRenderContent = isOpen || isAnimating;
 
+	const contextValue = useMemo(() => ({ isOpen }), [isOpen]);
+
 	return (
-		<RightPanelContext.Provider value={{ isOpen }}>
+		<RightPanelContext.Provider value={contextValue}>
 			<aside
 				ref={panelRef}
 				className={`right-panel ${isOpen ? 'open' : ''} ${className}`}
@@ -251,8 +254,10 @@ function Section({ children, defaultCollapsed = false, id, className = '' }: Sec
 		}
 	}, [id, sectionId]);
 
+	const sectionValue = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
+
 	return (
-		<SectionContext.Provider value={{ collapsed, toggle }}>
+		<SectionContext.Provider value={sectionValue}>
 			<div className={`right-panel-section ${collapsed ? 'collapsed' : ''} ${className}`}>
 				{children}
 			</div>

@@ -8,7 +8,7 @@
  * - Empty state with 'No tasks' message
  */
 
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { TaskCard } from './TaskCard';
 import { type Task, TaskStatus } from '@/gen/orc/v1/task_pb';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
@@ -53,7 +53,7 @@ function getInitiativeEmoji(initiative: Initiative | null): string {
 	return initiative.title.charAt(0).toUpperCase();
 }
 
-export function Swimlane({
+export const Swimlane = memo(function Swimlane({
 	initiative,
 	tasks,
 	isCollapsed,
@@ -160,8 +160,8 @@ export function Swimlane({
 							key={task.id}
 							task={task}
 							position={index + 1}
-							onClick={() => onTaskClick?.(task)}
-							onContextMenu={(e) => onContextMenu?.(task, e)}
+							onTaskClick={onTaskClick}
+							onTaskContextMenu={onContextMenu}
 							pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
 						/>
 					))
@@ -169,4 +169,4 @@ export function Swimlane({
 			</div>
 		</div>
 	);
-}
+});

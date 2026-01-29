@@ -264,7 +264,7 @@ describe('AppShell.css', () => {
 
 describe('AppShellContext', () => {
 	describe('useAppShell hook', () => {
-		it('should return context value with isRightPanelOpen, toggleRightPanel, setRightPanelContent', () => {
+		it('should return context value with isRightPanelOpen, toggleRightPanel, isMobileNavMode', () => {
 			// Test component that exposes context value through data attributes
 			function TestComponent() {
 				const ctx = useAppShell();
@@ -273,7 +273,7 @@ describe('AppShellContext', () => {
 						data-testid="context-consumer"
 						data-has-is-right-panel-open={ctx.isRightPanelOpen !== undefined}
 						data-has-toggle-right-panel={typeof ctx.toggleRightPanel === 'function'}
-						data-has-set-right-panel-content={typeof ctx.setRightPanelContent === 'function'}
+						data-has-is-mobile-nav-mode={ctx.isMobileNavMode !== undefined}
 					/>
 				);
 			}
@@ -287,7 +287,7 @@ describe('AppShellContext', () => {
 			const consumer = screen.getByTestId('context-consumer');
 			expect(consumer).toHaveAttribute('data-has-is-right-panel-open', 'true');
 			expect(consumer).toHaveAttribute('data-has-toggle-right-panel', 'true');
-			expect(consumer).toHaveAttribute('data-has-set-right-panel-content', 'true');
+			expect(consumer).toHaveAttribute('data-has-is-mobile-nav-mode', 'true');
 		});
 
 		it('should throw error when used outside provider', () => {

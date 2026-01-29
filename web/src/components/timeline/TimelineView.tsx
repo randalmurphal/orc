@@ -257,6 +257,7 @@ export function TimelineView() {
 
 	// Fetch tasks and initiatives for filter dropdowns
 	useEffect(() => {
+		let mounted = true;
 		async function loadFilterData() {
 			try {
 				const [tasksRes, initiativesRes] = await Promise.all([
@@ -264,6 +265,7 @@ export function TimelineView() {
 					initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}))
 				]);
 
+				if (!mounted) return;
 				setTasks(tasksRes.tasks.map(t => ({ id: t.id, title: t.title })));
 				setInitiatives(initiativesRes.initiatives.map(i => ({ id: i.id, title: i.title })));
 			} catch {
@@ -271,6 +273,7 @@ export function TimelineView() {
 			}
 		}
 		loadFilterData();
+		return () => { mounted = false; };
 	}, []);
 
 	// Fetch events

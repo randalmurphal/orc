@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import {
 	type Workflow,
@@ -179,11 +180,13 @@ export const usePhaseTemplates = () => useWorkflowStore((state) => state.phaseTe
 export const useWorkflowRuns = () => useWorkflowStore((state) => state.workflowRuns);
 export const useWorkflowSources = () => useWorkflowStore((state) => state.workflowSources);
 export const usePhaseSources = () => useWorkflowStore((state) => state.phaseSources);
-export const useBuiltinWorkflows = () => useWorkflowStore((state) => state.getBuiltinWorkflows());
-export const useCustomWorkflows = () => useWorkflowStore((state) => state.getCustomWorkflows());
-export const useBuiltinPhases = () => useWorkflowStore((state) => state.getBuiltinPhases());
-export const useCustomPhases = () => useWorkflowStore((state) => state.getCustomPhases());
-export const useRunningRuns = () => useWorkflowStore((state) => state.getRunningRuns());
+// useShallow prevents re-renders when filter results haven't changed —
+// these methods return new arrays on every call, but useShallow compares elements.
+export const useBuiltinWorkflows = () => useWorkflowStore(useShallow((state) => state.getBuiltinWorkflows()));
+export const useCustomWorkflows = () => useWorkflowStore(useShallow((state) => state.getCustomWorkflows()));
+export const useBuiltinPhases = () => useWorkflowStore(useShallow((state) => state.getBuiltinPhases()));
+export const useCustomPhases = () => useWorkflowStore(useShallow((state) => state.getCustomPhases()));
+export const useRunningRuns = () => useWorkflowStore(useShallow((state) => state.getRunningRuns()));
 export const useSelectedWorkflow = () => useWorkflowStore((state) => state.selectedWorkflow);
 export const useSelectedRun = () => useWorkflowStore((state) => state.selectedRun);
 export const useRefreshKey = () => useWorkflowStore((state) => state.refreshKey);

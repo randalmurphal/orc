@@ -17,22 +17,19 @@
  * +-------+---------------------------+------------+
  * ```
  *
- * Features:
- * - CSS Grid layout matching board.html mockup
- * - Right panel collapsible with 0.2s ease transition
- * - Keyboard shortcut Shift+Alt+R to toggle panel
- * - localStorage persistence for panel state
- * - Responsive breakpoints at 1024px, 768px, 480px
- * - Skip link for accessibility
- * - Focus management when panel opens/closes
+ * The right panel renders route-specific content:
+ * - /board: BoardCommandPanel (reads from stores directly)
+ * - Other routes: defaultPanelContent prop (if provided)
  */
 
 import { type ReactNode, useState, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { IconNav } from './IconNav';
 import { TopBar } from './TopBar';
 import { RightPanel } from './RightPanel';
 import { UrlParamSync } from './UrlParamSync';
 import { AppShellProvider, useAppShell } from './AppShellContext';
+import { BoardCommandPanel } from '@/components/board/BoardCommandPanel';
 import './AppShell.css';
 
 // =============================================================================
@@ -48,7 +45,7 @@ export interface AppShellProps {
 	onNewTask?: () => void;
 	/** Callback when project selector is clicked */
 	onProjectChange?: () => void;
-	/** Default right panel content (when no custom content is set) */
+	/** Default right panel content (when no route-specific content applies) */
 	defaultPanelContent?: ReactNode;
 }
 
@@ -75,14 +72,16 @@ function AppShellInner({
 	const {
 		isRightPanelOpen,
 		toggleRightPanel,
-		rightPanelContent,
 		isMobileNavMode,
 	} = useAppShell();
 
+	const location = useLocation();
+
 	const shellClasses = ['app-shell', isRightPanelOpen && 'app-shell--panel-open', mobileNavOpen && 'app-shell--mobile-nav-open', className].filter(Boolean).join(' ');
 
-	// Determine panel content (custom or default)
-	const panelContent = rightPanelContent ?? defaultPanelContent;
+	// Route-aware panel content: board gets its own panel, others use default
+	const isBoard = location.pathname === '/board';
+	const panelContent = isBoard ? <BoardCommandPanel /> : defaultPanelContent;
 
 	// Handle closing panel
 	const handlePanelClose = useCallback(() => {
@@ -160,13 +159,15 @@ function AppShellInner({
  * AppShell - Main application layout shell.
  *
  * Wraps content in AppShellProvider for state management.
+ * Right panel content is determined by route:
+ * - /board renders BoardCommandPanel (reads from stores)
+ * - Other routes use defaultPanelContent prop
  *
  * @example
  * ```tsx
  * <AppShell
  *   onNewTask={() => setShowNewTaskModal(true)}
  *   onProjectChange={() => setShowProjectSwitcher(true)}
- *   defaultPanelContent={<TaskContextPanel />}
  * >
  *   <Outlet />
  * </AppShell>

@@ -26,7 +26,7 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Mock useTaskSubscription hook
+// Mock hooks module — must include all hooks imported by TaskDetail
 vi.mock('@/hooks', () => ({
 	useTaskSubscription: vi.fn(() => ({
 		state: undefined,
@@ -35,6 +35,7 @@ vi.mock('@/hooks', () => ({
 		connectionStatus: 'connected',
 		clearTranscript: vi.fn(),
 	})),
+	useDocumentTitle: vi.fn(),
 }));
 
 // Mock the stores module for getInitiativeBadgeTitle
