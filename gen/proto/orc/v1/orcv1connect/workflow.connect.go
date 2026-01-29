@@ -99,6 +99,12 @@ const (
 	// WorkflowServiceCancelWorkflowRunProcedure is the fully-qualified name of the WorkflowService's
 	// CancelWorkflowRun RPC.
 	WorkflowServiceCancelWorkflowRunProcedure = "/orc.v1.WorkflowService/CancelWorkflowRun"
+	// WorkflowServiceSaveWorkflowLayoutProcedure is the fully-qualified name of the WorkflowService's
+	// SaveWorkflowLayout RPC.
+	WorkflowServiceSaveWorkflowLayoutProcedure = "/orc.v1.WorkflowService/SaveWorkflowLayout"
+	// WorkflowServiceValidateWorkflowProcedure is the fully-qualified name of the WorkflowService's
+	// ValidateWorkflow RPC.
+	WorkflowServiceValidateWorkflowProcedure = "/orc.v1.WorkflowService/ValidateWorkflow"
 )
 
 // WorkflowServiceClient is a client for the orc.v1.WorkflowService service.
@@ -125,6 +131,8 @@ type WorkflowServiceClient interface {
 	GetWorkflowRun(context.Context, *connect.Request[v1.GetWorkflowRunRequest]) (*connect.Response[v1.GetWorkflowRunResponse], error)
 	StartWorkflowRun(context.Context, *connect.Request[v1.StartWorkflowRunRequest]) (*connect.Response[v1.StartWorkflowRunResponse], error)
 	CancelWorkflowRun(context.Context, *connect.Request[v1.CancelWorkflowRunRequest]) (*connect.Response[v1.CancelWorkflowRunResponse], error)
+	SaveWorkflowLayout(context.Context, *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error)
+	ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error)
 }
 
 // NewWorkflowServiceClient constructs a client for the orc.v1.WorkflowService service. By default,
@@ -270,6 +278,18 @@ func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(workflowServiceMethods.ByName("CancelWorkflowRun")),
 			connect.WithClientOptions(opts...),
 		),
+		saveWorkflowLayout: connect.NewClient[v1.SaveWorkflowLayoutRequest, v1.SaveWorkflowLayoutResponse](
+			httpClient,
+			baseURL+WorkflowServiceSaveWorkflowLayoutProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("SaveWorkflowLayout")),
+			connect.WithClientOptions(opts...),
+		),
+		validateWorkflow: connect.NewClient[v1.ValidateWorkflowRequest, v1.ValidateWorkflowResponse](
+			httpClient,
+			baseURL+WorkflowServiceValidateWorkflowProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -297,6 +317,8 @@ type workflowServiceClient struct {
 	getWorkflowRun      *connect.Client[v1.GetWorkflowRunRequest, v1.GetWorkflowRunResponse]
 	startWorkflowRun    *connect.Client[v1.StartWorkflowRunRequest, v1.StartWorkflowRunResponse]
 	cancelWorkflowRun   *connect.Client[v1.CancelWorkflowRunRequest, v1.CancelWorkflowRunResponse]
+	saveWorkflowLayout  *connect.Client[v1.SaveWorkflowLayoutRequest, v1.SaveWorkflowLayoutResponse]
+	validateWorkflow    *connect.Client[v1.ValidateWorkflowRequest, v1.ValidateWorkflowResponse]
 }
 
 // ListWorkflows calls orc.v1.WorkflowService.ListWorkflows.
@@ -409,6 +431,16 @@ func (c *workflowServiceClient) CancelWorkflowRun(ctx context.Context, req *conn
 	return c.cancelWorkflowRun.CallUnary(ctx, req)
 }
 
+// SaveWorkflowLayout calls orc.v1.WorkflowService.SaveWorkflowLayout.
+func (c *workflowServiceClient) SaveWorkflowLayout(ctx context.Context, req *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error) {
+	return c.saveWorkflowLayout.CallUnary(ctx, req)
+}
+
+// ValidateWorkflow calls orc.v1.WorkflowService.ValidateWorkflow.
+func (c *workflowServiceClient) ValidateWorkflow(ctx context.Context, req *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error) {
+	return c.validateWorkflow.CallUnary(ctx, req)
+}
+
 // WorkflowServiceHandler is an implementation of the orc.v1.WorkflowService service.
 type WorkflowServiceHandler interface {
 	ListWorkflows(context.Context, *connect.Request[v1.ListWorkflowsRequest]) (*connect.Response[v1.ListWorkflowsResponse], error)
@@ -433,6 +465,8 @@ type WorkflowServiceHandler interface {
 	GetWorkflowRun(context.Context, *connect.Request[v1.GetWorkflowRunRequest]) (*connect.Response[v1.GetWorkflowRunResponse], error)
 	StartWorkflowRun(context.Context, *connect.Request[v1.StartWorkflowRunRequest]) (*connect.Response[v1.StartWorkflowRunResponse], error)
 	CancelWorkflowRun(context.Context, *connect.Request[v1.CancelWorkflowRunRequest]) (*connect.Response[v1.CancelWorkflowRunResponse], error)
+	SaveWorkflowLayout(context.Context, *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error)
+	ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error)
 }
 
 // NewWorkflowServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -574,6 +608,18 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 		connect.WithSchema(workflowServiceMethods.ByName("CancelWorkflowRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workflowServiceSaveWorkflowLayoutHandler := connect.NewUnaryHandler(
+		WorkflowServiceSaveWorkflowLayoutProcedure,
+		svc.SaveWorkflowLayout,
+		connect.WithSchema(workflowServiceMethods.ByName("SaveWorkflowLayout")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceValidateWorkflowHandler := connect.NewUnaryHandler(
+		WorkflowServiceValidateWorkflowProcedure,
+		svc.ValidateWorkflow,
+		connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.WorkflowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkflowServiceListWorkflowsProcedure:
@@ -620,6 +666,10 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 			workflowServiceStartWorkflowRunHandler.ServeHTTP(w, r)
 		case WorkflowServiceCancelWorkflowRunProcedure:
 			workflowServiceCancelWorkflowRunHandler.ServeHTTP(w, r)
+		case WorkflowServiceSaveWorkflowLayoutProcedure:
+			workflowServiceSaveWorkflowLayoutHandler.ServeHTTP(w, r)
+		case WorkflowServiceValidateWorkflowProcedure:
+			workflowServiceValidateWorkflowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -715,4 +765,12 @@ func (UnimplementedWorkflowServiceHandler) StartWorkflowRun(context.Context, *co
 
 func (UnimplementedWorkflowServiceHandler) CancelWorkflowRun(context.Context, *connect.Request[v1.CancelWorkflowRunRequest]) (*connect.Response[v1.CancelWorkflowRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.CancelWorkflowRun is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) SaveWorkflowLayout(context.Context, *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.SaveWorkflowLayout is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.ValidateWorkflow is not implemented"))
 }

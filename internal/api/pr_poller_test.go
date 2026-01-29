@@ -315,6 +315,7 @@ func (b *emptyBackend) DeleteWorkflow(string) error                            {
 func (b *emptyBackend) GetWorkflowPhases(string) ([]*db.WorkflowPhase, error)  { return nil, nil }
 func (b *emptyBackend) SaveWorkflowPhase(*db.WorkflowPhase) error              { return nil }
 func (b *emptyBackend) DeleteWorkflowPhase(string, string) error               { return nil }
+func (b *emptyBackend) UpdateWorkflowPhasePositions(string, map[string][2]float64) error { return nil }
 func (b *emptyBackend) GetWorkflowVariables(string) ([]*db.WorkflowVariable, error) {
 	return nil, nil
 }

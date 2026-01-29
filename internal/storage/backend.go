@@ -267,6 +267,7 @@ type Backend interface {
 	GetWorkflowPhases(workflowID string) ([]*db.WorkflowPhase, error)
 	SaveWorkflowPhase(wp *db.WorkflowPhase) error
 	DeleteWorkflowPhase(workflowID, phaseTemplateID string) error
+	UpdateWorkflowPhasePositions(workflowID string, positions map[string][2]float64) error
 	GetWorkflowVariables(workflowID string) ([]*db.WorkflowVariable, error)
 	SaveWorkflowVariable(wv *db.WorkflowVariable) error
 	DeleteWorkflowVariable(workflowID, name string) error
