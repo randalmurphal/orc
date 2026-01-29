@@ -52,7 +52,13 @@ type PR struct {
 	// When PR was last updated
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// When PR was merged
-	MergedAt      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=merged_at,json=mergedAt,proto3,oneof" json:"merged_at,omitempty"`
+	MergedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=merged_at,json=mergedAt,proto3,oneof" json:"merged_at,omitempty"`
+	// HEAD commit SHA
+	HeadSha string `protobuf:"bytes,15,opt,name=head_sha,json=headSha,proto3" json:"head_sha,omitempty"`
+	// Labels applied to the PR
+	Labels []string `protobuf:"bytes,16,rep,name=labels,proto3" json:"labels,omitempty"`
+	// Assigned usernames
+	Assignees     []string `protobuf:"bytes,17,rep,name=assignees,proto3" json:"assignees,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,6 +187,27 @@ func (x *PR) GetUpdatedAt() *timestamppb.Timestamp {
 func (x *PR) GetMergedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.MergedAt
+	}
+	return nil
+}
+
+func (x *PR) GetHeadSha() string {
+	if x != nil {
+		return x.HeadSha
+	}
+	return ""
+}
+
+func (x *PR) GetLabels() []string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *PR) GetAssignees() []string {
+	if x != nil {
+		return x.Assignees
 	}
 	return nil
 }
@@ -601,16 +628,22 @@ func (x *AutofixResult) GetFilesChanged() []string {
 }
 
 type CreatePRRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Title         *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Body          *string                `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
-	Base          *string                `protobuf:"bytes,4,opt,name=base,proto3,oneof" json:"base,omitempty"`
-	Labels        []string               `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
-	Reviewers     []string               `protobuf:"bytes,6,rep,name=reviewers,proto3" json:"reviewers,omitempty"`
-	Draft         bool                   `protobuf:"varint,7,opt,name=draft,proto3" json:"draft,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	TaskId    string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Title     *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Body      *string                `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	Base      *string                `protobuf:"bytes,4,opt,name=base,proto3,oneof" json:"base,omitempty"`
+	Labels    []string               `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
+	Reviewers []string               `protobuf:"bytes,6,rep,name=reviewers,proto3" json:"reviewers,omitempty"`
+	Draft     bool                   `protobuf:"varint,7,opt,name=draft,proto3" json:"draft,omitempty"`
+	// Team reviewer slugs (GitHub) or group paths (GitLab)
+	TeamReviewers []string `protobuf:"bytes,8,rep,name=team_reviewers,json=teamReviewers,proto3" json:"team_reviewers,omitempty"`
+	// Usernames to assign
+	Assignees []string `protobuf:"bytes,9,rep,name=assignees,proto3" json:"assignees,omitempty"`
+	// Allow maintainers to push (GitHub) / allow collaboration (GitLab)
+	MaintainerCanModify bool `protobuf:"varint,10,opt,name=maintainer_can_modify,json=maintainerCanModify,proto3" json:"maintainer_can_modify,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreatePRRequest) Reset() {
@@ -688,6 +721,27 @@ func (x *CreatePRRequest) GetReviewers() []string {
 func (x *CreatePRRequest) GetDraft() bool {
 	if x != nil {
 		return x.Draft
+	}
+	return false
+}
+
+func (x *CreatePRRequest) GetTeamReviewers() []string {
+	if x != nil {
+		return x.TeamReviewers
+	}
+	return nil
+}
+
+func (x *CreatePRRequest) GetAssignees() []string {
+	if x != nil {
+		return x.Assignees
+	}
+	return nil
+}
+
+func (x *CreatePRRequest) GetMaintainerCanModify() bool {
+	if x != nil {
+		return x.MaintainerCanModify
 	}
 	return false
 }
@@ -1526,7 +1580,7 @@ var File_orc_v1_hosting_proto protoreflect.FileDescriptor
 
 const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\n" +
-	"\x14orc/v1/hosting.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x03\n" +
+	"\x14orc/v1/hosting.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x04\n" +
 	"\x02PR\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\x05R\x06number\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -1544,7 +1598,10 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12<\n" +
-	"\tmerged_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x02R\bmergedAt\x88\x01\x01B\f\n" +
+	"\tmerged_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x02R\bmergedAt\x88\x01\x01\x12\x19\n" +
+	"\bhead_sha\x18\x0f \x01(\tR\aheadSha\x12\x16\n" +
+	"\x06labels\x18\x10 \x03(\tR\x06labels\x12\x1c\n" +
+	"\tassignees\x18\x11 \x03(\tR\tassigneesB\f\n" +
 	"\n" +
 	"_mergeableB\x12\n" +
 	"\x10_mergeable_stateB\f\n" +
@@ -1597,7 +1654,7 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\tH\x01R\x05error\x88\x01\x01\x12#\n" +
 	"\rfiles_changed\x18\x04 \x03(\tR\ffilesChangedB\r\n" +
 	"\v_commit_shaB\b\n" +
-	"\x06_error\"\xdf\x01\n" +
+	"\x06_error\"\xd8\x02\n" +
 	"\x0fCreatePRRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x17\n" +
@@ -1605,7 +1662,11 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\x04base\x18\x04 \x01(\tH\x02R\x04base\x88\x01\x01\x12\x16\n" +
 	"\x06labels\x18\x05 \x03(\tR\x06labels\x12\x1c\n" +
 	"\treviewers\x18\x06 \x03(\tR\treviewers\x12\x14\n" +
-	"\x05draft\x18\a \x01(\bR\x05draftB\b\n" +
+	"\x05draft\x18\a \x01(\bR\x05draft\x12%\n" +
+	"\x0eteam_reviewers\x18\b \x03(\tR\rteamReviewers\x12\x1c\n" +
+	"\tassignees\x18\t \x03(\tR\tassignees\x122\n" +
+	"\x15maintainer_can_modify\x18\n" +
+	" \x01(\bR\x13maintainerCanModifyB\b\n" +
 	"\x06_titleB\a\n" +
 	"\x05_bodyB\a\n" +
 	"\x05_base\"H\n" +

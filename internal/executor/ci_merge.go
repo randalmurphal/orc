@@ -383,13 +383,13 @@ func (m *CIMerger) MergePR(ctx context.Context, t *orcv1.Task) error {
 			CommitTitle:  fmt.Sprintf("[orc] %s: %s (#%d)", t.Id, t.Title, prNumber),
 		}
 
-		// Apply commit message templates if configured
+		// Apply commit message templates if configured, rendering task variables.
 		ciCfg := m.config.Completion.CI
 		if ciCfg.MergeCommitTemplate != "" {
-			mergeOpts.CommitMessage = ciCfg.MergeCommitTemplate
+			mergeOpts.CommitMessage = renderCommitTemplate(ciCfg.MergeCommitTemplate, t)
 		}
 		if method == "squash" && ciCfg.SquashCommitTemplate != "" {
-			mergeOpts.SquashCommitMessage = ciCfg.SquashCommitTemplate
+			mergeOpts.SquashCommitMessage = renderCommitTemplate(ciCfg.SquashCommitTemplate, t)
 		}
 
 		// Verify HEAD SHA before merge to prevent stale merges
@@ -500,6 +500,17 @@ func (m *CIMerger) runGitCmd(ctx context.Context, args ...string) (string, error
 	}
 
 	return string(output), nil
+}
+
+// renderCommitTemplate replaces template variables in a commit message template.
+// Supported variables: {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}}.
+func renderCommitTemplate(tmpl string, t *orcv1.Task) string {
+	r := strings.NewReplacer(
+		"{{TASK_ID}}", t.Id,
+		"{{TASK_TITLE}}", t.Title,
+		"{{TASK_BRANCH}}", t.Branch,
+	)
+	return r.Replace(tmpl)
 }
 
 // publishProgress publishes a progress message.

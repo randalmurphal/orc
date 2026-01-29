@@ -505,10 +505,14 @@ func (g *GitLabProvider) GetPRStatusSummary(ctx context.Context, pr *hosting.PR)
 }
 
 // EnableAutoMerge enables merge_when_pipeline_succeeds for a merge request.
-func (g *GitLabProvider) EnableAutoMerge(ctx context.Context, number int, _ string) error {
-	_, _, err := g.client.MergeRequests.AcceptMergeRequest(g.projectID, int64(number), &gogitlab.AcceptMergeRequestOptions{
+func (g *GitLabProvider) EnableAutoMerge(ctx context.Context, number int, method string) error {
+	opts := &gogitlab.AcceptMergeRequestOptions{
 		MergeWhenPipelineSucceeds: gogitlab.Ptr(true),
-	}, gogitlab.WithContext(ctx))
+	}
+	if method == "squash" {
+		opts.Squash = gogitlab.Ptr(true)
+	}
+	_, _, err := g.client.MergeRequests.AcceptMergeRequest(g.projectID, int64(number), opts, gogitlab.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("enable auto-merge for MR %d: %w", number, err)
 	}
