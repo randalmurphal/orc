@@ -508,15 +508,6 @@ func TestBuildJQL(t *testing.T) {
 	}
 }
 
-// testClient wraps a list of issues and returns them on SearchAllIssues.
-type testClient struct {
-	issues []Issue
-}
-
-func (tc *testClient) SearchAllIssues(_ context.Context, _ string) ([]Issue, error) {
-	return tc.issues, nil
-}
-
 // newTestImporter creates an Importer with a fake client for testing.
 // We bypass the real Client by injecting a custom search function.
 func newTestImporter(backend *mockBackend, cfg ImportConfig, logger *slog.Logger, issues []Issue) *Importer {

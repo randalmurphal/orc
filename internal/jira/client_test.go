@@ -465,7 +465,7 @@ func TestCheckAuth_MockServer(t *testing.T) {
 				"displayName": "Test User",
 				"emailAddress": "test@example.com",
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}))
 		defer server.Close()
 
@@ -483,7 +483,7 @@ func TestCheckAuth_MockServer(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"message": "Unauthorized"}`))
+			_, _ = w.Write([]byte(`{"message": "Unauthorized"}`))
 		}))
 		defer server.Close()
 
@@ -519,7 +519,7 @@ func TestFetchCustomFields_MockServer(t *testing.T) {
 			},
 			"total": 1,
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
