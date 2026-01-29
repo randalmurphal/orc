@@ -90,31 +90,43 @@ export function BoardView({ className }: BoardViewProps): React.ReactElement {
 	// TODO: changedFiles need to be populated from event handlers
 	const [changedFiles, _setChangedFiles] = useState<ChangedFile[]>([]);
 
+	// Deduplicate tasks by ID to prevent React duplicate key warnings.
+	// Store-level dedup handles setTasks/addTask, but concurrent WebSocket
+	// events and API fetches can race, so we also dedup at render time.
+	const uniqueTasks = useMemo(() => {
+		const seen = new Set<string>();
+		return tasks.filter((task: Task) => {
+			if (seen.has(task.id)) return false;
+			seen.add(task.id);
+			return true;
+		});
+	}, [tasks]);
+
 	// Derived state: filter tasks by status
 	const queuedTasks = useMemo(
 		() =>
-			tasks.filter(
+			uniqueTasks.filter(
 				(task: Task) =>
 					task.status === TaskStatus.PLANNED ||
 					task.status === TaskStatus.CREATED ||
 					task.status === TaskStatus.CLASSIFYING
 			),
-		[tasks]
+		[uniqueTasks]
 	);
 
 	const runningTasks = useMemo(
-		() => tasks.filter((task: Task) => task.status === TaskStatus.RUNNING),
-		[tasks]
+		() => uniqueTasks.filter((task: Task) => task.status === TaskStatus.RUNNING),
+		[uniqueTasks]
 	);
 
 	const blockedTasks = useMemo(
-		() => tasks.filter((task: Task) => task.status === TaskStatus.BLOCKED || task.isBlocked),
-		[tasks]
+		() => uniqueTasks.filter((task: Task) => task.status === TaskStatus.BLOCKED || task.isBlocked),
+		[uniqueTasks]
 	);
 
 	const completedToday = useMemo(
-		() => tasks.filter((task: Task) => isCompletedToday(task)),
-		[tasks]
+		() => uniqueTasks.filter((task: Task) => isCompletedToday(task)),
+		[uniqueTasks]
 	);
 
 	// Map of task ID to pending decision count
