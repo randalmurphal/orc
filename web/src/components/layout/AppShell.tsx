@@ -22,15 +22,19 @@
  * - Other routes: defaultPanelContent prop (if provided)
  */
 
-import { type ReactNode, useState, useCallback } from 'react';
+import { type ReactNode, lazy, Suspense, useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { IconNav } from './IconNav';
 import { TopBar } from './TopBar';
 import { RightPanel } from './RightPanel';
 import { UrlParamSync } from './UrlParamSync';
 import { AppShellProvider, useAppShell } from './AppShellContext';
-import { BoardCommandPanel } from '@/components/board/BoardCommandPanel';
 import './AppShell.css';
+
+// Lazy-load BoardCommandPanel — only needed on /board route
+const BoardCommandPanel = lazy(() =>
+	import('@/components/board/BoardCommandPanel').then(m => ({ default: m.BoardCommandPanel }))
+);
 
 // =============================================================================
 // TYPES
@@ -81,7 +85,11 @@ function AppShellInner({
 
 	// Route-aware panel content: board gets its own panel, others use default
 	const isBoard = location.pathname === '/board';
-	const panelContent = isBoard ? <BoardCommandPanel /> : defaultPanelContent;
+	const panelContent = isBoard ? (
+		<Suspense fallback={null}>
+			<BoardCommandPanel />
+		</Suspense>
+	) : defaultPanelContent;
 
 	// Handle closing panel
 	const handlePanelClose = useCallback(() => {
