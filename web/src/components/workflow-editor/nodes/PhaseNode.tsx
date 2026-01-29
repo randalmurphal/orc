@@ -38,8 +38,9 @@ export function PhaseNode({ data, selected }: NodeProps) {
 	const gateLabel = formatGateType(d.gateType);
 	const showIterBadge = d.maxIterations > ITERATIONS_BADGE_THRESHOLD;
 	const showBadges = gateLabel || showIterBadge || d.modelOverride;
-	const hasExecutionData =
-		d.iterations !== undefined || d.costUsd !== undefined;
+	// SC-4: Don't show $0.00 cost badge (avoid clutter)
+	const hasCostToShow = d.costUsd !== undefined && d.costUsd > 0;
+	const hasExecutionData = d.iterations !== undefined || hasCostToShow;
 
 	const classes = ['phase-node'];
 	if (statusClass) classes.push(statusClass);
@@ -83,9 +84,9 @@ export function PhaseNode({ data, selected }: NodeProps) {
 							{d.iterations} iter
 						</span>
 					)}
-					{d.costUsd !== undefined && (
+					{hasCostToShow && (
 						<span className="phase-node-cost">
-							${d.costUsd.toFixed(2)}
+							${d.costUsd!.toFixed(2)}
 						</span>
 					)}
 				</div>
