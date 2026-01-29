@@ -211,67 +211,6 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	}
 }
 
-// formatReviewFindingsForPrompt formats review findings for template injection.
-func formatReviewFindingsForPrompt(findings *orcv1.ReviewRoundFindings) string {
-	if findings == nil {
-		return "No findings from previous round."
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "## Round %d Summary\n\n", findings.Round)
-	sb.WriteString(findings.Summary)
-	sb.WriteString("\n\n")
-
-	// Count issues by severity
-	highCount, mediumCount, lowCount := 0, 0, 0
-	for _, issue := range findings.Issues {
-		switch issue.Severity {
-		case "high":
-			highCount++
-		case "medium":
-			mediumCount++
-		case "low":
-			lowCount++
-		}
-	}
-
-	fmt.Fprintf(&sb, "**Issues Found:** %d high, %d medium, %d low\n\n", highCount, mediumCount, lowCount)
-
-	if len(findings.Issues) > 0 {
-		sb.WriteString("### Issues to Verify\n\n")
-		for i, issue := range findings.Issues {
-			fmt.Fprintf(&sb, "%d. [%s] %s", i+1, strings.ToUpper(issue.Severity), issue.Description)
-			if issue.File != nil && *issue.File != "" {
-				fmt.Fprintf(&sb, " (in %s", *issue.File)
-				if issue.Line != nil && *issue.Line > 0 {
-					fmt.Fprintf(&sb, ":%d", *issue.Line)
-				}
-				sb.WriteString(")")
-			}
-			sb.WriteString("\n")
-			if issue.Suggestion != nil && *issue.Suggestion != "" {
-				fmt.Fprintf(&sb, "   Suggested fix: %s\n", *issue.Suggestion)
-			}
-		}
-	}
-
-	if len(findings.Positives) > 0 {
-		sb.WriteString("\n### Positive Notes\n\n")
-		for _, p := range findings.Positives {
-			fmt.Fprintf(&sb, "- %s\n", p)
-		}
-	}
-
-	if len(findings.Questions) > 0 {
-		sb.WriteString("\n### Questions from Review\n\n")
-		for _, q := range findings.Questions {
-			fmt.Fprintf(&sb, "- %s\n", q)
-		}
-	}
-
-	return sb.String()
-}
-
 // formatRecentCompletedTasksForPrompt formats recent completed tasks as a markdown list.
 func formatRecentCompletedTasksForPrompt(tasks []*orcv1.Task, limit int) string {
 	var completed []*orcv1.Task
@@ -353,30 +292,33 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 
 // loadReviewContextProto loads review-specific context into the resolution context.
 func (we *WorkflowExecutor) loadReviewContextProto(rctx *variable.ResolutionContext, taskID string, e *orcv1.ExecutionState) {
-	// Determine review round from state
+	// Determine review round from retry context
+	// Round 2 is when we're re-entering review after it blocked and we retried from implement
+	// The retry context's FromPhase indicates which phase triggered the retry
 	round := 1
-	if e != nil && e.Phases != nil {
-		if ps, ok := e.Phases["review"]; ok && ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
-			round = 2
+	if e != nil && e.RetryContext != nil && e.RetryContext.FromPhase == "review" {
+		round = 2
+		we.logger.Debug("detected review round 2 from retry context",
+			"task_id", taskID,
+			"from_phase", e.RetryContext.FromPhase,
+			"to_phase", e.RetryContext.ToPhase,
+		)
+
+		// Load round 1 findings from RetryContext.FailureOutput
+		// (stored by SetRetryContextProto when review blocked)
+		if e.RetryContext.FailureOutput != nil && *e.RetryContext.FailureOutput != "" {
+			findings, err := ParseReviewFindings(*e.RetryContext.FailureOutput)
+			if err != nil {
+				we.logger.Warn("failed to parse review findings from retry context (round 2 will proceed without findings)",
+					"task_id", taskID,
+					"error", err,
+				)
+			} else {
+				rctx.ReviewFindings = FormatFindingsForRound2(findings)
+			}
 		}
 	}
 	rctx.ReviewRound = round
-
-	// Load previous round's findings for round 2+
-	if round > 1 {
-		findings, err := we.backend.LoadReviewFindings(taskID, round-1)
-		if err != nil {
-			we.logger.Debug("failed to load review findings",
-				"task_id", taskID,
-				"round", round-1,
-				"error", err,
-			)
-			return
-		}
-		if findings != nil {
-			rctx.ReviewFindings = formatReviewFindingsForPrompt(findings)
-		}
-	}
 }
 
 // loadPriorPhaseContentProto loads content from a completed prior phase using proto types.

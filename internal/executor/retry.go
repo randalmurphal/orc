@@ -3,11 +3,8 @@ package executor
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
@@ -18,57 +15,6 @@ const (
 	// DefaultMaxRetries is the default maximum number of retries per phase
 	DefaultMaxRetries = 5
 )
-
-// DefaultRetryMap returns the default mapping of failed phases to retry phases.
-// When a phase fails, this map determines which earlier phase to retry from.
-//
-// Review has a three-tier approach:
-// 1. Small bugs: Fix in-place with Edit (no retry)
-// 2. Major implementation issues: Block → retry from implement
-// 3. Wrong approach entirely: Block with detailed context → retry from implement
-func DefaultRetryMap() map[string]string {
-	return map[string]string{
-		"test":      "implement",
-		"test_unit": "implement",
-		"test_e2e":  "implement",
-		"review":    "implement", // Major issues go back to implement; small issues fixed in-place
-	}
-}
-
-// SaveRetryContextFile saves detailed retry context to a markdown file.
-// This provides a comprehensive record of what failed and why for the
-// retried phase to use in addressing the issues.
-func SaveRetryContextFile(workDir, taskID, fromPhase, toPhase, reason, output string, attempt int) (string, error) {
-	dir := filepath.Join(workDir, ".orc", "tasks", taskID)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("create task directory: %w", err)
-	}
-
-	filename := fmt.Sprintf("retry-context-%s-%d.md", fromPhase, attempt)
-	path := filepath.Join(dir, filename)
-
-	content := fmt.Sprintf(`# Retry Context
-
-## Summary
-- **From Phase**: %s
-- **To Phase**: %s
-- **Attempt**: %d
-- **Timestamp**: %s
-
-## Reason
-%s
-
-## Output from Failed Phase
-
-%s
-`, fromPhase, toPhase, attempt, time.Now().Format(time.RFC3339), reason, output)
-
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		return "", fmt.Errorf("write retry context file: %w", err)
-	}
-
-	return path, nil
-}
 
 // LoadRetryContextFromExecutionProto loads retry context from proto ExecutionState.
 func LoadRetryContextFromExecutionProto(e *orcv1.ExecutionState) string {
@@ -119,49 +65,6 @@ Focus on fixing the root cause of these issues in this phase.
 	return context
 }
 
-// RetryTracker tracks retry counts per phase during task execution.
-type RetryTracker struct {
-	counts     map[string]int
-	maxRetries int
-}
-
-// NewRetryTracker creates a new retry tracker with the given max retries.
-func NewRetryTracker(maxRetries int) *RetryTracker {
-	if maxRetries <= 0 {
-		maxRetries = DefaultMaxRetries
-	}
-	return &RetryTracker{
-		counts:     make(map[string]int),
-		maxRetries: maxRetries,
-	}
-}
-
-// CanRetry returns true if the phase can be retried (hasn't exceeded max retries).
-func (rt *RetryTracker) CanRetry(phase string) bool {
-	return rt.counts[phase] < rt.maxRetries
-}
-
-// Increment increments the retry count for a phase and returns the new count.
-func (rt *RetryTracker) Increment(phase string) int {
-	rt.counts[phase]++
-	return rt.counts[phase]
-}
-
-// GetCount returns the current retry count for a phase.
-func (rt *RetryTracker) GetCount(phase string) int {
-	return rt.counts[phase]
-}
-
-// Reset resets the retry count for a phase.
-func (rt *RetryTracker) Reset(phase string) {
-	delete(rt.counts, phase)
-}
-
-// ResetAll clears all retry counts.
-func (rt *RetryTracker) ResetAll() {
-	rt.counts = make(map[string]int)
-}
-
 // RetryOptions configures retry behavior for fresh session retries.
 type RetryOptions struct {
 	// What failed
@@ -192,15 +95,6 @@ type PRCommentFeedback struct {
 	Body     string
 	FilePath string
 	Line     int
-}
-
-// RetryState represents persisted retry state for tracking.
-type RetryState struct {
-	TaskID        string    `json:"task_id"`
-	Phase         string    `json:"phase"`
-	AttemptNumber int       `json:"attempt_number"`
-	StartedAt     time.Time `json:"started_at"`
-	Context       string    `json:"context"` // The injected context
 }
 
 // BuildRetryContextForFreshSession builds comprehensive context for a fresh retry session.
@@ -444,16 +338,6 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
-}
-
-// ShouldContinueRetrying checks if we should continue retrying.
-func ShouldContinueRetrying(current, max int) bool {
-	return current < max
-}
-
-// IncrementRetryAttempt returns the next attempt number.
-func IncrementRetryAttempt(current int) int {
-	return current + 1
 }
 
 // BuildRetryPreview builds a preview of the retry context without triggering retry.

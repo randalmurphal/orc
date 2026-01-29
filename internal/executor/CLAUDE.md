@@ -23,6 +23,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
+| `retry.go` | Retry context building (`BuildRetryContext`, `BuildRetryContextForFreshSession`) |
+| `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing, loop condition evaluation |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
@@ -69,6 +71,26 @@ WorkflowExecutor.Run()
 | `executePhaseWithTimeout()` | `workflow_phase.go:567` | Wraps `executePhase()` with PhaseMax timeout |
 | `checkSpecRequirements()` | `workflow_phase.go:681` | Validates spec exists for non-trivial weights |
 | `IsPhaseTimeoutError()` | `workflow_phase.go:558` | Checks if error is `phaseTimeoutError` |
+| `IsPhaseBlockedError()` | `workflow_phase.go:43` | Checks if error is `PhaseBlockedError` |
+
+### Blocked Phase Handling
+
+When a phase outputs `{"status": "blocked"}`, it returns a `PhaseBlockedError` instead of a regular error. This allows blocked phases to proceed to gate evaluation rather than immediately failing the run.
+
+```go
+type PhaseBlockedError struct {
+    Phase  string  // Phase that blocked
+    Reason string  // Why it blocked
+    Output string  // Full phase output for context
+}
+```
+
+**Flow:**
+1. Phase outputs `{"status": "blocked", "reason": "..."}`
+2. `executePhase()` returns `PhaseBlockedError` (not regular error)
+3. Executor checks `IsPhaseBlockedError(err)` - if true, proceeds to gate evaluation
+4. Gate evaluation sees blocked status and triggers retry from earlier phase
+5. Review phase stores findings to `RetryContext.FailureOutput` for round 2
 
 ### Context Building
 
@@ -164,6 +186,26 @@ When phases fail or output `{"status": "blocked"}`:
 |--------------|--------------|--------|
 | review | implement | Review findings need code changes |
 | test, test_unit, test_e2e | implement | Test failures need code fixes |
+
+### Review Multi-Round Flow
+
+The review phase supports multiple rounds via `RetryContext`:
+
+| Round | Template | Trigger | Detection |
+|-------|----------|---------|-----------|
+| 1 | `review.md` | Initial review | Default (no retry context) |
+| 2+ | `review_round2.md` | After implement retry | `RetryContext.FromPhase == "review"` |
+
+**Round Detection:** `loadReviewContextProto()` checks `e.RetryContext.FromPhase` to determine round. When `FromPhase == "review"`, it's round 2+ (we're re-reviewing after fixing issues).
+
+**Findings Flow:**
+1. Round 1 blocks → `PhaseBlockedError` with full output
+2. Executor stores output in `RetryContext.FailureOutput`
+3. Gate triggers retry from implement phase
+4. On round 2, findings are parsed from `RetryContext.FailureOutput` and formatted via `FormatFindingsForRound2()`
+5. Round 2 uses `review_round2.md` template with `{{REVIEW_FINDINGS}}` populated
+
+**Post-Success Cleanup:** After successful review round 2+, `RetryContext` is cleared to prevent stale context on future runs.
 
 ## Model Configuration
 
