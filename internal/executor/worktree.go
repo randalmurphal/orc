@@ -187,23 +187,44 @@ func cleanWorktreeState(worktreePath string, gitOps *git.Git, expectedBranch str
 		}
 	}
 
-	// Check if working directory has uncommitted changes or conflicts
-	// and discard them to ensure clean state for execution.
+	// Check if working directory has uncommitted changes.
+	// On resume after a crash, Claude may have written files that weren't committed.
+	// We preserve these by committing them as a rescue commit instead of discarding.
 	clean, isCleanErr := worktreeGit.IsClean()
 	if isCleanErr != nil {
-		// Log the error but still attempt cleanup
-		slog.Debug("IsClean check failed, attempting to discard changes anyway",
+		slog.Debug("IsClean check failed, attempting cleanup anyway",
 			"worktree", worktreePath,
 			"error", isCleanErr,
 		)
 	}
 	if isCleanErr != nil || !clean {
-		if discardErr := worktreeGit.DiscardChanges(); discardErr != nil {
-			// Include both errors for debugging
-			if isCleanErr != nil {
-				return fmt.Errorf("discard changes (IsClean also failed: %v): %w", isCleanErr, discardErr)
+		// Try to rescue uncommitted changes by committing them
+		rescued := false
+		if isCleanErr == nil {
+			ctx := worktreeGit.Context()
+			if _, addErr := ctx.RunGit("add", "-A"); addErr == nil {
+				msg := "[orc] Rescue uncommitted changes from interrupted execution"
+				if _, commitErr := ctx.RunGit("commit", "-m", msg, "--allow-empty-message"); commitErr == nil {
+					slog.Info("rescued uncommitted changes as commit before resume",
+						"worktree", worktreePath,
+					)
+					rescued = true
+				} else {
+					slog.Debug("rescue commit failed, will discard changes",
+						"worktree", worktreePath,
+						"error", commitErr,
+					)
+				}
 			}
-			return fmt.Errorf("discard changes: %w", discardErr)
+		}
+		// If rescue failed (e.g., conflicted state), fall back to discard
+		if !rescued {
+			if discardErr := worktreeGit.DiscardChanges(); discardErr != nil {
+				if isCleanErr != nil {
+					return fmt.Errorf("discard changes (IsClean also failed: %v): %w", isCleanErr, discardErr)
+				}
+				return fmt.Errorf("discard changes: %w", discardErr)
+			}
 		}
 	}
 
