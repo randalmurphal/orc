@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -170,6 +171,10 @@ type WorkflowPhase struct {
 
 	// Claude configuration override (JSON) - merged with template config
 	ClaudeConfigOverride string `json:"claude_config_override,omitempty"`
+
+	// Visual editor position (nil = auto-layout via dagre)
+	PositionX *float64 `json:"position_x,omitempty"`
+	PositionY *float64 `json:"position_y,omitempty"`
 }
 
 // WorkflowVariable defines a custom variable for a workflow.
@@ -440,12 +445,14 @@ func (p *ProjectDB) DeleteWorkflow(id string) error {
 func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 	thinkingOverride := sqlNullBool(wp.ThinkingOverride)
 	maxIterOverride := sqlNullInt(wp.MaxIterationsOverride)
+	posX := sqlNullFloat64(wp.PositionX)
+	posY := sqlNullFloat64(wp.PositionY)
 
 	res, err := p.Exec(`
 		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			quality_checks_override, loop_config, claude_config_override, position_x, position_y)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
 			sequence = excluded.sequence,
 			depends_on = excluded.depends_on,
@@ -456,10 +463,12 @@ func (p *ProjectDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
 			condition = excluded.condition,
 			quality_checks_override = excluded.quality_checks_override,
 			loop_config = excluded.loop_config,
-			claude_config_override = excluded.claude_config_override
+			claude_config_override = excluded.claude_config_override,
+			position_x = excluded.position_x,
+			position_y = excluded.position_y
 	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
 		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
-		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride)
+		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, posX, posY)
 	if err != nil {
 		return fmt.Errorf("save workflow phase: %w", err)
 	}
@@ -477,7 +486,7 @@ func (p *ProjectDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, erro
 	rows, err := p.Query(`
 		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
 			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
-			quality_checks_override, loop_config, claude_config_override
+			quality_checks_override, loop_config, claude_config_override, position_x, position_y
 		FROM workflow_phases
 		WHERE workflow_id = ?
 		ORDER BY sequence ASC
@@ -506,6 +515,22 @@ func (p *ProjectDB) DeleteWorkflowPhase(workflowID, phaseTemplateID string) erro
 		return fmt.Errorf("delete workflow phase: %w", err)
 	}
 	return nil
+}
+
+// UpdateWorkflowPhasePositions bulk-updates position_x/position_y for phases in a workflow.
+// Positions are keyed by phase_template_id (the stable identifier used in the editor).
+func (p *ProjectDB) UpdateWorkflowPhasePositions(workflowID string, positions map[string][2]float64) error {
+	return p.RunInTx(context.Background(), func(tx *TxOps) error {
+		for phaseTemplateID, pos := range positions {
+			if _, err := tx.Exec(`
+				UPDATE workflow_phases SET position_x = ?, position_y = ?
+				WHERE workflow_id = ? AND phase_template_id = ?
+			`, pos[0], pos[1], workflowID, phaseTemplateID); err != nil {
+				return fmt.Errorf("update position for phase %s: %w", phaseTemplateID, err)
+			}
+		}
+		return nil
+	})
 }
 
 // --------- WorkflowVariable CRUD ---------
@@ -852,6 +877,20 @@ func sqlNullInt(i *int) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(*i), Valid: true}
 }
 
+func sqlNullFloat64(f *float64) sql.NullFloat64 {
+	if f == nil {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{Float64: *f, Valid: true}
+}
+
+func nullFloat64ToPtr(nf sql.NullFloat64) *float64 {
+	if !nf.Valid {
+		return nil
+	}
+	return &nf.Float64
+}
+
 func nullBoolToPtr(nb sql.NullBool) *bool {
 	if !nb.Valid {
 		return nil
@@ -957,11 +996,12 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	var dependsOn, modelOverride, gateTypeOverride, condition, qualityChecksOverride, loopConfig, claudeConfigOverride sql.NullString
 	var maxIterOverride sql.NullInt64
 	var thinkingOverride sql.NullBool
+	var posX, posY sql.NullFloat64
 
 	err := rows.Scan(
 		&wp.ID, &wp.WorkflowID, &wp.PhaseTemplateID, &wp.Sequence, &dependsOn,
 		&maxIterOverride, &modelOverride, &thinkingOverride, &gateTypeOverride, &condition,
-		&qualityChecksOverride, &loopConfig, &claudeConfigOverride,
+		&qualityChecksOverride, &loopConfig, &claudeConfigOverride, &posX, &posY,
 	)
 	if err != nil {
 		return nil, err
@@ -976,6 +1016,8 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 	wp.QualityChecksOverride = qualityChecksOverride.String
 	wp.LoopConfig = loopConfig.String
 	wp.ClaudeConfigOverride = claudeConfigOverride.String
+	wp.PositionX = nullFloat64ToPtr(posX)
+	wp.PositionY = nullFloat64ToPtr(posY)
 
 	return wp, nil
 }

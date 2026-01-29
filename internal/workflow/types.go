@@ -163,6 +163,10 @@ type WorkflowPhase struct {
 	// Merged with PhaseTemplate.ClaudeConfig, with this taking precedence
 	ClaudeConfigOverride string `json:"claude_config_override,omitempty" db:"claude_config_override"`
 
+	// Visual editor position (nil = auto-layout via dagre)
+	PositionX *float64 `json:"position_x,omitempty" db:"position_x"`
+	PositionY *float64 `json:"position_y,omitempty" db:"position_y"`
+
 	// Loaded relation (not stored directly)
 	Template *PhaseTemplate `json:"template,omitempty"`
 }
