@@ -259,7 +259,7 @@ When adding llmkit features that orc depends on:
 
 Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
 
-Features: Live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor.
+Features: Live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow).
 
 See `web/CLAUDE.md` for component library and architecture.
 
@@ -345,6 +345,8 @@ Patterns, gotchas, and decisions learned during development.
 ### Patterns Learned
 | Pattern | Description | Source |
 |---------|-------------|--------|
+| Derived editor store | `workflowEditorStore` derives React Flow state from API data via pure `layoutWorkflow()` function; edits go through API, never store-first | TASK-633 |
+| Pure layout function | `layoutWorkflow()` is a pure function (workflow → nodes+edges) using dagre, testable without React Flow | TASK-633 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
@@ -353,5 +355,8 @@ Patterns, gotchas, and decisions learned during development.
 ### Decisions
 | Decision | Rationale | Source |
 |----------|-----------|--------|
+| @xyflow/react v12+ for canvas | Industry standard, React 19 + Zustand 5 compatible, built-in zoom/pan/drag | TASK-633 |
+| dagre over ELKjs for layout | Workflows are mostly-linear (<20 nodes), dagre is synchronous and simpler | TASK-633 |
+| Loop/retry edges visual-only | Not fed into topological sort — prevents false cycle errors from runtime control flow | TASK-633 |
 
 <!-- orc:knowledge:end -->
