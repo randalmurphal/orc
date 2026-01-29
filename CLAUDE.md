@@ -372,6 +372,7 @@ Patterns, gotchas, and decisions learned during development.
 | Review schema missing `status` field → blocked reviews silently pass | JSON schema `required` array must include ALL fields the Go struct validates against; added post-loop validation | TASK-630 |
 | Phase labels stuck on "starting" in `orc status` | Read `task.CurrentPhase` directly from task record (set by executor before each phase), not from `workflow_runs` | TASK-617 |
 | N+1 queries in dashboard endpoints (e.g., per-initiative title lookups) | Use batch loading (`GetInitiativeTitlesBatch`) — single query returns all titles | TASK-531 |
+| Sync-on-start failures left zombie worktrees and branches | Executor now calls `CleanupWorktreeAtPath()` + branch deletion unconditionally on sync failure; enables retry | TASK-499 |
 
 ### Decisions
 | Decision | Rationale | Source |

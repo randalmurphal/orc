@@ -341,6 +341,32 @@ func (we *WorkflowExecutor) cleanupWorktree(t *orcv1.Task) {
 	}
 }
 
+// cleanupSyncFailure removes the worktree and branch when sync-on-start fails.
+// This is unconditional (ignores CleanupOnFail config) because no phases ran —
+// there's no user work to preserve. By cleaning up, we allow retry to start fresh.
+func (we *WorkflowExecutor) cleanupSyncFailure(t *orcv1.Task) {
+	if we.worktreePath == "" {
+		return
+	}
+
+	we.logger.Info("sync failure cleanup: removing worktree and branch", "task", t.Id, "path", we.worktreePath)
+
+	// Remove the worktree directory
+	if err := we.gitOps.CleanupWorktreeAtPath(we.worktreePath); err != nil {
+		we.logger.Warn("failed to cleanup worktree after sync failure", "task", t.Id, "path", we.worktreePath, "error", err)
+	}
+
+	// Delete the branch so retry creates a fresh one
+	if t.Branch != "" {
+		if err := we.gitOps.DeleteBranch(t.Branch, true); err != nil {
+			we.logger.Warn("failed to delete branch after sync failure", "task", t.Id, "branch", t.Branch, "error", err)
+		}
+	}
+
+	// Clear worktreePath to prevent deferred cleanupWorktree from double-cleanup
+	we.worktreePath = ""
+}
+
 // effectiveWorkingDir returns the working directory for phase execution.
 // Returns worktree path if one was created, otherwise the original working dir.
 func (we *WorkflowExecutor) effectiveWorkingDir() string {
