@@ -99,6 +99,71 @@ func TestPhaseTimeoutError_Unwrap(t *testing.T) {
 	}
 }
 
+func TestIsPhaseBlockedError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "regular error",
+			err:      errors.New("something went wrong"),
+			expected: false,
+		},
+		{
+			name: "phase blocked error",
+			err: &PhaseBlockedError{
+				Phase:  "review",
+				Reason: "issues found requiring fixes",
+				Output: `{"status": "blocked", "issues": []}`,
+			},
+			expected: true,
+		},
+		{
+			name: "wrapped phase blocked error",
+			err: errors.Join(errors.New("wrapper"), &PhaseBlockedError{
+				Phase:  "review",
+				Reason: "needs attention",
+				Output: `{"status": "blocked"}`,
+			}),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := IsPhaseBlockedError(tt.err)
+			if result != tt.expected {
+				t.Errorf("IsPhaseBlockedError() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPhaseBlockedError_Error(t *testing.T) {
+	t.Parallel()
+
+	pbe := &PhaseBlockedError{
+		Phase:  "review",
+		Reason: "issues found requiring attention",
+		Output: `{"status": "blocked"}`,
+	}
+
+	msg := pbe.Error()
+	expected := "phase review blocked: issues found requiring attention"
+	if msg != expected {
+		t.Errorf("Error() = %q, want %q", msg, expected)
+	}
+}
+
 func TestExecutePhaseWithTimeout_NoTimeout(t *testing.T) {
 	t.Parallel()
 

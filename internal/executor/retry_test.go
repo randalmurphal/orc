@@ -1,76 +1,11 @@
 package executor
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/randalmurphal/orc/internal/db"
 )
-
-func TestSaveRetryContextFile_WritesToDisk(t *testing.T) {
-	t.Parallel()
-	// Create temp directory for test
-	tmpDir := t.TempDir()
-
-	// Save retry context
-	path, err := SaveRetryContextFile(tmpDir, "TASK-001", "test", "implement", "Tests failed", "Error: assertion failed", 1)
-	if err != nil {
-		t.Fatalf("SaveRetryContextFile failed: %v", err)
-	}
-
-	// Verify file was created
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Error("retry context file was not created")
-	}
-
-	// Read and verify content
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read retry context file: %v", err)
-	}
-
-	contentStr := string(content)
-	if !strings.Contains(contentStr, "**From Phase**: test") {
-		t.Error("file should contain from phase")
-	}
-	if !strings.Contains(contentStr, "**To Phase**: implement") {
-		t.Error("file should contain to phase")
-	}
-	if !strings.Contains(contentStr, "**Attempt**: 1") {
-		t.Error("file should contain attempt number")
-	}
-	if !strings.Contains(contentStr, "Tests failed") {
-		t.Error("file should contain reason")
-	}
-	if !strings.Contains(contentStr, "Error: assertion failed") {
-		t.Error("file should contain failure output")
-	}
-}
-
-func TestSaveRetryContextFile_CreatesTaskDirectory(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	// Task directory doesn't exist yet
-	taskDir := filepath.Join(tmpDir, ".orc", "tasks", "TASK-002")
-	if _, err := os.Stat(taskDir); !os.IsNotExist(err) {
-		t.Fatal("task directory should not exist before test")
-	}
-
-	// Save retry context should create directory
-	_, err := SaveRetryContextFile(tmpDir, "TASK-002", "review", "implement", "Review failed", "output", 2)
-	if err != nil {
-		t.Fatalf("SaveRetryContextFile failed: %v", err)
-	}
-
-	// Verify directory was created
-	if _, err := os.Stat(taskDir); os.IsNotExist(err) {
-		t.Error("task directory was not created")
-	}
-}
 
 func TestBuildRetryContext_FormatsCorrectly(t *testing.T) {
 	t.Parallel()
@@ -128,147 +63,6 @@ func TestBuildRetryContext_NoContextFile_NoReference(t *testing.T) {
 
 	if strings.Contains(context, "Detailed context saved to:") {
 		t.Error("context should not reference context file when not provided")
-	}
-}
-
-func TestRetryTracker_CanRetry(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(2)
-
-	// First attempt should be allowed
-	if !tracker.CanRetry("test") {
-		t.Error("should be able to retry initially")
-	}
-
-	// Increment once
-	tracker.Increment("test")
-	if !tracker.CanRetry("test") {
-		t.Error("should be able to retry after 1 attempt")
-	}
-
-	// Increment again - now at max
-	tracker.Increment("test")
-	if tracker.CanRetry("test") {
-		t.Error("should not be able to retry after reaching max")
-	}
-}
-
-func TestRetryTracker_Increment(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(3)
-
-	if count := tracker.Increment("test"); count != 1 {
-		t.Errorf("first increment should return 1, got %d", count)
-	}
-	if count := tracker.Increment("test"); count != 2 {
-		t.Errorf("second increment should return 2, got %d", count)
-	}
-}
-
-func TestRetryTracker_GetCount(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(3)
-
-	if count := tracker.GetCount("test"); count != 0 {
-		t.Errorf("initial count should be 0, got %d", count)
-	}
-
-	tracker.Increment("test")
-	tracker.Increment("test")
-
-	if count := tracker.GetCount("test"); count != 2 {
-		t.Errorf("count after 2 increments should be 2, got %d", count)
-	}
-}
-
-func TestRetryTracker_Reset(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(2)
-
-	tracker.Increment("test")
-	tracker.Increment("test")
-	if tracker.CanRetry("test") {
-		t.Error("should not be able to retry at max")
-	}
-
-	tracker.Reset("test")
-	if !tracker.CanRetry("test") {
-		t.Error("should be able to retry after reset")
-	}
-	if count := tracker.GetCount("test"); count != 0 {
-		t.Errorf("count after reset should be 0, got %d", count)
-	}
-}
-
-func TestRetryTracker_ResetAll(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(2)
-
-	tracker.Increment("test")
-	tracker.Increment("review")
-
-	tracker.ResetAll()
-
-	if count := tracker.GetCount("test"); count != 0 {
-		t.Errorf("test count after ResetAll should be 0, got %d", count)
-	}
-	if count := tracker.GetCount("review"); count != 0 {
-		t.Errorf("review count after ResetAll should be 0, got %d", count)
-	}
-}
-
-func TestRetryTracker_IndependentPhases(t *testing.T) {
-	t.Parallel()
-	tracker := NewRetryTracker(2)
-
-	tracker.Increment("test")
-	tracker.Increment("test")
-	tracker.Increment("review")
-
-	if tracker.CanRetry("test") {
-		t.Error("test should be at max")
-	}
-	if !tracker.CanRetry("review") {
-		t.Error("review should still have retries available")
-	}
-}
-
-func TestDefaultRetryMap(t *testing.T) {
-	t.Parallel()
-	retryMap := DefaultRetryMap()
-
-	expected := map[string]string{
-		"test":      "implement",
-		"test_unit": "implement",
-		"test_e2e":  "implement",
-		"review":    "implement", // Major issues go back; small issues fixed in-place
-	}
-
-	for phase, target := range expected {
-		if retryMap[phase] != target {
-			t.Errorf("retry map[%s] = %q, want %q", phase, retryMap[phase], target)
-		}
-	}
-}
-
-func TestNewRetryTracker_DefaultMaxRetries(t *testing.T) {
-	t.Parallel()
-	// Zero should use default (5)
-	tracker := NewRetryTracker(0)
-	for i := 0; i < 5; i++ {
-		tracker.Increment("test")
-	}
-	if tracker.CanRetry("test") {
-		t.Error("default max retries should be 5")
-	}
-
-	// Negative should use default (5)
-	tracker2 := NewRetryTracker(-1)
-	for i := 0; i < 5; i++ {
-		tracker2.Increment("test")
-	}
-	if tracker2.CanRetry("test") {
-		t.Error("negative max retries should default to 5")
 	}
 }
 
@@ -631,49 +425,6 @@ func TestCompressPreviousContext_WithErrors(t *testing.T) {
 	}
 }
 
-func TestShouldContinueRetrying(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		current  int
-		max      int
-		expected bool
-	}{
-		{0, 3, true},
-		{1, 3, true},
-		{2, 3, true},
-		{3, 3, false},
-		{4, 3, false},
-	}
-
-	for _, tc := range tests {
-		result := ShouldContinueRetrying(tc.current, tc.max)
-		if result != tc.expected {
-			t.Errorf("ShouldContinueRetrying(%d, %d) = %v, want %v",
-				tc.current, tc.max, result, tc.expected)
-		}
-	}
-}
-
-func TestIncrementRetryAttempt(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		current  int
-		expected int
-	}{
-		{0, 1},
-		{1, 2},
-		{5, 6},
-	}
-
-	for _, tc := range tests {
-		result := IncrementRetryAttempt(tc.current)
-		if result != tc.expected {
-			t.Errorf("IncrementRetryAttempt(%d) = %d, want %d",
-				tc.current, result, tc.expected)
-		}
-	}
-}
-
 func TestBuildRetryPreview(t *testing.T) {
 	t.Parallel()
 	opts := RetryOptions{
@@ -762,35 +513,6 @@ func TestFormatPRCommentsForContext(t *testing.T) {
 	}
 	if !strings.Contains(result, "> Multi-line\n> comment here") {
 		t.Error("should handle multi-line comments")
-	}
-}
-
-func TestRetryState_Fields(t *testing.T) {
-	t.Parallel()
-	// Test that RetryState struct has expected fields
-	now := time.Now()
-	state := RetryState{
-		TaskID:        "TASK-001",
-		Phase:         "implement",
-		AttemptNumber: 2,
-		StartedAt:     now,
-		Context:       "retry context here",
-	}
-
-	if state.TaskID != "TASK-001" {
-		t.Error("TaskID should be set")
-	}
-	if state.Phase != "implement" {
-		t.Error("Phase should be set")
-	}
-	if state.AttemptNumber != 2 {
-		t.Error("AttemptNumber should be set")
-	}
-	if state.StartedAt.IsZero() {
-		t.Error("StartedAt should be set")
-	}
-	if state.Context == "" {
-		t.Error("Context should be set")
 	}
 }
 

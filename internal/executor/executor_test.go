@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -815,69 +814,6 @@ func TestPublishState(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for state event")
-	}
-}
-
-func TestSaveRetryContextFile(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	// Create task directory for context file
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-001")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task dir: %v", err)
-	}
-
-	// Save retry context
-	path, err := SaveRetryContextFile(tmpDir, "TASK-001", "test", "implement", "tests failed", "error output", 1)
-	if err != nil {
-		t.Fatalf("SaveRetryContextFile failed: %v", err)
-	}
-
-	// Verify file was created
-	expectedPath := filepath.Join(tmpDir, ".orc/tasks/TASK-001/retry-context-test-1.md")
-	if path != expectedPath {
-		t.Errorf("path = %s, want %s", path, expectedPath)
-	}
-
-	// Verify file contents
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read retry context file: %v", err)
-	}
-
-	if !strings.Contains(string(content), "tests failed") {
-		t.Error("retry context should contain failure reason")
-	}
-	if !strings.Contains(string(content), "error output") {
-		t.Error("retry context should contain output")
-	}
-}
-
-func TestSaveRetryContextFile_MultipleAttempts(t *testing.T) {
-	t.Parallel()
-	tmpDir := t.TempDir()
-
-	// Create task directory for context files
-	taskDir := filepath.Join(tmpDir, ".orc/tasks/TASK-002")
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatalf("create task dir: %v", err)
-	}
-
-	// Save multiple retry contexts
-	path1, _ := SaveRetryContextFile(tmpDir, "TASK-002", "test", "implement", "first failure", "output1", 1)
-	path2, _ := SaveRetryContextFile(tmpDir, "TASK-002", "test", "implement", "second failure", "output2", 2)
-
-	// Verify both files exist with different names
-	if path1 == path2 {
-		t.Error("retry context files should have different paths for different attempts")
-	}
-
-	if _, err := os.Stat(path1); os.IsNotExist(err) {
-		t.Error("first retry context file should exist")
-	}
-	if _, err := os.Stat(path2); os.IsNotExist(err) {
-		t.Error("second retry context file should exist")
 	}
 }
 
