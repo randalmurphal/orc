@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/initiative"
@@ -28,14 +29,19 @@ type ImportConfig struct {
 // Allows injection of test fakes.
 type searchFunc func(ctx context.Context, jql string) ([]Issue, error)
 
+// customFieldFunc is the function signature for fetching custom field values.
+// Returns a map of issueKey → (metadataKey → stringValue).
+type customFieldFunc func(ctx context.Context, jql string) (map[string]map[string]string, error)
+
 // Importer orchestrates fetching Jira issues and saving them as orc tasks.
 type Importer struct {
-	client     *Client
-	backend    storage.Backend
-	mapper     *Mapper
-	cfg        ImportConfig
-	logger     *slog.Logger
-	searchFunc searchFunc
+	client          *Client
+	backend         storage.Backend
+	mapper          *Mapper
+	cfg             ImportConfig
+	logger          *slog.Logger
+	searchFunc      searchFunc
+	customFieldFunc customFieldFunc
 }
 
 // NewImporter creates an Importer.
@@ -52,6 +58,9 @@ func NewImporter(client *Client, backend storage.Backend, cfg ImportConfig, logg
 	}
 	imp.searchFunc = func(ctx context.Context, jql string) ([]Issue, error) {
 		return client.SearchAllIssues(ctx, jql)
+	}
+	imp.customFieldFunc = func(ctx context.Context, jql string) (map[string]map[string]string, error) {
+		return client.FetchCustomFields(ctx, jql)
 	}
 	return imp
 }
@@ -75,13 +84,32 @@ func (imp *Importer) Run(ctx context.Context) (*ImportResult, error) {
 		return result, nil
 	}
 
-	// 3. Build existing task index by jira_key for idempotency
+	// 3. Fetch and merge custom field values (if configured)
+	cfValues, err := imp.customFieldFunc(ctx, jql)
+	if err != nil {
+		return nil, fmt.Errorf("fetch custom fields: %w", err)
+	}
+	if cfValues != nil {
+		for i := range issues {
+			if vals, ok := cfValues[issues[i].Key]; ok {
+				if issues[i].CustomFields == nil {
+					issues[i].CustomFields = make(map[string]string)
+				}
+				for k, v := range vals {
+					issues[i].CustomFields[k] = v
+				}
+			}
+		}
+		imp.logger.Info("merged custom fields", "issues_with_values", len(cfValues))
+	}
+
+	// 4. Build existing task index by jira_key for idempotency
 	existingByKey, err := imp.buildExistingIndex()
 	if err != nil {
 		return nil, fmt.Errorf("build existing task index: %w", err)
 	}
 
-	// 4. Separate epics from regular issues
+	// 5. Separate epics from regular issues
 	var epics, regular []Issue
 	for _, issue := range issues {
 		if issue.IsEpic() {
@@ -91,7 +119,7 @@ func (imp *Importer) Run(ctx context.Context) (*ImportResult, error) {
 		}
 	}
 
-	// 5. Map epics to initiatives (if enabled)
+	// 6. Map epics to initiatives (if enabled)
 	epicKeyToInitID := make(map[string]string)
 	if imp.cfg.EpicToInitiative {
 		err = imp.importEpics(ctx, epics, epicKeyToInitID, result)
@@ -100,7 +128,7 @@ func (imp *Importer) Run(ctx context.Context) (*ImportResult, error) {
 		}
 	}
 
-	// 6. Map issues to tasks — first pass: create/update tasks
+	// 7. Map issues to tasks — first pass: create/update tasks
 	keyToTaskID := make(map[string]string)
 	var tasksToSave []*orcv1.Task
 	var issuesForTasks []Issue
@@ -134,7 +162,7 @@ func (imp *Importer) Run(ctx context.Context) (*ImportResult, error) {
 		issuesForTasks = append(issuesForTasks, issue)
 	}
 
-	// 7. Resolve dependencies (second pass — needs full keyToTaskID)
+	// 8. Resolve dependencies (second pass — needs full keyToTaskID)
 	for i, issue := range issuesForTasks {
 		blockedBy, relatedTo := imp.mapper.ResolveLinks(issue, keyToTaskID)
 		if len(blockedBy) > 0 {
@@ -145,7 +173,7 @@ func (imp *Importer) Run(ctx context.Context) (*ImportResult, error) {
 		}
 	}
 
-	// 8. Save tasks
+	// 9. Save tasks
 	if !imp.cfg.DryRun {
 		for _, task := range tasksToSave {
 			if err := imp.backend.SaveTask(task); err != nil {
@@ -191,29 +219,16 @@ func (imp *Importer) mapOrUpdateTask(issue Issue, existingByKey map[string]*orcv
 		return task, actionSkip, nil
 	}
 
-	// Update Jira-owned fields
-	desc := issue.Description
-	task.Title = issue.Summary
-	task.Description = &desc
-	task.Priority = mapPriority(issue.Priority)
-	task.Category = mapCategory(issue.IssueType)
+	// Update Jira-owned fields using the mapper's resolve methods for override support
+	updated := imp.mapper.MapIssueToTask(issue, task.Id)
 
-	// Update metadata
-	if task.Metadata == nil {
-		task.Metadata = make(map[string]string)
-	}
-	task.Metadata["jira_key"] = issue.Key
-	if len(issue.Labels) > 0 {
-		task.Metadata["jira_labels"] = joinStrings(issue.Labels)
-	}
-	if len(issue.Components) > 0 {
-		task.Metadata["jira_components"] = joinStrings(issue.Components)
-	}
-	if issue.Status != "" {
-		task.Metadata["jira_status"] = issue.Status
-	}
+	// Preserve orc-specific fields that Jira doesn't own
+	updated.InitiativeId = task.InitiativeId
+	updated.BlockedBy = task.BlockedBy
+	updated.RelatedTo = task.RelatedTo
+	updated.Execution = task.Execution
 
-	return task, actionUpdate, nil
+	return updated, actionUpdate, nil
 }
 
 // isOrcStarted returns true if the task has been started in orc (beyond initial import state).
@@ -253,7 +268,9 @@ func (imp *Importer) importEpics(_ context.Context, epics []Issue, epicKeyToInit
 		existing, found := titleToInit[epic.Summary]
 
 		if found {
-			// Update existing initiative
+			// Update existing initiative (matched by title — see comment above)
+			imp.logger.Warn("matched epic to existing initiative by title",
+				"jira_key", epic.Key, "title", epic.Summary, "initiative_id", existing.ID)
 			existing.Vision = epic.Description
 			existing.Status = mapInitiativeStatus(epic.StatusKey)
 			epicKeyToInitID[epic.Key] = existing.ID
@@ -337,31 +354,14 @@ func (imp *Importer) buildJQL() string {
 		return "ORDER BY created DESC"
 	}
 
-	result := parts[0]
-	for _, p := range parts[1:] {
-		result += " AND " + p
-	}
-	return result + " ORDER BY created ASC"
+	return strings.Join(parts, " AND ") + " ORDER BY created ASC"
 }
 
 func joinQuoted(strs []string) string {
-	result := ""
+	quoted := make([]string, len(strs))
 	for i, s := range strs {
-		if i > 0 {
-			result += ", "
-		}
-		result += fmt.Sprintf("%q", s)
+		quoted[i] = fmt.Sprintf("%q", s)
 	}
-	return result
+	return strings.Join(quoted, ", ")
 }
 
-func joinStrings(strs []string) string {
-	result := ""
-	for i, s := range strs {
-		if i > 0 {
-			result += ","
-		}
-		result += s
-	}
-	return result
-}

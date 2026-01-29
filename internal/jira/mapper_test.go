@@ -271,3 +271,211 @@ func TestResolveLinks_NoLinks(t *testing.T) {
 		t.Errorf("relatedTo = %v, want nil", relatedTo)
 	}
 }
+
+func TestMapIssueToTask_AllMetadata(t *testing.T) {
+	mapper := NewMapper(DefaultMapperConfig())
+
+	issue := Issue{
+		Key:          "PROJ-100",
+		Summary:      "Full metadata issue",
+		IssueType:    "Story",
+		Status:       "In Progress",
+		StatusKey:    "indeterminate",
+		Priority:     "High",
+		Assignee:     "John Doe",
+		Reporter:     "Jane Smith",
+		Resolution:   "Done",
+		FixVersions:  []string{"1.0", "2.0"},
+		DueDate:      "2025-03-15",
+		Project:      "PROJ",
+		CustomFields: map[string]string{"jira_sprint": "Sprint 5"},
+		Created:      time.Now(),
+	}
+
+	task := mapper.MapIssueToTask(issue, "TASK-100")
+
+	checks := map[string]string{
+		"jira_key":          "PROJ-100",
+		"jira_assignee":     "John Doe",
+		"jira_reporter":     "Jane Smith",
+		"jira_resolution":   "Done",
+		"jira_fix_versions": "1.0,2.0",
+		"jira_due_date":     "2025-03-15",
+		"jira_project":      "PROJ",
+		"jira_status":       "In Progress",
+		"jira_sprint":       "Sprint 5",
+	}
+
+	for key, want := range checks {
+		if got := task.Metadata[key]; got != want {
+			t.Errorf("Metadata[%s] = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestResolvePriority_Overrides(t *testing.T) {
+	cfg := DefaultMapperConfig()
+	cfg.PriorityOverrides = map[string]string{
+		"Blocker": "critical",
+		"Trivial": "low",
+	}
+	mapper := NewMapper(cfg)
+
+	tests := []struct {
+		input    string
+		expected orcv1.TaskPriority
+	}{
+		{"Blocker", orcv1.TaskPriority_TASK_PRIORITY_CRITICAL},
+		{"Trivial", orcv1.TaskPriority_TASK_PRIORITY_LOW},
+		{"High", orcv1.TaskPriority_TASK_PRIORITY_HIGH}, // No override, falls through
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := mapper.resolvePriority(tt.input)
+			if got != tt.expected {
+				t.Errorf("resolvePriority(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveCategory_Overrides(t *testing.T) {
+	cfg := DefaultMapperConfig()
+	cfg.CategoryOverrides = map[string]string{
+		"Spike":     "refactor",
+		"Tech Debt": "chore",
+	}
+	mapper := NewMapper(cfg)
+
+	tests := []struct {
+		input    string
+		expected orcv1.TaskCategory
+	}{
+		{"Spike", orcv1.TaskCategory_TASK_CATEGORY_REFACTOR},
+		{"Tech Debt", orcv1.TaskCategory_TASK_CATEGORY_CHORE},
+		{"Bug", orcv1.TaskCategory_TASK_CATEGORY_BUG}, // No override, falls through
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := mapper.resolveCategory(tt.input)
+			if got != tt.expected {
+				t.Errorf("resolveCategory(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestResolveQueue_Overrides(t *testing.T) {
+	cfg := DefaultMapperConfig()
+	cfg.StatusOverrides = map[string]string{
+		"In Review": "active",
+		"Waiting":   "backlog",
+	}
+	mapper := NewMapper(cfg)
+
+	tests := []struct {
+		name     string
+		issue    Issue
+		expected orcv1.TaskQueue
+	}{
+		{
+			name:     "override to active",
+			issue:    Issue{Status: "In Review", StatusKey: "new"},
+			expected: orcv1.TaskQueue_TASK_QUEUE_ACTIVE,
+		},
+		{
+			name:     "override to backlog",
+			issue:    Issue{Status: "Waiting", StatusKey: "indeterminate"},
+			expected: orcv1.TaskQueue_TASK_QUEUE_BACKLOG,
+		},
+		{
+			name:     "no override falls through",
+			issue:    Issue{Status: "To Do", StatusKey: "new"},
+			expected: orcv1.TaskQueue_TASK_QUEUE_BACKLOG, // default queue
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mapper.resolveQueue(tt.issue)
+			if got != tt.expected {
+				t.Errorf("resolveQueue(%+v) = %v, want %v", tt.issue.Status, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParsePriority(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected orcv1.TaskPriority
+	}{
+		{"critical", orcv1.TaskPriority_TASK_PRIORITY_CRITICAL},
+		{"CRITICAL", orcv1.TaskPriority_TASK_PRIORITY_CRITICAL},
+		{"high", orcv1.TaskPriority_TASK_PRIORITY_HIGH},
+		{"normal", orcv1.TaskPriority_TASK_PRIORITY_NORMAL},
+		{"low", orcv1.TaskPriority_TASK_PRIORITY_LOW},
+		{"unknown", orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED},
+		{"", orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parsePriority(tt.input)
+			if got != tt.expected {
+				t.Errorf("parsePriority(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseCategory(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected orcv1.TaskCategory
+	}{
+		{"bug", orcv1.TaskCategory_TASK_CATEGORY_BUG},
+		{"feature", orcv1.TaskCategory_TASK_CATEGORY_FEATURE},
+		{"refactor", orcv1.TaskCategory_TASK_CATEGORY_REFACTOR},
+		{"chore", orcv1.TaskCategory_TASK_CATEGORY_CHORE},
+		{"docs", orcv1.TaskCategory_TASK_CATEGORY_DOCS},
+		{"test", orcv1.TaskCategory_TASK_CATEGORY_TEST},
+		{"FEATURE", orcv1.TaskCategory_TASK_CATEGORY_FEATURE},
+		{"unknown", orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED},
+		{"", orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseCategory(tt.input)
+			if got != tt.expected {
+				t.Errorf("parseCategory(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseQueue(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected orcv1.TaskQueue
+	}{
+		{"active", orcv1.TaskQueue_TASK_QUEUE_ACTIVE},
+		{"ACTIVE", orcv1.TaskQueue_TASK_QUEUE_ACTIVE},
+		{"backlog", orcv1.TaskQueue_TASK_QUEUE_BACKLOG},
+		{"Backlog", orcv1.TaskQueue_TASK_QUEUE_BACKLOG},
+		{"unknown", orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED},
+		{"", orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseQueue(tt.input)
+			if got != tt.expected {
+				t.Errorf("parseQueue(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}

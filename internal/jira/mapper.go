@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"maps"
 	"strings"
 	"time"
 
@@ -16,6 +17,16 @@ type MapperConfig struct {
 	DefaultWeight orcv1.TaskWeight
 	// DefaultQueue is the orc queue for imported tasks (default: backlog).
 	DefaultQueue orcv1.TaskQueue
+
+	// StatusOverrides maps Jira status names to orc queue names ("active", "backlog").
+	// Takes precedence over the default status-category-based mapping.
+	StatusOverrides map[string]string
+	// CategoryOverrides maps Jira issue type names to orc category names.
+	// ("bug", "feature", "refactor", "chore", "docs", "test")
+	CategoryOverrides map[string]string
+	// PriorityOverrides maps Jira priority names to orc priority names.
+	// ("critical", "high", "normal", "low")
+	PriorityOverrides map[string]string
 }
 
 // DefaultMapperConfig returns the default mapper configuration.
@@ -46,9 +57,9 @@ func (m *Mapper) MapIssueToTask(issue Issue, taskID string) *orcv1.Task {
 		Description: &desc,
 		Weight:      m.cfg.DefaultWeight,
 		Status:      mapStatus(issue.StatusKey),
-		Queue:       mapQueue(issue.StatusKey, m.cfg.DefaultQueue),
-		Priority:    mapPriority(issue.Priority),
-		Category:    mapCategory(issue.IssueType),
+		Queue:       m.resolveQueue(issue),
+		Priority:    m.resolvePriority(issue.Priority),
+		Category:    m.resolveCategory(issue.IssueType),
 		Metadata:    make(map[string]string),
 		CreatedAt:   timestamppb.New(issue.Created),
 		UpdatedAt:   timestamppb.New(time.Now()),
@@ -57,7 +68,7 @@ func (m *Mapper) MapIssueToTask(issue Issue, taskID string) *orcv1.Task {
 	// Jira key is the idempotency anchor
 	t.Metadata["jira_key"] = issue.Key
 
-	// Store Jira-specific data that doesn't map directly
+	// Store Jira-specific data that doesn't map directly to orc fields
 	if len(issue.Labels) > 0 {
 		t.Metadata["jira_labels"] = strings.Join(issue.Labels, ",")
 	}
@@ -67,6 +78,27 @@ func (m *Mapper) MapIssueToTask(issue Issue, taskID string) *orcv1.Task {
 	if issue.Status != "" {
 		t.Metadata["jira_status"] = issue.Status
 	}
+	if issue.Assignee != "" {
+		t.Metadata["jira_assignee"] = issue.Assignee
+	}
+	if issue.Reporter != "" {
+		t.Metadata["jira_reporter"] = issue.Reporter
+	}
+	if issue.Resolution != "" {
+		t.Metadata["jira_resolution"] = issue.Resolution
+	}
+	if len(issue.FixVersions) > 0 {
+		t.Metadata["jira_fix_versions"] = strings.Join(issue.FixVersions, ",")
+	}
+	if issue.DueDate != "" {
+		t.Metadata["jira_due_date"] = issue.DueDate
+	}
+	if issue.Project != "" {
+		t.Metadata["jira_project"] = issue.Project
+	}
+
+	// Store custom fields
+	maps.Copy(t.Metadata, issue.CustomFields)
 
 	return t
 }
@@ -112,6 +144,36 @@ func (m *Mapper) ResolveLinks(issue Issue, keyToTaskID map[string]string) (block
 		relatedTo = append(relatedTo, targetID)
 	}
 	return blockedBy, relatedTo
+}
+
+// resolvePriority checks overrides first, then falls back to default mapping.
+func (m *Mapper) resolvePriority(jiraPriority string) orcv1.TaskPriority {
+	if override, ok := m.cfg.PriorityOverrides[jiraPriority]; ok {
+		if p := parsePriority(override); p != orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED {
+			return p
+		}
+	}
+	return mapPriority(jiraPriority)
+}
+
+// resolveCategory checks overrides first, then falls back to default mapping.
+func (m *Mapper) resolveCategory(issueType string) orcv1.TaskCategory {
+	if override, ok := m.cfg.CategoryOverrides[issueType]; ok {
+		if c := parseCategory(override); c != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
+			return c
+		}
+	}
+	return mapCategory(issueType)
+}
+
+// resolveQueue checks status name overrides first, then falls back to status-category mapping.
+func (m *Mapper) resolveQueue(issue Issue) orcv1.TaskQueue {
+	if override, ok := m.cfg.StatusOverrides[issue.Status]; ok {
+		if q := parseQueue(override); q != orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED {
+			return q
+		}
+	}
+	return mapQueue(issue.StatusKey, m.cfg.DefaultQueue)
 }
 
 // mapPriority converts Jira's 5-level priority to orc's 4-level priority.
@@ -168,6 +230,54 @@ func mapQueue(statusCategoryKey string, defaultQueue orcv1.TaskQueue) orcv1.Task
 		return orcv1.TaskQueue_TASK_QUEUE_ACTIVE
 	default:
 		return defaultQueue
+	}
+}
+
+// parsePriority converts a string to an orc TaskPriority.
+func parsePriority(s string) orcv1.TaskPriority {
+	switch strings.ToLower(s) {
+	case "critical":
+		return orcv1.TaskPriority_TASK_PRIORITY_CRITICAL
+	case "high":
+		return orcv1.TaskPriority_TASK_PRIORITY_HIGH
+	case "normal":
+		return orcv1.TaskPriority_TASK_PRIORITY_NORMAL
+	case "low":
+		return orcv1.TaskPriority_TASK_PRIORITY_LOW
+	default:
+		return orcv1.TaskPriority_TASK_PRIORITY_UNSPECIFIED
+	}
+}
+
+// parseCategory converts a string to an orc TaskCategory.
+func parseCategory(s string) orcv1.TaskCategory {
+	switch strings.ToLower(s) {
+	case "bug":
+		return orcv1.TaskCategory_TASK_CATEGORY_BUG
+	case "feature":
+		return orcv1.TaskCategory_TASK_CATEGORY_FEATURE
+	case "refactor":
+		return orcv1.TaskCategory_TASK_CATEGORY_REFACTOR
+	case "chore":
+		return orcv1.TaskCategory_TASK_CATEGORY_CHORE
+	case "docs":
+		return orcv1.TaskCategory_TASK_CATEGORY_DOCS
+	case "test":
+		return orcv1.TaskCategory_TASK_CATEGORY_TEST
+	default:
+		return orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED
+	}
+}
+
+// parseQueue converts a string to an orc TaskQueue.
+func parseQueue(s string) orcv1.TaskQueue {
+	switch strings.ToLower(s) {
+	case "active":
+		return orcv1.TaskQueue_TASK_QUEUE_ACTIVE
+	case "backlog":
+		return orcv1.TaskQueue_TASK_QUEUE_BACKLOG
+	default:
+		return orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED
 	}
 }
 

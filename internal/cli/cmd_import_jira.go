@@ -74,11 +74,17 @@ Examples:
 				return fmt.Errorf("jira API token is required: set %s env var or use --token flag", cfg.Jira.GetTokenEnvVar())
 			}
 
+			// Resolve projects: flag > config default
+			if len(projects) == 0 && len(cfg.Jira.DefaultProjects) > 0 {
+				projects = cfg.Jira.DefaultProjects
+			}
+
 			// Create Jira client
 			client, err := jira.NewClient(jira.ClientConfig{
-				BaseURL:  jiraURL,
-				Email:    jiraEmail,
-				APIToken: jiraToken,
+				BaseURL:      jiraURL,
+				Email:        jiraEmail,
+				APIToken:     jiraToken,
+				CustomFields: cfg.Jira.CustomFields,
 			})
 			if err != nil {
 				return fmt.Errorf("create jira client: %w", err)
@@ -110,6 +116,9 @@ Examples:
 			if q := resolveQueue(queue, cfg.Jira.DefaultQueue); q != orcv1.TaskQueue_TASK_QUEUE_UNSPECIFIED {
 				mapperCfg.DefaultQueue = q
 			}
+			mapperCfg.StatusOverrides = cfg.Jira.StatusOverrides
+			mapperCfg.CategoryOverrides = cfg.Jira.CategoryOverrides
+			mapperCfg.PriorityOverrides = cfg.Jira.PriorityOverrides
 
 			importCfg := jira.ImportConfig{
 				JQL:              jql,

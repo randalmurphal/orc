@@ -893,6 +893,29 @@ type JiraConfig struct {
 	// DefaultQueue for imported tasks. One of: active, backlog.
 	// Default: backlog.
 	DefaultQueue string `yaml:"default_queue" json:"default_queue,omitempty"`
+
+	// DefaultProjects are project keys imported by default when --project is not specified.
+	DefaultProjects []string `yaml:"default_projects" json:"default_projects,omitempty"`
+
+	// CustomFields maps Jira custom field IDs to metadata key names.
+	// Example: {"customfield_10020": "jira_sprint", "customfield_10028": "jira_story_points"}
+	// These fields are extracted from Jira issues and stored in task metadata.
+	CustomFields map[string]string `yaml:"custom_fields" json:"custom_fields,omitempty"`
+
+	// StatusOverrides maps Jira status names to orc queue placement.
+	// Values: "active", "backlog". Overrides the default status-category-based mapping.
+	// Example: {"In Review": "active", "Waiting": "backlog"}
+	StatusOverrides map[string]string `yaml:"status_overrides" json:"status_overrides,omitempty"`
+
+	// CategoryOverrides maps Jira issue type names to orc task categories.
+	// Values: "bug", "feature", "refactor", "chore", "docs", "test".
+	// Example: {"Spike": "refactor", "Tech Debt": "refactor"}
+	CategoryOverrides map[string]string `yaml:"category_overrides" json:"category_overrides,omitempty"`
+
+	// PriorityOverrides maps Jira priority names to orc task priorities.
+	// Values: "critical", "high", "normal", "low".
+	// Example: {"Blocker": "critical", "Trivial": "low"}
+	PriorityOverrides map[string]string `yaml:"priority_overrides" json:"priority_overrides,omitempty"`
 }
 
 // GetEpicToInitiative returns the epic-to-initiative setting, defaulting to true.

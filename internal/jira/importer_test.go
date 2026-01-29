@@ -530,5 +530,88 @@ func newTestImporter(backend *mockBackend, cfg ImportConfig, logger *slog.Logger
 	imp.searchFunc = func(_ context.Context, _ string) ([]Issue, error) {
 		return issues, nil
 	}
+	// Default: no custom fields
+	imp.customFieldFunc = func(_ context.Context, _ string) (map[string]map[string]string, error) {
+		return nil, nil
+	}
 	return imp
+}
+
+func TestImporter_CustomFields(t *testing.T) {
+	backend := newMockBackend()
+	logger := slog.Default()
+
+	issues := []Issue{
+		{
+			Key:       "PROJ-1",
+			Summary:   "Task with custom fields",
+			IssueType: "Story",
+			StatusKey: "new",
+			Priority:  "High",
+		},
+		{
+			Key:       "PROJ-2",
+			Summary:   "Task without custom fields",
+			IssueType: "Bug",
+			StatusKey: "new",
+			Priority:  "Medium",
+		},
+	}
+
+	cfg := ImportConfig{
+		EpicToInitiative: false,
+		MapperCfg:        DefaultMapperConfig(),
+	}
+
+	imp := newTestImporter(backend, cfg, logger, issues)
+	// Override customFieldFunc to return values for PROJ-1
+	imp.customFieldFunc = func(_ context.Context, _ string) (map[string]map[string]string, error) {
+		return map[string]map[string]string{
+			"PROJ-1": {
+				"jira_sprint":       "Sprint 5",
+				"jira_story_points": "8",
+			},
+		}, nil
+	}
+
+	result, err := imp.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run() error: %v", err)
+	}
+	if result.TasksCreated != 2 {
+		t.Errorf("TasksCreated = %d, want 2", result.TasksCreated)
+	}
+
+	// Find PROJ-1 task and verify custom fields in metadata
+	var proj1Task *orcv1.Task
+	for _, task := range backend.tasks {
+		if task.Metadata["jira_key"] == "PROJ-1" {
+			proj1Task = task
+			break
+		}
+	}
+	if proj1Task == nil {
+		t.Fatal("PROJ-1 task not found")
+	}
+	if proj1Task.Metadata["jira_sprint"] != "Sprint 5" {
+		t.Errorf("Metadata[jira_sprint] = %q, want %q", proj1Task.Metadata["jira_sprint"], "Sprint 5")
+	}
+	if proj1Task.Metadata["jira_story_points"] != "8" {
+		t.Errorf("Metadata[jira_story_points] = %q, want %q", proj1Task.Metadata["jira_story_points"], "8")
+	}
+
+	// Find PROJ-2 task and verify no custom fields
+	var proj2Task *orcv1.Task
+	for _, task := range backend.tasks {
+		if task.Metadata["jira_key"] == "PROJ-2" {
+			proj2Task = task
+			break
+		}
+	}
+	if proj2Task == nil {
+		t.Fatal("PROJ-2 task not found")
+	}
+	if _, ok := proj2Task.Metadata["jira_sprint"]; ok {
+		t.Error("PROJ-2 should not have jira_sprint metadata")
+	}
 }

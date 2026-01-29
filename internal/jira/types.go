@@ -21,6 +21,15 @@ type Issue struct {
 	IssueLinks  []IssueLink
 	Created     time.Time
 	Updated     time.Time
+
+	// Additional fields for richer metadata
+	Assignee     string            // Display name of assignee
+	Reporter     string            // Display name of reporter
+	Resolution   string            // Resolution name (e.g., "Done", "Won't Do")
+	FixVersions  []string          // Version names
+	DueDate      string            // ISO date string (e.g., "2025-03-15") or empty
+	Project      string            // Project key (e.g., "PROJ")
+	CustomFields map[string]string // Extracted custom fields (metadata key → string value)
 }
 
 // IsEpic returns true if this issue is an Epic.
