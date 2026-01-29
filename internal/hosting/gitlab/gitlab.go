@@ -148,9 +148,10 @@ func (g *GitLabProvider) UpdatePR(ctx context.Context, number int, opts hosting.
 	if opts.Body != "" {
 		updateOpts.Description = gogitlab.Ptr(opts.Body)
 	}
-	if opts.State == "closed" {
+	switch opts.State {
+	case "closed":
 		updateOpts.StateEvent = gogitlab.Ptr("close")
-	} else if opts.State == "open" {
+	case "open":
 		updateOpts.StateEvent = gogitlab.Ptr("reopen")
 	}
 
@@ -510,8 +511,8 @@ func mapMR(mr *gogitlab.MergeRequest) *hosting.PR {
 		state = "open"
 	}
 
-	draft := mr.Draft || mr.WorkInProgress
-	mergeable := mr.DetailedMergeStatus == "mergeable" || mr.BasicMergeRequest.DetailedMergeStatus == "mergeable"
+	draft := mr.Draft
+	mergeable := mr.DetailedMergeStatus == "mergeable"
 
 	var createdAt, updatedAt string
 	if mr.CreatedAt != nil {
