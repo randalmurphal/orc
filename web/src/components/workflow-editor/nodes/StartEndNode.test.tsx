@@ -16,6 +16,10 @@ function renderStartEndNode(data: StartEndNodeData) {
 				positionAbsoluteX={0}
 				positionAbsoluteY={0}
 				zIndex={0}
+				draggable={true}
+				dragging={false}
+				selectable={true}
+				deletable={true}
 			/>
 		</ReactFlowProvider>
 	);
