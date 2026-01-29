@@ -21,20 +21,26 @@ describe('Toggle', () => {
 			expect(container.querySelector('.toggle__track')).toBeInTheDocument();
 			expect(container.querySelector('.toggle__knob')).toBeInTheDocument();
 		});
+
+		it('role="switch" is on the label wrapper, not the input', () => {
+			const { container } = render(<Toggle />);
+			const label = container.querySelector('label.toggle');
+			expect(label).toHaveAttribute('role', 'switch');
+			const input = container.querySelector('input');
+			expect(input).not.toHaveAttribute('role');
+		});
 	});
 
 	describe('checked state', () => {
 		it('is unchecked by default', () => {
 			render(<Toggle />);
 			const toggle = screen.getByRole('switch');
-			expect(toggle).not.toBeChecked();
 			expect(toggle).toHaveAttribute('aria-checked', 'false');
 		});
 
 		it('is checked when checked prop is true', () => {
 			render(<Toggle checked />);
 			const toggle = screen.getByRole('switch');
-			expect(toggle).toBeChecked();
 			expect(toggle).toHaveAttribute('aria-checked', 'true');
 		});
 
@@ -77,10 +83,10 @@ describe('Toggle', () => {
 	});
 
 	describe('disabled state', () => {
-		it('is disabled when disabled prop is true', () => {
+		it('has aria-disabled when disabled', () => {
 			render(<Toggle disabled />);
 			const toggle = screen.getByRole('switch');
-			expect(toggle).toBeDisabled();
+			expect(toggle).toHaveAttribute('aria-disabled', 'true');
 		});
 
 		it('applies toggle--disabled class when disabled', () => {
@@ -95,6 +101,12 @@ describe('Toggle', () => {
 			const toggle = screen.getByRole('switch');
 			fireEvent.click(toggle);
 			expect(handleChange).not.toHaveBeenCalled();
+		});
+
+		it('has tabIndex -1 when disabled', () => {
+			render(<Toggle disabled />);
+			const toggle = screen.getByRole('switch');
+			expect(toggle).toHaveAttribute('tabindex', '-1');
 		});
 	});
 
@@ -120,8 +132,14 @@ describe('Toggle', () => {
 			render(<Toggle checked={false} onChange={handleChange} />);
 			const toggle = screen.getByRole('switch');
 			fireEvent.keyDown(toggle, { key: ' ' });
-			fireEvent.keyUp(toggle, { key: ' ' });
-			fireEvent.click(toggle);
+			expect(handleChange).toHaveBeenCalled();
+		});
+
+		it('can be toggled with Enter key', () => {
+			const handleChange = vi.fn();
+			render(<Toggle checked={false} onChange={handleChange} />);
+			const toggle = screen.getByRole('switch');
+			fireEvent.keyDown(toggle, { key: 'Enter' });
 			expect(handleChange).toHaveBeenCalled();
 		});
 
@@ -135,7 +153,7 @@ describe('Toggle', () => {
 		it('is not focusable when disabled', () => {
 			render(<Toggle disabled />);
 			const toggle = screen.getByRole('switch');
-			expect(toggle).toBeDisabled();
+			expect(toggle).toHaveAttribute('tabindex', '-1');
 		});
 	});
 
@@ -175,28 +193,28 @@ describe('Toggle', () => {
 		});
 
 		it('supports id attribute', () => {
-			render(<Toggle id="my-toggle" />);
-			const toggle = screen.getByRole('switch');
-			expect(toggle).toHaveAttribute('id', 'my-toggle');
+			const { container } = render(<Toggle id="my-toggle" />);
+			const input = container.querySelector('input[type="checkbox"]');
+			expect(input).toHaveAttribute('id', 'my-toggle');
 		});
 
 		it('generates unique id when not provided', () => {
-			render(<Toggle />);
-			const toggle = screen.getByRole('switch');
-			expect(toggle).toHaveAttribute('id');
-			expect(toggle.id).toBeTruthy();
+			const { container } = render(<Toggle />);
+			const input = container.querySelector('input[type="checkbox"]');
+			expect(input).toHaveAttribute('id');
+			expect(input?.id).toBeTruthy();
 		});
 
 		it('works in a form with label', () => {
 			render(
 				<form>
-					<label htmlFor="test-toggle">Enable feature</label>
-					<Toggle id="test-toggle" name="feature" />
+					<Toggle id="test-toggle" name="feature" aria-label="Enable feature" />
 				</form>
 			);
 			const toggle = screen.getByRole('switch');
-			expect(toggle).toHaveAttribute('name', 'feature');
-			expect(screen.getByLabelText('Enable feature')).toBe(toggle);
+			expect(toggle).toHaveAttribute('aria-label', 'Enable feature');
+			const input = document.querySelector('input[name="feature"]');
+			expect(input).toBeInTheDocument();
 		});
 
 		it('label wrapper is clickable', () => {
@@ -209,9 +227,9 @@ describe('Toggle', () => {
 	});
 
 	describe('HTML attributes', () => {
-		it('passes through native input attributes', () => {
-			render(<Toggle data-testid="test-toggle" aria-label="Toggle setting" />);
-			const toggle = screen.getByTestId('test-toggle');
+		it('passes through aria-label to the label', () => {
+			render(<Toggle aria-label="Toggle setting" />);
+			const toggle = screen.getByRole('switch');
 			expect(toggle).toHaveAttribute('aria-label', 'Toggle setting');
 		});
 	});
@@ -234,10 +252,11 @@ describe('Toggle', () => {
 			expect(toggle).toHaveAttribute('aria-checked', 'true');
 		});
 
-		it('input is visually hidden but accessible', () => {
+		it('input is visually hidden but present in DOM', () => {
 			const { container } = render(<Toggle />);
 			const input = container.querySelector('.toggle__input');
 			expect(input).toBeInTheDocument();
+			expect(input).toHaveAttribute('aria-hidden', 'true');
 		});
 	});
 
@@ -248,8 +267,8 @@ describe('Toggle', () => {
 			expect(wrapper).toHaveClass('toggle--on');
 			expect(wrapper).toHaveClass('toggle--disabled');
 			const toggle = screen.getByRole('switch');
-			expect(toggle).toBeChecked();
-			expect(toggle).toBeDisabled();
+			expect(toggle).toHaveAttribute('aria-checked', 'true');
+			expect(toggle).toHaveAttribute('aria-disabled', 'true');
 		});
 
 		it('handles all props together', () => {
@@ -270,10 +289,11 @@ describe('Toggle', () => {
 			expect(wrapper).toHaveClass('toggle--on');
 			expect(wrapper).toHaveClass('custom');
 
-			const toggle = screen.getByRole('switch');
-			expect(toggle).toHaveAttribute('name', 'testToggle');
-			expect(toggle).toHaveAttribute('id', 'test-id');
+			const input = container.querySelector('input[type="checkbox"]');
+			expect(input).toHaveAttribute('name', 'testToggle');
+			expect(input).toHaveAttribute('id', 'test-id');
 
+			const toggle = screen.getByRole('switch');
 			fireEvent.click(toggle);
 			expect(handleChange).toHaveBeenCalledWith(false, expect.any(Object));
 		});

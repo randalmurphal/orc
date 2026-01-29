@@ -187,7 +187,7 @@ describe('ExecutionSettings', () => {
 			render(<ExecutionSettings settings={defaultSettings} onChange={vi.fn()} isSaving />);
 
 			const toggle = screen.getByRole('switch', { name: /auto-approve/i });
-			expect(toggle).toBeDisabled();
+			expect(toggle).toHaveAttribute('aria-disabled', 'true');
 		});
 
 		it('disables Default Model select when isSaving is true', () => {
