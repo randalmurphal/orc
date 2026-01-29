@@ -147,7 +147,7 @@ export function CloneWorkflowModal({
 						onChange={(e) => handleIdChange(e.target.value)}
 						placeholder="my-custom-workflow"
 						required
-						pattern="[a-z0-9\\-]+"
+						pattern="[a-z0-9-]+"
 						title="Lowercase letters, numbers, and hyphens only"
 					/>
 					<span className="form-help">
