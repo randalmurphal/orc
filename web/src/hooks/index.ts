@@ -28,3 +28,6 @@ export { useClickKeyboard } from './useClickKeyboard';
 
 // Re-export commonly used store hooks for convenience
 export { useCurrentProject } from '@/stores';
+
+// Toast notification hook
+export { useToast } from './useToast';

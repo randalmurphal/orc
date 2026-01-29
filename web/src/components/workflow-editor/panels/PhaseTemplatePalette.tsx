@@ -1,5 +1,6 @@
 import { useState, useMemo, type DragEvent } from 'react';
 import { usePhaseTemplates } from '@/stores/workflowStore';
+import { useToast } from '@/hooks/useToast';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import {
@@ -42,6 +43,7 @@ function groupByCategory(templates: PhaseTemplate[]): Map<CategoryName, PhaseTem
 
 export function PhaseTemplatePalette({ readOnly, workflowId: _workflowId }: PhaseTemplatePaletteProps) {
 	const allTemplates = usePhaseTemplates();
+	const { toast } = useToast();
 	const [query, setQuery] = useState('');
 	const [collapsedCategories, setCollapsedCategories] = useState<Set<CategoryName>>(new Set());
 
@@ -61,6 +63,13 @@ export function PhaseTemplatePalette({ readOnly, workflowId: _workflowId }: Phas
 	};
 
 	const handleDragStart = (e: DragEvent<HTMLDivElement>, templateId: string) => {
+		if (readOnly) {
+			e.preventDefault();
+			toast({
+				description: 'Clone this workflow to customize it',
+			});
+			return;
+		}
 		e.dataTransfer.setData('application/orc-phase-template', templateId);
 		e.dataTransfer.effectAllowed = 'copy';
 	};
@@ -106,14 +115,10 @@ export function PhaseTemplatePalette({ readOnly, workflowId: _workflowId }: Phas
 								templates.map((t) => (
 									<div
 										key={t.id}
-										className="phase-palette-card"
+										className={`phase-palette-card${readOnly ? ' cursor-not-allowed' : ''}`}
 										data-testid="template-card"
 										draggable={!readOnly}
-										onDragStart={
-											readOnly
-												? undefined
-												: (e) => handleDragStart(e, t.id)
-										}
+										onDragStart={(e) => handleDragStart(e, t.id)}
 									>
 										<div className="phase-palette-card-header">
 											<span className="phase-palette-card-name">

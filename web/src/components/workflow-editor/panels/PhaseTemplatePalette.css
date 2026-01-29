@@ -99,6 +99,10 @@
 	cursor: default;
 }
 
+.phase-palette-card.cursor-not-allowed {
+	cursor: not-allowed;
+}
+
 .phase-palette-card-header {
 	display: flex;
 	align-items: center;
