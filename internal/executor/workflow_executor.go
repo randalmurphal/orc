@@ -340,7 +340,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	go func() {
 		select {
 		case <-pauseCh:
-			we.logger.Info("SIGUSR1 received, initiating graceful pause", "task", t.Id)
+			taskID := ""
+			if t != nil {
+				taskID = t.Id
+			}
+			we.logger.Info("SIGUSR1 received, initiating graceful pause", "task", taskID)
 			execCancel()
 		case <-execCtx.Done():
 			return
@@ -508,14 +512,29 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		result.PhaseResults = append(result.PhaseResults, phaseResult)
 
 		if err != nil {
-			// Check if this was triggered by pause signal (execCtx cancelled)
-			// Note: The error may be "signal: killed" from subprocess, not context.Canceled
-			if execCtx.Err() != nil {
-				we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
+			// Check for blocked status - proceed to gate evaluation, not failure
+			var blockedErr *PhaseBlockedError
+			if errors.As(err, &blockedErr) {
+				we.logger.Info("phase blocked, proceeding to gate evaluation",
+					"phase", tmpl.ID,
+					"reason", blockedErr.Reason,
+				)
+
+				// Mark result as blocked for gate evaluation
+				// Note: Review findings are stored in RetryContext.FailureOutput when
+				// SetRetryContextProto is called by gate rejection handler below
+				phaseResult.BlockedReason = blockedErr.Reason
+				// Fall through to gate evaluation (don't return)
+			} else {
+				// Check if this was triggered by pause signal (execCtx cancelled)
+				// Note: The error may be "signal: killed" from subprocess, not context.Canceled
+				if execCtx.Err() != nil {
+					we.interruptRun(run, t, phase.PhaseTemplateID, execCtx.Err())
+					return result, err
+				}
+				we.failRun(run, t, err)
 				return result, err
 			}
-			we.failRun(run, t, err)
-			return result, err
 		}
 
 		// Update variables with phase output content
@@ -593,11 +612,34 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 
 		// Evaluate phase gate
+		// For blocked phases, bypass gate evaluation and force rejection
 		gateResult, gateErr := we.evaluatePhaseGate(ctx, tmpl, phase, phaseResult.Content, t)
 		if gateErr != nil {
 			we.logger.Warn("gate evaluation failed", "phase", tmpl.ID, "error", gateErr)
 			// Continue on gate error - don't block automation
-		} else if gateResult != nil {
+		}
+
+		// Handle blocked phases: force gate rejection to trigger retry
+		if phaseResult.BlockedReason != "" {
+			we.logger.Info("phase blocked, forcing gate rejection for retry",
+				"phase", tmpl.ID,
+				"reason", phaseResult.BlockedReason,
+			)
+			// Create or override gate result to trigger retry
+			if gateResult == nil {
+				gateResult = &GateEvaluationResult{}
+			}
+			gateResult.Approved = false
+			gateResult.Reason = phaseResult.BlockedReason
+			// Check retry map for this phase
+			if tmpl.RetryFromPhase != "" {
+				gateResult.RetryPhase = tmpl.RetryFromPhase
+			} else if we.orcConfig != nil {
+				gateResult.RetryPhase = we.orcConfig.ShouldRetryFrom(tmpl.ID)
+			}
+		}
+
+		if gateResult != nil {
 			// Handle gate decision
 			if gateResult.Pending {
 				// Task is blocked waiting for human decision
@@ -675,6 +717,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// Record gate decision in state
 			if we.task != nil {
 				task.RecordGateDecisionProto(we.task.Execution, tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
+
+				// Clear retry context after successful review round 2
+				// This prevents stale context from affecting future runs
+				if gateResult.Approved && tmpl.ID == "review" && rctx.ReviewRound > 1 {
+					we.task.Execution.RetryContext = nil
+					we.logger.Info("cleared retry context after successful review round 2",
+						"task", we.task.Id,
+						"round", rctx.ReviewRound,
+					)
+				}
+
 				if err := we.backend.SaveTask(we.task); err != nil {
 					we.logger.Warn("failed to save gate decision state", "error", err)
 				}
@@ -815,6 +868,7 @@ type PhaseResult struct {
 	DurationMS          int64
 	Content             string
 	Error               string
+	BlockedReason       string // Set when phase outputs blocked status (for gate evaluation)
 	InputTokens         int
 	OutputTokens        int
 	CacheCreationTokens int
@@ -971,3 +1025,4 @@ func extractPhaseOutput(output string) string {
 	// This handles qa_e2e_test (findings), qa_e2e_fix (fixes_applied), review, etc.
 	return output
 }
+

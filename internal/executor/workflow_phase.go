@@ -91,8 +91,22 @@ func (we *WorkflowExecutor) executePhase(
 		we.publisher.PhaseStart(t.Id, tmpl.ID)
 	}
 
+	// For review phase, use round-specific template if available
+	effectiveTemplate := tmpl
+	if tmpl.ID == "review" && rctx.ReviewRound > 1 {
+		roundTemplate := *tmpl
+		// Replace "review.md" with "review_round{N}.md" in prompt path
+		roundPath := strings.Replace(tmpl.PromptPath, "review.md", fmt.Sprintf("review_round%d.md", rctx.ReviewRound), 1)
+		roundTemplate.PromptPath = roundPath
+		effectiveTemplate = &roundTemplate
+		we.logger.Info("using round-specific review template",
+			"round", rctx.ReviewRound,
+			"path", roundPath,
+		)
+	}
+
 	// Load prompt template
-	promptContent, err := we.loadPhasePrompt(tmpl)
+	promptContent, err := we.loadPhasePrompt(effectiveTemplate)
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
@@ -112,7 +126,7 @@ func (we *WorkflowExecutor) executePhase(
 	model := we.resolvePhaseModel(tmpl, phase)
 
 	// Resolve effective Claude configuration for this phase
-	claudeConfig, _ := we.getEffectivePhaseClaudeConfig(tmpl, phase)
+	claudeConfig := we.getEffectivePhaseClaudeConfig(tmpl, phase)
 
 	// Load phase agents from database and add to Claude config
 	if rctx.TaskWeight != "" && we.projectDB != nil {
@@ -498,7 +512,14 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			return result, nil
 
 		case PhaseStatusBlocked:
-			return result, fmt.Errorf("phase blocked: %s", reason)
+			// Return PhaseBlockedError to signal gate evaluation should handle this
+			// (not a hard failure - gates decide whether to retry or block task)
+			result.Content = extractPhaseOutput(turnResult.Content)
+			return result, &PhaseBlockedError{
+				Phase:  cfg.PhaseID,
+				Reason: reason,
+				Output: turnResult.Content,
+			}
 
 		case PhaseStatusContinue:
 			// Continue to next iteration
@@ -659,6 +680,26 @@ func (e *phaseTimeoutError) Unwrap() error {
 func IsPhaseTimeoutError(err error) bool {
 	var pte *phaseTimeoutError
 	return errors.As(err, &pte)
+}
+
+// PhaseBlockedError signals a phase blocked but should proceed to gate evaluation.
+// This is NOT a failure - gates decide whether to retry or fail the task.
+// Used when phases output {"status": "blocked", "reason": "..."} to indicate
+// the phase cannot complete without intervention (e.g., review found issues).
+type PhaseBlockedError struct {
+	Phase  string // Phase that blocked
+	Reason string // Why it blocked
+	Output string // Full phase output for storage/retry context
+}
+
+func (e *PhaseBlockedError) Error() string {
+	return fmt.Sprintf("phase %s blocked: %s", e.Phase, e.Reason)
+}
+
+// IsPhaseBlockedError returns true if the error is a PhaseBlockedError.
+func IsPhaseBlockedError(err error) bool {
+	var pbe *PhaseBlockedError
+	return errors.As(err, &pbe)
 }
 
 // executePhaseWithTimeout wraps executePhase with PhaseMax timeout if configured.
@@ -840,7 +881,7 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 //  3. Resolves agent_ref to merge agent configuration
 //  4. Loads skill_refs to inject skill content into AppendSystemPrompt
 //  5. Sets system prompt from DB-stored content (DB-first approach)
-func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) (*PhaseClaudeConfig, error) {
+func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) *PhaseClaudeConfig {
 	var cfg *PhaseClaudeConfig
 
 	// 1. Load from phase template
@@ -945,8 +986,8 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 
 	// Return nil if config is empty (no special configuration)
 	if cfg.IsEmpty() {
-		return nil, nil
+		return nil
 	}
 
-	return cfg, nil
+	return cfg
 }
