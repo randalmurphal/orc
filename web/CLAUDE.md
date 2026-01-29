@@ -104,6 +104,9 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
+| `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs for selected phase |
+| `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
+| `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: available phase templates for drag-to-add |
 
 ## React Patterns
 

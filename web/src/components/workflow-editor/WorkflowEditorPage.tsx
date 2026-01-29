@@ -2,24 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
-import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { PhaseNodeData } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
+import { PhaseInspector } from './panels/PhaseInspector';
 import './WorkflowEditorPage.css';
-
-function formatGateType(gt: GateType): string {
-	switch (gt) {
-		case GateType.HUMAN:
-			return 'Human';
-		case GateType.SKIP:
-			return 'Skip';
-		case GateType.AUTO:
-			return 'Auto';
-		default:
-			return 'Auto';
-	}
-}
 
 export function WorkflowEditorPage() {
 	const { id } = useParams<{ id: string }>();
@@ -92,12 +79,16 @@ export function WorkflowEditorPage() {
 	const isBuiltin = workflow?.isBuiltin ?? false;
 	const inspectorOpen = selectedNodeId !== null;
 
-	// Find selected node data for the inspector panel
+	// Find selected phase for the inspector panel
 	const selectedNode = selectedNodeId
 		? nodes.find((n) => n.id === selectedNodeId)
 		: null;
 	const selectedPhaseData = selectedNode
 		? (selectedNode.data as unknown as PhaseNodeData)
+		: null;
+	// Find the actual WorkflowPhase from workflowDetails
+	const selectedPhase = selectedPhaseData
+		? workflowDetails?.phases.find((p) => p.id === selectedPhaseData.phaseId) ?? null
 		: null;
 
 	const handleClone = () => {
@@ -142,40 +133,14 @@ export function WorkflowEditorPage() {
 				<div className="workflow-editor-canvas">
 					<WorkflowCanvas />
 				</div>
-				{inspectorOpen && selectedPhaseData && (
+				{inspectorOpen && (
 					<aside className="workflow-editor-inspector">
-						<div className="workflow-editor-inspector-header">
-							<h3 className="workflow-editor-inspector-title">
-								{selectedPhaseData.templateName || selectedPhaseData.phaseTemplateId}
-							</h3>
-						</div>
-						{selectedPhaseData.description && (
-							<p className="workflow-editor-inspector-description">
-								{selectedPhaseData.description}
-							</p>
-						)}
-						<div className="workflow-editor-inspector-details">
-							<div className="workflow-editor-inspector-field">
-								<span className="workflow-editor-inspector-label">Gate Type</span>
-								<span className="workflow-editor-inspector-value">
-									{formatGateType(selectedPhaseData.gateType)}
-								</span>
-							</div>
-							<div className="workflow-editor-inspector-field">
-								<span className="workflow-editor-inspector-label">Max Iterations</span>
-								<span className="workflow-editor-inspector-value">
-									{selectedPhaseData.maxIterations}
-								</span>
-							</div>
-							{selectedPhaseData.modelOverride && (
-								<div className="workflow-editor-inspector-field">
-									<span className="workflow-editor-inspector-label">Model Override</span>
-									<span className="workflow-editor-inspector-value">
-										{selectedPhaseData.modelOverride}
-									</span>
-								</div>
-							)}
-						</div>
+						<PhaseInspector
+							phase={selectedPhase}
+							workflowDetails={workflowDetails}
+							readOnly={isBuiltin}
+							onWorkflowRefresh={fetchWorkflow}
+						/>
 					</aside>
 				)}
 			</div>
