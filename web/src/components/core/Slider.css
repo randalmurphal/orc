@@ -14,7 +14,7 @@
 	gap: 12px;
 }
 
-/* Track container */
+/* Track container - padding expands touch target beyond visible 4px track */
 .slider__track {
 	flex: 1;
 	height: 4px;
@@ -22,14 +22,16 @@
 	border-radius: 2px;
 	position: relative;
 	cursor: pointer;
+	padding: 10px 0;
+	background-clip: content-box;
 }
 
-/* Filled portion of track */
+/* Filled portion of track - positioned within content area (offset by track padding) */
 .slider__fill {
 	position: absolute;
 	left: 0;
-	top: 0;
-	height: 100%;
+	top: 10px;
+	height: 4px;
 	background: var(--primary);
 	border-radius: 2px;
 	pointer-events: none;

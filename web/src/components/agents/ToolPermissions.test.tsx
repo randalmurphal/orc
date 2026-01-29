@@ -236,7 +236,7 @@ describe('ToolPermissions', () => {
 
 			const toggles = screen.getAllByRole('switch');
 			toggles.forEach((toggle) => {
-				expect(toggle).toBeDisabled();
+				expect(toggle).toHaveAttribute('aria-disabled', 'true');
 			});
 		});
 
