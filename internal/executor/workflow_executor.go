@@ -238,6 +238,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		return nil, fmt.Errorf("load workflow phases: %w", err)
 	}
 
+	// Sort phases by dependency graph (DependsOn) with Sequence as tiebreaker
+	phases, err = topologicalSort(phases)
+	if err != nil {
+		return nil, fmt.Errorf("resolve phase execution order: %w", err)
+	}
+
 	// Load workflow variables
 	workflowVars, err := we.projectDB.GetWorkflowVariables(workflowID)
 	if err != nil {
