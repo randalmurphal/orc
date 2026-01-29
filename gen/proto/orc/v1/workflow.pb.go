@@ -4176,6 +4176,320 @@ func (x *CancelWorkflowRunResponse) GetRun() *WorkflowRun {
 	return nil
 }
 
+// SaveWorkflowLayout bulk-saves node positions for workflow phases.
+type PhasePosition struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PhaseTemplateId string                 `protobuf:"bytes,1,opt,name=phase_template_id,json=phaseTemplateId,proto3" json:"phase_template_id,omitempty"`
+	PositionX       float64                `protobuf:"fixed64,2,opt,name=position_x,json=positionX,proto3" json:"position_x,omitempty"`
+	PositionY       float64                `protobuf:"fixed64,3,opt,name=position_y,json=positionY,proto3" json:"position_y,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PhasePosition) Reset() {
+	*x = PhasePosition{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PhasePosition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PhasePosition) ProtoMessage() {}
+
+func (x *PhasePosition) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PhasePosition.ProtoReflect.Descriptor instead.
+func (*PhasePosition) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *PhasePosition) GetPhaseTemplateId() string {
+	if x != nil {
+		return x.PhaseTemplateId
+	}
+	return ""
+}
+
+func (x *PhasePosition) GetPositionX() float64 {
+	if x != nil {
+		return x.PositionX
+	}
+	return 0
+}
+
+func (x *PhasePosition) GetPositionY() float64 {
+	if x != nil {
+		return x.PositionY
+	}
+	return 0
+}
+
+type SaveWorkflowLayoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Positions     []*PhasePosition       `protobuf:"bytes,2,rep,name=positions,proto3" json:"positions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveWorkflowLayoutRequest) Reset() {
+	*x = SaveWorkflowLayoutRequest{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveWorkflowLayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveWorkflowLayoutRequest) ProtoMessage() {}
+
+func (x *SaveWorkflowLayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveWorkflowLayoutRequest.ProtoReflect.Descriptor instead.
+func (*SaveWorkflowLayoutRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *SaveWorkflowLayoutRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *SaveWorkflowLayoutRequest) GetPositions() []*PhasePosition {
+	if x != nil {
+		return x.Positions
+	}
+	return nil
+}
+
+type SaveWorkflowLayoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveWorkflowLayoutResponse) Reset() {
+	*x = SaveWorkflowLayoutResponse{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveWorkflowLayoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveWorkflowLayoutResponse) ProtoMessage() {}
+
+func (x *SaveWorkflowLayoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveWorkflowLayoutResponse.ProtoReflect.Descriptor instead.
+func (*SaveWorkflowLayoutResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *SaveWorkflowLayoutResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+// ValidateWorkflow checks workflow structure for cycles, invalid refs, etc.
+type ValidateWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateWorkflowRequest) Reset() {
+	*x = ValidateWorkflowRequest{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateWorkflowRequest) ProtoMessage() {}
+
+func (x *ValidateWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*ValidateWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ValidateWorkflowRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+type ValidationIssue struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Severity      string                 `protobuf:"bytes,1,opt,name=severity,proto3" json:"severity,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	PhaseIds      []string               `protobuf:"bytes,3,rep,name=phase_ids,json=phaseIds,proto3" json:"phase_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidationIssue) Reset() {
+	*x = ValidationIssue{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidationIssue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidationIssue) ProtoMessage() {}
+
+func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidationIssue.ProtoReflect.Descriptor instead.
+func (*ValidationIssue) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *ValidationIssue) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *ValidationIssue) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ValidationIssue) GetPhaseIds() []string {
+	if x != nil {
+		return x.PhaseIds
+	}
+	return nil
+}
+
+type ValidateWorkflowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Valid         bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
+	Issues        []*ValidationIssue     `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateWorkflowResponse) Reset() {
+	*x = ValidateWorkflowResponse{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateWorkflowResponse) ProtoMessage() {}
+
+func (x *ValidateWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*ValidateWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *ValidateWorkflowResponse) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *ValidateWorkflowResponse) GetIssues() []*ValidationIssue {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
 var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
@@ -4632,7 +4946,29 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x18CancelWorkflowRunRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"B\n" +
 	"\x19CancelWorkflowRunResponse\x12%\n" +
-	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run*w\n" +
+	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run\"y\n" +
+	"\rPhasePosition\x12*\n" +
+	"\x11phase_template_id\x18\x01 \x01(\tR\x0fphaseTemplateId\x12\x1d\n" +
+	"\n" +
+	"position_x\x18\x02 \x01(\x01R\tpositionX\x12\x1d\n" +
+	"\n" +
+	"position_y\x18\x03 \x01(\x01R\tpositionY\"q\n" +
+	"\x19SaveWorkflowLayoutRequest\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x123\n" +
+	"\tpositions\x18\x02 \x03(\v2\x15.orc.v1.PhasePositionR\tpositions\"6\n" +
+	"\x1aSaveWorkflowLayoutResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\":\n" +
+	"\x17ValidateWorkflowRequest\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\"d\n" +
+	"\x0fValidationIssue\x12\x1a\n" +
+	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1b\n" +
+	"\tphase_ids\x18\x03 \x03(\tR\bphaseIds\"a\n" +
+	"\x18ValidateWorkflowResponse\x12\x14\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12/\n" +
+	"\x06issues\x18\x02 \x03(\v2\x17.orc.v1.ValidationIssueR\x06issues*w\n" +
 	"\fPromptSource\x12\x1d\n" +
 	"\x19PROMPT_SOURCE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROMPT_SOURCE_EMBEDDED\x10\x01\x12\x14\n" +
@@ -4677,7 +5013,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x19DEFINITION_SOURCE_PROJECT\x10\x02\x12\x1c\n" +
 	"\x18DEFINITION_SOURCE_SHARED\x10\x03\x12\x1b\n" +
 	"\x17DEFINITION_SOURCE_LOCAL\x10\x04\x12\x1e\n" +
-	"\x1aDEFINITION_SOURCE_PERSONAL\x10\x052\xb1\x0e\n" +
+	"\x1aDEFINITION_SOURCE_PERSONAL\x10\x052\xe5\x0f\n" +
 	"\x0fWorkflowService\x12L\n" +
 	"\rListWorkflows\x12\x1c.orc.v1.ListWorkflowsRequest\x1a\x1d.orc.v1.ListWorkflowsResponse\x12F\n" +
 	"\vGetWorkflow\x12\x1a.orc.v1.GetWorkflowRequest\x1a\x1b.orc.v1.GetWorkflowResponse\x12O\n" +
@@ -4700,7 +5036,9 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x10ListWorkflowRuns\x12\x1f.orc.v1.ListWorkflowRunsRequest\x1a .orc.v1.ListWorkflowRunsResponse\x12O\n" +
 	"\x0eGetWorkflowRun\x12\x1d.orc.v1.GetWorkflowRunRequest\x1a\x1e.orc.v1.GetWorkflowRunResponse\x12U\n" +
 	"\x10StartWorkflowRun\x12\x1f.orc.v1.StartWorkflowRunRequest\x1a .orc.v1.StartWorkflowRunResponse\x12X\n" +
-	"\x11CancelWorkflowRun\x12 .orc.v1.CancelWorkflowRunRequest\x1a!.orc.v1.CancelWorkflowRunResponseB\x89\x01\n" +
+	"\x11CancelWorkflowRun\x12 .orc.v1.CancelWorkflowRunRequest\x1a!.orc.v1.CancelWorkflowRunResponse\x12[\n" +
+	"\x12SaveWorkflowLayout\x12!.orc.v1.SaveWorkflowLayoutRequest\x1a\".orc.v1.SaveWorkflowLayoutResponse\x12U\n" +
+	"\x10ValidateWorkflow\x12\x1f.orc.v1.ValidateWorkflowRequest\x1a .orc.v1.ValidateWorkflowResponseB\x89\x01\n" +
 	"\n" +
 	"com.orc.v1B\rWorkflowProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -4717,7 +5055,7 @@ func file_orc_v1_workflow_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 58)
+var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
 var file_orc_v1_workflow_proto_goTypes = []any{
 	(PromptSource)(0),                   // 0: orc.v1.PromptSource
 	(GateType)(0),                       // 1: orc.v1.GateType
@@ -4779,24 +5117,30 @@ var file_orc_v1_workflow_proto_goTypes = []any{
 	(*StartWorkflowRunResponse)(nil),    // 57: orc.v1.StartWorkflowRunResponse
 	(*CancelWorkflowRunRequest)(nil),    // 58: orc.v1.CancelWorkflowRunRequest
 	(*CancelWorkflowRunResponse)(nil),   // 59: orc.v1.CancelWorkflowRunResponse
-	nil,                                 // 60: orc.v1.WorkflowRun.VariablesSnapshotEntry
-	nil,                                 // 61: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	nil,                                 // 62: orc.v1.ListWorkflowsResponse.SourcesEntry
-	nil,                                 // 63: orc.v1.ListPhaseTemplatesResponse.SourcesEntry
-	nil,                                 // 64: orc.v1.StartWorkflowRunRequest.VariablesEntry
-	(*timestamppb.Timestamp)(nil),       // 65: google.protobuf.Timestamp
-	(PhaseStatus)(0),                    // 66: orc.v1.PhaseStatus
-	(*PageRequest)(nil),                 // 67: orc.v1.PageRequest
-	(*PageResponse)(nil),                // 68: orc.v1.PageResponse
+	(*PhasePosition)(nil),               // 60: orc.v1.PhasePosition
+	(*SaveWorkflowLayoutRequest)(nil),   // 61: orc.v1.SaveWorkflowLayoutRequest
+	(*SaveWorkflowLayoutResponse)(nil),  // 62: orc.v1.SaveWorkflowLayoutResponse
+	(*ValidateWorkflowRequest)(nil),     // 63: orc.v1.ValidateWorkflowRequest
+	(*ValidationIssue)(nil),             // 64: orc.v1.ValidationIssue
+	(*ValidateWorkflowResponse)(nil),    // 65: orc.v1.ValidateWorkflowResponse
+	nil,                                 // 66: orc.v1.WorkflowRun.VariablesSnapshotEntry
+	nil,                                 // 67: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	nil,                                 // 68: orc.v1.ListWorkflowsResponse.SourcesEntry
+	nil,                                 // 69: orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	nil,                                 // 70: orc.v1.StartWorkflowRunRequest.VariablesEntry
+	(*timestamppb.Timestamp)(nil),       // 71: google.protobuf.Timestamp
+	(PhaseStatus)(0),                    // 72: orc.v1.PhaseStatus
+	(*PageRequest)(nil),                 // 73: orc.v1.PageRequest
+	(*PageResponse)(nil),                // 74: orc.v1.PageResponse
 }
 var file_orc_v1_workflow_proto_depIdxs = []int32{
 	0,  // 0: orc.v1.PhaseTemplate.prompt_source:type_name -> orc.v1.PromptSource
 	1,  // 1: orc.v1.PhaseTemplate.gate_type:type_name -> orc.v1.GateType
-	65, // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
-	65, // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	71, // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
+	71, // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: orc.v1.Workflow.workflow_type:type_name -> orc.v1.WorkflowType
-	65, // 5: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
-	65, // 6: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
+	71, // 5: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
+	71, // 6: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: orc.v1.WorkflowPhase.gate_type_override:type_name -> orc.v1.GateType
 	7,  // 8: orc.v1.WorkflowPhase.template:type_name -> orc.v1.PhaseTemplate
 	5,  // 9: orc.v1.WorkflowVariable.source_type:type_name -> orc.v1.VariableSourceType
@@ -4806,24 +5150,24 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	3,  // 13: orc.v1.WorkflowRun.context_type:type_name -> orc.v1.ContextType
 	12, // 14: orc.v1.WorkflowRun.context_data:type_name -> orc.v1.ContextData
 	4,  // 15: orc.v1.WorkflowRun.status:type_name -> orc.v1.RunStatus
-	65, // 16: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
-	65, // 17: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
-	60, // 18: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
-	65, // 19: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
-	65, // 20: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
-	66, // 21: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
-	65, // 22: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
-	65, // 23: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
+	71, // 16: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
+	71, // 17: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
+	66, // 18: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
+	71, // 19: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
+	71, // 20: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
+	72, // 21: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
+	71, // 22: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
+	71, // 23: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
 	7,  // 24: orc.v1.WorkflowRunPhase.template:type_name -> orc.v1.PhaseTemplate
 	13, // 25: orc.v1.WorkflowRunWithDetails.run:type_name -> orc.v1.WorkflowRun
 	8,  // 26: orc.v1.WorkflowRunWithDetails.workflow:type_name -> orc.v1.Workflow
 	14, // 27: orc.v1.WorkflowRunWithDetails.phases:type_name -> orc.v1.WorkflowRunPhase
-	67, // 28: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
+	73, // 28: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
 	2,  // 29: orc.v1.ListWorkflowsRequest.workflow_type:type_name -> orc.v1.WorkflowType
 	8,  // 30: orc.v1.ListWorkflowsResponse.workflows:type_name -> orc.v1.Workflow
-	61, // 31: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	68, // 32: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
-	62, // 33: orc.v1.ListWorkflowsResponse.sources:type_name -> orc.v1.ListWorkflowsResponse.SourcesEntry
+	67, // 31: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	74, // 32: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
+	68, // 33: orc.v1.ListWorkflowsResponse.sources:type_name -> orc.v1.ListWorkflowsResponse.SourcesEntry
 	11, // 34: orc.v1.GetWorkflowResponse.workflow:type_name -> orc.v1.WorkflowWithDetails
 	2,  // 35: orc.v1.CreateWorkflowRequest.workflow_type:type_name -> orc.v1.WorkflowType
 	8,  // 36: orc.v1.CreateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
@@ -4837,10 +5181,10 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	5,  // 44: orc.v1.AddVariableRequest.source_type:type_name -> orc.v1.VariableSourceType
 	10, // 45: orc.v1.AddVariableResponse.variable:type_name -> orc.v1.WorkflowVariable
 	8,  // 46: orc.v1.RemoveVariableResponse.workflow:type_name -> orc.v1.Workflow
-	67, // 47: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
+	73, // 47: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
 	7,  // 48: orc.v1.ListPhaseTemplatesResponse.templates:type_name -> orc.v1.PhaseTemplate
-	68, // 49: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
-	63, // 50: orc.v1.ListPhaseTemplatesResponse.sources:type_name -> orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	74, // 49: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
+	69, // 50: orc.v1.ListPhaseTemplatesResponse.sources:type_name -> orc.v1.ListPhaseTemplatesResponse.SourcesEntry
 	7,  // 51: orc.v1.GetPhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	0,  // 52: orc.v1.CreatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
 	1,  // 53: orc.v1.CreatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
@@ -4850,67 +5194,73 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	7,  // 57: orc.v1.UpdatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	7,  // 58: orc.v1.ClonePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	0,  // 59: orc.v1.GetPromptContentResponse.source:type_name -> orc.v1.PromptSource
-	67, // 60: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
+	73, // 60: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
 	4,  // 61: orc.v1.ListWorkflowRunsRequest.status:type_name -> orc.v1.RunStatus
 	13, // 62: orc.v1.ListWorkflowRunsResponse.runs:type_name -> orc.v1.WorkflowRun
-	68, // 63: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
+	74, // 63: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
 	15, // 64: orc.v1.GetWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRunWithDetails
 	3,  // 65: orc.v1.StartWorkflowRunRequest.context_type:type_name -> orc.v1.ContextType
 	12, // 66: orc.v1.StartWorkflowRunRequest.context_data:type_name -> orc.v1.ContextData
-	64, // 67: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
+	70, // 67: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
 	13, // 68: orc.v1.StartWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
 	13, // 69: orc.v1.CancelWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
-	6,  // 70: orc.v1.ListWorkflowsResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
-	6,  // 71: orc.v1.ListPhaseTemplatesResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
-	16, // 72: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
-	18, // 73: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
-	20, // 74: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
-	22, // 75: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
-	24, // 76: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
-	26, // 77: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
-	28, // 78: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
-	30, // 79: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
-	32, // 80: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
-	34, // 81: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
-	36, // 82: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
-	38, // 83: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
-	40, // 84: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
-	42, // 85: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
-	44, // 86: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
-	46, // 87: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
-	48, // 88: orc.v1.WorkflowService.ClonePhaseTemplate:input_type -> orc.v1.ClonePhaseTemplateRequest
-	50, // 89: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
-	52, // 90: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
-	54, // 91: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
-	56, // 92: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
-	58, // 93: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
-	17, // 94: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
-	19, // 95: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
-	21, // 96: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
-	23, // 97: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
-	25, // 98: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
-	27, // 99: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
-	29, // 100: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
-	31, // 101: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
-	33, // 102: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
-	35, // 103: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
-	37, // 104: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
-	39, // 105: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
-	41, // 106: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
-	43, // 107: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
-	45, // 108: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
-	47, // 109: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
-	49, // 110: orc.v1.WorkflowService.ClonePhaseTemplate:output_type -> orc.v1.ClonePhaseTemplateResponse
-	51, // 111: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
-	53, // 112: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
-	55, // 113: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
-	57, // 114: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
-	59, // 115: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
-	94, // [94:116] is the sub-list for method output_type
-	72, // [72:94] is the sub-list for method input_type
-	72, // [72:72] is the sub-list for extension type_name
-	72, // [72:72] is the sub-list for extension extendee
-	0,  // [0:72] is the sub-list for field type_name
+	60, // 70: orc.v1.SaveWorkflowLayoutRequest.positions:type_name -> orc.v1.PhasePosition
+	64, // 71: orc.v1.ValidateWorkflowResponse.issues:type_name -> orc.v1.ValidationIssue
+	6,  // 72: orc.v1.ListWorkflowsResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	6,  // 73: orc.v1.ListPhaseTemplatesResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	16, // 74: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
+	18, // 75: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
+	20, // 76: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
+	22, // 77: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
+	24, // 78: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
+	26, // 79: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
+	28, // 80: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
+	30, // 81: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
+	32, // 82: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
+	34, // 83: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
+	36, // 84: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
+	38, // 85: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
+	40, // 86: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
+	42, // 87: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
+	44, // 88: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
+	46, // 89: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
+	48, // 90: orc.v1.WorkflowService.ClonePhaseTemplate:input_type -> orc.v1.ClonePhaseTemplateRequest
+	50, // 91: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
+	52, // 92: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
+	54, // 93: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
+	56, // 94: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
+	58, // 95: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
+	61, // 96: orc.v1.WorkflowService.SaveWorkflowLayout:input_type -> orc.v1.SaveWorkflowLayoutRequest
+	63, // 97: orc.v1.WorkflowService.ValidateWorkflow:input_type -> orc.v1.ValidateWorkflowRequest
+	17, // 98: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
+	19, // 99: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
+	21, // 100: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
+	23, // 101: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
+	25, // 102: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
+	27, // 103: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
+	29, // 104: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
+	31, // 105: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
+	33, // 106: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
+	35, // 107: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
+	37, // 108: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
+	39, // 109: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
+	41, // 110: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
+	43, // 111: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
+	45, // 112: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
+	47, // 113: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
+	49, // 114: orc.v1.WorkflowService.ClonePhaseTemplate:output_type -> orc.v1.ClonePhaseTemplateResponse
+	51, // 115: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
+	53, // 116: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
+	55, // 117: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
+	57, // 118: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
+	59, // 119: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
+	62, // 120: orc.v1.WorkflowService.SaveWorkflowLayout:output_type -> orc.v1.SaveWorkflowLayoutResponse
+	65, // 121: orc.v1.WorkflowService.ValidateWorkflow:output_type -> orc.v1.ValidateWorkflowResponse
+	98, // [98:122] is the sub-list for method output_type
+	74, // [74:98] is the sub-list for method input_type
+	74, // [74:74] is the sub-list for extension type_name
+	74, // [74:74] is the sub-list for extension extendee
+	0,  // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_workflow_proto_init() }
@@ -4946,7 +5296,7 @@ func file_orc_v1_workflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_workflow_proto_rawDesc), len(file_orc_v1_workflow_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   58,
+			NumMessages:   64,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
