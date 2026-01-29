@@ -1,9 +1,12 @@
 import dagre from 'dagre';
 import type { Node, Edge } from '@xyflow/react';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
+import { GateType } from '@/gen/orc/v1/workflow_pb';
+import type { PhaseNodeData, StartEndNodeData } from '../nodes/index';
 
-const NODE_WIDTH = 180;
-const NODE_HEIGHT = 60;
+const PHASE_NODE_WIDTH = 240;
+const PHASE_NODE_HEIGHT = 100;
+const START_END_NODE_SIZE = 40;
 
 export interface LayoutResult {
 	nodes: Node[];
@@ -30,32 +33,49 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	const startId = '__start__';
 	const endId = '__end__';
 
+	const startData: StartEndNodeData = { variant: 'start', label: 'Start' };
 	nodes.push({
 		id: startId,
-		type: 'start',
+		type: 'startEnd',
 		position: { x: 0, y: 0 },
-		data: { label: 'Start' },
+		data: startData,
 	});
 
 	for (const phase of phases) {
+		const template = phase.template;
+		const phaseData: PhaseNodeData = {
+			phaseTemplateId: phase.phaseTemplateId,
+			templateName: template?.name || phase.phaseTemplateId,
+			description: template?.description,
+			sequence: phase.sequence,
+			phaseId: phase.id,
+			gateType:
+				phase.gateTypeOverride ??
+				template?.gateType ??
+				GateType.AUTO,
+			maxIterations:
+				phase.maxIterationsOverride ??
+				template?.maxIterations ??
+				1,
+			modelOverride:
+				phase.modelOverride ?? template?.modelOverride,
+			thinkingEnabled:
+				phase.thinkingOverride ?? template?.thinkingEnabled,
+		};
 		nodes.push({
 			id: `phase-${phase.id}`,
 			type: 'phase',
 			position: { x: 0, y: 0 },
-			data: {
-				label: phase.phaseTemplateId,
-				phaseTemplateId: phase.phaseTemplateId,
-				sequence: phase.sequence,
-				phaseId: phase.id,
-			},
+			data: phaseData,
 		});
 	}
 
+	const endData: StartEndNodeData = { variant: 'end', label: 'End' };
 	nodes.push({
 		id: endId,
-		type: 'end',
+		type: 'startEnd',
 		position: { x: 0, y: 0 },
-		data: { label: 'End' },
+		data: endData,
 	});
 
 	// Create edges
@@ -167,7 +187,10 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	g.setGraph({ rankdir: 'LR', nodesep: 60, ranksep: 120 });
 
 	for (const node of nodes) {
-		g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+		const isStartEnd = node.type === 'startEnd';
+		const w = isStartEnd ? START_END_NODE_SIZE : PHASE_NODE_WIDTH;
+		const h = isStartEnd ? START_END_NODE_SIZE : PHASE_NODE_HEIGHT;
+		g.setNode(node.id, { width: w, height: h });
 	}
 
 	// Only use sequential + dependency edges for layout (not loop/retry back-edges)
@@ -184,8 +207,8 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 		const dagreNode = g.node(node.id);
 		if (dagreNode) {
 			node.position = {
-				x: dagreNode.x - NODE_WIDTH / 2,
-				y: dagreNode.y - NODE_HEIGHT / 2,
+				x: dagreNode.x - dagreNode.width / 2,
+				y: dagreNode.y - dagreNode.height / 2,
 			};
 		}
 	}
