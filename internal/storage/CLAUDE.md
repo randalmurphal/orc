@@ -6,12 +6,16 @@ Storage backend abstraction layer. SQLite is the sole source of truth for all da
 
 | File | Purpose |
 |------|---------|
-| `backend.go` | `Backend` interface definition, types |
-| `db_task.go` | Task CRUD operations including execution state |
-| `db_initiative.go` | Initiative CRUD operations |
-| `db_branch.go` | Branch registry operations |
-| `factory.go` | Backend factory (`NewBackend`) |
+| `backend.go` | `Backend` interface, `DatabaseBackend` struct |
+| `storage.go` | Backend factory (`NewBackend`), setup |
+| `task.go` | Task CRUD operations including execution state |
+| `initiative.go` | Initiative CRUD operations |
+| `workflow.go` | Workflow and phase template operations |
+| `queries.go` | Query/search operations |
+| `config.go` | Config storage operations |
 | `export.go` | Export functionality for task artifacts |
+| `import.go` | Import functionality |
+| `cleanup.go` | Cleanup and maintenance operations |
 
 ## Task-Centric Approach
 
