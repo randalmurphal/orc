@@ -183,7 +183,7 @@ describe('layoutWorkflow', () => {
 
 			// Sequential edges: start → spec → implement → review → end = 4 edges (minimum)
 			const sequentialEdges = result.edges.filter(
-				(e) => !e.type || e.type === 'default'
+				(e) => e.type === 'sequential'
 			);
 			expect(sequentialEdges.length).toBeGreaterThanOrEqual(4);
 
@@ -244,7 +244,7 @@ describe('layoutWorkflow', () => {
 	});
 
 	describe('loop-back edges', () => {
-		it('creates loop edge when phase has retryFromPhase', () => {
+		it('creates retry edge when phase has retryFromPhase', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -263,11 +263,11 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const loopEdges = result.edges.filter((e) => e.type === 'loop');
-			expect(loopEdges).toHaveLength(1);
+			const retryEdges = result.edges.filter((e) => e.type === 'retry');
+			expect(retryEdges).toHaveLength(1);
 		});
 
-		it('does not create loop edge when retryFromPhase references non-existent phase', () => {
+		it('does not create retry edge when retryFromPhase references non-existent phase', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -281,8 +281,8 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const loopEdges = result.edges.filter((e) => e.type === 'loop');
-			expect(loopEdges).toHaveLength(0);
+			const retryEdges = result.edges.filter((e) => e.type === 'retry');
+			expect(retryEdges).toHaveLength(0);
 		});
 	});
 
@@ -332,6 +332,232 @@ describe('layoutWorkflow', () => {
 				expect(edge).toHaveProperty('id');
 				expect(edge).toHaveProperty('source');
 				expect(edge).toHaveProperty('target');
+			}
+		});
+	});
+
+	describe('edge type assignment', () => {
+		it('assigns type sequential to sequential edges', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'spec', sequence: 1 }),
+					createMockWorkflowPhase({ id: 2, phaseTemplateId: 'implement', sequence: 2 }),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			// Sequential edges: start→spec, spec→implement, implement→end
+			const sequentialEdges = result.edges.filter(
+				(e) => e.type !== 'dependency' && e.type !== 'loop' && e.type !== 'retry'
+			);
+			expect(sequentialEdges.length).toBeGreaterThanOrEqual(3);
+
+			// Every sequential edge must have type: 'sequential'
+			for (const edge of sequentialEdges) {
+				expect(edge.type).toBe('sequential');
+			}
+		});
+
+		it('assigns type sequential to start-to-phase and phase-to-end edges', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'implement', sequence: 1 }),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const startNode = result.nodes.find((n) => n.type === 'start')!;
+			const phaseNode = result.nodes.find((n) => n.type === 'phase')!;
+			const endNode = result.nodes.find((n) => n.type === 'end')!;
+
+			// start → phase edge
+			const startEdge = result.edges.find(
+				(e) => e.source === startNode.id && e.target === phaseNode.id
+			);
+			expect(startEdge).toBeDefined();
+			expect(startEdge!.type).toBe('sequential');
+
+			// phase → end edge
+			const endEdge = result.edges.find(
+				(e) => e.source === phaseNode.id && e.target === endNode.id
+			);
+			expect(endEdge).toBeDefined();
+			expect(endEdge!.type).toBe('sequential');
+		});
+	});
+
+	describe('loop edges from loopConfig', () => {
+		it('creates loop edge from loopConfig with loop_to_phase', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'qa_e2e_test',
+						sequence: 1,
+					}),
+					createMockWorkflowPhase({
+						id: 2,
+						phaseTemplateId: 'implement',
+						sequence: 2,
+						loopConfig: JSON.stringify({
+							condition: 'has_findings',
+							loop_to_phase: 'qa_e2e_test',
+							max_iterations: 3,
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const loopEdges = result.edges.filter((e) => e.type === 'loop');
+			expect(loopEdges).toHaveLength(1);
+
+			const loopEdge = loopEdges[0];
+			// Loop from the phase with loopConfig to the target phase
+			expect(loopEdge.source).toBe('phase-2');
+			expect(loopEdge.target).toBe('phase-1');
+		});
+
+		it('includes condition and maxIterations in loop edge data', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'qa_e2e_test',
+						sequence: 1,
+					}),
+					createMockWorkflowPhase({
+						id: 2,
+						phaseTemplateId: 'implement',
+						sequence: 2,
+						loopConfig: JSON.stringify({
+							condition: 'has_findings',
+							loop_to_phase: 'qa_e2e_test',
+							max_iterations: 3,
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const loopEdge = result.edges.find((e) => e.type === 'loop');
+			expect(loopEdge).toBeDefined();
+			expect(loopEdge!.data).toBeDefined();
+			expect(loopEdge!.data).toHaveProperty('condition', 'has_findings');
+			expect(loopEdge!.data).toHaveProperty('maxIterations', 3);
+			expect(loopEdge!.data).toHaveProperty('label', 'has_findings ×3');
+		});
+
+		it('skips loop edge when loopConfig references non-existent phase', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'implement',
+						sequence: 1,
+						loopConfig: JSON.stringify({
+							condition: 'has_findings',
+							loop_to_phase: 'nonexistent_phase',
+							max_iterations: 3,
+						}),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const loopEdges = result.edges.filter((e) => e.type === 'loop');
+			expect(loopEdges).toHaveLength(0);
+		});
+
+		it('skips loop edge when loopConfig is empty or undefined', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'spec',
+						sequence: 1,
+						// no loopConfig
+					}),
+					createMockWorkflowPhase({
+						id: 2,
+						phaseTemplateId: 'implement',
+						sequence: 2,
+						loopConfig: '',
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			const loopEdges = result.edges.filter((e) => e.type === 'loop');
+			expect(loopEdges).toHaveLength(0);
+		});
+	});
+
+	describe('retry edges from retryFromPhase', () => {
+		it('creates retry edge (not loop) from retryFromPhase', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'implement',
+						sequence: 1,
+					}),
+					createMockWorkflowPhase({
+						id: 2,
+						phaseTemplateId: 'review',
+						sequence: 2,
+						template: createMockPhaseTemplate({ retryFromPhase: 'implement' }),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			// Should have a retry edge, NOT a loop edge
+			const retryEdges = result.edges.filter((e) => e.type === 'retry');
+			expect(retryEdges).toHaveLength(1);
+			expect(retryEdges[0].source).toBe('phase-2');
+			expect(retryEdges[0].target).toBe('phase-1');
+
+			// No loop edges from retryFromPhase
+			const loopEdges = result.edges.filter((e) => e.type === 'loop');
+			expect(loopEdges).toHaveLength(0);
+		});
+
+		it('excludes retry edges from dagre layout', () => {
+			const details = createMockWorkflowWithDetails({
+				phases: [
+					createMockWorkflowPhase({
+						id: 1,
+						phaseTemplateId: 'implement',
+						sequence: 1,
+					}),
+					createMockWorkflowPhase({
+						id: 2,
+						phaseTemplateId: 'review',
+						sequence: 2,
+						template: createMockPhaseTemplate({ retryFromPhase: 'implement' }),
+					}),
+				],
+			});
+
+			const result = layoutWorkflow(details);
+
+			// Layout should still work fine (not throw) even with backward retry edges
+			expect(result.nodes.length).toBe(4); // start + 2 phases + end
+
+			// All nodes should have valid positions (dagre ran successfully)
+			for (const node of result.nodes) {
+				expect(typeof node.position.x).toBe('number');
+				expect(typeof node.position.y).toBe('number');
+				expect(Number.isFinite(node.position.x)).toBe(true);
+				expect(Number.isFinite(node.position.y)).toBe(true);
 			}
 		});
 	});
