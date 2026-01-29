@@ -36,6 +36,7 @@
 	background: var(--bg-surface);
 	border-radius: 10px;
 	transition: background 0.2s;
+	pointer-events: none;
 }
 
 /* Knob (circle) */
