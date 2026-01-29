@@ -46,6 +46,9 @@
 .app-shell__topbar {
 	grid-column: 2 / -1;
 	grid-row: 1;
+	/* Ensure topbar renders above panel's transform-based stacking context */
+	position: relative;
+	z-index: 1;
 }
 
 /* =============================================================================
