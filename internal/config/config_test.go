@@ -1651,9 +1651,9 @@ func TestApplyProfile_AffectsAutoTriggerOnApproval(t *testing.T) {
 func TestDefault_AutoApprovePR(t *testing.T) {
 	cfg := Default()
 
-	// Default should have auto-approve enabled
-	if !cfg.Completion.PR.AutoApprove {
-		t.Error("Completion.PR.AutoApprove should default to true")
+	// Default should have auto-approve disabled (opt-in)
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("Completion.PR.AutoApprove should default to false")
 	}
 }
 
@@ -1693,10 +1693,10 @@ func TestPRAutoApprovePreset(t *testing.T) {
 		profile  AutomationProfile
 		expected bool
 	}{
-		{ProfileAuto, true},    // Auto profile enables auto-approve
-		{ProfileFast, true},    // Fast profile enables auto-approve
-		{ProfileSafe, false},   // Safe profile disables auto-approve (human review)
-		{ProfileStrict, false}, // Strict profile disables auto-approve (human decision)
+		{ProfileAuto, false},   // Auto profile — auto-approve is opt-in
+		{ProfileFast, false},   // Fast profile — auto-approve is opt-in
+		{ProfileSafe, false},   // Safe profile — human review required
+		{ProfileStrict, false}, // Strict profile — human decision required
 	}
 
 	for _, tt := range tests {
@@ -1719,16 +1719,16 @@ func TestApplyProfile_AffectsAutoApprovePR(t *testing.T) {
 		t.Error("After ApplyProfile(safe), AutoApprove should be false")
 	}
 
-	// Apply auto profile - should enable auto-approve
+	// Apply auto profile - auto-approve is now opt-in, profile preset returns false
 	cfg.ApplyProfile(ProfileAuto)
-	if !cfg.Completion.PR.AutoApprove {
-		t.Error("After ApplyProfile(auto), AutoApprove should be true")
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(auto), AutoApprove should be false (opt-in)")
 	}
 
-	// Apply fast profile - should enable auto-approve
+	// Apply fast profile - auto-approve is now opt-in, profile preset returns false
 	cfg.ApplyProfile(ProfileFast)
-	if !cfg.Completion.PR.AutoApprove {
-		t.Error("After ApplyProfile(fast), AutoApprove should be true")
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("After ApplyProfile(fast), AutoApprove should be false (opt-in)")
 	}
 
 	// Apply strict profile - should disable auto-approve
@@ -1743,9 +1743,9 @@ func TestApplyProfile_AffectsAutoApprovePR(t *testing.T) {
 func TestDefault_CIMergeConfig(t *testing.T) {
 	cfg := Default()
 
-	// WaitForCI should be true by default
-	if !cfg.Completion.WaitForCI {
-		t.Error("Completion.WaitForCI should default to true")
+	// WaitForCI should be false by default (opt-in)
+	if cfg.Completion.WaitForCI {
+		t.Error("Completion.WaitForCI should default to false")
 	}
 
 	// CITimeout should be 10 minutes by default
@@ -1753,9 +1753,9 @@ func TestDefault_CIMergeConfig(t *testing.T) {
 		t.Errorf("Completion.CITimeout = %v, want 10m", cfg.Completion.CITimeout)
 	}
 
-	// MergeOnCIPass should be true by default
-	if !cfg.Completion.MergeOnCIPass {
-		t.Error("Completion.MergeOnCIPass should default to true")
+	// MergeOnCIPass should be false by default (opt-in)
+	if cfg.Completion.MergeOnCIPass {
+		t.Error("Completion.MergeOnCIPass should default to false")
 	}
 }
 

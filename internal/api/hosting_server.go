@@ -130,10 +130,13 @@ func (s *hostingServer) CreatePR(
 
 	// Build PR options
 	opts := hosting.PRCreateOptions{
-		Head:      t.Branch,
-		Draft:     req.Msg.Draft,
-		Labels:    req.Msg.Labels,
-		Reviewers: req.Msg.Reviewers,
+		Head:                t.Branch,
+		Draft:               req.Msg.Draft,
+		Labels:              req.Msg.Labels,
+		Reviewers:           req.Msg.Reviewers,
+		TeamReviewers:       req.Msg.TeamReviewers,
+		Assignees:           req.Msg.Assignees,
+		MaintainerCanModify: req.Msg.MaintainerCanModify,
 	}
 
 	if req.Msg.Title != nil && *req.Msg.Title != "" {
@@ -630,8 +633,17 @@ func (s *hostingServer) AutofixComment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get hosting provider: %w", err))
 	}
 
+	// Find PR for the task branch to get PR number
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
+	if err != nil {
+		if errors.Is(err, hosting.ErrNoPRFound) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("find PR by branch: %w", err))
+	}
+
 	// Fetch the comment from the hosting provider
-	comment, err := provider.GetPRComment(ctx, req.Msg.CommentId)
+	comment, err := provider.GetPRComment(ctx, pr.Number, req.Msg.CommentId)
 	if err != nil {
 		// Check for specific error types
 		errStr := err.Error()
@@ -796,14 +808,17 @@ func formatReviewCommentForPR(c db.ReviewComment) string {
 
 func prToProto(pr *hosting.PR) *orcv1.PR {
 	result := &orcv1.PR{
-		Number:  int32(pr.Number),
-		Title:   pr.Title,
-		Body:    pr.Body,
-		State:   pr.State,
-		HtmlUrl: pr.HTMLURL,
-		Head:    pr.HeadBranch,
-		Base:    pr.BaseBranch,
-		Draft:   pr.Draft,
+		Number:    int32(pr.Number),
+		Title:     pr.Title,
+		Body:      pr.Body,
+		State:     pr.State,
+		HtmlUrl:   pr.HTMLURL,
+		Head:      pr.HeadBranch,
+		Base:      pr.BaseBranch,
+		Draft:     pr.Draft,
+		HeadSha:   pr.HeadSHA,
+		Labels:    pr.Labels,
+		Assignees: pr.Assignees,
 	}
 
 	// Parse timestamps (GitHub returns ISO 8601 strings)

@@ -38,22 +38,24 @@ func Default() *Config {
 			Action:        "pr",
 			TargetBranch:  "main",
 			DeleteBranch:  true,
-			WaitForCI:     true,             // Wait for CI before merge (replaces auto-merge)
+			WaitForCI:     false,            // Off by default — opt-in for auto CI polling
 			CITimeout:     10 * time.Minute, // 10 minute default timeout
-			MergeOnCIPass: true,             // Merge when CI passes
+			MergeOnCIPass: false,            // Off by default — opt-in for auto merge
 			PR: PRConfig{
-				Title:        "[orc] {{TASK_TITLE}}",
-				BodyTemplate: "templates/pr-body.md",
-				Labels:       []string{"automated"},
-				AutoMerge:    true,
-				AutoApprove:  true, // AI-assisted PR approval in auto mode
+				Title:               "[orc] {{TASK_TITLE}}",
+				BodyTemplate:        "templates/pr-body.md",
+				Labels:              []string{"automated"},
+				MaintainerCanModify: true,  // Standard practice
+				AutoMerge:           false, // Off by default — opt-in
+				AutoApprove:         false, // Off by default — opt-in
 			},
 			CI: CIConfig{
-				WaitForCI:     true,             // Wait for CI checks before merge
-				CITimeout:     10 * time.Minute, // Max 10 minutes to wait
-				PollInterval:  30 * time.Second, // Check every 30 seconds
-				MergeOnCIPass: true,             // Auto-merge when CI passes
-				MergeMethod:   "squash",         // Use squash merge by default
+				WaitForCI:        false,            // Off by default — opt-in for CI polling
+				CITimeout:        10 * time.Minute, // Max 10 minutes to wait
+				PollInterval:     30 * time.Second, // Check every 30 seconds
+				MergeOnCIPass:    false,            // Off by default — opt-in for auto merge
+				MergeMethod:      "squash",         // Use squash merge by default
+				VerifySHAOnMerge: true,             // Safety: verify HEAD SHA before merge
 			},
 			Sync: SyncConfig{
 				Strategy:         SyncStrategyCompletion, // Sync before PR creation by default
@@ -314,13 +316,14 @@ func ProfilePresets(profile AutomationProfile) GateConfig {
 func PRAutoApprovePreset(profile AutomationProfile) bool {
 	switch profile {
 	case ProfileAuto, ProfileFast:
-		// Auto and Fast profiles enable AI-assisted PR approval
-		return true
+		// Auto and Fast profiles enable AI-assisted PR approval when explicitly opted in.
+		// Default is false — users must enable auto-approve in config.
+		return false
 	case ProfileSafe, ProfileStrict:
 		// Safe and Strict profiles require human approval
 		return false
 	default:
-		return true // Default to auto
+		return false
 	}
 }
 

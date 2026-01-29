@@ -60,6 +60,52 @@ message CompletionConfig {
   bool auto_merge = 2;
   // Target branch for PRs
   optional string target_branch = 3;
+  // Delete branch after merge
+  bool delete_branch = 4;
+  // PR creation settings
+  PRConfig pr = 5;
+  // CI/merge settings
+  CIConfig ci = 6;
+}
+
+// PR creation configuration
+message PRConfig {
+  // Create PR as draft
+  bool draft = 1;
+  // Labels to apply
+  repeated string labels = 2;
+  // Individual reviewer usernames
+  repeated string reviewers = 3;
+  // Team reviewer slugs (GitHub) or group paths (GitLab)
+  repeated string team_reviewers = 4;
+  // Usernames to assign
+  repeated string assignees = 5;
+  // Allow maintainers to push (GitHub) / allow collaboration (GitLab)
+  bool maintainer_can_modify = 6;
+  // Auto-approve PR after creation
+  bool auto_approve = 7;
+  // Enable auto-merge (GitLab only, GitHub requires GraphQL)
+  bool auto_merge = 8;
+}
+
+// CI polling and merge configuration
+message CIConfig {
+  // Wait for CI checks before merge
+  bool wait_for_ci = 1;
+  // CI timeout in minutes
+  int32 ci_timeout = 2;
+  // CI poll interval in seconds
+  int32 poll_interval = 3;
+  // Merge when CI passes
+  bool merge_on_ci_pass = 4;
+  // Merge method: "merge", "squash", "rebase"
+  string merge_method = 5;
+  // Commit message template for merge commits (supports {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}})
+  string merge_commit_template = 6;
+  // Commit message template for squash commits
+  string squash_commit_template = 7;
+  // Verify HEAD SHA before merging to prevent stale merges
+  bool verify_sha_on_merge = 8;
 }
 
 message ExportConfig {

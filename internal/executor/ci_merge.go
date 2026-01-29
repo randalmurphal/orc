@@ -377,10 +377,33 @@ func (m *CIMerger) MergePR(ctx context.Context, t *orcv1.Task) error {
 			}
 		}
 
-		err := m.provider.MergePR(ctx, prNumber, hosting.PRMergeOptions{
+		mergeOpts := hosting.PRMergeOptions{
 			Method:       method,
 			DeleteBranch: m.config.Completion.DeleteBranch,
-		})
+			CommitTitle:  fmt.Sprintf("[orc] %s: %s (#%d)", t.Id, t.Title, prNumber),
+		}
+
+		// Apply commit message templates if configured, rendering task variables.
+		ciCfg := m.config.Completion.CI
+		if ciCfg.MergeCommitTemplate != "" {
+			mergeOpts.CommitMessage = renderCommitTemplate(ciCfg.MergeCommitTemplate, t)
+		}
+		if method == "squash" && ciCfg.SquashCommitTemplate != "" {
+			mergeOpts.SquashCommitMessage = renderCommitTemplate(ciCfg.SquashCommitTemplate, t)
+		}
+
+		// Verify HEAD SHA before merge to prevent stale merges
+		if ciCfg.VerifySHAOnMerge {
+			pr, prErr := m.provider.GetPR(ctx, prNumber)
+			if prErr != nil {
+				m.logger.Warn("failed to fetch PR for SHA verification, merging without SHA check",
+					"task", t.Id, "error", prErr)
+			} else if pr.HeadSHA != "" {
+				mergeOpts.SHA = pr.HeadSHA
+			}
+		}
+
+		err := m.provider.MergePR(ctx, prNumber, mergeOpts)
 		if err != nil {
 			errStr := strings.ToLower(err.Error())
 			if strings.Contains(errStr, "base branch was modified") || strings.Contains(errStr, "405") {
@@ -477,6 +500,17 @@ func (m *CIMerger) runGitCmd(ctx context.Context, args ...string) (string, error
 	}
 
 	return string(output), nil
+}
+
+// renderCommitTemplate replaces template variables in a commit message template.
+// Supported variables: {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}}.
+func renderCommitTemplate(tmpl string, t *orcv1.Task) string {
+	r := strings.NewReplacer(
+		"{{TASK_ID}}", t.Id,
+		"{{TASK_TITLE}}", t.Title,
+		"{{TASK_BRANCH}}", t.Branch,
+	)
+	return r.Replace(tmpl)
 }
 
 // publishProgress publishes a progress message.
