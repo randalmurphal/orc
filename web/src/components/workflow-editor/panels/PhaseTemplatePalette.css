@@ -7,6 +7,10 @@
 	overflow: hidden;
 	background: var(--bg-secondary);
 	border-right: 1px solid var(--border);
+	/* QA-003 iter6 fix: Keep pointer-events: none inherited from parent.
+	   Only interactive children restore pointer-events. This prevents the
+	   palette container from intercepting canvas events on built-in workflows. */
+	pointer-events: none;
 }
 
 .phase-palette-banner {
@@ -17,11 +21,15 @@
 	background: var(--bg-tertiary);
 	border-bottom: 1px solid var(--border);
 	text-align: center;
+	/* QA-003 iter6: Restore pointer events for this interactive element */
+	pointer-events: auto;
 }
 
 .phase-palette-search {
 	padding: var(--space-2) var(--space-3);
 	border-bottom: 1px solid var(--border);
+	/* QA-003 iter6: Restore pointer events for search container */
+	pointer-events: auto;
 }
 
 .phase-palette-search-input {
@@ -63,6 +71,8 @@
 	cursor: pointer;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
+	/* QA-003 iter6: Restore pointer events for category toggle buttons */
+	pointer-events: auto;
 }
 
 .phase-palette-category-header:hover {
@@ -88,6 +98,8 @@
 	border-radius: var(--radius-sm);
 	cursor: grab;
 	transition: border-color 0.15s ease;
+	/* QA-003 iter6: Restore pointer events for draggable template cards */
+	pointer-events: auto;
 }
 
 .phase-palette-card:hover {

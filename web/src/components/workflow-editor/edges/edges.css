@@ -55,3 +55,10 @@
 	stroke-width: 2;
 	stroke-dasharray: 3 3;
 }
+
+/* Dependency edge: dashed line, accent color (QA-005 fix) */
+.edge-dependency .react-flow__edge-path {
+	stroke: var(--accent);
+	stroke-width: 2;
+	stroke-dasharray: 8 4;
+}
