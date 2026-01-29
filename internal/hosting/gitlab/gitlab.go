@@ -99,10 +99,12 @@ func (g *GitLabProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOpti
 	}
 
 	createOpts := &gogitlab.CreateMergeRequestOptions{
-		Title:        gogitlab.Ptr(title),
-		Description:  gogitlab.Ptr(opts.Body),
-		SourceBranch: gogitlab.Ptr(opts.Head),
-		TargetBranch: gogitlab.Ptr(opts.Base),
+		Title:              gogitlab.Ptr(title),
+		Description:        gogitlab.Ptr(opts.Body),
+		SourceBranch:       gogitlab.Ptr(opts.Head),
+		TargetBranch:       gogitlab.Ptr(opts.Base),
+		AllowCollaboration: gogitlab.Ptr(opts.MaintainerCanModify),
+		RemoveSourceBranch: gogitlab.Ptr(true),
 	}
 
 	if len(opts.Labels) > 0 {
@@ -118,6 +120,17 @@ func (g *GitLabProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOpti
 				"error", lookupErr)
 		} else if len(reviewerIDs) > 0 {
 			createOpts.ReviewerIDs = &reviewerIDs
+		}
+	}
+
+	if len(opts.Assignees) > 0 {
+		assigneeIDs, lookupErr := g.resolveUserIDs(ctx, opts.Assignees)
+		if lookupErr != nil {
+			slog.Warn("failed to resolve assignee usernames to IDs",
+				"assignees", opts.Assignees,
+				"error", lookupErr)
+		} else if len(assigneeIDs) > 0 {
+			createOpts.AssigneeIDs = &assigneeIDs
 		}
 	}
 
@@ -166,14 +179,24 @@ func (g *GitLabProvider) UpdatePR(ctx context.Context, number int, opts hosting.
 func (g *GitLabProvider) MergePR(ctx context.Context, number int, opts hosting.PRMergeOptions) error {
 	acceptOpts := &gogitlab.AcceptMergeRequestOptions{}
 
+	// Build merge commit message: title + body.
 	if opts.CommitTitle != "" {
-		acceptOpts.MergeCommitMessage = gogitlab.Ptr(opts.CommitTitle)
+		msg := opts.CommitTitle
+		if opts.CommitMessage != "" {
+			msg = opts.CommitTitle + "\n\n" + opts.CommitMessage
+		}
+		acceptOpts.MergeCommitMessage = gogitlab.Ptr(msg)
 	}
 	if opts.Method == "squash" {
 		acceptOpts.Squash = gogitlab.Ptr(true)
-		if opts.CommitTitle != "" {
+		if opts.SquashCommitMessage != "" {
+			acceptOpts.SquashCommitMessage = gogitlab.Ptr(opts.SquashCommitMessage)
+		} else if opts.CommitTitle != "" {
 			acceptOpts.SquashCommitMessage = gogitlab.Ptr(opts.CommitTitle)
 		}
+	}
+	if opts.SHA != "" {
+		acceptOpts.SHA = gogitlab.Ptr(opts.SHA)
 	}
 	if opts.DeleteBranch {
 		acceptOpts.ShouldRemoveSourceBranch = gogitlab.Ptr(true)
@@ -345,10 +368,14 @@ func (g *GitLabProvider) findDiscussionID(ctx context.Context, mrNumber int, not
 }
 
 // GetPRComment fetches a single MR note by ID.
-// GitLab requires both the MR IID and note ID, but this interface only provides
-// the comment ID. This is a known limitation for GitLab.
-func (g *GitLabProvider) GetPRComment(_ context.Context, commentID int64) (*hosting.PRComment, error) {
-	return nil, fmt.Errorf("get comment %d: %w (GitLab requires MR context to fetch individual notes)", commentID, hosting.ErrNotFound)
+func (g *GitLabProvider) GetPRComment(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
+	note, _, err := g.client.Notes.GetMergeRequestNote(g.projectID, int64(prNumber), int64(commentID), gogitlab.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("get comment %d on MR %d: %w", commentID, prNumber, err)
+	}
+
+	mapped := mapNote(note, "")
+	return &mapped, nil
 }
 
 // GetCheckRuns gets CI pipeline jobs for a ref, mapped to unified CheckRun format.
@@ -477,6 +504,26 @@ func (g *GitLabProvider) GetPRStatusSummary(ctx context.Context, pr *hosting.PR)
 	return summary, nil
 }
 
+// EnableAutoMerge enables merge_when_pipeline_succeeds for a merge request.
+func (g *GitLabProvider) EnableAutoMerge(ctx context.Context, number int, _ string) error {
+	_, _, err := g.client.MergeRequests.AcceptMergeRequest(g.projectID, int64(number), &gogitlab.AcceptMergeRequestOptions{
+		MergeWhenPipelineSucceeds: gogitlab.Ptr(true),
+	}, gogitlab.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("enable auto-merge for MR %d: %w", number, err)
+	}
+	return nil
+}
+
+// UpdatePRBranch rebases the merge request branch with the latest target branch changes.
+func (g *GitLabProvider) UpdatePRBranch(ctx context.Context, number int) error {
+	_, err := g.client.MergeRequests.RebaseMergeRequest(g.projectID, int64(number), nil, gogitlab.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("rebase MR %d: %w", number, err)
+	}
+	return nil
+}
+
 // DeleteBranch deletes a branch from the remote.
 func (g *GitLabProvider) DeleteBranch(ctx context.Context, branch string) error {
 	_, err := g.client.Branches.DeleteBranch(g.projectID, branch, gogitlab.WithContext(ctx))
@@ -522,6 +569,20 @@ func mapMR(mr *gogitlab.MergeRequest) *hosting.PR {
 		updatedAt = mr.UpdatedAt.Format(time.RFC3339)
 	}
 
+	// Extract labels.
+	var labels []string
+	for _, l := range mr.Labels {
+		labels = append(labels, l)
+	}
+
+	// Extract assignees.
+	var assignees []string
+	for _, a := range mr.Assignees {
+		if a.Username != "" {
+			assignees = append(assignees, a.Username)
+		}
+	}
+
 	return &hosting.PR{
 		Number:     int(mr.IID),
 		Title:      mr.Title,
@@ -532,6 +593,9 @@ func mapMR(mr *gogitlab.MergeRequest) *hosting.PR {
 		HTMLURL:    mr.WebURL,
 		Draft:      draft,
 		Mergeable:  mergeable,
+		HeadSHA:    mr.SHA,
+		Labels:     labels,
+		Assignees:  assignees,
 		CreatedAt:  createdAt,
 		UpdatedAt:  updatedAt,
 	}
@@ -555,6 +619,20 @@ func mapBasicMR(mr *gogitlab.BasicMergeRequest) *hosting.PR {
 		updatedAt = mr.UpdatedAt.Format(time.RFC3339)
 	}
 
+	// Extract labels.
+	var labels []string
+	for _, l := range mr.Labels {
+		labels = append(labels, l)
+	}
+
+	// Extract assignees.
+	var assignees []string
+	for _, a := range mr.Assignees {
+		if a.Username != "" {
+			assignees = append(assignees, a.Username)
+		}
+	}
+
 	return &hosting.PR{
 		Number:     int(mr.IID),
 		Title:      mr.Title,
@@ -565,6 +643,9 @@ func mapBasicMR(mr *gogitlab.BasicMergeRequest) *hosting.PR {
 		HTMLURL:    mr.WebURL,
 		Draft:      mr.Draft,
 		Mergeable:  mergeable,
+		HeadSHA:    mr.SHA,
+		Labels:     labels,
+		Assignees:  assignees,
 		CreatedAt:  createdAt,
 		UpdatedAt:  updatedAt,
 	}

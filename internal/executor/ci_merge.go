@@ -377,10 +377,33 @@ func (m *CIMerger) MergePR(ctx context.Context, t *orcv1.Task) error {
 			}
 		}
 
-		err := m.provider.MergePR(ctx, prNumber, hosting.PRMergeOptions{
+		mergeOpts := hosting.PRMergeOptions{
 			Method:       method,
 			DeleteBranch: m.config.Completion.DeleteBranch,
-		})
+			CommitTitle:  fmt.Sprintf("[orc] %s: %s (#%d)", t.Id, t.Title, prNumber),
+		}
+
+		// Apply commit message templates if configured
+		ciCfg := m.config.Completion.CI
+		if ciCfg.MergeCommitTemplate != "" {
+			mergeOpts.CommitMessage = ciCfg.MergeCommitTemplate
+		}
+		if method == "squash" && ciCfg.SquashCommitTemplate != "" {
+			mergeOpts.SquashCommitMessage = ciCfg.SquashCommitTemplate
+		}
+
+		// Verify HEAD SHA before merge to prevent stale merges
+		if ciCfg.VerifySHAOnMerge {
+			pr, prErr := m.provider.GetPR(ctx, prNumber)
+			if prErr != nil {
+				m.logger.Warn("failed to fetch PR for SHA verification, merging without SHA check",
+					"task", t.Id, "error", prErr)
+			} else if pr.HeadSHA != "" {
+				mergeOpts.SHA = pr.HeadSHA
+			}
+		}
+
+		err := m.provider.MergePR(ctx, prNumber, mergeOpts)
 		if err != nil {
 			errStr := strings.ToLower(err.Error())
 			if strings.Contains(errStr, "base branch was modified") || strings.Contains(errStr, "405") {

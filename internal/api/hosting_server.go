@@ -630,8 +630,17 @@ func (s *hostingServer) AutofixComment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get hosting provider: %w", err))
 	}
 
+	// Find PR for the task branch to get PR number
+	pr, err := provider.FindPRByBranch(ctx, t.Branch)
+	if err != nil {
+		if errors.Is(err, hosting.ErrNoPRFound) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("no PR found for task branch"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("find PR by branch: %w", err))
+	}
+
 	// Fetch the comment from the hosting provider
-	comment, err := provider.GetPRComment(ctx, req.Msg.CommentId)
+	comment, err := provider.GetPRComment(ctx, pr.Number, req.Msg.CommentId)
 	if err != nil {
 		// Check for specific error types
 		errStr := err.Error()

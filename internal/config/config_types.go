@@ -98,33 +98,44 @@ type PRConfig struct {
 	// Labels to add to the PR
 	Labels []string `yaml:"labels,omitempty"`
 
-	// Reviewers to request review from
+	// Reviewers to request review from (individual usernames)
 	Reviewers []string `yaml:"reviewers,omitempty"`
+
+	// TeamReviewers to request review from (team slugs for GitHub, group paths for GitLab)
+	TeamReviewers []string `yaml:"team_reviewers,omitempty"`
+
+	// Assignees to assign to the PR (usernames)
+	Assignees []string `yaml:"assignees,omitempty"`
 
 	// Draft creates PR as draft (default: false)
 	Draft bool `yaml:"draft"`
 
-	// AutoMerge enables auto-merge when approved (default: true)
-	// Note: This uses GitHub's auto-merge feature which requires branch protection.
-	// For repos without branch protection, use MergeOnCIPass instead.
+	// MaintainerCanModify allows maintainers to push to the PR branch (default: true)
+	// GitHub: maintainer_can_modify, GitLab: allow_collaboration
+	MaintainerCanModify bool `yaml:"maintainer_can_modify"`
+
+	// AutoMerge enables auto-merge after finalize (default: false)
+	// GitHub: returns ErrAutoMergeNotSupported (requires GraphQL, not available via REST).
+	// GitLab: sets merge_when_pipeline_succeeds via AcceptMergeRequest.
+	// For repos without branch protection or GitHub, use CIConfig.MergeOnCIPass instead.
 	AutoMerge bool `yaml:"auto_merge"`
 
-	// AutoApprove enables AI-assisted PR approval in auto mode (default: true for "auto" profile)
+	// AutoApprove enables AI-assisted PR approval (default: false)
 	// When enabled, after PR creation the AI will:
 	// 1. Review the diff for obvious issues
 	// 2. Verify tests passed
-	// 3. Approve the PR via 'gh pr review --approve'
+	// 3. Approve the PR via the hosting provider API
 	// For safe/strict profiles, this is disabled and human approval is required.
 	AutoApprove bool `yaml:"auto_approve"`
 }
 
 // CIConfig defines CI/CD integration settings.
 type CIConfig struct {
-	// WaitForCI enables waiting for CI checks to pass before merge (default: true)
+	// WaitForCI enables waiting for CI checks to pass before merge (default: false)
 	// When enabled after finalize phase:
 	// 1. Push finalize changes
 	// 2. Poll CI checks until all pass (or timeout)
-	// 3. Merge PR directly with `gh pr merge --squash`
+	// 3. Merge PR directly via the hosting provider API
 	WaitForCI bool `yaml:"wait_for_ci"`
 
 	// CITimeout is the maximum time to wait for CI checks to pass (default: 10m)
@@ -133,14 +144,27 @@ type CIConfig struct {
 	// PollInterval is how often to check CI status (default: 30s)
 	PollInterval time.Duration `yaml:"poll_interval"`
 
-	// MergeOnCIPass enables direct merge after CI passes (default: true for auto/fast profiles)
-	// This bypasses GitHub's auto-merge feature (which requires branch protection).
+	// MergeOnCIPass enables direct merge after CI passes (default: false)
+	// When enabled, after CI passes the PR is merged directly via the hosting provider API.
 	// The merge flow becomes: finalize passes + CI passes = merge directly.
 	MergeOnCIPass bool `yaml:"merge_on_ci_pass"`
 
 	// MergeMethod is the method to use when merging (squash, merge, rebase)
 	// Default: squash
 	MergeMethod string `yaml:"merge_method"`
+
+	// MergeCommitTemplate is the template for merge commit messages (default: empty = provider default)
+	// Supports variables: {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}}
+	MergeCommitTemplate string `yaml:"merge_commit_template,omitempty"`
+
+	// SquashCommitTemplate is the template for squash commit messages (default: empty = provider default)
+	// Supports variables: {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}}
+	SquashCommitTemplate string `yaml:"squash_commit_template,omitempty"`
+
+	// VerifySHAOnMerge verifies the HEAD SHA before merging to prevent stale merges (default: true)
+	// When enabled, the merge call includes the expected HEAD SHA. If the branch was updated
+	// between the check and merge, the provider returns an error instead of merging stale code.
+	VerifySHAOnMerge bool `yaml:"verify_sha_on_merge"`
 }
 
 // SyncStrategy defines when to sync task branch with target.
@@ -258,17 +282,17 @@ type CompletionConfig struct {
 	// DeleteBranch deletes task branch after merge (default: true)
 	DeleteBranch bool `yaml:"delete_branch"`
 
-	// WaitForCI waits for CI checks to pass before merging after finalize (default: true)
+	// WaitForCI waits for CI checks to pass before merging after finalize (default: false)
 	// When enabled, after finalize completes, orc will poll PR checks until they pass
-	// (or timeout), then merge the PR directly instead of relying on GitHub's auto-merge.
+	// (or timeout), then merge the PR directly via the hosting provider API.
 	WaitForCI bool `yaml:"wait_for_ci"`
 
 	// CITimeout is the maximum time to wait for CI checks to pass (default: 10m)
 	// After this timeout, the merge attempt is abandoned but the PR remains open.
 	CITimeout time.Duration `yaml:"ci_timeout"`
 
-	// MergeOnCIPass automatically merges when CI passes after finalize (default: true)
-	// Requires WaitForCI to be enabled. Uses gh pr merge --squash.
+	// MergeOnCIPass automatically merges when CI passes after finalize (default: false)
+	// Requires WaitForCI to be enabled. Merges via the hosting provider API.
 	MergeOnCIPass bool `yaml:"merge_on_ci_pass"`
 
 	// PR settings (used when Action is "pr")

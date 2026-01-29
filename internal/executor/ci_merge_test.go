@@ -70,9 +70,9 @@ func TestCIConfig_Defaults(t *testing.T) {
 	t.Parallel()
 	cfg := config.Default()
 
-	// Verify default values
-	if !cfg.Completion.CI.WaitForCI {
-		t.Error("expected WaitForCI to be true by default")
+	// Verify default values — auto-merge/poll defaults are OFF
+	if cfg.Completion.CI.WaitForCI {
+		t.Error("expected WaitForCI to be false by default")
 	}
 
 	if cfg.Completion.CI.CITimeout != 10*time.Minute {
@@ -83,12 +83,16 @@ func TestCIConfig_Defaults(t *testing.T) {
 		t.Errorf("expected PollInterval to be 30s, got %v", cfg.Completion.CI.PollInterval)
 	}
 
-	if !cfg.Completion.CI.MergeOnCIPass {
-		t.Error("expected MergeOnCIPass to be true by default")
+	if cfg.Completion.CI.MergeOnCIPass {
+		t.Error("expected MergeOnCIPass to be false by default")
 	}
 
 	if cfg.Completion.CI.MergeMethod != "squash" {
 		t.Errorf("expected MergeMethod to be 'squash', got %s", cfg.Completion.CI.MergeMethod)
+	}
+
+	if !cfg.Completion.CI.VerifySHAOnMerge {
+		t.Error("expected VerifySHAOnMerge to be true by default")
 	}
 }
 
@@ -184,6 +188,8 @@ func TestConfig_ShouldMergeOnCIPass(t *testing.T) {
 			cfg := config.Default()
 			cfg.Profile = tt.profile
 			cfg.Completion.CI.MergeOnCIPass = tt.merge
+			// ShouldMergeOnCIPass requires WaitForCI to also be true
+			cfg.Completion.CI.WaitForCI = tt.merge
 
 			if got := cfg.ShouldMergeOnCIPass(); got != tt.expected {
 				t.Errorf("ShouldMergeOnCIPass() = %v, want %v", got, tt.expected)
@@ -691,8 +697,14 @@ func (m *mockProvider) CreatePRComment(_ context.Context, _ int, _ hosting.PRCom
 func (m *mockProvider) ReplyToComment(_ context.Context, _ int, _ int64, _ string) (*hosting.PRComment, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (m *mockProvider) GetPRComment(_ context.Context, _ int64) (*hosting.PRComment, error) {
+func (m *mockProvider) GetPRComment(_ context.Context, _ int, _ int64) (*hosting.PRComment, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) EnableAutoMerge(_ context.Context, _ int, _ string) error {
+	return fmt.Errorf("not implemented")
+}
+func (m *mockProvider) UpdatePRBranch(_ context.Context, _ int) error {
+	return fmt.Errorf("not implemented")
 }
 func (m *mockProvider) GetCheckRuns(_ context.Context, _ string) ([]hosting.CheckRun, error) {
 	return m.checkRuns, m.checkRunsErr

@@ -835,9 +835,9 @@ func TestLoadWithSources_PRAutoApprove_Default(t *testing.T) {
 		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
-	// Default should be true
-	if !tc.Config.Completion.PR.AutoApprove {
-		t.Error("Completion.PR.AutoApprove should default to true")
+	// Default should be false (auto-approve is opt-in)
+	if tc.Config.Completion.PR.AutoApprove {
+		t.Error("Completion.PR.AutoApprove should default to false")
 	}
 
 	// Check source is default
