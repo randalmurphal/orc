@@ -111,22 +111,20 @@
 	background: var(--bg-secondary);
 	color: var(--text-muted);
 	font-size: var(--text-sm);
-	/* QA-003 fix: Ensure palette stays within its grid cell and doesn't intercept canvas events */
+	/* QA-003 fix: Use CSS containment to create strict isolation boundary.
+	   This prevents hit-testing from returning palette elements when clicking canvas. */
 	overflow: hidden;
 	max-width: 240px;
 	min-width: 0;
-	position: relative;
-	z-index: 1;
+	contain: strict;
 }
 
 /* Center canvas */
 .workflow-editor-canvas {
 	position: relative;
 	overflow: hidden;
-	/* QA-003 fix: Ensure canvas fills its grid cell and sits above palette in stacking context */
 	min-width: 0;
 	min-height: 0;
-	z-index: 2;
 }
 
 /* Right panel (inspector) */
