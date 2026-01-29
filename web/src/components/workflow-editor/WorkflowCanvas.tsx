@@ -9,6 +9,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import './WorkflowCanvas.css';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
+import { nodeTypes } from './nodes';
 
 export function WorkflowCanvas() {
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
@@ -21,6 +22,7 @@ export function WorkflowCanvas() {
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
+					nodeTypes={nodeTypes}
 					nodesDraggable={!readOnly}
 					nodesConnectable={!readOnly}
 					elementsSelectable={!readOnly}
