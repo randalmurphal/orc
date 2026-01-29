@@ -250,7 +250,7 @@ export function RunningCard({
 			<div className={`running-output ${expanded ? 'expanded' : ''}`}>
 				{parsedOutputLines.length > 0 ? (
 					parsedOutputLines.slice(-50).map((line, index) => (
-						<span key={index} className={`output-line ${line.type}`}>
+						<span key={`line-${index}`} className={`output-line ${line.type}`}>
 							{line.content}
 						</span>
 					))

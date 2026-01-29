@@ -50,8 +50,8 @@ function formatBlockingReason(blockers: string[]): React.ReactNode {
 	// Multiple blockers - format as a list
 	return (
 		<ul className="blocked-reason-list">
-			{blockers.map((blocker, index) => (
-				<li key={index}>
+			{blockers.map((blocker) => (
+				<li key={blocker}>
 					{/^(TASK|INIT)-\d+$/i.test(blocker) ? <code>{blocker}</code> : blocker}
 				</li>
 			))}
