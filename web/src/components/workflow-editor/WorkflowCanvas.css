@@ -5,8 +5,8 @@
 	height: 100%;
 }
 
-/* React Flow overrides */
-.workflow-canvas .react-flow__node {
+/* React Flow node defaults — custom node components handle their own styling */
+.workflow-canvas .react-flow__node-default {
 	font-size: var(--text-sm);
 	font-family: var(--font-sans);
 	border-radius: var(--radius-md);
@@ -16,7 +16,7 @@
 	padding: var(--space-2) var(--space-3);
 }
 
-.workflow-canvas .react-flow__node.selected {
+.workflow-canvas .react-flow__node-default.selected {
 	border-color: var(--accent);
 	box-shadow: 0 0 0 2px var(--accent-muted);
 }
