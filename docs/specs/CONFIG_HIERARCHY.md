@@ -319,6 +319,22 @@ team:
   enabled: false
   server_url: ""
   sync_tasks: false
+
+# Jira Cloud import
+jira:
+  url: "https://acme.atlassian.net"        # Jira Cloud instance URL
+  email: "user@acme.com"                    # Email for basic auth
+  token_env_var: ORC_JIRA_TOKEN             # Env var name for API token (default)
+  epic_to_initiative: true                  # Map epics → orc initiatives (default: true)
+  default_weight: ""                        # Default weight for imported tasks (trivial|small|medium|large)
+  default_queue: ""                         # Default queue for imported tasks (active|backlog)
+  default_projects: []                      # Project keys imported by default (override with --project)
+  custom_fields:                            # Jira custom field ID → metadata key name
+    # customfield_10020: jira_sprint
+    # customfield_10028: jira_story_points
+  status_overrides: {}                      # Jira status name → orc queue ("active", "backlog")
+  category_overrides: {}                    # Jira issue type → orc category ("bug", "feature", etc.)
+  priority_overrides: {}                    # Jira priority name → orc priority ("critical", "high", etc.)
 ```
 
 ### Config Categories
@@ -344,6 +360,7 @@ team:
 | `task_id` | Project | Project level |
 | `server` | Machine | No |
 | `team` | Project | Project level |
+| `jira` | Project | Project level |
 
 ---
 

@@ -23,6 +23,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `hosting/` | Multi-provider git hosting (GitHub, GitLab) | `Provider`, `PR`, `PRStatusSummary` |
 | `initiative/` | Initiative/feature grouping | `Initiative`, `Store`, `Manifest` |
+| `jira/` | Jira Cloud import (API client, issue mapping, ADF conversion) | `Client`, `Importer`, `Mapper`, `Issue`, `ImportResult` |
 | `llmutil/` | **Shared LLM utilities - schema execution** | `ExecuteWithSchema[T]()` |
 | `orchestrator/` | Multi-task parallel coordination | `Orchestrator`, `Scheduler`, `WorkerPool` |
 | `plan_session/` | Interactive planning sessions | `Mode`, `Options`, `Spawner` |
@@ -62,6 +63,8 @@ cmd/orc
         │   ├── prompt/
         │   ├── storage/
         │   └── task/
+        ├── jira/
+        │   └── storage/
         ├── orchestrator/
         │   ├── executor/
         │   ├── initiative/

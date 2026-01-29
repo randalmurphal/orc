@@ -11,7 +11,9 @@ Command-line interface using Cobra. Each command is in its own file.
 | `serve.go` | API server command |
 | `session.go` | Interactive session handling |
 | `signals.go` | Signal handling (SIGINT, SIGTERM) |
-| `cmd_export.go` | Export/import with tar.gz/zip/dir formats |
+| `cmd_export.go` | Export with tar.gz/zip/dir formats |
+| `cmd_import.go` | Import from archives (tar.gz/zip/dir/YAML) |
+| `cmd_import_jira.go` | Import from Jira Cloud via API |
 | `cmd_migrate.go` | Plan migration commands (`orc migrate plans`) |
 | `cmd_run.go` | Task execution with auto-migration |
 
@@ -60,9 +62,17 @@ Views: default (single task), `--tree` (recursive), `--graph` (ASCII)
 
 Real-time streaming via fsnotify with polling fallback.
 
-### `orc export/import`
+### `orc export`
 
-Data portability with tar.gz archives. Export defaults include state and transcripts. Import auto-detects format and handles running→interrupted transformation. See [COMMANDS.md](COMMANDS.md) for full flag reference.
+Export tasks/initiatives to tar.gz archive. Defaults include state and transcripts. Flags: `--all-tasks`, `--initiatives`, `--minimal`, `--format`. See [COMMANDS.md](COMMANDS.md) for full flag reference.
+
+### `orc import [path]`
+
+Import from archive, directory, or YAML file. Auto-detects format. Newer `updated_at` wins, running tasks become interrupted. Flags: `--force`, `--skip-existing`, `--dry-run`
+
+### `orc import jira`
+
+Import Jira Cloud issues as orc tasks. Epics → initiatives (default, disable with `--no-epics`). Idempotent: existing tasks updated, not duplicated. Auth: flags > env vars > config. Flags: `--url`, `--email`, `--token`, `--project`, `--jql`, `--no-epics`, `--dry-run`, `--weight`, `--queue`
 
 ### `orc migrate plans`
 
