@@ -351,6 +351,7 @@ Patterns, gotchas, and decisions learned during development.
 ### Known Gotchas
 | Issue | Resolution | Source |
 |-------|------------|--------|
+| Review schema missing `status` field → blocked reviews silently pass | JSON schema `required` array must include ALL fields the Go struct validates against; added post-loop validation | TASK-630 |
 
 ### Decisions
 | Decision | Rationale | Source |

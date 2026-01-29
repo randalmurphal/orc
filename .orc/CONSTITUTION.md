@@ -38,6 +38,7 @@ When rules conflict, higher priority wins:
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
 | **ONE Schema Pattern** | Use `llmutil.ExecuteWithSchema[T]()` for ALL schema-constrained calls | Multiple patterns caused silent failures | Parse errors, lost data |
+| **Schema Matches Struct** | JSON schema `required` fields must match Go struct fields used for validation | Missing `status` in review schema let blocked reviews pass as complete (TASK-630) | Silent success on blocked phases |
 | **Model From Config** | Never hardcode model in CompletionRequest | Model is set at client creation | Wrong model, wrong cost |
 | **Ultrathink in User Message** | `ultrathink\n\n` must prefix user message, not system | System prompt position doesn't work | No extended thinking |
 | **Schema = Pure JSON** | With `--json-schema`, output is ONLY JSON | No text/JSON mixing | Parse failures |
