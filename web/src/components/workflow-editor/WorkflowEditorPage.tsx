@@ -5,6 +5,7 @@ import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { PhaseNodeData } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
+import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
 import './WorkflowEditorPage.css';
 
 function formatGateType(gt: GateType): string {
@@ -136,8 +137,7 @@ export function WorkflowEditorPage() {
 			</div>
 			<div className={bodyClasses.join(' ')}>
 				<aside className="workflow-editor-palette">
-					<span>Phase Palette</span>
-					<span>(coming soon)</span>
+					<PhaseTemplatePalette readOnly={isBuiltin} workflowId={id || ''} />
 				</aside>
 				<div className="workflow-editor-canvas">
 					<WorkflowCanvas />
