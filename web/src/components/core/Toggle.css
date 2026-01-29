@@ -28,9 +28,9 @@
 	z-index: 1;
 }
 
-/* Track (background) */
+/* Track (background) - no position:relative so it stays non-positioned
+   and cannot intercept pointer events from the absolutely-positioned input */
 .toggle__track {
-	position: relative;
 	width: 36px;
 	height: 20px;
 	background: var(--bg-surface);
@@ -39,7 +39,7 @@
 	pointer-events: none;
 }
 
-/* Knob (circle) */
+/* Knob (circle) - positioned relative to .toggle label */
 .toggle__knob {
 	position: absolute;
 	width: 16px;
@@ -49,6 +49,7 @@
 	top: 2px;
 	left: 2px;
 	transition: transform 0.2s;
+	pointer-events: none;
 }
 
 /* ==========================================================================
