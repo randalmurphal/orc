@@ -65,6 +65,7 @@ When rules conflict, higher priority wins:
 | **Cleanup by Path** | Use `CleanupWorktreeAtPath(path)` not `CleanupWorktree(taskID)` | Initiative-prefixed worktrees have different paths | Orphaned worktrees, disk full |
 | **No os.Chdir in Tests** | Use explicit path parameters, never `os.Chdir()` | Process-wide, not goroutine-safe | Flaky tests, wrong directory |
 | **Worktree Isolation** | Each task runs in its own worktree | Main repo must stay clean | Conflicts between parallel tasks |
+| **Sync Failure Cleanup** | Sync-on-start failures MUST cleanup worktree+branch unconditionally (TASK-499) | No phases ran, no work to preserve; zombies block retry | Zombie worktrees accumulate, retry fails with "branch exists" |
 
 ### Testing
 

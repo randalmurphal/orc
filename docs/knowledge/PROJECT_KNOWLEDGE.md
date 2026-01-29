@@ -147,6 +147,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Initiatives page shows 0/0 tasks for all initiatives | Fixed: `LinkTasks` and `UnlinkTasks` handlers returned stale task object after modification instead of reloading; added `GetTask()` reload after `UpdateTask()` to return fresh state with updated timestamps and normalized data; follows "reload after write" pattern for API response consistency | TASK-552 |
 | Stats page shows Avg Task Time as 0:00 and Most Active Initiatives as No data | Fixed: `statsStore.ts` wasn't properly fetching from `GetMetrics()` and `GetTopInitiatives()` APIs; `GetMetrics()` now calculates `avgTaskDurationSeconds` from completed tasks with valid start/completion times; `GetTopInitiatives()` now loads initiative titles from storage (not just IDs); frontend aggregates daily metrics for period-accurate stats | TASK-553 |
 | GitHub auto-merge requires GraphQL | `EnableAutoMerge` returns `ErrAutoMergeNotSupported` for GitHub (REST API doesn't support it); GitLab fully supports via `MergeWhenPipelineSucceeds` | hosting-enhancement |
+| Sync-on-start failures left zombie worktrees and branches | Fixed: Executor now calls `CleanupWorktreeAtPath()` + branch deletion unconditionally on sync failure (ignores `CleanupOnFail` config since no phases ran); cleanup logged at INFO level; enables retry by removing stale worktree directory and orphaned branch | TASK-499 |
 
 ## Decisions
 
