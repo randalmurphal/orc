@@ -97,6 +97,7 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Streaming + DB sync pattern | `TranscriptViewer` accumulates WebSocket `transcript` events in `streamingLines` state; periodic refresh (5s) calls API to sync persisted data and clears streaming buffer; provides immediate feedback while ensuring data consistency; auto-scroll follows new content when enabled | TASK-404 |
 | Weight-to-workflow auto-assignment | CreateTask (API and CLI) auto-assigns `workflow_id` based on `weight` when not explicitly provided: trivial→implement-trivial, small→implement-small, medium→implement-medium, large→implement-large; explicit `workflow_id` takes precedence; enables running tasks without manually specifying workflow | TASK-590 |
 | Multi-provider hosting | Provider interface abstracts GitHub/GitLab; `EnableAutoMerge` returns `ErrAutoMergeNotSupported` on GitHub (no GraphQL), works on GitLab; `GetPRComment` needs `prNumber` for GitLab Notes API; commit templates use `renderCommitTemplate()` with `{{TASK_ID}}`, `{{TASK_TITLE}}`, `{{TASK_BRANCH}}`; SHA verification prevents stale merges | hosting-enhancement |
+| Event-driven node updates | WebSocket `phaseChanged` events route through `handlers.ts` to `workflowEditorStore.updateNodeStatus()`; store updates trigger React Flow re-render with new status/cost | TASK-639 |
 
 ## Known Gotchas
 
@@ -156,3 +157,4 @@ Patterns, gotchas, and decisions learned during development. This file is auto-u
 | Sync at completion (default) | Balance safety vs overhead; phase-level sync adds latency for marginal benefit | TASK-019 |
 | Flipped auto-merge defaults to OFF | Auto-merge/poll defaults changed from true to false; users must explicitly opt in; prevents unexpected automated merges for new users | hosting-enhancement |
 | Provider interface over CLI | Hosting operations use Go API clients (go-github v82, go-gitlab) instead of `gh` CLI; enables multi-provider support and better error handling | hosting-enhancement |
+| Derive running status from PENDING + currentPhase | Proto `PhaseStatus` only has PENDING/COMPLETED/SKIPPED; derive "running" in UI when `status=PENDING && phaseName=currentPhase`; avoids proto schema bloat | TASK-639 |

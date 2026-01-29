@@ -1,0 +1,211 @@
+/**
+ * ExecutionHeader styles - TASK-639
+ * Header bar for workflow execution status and metrics
+ */
+
+.execution-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-2) var(--space-4);
+	background: var(--bg-secondary);
+	border-bottom: 1px solid var(--border);
+	font-size: var(--text-sm);
+}
+
+/* Status badge */
+.execution-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	border-radius: var(--radius-sm);
+	white-space: nowrap;
+}
+
+.execution-badge--running {
+	background: var(--primary-dim);
+	color: var(--primary);
+	border: 1px solid var(--primary);
+}
+
+.execution-badge--completed {
+	background: var(--green-dim);
+	color: var(--green);
+	border: 1px solid var(--green);
+}
+
+.execution-badge--failed {
+	background: var(--red-dim);
+	color: var(--red);
+	border: 1px solid var(--red);
+}
+
+.execution-badge--cancelled {
+	background: var(--orange-dim);
+	color: var(--orange);
+	border: 1px solid var(--orange);
+}
+
+/* Pulse animation for running state */
+.execution-badge--pulse {
+	animation: execution-pulse 2s ease-in-out infinite;
+}
+
+@keyframes execution-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+
+/* Reconnecting indicator */
+.execution-reconnecting {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--orange);
+	font-size: var(--text-xs);
+	font-weight: 500;
+}
+
+.execution-reconnecting::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--orange);
+	animation: reconnect-blink 1s ease-in-out infinite;
+}
+
+@keyframes reconnect-blink {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.3;
+	}
+}
+
+/* Metrics display */
+.execution-metrics {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	margin-left: auto;
+}
+
+.execution-metric {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+}
+
+.execution-metric-icon {
+	font-size: var(--text-xs);
+}
+
+/* Cancel button */
+.execution-cancel-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--red);
+	background: transparent;
+	border: 1px solid var(--red);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background-color 0.15s ease;
+}
+
+.execution-cancel-btn:hover:not(:disabled) {
+	background: var(--red-dim);
+}
+
+.execution-cancel-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* Confirmation dialog overlay */
+.execution-confirm-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 1000;
+}
+
+.execution-confirm-dialog {
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-4);
+	max-width: 400px;
+	box-shadow: var(--shadow-lg);
+}
+
+.execution-confirm-dialog p {
+	margin: 0 0 var(--space-4);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+}
+
+.execution-confirm-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}
+
+.execution-confirm-btn {
+	padding: var(--space-1) var(--space-3);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--white);
+	background: var(--red);
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+
+.execution-confirm-btn:hover:not(:disabled) {
+	opacity: 0.9;
+}
+
+.execution-confirm-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.execution-cancel-confirm-btn {
+	padding: var(--space-1) var(--space-3);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+
+.execution-cancel-confirm-btn:hover:not(:disabled) {
+	background: var(--bg-tertiary);
+}
+
+.execution-cancel-confirm-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
