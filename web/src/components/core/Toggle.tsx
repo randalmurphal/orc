@@ -3,7 +3,15 @@
  * Provides accessible toggle functionality with hidden checkbox for form compatibility.
  */
 
-import { forwardRef, type InputHTMLAttributes, type ChangeEvent, useId } from 'react';
+import {
+	forwardRef,
+	type InputHTMLAttributes,
+	type ChangeEvent,
+	type KeyboardEvent,
+	useId,
+	useRef,
+	useImperativeHandle,
+} from 'react';
 import './Toggle.css';
 
 export type ToggleSize = 'sm' | 'md';
@@ -51,16 +59,30 @@ export const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
 			size = 'md',
 			className = '',
 			id: providedId,
+			'aria-label': ariaLabel,
 			...props
 		},
 		ref
 	) => {
 		const generatedId = useId();
 		const inputId = providedId ?? generatedId;
+		const inputRef = useRef<HTMLInputElement>(null);
+
+		// Expose the input element via the forwarded ref
+		useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
 		const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
 			if (!disabled && onChange) {
 				onChange(event.target.checked, event);
+			}
+		};
+
+		const handleKeyDown = (event: KeyboardEvent<HTMLLabelElement>) => {
+			if (event.key === ' ' || event.key === 'Enter') {
+				event.preventDefault();
+				if (inputRef.current && !disabled) {
+					inputRef.current.click();
+				}
 			}
 		};
 
@@ -75,22 +97,31 @@ export const Toggle = forwardRef<HTMLInputElement, ToggleProps>(
 			.join(' ');
 
 		return (
-			<label className={wrapperClasses} htmlFor={inputId}>
+			<label
+				className={wrapperClasses}
+				htmlFor={inputId}
+				role="switch"
+				aria-checked={checked}
+				aria-label={ariaLabel}
+				aria-disabled={disabled || undefined}
+				tabIndex={disabled ? -1 : 0}
+				onKeyDown={handleKeyDown}
+			>
+				<span className="toggle__track">
+					<span className="toggle__knob" />
+				</span>
 				<input
-					ref={ref}
+					ref={inputRef}
 					type="checkbox"
 					id={inputId}
 					className="toggle__input"
 					checked={checked}
 					onChange={handleChange}
 					disabled={disabled}
-					role="switch"
-					aria-checked={checked}
+					tabIndex={-1}
+					aria-hidden="true"
 					{...props}
 				/>
-				<span className="toggle__track">
-					<span className="toggle__knob" />
-				</span>
 			</label>
 		);
 	}

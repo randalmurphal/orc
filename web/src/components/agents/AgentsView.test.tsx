@@ -278,22 +278,13 @@ describe('AgentsView', () => {
 	});
 
 	describe('Add Agent button', () => {
-		it('dispatches orc:add-agent event when clicked', async () => {
-			const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
-
+		it('is disabled until feature is implemented', async () => {
 			render(<AgentsView />);
 
 			await waitFor(() => {
-				fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+				const button = screen.getByRole('button', { name: /add agent/i });
+				expect(button).toBeDisabled();
 			});
-
-			expect(dispatchSpy).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: 'orc:add-agent',
-				})
-			);
-
-			dispatchSpy.mockRestore();
 		});
 	});
 
