@@ -363,12 +363,15 @@ Patterns, gotchas, and decisions learned during development.
 |---------|-------------|--------|
 | Derived editor store | `workflowEditorStore` derives React Flow state from API data via pure `layoutWorkflow()` function; edits go through API, never store-first | TASK-633 |
 | Pure layout function | `layoutWorkflow()` is a pure function (workflow → nodes+edges) using dagre, testable without React Flow | TASK-633 |
+| Singleflight + TTL cache | `dashboardCache` uses `sync.singleflight` to coalesce concurrent requests + 30s TTL; double-check locking for fast read path | TASK-531 |
+| SQL aggregation over in-memory | Dashboard stats use `GROUP BY`/`COUNT` queries (`db/dashboard.go`) instead of loading all tasks into Go | TASK-531 |
 
 ### Known Gotchas
 | Issue | Resolution | Source |
 |-------|------------|--------|
 | Review schema missing `status` field → blocked reviews silently pass | JSON schema `required` array must include ALL fields the Go struct validates against; added post-loop validation | TASK-630 |
 | Phase labels stuck on "starting" in `orc status` | Read `task.CurrentPhase` directly from task record (set by executor before each phase), not from `workflow_runs` | TASK-617 |
+| N+1 queries in dashboard endpoints (e.g., per-initiative title lookups) | Use batch loading (`GetInitiativeTitlesBatch`) — single query returns all titles | TASK-531 |
 
 ### Decisions
 | Decision | Rationale | Source |

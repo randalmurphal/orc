@@ -35,6 +35,7 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `team.go` | Team members, claims, activity |
 | `knowledge.go` | Knowledge queue operations |
 | `constitution.go` | Constitution CRUD, validation checks |
+| `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
 
 ## Key Types
 
@@ -98,6 +99,20 @@ deps := allDeps[task.ID]                    // Map lookup
 | `GetAllInitiativeTaskRefs()` | `map[string][]string` | Initiative loading |
 | `GetAllInitiativeDependencies()` | `map[string][]string` | Initiative loading |
 | `GetAllInitiativeDependents()` | `map[string][]string` | Initiative loading |
+| `GetInitiativeTitlesBatch(ids)` | `map[string]string` | Dashboard (no N+1) |
+
+## Dashboard Aggregates
+
+SQL-level aggregation for dashboard stats, avoiding full task load. `dashboard.go`
+
+| Function | Returns | Purpose |
+|----------|---------|---------|
+| `GetDashboardStatusCounts()` | `DashboardStatusCounts` | Task counts by status via `GROUP BY` |
+| `GetDashboardCostByDate(since)` | `[]DashboardCostByDate` | Daily cost aggregation |
+| `GetDashboardInitiativeStats(limit)` | `[]DashboardInitiativeStat` | Per-initiative task stats |
+| `GetInitiativeTitlesBatch(ids)` | `map[string]string` | Batch title lookup (single query) |
+
+**Indexes** (`schema/project_043.sql`): `idx_tasks_completed_at`, `idx_tasks_updated_at` — accelerate time-filtered dashboard queries.
 
 ## Transcript System
 
