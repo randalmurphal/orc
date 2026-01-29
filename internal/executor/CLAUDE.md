@@ -44,6 +44,7 @@ WorkflowExecutor.Run()
 │   ├── enrichContextForPhase()       # Add phase-specific context
 │   ├── resolver.ResolveAll()         # Resolve all variables
 │   ├── evaluateGate()                # Check conditions
+│   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases

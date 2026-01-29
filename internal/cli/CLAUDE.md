@@ -54,6 +54,8 @@ Priority display: Orphaned -> Attention -> Running -> Blocked -> Ready -> Paused
 
 Dependency-aware: BLOCKED (waiting on deps), READY (deps complete)
 
+**Phase display:** Reads `task.CurrentPhase` directly from the task record (set by executor before each phase starts). Only shows "starting" when CurrentPhase is genuinely empty (task just created). No enrichment from `workflow_runs`.
+
 ### `orc deps [TASK-ID]`
 
 Views: default (single task), `--tree` (recursive), `--graph` (ASCII)

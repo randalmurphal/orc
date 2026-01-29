@@ -368,6 +368,7 @@ Patterns, gotchas, and decisions learned during development.
 | Issue | Resolution | Source |
 |-------|------------|--------|
 | Review schema missing `status` field → blocked reviews silently pass | JSON schema `required` array must include ALL fields the Go struct validates against; added post-loop validation | TASK-630 |
+| Phase labels stuck on "starting" in `orc status` | Read `task.CurrentPhase` directly from task record (set by executor before each phase), not from `workflow_runs` | TASK-617 |
 
 ### Decisions
 | Decision | Rationale | Source |
@@ -375,5 +376,6 @@ Patterns, gotchas, and decisions learned during development.
 | @xyflow/react v12+ for canvas | Industry standard, React 19 + Zustand 5 compatible, built-in zoom/pan/drag | TASK-633 |
 | dagre over ELKjs for layout | Workflows are mostly-linear (<20 nodes), dagre is synchronous and simpler | TASK-633 |
 | Loop/retry edges visual-only | Not fed into topological sort — prevents false cycle errors from runtime control flow | TASK-633 |
+| task.CurrentPhase as authoritative phase source | Executor writes phase to task record before execution; eliminates multi-source sync with workflow_runs | TASK-617 |
 
 <!-- orc:knowledge:end -->

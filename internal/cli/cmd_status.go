@@ -12,7 +12,6 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -113,19 +112,8 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 		return fmt.Errorf("load tasks: %w", err)
 	}
 
-	// Load running workflow info to get current phase for running tasks
-	runningWorkflows, err := backend.GetRunningWorkflowsByTask()
-	if err != nil {
-		// Non-fatal: just means we won't have current phase info
-		runningWorkflows = make(map[string]*db.WorkflowRun)
-	}
-
-	// Enrich running tasks with current phase from workflow_runs
-	for _, t := range allTasks {
-		if wr, ok := runningWorkflows[t.Id]; ok && wr.CurrentPhase != "" {
-			task.SetCurrentPhaseProto(t, wr.CurrentPhase)
-		}
-	}
+	// Task.CurrentPhase is now authoritative — set by the executor at phase start.
+	// No need to enrich from workflow_runs (SC-5).
 
 	if len(allTasks) == 0 {
 		_, _ = fmt.Fprintln(out, "No tasks found.")
