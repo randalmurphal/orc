@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite), `jira/` (Jira Cloud import)
 
 ## Task Model
 
@@ -154,6 +154,10 @@ Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blo
 
 See `docs/specs/CONFIG_HIERARCHY.md` for all options.
 
+### Jira Integration
+
+Import Jira Cloud issues as orc tasks via `orc import jira`. Configure in `.orc/config.yaml` under `jira:` (URL, email, token env var, custom field mappings, default projects, mapping overrides). Epics map to initiatives by default. See `orc import jira --help` for setup.
+
 ### Constitution
 
 Project-level principles injected into all phase prompts via `{{CONSTITUTION_CONTENT}}`.
@@ -221,6 +225,17 @@ Run `orc initiative --help` for full subcommand list.
 | `orc import --dry-run` | Preview import without changes |
 
 **Import behavior:** Newer `updated_at` wins (local preserved on tie). Running tasks become "interrupted" for safe resume. Use `--force` to always overwrite.
+
+### Jira Import
+
+| Command | Purpose |
+|---------|---------|
+| `orc import jira` | Import Jira Cloud issues as orc tasks |
+| `orc import jira --dry-run` | Preview import without saving |
+| `orc import jira --project PROJ` | Import from specific project(s) |
+| `orc import jira --jql "..."` | Filter issues with JQL query |
+
+Auth: `--url`/`--email`/`--token` flags, `ORC_JIRA_*` env vars, or `jira:` config section. Run `orc import jira --help` for full setup guide.
 
 ### Key Insight: Help Text = Documentation
 

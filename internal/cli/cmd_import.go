@@ -187,6 +187,9 @@ Examples:
 	cmd.Flags().BoolVar(&skipExisting, "skip-existing", false, "never overwrite existing items")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show what would be imported without making changes")
 
+	// Subcommands for external source imports
+	cmd.AddCommand(newImportJiraCmd())
+
 	return cmd
 }
 

@@ -995,6 +995,19 @@ Orc orchestrator configuration from `.orc/config.yaml`. All settings are editabl
     "idle_warning": "2m",
     "heartbeat_interval": "10s",
     "idle_timeout": "10m"
+  },
+  "jira": {
+    "url": "https://acme.atlassian.net",
+    "email": "user@acme.com",
+    "token_env_var": "ORC_JIRA_TOKEN",
+    "epic_to_initiative": true,
+    "default_weight": "small",
+    "default_queue": "active",
+    "custom_fields": {"customfield_10020": "jira_sprint"},
+    "default_projects": ["PROJ"],
+    "status_overrides": {},
+    "category_overrides": {},
+    "priority_overrides": {}
   }
 }
 ```
@@ -1030,6 +1043,11 @@ Orc orchestrator configuration from `.orc/config.yaml`. All settings are editabl
   "timeouts": {
     "phase_max": "2h",
     "turn_max": "10m"
+  },
+  "jira": {
+    "url": "https://acme.atlassian.net",
+    "email": "user@acme.com",
+    "default_projects": ["PROJ1", "PROJ2"]
   }
 }
 ```

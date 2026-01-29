@@ -144,6 +144,44 @@ func (s *configServer) UpdateConfig(
 		}
 	}
 
+	// Apply Jira config updates
+	if req.Msg.Jira != nil {
+		j := req.Msg.Jira
+		if j.Url != "" {
+			cfg.Jira.URL = j.Url
+		}
+		if j.Email != "" {
+			cfg.Jira.Email = j.Email
+		}
+		if j.TokenEnvVar != "" {
+			cfg.Jira.TokenEnvVar = j.TokenEnvVar
+		}
+		if j.EpicToInitiative != nil {
+			cfg.Jira.EpicToInitiative = j.EpicToInitiative
+		}
+		if j.DefaultWeight != "" {
+			cfg.Jira.DefaultWeight = j.DefaultWeight
+		}
+		if j.DefaultQueue != "" {
+			cfg.Jira.DefaultQueue = j.DefaultQueue
+		}
+		if len(j.CustomFields) > 0 {
+			cfg.Jira.CustomFields = j.CustomFields
+		}
+		if len(j.DefaultProjects) > 0 {
+			cfg.Jira.DefaultProjects = j.DefaultProjects
+		}
+		if len(j.StatusOverrides) > 0 {
+			cfg.Jira.StatusOverrides = j.StatusOverrides
+		}
+		if len(j.CategoryOverrides) > 0 {
+			cfg.Jira.CategoryOverrides = j.CategoryOverrides
+		}
+		if len(j.PriorityOverrides) > 0 {
+			cfg.Jira.PriorityOverrides = j.PriorityOverrides
+		}
+	}
+
 	// Apply claude/model updates
 	if req.Msg.Claude != nil && req.Msg.Claude.Model != "" {
 		valid := false
@@ -1114,6 +1152,25 @@ func orcConfigToProto(cfg *config.Config) *orcv1.Config {
 	if cfg.Completion.TargetBranch != "" {
 		result.Completion.TargetBranch = &cfg.Completion.TargetBranch
 	}
+
+	// Jira config
+	jiraCfg := &orcv1.JiraConfig{
+		Url:               cfg.Jira.URL,
+		Email:             cfg.Jira.Email,
+		TokenEnvVar:       cfg.Jira.GetTokenEnvVar(),
+		DefaultWeight:     cfg.Jira.DefaultWeight,
+		DefaultQueue:      cfg.Jira.DefaultQueue,
+		CustomFields:      cfg.Jira.CustomFields,
+		DefaultProjects:   cfg.Jira.DefaultProjects,
+		StatusOverrides:   cfg.Jira.StatusOverrides,
+		CategoryOverrides: cfg.Jira.CategoryOverrides,
+		PriorityOverrides: cfg.Jira.PriorityOverrides,
+	}
+	if cfg.Jira.EpicToInitiative != nil {
+		jiraCfg.EpicToInitiative = cfg.Jira.EpicToInitiative
+	}
+	result.Jira = jiraCfg
+
 	return result
 }
 

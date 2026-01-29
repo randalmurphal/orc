@@ -140,7 +140,9 @@ type Config struct {
 	// Claude settings
 	Claude *ClaudeConfig `protobuf:"bytes,4,opt,name=claude,proto3" json:"claude,omitempty"`
 	// Execution settings (parallel tasks, cost limits)
-	Execution     *ExecutionConfig `protobuf:"bytes,5,opt,name=execution,proto3" json:"execution,omitempty"`
+	Execution *ExecutionConfig `protobuf:"bytes,5,opt,name=execution,proto3" json:"execution,omitempty"`
+	// Jira Cloud import settings
+	Jira          *JiraConfig `protobuf:"bytes,6,opt,name=jira,proto3" json:"jira,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -206,6 +208,13 @@ func (x *Config) GetClaude() *ClaudeConfig {
 func (x *Config) GetExecution() *ExecutionConfig {
 	if x != nil {
 		return x.Execution
+	}
+	return nil
+}
+
+func (x *Config) GetJira() *JiraConfig {
+	if x != nil {
+		return x.Jira
 	}
 	return nil
 }
@@ -771,6 +780,143 @@ func (x *ExecutionConfig) GetCostLimit() int32 {
 	return 0
 }
 
+// Jira Cloud import configuration
+type JiraConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Jira Cloud base URL (e.g., "https://acme.atlassian.net")
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// Email for basic auth
+	Email string `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	// Environment variable name containing the API token (default: ORC_JIRA_TOKEN)
+	TokenEnvVar string `protobuf:"bytes,3,opt,name=token_env_var,json=tokenEnvVar,proto3" json:"token_env_var,omitempty"`
+	// Map Jira epics to orc initiatives (default: true)
+	EpicToInitiative *bool `protobuf:"varint,4,opt,name=epic_to_initiative,json=epicToInitiative,proto3,oneof" json:"epic_to_initiative,omitempty"`
+	// Default weight for imported tasks (trivial|small|medium|large)
+	DefaultWeight string `protobuf:"bytes,5,opt,name=default_weight,json=defaultWeight,proto3" json:"default_weight,omitempty"`
+	// Default queue for imported tasks (active|backlog)
+	DefaultQueue string `protobuf:"bytes,6,opt,name=default_queue,json=defaultQueue,proto3" json:"default_queue,omitempty"`
+	// Custom field ID → metadata key name mapping
+	// Example: {"customfield_10020": "jira_sprint"}
+	CustomFields map[string]string `protobuf:"bytes,7,rep,name=custom_fields,json=customFields,proto3" json:"custom_fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Project keys imported by default when --project is not specified
+	DefaultProjects []string `protobuf:"bytes,8,rep,name=default_projects,json=defaultProjects,proto3" json:"default_projects,omitempty"`
+	// Jira status name → orc queue override ("active", "backlog")
+	StatusOverrides map[string]string `protobuf:"bytes,9,rep,name=status_overrides,json=statusOverrides,proto3" json:"status_overrides,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Jira issue type → orc category override ("bug", "feature", "refactor", etc.)
+	CategoryOverrides map[string]string `protobuf:"bytes,10,rep,name=category_overrides,json=categoryOverrides,proto3" json:"category_overrides,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Jira priority name → orc priority override ("critical", "high", "normal", "low")
+	PriorityOverrides map[string]string `protobuf:"bytes,11,rep,name=priority_overrides,json=priorityOverrides,proto3" json:"priority_overrides,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *JiraConfig) Reset() {
+	*x = JiraConfig{}
+	mi := &file_orc_v1_config_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JiraConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JiraConfig) ProtoMessage() {}
+
+func (x *JiraConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_config_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JiraConfig.ProtoReflect.Descriptor instead.
+func (*JiraConfig) Descriptor() ([]byte, []int) {
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *JiraConfig) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *JiraConfig) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *JiraConfig) GetTokenEnvVar() string {
+	if x != nil {
+		return x.TokenEnvVar
+	}
+	return ""
+}
+
+func (x *JiraConfig) GetEpicToInitiative() bool {
+	if x != nil && x.EpicToInitiative != nil {
+		return *x.EpicToInitiative
+	}
+	return false
+}
+
+func (x *JiraConfig) GetDefaultWeight() string {
+	if x != nil {
+		return x.DefaultWeight
+	}
+	return ""
+}
+
+func (x *JiraConfig) GetDefaultQueue() string {
+	if x != nil {
+		return x.DefaultQueue
+	}
+	return ""
+}
+
+func (x *JiraConfig) GetCustomFields() map[string]string {
+	if x != nil {
+		return x.CustomFields
+	}
+	return nil
+}
+
+func (x *JiraConfig) GetDefaultProjects() []string {
+	if x != nil {
+		return x.DefaultProjects
+	}
+	return nil
+}
+
+func (x *JiraConfig) GetStatusOverrides() map[string]string {
+	if x != nil {
+		return x.StatusOverrides
+	}
+	return nil
+}
+
+func (x *JiraConfig) GetCategoryOverrides() map[string]string {
+	if x != nil {
+		return x.CategoryOverrides
+	}
+	return nil
+}
+
+func (x *JiraConfig) GetPriorityOverrides() map[string]string {
+	if x != nil {
+		return x.PriorityOverrides
+	}
+	return nil
+}
+
 // Claude Code settings (from settings.json)
 type Settings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -788,7 +934,7 @@ type Settings struct {
 
 func (x *Settings) Reset() {
 	*x = Settings{}
-	mi := &file_orc_v1_config_proto_msgTypes[8]
+	mi := &file_orc_v1_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -800,7 +946,7 @@ func (x *Settings) String() string {
 func (*Settings) ProtoMessage() {}
 
 func (x *Settings) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[8]
+	mi := &file_orc_v1_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -813,7 +959,7 @@ func (x *Settings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Settings.ProtoReflect.Descriptor instead.
 func (*Settings) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Settings) GetTools() []string {
@@ -856,7 +1002,7 @@ type SettingsHierarchy struct {
 
 func (x *SettingsHierarchy) Reset() {
 	*x = SettingsHierarchy{}
-	mi := &file_orc_v1_config_proto_msgTypes[9]
+	mi := &file_orc_v1_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +1014,7 @@ func (x *SettingsHierarchy) String() string {
 func (*SettingsHierarchy) ProtoMessage() {}
 
 func (x *SettingsHierarchy) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[9]
+	mi := &file_orc_v1_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +1027,7 @@ func (x *SettingsHierarchy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingsHierarchy.ProtoReflect.Descriptor instead.
 func (*SettingsHierarchy) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SettingsHierarchy) GetGlobal() *Settings {
@@ -932,7 +1078,7 @@ type Hook struct {
 
 func (x *Hook) Reset() {
 	*x = Hook{}
-	mi := &file_orc_v1_config_proto_msgTypes[10]
+	mi := &file_orc_v1_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +1090,7 @@ func (x *Hook) String() string {
 func (*Hook) ProtoMessage() {}
 
 func (x *Hook) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[10]
+	mi := &file_orc_v1_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +1103,7 @@ func (x *Hook) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Hook.ProtoReflect.Descriptor instead.
 func (*Hook) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Hook) GetName() string {
@@ -1044,7 +1190,7 @@ type Skill struct {
 
 func (x *Skill) Reset() {
 	*x = Skill{}
-	mi := &file_orc_v1_config_proto_msgTypes[11]
+	mi := &file_orc_v1_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1202,7 @@ func (x *Skill) String() string {
 func (*Skill) ProtoMessage() {}
 
 func (x *Skill) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[11]
+	mi := &file_orc_v1_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1215,7 @@ func (x *Skill) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Skill.ProtoReflect.Descriptor instead.
 func (*Skill) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Skill) GetName() string {
@@ -1129,7 +1275,7 @@ type ClaudeMd struct {
 
 func (x *ClaudeMd) Reset() {
 	*x = ClaudeMd{}
-	mi := &file_orc_v1_config_proto_msgTypes[12]
+	mi := &file_orc_v1_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1141,7 +1287,7 @@ func (x *ClaudeMd) String() string {
 func (*ClaudeMd) ProtoMessage() {}
 
 func (x *ClaudeMd) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[12]
+	mi := &file_orc_v1_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1154,7 +1300,7 @@ func (x *ClaudeMd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaudeMd.ProtoReflect.Descriptor instead.
 func (*ClaudeMd) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ClaudeMd) GetPath() string {
@@ -1195,7 +1341,7 @@ type PromptTemplate struct {
 
 func (x *PromptTemplate) Reset() {
 	*x = PromptTemplate{}
-	mi := &file_orc_v1_config_proto_msgTypes[13]
+	mi := &file_orc_v1_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1353,7 @@ func (x *PromptTemplate) String() string {
 func (*PromptTemplate) ProtoMessage() {}
 
 func (x *PromptTemplate) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[13]
+	mi := &file_orc_v1_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1366,7 @@ func (x *PromptTemplate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptTemplate.ProtoReflect.Descriptor instead.
 func (*PromptTemplate) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{13}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PromptTemplate) GetPhase() string {
@@ -1266,7 +1412,7 @@ type PromptVariable struct {
 
 func (x *PromptVariable) Reset() {
 	*x = PromptVariable{}
-	mi := &file_orc_v1_config_proto_msgTypes[14]
+	mi := &file_orc_v1_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1424,7 @@ func (x *PromptVariable) String() string {
 func (*PromptVariable) ProtoMessage() {}
 
 func (x *PromptVariable) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[14]
+	mi := &file_orc_v1_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1437,7 @@ func (x *PromptVariable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptVariable.ProtoReflect.Descriptor instead.
 func (*PromptVariable) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{14}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PromptVariable) GetName() string {
@@ -1330,7 +1476,7 @@ type Constitution struct {
 
 func (x *Constitution) Reset() {
 	*x = Constitution{}
-	mi := &file_orc_v1_config_proto_msgTypes[15]
+	mi := &file_orc_v1_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1342,7 +1488,7 @@ func (x *Constitution) String() string {
 func (*Constitution) ProtoMessage() {}
 
 func (x *Constitution) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[15]
+	mi := &file_orc_v1_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1355,7 +1501,7 @@ func (x *Constitution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Constitution.ProtoReflect.Descriptor instead.
 func (*Constitution) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Constitution) GetContent() string {
@@ -1391,7 +1537,7 @@ type AgentStats struct {
 
 func (x *AgentStats) Reset() {
 	*x = AgentStats{}
-	mi := &file_orc_v1_config_proto_msgTypes[16]
+	mi := &file_orc_v1_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1549,7 @@ func (x *AgentStats) String() string {
 func (*AgentStats) ProtoMessage() {}
 
 func (x *AgentStats) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[16]
+	mi := &file_orc_v1_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1562,7 @@ func (x *AgentStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentStats.ProtoReflect.Descriptor instead.
 func (*AgentStats) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{16}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AgentStats) GetTokensToday() int64 {
@@ -1461,7 +1607,7 @@ type Agent struct {
 
 func (x *Agent) Reset() {
 	*x = Agent{}
-	mi := &file_orc_v1_config_proto_msgTypes[17]
+	mi := &file_orc_v1_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1473,7 +1619,7 @@ func (x *Agent) String() string {
 func (*Agent) ProtoMessage() {}
 
 func (x *Agent) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[17]
+	mi := &file_orc_v1_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1486,7 +1632,7 @@ func (x *Agent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Agent.ProtoReflect.Descriptor instead.
 func (*Agent) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{17}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Agent) GetName() string {
@@ -1584,7 +1730,7 @@ type ToolPermissions struct {
 
 func (x *ToolPermissions) Reset() {
 	*x = ToolPermissions{}
-	mi := &file_orc_v1_config_proto_msgTypes[18]
+	mi := &file_orc_v1_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1596,7 +1742,7 @@ func (x *ToolPermissions) String() string {
 func (*ToolPermissions) ProtoMessage() {}
 
 func (x *ToolPermissions) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[18]
+	mi := &file_orc_v1_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1609,7 +1755,7 @@ func (x *ToolPermissions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolPermissions.ProtoReflect.Descriptor instead.
 func (*ToolPermissions) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{18}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ToolPermissions) GetAllow() []string {
@@ -1638,7 +1784,7 @@ type ToolInfo struct {
 
 func (x *ToolInfo) Reset() {
 	*x = ToolInfo{}
-	mi := &file_orc_v1_config_proto_msgTypes[19]
+	mi := &file_orc_v1_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1650,7 +1796,7 @@ func (x *ToolInfo) String() string {
 func (*ToolInfo) ProtoMessage() {}
 
 func (x *ToolInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[19]
+	mi := &file_orc_v1_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1663,7 +1809,7 @@ func (x *ToolInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolInfo.ProtoReflect.Descriptor instead.
 func (*ToolInfo) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{19}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ToolInfo) GetName() string {
@@ -1700,7 +1846,7 @@ type Script struct {
 
 func (x *Script) Reset() {
 	*x = Script{}
-	mi := &file_orc_v1_config_proto_msgTypes[20]
+	mi := &file_orc_v1_config_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1712,7 +1858,7 @@ func (x *Script) String() string {
 func (*Script) ProtoMessage() {}
 
 func (x *Script) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[20]
+	mi := &file_orc_v1_config_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1725,7 +1871,7 @@ func (x *Script) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Script.ProtoReflect.Descriptor instead.
 func (*Script) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Script) GetName() string {
@@ -1769,7 +1915,7 @@ type ConfigStats struct {
 
 func (x *ConfigStats) Reset() {
 	*x = ConfigStats{}
-	mi := &file_orc_v1_config_proto_msgTypes[21]
+	mi := &file_orc_v1_config_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1781,7 +1927,7 @@ func (x *ConfigStats) String() string {
 func (*ConfigStats) ProtoMessage() {}
 
 func (x *ConfigStats) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[21]
+	mi := &file_orc_v1_config_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1794,7 +1940,7 @@ func (x *ConfigStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigStats.ProtoReflect.Descriptor instead.
 func (*ConfigStats) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ConfigStats) GetSlashCommandsCount() int32 {
@@ -1833,7 +1979,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[22]
+	mi := &file_orc_v1_config_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1845,7 +1991,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[22]
+	mi := &file_orc_v1_config_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1858,7 +2004,7 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{23}
 }
 
 type GetConfigResponse struct {
@@ -1870,7 +2016,7 @@ type GetConfigResponse struct {
 
 func (x *GetConfigResponse) Reset() {
 	*x = GetConfigResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[23]
+	mi := &file_orc_v1_config_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1882,7 +2028,7 @@ func (x *GetConfigResponse) String() string {
 func (*GetConfigResponse) ProtoMessage() {}
 
 func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[23]
+	mi := &file_orc_v1_config_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1895,7 +2041,7 @@ func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetConfigResponse) GetConfig() *Config {
@@ -1912,13 +2058,14 @@ type UpdateConfigRequest struct {
 	Export        *ExportConfig          `protobuf:"bytes,3,opt,name=export,proto3,oneof" json:"export,omitempty"`
 	Claude        *ClaudeConfig          `protobuf:"bytes,4,opt,name=claude,proto3,oneof" json:"claude,omitempty"`
 	Execution     *ExecutionConfig       `protobuf:"bytes,5,opt,name=execution,proto3,oneof" json:"execution,omitempty"`
+	Jira          *JiraConfig            `protobuf:"bytes,6,opt,name=jira,proto3,oneof" json:"jira,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateConfigRequest) Reset() {
 	*x = UpdateConfigRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[24]
+	mi := &file_orc_v1_config_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1930,7 +2077,7 @@ func (x *UpdateConfigRequest) String() string {
 func (*UpdateConfigRequest) ProtoMessage() {}
 
 func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[24]
+	mi := &file_orc_v1_config_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1943,7 +2090,7 @@ func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{24}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateConfigRequest) GetAutomation() *AutomationConfig {
@@ -1981,6 +2128,13 @@ func (x *UpdateConfigRequest) GetExecution() *ExecutionConfig {
 	return nil
 }
 
+func (x *UpdateConfigRequest) GetJira() *JiraConfig {
+	if x != nil {
+		return x.Jira
+	}
+	return nil
+}
+
 type UpdateConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *Config                `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
@@ -1990,7 +2144,7 @@ type UpdateConfigResponse struct {
 
 func (x *UpdateConfigResponse) Reset() {
 	*x = UpdateConfigResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[25]
+	mi := &file_orc_v1_config_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2002,7 +2156,7 @@ func (x *UpdateConfigResponse) String() string {
 func (*UpdateConfigResponse) ProtoMessage() {}
 
 func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[25]
+	mi := &file_orc_v1_config_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2015,7 +2169,7 @@ func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{25}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateConfigResponse) GetConfig() *Config {
@@ -2034,7 +2188,7 @@ type GetSettingsRequest struct {
 
 func (x *GetSettingsRequest) Reset() {
 	*x = GetSettingsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[26]
+	mi := &file_orc_v1_config_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2046,7 +2200,7 @@ func (x *GetSettingsRequest) String() string {
 func (*GetSettingsRequest) ProtoMessage() {}
 
 func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[26]
+	mi := &file_orc_v1_config_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2059,7 +2213,7 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{26}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetSettingsRequest) GetScope() SettingsScope {
@@ -2078,7 +2232,7 @@ type GetSettingsResponse struct {
 
 func (x *GetSettingsResponse) Reset() {
 	*x = GetSettingsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[27]
+	mi := &file_orc_v1_config_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2090,7 +2244,7 @@ func (x *GetSettingsResponse) String() string {
 func (*GetSettingsResponse) ProtoMessage() {}
 
 func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[27]
+	mi := &file_orc_v1_config_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2103,7 +2257,7 @@ func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{27}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetSettingsResponse) GetSettings() *Settings {
@@ -2123,7 +2277,7 @@ type UpdateSettingsRequest struct {
 
 func (x *UpdateSettingsRequest) Reset() {
 	*x = UpdateSettingsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[28]
+	mi := &file_orc_v1_config_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2135,7 +2289,7 @@ func (x *UpdateSettingsRequest) String() string {
 func (*UpdateSettingsRequest) ProtoMessage() {}
 
 func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[28]
+	mi := &file_orc_v1_config_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2148,7 +2302,7 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{28}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *UpdateSettingsRequest) GetScope() SettingsScope {
@@ -2174,7 +2328,7 @@ type UpdateSettingsResponse struct {
 
 func (x *UpdateSettingsResponse) Reset() {
 	*x = UpdateSettingsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[29]
+	mi := &file_orc_v1_config_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2186,7 +2340,7 @@ func (x *UpdateSettingsResponse) String() string {
 func (*UpdateSettingsResponse) ProtoMessage() {}
 
 func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[29]
+	mi := &file_orc_v1_config_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2199,7 +2353,7 @@ func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{29}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *UpdateSettingsResponse) GetSettings() *Settings {
@@ -2217,7 +2371,7 @@ type GetSettingsHierarchyRequest struct {
 
 func (x *GetSettingsHierarchyRequest) Reset() {
 	*x = GetSettingsHierarchyRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[30]
+	mi := &file_orc_v1_config_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2229,7 +2383,7 @@ func (x *GetSettingsHierarchyRequest) String() string {
 func (*GetSettingsHierarchyRequest) ProtoMessage() {}
 
 func (x *GetSettingsHierarchyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[30]
+	mi := &file_orc_v1_config_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2242,7 +2396,7 @@ func (x *GetSettingsHierarchyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsHierarchyRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsHierarchyRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{30}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{31}
 }
 
 type GetSettingsHierarchyResponse struct {
@@ -2254,7 +2408,7 @@ type GetSettingsHierarchyResponse struct {
 
 func (x *GetSettingsHierarchyResponse) Reset() {
 	*x = GetSettingsHierarchyResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[31]
+	mi := &file_orc_v1_config_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2266,7 +2420,7 @@ func (x *GetSettingsHierarchyResponse) String() string {
 func (*GetSettingsHierarchyResponse) ProtoMessage() {}
 
 func (x *GetSettingsHierarchyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[31]
+	mi := &file_orc_v1_config_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2279,7 +2433,7 @@ func (x *GetSettingsHierarchyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsHierarchyResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsHierarchyResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{31}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetSettingsHierarchyResponse) GetHierarchy() *SettingsHierarchy {
@@ -2298,7 +2452,7 @@ type ListHooksRequest struct {
 
 func (x *ListHooksRequest) Reset() {
 	*x = ListHooksRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[32]
+	mi := &file_orc_v1_config_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2310,7 +2464,7 @@ func (x *ListHooksRequest) String() string {
 func (*ListHooksRequest) ProtoMessage() {}
 
 func (x *ListHooksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[32]
+	mi := &file_orc_v1_config_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2323,7 +2477,7 @@ func (x *ListHooksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHooksRequest.ProtoReflect.Descriptor instead.
 func (*ListHooksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{32}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListHooksRequest) GetScope() SettingsScope {
@@ -2342,7 +2496,7 @@ type ListHooksResponse struct {
 
 func (x *ListHooksResponse) Reset() {
 	*x = ListHooksResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[33]
+	mi := &file_orc_v1_config_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2354,7 +2508,7 @@ func (x *ListHooksResponse) String() string {
 func (*ListHooksResponse) ProtoMessage() {}
 
 func (x *ListHooksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[33]
+	mi := &file_orc_v1_config_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2367,7 +2521,7 @@ func (x *ListHooksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHooksResponse.ProtoReflect.Descriptor instead.
 func (*ListHooksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{33}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListHooksResponse) GetHooks() []*Hook {
@@ -2393,7 +2547,7 @@ type CreateHookRequest struct {
 
 func (x *CreateHookRequest) Reset() {
 	*x = CreateHookRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[34]
+	mi := &file_orc_v1_config_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2405,7 +2559,7 @@ func (x *CreateHookRequest) String() string {
 func (*CreateHookRequest) ProtoMessage() {}
 
 func (x *CreateHookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[34]
+	mi := &file_orc_v1_config_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2418,7 +2572,7 @@ func (x *CreateHookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateHookRequest.ProtoReflect.Descriptor instead.
 func (*CreateHookRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{34}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CreateHookRequest) GetName() string {
@@ -2486,7 +2640,7 @@ type CreateHookResponse struct {
 
 func (x *CreateHookResponse) Reset() {
 	*x = CreateHookResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[35]
+	mi := &file_orc_v1_config_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2498,7 +2652,7 @@ func (x *CreateHookResponse) String() string {
 func (*CreateHookResponse) ProtoMessage() {}
 
 func (x *CreateHookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[35]
+	mi := &file_orc_v1_config_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2511,7 +2665,7 @@ func (x *CreateHookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateHookResponse.ProtoReflect.Descriptor instead.
 func (*CreateHookResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{35}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *CreateHookResponse) GetHook() *Hook {
@@ -2538,7 +2692,7 @@ type UpdateHookRequest struct {
 
 func (x *UpdateHookRequest) Reset() {
 	*x = UpdateHookRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[36]
+	mi := &file_orc_v1_config_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2550,7 +2704,7 @@ func (x *UpdateHookRequest) String() string {
 func (*UpdateHookRequest) ProtoMessage() {}
 
 func (x *UpdateHookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[36]
+	mi := &file_orc_v1_config_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2563,7 +2717,7 @@ func (x *UpdateHookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateHookRequest.ProtoReflect.Descriptor instead.
 func (*UpdateHookRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{36}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *UpdateHookRequest) GetName() string {
@@ -2638,7 +2792,7 @@ type UpdateHookResponse struct {
 
 func (x *UpdateHookResponse) Reset() {
 	*x = UpdateHookResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[37]
+	mi := &file_orc_v1_config_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2650,7 +2804,7 @@ func (x *UpdateHookResponse) String() string {
 func (*UpdateHookResponse) ProtoMessage() {}
 
 func (x *UpdateHookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[37]
+	mi := &file_orc_v1_config_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2663,7 +2817,7 @@ func (x *UpdateHookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateHookResponse.ProtoReflect.Descriptor instead.
 func (*UpdateHookResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{37}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *UpdateHookResponse) GetHook() *Hook {
@@ -2683,7 +2837,7 @@ type DeleteHookRequest struct {
 
 func (x *DeleteHookRequest) Reset() {
 	*x = DeleteHookRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[38]
+	mi := &file_orc_v1_config_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2695,7 +2849,7 @@ func (x *DeleteHookRequest) String() string {
 func (*DeleteHookRequest) ProtoMessage() {}
 
 func (x *DeleteHookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[38]
+	mi := &file_orc_v1_config_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2708,7 +2862,7 @@ func (x *DeleteHookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteHookRequest.ProtoReflect.Descriptor instead.
 func (*DeleteHookRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{38}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *DeleteHookRequest) GetName() string {
@@ -2734,7 +2888,7 @@ type DeleteHookResponse struct {
 
 func (x *DeleteHookResponse) Reset() {
 	*x = DeleteHookResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[39]
+	mi := &file_orc_v1_config_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2746,7 +2900,7 @@ func (x *DeleteHookResponse) String() string {
 func (*DeleteHookResponse) ProtoMessage() {}
 
 func (x *DeleteHookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[39]
+	mi := &file_orc_v1_config_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2759,7 +2913,7 @@ func (x *DeleteHookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteHookResponse.ProtoReflect.Descriptor instead.
 func (*DeleteHookResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{39}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *DeleteHookResponse) GetMessage() string {
@@ -2778,7 +2932,7 @@ type ListSkillsRequest struct {
 
 func (x *ListSkillsRequest) Reset() {
 	*x = ListSkillsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[40]
+	mi := &file_orc_v1_config_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2790,7 +2944,7 @@ func (x *ListSkillsRequest) String() string {
 func (*ListSkillsRequest) ProtoMessage() {}
 
 func (x *ListSkillsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[40]
+	mi := &file_orc_v1_config_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2803,7 +2957,7 @@ func (x *ListSkillsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSkillsRequest.ProtoReflect.Descriptor instead.
 func (*ListSkillsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{40}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ListSkillsRequest) GetScope() SettingsScope {
@@ -2822,7 +2976,7 @@ type ListSkillsResponse struct {
 
 func (x *ListSkillsResponse) Reset() {
 	*x = ListSkillsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[41]
+	mi := &file_orc_v1_config_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2834,7 +2988,7 @@ func (x *ListSkillsResponse) String() string {
 func (*ListSkillsResponse) ProtoMessage() {}
 
 func (x *ListSkillsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[41]
+	mi := &file_orc_v1_config_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2847,7 +3001,7 @@ func (x *ListSkillsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSkillsResponse.ProtoReflect.Descriptor instead.
 func (*ListSkillsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{41}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ListSkillsResponse) GetSkills() []*Skill {
@@ -2871,7 +3025,7 @@ type CreateSkillRequest struct {
 
 func (x *CreateSkillRequest) Reset() {
 	*x = CreateSkillRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[42]
+	mi := &file_orc_v1_config_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2883,7 +3037,7 @@ func (x *CreateSkillRequest) String() string {
 func (*CreateSkillRequest) ProtoMessage() {}
 
 func (x *CreateSkillRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[42]
+	mi := &file_orc_v1_config_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2896,7 +3050,7 @@ func (x *CreateSkillRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSkillRequest.ProtoReflect.Descriptor instead.
 func (*CreateSkillRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{42}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *CreateSkillRequest) GetName() string {
@@ -2950,7 +3104,7 @@ type CreateSkillResponse struct {
 
 func (x *CreateSkillResponse) Reset() {
 	*x = CreateSkillResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[43]
+	mi := &file_orc_v1_config_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2962,7 +3116,7 @@ func (x *CreateSkillResponse) String() string {
 func (*CreateSkillResponse) ProtoMessage() {}
 
 func (x *CreateSkillResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[43]
+	mi := &file_orc_v1_config_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2975,7 +3129,7 @@ func (x *CreateSkillResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSkillResponse.ProtoReflect.Descriptor instead.
 func (*CreateSkillResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{43}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *CreateSkillResponse) GetSkill() *Skill {
@@ -2999,7 +3153,7 @@ type UpdateSkillRequest struct {
 
 func (x *UpdateSkillRequest) Reset() {
 	*x = UpdateSkillRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[44]
+	mi := &file_orc_v1_config_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3011,7 +3165,7 @@ func (x *UpdateSkillRequest) String() string {
 func (*UpdateSkillRequest) ProtoMessage() {}
 
 func (x *UpdateSkillRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[44]
+	mi := &file_orc_v1_config_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3024,7 +3178,7 @@ func (x *UpdateSkillRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSkillRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSkillRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{44}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UpdateSkillRequest) GetName() string {
@@ -3078,7 +3232,7 @@ type UpdateSkillResponse struct {
 
 func (x *UpdateSkillResponse) Reset() {
 	*x = UpdateSkillResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[45]
+	mi := &file_orc_v1_config_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3090,7 +3244,7 @@ func (x *UpdateSkillResponse) String() string {
 func (*UpdateSkillResponse) ProtoMessage() {}
 
 func (x *UpdateSkillResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[45]
+	mi := &file_orc_v1_config_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3103,7 +3257,7 @@ func (x *UpdateSkillResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSkillResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSkillResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{45}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *UpdateSkillResponse) GetSkill() *Skill {
@@ -3123,7 +3277,7 @@ type DeleteSkillRequest struct {
 
 func (x *DeleteSkillRequest) Reset() {
 	*x = DeleteSkillRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[46]
+	mi := &file_orc_v1_config_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3135,7 +3289,7 @@ func (x *DeleteSkillRequest) String() string {
 func (*DeleteSkillRequest) ProtoMessage() {}
 
 func (x *DeleteSkillRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[46]
+	mi := &file_orc_v1_config_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3148,7 +3302,7 @@ func (x *DeleteSkillRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSkillRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSkillRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{46}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *DeleteSkillRequest) GetName() string {
@@ -3174,7 +3328,7 @@ type DeleteSkillResponse struct {
 
 func (x *DeleteSkillResponse) Reset() {
 	*x = DeleteSkillResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[47]
+	mi := &file_orc_v1_config_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3186,7 +3340,7 @@ func (x *DeleteSkillResponse) String() string {
 func (*DeleteSkillResponse) ProtoMessage() {}
 
 func (x *DeleteSkillResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[47]
+	mi := &file_orc_v1_config_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3199,7 +3353,7 @@ func (x *DeleteSkillResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSkillResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSkillResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{47}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *DeleteSkillResponse) GetMessage() string {
@@ -3217,7 +3371,7 @@ type GetClaudeMdRequest struct {
 
 func (x *GetClaudeMdRequest) Reset() {
 	*x = GetClaudeMdRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[48]
+	mi := &file_orc_v1_config_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3229,7 +3383,7 @@ func (x *GetClaudeMdRequest) String() string {
 func (*GetClaudeMdRequest) ProtoMessage() {}
 
 func (x *GetClaudeMdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[48]
+	mi := &file_orc_v1_config_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3242,7 +3396,7 @@ func (x *GetClaudeMdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetClaudeMdRequest.ProtoReflect.Descriptor instead.
 func (*GetClaudeMdRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{48}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{49}
 }
 
 type GetClaudeMdResponse struct {
@@ -3254,7 +3408,7 @@ type GetClaudeMdResponse struct {
 
 func (x *GetClaudeMdResponse) Reset() {
 	*x = GetClaudeMdResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[49]
+	mi := &file_orc_v1_config_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3266,7 +3420,7 @@ func (x *GetClaudeMdResponse) String() string {
 func (*GetClaudeMdResponse) ProtoMessage() {}
 
 func (x *GetClaudeMdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[49]
+	mi := &file_orc_v1_config_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3279,7 +3433,7 @@ func (x *GetClaudeMdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetClaudeMdResponse.ProtoReflect.Descriptor instead.
 func (*GetClaudeMdResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{49}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetClaudeMdResponse) GetFiles() []*ClaudeMd {
@@ -3299,7 +3453,7 @@ type UpdateClaudeMdRequest struct {
 
 func (x *UpdateClaudeMdRequest) Reset() {
 	*x = UpdateClaudeMdRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[50]
+	mi := &file_orc_v1_config_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3311,7 +3465,7 @@ func (x *UpdateClaudeMdRequest) String() string {
 func (*UpdateClaudeMdRequest) ProtoMessage() {}
 
 func (x *UpdateClaudeMdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[50]
+	mi := &file_orc_v1_config_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3324,7 +3478,7 @@ func (x *UpdateClaudeMdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateClaudeMdRequest.ProtoReflect.Descriptor instead.
 func (*UpdateClaudeMdRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{50}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *UpdateClaudeMdRequest) GetScope() SettingsScope {
@@ -3350,7 +3504,7 @@ type UpdateClaudeMdResponse struct {
 
 func (x *UpdateClaudeMdResponse) Reset() {
 	*x = UpdateClaudeMdResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[51]
+	mi := &file_orc_v1_config_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3362,7 +3516,7 @@ func (x *UpdateClaudeMdResponse) String() string {
 func (*UpdateClaudeMdResponse) ProtoMessage() {}
 
 func (x *UpdateClaudeMdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[51]
+	mi := &file_orc_v1_config_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3375,7 +3529,7 @@ func (x *UpdateClaudeMdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateClaudeMdResponse.ProtoReflect.Descriptor instead.
 func (*UpdateClaudeMdResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{51}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *UpdateClaudeMdResponse) GetClaudeMd() *ClaudeMd {
@@ -3393,7 +3547,7 @@ type GetConstitutionRequest struct {
 
 func (x *GetConstitutionRequest) Reset() {
 	*x = GetConstitutionRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[52]
+	mi := &file_orc_v1_config_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3405,7 +3559,7 @@ func (x *GetConstitutionRequest) String() string {
 func (*GetConstitutionRequest) ProtoMessage() {}
 
 func (x *GetConstitutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[52]
+	mi := &file_orc_v1_config_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3418,7 +3572,7 @@ func (x *GetConstitutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*GetConstitutionRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{52}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{53}
 }
 
 type GetConstitutionResponse struct {
@@ -3430,7 +3584,7 @@ type GetConstitutionResponse struct {
 
 func (x *GetConstitutionResponse) Reset() {
 	*x = GetConstitutionResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[53]
+	mi := &file_orc_v1_config_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3442,7 +3596,7 @@ func (x *GetConstitutionResponse) String() string {
 func (*GetConstitutionResponse) ProtoMessage() {}
 
 func (x *GetConstitutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[53]
+	mi := &file_orc_v1_config_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3455,7 +3609,7 @@ func (x *GetConstitutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConstitutionResponse.ProtoReflect.Descriptor instead.
 func (*GetConstitutionResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{53}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *GetConstitutionResponse) GetConstitution() *Constitution {
@@ -3474,7 +3628,7 @@ type UpdateConstitutionRequest struct {
 
 func (x *UpdateConstitutionRequest) Reset() {
 	*x = UpdateConstitutionRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[54]
+	mi := &file_orc_v1_config_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3486,7 +3640,7 @@ func (x *UpdateConstitutionRequest) String() string {
 func (*UpdateConstitutionRequest) ProtoMessage() {}
 
 func (x *UpdateConstitutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[54]
+	mi := &file_orc_v1_config_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3499,7 +3653,7 @@ func (x *UpdateConstitutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConstitutionRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{54}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *UpdateConstitutionRequest) GetContent() string {
@@ -3518,7 +3672,7 @@ type UpdateConstitutionResponse struct {
 
 func (x *UpdateConstitutionResponse) Reset() {
 	*x = UpdateConstitutionResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[55]
+	mi := &file_orc_v1_config_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3530,7 +3684,7 @@ func (x *UpdateConstitutionResponse) String() string {
 func (*UpdateConstitutionResponse) ProtoMessage() {}
 
 func (x *UpdateConstitutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[55]
+	mi := &file_orc_v1_config_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3543,7 +3697,7 @@ func (x *UpdateConstitutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConstitutionResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConstitutionResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{55}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *UpdateConstitutionResponse) GetConstitution() *Constitution {
@@ -3561,7 +3715,7 @@ type DeleteConstitutionRequest struct {
 
 func (x *DeleteConstitutionRequest) Reset() {
 	*x = DeleteConstitutionRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[56]
+	mi := &file_orc_v1_config_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3573,7 +3727,7 @@ func (x *DeleteConstitutionRequest) String() string {
 func (*DeleteConstitutionRequest) ProtoMessage() {}
 
 func (x *DeleteConstitutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[56]
+	mi := &file_orc_v1_config_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3586,7 +3740,7 @@ func (x *DeleteConstitutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConstitutionRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{56}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{57}
 }
 
 type DeleteConstitutionResponse struct {
@@ -3598,7 +3752,7 @@ type DeleteConstitutionResponse struct {
 
 func (x *DeleteConstitutionResponse) Reset() {
 	*x = DeleteConstitutionResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[57]
+	mi := &file_orc_v1_config_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3610,7 +3764,7 @@ func (x *DeleteConstitutionResponse) String() string {
 func (*DeleteConstitutionResponse) ProtoMessage() {}
 
 func (x *DeleteConstitutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[57]
+	mi := &file_orc_v1_config_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3623,7 +3777,7 @@ func (x *DeleteConstitutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConstitutionResponse.ProtoReflect.Descriptor instead.
 func (*DeleteConstitutionResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{57}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *DeleteConstitutionResponse) GetMessage() string {
@@ -3641,7 +3795,7 @@ type ListPromptsRequest struct {
 
 func (x *ListPromptsRequest) Reset() {
 	*x = ListPromptsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[58]
+	mi := &file_orc_v1_config_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3653,7 +3807,7 @@ func (x *ListPromptsRequest) String() string {
 func (*ListPromptsRequest) ProtoMessage() {}
 
 func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[58]
+	mi := &file_orc_v1_config_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3666,7 +3820,7 @@ func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptsRequest.ProtoReflect.Descriptor instead.
 func (*ListPromptsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{58}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{59}
 }
 
 type ListPromptsResponse struct {
@@ -3678,7 +3832,7 @@ type ListPromptsResponse struct {
 
 func (x *ListPromptsResponse) Reset() {
 	*x = ListPromptsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[59]
+	mi := &file_orc_v1_config_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3690,7 +3844,7 @@ func (x *ListPromptsResponse) String() string {
 func (*ListPromptsResponse) ProtoMessage() {}
 
 func (x *ListPromptsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[59]
+	mi := &file_orc_v1_config_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3703,7 +3857,7 @@ func (x *ListPromptsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptsResponse.ProtoReflect.Descriptor instead.
 func (*ListPromptsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{59}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListPromptsResponse) GetPrompts() []*PromptTemplate {
@@ -3722,7 +3876,7 @@ type GetPromptRequest struct {
 
 func (x *GetPromptRequest) Reset() {
 	*x = GetPromptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[60]
+	mi := &file_orc_v1_config_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3734,7 +3888,7 @@ func (x *GetPromptRequest) String() string {
 func (*GetPromptRequest) ProtoMessage() {}
 
 func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[60]
+	mi := &file_orc_v1_config_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3747,7 +3901,7 @@ func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPromptRequest.ProtoReflect.Descriptor instead.
 func (*GetPromptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{60}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *GetPromptRequest) GetPhase() string {
@@ -3766,7 +3920,7 @@ type GetPromptResponse struct {
 
 func (x *GetPromptResponse) Reset() {
 	*x = GetPromptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[61]
+	mi := &file_orc_v1_config_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3778,7 +3932,7 @@ func (x *GetPromptResponse) String() string {
 func (*GetPromptResponse) ProtoMessage() {}
 
 func (x *GetPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[61]
+	mi := &file_orc_v1_config_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3791,7 +3945,7 @@ func (x *GetPromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPromptResponse.ProtoReflect.Descriptor instead.
 func (*GetPromptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{61}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *GetPromptResponse) GetPrompt() *PromptTemplate {
@@ -3810,7 +3964,7 @@ type GetDefaultPromptRequest struct {
 
 func (x *GetDefaultPromptRequest) Reset() {
 	*x = GetDefaultPromptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[62]
+	mi := &file_orc_v1_config_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3822,7 +3976,7 @@ func (x *GetDefaultPromptRequest) String() string {
 func (*GetDefaultPromptRequest) ProtoMessage() {}
 
 func (x *GetDefaultPromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[62]
+	mi := &file_orc_v1_config_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3835,7 +3989,7 @@ func (x *GetDefaultPromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDefaultPromptRequest.ProtoReflect.Descriptor instead.
 func (*GetDefaultPromptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{62}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *GetDefaultPromptRequest) GetPhase() string {
@@ -3854,7 +4008,7 @@ type GetDefaultPromptResponse struct {
 
 func (x *GetDefaultPromptResponse) Reset() {
 	*x = GetDefaultPromptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[63]
+	mi := &file_orc_v1_config_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3866,7 +4020,7 @@ func (x *GetDefaultPromptResponse) String() string {
 func (*GetDefaultPromptResponse) ProtoMessage() {}
 
 func (x *GetDefaultPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[63]
+	mi := &file_orc_v1_config_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3879,7 +4033,7 @@ func (x *GetDefaultPromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDefaultPromptResponse.ProtoReflect.Descriptor instead.
 func (*GetDefaultPromptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{63}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *GetDefaultPromptResponse) GetPrompt() *PromptTemplate {
@@ -3899,7 +4053,7 @@ type UpdatePromptRequest struct {
 
 func (x *UpdatePromptRequest) Reset() {
 	*x = UpdatePromptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[64]
+	mi := &file_orc_v1_config_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3911,7 +4065,7 @@ func (x *UpdatePromptRequest) String() string {
 func (*UpdatePromptRequest) ProtoMessage() {}
 
 func (x *UpdatePromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[64]
+	mi := &file_orc_v1_config_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3924,7 +4078,7 @@ func (x *UpdatePromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePromptRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePromptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{64}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *UpdatePromptRequest) GetPhase() string {
@@ -3950,7 +4104,7 @@ type UpdatePromptResponse struct {
 
 func (x *UpdatePromptResponse) Reset() {
 	*x = UpdatePromptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[65]
+	mi := &file_orc_v1_config_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3962,7 +4116,7 @@ func (x *UpdatePromptResponse) String() string {
 func (*UpdatePromptResponse) ProtoMessage() {}
 
 func (x *UpdatePromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[65]
+	mi := &file_orc_v1_config_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3975,7 +4129,7 @@ func (x *UpdatePromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePromptResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePromptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{65}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *UpdatePromptResponse) GetPrompt() *PromptTemplate {
@@ -3994,7 +4148,7 @@ type DeletePromptRequest struct {
 
 func (x *DeletePromptRequest) Reset() {
 	*x = DeletePromptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[66]
+	mi := &file_orc_v1_config_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4006,7 +4160,7 @@ func (x *DeletePromptRequest) String() string {
 func (*DeletePromptRequest) ProtoMessage() {}
 
 func (x *DeletePromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[66]
+	mi := &file_orc_v1_config_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4019,7 +4173,7 @@ func (x *DeletePromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePromptRequest.ProtoReflect.Descriptor instead.
 func (*DeletePromptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{66}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *DeletePromptRequest) GetPhase() string {
@@ -4038,7 +4192,7 @@ type DeletePromptResponse struct {
 
 func (x *DeletePromptResponse) Reset() {
 	*x = DeletePromptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[67]
+	mi := &file_orc_v1_config_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4050,7 +4204,7 @@ func (x *DeletePromptResponse) String() string {
 func (*DeletePromptResponse) ProtoMessage() {}
 
 func (x *DeletePromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[67]
+	mi := &file_orc_v1_config_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4063,7 +4217,7 @@ func (x *DeletePromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePromptResponse.ProtoReflect.Descriptor instead.
 func (*DeletePromptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{67}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *DeletePromptResponse) GetMessage() string {
@@ -4081,7 +4235,7 @@ type ListPromptVariablesRequest struct {
 
 func (x *ListPromptVariablesRequest) Reset() {
 	*x = ListPromptVariablesRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[68]
+	mi := &file_orc_v1_config_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4093,7 +4247,7 @@ func (x *ListPromptVariablesRequest) String() string {
 func (*ListPromptVariablesRequest) ProtoMessage() {}
 
 func (x *ListPromptVariablesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[68]
+	mi := &file_orc_v1_config_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4106,7 +4260,7 @@ func (x *ListPromptVariablesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptVariablesRequest.ProtoReflect.Descriptor instead.
 func (*ListPromptVariablesRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{68}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{69}
 }
 
 type ListPromptVariablesResponse struct {
@@ -4118,7 +4272,7 @@ type ListPromptVariablesResponse struct {
 
 func (x *ListPromptVariablesResponse) Reset() {
 	*x = ListPromptVariablesResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[69]
+	mi := &file_orc_v1_config_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4130,7 +4284,7 @@ func (x *ListPromptVariablesResponse) String() string {
 func (*ListPromptVariablesResponse) ProtoMessage() {}
 
 func (x *ListPromptVariablesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[69]
+	mi := &file_orc_v1_config_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4143,7 +4297,7 @@ func (x *ListPromptVariablesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPromptVariablesResponse.ProtoReflect.Descriptor instead.
 func (*ListPromptVariablesResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{69}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ListPromptVariablesResponse) GetVariables() []*PromptVariable {
@@ -4163,7 +4317,7 @@ type ListAgentsRequest struct {
 
 func (x *ListAgentsRequest) Reset() {
 	*x = ListAgentsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[70]
+	mi := &file_orc_v1_config_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4175,7 +4329,7 @@ func (x *ListAgentsRequest) String() string {
 func (*ListAgentsRequest) ProtoMessage() {}
 
 func (x *ListAgentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[70]
+	mi := &file_orc_v1_config_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4188,7 +4342,7 @@ func (x *ListAgentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{70}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *ListAgentsRequest) GetScope() SettingsScope {
@@ -4207,7 +4361,7 @@ type ListAgentsResponse struct {
 
 func (x *ListAgentsResponse) Reset() {
 	*x = ListAgentsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[71]
+	mi := &file_orc_v1_config_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4219,7 +4373,7 @@ func (x *ListAgentsResponse) String() string {
 func (*ListAgentsResponse) ProtoMessage() {}
 
 func (x *ListAgentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[71]
+	mi := &file_orc_v1_config_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4232,7 +4386,7 @@ func (x *ListAgentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentsResponse.ProtoReflect.Descriptor instead.
 func (*ListAgentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{71}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ListAgentsResponse) GetAgents() []*Agent {
@@ -4251,7 +4405,7 @@ type GetAgentRequest struct {
 
 func (x *GetAgentRequest) Reset() {
 	*x = GetAgentRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[72]
+	mi := &file_orc_v1_config_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4263,7 +4417,7 @@ func (x *GetAgentRequest) String() string {
 func (*GetAgentRequest) ProtoMessage() {}
 
 func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[72]
+	mi := &file_orc_v1_config_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4276,7 +4430,7 @@ func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentRequest.ProtoReflect.Descriptor instead.
 func (*GetAgentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{72}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *GetAgentRequest) GetName() string {
@@ -4295,7 +4449,7 @@ type GetAgentResponse struct {
 
 func (x *GetAgentResponse) Reset() {
 	*x = GetAgentResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[73]
+	mi := &file_orc_v1_config_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4307,7 +4461,7 @@ func (x *GetAgentResponse) String() string {
 func (*GetAgentResponse) ProtoMessage() {}
 
 func (x *GetAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[73]
+	mi := &file_orc_v1_config_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4320,7 +4474,7 @@ func (x *GetAgentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentResponse.ProtoReflect.Descriptor instead.
 func (*GetAgentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{73}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *GetAgentResponse) GetAgent() *Agent {
@@ -4347,7 +4501,7 @@ type CreateAgentRequest struct {
 
 func (x *CreateAgentRequest) Reset() {
 	*x = CreateAgentRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[74]
+	mi := &file_orc_v1_config_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4359,7 +4513,7 @@ func (x *CreateAgentRequest) String() string {
 func (*CreateAgentRequest) ProtoMessage() {}
 
 func (x *CreateAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[74]
+	mi := &file_orc_v1_config_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4372,7 +4526,7 @@ func (x *CreateAgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentRequest.ProtoReflect.Descriptor instead.
 func (*CreateAgentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{74}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *CreateAgentRequest) GetName() string {
@@ -4447,7 +4601,7 @@ type CreateAgentResponse struct {
 
 func (x *CreateAgentResponse) Reset() {
 	*x = CreateAgentResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[75]
+	mi := &file_orc_v1_config_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4459,7 +4613,7 @@ func (x *CreateAgentResponse) String() string {
 func (*CreateAgentResponse) ProtoMessage() {}
 
 func (x *CreateAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[75]
+	mi := &file_orc_v1_config_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4472,7 +4626,7 @@ func (x *CreateAgentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAgentResponse.ProtoReflect.Descriptor instead.
 func (*CreateAgentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{75}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *CreateAgentResponse) GetAgent() *Agent {
@@ -4498,7 +4652,7 @@ type UpdateAgentRequest struct {
 
 func (x *UpdateAgentRequest) Reset() {
 	*x = UpdateAgentRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[76]
+	mi := &file_orc_v1_config_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4510,7 +4664,7 @@ func (x *UpdateAgentRequest) String() string {
 func (*UpdateAgentRequest) ProtoMessage() {}
 
 func (x *UpdateAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[76]
+	mi := &file_orc_v1_config_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4523,7 +4677,7 @@ func (x *UpdateAgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAgentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAgentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{76}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *UpdateAgentRequest) GetName() string {
@@ -4591,7 +4745,7 @@ type UpdateAgentResponse struct {
 
 func (x *UpdateAgentResponse) Reset() {
 	*x = UpdateAgentResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[77]
+	mi := &file_orc_v1_config_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4603,7 +4757,7 @@ func (x *UpdateAgentResponse) String() string {
 func (*UpdateAgentResponse) ProtoMessage() {}
 
 func (x *UpdateAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[77]
+	mi := &file_orc_v1_config_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4616,7 +4770,7 @@ func (x *UpdateAgentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAgentResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAgentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{77}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *UpdateAgentResponse) GetAgent() *Agent {
@@ -4635,7 +4789,7 @@ type DeleteAgentRequest struct {
 
 func (x *DeleteAgentRequest) Reset() {
 	*x = DeleteAgentRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[78]
+	mi := &file_orc_v1_config_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4647,7 +4801,7 @@ func (x *DeleteAgentRequest) String() string {
 func (*DeleteAgentRequest) ProtoMessage() {}
 
 func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[78]
+	mi := &file_orc_v1_config_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4660,7 +4814,7 @@ func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{78}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *DeleteAgentRequest) GetName() string {
@@ -4679,7 +4833,7 @@ type DeleteAgentResponse struct {
 
 func (x *DeleteAgentResponse) Reset() {
 	*x = DeleteAgentResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[79]
+	mi := &file_orc_v1_config_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4691,7 +4845,7 @@ func (x *DeleteAgentResponse) String() string {
 func (*DeleteAgentResponse) ProtoMessage() {}
 
 func (x *DeleteAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[79]
+	mi := &file_orc_v1_config_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4704,7 +4858,7 @@ func (x *DeleteAgentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAgentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAgentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{79}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *DeleteAgentResponse) GetMessage() string {
@@ -4723,7 +4877,7 @@ type ListScriptsRequest struct {
 
 func (x *ListScriptsRequest) Reset() {
 	*x = ListScriptsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[80]
+	mi := &file_orc_v1_config_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4735,7 +4889,7 @@ func (x *ListScriptsRequest) String() string {
 func (*ListScriptsRequest) ProtoMessage() {}
 
 func (x *ListScriptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[80]
+	mi := &file_orc_v1_config_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4748,7 +4902,7 @@ func (x *ListScriptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListScriptsRequest.ProtoReflect.Descriptor instead.
 func (*ListScriptsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{80}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{81}
 }
 
 type ListScriptsResponse struct {
@@ -4760,7 +4914,7 @@ type ListScriptsResponse struct {
 
 func (x *ListScriptsResponse) Reset() {
 	*x = ListScriptsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[81]
+	mi := &file_orc_v1_config_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4772,7 +4926,7 @@ func (x *ListScriptsResponse) String() string {
 func (*ListScriptsResponse) ProtoMessage() {}
 
 func (x *ListScriptsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[81]
+	mi := &file_orc_v1_config_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4785,7 +4939,7 @@ func (x *ListScriptsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListScriptsResponse.ProtoReflect.Descriptor instead.
 func (*ListScriptsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{81}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *ListScriptsResponse) GetScripts() []*Script {
@@ -4803,7 +4957,7 @@ type DiscoverScriptsRequest struct {
 
 func (x *DiscoverScriptsRequest) Reset() {
 	*x = DiscoverScriptsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[82]
+	mi := &file_orc_v1_config_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4815,7 +4969,7 @@ func (x *DiscoverScriptsRequest) String() string {
 func (*DiscoverScriptsRequest) ProtoMessage() {}
 
 func (x *DiscoverScriptsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[82]
+	mi := &file_orc_v1_config_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4828,7 +4982,7 @@ func (x *DiscoverScriptsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverScriptsRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverScriptsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{82}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{83}
 }
 
 type DiscoverScriptsResponse struct {
@@ -4840,7 +4994,7 @@ type DiscoverScriptsResponse struct {
 
 func (x *DiscoverScriptsResponse) Reset() {
 	*x = DiscoverScriptsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[83]
+	mi := &file_orc_v1_config_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4852,7 +5006,7 @@ func (x *DiscoverScriptsResponse) String() string {
 func (*DiscoverScriptsResponse) ProtoMessage() {}
 
 func (x *DiscoverScriptsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[83]
+	mi := &file_orc_v1_config_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4865,7 +5019,7 @@ func (x *DiscoverScriptsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverScriptsResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverScriptsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{83}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *DiscoverScriptsResponse) GetScripts() []*Script {
@@ -4884,7 +5038,7 @@ type GetScriptRequest struct {
 
 func (x *GetScriptRequest) Reset() {
 	*x = GetScriptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[84]
+	mi := &file_orc_v1_config_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4896,7 +5050,7 @@ func (x *GetScriptRequest) String() string {
 func (*GetScriptRequest) ProtoMessage() {}
 
 func (x *GetScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[84]
+	mi := &file_orc_v1_config_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4909,7 +5063,7 @@ func (x *GetScriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScriptRequest.ProtoReflect.Descriptor instead.
 func (*GetScriptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{84}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *GetScriptRequest) GetName() string {
@@ -4928,7 +5082,7 @@ type GetScriptResponse struct {
 
 func (x *GetScriptResponse) Reset() {
 	*x = GetScriptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[85]
+	mi := &file_orc_v1_config_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4940,7 +5094,7 @@ func (x *GetScriptResponse) String() string {
 func (*GetScriptResponse) ProtoMessage() {}
 
 func (x *GetScriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[85]
+	mi := &file_orc_v1_config_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4953,7 +5107,7 @@ func (x *GetScriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScriptResponse.ProtoReflect.Descriptor instead.
 func (*GetScriptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{85}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *GetScriptResponse) GetScript() *Script {
@@ -4975,7 +5129,7 @@ type CreateScriptRequest struct {
 
 func (x *CreateScriptRequest) Reset() {
 	*x = CreateScriptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[86]
+	mi := &file_orc_v1_config_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4987,7 +5141,7 @@ func (x *CreateScriptRequest) String() string {
 func (*CreateScriptRequest) ProtoMessage() {}
 
 func (x *CreateScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[86]
+	mi := &file_orc_v1_config_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5000,7 +5154,7 @@ func (x *CreateScriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateScriptRequest.ProtoReflect.Descriptor instead.
 func (*CreateScriptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{86}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *CreateScriptRequest) GetName() string {
@@ -5040,7 +5194,7 @@ type CreateScriptResponse struct {
 
 func (x *CreateScriptResponse) Reset() {
 	*x = CreateScriptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[87]
+	mi := &file_orc_v1_config_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5052,7 +5206,7 @@ func (x *CreateScriptResponse) String() string {
 func (*CreateScriptResponse) ProtoMessage() {}
 
 func (x *CreateScriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[87]
+	mi := &file_orc_v1_config_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5065,7 +5219,7 @@ func (x *CreateScriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateScriptResponse.ProtoReflect.Descriptor instead.
 func (*CreateScriptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{87}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *CreateScriptResponse) GetScript() *Script {
@@ -5087,7 +5241,7 @@ type UpdateScriptRequest struct {
 
 func (x *UpdateScriptRequest) Reset() {
 	*x = UpdateScriptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[88]
+	mi := &file_orc_v1_config_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5099,7 +5253,7 @@ func (x *UpdateScriptRequest) String() string {
 func (*UpdateScriptRequest) ProtoMessage() {}
 
 func (x *UpdateScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[88]
+	mi := &file_orc_v1_config_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5112,7 +5266,7 @@ func (x *UpdateScriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateScriptRequest.ProtoReflect.Descriptor instead.
 func (*UpdateScriptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{88}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *UpdateScriptRequest) GetName() string {
@@ -5152,7 +5306,7 @@ type UpdateScriptResponse struct {
 
 func (x *UpdateScriptResponse) Reset() {
 	*x = UpdateScriptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[89]
+	mi := &file_orc_v1_config_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5164,7 +5318,7 @@ func (x *UpdateScriptResponse) String() string {
 func (*UpdateScriptResponse) ProtoMessage() {}
 
 func (x *UpdateScriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[89]
+	mi := &file_orc_v1_config_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5177,7 +5331,7 @@ func (x *UpdateScriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateScriptResponse.ProtoReflect.Descriptor instead.
 func (*UpdateScriptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{89}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *UpdateScriptResponse) GetScript() *Script {
@@ -5196,7 +5350,7 @@ type DeleteScriptRequest struct {
 
 func (x *DeleteScriptRequest) Reset() {
 	*x = DeleteScriptRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[90]
+	mi := &file_orc_v1_config_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5208,7 +5362,7 @@ func (x *DeleteScriptRequest) String() string {
 func (*DeleteScriptRequest) ProtoMessage() {}
 
 func (x *DeleteScriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[90]
+	mi := &file_orc_v1_config_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5221,7 +5375,7 @@ func (x *DeleteScriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteScriptRequest.ProtoReflect.Descriptor instead.
 func (*DeleteScriptRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{90}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *DeleteScriptRequest) GetName() string {
@@ -5240,7 +5394,7 @@ type DeleteScriptResponse struct {
 
 func (x *DeleteScriptResponse) Reset() {
 	*x = DeleteScriptResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[91]
+	mi := &file_orc_v1_config_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5252,7 +5406,7 @@ func (x *DeleteScriptResponse) String() string {
 func (*DeleteScriptResponse) ProtoMessage() {}
 
 func (x *DeleteScriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[91]
+	mi := &file_orc_v1_config_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5265,7 +5419,7 @@ func (x *DeleteScriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteScriptResponse.ProtoReflect.Descriptor instead.
 func (*DeleteScriptResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{91}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *DeleteScriptResponse) GetMessage() string {
@@ -5286,7 +5440,7 @@ type ListToolsRequest struct {
 
 func (x *ListToolsRequest) Reset() {
 	*x = ListToolsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[92]
+	mi := &file_orc_v1_config_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5298,7 +5452,7 @@ func (x *ListToolsRequest) String() string {
 func (*ListToolsRequest) ProtoMessage() {}
 
 func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[92]
+	mi := &file_orc_v1_config_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5311,7 +5465,7 @@ func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsRequest.ProtoReflect.Descriptor instead.
 func (*ListToolsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{92}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *ListToolsRequest) GetScope() SettingsScope {
@@ -5338,7 +5492,7 @@ type ListToolsResponse struct {
 
 func (x *ListToolsResponse) Reset() {
 	*x = ListToolsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[93]
+	mi := &file_orc_v1_config_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5350,7 +5504,7 @@ func (x *ListToolsResponse) String() string {
 func (*ListToolsResponse) ProtoMessage() {}
 
 func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[93]
+	mi := &file_orc_v1_config_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5363,7 +5517,7 @@ func (x *ListToolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListToolsResponse.ProtoReflect.Descriptor instead.
 func (*ListToolsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{93}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *ListToolsResponse) GetTools() []*ToolInfo {
@@ -5389,7 +5543,7 @@ type ToolList struct {
 
 func (x *ToolList) Reset() {
 	*x = ToolList{}
-	mi := &file_orc_v1_config_proto_msgTypes[94]
+	mi := &file_orc_v1_config_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5401,7 +5555,7 @@ func (x *ToolList) String() string {
 func (*ToolList) ProtoMessage() {}
 
 func (x *ToolList) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[94]
+	mi := &file_orc_v1_config_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5414,7 +5568,7 @@ func (x *ToolList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolList.ProtoReflect.Descriptor instead.
 func (*ToolList) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{94}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ToolList) GetTools() []*ToolInfo {
@@ -5432,7 +5586,7 @@ type GetToolPermissionsRequest struct {
 
 func (x *GetToolPermissionsRequest) Reset() {
 	*x = GetToolPermissionsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[95]
+	mi := &file_orc_v1_config_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5444,7 +5598,7 @@ func (x *GetToolPermissionsRequest) String() string {
 func (*GetToolPermissionsRequest) ProtoMessage() {}
 
 func (x *GetToolPermissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[95]
+	mi := &file_orc_v1_config_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5457,7 +5611,7 @@ func (x *GetToolPermissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetToolPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*GetToolPermissionsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{95}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{96}
 }
 
 type GetToolPermissionsResponse struct {
@@ -5469,7 +5623,7 @@ type GetToolPermissionsResponse struct {
 
 func (x *GetToolPermissionsResponse) Reset() {
 	*x = GetToolPermissionsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[96]
+	mi := &file_orc_v1_config_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5481,7 +5635,7 @@ func (x *GetToolPermissionsResponse) String() string {
 func (*GetToolPermissionsResponse) ProtoMessage() {}
 
 func (x *GetToolPermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[96]
+	mi := &file_orc_v1_config_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5494,7 +5648,7 @@ func (x *GetToolPermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetToolPermissionsResponse.ProtoReflect.Descriptor instead.
 func (*GetToolPermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{96}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *GetToolPermissionsResponse) GetPermissions() *ToolPermissions {
@@ -5513,7 +5667,7 @@ type UpdateToolPermissionsRequest struct {
 
 func (x *UpdateToolPermissionsRequest) Reset() {
 	*x = UpdateToolPermissionsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[97]
+	mi := &file_orc_v1_config_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5525,7 +5679,7 @@ func (x *UpdateToolPermissionsRequest) String() string {
 func (*UpdateToolPermissionsRequest) ProtoMessage() {}
 
 func (x *UpdateToolPermissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[97]
+	mi := &file_orc_v1_config_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5538,7 +5692,7 @@ func (x *UpdateToolPermissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateToolPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateToolPermissionsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{97}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *UpdateToolPermissionsRequest) GetPermissions() *ToolPermissions {
@@ -5557,7 +5711,7 @@ type UpdateToolPermissionsResponse struct {
 
 func (x *UpdateToolPermissionsResponse) Reset() {
 	*x = UpdateToolPermissionsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[98]
+	mi := &file_orc_v1_config_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5569,7 +5723,7 @@ func (x *UpdateToolPermissionsResponse) String() string {
 func (*UpdateToolPermissionsResponse) ProtoMessage() {}
 
 func (x *UpdateToolPermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[98]
+	mi := &file_orc_v1_config_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5582,7 +5736,7 @@ func (x *UpdateToolPermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateToolPermissionsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateToolPermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{98}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *UpdateToolPermissionsResponse) GetPermissions() *ToolPermissions {
@@ -5601,7 +5755,7 @@ type GetConfigStatsRequest struct {
 
 func (x *GetConfigStatsRequest) Reset() {
 	*x = GetConfigStatsRequest{}
-	mi := &file_orc_v1_config_proto_msgTypes[99]
+	mi := &file_orc_v1_config_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5613,7 +5767,7 @@ func (x *GetConfigStatsRequest) String() string {
 func (*GetConfigStatsRequest) ProtoMessage() {}
 
 func (x *GetConfigStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[99]
+	mi := &file_orc_v1_config_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5626,7 +5780,7 @@ func (x *GetConfigStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigStatsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{99}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{100}
 }
 
 type GetConfigStatsResponse struct {
@@ -5638,7 +5792,7 @@ type GetConfigStatsResponse struct {
 
 func (x *GetConfigStatsResponse) Reset() {
 	*x = GetConfigStatsResponse{}
-	mi := &file_orc_v1_config_proto_msgTypes[100]
+	mi := &file_orc_v1_config_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5650,7 +5804,7 @@ func (x *GetConfigStatsResponse) String() string {
 func (*GetConfigStatsResponse) ProtoMessage() {}
 
 func (x *GetConfigStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_config_proto_msgTypes[100]
+	mi := &file_orc_v1_config_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5663,7 +5817,7 @@ func (x *GetConfigStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigStatsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_config_proto_rawDescGZIP(), []int{100}
+	return file_orc_v1_config_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *GetConfigStatsResponse) GetStats() *ConfigStats {
@@ -5677,7 +5831,7 @@ var File_orc_v1_config_proto protoreflect.FileDescriptor
 
 const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x13orc/v1/config.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x02\n" +
+	"\x13orc/v1/config.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x02\n" +
 	"\x06Config\x128\n" +
 	"\n" +
 	"automation\x18\x01 \x01(\v2\x18.orc.v1.AutomationConfigR\n" +
@@ -5687,7 +5841,8 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"completion\x12,\n" +
 	"\x06export\x18\x03 \x01(\v2\x14.orc.v1.ExportConfigR\x06export\x12,\n" +
 	"\x06claude\x18\x04 \x01(\v2\x14.orc.v1.ClaudeConfigR\x06claude\x125\n" +
-	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigR\texecution\"l\n" +
+	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigR\texecution\x12&\n" +
+	"\x04jira\x18\x06 \x01(\v2\x12.orc.v1.JiraConfigR\x04jira\"l\n" +
 	"\x10AutomationConfig\x12\x18\n" +
 	"\aprofile\x18\x01 \x01(\tR\aprofile\x12!\n" +
 	"\fauto_approve\x18\x02 \x01(\bR\vautoApprove\x12\x1b\n" +
@@ -5733,7 +5888,34 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x0fExecutionConfig\x12%\n" +
 	"\x0eparallel_tasks\x18\x01 \x01(\x05R\rparallelTasks\x12\x1d\n" +
 	"\n" +
-	"cost_limit\x18\x02 \x01(\x05R\tcostLimit\"\x94\x02\n" +
+	"cost_limit\x18\x02 \x01(\x05R\tcostLimit\"\xfd\x06\n" +
+	"\n" +
+	"JiraConfig\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\"\n" +
+	"\rtoken_env_var\x18\x03 \x01(\tR\vtokenEnvVar\x121\n" +
+	"\x12epic_to_initiative\x18\x04 \x01(\bH\x00R\x10epicToInitiative\x88\x01\x01\x12%\n" +
+	"\x0edefault_weight\x18\x05 \x01(\tR\rdefaultWeight\x12#\n" +
+	"\rdefault_queue\x18\x06 \x01(\tR\fdefaultQueue\x12I\n" +
+	"\rcustom_fields\x18\a \x03(\v2$.orc.v1.JiraConfig.CustomFieldsEntryR\fcustomFields\x12)\n" +
+	"\x10default_projects\x18\b \x03(\tR\x0fdefaultProjects\x12R\n" +
+	"\x10status_overrides\x18\t \x03(\v2'.orc.v1.JiraConfig.StatusOverridesEntryR\x0fstatusOverrides\x12X\n" +
+	"\x12category_overrides\x18\n" +
+	" \x03(\v2).orc.v1.JiraConfig.CategoryOverridesEntryR\x11categoryOverrides\x12X\n" +
+	"\x12priority_overrides\x18\v \x03(\v2).orc.v1.JiraConfig.PriorityOverridesEntryR\x11priorityOverrides\x1a?\n" +
+	"\x11CustomFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aB\n" +
+	"\x14StatusOverridesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
+	"\x16CategoryOverridesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aD\n" +
+	"\x16PriorityOverridesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x15\n" +
+	"\x13_epic_to_initiative\"\x94\x02\n" +
 	"\bSettings\x12\x14\n" +
 	"\x05tools\x18\x01 \x03(\tR\x05tools\x12\x1f\n" +
 	"\vmcp_servers\x18\x02 \x03(\tR\n" +
@@ -5845,7 +6027,7 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x13permissions_profile\x18\x04 \x01(\tR\x12permissionsProfile\"\x12\n" +
 	"\x10GetConfigRequest\";\n" +
 	"\x11GetConfigResponse\x12&\n" +
-	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xf7\x02\n" +
+	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xad\x03\n" +
 	"\x13UpdateConfigRequest\x12=\n" +
 	"\n" +
 	"automation\x18\x01 \x01(\v2\x18.orc.v1.AutomationConfigH\x00R\n" +
@@ -5855,13 +6037,15 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"completion\x88\x01\x01\x121\n" +
 	"\x06export\x18\x03 \x01(\v2\x14.orc.v1.ExportConfigH\x02R\x06export\x88\x01\x01\x121\n" +
 	"\x06claude\x18\x04 \x01(\v2\x14.orc.v1.ClaudeConfigH\x03R\x06claude\x88\x01\x01\x12:\n" +
-	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigH\x04R\texecution\x88\x01\x01B\r\n" +
+	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigH\x04R\texecution\x88\x01\x01\x12+\n" +
+	"\x04jira\x18\x06 \x01(\v2\x12.orc.v1.JiraConfigH\x05R\x04jira\x88\x01\x01B\r\n" +
 	"\v_automationB\r\n" +
 	"\v_completionB\t\n" +
 	"\a_exportB\t\n" +
 	"\a_claudeB\f\n" +
 	"\n" +
-	"_execution\">\n" +
+	"_executionB\a\n" +
+	"\x05_jira\">\n" +
 	"\x14UpdateConfigResponse\x12&\n" +
 	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"A\n" +
 	"\x12GetSettingsRequest\x12+\n" +
@@ -6183,7 +6367,7 @@ func file_orc_v1_config_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 106)
+var file_orc_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 111)
 var file_orc_v1_config_proto_goTypes = []any{
 	(SettingsScope)(0),                    // 0: orc.v1.SettingsScope
 	(HookEvent)(0),                        // 1: orc.v1.HookEvent
@@ -6195,105 +6379,110 @@ var file_orc_v1_config_proto_goTypes = []any{
 	(*ExportConfig)(nil),                  // 7: orc.v1.ExportConfig
 	(*ClaudeConfig)(nil),                  // 8: orc.v1.ClaudeConfig
 	(*ExecutionConfig)(nil),               // 9: orc.v1.ExecutionConfig
-	(*Settings)(nil),                      // 10: orc.v1.Settings
-	(*SettingsHierarchy)(nil),             // 11: orc.v1.SettingsHierarchy
-	(*Hook)(nil),                          // 12: orc.v1.Hook
-	(*Skill)(nil),                         // 13: orc.v1.Skill
-	(*ClaudeMd)(nil),                      // 14: orc.v1.ClaudeMd
-	(*PromptTemplate)(nil),                // 15: orc.v1.PromptTemplate
-	(*PromptVariable)(nil),                // 16: orc.v1.PromptVariable
-	(*Constitution)(nil),                  // 17: orc.v1.Constitution
-	(*AgentStats)(nil),                    // 18: orc.v1.AgentStats
-	(*Agent)(nil),                         // 19: orc.v1.Agent
-	(*ToolPermissions)(nil),               // 20: orc.v1.ToolPermissions
-	(*ToolInfo)(nil),                      // 21: orc.v1.ToolInfo
-	(*Script)(nil),                        // 22: orc.v1.Script
-	(*ConfigStats)(nil),                   // 23: orc.v1.ConfigStats
-	(*GetConfigRequest)(nil),              // 24: orc.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),             // 25: orc.v1.GetConfigResponse
-	(*UpdateConfigRequest)(nil),           // 26: orc.v1.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil),          // 27: orc.v1.UpdateConfigResponse
-	(*GetSettingsRequest)(nil),            // 28: orc.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),           // 29: orc.v1.GetSettingsResponse
-	(*UpdateSettingsRequest)(nil),         // 30: orc.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),        // 31: orc.v1.UpdateSettingsResponse
-	(*GetSettingsHierarchyRequest)(nil),   // 32: orc.v1.GetSettingsHierarchyRequest
-	(*GetSettingsHierarchyResponse)(nil),  // 33: orc.v1.GetSettingsHierarchyResponse
-	(*ListHooksRequest)(nil),              // 34: orc.v1.ListHooksRequest
-	(*ListHooksResponse)(nil),             // 35: orc.v1.ListHooksResponse
-	(*CreateHookRequest)(nil),             // 36: orc.v1.CreateHookRequest
-	(*CreateHookResponse)(nil),            // 37: orc.v1.CreateHookResponse
-	(*UpdateHookRequest)(nil),             // 38: orc.v1.UpdateHookRequest
-	(*UpdateHookResponse)(nil),            // 39: orc.v1.UpdateHookResponse
-	(*DeleteHookRequest)(nil),             // 40: orc.v1.DeleteHookRequest
-	(*DeleteHookResponse)(nil),            // 41: orc.v1.DeleteHookResponse
-	(*ListSkillsRequest)(nil),             // 42: orc.v1.ListSkillsRequest
-	(*ListSkillsResponse)(nil),            // 43: orc.v1.ListSkillsResponse
-	(*CreateSkillRequest)(nil),            // 44: orc.v1.CreateSkillRequest
-	(*CreateSkillResponse)(nil),           // 45: orc.v1.CreateSkillResponse
-	(*UpdateSkillRequest)(nil),            // 46: orc.v1.UpdateSkillRequest
-	(*UpdateSkillResponse)(nil),           // 47: orc.v1.UpdateSkillResponse
-	(*DeleteSkillRequest)(nil),            // 48: orc.v1.DeleteSkillRequest
-	(*DeleteSkillResponse)(nil),           // 49: orc.v1.DeleteSkillResponse
-	(*GetClaudeMdRequest)(nil),            // 50: orc.v1.GetClaudeMdRequest
-	(*GetClaudeMdResponse)(nil),           // 51: orc.v1.GetClaudeMdResponse
-	(*UpdateClaudeMdRequest)(nil),         // 52: orc.v1.UpdateClaudeMdRequest
-	(*UpdateClaudeMdResponse)(nil),        // 53: orc.v1.UpdateClaudeMdResponse
-	(*GetConstitutionRequest)(nil),        // 54: orc.v1.GetConstitutionRequest
-	(*GetConstitutionResponse)(nil),       // 55: orc.v1.GetConstitutionResponse
-	(*UpdateConstitutionRequest)(nil),     // 56: orc.v1.UpdateConstitutionRequest
-	(*UpdateConstitutionResponse)(nil),    // 57: orc.v1.UpdateConstitutionResponse
-	(*DeleteConstitutionRequest)(nil),     // 58: orc.v1.DeleteConstitutionRequest
-	(*DeleteConstitutionResponse)(nil),    // 59: orc.v1.DeleteConstitutionResponse
-	(*ListPromptsRequest)(nil),            // 60: orc.v1.ListPromptsRequest
-	(*ListPromptsResponse)(nil),           // 61: orc.v1.ListPromptsResponse
-	(*GetPromptRequest)(nil),              // 62: orc.v1.GetPromptRequest
-	(*GetPromptResponse)(nil),             // 63: orc.v1.GetPromptResponse
-	(*GetDefaultPromptRequest)(nil),       // 64: orc.v1.GetDefaultPromptRequest
-	(*GetDefaultPromptResponse)(nil),      // 65: orc.v1.GetDefaultPromptResponse
-	(*UpdatePromptRequest)(nil),           // 66: orc.v1.UpdatePromptRequest
-	(*UpdatePromptResponse)(nil),          // 67: orc.v1.UpdatePromptResponse
-	(*DeletePromptRequest)(nil),           // 68: orc.v1.DeletePromptRequest
-	(*DeletePromptResponse)(nil),          // 69: orc.v1.DeletePromptResponse
-	(*ListPromptVariablesRequest)(nil),    // 70: orc.v1.ListPromptVariablesRequest
-	(*ListPromptVariablesResponse)(nil),   // 71: orc.v1.ListPromptVariablesResponse
-	(*ListAgentsRequest)(nil),             // 72: orc.v1.ListAgentsRequest
-	(*ListAgentsResponse)(nil),            // 73: orc.v1.ListAgentsResponse
-	(*GetAgentRequest)(nil),               // 74: orc.v1.GetAgentRequest
-	(*GetAgentResponse)(nil),              // 75: orc.v1.GetAgentResponse
-	(*CreateAgentRequest)(nil),            // 76: orc.v1.CreateAgentRequest
-	(*CreateAgentResponse)(nil),           // 77: orc.v1.CreateAgentResponse
-	(*UpdateAgentRequest)(nil),            // 78: orc.v1.UpdateAgentRequest
-	(*UpdateAgentResponse)(nil),           // 79: orc.v1.UpdateAgentResponse
-	(*DeleteAgentRequest)(nil),            // 80: orc.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),           // 81: orc.v1.DeleteAgentResponse
-	(*ListScriptsRequest)(nil),            // 82: orc.v1.ListScriptsRequest
-	(*ListScriptsResponse)(nil),           // 83: orc.v1.ListScriptsResponse
-	(*DiscoverScriptsRequest)(nil),        // 84: orc.v1.DiscoverScriptsRequest
-	(*DiscoverScriptsResponse)(nil),       // 85: orc.v1.DiscoverScriptsResponse
-	(*GetScriptRequest)(nil),              // 86: orc.v1.GetScriptRequest
-	(*GetScriptResponse)(nil),             // 87: orc.v1.GetScriptResponse
-	(*CreateScriptRequest)(nil),           // 88: orc.v1.CreateScriptRequest
-	(*CreateScriptResponse)(nil),          // 89: orc.v1.CreateScriptResponse
-	(*UpdateScriptRequest)(nil),           // 90: orc.v1.UpdateScriptRequest
-	(*UpdateScriptResponse)(nil),          // 91: orc.v1.UpdateScriptResponse
-	(*DeleteScriptRequest)(nil),           // 92: orc.v1.DeleteScriptRequest
-	(*DeleteScriptResponse)(nil),          // 93: orc.v1.DeleteScriptResponse
-	(*ListToolsRequest)(nil),              // 94: orc.v1.ListToolsRequest
-	(*ListToolsResponse)(nil),             // 95: orc.v1.ListToolsResponse
-	(*ToolList)(nil),                      // 96: orc.v1.ToolList
-	(*GetToolPermissionsRequest)(nil),     // 97: orc.v1.GetToolPermissionsRequest
-	(*GetToolPermissionsResponse)(nil),    // 98: orc.v1.GetToolPermissionsResponse
-	(*UpdateToolPermissionsRequest)(nil),  // 99: orc.v1.UpdateToolPermissionsRequest
-	(*UpdateToolPermissionsResponse)(nil), // 100: orc.v1.UpdateToolPermissionsResponse
-	(*GetConfigStatsRequest)(nil),         // 101: orc.v1.GetConfigStatsRequest
-	(*GetConfigStatsResponse)(nil),        // 102: orc.v1.GetConfigStatsResponse
-	nil,                                   // 103: orc.v1.Settings.PermissionsEntry
-	nil,                                   // 104: orc.v1.Hook.EnvEntry
-	nil,                                   // 105: orc.v1.CreateHookRequest.EnvEntry
-	nil,                                   // 106: orc.v1.UpdateHookRequest.EnvEntry
-	nil,                                   // 107: orc.v1.ListToolsResponse.ByCategoryEntry
-	(*timestamppb.Timestamp)(nil),         // 108: google.protobuf.Timestamp
+	(*JiraConfig)(nil),                    // 10: orc.v1.JiraConfig
+	(*Settings)(nil),                      // 11: orc.v1.Settings
+	(*SettingsHierarchy)(nil),             // 12: orc.v1.SettingsHierarchy
+	(*Hook)(nil),                          // 13: orc.v1.Hook
+	(*Skill)(nil),                         // 14: orc.v1.Skill
+	(*ClaudeMd)(nil),                      // 15: orc.v1.ClaudeMd
+	(*PromptTemplate)(nil),                // 16: orc.v1.PromptTemplate
+	(*PromptVariable)(nil),                // 17: orc.v1.PromptVariable
+	(*Constitution)(nil),                  // 18: orc.v1.Constitution
+	(*AgentStats)(nil),                    // 19: orc.v1.AgentStats
+	(*Agent)(nil),                         // 20: orc.v1.Agent
+	(*ToolPermissions)(nil),               // 21: orc.v1.ToolPermissions
+	(*ToolInfo)(nil),                      // 22: orc.v1.ToolInfo
+	(*Script)(nil),                        // 23: orc.v1.Script
+	(*ConfigStats)(nil),                   // 24: orc.v1.ConfigStats
+	(*GetConfigRequest)(nil),              // 25: orc.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),             // 26: orc.v1.GetConfigResponse
+	(*UpdateConfigRequest)(nil),           // 27: orc.v1.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),          // 28: orc.v1.UpdateConfigResponse
+	(*GetSettingsRequest)(nil),            // 29: orc.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),           // 30: orc.v1.GetSettingsResponse
+	(*UpdateSettingsRequest)(nil),         // 31: orc.v1.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),        // 32: orc.v1.UpdateSettingsResponse
+	(*GetSettingsHierarchyRequest)(nil),   // 33: orc.v1.GetSettingsHierarchyRequest
+	(*GetSettingsHierarchyResponse)(nil),  // 34: orc.v1.GetSettingsHierarchyResponse
+	(*ListHooksRequest)(nil),              // 35: orc.v1.ListHooksRequest
+	(*ListHooksResponse)(nil),             // 36: orc.v1.ListHooksResponse
+	(*CreateHookRequest)(nil),             // 37: orc.v1.CreateHookRequest
+	(*CreateHookResponse)(nil),            // 38: orc.v1.CreateHookResponse
+	(*UpdateHookRequest)(nil),             // 39: orc.v1.UpdateHookRequest
+	(*UpdateHookResponse)(nil),            // 40: orc.v1.UpdateHookResponse
+	(*DeleteHookRequest)(nil),             // 41: orc.v1.DeleteHookRequest
+	(*DeleteHookResponse)(nil),            // 42: orc.v1.DeleteHookResponse
+	(*ListSkillsRequest)(nil),             // 43: orc.v1.ListSkillsRequest
+	(*ListSkillsResponse)(nil),            // 44: orc.v1.ListSkillsResponse
+	(*CreateSkillRequest)(nil),            // 45: orc.v1.CreateSkillRequest
+	(*CreateSkillResponse)(nil),           // 46: orc.v1.CreateSkillResponse
+	(*UpdateSkillRequest)(nil),            // 47: orc.v1.UpdateSkillRequest
+	(*UpdateSkillResponse)(nil),           // 48: orc.v1.UpdateSkillResponse
+	(*DeleteSkillRequest)(nil),            // 49: orc.v1.DeleteSkillRequest
+	(*DeleteSkillResponse)(nil),           // 50: orc.v1.DeleteSkillResponse
+	(*GetClaudeMdRequest)(nil),            // 51: orc.v1.GetClaudeMdRequest
+	(*GetClaudeMdResponse)(nil),           // 52: orc.v1.GetClaudeMdResponse
+	(*UpdateClaudeMdRequest)(nil),         // 53: orc.v1.UpdateClaudeMdRequest
+	(*UpdateClaudeMdResponse)(nil),        // 54: orc.v1.UpdateClaudeMdResponse
+	(*GetConstitutionRequest)(nil),        // 55: orc.v1.GetConstitutionRequest
+	(*GetConstitutionResponse)(nil),       // 56: orc.v1.GetConstitutionResponse
+	(*UpdateConstitutionRequest)(nil),     // 57: orc.v1.UpdateConstitutionRequest
+	(*UpdateConstitutionResponse)(nil),    // 58: orc.v1.UpdateConstitutionResponse
+	(*DeleteConstitutionRequest)(nil),     // 59: orc.v1.DeleteConstitutionRequest
+	(*DeleteConstitutionResponse)(nil),    // 60: orc.v1.DeleteConstitutionResponse
+	(*ListPromptsRequest)(nil),            // 61: orc.v1.ListPromptsRequest
+	(*ListPromptsResponse)(nil),           // 62: orc.v1.ListPromptsResponse
+	(*GetPromptRequest)(nil),              // 63: orc.v1.GetPromptRequest
+	(*GetPromptResponse)(nil),             // 64: orc.v1.GetPromptResponse
+	(*GetDefaultPromptRequest)(nil),       // 65: orc.v1.GetDefaultPromptRequest
+	(*GetDefaultPromptResponse)(nil),      // 66: orc.v1.GetDefaultPromptResponse
+	(*UpdatePromptRequest)(nil),           // 67: orc.v1.UpdatePromptRequest
+	(*UpdatePromptResponse)(nil),          // 68: orc.v1.UpdatePromptResponse
+	(*DeletePromptRequest)(nil),           // 69: orc.v1.DeletePromptRequest
+	(*DeletePromptResponse)(nil),          // 70: orc.v1.DeletePromptResponse
+	(*ListPromptVariablesRequest)(nil),    // 71: orc.v1.ListPromptVariablesRequest
+	(*ListPromptVariablesResponse)(nil),   // 72: orc.v1.ListPromptVariablesResponse
+	(*ListAgentsRequest)(nil),             // 73: orc.v1.ListAgentsRequest
+	(*ListAgentsResponse)(nil),            // 74: orc.v1.ListAgentsResponse
+	(*GetAgentRequest)(nil),               // 75: orc.v1.GetAgentRequest
+	(*GetAgentResponse)(nil),              // 76: orc.v1.GetAgentResponse
+	(*CreateAgentRequest)(nil),            // 77: orc.v1.CreateAgentRequest
+	(*CreateAgentResponse)(nil),           // 78: orc.v1.CreateAgentResponse
+	(*UpdateAgentRequest)(nil),            // 79: orc.v1.UpdateAgentRequest
+	(*UpdateAgentResponse)(nil),           // 80: orc.v1.UpdateAgentResponse
+	(*DeleteAgentRequest)(nil),            // 81: orc.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),           // 82: orc.v1.DeleteAgentResponse
+	(*ListScriptsRequest)(nil),            // 83: orc.v1.ListScriptsRequest
+	(*ListScriptsResponse)(nil),           // 84: orc.v1.ListScriptsResponse
+	(*DiscoverScriptsRequest)(nil),        // 85: orc.v1.DiscoverScriptsRequest
+	(*DiscoverScriptsResponse)(nil),       // 86: orc.v1.DiscoverScriptsResponse
+	(*GetScriptRequest)(nil),              // 87: orc.v1.GetScriptRequest
+	(*GetScriptResponse)(nil),             // 88: orc.v1.GetScriptResponse
+	(*CreateScriptRequest)(nil),           // 89: orc.v1.CreateScriptRequest
+	(*CreateScriptResponse)(nil),          // 90: orc.v1.CreateScriptResponse
+	(*UpdateScriptRequest)(nil),           // 91: orc.v1.UpdateScriptRequest
+	(*UpdateScriptResponse)(nil),          // 92: orc.v1.UpdateScriptResponse
+	(*DeleteScriptRequest)(nil),           // 93: orc.v1.DeleteScriptRequest
+	(*DeleteScriptResponse)(nil),          // 94: orc.v1.DeleteScriptResponse
+	(*ListToolsRequest)(nil),              // 95: orc.v1.ListToolsRequest
+	(*ListToolsResponse)(nil),             // 96: orc.v1.ListToolsResponse
+	(*ToolList)(nil),                      // 97: orc.v1.ToolList
+	(*GetToolPermissionsRequest)(nil),     // 98: orc.v1.GetToolPermissionsRequest
+	(*GetToolPermissionsResponse)(nil),    // 99: orc.v1.GetToolPermissionsResponse
+	(*UpdateToolPermissionsRequest)(nil),  // 100: orc.v1.UpdateToolPermissionsRequest
+	(*UpdateToolPermissionsResponse)(nil), // 101: orc.v1.UpdateToolPermissionsResponse
+	(*GetConfigStatsRequest)(nil),         // 102: orc.v1.GetConfigStatsRequest
+	(*GetConfigStatsResponse)(nil),        // 103: orc.v1.GetConfigStatsResponse
+	nil,                                   // 104: orc.v1.JiraConfig.CustomFieldsEntry
+	nil,                                   // 105: orc.v1.JiraConfig.StatusOverridesEntry
+	nil,                                   // 106: orc.v1.JiraConfig.CategoryOverridesEntry
+	nil,                                   // 107: orc.v1.JiraConfig.PriorityOverridesEntry
+	nil,                                   // 108: orc.v1.Settings.PermissionsEntry
+	nil,                                   // 109: orc.v1.Hook.EnvEntry
+	nil,                                   // 110: orc.v1.CreateHookRequest.EnvEntry
+	nil,                                   // 111: orc.v1.UpdateHookRequest.EnvEntry
+	nil,                                   // 112: orc.v1.ListToolsResponse.ByCategoryEntry
+	(*timestamppb.Timestamp)(nil),         // 113: google.protobuf.Timestamp
 }
 var file_orc_v1_config_proto_depIdxs = []int32{
 	3,   // 0: orc.v1.Config.automation:type_name -> orc.v1.AutomationConfig
@@ -6301,167 +6490,173 @@ var file_orc_v1_config_proto_depIdxs = []int32{
 	7,   // 2: orc.v1.Config.export:type_name -> orc.v1.ExportConfig
 	8,   // 3: orc.v1.Config.claude:type_name -> orc.v1.ClaudeConfig
 	9,   // 4: orc.v1.Config.execution:type_name -> orc.v1.ExecutionConfig
-	5,   // 5: orc.v1.CompletionConfig.pr:type_name -> orc.v1.PRConfig
-	6,   // 6: orc.v1.CompletionConfig.ci:type_name -> orc.v1.CIConfig
-	103, // 7: orc.v1.Settings.permissions:type_name -> orc.v1.Settings.PermissionsEntry
-	10,  // 8: orc.v1.SettingsHierarchy.global:type_name -> orc.v1.Settings
-	10,  // 9: orc.v1.SettingsHierarchy.project:type_name -> orc.v1.Settings
-	10,  // 10: orc.v1.SettingsHierarchy.merged:type_name -> orc.v1.Settings
-	1,   // 11: orc.v1.Hook.event:type_name -> orc.v1.HookEvent
-	104, // 12: orc.v1.Hook.env:type_name -> orc.v1.Hook.EnvEntry
-	0,   // 13: orc.v1.Hook.scope:type_name -> orc.v1.SettingsScope
-	0,   // 14: orc.v1.Skill.scope:type_name -> orc.v1.SettingsScope
-	0,   // 15: orc.v1.ClaudeMd.scope:type_name -> orc.v1.SettingsScope
-	108, // 16: orc.v1.Constitution.updated_at:type_name -> google.protobuf.Timestamp
-	20,  // 17: orc.v1.Agent.tools:type_name -> orc.v1.ToolPermissions
-	0,   // 18: orc.v1.Agent.scope:type_name -> orc.v1.SettingsScope
-	18,  // 19: orc.v1.Agent.stats:type_name -> orc.v1.AgentStats
-	2,   // 20: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
-	3,   // 21: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
-	4,   // 22: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
-	7,   // 23: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
-	8,   // 24: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
-	9,   // 25: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
-	2,   // 26: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
-	0,   // 27: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	10,  // 28: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
-	0,   // 29: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	10,  // 30: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
-	10,  // 31: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
-	11,  // 32: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
-	0,   // 33: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
-	12,  // 34: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
-	1,   // 35: orc.v1.CreateHookRequest.event:type_name -> orc.v1.HookEvent
-	105, // 36: orc.v1.CreateHookRequest.env:type_name -> orc.v1.CreateHookRequest.EnvEntry
-	0,   // 37: orc.v1.CreateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	12,  // 38: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 39: orc.v1.UpdateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	1,   // 40: orc.v1.UpdateHookRequest.event:type_name -> orc.v1.HookEvent
-	106, // 41: orc.v1.UpdateHookRequest.env:type_name -> orc.v1.UpdateHookRequest.EnvEntry
-	12,  // 42: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 43: orc.v1.DeleteHookRequest.scope:type_name -> orc.v1.SettingsScope
-	0,   // 44: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 45: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
-	0,   // 46: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 47: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 48: orc.v1.UpdateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 49: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 50: orc.v1.DeleteSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 51: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
-	0,   // 52: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 53: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
-	17,  // 54: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	17,  // 55: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	15,  // 56: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
-	15,  // 57: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	15,  // 58: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	15,  // 59: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	16,  // 60: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
-	0,   // 61: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
-	19,  // 62: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
-	19,  // 63: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
-	20,  // 64: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	0,   // 65: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
-	19,  // 66: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
-	20,  // 67: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	19,  // 68: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
-	22,  // 69: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
-	22,  // 70: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
-	22,  // 71: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
-	22,  // 72: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
-	22,  // 73: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
-	0,   // 74: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
-	21,  // 75: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
-	107, // 76: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
-	21,  // 77: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
-	20,  // 78: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	20,  // 79: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
-	20,  // 80: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	23,  // 81: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
-	96,  // 82: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
-	24,  // 83: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
-	26,  // 84: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
-	28,  // 85: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
-	30,  // 86: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
-	32,  // 87: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
-	34,  // 88: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
-	36,  // 89: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
-	38,  // 90: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
-	40,  // 91: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
-	42,  // 92: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
-	44,  // 93: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
-	46,  // 94: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
-	48,  // 95: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
-	50,  // 96: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
-	52,  // 97: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
-	54,  // 98: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
-	56,  // 99: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
-	58,  // 100: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
-	60,  // 101: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
-	62,  // 102: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
-	64,  // 103: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
-	66,  // 104: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
-	68,  // 105: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
-	70,  // 106: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
-	72,  // 107: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
-	74,  // 108: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
-	76,  // 109: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
-	78,  // 110: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
-	80,  // 111: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
-	82,  // 112: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
-	84,  // 113: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
-	86,  // 114: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
-	88,  // 115: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
-	90,  // 116: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
-	92,  // 117: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
-	94,  // 118: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
-	97,  // 119: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
-	99,  // 120: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
-	101, // 121: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
-	25,  // 122: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
-	27,  // 123: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
-	29,  // 124: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
-	31,  // 125: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
-	33,  // 126: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
-	35,  // 127: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
-	37,  // 128: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
-	39,  // 129: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
-	41,  // 130: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
-	43,  // 131: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
-	45,  // 132: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
-	47,  // 133: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
-	49,  // 134: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
-	51,  // 135: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
-	53,  // 136: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
-	55,  // 137: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
-	57,  // 138: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
-	59,  // 139: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
-	61,  // 140: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
-	63,  // 141: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
-	65,  // 142: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
-	67,  // 143: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
-	69,  // 144: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
-	71,  // 145: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
-	73,  // 146: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
-	75,  // 147: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
-	77,  // 148: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
-	79,  // 149: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
-	81,  // 150: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
-	83,  // 151: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
-	85,  // 152: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
-	87,  // 153: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
-	89,  // 154: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
-	91,  // 155: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
-	93,  // 156: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
-	95,  // 157: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
-	98,  // 158: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
-	100, // 159: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
-	102, // 160: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
-	122, // [122:161] is the sub-list for method output_type
-	83,  // [83:122] is the sub-list for method input_type
-	83,  // [83:83] is the sub-list for extension type_name
-	83,  // [83:83] is the sub-list for extension extendee
-	0,   // [0:83] is the sub-list for field type_name
+	10,  // 5: orc.v1.Config.jira:type_name -> orc.v1.JiraConfig
+	5,   // 6: orc.v1.CompletionConfig.pr:type_name -> orc.v1.PRConfig
+	6,   // 7: orc.v1.CompletionConfig.ci:type_name -> orc.v1.CIConfig
+	104, // 8: orc.v1.JiraConfig.custom_fields:type_name -> orc.v1.JiraConfig.CustomFieldsEntry
+	105, // 9: orc.v1.JiraConfig.status_overrides:type_name -> orc.v1.JiraConfig.StatusOverridesEntry
+	106, // 10: orc.v1.JiraConfig.category_overrides:type_name -> orc.v1.JiraConfig.CategoryOverridesEntry
+	107, // 11: orc.v1.JiraConfig.priority_overrides:type_name -> orc.v1.JiraConfig.PriorityOverridesEntry
+	108, // 12: orc.v1.Settings.permissions:type_name -> orc.v1.Settings.PermissionsEntry
+	11,  // 13: orc.v1.SettingsHierarchy.global:type_name -> orc.v1.Settings
+	11,  // 14: orc.v1.SettingsHierarchy.project:type_name -> orc.v1.Settings
+	11,  // 15: orc.v1.SettingsHierarchy.merged:type_name -> orc.v1.Settings
+	1,   // 16: orc.v1.Hook.event:type_name -> orc.v1.HookEvent
+	109, // 17: orc.v1.Hook.env:type_name -> orc.v1.Hook.EnvEntry
+	0,   // 18: orc.v1.Hook.scope:type_name -> orc.v1.SettingsScope
+	0,   // 19: orc.v1.Skill.scope:type_name -> orc.v1.SettingsScope
+	0,   // 20: orc.v1.ClaudeMd.scope:type_name -> orc.v1.SettingsScope
+	113, // 21: orc.v1.Constitution.updated_at:type_name -> google.protobuf.Timestamp
+	21,  // 22: orc.v1.Agent.tools:type_name -> orc.v1.ToolPermissions
+	0,   // 23: orc.v1.Agent.scope:type_name -> orc.v1.SettingsScope
+	19,  // 24: orc.v1.Agent.stats:type_name -> orc.v1.AgentStats
+	2,   // 25: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
+	3,   // 26: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
+	4,   // 27: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
+	7,   // 28: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
+	8,   // 29: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
+	9,   // 30: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
+	10,  // 31: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
+	2,   // 32: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
+	0,   // 33: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 34: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
+	0,   // 35: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 36: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
+	11,  // 37: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
+	12,  // 38: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
+	0,   // 39: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
+	13,  // 40: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
+	1,   // 41: orc.v1.CreateHookRequest.event:type_name -> orc.v1.HookEvent
+	110, // 42: orc.v1.CreateHookRequest.env:type_name -> orc.v1.CreateHookRequest.EnvEntry
+	0,   // 43: orc.v1.CreateHookRequest.scope:type_name -> orc.v1.SettingsScope
+	13,  // 44: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
+	0,   // 45: orc.v1.UpdateHookRequest.scope:type_name -> orc.v1.SettingsScope
+	1,   // 46: orc.v1.UpdateHookRequest.event:type_name -> orc.v1.HookEvent
+	111, // 47: orc.v1.UpdateHookRequest.env:type_name -> orc.v1.UpdateHookRequest.EnvEntry
+	13,  // 48: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
+	0,   // 49: orc.v1.DeleteHookRequest.scope:type_name -> orc.v1.SettingsScope
+	0,   // 50: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 51: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
+	0,   // 52: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 53: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
+	0,   // 54: orc.v1.UpdateSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 55: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
+	0,   // 56: orc.v1.DeleteSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	15,  // 57: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
+	0,   // 58: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
+	15,  // 59: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
+	18,  // 60: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	18,  // 61: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	16,  // 62: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
+	16,  // 63: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 64: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 65: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	17,  // 66: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
+	0,   // 67: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 68: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
+	20,  // 69: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 70: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	0,   // 71: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 72: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 73: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	20,  // 74: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
+	23,  // 75: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 76: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 77: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 78: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 79: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
+	0,   // 80: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
+	22,  // 81: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
+	112, // 82: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
+	22,  // 83: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
+	21,  // 84: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 85: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 86: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	24,  // 87: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
+	97,  // 88: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
+	25,  // 89: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
+	27,  // 90: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
+	29,  // 91: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
+	31,  // 92: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
+	33,  // 93: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
+	35,  // 94: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
+	37,  // 95: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
+	39,  // 96: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
+	41,  // 97: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
+	43,  // 98: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
+	45,  // 99: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
+	47,  // 100: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
+	49,  // 101: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
+	51,  // 102: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
+	53,  // 103: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
+	55,  // 104: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
+	57,  // 105: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
+	59,  // 106: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
+	61,  // 107: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
+	63,  // 108: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
+	65,  // 109: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
+	67,  // 110: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
+	69,  // 111: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
+	71,  // 112: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
+	73,  // 113: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
+	75,  // 114: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
+	77,  // 115: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
+	79,  // 116: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
+	81,  // 117: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
+	83,  // 118: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
+	85,  // 119: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
+	87,  // 120: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
+	89,  // 121: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
+	91,  // 122: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
+	93,  // 123: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
+	95,  // 124: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
+	98,  // 125: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
+	100, // 126: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
+	102, // 127: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
+	26,  // 128: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
+	28,  // 129: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
+	30,  // 130: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
+	32,  // 131: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
+	34,  // 132: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
+	36,  // 133: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
+	38,  // 134: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
+	40,  // 135: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
+	42,  // 136: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
+	44,  // 137: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
+	46,  // 138: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
+	48,  // 139: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
+	50,  // 140: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
+	52,  // 141: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
+	54,  // 142: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
+	56,  // 143: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
+	58,  // 144: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
+	60,  // 145: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
+	62,  // 146: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
+	64,  // 147: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
+	66,  // 148: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
+	68,  // 149: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
+	70,  // 150: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
+	72,  // 151: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
+	74,  // 152: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
+	76,  // 153: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
+	78,  // 154: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
+	80,  // 155: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
+	82,  // 156: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
+	84,  // 157: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
+	86,  // 158: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
+	88,  // 159: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
+	90,  // 160: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
+	92,  // 161: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
+	94,  // 162: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
+	96,  // 163: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
+	99,  // 164: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
+	101, // 165: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
+	103, // 166: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
+	128, // [128:167] is the sub-list for method output_type
+	89,  // [89:128] is the sub-list for method input_type
+	89,  // [89:89] is the sub-list for extension type_name
+	89,  // [89:89] is the sub-list for extension extendee
+	0,   // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_config_proto_init() }
@@ -6471,33 +6666,34 @@ func file_orc_v1_config_proto_init() {
 	}
 	file_orc_v1_config_proto_msgTypes[2].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[8].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[10].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[9].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[11].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[13].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[12].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[14].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[15].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[17].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[20].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[24].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[32].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[34].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[36].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[40].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[42].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[44].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[70].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[74].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[76].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[86].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[88].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[92].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[16].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[18].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[21].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[25].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[33].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[35].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[37].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[41].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[43].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[45].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[71].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[75].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[77].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[87].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[89].OneofWrappers = []any{}
+	file_orc_v1_config_proto_msgTypes[93].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_config_proto_rawDesc), len(file_orc_v1_config_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   106,
+			NumMessages:   111,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
