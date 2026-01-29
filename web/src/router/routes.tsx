@@ -27,7 +27,6 @@ const SettingsView = lazy(() => import('@/components/settings').then(m => ({ def
 const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
 const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
 const ClaudeMdPage = lazy(() => import('@/pages/settings/ClaudeMdPage').then(m => ({ default: m.ClaudeMdPage })));
-const Memory = lazy(() => import('@/pages/settings/Memory').then(m => ({ default: m.Memory })));
 const ImportExportPage = lazy(() => import('@/pages/settings/ImportExport').then(m => ({ default: m.ImportExportPage })));
 
 // Legacy pages (lower priority, separate chunks)
@@ -228,14 +227,6 @@ export const routes: RouteObject[] = [
 						element: (
 							<LazyRoute>
 								<Mcp />
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'memory',
-						element: (
-							<LazyRoute>
-								<Memory />
 							</LazyRoute>
 						),
 					},

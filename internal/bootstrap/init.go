@@ -26,9 +26,8 @@ type Options struct {
 	Profile config.AutomationProfile
 
 	// Skip options allow the wizard to handle these separately
-	SkipClaudeMD     bool // Don't auto-inject orc section into CLAUDE.md
-	SkipKnowledge    bool // Don't auto-inject knowledge section into CLAUDE.md
-	SkipHooks        bool // Don't install Claude Code hooks
+	SkipClaudeMD  bool // Don't auto-inject orc section into CLAUDE.md
+	SkipHooks     bool // Don't install Claude Code hooks
 	SkipGitignore    bool // Don't update .gitignore
 	SkipConstitution bool // Don't check for constitution files
 }
@@ -201,17 +200,7 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// 10. Inject knowledge section into CLAUDE.md (unless skipped)
-	if !opts.SkipKnowledge {
-		if err := InjectKnowledgeSection(opts.WorkDir); err != nil {
-			// Non-fatal - just warn
-			fmt.Fprintf(os.Stderr, "Warning: could not add knowledge section to CLAUDE.md: %v\n", err)
-		} else {
-			fmt.Printf("Updated: CLAUDE.md (knowledge capture section)\n")
-		}
-	}
-
-	// 11. Check for constitution file to offer as constitution (unless skipped)
+	// 10. Check for constitution file to offer as constitution (unless skipped)
 	var foundConstitution bool
 	var constitutionPath string
 

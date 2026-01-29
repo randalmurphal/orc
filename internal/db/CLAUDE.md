@@ -33,7 +33,6 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `review_comment.go` | Review comment CRUD |
 | `task_comment.go` | Task comment CRUD |
 | `team.go` | Team members, claims, activity |
-| `knowledge.go` | Knowledge queue operations |
 | `constitution.go` | Constitution CRUD, validation checks |
 | `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
 

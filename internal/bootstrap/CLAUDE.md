@@ -13,8 +13,6 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 | `Run(opts Options) (*Result, error)` | Main initialization entry point |
 | `UpdateGitignore(projectDir string) error` | Add orc entries to .gitignore |
 | `InjectOrcSection(projectDir string) error` | Add orc section to CLAUDE.md |
-| `InjectKnowledgeSection(projectDir string) error` | Add knowledge section to CLAUDE.md |
-| `HasKnowledgeSection(projectDir string) bool` | Check if knowledge section exists |
 | `ShouldSuggestSplit(projectDir string) (bool, int, error)` | Check if CLAUDE.md exceeds 200 lines |
 | `InstallHooks(projectDir string) error` | Install Claude Code hooks (orc-stop.sh, tdd-discipline.sh) |
 | `IsTestFile(path string) bool` | Check if file matches test file patterns (used by TDD hook) |
@@ -31,7 +29,6 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 7. Install hooks (orc-stop.sh, tdd-discipline.sh)
 8. Install plugins (slash commands)
 9. Inject orc section into CLAUDE.md
-10. Inject knowledge section into CLAUDE.md
 
 ## Options
 

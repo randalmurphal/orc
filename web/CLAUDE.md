@@ -63,7 +63,6 @@ web/src/
 | `/initiatives/:id` | InitiativeDetailPage | Initiative detail view |
 | `/agents` | AgentsView | Agent configuration, execution settings |
 | `/settings` | SettingsPage | Configuration editor |
-| `/knowledge` | KnowledgePage | Knowledge service config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 | `/timeline` | TimelinePage | Event timeline with filters |

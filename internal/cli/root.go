@@ -133,7 +133,6 @@ func init() {
 	addCmd(newTeamCmd(), groupAdvanced)
 	addCmd(newPoolCmd(), groupAdvanced)
 	addCmd(newAutomationCmd(), groupAdvanced)
-	addCmd(newKnowledgeCmd(), groupAdvanced)
 	addCmd(newCommentCmd(), groupAdvanced)
 	addCmd(newProjectsCmd(), groupAdvanced)
 	addCmd(newVersionCmd(), groupAdvanced)

@@ -12,7 +12,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
-import { configClient, knowledgeClient } from '@/lib/client';
+import { configClient } from '@/lib/client';
 import './SettingsLayout.css';
 
 interface NavItemProps {
@@ -56,37 +56,21 @@ function NavGroup({ title, children }: NavGroupProps) {
 interface SettingsCounts {
 	commandsCount: number;
 	mcpServersCount: number;
-	memoryCount: number;
 }
 
 export function SettingsLayout() {
 	const [counts, setCounts] = useState<SettingsCounts>({
 		commandsCount: 0,
 		mcpServersCount: 0,
-		memoryCount: 0,
 	});
 
 	useEffect(() => {
 		const fetchCounts = async () => {
 			try {
-				// Fetch config stats (slash commands and MCP servers counts)
-				const configStatsPromise = configClient.getConfigStats({});
-				// Fetch knowledge status (memory/knowledge counts)
-				const knowledgeStatusPromise = knowledgeClient.getKnowledgeStatus({});
-
-				const [configStats, knowledgeStatus] = await Promise.all([
-					configStatsPromise,
-					knowledgeStatusPromise,
-				]);
-
-				const summary = knowledgeStatus.status;
-				// Total memory count = pending + approved (excluding rejected and stale)
-				const memoryTotal = (summary?.pendingCount ?? 0) + (summary?.approvedCount ?? 0);
-
+				const configStats = await configClient.getConfigStats({});
 				setCounts({
 					commandsCount: configStats.stats?.slashCommandsCount ?? 0,
 					mcpServersCount: configStats.stats?.mcpServersCount ?? 0,
-					memoryCount: memoryTotal,
 				});
 			} catch (err) {
 				console.error('Failed to fetch settings counts:', err);
@@ -120,12 +104,6 @@ export function SettingsLayout() {
 							icon="mcp"
 							label="MCP Servers"
 							badge={counts.mcpServersCount}
-						/>
-						<NavItem
-							to="/settings/memory"
-							icon="database"
-							label="Memory"
-							badge={counts.memoryCount}
 						/>
 						<NavItem to="/settings/permissions" icon="shield" label="Permissions" />
 					</NavGroup>
