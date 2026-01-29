@@ -1096,6 +1096,21 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 		if p.ThinkingOverride != nil {
 			result[i].ThinkingOverride = p.ThinkingOverride
 		}
+		if p.DependsOn != "" {
+			var deps []string
+			if err := json.Unmarshal([]byte(p.DependsOn), &deps); err == nil {
+				result[i].DependsOn = deps
+			}
+		}
+		if p.PositionX != nil {
+			result[i].PositionX = p.PositionX
+		}
+		if p.PositionY != nil {
+			result[i].PositionY = p.PositionY
+		}
+		if p.LoopConfig != "" {
+			result[i].LoopConfig = &p.LoopConfig
+		}
 	}
 	return result
 }
@@ -1235,6 +1250,21 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 	}
 	if p.Condition != "" {
 		result.Condition = &p.Condition
+	}
+	if p.DependsOn != "" {
+		var deps []string
+		if err := json.Unmarshal([]byte(p.DependsOn), &deps); err == nil {
+			result.DependsOn = deps
+		}
+	}
+	if p.PositionX != nil {
+		result.PositionX = p.PositionX
+	}
+	if p.PositionY != nil {
+		result.PositionY = p.PositionY
+	}
+	if p.LoopConfig != "" {
+		result.LoopConfig = &p.LoopConfig
 	}
 	return result
 }

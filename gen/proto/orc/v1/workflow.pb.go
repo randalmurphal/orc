@@ -751,6 +751,9 @@ type WorkflowPhase struct {
 	GateTypeOverride      *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
 	Condition             *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 	ClaudeConfigOverride  *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
+	PositionX             *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
+	PositionY             *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
+	LoopConfig            *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
 	Template              *PhaseTemplate         `protobuf:"bytes,100,opt,name=template,proto3" json:"template,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
@@ -859,6 +862,27 @@ func (x *WorkflowPhase) GetCondition() string {
 func (x *WorkflowPhase) GetClaudeConfigOverride() string {
 	if x != nil && x.ClaudeConfigOverride != nil {
 		return *x.ClaudeConfigOverride
+	}
+	return ""
+}
+
+func (x *WorkflowPhase) GetPositionX() float64 {
+	if x != nil && x.PositionX != nil {
+		return *x.PositionX
+	}
+	return 0
+}
+
+func (x *WorkflowPhase) GetPositionY() float64 {
+	if x != nil && x.PositionY != nil {
+		return *x.PositionY
+	}
+	return 0
+}
+
+func (x *WorkflowPhase) GetLoopConfig() string {
+	if x != nil && x.LoopConfig != nil {
+		return *x.LoopConfig
 	}
 	return ""
 }
@@ -4213,7 +4237,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
-	"\t_based_on\"\x9d\x05\n" +
+	"\t_based_on\"\xb9\x06\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -4228,7 +4252,13 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12gate_type_override\x18\t \x01(\x0e2\x10.orc.v1.GateTypeH\x03R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
 	"\tcondition\x18\n" +
 	" \x01(\tH\x04R\tcondition\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\v \x01(\tH\x05R\x14claudeConfigOverride\x88\x01\x01\x121\n" +
+	"\x16claude_config_override\x18\v \x01(\tH\x05R\x14claudeConfigOverride\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"position_x\x18\f \x01(\x01H\x06R\tpositionX\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"position_y\x18\r \x01(\x01H\aR\tpositionY\x88\x01\x01\x12$\n" +
+	"\vloop_config\x18\x0e \x01(\tH\bR\n" +
+	"loopConfig\x88\x01\x01\x121\n" +
 	"\btemplate\x18d \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplateB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
@@ -4236,7 +4266,10 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
 	"_conditionB\x19\n" +
-	"\x17_claude_config_override\"\xb3\x03\n" +
+	"\x17_claude_config_overrideB\r\n" +
+	"\v_position_xB\r\n" +
+	"\v_position_yB\x0e\n" +
+	"\f_loop_config\"\xb3\x03\n" +
 	"\x10WorkflowVariable\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
