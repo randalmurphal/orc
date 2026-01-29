@@ -121,6 +121,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(
 		const handleTouchStart = useCallback(
 			(event: TouchEvent<HTMLDivElement>) => {
 				if (disabled) return;
+				event.preventDefault();
 				setIsDragging(true);
 				const touch = event.touches[0];
 				const newValue = positionToValue(touch.clientX);

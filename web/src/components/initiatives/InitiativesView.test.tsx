@@ -306,22 +306,17 @@ describe('InitiativesView', () => {
 	});
 
 	describe('new initiative button', () => {
-		it('dispatches orc:new-initiative event when clicked', async () => {
-			const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
-
+		it('opens new initiative modal when clicked', async () => {
 			renderInitiativesView();
 
 			await waitFor(() => {
 				fireEvent.click(screen.getByRole('button', { name: /new initiative/i }));
 			});
 
-			expect(dispatchSpy).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: 'orc:new-initiative',
-				})
-			);
-
-			dispatchSpy.mockRestore();
+			// Modal should appear with the Create Initiative button
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /create initiative/i })).toBeInTheDocument();
+			});
 		});
 	});
 
