@@ -99,8 +99,10 @@
 	width: 300px;
 	min-width: 300px;
 	overflow: hidden;
-	/* Use transform for GPU-accelerated animation (avoids layout thrashing) */
-	transform: translateX(0);
+	/* No transform in open state - avoids creating a stacking context that
+	   intercepts pointer events on the TopBar toggle button above.
+	   The closed state sets transform: translateX(100%) for the slide-out animation;
+	   CSS interpolates from translateX(100%) to none smoothly. */
 	opacity: 1;
 	transition:
 		transform 0.2s ease,
