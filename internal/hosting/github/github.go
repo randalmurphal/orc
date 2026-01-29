@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	gogithub "github.com/google/go-github/v68/github"
+	gogithub "github.com/google/go-github/v82/github"
 
 	"github.com/randalmurphal/orc/internal/hosting"
 )
@@ -115,11 +115,12 @@ func (g *GitHubProvider) CheckAuth(ctx context.Context) error {
 // CreatePR creates a pull request.
 func (g *GitHubProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOptions) (*hosting.PR, error) {
 	newPR := &gogithub.NewPullRequest{
-		Title: gogithub.Ptr(opts.Title),
-		Body:  gogithub.Ptr(opts.Body),
-		Head:  gogithub.Ptr(opts.Head),
-		Base:  gogithub.Ptr(opts.Base),
-		Draft: gogithub.Ptr(opts.Draft),
+		Title:               gogithub.Ptr(opts.Title),
+		Body:                gogithub.Ptr(opts.Body),
+		Head:                gogithub.Ptr(opts.Head),
+		Base:                gogithub.Ptr(opts.Base),
+		Draft:               gogithub.Ptr(opts.Draft),
+		MaintainerCanModify: gogithub.Ptr(opts.MaintainerCanModify),
 	}
 
 	created, _, err := g.client.PullRequests.Create(ctx, g.owner, g.repo, newPR)
@@ -141,16 +142,29 @@ func (g *GitHubProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOpti
 	}
 
 	// Request reviewers (best-effort).
-	if len(opts.Reviewers) > 0 {
+	if len(opts.Reviewers) > 0 || len(opts.TeamReviewers) > 0 {
 		reviewersReq := gogithub.ReviewersRequest{
-			Reviewers: opts.Reviewers,
+			Reviewers:     opts.Reviewers,
+			TeamReviewers: opts.TeamReviewers,
 		}
 		_, _, revErr := g.client.PullRequests.RequestReviewers(ctx, g.owner, g.repo, prNumber, reviewersReq)
 		if revErr != nil {
 			slog.Warn("failed to request reviewers for PR",
 				"pr", prNumber,
 				"reviewers", opts.Reviewers,
+				"team_reviewers", opts.TeamReviewers,
 				"error", revErr)
+		}
+	}
+
+	// Add assignees (best-effort).
+	if len(opts.Assignees) > 0 {
+		_, _, assignErr := g.client.Issues.AddAssignees(ctx, g.owner, g.repo, prNumber, opts.Assignees)
+		if assignErr != nil {
+			slog.Warn("failed to add assignees to PR",
+				"pr", prNumber,
+				"assignees", opts.Assignees,
+				"error", assignErr)
 		}
 	}
 
@@ -176,8 +190,8 @@ func (g *GitHubProvider) UpdatePR(ctx context.Context, number int, opts hosting.
 	if opts.Body != "" {
 		update.Body = gogithub.Ptr(opts.Body)
 	}
-	if opts.State == "closed" {
-		update.State = gogithub.Ptr("closed")
+	if opts.State == "closed" || opts.State == "open" {
+		update.State = gogithub.Ptr(opts.State)
 	}
 
 	_, _, err := g.client.PullRequests.Edit(ctx, g.owner, g.repo, number, update)
@@ -200,9 +214,16 @@ func (g *GitHubProvider) MergePR(ctx context.Context, number int, opts hosting.P
 	mergeOpts := &gogithub.PullRequestOptions{
 		MergeMethod: mergeMethod,
 		CommitTitle: opts.CommitTitle,
+		SHA:         opts.SHA,
 	}
 
-	_, _, err := g.client.PullRequests.Merge(ctx, g.owner, g.repo, number, "", mergeOpts)
+	// For squash merges, use SquashCommitMessage if provided, otherwise CommitMessage.
+	commitBody := opts.CommitMessage
+	if mergeMethod == "squash" && opts.SquashCommitMessage != "" {
+		commitBody = opts.SquashCommitMessage
+	}
+
+	_, _, err := g.client.PullRequests.Merge(ctx, g.owner, g.repo, number, commitBody, mergeOpts)
 	if err != nil {
 		return fmt.Errorf("merge PR %d: %w", number, err)
 	}
@@ -335,7 +356,7 @@ func (g *GitHubProvider) ReplyToComment(ctx context.Context, number int, threadI
 }
 
 // GetPRComment fetches a single PR review comment by ID.
-func (g *GitHubProvider) GetPRComment(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+func (g *GitHubProvider) GetPRComment(ctx context.Context, _ int, commentID int64) (*hosting.PRComment, error) {
 	comment, _, err := g.client.PullRequests.GetComment(ctx, g.owner, g.repo, commentID)
 	if err != nil {
 		return nil, fmt.Errorf("get comment %d: %w", commentID, err)
@@ -491,6 +512,21 @@ func (g *GitHubProvider) GetPRStatusSummary(ctx context.Context, pr *hosting.PR)
 	return summary, nil
 }
 
+// EnableAutoMerge returns ErrAutoMergeNotSupported because GitHub's REST API
+// does not support enabling auto-merge (requires GraphQL).
+func (g *GitHubProvider) EnableAutoMerge(_ context.Context, _ int, _ string) error {
+	return hosting.ErrAutoMergeNotSupported
+}
+
+// UpdatePRBranch updates the PR branch with the latest base branch changes.
+func (g *GitHubProvider) UpdatePRBranch(ctx context.Context, number int) error {
+	_, _, err := g.client.PullRequests.UpdateBranch(ctx, g.owner, g.repo, number, nil)
+	if err != nil {
+		return fmt.Errorf("update branch for PR %d: %w", number, err)
+	}
+	return nil
+}
+
 // DeleteBranch deletes a branch from the remote.
 func (g *GitHubProvider) DeleteBranch(ctx context.Context, branch string) error {
 	_, err := g.client.Git.DeleteRef(ctx, g.owner, g.repo, "refs/heads/"+branch)
@@ -515,6 +551,22 @@ func mapPR(pr *gogithub.PullRequest) *hosting.PR {
 		updatedAt = t.Format(time.RFC3339)
 	}
 
+	// Extract labels.
+	var labels []string
+	for _, l := range pr.Labels {
+		if name := l.GetName(); name != "" {
+			labels = append(labels, name)
+		}
+	}
+
+	// Extract assignees.
+	var assignees []string
+	for _, a := range pr.Assignees {
+		if login := a.GetLogin(); login != "" {
+			assignees = append(assignees, login)
+		}
+	}
+
 	return &hosting.PR{
 		Number:     pr.GetNumber(),
 		Title:      pr.GetTitle(),
@@ -525,6 +577,9 @@ func mapPR(pr *gogithub.PullRequest) *hosting.PR {
 		HTMLURL:    pr.GetHTMLURL(),
 		Draft:      pr.GetDraft(),
 		Mergeable:  pr.GetMergeable(),
+		HeadSHA:    pr.GetHead().GetSHA(),
+		Labels:     labels,
+		Assignees:  assignees,
 		CreatedAt:  createdAt,
 		UpdatedAt:  updatedAt,
 	}

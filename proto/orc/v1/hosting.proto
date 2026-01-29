@@ -40,6 +40,12 @@ message PR {
   google.protobuf.Timestamp updated_at = 13;
   // When PR was merged
   optional google.protobuf.Timestamp merged_at = 14;
+  // HEAD commit SHA
+  string head_sha = 15;
+  // Labels applied to the PR
+  repeated string labels = 16;
+  // Assigned usernames
+  repeated string assignees = 17;
 }
 
 // PR comment
@@ -148,6 +154,12 @@ message CreatePRRequest {
   repeated string labels = 5;
   repeated string reviewers = 6;
   bool draft = 7;
+  // Team reviewer slugs (GitHub) or group paths (GitLab)
+  repeated string team_reviewers = 8;
+  // Usernames to assign
+  repeated string assignees = 9;
+  // Allow maintainers to push (GitHub) / allow collaboration (GitLab)
+  bool maintainer_can_modify = 10;
 }
 
 message CreatePRResponse {

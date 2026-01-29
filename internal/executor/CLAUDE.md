@@ -25,7 +25,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
 | `qa.go` | QA E2E types, parsing, loop condition evaluation |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
-| `ci_merge.go` | CI polling and auto-merge with retry logic |
+| `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |

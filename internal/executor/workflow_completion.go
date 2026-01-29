@@ -167,20 +167,45 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("create hosting provider: %w", err)
 	}
 
-	// Build PR options
+	// Build PR options from config
+	prCfg := we.orcConfig.Completion.PR
+	ciCfg := we.orcConfig.Completion.CI
+
 	description := task.GetDescriptionProto(t)
 	body := fmt.Sprintf("## Task: %s\n\n%s\n\n---\nCreated by orc workflow execution.",
 		t.Title, description)
 	prTitle := fmt.Sprintf("[orc] %s: %s", t.Id, t.Title)
 
 	pr, err := provider.CreatePR(ctx, hosting.PRCreateOptions{
-		Title: prTitle,
-		Body:  body,
-		Head:  t.Branch,
-		Base:  targetBranch,
+		Title:               prTitle,
+		Body:                body,
+		Head:                t.Branch,
+		Base:                targetBranch,
+		Draft:               prCfg.Draft,
+		Labels:              prCfg.Labels,
+		Reviewers:           prCfg.Reviewers,
+		TeamReviewers:       prCfg.TeamReviewers,
+		Assignees:           prCfg.Assignees,
+		MaintainerCanModify: prCfg.MaintainerCanModify,
 	})
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
+	}
+
+	// Enable auto-merge if configured (GitLab only; GitHub returns ErrAutoMergeNotSupported)
+	if prCfg.AutoMerge {
+		if amErr := provider.EnableAutoMerge(ctx, pr.Number, ciCfg.MergeMethod); amErr != nil {
+			if !errors.Is(amErr, hosting.ErrAutoMergeNotSupported) {
+				we.logger.Warn("failed to enable auto-merge", "pr", pr.Number, "error", amErr)
+			}
+		}
+	}
+
+	// Auto-approve if configured
+	if prCfg.AutoApprove {
+		if apErr := provider.ApprovePR(ctx, pr.Number, "Auto-approved by orc"); apErr != nil {
+			we.logger.Warn("failed to auto-approve PR", "pr", pr.Number, "error", apErr)
+		}
 	}
 
 	// Update task with PR info

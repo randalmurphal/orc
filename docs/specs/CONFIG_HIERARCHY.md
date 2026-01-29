@@ -225,14 +225,21 @@ completion:
     body_template: templates/pr-body.md
     labels: [automated]                # Labels applied to PR (gracefully skipped if missing)
     draft: false
-    auto_merge: true
-    auto_approve: true                 # AI-assisted PR approval (auto/fast profiles only)
+    auto_merge: false                  # Auto-merge after finalize (default: false)
+    auto_approve: false                # AI-assisted PR approval (default: false)
+    team_reviewers: []                 # GitHub team slugs to request review from
+    assignees: []                      # GitHub usernames to assign to the PR
+    maintainer_can_modify: true        # Allow maintainers to push to the PR branch (default: true)
   ci:
-    wait_for_ci: true                  # Wait for CI checks before merge (default: true, auto/fast only)
+    wait_for_ci: false                 # Wait for CI checks before merge (default: false)
     ci_timeout: 10m                    # Max time to wait for CI checks (default: 10m)
     poll_interval: 30s                 # CI status polling interval (default: 30s)
-    merge_on_ci_pass: true             # Auto-merge when CI passes (default: true, auto/fast only)
+    merge_on_ci_pass: false            # Auto-merge when CI passes (default: false)
     merge_method: squash               # Merge method: squash | merge | rebase (default: squash)
+    # Commit message templates - available variables: {{TASK_ID}}, {{TASK_TITLE}}, {{TASK_BRANCH}}
+    merge_commit_template: ""          # Custom merge commit message (empty = provider default)
+    squash_commit_template: ""         # Custom squash commit message (empty = provider default)
+    verify_sha_on_merge: true          # Verify HEAD SHA before merge to prevent races (default: true)
   sync:
     strategy: completion               # none | phase | completion | detect
     sync_on_start: true                # Sync before execution starts (default: true, catches stale worktrees)

@@ -101,11 +101,11 @@ Key phases:
 
 ### Task Completion Flow
 
-1. **Task completes** → PR created (if `completion.action: pr`)
+1. **Task completes** → PR created on hosting provider (GitHub or GitLab) if `completion.action: pr`
 2. **Review PR** → Manual review opportunity
-3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, triggers auto-merge (if `auto_merge: true`)
+3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, optionally enables auto-merge
 
-**Note:** `auto_merge: true` in config means "merge after finalize", not "merge immediately after task completion". This gives you a chance to review the PR before merging.
+**Note:** Auto-merge and CI polling are **disabled by default**. Set `completion.pr.auto_merge: true` and `completion.ci.wait_for_ci: true` to enable. GitHub auto-merge requires GraphQL (not supported); GitLab auto-merge is fully supported via `MergeWhenPipelineSucceeds`.
 
 ⚠️ **Common mistake**: Under-weighting tasks. A "medium" task run as "small" skips the spec phase, causing Claude to guess requirements.
 

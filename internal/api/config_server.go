@@ -105,6 +105,45 @@ func (s *configServer) UpdateConfig(
 		cfg.Execution.CostLimit = int(req.Msg.Execution.CostLimit)
 	}
 
+	// Apply completion updates
+	if req.Msg.Completion != nil {
+		c := req.Msg.Completion
+		if c.Action != "" {
+			cfg.Completion.Action = c.Action
+		}
+		cfg.Completion.MergeOnCIPass = c.AutoMerge
+		cfg.Completion.DeleteBranch = c.DeleteBranch
+		if c.TargetBranch != nil {
+			cfg.Completion.TargetBranch = *c.TargetBranch
+		}
+		if c.Pr != nil {
+			cfg.Completion.PR.Draft = c.Pr.Draft
+			cfg.Completion.PR.Labels = c.Pr.Labels
+			cfg.Completion.PR.Reviewers = c.Pr.Reviewers
+			cfg.Completion.PR.TeamReviewers = c.Pr.TeamReviewers
+			cfg.Completion.PR.Assignees = c.Pr.Assignees
+			cfg.Completion.PR.MaintainerCanModify = c.Pr.MaintainerCanModify
+			cfg.Completion.PR.AutoApprove = c.Pr.AutoApprove
+			cfg.Completion.PR.AutoMerge = c.Pr.AutoMerge
+		}
+		if c.Ci != nil {
+			cfg.Completion.CI.WaitForCI = c.Ci.WaitForCi
+			if c.Ci.CiTimeout > 0 {
+				cfg.Completion.CI.CITimeout = time.Duration(c.Ci.CiTimeout) * time.Minute
+			}
+			if c.Ci.PollInterval > 0 {
+				cfg.Completion.CI.PollInterval = time.Duration(c.Ci.PollInterval) * time.Second
+			}
+			cfg.Completion.CI.MergeOnCIPass = c.Ci.MergeOnCiPass
+			if c.Ci.MergeMethod != "" {
+				cfg.Completion.CI.MergeMethod = c.Ci.MergeMethod
+			}
+			cfg.Completion.CI.MergeCommitTemplate = c.Ci.MergeCommitTemplate
+			cfg.Completion.CI.SquashCommitTemplate = c.Ci.SquashCommitTemplate
+			cfg.Completion.CI.VerifySHAOnMerge = c.Ci.VerifyShaOnMerge
+		}
+	}
+
 	// Apply claude/model updates
 	if req.Msg.Claude != nil && req.Msg.Claude.Model != "" {
 		valid := false
@@ -1040,8 +1079,29 @@ func orcConfigToProto(cfg *config.Config) *orcv1.Config {
 			AutoApprove: cfg.Automation.AutoApprove,
 		},
 		Completion: &orcv1.CompletionConfig{
-			Action:    cfg.Completion.Action,
-			AutoMerge: cfg.Completion.MergeOnCIPass,
+			Action:       cfg.Completion.Action,
+			AutoMerge:    cfg.Completion.MergeOnCIPass,
+			DeleteBranch: cfg.Completion.DeleteBranch,
+			Pr: &orcv1.PRConfig{
+				Draft:               cfg.Completion.PR.Draft,
+				Labels:              cfg.Completion.PR.Labels,
+				Reviewers:           cfg.Completion.PR.Reviewers,
+				TeamReviewers:       cfg.Completion.PR.TeamReviewers,
+				Assignees:           cfg.Completion.PR.Assignees,
+				MaintainerCanModify: cfg.Completion.PR.MaintainerCanModify,
+				AutoApprove:         cfg.Completion.PR.AutoApprove,
+				AutoMerge:           cfg.Completion.PR.AutoMerge,
+			},
+			Ci: &orcv1.CIConfig{
+				WaitForCi:            cfg.Completion.CI.WaitForCI,
+				CiTimeout:            int32(cfg.Completion.CI.CITimeout / time.Minute),
+				PollInterval:         int32(cfg.Completion.CI.PollInterval / time.Second),
+				MergeOnCiPass:        cfg.Completion.CI.MergeOnCIPass,
+				MergeMethod:          cfg.Completion.CI.MergeMethod,
+				MergeCommitTemplate:  cfg.Completion.CI.MergeCommitTemplate,
+				SquashCommitTemplate: cfg.Completion.CI.SquashCommitTemplate,
+				VerifyShaOnMerge:     cfg.Completion.CI.VerifySHAOnMerge,
+			},
 		},
 		Claude: &orcv1.ClaudeConfig{
 			Model: cfg.Model,

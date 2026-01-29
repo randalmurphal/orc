@@ -362,9 +362,21 @@ func mergeCompletionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]
 			cfg.Completion.PR.Reviewers = fileCfg.Completion.PR.Reviewers
 			tc.SetSourceWithPath("completion.pr.reviewers", source, path)
 		}
+		if _, ok := rawPR["team_reviewers"]; ok {
+			cfg.Completion.PR.TeamReviewers = fileCfg.Completion.PR.TeamReviewers
+			tc.SetSourceWithPath("completion.pr.team_reviewers", source, path)
+		}
+		if _, ok := rawPR["assignees"]; ok {
+			cfg.Completion.PR.Assignees = fileCfg.Completion.PR.Assignees
+			tc.SetSourceWithPath("completion.pr.assignees", source, path)
+		}
 		if _, ok := rawPR["draft"]; ok {
 			cfg.Completion.PR.Draft = fileCfg.Completion.PR.Draft
 			tc.SetSourceWithPath("completion.pr.draft", source, path)
+		}
+		if _, ok := rawPR["maintainer_can_modify"]; ok {
+			cfg.Completion.PR.MaintainerCanModify = fileCfg.Completion.PR.MaintainerCanModify
+			tc.SetSourceWithPath("completion.pr.maintainer_can_modify", source, path)
 		}
 		if _, ok := rawPR["auto_merge"]; ok {
 			cfg.Completion.PR.AutoMerge = fileCfg.Completion.PR.AutoMerge
@@ -373,6 +385,41 @@ func mergeCompletionConfigWithPath(cfg *Config, fileCfg *Config, raw map[string]
 		if _, ok := rawPR["auto_approve"]; ok {
 			cfg.Completion.PR.AutoApprove = fileCfg.Completion.PR.AutoApprove
 			tc.SetSourceWithPath("completion.pr.auto_approve", source, path)
+		}
+	}
+	// CI config is nested further
+	if rawCI, ok := raw["ci"].(map[string]interface{}); ok {
+		if _, ok := rawCI["wait_for_ci"]; ok {
+			cfg.Completion.CI.WaitForCI = fileCfg.Completion.CI.WaitForCI
+			tc.SetSourceWithPath("completion.ci.wait_for_ci", source, path)
+		}
+		if _, ok := rawCI["ci_timeout"]; ok {
+			cfg.Completion.CI.CITimeout = fileCfg.Completion.CI.CITimeout
+			tc.SetSourceWithPath("completion.ci.ci_timeout", source, path)
+		}
+		if _, ok := rawCI["poll_interval"]; ok {
+			cfg.Completion.CI.PollInterval = fileCfg.Completion.CI.PollInterval
+			tc.SetSourceWithPath("completion.ci.poll_interval", source, path)
+		}
+		if _, ok := rawCI["merge_on_ci_pass"]; ok {
+			cfg.Completion.CI.MergeOnCIPass = fileCfg.Completion.CI.MergeOnCIPass
+			tc.SetSourceWithPath("completion.ci.merge_on_ci_pass", source, path)
+		}
+		if _, ok := rawCI["merge_method"]; ok {
+			cfg.Completion.CI.MergeMethod = fileCfg.Completion.CI.MergeMethod
+			tc.SetSourceWithPath("completion.ci.merge_method", source, path)
+		}
+		if _, ok := rawCI["merge_commit_template"]; ok {
+			cfg.Completion.CI.MergeCommitTemplate = fileCfg.Completion.CI.MergeCommitTemplate
+			tc.SetSourceWithPath("completion.ci.merge_commit_template", source, path)
+		}
+		if _, ok := rawCI["squash_commit_template"]; ok {
+			cfg.Completion.CI.SquashCommitTemplate = fileCfg.Completion.CI.SquashCommitTemplate
+			tc.SetSourceWithPath("completion.ci.squash_commit_template", source, path)
+		}
+		if _, ok := rawCI["verify_sha_on_merge"]; ok {
+			cfg.Completion.CI.VerifySHAOnMerge = fileCfg.Completion.CI.VerifySHAOnMerge
+			tc.SetSourceWithPath("completion.ci.verify_sha_on_merge", source, path)
 		}
 	}
 }
@@ -557,7 +604,12 @@ func markDefaults(tc *TrackedConfig) {
 		"worktree.enabled", "worktree.dir", "worktree.cleanup_on_complete", "worktree.cleanup_on_fail",
 		"completion.action", "completion.target_branch", "completion.delete_branch",
 		"completion.pr.title", "completion.pr.body_template", "completion.pr.labels",
+		"completion.pr.team_reviewers", "completion.pr.assignees", "completion.pr.maintainer_can_modify",
 		"completion.pr.auto_merge", "completion.pr.auto_approve", "completion.pr.draft",
+		"completion.ci.wait_for_ci", "completion.ci.ci_timeout", "completion.ci.poll_interval",
+		"completion.ci.merge_on_ci_pass", "completion.ci.merge_method",
+		"completion.ci.merge_commit_template", "completion.ci.squash_commit_template",
+		"completion.ci.verify_sha_on_merge",
 		"execution.use_session_execution", "execution.session_persistence", "execution.checkpoint_interval", "execution.max_retries",
 		"budget.threshold_usd", "budget.alert_on_exceed", "budget.pause_on_exceed",
 		"pool.enabled", "pool.config_path",

@@ -19,7 +19,7 @@ import (
 
 // mockGitHubProvider implements hosting.Provider for testing.
 type mockGitHubProvider struct {
-	GetPRCommentFunc   func(ctx context.Context, commentID int64) (*hosting.PRComment, error)
+	GetPRCommentFunc   func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error)
 	FindPRByBranchFunc func(ctx context.Context, branch string) (*hosting.PR, error)
 	// Other methods can be added as needed
 }
@@ -52,11 +52,19 @@ func (m *mockGitHubProvider) ReplyToComment(ctx context.Context, number int, thr
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) GetPRComment(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+func (m *mockGitHubProvider) GetPRComment(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 	if m.GetPRCommentFunc != nil {
-		return m.GetPRCommentFunc(ctx, commentID)
+		return m.GetPRCommentFunc(ctx, prNumber, commentID)
 	}
 	return nil, errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) EnableAutoMerge(_ context.Context, _ int, _ string) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) UpdatePRBranch(_ context.Context, _ int) error {
+	return errors.New("not implemented")
 }
 
 func (m *mockGitHubProvider) GetCheckRuns(ctx context.Context, ref string) ([]hosting.CheckRun, error) {
@@ -134,13 +142,16 @@ func TestAutofixComment_StartsExecution(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{
 				ID:   commentID,
 				Body: "Please fix this error handling",
 				Path: "internal/api/handler.go",
 				Line: 42,
 			}, nil
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -212,7 +223,7 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{
 				ID:     commentID,
 				Body:   commentBody,
@@ -220,6 +231,9 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 				Line:   42,
 				Author: "reviewer",
 			}, nil
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -304,7 +318,7 @@ func TestAutofixComment_ReturnsImmediately(t *testing.T) {
 	defer close(executorDone)
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{ID: commentID, Body: "fix this"}, nil
 		},
 		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
@@ -393,8 +407,11 @@ func TestAutofixComment_PublishesCompletionEvent(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -457,7 +474,7 @@ func TestAutofixComment_TaskAlreadyRunning(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
 	}
@@ -658,8 +675,11 @@ func TestAutofixComment_CommentNotFound(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return nil, errors.New("comment not found: 12345")
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -793,8 +813,11 @@ func TestAutofixComment_TaskPaused_AllowsAutofix(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -863,7 +886,7 @@ func TestAutofixComment_ExecutorFails(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
 		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
@@ -942,8 +965,11 @@ func TestAutofixComment_RateLimited(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return nil, errors.New("rate limit exceeded")
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
@@ -1009,13 +1035,16 @@ func TestAutofixComment_LongCommentTruncated(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, prNumber int, commentID int64) (*hosting.PRComment, error) {
 			return &hosting.PRComment{
 				ID:   commentID,
 				Body: longBody,
 				Path: "file.go",
 				Line: 1,
 			}, nil
+		},
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 

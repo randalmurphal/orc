@@ -70,9 +70,9 @@ func TestCIConfig_Defaults(t *testing.T) {
 	t.Parallel()
 	cfg := config.Default()
 
-	// Verify default values
-	if !cfg.Completion.CI.WaitForCI {
-		t.Error("expected WaitForCI to be true by default")
+	// Verify default values — auto-merge/poll defaults are OFF
+	if cfg.Completion.CI.WaitForCI {
+		t.Error("expected WaitForCI to be false by default")
 	}
 
 	if cfg.Completion.CI.CITimeout != 10*time.Minute {
@@ -83,12 +83,16 @@ func TestCIConfig_Defaults(t *testing.T) {
 		t.Errorf("expected PollInterval to be 30s, got %v", cfg.Completion.CI.PollInterval)
 	}
 
-	if !cfg.Completion.CI.MergeOnCIPass {
-		t.Error("expected MergeOnCIPass to be true by default")
+	if cfg.Completion.CI.MergeOnCIPass {
+		t.Error("expected MergeOnCIPass to be false by default")
 	}
 
 	if cfg.Completion.CI.MergeMethod != "squash" {
 		t.Errorf("expected MergeMethod to be 'squash', got %s", cfg.Completion.CI.MergeMethod)
+	}
+
+	if !cfg.Completion.CI.VerifySHAOnMerge {
+		t.Error("expected VerifySHAOnMerge to be true by default")
 	}
 }
 
@@ -184,6 +188,8 @@ func TestConfig_ShouldMergeOnCIPass(t *testing.T) {
 			cfg := config.Default()
 			cfg.Profile = tt.profile
 			cfg.Completion.CI.MergeOnCIPass = tt.merge
+			// ShouldMergeOnCIPass requires WaitForCI to also be true
+			cfg.Completion.CI.WaitForCI = tt.merge
 
 			if got := cfg.ShouldMergeOnCIPass(); got != tt.expected {
 				t.Errorf("ShouldMergeOnCIPass() = %v, want %v", got, tt.expected)
@@ -665,18 +671,45 @@ type mockProvider struct {
 	checkRuns    []hosting.CheckRun
 	checkRunsErr error
 	mergeErr     error
+
+	// Capture merge options for assertions
+	lastMergeOpts hosting.PRMergeOptions
+
+	// Configurable method returns
+	getPRFunc          func(ctx context.Context, number int) (*hosting.PR, error)
+	enableAutoMergeErr error
+	updatePRBranchErr  error
+	createPRFunc       func(ctx context.Context, opts hosting.PRCreateOptions) (*hosting.PR, error)
+	approvePRErr       error
+
+	// Track calls
+	enableAutoMergeCalls []struct {
+		Number int
+		Method string
+	}
+	approvePRCalls []struct {
+		Number int
+		Body   string
+	}
 }
 
-func (m *mockProvider) CreatePR(_ context.Context, _ hosting.PRCreateOptions) (*hosting.PR, error) {
+func (m *mockProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOptions) (*hosting.PR, error) {
+	if m.createPRFunc != nil {
+		return m.createPRFunc(ctx, opts)
+	}
 	return nil, fmt.Errorf("not implemented")
 }
-func (m *mockProvider) GetPR(_ context.Context, _ int) (*hosting.PR, error) {
+func (m *mockProvider) GetPR(ctx context.Context, number int) (*hosting.PR, error) {
+	if m.getPRFunc != nil {
+		return m.getPRFunc(ctx, number)
+	}
 	return nil, fmt.Errorf("not implemented")
 }
 func (m *mockProvider) UpdatePR(_ context.Context, _ int, _ hosting.PRUpdateOptions) error {
 	return fmt.Errorf("not implemented")
 }
-func (m *mockProvider) MergePR(_ context.Context, _ int, _ hosting.PRMergeOptions) error {
+func (m *mockProvider) MergePR(_ context.Context, _ int, opts hosting.PRMergeOptions) error {
+	m.lastMergeOpts = opts
 	return m.mergeErr
 }
 func (m *mockProvider) FindPRByBranch(_ context.Context, _ string) (*hosting.PR, error) {
@@ -691,8 +724,18 @@ func (m *mockProvider) CreatePRComment(_ context.Context, _ int, _ hosting.PRCom
 func (m *mockProvider) ReplyToComment(_ context.Context, _ int, _ int64, _ string) (*hosting.PRComment, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (m *mockProvider) GetPRComment(_ context.Context, _ int64) (*hosting.PRComment, error) {
+func (m *mockProvider) GetPRComment(_ context.Context, _ int, _ int64) (*hosting.PRComment, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+func (m *mockProvider) EnableAutoMerge(_ context.Context, number int, method string) error {
+	m.enableAutoMergeCalls = append(m.enableAutoMergeCalls, struct {
+		Number int
+		Method string
+	}{number, method})
+	return m.enableAutoMergeErr
+}
+func (m *mockProvider) UpdatePRBranch(_ context.Context, _ int) error {
+	return m.updatePRBranchErr
 }
 func (m *mockProvider) GetCheckRuns(_ context.Context, _ string) ([]hosting.CheckRun, error) {
 	return m.checkRuns, m.checkRunsErr
@@ -700,8 +743,12 @@ func (m *mockProvider) GetCheckRuns(_ context.Context, _ string) ([]hosting.Chec
 func (m *mockProvider) GetPRReviews(_ context.Context, _ int) ([]hosting.PRReview, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-func (m *mockProvider) ApprovePR(_ context.Context, _ int, _ string) error {
-	return fmt.Errorf("not implemented")
+func (m *mockProvider) ApprovePR(_ context.Context, number int, body string) error {
+	m.approvePRCalls = append(m.approvePRCalls, struct {
+		Number int
+		Body   string
+	}{number, body})
+	return m.approvePRErr
 }
 func (m *mockProvider) GetPRStatusSummary(_ context.Context, _ *hosting.PR) (*hosting.PRStatusSummary, error) {
 	return nil, fmt.Errorf("not implemented")
@@ -717,4 +764,342 @@ func (m *mockProvider) Name() hosting.ProviderType {
 }
 func (m *mockProvider) OwnerRepo() (string, string) {
 	return "owner", "repo"
+}
+
+// =============================================================================
+// Template rendering tests
+// =============================================================================
+
+func TestRenderCommitTemplate(t *testing.T) {
+	t.Parallel()
+	task := &orcv1.Task{
+		Id:     "TASK-042",
+		Title:  "Fix authentication bug",
+		Branch: "orc/TASK-042",
+	}
+
+	tests := []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			name:     "all variables",
+			template: "[{{TASK_ID}}] {{TASK_TITLE}} ({{TASK_BRANCH}})",
+			expected: "[TASK-042] Fix authentication bug (orc/TASK-042)",
+		},
+		{
+			name:     "no variables",
+			template: "Simple commit message",
+			expected: "Simple commit message",
+		},
+		{
+			name:     "repeated variable",
+			template: "{{TASK_ID}}: {{TASK_ID}}",
+			expected: "TASK-042: TASK-042",
+		},
+		{
+			name:     "empty template",
+			template: "",
+			expected: "",
+		},
+		{
+			name:     "only task ID",
+			template: "{{TASK_ID}}",
+			expected: "TASK-042",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := renderCommitTemplate(tt.template, task)
+			if got != tt.expected {
+				t.Errorf("renderCommitTemplate() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// MergePR with SHA verification tests
+// =============================================================================
+
+func TestCIMerger_MergePR_SHAVerification(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.VerifySHAOnMerge = true
+
+	provider := &mockProvider{
+		getPRFunc: func(_ context.Context, number int) (*hosting.PR, error) {
+			return &hosting.PR{
+				Number:  number,
+				HeadSHA: "abc123def456",
+			}, nil
+		},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(42)
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Title:  "Test task",
+		Branch: "orc/TASK-001",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	if provider.lastMergeOpts.SHA != "abc123def456" {
+		t.Errorf("expected SHA = %q, got %q", "abc123def456", provider.lastMergeOpts.SHA)
+	}
+}
+
+func TestCIMerger_MergePR_SHAVerificationDisabled(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.VerifySHAOnMerge = false
+
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(42)
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Title:  "Test task",
+		Branch: "orc/TASK-001",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	if provider.lastMergeOpts.SHA != "" {
+		t.Errorf("expected empty SHA when verification disabled, got %q", provider.lastMergeOpts.SHA)
+	}
+}
+
+func TestCIMerger_MergePR_SHAVerificationFetchError(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.VerifySHAOnMerge = true
+
+	provider := &mockProvider{
+		getPRFunc: func(_ context.Context, _ int) (*hosting.PR, error) {
+			return nil, fmt.Errorf("API rate limited")
+		},
+	}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(42)
+	tsk := &orcv1.Task{
+		Id:     "TASK-001",
+		Title:  "Test task",
+		Branch: "orc/TASK-001",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	// Should still merge — SHA verification failure is a warning, not a blocker
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	if provider.lastMergeOpts.SHA != "" {
+		t.Errorf("expected empty SHA on fetch error, got %q", provider.lastMergeOpts.SHA)
+	}
+}
+
+// =============================================================================
+// MergePR with commit message template tests
+// =============================================================================
+
+func TestCIMerger_MergePR_CommitMessageTemplate(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.MergeCommitTemplate = "Merge: [{{TASK_ID}}] {{TASK_TITLE}}"
+
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(10)
+	tsk := &orcv1.Task{
+		Id:     "TASK-099",
+		Title:  "Add dark mode",
+		Branch: "orc/TASK-099",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	expected := "Merge: [TASK-099] Add dark mode"
+	if provider.lastMergeOpts.CommitMessage != expected {
+		t.Errorf("CommitMessage = %q, want %q", provider.lastMergeOpts.CommitMessage, expected)
+	}
+}
+
+func TestCIMerger_MergePR_SquashCommitTemplate(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.MergeMethod = "squash"
+	cfg.Completion.CI.SquashCommitTemplate = "{{TASK_ID}}: {{TASK_TITLE}}"
+
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(10)
+	tsk := &orcv1.Task{
+		Id:     "TASK-050",
+		Title:  "Refactor auth",
+		Branch: "orc/TASK-050",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	expected := "TASK-050: Refactor auth"
+	if provider.lastMergeOpts.SquashCommitMessage != expected {
+		t.Errorf("SquashCommitMessage = %q, want %q", provider.lastMergeOpts.SquashCommitMessage, expected)
+	}
+}
+
+func TestCIMerger_MergePR_SquashTemplateIgnoredForMergeMethod(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	cfg.Completion.CI.MergeMethod = "merge" // Not squash
+	cfg.Completion.CI.SquashCommitTemplate = "{{TASK_ID}}: {{TASK_TITLE}}"
+
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(10)
+	tsk := &orcv1.Task{
+		Id:     "TASK-050",
+		Title:  "Refactor auth",
+		Branch: "orc/TASK-050",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	if provider.lastMergeOpts.SquashCommitMessage != "" {
+		t.Errorf("SquashCommitMessage should be empty for merge method, got %q",
+			provider.lastMergeOpts.SquashCommitMessage)
+	}
+}
+
+// =============================================================================
+// MergePR commit title tests
+// =============================================================================
+
+func TestCIMerger_MergePR_CommitTitle(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+	provider := &mockProvider{}
+	merger := NewCIMerger(cfg, WithCIMergerHostingProvider(provider))
+
+	prNumber := int32(77)
+	tsk := &orcv1.Task{
+		Id:     "TASK-123",
+		Title:  "Add user search",
+		Branch: "orc/TASK-123",
+		Pr:     &orcv1.PRInfo{Number: &prNumber},
+	}
+
+	err := merger.MergePR(context.Background(), tsk)
+	if err != nil {
+		t.Fatalf("MergePR() error = %v", err)
+	}
+
+	expected := "[orc] TASK-123: Add user search (#77)"
+	if provider.lastMergeOpts.CommitTitle != expected {
+		t.Errorf("CommitTitle = %q, want %q", provider.lastMergeOpts.CommitTitle, expected)
+	}
+}
+
+// =============================================================================
+// EnableAutoMerge mock tests
+// =============================================================================
+
+func TestMockProvider_EnableAutoMerge_TracksCall(t *testing.T) {
+	t.Parallel()
+	provider := &mockProvider{}
+
+	err := provider.EnableAutoMerge(context.Background(), 42, "squash")
+	if err != nil {
+		t.Fatalf("EnableAutoMerge() error = %v", err)
+	}
+
+	if len(provider.enableAutoMergeCalls) != 1 {
+		t.Fatalf("expected 1 call, got %d", len(provider.enableAutoMergeCalls))
+	}
+	call := provider.enableAutoMergeCalls[0]
+	if call.Number != 42 {
+		t.Errorf("number = %d, want 42", call.Number)
+	}
+	if call.Method != "squash" {
+		t.Errorf("method = %q, want %q", call.Method, "squash")
+	}
+}
+
+func TestMockProvider_EnableAutoMerge_ReturnsError(t *testing.T) {
+	t.Parallel()
+	provider := &mockProvider{
+		enableAutoMergeErr: hosting.ErrAutoMergeNotSupported,
+	}
+
+	err := provider.EnableAutoMerge(context.Background(), 42, "squash")
+	if !errors.Is(err, hosting.ErrAutoMergeNotSupported) {
+		t.Errorf("expected ErrAutoMergeNotSupported, got %v", err)
+	}
+}
+
+// =============================================================================
+// Default config verification tests
+// =============================================================================
+
+func TestDefault_PRConfig(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+
+	if cfg.Completion.PR.AutoMerge {
+		t.Error("expected PR.AutoMerge to be false by default")
+	}
+	if cfg.Completion.PR.AutoApprove {
+		t.Error("expected PR.AutoApprove to be false by default")
+	}
+	if !cfg.Completion.PR.MaintainerCanModify {
+		t.Error("expected PR.MaintainerCanModify to be true by default")
+	}
+	if cfg.Completion.PR.Draft {
+		t.Error("expected PR.Draft to be false by default")
+	}
+}
+
+func TestDefault_CIConfig_NewFields(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default()
+
+	if cfg.Completion.CI.MergeCommitTemplate != "" {
+		t.Errorf("expected MergeCommitTemplate to be empty, got %q", cfg.Completion.CI.MergeCommitTemplate)
+	}
+	if cfg.Completion.CI.SquashCommitTemplate != "" {
+		t.Errorf("expected SquashCommitTemplate to be empty, got %q", cfg.Completion.CI.SquashCommitTemplate)
+	}
+	if !cfg.Completion.CI.VerifySHAOnMerge {
+		t.Error("expected VerifySHAOnMerge to be true by default")
+	}
 }

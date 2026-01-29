@@ -12,4 +12,7 @@ var (
 
 	// ErrNotFound is returned when a resource is not found.
 	ErrNotFound = errors.New("not found")
+
+	// ErrAutoMergeNotSupported is returned when the provider doesn't support auto-merge.
+	ErrAutoMergeNotSupported = errors.New("auto-merge not supported by this provider")
 )
