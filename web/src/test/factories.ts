@@ -71,6 +71,13 @@ import {
 	type AddPhaseResponse,
 	type UpdatePhaseResponse,
 	type RemovePhaseResponse,
+	SaveWorkflowLayoutResponseSchema,
+	ValidateWorkflowResponseSchema,
+
+	type SaveWorkflowLayoutResponse,
+	type ValidateWorkflowResponse,
+	ValidationIssueSchema,
+	type ValidationIssue,
 } from '@/gen/orc/v1/workflow_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
@@ -406,4 +413,28 @@ export function createMockUpdatePhaseResponse(phase: WorkflowPhase): UpdatePhase
  */
 export function createMockRemovePhaseResponse(workflow: Workflow): RemovePhaseResponse {
 	return create(RemovePhaseResponseSchema, { workflow });
+}
+
+/**
+ * Create a mock SaveWorkflowLayoutResponse with proto-compatible types
+ */
+export function createMockSaveWorkflowLayoutResponse(success: boolean = true): SaveWorkflowLayoutResponse {
+	return create(SaveWorkflowLayoutResponseSchema, { success });
+}
+
+/**
+ * Create a mock ValidateWorkflowResponse with proto-compatible types
+ */
+/**
+ * Create a mock ValidationIssue with proto-compatible types
+ */
+export function createMockValidationIssue(severity: string, message: string, phaseIds: string[] = []): ValidationIssue {
+	return create(ValidationIssueSchema, { severity, message, phaseIds });
+}
+
+/**
+ * Create a mock ValidateWorkflowResponse with proto-compatible types
+ */
+export function createMockValidateWorkflowResponse(valid: boolean, issues: ValidationIssue[] = []): ValidateWorkflowResponse {
+	return create(ValidateWorkflowResponseSchema, { valid, issues });
 }
