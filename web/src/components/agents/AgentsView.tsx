@@ -253,6 +253,8 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 					variant="primary"
 					leftIcon={<Icon name="plus" size={12} />}
 					onClick={handleAddAgent}
+					disabled
+					title="Coming soon"
 				>
 					Add Agent
 				</Button>
