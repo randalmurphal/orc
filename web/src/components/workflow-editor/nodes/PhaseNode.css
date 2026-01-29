@@ -10,6 +10,17 @@
 	color: var(--text-primary);
 	min-width: 180px;
 	max-width: 240px;
+	/* SC-2: Smooth CSS transitions for hover/selection states */
+	transition:
+		transform var(--duration-fast) var(--ease-out),
+		box-shadow var(--duration-fast) var(--ease-out),
+		border-color var(--duration-fast) var(--ease-out);
+}
+
+/* SC-2: Hover state - subtle scale and shadow */
+.phase-node:hover {
+	transform: scale(1.02);
+	box-shadow: var(--shadow-md);
 }
 
 /* Selection */
