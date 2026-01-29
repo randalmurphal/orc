@@ -20,6 +20,8 @@
 .right-panel.open {
 	width: 300px;
 	min-width: 300px;
+	/* Re-enable pointer events (parent .app-shell__panel disables them) */
+	pointer-events: auto;
 }
 
 /* =============================================================================
