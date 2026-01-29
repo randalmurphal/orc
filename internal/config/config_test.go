@@ -345,7 +345,6 @@ func TestShouldRetryFrom(t *testing.T) {
 			Enabled:    true,
 			MaxRetries: 3,
 			RetryMap: map[string]string{
-				"test":   "implement",
 				"review": "implement",
 			},
 		},
@@ -355,7 +354,6 @@ func TestShouldRetryFrom(t *testing.T) {
 		phase    string
 		wantFrom string
 	}{
-		{"test", "implement"},
 		{"review", "implement"},
 		{"implement", ""},
 		{"spec", ""},
@@ -376,7 +374,7 @@ func TestShouldRetryFrom(t *testing.T) {
 			Enabled: false,
 		},
 	}
-	from := cfgDisabled.ShouldRetryFrom("test")
+	from := cfgDisabled.ShouldRetryFrom("review")
 	if from != "" {
 		t.Errorf("ShouldRetryFrom() = %s, want empty when retry disabled", from)
 	}
@@ -384,31 +382,19 @@ func TestShouldRetryFrom(t *testing.T) {
 
 func TestDefaultConfigRetryMap(t *testing.T) {
 	// Verify default config has the expected retry mappings
-	// These mappings prevent infinite loops when phases fail
+	// Review is the only phase with retry mapping (blocks trigger retry from implement)
 	cfg := Default()
 
-	// Phases that should have retry mappings
-	retryTests := []struct {
-		phase    string
-		wantFrom string
-	}{
-		{"test", "implement"},
-		{"test_unit", "implement"},
-		{"test_e2e", "implement"},
-		{"review", "implement"}, // Critical: prevents review-resume loop
-	}
+	// Review should retry from implement
+	t.Run("review", func(t *testing.T) {
+		from := cfg.ShouldRetryFrom("review")
+		if from != "implement" {
+			t.Errorf("Default().ShouldRetryFrom(review) = %s, want implement", from)
+		}
+	})
 
-	for _, tt := range retryTests {
-		t.Run(tt.phase, func(t *testing.T) {
-			from := cfg.ShouldRetryFrom(tt.phase)
-			if from != tt.wantFrom {
-				t.Errorf("Default().ShouldRetryFrom(%s) = %s, want %s", tt.phase, from, tt.wantFrom)
-			}
-		})
-	}
-
-	// Phases that should NOT have retry mappings (no upstream phase or retry not helpful)
-	noRetryPhases := []string{"spec", "implement", "docs", "research"}
+	// Phases that should NOT have retry mappings
+	noRetryPhases := []string{"spec", "implement", "docs", "research", "tdd_write", "breakdown"}
 	for _, phase := range noRetryPhases {
 		t.Run("no_retry_"+phase, func(t *testing.T) {
 			from := cfg.ShouldRetryFrom(phase)
