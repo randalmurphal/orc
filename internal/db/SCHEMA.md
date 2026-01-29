@@ -93,7 +93,6 @@ Embedded via `//go:embed schema/*.sql`:
 | `team_members` | Organization members |
 | `task_claims` | Task assignments |
 | `activity_log` | Audit trail |
-| `knowledge_queue` | Knowledge approval queue |
 | `task_comments` | Task comments/notes |
 | `sync_state` | P2P sync tracking |
 

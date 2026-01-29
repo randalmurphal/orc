@@ -34,7 +34,6 @@ Full command reference for the orc CLI.
 | `cmd_export.go` | `orc export/import` | Export/import tasks |
 | `cmd_initiative.go` | `orc initiative` | Manage initiatives |
 | `cmd_initiative_plan.go` | `orc initiative plan` | Bulk-create tasks from manifest |
-| `cmd_knowledge.go` | `orc knowledge` | Manage project knowledge |
 | `cmd_comment.go` | `orc comment` | Manage task comments |
 
 ## Task Commands

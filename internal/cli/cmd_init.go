@@ -111,7 +111,6 @@ func runWizardInit(projectPath string, force bool) error {
 	opts := bootstrap.Options{
 		Force:            force,
 		SkipClaudeMD:     true, // Don't auto-inject CLAUDE.md
-		SkipKnowledge:    true, // Don't auto-inject knowledge section
 		SkipHooks:        !state.InstallHooks,
 		SkipGitignore:    !state.UpdateGitignore,
 		SkipConstitution: true, // We handle this separately

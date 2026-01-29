@@ -8,8 +8,8 @@ Embedded prompt templates for phase execution.
 templates/
 ├── embed.go              # Go embed directives
 ├── prompts/              # ALL prompt templates
-│   ├── *.md              # Phase and session prompts (21 files)
-│   └── automation/*.md   # Maintenance automation templates (9 files)
+│   ├── *.md              # Phase and session prompts (22 files)
+│   └── automation/*.md   # Maintenance automation templates (8 files)
 ├── agents/               # Sub-agent definitions
 ├── docs/                 # Documentation templates
 ├── scripts/              # Helper scripts
@@ -71,7 +71,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review with verification |
-| `docs.md` | Documentation |
+| `docs.md` | Documentation (AI doc standards, hierarchical inheritance, doc type templates) |
 | `qa.md` | Manual QA verification session |
 | `test.md` | Test execution template |
 | `finalize.md` | Branch sync, conflict resolution (manual command) |
@@ -82,7 +82,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 
 **Gates:** `conflict_resolution.md`
 
-**Automation:** `automation/*.md` (9 maintenance templates)
+**Automation:** `automation/*.md` (8 maintenance templates)
 
 ## Prompt Structure
 
