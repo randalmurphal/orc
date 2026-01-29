@@ -1,0 +1,30 @@
+/* CanvasToolbar - Canvas control buttons */
+
+.canvas-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: var(--space-1);
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-sm);
+}
+
+.canvas-toolbar__label {
+	margin-left: var(--space-1);
+}
+
+.canvas-toolbar__divider {
+	width: 1px;
+	height: 20px;
+	background: var(--border);
+	margin: 0 var(--space-1);
+}
+
+/* Hide labels on small screens */
+@media (max-width: 640px) {
+	.canvas-toolbar__label {
+		display: none;
+	}
+}

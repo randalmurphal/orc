@@ -31,7 +31,7 @@ function formatGateType(gt: GateType): string {
 // Show iterations badge only for notably high values (> typical template default of 3)
 const ITERATIONS_BADGE_THRESHOLD = 3;
 
-export function PhaseNode({ data, selected }: NodeProps) {
+export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 	const d = data as unknown as PhaseNodeData;
 	const displayName = d.templateName || d.phaseTemplateId;
 	const statusClass = getStatusClass(d.status);
@@ -48,7 +48,7 @@ export function PhaseNode({ data, selected }: NodeProps) {
 
 	return (
 		<div className={classes.join(' ')}>
-			<Handle type="target" position={Position.Left} />
+			<Handle type="target" position={Position.Left} isConnectable={isConnectable} data-handletype="target" />
 			<div className="phase-node-header">
 				<span className="phase-node-sequence">{d.sequence}</span>
 				<div className="phase-node-title">
@@ -91,7 +91,7 @@ export function PhaseNode({ data, selected }: NodeProps) {
 					)}
 				</div>
 			)}
-			<Handle type="source" position={Position.Right} />
+			<Handle type="source" position={Position.Right} isConnectable={isConnectable} data-handletype="source" />
 		</div>
 	);
 }
