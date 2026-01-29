@@ -1,0 +1,24 @@
+/* DeletePhaseDialog - Phase deletion confirmation styles */
+
+.delete-phase-dialog {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+.delete-phase-dialog__message {
+	margin: 0;
+	color: var(--text-secondary);
+	line-height: var(--leading-relaxed);
+}
+
+.delete-phase-dialog__phase-name {
+	color: var(--text-primary);
+	word-break: break-word;
+}
+
+.delete-phase-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}

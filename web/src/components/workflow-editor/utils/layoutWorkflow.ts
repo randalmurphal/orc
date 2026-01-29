@@ -202,9 +202,33 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 
 	dagre.layout(g);
 
-	// Apply computed positions (dagre gives center, React Flow uses top-left)
+	// Apply positions: use stored positions for phase nodes when available,
+	// fall back to dagre-computed positions otherwise (SC-11)
 	for (const node of nodes) {
 		const dagreNode = g.node(node.id);
+
+		// For phase nodes, check if stored positions are available
+		if (node.type === 'phase') {
+			const nodeData = node.data as PhaseNodeData;
+			const phase = phases.find((p) => p.id === nodeData.phaseId);
+
+			// Use stored position if BOTH x and y are set (not null/undefined)
+			if (
+				phase &&
+				phase.positionX !== undefined &&
+				phase.positionX !== null &&
+				phase.positionY !== undefined &&
+				phase.positionY !== null
+			) {
+				node.position = {
+					x: phase.positionX,
+					y: phase.positionY,
+				};
+				continue;
+			}
+		}
+
+		// Fall back to dagre for start/end nodes or phases without stored positions
 		if (dagreNode) {
 			node.position = {
 				x: dagreNode.x - dagreNode.width / 2,

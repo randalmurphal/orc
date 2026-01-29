@@ -103,10 +103,13 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
+| `WorkflowCanvas` | `workflow-editor/` | React Flow canvas with drag-to-add, delete, connections, layout persistence |
+| `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
+| `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
 | `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs for selected phase |
 | `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
-| `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: available phase templates for drag-to-add |
+| `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: draggable phase templates for adding to canvas |
 
 ## React Patterns
 
@@ -150,6 +153,7 @@ useEffect(() => {
 | `useDocumentTitle` | Dynamic page title (`hooks/useDocumentTitle.ts`) |
 | `useClickKeyboard` | Click/keyboard combo handler (`hooks/useClickKeyboard.ts`) |
 | `useTaskSubscription` | Subscribe to individual task events (`hooks/useEvents.tsx`) |
+| `useLayoutPersistence` | Debounced node position saving for workflow canvas (`workflow-editor/hooks/`) |
 
 See `stores/index.ts` for all exported store selector hooks (60+ hooks).
 

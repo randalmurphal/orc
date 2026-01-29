@@ -2008,7 +2008,10 @@ Configurable workflow definitions with composable phases.
 | DELETE | `/api/workflows/:id` | Delete workflow (custom only) |
 | POST | `/api/workflows/:id/clone` | Clone workflow |
 | POST | `/api/workflows/:id/phases` | Add phase to workflow |
+| PATCH | `/api/workflows/:id/phases/:phaseId` | Update phase (sequence, dependencies, overrides) |
 | DELETE | `/api/workflows/:id/phases/:phaseId` | Remove phase from workflow |
+| PUT | `/api/workflows/:id/layout` | Save node positions for visual editor |
+| POST | `/api/workflows/:id/validate` | Validate workflow structure (check for cycles) |
 | POST | `/api/workflows/:id/variables` | Add variable to workflow |
 | DELETE | `/api/workflows/:id/variables/:name` | Remove variable from workflow |
 
@@ -2039,6 +2042,115 @@ Configurable workflow definitions with composable phases.
   "new_name": "My Cloned Workflow"
 }
 ```
+
+### Update Phase
+
+Update a phase within a workflow. Used by the visual editor for connection management.
+
+**PATCH `/api/workflows/:id/phases/:phaseId`**
+
+**Request body:**
+```json
+{
+  "sequence": 3,
+  "depends_on": ["spec", "tdd_write"],
+  "max_iterations_override": 50,
+  "model_override": "opus",
+  "thinking_override": true,
+  "gate_type_override": "human",
+  "condition": "{{HAS_TESTS}}"
+}
+```
+
+All fields are optional. Only provided fields are updated.
+
+| Field | Description |
+|-------|-------------|
+| `sequence` | Execution order (lower runs first) |
+| `depends_on` | Phase template IDs that must complete before this phase |
+| `max_iterations_override` | Override max iterations from template |
+| `model_override` | Override model (`sonnet`, `opus`, `haiku`) |
+| `thinking_override` | Override extended thinking setting |
+| `gate_type_override` | Override gate type (`auto`, `human`, `skip`) |
+| `condition` | Conditional execution expression |
+
+**Response:** Returns the updated `WorkflowPhase` object.
+
+### Save Workflow Layout
+
+Bulk-save node positions for the visual workflow editor. Positions are stored per-phase and restored on reload.
+
+**PUT `/api/workflows/:id/layout`**
+
+**Request body:**
+```json
+{
+  "positions": [
+    {"phase_template_id": "spec", "position_x": 100.0, "position_y": 200.0},
+    {"phase_template_id": "implement", "position_x": 300.0, "position_y": 200.0}
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `positions` | Array of phase positions |
+| `positions[].phase_template_id` | Phase template ID |
+| `positions[].position_x` | X coordinate in canvas |
+| `positions[].position_y` | Y coordinate in canvas |
+
+**Response:**
+```json
+{"success": true}
+```
+
+**Notes:**
+- Empty `positions` array clears all stored positions (triggers auto-layout on reload)
+- Positions for phases not in the workflow are ignored
+- Built-in workflows can also store positions (persisted per-user)
+
+### Validate Workflow
+
+Check workflow structure for cycles, invalid references, and other issues.
+
+**POST `/api/workflows/:id/validate`**
+
+No request body required.
+
+**Response:**
+```json
+{
+  "valid": true,
+  "issues": []
+}
+```
+
+**Response with issues:**
+```json
+{
+  "valid": false,
+  "issues": [
+    {
+      "severity": "error",
+      "message": "Dependency cycle detected: implement -> review -> implement",
+      "phase_ids": ["implement", "review"]
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `valid` | `true` if workflow has no errors |
+| `issues` | Array of validation issues |
+| `issues[].severity` | `error` or `warning` |
+| `issues[].message` | Human-readable description |
+| `issues[].phase_ids` | Affected phases (for highlighting in UI) |
+
+**Validated conditions:**
+- No dependency cycles
+- All `depends_on` references point to valid phases in the workflow
+- No duplicate phase template IDs
 
 ### Phase Templates
 
