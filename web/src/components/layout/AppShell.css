@@ -46,9 +46,11 @@
 .app-shell__topbar {
 	grid-column: 2 / -1;
 	grid-row: 1;
-	/* Ensure topbar renders above panel's transform-based stacking context */
+	/* Ensure topbar renders above panel in all viewport sizes.
+	   Panel uses z-sidebar (300) when fixed-positioned on tablet;
+	   z-header (400) guarantees topbar is always on top. */
 	position: relative;
-	z-index: 1;
+	z-index: var(--z-header, 400);
 }
 
 /* =============================================================================
