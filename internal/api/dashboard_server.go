@@ -28,6 +28,7 @@ type DiffServicer interface {
 type dashboardServer struct {
 	orcv1connect.UnimplementedDashboardServiceHandler
 	backend storage.Backend
+	cache   *dashboardCache
 	logger  *slog.Logger
 	diffSvc DiffServicer
 }
@@ -39,6 +40,7 @@ func NewDashboardServer(
 ) orcv1connect.DashboardServiceHandler {
 	return &dashboardServer{
 		backend: backend,
+		cache:   newDashboardCache(backend, 30*time.Second),
 		logger:  logger,
 	}
 }
@@ -52,6 +54,7 @@ func NewDashboardServerWithDiff(
 ) *dashboardServer {
 	return &dashboardServer{
 		backend: backend,
+		cache:   newDashboardCache(backend, 30*time.Second),
 		logger:  logger,
 		diffSvc: diffSvc,
 	}
@@ -62,7 +65,7 @@ func (s *dashboardServer) GetStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetStatsRequest],
 ) (*connect.Response[orcv1.GetStatsResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -165,7 +168,7 @@ func (s *dashboardServer) GetActivityHeatmap(
 		days = 90 // Default to 90 days
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -215,7 +218,7 @@ func (s *dashboardServer) GetCostSummary(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetCostSummaryRequest],
 ) (*connect.Response[orcv1.GetCostSummaryResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -294,7 +297,7 @@ func (s *dashboardServer) GetMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsRequest],
 ) (*connect.Response[orcv1.GetMetricsResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -381,7 +384,7 @@ func (s *dashboardServer) GetDailyMetrics(
 		days = 30
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -450,7 +453,7 @@ func (s *dashboardServer) GetMetricsByModel(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsByModelRequest],
 ) (*connect.Response[orcv1.GetMetricsByModelResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -518,7 +521,7 @@ func (s *dashboardServer) GetOutcomes(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetOutcomesRequest],
 ) (*connect.Response[orcv1.GetOutcomesResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -577,12 +580,12 @@ func (s *dashboardServer) GetTopInitiatives(
 		limit = 10
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
 
-	// Aggregate by initiative
+	// Aggregate by initiative — first pass: collect counts
 	initMap := make(map[string]*orcv1.TopInitiative)
 
 	for _, t := range tasks {
@@ -592,14 +595,9 @@ func (s *dashboardServer) GetTopInitiatives(
 		initID := *t.InitiativeId
 
 		if initMap[initID] == nil {
-			// Load initiative title from storage (TASK-553)
-			title := initID // Default to ID
-			if init, err := s.backend.LoadInitiative(initID); err == nil && init != nil && init.Title != "" {
-				title = init.Title
-			}
 			initMap[initID] = &orcv1.TopInitiative{
 				Id:    initID,
-				Title: title,
+				Title: initID, // Default to ID, resolved below
 			}
 		}
 
@@ -608,6 +606,22 @@ func (s *dashboardServer) GetTopInitiatives(
 			initMap[initID].CompletedCount++
 		}
 		initMap[initID].CostUsd += t.Execution.Cost.TotalCostUsd
+	}
+
+	// Batch load initiative titles (avoids N+1 LoadInitiative calls)
+	if len(initMap) > 0 {
+		ids := make([]string, 0, len(initMap))
+		for id := range initMap {
+			ids = append(ids, id)
+		}
+		titles, err := s.backend.DB().GetInitiativeTitlesBatch(ids)
+		if err == nil {
+			for id, title := range titles {
+				if title != "" {
+					initMap[id].Title = title
+				}
+			}
+		}
 	}
 
 	// Convert to sorted slice
@@ -665,7 +679,7 @@ func (s *dashboardServer) GetTopFiles(
 		}
 		tasks = []*orcv1.Task{task}
 	} else {
-		tasks, err = s.backend.LoadAllTasks()
+		tasks, err = s.cache.Tasks()
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 		}
@@ -744,7 +758,7 @@ func (s *dashboardServer) GetComparison(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetComparisonRequest],
 ) (*connect.Response[orcv1.GetComparisonResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := s.cache.Tasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
