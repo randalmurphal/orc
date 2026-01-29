@@ -426,7 +426,7 @@ func ExtractContentFromOutput(content string) string {
 
 // ParsePhaseSpecificResponse parses JSON response using the appropriate parser
 // for the given phase. Different phases use different schemas:
-//   - review round 1: ReviewFindingsSchema (no status field, valid JSON = complete)
+//   - review round 1: ReviewFindingsSchema (status: complete/blocked)
 //   - review round 2: ReviewDecisionSchema (status: pass/fail/needs_user_input)
 //   - qa: QAResultSchema (status: pass/fail/needs_attention)
 //   - other phases: PhaseCompletionSchema (status: complete/blocked/continue)
@@ -458,14 +458,15 @@ func ParsePhaseSpecificResponse(phaseID string, reviewRound int, content string)
 				return PhaseStatusBlocked, decision.Summary, nil
 			}
 		}
-		// Round 1: ReviewFindingsSchema (no status field)
-		// Valid JSON with findings = complete
+		// Round 1: ReviewFindingsSchema (status: complete/blocked)
 		findings, err := ParseReviewFindings(content)
 		if err != nil {
 			return PhaseStatusContinue, "", fmt.Errorf("invalid review findings JSON: %w (content=%q)",
 				err, truncateForPrompt(content, 200))
 		}
-		// Valid findings response means review round 1 is complete
+		if strings.EqualFold(findings.Status, "blocked") {
+			return PhaseStatusBlocked, findings.Summary, nil
+		}
 		return PhaseStatusComplete, findings.Summary, nil
 	}
 

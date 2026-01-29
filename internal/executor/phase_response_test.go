@@ -349,12 +349,12 @@ func TestParsePhaseSpecificResponse(t *testing.T) {
 			wantReason: "In progress",
 		},
 
-		// Review round 1 - ReviewFindingsSchema (no status field)
+		// Review round 1 - ReviewFindingsSchema (status: complete/blocked)
 		{
 			name:        "review round 1 - valid findings",
 			phaseID:     "review",
 			reviewRound: 1,
-			content:     `{"round": 1, "summary": "Review complete", "issues": []}`,
+			content:     `{"status": "complete", "round": 1, "summary": "Review complete", "issues": []}`,
 			wantStatus:  PhaseStatusComplete,
 			wantReason:  "Review complete",
 		},
@@ -362,9 +362,17 @@ func TestParsePhaseSpecificResponse(t *testing.T) {
 			name:        "review round 1 - findings with issues",
 			phaseID:     "review",
 			reviewRound: 1,
-			content:     `{"round": 1, "summary": "Found issues", "issues": [{"severity": "high", "description": "Bug found"}]}`,
+			content:     `{"status": "complete", "round": 1, "summary": "Found issues", "issues": [{"severity": "high", "description": "Bug found"}]}`,
 			wantStatus:  PhaseStatusComplete,
 			wantReason:  "Found issues",
+		},
+		{
+			name:        "review round 1 - blocked (no implementation)",
+			phaseID:     "review",
+			reviewRound: 1,
+			content:     `{"status": "blocked", "round": 1, "summary": "No implementation exists to review", "issues": []}`,
+			wantStatus:  PhaseStatusBlocked,
+			wantReason:  "No implementation exists to review",
 		},
 		{
 			name:        "review round 1 - invalid JSON",

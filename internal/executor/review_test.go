@@ -104,6 +104,7 @@ func TestParseReviewFindings(t *testing.T) {
 		{
 			name: "valid findings with issues",
 			response: `{
+				"status": "complete",
 				"round": 1,
 				"summary": "Code looks good overall with minor issues",
 				"issues": [
@@ -136,8 +137,21 @@ func TestParseReviewFindings(t *testing.T) {
 		{
 			name: "empty findings",
 			response: `{
+				"status": "complete",
 				"round": 1,
 				"summary": "No issues found",
+				"issues": []
+			}`,
+			wantErr:   false,
+			wantRound: 1,
+			wantIssue: 0,
+		},
+		{
+			name: "blocked findings",
+			response: `{
+				"status": "blocked",
+				"round": 1,
+				"summary": "No implementation exists to review",
 				"issues": []
 			}`,
 			wantErr:   false,
