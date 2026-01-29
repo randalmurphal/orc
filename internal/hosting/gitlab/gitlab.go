@@ -93,8 +93,13 @@ func (g *GitLabProvider) CheckAuth(ctx context.Context) error {
 
 // CreatePR creates a merge request.
 func (g *GitLabProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOptions) (*hosting.PR, error) {
+	title := opts.Title
+	if opts.Draft {
+		title = "Draft: " + title
+	}
+
 	createOpts := &gogitlab.CreateMergeRequestOptions{
-		Title:        gogitlab.Ptr(opts.Title),
+		Title:        gogitlab.Ptr(title),
 		Description:  gogitlab.Ptr(opts.Body),
 		SourceBranch: gogitlab.Ptr(opts.Head),
 		TargetBranch: gogitlab.Ptr(opts.Base),
