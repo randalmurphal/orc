@@ -2,12 +2,14 @@ version: 1
 profile: auto
 gates:
     default_type: auto
+    all_phases: false
     auto_approve_on_success: true
     retry_on_failure: true
     max_retries: 2
 retry:
     enabled: true
     retry_map:
+        review: implement
         test: implement
         test_e2e: implement
         test_unit: implement
@@ -22,6 +24,9 @@ completion:
     action: pr
     target_branch: main
     delete_branch: true
+    wait_for_ci: true
+    ci_timeout: 10m0s
+    merge_on_ci_pass: true
     pr:
         title: '[orc] {{TASK_TITLE}}'
         body_template: templates/pr-body.md
@@ -29,12 +34,33 @@ completion:
             - automated
         draft: false
         auto_merge: true
+        auto_approve: true
+    ci:
+        wait_for_ci: true
+        ci_timeout: 10m0s
+        poll_interval: 30s
+        merge_on_ci_pass: true
+        merge_method: squash
     sync:
         strategy: completion
+        sync_on_start: true
         fail_on_conflict: true
         max_conflict_files: 0
         skip_for_weights:
             - trivial
+    finalize:
+        enabled: true
+        auto_trigger: true
+        auto_trigger_on_approval: true
+        sync:
+            strategy: merge
+        conflict_resolution:
+            enabled: true
+        risk_assessment:
+            enabled: true
+            re_review_threshold: high
+        gates:
+            pre_merge: auto
     weight_actions:
         trivial: none
 execution:
@@ -42,6 +68,8 @@ execution:
     session_persistence: true
     checkpoint_interval: 0
     max_retries: 5
+    parallel_tasks: 2
+    cost_limit: 25
 budget:
     threshold_usd: 0
     alert_on_exceed: false
@@ -52,6 +80,7 @@ pool:
 server:
     host: 127.0.0.1
     port: 8080
+    max_port_attempts: 10
     auth:
         enabled: false
         type: token
@@ -79,6 +108,14 @@ testing:
         e2e: make e2e
         coverage: go test -coverprofile=coverage.out ./...
     parse_output: true
+validation:
+    enabled: false
+    model: haiku
+    skip_for_weights:
+        - trivial
+    validate_specs: false
+    validate_criteria: false
+    fail_on_api_error: true
 documentation:
     enabled: true
     auto_update_claudemd: true
@@ -92,7 +129,7 @@ documentation:
         - commands
         - config-options
 timeouts:
-    phase_max: 60m0s
+    phase_max: 1h0m0s
     turn_max: 10m0s
     idle_warning: 5m0s
     heartbeat_interval: 30s
@@ -112,6 +149,11 @@ plan:
         - intent
         - success_criteria
         - testing
+weights:
+    trivial: implement-trivial
+    small: implement-small
+    medium: implement-medium
+    large: implement-large
 artifact_skip:
     enabled: true
     auto_skip: false
@@ -123,6 +165,20 @@ subtasks:
     allow_creation: true
     auto_approve: false
     max_pending: 10
+tasks:
+    disable_auto_commit: false
+diagnostics:
+    resource_tracking:
+        enabled: true
+        memory_threshold_mb: 500
+        filter_system_processes: true
+mcp:
+    playwright:
+        enabled: true
+        headless: true
+        browser: chromium
+        timeout_action: 5000
+        timeout_navigation: 60000
 database:
     driver: sqlite
     sqlite:
@@ -149,23 +205,18 @@ storage:
         final_state: true
         transcripts: false
         context_summary: true
-validation:
-    enabled: false  # Temporarily disabled - haiku API returning empty content consistently
-    validate_specs: false
-    validate_progress: false
-    validate_criteria: false
-    fail_on_api_error: true
-model: claude-opus-4-5-20251101
+automation:
+    enabled: true
+    auto_approve: true
+    global_cooldown: 30m0s
+    max_concurrent: 1
+    default_mode: auto
+model: claude-sonnet-4-20250514
 max_iterations: 30
 timeout: 10m0s
 branch_prefix: orc/
 commit_prefix: '[orc]'
-claude_path: /home/randy/.local/bin/claude-stable  # 2.1.7 - latest (2.1.15) hangs on exit
+claude_path: /home/randy/.local/bin/claude-stable
 dangerously_skip_permissions: true
 templates_dir: templates
 enable_checkpoints: true
-mcp:
-    playwright:
-        enabled: true
-        headless: true
-        browser: chromium
