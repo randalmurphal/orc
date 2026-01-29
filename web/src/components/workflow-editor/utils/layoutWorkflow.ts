@@ -67,6 +67,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			id: `edge-${startId}-${endId}`,
 			source: startId,
 			target: endId,
+			type: 'sequential',
 		});
 	} else {
 		// start -> first phase
@@ -74,6 +75,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			id: `edge-${startId}-phase-${phases[0].id}`,
 			source: startId,
 			target: `phase-${phases[0].id}`,
+			type: 'sequential',
 		});
 
 		// phase-to-phase sequential
@@ -82,6 +84,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				id: `edge-phase-${phases[i].id}-phase-${phases[i + 1].id}`,
 				source: `phase-${phases[i].id}`,
 				target: `phase-${phases[i + 1].id}`,
+				type: 'sequential',
 			});
 		}
 
@@ -90,6 +93,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			id: `edge-phase-${phases[phases.length - 1].id}-${endId}`,
 			source: `phase-${phases[phases.length - 1].id}`,
 			target: endId,
+			type: 'sequential',
 		});
 	}
 
@@ -110,20 +114,48 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 		}
 	}
 
-	// Loop-back edges from retryFromPhase (lives on PhaseTemplate)
+	// Loop edges from loopConfig (JSON string on WorkflowPhase)
+	for (const phase of phases) {
+		if (phase.loopConfig) {
+			try {
+				const config = JSON.parse(phase.loopConfig) as {
+					condition: string;
+					loop_to_phase: string;
+					max_iterations: number;
+				};
+				if (config.loop_to_phase) {
+					const targetNodeId = templateToNodeId.get(config.loop_to_phase);
+					if (targetNodeId) {
+						edges.push({
+							id: `loop-phase-${phase.id}-${targetNodeId}`,
+							source: `phase-${phase.id}`,
+							target: targetNodeId,
+							type: 'loop',
+							data: {
+								condition: config.condition,
+								maxIterations: config.max_iterations,
+								label: `${config.condition} ×${config.max_iterations}`,
+							},
+						});
+					}
+				}
+			} catch {
+				// Invalid JSON in loopConfig — skip
+			}
+		}
+	}
 
-
-
+	// Retry edges from retryFromPhase (lives on PhaseTemplate)
 	for (const phase of phases) {
 		const retryFrom = phase.template?.retryFromPhase;
 		if (typeof retryFrom === 'string' && retryFrom) {
 			const targetNodeId = templateToNodeId.get(retryFrom);
 			if (targetNodeId) {
 				edges.push({
-					id: `loop-phase-${phase.id}-${targetNodeId}`,
+					id: `retry-phase-${phase.id}-${targetNodeId}`,
 					source: `phase-${phase.id}`,
 					target: targetNodeId,
-					type: 'loop',
+					type: 'retry',
 				});
 			}
 		}
@@ -138,9 +170,9 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 		g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
 	}
 
-	// Only use sequential + dependency edges for layout (not loop-back)
+	// Only use sequential + dependency edges for layout (not loop/retry back-edges)
 	for (const edge of edges) {
-		if (edge.type !== 'loop') {
+		if (edge.type !== 'loop' && edge.type !== 'retry') {
 			g.setEdge(edge.source, edge.target);
 		}
 	}

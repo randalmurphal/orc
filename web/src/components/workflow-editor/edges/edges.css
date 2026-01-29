@@ -1,0 +1,57 @@
+/* Sequential edge: solid line, primary color */
+.edge-sequential .react-flow__edge-path {
+	stroke: var(--primary);
+	stroke-width: 2;
+}
+
+/* Animated dots on active sequential edge */
+.edge-animated .react-flow__edge-path {
+	stroke: var(--primary-bright);
+}
+
+.edge-dot {
+	fill: var(--primary-bright);
+}
+
+@keyframes edge-dot-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+.edge-animated .edge-dot {
+	animation: edge-dot-pulse 1s ease-in-out infinite;
+}
+
+/* Loop edge: dashed line, orange color */
+.edge-loop .react-flow__edge-path {
+	stroke: var(--orange);
+	stroke-width: 2;
+	stroke-dasharray: 6 3;
+}
+
+/* Loop edge label */
+.edge-label {
+	font-size: var(--text-xs);
+	font-family: var(--font-sans);
+	padding: 2px 6px;
+	border-radius: var(--radius-sm);
+	white-space: nowrap;
+}
+
+.edge-label-loop {
+	background: var(--orange-dim);
+	color: var(--orange);
+	border: 1px solid var(--orange);
+}
+
+/* Retry edge: dotted line, amber color */
+.edge-retry .react-flow__edge-path {
+	stroke: var(--amber);
+	stroke-width: 2;
+	stroke-dasharray: 3 3;
+}
