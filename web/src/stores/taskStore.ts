@@ -104,7 +104,15 @@ export const useTaskStore = create<TaskStore>()(
 		},
 
 		// Actions
-		setTasks: (tasks) => set({ tasks, error: null }),
+		setTasks: (tasks) => {
+			// Deduplicate by task ID to prevent React duplicate key warnings
+			const seen = new Map<string, Task>();
+			for (const task of tasks) {
+				seen.set(task.id, task);
+			}
+			const deduplicated = seen.size === tasks.length ? tasks : Array.from(seen.values());
+			set({ tasks: deduplicated, error: null });
+		},
 
 		addTask: (task) =>
 			set((state) => {
