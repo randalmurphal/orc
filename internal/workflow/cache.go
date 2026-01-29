@@ -426,6 +426,8 @@ func workflowPhaseToDBWorkflowPhase(wp *WorkflowPhase) *db.WorkflowPhase {
 	if wp.ClaudeConfigOverride != "" {
 		dbPhase.ClaudeConfigOverride = wp.ClaudeConfigOverride
 	}
+	dbPhase.PositionX = wp.PositionX
+	dbPhase.PositionY = wp.PositionY
 
 	return dbPhase
 }
