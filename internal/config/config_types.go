@@ -870,6 +870,47 @@ type HostingConfig struct {
 	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
 }
 
+// JiraConfig defines Jira Cloud import settings.
+type JiraConfig struct {
+	// URL is the Jira Cloud base URL (e.g., "https://acme.atlassian.net").
+	URL string `yaml:"url" json:"url"`
+
+	// Email for basic auth with API token.
+	Email string `yaml:"email" json:"email"`
+
+	// TokenEnvVar is the environment variable containing the API token.
+	// Default: ORC_JIRA_TOKEN.
+	TokenEnvVar string `yaml:"token_env_var" json:"token_env_var,omitempty"`
+
+	// EpicToInitiative maps Jira epics to orc initiatives on import.
+	// Default: true.
+	EpicToInitiative *bool `yaml:"epic_to_initiative" json:"epic_to_initiative,omitempty"`
+
+	// DefaultWeight for imported tasks. One of: trivial, small, medium, large.
+	// Default: medium.
+	DefaultWeight string `yaml:"default_weight" json:"default_weight,omitempty"`
+
+	// DefaultQueue for imported tasks. One of: active, backlog.
+	// Default: backlog.
+	DefaultQueue string `yaml:"default_queue" json:"default_queue,omitempty"`
+}
+
+// GetEpicToInitiative returns the epic-to-initiative setting, defaulting to true.
+func (j JiraConfig) GetEpicToInitiative() bool {
+	if j.EpicToInitiative == nil {
+		return true
+	}
+	return *j.EpicToInitiative
+}
+
+// GetTokenEnvVar returns the token env var, defaulting to ORC_JIRA_TOKEN.
+func (j JiraConfig) GetTokenEnvVar() string {
+	if j.TokenEnvVar == "" {
+		return "ORC_JIRA_TOKEN"
+	}
+	return j.TokenEnvVar
+}
+
 // DatabaseConfig defines database connection settings.
 type DatabaseConfig struct {
 	// Driver is the database type: "sqlite" or "postgres"
