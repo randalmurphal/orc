@@ -143,7 +143,7 @@ Claude outputs completion via `--json-schema`:
 | Phase | Round | Schema |
 |-------|-------|--------|
 | spec, research, docs | - | `PhaseCompletionWithContentSchema` |
-| review | 1 | `ReviewFindingsSchema` |
+| review | 1 | `ReviewFindingsSchema` (status: complete/blocked) |
 | review | 2 | `ReviewDecisionSchema` |
 | qa | - | `QAResultSchema` |
 | other | - | `PhaseCompletionSchema` |
