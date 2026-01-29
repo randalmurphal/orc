@@ -94,6 +94,29 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		}
 	}
 
+	// Re-check commit counts after sync/rebase — rebase may have changed them.
+	// If ahead == 0, there are no commits to deliver via PR or merge.
+	aheadAfterSync, _, recheckErr := gitOps.GetCommitCounts(target)
+	if recheckErr != nil {
+		we.logger.Warn("could not re-check commit counts after sync, continuing to completion action",
+			"error", recheckErr)
+	} else if aheadAfterSync == 0 {
+		we.logger.Info("skipping completion: no commits ahead of target",
+			"task", t.Id,
+			"target", targetBranch,
+			"reason", "task branch has no commits to deliver")
+		task.EnsureMetadataProto(t)
+		t.Metadata["completion_skipped"] = "no_changes"
+		t.Metadata["completion_note"] = fmt.Sprintf(
+			"No commits between %s and %s — work may already exist on target branch",
+			t.Branch, targetBranch)
+		if saveErr := we.backend.SaveTask(t); saveErr != nil {
+			we.logger.Warn("failed to save task metadata after completion skip",
+				"task", t.Id, "error", saveErr)
+		}
+		return nil
+	}
+
 	// Execute completion action
 	switch action {
 	case "merge":
@@ -109,6 +132,28 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 // directMerge merges the task branch directly into target.
 func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	we.logger.Info("direct merge to target branch", "target", targetBranch)
+
+	// Check if there are any commits to merge
+	target := "origin/" + targetBranch
+	ahead, _, err := gitOps.GetCommitCounts(target)
+	if err != nil {
+		we.logger.Warn("could not check commit counts before merge, continuing",
+			"error", err)
+	} else if ahead == 0 {
+		we.logger.Info("skipping direct merge: no commits ahead of target",
+			"task", t.Id,
+			"target", targetBranch)
+		task.EnsureMetadataProto(t)
+		t.Metadata["completion_skipped"] = "no_changes"
+		t.Metadata["completion_note"] = fmt.Sprintf(
+			"No commits between %s and %s — nothing to merge",
+			t.Branch, targetBranch)
+		if saveErr := we.backend.SaveTask(t); saveErr != nil {
+			we.logger.Warn("failed to save task metadata after merge skip",
+				"task", t.Id, "error", saveErr)
+		}
+		return nil
+	}
 
 	// Push task branch first (with force fallback for divergent history from previous runs)
 	if err := gitOps.PushWithForceFallback("origin", t.Branch, false, we.logger); err != nil {
