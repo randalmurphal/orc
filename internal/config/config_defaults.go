@@ -19,13 +19,9 @@ func Default() *Config {
 			Enabled:    true,
 			MaxRetries: 5,
 			// Default retry map: if phase fails, go back to earlier phase
-			// Review uses three-tier approach: fix in-place, block for major issues,
-			// or block with detailed context for wrong approach
+			// Review blocks on major issues, triggering retry from implement
 			RetryMap: map[string]string{
-				"test":      "implement",
-				"test_unit": "implement",
-				"test_e2e":  "implement",
-				"review":    "implement", // Major issues; small ones fixed in-place
+				"review": "implement",
 			},
 		},
 		Worktree: WorktreeConfig{
