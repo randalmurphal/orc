@@ -19,6 +19,7 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ defa
 const AgentsView = lazy(() => import('@/components/agents/AgentsView').then(m => ({ default: m.AgentsView })));
 const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m.Mcp })));
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
+const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 // Settings sub-components (loaded with SettingsPage chunk)
@@ -179,6 +180,15 @@ export const routes: RouteObject[] = [
 				element: (
 					<LazyRoute>
 						<WorkflowsPage />
+					</LazyRoute>
+				),
+			},
+			// Workflow Editor - Visual pipeline editor
+			{
+				path: 'workflows/:id',
+				element: (
+					<LazyRoute>
+						<WorkflowEditorPage />
 					</LazyRoute>
 				),
 			},
