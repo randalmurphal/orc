@@ -230,10 +230,10 @@
    ============================================================================= */
 
 @media (max-width: 767px) {
-	/* On mobile, panel overlays content */
+	/* On mobile, panel overlays content below the 48px header */
 	.right-panel {
 		position: fixed;
-		top: 0;
+		top: 48px;
 		right: 0;
 		bottom: 0;
 		z-index: var(--z-sidebar, 300);

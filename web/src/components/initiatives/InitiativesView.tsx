@@ -14,6 +14,7 @@ import { InitiativeStatus, ListInitiativesRequestSchema } from '@/gen/orc/v1/ini
 import { TaskStatus } from '@/gen/orc/v1/task_pb';
 import { StatsRow, type InitiativeStats } from './StatsRow';
 import { InitiativeCard } from './InitiativeCard';
+import { NewInitiativeModal } from '@/components/overlays/NewInitiativeModal';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import './InitiativesView.css';
@@ -252,9 +253,12 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 		[progressMap]
 	);
 
+	// New Initiative modal state
+	const [showNewInitiativeModal, setShowNewInitiativeModal] = useState(false);
+
 	// Handle new initiative button click
 	const handleNewInitiative = useCallback(() => {
-		window.dispatchEvent(new CustomEvent('orc:new-initiative'));
+		setShowNewInitiativeModal(true);
 	}, []);
 
 	// Handle card click - navigate to initiative detail
@@ -316,6 +320,12 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 					</div>
 				)}
 			</div>
+
+			<NewInitiativeModal
+				open={showNewInitiativeModal}
+				onClose={() => setShowNewInitiativeModal(false)}
+				onCreate={() => loadInitiatives()}
+			/>
 		</div>
 	);
 }

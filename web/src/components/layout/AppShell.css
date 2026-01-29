@@ -155,9 +155,9 @@
 	}
 
 	.app-shell__panel {
-		/* Panel becomes overlay on tablet */
+		/* Panel becomes overlay on tablet, starting below the 48px header */
 		position: fixed;
-		top: 0;
+		top: 48px;
 		right: 0;
 		bottom: 0;
 		z-index: var(--z-sidebar, 300);
