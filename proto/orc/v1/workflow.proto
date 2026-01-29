@@ -233,6 +233,8 @@ service WorkflowService {
   rpc GetWorkflowRun(GetWorkflowRunRequest) returns (GetWorkflowRunResponse);
   rpc StartWorkflowRun(StartWorkflowRunRequest) returns (StartWorkflowRunResponse);
   rpc CancelWorkflowRun(CancelWorkflowRunRequest) returns (CancelWorkflowRunResponse);
+  rpc SaveWorkflowLayout(SaveWorkflowLayoutRequest) returns (SaveWorkflowLayoutResponse);
+  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse);
 }
 
 // =============================================================================
@@ -500,4 +502,36 @@ message CancelWorkflowRunRequest {
 
 message CancelWorkflowRunResponse {
   WorkflowRun run = 1;
+}
+
+// SaveWorkflowLayout bulk-saves node positions for workflow phases.
+message PhasePosition {
+  string phase_template_id = 1;
+  double position_x = 2;
+  double position_y = 3;
+}
+
+message SaveWorkflowLayoutRequest {
+  string workflow_id = 1;
+  repeated PhasePosition positions = 2;
+}
+
+message SaveWorkflowLayoutResponse {
+  bool success = 1;
+}
+
+// ValidateWorkflow checks workflow structure for cycles, invalid refs, etc.
+message ValidateWorkflowRequest {
+  string workflow_id = 1;
+}
+
+message ValidationIssue {
+  string severity = 1;
+  string message = 2;
+  repeated string phase_ids = 3;
+}
+
+message ValidateWorkflowResponse {
+  bool valid = 1;
+  repeated ValidationIssue issues = 2;
 }

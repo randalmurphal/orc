@@ -74,6 +74,12 @@ func (d *DatabaseBackend) DeleteWorkflowPhase(workflowID, phaseTemplateID string
 	return d.db.DeleteWorkflowPhase(workflowID, phaseTemplateID)
 }
 
+func (d *DatabaseBackend) UpdateWorkflowPhasePositions(workflowID string, positions map[string][2]float64) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.db.UpdateWorkflowPhasePositions(workflowID, positions)
+}
+
 func (d *DatabaseBackend) GetWorkflowVariables(workflowID string) ([]*db.WorkflowVariable, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

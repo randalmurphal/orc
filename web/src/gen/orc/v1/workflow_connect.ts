@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateWorkflowRequest, UpdateWorkflowResponse } from "./workflow_pb.js";
+import { AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, SaveWorkflowLayoutRequest, SaveWorkflowLayoutResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateWorkflowRequest, UpdateWorkflowResponse, ValidateWorkflowRequest, ValidateWorkflowResponse } from "./workflow_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -208,6 +208,24 @@ export const WorkflowService = {
       name: "CancelWorkflowRun",
       I: CancelWorkflowRunRequest,
       O: CancelWorkflowRunResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.SaveWorkflowLayout
+     */
+    saveWorkflowLayout: {
+      name: "SaveWorkflowLayout",
+      I: SaveWorkflowLayoutRequest,
+      O: SaveWorkflowLayoutResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.ValidateWorkflow
+     */
+    validateWorkflow: {
+      name: "ValidateWorkflow",
+      I: ValidateWorkflowRequest,
+      O: ValidateWorkflowResponse,
       kind: MethodKind.Unary,
     },
   }
