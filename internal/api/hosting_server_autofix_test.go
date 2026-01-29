@@ -13,65 +13,89 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/github"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
-// mockGitHubProvider implements github.Provider for testing.
+// mockGitHubProvider implements hosting.Provider for testing.
 type mockGitHubProvider struct {
-	GetPRCommentFunc   func(ctx context.Context, commentID int64) (*github.PRComment, error)
-	FindPRByBranchFunc func(ctx context.Context, branch string) (*github.PR, error)
+	GetPRCommentFunc   func(ctx context.Context, commentID int64) (*hosting.PRComment, error)
+	FindPRByBranchFunc func(ctx context.Context, branch string) (*hosting.PR, error)
 	// Other methods can be added as needed
 }
 
-func (m *mockGitHubProvider) CreatePR(ctx context.Context, opts github.PRCreateOptions) (*github.PR, error) {
+func (m *mockGitHubProvider) CreatePR(ctx context.Context, opts hosting.PRCreateOptions) (*hosting.PR, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) GetPR(ctx context.Context, number int) (*github.PR, error) {
+func (m *mockGitHubProvider) GetPR(ctx context.Context, number int) (*hosting.PR, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) UpdatePR(ctx context.Context, number int, opts github.PRUpdateOptions) error {
+func (m *mockGitHubProvider) UpdatePR(ctx context.Context, number int, opts hosting.PRUpdateOptions) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) MergePR(ctx context.Context, number int, opts github.PRMergeOptions) error {
+func (m *mockGitHubProvider) MergePR(ctx context.Context, number int, opts hosting.PRMergeOptions) error {
 	return errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) ListPRComments(ctx context.Context, number int) ([]github.PRComment, error) {
+func (m *mockGitHubProvider) ListPRComments(ctx context.Context, number int) ([]hosting.PRComment, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) CreatePRComment(ctx context.Context, number int, comment github.PRCommentCreate) (*github.PRComment, error) {
+func (m *mockGitHubProvider) CreatePRComment(ctx context.Context, number int, comment hosting.PRCommentCreate) (*hosting.PRComment, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) ReplyToComment(ctx context.Context, number int, threadID int64, body string) (*github.PRComment, error) {
+func (m *mockGitHubProvider) ReplyToComment(ctx context.Context, number int, threadID int64, body string) (*hosting.PRComment, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) GetPRComment(ctx context.Context, commentID int64) (*github.PRComment, error) {
+func (m *mockGitHubProvider) GetPRComment(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
 	if m.GetPRCommentFunc != nil {
 		return m.GetPRCommentFunc(ctx, commentID)
 	}
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) GetCheckRuns(ctx context.Context, ref string) ([]github.CheckRun, error) {
+func (m *mockGitHubProvider) GetCheckRuns(ctx context.Context, ref string) ([]hosting.CheckRun, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) GetPRReviews(ctx context.Context, number int) ([]github.PRReview, error) {
+func (m *mockGitHubProvider) GetPRReviews(ctx context.Context, number int) ([]hosting.PRReview, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockGitHubProvider) FindPRByBranch(ctx context.Context, branch string) (*github.PR, error) {
+func (m *mockGitHubProvider) FindPRByBranch(ctx context.Context, branch string) (*hosting.PR, error) {
 	if m.FindPRByBranchFunc != nil {
 		return m.FindPRByBranchFunc(ctx, branch)
 	}
 	return nil, errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) ApprovePR(ctx context.Context, number int, body string) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) GetPRStatusSummary(ctx context.Context, pr *hosting.PR) (*hosting.PRStatusSummary, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) DeleteBranch(ctx context.Context, branch string) error {
+	return errors.New("not implemented")
+}
+
+func (m *mockGitHubProvider) CheckAuth(ctx context.Context) error {
+	return nil
+}
+
+func (m *mockGitHubProvider) Name() hosting.ProviderType {
+	return hosting.ProviderGitHub
+}
+
+func (m *mockGitHubProvider) OwnerRepo() (string, string) {
+	return "owner", "repo"
 }
 
 // ============================================================================
@@ -110,8 +134,8 @@ func TestAutofixComment_StartsExecution(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{
 				ID:   commentID,
 				Body: "Please fix this error handling",
 				Path: "internal/api/handler.go",
@@ -120,14 +144,14 @@ func TestAutofixComment_StartsExecution(t *testing.T) {
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil, // logger
 		publisher,
 		nil, // config
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -188,8 +212,8 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{
 				ID:     commentID,
 				Body:   commentBody,
 				Path:   "internal/api/handler.go",
@@ -199,14 +223,14 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -280,22 +304,22 @@ func TestAutofixComment_ReturnsImmediately(t *testing.T) {
 	defer close(executorDone)
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{ID: commentID, Body: "fix this"}, nil
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{ID: commentID, Body: "fix this"}, nil
 		},
-		FindPRByBranchFunc: func(ctx context.Context, branch string) (*github.PR, error) {
-			return &github.PR{Number: 123}, nil
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -369,19 +393,19 @@ func TestAutofixComment_PublishesCompletionEvent(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{ID: commentID, Body: "fix"}, nil
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -433,8 +457,8 @@ func TestAutofixComment_TaskAlreadyRunning(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{ID: commentID, Body: "fix"}, nil
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
 	}
 
@@ -443,14 +467,14 @@ func TestAutofixComment_TaskAlreadyRunning(t *testing.T) {
 		return nil
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		nil,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -506,14 +530,14 @@ func TestAutofixComment_NoGitHubAuth(t *testing.T) {
 	}
 
 	// Factory that returns auth error
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		nil,
 		nil,
 		nil,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return nil, errors.New("not logged in to GitHub")
 		},
 	)
@@ -548,7 +572,7 @@ func TestAutofixComment_EmptyTaskId(t *testing.T) {
 
 	backend := storage.NewTestBackend(t)
 
-	server := NewGitHubServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
+	server := NewHostingServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.AutofixCommentRequest{
 		TaskId:    "",
@@ -572,7 +596,7 @@ func TestAutofixComment_ZeroCommentId(t *testing.T) {
 
 	backend := storage.NewTestBackend(t)
 
-	server := NewGitHubServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
+	server := NewHostingServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.AutofixCommentRequest{
 		TaskId:    "TASK-001",
@@ -596,7 +620,7 @@ func TestAutofixComment_TaskNotFound(t *testing.T) {
 
 	backend := storage.NewTestBackend(t)
 
-	server := NewGitHubServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
+	server := NewHostingServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.AutofixCommentRequest{
 		TaskId:    "NONEXISTENT",
@@ -634,19 +658,19 @@ func TestAutofixComment_CommentNotFound(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
 			return nil, errors.New("comment not found: 12345")
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		nil,
 		nil,
 		nil,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -686,7 +710,7 @@ func TestAutofixComment_NoBranch(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	server := NewGitHubServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
+	server := NewHostingServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.AutofixCommentRequest{
 		TaskId:    "TASK-001",
@@ -723,7 +747,7 @@ func TestAutofixComment_TaskCompleted(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	server := NewGitHubServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
+	server := NewHostingServerWithExecutor(backend, ".", nil, nil, nil, nil, nil)
 
 	req := connect.NewRequest(&orcv1.AutofixCommentRequest{
 		TaskId:    "TASK-001",
@@ -769,19 +793,19 @@ func TestAutofixComment_TaskPaused_AllowsAutofix(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{ID: commentID, Body: "fix"}, nil
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -839,22 +863,22 @@ func TestAutofixComment_ExecutorFails(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{ID: commentID, Body: "fix"}, nil
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{ID: commentID, Body: "fix"}, nil
 		},
-		FindPRByBranchFunc: func(ctx context.Context, branch string) (*github.PR, error) {
-			return &github.PR{Number: 123}, nil
+		FindPRByBranchFunc: func(ctx context.Context, branch string) (*hosting.PR, error) {
+			return &hosting.PR{Number: 123}, nil
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -918,19 +942,19 @@ func TestAutofixComment_RateLimited(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
 			return nil, errors.New("rate limit exceeded")
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		nil,
 		nil,
 		nil,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)
@@ -985,8 +1009,8 @@ func TestAutofixComment_LongCommentTruncated(t *testing.T) {
 	}
 
 	mockProvider := &mockGitHubProvider{
-		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*github.PRComment, error) {
-			return &github.PRComment{
+		GetPRCommentFunc: func(ctx context.Context, commentID int64) (*hosting.PRComment, error) {
+			return &hosting.PRComment{
 				ID:   commentID,
 				Body: longBody,
 				Path: "file.go",
@@ -995,14 +1019,14 @@ func TestAutofixComment_LongCommentTruncated(t *testing.T) {
 		},
 	}
 
-	server := NewGitHubServerWithExecutor(
+	server := NewHostingServerWithExecutor(
 		backend,
 		".",
 		nil,
 		publisher,
 		nil,
 		mockExecutor,
-		func(ctx context.Context) (github.Provider, error) {
+		func(ctx context.Context) (hosting.Provider, error) {
 			return mockProvider, nil
 		},
 	)

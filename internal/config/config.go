@@ -121,6 +121,9 @@ type Config struct {
 	// MCP (Model Context Protocol) server configuration
 	MCP MCPConfig `yaml:"mcp"`
 
+	// Hosting provider configuration (GitHub, GitLab, auto-detect)
+	Hosting HostingConfig `yaml:"hosting"`
+
 	// Database configuration
 	Database DatabaseConfig `yaml:"database"`
 
@@ -811,6 +814,12 @@ func (c *Config) Validate() error {
 	if c.Team.Mode != "" && !contains(ValidModes, c.Team.Mode) {
 		return fmt.Errorf("invalid team.mode: %s (must be one of: %v)",
 			c.Team.Mode, ValidModes)
+	}
+
+	// Validate hosting provider
+	if c.Hosting.Provider != "" && !contains(ValidHostingProviders, c.Hosting.Provider) {
+		return fmt.Errorf("invalid hosting.provider: %s (must be one of: auto, github, gitlab)",
+			c.Hosting.Provider)
 	}
 
 	// Validate completion action

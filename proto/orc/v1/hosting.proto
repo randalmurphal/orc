@@ -42,7 +42,7 @@ message PR {
   optional google.protobuf.Timestamp merged_at = 14;
 }
 
-// PR comment (from GitHub)
+// PR comment
 message PRComment {
   // Comment ID
   int64 id = 1;
@@ -107,7 +107,7 @@ message AutofixResult {
 // SERVICE
 // =============================================================================
 
-service GitHubService {
+service HostingService {
   // Create a PR for a task
   rpc CreatePR(CreatePRRequest) returns (CreatePRResponse);
 

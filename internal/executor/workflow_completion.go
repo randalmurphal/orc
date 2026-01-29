@@ -6,11 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/hosting"
+	_ "github.com/randalmurphal/orc/internal/hosting/github"
+	_ "github.com/randalmurphal/orc/internal/hosting/gitlab"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
@@ -148,7 +149,6 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 
 // createPR creates a pull request for the task branch.
 func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
-	// Check if PR already exists
 	if task.HasPRProto(t) {
 		we.logger.Info("PR already exists", "url", task.GetPRURLProto(t))
 		return nil
@@ -161,49 +161,49 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("push failed: %w", err)
 	}
 
-	// Build PR body
+	// Get hosting provider
+	provider, err := we.getHostingProvider()
+	if err != nil {
+		return fmt.Errorf("create hosting provider: %w", err)
+	}
+
+	// Build PR options
 	description := task.GetDescriptionProto(t)
 	body := fmt.Sprintf("## Task: %s\n\n%s\n\n---\nCreated by orc workflow execution.",
 		t.Title, description)
-
-	// Create PR via gh cli
 	prTitle := fmt.Sprintf("[orc] %s: %s", t.Id, t.Title)
-	prURL, err := we.runGHCreatePR(ctx, prTitle, body, targetBranch)
+
+	pr, err := provider.CreatePR(ctx, hosting.PRCreateOptions{
+		Title: prTitle,
+		Body:  body,
+		Head:  t.Branch,
+		Base:  targetBranch,
+	})
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
 	}
 
 	// Update task with PR info
-	task.SetPRInfoProto(t, prURL, 0) // Number will be populated by PR status sync
+	task.SetPRInfoProto(t, pr.HTMLURL, pr.Number)
 	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
 	}
 
-	we.logger.Info("PR created", "url", prURL)
+	we.logger.Info("PR created", "url", pr.HTMLURL, "number", pr.Number)
 	return nil
 }
 
-// runGHCreatePR creates a PR using the gh CLI.
-func (we *WorkflowExecutor) runGHCreatePR(ctx context.Context, title, body, targetBranch string) (string, error) {
-	workDir := we.effectiveWorkingDir()
-
-	args := []string{
-		"pr", "create",
-		"--title", title,
-		"--body", body,
-		"--base", targetBranch,
+// getHostingProvider creates a hosting provider from the executor's config and working directory.
+func (we *WorkflowExecutor) getHostingProvider() (hosting.Provider, error) {
+	cfg := hosting.Config{}
+	if we.orcConfig != nil {
+		cfg = hosting.Config{
+			Provider:    we.orcConfig.Hosting.Provider,
+			BaseURL:     we.orcConfig.Hosting.BaseURL,
+			TokenEnvVar: we.orcConfig.Hosting.TokenEnvVar,
+		}
 	}
-
-	cmd := exec.CommandContext(ctx, "gh", args...)
-	cmd.Dir = workDir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("gh pr create: %w: %s", err, string(out))
-	}
-
-	// Extract URL from output (gh pr create outputs the PR URL)
-	prURL := strings.TrimSpace(string(out))
-	return prURL, nil
+	return hosting.NewProvider(we.effectiveWorkingDir(), cfg)
 }
 
 // setupWorktree creates or reuses an isolated worktree for the given task.

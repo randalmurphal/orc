@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: orc/v1/github.proto
+// source: orc/v1/hosting.proto
 
 package orcv1
 
@@ -59,7 +59,7 @@ type PR struct {
 
 func (x *PR) Reset() {
 	*x = PR{}
-	mi := &file_orc_v1_github_proto_msgTypes[0]
+	mi := &file_orc_v1_hosting_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -71,7 +71,7 @@ func (x *PR) String() string {
 func (*PR) ProtoMessage() {}
 
 func (x *PR) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[0]
+	mi := &file_orc_v1_hosting_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -84,7 +84,7 @@ func (x *PR) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PR.ProtoReflect.Descriptor instead.
 func (*PR) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{0}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *PR) GetNumber() int32 {
@@ -185,7 +185,7 @@ func (x *PR) GetMergedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// PR comment (from GitHub)
+// PR comment
 type PRComment struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Comment ID
@@ -208,7 +208,7 @@ type PRComment struct {
 
 func (x *PRComment) Reset() {
 	*x = PRComment{}
-	mi := &file_orc_v1_github_proto_msgTypes[1]
+	mi := &file_orc_v1_hosting_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +220,7 @@ func (x *PRComment) String() string {
 func (*PRComment) ProtoMessage() {}
 
 func (x *PRComment) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[1]
+	mi := &file_orc_v1_hosting_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +233,7 @@ func (x *PRComment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PRComment.ProtoReflect.Descriptor instead.
 func (*PRComment) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{1}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PRComment) GetId() int64 {
@@ -308,7 +308,7 @@ type CheckRun struct {
 
 func (x *CheckRun) Reset() {
 	*x = CheckRun{}
-	mi := &file_orc_v1_github_proto_msgTypes[2]
+	mi := &file_orc_v1_hosting_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +320,7 @@ func (x *CheckRun) String() string {
 func (*CheckRun) ProtoMessage() {}
 
 func (x *CheckRun) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[2]
+	mi := &file_orc_v1_hosting_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +333,7 @@ func (x *CheckRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckRun.ProtoReflect.Descriptor instead.
 func (*CheckRun) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{2}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CheckRun) GetId() int64 {
@@ -399,7 +399,7 @@ type CheckSummary struct {
 
 func (x *CheckSummary) Reset() {
 	*x = CheckSummary{}
-	mi := &file_orc_v1_github_proto_msgTypes[3]
+	mi := &file_orc_v1_hosting_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -411,7 +411,7 @@ func (x *CheckSummary) String() string {
 func (*CheckSummary) ProtoMessage() {}
 
 func (x *CheckSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[3]
+	mi := &file_orc_v1_hosting_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -424,7 +424,7 @@ func (x *CheckSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckSummary.ProtoReflect.Descriptor instead.
 func (*CheckSummary) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{3}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CheckSummary) GetPassed() int32 {
@@ -475,7 +475,7 @@ type SyncResult struct {
 
 func (x *SyncResult) Reset() {
 	*x = SyncResult{}
-	mi := &file_orc_v1_github_proto_msgTypes[4]
+	mi := &file_orc_v1_hosting_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +487,7 @@ func (x *SyncResult) String() string {
 func (*SyncResult) ProtoMessage() {}
 
 func (x *SyncResult) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[4]
+	mi := &file_orc_v1_hosting_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +500,7 @@ func (x *SyncResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResult.ProtoReflect.Descriptor instead.
 func (*SyncResult) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{4}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncResult) GetImported() int32 {
@@ -544,7 +544,7 @@ type AutofixResult struct {
 
 func (x *AutofixResult) Reset() {
 	*x = AutofixResult{}
-	mi := &file_orc_v1_github_proto_msgTypes[5]
+	mi := &file_orc_v1_hosting_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +556,7 @@ func (x *AutofixResult) String() string {
 func (*AutofixResult) ProtoMessage() {}
 
 func (x *AutofixResult) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[5]
+	mi := &file_orc_v1_hosting_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +569,7 @@ func (x *AutofixResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixResult.ProtoReflect.Descriptor instead.
 func (*AutofixResult) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{5}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AutofixResult) GetSuccess() bool {
@@ -615,7 +615,7 @@ type CreatePRRequest struct {
 
 func (x *CreatePRRequest) Reset() {
 	*x = CreatePRRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[6]
+	mi := &file_orc_v1_hosting_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +627,7 @@ func (x *CreatePRRequest) String() string {
 func (*CreatePRRequest) ProtoMessage() {}
 
 func (x *CreatePRRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[6]
+	mi := &file_orc_v1_hosting_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +640,7 @@ func (x *CreatePRRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePRRequest.ProtoReflect.Descriptor instead.
 func (*CreatePRRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{6}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreatePRRequest) GetTaskId() string {
@@ -702,7 +702,7 @@ type CreatePRResponse struct {
 
 func (x *CreatePRResponse) Reset() {
 	*x = CreatePRResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[7]
+	mi := &file_orc_v1_hosting_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -714,7 +714,7 @@ func (x *CreatePRResponse) String() string {
 func (*CreatePRResponse) ProtoMessage() {}
 
 func (x *CreatePRResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[7]
+	mi := &file_orc_v1_hosting_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -727,7 +727,7 @@ func (x *CreatePRResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePRResponse.ProtoReflect.Descriptor instead.
 func (*CreatePRResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{7}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreatePRResponse) GetPr() *PR {
@@ -753,7 +753,7 @@ type GetPRRequest struct {
 
 func (x *GetPRRequest) Reset() {
 	*x = GetPRRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[8]
+	mi := &file_orc_v1_hosting_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +765,7 @@ func (x *GetPRRequest) String() string {
 func (*GetPRRequest) ProtoMessage() {}
 
 func (x *GetPRRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[8]
+	mi := &file_orc_v1_hosting_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +778,7 @@ func (x *GetPRRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPRRequest.ProtoReflect.Descriptor instead.
 func (*GetPRRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetPRRequest) GetTaskId() string {
@@ -797,7 +797,7 @@ type GetPRResponse struct {
 
 func (x *GetPRResponse) Reset() {
 	*x = GetPRResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[9]
+	mi := &file_orc_v1_hosting_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +809,7 @@ func (x *GetPRResponse) String() string {
 func (*GetPRResponse) ProtoMessage() {}
 
 func (x *GetPRResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[9]
+	mi := &file_orc_v1_hosting_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,7 +822,7 @@ func (x *GetPRResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPRResponse.ProtoReflect.Descriptor instead.
 func (*GetPRResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetPRResponse) GetPr() *PR {
@@ -845,7 +845,7 @@ type MergePRRequest struct {
 
 func (x *MergePRRequest) Reset() {
 	*x = MergePRRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[10]
+	mi := &file_orc_v1_hosting_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -857,7 +857,7 @@ func (x *MergePRRequest) String() string {
 func (*MergePRRequest) ProtoMessage() {}
 
 func (x *MergePRRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[10]
+	mi := &file_orc_v1_hosting_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -870,7 +870,7 @@ func (x *MergePRRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MergePRRequest.ProtoReflect.Descriptor instead.
 func (*MergePRRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MergePRRequest) GetTaskId() string {
@@ -905,7 +905,7 @@ type MergePRResponse struct {
 
 func (x *MergePRResponse) Reset() {
 	*x = MergePRResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[11]
+	mi := &file_orc_v1_hosting_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +917,7 @@ func (x *MergePRResponse) String() string {
 func (*MergePRResponse) ProtoMessage() {}
 
 func (x *MergePRResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[11]
+	mi := &file_orc_v1_hosting_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +930,7 @@ func (x *MergePRResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MergePRResponse.ProtoReflect.Descriptor instead.
 func (*MergePRResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MergePRResponse) GetMerged() bool {
@@ -963,7 +963,7 @@ type SyncCommentsRequest struct {
 
 func (x *SyncCommentsRequest) Reset() {
 	*x = SyncCommentsRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[12]
+	mi := &file_orc_v1_hosting_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +975,7 @@ func (x *SyncCommentsRequest) String() string {
 func (*SyncCommentsRequest) ProtoMessage() {}
 
 func (x *SyncCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[12]
+	mi := &file_orc_v1_hosting_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +988,7 @@ func (x *SyncCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncCommentsRequest.ProtoReflect.Descriptor instead.
 func (*SyncCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SyncCommentsRequest) GetTaskId() string {
@@ -1007,7 +1007,7 @@ type SyncCommentsResponse struct {
 
 func (x *SyncCommentsResponse) Reset() {
 	*x = SyncCommentsResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[13]
+	mi := &file_orc_v1_hosting_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1019,7 @@ func (x *SyncCommentsResponse) String() string {
 func (*SyncCommentsResponse) ProtoMessage() {}
 
 func (x *SyncCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[13]
+	mi := &file_orc_v1_hosting_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1032,7 @@ func (x *SyncCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncCommentsResponse.ProtoReflect.Descriptor instead.
 func (*SyncCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{13}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SyncCommentsResponse) GetResult() *SyncResult {
@@ -1051,7 +1051,7 @@ type ImportCommentsRequest struct {
 
 func (x *ImportCommentsRequest) Reset() {
 	*x = ImportCommentsRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[14]
+	mi := &file_orc_v1_hosting_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1063,7 +1063,7 @@ func (x *ImportCommentsRequest) String() string {
 func (*ImportCommentsRequest) ProtoMessage() {}
 
 func (x *ImportCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[14]
+	mi := &file_orc_v1_hosting_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1076,7 +1076,7 @@ func (x *ImportCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCommentsRequest.ProtoReflect.Descriptor instead.
 func (*ImportCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{14}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ImportCommentsRequest) GetTaskId() string {
@@ -1096,7 +1096,7 @@ type ImportCommentsResponse struct {
 
 func (x *ImportCommentsResponse) Reset() {
 	*x = ImportCommentsResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[15]
+	mi := &file_orc_v1_hosting_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1108,7 @@ func (x *ImportCommentsResponse) String() string {
 func (*ImportCommentsResponse) ProtoMessage() {}
 
 func (x *ImportCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[15]
+	mi := &file_orc_v1_hosting_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1121,7 @@ func (x *ImportCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCommentsResponse.ProtoReflect.Descriptor instead.
 func (*ImportCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{15}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ImportCommentsResponse) GetImported() int32 {
@@ -1147,7 +1147,7 @@ type GetChecksRequest struct {
 
 func (x *GetChecksRequest) Reset() {
 	*x = GetChecksRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[16]
+	mi := &file_orc_v1_hosting_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1159,7 +1159,7 @@ func (x *GetChecksRequest) String() string {
 func (*GetChecksRequest) ProtoMessage() {}
 
 func (x *GetChecksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[16]
+	mi := &file_orc_v1_hosting_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1172,7 +1172,7 @@ func (x *GetChecksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChecksRequest.ProtoReflect.Descriptor instead.
 func (*GetChecksRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{16}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetChecksRequest) GetTaskId() string {
@@ -1192,7 +1192,7 @@ type GetChecksResponse struct {
 
 func (x *GetChecksResponse) Reset() {
 	*x = GetChecksResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[17]
+	mi := &file_orc_v1_hosting_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1204,7 @@ func (x *GetChecksResponse) String() string {
 func (*GetChecksResponse) ProtoMessage() {}
 
 func (x *GetChecksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[17]
+	mi := &file_orc_v1_hosting_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1217,7 @@ func (x *GetChecksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChecksResponse.ProtoReflect.Descriptor instead.
 func (*GetChecksResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{17}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetChecksResponse) GetChecks() []*CheckRun {
@@ -1243,7 +1243,7 @@ type RefreshPRRequest struct {
 
 func (x *RefreshPRRequest) Reset() {
 	*x = RefreshPRRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[18]
+	mi := &file_orc_v1_hosting_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1255,7 @@ func (x *RefreshPRRequest) String() string {
 func (*RefreshPRRequest) ProtoMessage() {}
 
 func (x *RefreshPRRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[18]
+	mi := &file_orc_v1_hosting_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1268,7 +1268,7 @@ func (x *RefreshPRRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshPRRequest.ProtoReflect.Descriptor instead.
 func (*RefreshPRRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{18}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RefreshPRRequest) GetTaskId() string {
@@ -1287,7 +1287,7 @@ type RefreshPRResponse struct {
 
 func (x *RefreshPRResponse) Reset() {
 	*x = RefreshPRResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[19]
+	mi := &file_orc_v1_hosting_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1299,7 +1299,7 @@ func (x *RefreshPRResponse) String() string {
 func (*RefreshPRResponse) ProtoMessage() {}
 
 func (x *RefreshPRResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[19]
+	mi := &file_orc_v1_hosting_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1312,7 +1312,7 @@ func (x *RefreshPRResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshPRResponse.ProtoReflect.Descriptor instead.
 func (*RefreshPRResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{19}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RefreshPRResponse) GetPr() *PR {
@@ -1333,7 +1333,7 @@ type ReplyToCommentRequest struct {
 
 func (x *ReplyToCommentRequest) Reset() {
 	*x = ReplyToCommentRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[20]
+	mi := &file_orc_v1_hosting_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1345,7 @@ func (x *ReplyToCommentRequest) String() string {
 func (*ReplyToCommentRequest) ProtoMessage() {}
 
 func (x *ReplyToCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[20]
+	mi := &file_orc_v1_hosting_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1358,7 @@ func (x *ReplyToCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyToCommentRequest.ProtoReflect.Descriptor instead.
 func (*ReplyToCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{20}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ReplyToCommentRequest) GetTaskId() string {
@@ -1391,7 +1391,7 @@ type ReplyToCommentResponse struct {
 
 func (x *ReplyToCommentResponse) Reset() {
 	*x = ReplyToCommentResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[21]
+	mi := &file_orc_v1_hosting_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1403,7 @@ func (x *ReplyToCommentResponse) String() string {
 func (*ReplyToCommentResponse) ProtoMessage() {}
 
 func (x *ReplyToCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[21]
+	mi := &file_orc_v1_hosting_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1416,7 @@ func (x *ReplyToCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyToCommentResponse.ProtoReflect.Descriptor instead.
 func (*ReplyToCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{21}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ReplyToCommentResponse) GetComment() *PRComment {
@@ -1436,7 +1436,7 @@ type AutofixCommentRequest struct {
 
 func (x *AutofixCommentRequest) Reset() {
 	*x = AutofixCommentRequest{}
-	mi := &file_orc_v1_github_proto_msgTypes[22]
+	mi := &file_orc_v1_hosting_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1448,7 @@ func (x *AutofixCommentRequest) String() string {
 func (*AutofixCommentRequest) ProtoMessage() {}
 
 func (x *AutofixCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[22]
+	mi := &file_orc_v1_hosting_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1461,7 @@ func (x *AutofixCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixCommentRequest.ProtoReflect.Descriptor instead.
 func (*AutofixCommentRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{22}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *AutofixCommentRequest) GetTaskId() string {
@@ -1487,7 +1487,7 @@ type AutofixCommentResponse struct {
 
 func (x *AutofixCommentResponse) Reset() {
 	*x = AutofixCommentResponse{}
-	mi := &file_orc_v1_github_proto_msgTypes[23]
+	mi := &file_orc_v1_hosting_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1499,7 +1499,7 @@ func (x *AutofixCommentResponse) String() string {
 func (*AutofixCommentResponse) ProtoMessage() {}
 
 func (x *AutofixCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_github_proto_msgTypes[23]
+	mi := &file_orc_v1_hosting_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1512,7 +1512,7 @@ func (x *AutofixCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixCommentResponse.ProtoReflect.Descriptor instead.
 func (*AutofixCommentResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_github_proto_rawDescGZIP(), []int{23}
+	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AutofixCommentResponse) GetResult() *AutofixResult {
@@ -1522,11 +1522,11 @@ func (x *AutofixCommentResponse) GetResult() *AutofixResult {
 	return nil
 }
 
-var File_orc_v1_github_proto protoreflect.FileDescriptor
+var File_orc_v1_hosting_proto protoreflect.FileDescriptor
 
-const file_orc_v1_github_proto_rawDesc = "" +
+const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\n" +
-	"\x13orc/v1/github.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x03\n" +
+	"\x14orc/v1/hosting.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x03\n" +
 	"\x02PR\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\x05R\x06number\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -1661,8 +1661,8 @@ const file_orc_v1_github_proto_rawDesc = "" +
 	"\n" +
 	"comment_id\x18\x02 \x01(\x03R\tcommentId\"G\n" +
 	"\x16AutofixCommentResponse\x12-\n" +
-	"\x06result\x18\x01 \x01(\v2\x15.orc.v1.AutofixResultR\x06result2\x82\x05\n" +
-	"\rGitHubService\x12=\n" +
+	"\x06result\x18\x01 \x01(\v2\x15.orc.v1.AutofixResultR\x06result2\x83\x05\n" +
+	"\x0eHostingService\x12=\n" +
 	"\bCreatePR\x12\x17.orc.v1.CreatePRRequest\x1a\x18.orc.v1.CreatePRResponse\x124\n" +
 	"\x05GetPR\x12\x14.orc.v1.GetPRRequest\x1a\x15.orc.v1.GetPRResponse\x12:\n" +
 	"\aMergePR\x12\x16.orc.v1.MergePRRequest\x1a\x17.orc.v1.MergePRResponse\x12I\n" +
@@ -1671,24 +1671,24 @@ const file_orc_v1_github_proto_rawDesc = "" +
 	"\tGetChecks\x12\x18.orc.v1.GetChecksRequest\x1a\x19.orc.v1.GetChecksResponse\x12@\n" +
 	"\tRefreshPR\x12\x18.orc.v1.RefreshPRRequest\x1a\x19.orc.v1.RefreshPRResponse\x12O\n" +
 	"\x0eReplyToComment\x12\x1d.orc.v1.ReplyToCommentRequest\x1a\x1e.orc.v1.ReplyToCommentResponse\x12O\n" +
-	"\x0eAutofixComment\x12\x1d.orc.v1.AutofixCommentRequest\x1a\x1e.orc.v1.AutofixCommentResponseB\x87\x01\n" +
+	"\x0eAutofixComment\x12\x1d.orc.v1.AutofixCommentRequest\x1a\x1e.orc.v1.AutofixCommentResponseB\x88\x01\n" +
 	"\n" +
-	"com.orc.v1B\vGithubProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
+	"com.orc.v1B\fHostingProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
 var (
-	file_orc_v1_github_proto_rawDescOnce sync.Once
-	file_orc_v1_github_proto_rawDescData []byte
+	file_orc_v1_hosting_proto_rawDescOnce sync.Once
+	file_orc_v1_hosting_proto_rawDescData []byte
 )
 
-func file_orc_v1_github_proto_rawDescGZIP() []byte {
-	file_orc_v1_github_proto_rawDescOnce.Do(func() {
-		file_orc_v1_github_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_orc_v1_github_proto_rawDesc), len(file_orc_v1_github_proto_rawDesc)))
+func file_orc_v1_hosting_proto_rawDescGZIP() []byte {
+	file_orc_v1_hosting_proto_rawDescOnce.Do(func() {
+		file_orc_v1_hosting_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_orc_v1_hosting_proto_rawDesc), len(file_orc_v1_hosting_proto_rawDesc)))
 	})
-	return file_orc_v1_github_proto_rawDescData
+	return file_orc_v1_hosting_proto_rawDescData
 }
 
-var file_orc_v1_github_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
-var file_orc_v1_github_proto_goTypes = []any{
+var file_orc_v1_hosting_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_orc_v1_hosting_proto_goTypes = []any{
 	(*PR)(nil),                     // 0: orc.v1.PR
 	(*PRComment)(nil),              // 1: orc.v1.PRComment
 	(*CheckRun)(nil),               // 2: orc.v1.CheckRun
@@ -1715,7 +1715,7 @@ var file_orc_v1_github_proto_goTypes = []any{
 	(*AutofixCommentResponse)(nil), // 23: orc.v1.AutofixCommentResponse
 	(*timestamppb.Timestamp)(nil),  // 24: google.protobuf.Timestamp
 }
-var file_orc_v1_github_proto_depIdxs = []int32{
+var file_orc_v1_hosting_proto_depIdxs = []int32{
 	24, // 0: orc.v1.PR.created_at:type_name -> google.protobuf.Timestamp
 	24, // 1: orc.v1.PR.updated_at:type_name -> google.protobuf.Timestamp
 	24, // 2: orc.v1.PR.merged_at:type_name -> google.protobuf.Timestamp
@@ -1731,24 +1731,24 @@ var file_orc_v1_github_proto_depIdxs = []int32{
 	0,  // 12: orc.v1.RefreshPRResponse.pr:type_name -> orc.v1.PR
 	1,  // 13: orc.v1.ReplyToCommentResponse.comment:type_name -> orc.v1.PRComment
 	5,  // 14: orc.v1.AutofixCommentResponse.result:type_name -> orc.v1.AutofixResult
-	6,  // 15: orc.v1.GitHubService.CreatePR:input_type -> orc.v1.CreatePRRequest
-	8,  // 16: orc.v1.GitHubService.GetPR:input_type -> orc.v1.GetPRRequest
-	10, // 17: orc.v1.GitHubService.MergePR:input_type -> orc.v1.MergePRRequest
-	12, // 18: orc.v1.GitHubService.SyncComments:input_type -> orc.v1.SyncCommentsRequest
-	14, // 19: orc.v1.GitHubService.ImportComments:input_type -> orc.v1.ImportCommentsRequest
-	16, // 20: orc.v1.GitHubService.GetChecks:input_type -> orc.v1.GetChecksRequest
-	18, // 21: orc.v1.GitHubService.RefreshPR:input_type -> orc.v1.RefreshPRRequest
-	20, // 22: orc.v1.GitHubService.ReplyToComment:input_type -> orc.v1.ReplyToCommentRequest
-	22, // 23: orc.v1.GitHubService.AutofixComment:input_type -> orc.v1.AutofixCommentRequest
-	7,  // 24: orc.v1.GitHubService.CreatePR:output_type -> orc.v1.CreatePRResponse
-	9,  // 25: orc.v1.GitHubService.GetPR:output_type -> orc.v1.GetPRResponse
-	11, // 26: orc.v1.GitHubService.MergePR:output_type -> orc.v1.MergePRResponse
-	13, // 27: orc.v1.GitHubService.SyncComments:output_type -> orc.v1.SyncCommentsResponse
-	15, // 28: orc.v1.GitHubService.ImportComments:output_type -> orc.v1.ImportCommentsResponse
-	17, // 29: orc.v1.GitHubService.GetChecks:output_type -> orc.v1.GetChecksResponse
-	19, // 30: orc.v1.GitHubService.RefreshPR:output_type -> orc.v1.RefreshPRResponse
-	21, // 31: orc.v1.GitHubService.ReplyToComment:output_type -> orc.v1.ReplyToCommentResponse
-	23, // 32: orc.v1.GitHubService.AutofixComment:output_type -> orc.v1.AutofixCommentResponse
+	6,  // 15: orc.v1.HostingService.CreatePR:input_type -> orc.v1.CreatePRRequest
+	8,  // 16: orc.v1.HostingService.GetPR:input_type -> orc.v1.GetPRRequest
+	10, // 17: orc.v1.HostingService.MergePR:input_type -> orc.v1.MergePRRequest
+	12, // 18: orc.v1.HostingService.SyncComments:input_type -> orc.v1.SyncCommentsRequest
+	14, // 19: orc.v1.HostingService.ImportComments:input_type -> orc.v1.ImportCommentsRequest
+	16, // 20: orc.v1.HostingService.GetChecks:input_type -> orc.v1.GetChecksRequest
+	18, // 21: orc.v1.HostingService.RefreshPR:input_type -> orc.v1.RefreshPRRequest
+	20, // 22: orc.v1.HostingService.ReplyToComment:input_type -> orc.v1.ReplyToCommentRequest
+	22, // 23: orc.v1.HostingService.AutofixComment:input_type -> orc.v1.AutofixCommentRequest
+	7,  // 24: orc.v1.HostingService.CreatePR:output_type -> orc.v1.CreatePRResponse
+	9,  // 25: orc.v1.HostingService.GetPR:output_type -> orc.v1.GetPRResponse
+	11, // 26: orc.v1.HostingService.MergePR:output_type -> orc.v1.MergePRResponse
+	13, // 27: orc.v1.HostingService.SyncComments:output_type -> orc.v1.SyncCommentsResponse
+	15, // 28: orc.v1.HostingService.ImportComments:output_type -> orc.v1.ImportCommentsResponse
+	17, // 29: orc.v1.HostingService.GetChecks:output_type -> orc.v1.GetChecksResponse
+	19, // 30: orc.v1.HostingService.RefreshPR:output_type -> orc.v1.RefreshPRResponse
+	21, // 31: orc.v1.HostingService.ReplyToComment:output_type -> orc.v1.ReplyToCommentResponse
+	23, // 32: orc.v1.HostingService.AutofixComment:output_type -> orc.v1.AutofixCommentResponse
 	24, // [24:33] is the sub-list for method output_type
 	15, // [15:24] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
@@ -1756,33 +1756,33 @@ var file_orc_v1_github_proto_depIdxs = []int32{
 	0,  // [0:15] is the sub-list for field type_name
 }
 
-func init() { file_orc_v1_github_proto_init() }
-func file_orc_v1_github_proto_init() {
-	if File_orc_v1_github_proto != nil {
+func init() { file_orc_v1_hosting_proto_init() }
+func file_orc_v1_hosting_proto_init() {
+	if File_orc_v1_hosting_proto != nil {
 		return
 	}
-	file_orc_v1_github_proto_msgTypes[0].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[1].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[2].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[5].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[10].OneofWrappers = []any{}
-	file_orc_v1_github_proto_msgTypes[11].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[0].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[1].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[2].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[5].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[6].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[10].OneofWrappers = []any{}
+	file_orc_v1_hosting_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_github_proto_rawDesc), len(file_orc_v1_github_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_hosting_proto_rawDesc), len(file_orc_v1_hosting_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_orc_v1_github_proto_goTypes,
-		DependencyIndexes: file_orc_v1_github_proto_depIdxs,
-		MessageInfos:      file_orc_v1_github_proto_msgTypes,
+		GoTypes:           file_orc_v1_hosting_proto_goTypes,
+		DependencyIndexes: file_orc_v1_hosting_proto_depIdxs,
+		MessageInfos:      file_orc_v1_hosting_proto_msgTypes,
 	}.Build()
-	File_orc_v1_github_proto = out.File
-	file_orc_v1_github_proto_goTypes = nil
-	file_orc_v1_github_proto_depIdxs = nil
+	File_orc_v1_hosting_proto = out.File
+	file_orc_v1_hosting_proto_goTypes = nil
+	file_orc_v1_hosting_proto_depIdxs = nil
 }
