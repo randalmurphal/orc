@@ -98,20 +98,16 @@
 	width: 300px;
 	min-width: 300px;
 	overflow: hidden;
-	/* Use transform for GPU-accelerated animation (avoids layout thrashing) */
-	transform: translateX(0);
-	opacity: 1;
-	transition:
-		transform 0.2s ease,
-		opacity 0.2s ease;
-	/* Wrapper is transparent to clicks; inner .right-panel receives events */
+	/* No transform here - transform creates a stacking context that interferes
+	   with pointer-event hit-testing, causing the panel wrapper to intercept
+	   clicks on the header even with pointer-events: none.
+	   The inner .right-panel handles its own width-based animation. */
 	pointer-events: none;
 }
 
-/* Collapsed state - slide out with transform instead of width change */
+/* Collapsed state - hidden when grid doesn't have column 3 */
 .app-shell:not(.app-shell--panel-open) .app-shell__panel {
-	transform: translateX(100%);
-	opacity: 0;
+	visibility: hidden;
 	pointer-events: none;
 }
 
@@ -164,15 +160,18 @@
 		bottom: 0;
 		z-index: var(--z-sidebar, 300);
 		box-shadow: var(--shadow-xl);
+		transition: transform 0.2s ease, visibility 0.2s ease;
 	}
 
 	/* Panel slides in from right */
 	.app-shell:not(.app-shell--panel-open) .app-shell__panel {
 		transform: translateX(100%);
+		visibility: hidden;
 	}
 
 	.app-shell--panel-open .app-shell__panel {
 		transform: translateX(0);
+		visibility: visible;
 	}
 }
 
