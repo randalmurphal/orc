@@ -41,6 +41,8 @@ web/src/
 │   ├── core/             # Shared primitives (Badge, Card, Select, Slider, Toggle, etc.)
 │   ├── agents/           # Agent config (AgentsView, AgentCard, ExecutionSettings, ToolPermissions)
 │   ├── overlays/         # Modal components (NewTaskModal, ProjectSwitcher)
+│   ├── workflow-editor/  # Visual editor (React Flow canvas, dagre layout)
+│   │   └── utils/        # layoutWorkflow (dagre), graph helpers
 │   └── [feature]/        # Feature components (board/, task-detail/, etc.)
 ├── context/              # React Context providers
 │   ├── SettingsContext.tsx
@@ -49,6 +51,7 @@ web/src/
 ├── hooks/                # Custom hooks
 ├── pages/                # Route pages
 ├── types/                # TypeScript definitions
+├── lib/                  # Generic utilities (graph-layout.ts)
 ├── utils/                # Utility functions (format.ts)
 └── test/                 # Test utilities and mocks
 ```
@@ -65,6 +68,7 @@ web/src/
 | `/settings` | SettingsPage | Configuration editor |
 | `/knowledge` | KnowledgePage | Knowledge service config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
+| `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 
 ## Key Components
 
@@ -80,6 +84,8 @@ web/src/
 | `WorkflowSelector` | Workflow dropdown for task forms |
 | `EditWorkflowModal` | Workflow metadata and phase editing |
 | `PhaseListEditor` | Phase management (add/edit/remove/reorder) |
+| `WorkflowEditorPage` | 3-panel visual editor: palette \| canvas \| inspector |
+| `WorkflowCanvas` | React Flow wrapper with nodes/edges from `workflowEditorStore` |
 | `AgentsView` | Agent page container (cards + execution settings + tool permissions) |
 | `AgentCard` | Individual agent display with stats and tool badges |
 | `ExecutionSettings` | Global settings: parallel tasks, auto-approve, model, cost limit |
@@ -95,6 +101,8 @@ web/src/
 | `useWebSocket` | WebSocket connection + events |
 | `useSettings` | Settings state management |
 | `useKeyboard` | Keyboard shortcut registration |
+| `useEditorNodes/Edges` | Workflow editor React Flow state selectors |
+| `workflowEditorStore` | Zustand store: nodes, edges, readOnly, selectedNodeId |
 
 ## WebSocket Events
 
@@ -160,5 +168,7 @@ import { test, expect } from './fixtures';  // CORRECT
 **Core:** react, react-dom, react-router-dom, zustand
 
 **UI:** @radix-ui/* (dialog, select, tabs, tooltip), lucide-react
+
+**Canvas:** @xyflow/react (React Flow v12+), dagre (auto-layout)
 
 **Dev:** vite, typescript, vitest, playwright
