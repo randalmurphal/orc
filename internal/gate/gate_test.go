@@ -6,7 +6,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	if e == nil {
 		t.Fatal("New() returned nil")
@@ -14,7 +14,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestEvaluateAutoNoCriteria(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
@@ -32,7 +32,7 @@ func TestEvaluateAutoNoCriteria(t *testing.T) {
 }
 
 func TestEvaluateAutoHasOutput(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
@@ -53,7 +53,7 @@ func TestEvaluateAutoHasOutput(t *testing.T) {
 }
 
 func TestEvaluateAutoNoErrors(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
@@ -74,7 +74,7 @@ func TestEvaluateAutoNoErrors(t *testing.T) {
 }
 
 func TestEvaluateAutoHasCompletionMarker(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
@@ -95,7 +95,7 @@ func TestEvaluateAutoHasCompletionMarker(t *testing.T) {
 }
 
 func TestEvaluateAutoCustomCriteria(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
@@ -116,7 +116,7 @@ func TestEvaluateAutoCustomCriteria(t *testing.T) {
 }
 
 func TestEvaluateUnknownType(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type: "unknown",
@@ -149,7 +149,7 @@ func TestDecision(t *testing.T) {
 }
 
 func TestEvaluateAutoMultipleCriteria(t *testing.T) {
-	e := New(nil)
+	e := New()
 
 	gate := &Gate{
 		Type:     GateAuto,
