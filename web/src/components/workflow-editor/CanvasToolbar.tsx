@@ -72,10 +72,10 @@ export function CanvasToolbar({ onWorkflowRefresh }: CanvasToolbarProps) {
 				size="sm"
 				onClick={handleFitView}
 				aria-label="Fit View"
-				title="Fit all nodes in view"
+				title="Fit all nodes in view (F)"
+				iconOnly
 			>
-				<Icon name="maximize" size={16} />
-				<span className="canvas-toolbar__label">Fit View</span>
+				<Icon name="maximize" size={14} />
 			</Button>
 
 			<Button
@@ -86,12 +86,10 @@ export function CanvasToolbar({ onWorkflowRefresh }: CanvasToolbarProps) {
 				aria-label="Reset Layout"
 				title={readOnly ? 'Clone workflow to reset layout' : 'Reset to automatic layout'}
 				loading={resetting}
+				iconOnly
 			>
-				<Icon name="refresh" size={16} />
-				<span className="canvas-toolbar__label">Reset Layout</span>
+				<Icon name="refresh" size={14} />
 			</Button>
-
-			<div className="canvas-toolbar__divider" />
 
 			<Button
 				variant="ghost"
@@ -101,7 +99,7 @@ export function CanvasToolbar({ onWorkflowRefresh }: CanvasToolbarProps) {
 				title="Zoom in"
 				iconOnly
 			>
-				<Icon name="plus" size={16} />
+				<Icon name="plus" size={14} />
 			</Button>
 
 			<Button
@@ -112,7 +110,7 @@ export function CanvasToolbar({ onWorkflowRefresh }: CanvasToolbarProps) {
 				title="Zoom out"
 				iconOnly
 			>
-				<Icon name="minus" size={16} />
+				<Icon name="minus" size={14} />
 			</Button>
 		</div>
 	);

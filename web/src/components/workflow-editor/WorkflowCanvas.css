@@ -3,12 +3,13 @@
 .workflow-canvas {
 	width: 100%;
 	height: 100%;
+	position: relative;
 }
 
 /* React Flow node defaults — custom node components handle their own styling */
 .workflow-canvas .react-flow__node-default {
 	font-size: var(--text-sm);
-	font-family: var(--font-sans);
+	font-family: var(--font-body);
 	border-radius: var(--radius-md);
 	border: 1px solid var(--border);
 	background: var(--bg-secondary);
@@ -17,45 +18,71 @@
 }
 
 .workflow-canvas .react-flow__node-default.selected {
-	border-color: var(--accent);
-	box-shadow: 0 0 0 2px var(--accent-muted);
+	border-color: var(--primary);
+	box-shadow: var(--shadow-glow-sm);
 }
 
+/* Edge styling */
 .workflow-canvas .react-flow__edge-path {
-	stroke: var(--border-strong);
+	stroke: var(--border-light);
 	stroke-width: 2;
+	transition: stroke 0.2s ease, stroke-width 0.2s ease;
 }
 
-.workflow-canvas .react-flow__controls {
-	border-radius: var(--radius-md);
-	border: 1px solid var(--border);
-	background: var(--bg-primary);
-	box-shadow: var(--shadow-sm);
+.workflow-canvas .react-flow__edge:hover .react-flow__edge-path {
+	stroke: var(--text-muted);
+	stroke-width: 3;
 }
 
-.workflow-canvas .react-flow__controls-button {
-	background: var(--bg-primary);
-	border-color: var(--border);
-	color: var(--text-secondary);
+/* Animated edges (during execution) */
+.workflow-canvas .react-flow__edge.animated .react-flow__edge-path {
+	stroke: var(--primary);
+	stroke-dasharray: 8 4;
+	animation: edge-flow 0.8s linear infinite;
 }
 
-.workflow-canvas .react-flow__controls-button:hover {
-	background: var(--bg-secondary);
-	color: var(--text-primary);
-}
-
-.workflow-canvas .react-flow__minimap {
-	border-radius: var(--radius-md);
-	border: 1px solid var(--border);
-	background: var(--bg-primary);
-	box-shadow: var(--shadow-sm);
+@keyframes edge-flow {
+	to {
+		stroke-dashoffset: -12;
+	}
 }
 
 .workflow-canvas .react-flow__background {
-	background: var(--bg-primary);
+	background: var(--bg-base);
 }
 
-/* SC-3: Empty state overlay for custom workflows with no phases */
+/* ─── Minimap Styling ────────────────────────────────────────────────────────── */
+
+.workflow-canvas .workflow-minimap {
+	bottom: var(--space-4) !important;
+	right: var(--space-4) !important;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border);
+	background: rgba(5, 5, 8, 0.85);
+	backdrop-filter: blur(8px);
+	box-shadow: var(--shadow-md);
+	overflow: hidden;
+	opacity: 0.8;
+	transition: opacity 0.2s ease;
+}
+
+.workflow-canvas .workflow-minimap:hover {
+	opacity: 1;
+}
+
+.workflow-canvas .workflow-minimap svg {
+	border-radius: var(--radius-md);
+}
+
+/* Ensure minimap nodes are visible with category colors */
+.workflow-canvas .react-flow__minimap-node {
+	fill-opacity: 1;
+	rx: 3;
+	ry: 3;
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────────── */
+
 .workflow-canvas-empty {
 	position: absolute;
 	top: 50%;
@@ -77,17 +104,55 @@
 	line-height: var(--leading-relaxed);
 }
 
-/* SC-3: Visual drop indicator when dragging phase templates */
+/* ─── Drop Target Indicator ──────────────────────────────────────────────────── */
+
 .workflow-canvas--drop-target {
-	outline: 2px dashed var(--accent);
+	outline: 2px dashed var(--primary);
 	outline-offset: -2px;
-	background: color-mix(in srgb, var(--accent) 5%, transparent);
+	background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 
-/* SC-12: Canvas toolbar positioning */
+/* ─── Canvas Toolbar ─────────────────────────────────────────────────────────── */
+
 .workflow-canvas-toolbar {
 	position: absolute;
 	top: var(--space-3);
 	right: var(--space-3);
 	z-index: var(--z-dropdown);
+}
+
+/* ─── React Flow Handles ─────────────────────────────────────────────────────── */
+
+.workflow-canvas .react-flow__handle {
+	width: 8px;
+	height: 8px;
+	background: var(--bg-surface);
+	border: 2px solid var(--border-light);
+	border-radius: var(--radius-full);
+}
+
+.workflow-canvas .react-flow__handle:hover {
+	background: var(--primary);
+	border-color: var(--primary);
+}
+
+.workflow-canvas .react-flow__handle-left {
+	left: -4px;
+}
+
+.workflow-canvas .react-flow__handle-right {
+	right: -4px;
+}
+
+/* ─── Selection Box ──────────────────────────────────────────────────────────── */
+
+.workflow-canvas .react-flow__selection {
+	background: var(--primary-dim);
+	border: 1px solid var(--primary);
+}
+
+/* ─── Attribution Hide (we use our own) ──────────────────────────────────────── */
+
+.workflow-canvas .react-flow__attribution {
+	display: none;
 }
