@@ -65,6 +65,18 @@ Focus on fixing the root cause of these issues in this phase.
 	return context
 }
 
+// BuildRetryContextWithGateAnalysis constructs retry context with an optional gate analysis section.
+// When gateContext is non-empty, a "Gate Analysis" section is appended after the standard retry info.
+// When gateContext is empty, the output is identical to BuildRetryContext.
+func BuildRetryContextWithGateAnalysis(fromPhase, reason, failureOutput string, attempt int, contextFile string, gateContext string) string {
+	base := BuildRetryContext(fromPhase, reason, failureOutput, attempt, contextFile)
+	if gateContext == "" {
+		return base
+	}
+
+	return base + fmt.Sprintf("\n## Gate Analysis\n\n%s\n", gateContext)
+}
+
 // RetryOptions configures retry behavior for fresh session retries.
 type RetryOptions struct {
 	// What failed

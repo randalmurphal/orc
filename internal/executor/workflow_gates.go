@@ -4,7 +4,9 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
@@ -19,6 +21,10 @@ type GateEvaluationResult struct {
 	Pending    bool
 	Reason     string
 	RetryPhase string // If not approved and has retry target
+
+	// Gate output pipeline fields (propagated from gate.Decision)
+	OutputData map[string]any // Structured data from gate agent for variable pipeline
+	OutputVar  string         // Variable name to store output as
 }
 
 // evaluatePhaseGate evaluates the gate for a completed phase.
@@ -58,6 +64,8 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	result.Approved = decision.Approved
 	result.Pending = decision.Pending
 	result.Reason = decision.Reason
+	result.OutputData = decision.OutputData
+	result.OutputVar = decision.OutputVar
 
 	// If not approved, check for retry target
 	if !result.Approved && !result.Pending {
@@ -124,6 +132,29 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 	}
 
 	return gate.GateType(gateType)
+}
+
+// applyGateOutputToVars stores gate output data as a workflow variable.
+// If the gate result has both OutputVar (non-empty, non-whitespace) and OutputData (non-nil),
+// the data is JSON-serialized and stored in vars under the configured variable name.
+// This is called for both approved and rejected gates so retry phases can access gate analysis.
+func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationResult) {
+	if gateResult == nil {
+		return
+	}
+
+	varName := strings.TrimSpace(gateResult.OutputVar)
+	if varName == "" || gateResult.OutputData == nil {
+		return
+	}
+
+	data, err := json.Marshal(gateResult.OutputData)
+	if err != nil {
+		// Serialization failed - don't store variable, don't panic
+		return
+	}
+
+	vars[varName] = string(data)
 }
 
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.
