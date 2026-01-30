@@ -19,6 +19,11 @@ var ErrInvalidBranchName = errors.New("invalid branch name")
 // Must start with alphanumeric.
 var branchNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`)
 
+// gitReservedNames contains branch names reserved by git.
+var gitReservedNames = map[string]bool{
+	"head": true, // HEAD (case-insensitive)
+}
+
 // ValidateBranchName validates a branch name for security and git compatibility.
 // Returns an error describing the validation failure, or nil if valid.
 //
@@ -30,7 +35,10 @@ var branchNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$`)
 //   - Must not contain: spaces, shell metacharacters ($`|;&()<>!?*[]{}\)
 //   - Must not contain path traversal (..)
 //   - Must not start with - or .
-//   - Must not end with .lock
+//   - Must not end with .lock or .
+//   - Must not be a git reserved name (HEAD)
+//   - Must not contain git revision syntax (@{)
+//   - Components must not start or end with .
 func ValidateBranchName(name string) error {
 	if name == "" {
 		return fmt.Errorf("%w: cannot be empty", ErrInvalidBranchName)
@@ -38,17 +46,41 @@ func ValidateBranchName(name string) error {
 	if len(name) > MaxBranchNameLength {
 		return fmt.Errorf("%w: exceeds maximum length of %d characters", ErrInvalidBranchName, MaxBranchNameLength)
 	}
+
+	// Check git reserved names (case-insensitive)
+	if gitReservedNames[strings.ToLower(name)] {
+		return fmt.Errorf("%w: '%s' is a reserved name", ErrInvalidBranchName, name)
+	}
+
+	// Check for git revision syntax
+	if strings.Contains(name, "@{") {
+		return fmt.Errorf("%w: cannot contain '@{' (git revision syntax)", ErrInvalidBranchName)
+	}
+	// Single @ is not allowed (it's shorthand for HEAD)
+	if name == "@" {
+		return fmt.Errorf("%w: '@' alone is not allowed (it's shorthand for HEAD)", ErrInvalidBranchName)
+	}
+
 	if strings.Contains(name, "..") {
 		return fmt.Errorf("%w: cannot contain '..'", ErrInvalidBranchName)
 	}
 	if strings.HasSuffix(name, ".lock") {
 		return fmt.Errorf("%w: cannot end with '.lock'", ErrInvalidBranchName)
 	}
+	if strings.HasSuffix(name, ".") {
+		return fmt.Errorf("%w: cannot end with '.'", ErrInvalidBranchName)
+	}
 	if strings.HasSuffix(name, "/") {
 		return fmt.Errorf("%w: cannot end with '/'", ErrInvalidBranchName)
 	}
 	if strings.Contains(name, "//") {
 		return fmt.Errorf("%w: cannot contain '//'", ErrInvalidBranchName)
+	}
+	if strings.Contains(name, "/.") {
+		return fmt.Errorf("%w: path components cannot start with '.'", ErrInvalidBranchName)
+	}
+	if strings.Contains(name, "./") {
+		return fmt.Errorf("%w: path components cannot end with '.'", ErrInvalidBranchName)
 	}
 	if !branchNamePattern.MatchString(name) {
 		return fmt.Errorf("%w: contains invalid characters (allowed: a-z, A-Z, 0-9, /, -, _, .)", ErrInvalidBranchName)

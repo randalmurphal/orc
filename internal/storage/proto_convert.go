@@ -80,6 +80,19 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 		totalCostUSD = t.Execution.Cost.TotalCostUsd
 	}
 
+	// Convert PR labels and reviewers slices to JSON for db storage
+	var prLabelsJSON, prReviewersJSON string
+	if len(t.PrLabels) > 0 {
+		if data, err := json.Marshal(t.PrLabels); err == nil {
+			prLabelsJSON = string(data)
+		}
+	}
+	if len(t.PrReviewers) > 0 {
+		if data, err := json.Marshal(t.PrReviewers); err == nil {
+			prReviewersJSON = string(data)
+		}
+	}
+
 	return &db.Task{
 		ID:               t.Id,
 		Title:            t.Title,
@@ -106,6 +119,13 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 		ExecutorPID:      int(t.ExecutorPid),
 		ExecutorHostname: ptrToString(t.ExecutorHostname),
 		LastHeartbeat:    lastHeartbeat,
+		// Branch control fields
+		BranchName:     t.BranchName,
+		PrDraft:        t.PrDraft,
+		PrLabels:       prLabelsJSON,
+		PrReviewers:    prReviewersJSON,
+		PrLabelsSet:    t.PrLabelsSet,
+		PrReviewersSet: t.PrReviewersSet,
 	}
 }
 
@@ -165,6 +185,15 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		lastHeartbeat = timestamppb.New(*dbTask.LastHeartbeat)
 	}
 
+	// Parse PR labels and reviewers from JSON
+	var prLabels, prReviewers []string
+	if dbTask.PrLabels != "" {
+		_ = json.Unmarshal([]byte(dbTask.PrLabels), &prLabels)
+	}
+	if dbTask.PrReviewers != "" {
+		_ = json.Unmarshal([]byte(dbTask.PrReviewers), &prReviewers)
+	}
+
 	return &orcv1.Task{
 		Id:               dbTask.ID,
 		Title:            dbTask.Title,
@@ -190,6 +219,13 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		ExecutorPid:      int32(dbTask.ExecutorPID),
 		ExecutorHostname: stringToPtr(dbTask.ExecutorHostname),
 		LastHeartbeat:    lastHeartbeat,
+		// Branch control fields
+		BranchName:     dbTask.BranchName,
+		PrDraft:        dbTask.PrDraft,
+		PrLabels:       prLabels,
+		PrReviewers:    prReviewers,
+		PrLabelsSet:    dbTask.PrLabelsSet,
+		PrReviewersSet: dbTask.PrReviewersSet,
 	}
 }
 

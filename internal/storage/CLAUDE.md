@@ -36,6 +36,18 @@ All execution state is embedded in `orcv1.Task.Execution`. The proto type `orcv1
 
 **Note:** `db.Task` is an internal DTO used only within the storage layer for database mapping. It is not exposed outside storage - all public APIs use `*orcv1.Task`.
 
+**Proto conversion** (`proto_convert.go`) maps all fields between `orcv1.Task` and `db.Task`, including branch control fields:
+
+| Proto Field | DB Field | Conversion Notes |
+|-------------|----------|------------------|
+| `BranchName *string` | `BranchName *string` | Direct pointer copy |
+| `TargetBranch *string` | `TargetBranch string` | `ptrToString` / `stringToPtr` |
+| `PrDraft *bool` | `PrDraft *bool` | Direct pointer copy |
+| `PrLabels []string` | `PrLabels string` | JSON marshal/unmarshal |
+| `PrReviewers []string` | `PrReviewers string` | JSON marshal/unmarshal |
+| `PrLabelsSet bool` | `PrLabelsSet bool` | Tracks explicit empty vs unset |
+| `PrReviewersSet bool` | `PrReviewersSet bool` | Tracks explicit empty vs unset |
+
 | Operation | Method |
 |-----------|--------|
 | Save task with execution state | `backend.SaveTask(t)` where `t.Execution` contains phases, gates, cost |

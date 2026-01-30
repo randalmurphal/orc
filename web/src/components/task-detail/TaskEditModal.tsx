@@ -99,6 +99,13 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	const [initiativeId, setInitiativeId] = useState<string | undefined>(task.initiativeId);
 	const [workflowId, setWorkflowId] = useState<string | undefined>(task.workflowId);
 	const [targetBranch, setTargetBranch] = useState(task.targetBranch ?? '');
+	// Branch control fields
+	const [branchName, setBranchName] = useState(task.branchName ?? '');
+	// Track prDraft as boolean|undefined to preserve the "not set" state
+	const [prDraft, setPrDraft] = useState<boolean | undefined>(task.prDraft);
+	const [prDraftChanged, setPrDraftChanged] = useState(false);
+	const [prLabels, setPrLabels] = useState(task.prLabels?.join(', ') ?? '');
+	const [prReviewers, setPrReviewers] = useState(task.prReviewers?.join(', ') ?? '');
 	const [saving, setSaving] = useState(false);
 
 	const initiatives = useInitiatives();
@@ -143,6 +150,12 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 			setInitiativeId(task.initiativeId);
 			setWorkflowId(task.workflowId);
 			setTargetBranch(task.targetBranch ?? '');
+			// Branch control fields
+			setBranchName(task.branchName ?? '');
+			setPrDraft(task.prDraft);
+			setPrDraftChanged(false);
+			setPrLabels(task.prLabels?.join(', ') ?? '');
+			setPrReviewers(task.prReviewers?.join(', ') ?? '');
 		}
 	}, [open, task]);
 
@@ -212,6 +225,10 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 
 		setSaving(true);
 		try {
+			// Parse comma-separated labels and reviewers
+			const parsedLabels = prLabels.trim() ? prLabels.split(',').map(s => s.trim()).filter(Boolean) : [];
+			const parsedReviewers = prReviewers.trim() ? prReviewers.split(',').map(s => s.trim()).filter(Boolean) : [];
+
 			const response = await taskClient.updateTask({
 				projectId,
 				taskId: task.id,
@@ -224,6 +241,14 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 				initiativeId: initiativeId || undefined,
 				workflowId: workflowId || undefined,
 				targetBranch: targetBranch.trim() || undefined,
+				// Branch control fields
+				branchName: branchName.trim() || undefined,
+				// Only send prDraft if user explicitly changed it
+				prDraft: prDraftChanged ? prDraft : undefined,
+				prLabels: parsedLabels,
+				prLabelsSet: true,
+				prReviewers: parsedReviewers,
+				prReviewersSet: true,
 			});
 			toast.success('Task updated');
 			if (response.task) {
@@ -235,7 +260,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [projectId, task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, onUpdate, onClose]);
+	}, [projectId, task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, branchName, prDraft, prDraftChanged, prLabels, prReviewers, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>
@@ -473,6 +498,67 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 					<span className="form-hint">
 						Leave empty to use initiative branch or project default
 					</span>
+				</div>
+
+				{/* Branch & PR Settings */}
+				<div className="form-section-header">Branch & PR Settings</div>
+
+				{/* Custom Branch Name */}
+				<div className="form-group">
+					<label htmlFor="task-branch-name">Branch Name</label>
+					<input
+						id="task-branch-name"
+						type="text"
+						value={branchName}
+						onChange={(e) => setBranchName(e.target.value)}
+						placeholder="Custom branch name (default: auto-generated)"
+					/>
+					<span className="form-hint">
+						Leave empty to auto-generate from task ID
+					</span>
+				</div>
+
+				{/* PR Draft */}
+				<div className="form-group form-group-checkbox">
+					<label htmlFor="task-pr-draft">
+						<input
+							id="task-pr-draft"
+							type="checkbox"
+							checked={prDraft ?? false}
+							onChange={(e) => {
+								setPrDraft(e.target.checked);
+								setPrDraftChanged(true);
+							}}
+						/>
+						Create PR as draft
+					</label>
+				</div>
+
+				{/* PR Labels & Reviewers Row */}
+				<div className="form-row">
+					<div className="form-group">
+						<label htmlFor="task-pr-labels">PR Labels</label>
+						<input
+							id="task-pr-labels"
+							type="text"
+							value={prLabels}
+							onChange={(e) => setPrLabels(e.target.value)}
+							placeholder="bug, enhancement"
+						/>
+						<span className="form-hint">Comma-separated</span>
+					</div>
+
+					<div className="form-group">
+						<label htmlFor="task-pr-reviewers">PR Reviewers</label>
+						<input
+							id="task-pr-reviewers"
+							type="text"
+							value={prReviewers}
+							onChange={(e) => setPrReviewers(e.target.value)}
+							placeholder="user1, user2"
+						/>
+						<span className="form-hint">Comma-separated usernames</span>
+					</div>
 				</div>
 
 				{/* Actions */}

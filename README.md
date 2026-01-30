@@ -136,23 +136,6 @@ For a **medium** task like "Add export to CSV":
 
 Total time: 30-90 minutes depending on complexity. You did zero of it.
 
-### Interactive Mode
-
-Don't want full automation? Use `orc go` for guided execution:
-
-```bash
-orc go "Add user preferences page"
-# Interactive prompts for decisions
-# Pauses at gates you care about
-```
-
-Or go fully headless:
-
-```bash
-orc go --headless "Fix memory leak in worker pool"
-# Zero interaction, come back to a PR
-```
-
 ## Configuration
 
 Config loads from multiple sources (later overrides earlier):
@@ -260,14 +243,6 @@ orc status                   # Show all tasks
 orc log TASK-ID              # View transcripts
 orc diff TASK-ID             # View git diff
 orc config show --source     # Show config with sources
-```
-
-### Quick Execution
-
-```bash
-orc go "description"         # Create and run in one command
-orc go --headless "desc"     # Fully automated, no prompts
-orc go --stream "desc"       # Stream Claude output to stdout
 ```
 
 ### Multi-Project
