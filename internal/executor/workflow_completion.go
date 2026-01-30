@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/hosting"
 	_ "github.com/randalmurphal/orc/internal/hosting/github"
@@ -192,6 +193,33 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 	return nil
 }
 
+// ResolvePROptions builds PR creation options with task overrides applied.
+func ResolvePROptions(t *orcv1.Task, cfg *config.Config) hosting.PRCreateOptions {
+	prCfg := cfg.Completion.PR
+
+	opts := hosting.PRCreateOptions{
+		Draft:               prCfg.Draft,
+		Labels:              prCfg.Labels,
+		Reviewers:           prCfg.Reviewers,
+		TeamReviewers:       prCfg.TeamReviewers,
+		Assignees:           prCfg.Assignees,
+		MaintainerCanModify: prCfg.MaintainerCanModify,
+	}
+
+	// Apply task-level overrides
+	if t.PrDraft != nil {
+		opts.Draft = *t.PrDraft
+	}
+	if t.PrLabelsSet {
+		opts.Labels = t.PrLabels
+	}
+	if t.PrReviewersSet {
+		opts.Reviewers = t.PrReviewers
+	}
+
+	return opts
+}
+
 // createPR creates a pull request for the task branch.
 func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	if task.HasPRProto(t) {
@@ -212,7 +240,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("create hosting provider: %w", err)
 	}
 
-	// Build PR options from config
+	// Build PR options from config with task overrides
+	prOpts := ResolvePROptions(t, we.orcConfig)
 	prCfg := we.orcConfig.Completion.PR
 	ciCfg := we.orcConfig.Completion.CI
 
@@ -226,12 +255,12 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		Body:                body,
 		Head:                t.Branch,
 		Base:                targetBranch,
-		Draft:               prCfg.Draft,
-		Labels:              prCfg.Labels,
-		Reviewers:           prCfg.Reviewers,
-		TeamReviewers:       prCfg.TeamReviewers,
-		Assignees:           prCfg.Assignees,
-		MaintainerCanModify: prCfg.MaintainerCanModify,
+		Draft:               prOpts.Draft,
+		Labels:              prOpts.Labels,
+		Reviewers:           prOpts.Reviewers,
+		TeamReviewers:       prOpts.TeamReviewers,
+		Assignees:           prOpts.Assignees,
+		MaintainerCanModify: prOpts.MaintainerCanModify,
 	})
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
