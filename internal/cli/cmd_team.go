@@ -50,10 +50,10 @@ type SharedConfig struct {
 	} `yaml:"cost,omitempty"`
 }
 
-// findProjectRoot returns the project root, using config.FindProjectRoot()
+// findProjectRoot returns the project root, using ResolveProjectPath()
 // which has worktree awareness and proper validation.
 func findProjectRoot() (string, error) {
-	return config.FindProjectRoot()
+	return ResolveProjectPath()
 }
 
 func newTeamCmd() *cobra.Command {

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { taskClient } from '@/lib/client';
 import { useTaskSubscription, useDocumentTitle } from '@/hooks';
 import { useTask as useStoreTask } from '@/stores/taskStore';
+import { useCurrentProjectId } from '@/stores';
 import type { Task, TaskPlan } from '@/gen/orc/v1/task_pb';
 import { GetTaskRequestSchema, GetTaskPlanRequestSchema } from '@/gen/orc/v1/task_pb';
 import './TaskDetail.css';
@@ -36,6 +37,7 @@ export function TaskDetail() {
 	const { id } = useParams<{ id: string }>();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const navigate = useNavigate();
+	const projectId = useCurrentProjectId();
 
 	// Parse and validate tab from URL
 	const tabParam = searchParams.get('tab') as TabId | null;
@@ -73,15 +75,15 @@ export function TaskDetail() {
 
 	// Load task data
 	const loadTask = useCallback(async () => {
-		if (!id) return;
+		if (!id || !projectId) return;
 
 		setLoading(true);
 		setError(null);
 
 		try {
 			const [taskResponse, planResponse] = await Promise.all([
-				taskClient.getTask(create(GetTaskRequestSchema, { id })),
-				taskClient.getTaskPlan(create(GetTaskPlanRequestSchema, { id })).catch(() => null),
+				taskClient.getTask(create(GetTaskRequestSchema, { projectId, taskId: id })),
+				taskClient.getTaskPlan(create(GetTaskPlanRequestSchema, { projectId, taskId: id })).catch(() => null),
 			]);
 
 			if (taskResponse.task) {
@@ -95,7 +97,7 @@ export function TaskDetail() {
 		} finally {
 			setLoading(false);
 		}
-	}, [id]);
+	}, [id, projectId]);
 
 	// Initial load
 	useEffect(() => {

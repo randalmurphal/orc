@@ -26,10 +26,11 @@ import (
 // configServer implements the ConfigServiceHandler interface.
 type configServer struct {
 	orcv1connect.UnimplementedConfigServiceHandler
-	orcConfig *config.Config
-	backend   storage.Backend
-	workDir   string
-	logger    *slog.Logger
+	orcConfig    *config.Config
+	backend      storage.Backend
+	projectCache *ProjectCache
+	workDir      string
+	logger       *slog.Logger
 }
 
 // NewConfigServer creates a new ConfigService handler.
@@ -45,6 +46,27 @@ func NewConfigServer(
 		workDir:   workDir,
 		logger:    logger,
 	}
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *configServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Otherwise returns the default backend.
+func (s *configServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // GetConfig returns the ORC configuration.
@@ -731,7 +753,12 @@ func (s *configServer) GetConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetConstitutionRequest],
 ) (*connect.Response[orcv1.GetConstitutionResponse], error) {
-	content, path, err := s.backend.LoadConstitution()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	content, path, err := backend.LoadConstitution()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("constitution not found"))
 	}
@@ -753,12 +780,17 @@ func (s *configServer) UpdateConstitution(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	if err := s.backend.SaveConstitution(req.Msg.Content); err != nil {
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if err := backend.SaveConstitution(req.Msg.Content); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	// Reload to get the path
-	_, path, _ := s.backend.LoadConstitution()
+	_, path, _ := backend.LoadConstitution()
 
 	return connect.NewResponse(&orcv1.UpdateConstitutionResponse{
 		Constitution: &orcv1.Constitution{
@@ -773,7 +805,12 @@ func (s *configServer) DeleteConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteConstitutionRequest],
 ) (*connect.Response[orcv1.DeleteConstitutionResponse], error) {
-	if err := s.backend.DeleteConstitution(); err != nil {
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if err := backend.DeleteConstitution(); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
@@ -960,7 +997,11 @@ func (s *configServer) ListAgents(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListAgentsRequest],
 ) (*connect.Response[orcv1.ListAgentsResponse], error) {
-	pdb := s.backend.(*storage.DatabaseBackend).DB()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	pdb := backend.DB()
 
 	// Determine scope
 	var scope orcv1.SettingsScope
@@ -1026,7 +1067,11 @@ func (s *configServer) GetAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
-	pdb := s.backend.(*storage.DatabaseBackend).DB()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	pdb := backend.DB()
 
 	agent, err := pdb.GetAgent(req.Msg.Name)
 	if err != nil {
@@ -1053,7 +1098,11 @@ func (s *configServer) CreateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
 	}
 
-	pdb := s.backend.(*storage.DatabaseBackend).DB()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	pdb := backend.DB()
 
 	// Check if agent already exists
 	existing, err := pdb.GetAgent(req.Msg.Name)
@@ -1107,7 +1156,11 @@ func (s *configServer) UpdateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	pdb := s.backend.(*storage.DatabaseBackend).DB()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	pdb := backend.DB()
 
 	// Get existing agent
 	agent, err := pdb.GetAgent(req.Msg.GetId())
@@ -1165,7 +1218,11 @@ func (s *configServer) DeleteAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
-	pdb := s.backend.(*storage.DatabaseBackend).DB()
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	pdb := backend.DB()
 
 	// Get agent to check if it exists and is not built-in
 	agent, err := pdb.GetAgent(req.Msg.Name)

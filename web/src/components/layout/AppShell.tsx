@@ -81,10 +81,15 @@ function AppShellInner({
 
 	const location = useLocation();
 
-	const shellClasses = ['app-shell', isRightPanelOpen && 'app-shell--panel-open', mobileNavOpen && 'app-shell--mobile-nav-open', className].filter(Boolean).join(' ');
+	// Only show RightPanel for routes that have panel content
+	// Currently only /board has panel content (BoardCommandPanel)
+	// /workflows/:id has its own inspector panel built into the page
+	const isBoard = location.pathname === '/board';
+	const hasPanelContent = isBoard || Boolean(defaultPanelContent);
+
+	const shellClasses = ['app-shell', isRightPanelOpen && hasPanelContent && 'app-shell--panel-open', mobileNavOpen && 'app-shell--mobile-nav-open', className].filter(Boolean).join(' ');
 
 	// Route-aware panel content: board gets its own panel, others use default
-	const isBoard = location.pathname === '/board';
 	const panelContent = isBoard ? (
 		<Suspense fallback={null}>
 			<BoardCommandPanel />
@@ -139,15 +144,17 @@ function AppShellInner({
 				{children}
 			</main>
 
-			{/* RightPanel (300px, collapsible) */}
-			<div className="app-shell__panel">
-				<RightPanel
-					isOpen={isRightPanelOpen}
-					onClose={handlePanelClose}
-				>
-					{panelContent}
-				</RightPanel>
-			</div>
+			{/* RightPanel (300px, collapsible) - Only rendered for routes with panel content */}
+			{hasPanelContent && (
+				<div className="app-shell__panel">
+					<RightPanel
+						isOpen={isRightPanelOpen}
+						onClose={handlePanelClose}
+					>
+						{panelContent}
+					</RightPanel>
+				</div>
+			)}
 
 			{/* Mobile backdrop */}
 			<div

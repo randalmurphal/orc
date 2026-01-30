@@ -17,6 +17,8 @@ export type EventHandler = (event: Event) => void;
 export type StatusHandler = (status: ConnectionStatus) => void;
 
 interface ConnectOptions {
+	/** Filter by project IDs (empty = current project context) */
+	projectIds?: string[];
 	/** Subscribe to specific task events only */
 	taskId?: string;
 	/** Subscribe to specific initiative events only */
@@ -66,6 +68,7 @@ export class EventSubscription {
 
 		try {
 			const request = create(SubscribeRequestSchema, {
+				projectIds: options.projectIds ?? [],
 				taskId: options.taskId,
 				initiativeId: options.initiativeId,
 				eventTypes: options.eventTypes ?? [],

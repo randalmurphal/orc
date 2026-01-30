@@ -23,6 +23,7 @@ import { CompletedPanel } from './CompletedPanel';
 import { useTaskStore } from '@/stores/taskStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePendingDecisions, useUIStore } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import { decisionClient, taskClient, configClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
 import { ResolveDecisionRequestSchema } from '@/gen/orc/v1/decision_pb';
@@ -56,6 +57,7 @@ function isCompletedToday(task: Task): boolean {
  */
 export function BoardCommandPanel(): React.ReactElement {
 	const navigate = useNavigate();
+	const projectId = useCurrentProjectId();
 
 	// Store data
 	const tasks = useTaskStore((state) => state.tasks);
@@ -94,8 +96,9 @@ export function BoardCommandPanel(): React.ReactElement {
 	// Handlers
 	const handleSkipBlock = useCallback(
 		async (taskId: string) => {
+			if (!projectId) return;
 			try {
-				const result = await taskClient.skipBlock(create(SkipBlockRequestSchema, { id: taskId }));
+				const result = await taskClient.skipBlock(create(SkipBlockRequestSchema, { projectId, taskId }));
 				if (result.task) {
 					updateTask(taskId, result.task);
 				} else {
@@ -110,13 +113,14 @@ export function BoardCommandPanel(): React.ReactElement {
 				console.error('Failed to skip block:', error);
 			}
 		},
-		[updateTask]
+		[projectId, updateTask]
 	);
 
 	const handleForceBlock = useCallback(
 		async (taskId: string) => {
+			if (!projectId) return;
 			try {
-				const result = await taskClient.runTask(create(RunTaskRequestSchema, { id: taskId }));
+				const result = await taskClient.runTask(create(RunTaskRequestSchema, { projectId, taskId }));
 				if (result.task) {
 					updateTask(taskId, result.task);
 				} else {
@@ -126,7 +130,7 @@ export function BoardCommandPanel(): React.ReactElement {
 				console.error('Failed to force run task:', error);
 			}
 		},
-		[updateTask]
+		[projectId, updateTask]
 	);
 
 	const handleDecide = useCallback(

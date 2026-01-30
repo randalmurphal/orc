@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/db"
@@ -28,20 +29,21 @@ func TestToInlineAgentDef(t *testing.T) {
 }
 
 func TestLoadPhaseAgents(t *testing.T) {
-	pdb, err := db.OpenProjectInMemory()
+	tmpDir := t.TempDir()
+	gdb, err := db.OpenGlobalAt(filepath.Join(tmpDir, "orc.db"))
 	require.NoError(t, err)
-	defer func() { _ = pdb.Close() }()
+	defer func() { _ = gdb.Close() }()
 
 	// Seed built-in phase templates first
-	_, err = workflow.SeedBuiltins(pdb)
+	_, err = workflow.SeedBuiltins(gdb)
 	require.NoError(t, err)
 
 	// Seed built-in agents
-	_, err = workflow.SeedAgents(pdb)
+	_, err = workflow.SeedAgents(gdb)
 	require.NoError(t, err)
 
 	// Test loading agents for review phase with small weight
-	agents, err := LoadPhaseAgents(pdb, "review", "small")
+	agents, err := LoadPhaseAgents(gdb, "review", "small")
 	require.NoError(t, err)
 	require.NotNil(t, agents)
 
@@ -57,23 +59,24 @@ func TestLoadPhaseAgents(t *testing.T) {
 	assert.Equal(t, "opus", reviewer.Model)
 
 	// Test loading agents for review phase with large weight (should have more agents)
-	largeAgents, err := LoadPhaseAgents(pdb, "review", "large")
+	largeAgents, err := LoadPhaseAgents(gdb, "review", "large")
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(largeAgents), len(agents), "large weight should have >= agents than small")
 
 	// Test loading agents for phase with no agents
-	noAgents, err := LoadPhaseAgents(pdb, "docs", "small")
+	noAgents, err := LoadPhaseAgents(gdb, "docs", "small")
 	require.NoError(t, err)
 	assert.Empty(t, noAgents) // docs phase doesn't have agents
 }
 
 func TestLoadPhaseAgents_NonExistentPhase(t *testing.T) {
-	pdb, err := db.OpenProjectInMemory()
+	tmpDir := t.TempDir()
+	gdb, err := db.OpenGlobalAt(filepath.Join(tmpDir, "orc.db"))
 	require.NoError(t, err)
-	defer func() { _ = pdb.Close() }()
+	defer func() { _ = gdb.Close() }()
 
 	// Load agents for non-existent phase - should return empty, not error
-	agents, err := LoadPhaseAgents(pdb, "nonexistent-phase", "medium")
+	agents, err := LoadPhaseAgents(gdb, "nonexistent-phase", "medium")
 	require.NoError(t, err)
 	assert.Empty(t, agents)
 }

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -9,40 +8,34 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
-func setupWorkflowTestDB(t *testing.T) (*db.ProjectDB, string) {
+// setupWorkflowTestDB opens a GlobalDB for workflow testing (workflows are in global DB now)
+func setupWorkflowTestDB(t *testing.T) (*db.GlobalDB, string) {
 	t.Helper()
 	tmpDir := t.TempDir()
 
-	pdb, err := db.OpenProject(tmpDir)
+	gdb, err := db.OpenGlobalAt(filepath.Join(tmpDir, "orc.db"))
 	if err != nil {
-		t.Fatalf("failed to open project db: %v", err)
+		t.Fatalf("failed to open global db: %v", err)
 	}
 
 	// Seed built-ins
-	if _, err := workflow.SeedBuiltins(pdb); err != nil {
+	if _, err := workflow.SeedBuiltins(gdb); err != nil {
 		t.Fatalf("SeedBuiltins failed: %v", err)
 	}
 
-	return pdb, tmpDir
+	return gdb, tmpDir
 }
 
 func TestWorkflowNew_FromExisting(t *testing.T) {
-	pdb, tmpDir := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, tmpDir := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create .orc directory to satisfy FindProjectRoot
-	orcDir := filepath.Join(tmpDir, ".orc")
-	if err := os.MkdirAll(orcDir, 0755); err != nil {
-		t.Fatalf("failed to create .orc dir: %v", err)
-	}
-
-	// Set working directory context for command
-	oldCmd := workflowNewCmd
-	t.Cleanup(func() { workflowNewCmd = oldCmd })
+	_ = tmpDir // Used for potential directory creation if needed
 
 	// Execute command manually since we can't easily mock FindProjectRoot
 	// Instead, test the database operations directly
-	source, err := pdb.GetWorkflow("implement-small")
+	source, err := gdb.GetWorkflow("implement-small")
 	if err != nil {
 		t.Fatalf("GetWorkflow failed: %v", err)
 	}
@@ -62,12 +55,12 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 		BasedOn:         "implement-small",
 	}
 
-	if err := pdb.SaveWorkflow(newWf); err != nil {
+	if err := gdb.SaveWorkflow(newWf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
 	// Copy phases
-	phases, err := pdb.GetWorkflowPhases("implement-small")
+	phases, err := gdb.GetWorkflowPhases("implement-small")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases failed: %v", err)
 	}
@@ -80,13 +73,13 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 			MaxIterationsOverride: p.MaxIterationsOverride,
 			ModelOverride:         p.ModelOverride,
 		}
-		if err := pdb.SaveWorkflowPhase(newPhase); err != nil {
+		if err := gdb.SaveWorkflowPhase(newPhase); err != nil {
 			t.Fatalf("SaveWorkflowPhase failed: %v", err)
 		}
 	}
 
 	// Verify clone
-	cloned, err := pdb.GetWorkflow("test-cloned")
+	cloned, err := gdb.GetWorkflow("test-cloned")
 	if err != nil {
 		t.Fatalf("GetWorkflow for clone failed: %v", err)
 	}
@@ -100,7 +93,7 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 		t.Errorf("BasedOn = %q, want %q", cloned.BasedOn, "implement-small")
 	}
 
-	clonedPhases, err := pdb.GetWorkflowPhases("test-cloned")
+	clonedPhases, err := gdb.GetWorkflowPhases("test-cloned")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases for clone failed: %v", err)
 	}
@@ -110,8 +103,8 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 }
 
 func TestWorkflowAddPhase_Success(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create a custom workflow first
 	wf := &db.Workflow{
@@ -119,7 +112,7 @@ func TestWorkflowAddPhase_Success(t *testing.T) {
 		Name:      "Test Custom",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -129,7 +122,7 @@ func TestWorkflowAddPhase_Success(t *testing.T) {
 		PhaseTemplateID: "implement",
 		Sequence:        0,
 	}
-	if err := pdb.SaveWorkflowPhase(phase1); err != nil {
+	if err := gdb.SaveWorkflowPhase(phase1); err != nil {
 		t.Fatalf("SaveWorkflowPhase failed: %v", err)
 	}
 
@@ -139,12 +132,12 @@ func TestWorkflowAddPhase_Success(t *testing.T) {
 		PhaseTemplateID: "review",
 		Sequence:        1,
 	}
-	if err := pdb.SaveWorkflowPhase(phase2); err != nil {
+	if err := gdb.SaveWorkflowPhase(phase2); err != nil {
 		t.Fatalf("SaveWorkflowPhase for review failed: %v", err)
 	}
 
 	// Verify
-	phases, err := pdb.GetWorkflowPhases("test-custom")
+	phases, err := gdb.GetWorkflowPhases("test-custom")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases failed: %v", err)
 	}
@@ -160,11 +153,11 @@ func TestWorkflowAddPhase_Success(t *testing.T) {
 }
 
 func TestWorkflowAddPhase_BuiltinFails(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Try to add phase to builtin workflow
-	wf, err := pdb.GetWorkflow("implement-medium")
+	wf, err := gdb.GetWorkflow("implement-medium")
 	if err != nil {
 		t.Fatalf("GetWorkflow failed: %v", err)
 	}
@@ -182,8 +175,8 @@ func TestWorkflowAddPhase_BuiltinFails(t *testing.T) {
 }
 
 func TestWorkflowRemovePhase_Success(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create custom workflow with phases
 	wf := &db.Workflow{
@@ -191,7 +184,7 @@ func TestWorkflowRemovePhase_Success(t *testing.T) {
 		Name:      "Test Remove",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -202,18 +195,18 @@ func TestWorkflowRemovePhase_Success(t *testing.T) {
 			PhaseTemplateID: phaseID,
 			Sequence:        i,
 		}
-		if err := pdb.SaveWorkflowPhase(phase); err != nil {
+		if err := gdb.SaveWorkflowPhase(phase); err != nil {
 			t.Fatalf("SaveWorkflowPhase failed: %v", err)
 		}
 	}
 
 	// Remove middle phase
-	if err := pdb.DeleteWorkflowPhase("test-remove", "implement"); err != nil {
+	if err := gdb.DeleteWorkflowPhase("test-remove", "implement"); err != nil {
 		t.Fatalf("DeleteWorkflowPhase failed: %v", err)
 	}
 
 	// Re-sequence (simulating CLI behavior)
-	phases, err := pdb.GetWorkflowPhases("test-remove")
+	phases, err := gdb.GetWorkflowPhases("test-remove")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases failed: %v", err)
 	}
@@ -245,8 +238,8 @@ func TestWorkflowRemovePhase_Success(t *testing.T) {
 }
 
 func TestWorkflowAddVariable_Success(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -254,7 +247,7 @@ func TestWorkflowAddVariable_Success(t *testing.T) {
 		Name:      "Test Var",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -267,12 +260,12 @@ func TestWorkflowAddVariable_Success(t *testing.T) {
 		SourceConfig: `{"var": "API_KEY"}`,
 		Required:     true,
 	}
-	if err := pdb.SaveWorkflowVariable(variable); err != nil {
+	if err := gdb.SaveWorkflowVariable(variable); err != nil {
 		t.Fatalf("SaveWorkflowVariable failed: %v", err)
 	}
 
 	// Verify
-	vars, err := pdb.GetWorkflowVariables("test-var")
+	vars, err := gdb.GetWorkflowVariables("test-var")
 	if err != nil {
 		t.Fatalf("GetWorkflowVariables failed: %v", err)
 	}
@@ -288,8 +281,8 @@ func TestWorkflowAddVariable_Success(t *testing.T) {
 }
 
 func TestWorkflowRemoveVariable_Success(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create custom workflow with variable
 	wf := &db.Workflow{
@@ -297,7 +290,7 @@ func TestWorkflowRemoveVariable_Success(t *testing.T) {
 		Name:      "Test Remove Var",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -307,12 +300,12 @@ func TestWorkflowRemoveVariable_Success(t *testing.T) {
 		SourceType:   "static",
 		SourceConfig: `{"value": "test"}`,
 	}
-	if err := pdb.SaveWorkflowVariable(variable); err != nil {
+	if err := gdb.SaveWorkflowVariable(variable); err != nil {
 		t.Fatalf("SaveWorkflowVariable failed: %v", err)
 	}
 
 	// Verify it exists
-	vars, err := pdb.GetWorkflowVariables("test-rmvar")
+	vars, err := gdb.GetWorkflowVariables("test-rmvar")
 	if err != nil {
 		t.Fatalf("GetWorkflowVariables failed: %v", err)
 	}
@@ -321,12 +314,12 @@ func TestWorkflowRemoveVariable_Success(t *testing.T) {
 	}
 
 	// Delete
-	if err := pdb.DeleteWorkflowVariable("test-rmvar", "TO_DELETE"); err != nil {
+	if err := gdb.DeleteWorkflowVariable("test-rmvar", "TO_DELETE"); err != nil {
 		t.Fatalf("DeleteWorkflowVariable failed: %v", err)
 	}
 
 	// Verify deletion
-	vars, err = pdb.GetWorkflowVariables("test-rmvar")
+	vars, err = gdb.GetWorkflowVariables("test-rmvar")
 	if err != nil {
 		t.Fatalf("GetWorkflowVariables after delete failed: %v", err)
 	}
@@ -336,8 +329,8 @@ func TestWorkflowRemoveVariable_Success(t *testing.T) {
 }
 
 func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -346,7 +339,7 @@ func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
 		Description: "Original description",
 		IsBuiltin:   false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -356,12 +349,12 @@ func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
 	wf.DefaultModel = "opus"
 	wf.DefaultThinking = true
 
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow for update failed: %v", err)
 	}
 
 	// Verify
-	updated, err := pdb.GetWorkflow("test-edit")
+	updated, err := gdb.GetWorkflow("test-edit")
 	if err != nil {
 		t.Fatalf("GetWorkflow failed: %v", err)
 	}
@@ -380,11 +373,11 @@ func TestWorkflowEdit_UpdatesProperties(t *testing.T) {
 }
 
 func TestWorkflowEdit_BuiltinFails(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Get builtin workflow
-	wf, err := pdb.GetWorkflow("implement-medium")
+	wf, err := gdb.GetWorkflow("implement-medium")
 	if err != nil {
 		t.Fatalf("GetWorkflow failed: %v", err)
 	}
@@ -402,8 +395,8 @@ func TestWorkflowEdit_BuiltinFails(t *testing.T) {
 }
 
 func TestWorkflowDelete_Success(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Create custom workflow
 	wf := &db.Workflow{
@@ -411,7 +404,7 @@ func TestWorkflowDelete_Success(t *testing.T) {
 		Name:      "To Delete",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
@@ -421,17 +414,17 @@ func TestWorkflowDelete_Success(t *testing.T) {
 		PhaseTemplateID: "implement",
 		Sequence:        0,
 	}
-	if err := pdb.SaveWorkflowPhase(phase); err != nil {
+	if err := gdb.SaveWorkflowPhase(phase); err != nil {
 		t.Fatalf("SaveWorkflowPhase failed: %v", err)
 	}
 
 	// Delete
-	if err := pdb.DeleteWorkflow("test-delete"); err != nil {
+	if err := gdb.DeleteWorkflow("test-delete"); err != nil {
 		t.Fatalf("DeleteWorkflow failed: %v", err)
 	}
 
 	// Verify workflow is gone
-	deleted, err := pdb.GetWorkflow("test-delete")
+	deleted, err := gdb.GetWorkflow("test-delete")
 	if err != nil {
 		t.Fatalf("GetWorkflow after delete failed: %v", err)
 	}
@@ -440,7 +433,7 @@ func TestWorkflowDelete_Success(t *testing.T) {
 	}
 
 	// Verify phases are cascaded
-	phases, err := pdb.GetWorkflowPhases("test-delete")
+	phases, err := gdb.GetWorkflowPhases("test-delete")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases after delete failed: %v", err)
 	}
@@ -450,11 +443,11 @@ func TestWorkflowDelete_Success(t *testing.T) {
 }
 
 func TestWorkflowShow_DisplaysPhases(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Get builtin workflow
-	wf, err := pdb.GetWorkflow("implement-medium")
+	wf, err := gdb.GetWorkflow("implement-medium")
 	if err != nil {
 		t.Fatalf("GetWorkflow failed: %v", err)
 	}
@@ -462,7 +455,7 @@ func TestWorkflowShow_DisplaysPhases(t *testing.T) {
 		t.Fatal("implement-medium not found")
 	}
 
-	phases, err := pdb.GetWorkflowPhases("implement-medium")
+	phases, err := gdb.GetWorkflowPhases("implement-medium")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases failed: %v", err)
 	}
@@ -480,8 +473,8 @@ func TestWorkflowShow_DisplaysPhases(t *testing.T) {
 }
 
 func TestWorkflowList_FiltersCorrectly(t *testing.T) {
-	pdb, _ := setupWorkflowTestDB(t)
-	defer func() { _ = pdb.Close() }()
+	gdb, _ := setupWorkflowTestDB(t)
+	defer func() { _ = gdb.Close() }()
 
 	// Add custom workflow
 	wf := &db.Workflow{
@@ -489,12 +482,12 @@ func TestWorkflowList_FiltersCorrectly(t *testing.T) {
 		Name:      "Test Filter",
 		IsBuiltin: false,
 	}
-	if err := pdb.SaveWorkflow(wf); err != nil {
+	if err := gdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("SaveWorkflow failed: %v", err)
 	}
 
 	// List all
-	all, err := pdb.ListWorkflows()
+	all, err := gdb.ListWorkflows()
 	if err != nil {
 		t.Fatalf("ListWorkflows failed: %v", err)
 	}
@@ -537,4 +530,3 @@ func TestWorkflowList_FiltersCorrectly(t *testing.T) {
 		t.Errorf("custom filter count mismatch")
 	}
 }
-

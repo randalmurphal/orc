@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -42,7 +41,7 @@ Examples:
   orc runs --workflow medium   # Filter by workflow type
   orc runs --task TASK-001     # Show runs for a specific task`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -115,7 +114,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		runID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -224,7 +223,7 @@ Examples:
 func runCancelRunE(cmd *cobra.Command, args []string) error {
 	runID := args[0]
 
-	projectRoot, err := config.FindProjectRoot()
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return err
 	}

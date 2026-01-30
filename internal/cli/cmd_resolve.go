@@ -138,7 +138,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find the project root (handles worktrees)
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return err
 			}

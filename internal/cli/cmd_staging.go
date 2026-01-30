@@ -100,7 +100,7 @@ Example:
 			_, _ = fmt.Fprintf(out, "Sync target: %s\n", targetBranch)
 
 			// Try to get git status
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				_, _ = fmt.Fprintln(out)
 				_, _ = fmt.Fprintln(out, "(Not in a git repository)")
@@ -167,7 +167,7 @@ Example:
 				return fmt.Errorf("staging is disabled; run: orc staging enable (or use --force)")
 			}
 
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}

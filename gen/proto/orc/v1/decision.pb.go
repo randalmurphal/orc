@@ -325,7 +325,9 @@ func (x *ResolvedDecision) GetResolvedAt() *timestamppb.Timestamp {
 type ListPendingDecisionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Filter by task ID
-	TaskId        *string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	TaskId *string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -363,6 +365,13 @@ func (*ListPendingDecisionsRequest) Descriptor() ([]byte, []int) {
 func (x *ListPendingDecisionsRequest) GetTaskId() string {
 	if x != nil && x.TaskId != nil {
 		return *x.TaskId
+	}
+	return ""
+}
+
+func (x *ListPendingDecisionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -412,8 +421,10 @@ func (x *ListPendingDecisionsResponse) GetDecisions() []*PendingDecision {
 }
 
 type GetPendingDecisionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -451,6 +462,13 @@ func (*GetPendingDecisionRequest) Descriptor() ([]byte, []int) {
 func (x *GetPendingDecisionRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetPendingDecisionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -508,7 +526,9 @@ type ResolveDecisionRequest struct {
 	// Reason for decision
 	Reason *string `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	// Who is making the decision
-	ResolvedBy    *string `protobuf:"bytes,5,opt,name=resolved_by,json=resolvedBy,proto3,oneof" json:"resolved_by,omitempty"`
+	ResolvedBy *string `protobuf:"bytes,5,opt,name=resolved_by,json=resolvedBy,proto3,oneof" json:"resolved_by,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,6,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -578,6 +598,13 @@ func (x *ResolveDecisionRequest) GetResolvedBy() string {
 	return ""
 }
 
+func (x *ResolveDecisionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 type ResolveDecisionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Decision      *ResolvedDecision      `protobuf:"bytes,1,opt,name=decision,proto3" json:"decision,omitempty"`
@@ -626,7 +653,9 @@ type ListResolvedDecisionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Page  *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	// Filter by task ID
-	TaskId        *string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	TaskId *string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,6 +700,13 @@ func (x *ListResolvedDecisionsRequest) GetPage() *PageRequest {
 func (x *ListResolvedDecisionsRequest) GetTaskId() string {
 	if x != nil && x.TaskId != nil {
 		return *x.TaskId
+	}
+	return ""
+}
+
+func (x *ListResolvedDecisionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -761,32 +797,40 @@ const file_orc_v1_decision_proto_rawDesc = "" +
 	"\vresolved_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"resolvedAtB\x12\n" +
 	"\x10_selected_optionB\t\n" +
-	"\a_reason\"G\n" +
+	"\a_reason\"f\n" +
 	"\x1bListPendingDecisionsRequest\x12\x1c\n" +
-	"\atask_id\x18\x01 \x01(\tH\x00R\x06taskId\x88\x01\x01B\n" +
+	"\atask_id\x18\x01 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectIdB\n" +
 	"\n" +
 	"\b_task_id\"U\n" +
 	"\x1cListPendingDecisionsResponse\x125\n" +
-	"\tdecisions\x18\x01 \x03(\v2\x17.orc.v1.PendingDecisionR\tdecisions\"+\n" +
+	"\tdecisions\x18\x01 \x03(\v2\x17.orc.v1.PendingDecisionR\tdecisions\"J\n" +
 	"\x19GetPendingDecisionRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"Q\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"Q\n" +
 	"\x1aGetPendingDecisionResponse\x123\n" +
-	"\bdecision\x18\x01 \x01(\v2\x17.orc.v1.PendingDecisionR\bdecision\"\xe4\x01\n" +
+	"\bdecision\x18\x01 \x01(\v2\x17.orc.v1.PendingDecisionR\bdecision\"\x83\x02\n" +
 	"\x16ResolveDecisionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bapproved\x18\x02 \x01(\bR\bapproved\x12,\n" +
 	"\x0fselected_option\x18\x03 \x01(\tH\x00R\x0eselectedOption\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01\x12$\n" +
 	"\vresolved_by\x18\x05 \x01(\tH\x02R\n" +
-	"resolvedBy\x88\x01\x01B\x12\n" +
+	"resolvedBy\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x06 \x01(\tR\tprojectIdB\x12\n" +
 	"\x10_selected_optionB\t\n" +
 	"\a_reasonB\x0e\n" +
 	"\f_resolved_by\"O\n" +
 	"\x17ResolveDecisionResponse\x124\n" +
-	"\bdecision\x18\x01 \x01(\v2\x18.orc.v1.ResolvedDecisionR\bdecision\"q\n" +
+	"\bdecision\x18\x01 \x01(\v2\x18.orc.v1.ResolvedDecisionR\bdecision\"\x90\x01\n" +
 	"\x1cListResolvedDecisionsRequest\x12'\n" +
 	"\x04page\x18\x01 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12\x1c\n" +
-	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01B\n" +
+	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectIdB\n" +
 	"\n" +
 	"\b_task_id\"\x81\x01\n" +
 	"\x1dListResolvedDecisionsResponse\x126\n" +

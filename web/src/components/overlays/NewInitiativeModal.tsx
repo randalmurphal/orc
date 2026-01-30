@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { initiativeClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import {
 	CreateInitiativeRequestSchema,
 	type Initiative,
@@ -22,6 +23,7 @@ interface NewInitiativeModalProps {
 }
 
 export function NewInitiativeModal({ open, onClose, onCreate }: NewInitiativeModalProps) {
+	const projectId = useCurrentProjectId();
 	const [title, setTitle] = useState('');
 	const [vision, setVision] = useState('');
 	const [saving, setSaving] = useState(false);
@@ -33,12 +35,13 @@ export function NewInitiativeModal({ open, onClose, onCreate }: NewInitiativeMod
 	}, [onClose]);
 
 	const handleCreate = useCallback(async () => {
-		if (!title.trim()) return;
+		if (!title.trim() || !projectId) return;
 
 		setSaving(true);
 		try {
 			const response = await initiativeClient.createInitiative(
 				create(CreateInitiativeRequestSchema, {
+					projectId,
 					title: title.trim(),
 					vision: vision.trim() || undefined,
 				})
@@ -54,7 +57,7 @@ export function NewInitiativeModal({ open, onClose, onCreate }: NewInitiativeMod
 		} finally {
 			setSaving(false);
 		}
-	}, [title, vision, handleClose, onCreate]);
+	}, [projectId, title, vision, handleClose, onCreate]);
 
 	return (
 		<Modal open={open} onClose={handleClose} title="New Initiative" size="md">

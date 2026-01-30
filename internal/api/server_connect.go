@@ -24,22 +24,51 @@ func (s *Server) registerConnectHandlers() {
 	// Create service implementations
 	// Use NewTaskServerWithExecutor to enable RunTask to spawn actual executor
 	taskSvc := NewTaskServerWithExecutor(s.backend, s.orcConfig, s.logger, s.publisher, s.workDir, s.diffCache, s.projectDB, s.startTask)
-	initiativeSvc := NewInitiativeServer(s.backend, s.logger, s.publisher)
+	taskSvc.SetProjectCache(s.projectCache)
+
+	initiativeSvc := NewInitiativeServerWithCache(s.backend, s.logger, s.publisher, s.projectCache)
 	// Create resolver, cloner, and cache for workflow/phase source tracking
 	orcDir := filepath.Join(s.workDir, ".orc")
 	resolver := workflow.NewResolverFromOrcDir(orcDir)
 	cloner := workflow.NewClonerFromOrcDir(orcDir)
-	cache := workflow.NewCacheService(resolver, s.projectDB)
-	workflowSvc := NewWorkflowServer(s.backend, resolver, cloner, cache, s.logger)
+	cache := workflow.NewCacheService(resolver, s.globalDB)
+	workflowSvc := NewWorkflowServer(s.backend, s.globalDB, resolver, cloner, cache, s.logger)
+	if ws, ok := workflowSvc.(*workflowServer); ok {
+		ws.SetProjectCache(s.projectCache)
+	}
 	transcriptSvc := NewTranscriptServer(s.backend)
+	if ts, ok := transcriptSvc.(*transcriptServer); ok {
+		ts.SetProjectCache(s.projectCache)
+	}
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
+	if es, ok := eventSvc.(*eventServer); ok {
+		es.SetProjectCache(s.projectCache)
+	}
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
+	if cs, ok := configSvc.(*configServer); ok {
+		cs.SetProjectCache(s.projectCache)
+	}
 	hostingSvc := NewHostingServerWithExecutor(s.backend, s.workDir, s.logger, s.publisher, s.orcConfig, s.startTask, nil)
+	if hs, ok := hostingSvc.(*hostingServer); ok {
+		hs.SetProjectCache(s.projectCache)
+	}
 	dashboardSvc := NewDashboardServer(s.backend, s.logger)
+	if ds, ok := dashboardSvc.(*dashboardServer); ok {
+		ds.SetProjectCache(s.projectCache)
+	}
 	projectSvc := NewProjectServer(s.backend, s.logger)
 	branchSvc := NewBranchServer(s.backend, s.logger)
+	if bs, ok := branchSvc.(*branchServer); ok {
+		bs.SetProjectCache(s.projectCache)
+	}
 	decisionSvc := NewDecisionServer(s.backend, s.pendingDecisions, s.publisher, s.logger)
+	if decs, ok := decisionSvc.(*decisionServer); ok {
+		decs.SetProjectCache(s.projectCache)
+	}
 	notificationSvc := NewNotificationServer(s.backend, s.logger)
+	if ns, ok := notificationSvc.(*notificationServer); ok {
+		ns.SetProjectCache(s.projectCache)
+	}
 	mcpSvc := NewMCPServer(s.workDir, s.logger)
 
 	// Create and register Connect handlers with CORS support

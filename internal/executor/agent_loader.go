@@ -27,9 +27,9 @@ func ToInlineAgentDef(a *db.Agent) InlineAgentDef {
 
 // LoadPhaseAgents loads agents for a phase template, filtered by task weight.
 // Returns a map of agent ID to InlineAgentDef suitable for Claude CLI --agents flag.
-func LoadPhaseAgents(pdb *db.ProjectDB, phaseTemplateID string, weight string) (map[string]InlineAgentDef, error) {
-	// Load agents with their definitions
-	agentsWithDefs, err := pdb.GetPhaseAgentsWithDefinitions(phaseTemplateID, weight)
+func LoadPhaseAgents(gdb *db.GlobalDB, phaseTemplateID string, weight string) (map[string]InlineAgentDef, error) {
+	// Load agents with their definitions from global DB
+	agentsWithDefs, err := gdb.GetPhaseAgentsWithDefinitions(phaseTemplateID, weight)
 	if err != nil {
 		return nil, fmt.Errorf("get phase agents for %s: %w", phaseTemplateID, err)
 	}

@@ -90,6 +90,8 @@ service DecisionService {
 message ListPendingDecisionsRequest {
   // Filter by task ID
   optional string task_id = 1;
+  // Project ID
+  string project_id = 2;
 }
 
 message ListPendingDecisionsResponse {
@@ -98,6 +100,8 @@ message ListPendingDecisionsResponse {
 
 message GetPendingDecisionRequest {
   string id = 1;
+  // Project ID
+  string project_id = 2;
 }
 
 message GetPendingDecisionResponse {
@@ -113,6 +117,8 @@ message ResolveDecisionRequest {
   optional string reason = 4;
   // Who is making the decision
   optional string resolved_by = 5;
+  // Project ID
+  string project_id = 6;
 }
 
 message ResolveDecisionResponse {
@@ -123,6 +129,8 @@ message ListResolvedDecisionsRequest {
   PageRequest page = 1;
   // Filter by task ID
   optional string task_id = 2;
+  // Project ID
+  string project_id = 3;
 }
 
 message ListResolvedDecisionsResponse {

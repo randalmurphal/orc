@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTaskStore } from '@/stores';
+import { useTaskStore, useCurrentProjectId } from '@/stores';
 import { initiativeClient } from '@/lib/client';
 import { create } from '@bufbuild/protobuf';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
@@ -129,6 +129,7 @@ function InitiativesViewError({ error, onRetry }: InitiativesViewErrorProps) {
  */
 export function InitiativesView({ className = '' }: InitiativesViewProps) {
 	const navigate = useNavigate();
+	const projectId = useCurrentProjectId();
 	const taskStates = useTaskStore((state) => state.taskStates);
 
 	const [initiatives, setInitiatives] = useState<Initiative[]>([]);
@@ -137,17 +138,18 @@ export function InitiativesView({ className = '' }: InitiativesViewProps) {
 
 	// Load initiatives from API
 	const loadInitiatives = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}));
+			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, { projectId }));
 			setInitiatives(response.initiatives);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to load initiatives');
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [projectId]);
 
 	// Initial load
 	useEffect(() => {

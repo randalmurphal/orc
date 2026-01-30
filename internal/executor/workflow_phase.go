@@ -128,9 +128,9 @@ func (we *WorkflowExecutor) executePhase(
 	// Resolve effective Claude configuration for this phase
 	claudeConfig := we.getEffectivePhaseClaudeConfig(tmpl, phase)
 
-	// Load phase agents from database and add to Claude config
-	if rctx.TaskWeight != "" && we.projectDB != nil {
-		phaseAgents, err := LoadPhaseAgents(we.projectDB, tmpl.ID, rctx.TaskWeight)
+	// Load phase agents from global database and add to Claude config
+	if rctx.TaskWeight != "" && we.globalDB != nil {
+		phaseAgents, err := LoadPhaseAgents(we.globalDB, tmpl.ID, rctx.TaskWeight)
 		if err != nil {
 			we.logger.Warn("failed to load phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "error", err)
 		} else if len(phaseAgents) > 0 {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
@@ -84,7 +83,7 @@ Examples:
   orc workflows --custom        # List only custom workflows
   orc workflows --builtin       # List only built-in workflows`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -161,18 +160,13 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
+		defer func() { _ = gdb.Close() }()
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -201,7 +195,7 @@ Examples:
 		}
 
 		// Display phases
-		phases, err := pdb.GetWorkflowPhases(workflowID)
+		phases, err := gdb.GetWorkflowPhases(workflowID)
 		if err != nil {
 			return fmt.Errorf("get phases: %w", err)
 		}
@@ -230,7 +224,7 @@ Examples:
 		}
 
 		// Display variables
-		vars, err := pdb.GetWorkflowVariables(workflowID)
+		vars, err := gdb.GetWorkflowVariables(workflowID)
 		if err != nil {
 			return fmt.Errorf("get variables: %w", err)
 		}
@@ -274,19 +268,14 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check if workflow already exists
-		existing, err := pdb.GetWorkflow(workflowID)
+		existing, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("check existing: %w", err)
 		}
@@ -300,7 +289,7 @@ Examples:
 
 		if fromID != "" {
 			// Clone existing workflow
-			source, err := pdb.GetWorkflow(fromID)
+			source, err := gdb.GetWorkflow(fromID)
 			if err != nil {
 				return fmt.Errorf("load source workflow: %w", err)
 			}
@@ -323,12 +312,12 @@ Examples:
 				newWf.Description = source.Description
 			}
 
-			if err := pdb.SaveWorkflow(newWf); err != nil {
+			if err := gdb.SaveWorkflow(newWf); err != nil {
 				return fmt.Errorf("save workflow: %w", err)
 			}
 
 			// Copy phases
-			phases, err := pdb.GetWorkflowPhases(fromID)
+			phases, err := gdb.GetWorkflowPhases(fromID)
 			if err != nil {
 				return fmt.Errorf("get source phases: %w", err)
 			}
@@ -344,13 +333,13 @@ Examples:
 					GateTypeOverride:      p.GateTypeOverride,
 					Condition:             p.Condition,
 				}
-				if err := pdb.SaveWorkflowPhase(newPhase); err != nil {
+				if err := gdb.SaveWorkflowPhase(newPhase); err != nil {
 					return fmt.Errorf("save phase: %w", err)
 				}
 			}
 
 			// Copy variables
-			vars, err := pdb.GetWorkflowVariables(fromID)
+			vars, err := gdb.GetWorkflowVariables(fromID)
 			if err != nil {
 				return fmt.Errorf("get source variables: %w", err)
 			}
@@ -365,7 +354,7 @@ Examples:
 					DefaultValue:    v.DefaultValue,
 					CacheTTLSeconds: v.CacheTTLSeconds,
 				}
-				if err := pdb.SaveWorkflowVariable(newVar); err != nil {
+				if err := gdb.SaveWorkflowVariable(newVar); err != nil {
 					return fmt.Errorf("save variable: %w", err)
 				}
 			}
@@ -382,7 +371,7 @@ Examples:
 				IsBuiltin:    false,
 			}
 
-			if err := pdb.SaveWorkflow(newWf); err != nil {
+			if err := gdb.SaveWorkflow(newWf); err != nil {
 				return fmt.Errorf("save workflow: %w", err)
 			}
 
@@ -412,18 +401,13 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
+		defer func() { _ = gdb.Close() }()
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -459,7 +443,7 @@ Examples:
 			return fmt.Errorf("no changes specified. Use --name, --description, --model, or --thinking")
 		}
 
-		if err := pdb.SaveWorkflow(wf); err != nil {
+		if err := gdb.SaveWorkflow(wf); err != nil {
 			return fmt.Errorf("save workflow: %w", err)
 		}
 
@@ -481,18 +465,13 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
+		defer func() { _ = gdb.Close() }()
 
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
-
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -504,7 +483,7 @@ Examples:
 			return fmt.Errorf("cannot delete built-in workflow: %s", workflowID)
 		}
 
-		if err := pdb.DeleteWorkflow(workflowID); err != nil {
+		if err := gdb.DeleteWorkflow(workflowID); err != nil {
 			return fmt.Errorf("delete workflow: %w", err)
 		}
 
@@ -533,19 +512,14 @@ Examples:
 		workflowID := args[0]
 		phaseTemplateID := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check workflow exists and is not builtin
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -558,7 +532,7 @@ Examples:
 		}
 
 		// Check phase template exists
-		pt, err := pdb.GetPhaseTemplate(phaseTemplateID)
+		pt, err := gdb.GetPhaseTemplate(phaseTemplateID)
 		if err != nil {
 			return fmt.Errorf("get phase template: %w", err)
 		}
@@ -567,7 +541,7 @@ Examples:
 		}
 
 		// Get existing phases to determine sequence
-		phases, err := pdb.GetWorkflowPhases(workflowID)
+		phases, err := gdb.GetWorkflowPhases(workflowID)
 		if err != nil {
 			return fmt.Errorf("get phases: %w", err)
 		}
@@ -581,7 +555,7 @@ Examples:
 			for _, p := range phases {
 				if p.Sequence >= seq {
 					p.Sequence++
-					if err := pdb.SaveWorkflowPhase(p); err != nil {
+					if err := gdb.SaveWorkflowPhase(p); err != nil {
 						return fmt.Errorf("update phase sequence: %w", err)
 					}
 				}
@@ -610,7 +584,7 @@ Examples:
 			agentID, _ := cmd.Flags().GetString("agent")
 			// Validate agent exists
 			if agentID != "" {
-				agent, err := pdb.GetAgent(agentID)
+				agent, err := gdb.GetAgent(agentID)
 				if err != nil {
 					return fmt.Errorf("get agent: %w", err)
 				}
@@ -621,7 +595,7 @@ Examples:
 			newPhase.AgentOverride = agentID
 		}
 
-		if err := pdb.SaveWorkflowPhase(newPhase); err != nil {
+		if err := gdb.SaveWorkflowPhase(newPhase); err != nil {
 			return fmt.Errorf("save phase: %w", err)
 		}
 
@@ -647,19 +621,14 @@ Examples:
 		workflowID := args[0]
 		phaseTemplateID := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check workflow exists and is not builtin
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -672,7 +641,7 @@ Examples:
 		}
 
 		// Get existing phases
-		phases, err := pdb.GetWorkflowPhases(workflowID)
+		phases, err := gdb.GetWorkflowPhases(workflowID)
 		if err != nil {
 			return fmt.Errorf("get phases: %w", err)
 		}
@@ -691,7 +660,7 @@ Examples:
 		}
 
 		// Delete the phase
-		if err := pdb.DeleteWorkflowPhase(workflowID, phaseTemplateID); err != nil {
+		if err := gdb.DeleteWorkflowPhase(workflowID, phaseTemplateID); err != nil {
 			return fmt.Errorf("delete phase: %w", err)
 		}
 
@@ -699,7 +668,7 @@ Examples:
 		for _, p := range phases {
 			if p.Sequence > removedSeq {
 				p.Sequence--
-				if err := pdb.SaveWorkflowPhase(p); err != nil {
+				if err := gdb.SaveWorkflowPhase(p); err != nil {
 					return fmt.Errorf("update phase sequence: %w", err)
 				}
 			}
@@ -730,19 +699,14 @@ Examples:
 		workflowID := args[0]
 		varName := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check workflow exists and is not builtin
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -782,7 +746,7 @@ Examples:
 			Required:     required,
 		}
 
-		if err := pdb.SaveWorkflowVariable(newVar); err != nil {
+		if err := gdb.SaveWorkflowVariable(newVar); err != nil {
 			return fmt.Errorf("save variable: %w", err)
 		}
 
@@ -807,19 +771,14 @@ Examples:
 		workflowID := args[0]
 		varName := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return err
+			return fmt.Errorf("open global database: %w", err)
 		}
-
-		pdb, err := db.OpenProject(projectRoot)
-		if err != nil {
-			return fmt.Errorf("open database: %w", err)
-		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
 		// Check workflow exists and is not builtin
-		wf, err := pdb.GetWorkflow(workflowID)
+		wf, err := gdb.GetWorkflow(workflowID)
 		if err != nil {
 			return fmt.Errorf("get workflow: %w", err)
 		}
@@ -831,7 +790,7 @@ Examples:
 				workflowID, workflowID)
 		}
 
-		if err := pdb.DeleteWorkflowVariable(workflowID, varName); err != nil {
+		if err := gdb.DeleteWorkflowVariable(workflowID, varName); err != nil {
 			return fmt.Errorf("delete variable: %w", err)
 		}
 
@@ -863,7 +822,7 @@ Examples:
 		sourceID := args[0]
 		destID := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -913,19 +872,19 @@ Examples:
   orc workflow sync             # Sync all workflows
   orc workflow sync --force     # Force update all (including embedded)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
 
 		orcDir := filepath.Join(projectRoot, ".orc")
-		pdb, err := db.OpenProject(projectRoot)
+		gdb, err := db.OpenGlobal()
 		if err != nil {
-			return fmt.Errorf("open database: %w", err)
+			return fmt.Errorf("open global database: %w", err)
 		}
-		defer func() { _ = pdb.Close() }()
+		defer func() { _ = gdb.Close() }()
 
-		cache := workflow.NewCacheServiceFromOrcDir(orcDir, pdb)
+		cache := workflow.NewCacheServiceFromOrcDir(orcDir, gdb)
 
 		force, _ := cmd.Flags().GetBool("force")
 

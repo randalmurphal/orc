@@ -97,6 +97,17 @@ executor := NewExecutor(
 )
 ```
 
+### Two-Tier Database Model
+
+Orc uses two database tiers for multi-project support:
+
+| Tier | Type | Scope | Contents |
+|------|------|-------|----------|
+| `GlobalDB` | `db.GlobalDB` | Shared across all projects | Built-in workflows, agents, project registry |
+| `ProjectDB` | `db.ProjectDB` | Per-project | Tasks, initiatives, transcripts, events |
+
+API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents.
+
 ### Interface-Based Design
 
 ```go

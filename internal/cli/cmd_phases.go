@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/workflow"
 )
@@ -69,7 +68,7 @@ Examples:
   orc phases --custom          # List only custom templates
   orc phases --builtin         # List only built-in templates`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -149,7 +148,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -236,7 +235,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -329,7 +328,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phaseID := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -426,7 +425,7 @@ Examples:
 		sourceID := args[0]
 		destID := args[1]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}

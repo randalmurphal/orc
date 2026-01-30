@@ -57,7 +57,7 @@ Example:
 				return err
 			}
 
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return err
 			}
@@ -88,7 +88,7 @@ Example:
 				return err
 			}
 
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return err
 			}

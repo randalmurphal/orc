@@ -17,7 +17,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/task"
 )
@@ -145,7 +144,7 @@ Examples:
 			var path string
 			if len(args) == 0 {
 				// Default to .orc/exports/ - find most recent archive or use directory
-				projectRoot, err := config.FindProjectRoot()
+				projectRoot, err := ResolveProjectPath()
 				if err != nil {
 					return fmt.Errorf("not in an orc project: %w", err)
 				}
@@ -628,7 +627,7 @@ func importProjectCommandsData(data []byte, sourceName string, force, skipExisti
 	}
 
 	// Get project database directly for project commands
-	projectRoot, err := config.FindProjectRoot()
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return fmt.Errorf("find project root: %w", err)
 	}

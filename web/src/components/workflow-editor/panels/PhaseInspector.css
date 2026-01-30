@@ -472,3 +472,29 @@
 	font-size: var(--text-sm);
 	font-style: italic;
 }
+
+/* ─── Danger Zone (Delete Phase) ─────────────────────────────────────────────── */
+
+.phase-inspector-danger-zone {
+	margin-top: var(--space-4);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--border);
+}
+
+.phase-inspector-delete-btn {
+	width: 100%;
+	padding: var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--red, #ef4444);
+	background: transparent;
+	border: 1px solid var(--red, #ef4444);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.phase-inspector-delete-btn:hover {
+	color: white;
+	background: var(--red, #ef4444);
+}

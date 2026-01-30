@@ -23,16 +23,19 @@ import (
 // workflowServer implements the WorkflowServiceHandler interface.
 type workflowServer struct {
 	orcv1connect.UnimplementedWorkflowServiceHandler
-	backend  storage.Backend
-	resolver *workflow.Resolver
-	cloner   *workflow.Cloner
-	cache    *workflow.CacheService
-	logger   *slog.Logger
+	backend      storage.Backend  // Legacy: single project backend (fallback)
+	projectCache *ProjectCache    // Multi-project: cache of backends per project
+	globalDB     *db.GlobalDB     // Global DB (workflows, phases, agents)
+	resolver     *workflow.Resolver
+	cloner       *workflow.Cloner
+	cache        *workflow.CacheService
+	logger       *slog.Logger
 }
 
 // NewWorkflowServer creates a new WorkflowService handler.
 func NewWorkflowServer(
 	backend storage.Backend,
+	globalDB *db.GlobalDB,
 	resolver *workflow.Resolver,
 	cloner *workflow.Cloner,
 	cache *workflow.CacheService,
@@ -40,6 +43,7 @@ func NewWorkflowServer(
 ) orcv1connect.WorkflowServiceHandler {
 	return &workflowServer{
 		backend:  backend,
+		globalDB: globalDB,
 		resolver: resolver,
 		cloner:   cloner,
 		cache:    cache,
@@ -47,12 +51,34 @@ func NewWorkflowServer(
 	}
 }
 
+// SetProjectCache sets the project cache for multi-project support.
+func (s *workflowServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+// Falls back to legacy single backend only when no projectID is specified.
+func (s *workflowServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
 // ListWorkflows returns all workflows.
 func (s *workflowServer) ListWorkflows(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListWorkflowsRequest],
 ) (*connect.Response[orcv1.ListWorkflowsResponse], error) {
-	workflows, err := s.backend.ListWorkflows()
+	workflows, err := s.globalDB.ListWorkflows()
 	if err != nil {
 		return connect.NewResponse(&orcv1.ListWorkflowsResponse{
 			Workflows: []*orcv1.Workflow{},
@@ -76,7 +102,7 @@ func (s *workflowServer) ListWorkflows(
 
 	for i, w := range workflows {
 		protoWorkflows[i] = dbWorkflowToProto(w)
-		phases, _ := s.backend.GetWorkflowPhases(w.ID)
+		phases, _ := s.globalDB.GetWorkflowPhases(w.ID)
 		phaseCounts[w.ID] = int32(len(phases))
 
 		// Get source from resolver map or fall back to builtin check
@@ -105,21 +131,21 @@ func (s *workflowServer) GetWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	w, err := s.backend.GetWorkflow(req.Msg.Id)
+	w, err := s.globalDB.GetWorkflow(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.Id))
 	}
 
 	// Get phases and variables
-	phases, _ := s.backend.GetWorkflowPhases(w.ID)
-	variables, _ := s.backend.GetWorkflowVariables(w.ID)
+	phases, _ := s.globalDB.GetWorkflowPhases(w.ID)
+	variables, _ := s.globalDB.GetWorkflowVariables(w.ID)
 
 	// Convert phases to proto
 	protoPhases := dbWorkflowPhasesToProto(phases)
 
 	// Fetch and attach phase templates for each phase
 	for i, phase := range phases {
-		tmpl, err := s.backend.GetPhaseTemplate(phase.PhaseTemplateID)
+		tmpl, err := s.globalDB.GetPhaseTemplate(phase.PhaseTemplateID)
 		if err == nil && tmpl != nil {
 			protoPhases[i].Template = dbPhaseTemplateToProto(tmpl)
 		}
@@ -155,7 +181,7 @@ func (s *workflowServer) CreateWorkflow(
 		w.DefaultModel = *req.Msg.DefaultModel
 	}
 
-	if err := s.backend.SaveWorkflow(w); err != nil {
+	if err := s.globalDB.SaveWorkflow(w); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
 	}
 
@@ -174,7 +200,7 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 
 	// First check the database for the workflow (handles API/CLI-created workflows)
-	dbWf, err := s.backend.GetWorkflow(req.Msg.Id)
+	dbWf, err := s.globalDB.GetWorkflow(req.Msg.Id)
 	if err == nil && dbWf != nil {
 		// Found in database - update directly
 		if dbWf.IsBuiltin {
@@ -196,7 +222,7 @@ func (s *workflowServer) UpdateWorkflow(
 		}
 
 		// Save to database
-		if err := s.backend.SaveWorkflow(dbWf); err != nil {
+		if err := s.globalDB.SaveWorkflow(dbWf); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
 		}
 
@@ -246,7 +272,7 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 
 	// Get updated workflow from DB for response
-	w, err := s.backend.GetWorkflow(req.Msg.Id)
+	w, err := s.globalDB.GetWorkflow(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get updated workflow: %w", err))
 	}
@@ -265,7 +291,7 @@ func (s *workflowServer) DeleteWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	if err := s.backend.DeleteWorkflow(req.Msg.Id); err != nil {
+	if err := s.globalDB.DeleteWorkflow(req.Msg.Id); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete workflow: %w", err))
 	}
 
@@ -277,6 +303,11 @@ func (s *workflowServer) ListWorkflowRuns(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListWorkflowRunsRequest],
 ) (*connect.Response[orcv1.ListWorkflowRunsResponse], error) {
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	opts := db.WorkflowRunListOpts{}
 	if req.Msg.WorkflowId != nil {
 		opts.WorkflowID = *req.Msg.WorkflowId
@@ -285,7 +316,7 @@ func (s *workflowServer) ListWorkflowRuns(
 		opts.TaskID = *req.Msg.TaskId
 	}
 
-	runs, err := s.backend.ListWorkflowRuns(opts)
+	runs, err := backend.ListWorkflowRuns(opts)
 	if err != nil {
 		return connect.NewResponse(&orcv1.ListWorkflowRunsResponse{
 			Runs: []*orcv1.WorkflowRun{},
@@ -311,15 +342,20 @@ func (s *workflowServer) GetWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	run, err := s.backend.GetWorkflowRun(req.Msg.Id)
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	run, err := backend.GetWorkflowRun(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow run %s not found", req.Msg.Id))
 	}
 
 	// Get workflow
-	workflow, _ := s.backend.GetWorkflow(run.WorkflowID)
+	workflow, _ := s.globalDB.GetWorkflow(run.WorkflowID)
 	// Get phases
-	phases, _ := s.backend.GetWorkflowRunPhases(run.ID)
+	phases, _ := backend.GetWorkflowRunPhases(run.ID)
 
 	return connect.NewResponse(&orcv1.GetWorkflowRunResponse{
 		Run: &orcv1.WorkflowRunWithDetails{
@@ -371,7 +407,7 @@ func (s *workflowServer) CloneWorkflow(
 	}
 
 	// Get the cloned workflow from DB for response
-	clone, err := s.backend.GetWorkflow(req.Msg.NewId)
+	clone, err := s.globalDB.GetWorkflow(req.Msg.NewId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get cloned workflow: %w", err))
 	}
@@ -400,7 +436,7 @@ func (s *workflowServer) AddPhase(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -409,7 +445,7 @@ func (s *workflowServer) AddPhase(
 	}
 
 	// Verify phase template exists
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.PhaseTemplateId)
+	tmpl, err := s.globalDB.GetPhaseTemplate(req.Msg.PhaseTemplateId)
 	if err != nil || tmpl == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.PhaseTemplateId))
 	}
@@ -443,7 +479,7 @@ func (s *workflowServer) AddPhase(
 		phase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
 
-	if err := s.backend.SaveWorkflowPhase(phase); err != nil {
+	if err := s.globalDB.SaveWorkflowPhase(phase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))
 	}
 
@@ -462,7 +498,7 @@ func (s *workflowServer) UpdatePhase(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -471,7 +507,7 @@ func (s *workflowServer) UpdatePhase(
 	}
 
 	// Find the phase
-	phases, err := s.backend.GetWorkflowPhases(req.Msg.WorkflowId)
+	phases, err := s.globalDB.GetWorkflowPhases(req.Msg.WorkflowId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get workflow phases: %w", err))
 	}
@@ -517,7 +553,7 @@ func (s *workflowServer) UpdatePhase(
 		existingPhase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
 
-	if err := s.backend.SaveWorkflowPhase(existingPhase); err != nil {
+	if err := s.globalDB.SaveWorkflowPhase(existingPhase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))
 	}
 
@@ -536,7 +572,7 @@ func (s *workflowServer) RemovePhase(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -545,7 +581,7 @@ func (s *workflowServer) RemovePhase(
 	}
 
 	// Find the phase by ID to get its template ID
-	phases, err := s.backend.GetWorkflowPhases(req.Msg.WorkflowId)
+	phases, err := s.globalDB.GetWorkflowPhases(req.Msg.WorkflowId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get workflow phases: %w", err))
 	}
@@ -562,7 +598,7 @@ func (s *workflowServer) RemovePhase(
 	}
 
 	// Delete the phase by workflow ID and template ID
-	if err := s.backend.DeleteWorkflowPhase(req.Msg.WorkflowId, phaseTemplateID); err != nil {
+	if err := s.globalDB.DeleteWorkflowPhase(req.Msg.WorkflowId, phaseTemplateID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete phase: %w", err))
 	}
 
@@ -584,7 +620,7 @@ func (s *workflowServer) AddVariable(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -610,7 +646,7 @@ func (s *workflowServer) AddVariable(
 		variable.Extract = *req.Msg.Extract
 	}
 
-	if err := s.backend.SaveWorkflowVariable(variable); err != nil {
+	if err := s.globalDB.SaveWorkflowVariable(variable); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save variable: %w", err))
 	}
 
@@ -632,7 +668,7 @@ func (s *workflowServer) UpdateVariable(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -641,7 +677,7 @@ func (s *workflowServer) UpdateVariable(
 	}
 
 	// Get existing variable
-	variables, err := s.backend.GetWorkflowVariables(req.Msg.WorkflowId)
+	variables, err := s.globalDB.GetWorkflowVariables(req.Msg.WorkflowId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get workflow variables: %w", err))
 	}
@@ -673,7 +709,7 @@ func (s *workflowServer) UpdateVariable(
 		existingVar.Extract = *req.Msg.Extract
 	}
 
-	if err := s.backend.SaveWorkflowVariable(existingVar); err != nil {
+	if err := s.globalDB.SaveWorkflowVariable(existingVar); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save variable: %w", err))
 	}
 
@@ -695,7 +731,7 @@ func (s *workflowServer) RemoveVariable(
 	}
 
 	// Verify workflow exists and is not builtin
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -703,7 +739,7 @@ func (s *workflowServer) RemoveVariable(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in workflow"))
 	}
 
-	if err := s.backend.DeleteWorkflowVariable(req.Msg.WorkflowId, req.Msg.Name); err != nil {
+	if err := s.globalDB.DeleteWorkflowVariable(req.Msg.WorkflowId, req.Msg.Name); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete variable: %w", err))
 	}
 
@@ -717,7 +753,7 @@ func (s *workflowServer) ListPhaseTemplates(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListPhaseTemplatesRequest],
 ) (*connect.Response[orcv1.ListPhaseTemplatesResponse], error) {
-	templates, err := s.backend.ListPhaseTemplates()
+	templates, err := s.globalDB.ListPhaseTemplates()
 	if err != nil {
 		return connect.NewResponse(&orcv1.ListPhaseTemplatesResponse{
 			Templates: []*orcv1.PhaseTemplate{},
@@ -776,7 +812,7 @@ func (s *workflowServer) GetPhaseTemplate(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.Id)
+	tmpl, err := s.globalDB.GetPhaseTemplate(req.Msg.Id)
 	if err != nil || tmpl == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.Id))
 	}
@@ -799,7 +835,7 @@ func (s *workflowServer) CreatePhaseTemplate(
 	}
 
 	// Check if exists
-	existing, _ := s.backend.GetPhaseTemplate(req.Msg.Id)
+	existing, _ := s.globalDB.GetPhaseTemplate(req.Msg.Id)
 	if existing != nil {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("phase template %s already exists", req.Msg.Id))
 	}
@@ -844,7 +880,7 @@ func (s *workflowServer) CreatePhaseTemplate(
 		tmpl.GateType = "auto"
 	}
 
-	if err := s.backend.SavePhaseTemplate(tmpl); err != nil {
+	if err := s.globalDB.SavePhaseTemplate(tmpl); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase template: %w", err))
 	}
 
@@ -927,7 +963,7 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	}
 
 	// Get updated phase template from DB for response
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.Id)
+	tmpl, err := s.globalDB.GetPhaseTemplate(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get updated phase template: %w", err))
 	}
@@ -946,7 +982,7 @@ func (s *workflowServer) DeletePhaseTemplate(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.Id)
+	tmpl, err := s.globalDB.GetPhaseTemplate(req.Msg.Id)
 	if err != nil || tmpl == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.Id))
 	}
@@ -955,10 +991,10 @@ func (s *workflowServer) DeletePhaseTemplate(
 	}
 
 	// Check if template is used by any workflows
-	workflows, err := s.backend.ListWorkflows()
+	workflows, err := s.globalDB.ListWorkflows()
 	if err == nil {
 		for _, wf := range workflows {
-			phases, _ := s.backend.GetWorkflowPhases(wf.ID)
+			phases, _ := s.globalDB.GetWorkflowPhases(wf.ID)
 			for _, p := range phases {
 				if p.PhaseTemplateID == req.Msg.Id {
 					return nil, connect.NewError(connect.CodeFailedPrecondition,
@@ -968,7 +1004,7 @@ func (s *workflowServer) DeletePhaseTemplate(
 		}
 	}
 
-	if err := s.backend.DeletePhaseTemplate(req.Msg.Id); err != nil {
+	if err := s.globalDB.DeletePhaseTemplate(req.Msg.Id); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete phase template: %w", err))
 	}
 
@@ -1018,7 +1054,7 @@ func (s *workflowServer) ClonePhaseTemplate(
 	}
 
 	// Get the cloned phase template from DB for response
-	clone, err := s.backend.GetPhaseTemplate(req.Msg.NewId)
+	clone, err := s.globalDB.GetPhaseTemplate(req.Msg.NewId)
 	if err != nil {
 		s.logger.Warn("failed to get cloned phase template from DB", "id", req.Msg.NewId, "error", err)
 		// Return a partial response with the result info
@@ -1044,7 +1080,7 @@ func (s *workflowServer) GetPromptContent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("phase_template_id is required"))
 	}
 
-	tmpl, err := s.backend.GetPhaseTemplate(req.Msg.PhaseTemplateId)
+	tmpl, err := s.globalDB.GetPhaseTemplate(req.Msg.PhaseTemplateId)
 	if err != nil || tmpl == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("phase template %s not found", req.Msg.PhaseTemplateId))
 	}
@@ -1082,8 +1118,13 @@ func (s *workflowServer) StartWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
 	}
 
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Verify workflow exists
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -1104,7 +1145,7 @@ func (s *workflowServer) StartWorkflowRun(
 		}
 	}
 
-	if err := s.backend.SaveWorkflowRun(run); err != nil {
+	if err := backend.SaveWorkflowRun(run); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow run: %w", err))
 	}
 
@@ -1125,7 +1166,12 @@ func (s *workflowServer) CancelWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	run, err := s.backend.GetWorkflowRun(req.Msg.Id)
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	run, err := backend.GetWorkflowRun(req.Msg.Id)
 	if err != nil || run == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow run %s not found", req.Msg.Id))
 	}
@@ -1140,7 +1186,7 @@ func (s *workflowServer) CancelWorkflowRun(
 	run.Status = "cancelled"
 	run.Error = "cancelled via API"
 
-	if err := s.backend.SaveWorkflowRun(run); err != nil {
+	if err := backend.SaveWorkflowRun(run); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow run: %w", err))
 	}
 
@@ -1158,7 +1204,12 @@ func (s *workflowServer) SaveWorkflowLayout(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow_id is required"))
 	}
 
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	backend, err := s.getBackend("")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
@@ -1171,7 +1222,7 @@ func (s *workflowServer) SaveWorkflowLayout(
 		positions[p.PhaseTemplateId] = [2]float64{p.PositionX, p.PositionY}
 	}
 
-	if err := s.backend.UpdateWorkflowPhasePositions(req.Msg.WorkflowId, positions); err != nil {
+	if err := backend.UpdateWorkflowPhasePositions(req.Msg.WorkflowId, positions); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("update positions: %w", err))
 	}
 
@@ -1190,12 +1241,12 @@ func (s *workflowServer) ValidateWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow_id is required"))
 	}
 
-	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	wf, err := s.globalDB.GetWorkflow(req.Msg.WorkflowId)
 	if err != nil || wf == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
 	}
 
-	phases, err := s.backend.GetWorkflowPhases(req.Msg.WorkflowId)
+	phases, err := s.globalDB.GetWorkflowPhases(req.Msg.WorkflowId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get workflow phases: %w", err))
 	}

@@ -10,6 +10,7 @@ import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import './AttachmentsTab.css';
 
 interface AttachmentsTabProps {
@@ -39,6 +40,7 @@ function getAttachmentUrl(taskId: string, filename: string): string {
 }
 
 export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
+	const projectId = useCurrentProjectId();
 	const [attachments, setAttachments] = useState<Attachment[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -48,12 +50,13 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 	const [lightboxFilename, setLightboxFilename] = useState<string | null>(null);
 
 	const loadAttachments = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		setError(null);
 
 		try {
 			const response = await taskClient.listAttachments(
-				create(ListAttachmentsRequestSchema, { taskId })
+				create(ListAttachmentsRequestSchema, { projectId, taskId })
 			);
 			setAttachments(response.attachments);
 		} catch (e) {
@@ -61,7 +64,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 		} finally {
 			setLoading(false);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	useEffect(() => {
 		loadAttachments();
@@ -101,11 +104,11 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 
 	const handleDelete = useCallback(
 		async (filename: string) => {
-			if (!confirm(`Delete "${filename}"?`)) return;
+			if (!projectId || !confirm(`Delete "${filename}"?`)) return;
 
 			try {
 				await taskClient.deleteAttachment(
-					create(DeleteAttachmentRequestSchema, { taskId, filename })
+					create(DeleteAttachmentRequestSchema, { projectId, taskId, filename })
 				);
 				setAttachments((prev) => prev.filter((a) => a.filename !== filename));
 				toast.success('Attachment deleted');
@@ -114,7 +117,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 				toast.error('Delete failed');
 			}
 		},
-		[taskId]
+		[projectId, taskId]
 	);
 
 	const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {

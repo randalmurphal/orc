@@ -17,9 +17,10 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	ensurePhaseTemplates(t, backend, "spec", "implement", "review")
+	globalDB := storage.NewTestGlobalDB(t)
+	ensurePhaseTemplatesGlobal(t, globalDB, "spec", "implement", "review")
 
-	err := backend.SaveWorkflow(&db.Workflow{
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-linear",
 		Name:         "Linear Workflow",
 		WorkflowType: "task",
@@ -32,7 +33,7 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 	}
 
 	// spec -> implement -> review (linear chain via depends_on)
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-linear",
 		PhaseTemplateID: "spec",
 		Sequence:        1,
@@ -41,7 +42,7 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save phase spec: %v", err)
 	}
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-linear",
 		PhaseTemplateID: "implement",
 		Sequence:        2,
@@ -50,7 +51,7 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save phase implement: %v", err)
 	}
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-linear",
 		PhaseTemplateID: "review",
 		Sequence:        3,
@@ -60,7 +61,7 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 		t.Fatalf("save phase review: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.ValidateWorkflowRequest{
 		WorkflowId: "wf-linear",
@@ -86,9 +87,10 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	ensurePhaseTemplates(t, backend, "phase_a", "phase_b", "phase_c")
+	globalDB := storage.NewTestGlobalDB(t)
+	ensurePhaseTemplatesGlobal(t, globalDB, "phase_a", "phase_b", "phase_c")
 
-	err := backend.SaveWorkflow(&db.Workflow{
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-cycle",
 		Name:         "Cyclic Workflow",
 		WorkflowType: "task",
@@ -101,7 +103,7 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 	}
 
 	// A depends on C, B depends on A, C depends on B -> cycle
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-cycle",
 		PhaseTemplateID: "phase_a",
 		Sequence:        1,
@@ -110,7 +112,7 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save phase_a: %v", err)
 	}
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-cycle",
 		PhaseTemplateID: "phase_b",
 		Sequence:        2,
@@ -119,7 +121,7 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save phase_b: %v", err)
 	}
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-cycle",
 		PhaseTemplateID: "phase_c",
 		Sequence:        3,
@@ -129,7 +131,7 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 		t.Fatalf("save phase_c: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.ValidateWorkflowRequest{
 		WorkflowId: "wf-cycle",
@@ -161,9 +163,10 @@ func TestValidateWorkflow_InvalidDependencyReference(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	ensurePhaseTemplates(t, backend, "spec", "implement")
+	globalDB := storage.NewTestGlobalDB(t)
+	ensurePhaseTemplatesGlobal(t, globalDB, "spec", "implement")
 
-	err := backend.SaveWorkflow(&db.Workflow{
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-bad-dep",
 		Name:         "Bad Dependency Workflow",
 		WorkflowType: "task",
@@ -175,7 +178,7 @@ func TestValidateWorkflow_InvalidDependencyReference(t *testing.T) {
 		t.Fatalf("save workflow: %v", err)
 	}
 
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-bad-dep",
 		PhaseTemplateID: "spec",
 		Sequence:        1,
@@ -185,7 +188,7 @@ func TestValidateWorkflow_InvalidDependencyReference(t *testing.T) {
 		t.Fatalf("save phase spec: %v", err)
 	}
 	// implement depends on "nonexistent" phase
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-bad-dep",
 		PhaseTemplateID: "implement",
 		Sequence:        2,
@@ -195,7 +198,7 @@ func TestValidateWorkflow_InvalidDependencyReference(t *testing.T) {
 		t.Fatalf("save phase implement: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.ValidateWorkflowRequest{
 		WorkflowId: "wf-bad-dep",
@@ -226,9 +229,10 @@ func TestValidateWorkflow_InvalidLoopToPhase(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	ensurePhaseTemplates(t, backend, "spec", "review")
+	globalDB := storage.NewTestGlobalDB(t)
+	ensurePhaseTemplatesGlobal(t, globalDB, "spec", "review")
 
-	err := backend.SaveWorkflow(&db.Workflow{
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-bad-loop",
 		Name:         "Bad Loop Workflow",
 		WorkflowType: "task",
@@ -240,7 +244,7 @@ func TestValidateWorkflow_InvalidLoopToPhase(t *testing.T) {
 		t.Fatalf("save workflow: %v", err)
 	}
 
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-bad-loop",
 		PhaseTemplateID: "spec",
 		Sequence:        1,
@@ -250,7 +254,7 @@ func TestValidateWorkflow_InvalidLoopToPhase(t *testing.T) {
 		t.Fatalf("save phase spec: %v", err)
 	}
 	// review has loop_config pointing to a phase that doesn't exist
-	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
+	err = globalDB.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-bad-loop",
 		PhaseTemplateID: "review",
 		Sequence:        2,
@@ -261,7 +265,7 @@ func TestValidateWorkflow_InvalidLoopToPhase(t *testing.T) {
 		t.Fatalf("save phase review: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.ValidateWorkflowRequest{
 		WorkflowId: "wf-bad-loop",
@@ -292,7 +296,8 @@ func TestValidateWorkflow_EmptyWorkflowID(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	globalDB := storage.NewTestGlobalDB(t)
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.ValidateWorkflowRequest{
 		WorkflowId: "",

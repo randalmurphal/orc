@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"log/slog"
-	"os"
-	"path/filepath"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
@@ -16,11 +14,8 @@ const DefaultCodeQualityChecks = `[{"type":"code","name":"tests","enabled":true,
 // SeedBuiltins populates the database with built-in phase templates and workflows.
 // This uses YAML files as the source of truth (embedded in the binary).
 // Returns the number of items seeded (templates + workflows).
-func SeedBuiltins(pdb *db.ProjectDB) (int, error) {
-	// Find the .orc directory for the resolver
-	orcDir := findOrcDir(pdb)
-
-	cache := NewCacheServiceFromOrcDir(orcDir, pdb)
+func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
+	cache := NewCacheServiceFromOrcDir("", gdb)
 	result, err := cache.SyncAll()
 	if err != nil {
 		return 0, err
@@ -39,8 +34,8 @@ func SeedBuiltins(pdb *db.ProjectDB) (int, error) {
 
 // SeedBuiltinsFromDir populates the database with built-in phase templates and workflows
 // using a specific orc directory. This is useful for testing.
-func SeedBuiltinsFromDir(pdb *db.ProjectDB, orcDir string) (int, error) {
-	cache := NewCacheServiceFromOrcDir(orcDir, pdb)
+func SeedBuiltinsFromDir(gdb *db.GlobalDB, orcDir string) (int, error) {
+	cache := NewCacheServiceFromOrcDir(orcDir, gdb)
 	result, err := cache.SyncAll()
 	if err != nil {
 		return 0, err
@@ -53,9 +48,8 @@ func SeedBuiltinsFromDir(pdb *db.ProjectDB, orcDir string) (int, error) {
 // EnsureBuiltinsSynced ensures the database is up to date with YAML files.
 // This is a more lightweight check than SeedBuiltins - it only syncs if stale.
 // Returns true if sync was performed.
-func EnsureBuiltinsSynced(pdb *db.ProjectDB) (bool, error) {
-	orcDir := findOrcDir(pdb)
-	cache := NewCacheServiceFromOrcDir(orcDir, pdb)
+func EnsureBuiltinsSynced(gdb *db.GlobalDB) (bool, error) {
+	cache := NewCacheServiceFromOrcDir("", gdb)
 	return cache.EnsureSynced()
 }
 
@@ -130,32 +124,4 @@ func WeightToWorkflowIDString(weight string) string {
 func MigratePhaseTemplateModels(_ *db.ProjectDB) (int, error) {
 	// No-op: YAML files are authoritative, cache sync handles updates
 	return 0, nil
-}
-
-// findOrcDir attempts to find the .orc directory for the project.
-// Falls back to the current working directory if not found.
-func findOrcDir(pdb *db.ProjectDB) string {
-	// Try to determine from DB path
-	if pdb != nil {
-		dbPath := pdb.Path()
-		if dbPath != "" {
-			// DB is at .orc/orc.db, so parent is .orc/
-			orcDir := filepath.Dir(dbPath)
-			if filepath.Base(orcDir) == ".orc" {
-				return orcDir
-			}
-		}
-	}
-
-	// Try current working directory
-	cwd, err := os.Getwd()
-	if err == nil {
-		orcDir := filepath.Join(cwd, ".orc")
-		if info, err := os.Stat(orcDir); err == nil && info.IsDir() {
-			return orcDir
-		}
-	}
-
-	// Fall back to empty (resolver will use defaults)
-	return ""
 }

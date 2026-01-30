@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite), `jira/` (Jira Cloud import)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite + GlobalDB/ProjectDB), `project/` (multi-project registry), `jira/` (Jira Cloud import)
 
 ## Task Model
 
@@ -169,15 +169,34 @@ orc constitution set --file myprinciples.md  # Set from file
 orc constitution delete                      # Remove
 ```
 
+## Multi-Project Support
+
+Orc supports multiple projects from a single installation. Data is split between a global database and per-project databases.
+
+### Architecture
+
+| Component | Location | Contents |
+|-----------|----------|----------|
+| **GlobalDB** | `~/.orc/orc.db` | Project registry, cost tracking, budgets, workflows, agents, phase templates |
+| **ProjectDB** | `<project>/.orc/orc.db` | Tasks, initiatives, transcripts, phases, events, FTS |
+| **ProjectCache** | `internal/api/project_cache.go` | LRU cache for project DB connections (thread-safe) |
+
+### How It Works
+
+- All 13 API services accept `project_id` in request messages, routed via `getBackend(projectID)` (`internal/api/*_server.go`)
+- CLI resolves project via: `--project` flag > `ORC_PROJECT` env > cwd detection (`internal/cli/project_context.go`)
+- Frontend passes `projectId` from store to all API calls; project picker at `web/src/pages/ProjectPickerPage.tsx`
+- Projects auto-register on `orc init`; registry at `~/.orc/projects.json` (`internal/project/`)
+
 ## File Layout
 
 ```
-~/.orc/                          # Global config, database, token pool
-.orc/                            # Project database, config, prompts, worktrees
+~/.orc/                          # Global: config, orc.db (GlobalDB), projects.json, token pool
+<project>/.orc/                  # Per-project: orc.db (ProjectDB), config, prompts, worktrees
 .claude/                         # Claude Code settings, hooks, skills
 ```
 
-Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for full backup to `.orc/exports/`.
+Task data stored in per-project SQLite (`<project>/.orc/orc.db`). Use `orc export --all-tasks --all` for full backup to `.orc/exports/`.
 
 ## Commands
 
@@ -214,6 +233,17 @@ Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for fu
 | `orc initiative run ID` | Run all ready tasks in order |
 
 Run `orc initiative --help` for full subcommand list.
+
+### Project Management
+
+| Command | Purpose |
+|---------|---------|
+| `orc projects` | List registered projects |
+| `orc projects add .` | Register current directory |
+| `orc projects remove ID` | Unregister a project |
+| `orc projects default ID` | Set default project |
+
+**Global flag:** `--project/-P` or `ORC_PROJECT` env var selects the active project for any command.
 
 ### Data Portability
 
@@ -275,7 +305,7 @@ When adding llmkit features that orc depends on:
 
 Start: `make build && orc serve` (production) or `make dev-full` (hot reload).
 
-Features: Live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow).
+Features: Project picker, live task board, WebSocket updates, initiative filtering, keyboard shortcuts (`Shift+Alt` modifier), settings editor, visual workflow editor (React Flow). All API calls include `projectId`.
 
 See `web/CLAUDE.md` for component library and architecture.
 

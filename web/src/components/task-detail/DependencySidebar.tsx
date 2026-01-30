@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
 import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import type { Task, DependencyGraph } from '@/gen/orc/v1/task_pb';
 import {
 	TaskStatus,
@@ -84,6 +85,7 @@ interface DependencySidebarProps {
 }
 
 export function DependencySidebar({ task, collapsed, onToggle }: DependencySidebarProps) {
+	const projectId = useCurrentProjectId();
 	const [deps, setDeps] = useState<DependencyData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [showAddBlocker, setShowAddBlocker] = useState(false);
@@ -93,10 +95,11 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 
 	// Load dependencies using Connect RPC
 	const loadDependencies = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		try {
 			const response = await taskClient.getDependencies(
-				create(GetDependenciesRequestSchema, { id: task.id, transitive: true })
+				create(GetDependenciesRequestSchema, { projectId, taskId: task.id, transitive: true })
 			);
 			const data = transformGraphToData(response.graph, task.id);
 			setDeps(data);
@@ -105,7 +108,7 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		} finally {
 			setLoading(false);
 		}
-	}, [task.id]);
+	}, [projectId, task.id]);
 
 	useEffect(() => {
 		loadDependencies();
@@ -113,23 +116,25 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 
 	// Load available tasks for adding dependencies (using Connect)
 	const loadAvailableTasks = useCallback(async () => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.listTasks(
-				create(ListTasksRequestSchema, {})
+				create(ListTasksRequestSchema, { projectId })
 			);
 			// Filter out current task
 			setAvailableTasks(response.tasks.filter((t) => t.id !== task.id));
 		} catch (e) {
 			console.error('Failed to load tasks:', e);
 		}
-	}, [task.id]);
+	}, [projectId, task.id]);
 
 	// Handle add blocker
 	const handleAddBlocker = useCallback(async (blockerId: string) => {
+		if (!projectId) return;
 		setAddingDep(true);
 		try {
 			await taskClient.addBlocker(
-				create(AddBlockerRequestSchema, { id: task.id, blockerId })
+				create(AddBlockerRequestSchema, { projectId, taskId: task.id, blockerId })
 			);
 			await loadDependencies();
 			setShowAddBlocker(false);
@@ -139,27 +144,29 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		} finally {
 			setAddingDep(false);
 		}
-	}, [task.id, loadDependencies]);
+	}, [projectId, task.id, loadDependencies]);
 
 	// Handle remove blocker
 	const handleRemoveBlocker = useCallback(async (blockerId: string) => {
+		if (!projectId) return;
 		try {
 			await taskClient.removeBlocker(
-				create(RemoveBlockerRequestSchema, { id: task.id, blockerId })
+				create(RemoveBlockerRequestSchema, { projectId, taskId: task.id, blockerId })
 			);
 			await loadDependencies();
 			toast.success('Blocker removed');
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to remove blocker');
 		}
-	}, [task.id, loadDependencies]);
+	}, [projectId, task.id, loadDependencies]);
 
 	// Handle add related
 	const handleAddRelated = useCallback(async (relatedId: string) => {
+		if (!projectId) return;
 		setAddingDep(true);
 		try {
 			await taskClient.addRelated(
-				create(AddRelatedRequestSchema, { id: task.id, relatedId })
+				create(AddRelatedRequestSchema, { projectId, taskId: task.id, relatedId })
 			);
 			await loadDependencies();
 			setShowAddRelated(false);
@@ -169,20 +176,21 @@ export function DependencySidebar({ task, collapsed, onToggle }: DependencySideb
 		} finally {
 			setAddingDep(false);
 		}
-	}, [task.id, loadDependencies]);
+	}, [projectId, task.id, loadDependencies]);
 
 	// Handle remove related
 	const handleRemoveRelated = useCallback(async (relatedId: string) => {
+		if (!projectId) return;
 		try {
 			await taskClient.removeRelated(
-				create(RemoveRelatedRequestSchema, { id: task.id, relatedId })
+				create(RemoveRelatedRequestSchema, { projectId, taskId: task.id, relatedId })
 			);
 			await loadDependencies();
 			toast.success('Related task removed');
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to remove related task');
 		}
-	}, [task.id, loadDependencies]);
+	}, [projectId, task.id, loadDependencies]);
 
 	// Open add modal and load tasks
 	const openAddBlocker = useCallback(() => {

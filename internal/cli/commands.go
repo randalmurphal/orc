@@ -15,7 +15,7 @@ import (
 // that could create a database in the wrong location, e.g., inside a worktree).
 func getBackend() (storage.Backend, error) {
 	// Find project root (works from worktrees too)
-	projectRoot, err := config.FindProjectRoot()
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return nil, fmt.Errorf("not in an orc project (run 'orc init' first): %w", err)
 	}

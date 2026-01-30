@@ -10,8 +10,10 @@ import { WorkflowCanvas } from './WorkflowCanvas';
 import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
 import { PhaseInspector } from './panels/PhaseInspector';
 import { ExecutionHeader } from './ExecutionHeader';
+import { DeletePhaseDialog } from './DeletePhaseDialog';
 import { CloneWorkflowModal } from '@/components/workflows/CloneWorkflowModal';
 import { formatDuration } from '@/stores/sessionStore';
+import { toast } from '@/stores/uiStore';
 import './WorkflowEditorPage.css';
 
 export type WorkflowViewMode = 'overview' | 'editing';
@@ -49,12 +51,17 @@ export function WorkflowEditorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
 	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
+	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
 	const loadFromWorkflow = useWorkflowEditorStore((s) => s.loadFromWorkflow);
 	const reset = useWorkflowEditorStore((s) => s.reset);
 
 	// Clone modal state (QA-002 fix)
 	const [cloneModalOpen, setCloneModalOpen] = useState(false);
+
+	// Delete phase confirmation state
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+	const [deleteLoading, setDeleteLoading] = useState(false);
 
 	// View mode state - Overview vs Editing
 	const [viewMode, setViewMode] = useState<WorkflowViewMode>('editing');
@@ -179,6 +186,20 @@ export function WorkflowEditorPage() {
 		}
 	}, [id, loadFromWorkflow]);
 
+	// Quiet refresh - updates workflow without loading state (for edits like add/remove phase)
+	const refreshWorkflow = useCallback(async () => {
+		if (!id) return;
+		try {
+			const response = await workflowClient.getWorkflow({ id });
+			if (response.workflow) {
+				loadFromWorkflow(response.workflow);
+			}
+		} catch (err) {
+			// Silently fail on refresh - user can manually reload if needed
+			console.warn('Failed to refresh workflow:', err);
+		}
+	}, [id, loadFromWorkflow]);
+
 	useEffect(() => {
 		fetchWorkflow();
 		return () => reset();
@@ -236,6 +257,40 @@ export function WorkflowEditorPage() {
 		// Navigate to the cloned workflow
 		navigate(`/workflows/${clonedWorkflow.id}`);
 	}, [navigate]);
+
+	// Delete phase handlers
+	const handleDeletePhaseRequest = useCallback(() => {
+		setShowDeleteConfirm(true);
+	}, []);
+
+	const handleDeleteConfirm = useCallback(async () => {
+		if (!selectedNodeId || !workflowDetails?.workflow?.id) return;
+
+		const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+		if (!selectedNode) return;
+
+		const phaseId = (selectedNode.data as PhaseNodeData).phaseId;
+
+		setDeleteLoading(true);
+		try {
+			await workflowClient.removePhase({
+				workflowId: workflowDetails.workflow.id,
+				phaseId,
+			});
+			setShowDeleteConfirm(false);
+			selectNode(null);
+			refreshWorkflow();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to remove phase';
+			toast.error(message);
+		} finally {
+			setDeleteLoading(false);
+		}
+	}, [selectedNodeId, workflowDetails, nodes, selectNode, refreshWorkflow]);
+
+	const handleDeleteCancel = useCallback(() => {
+		setShowDeleteConfirm(false);
+	}, []);
 
 	if (loading) {
 		return (
@@ -348,7 +403,7 @@ export function WorkflowEditorPage() {
 					<PhaseTemplatePalette readOnly={isBuiltin} workflowId={id || ''} />
 				</aside>
 				<div className="workflow-editor-canvas">
-					<WorkflowCanvas />
+					<WorkflowCanvas onWorkflowRefresh={refreshWorkflow} />
 				</div>
 				{inspectorOpen && (
 					<aside className="workflow-editor-inspector">
@@ -356,7 +411,8 @@ export function WorkflowEditorPage() {
 							phase={selectedPhase}
 							workflowDetails={workflowDetails}
 							readOnly={isBuiltin}
-							onWorkflowRefresh={fetchWorkflow}
+							onWorkflowRefresh={refreshWorkflow}
+							onDeletePhase={handleDeletePhaseRequest}
 						/>
 					</aside>
 				)}
@@ -368,6 +424,15 @@ export function WorkflowEditorPage() {
 				workflow={workflow ?? null}
 				onClose={handleCloneModalClose}
 				onCloned={handleWorkflowCloned}
+			/>
+
+			{/* Delete phase confirmation dialog */}
+			<DeletePhaseDialog
+				open={showDeleteConfirm}
+				phaseName={selectedPhase?.template?.name ?? 'this phase'}
+				loading={deleteLoading}
+				onConfirm={handleDeleteConfirm}
+				onCancel={handleDeleteCancel}
 			/>
 		</div>
 	);

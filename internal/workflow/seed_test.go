@@ -7,18 +7,25 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
+// openTestGlobalDB opens a global DB in a temp directory for testing
+func openTestGlobalDB(t *testing.T) *db.GlobalDB {
+	t.Helper()
+	tmpDir := t.TempDir()
+	gdb, err := db.OpenGlobalAt(filepath.Join(tmpDir, ".orc"))
+	if err != nil {
+		t.Fatalf("failed to open global db: %v", err)
+	}
+	t.Cleanup(func() { _ = gdb.Close() })
+	return gdb
+}
+
 func TestSeedBuiltins(t *testing.T) {
 	t.Parallel()
 
-	tmpDir := t.TempDir()
-	pdb, err := db.OpenProject(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to open project db: %v", err)
-	}
-	defer func() { _ = pdb.Close() }()
+	gdb := openTestGlobalDB(t)
 
 	// Seed built-ins
-	seeded, err := SeedBuiltins(pdb)
+	seeded, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("SeedBuiltins failed: %v", err)
 	}
@@ -29,7 +36,7 @@ func TestSeedBuiltins(t *testing.T) {
 	}
 
 	// Verify phase templates exist
-	templates, err := pdb.ListPhaseTemplates()
+	templates, err := gdb.ListPhaseTemplates()
 	if err != nil {
 		t.Fatalf("ListPhaseTemplates failed: %v", err)
 	}
@@ -40,7 +47,7 @@ func TestSeedBuiltins(t *testing.T) {
 	// Check specific built-in phase templates
 	expectedPhases := []string{"spec", "tiny_spec", "tdd_write", "breakdown", "implement", "review", "docs"}
 	for _, id := range expectedPhases {
-		pt, err := pdb.GetPhaseTemplate(id)
+		pt, err := gdb.GetPhaseTemplate(id)
 		if err != nil {
 			t.Errorf("GetPhaseTemplate(%s) failed: %v", id, err)
 			continue
@@ -55,7 +62,7 @@ func TestSeedBuiltins(t *testing.T) {
 	}
 
 	// Verify workflows exist
-	workflows, err := pdb.ListWorkflows()
+	workflows, err := gdb.ListWorkflows()
 	if err != nil {
 		t.Fatalf("ListWorkflows failed: %v", err)
 	}
@@ -66,7 +73,7 @@ func TestSeedBuiltins(t *testing.T) {
 	// Check specific built-in workflows
 	expectedWorkflows := []string{"implement-large", "implement-medium", "implement-small", "implement-trivial", "review", "spec", "docs", "qa"}
 	for _, id := range expectedWorkflows {
-		wf, err := pdb.GetWorkflow(id)
+		wf, err := gdb.GetWorkflow(id)
 		if err != nil {
 			t.Errorf("GetWorkflow(%s) failed: %v", id, err)
 			continue
@@ -81,7 +88,7 @@ func TestSeedBuiltins(t *testing.T) {
 	}
 
 	// Verify workflow phases exist
-	phases, err := pdb.GetWorkflowPhases("implement-medium")
+	phases, err := gdb.GetWorkflowPhases("implement-medium")
 	if err != nil {
 		t.Fatalf("GetWorkflowPhases(implement-medium) failed: %v", err)
 	}
@@ -93,20 +100,15 @@ func TestSeedBuiltins(t *testing.T) {
 func TestSeedBuiltinsIdempotent(t *testing.T) {
 	t.Parallel()
 
-	tmpDir := t.TempDir()
-	pdb, err := db.OpenProject(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to open project db: %v", err)
-	}
-	defer func() { _ = pdb.Close() }()
+	gdb := openTestGlobalDB(t)
 
 	// Seed twice
-	seeded1, err := SeedBuiltins(pdb)
+	seeded1, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("first SeedBuiltins failed: %v", err)
 	}
 
-	seeded2, err := SeedBuiltins(pdb)
+	seeded2, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("second SeedBuiltins failed: %v", err)
 	}
@@ -184,19 +186,14 @@ func TestListBuiltinPhaseIDs(t *testing.T) {
 func TestBuiltinPhaseTemplatesHaveRequiredFields(t *testing.T) {
 	t.Parallel()
 
-	tmpDir := t.TempDir()
-	pdb, err := db.OpenProject(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to open project db: %v", err)
-	}
-	defer func() { _ = pdb.Close() }()
+	gdb := openTestGlobalDB(t)
 
-	_, err = SeedBuiltins(pdb)
+	_, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("SeedBuiltins failed: %v", err)
 	}
 
-	templates, err := pdb.ListPhaseTemplates()
+	templates, err := gdb.ListPhaseTemplates()
 	if err != nil {
 		t.Fatalf("ListPhaseTemplates failed: %v", err)
 	}
@@ -223,26 +220,20 @@ func TestBuiltinPhaseTemplatesHaveRequiredFields(t *testing.T) {
 func TestBuiltinWorkflowsHavePhases(t *testing.T) {
 	t.Parallel()
 
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".orc")
-	pdb, err := db.OpenProject(dbPath)
-	if err != nil {
-		t.Fatalf("failed to open project db: %v", err)
-	}
-	defer func() { _ = pdb.Close() }()
+	gdb := openTestGlobalDB(t)
 
-	_, err = SeedBuiltins(pdb)
+	_, err := SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("SeedBuiltins failed: %v", err)
 	}
 
-	workflows, err := pdb.ListWorkflows()
+	workflows, err := gdb.ListWorkflows()
 	if err != nil {
 		t.Fatalf("ListWorkflows failed: %v", err)
 	}
 
 	for _, wf := range workflows {
-		phases, err := pdb.GetWorkflowPhases(wf.ID)
+		phases, err := gdb.GetWorkflowPhases(wf.ID)
 		if err != nil {
 			t.Errorf("GetWorkflowPhases(%s) failed: %v", wf.ID, err)
 			continue

@@ -208,8 +208,28 @@ func projectToProto(p *project.Project, isDefault bool) *orcv1.Project {
 // branchServer implements the BranchServiceHandler interface.
 type branchServer struct {
 	orcv1connect.UnimplementedBranchServiceHandler
-	backend storage.Backend
-	logger  *slog.Logger
+	backend      storage.Backend
+	logger       *slog.Logger
+	projectCache *ProjectCache
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *branchServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+func (s *branchServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // NewBranchServer creates a new BranchService handler.
@@ -228,7 +248,11 @@ func (s *branchServer) ListBranches(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListBranchesRequest],
 ) (*connect.Response[orcv1.ListBranchesResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("branches require database backend"))
 	}
@@ -270,7 +294,11 @@ func (s *branchServer) GetBranch(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetBranchRequest],
 ) (*connect.Response[orcv1.GetBranchResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("branches require database backend"))
 	}
@@ -293,7 +321,11 @@ func (s *branchServer) UpdateBranchStatus(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateBranchStatusRequest],
 ) (*connect.Response[orcv1.UpdateBranchStatusResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("branches require database backend"))
 	}
@@ -326,7 +358,11 @@ func (s *branchServer) DeleteBranch(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteBranchRequest],
 ) (*connect.Response[orcv1.DeleteBranchResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("branches require database backend"))
 	}
@@ -360,7 +396,11 @@ func (s *branchServer) CleanupStaleBranches(
 	ctx context.Context,
 	req *connect.Request[orcv1.CleanupStaleBranchesRequest],
 ) (*connect.Response[orcv1.CleanupStaleBranchesResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("branches require database backend"))
 	}

@@ -65,6 +65,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential output")
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "output as JSON")
 	rootCmd.PersistentFlags().BoolVar(&plain, "plain", false, "plain output without emoji (for terminal compatibility)")
+	rootCmd.PersistentFlags().StringVarP(&projectFlag, "project", "P", "", "project ID, name, or path (default: current directory)")
 
 	// Add command groups
 	rootCmd.AddGroup(

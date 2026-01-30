@@ -106,8 +106,8 @@ allowing you to retry after fixing any issues.
 Use --force to resume a task even if it appears to still be running.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Find the project root (handles worktrees)
-			projectRoot, err := config.FindProjectRoot()
+			// Find the project root (supports multi-project via --project flag)
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return err
 			}
@@ -176,19 +176,21 @@ Use --force to resume a task even if it appears to still be running.`,
 			}
 			defer func() { _ = pdb.Close() }()
 
-			// Seed built-in workflows if not already seeded
-			if _, err := workflow.SeedBuiltins(pdb); err != nil {
+			// Open global DB for workflows and agents
+			gdb, err := db.OpenGlobal()
+			if err != nil {
+				return fmt.Errorf("open global database: %w", err)
+			}
+			defer func() { _ = gdb.Close() }()
+
+			// Seed built-in workflows if not already seeded (into global DB)
+			if _, err := workflow.SeedBuiltins(gdb); err != nil {
 				return fmt.Errorf("seed workflows: %w", err)
 			}
 
 			// Seed built-in agents and phase-agent associations
-			if _, err := workflow.SeedAgents(pdb); err != nil {
+			if _, err := workflow.SeedAgents(gdb); err != nil {
 				return fmt.Errorf("seed agents: %w", err)
-			}
-
-			// Migrate phase template model settings
-			if _, err := workflow.MigratePhaseTemplateModels(pdb); err != nil {
-				return fmt.Errorf("migrate phase templates: %w", err)
 			}
 
 			// Set up signal handling
