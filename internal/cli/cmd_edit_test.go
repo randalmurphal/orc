@@ -358,3 +358,67 @@ func restoreWorkDir(t *testing.T, dir string) {
 		t.Errorf("restore work dir: %v", err)
 	}
 }
+
+func TestRegeneratePlanForWeight_UpdatesWeightBasedWorkflow(t *testing.T) {
+	backend, _ := createEditTestBackend(t)
+
+	// Create a task with weight=small and workflow_id="implement-small" (weight-based)
+	tk := task.NewProtoTask("TASK-002", "Test weight-based workflow update")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task.SetWorkflowIDProto(tk, "implement-small")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Change weight to medium
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+
+	// Regenerate plan
+	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
+		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
+	}
+
+	// Reload and verify workflow_id was updated to match new weight
+	reloaded, err := backend.LoadTask("TASK-002")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	gotWorkflow := task.GetWorkflowIDProto(reloaded)
+	if gotWorkflow != "implement-medium" {
+		t.Errorf("workflow_id = %q, want %q", gotWorkflow, "implement-medium")
+	}
+}
+
+func TestRegeneratePlanForWeight_PreservesExplicitWorkflow(t *testing.T) {
+	backend, _ := createEditTestBackend(t)
+
+	// Create a task with weight=small but explicit workflow_id="qa-e2e" (non-weight-based)
+	tk := task.NewProtoTask("TASK-003", "Test explicit workflow preservation")
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	task.SetWorkflowIDProto(tk, "qa-e2e")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+
+	// Change weight to medium
+	tk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+
+	// Regenerate plan
+	if err := regeneratePlanForWeightProto(backend, tk); err != nil {
+		t.Fatalf("regeneratePlanForWeightProto() error = %v", err)
+	}
+
+	// Reload and verify workflow_id was preserved (not overwritten)
+	reloaded, err := backend.LoadTask("TASK-003")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	gotWorkflow := task.GetWorkflowIDProto(reloaded)
+	if gotWorkflow != "qa-e2e" {
+		t.Errorf("workflow_id = %q, want %q (explicit workflow should be preserved)", gotWorkflow, "qa-e2e")
+	}
+}

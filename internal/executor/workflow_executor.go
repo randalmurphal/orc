@@ -206,7 +206,7 @@ func NewWorkflowExecutor(
 		globalDB:      globalDB,
 		orcConfig:     orcConfig,
 		resolver:      variable.NewResolver(workingDir),
-		gateEvaluator: gate.New(nil),
+		gateEvaluator: gate.New(),
 		workingDir:    workingDir,
 		logger:        slog.Default(),
 		claudePath:    "claude",
