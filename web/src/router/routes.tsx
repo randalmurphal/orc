@@ -28,6 +28,7 @@ const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m =>
 const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
 const ClaudeMdPage = lazy(() => import('@/pages/settings/ClaudeMdPage').then(m => ({ default: m.ClaudeMdPage })));
 const ImportExportPage = lazy(() => import('@/pages/settings/ImportExport').then(m => ({ default: m.ImportExportPage })));
+const GitSettingsPage = lazy(() => import('@/pages/settings/GitSettings').then(m => ({ default: m.GitSettingsPage })));
 
 // Legacy pages (lower priority, separate chunks)
 const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
@@ -252,6 +253,14 @@ export const routes: RouteObject[] = [
 									description="Manage your ORC projects and repositories"
 									icon="folder"
 								/>
+							</LazyRoute>
+						),
+					},
+					{
+						path: 'git',
+						element: (
+							<LazyRoute>
+								<GitSettingsPage />
 							</LazyRoute>
 						),
 					},

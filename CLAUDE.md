@@ -187,7 +187,6 @@ Task data stored in SQLite (`orc.db`). Use `orc export --all-tasks --all` for fu
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `orc go "description"` | Quick: create + execute task | `--weight`, `--profile`, `--stream` |
 | `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative` |
 | `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream` |
 | `orc status` | Dashboard: what needs attention | `--watch`, `--all` |

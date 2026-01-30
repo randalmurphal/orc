@@ -53,11 +53,8 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		// Non-fatal: PR might still succeed if changes were committed by Claude
 	}
 
-	// Sync with target branch before completion
-	targetBranch := we.orcConfig.Completion.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
-	}
+	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
+	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
 
 	we.logger.Info("syncing with target branch before completion",
 		"target", targetBranch,
@@ -326,7 +323,8 @@ func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
 	}
 
 	// Set task branch before any git operations reference it
-	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+	// Uses task.BranchName override if set, otherwise auto-generates from task ID
+	t.Branch = ResolveBranchName(t, we.gitOps, initiativePrefix)
 	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task branch", "task_id", t.Id, "error", err)
 	}
@@ -408,11 +406,8 @@ func (we *WorkflowExecutor) effectiveWorkingDir() string {
 // syncOnTaskStart syncs the task branch with target before execution starts.
 // This catches conflicts from parallel tasks early.
 func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) error {
-	cfg := we.orcConfig.Completion
-	targetBranch := cfg.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
-	}
+	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
+	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
 
 	// Use worktree git if available
 	gitOps := we.gitOps
@@ -517,7 +512,7 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 				"conflict_files", result.ConflictFiles,
 				"commits_behind", result.CommitsBehind)
 
-			syncCfg := cfg.Sync
+			syncCfg := we.orcConfig.Completion.Sync
 			conflictCount := len(result.ConflictFiles)
 
 			// Check if we should fail on conflicts

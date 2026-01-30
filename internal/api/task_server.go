@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -258,6 +259,18 @@ func (s *taskServer) CreateTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("title is required"))
 	}
 
+	// Validate branch names before creating
+	if req.Msg.BranchName != nil && *req.Msg.BranchName != "" {
+		if err := git.ValidateBranchName(*req.Msg.BranchName); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid branch_name: %w", err))
+		}
+	}
+	if req.Msg.TargetBranch != nil && *req.Msg.TargetBranch != "" {
+		if err := git.ValidateBranchName(*req.Msg.TargetBranch); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid target_branch: %w", err))
+		}
+	}
+
 	// Generate a new task ID
 	id, err := s.backend.GetNextTaskID()
 	if err != nil {
@@ -305,6 +318,24 @@ func (s *taskServer) CreateTask(
 		t.RelatedTo = req.Msg.RelatedTo
 	}
 
+	// Branch control overrides
+	if req.Msg.BranchName != nil {
+		t.BranchName = req.Msg.BranchName
+	}
+	if req.Msg.PrDraft != nil {
+		t.PrDraft = req.Msg.PrDraft
+	}
+	// Labels: pr_labels_set=true sets labels (including empty list to override defaults)
+	if req.Msg.PrLabelsSet != nil && *req.Msg.PrLabelsSet {
+		t.PrLabels = req.Msg.PrLabels
+		t.PrLabelsSet = true
+	}
+	// Reviewers: pr_reviewers_set=true sets reviewers (including empty list to override defaults)
+	if req.Msg.PrReviewersSet != nil && *req.Msg.PrReviewersSet {
+		t.PrReviewers = req.Msg.PrReviewers
+		t.PrReviewersSet = true
+	}
+
 	// Save the task
 	if err := s.backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
@@ -329,10 +360,31 @@ func (s *taskServer) UpdateTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
+	// Validate branch names before loading
+	if req.Msg.BranchName != nil && *req.Msg.BranchName != "" {
+		if err := git.ValidateBranchName(*req.Msg.BranchName); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid branch_name: %w", err))
+		}
+	}
+	if req.Msg.TargetBranch != nil && *req.Msg.TargetBranch != "" {
+		if err := git.ValidateBranchName(*req.Msg.TargetBranch); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid target_branch: %w", err))
+		}
+	}
+
 	// Load existing task
 	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
+	}
+
+	// Prevent branch-related changes on running tasks (branch already checked out)
+	if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
+		hasBranchChange := req.Msg.BranchName != nil || req.Msg.TargetBranch != nil
+		if hasBranchChange {
+			return nil, connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("cannot change branch settings on a running task - pause it first"))
+		}
 	}
 
 	// Apply updates - direct proto field assignments
@@ -368,6 +420,36 @@ func (s *taskServer) UpdateTask(
 	}
 	if req.Msg.WorkflowId != nil {
 		t.WorkflowId = req.Msg.WorkflowId
+	}
+
+	// Branch control overrides
+	if req.Msg.BranchName != nil {
+		t.BranchName = req.Msg.BranchName
+	}
+	if req.Msg.PrDraft != nil {
+		t.PrDraft = req.Msg.PrDraft
+	}
+	// Labels: pr_labels_set=true sets labels, pr_labels_set=false clears the override
+	if req.Msg.PrLabelsSet != nil {
+		if *req.Msg.PrLabelsSet {
+			t.PrLabels = req.Msg.PrLabels
+			t.PrLabelsSet = true
+		} else {
+			// Clear the override - return to default behavior
+			t.PrLabels = nil
+			t.PrLabelsSet = false
+		}
+	}
+	// Reviewers: pr_reviewers_set=true sets reviewers, pr_reviewers_set=false clears the override
+	if req.Msg.PrReviewersSet != nil {
+		if *req.Msg.PrReviewersSet {
+			t.PrReviewers = req.Msg.PrReviewers
+			t.PrReviewersSet = true
+		} else {
+			// Clear the override - return to default behavior
+			t.PrReviewers = nil
+			t.PrReviewersSet = false
+		}
 	}
 
 	// Update timestamp

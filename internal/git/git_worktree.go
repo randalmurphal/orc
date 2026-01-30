@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -193,6 +194,72 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 	}
 
 	return worktreePath, nil
+}
+
+// CreateWorktreeWithCustomBranch creates a worktree using a custom branch name instead of
+// auto-generating one from the task ID. The worktree directory is derived from the custom
+// branch name with slashes replaced by hyphens.
+//
+// This is used when a task has a BranchName override set.
+//
+// Hook injection failure is fatal - the function returns an error if hooks cannot be installed,
+// as the worktree would lack branch protection.
+func (g *Git) CreateWorktreeWithCustomBranch(taskID, customBranchName, baseBranch string) (string, error) {
+	// Derive worktree directory from custom branch name (replace slashes with hyphens)
+	worktreeDirName := strings.ReplaceAll(customBranchName, "/", "-")
+	worktreePath := filepath.Join(g.ctx.RepoPath(), g.worktreeDir, worktreeDirName)
+
+	// Ensure worktrees directory exists
+	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return "", fmt.Errorf("create worktrees dir: %w", err)
+	}
+
+	// Try to create worktree, handling stale registrations
+	_, err := g.tryCreateWorktree(customBranchName, worktreePath, baseBranch)
+	if err != nil {
+		return "", fmt.Errorf("create worktree for %s with branch %s: %w", taskID, customBranchName, err)
+	}
+
+	// Inject safety hooks into the worktree
+	hookCfg := HookConfig{
+		ProtectedBranches: g.protectedBranches,
+		TaskBranch:        customBranchName,
+		TaskID:            taskID,
+	}
+	if err := g.InjectWorktreeHooks(worktreePath, hookCfg); err != nil {
+		// FATAL: Hooks are safety-critical. Without them, the worktree lacks protection
+		// against operations on wrong branches. This must be resolved before continuing.
+		return "", fmt.Errorf("failed to inject worktree safety hooks (worktree not safe to use without branch protection): %w", err)
+	}
+
+	// Ensure .claude/settings.json is untracked before injecting hooks.
+	if err := EnsureClaudeSettingsUntracked(worktreePath); err != nil {
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to untrack .claude/settings.json: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   Git operations like rebase may fail if the file was previously committed.\n\n")
+	}
+
+	// Inject Claude Code hooks for worktree isolation
+	// Also injects user's env vars from ~/.claude/settings.json for PATH, VIRTUAL_ENV, etc.
+	claudeHookCfg := ClaudeCodeHookConfig{
+		WorktreePath:  worktreePath,
+		MainRepoPath:  g.ctx.RepoPath(),
+		TaskID:        taskID,
+		InjectUserEnv: true, // Load env vars from user's ~/.claude/settings.json
+	}
+	if err := InjectClaudeCodeHooks(claudeHookCfg); err != nil {
+		fmt.Fprintf(os.Stderr, "\n⚠️  WARNING: Failed to inject Claude Code isolation hooks: %v\n", err)
+		fmt.Fprintf(os.Stderr, "   File operations may not be restricted to the worktree.\n\n")
+	}
+
+	return worktreePath, nil
+}
+
+// WorktreePathForCustomBranch returns the worktree path for a custom branch name.
+// The path is derived by replacing slashes in the branch name with hyphens.
+func (g *Git) WorktreePathForCustomBranch(customBranchName string) string {
+	worktreeDirName := strings.ReplaceAll(customBranchName, "/", "-")
+	return filepath.Join(g.ctx.RepoPath(), g.worktreeDir, worktreeDirName)
 }
 
 // CleanupWorktree removes a task's worktree.
