@@ -448,6 +448,25 @@ orc reject TASK-001 --reason "Missing error handling"
 orc status --waiting
 ```
 
+### Gate Inspection Commands
+
+```bash
+# List gate config for all workflow phases (table or JSON)
+orc gates list
+orc gates list --json
+
+# Show detailed config for a specific phase
+orc gates show <phase>
+
+# View gate decision history for a task
+orc show TASK-001 --gates
+
+# Skip all gates during execution (dev/testing)
+orc run TASK-001 --skip-gates
+```
+
+**Implementation:** `internal/cli/cmd_gates.go` (list/show), `internal/cli/cmd_show.go` (`--gates` flag), `internal/cli/cmd_run.go` (`--skip-gates` flag)
+
 ---
 
 ## Gate Audit Trail

@@ -28,6 +28,7 @@ func newShowCmd() *cobra.Command {
 	var showFull bool
 	var showSpec bool
 	var showReview bool
+	var showGates bool
 	var period string
 
 	cmd := &cobra.Command{
@@ -40,6 +41,7 @@ Optional flags to include additional information:
   --cost       Include cost breakdown (tokens, per-phase costs)
   --spec       Show the task specification content
   --review     Show review findings (issues, positives, constitution violations)
+  --gates      Show gate decision history
   --full       Include everything (session + cost + review)
 
 Examples:
@@ -48,6 +50,7 @@ Examples:
   orc show TASK-001 --cost       # Include cost breakdown
   orc show TASK-001 --spec       # View the spec content
   orc show TASK-001 --review     # View review findings
+  orc show TASK-001 --gates      # View gate decision history
   orc show TASK-001 --full       # Everything`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -169,6 +172,14 @@ Examples:
 				fmt.Printf("\nDescription:\n%s\n", *t.Description)
 			}
 
+			// Build gate decision map for phase display
+			gateMap := make(map[string]*orcv1.GateDecision)
+			if t.Execution != nil {
+				for _, gd := range t.Execution.Gates {
+					gateMap[gd.Phase] = gd // Latest decision wins
+				}
+			}
+
 			// Print phases
 			if p != nil && len(p.Phases) > 0 {
 				fmt.Printf("\nPhases:\n")
@@ -177,6 +188,17 @@ Examples:
 					fmt.Printf("  %s %s", status, phase.ID)
 					if phase.CommitSHA != "" {
 						fmt.Printf(" (commit: %s)", phase.CommitSHA[:7])
+					}
+					if gd, ok := gateMap[phase.ID]; ok {
+						result := "approved"
+						if !gd.Approved {
+							result = "rejected"
+						}
+						fmt.Printf(" (%s: %s", gd.GateType, result)
+						if !gd.Approved && gd.Reason != nil && *gd.Reason != "" {
+							fmt.Printf(" - %s", *gd.Reason)
+						}
+						fmt.Printf(")")
 					}
 					fmt.Println()
 				}
@@ -207,6 +229,11 @@ Examples:
 				printReviewFindings(reviewFindings)
 			}
 
+			// Print gate history if requested
+			if showGates {
+				printGateHistory(t)
+			}
+
 			return nil
 		},
 	}
@@ -215,6 +242,7 @@ Examples:
 	cmd.Flags().BoolVar(&showCost, "cost", false, "include cost breakdown")
 	cmd.Flags().BoolVar(&showSpec, "spec", false, "show specification content")
 	cmd.Flags().BoolVar(&showReview, "review", false, "show review findings")
+	cmd.Flags().BoolVar(&showGates, "gates", false, "show gate decision history")
 	cmd.Flags().BoolVar(&showFull, "full", false, "include all details (session + cost + review)")
 	cmd.Flags().StringVarP(&period, "period", "p", "", "cost period filter (day, week, month) - only with --cost")
 
@@ -379,6 +407,40 @@ func printReviewFindings(findings []*orcv1.ReviewRoundFindings) {
 				fmt.Printf("  ? %s\n", q)
 			}
 		}
+	}
+}
+
+// printGateHistory displays gate decision history for a task.
+func printGateHistory(t *orcv1.Task) {
+	fmt.Printf("\nGate History\n")
+	fmt.Printf("─────────────────────────\n")
+
+	if t.Execution == nil || len(t.Execution.Gates) == 0 {
+		fmt.Printf("No gate decisions recorded.\n")
+		return
+	}
+
+	for _, gd := range t.Execution.Gates {
+		result := "approved"
+		icon := "✓"
+		if !gd.Approved {
+			result = "rejected"
+			icon = "✗"
+		}
+
+		ts := ""
+		if gd.Timestamp != nil {
+			ts = gd.Timestamp.AsTime().Format("2006-01-02 15:04:05")
+		}
+
+		fmt.Printf("  %s %s (%s: %s)", icon, gd.Phase, gd.GateType, result)
+		if gd.Reason != nil && *gd.Reason != "" {
+			fmt.Printf(" - %s", *gd.Reason)
+		}
+		if ts != "" {
+			fmt.Printf("  [%s]", ts)
+		}
+		fmt.Println()
 	}
 }
 
