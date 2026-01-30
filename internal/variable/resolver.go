@@ -377,6 +377,9 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["QA_FINDINGS"] = rctx.QAFindings
 	vars["BEFORE_IMAGES"] = rctx.BeforeImages
 	vars["PREVIOUS_FINDINGS"] = rctx.PreviousFindings
+	if rctx.TaskID != "" {
+		vars["QA_OUTPUT_DIR"] = "/tmp/orc-qa-" + rctx.TaskID
+	}
 
 	// Add prior phase outputs with OUTPUT_ prefix
 	for phase, content := range rctx.PriorOutputs {
