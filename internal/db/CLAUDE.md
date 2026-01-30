@@ -4,16 +4,40 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 
 ## Overview
 
+Two database types with distinct responsibilities:
+
 | Type | Path | Purpose |
 |------|------|---------|
-| **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects, cost_log, templates |
-| **ProjectDB** | `.orc/orc.db` | Per-project: tasks, phases, transcripts, FTS |
+| **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects registry, cost_log, budgets, workflows, phase templates, agents |
+| **ProjectDB** | `.orc/orc.db` | Per-project: tasks, phases, transcripts, initiatives, events, FTS |
+
+### Data Split
+
+| GlobalDB (`global.go`) | ProjectDB (`project.go`) |
+|-------------------------|--------------------------|
+| Project registry (id, name, path) | Tasks, phases, gate decisions |
+| Cost tracking and budgets | Initiatives, decisions |
+| Workflow definitions (shared) | Transcripts, FTS search |
+| Phase templates (shared) | Event log, timeline |
+| Agent definitions (shared) | Workflow runs (execution records) |
+| Future: shared settings | Attachments, comments, branches |
+
+**Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project.
+
+### Schema Migrations
+
+| Schema | Purpose |
+|--------|---------|
+| `schema/global_001.sql`-`003.sql` | Cost log, budgets, projects table |
+| `schema/global_004.sql` | **Workflow tables for cross-project sharing** (phase_templates, workflows, workflow_phases, workflow_variables, agents, phase_agents) |
+| `schema/project_*.sql` | Per-project tables (tasks through project_043.sql) |
 
 ## File Structure
 
 | File | Contents |
 |------|----------|
 | `project.go` | Core: TxRunner, TxOps, ProjectDB, OpenProject, RunInTx, Detection |
+| `global.go` | GlobalDB: project registry, cost tracking, budgets, workflows, agents |
 | `task.go` | Task CRUD, ListOpts, TaskFull, dependencies, scanners, Tx functions |
 | `initiative.go` | Initiative, decisions, task refs, dependencies, batch loading |
 | `phase.go` | Phase CRUD, Tx variants |
@@ -28,7 +52,6 @@ Database persistence layer with driver abstraction supporting SQLite and Postgre
 | `attachment.go` | Attachment CRUD |
 | `sync_state.go` | SyncState for P2P sync |
 | `branch.go` | Branch registry CRUD |
-| `global.go` | GlobalDB, cost tracking, budgets, templates |
 | `subtask.go` | Subtask queue operations |
 | `review_comment.go` | Review comment CRUD |
 | `task_comment.go` | Task comment CRUD |
@@ -115,247 +138,50 @@ SQL-level aggregation for dashboard stats, avoiding full task load. `dashboard.g
 
 ## Transcript System
 
-Transcripts store Claude Code session messages. `transcript.go:42-667`
+Transcripts store Claude Code session messages. `transcript.go`
 
-### Transcript Schema
-
-| Field | Purpose |
-|-------|---------|
-| `MessageUUID` | Claude session message ID (unique) |
-| `ParentUUID` | Links to parent message (threading) |
-| `Type` | `user`, `assistant` |
-| `Content` | Full content JSON (preserves structure) |
-| `InputTokens`, `OutputTokens` | Per-message usage |
-| `CacheCreationTokens`, `CacheReadTokens` | Cache tracking |
-| `ToolCalls`, `ToolResults` | JSON for tool interactions |
-
-### Token Aggregation
-
-```go
-// Per-task aggregated usage (from assistant messages only)
-usage, err := pdb.GetTaskTokenUsage(taskID)     // :313
-usage, err := pdb.GetPhaseTokenUsage(taskID, phase) // :339
-```
-
-### Todo Snapshots
-
-Progress tracking from Claude's TodoWrite tool calls:
-
-```go
-pdb.AddTodoSnapshot(snapshot)           // :386
-snapshot, _ := pdb.GetLatestTodos(taskID)  // :405
-history, _ := pdb.GetTodoHistory(taskID)   // :438
-```
-
-### Metrics Aggregation
-
-```go
-summary, _ := pdb.GetMetricsSummary(since)       // :538 - Total cost, tokens, by-model
-daily, _ := pdb.GetDailyMetrics(since)           // :597 - Time series for charts
-metrics, _ := pdb.GetTaskMetrics(taskID)         // :649 - Per-task breakdown
-```
-
-## Full-Text Search
-
-```go
-matches, err := pdb.SearchTranscripts(query)
-// SQLite: FTS5 MATCH
-// PostgreSQL: ILIKE
-```
+| Category | Key Functions |
+|----------|---------------|
+| Token aggregation | `GetTaskTokenUsage()`, `GetPhaseTokenUsage()` |
+| Todo snapshots | `AddTodoSnapshot()`, `GetLatestTodos()`, `GetTodoHistory()` |
+| Metrics | `GetMetricsSummary()`, `GetDailyMetrics()`, `GetTaskMetrics()` |
+| FTS | `SearchTranscripts()` (SQLite: FTS5 MATCH, PostgreSQL: ILIKE) |
 
 ## Event Log System
 
-Persisted executor events for timeline reconstruction and historical queries. `event_log.go`
+Persisted executor events for timeline reconstruction. `event_log.go`
 
-### EventLog Schema
+| Operation | Function |
+|-----------|----------|
+| Save | `SaveEvent()`, `SaveEvents()` (batch, transactional) |
+| Query | `QueryEvents(opts)`, `QueryEventsWithTitles(opts)`, `CountEvents(opts)` |
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `TaskID` | string | Task this event belongs to |
-| `Phase` | *string | Phase name (nullable for task-level events) |
-| `Iteration` | *int | Iteration number (nullable) |
-| `EventType` | string | Event type (phase, transcript, activity, tokens, etc.) |
-| `Data` | any | JSON-serialized event payload |
-| `Source` | string | Event origin: "executor", "api" |
-| `CreatedAt` | time.Time | UTC timestamp |
-| `DurationMs` | *int64 | Phase duration in ms (for completed phases) |
+`QueryEventsOptions` filters: `TaskID`, `InitiativeID`, `Since`, `Until`, `EventTypes`, `Limit`, `Offset`. Returns newest first.
 
-### Event Persistence
+## Cost Tracking (GlobalDB)
 
-```go
-// Save single event
-pdb.SaveEvent(&db.EventLog{
-    TaskID:    "TASK-001",
-    Phase:     &phase,
-    EventType: "phase",
-    Data:      phaseUpdate,
-    Source:    "executor",
-    CreatedAt: time.Now(),
-})
-
-// Batch save (transactional, used by PersistentPublisher)
-pdb.SaveEvents([]*db.EventLog{event1, event2, ...})
-```
-
-### Event Queries
-
-```go
-// Query with filters
-events, err := pdb.QueryEvents(db.QueryEventsOptions{
-    TaskID:     "TASK-001",
-    Since:      &startTime,
-    Until:      &endTime,
-    EventTypes: []string{"phase", "transcript"},
-    Limit:      100,
-    Offset:     0,
-})
-// Returns: newest first (ORDER BY created_at DESC)
-```
-
-### QueryEventsOptions
-
-| Field | Purpose |
-|-------|---------|
-| `TaskID` | Filter by task |
-| `InitiativeID` | Filter by initiative (joins with tasks table) |
-| `Since` | Events after this time |
-| `Until` | Events before this time |
-| `EventTypes` | Filter to specific event types |
-| `Limit` | Max results (0 = unlimited) |
-| `Offset` | Skip first N results |
-
-### Event Queries with Titles
-
-For timeline display, use `QueryEventsWithTitles` which joins with the tasks table:
-
-```go
-events, err := pdb.QueryEventsWithTitles(db.QueryEventsOptions{
-    InitiativeID: "INIT-001",  // Filter by initiative
-    Limit:        100,
-})
-// Returns: []EventLogWithTitle (includes TaskTitle field)
-
-// Get total count for pagination
-count, err := pdb.CountEvents(opts)
-```
-
-## Cost Tracking
-
-### Basic (Deprecated)
-
-```go
-// Deprecated: Use RecordCostExtended for model and cache token tracking
-gdb.RecordCost(projectID, taskID, phase, costUSD, inputTokens, outputTokens)
-summary, err := gdb.GetCostSummary(projectID, since)
-```
-
-### Extended (Recommended)
-
-```go
-// Record cost with full model, cache, and duration tracking
-entry := db.CostEntry{
-    ProjectID:           projectID,
-    TaskID:              taskID,
-    Phase:               phase,
-    Model:               db.DetectModel(modelID),  // opus, sonnet, haiku, unknown
-    Iteration:           1,
-    CostUSD:             0.015,
-    InputTokens:         1000,
-    OutputTokens:        500,
-    CacheCreationTokens: 200,
-    CacheReadTokens:     8000,
-    TotalTokens:         9700,
-    InitiativeID:        "INIT-001",
-    DurationMs:          45678,  // Phase execution time in milliseconds
-}
-gdb.RecordCostExtended(entry)
-
-// Query by model
-costs, err := gdb.GetCostByModel(projectID, since)
-// Returns: map[string]float64{"opus": 12.50, "sonnet": 3.20, ...}
-
-// Time-series for charting (day, week, month granularity)
-timeseries, err := gdb.GetCostTimeseries(projectID, since, "day")
-// Returns: []CostAggregate with date buckets
-
-// Pre-computed aggregates
-gdb.UpdateCostAggregate(agg)  // Upsert
-aggregates, err := gdb.GetCostAggregates(projectID, "2026-01-01", "2026-01-31")
-```
-
-### Budget Management
-
-```go
-// Set monthly budget
-budget := db.CostBudget{
-    ProjectID:             projectID,
-    MonthlyLimitUSD:       100.00,
-    AlertThresholdPercent: 80,
-    CurrentMonth:          "2026-01",
-}
-gdb.SetBudget(budget)
-
-// Get budget (nil if none configured)
-budget, err := gdb.GetBudget(projectID)
-
-// Get status with computed fields
-status, err := gdb.GetBudgetStatus(projectID)
-// Returns: *BudgetStatus{PercentUsed, OverBudget, AtAlertThreshold, ...}
-```
-
-### Model Detection
-
-```go
-model := db.DetectModel("claude-opus-4-5-20251101")  // "opus"
-model := db.DetectModel("claude-sonnet-4-20250514")  // "sonnet"
-model := db.DetectModel("claude-3-5-haiku-20241022") // "haiku"
-model := db.DetectModel("unknown-model")             // "unknown"
-```
+| Operation | Function |
+|-----------|----------|
+| Record | `RecordCostExtended(CostEntry)` (model, cache, duration tracking) |
+| Query by model | `GetCostByModel(projectID, since)` |
+| Time series | `GetCostTimeseries(projectID, since, granularity)` |
+| Budget | `SetBudget()`, `GetBudget()`, `GetBudgetStatus()` |
+| Model detect | `DetectModel(modelID)` returns "opus", "sonnet", "haiku", "unknown" |
 
 ## Workflow System
 
-Workflow operations in `workflow.go` manage the configurable workflow system:
+Workflow definitions and agents live in **GlobalDB** (shared across projects). Workflow runs live in **ProjectDB** (per-project execution records). `workflow.go`
 
-### Types
+| Type | DB | Purpose |
+|------|-----|---------|
+| `PhaseTemplate` | Global | Reusable phase definitions with prompt config |
+| `Workflow` | Global | Composed execution plans from phase templates |
+| `WorkflowPhase` | Global | Phase sequence within a workflow |
+| `WorkflowVariable` | Global | Custom variable definitions |
+| `WorkflowRun` | Project | Execution instance tracking |
+| `WorkflowRunPhase` | Project | Phase execution within a run |
 
-| Type | Purpose |
-|------|---------|
-| `PhaseTemplate` | Reusable phase definitions with prompt config |
-| `Workflow` | Composed execution plans from phase templates |
-| `WorkflowPhase` | Phase sequence within a workflow |
-| `WorkflowVariable` | Custom variable definitions |
-| `WorkflowRun` | Execution instance tracking |
-| `WorkflowRunPhase` | Phase execution within a run |
-
-### Operations
-
-```go
-// Phase templates
-pdb.SavePhaseTemplate(pt)
-pdb.GetPhaseTemplate(id)
-pdb.ListPhaseTemplates()
-pdb.DeletePhaseTemplate(id)
-
-// Workflows
-pdb.SaveWorkflow(w)
-pdb.GetWorkflow(id)
-pdb.ListWorkflows()
-pdb.DeleteWorkflow(id)
-pdb.GetWorkflowPhases(workflowID)
-pdb.SaveWorkflowPhase(wp)
-pdb.GetWorkflowVariables(workflowID)
-pdb.SaveWorkflowVariable(wv)
-
-// Workflow runs
-pdb.SaveWorkflowRun(wr)
-pdb.GetWorkflowRun(id)
-pdb.ListWorkflowRuns(opts)
-pdb.GetNextWorkflowRunID()
-pdb.GetWorkflowRunPhases(runID)
-pdb.SaveWorkflowRunPhase(wrp)
-```
-
-See `internal/workflow/CLAUDE.md` for built-in workflows and seeding.
+Standard CRUD: `Save/Get/List/Delete` for each type. See `internal/workflow/CLAUDE.md` for built-in workflows and seeding.
 
 ## Testing
 

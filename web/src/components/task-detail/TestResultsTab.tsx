@@ -10,6 +10,7 @@ import {
 import { timestampToDate } from '@/lib/time';
 import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { useCurrentProjectId } from '@/stores';
 import './TestResultsTab.css';
 
 interface TestResultsTabProps {
@@ -61,6 +62,7 @@ function testStatusMatches(test: TestResult, status: TestResultStatus): boolean 
 }
 
 export function TestResultsTab({ taskId }: TestResultsTabProps) {
+	const projectId = useCurrentProjectId();
 	const [results, setResults] = useState<TestResultsInfo | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -70,12 +72,13 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 
 	useEffect(() => {
 		async function loadResults() {
+			if (!projectId) return;
 			setLoading(true);
 			setError(null);
 
 			try {
 				const response = await taskClient.getTestResults(
-					create(GetTestResultsRequestSchema, { taskId })
+					create(GetTestResultsRequestSchema, { projectId, taskId })
 				);
 				setResults(response.results ?? null);
 			} catch (e) {
@@ -86,7 +89,7 @@ export function TestResultsTab({ taskId }: TestResultsTabProps) {
 		}
 
 		loadResults();
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	const openLightbox = useCallback(
 		(filename: string) => {

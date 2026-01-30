@@ -20,7 +20,7 @@ import {
 	type ConnectionStatus,
 	handleEvent,
 } from '@/lib/events';
-import { useUIStore } from '@/stores';
+import { useUIStore, useCurrentProjectId } from '@/stores';
 import { useTaskState } from '@/stores/taskStore';
 
 // Re-export for convenience
@@ -65,8 +65,9 @@ export function EventProvider({
 	const subscriptionRef = useRef<EventSubscription | null>(null);
 	const [status, setStatus] = useState<ConnectionStatus>('disconnected');
 	const setWsStatus = useUIStore((state) => state.setWsStatus);
+	const projectId = useCurrentProjectId();
 
-	// Create subscription instance and connect on mount
+	// Create subscription instance on mount
 	useEffect(() => {
 		subscriptionRef.current = new EventSubscription();
 
@@ -79,11 +80,6 @@ export function EventProvider({
 		// Subscribe to events and route to stores
 		const unsubEvents = subscriptionRef.current.on(handleEvent);
 
-		// Auto-connect globally if enabled
-		if (autoConnect) {
-			subscriptionRef.current.connect({ includeHeartbeat: true });
-		}
-
 		// Cleanup on unmount
 		return () => {
 			unsubStatus();
@@ -91,16 +87,27 @@ export function EventProvider({
 			subscriptionRef.current?.disconnect();
 			subscriptionRef.current = null;
 		};
-	}, [autoConnect, setWsStatus]);
+	}, [setWsStatus]);
+
+	// Connect/reconnect when project changes
+	useEffect(() => {
+		if (!autoConnect || !subscriptionRef.current) return;
+
+		// Connect with current project ID filter
+		const projectIds = projectId ? [projectId] : [];
+		subscriptionRef.current.connect({ projectIds, includeHeartbeat: true });
+	}, [autoConnect, projectId]);
 
 	// Stable callbacks for context value
 	const subscribe = useCallback((taskId: string) => {
-		subscriptionRef.current?.connect({ taskId, includeHeartbeat: true });
-	}, []);
+		const projectIds = projectId ? [projectId] : [];
+		subscriptionRef.current?.connect({ projectIds, taskId, includeHeartbeat: true });
+	}, [projectId]);
 
 	const subscribeGlobal = useCallback(() => {
-		subscriptionRef.current?.connect({ includeHeartbeat: true });
-	}, []);
+		const projectIds = projectId ? [projectId] : [];
+		subscriptionRef.current?.connect({ projectIds, includeHeartbeat: true });
+	}, [projectId]);
 
 	const disconnect = useCallback(() => {
 		subscriptionRef.current?.disconnect();

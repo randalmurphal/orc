@@ -152,27 +152,6 @@ func New(cfg *Config) *Server {
 		panic(fmt.Sprintf("failed to create storage backend: %v", err))
 	}
 
-	// Seed built-in workflows and phase templates
-	if seeded, err := workflow.SeedBuiltins(backend.DB()); err != nil {
-		logger.Error("failed to seed built-in workflows", "error", err)
-	} else if seeded > 0 {
-		logger.Info("seeded built-in workflows", "count", seeded)
-	}
-
-	// Seed built-in agents and phase-agent associations
-	if seeded, err := workflow.SeedAgents(backend.DB()); err != nil {
-		logger.Error("failed to seed built-in agents", "error", err)
-	} else if seeded > 0 {
-		logger.Info("seeded built-in agents", "count", seeded)
-	}
-
-	// Migrate phase template model settings (updates existing templates)
-	if migrated, err := workflow.MigratePhaseTemplateModels(backend.DB()); err != nil {
-		logger.Error("failed to migrate phase template models", "error", err)
-	} else if migrated > 0 {
-		logger.Info("migrated phase template models", "count", migrated)
-	}
-
 	// Create event publisher with persistence
 	pub := events.NewPersistentPublisher(backend, "executor", logger)
 
@@ -228,6 +207,22 @@ func New(cfg *Config) *Server {
 		logger.Warn("failed to open global database", "error", err)
 	}
 	s.globalDB = globalDB
+
+	// Seed built-in workflows and phase templates (into global DB)
+	if globalDB != nil {
+		if seeded, err := workflow.SeedBuiltins(globalDB); err != nil {
+			logger.Error("failed to seed built-in workflows", "error", err)
+		} else if seeded > 0 {
+			logger.Info("seeded built-in workflows", "count", seeded)
+		}
+
+		// Seed built-in agents and phase-agent associations
+		if seeded, err := workflow.SeedAgents(globalDB); err != nil {
+			logger.Error("failed to seed built-in agents", "error", err)
+		} else if seeded > 0 {
+			logger.Info("seeded built-in agents", "count", seeded)
+		}
+	}
 
 	// Create project cache for multi-tenant database access
 	s.projectCache = NewProjectCache(10) // Max 10 projects open simultaneously

@@ -1,6 +1,6 @@
 # Storage Package
 
-Storage backend abstraction layer. SQLite is the sole source of truth for all data.
+Per-project storage backend abstraction layer. Each `Backend` wraps a single `ProjectDB` -- all operations are project-scoped.
 
 ## Overview
 
@@ -8,6 +8,7 @@ Storage backend abstraction layer. SQLite is the sole source of truth for all da
 |------|---------|
 | `backend.go` | `Backend` interface, `DatabaseBackend` struct |
 | `storage.go` | Backend factory (`NewBackend`), setup |
+| `testing.go` | Test helpers: `NewTestBackend()`, `NewTestGlobalDB()` |
 | `task.go` | Task CRUD operations including execution state |
 | `initiative.go` | Initiative CRUD operations |
 | `workflow.go` | Workflow and phase template operations |
@@ -16,6 +17,18 @@ Storage backend abstraction layer. SQLite is the sole source of truth for all da
 | `export.go` | Export functionality for task artifacts |
 | `import.go` | Import functionality |
 | `cleanup.go` | Cleanup and maintenance operations |
+
+## Multi-Project Architecture
+
+Each project gets its own `Backend` instance wrapping a `ProjectDB`. The API layer routes requests to the correct backend via `ProjectCache` (`internal/api/project_cache.go`).
+
+```
+Request (project_id) → ProjectCache (LRU) → Backend → ProjectDB → SQLite
+                                                          ↑
+                                              One per project (.orc/orc.db)
+```
+
+`ProjectCache` is an LRU cache of open `ProjectDB` + `Backend` pairs, keyed by project ID. Evicts least-recently-used entries when at capacity. Lives in the API layer, not in storage.
 
 ## Task-Centric Approach
 
@@ -180,7 +193,8 @@ defer backend.Close()
 ## Data Flow
 
 ```
-CLI/API → Backend interface → DatabaseBackend → db.ProjectDB → SQLite
+CLI   → NewBackend(projectPath) → DatabaseBackend → db.ProjectDB → SQLite
+API   → ProjectCache.GetBackend(projectID) → DatabaseBackend → db.ProjectDB → SQLite
 ```
 
 All reads and writes go through the backend. No YAML files are created.
@@ -256,3 +270,17 @@ pub.Publish(event)
 ch := pub.Subscribe("TASK-001")
 pub.Unsubscribe("TASK-001", ch)
 ```
+
+## Testing
+
+`testing.go` provides in-memory test helpers (10-100x faster than file-based):
+
+```go
+// Per-project backend (in-memory ProjectDB)
+backend := storage.NewTestBackend(t)
+
+// Global database (in-memory GlobalDB for workflows, agents, costs)
+globalDB := storage.NewTestGlobalDB(t)
+```
+
+Both auto-cleanup via `t.Cleanup()`. Always use `t.Parallel()` with these helpers.

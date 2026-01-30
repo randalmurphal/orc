@@ -869,8 +869,10 @@ type ListBranchesRequest struct {
 	Status *BranchStatus `protobuf:"varint,2,opt,name=status,proto3,enum=orc.v1.BranchStatus,oneof" json:"status,omitempty"`
 	// Include orphaned branches
 	IncludeOrphaned bool `protobuf:"varint,3,opt,name=include_orphaned,json=includeOrphaned,proto3" json:"include_orphaned,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Project ID
+	ProjectId     string `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListBranchesRequest) Reset() {
@@ -924,6 +926,13 @@ func (x *ListBranchesRequest) GetIncludeOrphaned() bool {
 	return false
 }
 
+func (x *ListBranchesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 type ListBranchesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Branches      []*Branch              `protobuf:"bytes,1,rep,name=branches,proto3" json:"branches,omitempty"`
@@ -969,8 +978,10 @@ func (x *ListBranchesResponse) GetBranches() []*Branch {
 }
 
 type GetBranchRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1008,6 +1019,13 @@ func (*GetBranchRequest) Descriptor() ([]byte, []int) {
 func (x *GetBranchRequest) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *GetBranchRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -1057,9 +1075,11 @@ func (x *GetBranchResponse) GetBranch() *Branch {
 }
 
 type UpdateBranchStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Status        BranchStatus           `protobuf:"varint,2,opt,name=status,proto3,enum=orc.v1.BranchStatus" json:"status,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Status BranchStatus           `protobuf:"varint,2,opt,name=status,proto3,enum=orc.v1.BranchStatus" json:"status,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1106,6 +1126,13 @@ func (x *UpdateBranchStatusRequest) GetStatus() BranchStatus {
 		return x.Status
 	}
 	return BranchStatus_BRANCH_STATUS_UNSPECIFIED
+}
+
+func (x *UpdateBranchStatusRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type UpdateBranchStatusResponse struct {
@@ -1156,7 +1183,9 @@ type DeleteBranchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Force delete even if not merged
-	Force         bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	Force bool `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1203,6 +1232,13 @@ func (x *DeleteBranchRequest) GetForce() bool {
 		return x.Force
 	}
 	return false
+}
+
+func (x *DeleteBranchRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type DeleteBranchResponse struct {
@@ -1254,7 +1290,9 @@ type CleanupStaleBranchesRequest struct {
 	// Days since last activity to consider stale
 	StaleDays int32 `protobuf:"varint,1,opt,name=stale_days,json=staleDays,proto3" json:"stale_days,omitempty"`
 	// Dry run (don't actually delete)
-	DryRun        bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	DryRun bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Project ID
+	ProjectId     string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1301,6 +1339,13 @@ func (x *CleanupStaleBranchesRequest) GetDryRun() bool {
 		return x.DryRun
 	}
 	return false
+}
+
+func (x *CleanupStaleBranchesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type CleanupStaleBranchesResponse struct {
@@ -1408,33 +1453,43 @@ const file_orc_v1_project_proto_rawDesc = "" +
 	"\x14RemoveProjectRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"1\n" +
 	"\x15RemoveProjectResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xb4\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xd3\x01\n" +
 	"\x13ListBranchesRequest\x12+\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x12.orc.v1.BranchTypeH\x00R\x04type\x88\x01\x01\x121\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x14.orc.v1.BranchStatusH\x01R\x06status\x88\x01\x01\x12)\n" +
-	"\x10include_orphaned\x18\x03 \x01(\bR\x0fincludeOrphanedB\a\n" +
+	"\x10include_orphaned\x18\x03 \x01(\bR\x0fincludeOrphaned\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x04 \x01(\tR\tprojectIdB\a\n" +
 	"\x05_typeB\t\n" +
 	"\a_status\"B\n" +
 	"\x14ListBranchesResponse\x12*\n" +
-	"\bbranches\x18\x01 \x03(\v2\x0e.orc.v1.BranchR\bbranches\"&\n" +
+	"\bbranches\x18\x01 \x03(\v2\x0e.orc.v1.BranchR\bbranches\"E\n" +
 	"\x10GetBranchRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\";\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\";\n" +
 	"\x11GetBranchResponse\x12&\n" +
-	"\x06branch\x18\x01 \x01(\v2\x0e.orc.v1.BranchR\x06branch\"]\n" +
+	"\x06branch\x18\x01 \x01(\v2\x0e.orc.v1.BranchR\x06branch\"|\n" +
 	"\x19UpdateBranchStatusRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12,\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x14.orc.v1.BranchStatusR\x06status\"D\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x14.orc.v1.BranchStatusR\x06status\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectId\"D\n" +
 	"\x1aUpdateBranchStatusResponse\x12&\n" +
-	"\x06branch\x18\x01 \x01(\v2\x0e.orc.v1.BranchR\x06branch\"?\n" +
+	"\x06branch\x18\x01 \x01(\v2\x0e.orc.v1.BranchR\x06branch\"^\n" +
 	"\x13DeleteBranchRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05force\x18\x02 \x01(\bR\x05force\"0\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectId\"0\n" +
 	"\x14DeleteBranchResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"U\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"t\n" +
 	"\x1bCleanupStaleBranchesRequest\x12\x1d\n" +
 	"\n" +
 	"stale_days\x18\x01 \x01(\x05R\tstaleDays\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"t\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectId\"t\n" +
 	"\x1cCleanupStaleBranchesResponse\x12)\n" +
 	"\x10deleted_branches\x18\x01 \x03(\tR\x0fdeletedBranches\x12)\n" +
 	"\x10skipped_branches\x18\x02 \x03(\tR\x0fskippedBranches*t\n" +

@@ -71,7 +71,7 @@ var builtinPhaseAgents = []db.PhaseAgent{
 // SeedAgents populates the database with built-in agent definitions and phase associations.
 // Reads agent markdown files from embedded templates and creates database records.
 // Returns the number of items seeded (agents + phase associations).
-func SeedAgents(pdb *db.ProjectDB) (int, error) {
+func SeedAgents(gdb *db.GlobalDB) (int, error) {
 	seeded := 0
 
 	// Seed agent definitions from embedded files
@@ -87,7 +87,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 		}
 
 		// Check if already exists
-		existing, err := pdb.GetAgent(fm.Name)
+		existing, err := gdb.GetAgent(fm.Name)
 		if err != nil {
 			return seeded, fmt.Errorf("check agent %s: %w", fm.Name, err)
 		}
@@ -105,7 +105,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 			IsBuiltin:   true,
 		}
 
-		if err := pdb.SaveAgent(agent); err != nil {
+		if err := gdb.SaveAgent(agent); err != nil {
 			return seeded, fmt.Errorf("save agent %s: %w", fm.Name, err)
 		}
 		seeded++
@@ -114,7 +114,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 	// Seed phase-agent associations
 	for _, pa := range builtinPhaseAgents {
 		// Check if phase template exists (foreign key)
-		pt, err := pdb.GetPhaseTemplate(pa.PhaseTemplateID)
+		pt, err := gdb.GetPhaseTemplate(pa.PhaseTemplateID)
 		if err != nil {
 			return seeded, fmt.Errorf("check phase template %s: %w", pa.PhaseTemplateID, err)
 		}
@@ -125,7 +125,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 		}
 
 		// Check if agent exists
-		agent, err := pdb.GetAgent(pa.AgentID)
+		agent, err := gdb.GetAgent(pa.AgentID)
 		if err != nil {
 			return seeded, fmt.Errorf("check agent %s: %w", pa.AgentID, err)
 		}
@@ -135,7 +135,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 		}
 
 		// Check if association already exists
-		existing, err := pdb.GetPhaseAgents(pa.PhaseTemplateID)
+		existing, err := gdb.GetPhaseAgents(pa.PhaseTemplateID)
 		if err != nil {
 			return seeded, fmt.Errorf("check phase agents for %s: %w", pa.PhaseTemplateID, err)
 		}
@@ -152,7 +152,7 @@ func SeedAgents(pdb *db.ProjectDB) (int, error) {
 			continue
 		}
 
-		if err := pdb.SavePhaseAgent(&pa); err != nil {
+		if err := gdb.SavePhaseAgent(&pa); err != nil {
 			return seeded, fmt.Errorf("save phase agent %s/%s: %w", pa.PhaseTemplateID, pa.AgentID, err)
 		}
 		seeded++

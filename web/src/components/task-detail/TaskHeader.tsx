@@ -9,7 +9,7 @@ import { TaskEditModal } from '@/components/task-detail/TaskEditModal';
 import { ExportDropdown } from '@/components/task-detail/ExportDropdown';
 import { taskClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import { getInitiativeBadgeTitle } from '@/stores';
+import { getInitiativeBadgeTitle, useCurrentProjectId } from '@/stores';
 import {
 	DeleteTaskRequestSchema,
 	RunTaskRequestSchema,
@@ -68,6 +68,7 @@ interface TaskHeaderProps {
 
 export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeaderProps) {
 	const navigate = useNavigate();
+	const projectId = useCurrentProjectId();
 	const [showEditModal, setShowEditModal] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -75,10 +76,11 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 
 	// Handle task actions
 	const handleRun = useCallback(async () => {
+		if (!projectId) return;
 		setActionLoading(true);
 		try {
 			const result = await taskClient.runTask(
-				create(RunTaskRequestSchema, { id: task.id })
+				create(RunTaskRequestSchema, { projectId, taskId: task.id })
 			);
 			if (result.task) {
 				onTaskUpdate(result.task);
@@ -89,13 +91,14 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		} finally {
 			setActionLoading(false);
 		}
-	}, [task.id, onTaskUpdate]);
+	}, [projectId, task.id, onTaskUpdate]);
 
 	const handlePause = useCallback(async () => {
+		if (!projectId) return;
 		setActionLoading(true);
 		try {
 			await taskClient.pauseTask(
-				create(PauseTaskRequestSchema, { id: task.id })
+				create(PauseTaskRequestSchema, { projectId, taskId: task.id })
 			);
 			toast.success('Task paused');
 		} catch (e) {
@@ -103,13 +106,14 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		} finally {
 			setActionLoading(false);
 		}
-	}, [task.id]);
+	}, [projectId, task.id]);
 
 	const handleResume = useCallback(async () => {
+		if (!projectId) return;
 		setActionLoading(true);
 		try {
 			await taskClient.resumeTask(
-				create(ResumeTaskRequestSchema, { id: task.id })
+				create(ResumeTaskRequestSchema, { projectId, taskId: task.id })
 			);
 			toast.success('Task resumed');
 		} catch (e) {
@@ -117,13 +121,14 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		} finally {
 			setActionLoading(false);
 		}
-	}, [task.id]);
+	}, [projectId, task.id]);
 
 	const handleDelete = useCallback(async () => {
+		if (!projectId) return;
 		setIsDeleting(true);
 		try {
 			await taskClient.deleteTask(
-				create(DeleteTaskRequestSchema, { id: task.id })
+				create(DeleteTaskRequestSchema, { projectId, taskId: task.id })
 			);
 			toast.success('Task deleted');
 			onTaskDelete();
@@ -133,7 +138,7 @@ export function TaskHeader({ task, plan, onTaskUpdate, onTaskDelete }: TaskHeade
 		} finally {
 			setIsDeleting(false);
 		}
-	}, [task.id, onTaskDelete]);
+	}, [projectId, task.id, onTaskDelete]);
 
 	// Determine which action button to show
 	const getActionButton = () => {

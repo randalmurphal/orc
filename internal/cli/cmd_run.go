@@ -125,8 +125,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 		existingTaskID = taskFlag
 	}
 
-	// Find project root
-	projectRoot, err := config.FindProjectRoot()
+	// Find project root (supports multi-project via --project flag)
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return err
 	}
@@ -149,19 +149,21 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	defer func() { _ = pdb.Close() }()
 
-	// Seed built-in workflows if not already seeded
-	if _, err := workflow.SeedBuiltins(pdb); err != nil {
+	// Open global DB for workflows and agents
+	gdb, err := db.OpenGlobal()
+	if err != nil {
+		return fmt.Errorf("open global database: %w", err)
+	}
+	defer func() { _ = gdb.Close() }()
+
+	// Seed built-in workflows if not already seeded (into global DB)
+	if _, err := workflow.SeedBuiltins(gdb); err != nil {
 		return fmt.Errorf("seed workflows: %w", err)
 	}
 
 	// Seed built-in agents and phase-agent associations
-	if _, err := workflow.SeedAgents(pdb); err != nil {
+	if _, err := workflow.SeedAgents(gdb); err != nil {
 		return fmt.Errorf("seed agents: %w", err)
-	}
-
-	// Migrate phase template model settings
-	if _, err := workflow.MigratePhaseTemplateModels(pdb); err != nil {
-		return fmt.Errorf("migrate phase templates: %w", err)
 	}
 
 	// Get backend
@@ -203,8 +205,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Verify workflow exists
-	wf, err := pdb.GetWorkflow(workflowID)
+	// Verify workflow exists (in global DB)
+	wf, err := gdb.GetWorkflow(workflowID)
 	if err != nil {
 		return fmt.Errorf("get workflow: %w", err)
 	}

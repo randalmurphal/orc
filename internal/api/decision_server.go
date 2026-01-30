@@ -24,9 +24,29 @@ import (
 type decisionServer struct {
 	orcv1connect.UnimplementedDecisionServiceHandler
 	backend          storage.Backend
+	projectCache     *ProjectCache
 	pendingDecisions *gate.PendingDecisionStore
 	publisher        events.Publisher
 	logger           *slog.Logger
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *decisionServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+func (s *decisionServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // NewDecisionServer creates a new DecisionService handler.
@@ -90,6 +110,11 @@ func (s *decisionServer) ResolveDecision(
 	ctx context.Context,
 	req *connect.Request[orcv1.ResolveDecisionRequest],
 ) (*connect.Response[orcv1.ResolveDecisionResponse], error) {
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
 	decisionID := req.Msg.Id
 
 	// Get pending decision
@@ -99,7 +124,7 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	// Load task
-	t, err := s.backend.LoadTask(decision.TaskID)
+	t, err := backend.LoadTask(decision.TaskID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", decision.TaskID))
 	}
@@ -148,12 +173,12 @@ func (s *decisionServer) ResolveDecision(
 	t.Execution.Gates = append(t.Execution.Gates, gateDecision)
 
 	// Save task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
 	// Record in database if available
-	if dbBackend, ok := s.backend.(*storage.DatabaseBackend); ok {
+	if dbBackend, ok := backend.(*storage.DatabaseBackend); ok {
 		dbDecision := &db.GateDecision{
 			TaskID:    decision.TaskID,
 			Phase:     decision.Phase,
@@ -178,7 +203,7 @@ func (s *decisionServer) ResolveDecision(
 	}
 
 	t.Status = newStatus
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
@@ -229,7 +254,12 @@ func (s *decisionServer) ListResolvedDecisions(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListResolvedDecisionsRequest],
 ) (*connect.Response[orcv1.ListResolvedDecisionsResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("resolved decisions require database backend"))
 	}

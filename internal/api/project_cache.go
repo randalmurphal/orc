@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/project"
+	"github.com/randalmurphal/orc/internal/storage"
 )
 
 // ProjectCache provides LRU-cached access to project databases.
@@ -19,8 +21,9 @@ type ProjectCache struct {
 }
 
 type cacheEntry struct {
-	db   *db.ProjectDB
-	path string
+	db      *db.ProjectDB
+	backend storage.Backend
+	path    string
 }
 
 // NewProjectCache creates a cache with the given maximum size.
@@ -102,16 +105,22 @@ func (c *ProjectCache) evictOldest() {
 	oldest := c.order[0]
 	c.order = c.order[1:]
 	if entry, ok := c.entries[oldest]; ok {
+		if entry.backend != nil {
+			_ = entry.backend.Close()
+		}
 		_ = entry.db.Close()
 		delete(c.entries, oldest)
 	}
 }
 
-// Close closes all cached databases.
+// Close closes all cached databases and backends.
 func (c *ProjectCache) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, entry := range c.entries {
+		if entry.backend != nil {
+			_ = entry.backend.Close()
+		}
 		_ = entry.db.Close()
 	}
 	c.entries = make(map[string]*cacheEntry)
@@ -145,4 +154,60 @@ func (c *ProjectCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.entries)
+}
+
+// GetBackend returns a storage.Backend for the given project ID.
+// Creates the backend on first access using the cached ProjectDB.
+func (c *ProjectCache) GetBackend(projectID string) (storage.Backend, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Check if we have a cached entry with backend
+	if entry, ok := c.entries[projectID]; ok {
+		c.touch(projectID)
+		if entry.backend != nil {
+			return entry.backend, nil
+		}
+		// Entry exists but no backend yet - create it
+		backend, err := storage.NewDatabaseBackend(entry.path, &config.StorageConfig{Mode: "database"})
+		if err != nil {
+			return nil, fmt.Errorf("create backend: %w", err)
+		}
+		entry.backend = backend
+		return backend, nil
+	}
+
+	// No cache entry - load project and create both DB and backend
+	reg, err := project.LoadRegistry()
+	if err != nil {
+		return nil, fmt.Errorf("load registry: %w", err)
+	}
+	proj, err := reg.Get(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("project not found: %w", err)
+	}
+
+	// Open database
+	pdb, err := db.OpenProject(proj.Path)
+	if err != nil {
+		return nil, fmt.Errorf("open project db: %w", err)
+	}
+
+	// Create backend
+	backend, err := storage.NewDatabaseBackend(proj.Path, &config.StorageConfig{Mode: "database"})
+	if err != nil {
+		_ = pdb.Close()
+		return nil, fmt.Errorf("create backend: %w", err)
+	}
+
+	// Evict if at capacity
+	if len(c.entries) >= c.maxSize {
+		c.evictOldest()
+	}
+
+	// Add to cache
+	c.entries[projectID] = &cacheEntry{db: pdb, backend: backend, path: proj.Path}
+	c.order = append(c.order, projectID)
+
+	return backend, nil
 }

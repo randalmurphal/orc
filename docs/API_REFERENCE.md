@@ -6,8 +6,10 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 
 | Category | Endpoints | Purpose |
 |----------|-----------|---------|
+| [Multi-Project](#multi-project-support) | (all services) | Project routing via `project_id` |
 | [Tasks](#tasks-global) | `/api/tasks/*` | Task CRUD and execution |
-| [Projects](#projects) | `/api/projects/*` | Multi-project task operations |
+| [Projects](#projects) | `/api/projects/*` | Multi-project registry and task operations |
+| [Branches](#branchservice) | Connect RPC | Git branch management |
 | [Initiatives](#initiatives) | `/api/initiatives/*` | Task grouping and decisions |
 | [Decisions](#decisions) | `/api/decisions/*` | Gate approval/rejection |
 | [Configuration](#configuration) | `/api/prompts/*`, `/api/hooks/*`, etc. | Project configuration |
@@ -15,10 +17,43 @@ REST API endpoints for the orc orchestrator. Base URL: `http://localhost:8080`
 | [Plugins](#plugins) | `/api/plugins/*`, `/api/marketplace/*` | Plugin management & marketplace |
 | [Session](#session) | `/api/session` | Current session metrics |
 | [Dashboard](#dashboard) | `/api/dashboard/*`, `/api/stats/*` | Statistics, activity, and file analytics |
+| [Notifications](#notifications) | Connect RPC | User notification management |
 | [Events](#events) | `/api/events` | Timeline event queries |
 | [Workflows](#workflows) | `/api/workflows/*`, `/api/phase-templates/*` | Workflow and phase template configuration |
 | [Workflow Runs](#workflow-runs) | `/api/workflow-runs/*` | Workflow execution instances |
 | [Real-time](#websocket-protocol) | `/api/ws` | WebSocket events |
+
+---
+
+## Multi-Project Support
+
+All Connect RPC services accept a `project_id` field in their request messages. This field routes the request to the correct project-specific database.
+
+| Behavior | Condition |
+|----------|-----------|
+| Legacy single-project mode | `project_id` is empty or omitted |
+| Project-scoped operation | `project_id` is set to a valid project ID |
+
+**How it works:**
+- The server maintains an LRU cache of project databases
+- When `project_id` is provided, the request is routed to that project's SQLite database
+- When `project_id` is empty, the server uses the CWD-based legacy backend (single project)
+- All services follow this pattern: TaskService, InitiativeService, HostingService, DashboardService, DecisionService, NotificationService, BranchService
+
+**Services with project_id support:**
+
+| Service | Proto File | Request Messages Updated |
+|---------|-----------|--------------------------|
+| TaskService | `task.proto` | All request messages |
+| InitiativeService | `initiative.proto` | All request messages |
+| HostingService | `hosting.proto` | CreatePR, GetPR, MergePR, RefreshPR, SyncComments, AutofixComment, GetChecks, ListPRs, GetPRComments |
+| DashboardService | `dashboard.proto` | GetStats, GetActivity, GetPerDayStats, GetOutcomes, GetTopInitiatives, GetTopFiles, GetComparison, GetCostSummary, GetCostByModel, GetCostTimeseries, GetBudget |
+| DecisionService | `decision.proto` | ListDecisions, ResolveDecision, GetDecision, ListDecisionHistory |
+| NotificationService | `notification.proto` | ListNotifications, DismissNotification, DismissAllNotifications |
+| BranchService | `project.proto` | ListBranches, GetBranch, UpdateBranchStatus, DeleteBranch, CleanupStaleBranches |
+| ProjectService | `project.proto` | N/A (manages projects themselves, not project-scoped) |
+
+**REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`).
 
 ---
 
@@ -519,7 +554,9 @@ Comments and notes on tasks from humans, agents, or system.
 
 ## Projects
 
-Multi-project support via global registry.
+Multi-project support via global registry. Projects are managed through both REST endpoints and the Connect RPC `ProjectService`.
+
+**REST Endpoints:**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -527,8 +564,30 @@ Multi-project support via global registry.
 | GET | `/api/projects/default` | Get default project ID |
 | PUT | `/api/projects/default` | Set default project |
 | GET | `/api/projects/:id` | Get project details |
+| DELETE | `/api/projects/:id` | Remove project from registry |
 | GET | `/api/projects/:id/tasks` | List tasks for project |
 | POST | `/api/projects/:id/tasks` | Create task in project |
+
+**Connect RPC: ProjectService** (`proto/orc/v1/project.proto`)
+
+| RPC Method | Description |
+|------------|-------------|
+| ListProjects | List all registered projects |
+| GetProject | Get project by ID |
+| GetDefaultProject | Get the default project (ID + project details) |
+| SetDefaultProject | Set default project by ID |
+| AddProject | Register a new project (name + path) |
+| RemoveProject | Remove a project from the registry |
+
+**Project object:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique project identifier |
+| `name` | string | Project display name |
+| `path` | string | Filesystem path to project root |
+| `created_at` | timestamp | When the project was registered |
+| `is_default` | bool | Whether this is the default project |
 
 ### Default Project
 
@@ -564,6 +623,34 @@ Returns 404 if the specified project doesn't exist.
 | POST | `/api/projects/:id/tasks/:taskId/pause` | Pause task |
 | POST | `/api/projects/:id/tasks/:taskId/resume` | Resume task |
 | POST | `/api/projects/:id/tasks/:taskId/rewind` | Rewind to phase |
+
+### BranchService
+
+Connect RPC service for managing git branches. All requests accept `project_id`. See [Multi-Project Support](#multi-project-support).
+
+**Connect RPC: BranchService** (`proto/orc/v1/project.proto`)
+
+| RPC Method | Description |
+|------------|-------------|
+| ListBranches | List branches (filter by type, status, include orphaned) |
+| GetBranch | Get branch by name |
+| UpdateBranchStatus | Update branch status (active, merged, stale, orphaned) |
+| DeleteBranch | Delete a branch (with optional force flag) |
+| CleanupStaleBranches | Cleanup stale branches by age threshold (supports dry run) |
+
+**Branch object:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Branch name |
+| `type` | BranchType | `INITIATIVE`, `STAGING`, or `TASK` |
+| `created_at` | timestamp | When branch was created |
+| `last_activity` | timestamp | Last activity timestamp |
+| `status` | BranchStatus | `ACTIVE`, `MERGED`, `STALE`, or `ORPHANED` |
+| `owner_id` | string (optional) | Associated task ID or initiative ID |
+| `commits_ahead` | int32 | Commits ahead of target branch |
+| `commits_behind` | int32 | Commits behind target branch |
+| `target_branch` | string (optional) | Target branch name |
 
 ---
 
@@ -694,6 +781,8 @@ All fields are optional. Setting `blocked_by` replaces the entire list.
 ## Decisions
 
 Gate approval/rejection for human gates in headless (API/WebSocket) mode. When a task hits a human gate during API-driven execution, a `decision_required` WebSocket event is emitted and the decision is stored for resolution.
+
+All DecisionService RPC requests accept `project_id` to target a specific project database. See [Multi-Project Support](#multi-project-support).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1059,6 +1148,8 @@ All fields are optional. Only provided fields are updated. Setting `profile` app
 ## Integration
 
 ### Hosting / Pull Requests
+
+All HostingService RPC requests accept `project_id` to target a specific project database. See [Multi-Project Support](#multi-project-support).
 
 | RPC Method | Service | Description |
 |------------|---------|-------------|
@@ -1476,6 +1567,8 @@ Current session metrics for the TopBar component. Session data is scoped to the 
 - Response time target: < 100ms for typical projects (< 100 tasks)
 
 ### Dashboard
+
+All DashboardService RPC requests accept `project_id` to target a specific project database. See [Multi-Project Support](#multi-project-support).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1897,6 +1990,33 @@ Query parameters:
 ```
 
 **Note:** The database layer for cost tracking with model identification is implemented (TASK-406). API endpoint handlers are pending future work.
+
+---
+
+## Notifications
+
+Connect RPC service for user notifications. All requests accept `project_id`. See [Multi-Project Support](#multi-project-support).
+
+**Connect RPC: NotificationService** (`proto/orc/v1/notification.proto`)
+
+| RPC Method | Description |
+|------------|-------------|
+| ListNotifications | List all notifications for a project |
+| DismissNotification | Dismiss a single notification by ID |
+| DismissAllNotifications | Dismiss all notifications for a project |
+
+**Notification object:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Notification ID |
+| `type` | string | Notification type |
+| `title` | string | Notification title |
+| `message` | string (optional) | Notification body |
+| `source_type` | string (optional) | Source type (e.g., task, initiative) |
+| `source_id` | string (optional) | Source entity ID |
+| `created_at` | timestamp | When notification was created |
+| `expires_at` | timestamp (optional) | When notification expires |
 
 ---
 

@@ -263,7 +263,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await taskClient.runTask({ id: taskId });
+				await taskClient.runTask({ projectId: currentProjectId, taskId });
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : 'Failed to run task');
 			}
@@ -278,7 +278,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await taskClient.pauseTask({ id: taskId });
+				await taskClient.pauseTask({ projectId: currentProjectId, taskId });
 			} catch (e) {
 				toast.error(e instanceof Error ? e.message : 'Failed to pause task');
 			}
@@ -293,7 +293,7 @@ export function TaskList() {
 				return;
 			}
 			try {
-				await taskClient.deleteTask({ id: taskId });
+				await taskClient.deleteTask({ projectId: currentProjectId, taskId });
 				removeTask(taskId);
 				toast.success(`Deleted task ${taskId}`);
 			} catch (e) {

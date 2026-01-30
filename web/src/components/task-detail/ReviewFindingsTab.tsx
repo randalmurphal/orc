@@ -9,6 +9,7 @@ import type { ReviewFinding, ReviewRoundFindings } from '@/gen/orc/v1/task_pb';
 import { timestampToDate } from '@/lib/time';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
+import { useCurrentProjectId } from '@/stores';
 import './ReviewFindingsTab.css';
 
 interface ReviewFindingsTabProps {
@@ -193,16 +194,18 @@ function RoundSection({ findings, isExpanded, onToggle }: RoundSectionProps) {
 }
 
 export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
+	const projectId = useCurrentProjectId();
 	const [findings, setFindings] = useState<ReviewRoundFindings[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
 
 	const loadFindings = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await taskClient.getReviewFindings({ taskId });
+			const response = await taskClient.getReviewFindings({ projectId, taskId });
 			setFindings(response.rounds);
 			// Expand the latest round by default
 			if (response.rounds.length > 0) {
@@ -214,7 +217,7 @@ export function ReviewFindingsTab({ taskId }: ReviewFindingsTabProps) {
 		} finally {
 			setLoading(false);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	useEffect(() => {
 		loadFindings();

@@ -5,6 +5,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -31,9 +32,10 @@ const (
 // eventServer implements the EventServiceHandler interface.
 type eventServer struct {
 	orcv1connect.UnimplementedEventServiceHandler
-	publisher events.Publisher
-	backend   storage.Backend
-	logger    *slog.Logger
+	publisher    events.Publisher
+	backend      storage.Backend
+	projectCache *ProjectCache
+	logger       *slog.Logger
 }
 
 // NewEventServer creates a new EventService handler.
@@ -49,12 +51,35 @@ func NewEventServer(
 	}
 }
 
-// getProjectDB returns the underlying ProjectDB for event queries.
-func (s *eventServer) getProjectDB() *db.ProjectDB {
-	if dbBackend, ok := s.backend.(*storage.DatabaseBackend); ok {
-		return dbBackend.DB()
+// SetProjectCache sets the project cache for multi-project support.
+func (s *eventServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the storage backend for the given project ID.
+func (s *eventServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
 	}
-	return nil
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
+// getProjectDB returns the underlying ProjectDB for event queries.
+func (s *eventServer) getProjectDB(projectID string) (*db.ProjectDB, error) {
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if dbBackend, ok := backend.(*storage.DatabaseBackend); ok {
+		return dbBackend.DB(), nil
+	}
+	return nil, fmt.Errorf("backend is not a DatabaseBackend")
 }
 
 // Subscribe streams real-time events to the client, replacing WebSocket.
@@ -67,6 +92,14 @@ func (s *eventServer) Subscribe(
 	taskID := globalTaskID
 	if req.Msg.TaskId != nil && *req.Msg.TaskId != "" {
 		taskID = *req.Msg.TaskId
+	}
+
+	// Get backend for initiative filtering (use first project_id if specified)
+	var filterBackend storage.Backend = s.backend
+	if len(req.Msg.ProjectIds) > 0 && s.projectCache != nil {
+		if b, err := s.projectCache.GetBackend(req.Msg.ProjectIds[0]); err == nil {
+			filterBackend = b
+		}
 	}
 
 	// Subscribe to event channel
@@ -110,7 +143,7 @@ func (s *eventServer) Subscribe(
 			if req.Msg.InitiativeId != nil {
 				initFilter = *req.Msg.InitiativeId
 			}
-			if filterEventByInitiative(event, initFilter, s.backend) {
+			if filterEventByInitiative(event, initFilter, filterBackend) {
 				continue
 			}
 
@@ -147,9 +180,9 @@ func (s *eventServer) GetEvents(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetEventsRequest],
 ) (*connect.Response[orcv1.GetEventsResponse], error) {
-	pdb := s.getProjectDB()
-	if pdb == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("events not available"))
+	pdb, err := s.getProjectDB(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
 	// Build query options
@@ -223,9 +256,9 @@ func (s *eventServer) GetTimeline(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb := s.getProjectDB()
-	if pdb == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("timeline not available"))
+	pdb, err := s.getProjectDB(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
 	// Build query options

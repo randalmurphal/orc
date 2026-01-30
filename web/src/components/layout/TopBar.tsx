@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Icon, Tooltip } from '@/components/ui';
 import {
@@ -64,9 +65,15 @@ export function TopBar({
 	const isPaused = useIsPaused();
 	const pauseAll = useSessionStore((s) => s.pauseAll);
 	const resumeAll = useSessionStore((s) => s.resumeAll);
+	const location = useLocation();
 
 	// Get right panel state from AppShell context (null if not in AppShellProvider)
 	const appShell = useContext(AppShellContext);
+
+	// Only show panel toggle for routes that have panel content
+	// Currently only /board has panel content (BoardCommandPanel)
+	const isBoard = location.pathname === '/board';
+	const showPanelToggle = appShell && isBoard;
 
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const [searchExpanded, setSearchExpanded] = useState(false);
@@ -189,17 +196,19 @@ export function TopBar({
 						New Task
 					</Button>
 				)}
-				{appShell && (
+				{showPanelToggle && appShell && (
 					<Tooltip content={<>Toggle panel <kbd>Shift+Alt+R</kbd></>}>
-						<button
+						<Button
 							ref={appShell.panelToggleRef}
-							className="btn-icon"
+							variant="ghost"
+							size="sm"
+							iconOnly
 							onClick={appShell.toggleRightPanel}
 							aria-label="Toggle right panel"
 							aria-expanded={appShell.isRightPanelOpen}
 						>
 							<Icon name="panel-right" size={16} />
-						</button>
+						</Button>
 					</Tooltip>
 				)}
 			</div>

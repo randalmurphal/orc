@@ -5,6 +5,7 @@ export { Dashboard } from './Dashboard';
 export { TaskDetail } from './TaskDetail';
 export { InitiativeDetailPage } from './InitiativeDetailPage';
 export { Preferences } from './Preferences';
+export { ProjectPickerPage } from './ProjectPickerPage';
 
 // Environment sub-pages
 export {

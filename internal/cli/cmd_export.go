@@ -106,7 +106,7 @@ Examples:
 
 			// Export all tasks
 			if allTasks {
-				wd, err := config.FindProjectRoot()
+				wd, err := ResolveProjectPath()
 				if err != nil {
 					return fmt.Errorf("not in an orc project: %w", err)
 				}
@@ -225,7 +225,7 @@ func exportToBranchDir(taskID string, withState, withTranscripts, withContext bo
 	}
 
 	// Get project path (worktree-aware)
-	projectRoot, err := config.FindProjectRoot()
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return fmt.Errorf("not in an orc project: %w", err)
 	}

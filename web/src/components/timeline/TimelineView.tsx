@@ -19,6 +19,7 @@ import { ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
 import { ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
 import { PageRequestSchema } from '@/gen/orc/v1/common_pb';
 import { useConnectionStatus, useTimelineEvents } from '@/hooks';
+import { useCurrentProjectId } from '@/stores/projectStore';
 import { TimelineGroup } from './TimelineGroup';
 import { type TimelineEventData } from './TimelineEvent';
 import { TimelineEmptyState } from './TimelineEmptyState';
@@ -174,6 +175,7 @@ const PAGE_SIZE = 50;
 export function TimelineView() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const wsStatus = useConnectionStatus();
+	const projectId = useCurrentProjectId();
 
 	// State
 	const [events, setEvents] = useState<TimelineEventData[]>([]);
@@ -257,12 +259,13 @@ export function TimelineView() {
 
 	// Fetch tasks and initiatives for filter dropdowns
 	useEffect(() => {
+		if (!projectId) return;
 		let mounted = true;
 		async function loadFilterData() {
 			try {
 				const [tasksRes, initiativesRes] = await Promise.all([
-					taskClient.listTasks(create(ListTasksRequestSchema, {})),
-					initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}))
+					taskClient.listTasks(create(ListTasksRequestSchema, { projectId: projectId ?? undefined })),
+					initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, { projectId: projectId ?? undefined }))
 				]);
 
 				if (!mounted) return;
@@ -274,7 +277,7 @@ export function TimelineView() {
 		}
 		loadFilterData();
 		return () => { mounted = false; };
-	}, []);
+	}, [projectId]);
 
 	// Fetch events
 	const fetchEvents = useCallback(async (reset = false) => {
@@ -292,6 +295,7 @@ export function TimelineView() {
 
 		try {
 			const request = create(GetEventsRequestSchema, {
+				projectId: projectId ?? undefined,
 				page: create(PageRequestSchema, {
 					page: Math.floor(currentOffset / PAGE_SIZE) + 1,
 					limit: PAGE_SIZE,
@@ -358,7 +362,7 @@ export function TimelineView() {
 			setIsLoadingMore(false);
 			loadingRef.current = false;
 		}
-	}, [filters, offset]);
+	}, [filters, offset, projectId]);
 
 	// Initial fetch and refetch on filter change
 	useEffect(() => {

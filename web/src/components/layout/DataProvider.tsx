@@ -18,8 +18,9 @@ import {
 import { create } from '@bufbuild/protobuf';
 import { projectClient, taskClient, initiativeClient } from '@/lib/client';
 import { ListProjectsRequestSchema } from '@/gen/orc/v1/project_pb';
-import { ListTasksRequestSchema } from '@/gen/orc/v1/task_pb';
+import { ListTasksRequestSchema, type Task } from '@/gen/orc/v1/task_pb';
 import { ListInitiativesRequestSchema } from '@/gen/orc/v1/initiative_pb';
+import { PageRequestSchema } from '@/gen/orc/v1/common_pb';
 
 interface DataProviderProps {
 	children: ReactNode;
@@ -78,7 +79,7 @@ export function DataProvider({ children }: DataProviderProps) {
 		}
 	}, [setProjects, selectProject, setProjectLoading, setProjectError]);
 
-	// Load tasks for current project
+	// Load tasks for current project - paginates to get all tasks
 	const loadTasks = useCallback(async (projectId: string | null) => {
 		if (!projectId) {
 			resetTasks();
@@ -88,9 +89,25 @@ export function DataProvider({ children }: DataProviderProps) {
 		setTaskLoading(true);
 		setTaskError(null);
 		try {
-			// Note: Project context is handled by the backend via request headers/cookies
-			const response = await taskClient.listTasks(create(ListTasksRequestSchema, {}));
-			setTasks(response.tasks);
+			// Fetch all tasks by paginating (backend caps at 100 per request)
+			const allTasks: Task[] = [];
+			let currentPage = 1;
+			let hasMore = true;
+			const pageLimit = 100; // Max allowed by backend
+
+			while (hasMore) {
+				const response = await taskClient.listTasks(create(ListTasksRequestSchema, {
+					projectId,
+					page: create(PageRequestSchema, { page: currentPage, limit: pageLimit }),
+				}));
+				allTasks.push(...response.tasks);
+				hasMore = response.page?.hasMore ?? false;
+				currentPage++;
+				// Safety: prevent infinite loops
+				if (currentPage > 1000) break;
+			}
+
+			setTasks(allTasks);
 		} catch (err) {
 			setTaskError(err instanceof Error ? err.message : 'Failed to load tasks');
 		} finally {
@@ -98,16 +115,20 @@ export function DataProvider({ children }: DataProviderProps) {
 		}
 	}, [setTasks, setTaskLoading, setTaskError, resetTasks]);
 
-	// Load initiatives (not project-scoped currently)
-	const loadInitiatives = useCallback(async () => {
+	// Load initiatives for a project
+	const loadInitiatives = useCallback(async (projectId: string | null) => {
+		if (!projectId) {
+			initiativeReset();
+			return;
+		}
 		try {
-			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {}));
+			const response = await initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, { projectId }));
 			setInitiatives(response.initiatives);
 		} catch (err) {
 			console.error('Failed to load initiatives:', err);
 			// Don't set error state - initiatives are not critical
 		}
-	}, [setInitiatives]);
+	}, [setInitiatives, initiativeReset]);
 
 	// Initial load
 	useEffect(() => {
@@ -122,11 +143,11 @@ export function DataProvider({ children }: DataProviderProps) {
 		// Load all data
 		const init = async () => {
 			await loadProjects();
-			await loadInitiatives();
-			// After projects are loaded and selected, load tasks for the selected project
+			// After projects are loaded and selected, load tasks and initiatives for the selected project
 			const projectId = useProjectStore.getState().currentProjectId;
 			if (projectId) {
 				await loadTasks(projectId);
+				await loadInitiatives(projectId);
 			}
 		};
 		init();
@@ -150,7 +171,7 @@ export function DataProvider({ children }: DataProviderProps) {
 
 			// Load new data
 			loadTasks(currentProjectId);
-			loadInitiatives();
+			loadInitiatives(currentProjectId);
 		}
 	}, [currentProjectId, loadTasks, loadInitiatives, resetTasks, initiativeReset]);
 

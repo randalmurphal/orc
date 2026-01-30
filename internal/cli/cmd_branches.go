@@ -137,7 +137,7 @@ Example:
 			}
 			defer func() { _ = backend.Close() }()
 
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}
@@ -242,7 +242,7 @@ Example:
 			}
 			defer func() { _ = backend.Close() }()
 
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}

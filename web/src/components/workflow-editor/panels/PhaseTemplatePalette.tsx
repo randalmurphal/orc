@@ -76,9 +76,13 @@ export function PhaseTemplatePalette({ readOnly, workflowId: _workflowId }: Phas
 
 	return (
 		<div className="phase-palette">
-			{readOnly && (
-				<div className="phase-palette-banner">
+			{readOnly ? (
+				<div className="phase-palette-banner phase-palette-banner--readonly">
 					Clone to customize
+				</div>
+			) : (
+				<div className="phase-palette-banner">
+					Drag templates to canvas
 				</div>
 			)}
 			<div className="phase-palette-search">
