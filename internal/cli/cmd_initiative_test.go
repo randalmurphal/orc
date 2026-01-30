@@ -1711,3 +1711,287 @@ func TestInitiativeRunDisplaysDeps(t *testing.T) {
 		t.Errorf("TASK-002 line should reference dependency TASK-001, got: %s", task2Line)
 	}
 }
+
+// =============================================================================
+// Tests for initiative plan manifest workflow_id assignment (TASK-658)
+// =============================================================================
+
+// TestInitiativePlan_WorkflowIDAssignedByWeight verifies that tasks created
+// from a manifest have workflow_id set based on their weight, matching the
+// behavior of `orc new`.
+// Covers SC-1: Manifest-created tasks have workflow_id set based on weight
+func TestInitiativePlan_WorkflowIDAssignedByWeight(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Workflow Test Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest with small and medium weight tasks
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Small task"
+    weight: small
+  - id: 2
+    title: "Medium task"
+    weight: medium
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	// Close backend before running command
+	_ = backend.Close()
+
+	// Run plan command
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Verify tasks have workflow_id set
+	allTasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(allTasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(allTasks))
+	}
+
+	for _, tk := range allTasks {
+		if tk.WorkflowId == nil || *tk.WorkflowId == "" {
+			t.Errorf("task %s (%s) has no workflow_id set, but should have one based on weight %s",
+				tk.Id, tk.Title, tk.Weight)
+		}
+	}
+
+	// Verify correct mapping
+	taskByTitle := make(map[string]*orcv1.Task)
+	for _, tk := range allTasks {
+		taskByTitle[tk.Title] = tk
+	}
+
+	smallTask := taskByTitle["Small task"]
+	if smallTask.WorkflowId == nil || *smallTask.WorkflowId != "implement-small" {
+		got := "<nil>"
+		if smallTask.WorkflowId != nil {
+			got = *smallTask.WorkflowId
+		}
+		t.Errorf("small task WorkflowId = %s, want implement-small", got)
+	}
+
+	mediumTask := taskByTitle["Medium task"]
+	if mediumTask.WorkflowId == nil || *mediumTask.WorkflowId != "implement-medium" {
+		got := "<nil>"
+		if mediumTask.WorkflowId != nil {
+			got = *mediumTask.WorkflowId
+		}
+		t.Errorf("medium task WorkflowId = %s, want implement-medium", got)
+	}
+}
+
+// TestInitiativePlan_AllWeightsGetWorkflowID verifies that each weight value
+// (trivial, small, medium, large) produces the correct workflow_id.
+// Covers SC-2: All weight values produce correct workflow_id
+func TestInitiativePlan_AllWeightsGetWorkflowID(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "All Weights Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest with all four weight values
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Trivial task"
+    weight: trivial
+  - id: 2
+    title: "Small task"
+    weight: small
+  - id: 3
+    title: "Medium task"
+    weight: medium
+  - id: 4
+    title: "Large task"
+    weight: large
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	allTasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(allTasks) != 4 {
+		t.Fatalf("expected 4 tasks, got %d", len(allTasks))
+	}
+
+	expected := map[string]string{
+		"Trivial task": "implement-trivial",
+		"Small task":   "implement-small",
+		"Medium task":  "implement-medium",
+		"Large task":   "implement-large",
+	}
+
+	for _, tk := range allTasks {
+		wantWorkflow, ok := expected[tk.Title]
+		if !ok {
+			t.Errorf("unexpected task title: %s", tk.Title)
+			continue
+		}
+		if tk.WorkflowId == nil {
+			t.Errorf("task %s (%s) has nil WorkflowId, want %s", tk.Id, tk.Title, wantWorkflow)
+			continue
+		}
+		if *tk.WorkflowId != wantWorkflow {
+			t.Errorf("task %s (%s) WorkflowId = %s, want %s", tk.Id, tk.Title, *tk.WorkflowId, wantWorkflow)
+		}
+	}
+}
+
+// TestInitiativePlan_DefaultWeightGetsWorkflowID verifies that when weight is
+// omitted from the manifest, the default (medium) is used and workflow_id is
+// set to "implement-medium".
+// Covers SC-2: Unspecified weight defaults to medium with correct workflow_id
+func TestInitiativePlan_DefaultWeightGetsWorkflowID(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create initiative
+	init := initiative.New("INIT-001", "Default Weight Initiative")
+	if err := backend.SaveInitiative(init); err != nil {
+		t.Fatalf("save initiative: %v", err)
+	}
+
+	// Create manifest with no weight specified
+	manifest := `version: 1
+initiative: INIT-001
+tasks:
+  - id: 1
+    title: "Task with default weight"
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	allTasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(allTasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(allTasks))
+	}
+
+	tk := allTasks[0]
+
+	// Weight should default to medium
+	if tk.Weight != orcv1.TaskWeight_TASK_WEIGHT_MEDIUM {
+		t.Errorf("task weight = %s, want TASK_WEIGHT_MEDIUM", tk.Weight)
+	}
+
+	// WorkflowId should be set to implement-medium
+	if tk.WorkflowId == nil {
+		t.Fatal("task WorkflowId is nil, want implement-medium")
+	}
+	if *tk.WorkflowId != "implement-medium" {
+		t.Errorf("task WorkflowId = %s, want implement-medium", *tk.WorkflowId)
+	}
+}
+
+// TestInitiativePlan_CreateInitiativeAlsoSetsWorkflowID verifies that the
+// --create-initiative code path also assigns workflow_id.
+// Covers SC-1: Workflow assignment works regardless of initiative source
+func TestInitiativePlan_CreateInitiativeAlsoSetsWorkflowID(t *testing.T) {
+	tmpDir := withInitiativeTestDir(t)
+	backend := createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	// Create manifest with create_initiative
+	manifest := `version: 1
+create_initiative:
+  title: "New Feature"
+  vision: "Workflow test"
+tasks:
+  - id: 1
+    title: "Feature task"
+    weight: large
+`
+	manifestPath := filepath.Join(tmpDir, "tasks.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	_ = backend.Close()
+
+	cmd := newInitiativePlanCmd()
+	cmd.SetArgs([]string{manifestPath, "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("plan command failed: %v", err)
+	}
+
+	// Re-open backend to verify
+	backend = createTestBackendInDir(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	tasks, err := backend.LoadAllTasks()
+	if err != nil {
+		t.Fatalf("load tasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+
+	tk := tasks[0]
+	if tk.WorkflowId == nil {
+		t.Fatal("task WorkflowId is nil, want implement-large")
+	}
+	if *tk.WorkflowId != "implement-large" {
+		t.Errorf("task WorkflowId = %s, want implement-large", *tk.WorkflowId)
+	}
+}

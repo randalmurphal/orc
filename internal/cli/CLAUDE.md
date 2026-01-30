@@ -14,6 +14,7 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_export.go` | Export with tar.gz/zip/dir formats |
 | `cmd_import.go` | Import from archives (tar.gz/zip/dir/YAML) |
 | `cmd_import_jira.go` | Import from Jira Cloud via API |
+| `cmd_initiative_plan.go` | Bulk task creation from YAML manifest (`orc initiative plan`) |
 | `cmd_migrate.go` | Plan migration commands (`orc migrate plans`) |
 | `cmd_run.go` | Task execution with auto-migration |
 | `cmd_phases.go` | Phase template CRUD (`orc phase new/show/config`) |
@@ -96,6 +97,10 @@ Import from archive, directory, or YAML file. Auto-detects format. Newer `update
 ### `orc import jira`
 
 Import Jira Cloud issues as orc tasks. Epics → initiatives (default, disable with `--no-epics`). Idempotent: existing tasks updated, not duplicated. Auth: flags > env vars > config. Flags: `--url`, `--email`, `--token`, `--project`, `--jql`, `--no-epics`, `--dry-run`, `--weight`, `--queue`
+
+### `orc initiative plan`
+
+Creates multiple tasks from a YAML manifest file. Auto-assigns `workflow_id` based on task weight via `workflow.WeightToWorkflowID()`. Supports `--create-initiative` to create a new initiative and link all tasks. Tasks are created in topological order (respecting `blocked_by`).
 
 ### `orc migrate plans`
 
