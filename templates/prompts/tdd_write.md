@@ -86,12 +86,63 @@ Each error test should verify:
 - User receives actionable guidance
 </error_path_testing>
 
+<test_classification>
+## Test Classification
+
+Classify each test you write into one of these types:
+
+| Type | What It Tests | When to Use |
+|------|---------------|-------------|
+| **Solitary** | Single unit in isolation, dependencies mocked | Pure logic, calculations, data transformations |
+| **Sociable** | Unit with real collaborators (no mocks) | Units that work together within a module |
+| **Integration** | New code is wired into existing code paths | New functions/interfaces that must be called from existing code |
+
+**Default:** Most tests are solitary tests. Write sociable tests when collaborators are fast and deterministic. Write integration tests when you need to verify wiring.
+
+### Integration Test Requirement
+
+If your task creates new functions or new interfaces that should be called from existing code paths, you MUST write integration tests verifying the wiring is complete.
+
+**When integration tests are required:**
+- A new function is created that an existing code path should call
+- A new interface implementation is created that should be registered or wired into the system
+- An existing function is modified to delegate to new code
+
+**When integration tests are NOT required:**
+- Greenfield code with no existing callers yet (if there are no existing code paths that should call your new code)
+- Pure refactors that don't change the call graph
+- Internal helpers only called by new code you're also writing
+
+### Wiring Verification Pattern
+
+To verify new code is actually called from the expected code path, use this pattern:
+
+```go
+// Integration test: verify ProcessPipeline calls the new Processor
+func TestProcessPipeline_CallsNewProcessor(t *testing.T) {
+    called := false
+    mock := func(input string) error {
+        called = true
+        return nil
+    }
+    pipeline := NewPipeline(WithProcessor(mock))
+    pipeline.Run("test-input")
+    if !called {
+        t.Fatal("NewProcessor was not called from ProcessPipeline - wiring is missing")
+    }
+}
+```
+
+The pattern: (1) create a mock that sets a flag, (2) inject it into the caller, (3) run the caller, (4) assert the mock was called. If the assertion fails, the new code exists but is never invoked — dead code.
+</test_classification>
+
 ## Step 1: Analyze Success Criteria
 
 For each success criterion in the spec:
 1. Identify what behavior needs testing
-2. Determine test type (unit, integration, E2E)
-3. List edge cases and error paths
+2. Determine test type using the classification above (solitary, sociable, or integration)
+3. Identify which criteria require integration tests (new code wired into existing paths)
+4. List edge cases and error paths
 
 ## Step 2: Write Tests
 
@@ -134,9 +185,10 @@ The implement phase will execute this via Playwright MCP browser tools.
 
 For each success criterion:
 1. Identify the function/component/endpoint to test
-2. Write test that exercises the expected behavior
-3. Include edge cases from the spec's Edge Cases table
-4. Include error paths from the spec's Failure Modes table
+2. Choose the appropriate test type from the classification (solitary, sociable, or integration)
+3. Write test that exercises the expected behavior
+4. Include edge cases from the spec's Edge Cases table
+5. Include error paths from the spec's Failure Modes table
 
 **Test naming:** `Test[Feature]_[Scenario]` or `describe('[Feature]', () => { it('[scenario]') })`
 
@@ -144,6 +196,7 @@ For each success criterion:
 - All success criteria have at least one test
 - All edge cases have tests
 - All error paths have tests
+- New functions/interfaces wired into existing code have integration tests
 </unit_integration_tests>
 
 ## Step 3: Verify Tests Fail
