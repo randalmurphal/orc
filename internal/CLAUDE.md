@@ -19,7 +19,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `errors/` | Custom error types | `OrcError` |
 | `events/` | Event publishing for real-time updates | `Publisher`, `Event` |
 | `executor/` | Phase execution engine | `WorkflowExecutor`, `Result` |
-| `gate/` | Quality gates, approval workflow | `Gate`, `Evaluator`, `PendingDecisionStore` |
+| `gate/` | Quality gates, approval workflow (auto/human/AI/skip) | `Gate`, `Evaluator`, `Resolver`, `GateAgentResponse`, `PendingDecisionStore` |
 | `git/` | Git operations, worktrees (thread-safe) | `Git`, `Checkpoint` |
 | `hosting/` | Multi-provider git hosting (GitHub, GitLab) | `Provider`, `PR`, `PRStatusSummary` |
 | `initiative/` | Initiative/feature grouping | `Initiative`, `Store`, `Manifest` |
@@ -50,6 +50,7 @@ cmd/orc
         │   ├── events/
         │   ├── executor/
         │   │   ├── events/
+        │   │   ├── gate/
         │   │   ├── git/
         │   │   ├── hosting/
         │   │   ├── prompt/
@@ -156,6 +157,7 @@ See package-specific CLAUDE.md files for detailed usage:
 | `cli/` | CLI commands |
 | `db/` | SQLite persistence layer |
 | `executor/` | Execution engine (error handling, phase execution) |
+| `gate/` | Quality gates (auto/human/AI/skip), resolution, pending decisions |
 | `initiative/` | Initiative grouping |
 | `orchestrator/` | Multi-task coordination, process group cleanup |
 | `plan_session/` | Interactive planning sessions |

@@ -13,7 +13,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()` | PR creation, merge, worktree setup/cleanup, sync |
 | `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
-| `workflow_gates.go` | ~105 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
+| `workflow_gates.go` | ~165 | `evaluatePhaseGate()`, `resolveGateType()`, `triggerAutomationEvent()` | Gate evaluation (auto/human/AI), type resolution, event publishing |
 
 ### Support Files
 
@@ -46,7 +46,7 @@ WorkflowExecutor.Run()
 ├── for each phase:
 │   ├── enrichContextForPhase()       # Add phase-specific context
 │   ├── resolver.ResolveAll()         # Resolve all variables
-│   ├── evaluateGate()                # Check conditions
+│   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor

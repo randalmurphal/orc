@@ -6,10 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 )
 
@@ -21,7 +23,7 @@ const (
 	GateAuto GateType = "auto"
 	// GateHuman requires human approval.
 	GateHuman GateType = "human"
-	// GateAI uses AI to evaluate the gate (not yet implemented).
+	// GateAI uses an AI agent to evaluate the gate.
 	GateAI GateType = "ai"
 	// GateSkip skips the gate entirely.
 	GateSkip GateType = "skip"
@@ -39,6 +41,11 @@ type Decision struct {
 	Reason    string
 	Questions []string // For NEEDS_CLARIFICATION
 	Pending   bool     // True if decision is pending (headless mode)
+
+	// AI gate fields
+	RetryPhase string         // Phase to retry from (if rejected)
+	OutputData map[string]any // Data from agent for variable pipeline
+	OutputVar  string         // Variable name to store output as
 }
 
 // EvaluateOptions contains context for gate evaluation.
@@ -49,16 +56,34 @@ type EvaluateOptions struct {
 	Headless      bool                  // True if running in API/headless mode
 	Publisher     events.Publisher      // Event publisher for decision_required events
 	DecisionStore *PendingDecisionStore // Store for pending decisions
+
+	// AI gate fields
+	AgentID      string                // Agent to use for evaluation
+	InputConfig  *db.GateInputConfig   // What context to include
+	OutputConfig *db.GateOutputConfig  // How to handle results
+	PhaseOutputs map[string]string     // Available phase outputs (keyed by phase ID)
+	TaskDesc     string                // Task description
+	TaskCategory string                // Task category
+	TaskWeight   string                // Task weight
 }
 
 // Evaluator evaluates gates between phases.
-// Note: The struct is kept for API compatibility but no longer requires a client.
-type Evaluator struct{}
+type Evaluator struct {
+	agentLookup   AgentLookup
+	clientCreator LLMClientCreator
+	costRecorder  CostRecorder
+	logger        *slog.Logger
+}
 
-// New creates a new gate evaluator.
-// Note: Client parameter kept for API compatibility but is no longer used.
-func New(_ any) *Evaluator {
-	return &Evaluator{}
+// New creates a new gate evaluator with optional dependencies.
+// Zero options is safe for auto/human gates. AI gates require
+// WithAgentLookup and WithClientCreator.
+func New(opts ...Option) *Evaluator {
+	e := &Evaluator{}
+	for _, opt := range opts {
+		opt(e)
+	}
+	return e
 }
 
 // Evaluate determines if a gate passes.
@@ -73,6 +98,8 @@ func (e *Evaluator) EvaluateWithOptions(ctx context.Context, gate *Gate, phaseOu
 		return e.evaluateAuto(gate, phaseOutput)
 	case GateHuman:
 		return e.requestHumanApproval(gate, opts)
+	case GateAI:
+		return e.evaluateAI(ctx, phaseOutput, opts)
 	default:
 		return nil, fmt.Errorf("unknown gate type: %s", gate.Type)
 	}
