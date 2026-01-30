@@ -10,6 +10,8 @@ Unified variable resolution system for orc workflows. Replaces scattered variabl
 | `resolver.go` | Main Resolver with all source type handlers |
 | `script.go` | Sandboxed script execution |
 | `cache.go` | TTL-based caching |
+| `interpolate.go` | `{{VAR}}` pattern replacement in source configs |
+| `extract.go` | JSONPath extraction using gjson |
 
 ## Source Types
 
@@ -77,6 +79,60 @@ These are automatically populated from `ResolutionContext`:
 | Prior Outputs | `SPEC_CONTENT`, `RESEARCH_CONTENT`, `TDD_TESTS_CONTENT`, `BREAKDOWN_CONTENT`, `IMPLEMENT_CONTENT`, `IMPLEMENTATION_SUMMARY`, `QA_FINDINGS`, `OUTPUT_{PHASE}` |
 
 **Context enrichment:** The executor calls `enrichContextForPhase()` before each phase to load phase-specific data (review findings, test results, etc.) into the resolution context.
+
+## Interpolation and Extraction
+
+### Variable Interpolation (`interpolate.go`)
+
+Source configs support `{{VAR}}` patterns. Already-resolved variables are substituted before source resolution:
+
+```go
+// Script with dynamic args
+{
+    Name:       "API_DATA",
+    SourceType: SourceScript,
+    SourceConfig: json.RawMessage(`{
+        "path": "fetch-data.sh",
+        "args": ["--task", "{{TASK_ID}}", "--phase", "{{PHASE}}"]
+    }`),
+}
+
+// API with dynamic URL
+{
+    Name:       "JIRA_ISSUE",
+    SourceType: SourceAPI,
+    SourceConfig: json.RawMessage(`{
+        "url": "https://jira.example.com/issue/{{TASK_ID}}"
+    }`),
+}
+```
+
+**Resolution order matters**: Variables are resolved in definition order. Forward references to unresolved variables become empty strings.
+
+### JSONPath Extraction (`extract.go`)
+
+The `Extract` field on Definition specifies a gjson path applied after source resolution:
+
+```go
+{
+    Name:       "DEPLOY_ENV",
+    SourceType: SourceAPI,
+    SourceConfig: json.RawMessage(`{"url": "https://api.example.com/config"}`),
+    Extract:    "deployment.environment",  // Extracts nested field
+}
+
+{
+    Name:       "FIRST_ITEM",
+    SourceType: SourcePhaseOutput,
+    SourceConfig: json.RawMessage(`{"phase": "spec"}`),
+    Extract:    "items.0.name",  // Array index access
+}
+```
+
+**Extraction behavior**:
+- Empty path: Returns raw value
+- Path not found: Returns empty string (not error)
+- Array/object result: Returns JSON string
 
 ## Script Security
 
