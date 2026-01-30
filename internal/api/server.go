@@ -34,7 +34,7 @@ import (
 // Server is the orc API server.
 type Server struct {
 	addr            string
-	workDir         string // Project directory
+	workDir         string // Project directory (legacy - used for backwards compat)
 	maxPortAttempts int    // Number of ports to try
 	mux             *http.ServeMux
 	logger          *slog.Logger
@@ -46,11 +46,17 @@ type Server struct {
 	publisher events.Publisher
 	wsHandler *WSHandler
 
-	// Storage backend
+	// Storage backend (legacy - used for backwards compat)
 	backend storage.Backend
 
-	// Project database for workflow execution
+	// Project database for workflow execution (legacy - used for backwards compat)
 	projectDB *db.ProjectDB
+
+	// Global database for cross-project resources
+	globalDB *db.GlobalDB
+
+	// Project database cache for multi-tenant access
+	projectCache *ProjectCache
 
 	// Running tasks for cancellation
 	runningTasks   map[string]context.CancelFunc
@@ -216,9 +222,17 @@ func New(cfg *Config) *Server {
 	// Create WebSocket handler
 	s.wsHandler = NewWSHandler(pub, s, logger)
 
+	// Open global DB for cross-project resources and cost tracking
+	globalDB, err := db.OpenGlobal()
+	if err != nil {
+		logger.Warn("failed to open global database", "error", err)
+	}
+	s.globalDB = globalDB
+
+	// Create project cache for multi-tenant database access
+	s.projectCache = NewProjectCache(10) // Max 10 projects open simultaneously
+
 	// Create session broadcaster for real-time metrics
-	// Open global DB for cost tracking (best-effort, may be nil)
-	globalDB, _ := db.OpenGlobal()
 	s.sessionBroadcaster = executor.NewSessionBroadcaster(
 		events.NewPublishHelper(pub),
 		backend,
@@ -362,6 +376,20 @@ func (s *Server) StartContext(ctx context.Context) error {
 			s.sessionBroadcaster.Stop()
 		}
 
+		// Close project cache (closes all cached databases)
+		if s.projectCache != nil {
+			if err := s.projectCache.Close(); err != nil {
+				s.logger.Error("project cache close error", "error", err)
+			}
+		}
+
+		// Close global database
+		if s.globalDB != nil {
+			if err := s.globalDB.Close(); err != nil {
+				s.logger.Error("global database close error", "error", err)
+			}
+		}
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
@@ -393,6 +421,16 @@ func (s *Server) Publish(taskID string, event Event) {
 // Backend returns the storage backend (for testing).
 func (s *Server) Backend() storage.Backend {
 	return s.backend
+}
+
+// ProjectCache returns the project database cache for multi-tenant access.
+func (s *Server) ProjectCache() *ProjectCache {
+	return s.projectCache
+}
+
+// GlobalDB returns the global database for cross-project resources.
+func (s *Server) GlobalDB() *db.GlobalDB {
+	return s.globalDB
 }
 
 // CancelAllRunningTasks cancels all running tasks and waits briefly for cleanup.
