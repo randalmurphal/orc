@@ -221,13 +221,13 @@ func (s *taskServer) GetTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskRequest],
 ) (*connect.Response[orcv1.GetTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Populate computed fields
@@ -325,14 +325,14 @@ func (s *taskServer) UpdateTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateTaskRequest],
 ) (*connect.Response[orcv1.UpdateTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
 	// Load existing task
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Apply updates - direct proto field assignments
@@ -393,14 +393,14 @@ func (s *taskServer) DeleteTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteTaskRequest],
 ) (*connect.Response[orcv1.DeleteTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
 	// Check task exists
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check if task is running
@@ -409,13 +409,13 @@ func (s *taskServer) DeleteTask(
 	}
 
 	// Delete the task
-	if err := s.backend.DeleteTask(req.Msg.Id); err != nil {
+	if err := s.backend.DeleteTask(req.Msg.TaskId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete task: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventTaskDeleted, req.Msg.Id, map[string]string{"task_id": req.Msg.Id}))
+		s.publisher.Publish(events.NewEvent(events.EventTaskDeleted, req.Msg.TaskId, map[string]string{"task_id": req.Msg.TaskId}))
 	}
 
 	return connect.NewResponse(&orcv1.DeleteTaskResponse{}), nil
@@ -426,13 +426,13 @@ func (s *taskServer) GetTaskState(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskStateRequest],
 ) (*connect.Response[orcv1.GetTaskStateResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	return connect.NewResponse(&orcv1.GetTaskStateResponse{
@@ -445,13 +445,13 @@ func (s *taskServer) GetTaskPlan(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskPlanRequest],
 ) (*connect.Response[orcv1.GetTaskPlanResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Build TaskPlan from execution state
@@ -540,13 +540,13 @@ func (s *taskServer) GetDependencies(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetDependenciesRequest],
 ) (*connect.Response[orcv1.GetDependenciesResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Load all tasks to compute dependencies
@@ -639,13 +639,13 @@ func (s *taskServer) AddBlocker(
 	ctx context.Context,
 	req *connect.Request[orcv1.AddBlockerRequest],
 ) (*connect.Response[orcv1.AddBlockerResponse], error) {
-	if req.Msg.Id == "" || req.Msg.BlockerId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and blocker_id are required"))
+	if req.Msg.TaskId == "" || req.Msg.BlockerId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and blocker_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check blocker exists
@@ -654,7 +654,7 @@ func (s *taskServer) AddBlocker(
 	}
 
 	// Check for self-reference
-	if req.Msg.Id == req.Msg.BlockerId {
+	if req.Msg.TaskId == req.Msg.BlockerId {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task cannot block itself"))
 	}
 
@@ -679,13 +679,13 @@ func (s *taskServer) RemoveBlocker(
 	ctx context.Context,
 	req *connect.Request[orcv1.RemoveBlockerRequest],
 ) (*connect.Response[orcv1.RemoveBlockerResponse], error) {
-	if req.Msg.Id == "" || req.Msg.BlockerId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and blocker_id are required"))
+	if req.Msg.TaskId == "" || req.Msg.BlockerId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and blocker_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Remove blocker
@@ -710,13 +710,13 @@ func (s *taskServer) AddRelated(
 	ctx context.Context,
 	req *connect.Request[orcv1.AddRelatedRequest],
 ) (*connect.Response[orcv1.AddRelatedResponse], error) {
-	if req.Msg.Id == "" || req.Msg.RelatedId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and related_id are required"))
+	if req.Msg.TaskId == "" || req.Msg.RelatedId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and related_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check related task exists
@@ -725,7 +725,7 @@ func (s *taskServer) AddRelated(
 	}
 
 	// Check for self-reference
-	if req.Msg.Id == req.Msg.RelatedId {
+	if req.Msg.TaskId == req.Msg.RelatedId {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task cannot be related to itself"))
 	}
 
@@ -750,13 +750,13 @@ func (s *taskServer) RemoveRelated(
 	ctx context.Context,
 	req *connect.Request[orcv1.RemoveRelatedRequest],
 ) (*connect.Response[orcv1.RemoveRelatedResponse], error) {
-	if req.Msg.Id == "" || req.Msg.RelatedId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id and related_id are required"))
+	if req.Msg.TaskId == "" || req.Msg.RelatedId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and related_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Remove related
@@ -786,13 +786,13 @@ func (s *taskServer) RunTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.RunTaskRequest],
 ) (*connect.Response[orcv1.RunTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Validate workflow_id BEFORE any status changes
@@ -878,13 +878,13 @@ func (s *taskServer) PauseTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.PauseTaskRequest],
 ) (*connect.Response[orcv1.PauseTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check if task is running
@@ -915,13 +915,13 @@ func (s *taskServer) ResumeTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.ResumeTaskRequest],
 ) (*connect.Response[orcv1.ResumeTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check if task can be resumed
@@ -954,13 +954,13 @@ func (s *taskServer) SkipBlock(
 	ctx context.Context,
 	req *connect.Request[orcv1.SkipBlockRequest],
 ) (*connect.Response[orcv1.SkipBlockResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Clear blocked_by and reset status if blocked
@@ -995,13 +995,13 @@ func (s *taskServer) RetryTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.RetryTaskRequest],
 ) (*connect.Response[orcv1.RetryTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check if task can be retried
@@ -1064,13 +1064,13 @@ func (s *taskServer) RetryPreview(
 	ctx context.Context,
 	req *connect.Request[orcv1.RetryPreviewRequest],
 ) (*connect.Response[orcv1.RetryPreviewResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Determine phases that would be rerun
@@ -1109,13 +1109,13 @@ func (s *taskServer) FinalizeTask(
 	ctx context.Context,
 	req *connect.Request[orcv1.FinalizeTaskRequest],
 ) (*connect.Response[orcv1.FinalizeTaskResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check if task can be finalized
@@ -1155,14 +1155,14 @@ func (s *taskServer) GetFinalizeState(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetFinalizeStateRequest],
 ) (*connect.Response[orcv1.GetFinalizeStateResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
 	// Load task to get finalization state
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Build finalize state from task's current state
@@ -1197,13 +1197,13 @@ func (s *taskServer) GetDiff(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetDiffRequest],
 ) (*connect.Response[orcv1.GetDiffResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	diffSvc := diff.NewService(s.projectRoot, s.diffCache)
@@ -1252,13 +1252,13 @@ func (s *taskServer) GetDiffStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetDiffStatsRequest],
 ) (*connect.Response[orcv1.GetDiffStatsResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	diffSvc := diff.NewService(s.projectRoot, s.diffCache)
@@ -1306,16 +1306,16 @@ func (s *taskServer) GetFileDiff(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetFileDiffRequest],
 ) (*connect.Response[orcv1.GetFileDiffResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.TaskId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 	if req.Msg.FilePath == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_path is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.Id)
+	t, err := s.backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	diffSvc := diff.NewService(s.projectRoot, s.diffCache)

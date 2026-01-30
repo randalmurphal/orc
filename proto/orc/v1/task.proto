@@ -470,12 +470,13 @@ service TaskService {
 
 // ListTasks
 message ListTasksRequest {
-  PageRequest page = 1;
-  optional string initiative_id = 2;
-  optional DependencyStatus dependency_status = 3;
-  repeated TaskStatus statuses = 4;
-  optional TaskQueue queue = 5;
-  optional TaskCategory category = 6;
+  string project_id = 1;  // Required: project to list tasks from
+  PageRequest page = 2;
+  optional string initiative_id = 3;
+  optional DependencyStatus dependency_status = 4;
+  repeated TaskStatus statuses = 5;
+  optional TaskQueue queue = 6;
+  optional TaskCategory category = 7;
 }
 
 message ListTasksResponse {
@@ -485,7 +486,8 @@ message ListTasksResponse {
 
 // GetTask
 message GetTaskRequest {
-  string id = 1;
+  string project_id = 1;  // Required: project containing the task
+  string task_id = 2;
 }
 
 message GetTaskResponse {
@@ -494,18 +496,19 @@ message GetTaskResponse {
 
 // CreateTask
 message CreateTaskRequest {
-  string title = 1;
-  optional string description = 2;
-  TaskWeight weight = 3;
-  optional TaskQueue queue = 4;
-  optional TaskPriority priority = 5;
-  optional TaskCategory category = 6;
-  optional string initiative_id = 7;
-  optional string workflow_id = 8;
-  optional string target_branch = 9;
-  repeated string blocked_by = 10;
-  repeated string related_to = 11;
-  map<string, string> metadata = 12;
+  string project_id = 1;  // Required: project to create task in
+  string title = 2;
+  optional string description = 3;
+  TaskWeight weight = 4;
+  optional TaskQueue queue = 5;
+  optional TaskPriority priority = 6;
+  optional TaskCategory category = 7;
+  optional string initiative_id = 8;
+  optional string workflow_id = 9;
+  optional string target_branch = 10;
+  repeated string blocked_by = 11;
+  repeated string related_to = 12;
+  map<string, string> metadata = 13;
 }
 
 message CreateTaskResponse {
@@ -514,19 +517,20 @@ message CreateTaskResponse {
 
 // UpdateTask
 message UpdateTaskRequest {
-  string id = 1;
-  optional string title = 2;
-  optional string description = 3;
-  optional TaskWeight weight = 4;
-  optional TaskQueue queue = 5;
-  optional TaskPriority priority = 6;
-  optional TaskCategory category = 7;
-  optional string initiative_id = 8;
-  optional string target_branch = 9;
-  repeated string blocked_by = 10;
-  repeated string related_to = 11;
-  map<string, string> metadata = 12;
-  optional string workflow_id = 13;
+  string project_id = 1;  // Required: project containing the task
+  string task_id = 2;
+  optional string title = 3;
+  optional string description = 4;
+  optional TaskWeight weight = 5;
+  optional TaskQueue queue = 6;
+  optional TaskPriority priority = 7;
+  optional TaskCategory category = 8;
+  optional string initiative_id = 9;
+  optional string target_branch = 10;
+  repeated string blocked_by = 11;
+  repeated string related_to = 12;
+  map<string, string> metadata = 13;
+  optional string workflow_id = 14;
 }
 
 message UpdateTaskResponse {
@@ -535,7 +539,8 @@ message UpdateTaskResponse {
 
 // DeleteTask
 message DeleteTaskRequest {
-  string id = 1;
+  string project_id = 1;  // Required: project containing the task
+  string task_id = 2;
 }
 
 message DeleteTaskResponse {
@@ -544,7 +549,8 @@ message DeleteTaskResponse {
 
 // GetTaskState
 message GetTaskStateRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTaskStateResponse {
@@ -553,7 +559,8 @@ message GetTaskStateResponse {
 
 // GetTaskPlan
 message GetTaskPlanRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTaskPlanResponse {
@@ -562,9 +569,10 @@ message GetTaskPlanResponse {
 
 // RunTask
 message RunTaskRequest {
-  string id = 1;
-  optional string profile = 2;
-  bool stream = 3;
+  string project_id = 1;
+  string task_id = 2;
+  optional string profile = 3;
+  bool stream = 4;
 }
 
 message RunTaskResponse {
@@ -573,7 +581,8 @@ message RunTaskResponse {
 
 // PauseTask
 message PauseTaskRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message PauseTaskResponse {
@@ -582,7 +591,8 @@ message PauseTaskResponse {
 
 // ResumeTask
 message ResumeTaskRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message ResumeTaskResponse {
@@ -591,6 +601,7 @@ message ResumeTaskResponse {
 
 // PauseAllTasks - Pauses all running tasks
 message PauseAllTasksRequest {
+  string project_id = 1;
 }
 
 message PauseAllTasksResponse {
@@ -600,6 +611,7 @@ message PauseAllTasksResponse {
 
 // ResumeAllTasks - Resumes all paused tasks
 message ResumeAllTasksRequest {
+  string project_id = 1;
 }
 
 message ResumeAllTasksResponse {
@@ -609,8 +621,9 @@ message ResumeAllTasksResponse {
 
 // SkipBlock
 message SkipBlockRequest {
-  string id = 1;
-  optional string reason = 2;
+  string project_id = 1;
+  string task_id = 2;
+  optional string reason = 3;
 }
 
 message SkipBlockResponse {
@@ -619,11 +632,12 @@ message SkipBlockResponse {
 
 // RetryTask
 message RetryTaskRequest {
-  string id = 1;
-  bool include_review_comments = 2;
-  bool include_pr_comments = 3;
-  optional string instructions = 4;
-  optional string from_phase = 5;
+  string project_id = 1;
+  string task_id = 2;
+  bool include_review_comments = 3;
+  bool include_pr_comments = 4;
+  optional string instructions = 5;
+  optional string from_phase = 6;
 }
 
 message RetryTaskResponse {
@@ -633,7 +647,8 @@ message RetryTaskResponse {
 
 // RetryPreview
 message RetryPreviewRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message RetryPreviewResponse {
@@ -642,9 +657,10 @@ message RetryPreviewResponse {
 
 // FinalizeTask
 message FinalizeTaskRequest {
-  string id = 1;
-  bool force = 2;
-  bool gate_override = 3;
+  string project_id = 1;
+  string task_id = 2;
+  bool force = 3;
+  bool gate_override = 4;
 }
 
 message FinalizeTaskResponse {
@@ -654,7 +670,8 @@ message FinalizeTaskResponse {
 
 // GetFinalizeState
 message GetFinalizeStateRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetFinalizeStateResponse {
@@ -663,8 +680,9 @@ message GetFinalizeStateResponse {
 
 // GetDependencies
 message GetDependenciesRequest {
-  string id = 1;
-  bool transitive = 2;
+  string project_id = 1;
+  string task_id = 2;
+  bool transitive = 3;
 }
 
 message GetDependenciesResponse {
@@ -673,8 +691,9 @@ message GetDependenciesResponse {
 
 // AddBlocker
 message AddBlockerRequest {
-  string id = 1;        // Task ID
-  string blocker_id = 2; // ID of task that blocks this one
+  string project_id = 1;
+  string task_id = 2;     // Task ID
+  string blocker_id = 3;  // ID of task that blocks this one
 }
 
 message AddBlockerResponse {
@@ -683,16 +702,18 @@ message AddBlockerResponse {
 
 // RemoveBlocker
 message RemoveBlockerRequest {
-  string id = 1;        // Task ID
-  string blocker_id = 2; // ID of blocker to remove
+  string project_id = 1;
+  string task_id = 2;     // Task ID
+  string blocker_id = 3;  // ID of blocker to remove
 }
 
 message RemoveBlockerResponse {}
 
 // AddRelated
 message AddRelatedRequest {
-  string id = 1;        // Task ID
-  string related_id = 2; // ID of related task
+  string project_id = 1;
+  string task_id = 2;     // Task ID
+  string related_id = 3;  // ID of related task
 }
 
 message AddRelatedResponse {
@@ -701,15 +722,17 @@ message AddRelatedResponse {
 
 // RemoveRelated
 message RemoveRelatedRequest {
-  string id = 1;        // Task ID
-  string related_id = 2; // ID of related task to remove
+  string project_id = 1;
+  string task_id = 2;     // Task ID
+  string related_id = 3;  // ID of related task to remove
 }
 
 message RemoveRelatedResponse {}
 
 // GetDiff
 message GetDiffRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetDiffResponse {
@@ -718,7 +741,8 @@ message GetDiffResponse {
 
 // GetDiffStats
 message GetDiffStatsRequest {
-  string id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetDiffStatsResponse {
@@ -727,8 +751,9 @@ message GetDiffStatsResponse {
 
 // GetFileDiff - Get diff hunks for a specific file
 message GetFileDiffRequest {
-  string id = 1;        // Task ID
-  string file_path = 2; // Path of the file to get diff for
+  string project_id = 1;
+  string task_id = 2;     // Task ID
+  string file_path = 3;   // Path of the file to get diff for
 }
 
 message GetFileDiffResponse {
@@ -737,9 +762,10 @@ message GetFileDiffResponse {
 
 // ListComments
 message ListCommentsRequest {
-  string task_id = 1;
-  optional AuthorType author_type = 2;
-  optional string phase = 3;
+  string project_id = 1;
+  string task_id = 2;
+  optional AuthorType author_type = 3;
+  optional string phase = 4;
 }
 
 message ListCommentsResponse {
@@ -748,11 +774,12 @@ message ListCommentsResponse {
 
 // CreateComment
 message CreateCommentRequest {
-  string task_id = 1;
-  string content = 2;
-  optional string author = 3;
-  optional AuthorType author_type = 4;
-  optional string phase = 5;
+  string project_id = 1;
+  string task_id = 2;
+  string content = 3;
+  optional string author = 4;
+  optional AuthorType author_type = 5;
+  optional string phase = 6;
 }
 
 message CreateCommentResponse {
@@ -761,10 +788,11 @@ message CreateCommentResponse {
 
 // UpdateComment
 message UpdateCommentRequest {
-  string task_id = 1;
-  string comment_id = 2;
-  optional string content = 3;
-  optional string phase = 4;
+  string project_id = 1;
+  string task_id = 2;
+  string comment_id = 3;
+  optional string content = 4;
+  optional string phase = 5;
 }
 
 message UpdateCommentResponse {
@@ -773,8 +801,9 @@ message UpdateCommentResponse {
 
 // DeleteComment
 message DeleteCommentRequest {
-  string task_id = 1;
-  string comment_id = 2;
+  string project_id = 1;
+  string task_id = 2;
+  string comment_id = 3;
 }
 
 message DeleteCommentResponse {
@@ -783,9 +812,10 @@ message DeleteCommentResponse {
 
 // ListReviewComments
 message ListReviewCommentsRequest {
-  string task_id = 1;
-  optional CommentStatus status = 2;
-  optional int32 review_round = 3;
+  string project_id = 1;
+  string task_id = 2;
+  optional CommentStatus status = 3;
+  optional int32 review_round = 4;
 }
 
 message ListReviewCommentsResponse {
@@ -794,12 +824,13 @@ message ListReviewCommentsResponse {
 
 // CreateReviewComment
 message CreateReviewCommentRequest {
-  string task_id = 1;
-  string content = 2;
-  CommentSeverity severity = 3;
-  optional string file_path = 4;
-  optional int32 line_number = 5;
-  int32 review_round = 6;
+  string project_id = 1;
+  string task_id = 2;
+  string content = 3;
+  CommentSeverity severity = 4;
+  optional string file_path = 5;
+  optional int32 line_number = 6;
+  int32 review_round = 7;
 }
 
 message CreateReviewCommentResponse {
@@ -808,10 +839,11 @@ message CreateReviewCommentResponse {
 
 // UpdateReviewComment
 message UpdateReviewCommentRequest {
-  string task_id = 1;
-  string comment_id = 2;
-  optional CommentStatus status = 3;
-  optional string content = 4;
+  string project_id = 1;
+  string task_id = 2;
+  string comment_id = 3;
+  optional CommentStatus status = 4;
+  optional string content = 5;
 }
 
 message UpdateReviewCommentResponse {
@@ -820,8 +852,9 @@ message UpdateReviewCommentResponse {
 
 // DeleteReviewComment
 message DeleteReviewCommentRequest {
-  string task_id = 1;
-  string comment_id = 2;
+  string project_id = 1;
+  string task_id = 2;
+  string comment_id = 3;
 }
 
 message DeleteReviewCommentResponse {
@@ -830,7 +863,8 @@ message DeleteReviewCommentResponse {
 
 // ListAttachments
 message ListAttachmentsRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message ListAttachmentsResponse {
@@ -846,9 +880,10 @@ message UploadAttachmentRequest {
 }
 
 message AttachmentMetadata {
-  string task_id = 1;
-  string filename = 2;
-  string content_type = 3;
+  string project_id = 1;
+  string task_id = 2;
+  string filename = 3;
+  string content_type = 4;
 }
 
 message UploadAttachmentResponse {
@@ -857,8 +892,9 @@ message UploadAttachmentResponse {
 
 // DownloadAttachment
 message DownloadAttachmentRequest {
-  string task_id = 1;
-  string filename = 2;
+  string project_id = 1;
+  string task_id = 2;
+  string filename = 3;
 }
 
 message DownloadAttachmentResponse {
@@ -867,8 +903,9 @@ message DownloadAttachmentResponse {
 
 // DeleteAttachment
 message DeleteAttachmentRequest {
-  string task_id = 1;
-  string filename = 2;
+  string project_id = 1;
+  string task_id = 2;
+  string filename = 3;
 }
 
 message DeleteAttachmentResponse {
@@ -877,7 +914,8 @@ message DeleteAttachmentResponse {
 
 // GetTestResults
 message GetTestResultsRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTestResultsResponse {
@@ -908,7 +946,8 @@ message ReviewRoundFindings {
 
 // GetReviewFindings
 message GetReviewFindingsRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetReviewFindingsResponse {
@@ -917,17 +956,18 @@ message GetReviewFindingsResponse {
 
 // ExportTask - exports task artifacts to filesystem or branch
 message ExportTaskRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
   // Export task.yaml and plan.yaml
-  optional bool task_definition = 2;
+  optional bool task_definition = 3;
   // Export state.yaml
-  optional bool final_state = 3;
+  optional bool final_state = 4;
   // Export full transcript files
-  optional bool transcripts = 4;
+  optional bool transcripts = 5;
   // Export context.md
-  optional bool context_summary = 5;
+  optional bool context_summary = 6;
   // Commit exports to the current branch
-  bool to_branch = 6;
+  bool to_branch = 7;
 }
 
 message ExportTaskResponse {

@@ -123,13 +123,13 @@ func (s *initiativeServer) GetInitiative(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetInitiativeRequest],
 ) (*connect.Response[orcv1.GetInitiativeResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
-	init, err := s.backend.LoadInitiativeProto(req.Msg.Id)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Compute blocks
@@ -201,14 +201,14 @@ func (s *initiativeServer) UpdateInitiative(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateInitiativeRequest],
 ) (*connect.Response[orcv1.UpdateInitiativeResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
 	// Load existing initiative
-	init, err := s.backend.LoadInitiativeProto(req.Msg.Id)
+	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Apply updates
@@ -260,24 +260,24 @@ func (s *initiativeServer) DeleteInitiative(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteInitiativeRequest],
 ) (*connect.Response[orcv1.DeleteInitiativeResponse], error) {
-	if req.Msg.Id == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	if req.Msg.InitiativeId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.Id)
+	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.Id))
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Delete the initiative
-	if err := s.backend.DeleteInitiative(req.Msg.Id); err != nil {
+	if err := s.backend.DeleteInitiative(req.Msg.InitiativeId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete initiative: %w", err))
 	}
 
 	// Publish event
 	if s.publisher != nil {
-		s.publisher.Publish(events.NewEvent(events.EventInitiativeDeleted, req.Msg.Id, map[string]string{"initiative_id": req.Msg.Id}))
+		s.publisher.Publish(events.NewEvent(events.EventInitiativeDeleted, req.Msg.InitiativeId, map[string]string{"initiative_id": req.Msg.InitiativeId}))
 	}
 
 	return connect.NewResponse(&orcv1.DeleteInitiativeResponse{}), nil
