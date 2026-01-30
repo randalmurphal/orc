@@ -1,30 +1,25 @@
-/* CanvasToolbar - Canvas control buttons */
+/* CanvasToolbar - Compact canvas control buttons */
 
 .canvas-toolbar {
 	display: flex;
 	align-items: center;
-	gap: var(--space-1);
-	padding: var(--space-1);
-	background: var(--bg-primary);
+	gap: var(--space-0-5);
+	padding: var(--space-0-5);
+	background: rgba(5, 5, 8, 0.8);
+	backdrop-filter: blur(8px);
 	border: 1px solid var(--border);
-	border-radius: var(--radius-md);
-	box-shadow: var(--shadow-sm);
+	border-radius: var(--radius-sm);
 }
 
-.canvas-toolbar__label {
-	margin-left: var(--space-1);
+/* Make buttons smaller and subtler */
+.canvas-toolbar .btn {
+	padding: var(--space-1);
+	min-width: 28px;
+	min-height: 28px;
+	color: var(--text-muted);
 }
 
-.canvas-toolbar__divider {
-	width: 1px;
-	height: 20px;
-	background: var(--border);
-	margin: 0 var(--space-1);
-}
-
-/* Hide labels on small screens */
-@media (max-width: 640px) {
-	.canvas-toolbar__label {
-		display: none;
-	}
+.canvas-toolbar .btn:hover {
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
 }

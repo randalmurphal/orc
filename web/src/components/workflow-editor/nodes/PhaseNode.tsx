@@ -1,6 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
-import type { PhaseNodeData, PhaseStatus } from './index';
+import type { PhaseNodeData, PhaseStatus, PhaseCategory } from './index';
 import './PhaseNode.css';
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -12,86 +12,111 @@ const STATUS_CLASSES: Record<string, string> = {
 	blocked: 'phase-node--blocked',
 };
 
+const CATEGORY_CLASSES: Record<PhaseCategory, string> = {
+	specification: 'phase-node--category-spec',
+	implementation: 'phase-node--category-impl',
+	quality: 'phase-node--category-quality',
+	documentation: 'phase-node--category-docs',
+	other: 'phase-node--category-other',
+};
+
 function getStatusClass(status?: PhaseStatus): string {
 	if (!status) return '';
 	return STATUS_CLASSES[status] ?? '';
 }
 
-function formatGateType(gt: GateType): string {
-	switch (gt) {
-		case GateType.HUMAN:
-			return 'human';
-		case GateType.SKIP:
-			return 'skip';
-		default:
-			return '';
-	}
+function getCategoryClass(category?: PhaseCategory): string {
+	if (!category) return CATEGORY_CLASSES.other;
+	return CATEGORY_CLASSES[category] ?? CATEGORY_CLASSES.other;
 }
 
-// Show iterations badge only for notably high values (> typical template default of 3)
-const ITERATIONS_BADGE_THRESHOLD = 3;
+/**
+ * Get the type badge label based on gate type
+ * - AUTO = AI (automated)
+ * - HUMAN = Human (requires approval)
+ * - SKIP = Skip (will be skipped)
+ */
+function getTypeBadge(gateType: GateType): { label: string; variant: 'ai' | 'human' | 'skip' } | null {
+	switch (gateType) {
+		case GateType.HUMAN:
+			return { label: 'Human', variant: 'human' };
+		case GateType.SKIP:
+			return { label: 'Skip', variant: 'skip' };
+		case GateType.AUTO:
+		default:
+			return { label: 'AI', variant: 'ai' };
+	}
+}
 
 export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 	const d = data as unknown as PhaseNodeData;
 	const displayName = d.templateName || d.phaseTemplateId;
 	const statusClass = getStatusClass(d.status);
-	const gateLabel = formatGateType(d.gateType);
-	const showIterBadge = d.maxIterations > ITERATIONS_BADGE_THRESHOLD;
-	const showBadges = gateLabel || showIterBadge || d.agentId;
-	// SC-4: Don't show $0.00 cost badge (avoid clutter)
-	const hasCostToShow = d.costUsd !== undefined && d.costUsd > 0;
-	const hasExecutionData = d.iterations !== undefined || hasCostToShow;
+	const categoryClass = getCategoryClass(d.category);
+	const typeBadge = getTypeBadge(d.gateType);
 
-	const classes = ['phase-node'];
+	// Truncate description to ~50 chars
+	const description = d.description
+		? d.description.length > 50
+			? d.description.slice(0, 47) + '...'
+			: d.description
+		: null;
+
+	const classes = ['phase-node', categoryClass];
 	if (statusClass) classes.push(statusClass);
-	if (selected) classes.push('selected');
+	if (selected) classes.push('phase-node--selected');
 
 	return (
 		<div className={classes.join(' ')}>
-			<Handle type="target" position={Position.Left} isConnectable={isConnectable} data-handletype="target" />
-			<div className="phase-node-header">
-				<span className="phase-node-sequence">{d.sequence}</span>
-				<div className="phase-node-title">
-					<span className="phase-node-name">{displayName}</span>
-					<span className="phase-node-template-id">
-						{d.phaseTemplateId}
-					</span>
+			<Handle
+				type="target"
+				position={Position.Left}
+				isConnectable={isConnectable}
+				data-handletype="target"
+			/>
+
+			<div className="phase-node__content">
+				{/* Header: name + badge */}
+				<div className="phase-node__header">
+					<span className="phase-node__name">{displayName}</span>
+					{typeBadge && (
+						<span className={`phase-node__badge phase-node__badge--${typeBadge.variant}`}>
+							{typeBadge.label}
+						</span>
+					)}
 				</div>
+
+				{/* Template ID */}
+				<span className="phase-node__id">{d.phaseTemplateId}</span>
+
+				{/* Description (if available) */}
+				{description && (
+					<p className="phase-node__description">{description}</p>
+				)}
+
+				{/* Execution footer (only during/after execution) */}
+				{(d.iterations !== undefined || (d.costUsd !== undefined && d.costUsd > 0)) && (
+					<div className="phase-node__footer">
+						{d.iterations !== undefined && (
+							<span className="phase-node__stat">
+								{d.iterations} iter
+							</span>
+						)}
+						{d.costUsd !== undefined && d.costUsd > 0 && (
+							<span className="phase-node__stat">
+								${d.costUsd.toFixed(2)}
+							</span>
+						)}
+					</div>
+				)}
 			</div>
-			{showBadges && (
-				<div className="phase-node-badges">
-					{gateLabel && (
-						<span className="phase-node-badge phase-node-badge--gate">
-							{gateLabel}
-						</span>
-					)}
-					{showIterBadge && (
-						<span className="phase-node-badge phase-node-badge--iterations">
-							×{d.maxIterations}
-						</span>
-					)}
-					{d.agentId && (
-						<span className="phase-node-badge phase-node-badge--model">
-							{d.agentId}
-						</span>
-					)}
-				</div>
-			)}
-			{hasExecutionData && (
-				<div className="phase-node-footer">
-					{d.iterations !== undefined && (
-						<span className="phase-node-iterations">
-							{d.iterations} iter
-						</span>
-					)}
-					{hasCostToShow && (
-						<span className="phase-node-cost">
-							${d.costUsd!.toFixed(2)}
-						</span>
-					)}
-				</div>
-			)}
-			<Handle type="source" position={Position.Right} isConnectable={isConnectable} data-handletype="source" />
+
+			<Handle
+				type="source"
+				position={Position.Right}
+				isConnectable={isConnectable}
+				data-handletype="source"
+			/>
 		</div>
 	);
 }

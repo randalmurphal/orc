@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { workflowClient } from '@/lib/client';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
+import { useWorkflowStore } from '@/stores/workflowStore';
 import { RunStatus, type WorkflowRunWithDetails, type Workflow } from '@/gen/orc/v1/workflow_pb';
 import { PhaseStatus } from '@/gen/orc/v1/task_pb';
 import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
@@ -12,6 +13,8 @@ import { ExecutionHeader } from './ExecutionHeader';
 import { CloneWorkflowModal } from '@/components/workflows/CloneWorkflowModal';
 import { formatDuration } from '@/stores/sessionStore';
 import './WorkflowEditorPage.css';
+
+export type WorkflowViewMode = 'overview' | 'editing';
 
 /**
  * Map proto PhaseStatus to UI PhaseStatus
@@ -52,6 +55,13 @@ export function WorkflowEditorPage() {
 
 	// Clone modal state (QA-002 fix)
 	const [cloneModalOpen, setCloneModalOpen] = useState(false);
+
+	// View mode state - Overview vs Editing
+	const [viewMode, setViewMode] = useState<WorkflowViewMode>('editing');
+
+	// Phase templates from workflow store - needed for palette
+	const phaseTemplates = useWorkflowStore((s) => s.phaseTemplates);
+	const setPhaseTemplates = useWorkflowStore((s) => s.setPhaseTemplates);
 
 	// Execution tracking state (TASK-639)
 	const activeRun = useWorkflowEditorStore((s) => s.activeRun);
@@ -174,6 +184,21 @@ export function WorkflowEditorPage() {
 		return () => reset();
 	}, [fetchWorkflow, reset]);
 
+	// Load phase templates if not already in store (direct navigation to editor)
+	useEffect(() => {
+		if (phaseTemplates.length === 0) {
+			workflowClient.listPhaseTemplates({ includeBuiltin: true }).then((res) => {
+				const sources: Record<string, import('@/gen/orc/v1/workflow_pb').DefinitionSource> = {};
+				for (const [key, value] of Object.entries(res.sources)) {
+					sources[key] = value;
+				}
+				setPhaseTemplates(res.templates, sources);
+			}).catch((err) => {
+				console.warn('Failed to load phase templates:', err);
+			});
+		}
+	}, [phaseTemplates.length, setPhaseTemplates]);
+
 	// Fetch active run after workflow loads
 	useEffect(() => {
 		if (!loading && workflowDetails) {
@@ -268,15 +293,35 @@ export function WorkflowEditorPage() {
 	return (
 		<div className="workflow-editor-page">
 			<div className="workflow-editor-header">
-				<nav className="workflow-editor-breadcrumb">
-					<Link to="/workflows">Workflows</Link>
-					<span className="workflow-editor-breadcrumb-separator">/</span>
-					<span className="workflow-editor-breadcrumb-current">
-						{workflowName}
-					</span>
-				</nav>
+				<div className="workflow-editor-header-left">
+					<nav className="workflow-editor-breadcrumb">
+						<Link to="/workflows">Workflows</Link>
+						<span className="workflow-editor-breadcrumb-separator">/</span>
+						<span className="workflow-editor-breadcrumb-current">
+							{workflowName}
+						</span>
+					</nav>
+				</div>
+				<div className="workflow-editor-mode-tabs" role="tablist">
+					<button
+						role="tab"
+						aria-selected={viewMode === 'overview'}
+						className={`workflow-editor-mode-tab ${viewMode === 'overview' ? 'workflow-editor-mode-tab--active' : ''}`}
+						onClick={() => setViewMode('overview')}
+					>
+						Overview
+					</button>
+					<button
+						role="tab"
+						aria-selected={viewMode === 'editing'}
+						className={`workflow-editor-mode-tab ${viewMode === 'editing' ? 'workflow-editor-mode-tab--active' : ''}`}
+						onClick={() => setViewMode('editing')}
+					>
+						Editing
+					</button>
+				</div>
 				<div className="workflow-editor-header-actions">
-					{isBuiltin && !showExecutionHeader && (
+					{isBuiltin && (
 						<span className="workflow-editor-badge">Built-in</span>
 					)}
 					{isBuiltin && (

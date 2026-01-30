@@ -26,6 +26,8 @@ interface WorkflowEditorStore {
 	loadFromWorkflow: (details: WorkflowWithDetails) => void;
 	setReadOnly: (readOnly: boolean) => void;
 	selectNode: (nodeId: string | null) => void;
+	setNodes: (nodes: Node[]) => void;
+	setEdges: (edges: Edge[]) => void;
 	reset: () => void;
 
 	// Execution tracking actions (TASK-639)
@@ -63,6 +65,10 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 		setReadOnly: (readOnly: boolean) => set({ readOnly }),
 
 		selectNode: (nodeId: string | null) => set({ selectedNodeId: nodeId }),
+
+		setNodes: (nodes: Node[]) => set({ nodes }),
+
+		setEdges: (edges: Edge[]) => set({ edges }),
 
 		reset: () => set(initialState),
 

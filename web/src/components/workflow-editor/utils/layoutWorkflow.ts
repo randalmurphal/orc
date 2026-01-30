@@ -2,11 +2,10 @@ import dagre from 'dagre';
 import type { Node, Edge } from '@xyflow/react';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
-import type { PhaseNodeData, StartEndNodeData } from '../nodes/index';
+import type { PhaseNodeData, PhaseCategory } from '../nodes/index';
 
-const PHASE_NODE_WIDTH = 240;
-const PHASE_NODE_HEIGHT = 100;
-const START_END_NODE_SIZE = 40;
+const PHASE_NODE_WIDTH = 260;
+const PHASE_NODE_HEIGHT = 88;
 
 export interface LayoutResult {
 	nodes: Node[];
@@ -14,8 +13,31 @@ export interface LayoutResult {
 }
 
 /**
+ * Determine phase category for color coding
+ */
+function getPhaseCategory(phaseTemplateId: string): PhaseCategory {
+	const id = phaseTemplateId.toLowerCase();
+	if (id.includes('spec') || id.includes('design') || id.includes('research')) {
+		return 'specification';
+	}
+	if (id.includes('implement') || id.includes('tdd') || id.includes('breakdown')) {
+		return 'implementation';
+	}
+	if (id.includes('review') || id.includes('validate') || id.includes('qa')) {
+		return 'quality';
+	}
+	if (id.includes('doc')) {
+		return 'documentation';
+	}
+	return 'other';
+}
+
+/**
  * Pure function that converts WorkflowWithDetails into React Flow nodes and edges
  * using dagre for left-to-right auto-layout.
+ *
+ * NOTE: Start/End nodes removed per design spec - workflow flows directly
+ * from first phase to last phase.
  */
 export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	const phases = [...(details.phases ?? [])].sort(
@@ -28,18 +50,8 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 		templateToNodeId.set(phase.phaseTemplateId, `phase-${phase.id}`);
 	}
 
-	// Create nodes
+	// Create nodes - only phase nodes, no start/end
 	const nodes: Node[] = [];
-	const startId = '__start__';
-	const endId = '__end__';
-
-	const startData: StartEndNodeData = { variant: 'start', label: 'Start' };
-	nodes.push({
-		id: startId,
-		type: 'startEnd',
-		position: { x: 0, y: 0 },
-		data: startData,
-	});
 
 	for (const phase of phases) {
 		const template = phase.template;
@@ -60,6 +72,8 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			agentId: phase.agentOverride || template?.agentId,
 			thinkingEnabled:
 				phase.thinkingOverride ?? template?.thinkingEnabled,
+			// New: category for color coding
+			category: getPhaseCategory(phase.phaseTemplateId),
 		};
 		nodes.push({
 			id: `phase-${phase.id}`,
@@ -69,35 +83,11 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 		});
 	}
 
-	const endData: StartEndNodeData = { variant: 'end', label: 'End' };
-	nodes.push({
-		id: endId,
-		type: 'startEnd',
-		position: { x: 0, y: 0 },
-		data: endData,
-	});
-
-	// Create edges
+	// Create edges - direct phase-to-phase connections
 	const edges: Edge[] = [];
 
-	// Sequential edges: start -> phase1 -> phase2 -> ... -> end
-	if (phases.length === 0) {
-		edges.push({
-			id: `edge-${startId}-${endId}`,
-			source: startId,
-			target: endId,
-			type: 'sequential',
-		});
-	} else {
-		// start -> first phase
-		edges.push({
-			id: `edge-${startId}-phase-${phases[0].id}`,
-			source: startId,
-			target: `phase-${phases[0].id}`,
-			type: 'sequential',
-		});
-
-		// phase-to-phase sequential
+	// Sequential edges: phase1 -> phase2 -> ... (no start/end)
+	if (phases.length > 1) {
 		for (let i = 0; i < phases.length - 1; i++) {
 			edges.push({
 				id: `edge-phase-${phases[i].id}-phase-${phases[i + 1].id}`,
@@ -106,14 +96,6 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				type: 'sequential',
 			});
 		}
-
-		// last phase -> end
-		edges.push({
-			id: `edge-phase-${phases[phases.length - 1].id}-${endId}`,
-			source: `phase-${phases[phases.length - 1].id}`,
-			target: endId,
-			type: 'sequential',
-		});
 	}
 
 	// Dependency edges
@@ -183,13 +165,10 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 	// Apply dagre layout
 	const g = new dagre.graphlib.Graph();
 	g.setDefaultEdgeLabel(() => ({}));
-	g.setGraph({ rankdir: 'LR', nodesep: 60, ranksep: 120 });
+	g.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 140 });
 
 	for (const node of nodes) {
-		const isStartEnd = node.type === 'startEnd';
-		const w = isStartEnd ? START_END_NODE_SIZE : PHASE_NODE_WIDTH;
-		const h = isStartEnd ? START_END_NODE_SIZE : PHASE_NODE_HEIGHT;
-		g.setNode(node.id, { width: w, height: h });
+		g.setNode(node.id, { width: PHASE_NODE_WIDTH, height: PHASE_NODE_HEIGHT });
 	}
 
 	// Only use sequential + dependency edges for layout (not loop/retry back-edges)
@@ -227,7 +206,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 			}
 		}
 
-		// Fall back to dagre for start/end nodes or phases without stored positions
+		// Fall back to dagre for phases without stored positions
 		if (dagreNode) {
 			node.position = {
 				x: dagreNode.x - dagreNode.width / 2,

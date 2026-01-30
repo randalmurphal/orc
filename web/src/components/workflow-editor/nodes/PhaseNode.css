@@ -1,145 +1,197 @@
-/* PhaseNode - custom React Flow node for workflow phases */
+/* ─────────────────────────────────────────────────────────────────────────────
+   PhaseNode - Redesigned custom React Flow node for workflow phases
+   Based on mockup: example_ui/example_workflows/workflows_editor.png
+   ───────────────────────────────────────────────────────────────────────────── */
 
 .phase-node {
+	position: relative;
 	background: var(--bg-card);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
-	padding: var(--space-2) var(--space-3);
-	font-family: var(--font-sans);
-	font-size: var(--text-sm);
-	color: var(--text-primary);
-	min-width: 180px;
-	max-width: 240px;
-	/* SC-2: Smooth CSS transitions for hover/selection states */
+	min-width: 200px;
+	max-width: 260px;
+	overflow: hidden;
 	transition:
 		transform var(--duration-fast) var(--ease-out),
 		box-shadow var(--duration-fast) var(--ease-out),
 		border-color var(--duration-fast) var(--ease-out);
 }
 
-/* SC-2: Hover state - subtle scale and shadow */
-.phase-node:hover {
-	transform: scale(1.02);
-	box-shadow: var(--shadow-md);
+/* ─── Category Color Accents (left border) ───────────────────────────────────── */
+
+.phase-node::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 4px;
+	background: var(--text-muted);
+	border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
-/* Selection */
-.phase-node.selected {
+.phase-node--category-spec::before {
+	background: var(--blue);
+}
+
+.phase-node--category-impl::before {
+	background: var(--green);
+}
+
+.phase-node--category-quality::before {
+	background: var(--orange);
+}
+
+.phase-node--category-docs::before {
+	background: var(--primary);
+}
+
+.phase-node--category-other::before {
+	background: var(--text-muted);
+}
+
+/* ─── Content Area ───────────────────────────────────────────────────────────── */
+
+.phase-node__content {
+	padding: var(--space-3);
+	padding-left: calc(var(--space-3) + 4px); /* Account for accent border */
+}
+
+/* ─── Header: Name + Badge ───────────────────────────────────────────────────── */
+
+.phase-node__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-bottom: var(--space-1);
+}
+
+.phase-node__name {
+	font-family: var(--font-body);
+	font-size: var(--text-lg);
+	font-weight: var(--font-semibold);
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: var(--leading-tight);
+}
+
+/* ─── Type Badge (AI / Human / Skip) ─────────────────────────────────────────── */
+
+.phase-node__badge {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	padding: var(--space-0-5) var(--space-1-5);
+	font-family: var(--font-body);
+	font-size: var(--text-xs);
+	font-weight: var(--font-medium);
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wide);
+	border-radius: var(--radius-sm);
+}
+
+.phase-node__badge--ai {
+	background: var(--primary-dim);
+	color: var(--primary);
+}
+
+.phase-node__badge--human {
+	background: var(--cyan-dim);
+	color: var(--cyan);
+}
+
+.phase-node__badge--skip {
+	background: var(--bg-hover);
+	color: var(--text-muted);
+}
+
+/* ─── Template ID ────────────────────────────────────────────────────────────── */
+
+.phase-node__id {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	margin-bottom: var(--space-1);
+}
+
+/* ─── Description ────────────────────────────────────────────────────────────── */
+
+.phase-node__description {
+	margin: var(--space-1-5) 0 0 0;
+	font-family: var(--font-body);
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+	line-height: var(--leading-snug);
+}
+
+/* ─── Execution Footer ───────────────────────────────────────────────────────── */
+
+.phase-node__footer {
+	display: flex;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+	padding-top: var(--space-2);
+	border-top: 1px solid var(--border);
+}
+
+.phase-node__stat {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+}
+
+/* ─── Hover State ────────────────────────────────────────────────────────────── */
+
+.phase-node:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md);
+	border-color: var(--border-hover);
+}
+
+/* ─── Selected State ─────────────────────────────────────────────────────────── */
+
+.phase-node--selected {
 	border-color: var(--primary);
 	box-shadow: var(--shadow-glow-sm);
 }
 
-/* Header: sequence badge + title */
-.phase-node-header {
-	display: flex;
-	align-items: flex-start;
-	gap: var(--space-2);
+.phase-node--selected:hover {
+	box-shadow: var(--shadow-glow);
 }
 
-.phase-node-sequence {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 20px;
-	height: 20px;
-	border-radius: var(--radius-full);
-	background: var(--bg-secondary);
-	border: 1px solid var(--border);
-	font-size: var(--text-xs);
-	font-weight: 600;
-	color: var(--text-secondary);
-	flex-shrink: 0;
-}
+/* ─── Status States ──────────────────────────────────────────────────────────── */
 
-.phase-node-title {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-0-5);
-	min-width: 0;
-}
-
-.phase-node-name {
-	font-weight: 600;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.phase-node-template-id {
-	font-family: var(--font-mono);
-	font-size: var(--text-xs);
-	color: var(--text-tertiary);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* Metadata badges */
-.phase-node-badges {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-1);
-	margin-top: var(--space-1-5);
-}
-
-.phase-node-badge {
-	display: inline-flex;
-	align-items: center;
-	padding: var(--space-0-5) var(--space-1);
-	font-size: var(--text-xs);
-	border-radius: var(--radius-sm);
-	background: var(--bg-primary);
-	border: 1px solid var(--border);
-	color: var(--text-secondary);
-}
-
-.phase-node-badge--gate {
-	background: var(--cyan-dim);
-	border-color: var(--cyan);
-	color: var(--cyan);
-}
-
-.phase-node-badge--iterations {
-	background: var(--orange-dim);
-	border-color: var(--orange);
-	color: var(--orange);
-}
-
-.phase-node-badge--model {
-	background: var(--primary-dim);
-	border-color: var(--primary);
-	color: var(--primary);
-}
-
-/* Execution footer */
-.phase-node-footer {
-	display: flex;
-	gap: var(--space-2);
-	margin-top: var(--space-1-5);
-	font-size: var(--text-xs);
-	color: var(--text-tertiary);
-}
-
-/* Status states */
 .phase-node--running {
 	border-color: var(--primary);
 	box-shadow: 0 0 12px var(--primary-glow);
 	animation: phase-pulse 2s ease-in-out infinite;
 }
 
+.phase-node--completed::before {
+	background: var(--green) !important;
+}
+
 .phase-node--completed {
-	border-left: 3px solid var(--green);
+	border-color: rgba(16, 185, 129, 0.3);
+}
+
+.phase-node--failed::before {
+	background: var(--red) !important;
 }
 
 .phase-node--failed {
-	border-left: 3px solid var(--red);
+	border-color: rgba(239, 68, 68, 0.3);
 }
 
 .phase-node--skipped {
 	opacity: 0.5;
 }
 
-.phase-node--skipped .phase-node-name {
+.phase-node--skipped .phase-node__name {
 	text-decoration: line-through;
 }
 
@@ -147,16 +199,22 @@
 	opacity: 0.7;
 }
 
+.phase-node--blocked::before {
+	background: var(--orange) !important;
+}
+
 .phase-node--blocked {
 	opacity: 0.6;
-	border-left: 3px solid var(--orange);
+	border-color: rgba(249, 115, 22, 0.3);
 }
+
+/* ─── Animations ─────────────────────────────────────────────────────────────── */
 
 @keyframes phase-pulse {
 	0%, 100% {
 		box-shadow: 0 0 8px var(--primary-glow);
 	}
 	50% {
-		box-shadow: 0 0 16px var(--primary-glow);
+		box-shadow: 0 0 20px var(--primary-glow);
 	}
 }

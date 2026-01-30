@@ -2,15 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	ReactFlow,
 	ReactFlowProvider,
-	Controls,
 	MiniMap,
 	Background,
 	BackgroundVariant,
 	useReactFlow,
+	applyNodeChanges,
+	applyEdgeChanges,
 	type NodeMouseHandler,
 	type Node,
 	type OnConnect,
 	type OnNodeDrag,
+	type OnNodesChange,
+	type OnEdgesChange,
 	type Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -29,29 +32,42 @@ interface WorkflowCanvasProps {
 }
 
 /**
- * Returns status-based color for MiniMap nodes.
- * Maps phase execution status to semantic colors.
+ * Returns color for MiniMap nodes based on category and status.
+ * Uses category colors by default, status colors when executing.
  */
 function getNodeColor(node: Node): string {
-	// Only phase nodes have status - startEnd nodes use default
-	if (node.type !== 'phase') {
-		return '#55555f'; // --text-muted
+	const data = node.data as PhaseNodeData;
+	const status = data?.status;
+
+	// During execution, use status colors
+	if (status) {
+		switch (status) {
+			case 'completed':
+				return '#10b981'; // --green
+			case 'running':
+				return '#a855f7'; // --primary (purple)
+			case 'failed':
+				return '#ef4444'; // --red
+			case 'blocked':
+				return '#f97316'; // --orange
+			case 'skipped':
+				return '#8e8e9a'; // --text-secondary
+		}
 	}
 
-	const status = (node.data as PhaseNodeData)?.status;
-	switch (status) {
-		case 'completed':
+	// Use category colors for non-executing states
+	const category = data?.category;
+	switch (category) {
+		case 'specification':
+			return '#3b82f6'; // --blue
+		case 'implementation':
 			return '#10b981'; // --green
-		case 'running':
-			return '#a855f7'; // --primary (purple)
-		case 'failed':
-			return '#ef4444'; // --red
-		case 'blocked':
+		case 'quality':
 			return '#f97316'; // --orange
-		case 'skipped':
-			return '#8e8e9a'; // --text-secondary
+		case 'documentation':
+			return '#a855f7'; // --primary (purple)
 		default:
-			return '#55555f'; // --text-muted (pending/unspecified)
+			return '#55555f'; // --text-muted
 	}
 }
 
@@ -62,8 +78,21 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
 	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
+	const setNodes = useWorkflowEditorStore((s) => s.setNodes);
+	const setEdges = useWorkflowEditorStore((s) => s.setEdges);
 
 	const reactFlowInstance = useReactFlow();
+
+	// Node/edge change handlers for controlled mode - required for MiniMap to work
+	const onNodesChange: OnNodesChange = useCallback(
+		(changes) => setNodes(applyNodeChanges(changes, nodes)),
+		[nodes, setNodes]
+	);
+
+	const onEdgesChange: OnEdgesChange = useCallback(
+		(changes) => setEdges(applyEdgeChanges(changes, edges)),
+		[edges, setEdges]
+	);
 
 	// Ref for canvas container (needed for native drag event listeners)
 	const canvasRef = useRef<HTMLDivElement>(null);
@@ -211,7 +240,6 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 	// Node click handler
 	const onNodeClick: NodeMouseHandler = useCallback(
 		(_event, node) => {
-			if (node.type === 'startEnd') return;
 			selectNode(node.id);
 		},
 		[selectNode]
@@ -468,6 +496,8 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
+				onNodesChange={onNodesChange}
+				onEdgesChange={onEdgesChange}
 				edgeTypes={edgeTypes}
 				nodeTypes={nodeTypes}
 				nodesDraggable={!readOnly}
@@ -478,10 +508,21 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 				onConnect={onConnect}
 				onNodeDragStop={onNodeDragStop}
 				fitView
+				fitViewOptions={{ padding: 0.2 }}
+				minZoom={0.3}
+				maxZoom={1.5}
 			>
-				<Controls />
-				<MiniMap nodeColor={getNodeColor} />
-				<Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+				<MiniMap
+					nodeColor={getNodeColor}
+					nodeStrokeWidth={2}
+					nodeBorderRadius={4}
+					maskColor="rgba(5, 5, 8, 0.85)"
+					className="workflow-minimap"
+					zoomable
+					pannable
+					style={{ width: 180, height: 120 }}
+				/>
+				<Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255,255,255,0.03)" />
 			</ReactFlow>
 
 			{/* Canvas toolbar (SC-12) */}

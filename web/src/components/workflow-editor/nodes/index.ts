@@ -1,6 +1,5 @@
 import type { GateType } from '@/gen/orc/v1/workflow_pb';
 import { PhaseNode } from './PhaseNode';
-import { StartEndNode } from './StartEndNode';
 
 /** Status of a phase during execution */
 export type PhaseStatus =
@@ -11,6 +10,14 @@ export type PhaseStatus =
 	| 'skipped'
 	| 'blocked'
 	| 'unspecified';
+
+/** Phase category for color coding */
+export type PhaseCategory =
+	| 'specification'
+	| 'implementation'
+	| 'quality'
+	| 'documentation'
+	| 'other';
 
 /** Data passed to PhaseNode via node.data */
 export interface PhaseNodeData {
@@ -27,20 +34,17 @@ export interface PhaseNodeData {
 	status?: PhaseStatus;
 	iterations?: number;
 	costUsd?: number;
-}
-
-/** Data passed to StartEndNode via node.data */
-export interface StartEndNodeData {
-	[key: string]: unknown;
-	variant: 'start' | 'end';
-	label: string;
+	/** Category for visual color coding */
+	category?: PhaseCategory;
 }
 
 /**
  * Custom node types for React Flow.
  * Defined at module scope to avoid re-renders (React Flow requirement).
+ *
+ * NOTE: Start/End nodes removed per design spec - workflow flows directly
+ * from first phase to last phase without explicit terminals.
  */
 export const nodeTypes = {
 	phase: PhaseNode,
-	startEnd: StartEndNode,
 } as const;
