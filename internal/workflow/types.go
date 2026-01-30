@@ -34,7 +34,71 @@ const (
 	GateAuto  GateType = "auto"  // AI auto-approves
 	GateHuman GateType = "human" // Requires human approval
 	GateSkip  GateType = "skip"  // No gate, always continues
+	GateAI    GateType = "ai"    // AI gate evaluation
 )
+
+// GateMode defines whether a gate blocks progression or fires asynchronously.
+type GateMode string
+
+const (
+	GateModeGate     GateMode = "gate"     // Synchronous, can block progression
+	GateModeReaction GateMode = "reaction"  // Asynchronous, fire-and-forget
+)
+
+// GateAction defines the action to take on gate approval/rejection.
+type GateAction string
+
+const (
+	GateActionContinue  GateAction = "continue"   // Continue to next phase
+	GateActionRetry     GateAction = "retry"       // Retry from specified phase
+	GateActionFail      GateAction = "fail"        // Fail the task
+	GateActionSkipPhase GateAction = "skip_phase"  // Skip the next phase
+	GateActionRunScript GateAction = "run_script"  // Run a script
+)
+
+// WorkflowTriggerEvent defines lifecycle event types for workflow-level triggers.
+type WorkflowTriggerEvent string
+
+const (
+	WorkflowTriggerEventOnTaskCreated        WorkflowTriggerEvent = "on_task_created"
+	WorkflowTriggerEventOnTaskCompleted      WorkflowTriggerEvent = "on_task_completed"
+	WorkflowTriggerEventOnTaskFailed         WorkflowTriggerEvent = "on_task_failed"
+	WorkflowTriggerEventOnInitiativePlanned  WorkflowTriggerEvent = "on_initiative_planned"
+)
+
+// GateInputConfig defines what context the gate evaluator receives.
+type GateInputConfig struct {
+	IncludePhaseOutput []string `json:"include_phase_output,omitempty" yaml:"include_phase_output,omitempty"`
+	IncludeTask        bool     `json:"include_task,omitempty" yaml:"include_task,omitempty"`
+	ExtraVars          []string `json:"extra_vars,omitempty" yaml:"extra_vars,omitempty"`
+}
+
+// GateOutputConfig defines what happens with gate evaluation results.
+type GateOutputConfig struct {
+	VariableName string     `json:"variable_name,omitempty" yaml:"variable_name,omitempty"`
+	OnApproved   GateAction `json:"on_approved,omitempty" yaml:"on_approved,omitempty"`
+	OnRejected   GateAction `json:"on_rejected,omitempty" yaml:"on_rejected,omitempty"`
+	RetryFrom    string     `json:"retry_from,omitempty" yaml:"retry_from,omitempty"`
+	Script       string     `json:"script,omitempty" yaml:"script,omitempty"`
+}
+
+// BeforePhaseTrigger defines a trigger that runs before a phase starts.
+type BeforePhaseTrigger struct {
+	AgentID      string           `json:"agent_id" yaml:"agent_id"`
+	InputConfig  *GateInputConfig  `json:"input_config,omitempty" yaml:"input_config,omitempty"`
+	OutputConfig *GateOutputConfig `json:"output_config,omitempty" yaml:"output_config,omitempty"`
+	Mode         GateMode         `json:"mode,omitempty" yaml:"mode,omitempty"`
+}
+
+// WorkflowTrigger defines a workflow-level lifecycle trigger.
+type WorkflowTrigger struct {
+	Event        WorkflowTriggerEvent `json:"event" yaml:"event"`
+	AgentID      string               `json:"agent_id" yaml:"agent_id"`
+	InputConfig  *GateInputConfig     `json:"input_config,omitempty" yaml:"input_config,omitempty"`
+	OutputConfig *GateOutputConfig    `json:"output_config,omitempty" yaml:"output_config,omitempty"`
+	Mode         GateMode             `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Enabled      bool                 `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+}
 
 // RunStatus represents the execution state of a workflow run.
 type RunStatus string
@@ -109,6 +173,12 @@ type PhaseTemplate struct {
 	GateType        GateType `json:"gate_type" db:"gate_type"`
 	Checkpoint      bool     `json:"checkpoint" db:"checkpoint"`
 
+	// Gate configuration (extended)
+	GateMode        GateMode         `json:"gate_mode,omitempty" db:"gate_mode"`
+	GateAgentID     string           `json:"gate_agent_id,omitempty" db:"gate_agent_id"`
+	GateInputConfig  *GateInputConfig  `json:"gate_input_config,omitempty"`
+	GateOutputConfig *GateOutputConfig `json:"gate_output_config,omitempty"`
+
 	// Retry configuration
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`
@@ -132,6 +202,9 @@ type Workflow struct {
 	BasedOn         string       `json:"based_on,omitempty" db:"based_on"`
 	CreatedAt       time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time    `json:"updated_at" db:"updated_at"`
+
+	// Workflow-level lifecycle triggers
+	Triggers []WorkflowTrigger `json:"triggers,omitempty"`
 
 	// Loaded relations (not stored directly)
 	Phases    []WorkflowPhase    `json:"phases,omitempty"`
@@ -157,6 +230,9 @@ type WorkflowPhase struct {
 	// Claude CLI configuration override (JSON)
 	// Merged with PhaseTemplate.ClaudeConfig, with this taking precedence
 	ClaudeConfigOverride string `json:"claude_config_override,omitempty" db:"claude_config_override"`
+
+	// Before-phase triggers
+	BeforeTriggers []BeforePhaseTrigger `json:"before_triggers,omitempty"`
 
 	// Visual editor position (nil = auto-layout via dagre)
 	PositionX *float64 `json:"position_x,omitempty" db:"position_x"`
