@@ -29,18 +29,24 @@ import (
 // Returns error if the executor fails to spawn (not execution errors).
 type TaskExecutorFunc func(taskID, projectID string) error
 
+// TaskLifecycleTriggerRunner evaluates lifecycle triggers for task creation events.
+type TaskLifecycleTriggerRunner interface {
+	RunLifecycleTriggers(ctx context.Context, event workflow.WorkflowTriggerEvent, triggers []workflow.WorkflowTrigger, task *orcv1.Task) error
+}
+
 // taskServer implements the TaskServiceHandler interface.
 type taskServer struct {
 	orcv1connect.UnimplementedTaskServiceHandler
-	backend      storage.Backend   // Legacy: single project backend (fallback)
-	projectCache *ProjectCache     // Multi-project: cache of backends per project
-	config       *config.Config
-	logger       *slog.Logger
-	publisher    events.Publisher
-	projectRoot  string
-	diffCache    *diff.Cache
-	projectDB    *db.ProjectDB
-	taskExecutor TaskExecutorFunc // Optional: spawns executor for RunTask
+	backend        storage.Backend   // Legacy: single project backend (fallback)
+	projectCache   *ProjectCache     // Multi-project: cache of backends per project
+	config         *config.Config
+	logger         *slog.Logger
+	publisher      events.Publisher
+	projectRoot    string
+	diffCache      *diff.Cache
+	projectDB      *db.ProjectDB
+	taskExecutor   TaskExecutorFunc              // Optional: spawns executor for RunTask
+	triggerRunner  TaskLifecycleTriggerRunner    // Optional: evaluates lifecycle triggers
 }
 
 // getBackend returns the appropriate backend for a project ID.
@@ -105,6 +111,32 @@ func NewTaskServerWithExecutor(
 		diffCache:    diffCache,
 		projectDB:    projectDB,
 		taskExecutor: executor,
+	}
+}
+
+// NewTaskServerWithTriggerRunner creates a TaskService handler with trigger runner support.
+func NewTaskServerWithTriggerRunner(
+	backend storage.Backend,
+	cfg *config.Config,
+	logger *slog.Logger,
+	publisher events.Publisher,
+	projectRoot string,
+	diffCache *diff.Cache,
+	projectDB *db.ProjectDB,
+	triggerRunner TaskLifecycleTriggerRunner,
+) *taskServer {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &taskServer{
+		backend:       backend,
+		config:        cfg,
+		logger:        logger,
+		publisher:     publisher,
+		projectRoot:   projectRoot,
+		diffCache:     diffCache,
+		projectDB:     projectDB,
+		triggerRunner: triggerRunner,
 	}
 }
 
@@ -384,9 +416,63 @@ func (s *taskServer) CreateTask(
 		s.publisher.Publish(events.NewEvent(events.EventTaskCreated, t.Id, t))
 	}
 
+	// Fire on_task_created lifecycle triggers if a workflow is assigned
+	if s.triggerRunner != nil && t.WorkflowId != nil && *t.WorkflowId != "" {
+		triggers := s.loadWorkflowTriggers(*t.WorkflowId)
+		if err := s.triggerRunner.RunLifecycleTriggers(ctx, workflow.WorkflowTriggerEventOnTaskCreated, triggers, t); err != nil {
+			// Gate rejection: set task to BLOCKED
+			t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+			task.UpdateTimestampProto(t)
+			if saveErr := backend.SaveTask(t); saveErr != nil {
+				s.logger.Error("failed to save blocked task after gate rejection",
+					"task_id", t.Id, "error", saveErr)
+			}
+			// Reload and return the blocked task
+			updated, loadErr := backend.LoadTask(t.Id)
+			if loadErr != nil {
+				return connect.NewResponse(&orcv1.CreateTaskResponse{Task: t}), nil
+			}
+			return connect.NewResponse(&orcv1.CreateTaskResponse{Task: updated}), nil
+		}
+	}
+
 	return connect.NewResponse(&orcv1.CreateTaskResponse{
 		Task: t,
 	}), nil
+}
+
+// loadWorkflowTriggers loads and parses triggers from a workflow ID.
+// Returns nil if the workflow can't be loaded or has no triggers.
+func (s *taskServer) loadWorkflowTriggers(workflowID string) []workflow.WorkflowTrigger {
+	if s.projectDB == nil {
+		return nil
+	}
+	wf, err := s.projectDB.GetWorkflow(workflowID)
+	if err != nil {
+		s.logger.Debug("could not load workflow for triggers",
+			"workflow_id", workflowID, "error", err)
+		return nil
+	}
+	if wf.Triggers == "" {
+		return nil
+	}
+	dbTriggers, err := db.ParseWorkflowTriggers(wf.Triggers)
+	if err != nil {
+		s.logger.Warn("failed to parse workflow triggers",
+			"workflow_id", workflowID, "error", err)
+		return nil
+	}
+	// Convert db.WorkflowTrigger to workflow.WorkflowTrigger
+	result := make([]workflow.WorkflowTrigger, len(dbTriggers))
+	for i, dt := range dbTriggers {
+		result[i] = workflow.WorkflowTrigger{
+			Event:   workflow.WorkflowTriggerEvent(dt.Event),
+			AgentID: dt.AgentID,
+			Mode:    workflow.GateMode(dt.Mode),
+			Enabled: dt.Enabled,
+		}
+	}
+	return result
 }
 
 // UpdateTask updates an existing task.
