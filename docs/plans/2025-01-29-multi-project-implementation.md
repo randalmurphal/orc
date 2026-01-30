@@ -25,12 +25,12 @@ Create an LRU cache for project databases so the server can serve multiple proje
 package api
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/project"
 )
 
@@ -370,13 +370,6 @@ func New(cfg *Config) *Server {
 		panic(fmt.Sprintf("failed to open global database: %v", err))
 	}
 
-	// Seed built-in workflows and phase templates to global DB
-	if seeded, err := workflow.SeedBuiltinsToGlobal(globalDB); err != nil {
-		logger.Warn("failed to seed builtins", "error", err)
-	} else if seeded {
-		logger.Info("seeded built-in workflows and phases to global database")
-	}
-
 	// Create project cache (max 10 projects open simultaneously)
 	projectCache := NewProjectCache(10)
 
@@ -386,6 +379,9 @@ func New(cfg *Config) *Server {
 		logger.Warn("failed to load global orc config, using defaults", "error", err)
 		orcCfg = config.Default()
 	}
+
+	// NOTE: Workflow seeding to global DB is added in Task 7 after
+	// the global schema is updated with workflow tables.
 
 	// ... rest of initialization using globalDB and projectCache
 }
@@ -409,6 +405,8 @@ Global database opened separately for shared resources."
 ---
 
 ## Task 3: Add Project ID to Proto Requests
+
+> **IMPORTANT**: Tasks 3-6 must be executed as one atomic batch. The proto changes will break compilation until all services are updated. Do not commit between these tasks.
 
 Update proto definitions to include project_id in all project-scoped requests.
 
@@ -698,11 +696,79 @@ git commit -m "feat(api): update Transcript and Event services for multi-tenant"
 Currently workflows are per-project. Move them to global database.
 
 **Files:**
-- Modify: `internal/db/workflow.go` (add Global variants)
+- Create: `internal/db/schema/global_002.sql` (workflow tables for global DB)
+- Modify: `internal/db/global.go` (add workflow/phase/agent operations)
+- Modify: `internal/db/workflow.go` (add GlobalDB method receivers)
 - Modify: `internal/api/workflow_server.go`
 - Modify: `internal/workflow/seed.go`
 
-**Step 1: Add workflow operations to GlobalDB**
+**Step 1: Create global schema migration for workflow tables**
+
+```sql
+-- internal/db/schema/global_002.sql
+-- Workflow tables for global (cross-project) storage
+
+CREATE TABLE IF NOT EXISTS workflows (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_builtin INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS workflow_phases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    phase_template_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    agent_override TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS phase_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    prompt_file TEXT,
+    agent TEXT,
+    max_iterations INTEGER DEFAULT 3,
+    gate_type TEXT,
+    is_builtin INTEGER DEFAULT 0,
+    thinking_budget INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS agents (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    model TEXT,
+    thinking_budget INTEGER,
+    max_tokens INTEGER,
+    temperature REAL,
+    is_builtin INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS workflow_variables (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    source TEXT NOT NULL,
+    default_value TEXT,
+    required INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_phases_workflow ON workflow_phases(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_variables_workflow ON workflow_variables(workflow_id);
+```
+
+**Step 2: Add workflow operations to GlobalDB**
 
 ```go
 // internal/db/global.go (add these methods)
