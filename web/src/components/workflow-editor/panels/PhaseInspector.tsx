@@ -13,6 +13,7 @@ import type {
 import type { Agent } from '@/gen/orc/v1/config_pb';
 import { PromptEditor } from './PromptEditor';
 import { VariableModal } from '../VariableModal';
+import { VariableReferencePanel } from '../VariableReferencePanel';
 import './PhaseInspector.css';
 
 type InspectorTab = 'prompt' | 'variables' | 'settings';
@@ -267,6 +268,9 @@ function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin, onW
 					</button>
 				)}
 			</div>
+
+			{/* Variable Reference Panel - shows all available {{VAR}} patterns */}
+			<VariableReferencePanel workflowDetails={workflowDetails} />
 
 			{/* Variable Modal */}
 			<VariableModal
