@@ -37,6 +37,7 @@ Core Go packages for the orc orchestrator. Each package has a single responsibil
 | `task/` | Proto helpers, execution state utils, orphan detection | `proto_helpers.go`, `execution_helpers.go`, `CheckOrphaned()` |
 | `template/` | Go template rendering | `Engine` |
 | `tokenpool/` | OAuth token pool for rate limit failover | `Pool`, `Account` |
+| `trigger/` | Lifecycle event trigger evaluation | `Runner`, `TriggerRunner`, `GateRejectionError` |
 | `util/` | Common utilities (atomic file writes) | `AtomicWriteFile()` |
 | `variable/` | Workflow variable resolution | `Resolver`, `Definition` |
 | `workflow/` | Workflow definitions, phase templates | `Workflow`, `PhaseTemplate`, `WorkflowRun` |
@@ -56,6 +57,7 @@ cmd/orc
         │   │   ├── prompt/
         │   │   ├── storage/
         │   │   ├── task/
+        │   │   ├── trigger/
         │   │   ├── variable/
         │   │   ├── workflow/
         │   │   └── tokenpool/
@@ -166,5 +168,6 @@ See package-specific CLAUDE.md files for detailed usage:
 | `setup/` | Claude-powered setup |
 | `spec/` | Interactive spec sessions |
 | `storage/` | Storage backend abstraction |
+| `trigger/` | Lifecycle event trigger evaluation |
 | `variable/` | Variable resolution system |
 | `workflow/` | Workflow definitions |

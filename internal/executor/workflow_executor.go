@@ -24,6 +24,7 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
+	"github.com/randalmurphal/orc/internal/trigger"
 	"github.com/randalmurphal/orc/internal/variable"
 	"github.com/randalmurphal/orc/internal/workflow"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -113,6 +114,9 @@ type WorkflowExecutor struct {
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
+
+	// triggerRunner evaluates before-phase and lifecycle triggers.
+	triggerRunner trigger.Runner
 }
 
 // WorkflowExecutorOption configures a WorkflowExecutor.
@@ -186,6 +190,13 @@ func WithWorkflowSessionBroadcaster(sb *SessionBroadcaster) WorkflowExecutorOpti
 func WithWorkflowResourceTracker(rt *ResourceTracker) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.resourceTracker = rt
+	}
+}
+
+// WithWorkflowTriggerRunner sets the trigger runner for before-phase and lifecycle triggers.
+func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.triggerRunner = runner
 	}
 }
 

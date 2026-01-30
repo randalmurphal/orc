@@ -78,7 +78,37 @@ Controls what happens with gate evaluation results:
 
 ---
 
-## Before-Phase Triggers
+## Trigger System
+
+Triggers are agent-backed hooks that fire at specific points in the task lifecycle. They use the same gate infrastructure (modes, input/output config) as phase gates.
+
+**Implementation**: `internal/trigger/` package. See `internal/trigger/CLAUDE.md` for package details.
+
+### Trigger Modes
+
+| Mode | Behavior | Error Handling |
+|------|----------|----------------|
+| `gate` | Synchronous, blocks progression if rejected | Returns `GateRejectionError` |
+| `reaction` | Async goroutine, fire-and-forget | Errors logged, never blocks |
+
+Default mode is `gate` when unspecified.
+
+### TriggerRunner (Shared Component)
+
+Single `TriggerRunner` used by executor, CLI, and API for consistent trigger evaluation.
+
+| Call Site | File | Event |
+|-----------|------|-------|
+| Executor (before phase) | `executor/workflow_triggers.go:19` | Before each phase |
+| Executor (completion) | `executor/workflow_triggers.go:95` | `on_task_completed` |
+| Executor (failure) | `executor/workflow_triggers.go:76` | `on_task_failed` |
+| CLI task creation | `cli/cmd_trigger.go` | `on_task_created` |
+| CLI initiative plan | `cli/cmd_initiative_plan.go` | `on_initiative_planned` |
+| API task creation | `api/task_server.go` | `on_task_created` |
+
+---
+
+### Before-Phase Triggers
 
 Triggers that run before a phase starts, enabling pre-validation or preparation:
 
@@ -92,20 +122,23 @@ workflow_phases:
           include_task: true
         output_config:
           on_rejected: fail
+          variable_name: "DEP_CHECK_RESULT"  # output flows to variable
 ```
 
 | Field | Type | Purpose |
 |-------|------|---------|
 | `agent_id` | `string` | Agent to execute |
 | `input_config` | `GateInputConfig` | Context for the agent |
-| `output_config` | `GateOutputConfig` | Result handling |
+| `output_config` | `GateOutputConfig` | Result handling + variable capture |
 | `mode` | `GateMode` | `gate` (blocking) or `reaction` (async) |
 
-**Location**: `internal/workflow/types.go:85-91`
+**Error resilience (SC-1):** Infrastructure errors (agent crash, parse failure) log a warning and continue the phase. Only explicit gate rejections block.
+
+**Location**: `internal/workflow/types.go:85-91`, evaluation: `internal/trigger/runner.go:128`
 
 ---
 
-## Workflow Lifecycle Triggers
+### Workflow Lifecycle Triggers
 
 React to task/initiative lifecycle events at the workflow level:
 
@@ -123,14 +156,14 @@ workflows:
         include_task: true
 ```
 
-| Event | Fires When |
-|-------|------------|
-| `on_task_created` | Task is created |
-| `on_task_completed` | Task completes successfully |
-| `on_task_failed` | Task fails |
-| `on_initiative_planned` | Initiative planning completes |
+| Event | Fires When | Gate Rejection Effect |
+|-------|------------|----------------------|
+| `on_task_created` | Task is created (CLI or API) | Task status set to BLOCKED |
+| `on_task_completed` | Task completes all phases | Task status set to BLOCKED instead of COMPLETED |
+| `on_task_failed` | Task fails during execution | Logged as warning |
+| `on_initiative_planned` | Initiative planning creates tasks | Error returned to caller |
 
-**Location**: `internal/workflow/types.go:59-101`
+**Location**: `internal/workflow/types.go:59-101`, evaluation: `internal/trigger/runner.go:55`
 
 ---
 
