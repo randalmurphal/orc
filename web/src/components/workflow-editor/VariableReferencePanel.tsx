@@ -84,7 +84,7 @@ export function VariableReferencePanel({
 
 	return (
 		<div className="variable-reference-panel">
-			<h4 className="variable-reference-title">Available Variables</h4>
+			<h4 className="variable-reference-title">Variable Reference</h4>
 			<p className="variable-reference-hint">
 				Click to copy. Use <code>{`{{VAR_NAME}}`}</code> in prompts.
 			</p>

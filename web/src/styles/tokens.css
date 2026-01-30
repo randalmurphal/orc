@@ -396,4 +396,24 @@
   --accent-glow: var(--primary-glow);
   --accent-subtle: var(--primary-dim);
   --accent-secondary: var(--cyan);
+
+  /* ==========================================================================
+     LEGACY VARIABLE ALIASES
+     These are used throughout the codebase but weren't in the design system.
+     Mapping to appropriate modern tokens for consistency.
+     ========================================================================== */
+
+  /* Background aliases */
+  --bg-secondary: var(--bg-card);
+  --bg-primary: var(--bg-elevated);
+  --bg-inset: var(--bg-base);
+  --bg-surface-hover: var(--bg-hover);
+
+  /* Border aliases */
+  --border-color: var(--border);
+
+  /* Accent/semantic aliases */
+  --accent: var(--primary);
+  --error: var(--red);
+  --error-bg: var(--red-dim);
 }

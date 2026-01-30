@@ -71,6 +71,8 @@ export function VariableModal({
 	const [cacheTtl, setCacheTtl] = useState(0);
 
 	const [saving, setSaving] = useState(false);
+	const [deleting, setDeleting] = useState(false);
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	// Reset form when modal opens/closes or variable changes
@@ -97,6 +99,7 @@ export function VariableModal({
 				setCacheTtl(0);
 			}
 			setError(null);
+			setConfirmingDelete(false);
 		}
 	}, [open, variable]);
 
@@ -173,6 +176,31 @@ export function VariableModal({
 			setSaving(false);
 		}
 	}, [workflowId, name, description, sourceType, sourceConfig, required, defaultValue, cacheTtl, extract, isEditing, onOpenChange, onSuccess]);
+
+	const handleDelete = useCallback(async () => {
+		if (!confirmingDelete) {
+			setConfirmingDelete(true);
+			return;
+		}
+
+		setError(null);
+		setDeleting(true);
+
+		try {
+			await workflowClient.removeVariable({
+				workflowId,
+				name: variable?.name ?? '',
+			});
+
+			onOpenChange(false);
+			onSuccess?.();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to delete variable');
+		} finally {
+			setDeleting(false);
+			setConfirmingDelete(false);
+		}
+	}, [workflowId, variable, confirmingDelete, onOpenChange, onSuccess]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -350,21 +378,39 @@ export function VariableModal({
 
 						{/* Actions */}
 						<div className="variable-modal-actions">
-							<button
-								type="button"
-								className="variable-modal-btn variable-modal-btn--cancel"
-								onClick={() => onOpenChange(false)}
-								disabled={saving}
-							>
-								Cancel
-							</button>
-							<button
-								type="submit"
-								className="variable-modal-btn variable-modal-btn--save"
-								disabled={saving || !name.trim()}
-							>
-								{saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Variable'}
-							</button>
+							{isEditing && (
+								<button
+									type="button"
+									className={`variable-modal-btn variable-modal-btn--delete ${confirmingDelete ? 'variable-modal-btn--delete-confirm' : ''}`}
+									onClick={handleDelete}
+									disabled={saving || deleting}
+								>
+									{deleting ? 'Deleting...' : confirmingDelete ? 'Click to Confirm' : 'Delete'}
+								</button>
+							)}
+							<div className="variable-modal-actions-right">
+								<button
+									type="button"
+									className="variable-modal-btn variable-modal-btn--cancel"
+									onClick={() => {
+										if (confirmingDelete) {
+											setConfirmingDelete(false);
+										} else {
+											onOpenChange(false);
+										}
+									}}
+									disabled={saving || deleting}
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									className="variable-modal-btn variable-modal-btn--save"
+									disabled={saving || deleting || !name.trim()}
+								>
+									{saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Variable'}
+								</button>
+							</div>
 						</div>
 					</form>
 

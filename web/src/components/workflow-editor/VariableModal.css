@@ -10,6 +10,7 @@
 
 .variable-modal-content {
   background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   position: fixed;
@@ -234,10 +235,17 @@
 .variable-modal-actions {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
+}
+
+.variable-modal-actions-right {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .variable-modal-btn {
@@ -271,6 +279,33 @@
 
 .variable-modal-btn--save:hover:not(:disabled) {
   filter: brightness(1.1);
+}
+
+.variable-modal-btn--delete {
+  background: transparent;
+  color: var(--error, #ef4444);
+  border: 1px solid var(--error, #ef4444);
+}
+
+.variable-modal-btn--delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.variable-modal-btn--delete-confirm {
+  background: var(--error, #ef4444);
+  color: white;
+  border-color: var(--error, #ef4444);
+  animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+.variable-modal-btn--delete-confirm:hover:not(:disabled) {
+  background: var(--error, #ef4444);
+  filter: brightness(1.1);
+}
+
+@keyframes pulse {
+  from { opacity: 0.9; }
+  to { opacity: 1; }
 }
 
 /* Accessibility */
