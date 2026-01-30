@@ -720,15 +720,17 @@ describe('layoutWorkflow', () => {
 			expect(phaseNode!.data).toHaveProperty('maxIterations', 5);
 		});
 
-		it('includes modelOverride when set on phase', () => {
+		it('includes agentId when set on template', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
 						id: 1,
 						phaseTemplateId: 'implement',
 						sequence: 1,
-						modelOverride: 'claude-opus-4',
-						template: createMockPhaseTemplate({ id: 'implement' }),
+						template: createMockPhaseTemplate({
+							id: 'implement',
+							agentId: 'claude-opus-4',
+						}),
 					}),
 				],
 			});
@@ -736,10 +738,10 @@ describe('layoutWorkflow', () => {
 			const result = layoutWorkflow(details);
 
 			const phaseNode = result.nodes.find((n) => n.type === 'phase');
-			expect(phaseNode!.data).toHaveProperty('modelOverride', 'claude-opus-4');
+			expect(phaseNode!.data).toHaveProperty('agentId', 'claude-opus-4');
 		});
 
-		it('does not include modelOverride when not set', () => {
+		it('does not include agentId when not set', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -754,8 +756,8 @@ describe('layoutWorkflow', () => {
 			const result = layoutWorkflow(details);
 
 			const phaseNode = result.nodes.find((n) => n.type === 'phase');
-			// modelOverride should be undefined or falsy when not set
-			expect(phaseNode!.data.modelOverride).toBeFalsy();
+			// agentId should be undefined or falsy when not set
+			expect(phaseNode!.data.agentId).toBeFalsy();
 		});
 
 		it('includes all PhaseNodeData fields for a fully-configured phase', () => {
@@ -767,13 +769,13 @@ describe('layoutWorkflow', () => {
 						sequence: 5,
 						gateTypeOverride: GateType.HUMAN,
 						maxIterationsOverride: 10,
-						modelOverride: 'claude-opus-4',
 						template: createMockPhaseTemplate({
 							id: 'review',
 							name: 'Code Review',
 							description: 'Multi-agent review',
 							gateType: GateType.AUTO,
 							maxIterations: 3,
+							agentId: 'claude-opus-4',
 						}),
 					}),
 				],
@@ -791,7 +793,7 @@ describe('layoutWorkflow', () => {
 			expect(data.phaseId).toBe(42);
 			expect(data.gateType).toBe(GateType.HUMAN);
 			expect(data.maxIterations).toBe(10);
-			expect(data.modelOverride).toBe('claude-opus-4');
+			expect(data.agentId).toBe('claude-opus-4');
 		});
 	});
 });

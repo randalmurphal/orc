@@ -1,0 +1,113 @@
+/* Variable Reference Panel */
+
+.variable-reference-panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.variable-reference-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.variable-reference-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.variable-reference-hint code {
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+/* Sections */
+
+.variable-reference-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.variable-reference-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.variable-reference-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Variable Chips */
+
+.variable-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.variable-chip:hover {
+  background: var(--accent-bg, rgba(59, 130, 246, 0.1));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.variable-chip:active {
+  transform: scale(0.98);
+}
+
+.variable-chip code {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+}
+
+.variable-chip--secondary {
+  opacity: 0.7;
+}
+
+.variable-chip--secondary:hover {
+  opacity: 1;
+}
+
+/* Collapsed State */
+
+.variable-reference-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: 100%;
+}
+
+.variable-reference-collapsed-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}

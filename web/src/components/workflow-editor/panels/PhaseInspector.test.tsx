@@ -40,6 +40,9 @@ vi.mock('@/lib/client', () => ({
 		updatePhaseTemplate: vi.fn(),
 		getWorkflow: vi.fn(),
 	},
+	configClient: {
+		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+	},
 }));
 
 import { workflowClient } from '@/lib/client';
