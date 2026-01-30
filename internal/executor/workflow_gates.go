@@ -31,6 +31,14 @@ type GateEvaluationResult struct {
 func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, output string, t *orcv1.Task) (*GateEvaluationResult, error) {
 	result := &GateEvaluationResult{}
 
+	// Skip all gate evaluations when --skip-gates flag is set
+	if we.skipGates {
+		result.Approved = true
+		result.Reason = "gates skipped by --skip-gates flag"
+		we.logger.Info("gate skipped by --skip-gates flag", "phase", tmpl.ID)
+		return result, nil
+	}
+
 	// Use gate resolver if available, fall back to legacy resolution
 	gateType := we.resolveGateType(tmpl, phase, t)
 

@@ -260,6 +260,7 @@ function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 		switch (gt) {
 			case GateType.AUTO: return 'Automatic';
 			case GateType.HUMAN: return 'Human Approval';
+			case GateType.AI: return 'AI Gate';
 			case GateType.SKIP: return 'Skip';
 			default: return 'Automatic';
 		}
@@ -273,6 +274,7 @@ function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 				<p className="phase-inspector__criteria-hint">
 					{gateType === GateType.AUTO && 'Proceeds automatically when complete'}
 					{gateType === GateType.HUMAN && 'Requires human approval to proceed'}
+					{gateType === GateType.AI && 'AI agent evaluates the gate'}
 					{gateType === GateType.SKIP && 'Phase is skipped entirely'}
 				</p>
 			</div>
@@ -581,9 +583,41 @@ function SettingsTab({
 					<option value={GateType.UNSPECIFIED}>Inherit from template</option>
 					<option value={GateType.AUTO}>Auto</option>
 					<option value={GateType.HUMAN}>Human</option>
+					<option value={GateType.AI}>AI</option>
 					<option value={GateType.SKIP}>Skip</option>
 				</select>
 			</div>
+
+			{/* AI Gate Agent picker - only shown when AI gate type is selected */}
+			{gateTypeOverride === GateType.AI && (
+				<div className="phase-inspector-setting">
+					<label htmlFor="inspector-ai-gate-agent" className="phase-inspector-setting-label">
+						AI Gate Agent
+					</label>
+					{agents.length === 0 && !agentsLoading ? (
+						<select
+							id="inspector-ai-gate-agent"
+							className="phase-inspector-setting-select"
+							disabled
+						>
+							<option>No agents available</option>
+						</select>
+					) : (
+						<select
+							id="inspector-ai-gate-agent"
+							className="phase-inspector-setting-select"
+							disabled={disabled || agentsLoading}
+						>
+							<option value="">Select agent...</option>
+							{agents.map((agent) => (
+								<option key={agent.id} value={agent.id}>
+									{agent.name}
+								</option>
+							))}
+						</select>
+					)}
+				</div>
+			)}
 
 			<div className="phase-inspector-setting">
 				<label htmlFor="inspector-max-iterations" className="phase-inspector-setting-label">
@@ -602,10 +636,10 @@ function SettingsTab({
 				/>
 			</div>
 
-			{/* Executor Agent */}
+			{/* Executor */}
 			<div className="phase-inspector-setting">
 				<label htmlFor="inspector-agent" className="phase-inspector-setting-label">
-					Executor Agent
+					Executor
 				</label>
 				<select
 					id="inspector-agent"

@@ -87,6 +87,7 @@ See also:
 	cmd.Flags().StringP("profile", "p", "", "Automation profile (auto, fast, safe, strict)")
 	cmd.Flags().Bool("stream", false, "Stream Claude output in real-time")
 	cmd.Flags().Bool("force", false, "Run despite incomplete dependencies")
+	cmd.Flags().Bool("skip-gates", false, "Skip all gate evaluations during execution")
 
 	return cmd
 }
@@ -119,6 +120,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	profile, _ := cmd.Flags().GetString("profile")
 	stream, _ := cmd.Flags().GetBool("stream")
 	force, _ := cmd.Flags().GetBool("force")
+	skipGates, _ := cmd.Flags().GetBool("skip-gates")
 
 	// Handle --task flag
 	if taskFlag != "" {
@@ -245,6 +247,10 @@ func runRun(cmd *cobra.Command, args []string) error {
 	execOpts := []executor.WorkflowExecutorOption{
 		executor.WithWorkflowGitOps(gitOps),
 		executor.WithWorkflowClaudePath(claudePath),
+	}
+
+	if skipGates {
+		execOpts = append(execOpts, executor.WithSkipGates(true))
 	}
 
 	// Create persistent publisher for database event logging
