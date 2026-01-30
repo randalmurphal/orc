@@ -251,6 +251,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		return nil, fmt.Errorf("workflow not found: %s", workflowID)
 	}
 
+	// Parse workflow-level triggers (JSON string → typed struct) for lifecycle events.
+	// Used by handleCompletionWithTriggers() and fireLifecycleTriggers().
+	var wfTyped *workflow.Workflow
+	if wf.Triggers != "" {
+		wfTyped = &workflow.Workflow{ID: wf.ID}
+		if parseErr := json.Unmarshal([]byte(wf.Triggers), &wfTyped.Triggers); parseErr != nil {
+			we.logger.Warn("failed to parse workflow triggers", "workflow", workflowID, "error", parseErr)
+			wfTyped = nil
+		}
+	}
+
 	// Load workflow phases
 	phases, err := we.projectDB.GetWorkflowPhases(workflowID)
 	if err != nil {
@@ -534,6 +545,37 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return result, err
 		}
 
+		// Evaluate before-phase triggers (gate/reaction)
+		// Convert db.WorkflowPhase (JSON string) to workflow.WorkflowPhase (typed struct)
+		// via JSON round-trip — both packages use matching JSON tags.
+		wfPhase := &workflow.WorkflowPhase{
+			PhaseTemplateID: phase.PhaseTemplateID,
+		}
+		if phase.BeforeTriggers != "" {
+			if parseErr := json.Unmarshal([]byte(phase.BeforeTriggers), &wfPhase.BeforeTriggers); parseErr != nil {
+				we.logger.Warn("failed to parse before-phase triggers", "phase", phase.PhaseTemplateID, "error", parseErr)
+			}
+		}
+		triggerResult := we.evaluateBeforePhaseTriggers(execCtx, wfPhase, t, vars)
+		if triggerResult.Blocked {
+			we.logger.Info("phase blocked by before-phase trigger",
+				"phase", tmpl.ID,
+				"reason", triggerResult.BlockedReason,
+			)
+			if t != nil {
+				t.Status = orcv1.TaskStatus_TASK_STATUS_BLOCKED
+				task.SetErrorProto(we.task.Execution, fmt.Sprintf("blocked by trigger: %s", triggerResult.BlockedReason))
+				if err := we.backend.SaveTask(t); err != nil {
+					we.logger.Warn("failed to save blocked task", "error", err)
+				}
+			}
+			return result, fmt.Errorf("blocked by before-phase trigger: %s", triggerResult.BlockedReason)
+		}
+		// Apply any updated variables from triggers
+		if triggerResult.UpdatedVars != nil {
+			vars = triggerResult.UpdatedVars
+		}
+
 		// Execute the phase with timeout support (PhaseMax config)
 		phaseResult, err := we.executePhaseWithTimeout(execCtx, tmpl, phase, vars, rctx, run, runPhase, t)
 		result.PhaseResults = append(result.PhaseResults, phaseResult)
@@ -667,6 +709,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		}
 
 		if gateResult != nil {
+			// Store gate output data as workflow variable (both approved and rejected)
+			applyGateOutputToVars(vars, gateResult)
+
 			// Handle gate decision
 			if gateResult.Pending {
 				// Task is blocked waiting for human decision
@@ -719,13 +764,27 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							}
 						}
 
-						// Save retry context
+						// Save retry context with gate analysis
 						if we.task != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
 							task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCounts[tmpl.ID]))
 							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save retry state", "error", err)
 							}
+
+							// Build enriched retry context string with gate analysis
+							// This updates the resolution context so {{RETRY_CONTEXT}} in
+							// the retry phase prompt includes the gate evaluator's output.
+							gateContext := ""
+							if gateResult.OutputData != nil {
+								if gateJSON, jsonErr := json.Marshal(gateResult.OutputData); jsonErr == nil {
+									gateContext = string(gateJSON)
+								}
+							}
+							rctx.RetryContext = BuildRetryContextWithGateAnalysis(
+								tmpl.ID, reason, phaseResult.Content,
+								retryCounts[tmpl.ID], "", gateContext,
+							)
 						}
 
 						// Jump back to retry phase
@@ -823,6 +882,17 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	run.CompletedAt = timePtr(time.Now())
 	if err := we.backend.SaveWorkflowRun(run); err != nil {
 		return result, fmt.Errorf("complete run: %w", err)
+	}
+
+	// Evaluate completion triggers (gate-mode on_task_completed can block)
+	if t != nil {
+		if triggerErr := we.handleCompletionWithTriggers(execCtx, wfTyped, t); triggerErr != nil {
+			// Gate rejection: task is already set to BLOCKED by handleCompletionWithTriggers
+			we.logger.Warn("completion trigger blocked task", "task", t.Id, "error", triggerErr)
+			result.Success = false
+			result.Error = triggerErr.Error()
+			return result, triggerErr
+		}
 	}
 
 	// Sync task status to Completed
