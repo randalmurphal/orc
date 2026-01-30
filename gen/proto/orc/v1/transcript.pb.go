@@ -506,10 +506,11 @@ func (x *TodoSnapshot) GetItems() []*TodoItem {
 }
 
 type ListTranscriptsRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId    string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	// Filter by phase
-	Phase         *string `protobuf:"bytes,2,opt,name=phase,proto3,oneof" json:"phase,omitempty"`
+	Phase         *string `protobuf:"bytes,3,opt,name=phase,proto3,oneof" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -542,6 +543,13 @@ func (x *ListTranscriptsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListTranscriptsRequest.ProtoReflect.Descriptor instead.
 func (*ListTranscriptsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListTranscriptsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListTranscriptsRequest) GetTaskId() string {
@@ -604,9 +612,10 @@ func (x *ListTranscriptsResponse) GetTranscripts() []*TranscriptFile {
 
 type GetTranscriptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
-	Iteration     int32                  `protobuf:"varint,3,opt,name=iteration,proto3" json:"iteration,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Iteration     int32                  `protobuf:"varint,4,opt,name=iteration,proto3" json:"iteration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -639,6 +648,13 @@ func (x *GetTranscriptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTranscriptRequest.ProtoReflect.Descriptor instead.
 func (*GetTranscriptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetTranscriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTranscriptRequest) GetTaskId() string {
@@ -708,9 +724,10 @@ func (x *GetTranscriptResponse) GetTranscript() *Transcript {
 
 type GetTranscriptContentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
-	Iteration     int32                  `protobuf:"varint,3,opt,name=iteration,proto3" json:"iteration,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Iteration     int32                  `protobuf:"varint,4,opt,name=iteration,proto3" json:"iteration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -743,6 +760,13 @@ func (x *GetTranscriptContentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTranscriptContentRequest.ProtoReflect.Descriptor instead.
 func (*GetTranscriptContentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetTranscriptContentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTranscriptContentRequest) GetTaskId() string {
@@ -812,7 +836,8 @@ func (x *GetTranscriptContentResponse) GetChunk() *TranscriptChunk {
 
 type GetTokensRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -845,6 +870,13 @@ func (x *GetTokensRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTokensRequest.ProtoReflect.Descriptor instead.
 func (*GetTokensRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetTokensRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTokensRequest) GetTaskId() string {
@@ -900,7 +932,8 @@ func (x *GetTokensResponse) GetTokens() *TokenUsage {
 
 type GetSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -933,6 +966,13 @@ func (x *GetSessionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetSessionRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetSessionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetSessionRequest) GetTaskId() string {
@@ -988,7 +1028,8 @@ func (x *GetSessionResponse) GetSession() *SessionInfo {
 
 type GetTodosRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1021,6 +1062,13 @@ func (x *GetTodosRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTodosRequest.ProtoReflect.Descriptor instead.
 func (*GetTodosRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetTodosRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTodosRequest) GetTaskId() string {
@@ -1092,7 +1140,8 @@ func (x *GetTodosResponse) GetIteration() int32 {
 
 type GetTodoHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1125,6 +1174,13 @@ func (x *GetTodoHistoryRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTodoHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetTodoHistoryRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetTodoHistoryRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTodoHistoryRequest) GetTaskId() string {
@@ -1231,46 +1287,60 @@ const file_orc_v1_transcript_proto_rawDesc = "" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1c\n" +
 	"\titeration\x18\x03 \x01(\x05R\titeration\x12&\n" +
-	"\x05items\x18\x04 \x03(\v2\x10.orc.v1.TodoItemR\x05items\"V\n" +
-	"\x16ListTranscriptsRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
-	"\x05phase\x18\x02 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
+	"\x05items\x18\x04 \x03(\v2\x10.orc.v1.TodoItemR\x05items\"u\n" +
+	"\x16ListTranscriptsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
+	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
 	"\x06_phase\"S\n" +
 	"\x17ListTranscriptsResponse\x128\n" +
-	"\vtranscripts\x18\x01 \x03(\v2\x16.orc.v1.TranscriptFileR\vtranscripts\"c\n" +
-	"\x14GetTranscriptRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
-	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1c\n" +
-	"\titeration\x18\x03 \x01(\x05R\titeration\"K\n" +
+	"\vtranscripts\x18\x01 \x03(\v2\x16.orc.v1.TranscriptFileR\vtranscripts\"\x82\x01\n" +
+	"\x14GetTranscriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05phase\x18\x03 \x01(\tR\x05phase\x12\x1c\n" +
+	"\titeration\x18\x04 \x01(\x05R\titeration\"K\n" +
 	"\x15GetTranscriptResponse\x122\n" +
 	"\n" +
 	"transcript\x18\x01 \x01(\v2\x12.orc.v1.TranscriptR\n" +
-	"transcript\"j\n" +
-	"\x1bGetTranscriptContentRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
-	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1c\n" +
-	"\titeration\x18\x03 \x01(\x05R\titeration\"M\n" +
+	"transcript\"\x89\x01\n" +
+	"\x1bGetTranscriptContentRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05phase\x18\x03 \x01(\tR\x05phase\x12\x1c\n" +
+	"\titeration\x18\x04 \x01(\x05R\titeration\"M\n" +
 	"\x1cGetTranscriptContentResponse\x12-\n" +
-	"\x05chunk\x18\x01 \x01(\v2\x17.orc.v1.TranscriptChunkR\x05chunk\"+\n" +
-	"\x10GetTokensRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"?\n" +
+	"\x05chunk\x18\x01 \x01(\v2\x17.orc.v1.TranscriptChunkR\x05chunk\"J\n" +
+	"\x10GetTokensRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"?\n" +
 	"\x11GetTokensResponse\x12*\n" +
-	"\x06tokens\x18\x01 \x01(\v2\x12.orc.v1.TokenUsageR\x06tokens\",\n" +
-	"\x11GetSessionRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"C\n" +
+	"\x06tokens\x18\x01 \x01(\v2\x12.orc.v1.TokenUsageR\x06tokens\"K\n" +
+	"\x11GetSessionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"C\n" +
 	"\x12GetSessionResponse\x12-\n" +
-	"\asession\x18\x01 \x01(\v2\x13.orc.v1.SessionInfoR\asession\"*\n" +
-	"\x0fGetTodosRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x90\x01\n" +
+	"\asession\x18\x01 \x01(\v2\x13.orc.v1.SessionInfoR\asession\"I\n" +
+	"\x0fGetTodosRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"\x90\x01\n" +
 	"\x10GetTodosResponse\x12&\n" +
 	"\x05items\x18\x01 \x03(\v2\x10.orc.v1.TodoItemR\x05items\x12\x19\n" +
 	"\x05phase\x18\x02 \x01(\tH\x00R\x05phase\x88\x01\x01\x12!\n" +
 	"\titeration\x18\x03 \x01(\x05H\x01R\titeration\x88\x01\x01B\b\n" +
 	"\x06_phaseB\f\n" +
 	"\n" +
-	"_iteration\"0\n" +
-	"\x15GetTodoHistoryRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"L\n" +
+	"_iteration\"O\n" +
+	"\x15GetTodoHistoryRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"L\n" +
 	"\x16GetTodoHistoryResponse\x122\n" +
 	"\tsnapshots\x18\x01 \x03(\v2\x14.orc.v1.TodoSnapshotR\tsnapshots2\xb1\x04\n" +
 	"\x11TranscriptService\x12R\n" +

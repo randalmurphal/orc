@@ -573,9 +573,10 @@ func (x *InitiativeProgress) GetTotal() int32 {
 
 type ListInitiativesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	Status        *InitiativeStatus      `protobuf:"varint,2,opt,name=status,proto3,enum=orc.v1.InitiativeStatus,oneof" json:"status,omitempty"`
-	Shared        bool                   `protobuf:"varint,3,opt,name=shared,proto3" json:"shared,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project to list initiatives from
+	Page          *PageRequest           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	Status        *InitiativeStatus      `protobuf:"varint,3,opt,name=status,proto3,enum=orc.v1.InitiativeStatus,oneof" json:"status,omitempty"`
+	Shared        bool                   `protobuf:"varint,4,opt,name=shared,proto3" json:"shared,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -608,6 +609,13 @@ func (x *ListInitiativesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListInitiativesRequest.ProtoReflect.Descriptor instead.
 func (*ListInitiativesRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListInitiativesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListInitiativesRequest) GetPage() *PageRequest {
@@ -685,7 +693,8 @@ func (x *ListInitiativesResponse) GetPage() *PageResponse {
 
 type GetInitiativeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -720,9 +729,16 @@ func (*GetInitiativeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetInitiativeRequest) GetId() string {
+func (x *GetInitiativeRequest) GetProjectId() string {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetInitiativeRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
 	}
 	return ""
 }
@@ -773,13 +789,14 @@ func (x *GetInitiativeResponse) GetInitiative() *Initiative {
 
 type CreateInitiativeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	Vision        *string                `protobuf:"bytes,2,opt,name=vision,proto3,oneof" json:"vision,omitempty"`
-	Owner         *Identity              `protobuf:"bytes,3,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
-	BlockedBy     []string               `protobuf:"bytes,4,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
-	BranchBase    *string                `protobuf:"bytes,5,opt,name=branch_base,json=branchBase,proto3,oneof" json:"branch_base,omitempty"`
-	BranchPrefix  *string                `protobuf:"bytes,6,opt,name=branch_prefix,json=branchPrefix,proto3,oneof" json:"branch_prefix,omitempty"`
-	ContextFiles  []string               `protobuf:"bytes,7,rep,name=context_files,json=contextFiles,proto3" json:"context_files,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project to create initiative in
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Vision        *string                `protobuf:"bytes,3,opt,name=vision,proto3,oneof" json:"vision,omitempty"`
+	Owner         *Identity              `protobuf:"bytes,4,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	BlockedBy     []string               `protobuf:"bytes,5,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	BranchBase    *string                `protobuf:"bytes,6,opt,name=branch_base,json=branchBase,proto3,oneof" json:"branch_base,omitempty"`
+	BranchPrefix  *string                `protobuf:"bytes,7,opt,name=branch_prefix,json=branchPrefix,proto3,oneof" json:"branch_prefix,omitempty"`
+	ContextFiles  []string               `protobuf:"bytes,8,rep,name=context_files,json=contextFiles,proto3" json:"context_files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -812,6 +829,13 @@ func (x *CreateInitiativeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*CreateInitiativeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CreateInitiativeRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateInitiativeRequest) GetTitle() string {
@@ -909,15 +933,16 @@ func (x *CreateInitiativeResponse) GetInitiative() *Initiative {
 
 type UpdateInitiativeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Vision        *string                `protobuf:"bytes,3,opt,name=vision,proto3,oneof" json:"vision,omitempty"`
-	Owner         *Identity              `protobuf:"bytes,4,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
-	Status        *InitiativeStatus      `protobuf:"varint,5,opt,name=status,proto3,enum=orc.v1.InitiativeStatus,oneof" json:"status,omitempty"`
-	BlockedBy     []string               `protobuf:"bytes,6,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
-	BranchBase    *string                `protobuf:"bytes,7,opt,name=branch_base,json=branchBase,proto3,oneof" json:"branch_base,omitempty"`
-	BranchPrefix  *string                `protobuf:"bytes,8,opt,name=branch_prefix,json=branchPrefix,proto3,oneof" json:"branch_prefix,omitempty"`
-	ContextFiles  []string               `protobuf:"bytes,9,rep,name=context_files,json=contextFiles,proto3" json:"context_files,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	Title         *string                `protobuf:"bytes,3,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Vision        *string                `protobuf:"bytes,4,opt,name=vision,proto3,oneof" json:"vision,omitempty"`
+	Owner         *Identity              `protobuf:"bytes,5,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	Status        *InitiativeStatus      `protobuf:"varint,6,opt,name=status,proto3,enum=orc.v1.InitiativeStatus,oneof" json:"status,omitempty"`
+	BlockedBy     []string               `protobuf:"bytes,7,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	BranchBase    *string                `protobuf:"bytes,8,opt,name=branch_base,json=branchBase,proto3,oneof" json:"branch_base,omitempty"`
+	BranchPrefix  *string                `protobuf:"bytes,9,opt,name=branch_prefix,json=branchPrefix,proto3,oneof" json:"branch_prefix,omitempty"`
+	ContextFiles  []string               `protobuf:"bytes,10,rep,name=context_files,json=contextFiles,proto3" json:"context_files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -952,9 +977,16 @@ func (*UpdateInitiativeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *UpdateInitiativeRequest) GetId() string {
+func (x *UpdateInitiativeRequest) GetProjectId() string {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *UpdateInitiativeRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
 	}
 	return ""
 }
@@ -1061,7 +1093,8 @@ func (x *UpdateInitiativeResponse) GetInitiative() *Initiative {
 
 type DeleteInitiativeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1096,9 +1129,16 @@ func (*DeleteInitiativeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *DeleteInitiativeRequest) GetId() string {
+func (x *DeleteInitiativeRequest) GetProjectId() string {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *DeleteInitiativeRequest) GetInitiativeId() string {
+	if x != nil {
+		return x.InitiativeId
 	}
 	return ""
 }
@@ -1149,7 +1189,8 @@ func (x *DeleteInitiativeResponse) GetMessage() string {
 
 type ListInitiativeTasksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1182,6 +1223,13 @@ func (x *ListInitiativeTasksRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListInitiativeTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListInitiativeTasksRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListInitiativeTasksRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListInitiativeTasksRequest) GetInitiativeId() string {
@@ -1237,8 +1285,9 @@ func (x *ListInitiativeTasksResponse) GetTasks() []*Task {
 
 type LinkTasksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
-	TaskIds       []string               `protobuf:"bytes,2,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	TaskIds       []string               `protobuf:"bytes,3,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1271,6 +1320,13 @@ func (x *LinkTasksRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LinkTasksRequest.ProtoReflect.Descriptor instead.
 func (*LinkTasksRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *LinkTasksRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *LinkTasksRequest) GetInitiativeId() string {
@@ -1333,8 +1389,9 @@ func (x *LinkTasksResponse) GetInitiative() *Initiative {
 
 type UnlinkTaskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
-	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1367,6 +1424,13 @@ func (x *UnlinkTaskRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UnlinkTaskRequest.ProtoReflect.Descriptor instead.
 func (*UnlinkTaskRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UnlinkTaskRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UnlinkTaskRequest) GetInitiativeId() string {
@@ -1429,10 +1493,11 @@ func (x *UnlinkTaskResponse) GetInitiative() *Initiative {
 
 type AddDecisionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
-	Decision      string                 `protobuf:"bytes,2,opt,name=decision,proto3" json:"decision,omitempty"`
-	Rationale     *string                `protobuf:"bytes,3,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
-	By            *string                `protobuf:"bytes,4,opt,name=by,proto3,oneof" json:"by,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	Decision      string                 `protobuf:"bytes,3,opt,name=decision,proto3" json:"decision,omitempty"`
+	Rationale     *string                `protobuf:"bytes,4,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
+	By            *string                `protobuf:"bytes,5,opt,name=by,proto3,oneof" json:"by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1465,6 +1530,13 @@ func (x *AddDecisionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AddDecisionRequest.ProtoReflect.Descriptor instead.
 func (*AddDecisionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AddDecisionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *AddDecisionRequest) GetInitiativeId() string {
@@ -1541,7 +1613,8 @@ func (x *AddDecisionResponse) GetInitiative() *Initiative {
 
 type GetReadyTasksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1574,6 +1647,13 @@ func (x *GetReadyTasksRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetReadyTasksRequest.ProtoReflect.Descriptor instead.
 func (*GetReadyTasksRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetReadyTasksRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetReadyTasksRequest) GetInitiativeId() string {
@@ -1629,7 +1709,8 @@ func (x *GetReadyTasksResponse) GetTasks() []*Task {
 
 type GetDependencyGraphRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1662,6 +1743,13 @@ func (x *GetDependencyGraphRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetDependencyGraphRequest.ProtoReflect.Descriptor instead.
 func (*GetDependencyGraphRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetDependencyGraphRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetDependencyGraphRequest) GetInitiativeId() string {
@@ -1717,9 +1805,10 @@ func (x *GetDependencyGraphResponse) GetGraph() *DependencyGraph {
 
 type RunInitiativeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	InitiativeId  string                 `protobuf:"bytes,1,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
-	Profile       *string                `protobuf:"bytes,2,opt,name=profile,proto3,oneof" json:"profile,omitempty"`
-	MaxParallel   int32                  `protobuf:"varint,3,opt,name=max_parallel,json=maxParallel,proto3" json:"max_parallel,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	InitiativeId  string                 `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3" json:"initiative_id,omitempty"`
+	Profile       *string                `protobuf:"bytes,3,opt,name=profile,proto3,oneof" json:"profile,omitempty"`
+	MaxParallel   int32                  `protobuf:"varint,4,opt,name=max_parallel,json=maxParallel,proto3" json:"max_parallel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1752,6 +1841,13 @@ func (x *RunInitiativeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunInitiativeRequest.ProtoReflect.Descriptor instead.
 func (*RunInitiativeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_initiative_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RunInitiativeRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *RunInitiativeRequest) GetInitiativeId() string {
@@ -1892,31 +1988,37 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x12InitiativeProgress\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tcompleted\x18\x02 \x01(\x05R\tcompleted\x12\x14\n" +
-	"\x05total\x18\x03 \x01(\x05R\x05total\"\x9b\x01\n" +
-	"\x16ListInitiativesRequest\x12'\n" +
-	"\x04page\x18\x01 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x125\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x18.orc.v1.InitiativeStatusH\x00R\x06status\x88\x01\x01\x12\x16\n" +
-	"\x06shared\x18\x03 \x01(\bR\x06sharedB\t\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\xba\x01\n" +
+	"\x16ListInitiativesRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12'\n" +
+	"\x04page\x18\x02 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x125\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x18.orc.v1.InitiativeStatusH\x00R\x06status\x88\x01\x01\x12\x16\n" +
+	"\x06shared\x18\x04 \x01(\bR\x06sharedB\t\n" +
 	"\a_status\"y\n" +
 	"\x17ListInitiativesResponse\x124\n" +
 	"\vinitiatives\x18\x01 \x03(\v2\x12.orc.v1.InitiativeR\vinitiatives\x12(\n" +
-	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"&\n" +
-	"\x14GetInitiativeRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"K\n" +
+	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"Z\n" +
+	"\x14GetInitiativeRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\"K\n" +
 	"\x15GetInitiativeResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\"\xc4\x02\n" +
-	"\x17CreateInitiativeRequest\x12\x14\n" +
-	"\x05title\x18\x01 \x01(\tR\x05title\x12\x1b\n" +
-	"\x06vision\x18\x02 \x01(\tH\x00R\x06vision\x88\x01\x01\x12+\n" +
-	"\x05owner\x18\x03 \x01(\v2\x10.orc.v1.IdentityH\x01R\x05owner\x88\x01\x01\x12\x1d\n" +
+	"initiative\"\xe3\x02\n" +
+	"\x17CreateInitiativeRequest\x12\x1d\n" +
 	"\n" +
-	"blocked_by\x18\x04 \x03(\tR\tblockedBy\x12$\n" +
-	"\vbranch_base\x18\x05 \x01(\tH\x02R\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1b\n" +
+	"\x06vision\x18\x03 \x01(\tH\x00R\x06vision\x88\x01\x01\x12+\n" +
+	"\x05owner\x18\x04 \x01(\v2\x10.orc.v1.IdentityH\x01R\x05owner\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"blocked_by\x18\x05 \x03(\tR\tblockedBy\x12$\n" +
+	"\vbranch_base\x18\x06 \x01(\tH\x02R\n" +
 	"branchBase\x88\x01\x01\x12(\n" +
-	"\rbranch_prefix\x18\x06 \x01(\tH\x03R\fbranchPrefix\x88\x01\x01\x12#\n" +
-	"\rcontext_files\x18\a \x03(\tR\fcontextFilesB\t\n" +
+	"\rbranch_prefix\x18\a \x01(\tH\x03R\fbranchPrefix\x88\x01\x01\x12#\n" +
+	"\rcontext_files\x18\b \x03(\tR\fcontextFilesB\t\n" +
 	"\a_visionB\b\n" +
 	"\x06_ownerB\x0e\n" +
 	"\f_branch_baseB\x10\n" +
@@ -1924,19 +2026,22 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x18CreateInitiativeResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\"\xa5\x03\n" +
-	"\x17UpdateInitiativeRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
-	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x1b\n" +
-	"\x06vision\x18\x03 \x01(\tH\x01R\x06vision\x88\x01\x01\x12+\n" +
-	"\x05owner\x18\x04 \x01(\v2\x10.orc.v1.IdentityH\x02R\x05owner\x88\x01\x01\x125\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x18.orc.v1.InitiativeStatusH\x03R\x06status\x88\x01\x01\x12\x1d\n" +
+	"initiative\"\xd9\x03\n" +
+	"\x17UpdateInitiativeRequest\x12\x1d\n" +
 	"\n" +
-	"blocked_by\x18\x06 \x03(\tR\tblockedBy\x12$\n" +
-	"\vbranch_base\x18\a \x01(\tH\x04R\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12\x19\n" +
+	"\x05title\x18\x03 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x1b\n" +
+	"\x06vision\x18\x04 \x01(\tH\x01R\x06vision\x88\x01\x01\x12+\n" +
+	"\x05owner\x18\x05 \x01(\v2\x10.orc.v1.IdentityH\x02R\x05owner\x88\x01\x01\x125\n" +
+	"\x06status\x18\x06 \x01(\x0e2\x18.orc.v1.InitiativeStatusH\x03R\x06status\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"blocked_by\x18\a \x03(\tR\tblockedBy\x12$\n" +
+	"\vbranch_base\x18\b \x01(\tH\x04R\n" +
 	"branchBase\x88\x01\x01\x12(\n" +
-	"\rbranch_prefix\x18\b \x01(\tH\x05R\fbranchPrefix\x88\x01\x01\x12#\n" +
-	"\rcontext_files\x18\t \x03(\tR\fcontextFilesB\b\n" +
+	"\rbranch_prefix\x18\t \x01(\tH\x05R\fbranchPrefix\x88\x01\x01\x12#\n" +
+	"\rcontext_files\x18\n" +
+	" \x03(\tR\fcontextFilesB\b\n" +
 	"\x06_titleB\t\n" +
 	"\a_visionB\b\n" +
 	"\x06_ownerB\t\n" +
@@ -1946,53 +2051,69 @@ const file_orc_v1_initiative_proto_rawDesc = "" +
 	"\x18UpdateInitiativeResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\")\n" +
-	"\x17DeleteInitiativeRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"4\n" +
+	"initiative\"]\n" +
+	"\x17DeleteInitiativeRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\"4\n" +
 	"\x18DeleteInitiativeResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"A\n" +
-	"\x1aListInitiativeTasksRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\"A\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"`\n" +
+	"\x1aListInitiativeTasksRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\"A\n" +
 	"\x1bListInitiativeTasksResponse\x12\"\n" +
-	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\"R\n" +
-	"\x10LinkTasksRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\x12\x19\n" +
-	"\btask_ids\x18\x02 \x03(\tR\ataskIds\"G\n" +
+	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\"q\n" +
+	"\x10LinkTasksRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12\x19\n" +
+	"\btask_ids\x18\x03 \x03(\tR\ataskIds\"G\n" +
 	"\x11LinkTasksResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\"Q\n" +
-	"\x11UnlinkTaskRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\x12\x17\n" +
-	"\atask_id\x18\x02 \x01(\tR\x06taskId\"H\n" +
+	"initiative\"p\n" +
+	"\x11UnlinkTaskRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\"H\n" +
 	"\x12UnlinkTaskResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\"\xa2\x01\n" +
-	"\x12AddDecisionRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\x12\x1a\n" +
-	"\bdecision\x18\x02 \x01(\tR\bdecision\x12!\n" +
-	"\trationale\x18\x03 \x01(\tH\x00R\trationale\x88\x01\x01\x12\x13\n" +
-	"\x02by\x18\x04 \x01(\tH\x01R\x02by\x88\x01\x01B\f\n" +
+	"initiative\"\xc1\x01\n" +
+	"\x12AddDecisionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12\x1a\n" +
+	"\bdecision\x18\x03 \x01(\tR\bdecision\x12!\n" +
+	"\trationale\x18\x04 \x01(\tH\x00R\trationale\x88\x01\x01\x12\x13\n" +
+	"\x02by\x18\x05 \x01(\tH\x01R\x02by\x88\x01\x01B\f\n" +
 	"\n" +
 	"_rationaleB\x05\n" +
 	"\x03_by\"I\n" +
 	"\x13AddDecisionResponse\x122\n" +
 	"\n" +
 	"initiative\x18\x01 \x01(\v2\x12.orc.v1.InitiativeR\n" +
-	"initiative\";\n" +
-	"\x14GetReadyTasksRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\";\n" +
+	"initiative\"Z\n" +
+	"\x14GetReadyTasksRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\";\n" +
 	"\x15GetReadyTasksResponse\x12\"\n" +
-	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\"@\n" +
-	"\x19GetDependencyGraphRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\"K\n" +
+	"\x05tasks\x18\x01 \x03(\v2\f.orc.v1.TaskR\x05tasks\"_\n" +
+	"\x19GetDependencyGraphRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\"K\n" +
 	"\x1aGetDependencyGraphResponse\x12-\n" +
-	"\x05graph\x18\x01 \x01(\v2\x17.orc.v1.DependencyGraphR\x05graph\"\x89\x01\n" +
-	"\x14RunInitiativeRequest\x12#\n" +
-	"\rinitiative_id\x18\x01 \x01(\tR\finitiativeId\x12\x1d\n" +
-	"\aprofile\x18\x02 \x01(\tH\x00R\aprofile\x88\x01\x01\x12!\n" +
-	"\fmax_parallel\x18\x03 \x01(\x05R\vmaxParallelB\n" +
+	"\x05graph\x18\x01 \x01(\v2\x17.orc.v1.DependencyGraphR\x05graph\"\xa8\x01\n" +
+	"\x14RunInitiativeRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12#\n" +
+	"\rinitiative_id\x18\x02 \x01(\tR\finitiativeId\x12\x1d\n" +
+	"\aprofile\x18\x03 \x01(\tH\x00R\aprofile\x88\x01\x01\x12!\n" +
+	"\fmax_parallel\x18\x04 \x01(\x05R\vmaxParallelB\n" +
 	"\n" +
 	"\b_profile\"\x8f\x01\n" +
 	"\x15RunInitiativeResponse\x122\n" +

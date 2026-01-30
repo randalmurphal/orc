@@ -42,7 +42,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 				WorkflowId: strPtr("small"),
 			},
 			request: &orcv1.UpdateTaskRequest{
-				Id:         "TASK-001",
+				TaskId:         "TASK-001",
 				WorkflowId: strPtr("medium"),
 			},
 			wantWorkflowId: "medium",
@@ -58,7 +58,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 				WorkflowId: nil,
 			},
 			request: &orcv1.UpdateTaskRequest{
-				Id:         "TASK-002",
+				TaskId:         "TASK-002",
 				WorkflowId: strPtr("small"),
 			},
 			wantWorkflowId: "small",
@@ -74,7 +74,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 				WorkflowId: strPtr("medium"),
 			},
 			request: &orcv1.UpdateTaskRequest{
-				Id:         "TASK-003",
+				TaskId:         "TASK-003",
 				WorkflowId: strPtr(""),
 			},
 			wantWorkflowId: "",
@@ -90,7 +90,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 				WorkflowId: strPtr("medium"),
 			},
 			request: &orcv1.UpdateTaskRequest{
-				Id:    "TASK-004",
+				TaskId:    "TASK-004",
 				Title: strPtr("Updated Title"),
 				// WorkflowId is nil - should preserve existing
 			},
@@ -107,7 +107,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 				WorkflowId: strPtr("small"),
 			},
 			request: &orcv1.UpdateTaskRequest{
-				Id:         "TASK-005",
+				TaskId:         "TASK-005",
 				WorkflowId: strPtr("custom-workflow"),
 			},
 			wantWorkflowId: "custom-workflow",
@@ -166,7 +166,7 @@ func TestUpdateTask_WorkflowId(t *testing.T) {
 			}
 
 			// Verify persistence
-			loaded, err := backend.LoadTask(tt.request.Id)
+			loaded, err := backend.LoadTask(tt.request.TaskId)
 			if err != nil {
 				t.Fatalf("failed to reload task: %v", err)
 			}
@@ -191,7 +191,7 @@ func TestUpdateTask_WorkflowId_TaskNotFound(t *testing.T) {
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
 	req := connect.NewRequest(&orcv1.UpdateTaskRequest{
-		Id:         "TASK-NONEXISTENT",
+		TaskId:         "TASK-NONEXISTENT",
 		WorkflowId: strPtr("medium"),
 	})
 
@@ -240,7 +240,7 @@ func TestUpdateTask_WorkflowId_MultipleTasks(t *testing.T) {
 
 	// Update task1's workflow
 	req := connect.NewRequest(&orcv1.UpdateTaskRequest{
-		Id:         "TASK-001",
+		TaskId:         "TASK-001",
 		WorkflowId: strPtr("medium"),
 	})
 	_, err := server.UpdateTask(context.Background(), req)
@@ -289,7 +289,7 @@ func TestUpdateTask_WorkflowId_WithOtherFieldUpdates(t *testing.T) {
 
 	// Update multiple fields including workflow
 	req := connect.NewRequest(&orcv1.UpdateTaskRequest{
-		Id:         "TASK-001",
+		TaskId:         "TASK-001",
 		Title:      strPtr("Updated Title"),
 		WorkflowId: strPtr("large"),
 	})
@@ -316,7 +316,7 @@ func TestProtoSchema_UpdateTaskRequest_HasWorkflowId(t *testing.T) {
 	// If this compiles, the field exists. This will fail to compile
 	// until the proto is regenerated with workflow_id field.
 	req := &orcv1.UpdateTaskRequest{
-		Id:         "TASK-001",
+		TaskId:         "TASK-001",
 		WorkflowId: strPtr("medium"),
 	}
 

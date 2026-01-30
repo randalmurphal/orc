@@ -194,8 +194,10 @@ message Event {
   string id = 1;
   // When event occurred
   google.protobuf.Timestamp timestamp = 2;
+  // Project this event belongs to (for multi-tenant filtering)
+  optional string project_id = 3;
   // Associated task ID (if applicable)
-  optional string task_id = 3;
+  optional string task_id = 4;
 
   // Typed payload (exactly one must be set)
   oneof payload {
@@ -252,14 +254,16 @@ service EventService {
 // =============================================================================
 
 message SubscribeRequest {
+  // Filter by project IDs (empty = all projects, ["*"] = all)
+  repeated string project_ids = 1;
   // Subscribe to specific task (optional, empty = all tasks)
-  optional string task_id = 1;
+  optional string task_id = 2;
   // Subscribe to specific initiative (optional)
-  optional string initiative_id = 2;
+  optional string initiative_id = 3;
   // Event types to receive (empty = all)
-  repeated string event_types = 3;
+  repeated string event_types = 4;
   // Include heartbeat events
-  bool include_heartbeat = 4;
+  bool include_heartbeat = 5;
 }
 
 message SubscribeResponse {
@@ -267,17 +271,18 @@ message SubscribeResponse {
 }
 
 message GetEventsRequest {
-  PageRequest page = 1;
+  string project_id = 1;  // Required: project to get events from
+  PageRequest page = 2;
   // Filter by task ID
-  optional string task_id = 2;
+  optional string task_id = 3;
   // Filter by initiative ID
-  optional string initiative_id = 3;
+  optional string initiative_id = 4;
   // Events since timestamp
-  optional google.protobuf.Timestamp since = 4;
+  optional google.protobuf.Timestamp since = 5;
   // Events until timestamp
-  optional google.protobuf.Timestamp until = 5;
+  optional google.protobuf.Timestamp until = 6;
   // Filter by event types
-  repeated string types = 6;
+  repeated string types = 7;
 }
 
 message GetEventsResponse {
@@ -286,10 +291,11 @@ message GetEventsResponse {
 }
 
 message GetTimelineRequest {
-  string task_id = 1;
-  PageRequest page = 2;
+  string project_id = 1;
+  string task_id = 2;
+  PageRequest page = 3;
   // Filter by event types
-  repeated TimelineEventType types = 3;
+  repeated TimelineEventType types = 4;
 }
 
 message GetTimelineResponse {

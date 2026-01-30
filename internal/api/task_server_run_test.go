@@ -61,7 +61,7 @@ func TestRunTask_NoWorkflowId_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	// Must return error for missing workflow_id
@@ -115,7 +115,7 @@ func TestRunTask_EmptyWorkflowId_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -176,7 +176,7 @@ func TestRunTask_SpawnsExecutor(t *testing.T) {
 	// to accept an executor callback. This is intentional TDD.
 	server := NewTaskServerWithExecutor(backend, nil, nil, nil, "", nil, nil, mockExecutor)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	resp, err := server.RunTask(context.Background(), req)
 
 	if err != nil {
@@ -232,7 +232,7 @@ func TestRunTask_ExecutorFailure_RevertsStatus(t *testing.T) {
 
 	server := NewTaskServerWithExecutor(backend, nil, nil, nil, "", nil, nil, mockExecutor)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	// Should return error when executor fails
@@ -276,7 +276,7 @@ func TestRunTask_AlreadyRunning_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -318,7 +318,7 @@ func TestRunTask_CompletedTask_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -372,7 +372,7 @@ func TestRunTask_FailedTask_AllowsRetry(t *testing.T) {
 
 	server := NewTaskServerWithExecutor(backend, nil, nil, nil, "", nil, nil, mockExecutor)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	// Failed tasks should be allowed to retry
@@ -410,7 +410,7 @@ func TestRunTask_PausedTask_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	// Paused tasks should not be "run" - they should be "resumed"
@@ -458,7 +458,7 @@ func TestRunTask_BlockedTask_ReturnsError(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -517,7 +517,7 @@ func TestRunTask_BlockedByDependency_ReturnsError(t *testing.T) {
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
 	// Try to run the blocked task
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-002"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-002"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -582,7 +582,7 @@ func TestRunTask_DependencyCompleted_AllowsRun(t *testing.T) {
 	server := NewTaskServerWithExecutor(backend, nil, nil, nil, "", nil, nil, mockExecutor)
 
 	// Should be able to run now
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-002"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-002"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err != nil {
@@ -635,7 +635,7 @@ func TestRunTask_ConcurrentCalls_SecondFails(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+		req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 		_, firstErr = server.RunTask(context.Background(), req)
 	}()
 
@@ -648,7 +648,7 @@ func TestRunTask_ConcurrentCalls_SecondFails(t *testing.T) {
 	}
 
 	// Second call while first is running - should fail
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-001"})
 	_, secondErr := server.RunTask(context.Background(), req)
 
 	// Let first call finish
@@ -702,7 +702,7 @@ func TestPauseTask_RunningTask(t *testing.T) {
 
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.PauseTaskRequest{Id: "TASK-001"})
+	req := connect.NewRequest(&orcv1.PauseTaskRequest{TaskId: "TASK-001"})
 	resp, err := server.PauseTask(context.Background(), req)
 
 	if err != nil {
@@ -729,7 +729,7 @@ func TestRunTask_NotFound(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: "TASK-NONEXISTENT"})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: "TASK-NONEXISTENT"})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {
@@ -753,7 +753,7 @@ func TestRunTask_EmptyId(t *testing.T) {
 	backend := storage.NewTestBackend(t)
 	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
 
-	req := connect.NewRequest(&orcv1.RunTaskRequest{Id: ""})
+	req := connect.NewRequest(&orcv1.RunTaskRequest{TaskId: ""})
 	_, err := server.RunTask(context.Background(), req)
 
 	if err == nil {

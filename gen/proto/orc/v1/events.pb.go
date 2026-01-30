@@ -1378,8 +1378,10 @@ type Event struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// When event occurred
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Project this event belongs to (for multi-tenant filtering)
+	ProjectId *string `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
 	// Associated task ID (if applicable)
-	TaskId *string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	TaskId *string `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
 	// Typed payload (exactly one must be set)
 	//
 	// Types that are valid to be assigned to Payload:
@@ -1448,6 +1450,13 @@ func (x *Event) GetTimestamp() *timestamppb.Timestamp {
 		return x.Timestamp
 	}
 	return nil
+}
+
+func (x *Event) GetProjectId() string {
+	if x != nil && x.ProjectId != nil {
+		return *x.ProjectId
+	}
+	return ""
 }
 
 func (x *Event) GetTaskId() string {
@@ -1834,14 +1843,16 @@ func (x *TimelineEvent) GetCreatedAt() *timestamppb.Timestamp {
 
 type SubscribeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Filter by project IDs (empty = all projects, ["*"] = all)
+	ProjectIds []string `protobuf:"bytes,1,rep,name=project_ids,json=projectIds,proto3" json:"project_ids,omitempty"`
 	// Subscribe to specific task (optional, empty = all tasks)
-	TaskId *string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	TaskId *string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
 	// Subscribe to specific initiative (optional)
-	InitiativeId *string `protobuf:"bytes,2,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	InitiativeId *string `protobuf:"bytes,3,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
 	// Event types to receive (empty = all)
-	EventTypes []string `protobuf:"bytes,3,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
+	EventTypes []string `protobuf:"bytes,4,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
 	// Include heartbeat events
-	IncludeHeartbeat bool `protobuf:"varint,4,opt,name=include_heartbeat,json=includeHeartbeat,proto3" json:"include_heartbeat,omitempty"`
+	IncludeHeartbeat bool `protobuf:"varint,5,opt,name=include_heartbeat,json=includeHeartbeat,proto3" json:"include_heartbeat,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1874,6 +1885,13 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_events_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SubscribeRequest) GetProjectIds() []string {
+	if x != nil {
+		return x.ProjectIds
+	}
+	return nil
 }
 
 func (x *SubscribeRequest) GetTaskId() string {
@@ -1949,18 +1967,19 @@ func (x *SubscribeResponse) GetEvent() *Event {
 }
 
 type GetEventsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Page  *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project to get events from
+	Page      *PageRequest           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	// Filter by task ID
-	TaskId *string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	TaskId *string `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
 	// Filter by initiative ID
-	InitiativeId *string `protobuf:"bytes,3,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	InitiativeId *string `protobuf:"bytes,4,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
 	// Events since timestamp
-	Since *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=since,proto3,oneof" json:"since,omitempty"`
+	Since *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=since,proto3,oneof" json:"since,omitempty"`
 	// Events until timestamp
-	Until *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=until,proto3,oneof" json:"until,omitempty"`
+	Until *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=until,proto3,oneof" json:"until,omitempty"`
 	// Filter by event types
-	Types         []string `protobuf:"bytes,6,rep,name=types,proto3" json:"types,omitempty"`
+	Types         []string `protobuf:"bytes,7,rep,name=types,proto3" json:"types,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1993,6 +2012,13 @@ func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_events_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetEventsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetEventsRequest) GetPage() *PageRequest {
@@ -2090,11 +2116,12 @@ func (x *GetEventsResponse) GetPage() *PageResponse {
 }
 
 type GetTimelineRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Page   *PageRequest           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId    string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Page      *PageRequest           `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	// Filter by event types
-	Types         []TimelineEventType `protobuf:"varint,3,rep,packed,name=types,proto3,enum=orc.v1.TimelineEventType" json:"types,omitempty"`
+	Types         []TimelineEventType `protobuf:"varint,4,rep,packed,name=types,proto3,enum=orc.v1.TimelineEventType" json:"types,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2127,6 +2154,13 @@ func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetTimelineRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_events_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GetTimelineRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetTimelineRequest) GetTaskId() string {
@@ -2310,11 +2344,14 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
 	"\x06_phase\"J\n" +
 	"\x0eHeartbeatEvent\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xf3\t\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xa6\n" +
+	"\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
-	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1c\n" +
-	"\atask_id\x18\x03 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12=\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\"\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tH\x01R\tprojectId\x88\x01\x01\x12\x1c\n" +
+	"\atask_id\x18\x04 \x01(\tH\x02R\x06taskId\x88\x01\x01\x12=\n" +
 	"\ftask_created\x18\n" +
 	" \x01(\v2\x18.orc.v1.TaskCreatedEventH\x00R\vtaskCreated\x12=\n" +
 	"\ftask_updated\x18\v \x01(\v2\x18.orc.v1.TaskUpdatedEventH\x00R\vtaskUpdated\x12=\n" +
@@ -2333,7 +2370,8 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\awarning\x18\x18 \x01(\v2\x14.orc.v1.WarningEventH\x00R\awarning\x126\n" +
 	"\theartbeat\x18\x19 \x01(\v2\x16.orc.v1.HeartbeatEventH\x00R\theartbeat\x12F\n" +
 	"\x0fsession_metrics\x18\x1a \x01(\v2\x1b.orc.v1.SessionMetricsEventH\x00R\x0esessionMetricsB\t\n" +
-	"\apayloadB\n" +
+	"\apayloadB\r\n" +
+	"\v_project_idB\n" +
 	"\n" +
 	"\b_task_id\"\xdc\x02\n" +
 	"\rTimelineEvent\x12\x0e\n" +
@@ -2352,25 +2390,29 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x06_phaseB\f\n" +
 	"\n" +
 	"_iterationB\a\n" +
-	"\x05_data\"\xc6\x01\n" +
-	"\x10SubscribeRequest\x12\x1c\n" +
-	"\atask_id\x18\x01 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
-	"\rinitiative_id\x18\x02 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x12\x1f\n" +
-	"\vevent_types\x18\x03 \x03(\tR\n" +
+	"\x05_data\"\xe7\x01\n" +
+	"\x10SubscribeRequest\x12\x1f\n" +
+	"\vproject_ids\x18\x01 \x03(\tR\n" +
+	"projectIds\x12\x1c\n" +
+	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
+	"\rinitiative_id\x18\x03 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x12\x1f\n" +
+	"\vevent_types\x18\x04 \x03(\tR\n" +
 	"eventTypes\x12+\n" +
-	"\x11include_heartbeat\x18\x04 \x01(\bR\x10includeHeartbeatB\n" +
+	"\x11include_heartbeat\x18\x05 \x01(\bR\x10includeHeartbeatB\n" +
 	"\n" +
 	"\b_task_idB\x10\n" +
 	"\x0e_initiative_id\"8\n" +
 	"\x11SubscribeResponse\x12#\n" +
-	"\x05event\x18\x01 \x01(\v2\r.orc.v1.EventR\x05event\"\xb9\x02\n" +
-	"\x10GetEventsRequest\x12'\n" +
-	"\x04page\x18\x01 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12\x1c\n" +
-	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
-	"\rinitiative_id\x18\x03 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x125\n" +
-	"\x05since\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x02R\x05since\x88\x01\x01\x125\n" +
-	"\x05until\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\x05until\x88\x01\x01\x12\x14\n" +
-	"\x05types\x18\x06 \x03(\tR\x05typesB\n" +
+	"\x05event\x18\x01 \x01(\v2\r.orc.v1.EventR\x05event\"\xd8\x02\n" +
+	"\x10GetEventsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12'\n" +
+	"\x04page\x18\x02 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12\x1c\n" +
+	"\atask_id\x18\x03 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12(\n" +
+	"\rinitiative_id\x18\x04 \x01(\tH\x01R\finitiativeId\x88\x01\x01\x125\n" +
+	"\x05since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x02R\x05since\x88\x01\x01\x125\n" +
+	"\x05until\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x03R\x05until\x88\x01\x01\x12\x14\n" +
+	"\x05types\x18\a \x03(\tR\x05typesB\n" +
 	"\n" +
 	"\b_task_idB\x10\n" +
 	"\x0e_initiative_idB\b\n" +
@@ -2378,11 +2420,13 @@ const file_orc_v1_events_proto_rawDesc = "" +
 	"\x06_until\"d\n" +
 	"\x11GetEventsResponse\x12%\n" +
 	"\x06events\x18\x01 \x03(\v2\r.orc.v1.EventR\x06events\x12(\n" +
-	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"\x87\x01\n" +
-	"\x12GetTimelineRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12'\n" +
-	"\x04page\x18\x02 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12/\n" +
-	"\x05types\x18\x03 \x03(\x0e2\x19.orc.v1.TimelineEventTypeR\x05types\"n\n" +
+	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"\xa6\x01\n" +
+	"\x12GetTimelineRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12'\n" +
+	"\x04page\x18\x03 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12/\n" +
+	"\x05types\x18\x04 \x03(\x0e2\x19.orc.v1.TimelineEventTypeR\x05types\"n\n" +
 	"\x13GetTimelineResponse\x12-\n" +
 	"\x06events\x18\x01 \x03(\v2\x15.orc.v1.TimelineEventR\x06events\x12(\n" +
 	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page*\x8a\x02\n" +

@@ -125,9 +125,10 @@ service TranscriptService {
 // =============================================================================
 
 message ListTranscriptsRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
   // Filter by phase
-  optional string phase = 2;
+  optional string phase = 3;
 }
 
 message ListTranscriptsResponse {
@@ -135,9 +136,10 @@ message ListTranscriptsResponse {
 }
 
 message GetTranscriptRequest {
-  string task_id = 1;
-  string phase = 2;
-  int32 iteration = 3;
+  string project_id = 1;
+  string task_id = 2;
+  string phase = 3;
+  int32 iteration = 4;
 }
 
 message GetTranscriptResponse {
@@ -145,9 +147,10 @@ message GetTranscriptResponse {
 }
 
 message GetTranscriptContentRequest {
-  string task_id = 1;
-  string phase = 2;
-  int32 iteration = 3;
+  string project_id = 1;
+  string task_id = 2;
+  string phase = 3;
+  int32 iteration = 4;
 }
 
 message GetTranscriptContentResponse {
@@ -155,7 +158,8 @@ message GetTranscriptContentResponse {
 }
 
 message GetTokensRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTokensResponse {
@@ -163,7 +167,8 @@ message GetTokensResponse {
 }
 
 message GetSessionRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetSessionResponse {
@@ -171,7 +176,8 @@ message GetSessionResponse {
 }
 
 message GetTodosRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTodosResponse {
@@ -181,7 +187,8 @@ message GetTodosResponse {
 }
 
 message GetTodoHistoryRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTodoHistoryResponse {

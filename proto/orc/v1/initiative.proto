@@ -104,9 +104,10 @@ service InitiativeService {
 // =============================================================================
 
 message ListInitiativesRequest {
-  PageRequest page = 1;
-  optional InitiativeStatus status = 2;
-  bool shared = 3;
+  string project_id = 1;  // Required: project to list initiatives from
+  PageRequest page = 2;
+  optional InitiativeStatus status = 3;
+  bool shared = 4;
 }
 
 message ListInitiativesResponse {
@@ -115,7 +116,8 @@ message ListInitiativesResponse {
 }
 
 message GetInitiativeRequest {
-  string id = 1;
+  string project_id = 1;
+  string initiative_id = 2;
 }
 
 message GetInitiativeResponse {
@@ -123,13 +125,14 @@ message GetInitiativeResponse {
 }
 
 message CreateInitiativeRequest {
-  string title = 1;
-  optional string vision = 2;
-  optional Identity owner = 3;
-  repeated string blocked_by = 4;
-  optional string branch_base = 5;
-  optional string branch_prefix = 6;
-  repeated string context_files = 7;
+  string project_id = 1;  // Required: project to create initiative in
+  string title = 2;
+  optional string vision = 3;
+  optional Identity owner = 4;
+  repeated string blocked_by = 5;
+  optional string branch_base = 6;
+  optional string branch_prefix = 7;
+  repeated string context_files = 8;
 }
 
 message CreateInitiativeResponse {
@@ -137,15 +140,16 @@ message CreateInitiativeResponse {
 }
 
 message UpdateInitiativeRequest {
-  string id = 1;
-  optional string title = 2;
-  optional string vision = 3;
-  optional Identity owner = 4;
-  optional InitiativeStatus status = 5;
-  repeated string blocked_by = 6;
-  optional string branch_base = 7;
-  optional string branch_prefix = 8;
-  repeated string context_files = 9;
+  string project_id = 1;
+  string initiative_id = 2;
+  optional string title = 3;
+  optional string vision = 4;
+  optional Identity owner = 5;
+  optional InitiativeStatus status = 6;
+  repeated string blocked_by = 7;
+  optional string branch_base = 8;
+  optional string branch_prefix = 9;
+  repeated string context_files = 10;
 }
 
 message UpdateInitiativeResponse {
@@ -153,7 +157,8 @@ message UpdateInitiativeResponse {
 }
 
 message DeleteInitiativeRequest {
-  string id = 1;
+  string project_id = 1;
+  string initiative_id = 2;
 }
 
 message DeleteInitiativeResponse {
@@ -161,7 +166,8 @@ message DeleteInitiativeResponse {
 }
 
 message ListInitiativeTasksRequest {
-  string initiative_id = 1;
+  string project_id = 1;
+  string initiative_id = 2;
 }
 
 message ListInitiativeTasksResponse {
@@ -169,8 +175,9 @@ message ListInitiativeTasksResponse {
 }
 
 message LinkTasksRequest {
-  string initiative_id = 1;
-  repeated string task_ids = 2;
+  string project_id = 1;
+  string initiative_id = 2;
+  repeated string task_ids = 3;
 }
 
 message LinkTasksResponse {
@@ -178,8 +185,9 @@ message LinkTasksResponse {
 }
 
 message UnlinkTaskRequest {
-  string initiative_id = 1;
-  string task_id = 2;
+  string project_id = 1;
+  string initiative_id = 2;
+  string task_id = 3;
 }
 
 message UnlinkTaskResponse {
@@ -187,10 +195,11 @@ message UnlinkTaskResponse {
 }
 
 message AddDecisionRequest {
-  string initiative_id = 1;
-  string decision = 2;
-  optional string rationale = 3;
-  optional string by = 4;
+  string project_id = 1;
+  string initiative_id = 2;
+  string decision = 3;
+  optional string rationale = 4;
+  optional string by = 5;
 }
 
 message AddDecisionResponse {
@@ -198,7 +207,8 @@ message AddDecisionResponse {
 }
 
 message GetReadyTasksRequest {
-  string initiative_id = 1;
+  string project_id = 1;
+  string initiative_id = 2;
 }
 
 message GetReadyTasksResponse {
@@ -206,7 +216,8 @@ message GetReadyTasksResponse {
 }
 
 message GetDependencyGraphRequest {
-  string initiative_id = 1;
+  string project_id = 1;
+  string initiative_id = 2;
 }
 
 message GetDependencyGraphResponse {
@@ -214,9 +225,10 @@ message GetDependencyGraphResponse {
 }
 
 message RunInitiativeRequest {
-  string initiative_id = 1;
-  optional string profile = 2;
-  int32 max_parallel = 3;
+  string project_id = 1;
+  string initiative_id = 2;
+  optional string profile = 3;
+  int32 max_parallel = 4;
 }
 
 message RunInitiativeResponse {
