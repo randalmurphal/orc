@@ -103,43 +103,20 @@ Based on your validation:
 
 ## Output Format
 
-Output JSON matching the review decision schema:
+Output your structured response matching the review decision schema. Include the status (pass, fail, or needs_user_input), whether gaps were addressed, an overall summary, the list of resolved issues from Round 1, any remaining issues with severity and description, user questions if applicable, and a recommendation for what should happen next.
 
-```json
-{
-  "status": "pass|fail|needs_user_input",
-  "gaps_addressed": true,
-  "summary": "Overall assessment of the implementation",
-  "issues_resolved": ["Resolved issue 1 from Round 1", "Resolved issue 2"],
-  "remaining_issues": [
-    {"severity": "medium", "description": "Remaining issue description", "constitution_violation": "default"}
-  ],
-  "user_questions": ["Question requiring user decision (if needs_user_input)"],
-  "recommendation": "What should happen next"
-}
-```
-
-**Note:** Include `constitution_violation` field in remaining_issues only if applicable. Value is `"invariant"` (must fix, cannot pass) or `"default"` (can defer with justification).
+**Note:** Include the `constitution_violation` field on remaining issues only if applicable. Use "invariant" for issues that must be fixed (cannot pass) or "default" for issues that can be deferred with justification.
 
 ## Phase Completion
 
 ### If PASS:
 
-Output ONLY this JSON:
-```json
-{"status": "complete", "summary": "Review round 2 PASS: All issues addressed, ready for QA/merge"}
-```
+Output your structured response with status set to "complete" and a summary indicating all issues were addressed and the code is ready for QA/merge.
 
 ### If FAIL:
 
-Output ONLY this JSON:
-```json
-{"status": "blocked", "reason": "Review FAIL: [list remaining issues]. Implementation fixes needed."}
-```
+Output your structured response with status set to "blocked" and a reason listing the remaining issues that need implementation fixes.
 
 ### If NEEDS_USER_INPUT:
 
-Output ONLY this JSON:
-```json
-{"status": "blocked", "reason": "Review NEEDS_USER_INPUT: [list questions requiring user decision]"}
-```
+Output your structured response with status set to "blocked" and a reason listing the questions that require user decision.
