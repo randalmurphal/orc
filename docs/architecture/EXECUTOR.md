@@ -15,7 +15,7 @@
 | **Phase Execution** | `workflow_phase.go` | `executePhase()`, `executePhaseWithTimeout()`, timeout handling |
 | **Completion Actions** | `workflow_completion.go` | PR creation, merge, worktree setup/cleanup |
 | **State Management** | `workflow_state.go` | Failure/interrupt handling, cost tracking |
-| **Gates** | `workflow_gates.go` | Gate evaluation, event publishing |
+| **Gates** | `workflow_gates.go` | Gate evaluation, output variable pipeline, event publishing |
 | **Claude Executor** | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper |
 | **Finalize Executor** | `finalize.go` | Branch sync, conflict resolution, risk assessment |
 | **Publishing** | `publish.go` | Nil-safe event publishing |
