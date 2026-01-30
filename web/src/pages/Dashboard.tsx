@@ -66,7 +66,7 @@ export function Dashboard() {
 		try {
 			// Load stats and initiatives in parallel
 			const [statsResponse, initiativesResponse] = await Promise.all([
-				dashboardClient.getStats(create(GetStatsRequestSchema, {})),
+				dashboardClient.getStats(create(GetStatsRequestSchema, { projectId: projectId ?? '' })),
 				initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {
 					projectId: projectId ?? undefined,
 					status: InitiativeStatus.ACTIVE
@@ -116,13 +116,13 @@ export function Dashboard() {
 				// Refresh initiatives to update progress counts
 				loadInitiatives();
 				// Also refresh stats
-				dashboardClient.getStats(create(GetStatsRequestSchema, {}))
+				dashboardClient.getStats(create(GetStatsRequestSchema, { projectId: projectId ?? '' }))
 					.then((res) => { if (res.stats) setStats(res.stats); })
 					.catch(() => {});
 			}
 		);
 		return unsubscribe;
-	}, [loadInitiatives]);
+	}, [loadInitiatives, projectId]);
 
 	const navigateToFiltered = (status: string) => {
 		navigate(`/?status=${status}`);

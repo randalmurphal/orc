@@ -50,9 +50,10 @@ type ImportResult struct {
 
 // ExportServer handles export/import API requests.
 type ExportServer struct {
-	backend storage.Backend
-	workDir string
-	logger  *slog.Logger
+	backend      storage.Backend
+	projectCache *ProjectCache // Multi-project: cache of backends per project
+	workDir      string
+	logger       *slog.Logger
 }
 
 // NewExportServer creates a new export server.
@@ -65,6 +66,28 @@ func NewExportServer(backend storage.Backend, workDir string, logger *slog.Logge
 		workDir: workDir,
 		logger:  logger,
 	}
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *ExportServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+// Falls back to legacy single backend only when no projectID is specified.
+func (s *ExportServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // HandleExport handles POST /api/export requests.
@@ -82,6 +105,14 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve the project backend
+	// TODO: extract project_id from request once export proto supports it
+	backend, err := s.getBackend("")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to resolve backend: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Determine export options
 	withState := true
 	withTranscripts := req.IncludeTranscripts
@@ -91,7 +122,7 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 	withInitiatives := req.IncludeInitiatives
 
 	// Load all data
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to load tasks: %v", err), http.StatusInternalServerError)
 		return
@@ -99,7 +130,7 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 
 	var initiatives []*initiative.Initiative
 	if withInitiatives {
-		initiatives, err = s.backend.LoadAllInitiatives()
+		initiatives, err = backend.LoadAllInitiatives()
 		if err != nil {
 			s.logger.Warn("failed to load initiatives", "error", err)
 			// Continue without initiatives
@@ -133,7 +164,7 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 
 	// Export tasks
 	for _, t := range tasks {
-		export := s.buildExportData(t, withState, withTranscripts)
+		export := s.buildExportData(backend, t, withState, withTranscripts)
 		yamlData, err := yaml.Marshal(export)
 		if err != nil {
 			s.logger.Warn("failed to marshal task", "task", t.Id, "error", err)
@@ -170,6 +201,14 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 func (s *ExportServer) HandleImport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Resolve the project backend
+	// TODO: extract project_id from request once export proto supports it
+	backend, err := s.getBackend("")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to resolve backend: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -242,7 +281,7 @@ func (s *ExportServer) HandleImport(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Import the data
-		imported, skipped, errMsg := s.importData(data, header.Name, dryRun)
+		imported, skipped, errMsg := s.importData(backend, data, header.Name, dryRun)
 		if errMsg != "" {
 			if strings.Contains(errMsg, "skipped") {
 				// Check if it's a task or initiative
@@ -297,7 +336,7 @@ func (s *ExportServer) buildManifest(taskCount, initiativeCount int, withState, 
 }
 
 // buildExportData creates export data for a task.
-func (s *ExportServer) buildExportData(t *orcv1.Task, withState, withTranscripts bool) *exportData {
+func (s *ExportServer) buildExportData(backend storage.Backend, t *orcv1.Task, withState, withTranscripts bool) *exportData {
 	export := &exportData{
 		Version:    exportFormatVersion,
 		ExportedAt: time.Now(),
@@ -305,37 +344,37 @@ func (s *ExportServer) buildExportData(t *orcv1.Task, withState, withTranscripts
 	}
 
 	// Always load spec
-	if spec, err := s.backend.GetSpecForTask(t.Id); err == nil {
+	if spec, err := backend.GetSpecForTask(t.Id); err == nil {
 		export.Spec = spec
 	}
 
 	// Load gate decisions if state export is requested
 	if withState {
-		if decisions, err := s.backend.ListGateDecisions(t.Id); err == nil {
+		if decisions, err := backend.ListGateDecisions(t.Id); err == nil {
 			export.GateDecisions = decisions
 		}
 	}
 
 	// Load transcripts if requested
 	if withTranscripts {
-		if transcripts, err := s.backend.GetTranscripts(t.Id); err == nil {
+		if transcripts, err := backend.GetTranscripts(t.Id); err == nil {
 			export.Transcripts = transcripts
 		}
 	}
 
 	// Always load collaboration data
-	if comments, err := s.backend.ListTaskComments(t.Id); err == nil {
+	if comments, err := backend.ListTaskComments(t.Id); err == nil {
 		export.TaskComments = comments
 	}
-	if reviews, err := s.backend.ListReviewComments(t.Id); err == nil {
+	if reviews, err := backend.ListReviewComments(t.Id); err == nil {
 		export.ReviewComments = reviews
 	}
 
 	// Always load attachments
-	if attachments, err := s.backend.ListAttachments(t.Id); err == nil {
+	if attachments, err := backend.ListAttachments(t.Id); err == nil {
 		export.Attachments = make([]attachmentExport, 0, len(attachments))
 		for _, a := range attachments {
-			_, data, err := s.backend.GetAttachment(t.Id, a.Filename)
+			_, data, err := backend.GetAttachment(t.Id, a.Filename)
 			if err != nil {
 				continue
 			}
@@ -355,21 +394,21 @@ func (s *ExportServer) buildExportData(t *orcv1.Task, withState, withTranscripts
 
 // importData imports task or initiative data.
 // Returns (imported, skipped, errorMessage).
-func (s *ExportServer) importData(data []byte, sourceName string, dryRun bool) (bool, bool, string) {
+func (s *ExportServer) importData(backend storage.Backend, data []byte, sourceName string, dryRun bool) (bool, bool, string) {
 	// First, try to detect the data type
 	var typeCheck struct {
 		Type string `yaml:"type"`
 	}
 	if err := yaml.Unmarshal(data, &typeCheck); err == nil && typeCheck.Type == "initiative" {
-		return s.importInitiative(data, sourceName, dryRun)
+		return s.importInitiative(backend, data, sourceName, dryRun)
 	}
 
 	// Otherwise treat as task
-	return s.importTask(data, sourceName, dryRun)
+	return s.importTask(backend, data, sourceName, dryRun)
 }
 
 // importTask imports a task from YAML data.
-func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, bool, string) {
+func (s *ExportServer) importTask(backend storage.Backend, data []byte, _ string, dryRun bool) (bool, bool, string) {
 	var export exportData
 	if err := yaml.Unmarshal(data, &export); err != nil {
 		return false, false, fmt.Sprintf("parse error: %v", err)
@@ -380,7 +419,7 @@ func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, boo
 	}
 
 	// Check if task exists
-	existing, _ := s.backend.LoadTask(export.Task.Id)
+	existing, _ := backend.LoadTask(export.Task.Id)
 	if existing != nil {
 		// Smart merge: compare timestamps
 		exportTime := time.Time{}
@@ -409,13 +448,13 @@ func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, boo
 	}
 
 	// Save task
-	if err := s.backend.SaveTask(export.Task); err != nil {
+	if err := backend.SaveTask(export.Task); err != nil {
 		return false, false, fmt.Sprintf("save error: %v", err)
 	}
 
 	// Import transcripts with deduplication
 	if len(export.Transcripts) > 0 {
-		existingTranscripts, _ := s.backend.GetTranscripts(export.Task.Id)
+		existingTranscripts, _ := backend.GetTranscripts(export.Task.Id)
 		transcriptKeys := make(map[string]bool)
 		for _, t := range existingTranscripts {
 			if t.MessageUUID != "" {
@@ -428,7 +467,7 @@ func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, boo
 			if t.MessageUUID != "" && transcriptKeys[t.MessageUUID] {
 				continue // Skip duplicate
 			}
-			if err := s.backend.AddTranscript(t); err != nil {
+			if err := backend.AddTranscript(t); err != nil {
 				s.logger.Warn("could not import transcript", "error", err)
 			} else if t.MessageUUID != "" {
 				transcriptKeys[t.MessageUUID] = true
@@ -438,35 +477,35 @@ func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, boo
 
 	// Import gate decisions
 	for i := range export.GateDecisions {
-		if err := s.backend.SaveGateDecision(&export.GateDecisions[i]); err != nil {
+		if err := backend.SaveGateDecision(&export.GateDecisions[i]); err != nil {
 			s.logger.Warn("could not import gate decision", "error", err)
 		}
 	}
 
 	// Import task comments
 	for i := range export.TaskComments {
-		if err := s.backend.SaveTaskComment(&export.TaskComments[i]); err != nil {
+		if err := backend.SaveTaskComment(&export.TaskComments[i]); err != nil {
 			s.logger.Warn("could not import task comment", "error", err)
 		}
 	}
 
 	// Import review comments
 	for i := range export.ReviewComments {
-		if err := s.backend.SaveReviewComment(&export.ReviewComments[i]); err != nil {
+		if err := backend.SaveReviewComment(&export.ReviewComments[i]); err != nil {
 			s.logger.Warn("could not import review comment", "error", err)
 		}
 	}
 
 	// Import attachments
 	for _, a := range export.Attachments {
-		if _, err := s.backend.SaveAttachment(export.Task.Id, a.Filename, a.ContentType, a.Data); err != nil {
+		if _, err := backend.SaveAttachment(export.Task.Id, a.Filename, a.ContentType, a.Data); err != nil {
 			s.logger.Warn("could not import attachment", "filename", a.Filename, "error", err)
 		}
 	}
 
 	// Import spec
 	if export.Spec != "" {
-		if err := s.backend.SaveSpecForTask(export.Task.Id, export.Spec, "imported"); err != nil {
+		if err := backend.SaveSpecForTask(export.Task.Id, export.Spec, "imported"); err != nil {
 			s.logger.Warn("could not import spec", "error", err)
 		}
 	}
@@ -475,7 +514,7 @@ func (s *ExportServer) importTask(data []byte, _ string, dryRun bool) (bool, boo
 }
 
 // importInitiative imports an initiative from YAML data.
-func (s *ExportServer) importInitiative(data []byte, _ string, dryRun bool) (bool, bool, string) {
+func (s *ExportServer) importInitiative(backend storage.Backend, data []byte, _ string, dryRun bool) (bool, bool, string) {
 	var export initiativeExportData
 	if err := yaml.Unmarshal(data, &export); err != nil {
 		return false, false, fmt.Sprintf("parse error: %v", err)
@@ -486,7 +525,7 @@ func (s *ExportServer) importInitiative(data []byte, _ string, dryRun bool) (boo
 	}
 
 	// Check if initiative exists
-	existing, _ := s.backend.LoadInitiative(export.Initiative.ID)
+	existing, _ := backend.LoadInitiative(export.Initiative.ID)
 	if existing != nil {
 		// Smart merge: compare timestamps
 		if !export.Initiative.UpdatedAt.After(existing.UpdatedAt) {
@@ -499,7 +538,7 @@ func (s *ExportServer) importInitiative(data []byte, _ string, dryRun bool) (boo
 	}
 
 	// Save initiative
-	if err := s.backend.SaveInitiative(export.Initiative); err != nil {
+	if err := backend.SaveInitiative(export.Initiative); err != nil {
 		return false, false, fmt.Sprintf("save error: %v", err)
 	}
 

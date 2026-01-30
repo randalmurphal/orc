@@ -225,9 +225,9 @@ message GetStatsResponse {
 }
 
 message GetActivityHeatmapRequest {
+  string project_id = 1;
   // Number of days to include
-  int32 days = 1;
-  string project_id = 2;
+  int32 days = 2;
 }
 
 message GetActivityHeatmapResponse {
@@ -235,9 +235,9 @@ message GetActivityHeatmapResponse {
 }
 
 message GetCostSummaryRequest {
+  string project_id = 1;
   // Period: "day", "week", "month", "all"
-  string period = 1;
-  string project_id = 2;
+  string period = 2;
 }
 
 message GetCostSummaryResponse {
@@ -245,9 +245,9 @@ message GetCostSummaryResponse {
 }
 
 message GetMetricsRequest {
+  string project_id = 1;
   // Period: "day", "week", "month", "all"
-  optional string period = 1;
-  string project_id = 2;
+  optional string period = 2;
 }
 
 message GetMetricsResponse {
@@ -255,9 +255,9 @@ message GetMetricsResponse {
 }
 
 message GetDailyMetricsRequest {
+  string project_id = 1;
   // Number of days
-  int32 days = 1;
-  string project_id = 2;
+  int32 days = 2;
 }
 
 message GetDailyMetricsResponse {
@@ -265,9 +265,9 @@ message GetDailyMetricsResponse {
 }
 
 message GetMetricsByModelRequest {
+  string project_id = 1;
   // Period
-  optional string period = 1;
-  string project_id = 2;
+  optional string period = 2;
 }
 
 message GetMetricsByModelResponse {
@@ -275,9 +275,9 @@ message GetMetricsByModelResponse {
 }
 
 message GetOutcomesRequest {
+  string project_id = 1;
   // Period
-  optional string period = 1;
-  string project_id = 2;
+  optional string period = 2;
 }
 
 message GetOutcomesResponse {
@@ -285,9 +285,9 @@ message GetOutcomesResponse {
 }
 
 message GetTopInitiativesRequest {
+  string project_id = 1;
   // Number of initiatives to return
-  int32 limit = 1;
-  string project_id = 2;
+  int32 limit = 2;
 }
 
 message GetTopInitiativesResponse {
@@ -295,11 +295,11 @@ message GetTopInitiativesResponse {
 }
 
 message GetTopFilesRequest {
+  string project_id = 1;
   // Number of files to return
-  int32 limit = 1;
+  int32 limit = 2;
   // Task ID filter (optional)
-  optional string task_id = 2;
-  string project_id = 3;
+  optional string task_id = 3;
 }
 
 message GetTopFilesResponse {
@@ -307,9 +307,9 @@ message GetTopFilesResponse {
 }
 
 message GetComparisonRequest {
+  string project_id = 1;
   // Period to compare: "day", "week", "month"
-  string period = 1;
-  string project_id = 2;
+  string period = 2;
 }
 
 message GetComparisonResponse {
@@ -317,8 +317,8 @@ message GetComparisonResponse {
 }
 
 message GetTaskMetricsRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetTaskMetricsResponse {

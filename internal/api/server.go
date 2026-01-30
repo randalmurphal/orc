@@ -597,6 +597,10 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).
+// TODO: WebSocket methods need project context for multi-project support.
+// These receive task IDs but no project IDs. A deeper refactor is needed to
+// either look up the project from the task, or pass project context through
+// the WebSocket protocol.
 func (s *Server) pauseTask(id string) (map[string]any, error) {
 	t, err := s.backend.LoadTask(id)
 	if err != nil {
@@ -615,6 +619,7 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 }
 
 // resumeTask resumes a paused, blocked, or failed task (called by WebSocket handler).
+// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
 func (s *Server) resumeTask(id string) (map[string]any, error) {
 	t, err := s.backend.LoadTask(id)
 	if err != nil {
@@ -731,6 +736,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 // startTask starts a task execution (called by taskServer.RunTask).
 // This spawns a WorkflowExecutor goroutine similar to resumeTask.
+// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
 func (s *Server) startTask(id string) error {
 	t, err := s.backend.LoadTask(id)
 	if err != nil {
@@ -787,6 +793,7 @@ func (s *Server) startTask(id string) error {
 }
 
 // cancelTask cancels a running task (called by WebSocket handler).
+// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
 func (s *Server) cancelTask(id string) (map[string]any, error) {
 	s.runningTasksMu.RLock()
 	cancel, exists := s.runningTasks[id]
@@ -832,6 +839,8 @@ type SessionMetricsResponse struct {
 }
 
 // GetSessionMetrics returns current session metrics (used by WebSocket handler).
+// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
+// Currently aggregates metrics across the default backend only.
 func (s *Server) GetSessionMetrics() SessionMetricsResponse {
 	duration := int64(time.Since(s.sessionStart).Seconds())
 

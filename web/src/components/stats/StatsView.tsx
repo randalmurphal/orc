@@ -18,6 +18,7 @@ import {
 	useWeeklyChanges,
 	type StatsPeriod,
 } from '@/stores/statsStore';
+import { useCurrentProjectId } from '@/stores';
 import { ActivityHeatmap, type ActivityData } from './ActivityHeatmap';
 import { TasksBarChart } from './TasksBarChart';
 import type { DayData } from './barChartUtils';
@@ -273,6 +274,7 @@ function TimeFilter({ period, onPeriodChange }: TimeFilterProps) {
  * <StatsView />
  */
 export function StatsView({ className = '' }: StatsViewProps) {
+	const projectId = useCurrentProjectId();
 	const fetchStats = useStatsStore((state) => state.fetchStats);
 	const setPeriod = useStatsStore((state) => state.setPeriod);
 
@@ -289,8 +291,8 @@ export function StatsView({ className = '' }: StatsViewProps) {
 
 	// Fetch stats on mount
 	useEffect(() => {
-		fetchStats(period);
-	}, [fetchStats, period]);
+		fetchStats(period, projectId ?? undefined);
+	}, [fetchStats, period, projectId]);
 
 	// Handle period change
 	const handlePeriodChange = useCallback(
@@ -302,8 +304,8 @@ export function StatsView({ className = '' }: StatsViewProps) {
 
 	// Handle retry
 	const handleRetry = useCallback(() => {
-		fetchStats(period);
-	}, [fetchStats, period]);
+		fetchStats(period, projectId ?? undefined);
+	}, [fetchStats, period, projectId]);
 
 	// Handle export
 	const handleExport = useCallback(() => {

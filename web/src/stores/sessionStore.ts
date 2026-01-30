@@ -42,8 +42,8 @@ export interface SessionActions {
 	endSession: () => void;
 
 	// Control
-	pauseAll: () => Promise<void>;
-	resumeAll: () => Promise<void>;
+	pauseAll: (projectId?: string) => Promise<void>;
+	resumeAll: (projectId?: string) => Promise<void>;
 
 	// Updates
 	updateMetrics: (metrics: Partial<SessionMetrics>) => void;
@@ -236,13 +236,13 @@ export const useSessionStore = create<SessionStore>()(
 			},
 
 			// Control - pause/resume all tasks via Connect RPC
-			pauseAll: async () => {
-				await taskClient.pauseAllTasks(createProto(PauseAllTasksRequestSchema, {}));
+			pauseAll: async (projectId?: string) => {
+				await taskClient.pauseAllTasks(createProto(PauseAllTasksRequestSchema, { projectId: projectId ?? '' }));
 				set({ isPaused: true });
 			},
 
-			resumeAll: async () => {
-				await taskClient.resumeAllTasks(createProto(ResumeAllTasksRequestSchema, {}));
+			resumeAll: async (projectId?: string) => {
+				await taskClient.resumeAllTasks(createProto(ResumeAllTasksRequestSchema, { projectId: projectId ?? '' }));
 				set({ isPaused: false });
 			},
 

@@ -11,6 +11,7 @@ import {
 	DismissAllNotificationsRequestSchema,
 	type Notification,
 } from '@/gen/orc/v1/notification_pb';
+import { useCurrentProjectId } from '@/stores';
 import './NotificationBar.css';
 
 // Local type for working with notifications (convert proto timestamps to Date)
@@ -47,6 +48,7 @@ function notificationToData(n: Notification): NotificationData {
  */
 export function NotificationBar(): ReactElement | null {
 	const navigate = useNavigate();
+	const projectId = useCurrentProjectId();
 	const [notifications, setNotifications] = useState<NotificationData[]>([]);
 	const [dismissing, setDismissing] = useState<string | null>(null);
 
@@ -57,7 +59,7 @@ export function NotificationBar(): ReactElement | null {
 		const fetchNotifications = async () => {
 			try {
 				const response = await notificationClient.listNotifications(
-					create(ListNotificationsRequestSchema, {})
+					create(ListNotificationsRequestSchema, { projectId: projectId ?? '' })
 				);
 				if (isMounted) {
 					setNotifications(response.notifications.map(notificationToData));
@@ -76,7 +78,7 @@ export function NotificationBar(): ReactElement | null {
 			isMounted = false;
 			clearInterval(interval);
 		};
-	}, []);
+	}, [projectId]);
 
 	const handleDismissNotification = async (id: string) => {
 		setDismissing(id);

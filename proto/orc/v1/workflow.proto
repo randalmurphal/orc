@@ -499,10 +499,11 @@ message GetPromptContentResponse {
 }
 
 message ListWorkflowRunsRequest {
-  PageRequest page = 1;
-  optional string workflow_id = 2;
-  optional string task_id = 3;
-  optional RunStatus status = 4;
+  string project_id = 1;
+  PageRequest page = 2;
+  optional string workflow_id = 3;
+  optional string task_id = 4;
+  optional RunStatus status = 5;
 }
 
 message ListWorkflowRunsResponse {
@@ -511,7 +512,8 @@ message ListWorkflowRunsResponse {
 }
 
 message GetWorkflowRunRequest {
-  string id = 1;
+  string project_id = 1;
+  string id = 2;
 }
 
 message GetWorkflowRunResponse {
@@ -519,12 +521,13 @@ message GetWorkflowRunResponse {
 }
 
 message StartWorkflowRunRequest {
-  string workflow_id = 1;
-  ContextType context_type = 2;
-  ContextData context_data = 3;
-  string prompt = 4;
-  optional string instructions = 5;
-  map<string, string> variables = 6;
+  string project_id = 1;
+  string workflow_id = 2;
+  ContextType context_type = 3;
+  ContextData context_data = 4;
+  string prompt = 5;
+  optional string instructions = 6;
+  map<string, string> variables = 7;
 }
 
 message StartWorkflowRunResponse {
@@ -532,7 +535,8 @@ message StartWorkflowRunResponse {
 }
 
 message CancelWorkflowRunRequest {
-  string id = 1;
+  string project_id = 1;
+  string id = 2;
 }
 
 message CancelWorkflowRunResponse {
@@ -547,8 +551,9 @@ message PhasePosition {
 }
 
 message SaveWorkflowLayoutRequest {
-  string workflow_id = 1;
-  repeated PhasePosition positions = 2;
+  string project_id = 1;
+  string workflow_id = 2;
+  repeated PhasePosition positions = 3;
 }
 
 message SaveWorkflowLayoutResponse {

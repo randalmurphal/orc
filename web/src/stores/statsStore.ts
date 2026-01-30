@@ -92,7 +92,7 @@ interface StatsState {
 }
 
 interface StatsActions {
-	fetchStats: (period: StatsPeriod) => Promise<void>;
+	fetchStats: (period: StatsPeriod, projectId?: string) => Promise<void>;
 	setPeriod: (period: StatsPeriod) => void;
 	reset: () => void;
 }
@@ -157,7 +157,7 @@ export const useStatsStore = create<StatsStore>()(
 	subscribeWithSelector((set, get) => ({
 		...initialState,
 
-		fetchStats: async (period: StatsPeriod) => {
+		fetchStats: async (period: StatsPeriod, projectId?: string) => {
 			const state = get();
 
 			// TASK-526: Prevent duplicate fetches for the same period
@@ -208,21 +208,21 @@ export const useStatsStore = create<StatsStore>()(
 
 				// Fetch all endpoints in parallel using Connect RPC
 				const [statsResponse, costResponse, dailyMetricsResponse, metricsResponse, topInitiativesResponse, comparisonResponse] = await Promise.all([
-					dashboardClient.getStats(createProto(GetStatsRequestSchema, {})),
+					dashboardClient.getStats(createProto(GetStatsRequestSchema, { projectId: projectId ?? '' })),
 					dashboardClient.getCostSummary(
-						createProto(GetCostSummaryRequestSchema, { period: periodToQueryParam(period) })
+						createProto(GetCostSummaryRequestSchema, { projectId: projectId ?? '', period: periodToQueryParam(period) })
 					),
 					dashboardClient.getDailyMetrics(
-						createProto(GetDailyMetricsRequestSchema, { days: daysToFetch })
+						createProto(GetDailyMetricsRequestSchema, { projectId: projectId ?? '', days: daysToFetch })
 					),
 					dashboardClient.getMetrics(
-						createProto(GetMetricsRequestSchema, { period: periodToQueryParam(period) })
+						createProto(GetMetricsRequestSchema, { projectId: projectId ?? '', period: periodToQueryParam(period) })
 					),
 					dashboardClient.getTopInitiatives(
-						createProto(GetTopInitiativesRequestSchema, { limit: 4 })
+						createProto(GetTopInitiativesRequestSchema, { projectId: projectId ?? '', limit: 4 })
 					),
 					dashboardClient.getComparison(
-						createProto(GetComparisonRequestSchema, { period: periodToQueryParam(period) })
+						createProto(GetComparisonRequestSchema, { projectId: projectId ?? '', period: periodToQueryParam(period) })
 					),
 				]);
 

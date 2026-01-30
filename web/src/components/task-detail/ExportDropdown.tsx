@@ -12,6 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { taskClient } from '@/lib/client';
 import { ExportTaskRequestSchema } from '@/gen/orc/v1/task_pb';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import './ExportDropdown.css';
 
 interface ExportDropdownProps {
@@ -19,6 +20,7 @@ interface ExportDropdownProps {
 }
 
 export function ExportDropdown({ taskId }: ExportDropdownProps) {
+	const projectId = useCurrentProjectId();
 	const [isOpen, setIsOpen] = useState(false);
 	const [exporting, setExporting] = useState(false);
 
@@ -30,10 +32,12 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 			contextSummary?: boolean;
 			toBranch?: boolean;
 		}) => {
+			if (!projectId) return;
 			setExporting(true);
 			try {
 				const result = await taskClient.exportTask(
 					create(ExportTaskRequestSchema, {
+						projectId,
 						taskId,
 						taskDefinition: options.taskDefinition,
 						finalState: options.finalState,
@@ -52,7 +56,7 @@ export function ExportDropdown({ taskId }: ExportDropdownProps) {
 				setExporting(false);
 			}
 		},
-		[taskId]
+		[projectId, taskId]
 	);
 
 	return (

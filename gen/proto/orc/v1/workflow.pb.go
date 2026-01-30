@@ -3994,10 +3994,11 @@ func (x *GetPromptContentResponse) GetPath() string {
 
 type ListWorkflowRunsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	WorkflowId    *string                `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
-	TaskId        *string                `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
-	Status        *RunStatus             `protobuf:"varint,4,opt,name=status,proto3,enum=orc.v1.RunStatus,oneof" json:"status,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Page          *PageRequest           `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	WorkflowId    *string                `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
+	TaskId        *string                `protobuf:"bytes,4,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	Status        *RunStatus             `protobuf:"varint,5,opt,name=status,proto3,enum=orc.v1.RunStatus,oneof" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4030,6 +4031,13 @@ func (x *ListWorkflowRunsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListWorkflowRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkflowRunsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ListWorkflowRunsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListWorkflowRunsRequest) GetPage() *PageRequest {
@@ -4114,7 +4122,8 @@ func (x *ListWorkflowRunsResponse) GetPage() *PageResponse {
 
 type GetWorkflowRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4147,6 +4156,13 @@ func (x *GetWorkflowRunRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetWorkflowRunRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkflowRunRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetWorkflowRunRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetWorkflowRunRequest) GetId() string {
@@ -4202,12 +4218,13 @@ func (x *GetWorkflowRunResponse) GetRun() *WorkflowRunWithDetails {
 
 type StartWorkflowRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	ContextType   ContextType            `protobuf:"varint,2,opt,name=context_type,json=contextType,proto3,enum=orc.v1.ContextType" json:"context_type,omitempty"`
-	ContextData   *ContextData           `protobuf:"bytes,3,opt,name=context_data,json=contextData,proto3" json:"context_data,omitempty"`
-	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
-	Instructions  *string                `protobuf:"bytes,5,opt,name=instructions,proto3,oneof" json:"instructions,omitempty"`
-	Variables     map[string]string      `protobuf:"bytes,6,rep,name=variables,proto3" json:"variables,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	ContextType   ContextType            `protobuf:"varint,3,opt,name=context_type,json=contextType,proto3,enum=orc.v1.ContextType" json:"context_type,omitempty"`
+	ContextData   *ContextData           `protobuf:"bytes,4,opt,name=context_data,json=contextData,proto3" json:"context_data,omitempty"`
+	Prompt        string                 `protobuf:"bytes,5,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	Instructions  *string                `protobuf:"bytes,6,opt,name=instructions,proto3,oneof" json:"instructions,omitempty"`
+	Variables     map[string]string      `protobuf:"bytes,7,rep,name=variables,proto3" json:"variables,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4240,6 +4257,13 @@ func (x *StartWorkflowRunRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartWorkflowRunRequest.ProtoReflect.Descriptor instead.
 func (*StartWorkflowRunRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *StartWorkflowRunRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *StartWorkflowRunRequest) GetWorkflowId() string {
@@ -4330,7 +4354,8 @@ func (x *StartWorkflowRunResponse) GetRun() *WorkflowRun {
 
 type CancelWorkflowRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4363,6 +4388,13 @@ func (x *CancelWorkflowRunRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CancelWorkflowRunRequest.ProtoReflect.Descriptor instead.
 func (*CancelWorkflowRunRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *CancelWorkflowRunRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CancelWorkflowRunRequest) GetId() string {
@@ -4479,8 +4511,9 @@ func (x *PhasePosition) GetPositionY() float64 {
 
 type SaveWorkflowLayoutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	Positions     []*PhasePosition       `protobuf:"bytes,2,rep,name=positions,proto3" json:"positions,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Positions     []*PhasePosition       `protobuf:"bytes,3,rep,name=positions,proto3" json:"positions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4513,6 +4546,13 @@ func (x *SaveWorkflowLayoutRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SaveWorkflowLayoutRequest.ProtoReflect.Descriptor instead.
 func (*SaveWorkflowLayoutRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *SaveWorkflowLayoutRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *SaveWorkflowLayoutRequest) GetWorkflowId() string {
@@ -5187,40 +5227,48 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\acontent\x18\x01 \x01(\tR\acontent\x12,\n" +
 	"\x06source\x18\x02 \x01(\x0e2\x14.orc.v1.PromptSourceR\x06source\x12\x17\n" +
 	"\x04path\x18\x03 \x01(\tH\x00R\x04path\x88\x01\x01B\a\n" +
-	"\x05_path\"\xdd\x01\n" +
-	"\x17ListWorkflowRunsRequest\x12'\n" +
-	"\x04page\x18\x01 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12$\n" +
-	"\vworkflow_id\x18\x02 \x01(\tH\x00R\n" +
+	"\x05_path\"\xfc\x01\n" +
+	"\x17ListWorkflowRunsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12'\n" +
+	"\x04page\x18\x02 \x01(\v2\x13.orc.v1.PageRequestR\x04page\x12$\n" +
+	"\vworkflow_id\x18\x03 \x01(\tH\x00R\n" +
 	"workflowId\x88\x01\x01\x12\x1c\n" +
-	"\atask_id\x18\x03 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12.\n" +
-	"\x06status\x18\x04 \x01(\x0e2\x11.orc.v1.RunStatusH\x02R\x06status\x88\x01\x01B\x0e\n" +
+	"\atask_id\x18\x04 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12.\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x11.orc.v1.RunStatusH\x02R\x06status\x88\x01\x01B\x0e\n" +
 	"\f_workflow_idB\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_status\"m\n" +
 	"\x18ListWorkflowRunsResponse\x12'\n" +
 	"\x04runs\x18\x01 \x03(\v2\x13.orc.v1.WorkflowRunR\x04runs\x12(\n" +
-	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"'\n" +
-	"\x15GetWorkflowRunRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"J\n" +
+	"\x04page\x18\x02 \x01(\v2\x14.orc.v1.PageResponseR\x04page\"F\n" +
+	"\x15GetWorkflowRunRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"J\n" +
 	"\x16GetWorkflowRunResponse\x120\n" +
-	"\x03run\x18\x01 \x01(\v2\x1e.orc.v1.WorkflowRunWithDetailsR\x03run\"\x88\x03\n" +
-	"\x17StartWorkflowRunRequest\x12\x1f\n" +
-	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"\x03run\x18\x01 \x01(\v2\x1e.orc.v1.WorkflowRunWithDetailsR\x03run\"\xa7\x03\n" +
+	"\x17StartWorkflowRunRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x126\n" +
-	"\fcontext_type\x18\x02 \x01(\x0e2\x13.orc.v1.ContextTypeR\vcontextType\x126\n" +
-	"\fcontext_data\x18\x03 \x01(\v2\x13.orc.v1.ContextDataR\vcontextData\x12\x16\n" +
-	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12'\n" +
-	"\finstructions\x18\x05 \x01(\tH\x00R\finstructions\x88\x01\x01\x12L\n" +
-	"\tvariables\x18\x06 \x03(\v2..orc.v1.StartWorkflowRunRequest.VariablesEntryR\tvariables\x1a<\n" +
+	"\fcontext_type\x18\x03 \x01(\x0e2\x13.orc.v1.ContextTypeR\vcontextType\x126\n" +
+	"\fcontext_data\x18\x04 \x01(\v2\x13.orc.v1.ContextDataR\vcontextData\x12\x16\n" +
+	"\x06prompt\x18\x05 \x01(\tR\x06prompt\x12'\n" +
+	"\finstructions\x18\x06 \x01(\tH\x00R\finstructions\x88\x01\x01\x12L\n" +
+	"\tvariables\x18\a \x03(\v2..orc.v1.StartWorkflowRunRequest.VariablesEntryR\tvariables\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
 	"\r_instructions\"A\n" +
 	"\x18StartWorkflowRunResponse\x12%\n" +
-	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run\"*\n" +
-	"\x18CancelWorkflowRunRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"B\n" +
+	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run\"I\n" +
+	"\x18CancelWorkflowRunRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"B\n" +
 	"\x19CancelWorkflowRunResponse\x12%\n" +
 	"\x03run\x18\x01 \x01(\v2\x13.orc.v1.WorkflowRunR\x03run\"y\n" +
 	"\rPhasePosition\x12*\n" +
@@ -5228,11 +5276,13 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
 	"position_x\x18\x02 \x01(\x01R\tpositionX\x12\x1d\n" +
 	"\n" +
-	"position_y\x18\x03 \x01(\x01R\tpositionY\"q\n" +
-	"\x19SaveWorkflowLayoutRequest\x12\x1f\n" +
-	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"position_y\x18\x03 \x01(\x01R\tpositionY\"\x90\x01\n" +
+	"\x19SaveWorkflowLayoutRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x123\n" +
-	"\tpositions\x18\x02 \x03(\v2\x15.orc.v1.PhasePositionR\tpositions\"6\n" +
+	"\tpositions\x18\x03 \x03(\v2\x15.orc.v1.PhasePositionR\tpositions\"6\n" +
 	"\x1aSaveWorkflowLayoutResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\":\n" +
 	"\x17ValidateWorkflowRequest\x12\x1f\n" +

@@ -147,20 +147,20 @@ service HostingService {
 // =============================================================================
 
 message CreatePRRequest {
-  string task_id = 1;
-  optional string title = 2;
-  optional string body = 3;
-  optional string base = 4;
-  repeated string labels = 5;
-  repeated string reviewers = 6;
-  bool draft = 7;
+  string project_id = 1;
+  string task_id = 2;
+  optional string title = 3;
+  optional string body = 4;
+  optional string base = 5;
+  repeated string labels = 6;
+  repeated string reviewers = 7;
+  bool draft = 8;
   // Team reviewer slugs (GitHub) or group paths (GitLab)
-  repeated string team_reviewers = 8;
+  repeated string team_reviewers = 9;
   // Usernames to assign
-  repeated string assignees = 9;
+  repeated string assignees = 10;
   // Allow maintainers to push (GitHub) / allow collaboration (GitLab)
-  bool maintainer_can_modify = 10;
-  string project_id = 11;
+  bool maintainer_can_modify = 11;
 }
 
 message CreatePRResponse {
@@ -169,8 +169,8 @@ message CreatePRResponse {
 }
 
 message GetPRRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetPRResponse {
@@ -178,12 +178,12 @@ message GetPRResponse {
 }
 
 message MergePRRequest {
-  string task_id = 1;
+  string project_id = 1;
+  string task_id = 2;
   // Merge method: "merge", "squash", "rebase"
-  optional string method = 2;
+  optional string method = 3;
   // Commit message for squash/merge
-  optional string commit_message = 3;
-  string project_id = 4;
+  optional string commit_message = 4;
 }
 
 message MergePRResponse {
@@ -193,8 +193,8 @@ message MergePRResponse {
 }
 
 message SyncCommentsRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message SyncCommentsResponse {
@@ -202,8 +202,8 @@ message SyncCommentsResponse {
 }
 
 message ImportCommentsRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message ImportCommentsResponse {
@@ -212,8 +212,8 @@ message ImportCommentsResponse {
 }
 
 message GetChecksRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message GetChecksResponse {
@@ -222,8 +222,8 @@ message GetChecksResponse {
 }
 
 message RefreshPRRequest {
-  string task_id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string task_id = 2;
 }
 
 message RefreshPRResponse {
@@ -231,10 +231,10 @@ message RefreshPRResponse {
 }
 
 message ReplyToCommentRequest {
-  string task_id = 1;
-  int64 comment_id = 2;
-  string content = 3;
-  string project_id = 4;
+  string project_id = 1;
+  string task_id = 2;
+  int64 comment_id = 3;
+  string content = 4;
 }
 
 message ReplyToCommentResponse {
@@ -242,9 +242,9 @@ message ReplyToCommentResponse {
 }
 
 message AutofixCommentRequest {
-  string task_id = 1;
-  int64 comment_id = 2;
-  string project_id = 3;
+  string project_id = 1;
+  string task_id = 2;
+  int64 comment_id = 3;
 }
 
 message AutofixCommentResponse {

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -206,14 +207,7 @@ func (s *configServer) UpdateConfig(
 
 	// Apply claude/model updates
 	if req.Msg.Claude != nil && req.Msg.Claude.Model != "" {
-		valid := false
-		for _, m := range ValidModels {
-			if req.Msg.Claude.Model == m {
-				valid = true
-				break
-			}
-		}
-		if !valid {
+		if !slices.Contains(ValidModels, req.Msg.Claude.Model) {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
 				fmt.Errorf("invalid model: %s", req.Msg.Claude.Model))
 		}
@@ -753,6 +747,7 @@ func (s *configServer) GetConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetConstitutionRequest],
 ) (*connect.Response[orcv1.GetConstitutionResponse], error) {
+	// TODO: use req.Msg.GetProjectId() once config.proto GetConstitutionRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -780,6 +775,7 @@ func (s *configServer) UpdateConstitution(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
+	// TODO: use req.Msg.GetProjectId() once config.proto UpdateConstitutionRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -805,6 +801,7 @@ func (s *configServer) DeleteConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteConstitutionRequest],
 ) (*connect.Response[orcv1.DeleteConstitutionResponse], error) {
+	// TODO: use req.Msg.GetProjectId() once config.proto DeleteConstitutionRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -997,6 +994,7 @@ func (s *configServer) ListAgents(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListAgentsRequest],
 ) (*connect.Response[orcv1.ListAgentsResponse], error) {
+	// TODO: use req.Msg.GetProjectId() once config.proto ListAgentsRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -1067,6 +1065,7 @@ func (s *configServer) GetAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
+	// TODO: use req.Msg.GetProjectId() once config.proto GetAgentRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -1098,6 +1097,7 @@ func (s *configServer) CreateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
 	}
 
+	// TODO: use req.Msg.GetProjectId() once config.proto CreateAgentRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -1156,6 +1156,7 @@ func (s *configServer) UpdateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
+	// TODO: use req.Msg.GetProjectId() once config.proto UpdateAgentRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -1218,6 +1219,7 @@ func (s *configServer) DeleteAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
+	// TODO: use req.Msg.GetProjectId() once config.proto DeleteAgentRequest has project_id
 	backend, err := s.getBackend("")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
