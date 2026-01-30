@@ -18,7 +18,119 @@ Orc defaults to **fully automated gates** - the system runs without human interv
 |------|-------------|----------|
 | `auto` | Proceed immediately if criteria met | Default for all phases |
 | `human` | Requires manual approval | Critical decisions |
-| `none` | Skip gate entirely | Fast iteration |
+| `skip` | No gate, always continues | Fast iteration |
+| `ai` | AI agent evaluates gate | Automated review/validation |
+
+---
+
+## Gate Modes
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `gate` | Synchronous, blocks phase progression until resolved | Default - validation before proceeding |
+| `reaction` | Asynchronous, fire-and-forget | Notifications, logging, non-blocking checks |
+
+**Location**: `internal/workflow/types.go:40-46`
+
+---
+
+## Gate Actions
+
+Actions define what happens on gate approval or rejection:
+
+| Action | Behavior |
+|--------|----------|
+| `continue` | Continue to next phase |
+| `retry` | Retry from specified phase (see `retry_from`) |
+| `fail` | Fail the task |
+| `skip_phase` | Skip the next phase |
+| `run_script` | Execute a script (see `script`) |
+
+**Location**: `internal/workflow/types.go:48-57`
+
+---
+
+## Gate Input/Output Configuration
+
+### GateInputConfig
+
+Controls what context flows into the gate evaluator:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `include_phase_output` | `[]string` | Phase IDs whose output to include |
+| `include_task` | `bool` | Include task details in context |
+| `extra_vars` | `[]string` | Additional variable names to pass |
+
+### GateOutputConfig
+
+Controls what happens with gate evaluation results:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `variable_name` | `string` | Store result in workflow variable |
+| `on_approved` | `GateAction` | Action when gate approves |
+| `on_rejected` | `GateAction` | Action when gate rejects |
+| `retry_from` | `string` | Phase to retry from (when action=`retry`) |
+| `script` | `string` | Script path (when action=`run_script`) |
+
+**Location**: `internal/workflow/types.go:69-83`, DB layer: `internal/db/gate_config.go`
+
+---
+
+## Before-Phase Triggers
+
+Triggers that run before a phase starts, enabling pre-validation or preparation:
+
+```yaml
+workflow_phases:
+  - phase_template_id: implement
+    before_triggers:
+      - agent_id: "dependency-check"
+        mode: gate               # blocks if agent rejects
+        input_config:
+          include_task: true
+        output_config:
+          on_rejected: fail
+```
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `agent_id` | `string` | Agent to execute |
+| `input_config` | `GateInputConfig` | Context for the agent |
+| `output_config` | `GateOutputConfig` | Result handling |
+| `mode` | `GateMode` | `gate` (blocking) or `reaction` (async) |
+
+**Location**: `internal/workflow/types.go:85-91`
+
+---
+
+## Workflow Lifecycle Triggers
+
+React to task/initiative lifecycle events at the workflow level:
+
+```yaml
+workflows:
+  triggers:
+    - event: on_task_completed
+      agent_id: "notify-slack"
+      mode: reaction
+      enabled: true
+    - event: on_task_failed
+      agent_id: "failure-analyzer"
+      mode: gate
+      input_config:
+        include_task: true
+```
+
+| Event | Fires When |
+|-------|------------|
+| `on_task_created` | Task is created |
+| `on_task_completed` | Task completes successfully |
+| `on_task_failed` | Task fails |
+| `on_initiative_planned` | Initiative planning completes |
+
+**Location**: `internal/workflow/types.go:59-101`
 
 ---
 
@@ -78,6 +190,27 @@ retry:
   retry_map:
     test: implement              # Test failures retry from implement
     validate: implement          # Validation failures retry from implement
+```
+
+### Extended Gate Configuration
+
+Phase templates and workflow phases support additional gate fields:
+
+```yaml
+# Phase template with AI gate
+phase_templates:
+  - id: security-review
+    gate_type: ai
+    gate_agent_id: "security-reviewer"
+    gate_mode: gate
+    gate_input_config:
+      include_phase_output: ["implement"]
+      include_task: true
+    gate_output_config:
+      variable_name: "SECURITY_RESULT"
+      on_approved: continue
+      on_rejected: retry
+      retry_from: implement
 ```
 
 ---
