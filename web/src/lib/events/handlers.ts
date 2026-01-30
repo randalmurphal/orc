@@ -186,7 +186,7 @@ export function handleEvent(event: Event): void {
 
 		case 'initiativeUpdated': {
 			const { initiativeId } = event.payload.value;
-			console.log(`Initiative updated: ${initiativeId}`);
+			console.warn(`Initiative updated: ${initiativeId}`);
 			break;
 		}
 
@@ -236,7 +236,7 @@ export function handleEvent(event: Event): void {
 			// SessionInfo contains Claude session metadata (id, model, status)
 			const { session } = event.payload.value;
 			if (session) {
-				console.log(`Session update: ${session.id} - ${session.status}`);
+				console.warn(`Session update: ${session.id} - ${session.status}`);
 			}
 			break;
 		}

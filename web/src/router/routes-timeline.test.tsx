@@ -92,9 +92,11 @@ function renderWithRouter(initialPath: string = '/') {
 describe('Timeline Route', () => {
 	beforeEach(() => {
 		// Reset stores
+		// RootLayout requires currentProjectId to render app content;
+		// without it, ProjectPickerPage is shown instead.
 		useProjectStore.setState({
-			projects: [],
-			currentProjectId: null,
+			projects: [{ id: 'test-project', path: '/test', name: 'Test' } as never],
+			currentProjectId: 'test-project',
 			loading: false,
 			error: null,
 			_isHandlingPopState: false,

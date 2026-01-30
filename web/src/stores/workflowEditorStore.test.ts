@@ -47,8 +47,8 @@ describe('workflowEditorStore', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(details);
 
 			const state = useWorkflowEditorStore.getState();
-			// 2 phases + start + end = 4 nodes
-			expect(state.nodes).toHaveLength(4);
+			// 2 phase nodes (no start/end nodes per design spec)
+			expect(state.nodes).toHaveLength(2);
 			expect(state.edges.length).toBeGreaterThan(0);
 		});
 
@@ -98,10 +98,10 @@ describe('workflowEditorStore', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(details);
 
 			const state = useWorkflowEditorStore.getState();
-			// start + end = 2 nodes
-			expect(state.nodes).toHaveLength(2);
-			// single edge from start to end
-			expect(state.edges).toHaveLength(1);
+			// No phases means no nodes (no start/end nodes per design spec)
+			expect(state.nodes).toHaveLength(0);
+			// No edges either
+			expect(state.edges).toHaveLength(0);
 		});
 
 		it('replaces previous state when called again', () => {
@@ -121,10 +121,10 @@ describe('workflowEditorStore', () => {
 			});
 
 			useWorkflowEditorStore.getState().loadFromWorkflow(details1);
-			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(3); // 1 phase + start + end
+			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(1); // 1 phase node
 
 			useWorkflowEditorStore.getState().loadFromWorkflow(details2);
-			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(5); // 3 phases + start + end
+			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(3); // 3 phase nodes
 		});
 
 		it('clears selected node when loading new workflow', () => {

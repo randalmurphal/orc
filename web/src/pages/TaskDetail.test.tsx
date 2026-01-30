@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { TaskDetail } from './TaskDetail';
-import { useTaskStore } from '@/stores';
+import { useTaskStore, useProjectStore } from '@/stores';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { type Task, TaskStatus, TaskWeight } from '@/gen/orc/v1/task_pb';
 import { createMockTask } from '@/test/factories';
@@ -77,6 +77,9 @@ describe('TaskDetail', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useTaskStore.getState().reset();
+
+		// Set a project ID so the component doesn't bail early
+		useProjectStore.setState({ currentProjectId: 'test-project' });
 
 		// Default mock implementations
 		// taskClient.getTask returns { task: Task }

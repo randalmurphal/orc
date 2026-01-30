@@ -11,12 +11,10 @@ export { TimelineFilters } from './TimelineFilters';
 export type { TimelineFiltersProps } from './TimelineFilters';
 export { TimelineEmptyState } from './TimelineEmptyState';
 export type { TimelineEmptyStateProps } from './TimelineEmptyState';
-export { TimeRangeSelector, getDateRange } from './TimeRangeSelector';
-export type {
-	TimeRange,
-	CustomDateRange,
-	TimeRangeSelectorProps,
-} from './TimeRangeSelector';
+export { TimeRangeSelector } from './TimeRangeSelector';
+export type { TimeRangeSelectorProps } from './TimeRangeSelector';
+export { getDateRange } from './time-range-utils';
+export type { TimeRange, CustomDateRange } from './time-range-utils';
 export {
 	getDateGroup,
 	groupEventsByDate,

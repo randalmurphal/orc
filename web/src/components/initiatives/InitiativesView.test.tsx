@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { InitiativesView } from './InitiativesView';
-import { useTaskStore } from '@/stores';
+import { useTaskStore, useProjectStore } from '@/stores';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import type { Task } from '@/gen/orc/v1/task_pb';
@@ -110,6 +110,8 @@ describe('InitiativesView', () => {
 		mockListInitiatives.mockResolvedValue({ initiatives: mockInitiatives });
 		// Set up task store with mock tasks
 		useTaskStore.setState({ tasks: mockTasks, taskStates: new Map() });
+		// Set a project ID so the component fetches data
+		useProjectStore.setState({ currentProjectId: 'test-project' });
 	});
 
 	const renderInitiativesView = () => {

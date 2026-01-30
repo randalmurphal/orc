@@ -1,7 +1,7 @@
 import { useRoutes } from 'react-router-dom';
 import { routes } from '@/router';
 import { ShortcutProvider } from '@/hooks';
-import { EventProvider } from '@/hooks/useEvents';
+import { EventProvider } from '@/hooks/EventProvider';
 import { DataProvider } from '@/components/layout';
 import { TooltipProvider } from '@/components/ui';
 

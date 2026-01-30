@@ -104,9 +104,10 @@ export function PromptEditor({
 		if (promptSource === PromptSource.FILE) {
 			fetchContent();
 		}
+		const ref = fetchIdRef;
 		return () => {
 			// Invalidate any in-flight fetch on unmount or phaseTemplateId change
-			fetchIdRef.current++;
+			ref.current++;
 		};
 	}, [promptSource, fetchContent]);
 

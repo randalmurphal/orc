@@ -1,13 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { createRef } from 'react';
-import {
-	InitiativeCard,
-	extractEmoji,
-	getStatusColor,
-	getIconColor,
-	isPaused,
-} from './InitiativeCard';
+import { InitiativeCard } from './InitiativeCard';
+import { extractEmoji, getStatusColor, getIconColor, isPaused } from './initiative-utils';
 import { TooltipProvider } from '@/components/ui/Tooltip';
 import { InitiativeStatus } from '@/gen/orc/v1/initiative_pb';
 import { createMockInitiative } from '@/test/factories';

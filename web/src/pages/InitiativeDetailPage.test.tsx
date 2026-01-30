@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { InitiativeDetailPage } from './InitiativeDetailPage';
-import { useInitiativeStore } from '@/stores';
+import { useInitiativeStore, useProjectStore } from '@/stores';
 import type { Initiative } from '@/gen/orc/v1/initiative_pb';
 import {
 	InitiativeStatus,
@@ -93,6 +93,8 @@ describe('InitiativeDetailPage', () => {
 			error: null,
 			hasLoaded: false,
 		});
+		// Set a project ID so the component fetches data
+		useProjectStore.setState({ currentProjectId: 'test-project' });
 	});
 
 	const renderInitiativeDetailPage = (initiativeId: string = 'INIT-001') => {
@@ -255,10 +257,11 @@ describe('InitiativeDetailPage', () => {
 			});
 
 			await waitFor(() => {
-				expect(mockUpdateInitiative).toHaveBeenCalledWith({
-					id: 'INIT-001',
+				expect(mockUpdateInitiative).toHaveBeenCalledWith(expect.objectContaining({
+					projectId: 'test-project',
+					initiativeId: 'INIT-001',
 					status: InitiativeStatus.COMPLETED,
-				});
+				}));
 			});
 		});
 	});
@@ -394,7 +397,7 @@ describe('InitiativeDetailPage', () => {
 			});
 
 			await waitFor(() => {
-				expect(mockGetDependencyGraph).toHaveBeenCalledWith({ initiativeId: 'INIT-001' });
+				expect(mockGetDependencyGraph).toHaveBeenCalledWith({ projectId: 'test-project', initiativeId: 'INIT-001' });
 			});
 		});
 

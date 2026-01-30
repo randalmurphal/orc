@@ -193,7 +193,7 @@ export class EventSubscription {
 
 		// Exponential backoff: 1s, 2s, 4s, 8s, 16s
 		const delay = this.baseDelay * Math.pow(2, this.reconnectAttempts - 1);
-		console.log(`Event subscription: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+		console.warn(`Event subscription: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimer = setTimeout(() => {
 			this.connect(this.options);

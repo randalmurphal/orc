@@ -130,7 +130,7 @@ describe('StatsView', () => {
 		it('calls fetchStats on mount', () => {
 			render(<StatsView />);
 
-			expect(mockFetchStats).toHaveBeenCalledWith('7d');
+			expect(mockFetchStats).toHaveBeenCalledWith('7d', undefined);
 		});
 	});
 
@@ -618,7 +618,7 @@ describe('TASK-526: Error recovery behavior', () => {
 		await user.click(screen.getByRole('button', { name: /retry/i }));
 
 		// Should call fetchStats with current period
-		expect(mockFetchStats).toHaveBeenCalledWith('7d');
+		expect(mockFetchStats).toHaveBeenCalledWith('7d', undefined);
 		expect(mockFetchStats).toHaveBeenCalledTimes(1);
 	});
 

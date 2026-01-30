@@ -14,7 +14,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useTaskSubscription, EventProvider } from './useEvents';
+import { useTaskSubscription } from './useEvents';
+import { EventProvider } from './EventProvider';
 import { useTaskStore } from '@/stores/taskStore';
 import { create } from '@bufbuild/protobuf';
 import { ExecutionStateSchema, type ExecutionState } from '@/gen/orc/v1/task_pb';

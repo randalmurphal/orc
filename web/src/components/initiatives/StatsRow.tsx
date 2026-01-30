@@ -262,14 +262,3 @@ export const StatsRow = forwardRef<HTMLDivElement, StatsRowProps>(
 
 StatsRow.displayName = 'StatsRow';
 
-// =============================================================================
-// Default Stats (for loading/empty states)
-// =============================================================================
-
-export const defaultStats: InitiativeStats = {
-	activeInitiatives: 0,
-	totalTasks: 0,
-	tasksThisWeek: 0,
-	completionRate: 0,
-	totalCost: 0,
-};

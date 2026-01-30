@@ -25,6 +25,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { WorkflowEditorPage } from './WorkflowEditorPage';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
+import { useWorkflowStore } from '@/stores/workflowStore';
 import {
 	createMockWorkflow,
 	createMockWorkflowWithDetails,
@@ -37,6 +38,11 @@ import { GateType } from '@/gen/orc/v1/workflow_pb';
 vi.mock('@/lib/client', () => ({
 	workflowClient: {
 		getWorkflow: vi.fn(),
+		listPhaseTemplates: vi.fn().mockResolvedValue({ templates: [], sources: {} }),
+		listWorkflowRuns: vi.fn().mockResolvedValue({ runs: [] }),
+	},
+	configClient: {
+		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
 	},
 }));
 
@@ -111,6 +117,7 @@ function createMultiPhaseWorkflow(overrides: { id?: string; name?: string; isBui
 describe('WorkflowEditorPage', () => {
 	beforeEach(() => {
 		useWorkflowEditorStore.getState().reset();
+		useWorkflowStore.getState().reset();
 		vi.clearAllMocks();
 	});
 
