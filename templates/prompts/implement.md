@@ -116,6 +116,23 @@ Cross-check against the spec's Preservation Requirements table:
 - [ ] Tests exist for each (or will be added)
 - [ ] No planned changes conflict with preservation requirements
 
+### 2d. Forward-Looking Integration Check
+
+For every new function, method, or interface you create:
+
+1. **Verify it's called from production code** — not just tests
+2. **Grep for unused new code** before finishing:
+
+```bash
+# Find new functions/interfaces you added
+grep -n "^func \|^type .* interface" <modified_files>
+
+# Verify each is called somewhere in production code
+grep -r "FunctionName" --include="*.go" . | grep -v "_test.go"
+```
+
+3. If anything is unused, **wire it in now** — don't leave dead code for a future task
+
 **Do NOT proceed to Step 3 until you've mapped dependencies.**
 
 ## Step 3: Follow Breakdown
@@ -174,6 +191,8 @@ Before completing:
 - [ ] Scope boundaries respected
 - [ ] Error handling complete
 - [ ] Code follows project patterns
+- [ ] All new functions called from production code (no dead code)
+- [ ] All new interfaces registered/wired into the system
 - [ ] No TODO comments left behind
 
 ## Completion Criteria
