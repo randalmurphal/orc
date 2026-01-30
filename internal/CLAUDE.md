@@ -158,6 +158,7 @@ See package-specific CLAUDE.md files for detailed usage:
 | `bootstrap/` | Instant project initialization |
 | `cli/` | CLI commands |
 | `db/` | SQLite persistence layer |
+| `events/` | Real-time event publishing (WebSocket + DB persistence) |
 | `executor/` | Execution engine (error handling, phase execution) |
 | `gate/` | Quality gates (auto/human/AI/skip), resolution, pending decisions |
 | `initiative/` | Initiative grouping |

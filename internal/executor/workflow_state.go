@@ -34,6 +34,8 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err erro
 		we.publishTaskUpdated(t)
 		// Trigger automation event for task failure
 		we.triggerAutomationEvent(context.Background(), automation.EventTaskFailed, t, "")
+		// Fire lifecycle triggers for task failure (fire-and-forget)
+		we.fireLifecycleTriggers(context.Background(), workflow.WorkflowTriggerEventOnTaskFailed, we.wf, t)
 	}
 }
 

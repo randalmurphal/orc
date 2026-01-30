@@ -84,6 +84,13 @@ type WorkflowRunOptions struct {
 	IsResume bool
 }
 
+// GateEvaluatorInterface abstracts gate evaluation for testability.
+// The concrete *gate.Evaluator implements this interface.
+type GateEvaluatorInterface interface {
+	Evaluate(ctx context.Context, g *gate.Gate, output string) (*gate.Decision, error)
+	EvaluateWithOptions(ctx context.Context, g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error)
+}
+
 // WorkflowExecutor runs workflows using the new database-first workflow system.
 type WorkflowExecutor struct {
 	backend       storage.Backend
@@ -91,7 +98,7 @@ type WorkflowExecutor struct {
 	globalDB      *db.GlobalDB // Global database for cost tracking
 	orcConfig     *config.Config
 	resolver      *variable.Resolver
-	gateEvaluator *gate.Evaluator
+	gateEvaluator GateEvaluatorInterface
 	logger        *slog.Logger
 	workingDir    string
 	claudePath    string
@@ -108,6 +115,7 @@ type WorkflowExecutor struct {
 	worktreePath string            // Path to worktree (if created)
 	worktreeGit  *git.Git          // Git ops scoped to worktree
 	task         *orcv1.Task       // Task being executed (for task-based contexts)
+	wf           *workflow.Workflow // Workflow being executed (for lifecycle triggers in failRun)
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
 	isResuming   bool              // True if resuming a paused/failed/blocked task
@@ -208,6 +216,18 @@ func WithSkipGates(skip bool) WorkflowExecutorOption {
 	}
 }
 
+// WithWorkflowGateEvaluator sets the gate evaluator (interface for testability).
+func WithWorkflowGateEvaluator(eval GateEvaluatorInterface) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.gateEvaluator = eval
+	}
+}
+
+// setWorkflow stores the workflow reference on the executor for use in failRun.
+func (we *WorkflowExecutor) setWorkflow(wf *workflow.Workflow) {
+	we.wf = wf
+}
+
 // NewWorkflowExecutor creates a new workflow executor.
 func NewWorkflowExecutor(
 	backend storage.Backend,
@@ -250,6 +270,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if wf == nil {
 		return nil, fmt.Errorf("workflow not found: %s", workflowID)
 	}
+	we.setWorkflow(workflow.DBWorkflowToWorkflow(wf)) // Store for failRun lifecycle triggers
 
 	// Parse workflow-level triggers (JSON string → typed struct) for lifecycle events.
 	// Used by handleCompletionWithTriggers() and fireLifecycleTriggers().
