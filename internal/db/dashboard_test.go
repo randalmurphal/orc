@@ -101,9 +101,11 @@ func TestGetDashboardCostByDate(t *testing.T) {
 	t.Parallel()
 	db := NewTestProjectDB(t)
 
-	now := time.Now()
-	yesterday := now.Add(-24 * time.Hour)
-	twoDaysAgo := now.Add(-48 * time.Hour)
+	// Use fixed dates in UTC to avoid timezone/midnight boundary flakiness.
+	// SQLite's DATE() extracts from the stored RFC3339 string (UTC),
+	// so we must use UTC for consistent date comparisons.
+	day1 := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC) // noon UTC - safe from boundaries
+	day2 := time.Date(2024, 1, 14, 12, 0, 0, 0, time.UTC)
 
 	// Create tasks completed on different days
 	tasks := []struct {
@@ -111,9 +113,9 @@ func TestGetDashboardCostByDate(t *testing.T) {
 		completedAt time.Time
 		cost        float64
 	}{
-		{"TASK-001", yesterday, 1.50},
-		{"TASK-002", yesterday, 2.50},
-		{"TASK-003", twoDaysAgo, 3.00},
+		{"TASK-001", day1, 1.50},
+		{"TASK-002", day1, 2.50},
+		{"TASK-003", day2, 3.00},
 	}
 
 	for _, tc := range tasks {
@@ -142,7 +144,7 @@ func TestGetDashboardCostByDate(t *testing.T) {
 		}
 	}
 
-	since := now.Add(-72 * time.Hour)
+	since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	results, err := db.GetDashboardCostByDate(since)
 	if err != nil {
 		t.Fatalf("GetDashboardCostByDate failed: %v", err)
@@ -152,16 +154,23 @@ func TestGetDashboardCostByDate(t *testing.T) {
 		t.Fatalf("expected at least 2 date entries, got %d", len(results))
 	}
 
-	// Verify aggregation — yesterday should total 4.00
-	yesterdayStr := yesterday.Format("2006-01-02")
-	var yesterdayCost float64
+	// Verify aggregation — day1 should total 4.00
+	day1Str := "2024-01-15"
+	day2Str := "2024-01-14"
+	var day1Cost, day2Cost float64
 	for _, r := range results {
-		if r.Date == yesterdayStr {
-			yesterdayCost = r.CostUSD
+		switch r.Date {
+		case day1Str:
+			day1Cost = r.CostUSD
+		case day2Str:
+			day2Cost = r.CostUSD
 		}
 	}
-	if yesterdayCost != 4.0 {
-		t.Errorf("expected yesterday cost 4.0, got %f", yesterdayCost)
+	if day1Cost != 4.0 {
+		t.Errorf("expected day1 (2024-01-15) cost 4.0, got %f", day1Cost)
+	}
+	if day2Cost != 3.0 {
+		t.Errorf("expected day2 (2024-01-14) cost 3.0, got %f", day2Cost)
 	}
 }
 

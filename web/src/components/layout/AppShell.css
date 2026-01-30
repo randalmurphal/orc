@@ -95,20 +95,15 @@
 .app-shell__panel {
 	grid-column: 3;
 	grid-row: 2; /* Below TopBar, not spanning full height */
-	width: 300px;
-	min-width: 300px;
 	overflow: hidden;
-	/* No transform here - transform creates a stacking context that interferes
-	   with pointer-event hit-testing, causing the panel wrapper to intercept
-	   clicks on the header even with pointer-events: none.
-	   The inner .right-panel handles its own width-based animation. */
+	/* Width controlled by inner .right-panel component */
+	/* pointer-events: none on wrapper, auto on inner panel when open */
 	pointer-events: none;
 }
 
-/* Collapsed state - hidden when grid doesn't have column 3 */
+/* When panel is closed, don't render the grid column at all */
 .app-shell:not(.app-shell--panel-open) .app-shell__panel {
-	visibility: hidden;
-	pointer-events: none;
+	display: none;
 }
 
 /* =============================================================================

@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { create } from '@bufbuild/protobuf';
 import { useTaskStore, useWsStatus } from '@/stores';
+import { useCurrentProjectId } from '@/stores/projectStore';
 import { dashboardClient, initiativeClient } from '@/lib/client';
 import { useDocumentTitle } from '@/hooks';
 import { GetStatsRequestSchema, type DashboardStats } from '@/gen/orc/v1/dashboard_pb';
@@ -39,6 +40,7 @@ export function Dashboard() {
 	useDocumentTitle('Dashboard');
 	const navigate = useNavigate();
 	const wsStatus = useWsStatus();
+	const projectId = useCurrentProjectId();
 	const tasks = useTaskStore((state) => state.tasks);
 
 	const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -66,6 +68,7 @@ export function Dashboard() {
 			const [statsResponse, initiativesResponse] = await Promise.all([
 				dashboardClient.getStats(create(GetStatsRequestSchema, {})),
 				initiativeClient.listInitiatives(create(ListInitiativesRequestSchema, {
+					projectId: projectId ?? undefined,
 					status: InitiativeStatus.ACTIVE
 				})),
 			]);
@@ -79,18 +82,18 @@ export function Dashboard() {
 			setError(e instanceof Error ? e.message : 'Failed to load dashboard');
 			setLoading(false);
 		}
-	}, []);
+	}, [projectId]);
 
 	const loadInitiatives = useCallback(async () => {
 		try {
 			const response = await initiativeClient.listInitiatives(
-				create(ListInitiativesRequestSchema, { status: InitiativeStatus.ACTIVE })
+				create(ListInitiativesRequestSchema, { projectId: projectId ?? undefined, status: InitiativeStatus.ACTIVE })
 			);
 			setInitiatives(response.initiatives);
 		} catch {
 			// Silently fail - not critical
 		}
-	}, []);
+	}, [projectId]);
 
 	// Initial load
 	useEffect(() => {

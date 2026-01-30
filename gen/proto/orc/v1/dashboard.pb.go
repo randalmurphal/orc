@@ -1239,6 +1239,7 @@ func (x *ComparisonMetrics) GetSuccessRateChangePct() float64 {
 
 type GetStatsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1271,6 +1272,13 @@ func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetStatsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_dashboard_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetStatsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetStatsResponse struct {
@@ -1320,7 +1328,8 @@ func (x *GetStatsResponse) GetStats() *DashboardStats {
 type GetActivityHeatmapRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Number of days to include
-	Days          int32 `protobuf:"varint,1,opt,name=days,proto3" json:"days,omitempty"`
+	Days          int32  `protobuf:"varint,1,opt,name=days,proto3" json:"days,omitempty"`
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1360,6 +1369,13 @@ func (x *GetActivityHeatmapRequest) GetDays() int32 {
 		return x.Days
 	}
 	return 0
+}
+
+func (x *GetActivityHeatmapRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetActivityHeatmapResponse struct {
@@ -1410,6 +1426,7 @@ type GetCostSummaryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Period: "day", "week", "month", "all"
 	Period        string `protobuf:"bytes,1,opt,name=period,proto3" json:"period,omitempty"`
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1447,6 +1464,13 @@ func (*GetCostSummaryRequest) Descriptor() ([]byte, []int) {
 func (x *GetCostSummaryRequest) GetPeriod() string {
 	if x != nil {
 		return x.Period
+	}
+	return ""
+}
+
+func (x *GetCostSummaryRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -1499,6 +1523,7 @@ type GetMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Period: "day", "week", "month", "all"
 	Period        *string `protobuf:"bytes,1,opt,name=period,proto3,oneof" json:"period,omitempty"`
+	ProjectId     string  `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1536,6 +1561,13 @@ func (*GetMetricsRequest) Descriptor() ([]byte, []int) {
 func (x *GetMetricsRequest) GetPeriod() string {
 	if x != nil && x.Period != nil {
 		return *x.Period
+	}
+	return ""
+}
+
+func (x *GetMetricsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -1587,7 +1619,8 @@ func (x *GetMetricsResponse) GetMetrics() *MetricsSummary {
 type GetDailyMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Number of days
-	Days          int32 `protobuf:"varint,1,opt,name=days,proto3" json:"days,omitempty"`
+	Days          int32  `protobuf:"varint,1,opt,name=days,proto3" json:"days,omitempty"`
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1627,6 +1660,13 @@ func (x *GetDailyMetricsRequest) GetDays() int32 {
 		return x.Days
 	}
 	return 0
+}
+
+func (x *GetDailyMetricsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetDailyMetricsResponse struct {
@@ -1677,6 +1717,7 @@ type GetMetricsByModelRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Period
 	Period        *string `protobuf:"bytes,1,opt,name=period,proto3,oneof" json:"period,omitempty"`
+	ProjectId     string  `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1714,6 +1755,13 @@ func (*GetMetricsByModelRequest) Descriptor() ([]byte, []int) {
 func (x *GetMetricsByModelRequest) GetPeriod() string {
 	if x != nil && x.Period != nil {
 		return *x.Period
+	}
+	return ""
+}
+
+func (x *GetMetricsByModelRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -1766,6 +1814,7 @@ type GetOutcomesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Period
 	Period        *string `protobuf:"bytes,1,opt,name=period,proto3,oneof" json:"period,omitempty"`
+	ProjectId     string  `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1803,6 +1852,13 @@ func (*GetOutcomesRequest) Descriptor() ([]byte, []int) {
 func (x *GetOutcomesRequest) GetPeriod() string {
 	if x != nil && x.Period != nil {
 		return *x.Period
+	}
+	return ""
+}
+
+func (x *GetOutcomesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -1854,7 +1910,8 @@ func (x *GetOutcomesResponse) GetOutcomes() *OutcomeStats {
 type GetTopInitiativesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Number of initiatives to return
-	Limit         int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit         int32  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1894,6 +1951,13 @@ func (x *GetTopInitiativesRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *GetTopInitiativesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetTopInitiativesResponse struct {
@@ -1946,6 +2010,7 @@ type GetTopFilesRequest struct {
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Task ID filter (optional)
 	TaskId        *string `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3,oneof" json:"task_id,omitempty"`
+	ProjectId     string  `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1990,6 +2055,13 @@ func (x *GetTopFilesRequest) GetLimit() int32 {
 func (x *GetTopFilesRequest) GetTaskId() string {
 	if x != nil && x.TaskId != nil {
 		return *x.TaskId
+	}
+	return ""
+}
+
+func (x *GetTopFilesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -2042,6 +2114,7 @@ type GetComparisonRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Period to compare: "day", "week", "month"
 	Period        string `protobuf:"bytes,1,opt,name=period,proto3" json:"period,omitempty"`
+	ProjectId     string `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2079,6 +2152,13 @@ func (*GetComparisonRequest) Descriptor() ([]byte, []int) {
 func (x *GetComparisonRequest) GetPeriod() string {
 	if x != nil {
 		return x.Period
+	}
+	return ""
+}
+
+func (x *GetComparisonRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -2130,6 +2210,7 @@ func (x *GetComparisonResponse) GetComparison() *ComparisonMetrics {
 type GetTaskMetricsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2167,6 +2248,13 @@ func (*GetTaskMetricsRequest) Descriptor() ([]byte, []int) {
 func (x *GetTaskMetricsRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
+	}
+	return ""
+}
+
+func (x *GetTaskMetricsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -2323,56 +2411,78 @@ const file_orc_v1_dashboard_proto_rawDesc = "" +
 	"\bprevious\x18\x02 \x01(\v2\x16.orc.v1.MetricsSummaryR\bprevious\x12(\n" +
 	"\x10tasks_change_pct\x18\x03 \x01(\x01R\x0etasksChangePct\x12&\n" +
 	"\x0fcost_change_pct\x18\x04 \x01(\x01R\rcostChangePct\x125\n" +
-	"\x17success_rate_change_pct\x18\x05 \x01(\x01R\x14successRateChangePct\"\x11\n" +
-	"\x0fGetStatsRequest\"@\n" +
+	"\x17success_rate_change_pct\x18\x05 \x01(\x01R\x14successRateChangePct\"0\n" +
+	"\x0fGetStatsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"@\n" +
 	"\x10GetStatsResponse\x12,\n" +
-	"\x05stats\x18\x01 \x01(\v2\x16.orc.v1.DashboardStatsR\x05stats\"/\n" +
+	"\x05stats\x18\x01 \x01(\v2\x16.orc.v1.DashboardStatsR\x05stats\"N\n" +
 	"\x19GetActivityHeatmapRequest\x12\x12\n" +
-	"\x04days\x18\x01 \x01(\x05R\x04days\"O\n" +
+	"\x04days\x18\x01 \x01(\x05R\x04days\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"O\n" +
 	"\x1aGetActivityHeatmapResponse\x121\n" +
-	"\aheatmap\x18\x01 \x01(\v2\x17.orc.v1.ActivityHeatmapR\aheatmap\"/\n" +
+	"\aheatmap\x18\x01 \x01(\v2\x17.orc.v1.ActivityHeatmapR\aheatmap\"N\n" +
 	"\x15GetCostSummaryRequest\x12\x16\n" +
-	"\x06period\x18\x01 \x01(\tR\x06period\"G\n" +
+	"\x06period\x18\x01 \x01(\tR\x06period\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"G\n" +
 	"\x16GetCostSummaryResponse\x12-\n" +
-	"\asummary\x18\x01 \x01(\v2\x13.orc.v1.CostSummaryR\asummary\";\n" +
+	"\asummary\x18\x01 \x01(\v2\x13.orc.v1.CostSummaryR\asummary\"Z\n" +
 	"\x11GetMetricsRequest\x12\x1b\n" +
-	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01B\t\n" +
+	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectIdB\t\n" +
 	"\a_period\"F\n" +
 	"\x12GetMetricsResponse\x120\n" +
-	"\ametrics\x18\x01 \x01(\v2\x16.orc.v1.MetricsSummaryR\ametrics\",\n" +
+	"\ametrics\x18\x01 \x01(\v2\x16.orc.v1.MetricsSummaryR\ametrics\"K\n" +
 	"\x16GetDailyMetricsRequest\x12\x12\n" +
-	"\x04days\x18\x01 \x01(\x05R\x04days\"D\n" +
+	"\x04days\x18\x01 \x01(\x05R\x04days\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"D\n" +
 	"\x17GetDailyMetricsResponse\x12)\n" +
-	"\x05stats\x18\x01 \x01(\v2\x13.orc.v1.PerDayStatsR\x05stats\"B\n" +
+	"\x05stats\x18\x01 \x01(\v2\x13.orc.v1.PerDayStatsR\x05stats\"a\n" +
 	"\x18GetMetricsByModelRequest\x12\x1b\n" +
-	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01B\t\n" +
+	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectIdB\t\n" +
 	"\a_period\"I\n" +
 	"\x19GetMetricsByModelResponse\x12,\n" +
-	"\x06models\x18\x01 \x03(\v2\x14.orc.v1.ModelMetricsR\x06models\"<\n" +
+	"\x06models\x18\x01 \x03(\v2\x14.orc.v1.ModelMetricsR\x06models\"[\n" +
 	"\x12GetOutcomesRequest\x12\x1b\n" +
-	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01B\t\n" +
+	"\x06period\x18\x01 \x01(\tH\x00R\x06period\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectIdB\t\n" +
 	"\a_period\"G\n" +
 	"\x13GetOutcomesResponse\x120\n" +
-	"\boutcomes\x18\x01 \x01(\v2\x14.orc.v1.OutcomeStatsR\boutcomes\"0\n" +
+	"\boutcomes\x18\x01 \x01(\v2\x14.orc.v1.OutcomeStatsR\boutcomes\"O\n" +
 	"\x18GetTopInitiativesRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"T\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"T\n" +
 	"\x19GetTopInitiativesResponse\x127\n" +
-	"\vinitiatives\x18\x01 \x03(\v2\x15.orc.v1.TopInitiativeR\vinitiatives\"T\n" +
+	"\vinitiatives\x18\x01 \x03(\v2\x15.orc.v1.TopInitiativeR\vinitiatives\"s\n" +
 	"\x12GetTopFilesRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x1c\n" +
-	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01B\n" +
+	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectIdB\n" +
 	"\n" +
 	"\b_task_id\"<\n" +
 	"\x13GetTopFilesResponse\x12%\n" +
-	"\x05files\x18\x01 \x03(\v2\x0f.orc.v1.TopFileR\x05files\".\n" +
+	"\x05files\x18\x01 \x03(\v2\x0f.orc.v1.TopFileR\x05files\"M\n" +
 	"\x14GetComparisonRequest\x12\x16\n" +
-	"\x06period\x18\x01 \x01(\tR\x06period\"R\n" +
+	"\x06period\x18\x01 \x01(\tR\x06period\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"R\n" +
 	"\x15GetComparisonResponse\x129\n" +
 	"\n" +
 	"comparison\x18\x01 \x01(\v2\x19.orc.v1.ComparisonMetricsR\n" +
-	"comparison\"0\n" +
+	"comparison\"O\n" +
 	"\x15GetTaskMetricsRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"J\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"J\n" +
 	"\x16GetTaskMetricsResponse\x120\n" +
 	"\ametrics\x18\x01 \x01(\v2\x16.orc.v1.MetricsSummaryR\ametrics2\xfb\x06\n" +
 	"\x10DashboardService\x12=\n" +

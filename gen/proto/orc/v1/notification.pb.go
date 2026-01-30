@@ -126,6 +126,7 @@ func (x *Notification) GetExpiresAt() *timestamppb.Timestamp {
 // ListNotifications
 type ListNotificationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,6 +159,13 @@ func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*ListNotificationsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_notification_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListNotificationsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type ListNotificationsResponse struct {
@@ -208,6 +216,7 @@ func (x *ListNotificationsResponse) GetNotifications() []*Notification {
 type DismissNotificationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -245,6 +254,13 @@ func (*DismissNotificationRequest) Descriptor() ([]byte, []int) {
 func (x *DismissNotificationRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *DismissNotificationRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -288,6 +304,7 @@ func (*DismissNotificationResponse) Descriptor() ([]byte, []int) {
 // DismissAllNotifications
 type DismissAllNotificationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -320,6 +337,13 @@ func (x *DismissAllNotificationsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DismissAllNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*DismissAllNotificationsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_notification_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DismissAllNotificationsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type DismissAllNotificationsResponse struct {
@@ -380,14 +404,20 @@ const file_orc_v1_notification_proto_rawDesc = "" +
 	"\f_source_typeB\f\n" +
 	"\n" +
 	"_source_idB\r\n" +
-	"\v_expires_at\"\x1a\n" +
-	"\x18ListNotificationsRequest\"W\n" +
+	"\v_expires_at\"9\n" +
+	"\x18ListNotificationsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"W\n" +
 	"\x19ListNotificationsResponse\x12:\n" +
-	"\rnotifications\x18\x01 \x03(\v2\x14.orc.v1.NotificationR\rnotifications\",\n" +
+	"\rnotifications\x18\x01 \x03(\v2\x14.orc.v1.NotificationR\rnotifications\"K\n" +
 	"\x1aDismissNotificationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x1d\n" +
-	"\x1bDismissNotificationResponse\" \n" +
-	"\x1eDismissAllNotificationsRequest\"!\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"\x1d\n" +
+	"\x1bDismissNotificationResponse\"?\n" +
+	"\x1eDismissAllNotificationsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"!\n" +
 	"\x1fDismissAllNotificationsResponse2\xbb\x02\n" +
 	"\x13NotificationService\x12X\n" +
 	"\x11ListNotifications\x12 .orc.v1.ListNotificationsRequest\x1a!.orc.v1.ListNotificationsResponse\x12^\n" +

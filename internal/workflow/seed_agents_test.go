@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -104,20 +105,21 @@ func TestEmbeddedAgentsExist(t *testing.T) {
 }
 
 func TestSeedAgents(t *testing.T) {
-	pdb, err := db.OpenProjectInMemory()
+	tmpDir := t.TempDir()
+	gdb, err := db.OpenGlobalAt(filepath.Join(tmpDir, "orc.db"))
 	if err != nil {
-		t.Fatalf("OpenProjectInMemory failed: %v", err)
+		t.Fatalf("OpenGlobalAt failed: %v", err)
 	}
-	defer func() { _ = pdb.Close() }()
+	defer func() { _ = gdb.Close() }()
 
 	// First seed phase templates (required for foreign keys)
-	_, err = SeedBuiltins(pdb)
+	_, err = SeedBuiltins(gdb)
 	if err != nil {
 		t.Fatalf("SeedBuiltins failed: %v", err)
 	}
 
 	// Now seed agents
-	seeded, err := SeedAgents(pdb)
+	seeded, err := SeedAgents(gdb)
 	if err != nil {
 		t.Fatalf("SeedAgents failed: %v", err)
 	}
@@ -126,7 +128,7 @@ func TestSeedAgents(t *testing.T) {
 	}
 
 	// Verify agents were created
-	agents, err := pdb.ListAgents()
+	agents, err := gdb.ListAgents()
 	if err != nil {
 		t.Fatalf("ListAgents failed: %v", err)
 	}
@@ -135,7 +137,7 @@ func TestSeedAgents(t *testing.T) {
 	}
 
 	// Verify specific agent
-	agent, err := pdb.GetAgent("code-reviewer")
+	agent, err := gdb.GetAgent("code-reviewer")
 	if err != nil {
 		t.Fatalf("GetAgent failed: %v", err)
 	}
@@ -150,7 +152,7 @@ func TestSeedAgents(t *testing.T) {
 	}
 
 	// Verify phase agents were created
-	reviewAgents, err := pdb.GetPhaseAgents("review")
+	reviewAgents, err := gdb.GetPhaseAgents("review")
 	if err != nil {
 		t.Fatalf("GetPhaseAgents failed: %v", err)
 	}
@@ -159,7 +161,7 @@ func TestSeedAgents(t *testing.T) {
 	}
 
 	// Verify idempotency - seeding again should not create duplicates
-	seeded2, err := SeedAgents(pdb)
+	seeded2, err := SeedAgents(gdb)
 	if err != nil {
 		t.Fatalf("SeedAgents (2nd call) failed: %v", err)
 	}

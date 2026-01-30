@@ -20,8 +20,28 @@ import (
 // notificationServer implements the NotificationServiceHandler interface.
 type notificationServer struct {
 	orcv1connect.UnimplementedNotificationServiceHandler
-	backend storage.Backend
-	logger  *slog.Logger
+	backend      storage.Backend
+	logger       *slog.Logger
+	projectCache *ProjectCache
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *notificationServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend based on project ID.
+func (s *notificationServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // NewNotificationServer creates a new NotificationService handler.
@@ -40,7 +60,12 @@ func (s *notificationServer) ListNotifications(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListNotificationsRequest],
 ) (*connect.Response[orcv1.ListNotificationsResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database backend required for notifications"))
 	}
@@ -71,7 +96,12 @@ func (s *notificationServer) DismissNotification(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("notification ID required"))
 	}
 
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database backend required for notifications"))
 	}
@@ -94,7 +124,12 @@ func (s *notificationServer) DismissAllNotifications(
 	ctx context.Context,
 	req *connect.Request[orcv1.DismissAllNotificationsRequest],
 ) (*connect.Response[orcv1.DismissAllNotificationsResponse], error) {
-	dbBackend, ok := s.backend.(*storage.DatabaseBackend)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get backend: %w", err))
+	}
+
+	dbBackend, ok := backend.(*storage.DatabaseBackend)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database backend required for notifications"))
 	}

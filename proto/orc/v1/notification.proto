@@ -40,7 +40,9 @@ service NotificationService {
 // =============================================================================
 
 // ListNotifications
-message ListNotificationsRequest {}
+message ListNotificationsRequest {
+  string project_id = 1;
+}
 
 message ListNotificationsResponse {
   repeated Notification notifications = 1;
@@ -49,11 +51,14 @@ message ListNotificationsResponse {
 // DismissNotification
 message DismissNotificationRequest {
   string id = 1;
+  string project_id = 2;
 }
 
 message DismissNotificationResponse {}
 
 // DismissAllNotifications
-message DismissAllNotificationsRequest {}
+message DismissAllNotificationsRequest {
+  string project_id = 1;
+}
 
 message DismissAllNotificationsResponse {}

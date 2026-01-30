@@ -12,6 +12,7 @@ import { taskClient } from '@/lib/client';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import { timestampToDate } from '@/lib/time';
 import './CommentsTab.css';
 
@@ -335,6 +336,7 @@ function CommentForm({
 }
 
 export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
+	const projectId = useCurrentProjectId();
 	const [comments, setComments] = useState<TaskComment[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -344,11 +346,12 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 	const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
 
 	const loadComments = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		setError(null);
 		try {
 			const response = await taskClient.listComments(
-				create(ListCommentsRequestSchema, { taskId })
+				create(ListCommentsRequestSchema, { projectId, taskId })
 			);
 			setComments(response.comments);
 		} catch (e) {
@@ -356,7 +359,7 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 		} finally {
 			setLoading(false);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	useEffect(() => {
 		loadComments();
@@ -378,12 +381,14 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 
 	const handleSubmit = useCallback(
 		async (comment: CommentFormData) => {
+			if (!projectId) return;
 			setIsSubmitting(true);
 			try {
 				if (editingCommentId) {
 					// Update existing comment
 					await taskClient.updateComment(
 						create(UpdateCommentRequestSchema, {
+							projectId,
 							taskId,
 							commentId: editingCommentId,
 							content: comment.content,
@@ -396,6 +401,7 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 					// Create new comment
 					await taskClient.createComment(
 						create(CreateCommentRequestSchema, {
+							projectId,
 							taskId,
 							content: comment.content,
 							author: comment.author,
@@ -414,7 +420,7 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 				setIsSubmitting(false);
 			}
 		},
-		[taskId, editingCommentId, loadComments]
+		[projectId, taskId, editingCommentId, loadComments]
 	);
 
 	const handleCancel = useCallback(() => {
@@ -429,11 +435,11 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 
 	const handleDelete = useCallback(
 		async (commentId: string) => {
-			if (!confirm('Delete this comment?')) return;
+			if (!projectId || !confirm('Delete this comment?')) return;
 
 			try {
 				await taskClient.deleteComment(
-					create(DeleteCommentRequestSchema, { taskId, commentId })
+					create(DeleteCommentRequestSchema, { projectId, taskId, commentId })
 				);
 				await loadComments();
 				toast.success('Comment deleted');
@@ -442,7 +448,7 @@ export function CommentsTab({ taskId, phases = [] }: CommentsTabProps) {
 				toast.error('Failed to delete comment');
 			}
 		},
-		[taskId, loadComments]
+		[projectId, taskId, loadComments]
 	);
 
 	const handleAddComment = useCallback(() => {

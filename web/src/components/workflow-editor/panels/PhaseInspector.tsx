@@ -24,6 +24,7 @@ interface PhaseInspectorProps {
 	workflowDetails: WorkflowWithDetails | null;
 	readOnly: boolean;
 	onWorkflowRefresh?: () => void;
+	onDeletePhase?: () => void;
 }
 
 function formatSourceType(st: VariableSourceType): string {
@@ -50,6 +51,7 @@ export function PhaseInspector({
 	workflowDetails,
 	readOnly,
 	onWorkflowRefresh,
+	onDeletePhase,
 }: PhaseInspectorProps) {
 	const [activeTab, setActiveTab] = useState<InspectorTab>('prompt');
 	const [settingsError, setSettingsError] = useState<string | null>(null);
@@ -164,6 +166,7 @@ export function PhaseInspector({
 						error={settingsError}
 						onError={setSettingsError}
 						onWorkflowRefresh={onWorkflowRefresh}
+						onDeletePhase={onDeletePhase}
 					/>
 				</Tabs.Content>
 			</Tabs.Root>
@@ -387,6 +390,7 @@ interface SettingsTabProps {
 	error: string | null;
 	onError: (err: string | null) => void;
 	onWorkflowRefresh?: () => void;
+	onDeletePhase?: () => void;
 }
 
 function SettingsTab({
@@ -396,6 +400,7 @@ function SettingsTab({
 	error,
 	onError,
 	onWorkflowRefresh,
+	onDeletePhase,
 }: SettingsTabProps) {
 	const [maxIterations, setMaxIterations] = useState<number>(
 		phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3,
@@ -654,6 +659,19 @@ function SettingsTab({
 					Agents available for delegation during execution
 				</span>
 			</div>
+
+			{/* Danger Zone - Remove Phase */}
+			{!readOnly && onDeletePhase && (
+				<div className="phase-inspector-danger-zone">
+					<button
+						type="button"
+						className="phase-inspector-delete-btn"
+						onClick={onDeletePhase}
+					>
+						Remove Phase
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -5,6 +5,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect"
@@ -25,7 +26,8 @@ func timestampToTime(ts int64) time.Time {
 // transcriptServer implements the TranscriptServiceHandler interface.
 type transcriptServer struct {
 	orcv1connect.UnimplementedTranscriptServiceHandler
-	backend storage.Backend
+	backend      storage.Backend
+	projectCache *ProjectCache
 }
 
 // NewTranscriptServer creates a new TranscriptService handler.
@@ -35,12 +37,35 @@ func NewTranscriptServer(backend storage.Backend) orcv1connect.TranscriptService
 	}
 }
 
-// getProjectDB returns the underlying ProjectDB for transcript queries.
-func (s *transcriptServer) getProjectDB() *db.ProjectDB {
-	if dbBackend, ok := s.backend.(*storage.DatabaseBackend); ok {
-		return dbBackend.DB()
+// SetProjectCache sets the project cache for multi-project support.
+func (s *transcriptServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the storage backend for the given project ID.
+func (s *transcriptServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
 	}
-	return nil
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
+// getProjectDB returns the underlying ProjectDB for transcript queries.
+func (s *transcriptServer) getProjectDB(projectID string) (*db.ProjectDB, error) {
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if dbBackend, ok := backend.(*storage.DatabaseBackend); ok {
+		return dbBackend.DB(), nil
+	}
+	return nil, fmt.Errorf("backend is not a DatabaseBackend")
 }
 
 // ListTranscripts returns transcript files for a task.
@@ -52,7 +77,12 @@ func (s *transcriptServer) ListTranscripts(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	transcripts, err := s.backend.GetTranscripts(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
 	if err != nil {
 		return connect.NewResponse(&orcv1.ListTranscriptsResponse{
 			Transcripts: []*orcv1.TranscriptFile{},
@@ -100,7 +130,12 @@ func (s *transcriptServer) GetTranscript(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("phase is required"))
 	}
 
-	transcripts, err := s.backend.GetTranscripts(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("transcript not found"))
 	}
@@ -182,7 +217,12 @@ func (s *transcriptServer) GetTranscriptContent(
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	transcripts, err := s.backend.GetTranscripts(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	transcripts, err := backend.GetTranscripts(req.Msg.TaskId)
 	if err != nil {
 		return connect.NewError(connect.CodeNotFound, errors.New("transcript not found"))
 	}
@@ -225,9 +265,9 @@ func (s *transcriptServer) GetTokens(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb := s.getProjectDB()
-	if pdb == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("tokens not available"))
+	pdb, err := s.getProjectDB(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
 	usage, err := pdb.GetTaskTokenUsage(req.Msg.TaskId)
@@ -255,8 +295,13 @@ func (s *transcriptServer) GetSession(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load task to get session info
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("task not found"))
 	}
@@ -279,9 +324,9 @@ func (s *transcriptServer) GetTodos(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb := s.getProjectDB()
-	if pdb == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("todos not available"))
+	pdb, err := s.getProjectDB(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
 	snapshot, err := pdb.GetLatestTodos(req.Msg.TaskId)
@@ -325,9 +370,9 @@ func (s *transcriptServer) GetTodoHistory(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb := s.getProjectDB()
-	if pdb == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("todos not available"))
+	pdb, err := s.getProjectDB(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
 
 	history, err := pdb.GetTodoHistory(req.Msg.TaskId)

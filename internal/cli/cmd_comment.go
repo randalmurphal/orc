@@ -83,7 +83,7 @@ Examples:
 				at = db.AuthorTypeHuman
 			}
 
-			wd, err := config.FindProjectRoot()
+			wd, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}
@@ -154,7 +154,7 @@ Examples:
 				return fmt.Errorf("task %s not found", taskID)
 			}
 
-			wd, err := config.FindProjectRoot()
+			wd, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}
@@ -244,7 +244,7 @@ func newCommentDeleteCmd() *cobra.Command {
 			}
 
 			commentID := args[0]
-			wd, err := config.FindProjectRoot()
+			wd, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}

@@ -124,6 +124,27 @@ project/
 
 ---
 
+## Multi-Project Architecture
+
+Orc supports multiple projects from a single server instance using a two-tier database model.
+
+### Database Tiers
+
+| Tier | Instance | Stores |
+|------|----------|--------|
+| **GlobalDB** | One per server | Project registry, built-in workflows, built-in agents |
+| **ProjectDB** | One per project | Tasks, initiatives, transcripts, events, config |
+
+### Connection Management
+
+`ProjectCache` (`internal/api/project_cache.go`) provides LRU-cached access to project databases. All API services resolve the correct backend via `getBackend(projectID)`, which looks up or opens the project's `ProjectDB` through the cache. Evicted connections are closed automatically.
+
+### Request Routing
+
+All project-scoped API requests include a `project_id` field. The `project/` package (`internal/project/`) maintains the project registry in `GlobalDB`. The frontend stores the active project in `projectStore` and passes `projectId` on every request via `DataProvider`.
+
+---
+
 ## Related Documents
 
 | Document | Purpose |

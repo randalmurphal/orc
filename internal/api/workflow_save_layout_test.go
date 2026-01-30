@@ -13,7 +13,7 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
-// ensurePhaseTemplates creates phase templates required by FK constraints.
+// ensurePhaseTemplates creates phase templates required by FK constraints in backend.
 func ensurePhaseTemplates(t *testing.T, backend *storage.DatabaseBackend, ids ...string) {
 	t.Helper()
 	for _, id := range ids {
@@ -27,14 +27,32 @@ func ensurePhaseTemplates(t *testing.T, backend *storage.DatabaseBackend, ids ..
 	}
 }
 
+// ensurePhaseTemplatesGlobal creates phase templates required by FK constraints in globalDB.
+func ensurePhaseTemplatesGlobal(t *testing.T, globalDB *db.GlobalDB, ids ...string) {
+	t.Helper()
+	for _, id := range ids {
+		if err := globalDB.SavePhaseTemplate(&db.PhaseTemplate{
+			ID:           id,
+			Name:         id,
+			PromptSource: "db",
+		}); err != nil {
+			t.Fatalf("save phase template %s to globalDB: %v", id, err)
+		}
+	}
+}
+
 func TestSaveWorkflowLayout_Success(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
+	globalDB := storage.NewTestGlobalDB(t)
+
+	// Create phase templates in both databases
+	ensurePhaseTemplatesGlobal(t, globalDB, "spec", "implement")
 	ensurePhaseTemplates(t, backend, "spec", "implement")
 
-	// Create a non-builtin workflow with phases
-	err := backend.SaveWorkflow(&db.Workflow{
+	// Create workflow in globalDB (for lookup) and phases in backend (for position updates)
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-custom",
 		Name:         "Custom Workflow",
 		WorkflowType: "task",
@@ -43,8 +61,23 @@ func TestSaveWorkflowLayout_Success(t *testing.T) {
 		UpdatedAt:    time.Now(),
 	})
 	if err != nil {
-		t.Fatalf("save workflow: %v", err)
+		t.Fatalf("save workflow to globalDB: %v", err)
 	}
+
+	// Create workflow in backend too (for phase FK constraints)
+	err = backend.SaveWorkflow(&db.Workflow{
+		ID:           "wf-custom",
+		Name:         "Custom Workflow",
+		WorkflowType: "task",
+		IsBuiltin:    false,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("save workflow to backend: %v", err)
+	}
+
+	// Create phases in backend (where UpdateWorkflowPhasePositions writes)
 	err = backend.SaveWorkflowPhase(&db.WorkflowPhase{
 		WorkflowID:      "wf-custom",
 		PhaseTemplateID: "spec",
@@ -62,7 +95,7 @@ func TestSaveWorkflowLayout_Success(t *testing.T) {
 		t.Fatalf("save phase implement: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.SaveWorkflowLayoutRequest{
 		WorkflowId: "wf-custom",
@@ -81,7 +114,7 @@ func TestSaveWorkflowLayout_Success(t *testing.T) {
 		t.Error("expected success=true")
 	}
 
-	// Verify positions persisted
+	// Verify positions persisted (positions stored in backend/ProjectDB)
 	phases, err := backend.GetWorkflowPhases("wf-custom")
 	if err != nil {
 		t.Fatalf("get phases: %v", err)
@@ -110,8 +143,10 @@ func TestSaveWorkflowLayout_BuiltinWorkflow_Rejected(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
+	globalDB := storage.NewTestGlobalDB(t)
 
-	err := backend.SaveWorkflow(&db.Workflow{
+	// Create builtin workflow in globalDB (for lookup)
+	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-builtin",
 		Name:         "Built-in Workflow",
 		WorkflowType: "task",
@@ -123,7 +158,7 @@ func TestSaveWorkflowLayout_BuiltinWorkflow_Rejected(t *testing.T) {
 		t.Fatalf("save workflow: %v", err)
 	}
 
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.SaveWorkflowLayoutRequest{
 		WorkflowId: "wf-builtin",
@@ -150,7 +185,8 @@ func TestSaveWorkflowLayout_EmptyWorkflowID(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	globalDB := storage.NewTestGlobalDB(t)
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.SaveWorkflowLayoutRequest{
 		WorkflowId: "",
@@ -177,7 +213,8 @@ func TestSaveWorkflowLayout_WorkflowNotFound(t *testing.T) {
 	t.Parallel()
 
 	backend := storage.NewTestBackend(t)
-	server := NewWorkflowServer(backend, nil, nil, nil, slog.Default())
+	globalDB := storage.NewTestGlobalDB(t)
+	server := NewWorkflowServer(backend, globalDB, nil, nil, nil, slog.Default())
 
 	req := connect.NewRequest(&orcv1.SaveWorkflowLayoutRequest{
 		WorkflowId: "wf-nonexistent",

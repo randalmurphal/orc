@@ -231,8 +231,8 @@ See also:
 			// Validate workflow if specified
 			var pdb *db.ProjectDB
 			if workflowID != "" {
-				// Need project DB to validate workflow exists
-				projectRoot, rootErr := config.FindProjectRoot()
+				// Need project DB for gate overrides later
+				projectRoot, rootErr := ResolveProjectPath()
 				if rootErr != nil {
 					return rootErr
 				}
@@ -242,13 +242,20 @@ See also:
 				}
 				defer func() { _ = pdb.Close() }()
 
-				// Seed built-in workflows to ensure they exist
-				if _, err := workflow.SeedBuiltins(pdb); err != nil {
+				// Open global DB for workflows
+				gdb, err := db.OpenGlobal()
+				if err != nil {
+					return fmt.Errorf("open global database: %w", err)
+				}
+				defer func() { _ = gdb.Close() }()
+
+				// Seed built-in workflows to ensure they exist (into global DB)
+				if _, err := workflow.SeedBuiltins(gdb); err != nil {
 					return fmt.Errorf("seed workflows: %w", err)
 				}
 
-				// Verify workflow exists
-				wf, wfErr := pdb.GetWorkflow(workflowID)
+				// Verify workflow exists (in global DB)
+				wf, wfErr := gdb.GetWorkflow(workflowID)
 				if wfErr != nil {
 					return fmt.Errorf("get workflow: %w", wfErr)
 				}
@@ -447,7 +454,7 @@ See also:
 			if len(gateOverrides) > 0 {
 				// Need project DB if not already opened
 				if pdb == nil {
-					projectRoot, rootErr := config.FindProjectRoot()
+					projectRoot, rootErr := ResolveProjectPath()
 					if rootErr != nil {
 						return fmt.Errorf("find project root for gate overrides: %w", rootErr)
 					}

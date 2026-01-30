@@ -56,7 +56,7 @@ web/src/
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | — | Redirects to `/board` |
+| `/` | ProjectPickerPage | Project selection (redirects to `/board` when project chosen) |
 | `/board` | BoardView | Kanban board (queue + running columns) |
 | `/tasks/:taskId` | TaskDetail | Task details, transcript, review |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
@@ -78,7 +78,7 @@ Zustand stores in `stores/`. Each exports the base store hook + granular selecto
 | `sessionStore` | `useFormattedDuration`, `useFormattedCost`, `useIsPaused`, `useSessionMetrics` | `useSessionMetrics` uses `useShallow` |
 | `workflowStore` | `useBuiltinWorkflows`, `useCustomWorkflows`, `useRunningRuns` | Filter selectors use `useShallow` |
 | `initiativeStore` | `useInitiatives`, `useCurrentInitiative` | |
-| `projectStore` | `useCurrentProject`, `useProjects` | |
+| `projectStore` | `useCurrentProject`, `useProjects` | Active project context; `projectId` passed to all API queries via `DataProvider` |
 | `uiStore` | `usePendingDecisions`, `useWsStatus`, `useToasts` | |
 | `preferencesStore` | `useTheme`, `useBoardViewMode` | |
 | `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun` | React Flow state + execution tracking |

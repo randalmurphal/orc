@@ -21,9 +21,30 @@ import (
 // initiativeServer implements the InitiativeServiceHandler interface.
 type initiativeServer struct {
 	orcv1connect.UnimplementedInitiativeServiceHandler
-	backend   storage.Backend
-	logger    *slog.Logger
-	publisher events.Publisher
+	backend      storage.Backend
+	projectCache *ProjectCache
+	logger       *slog.Logger
+	publisher    events.Publisher
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+func (s *initiativeServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
+// SetProjectCache sets the project cache for multi-project support.
+func (s *initiativeServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
 }
 
 // NewInitiativeServer creates a new InitiativeService handler.
@@ -39,12 +60,32 @@ func NewInitiativeServer(
 	}
 }
 
+// NewInitiativeServerWithCache creates an InitiativeService handler with project cache support.
+func NewInitiativeServerWithCache(
+	backend storage.Backend,
+	logger *slog.Logger,
+	publisher events.Publisher,
+	cache *ProjectCache,
+) orcv1connect.InitiativeServiceHandler {
+	return &initiativeServer{
+		backend:      backend,
+		projectCache: cache,
+		logger:       logger,
+		publisher:    publisher,
+	}
+}
+
 // ListInitiatives returns all initiatives with optional filtering.
 func (s *initiativeServer) ListInitiatives(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListInitiativesRequest],
 ) (*connect.Response[orcv1.ListInitiativesResponse], error) {
-	initiatives, err := s.backend.LoadAllInitiativesProto()
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	initiatives, err := backend.LoadAllInitiativesProto()
 	if err != nil {
 		// Return empty list if no initiatives yet
 		return connect.NewResponse(&orcv1.ListInitiativesResponse{
@@ -127,13 +168,18 @@ func (s *initiativeServer) GetInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
-	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	init, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Compute blocks
-	allInits, _ := s.backend.LoadAllInitiativesProto()
+	allInits, _ := backend.LoadAllInitiativesProto()
 	if allInits != nil {
 		init.Blocks = initiative.ComputeBlocksProto(init.Id, allInits)
 	}
@@ -152,8 +198,13 @@ func (s *initiativeServer) CreateInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("title is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Generate a new initiative ID
-	id, err := s.backend.GetNextInitiativeID()
+	id, err := backend.GetNextInitiativeID()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("generate initiative ID: %w", err))
 	}
@@ -182,7 +233,7 @@ func (s *initiativeServer) CreateInitiative(
 	}
 
 	// Save the initiative
-	if err := s.backend.SaveInitiativeProto(init); err != nil {
+	if err := backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
@@ -205,8 +256,13 @@ func (s *initiativeServer) UpdateInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load existing initiative
-	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	init, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
@@ -241,7 +297,7 @@ func (s *initiativeServer) UpdateInitiative(
 	initiative.UpdateTimestampProto(init)
 
 	// Save the initiative
-	if err := s.backend.SaveInitiativeProto(init); err != nil {
+	if err := backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
@@ -264,14 +320,19 @@ func (s *initiativeServer) DeleteInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	_, err = backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Delete the initiative
-	if err := s.backend.DeleteInitiative(req.Msg.InitiativeId); err != nil {
+	if err := backend.DeleteInitiative(req.Msg.InitiativeId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete initiative: %w", err))
 	}
 
@@ -292,14 +353,19 @@ func (s *initiativeServer) ListInitiativeTasks(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	_, err = backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -332,14 +398,19 @@ func (s *initiativeServer) LinkTasks(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_ids is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	_, err = backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Get current max sequence for the initiative's tasks
-	existingTaskIDs, err := s.backend.DB().GetInitiativeTasks(req.Msg.InitiativeId)
+	existingTaskIDs, err := backend.DB().GetInitiativeTasks(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get existing tasks: %w", err))
 	}
@@ -347,14 +418,14 @@ func (s *initiativeServer) LinkTasks(
 
 	// Update each task's initiative ID and add to junction table
 	for _, taskID := range req.Msg.TaskIds {
-		t, err := s.backend.LoadTask(taskID)
+		t, err := backend.LoadTask(taskID)
 		if err != nil {
 			continue // Skip non-existent tasks
 		}
 
 		// If task was linked to a different initiative, remove from that junction table
 		if t.InitiativeId != nil && *t.InitiativeId != req.Msg.InitiativeId {
-			if err := s.backend.DB().RemoveTaskFromInitiative(*t.InitiativeId, taskID); err != nil {
+			if err := backend.DB().RemoveTaskFromInitiative(*t.InitiativeId, taskID); err != nil {
 				if s.logger != nil {
 					s.logger.Warn("failed to remove task from old initiative", "task_id", taskID, "old_initiative", *t.InitiativeId, "error", err)
 				}
@@ -364,7 +435,7 @@ func (s *initiativeServer) LinkTasks(
 		// Update task.initiative_id
 		t.InitiativeId = &req.Msg.InitiativeId
 		task.UpdateTimestampProto(t)
-		if err := s.backend.SaveTask(t); err != nil {
+		if err := backend.SaveTask(t); err != nil {
 			if s.logger != nil {
 				s.logger.Warn("failed to link task", "task_id", taskID, "error", err)
 			}
@@ -372,7 +443,7 @@ func (s *initiativeServer) LinkTasks(
 		}
 
 		// Add to junction table (uses ON CONFLICT to handle duplicates)
-		if err := s.backend.DB().AddTaskToInitiative(req.Msg.InitiativeId, taskID, sequence); err != nil {
+		if err := backend.DB().AddTaskToInitiative(req.Msg.InitiativeId, taskID, sequence); err != nil {
 			if s.logger != nil {
 				s.logger.Warn("failed to add task to junction table", "task_id", taskID, "error", err)
 			}
@@ -382,7 +453,7 @@ func (s *initiativeServer) LinkTasks(
 	}
 
 	// Reload initiative to include task updates
-	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	init, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("reload initiative: %w", err))
 	}
@@ -405,8 +476,13 @@ func (s *initiativeServer) UnlinkTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load the task
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -419,12 +495,12 @@ func (s *initiativeServer) UnlinkTask(
 	// Clear task.initiative_id
 	t.InitiativeId = nil
 	task.UpdateTimestampProto(t)
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
 	// Remove from junction table
-	if err := s.backend.DB().RemoveTaskFromInitiative(req.Msg.InitiativeId, req.Msg.TaskId); err != nil {
+	if err := backend.DB().RemoveTaskFromInitiative(req.Msg.InitiativeId, req.Msg.TaskId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("remove from junction table: %w", err))
 	}
 
@@ -443,8 +519,13 @@ func (s *initiativeServer) AddDecision(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("decision is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load initiative
-	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	init, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
@@ -461,7 +542,7 @@ func (s *initiativeServer) AddDecision(
 	initiative.AddDecisionProto(init, req.Msg.Decision, rationale, by)
 
 	// Save
-	if err := s.backend.SaveInitiativeProto(init); err != nil {
+	if err := backend.SaveInitiativeProto(init); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save initiative: %w", err))
 	}
 
@@ -484,14 +565,19 @@ func (s *initiativeServer) GetReadyTasks(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	_, err = backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -535,14 +621,19 @@ func (s *initiativeServer) GetDependencyGraph(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check initiative exists
-	_, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	_, err = backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -597,14 +688,19 @@ func (s *initiativeServer) RunInitiative(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("initiative_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load initiative
-	init, err := s.backend.LoadInitiativeProto(req.Msg.InitiativeId)
+	init, err := backend.LoadInitiativeProto(req.Msg.InitiativeId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("initiative %s not found", req.Msg.InitiativeId))
 	}
 
 	// Load all initiatives to check blocking status
-	allInits, err := s.backend.LoadAllInitiativesProto()
+	allInits, err := backend.LoadAllInitiativesProto()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load initiatives: %w", err))
 	}
@@ -628,7 +724,7 @@ func (s *initiativeServer) RunInitiative(
 	}
 
 	// Load all tasks and filter by initiative
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}

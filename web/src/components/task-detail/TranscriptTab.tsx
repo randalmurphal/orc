@@ -12,6 +12,7 @@ import type { TranscriptLine } from '@/hooks';
 import { TranscriptViewer } from '@/components/transcript';
 import { Icon } from '@/components/ui/Icon';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import './TranscriptTab.css';
 
 // Content block types from Claude's JSONL format
@@ -123,18 +124,20 @@ export function TranscriptTab({
 	streamingLines = [],
 	isRunning = false,
 }: TranscriptTabProps) {
+	const projectId = useCurrentProjectId();
 	const [transcriptsForExport, setTranscriptsForExport] = useState<FlatExportEntry[]>([]);
 	const [exportLoading, setExportLoading] = useState(false);
 
 	// Load all transcripts for export using Connect RPC
 	const loadAllForExport = useCallback(async (): Promise<FlatExportEntry[]> => {
+		if (!projectId) return [];
 		if (transcriptsForExport.length > 0) {
 			return transcriptsForExport;
 		}
 		setExportLoading(true);
 		try {
 			// List all transcript files
-			const listRequest = create(ListTranscriptsRequestSchema, { taskId });
+			const listRequest = create(ListTranscriptsRequestSchema, { projectId, taskId });
 			const listResponse = await transcriptClient.listTranscripts(listRequest);
 			const files = listResponse.transcripts;
 
@@ -143,6 +146,7 @@ export function TranscriptTab({
 			for (const file of files) {
 				try {
 					const getRequest = create(GetTranscriptRequestSchema, {
+						projectId,
 						taskId,
 						phase: file.phase,
 						iteration: file.iteration,
@@ -166,7 +170,7 @@ export function TranscriptTab({
 		} finally {
 			setExportLoading(false);
 		}
-	}, [taskId, transcriptsForExport]);
+	}, [projectId, taskId, transcriptsForExport]);
 
 	// Export transcript to markdown
 	const exportToMarkdown = useCallback(async () => {

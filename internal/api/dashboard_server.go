@@ -27,10 +27,11 @@ type DiffServicer interface {
 // dashboardServer implements the DashboardServiceHandler interface.
 type dashboardServer struct {
 	orcv1connect.UnimplementedDashboardServiceHandler
-	backend storage.Backend
-	cache   *dashboardCache
-	logger  *slog.Logger
-	diffSvc DiffServicer
+	backend      storage.Backend
+	projectCache *ProjectCache
+	cache        *dashboardCache
+	logger       *slog.Logger
+	diffSvc      DiffServicer
 }
 
 // NewDashboardServer creates a new DashboardService handler.
@@ -60,12 +61,48 @@ func NewDashboardServerWithDiff(
 	}
 }
 
+// SetProjectCache sets the project cache for multi-project support.
+func (s *dashboardServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+// Falls back to legacy single backend only when no projectID is specified.
+func (s *dashboardServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
+// getTasks returns tasks from cache or directly from backend for a project.
+// When projectID is empty, uses the cached tasks from the default backend.
+// When projectID is specified, bypasses the cache and loads directly from that project's backend.
+func (s *dashboardServer) getTasks(projectID string) ([]*orcv1.Task, error) {
+	if projectID == "" {
+		return s.cache.Tasks()
+	}
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		return nil, err
+	}
+	return backend.LoadAllTasks()
+}
+
 // GetStats returns dashboard statistics.
 func (s *dashboardServer) GetStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetStatsRequest],
 ) (*connect.Response[orcv1.GetStatsResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -168,7 +205,7 @@ func (s *dashboardServer) GetActivityHeatmap(
 		days = 90 // Default to 90 days
 	}
 
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -218,7 +255,7 @@ func (s *dashboardServer) GetCostSummary(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetCostSummaryRequest],
 ) (*connect.Response[orcv1.GetCostSummaryResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -297,7 +334,7 @@ func (s *dashboardServer) GetMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsRequest],
 ) (*connect.Response[orcv1.GetMetricsResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -384,7 +421,7 @@ func (s *dashboardServer) GetDailyMetrics(
 		days = 30
 	}
 
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -453,7 +490,7 @@ func (s *dashboardServer) GetMetricsByModel(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetMetricsByModelRequest],
 ) (*connect.Response[orcv1.GetMetricsByModelResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -521,7 +558,7 @@ func (s *dashboardServer) GetOutcomes(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetOutcomesRequest],
 ) (*connect.Response[orcv1.GetOutcomesResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -580,7 +617,12 @@ func (s *dashboardServer) GetTopInitiatives(
 		limit = 10
 	}
 
-	tasks, err := s.cache.Tasks()
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
+	}
+
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -614,7 +656,7 @@ func (s *dashboardServer) GetTopInitiatives(
 		for id := range initMap {
 			ids = append(ids, id)
 		}
-		titles, err := s.backend.DB().GetInitiativeTitlesBatch(ids)
+		titles, err := backend.DB().GetInitiativeTitlesBatch(ids)
 		if err == nil {
 			for id, title := range titles {
 				if title != "" {
@@ -664,13 +706,17 @@ func (s *dashboardServer) GetTopFiles(
 		}), nil
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
+	}
+
 	// Load tasks
 	var tasks []*orcv1.Task
-	var err error
 
 	// If task_id is specified, only load that task
 	if req.Msg.TaskId != nil && *req.Msg.TaskId != "" {
-		task, loadErr := s.backend.LoadTask(*req.Msg.TaskId)
+		task, loadErr := backend.LoadTask(*req.Msg.TaskId)
 		if loadErr != nil {
 			// Task not found - return empty result (not error per spec)
 			return connect.NewResponse(&orcv1.GetTopFilesResponse{
@@ -679,7 +725,7 @@ func (s *dashboardServer) GetTopFiles(
 		}
 		tasks = []*orcv1.Task{task}
 	} else {
-		tasks, err = s.cache.Tasks()
+		tasks, err = s.getTasks(req.Msg.GetProjectId())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 		}
@@ -758,7 +804,7 @@ func (s *dashboardServer) GetComparison(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetComparisonRequest],
 ) (*connect.Response[orcv1.GetComparisonResponse], error) {
-	tasks, err := s.cache.Tasks()
+	tasks, err := s.getTasks(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -809,7 +855,12 @@ func (s *dashboardServer) GetTaskMetrics(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetTaskMetricsRequest],
 ) (*connect.Response[orcv1.GetTaskMetricsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get backend: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}

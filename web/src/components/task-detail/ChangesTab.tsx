@@ -21,6 +21,7 @@ import type { DiffResult } from '@/gen/orc/v1/common_pb';
 import type { CreateCommentRequest } from '@/components/task-detail/diff/types';
 import { timestampToDate } from '@/lib/time';
 import { toast } from '@/stores/uiStore';
+import { useCurrentProjectId } from '@/stores';
 import './ChangesTab.css';
 
 // Helper to convert CommentSeverity enum to string label
@@ -43,6 +44,7 @@ interface ChangesTabProps {
 }
 
 export function ChangesTab({ taskId }: ChangesTabProps) {
+	const projectId = useCurrentProjectId();
 	const [diff, setDiff] = useState<DiffResult | null>(null);
 	const [comments, setComments] = useState<ReviewComment[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -69,11 +71,12 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	// Load diff
 	const loadDiff = useCallback(async () => {
+		if (!projectId) return;
 		setLoading(true);
 		setError(null);
 		try {
 			const response = await taskClient.getDiff(
-				create(GetDiffRequestSchema, { id: taskId })
+				create(GetDiffRequestSchema, { projectId, taskId })
 			);
 			if (response.diff) {
 				setDiff(response.diff);
@@ -83,19 +86,20 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		} finally {
 			setLoading(false);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	// Load comments
 	const loadComments = useCallback(async () => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.listReviewComments(
-				create(ListReviewCommentsRequestSchema, { taskId })
+				create(ListReviewCommentsRequestSchema, { projectId, taskId })
 			);
 			setComments(response.comments);
 		} catch (e) {
 			console.error('Failed to load comments:', e);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	useEffect(() => {
 		Promise.all([loadDiff(), loadComments()]);
@@ -103,9 +107,10 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	// Load file hunks using Connect RPC
 	const loadFileHunks = useCallback(async (filePath: string) => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.getFileDiff(
-				create(GetFileDiffRequestSchema, { id: taskId, filePath })
+				create(GetFileDiffRequestSchema, { projectId, taskId, filePath })
 			);
 			if (response.file) {
 				setDiff((prev) =>
@@ -132,7 +137,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 					: null
 			);
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	// Toggle file expansion
 	const toggleFile = useCallback((path: string) => {
@@ -187,9 +192,11 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 
 	// Comment handlers
 	const handleAddComment = useCallback(async (comment: CreateCommentRequest) => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.createReviewComment(
 				create(CreateReviewCommentRequestSchema, {
+					projectId,
 					taskId,
 					content: comment.content,
 					severity: comment.severity,
@@ -207,12 +214,13 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 			toast.error('Failed to add comment');
 			throw e;
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	const handleResolveComment = useCallback(async (id: string) => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.updateReviewComment(
-				create(UpdateReviewCommentRequestSchema, { taskId, commentId: id, status: CommentStatus.RESOLVED })
+				create(UpdateReviewCommentRequestSchema, { projectId, taskId, commentId: id, status: CommentStatus.RESOLVED })
 			);
 			if (response.comment) {
 				setComments((prev) => prev.map((c) => (c.id === id ? response.comment! : c)));
@@ -221,12 +229,13 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		} catch (_e) {
 			toast.error('Failed to resolve comment');
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	const handleWontFixComment = useCallback(async (id: string) => {
+		if (!projectId) return;
 		try {
 			const response = await taskClient.updateReviewComment(
-				create(UpdateReviewCommentRequestSchema, { taskId, commentId: id, status: CommentStatus.WONT_FIX })
+				create(UpdateReviewCommentRequestSchema, { projectId, taskId, commentId: id, status: CommentStatus.WONT_FIX })
 			);
 			if (response.comment) {
 				setComments((prev) => prev.map((c) => (c.id === id ? response.comment! : c)));
@@ -235,27 +244,29 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		} catch (_e) {
 			toast.error('Failed to update comment');
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	const handleDeleteComment = useCallback(async (id: string) => {
+		if (!projectId) return;
 		try {
 			await taskClient.deleteReviewComment(
-				create(DeleteReviewCommentRequestSchema, { taskId, commentId: id })
+				create(DeleteReviewCommentRequestSchema, { projectId, taskId, commentId: id })
 			);
 			setComments((prev) => prev.filter((c) => c.id !== id));
 			toast.success('Comment deleted');
 		} catch (_e) {
 			toast.error('Failed to delete comment');
 		}
-	}, [taskId]);
+	}, [projectId, taskId]);
 
 	// Add general comment
 	const handleAddGeneralComment = useCallback(async () => {
-		if (!generalCommentContent.trim() || addingGeneralComment) return;
+		if (!projectId || !generalCommentContent.trim() || addingGeneralComment) return;
 		setAddingGeneralComment(true);
 		try {
 			const response = await taskClient.createReviewComment(
 				create(CreateReviewCommentRequestSchema, {
+					projectId,
 					taskId,
 					content: generalCommentContent.trim(),
 					severity: generalCommentSeverity,
@@ -273,15 +284,15 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		} finally {
 			setAddingGeneralComment(false);
 		}
-	}, [taskId, generalCommentContent, generalCommentSeverity, addingGeneralComment]);
+	}, [projectId, taskId, generalCommentContent, generalCommentSeverity, addingGeneralComment]);
 
 	// Send review comments to agent for retry
 	const handleSendToAgent = useCallback(async () => {
-		if (openComments.length === 0 || sendingToAgent) return;
+		if (!projectId || openComments.length === 0 || sendingToAgent) return;
 		setSendingToAgent(true);
 		try {
 			await taskClient.retryTask(
-				create(RetryTaskRequestSchema, { id: taskId, includeReviewComments: true })
+				create(RetryTaskRequestSchema, { projectId, taskId, includeReviewComments: true })
 			);
 			toast.success('Comments sent to agent for review');
 		} catch (_e) {
@@ -289,7 +300,7 @@ export function ChangesTab({ taskId }: ChangesTabProps) {
 		} finally {
 			setSendingToAgent(false);
 		}
-	}, [taskId, openComments.length, sendingToAgent]);
+	}, [projectId, taskId, openComments.length, sendingToAgent]);
 
 	// Render loading state
 	if (loading) {

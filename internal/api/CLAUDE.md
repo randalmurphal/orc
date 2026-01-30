@@ -7,6 +7,7 @@ Connect RPC server with WebSocket support for real-time updates.
 ```
 Server
 ├── Connect RPC Services (13) → *_server.go
+├── ProjectCache              → project_cache.go (multi-project routing)
 ├── EventServer               → event_server.go (internal events)
 │   └── WebSocketHub          → websocket.go (forwards to web clients)
 ├── Interceptors              → interceptors.go
@@ -17,25 +18,27 @@ Server
 
 **Event Flow**: EventServer.Publish() → WebSocketHub.handleInternalEvent() → WebSocket clients. Critical: `SetWebSocketHub()` must be called at startup to wire these together.
 
+**Project Routing**: Every request carries `project_id`. Services resolve the correct `storage.Backend` via `ProjectCache` (`project_cache.go`). See [Multi-Project Routing](#multi-project-routing) below.
+
 ## Connect RPC Services
 
-Services are registered in `server_connect.go:15-79`. Each implements a handler interface from `orcv1connect`.
+Services are registered in `server_connect.go:17-116`. Each implements a handler interface from `orcv1connect`. All project-scoped services receive `SetProjectCache()` during registration.
 
-| Service | File | Key Methods |
-|---------|------|-------------|
-| `TaskService` | `task_server.go` | CRUD, Run/Pause/Resume, Diff, Comments, Attachments |
-| `InitiativeService` | `initiative_server.go` | CRUD, Link tasks, Dependency graph |
-| `WorkflowService` | `workflow_server.go` | List, Get workflows and phases, AddVariable, UpdateVariable, DeleteVariable |
-| `TranscriptService` | `transcript_server.go` | Get, Stream transcripts |
-| `EventService` | `event_server.go` | Subscribe (streaming), GetEvents, GetTimeline |
-| `ConfigService` | `config_server.go` | Get/Update orc config |
-| `HostingService` | `hosting_server.go` | PR CRUD, Refresh, AutofixComment (GitHub + GitLab via Provider interface) |
-| `DashboardService` | `dashboard_server.go` | Stats, Metrics (TTL cache + singleflight) |
-| `ProjectService` | `project_server.go` | Multi-project management |
-| `BranchService` | `branch_server.go` | Branch operations |
-| `DecisionService` | `decision_server.go` | Gate decisions (approve/reject) |
-| `NotificationService` | `notification_server.go` | Push notifications |
-| `MCPService` | `mcp_server.go` | MCP server config |
+| Service | File | Project-Scoped | Key Methods |
+|---------|------|:--------------:|-------------|
+| `TaskService` | `task_server.go` | Yes | CRUD, Run/Pause/Resume, Diff, Comments, Attachments |
+| `InitiativeService` | `initiative_server.go` | Yes | CRUD, Link tasks, Dependency graph |
+| `WorkflowService` | `workflow_server.go` | Yes | List, Get workflows and phases, Variables |
+| `TranscriptService` | `transcript_server.go` | Yes | Get, Stream transcripts |
+| `EventService` | `event_server.go` | Yes | Subscribe (streaming), GetEvents, GetTimeline |
+| `ConfigService` | `config_server.go` | Yes | Get/Update orc config |
+| `HostingService` | `hosting_server.go` | Yes | PR CRUD, Refresh, AutofixComment |
+| `DashboardService` | `dashboard_server.go` | Yes | Stats, Metrics (TTL cache + singleflight) |
+| `ProjectService` | `project_server.go` | No | Multi-project management (global) |
+| `BranchService` | `branch_server.go` | Yes | Branch operations |
+| `DecisionService` | `decision_server.go` | Yes | Gate decisions (approve/reject) |
+| `NotificationService` | `notification_server.go` | Yes | Push notifications |
+| `MCPService` | `mcp_server.go` | No | MCP server config (global) |
 
 ## Key Patterns
 
@@ -57,6 +60,56 @@ func (s *taskServer) GetTask(
     // Implementation
 }
 ```
+
+### Multi-Project Routing
+
+Every project-scoped server follows this pattern for multi-project support:
+
+**1. Struct fields** -- each server has `backend` (default) and `projectCache`:
+```go
+type dashboardServer struct {
+    backend      storage.Backend   // default project backend
+    projectCache *ProjectCache     // LRU cache of project backends
+}
+```
+
+**2. `SetProjectCache()`** -- called during registration (`server_connect.go:27-71`):
+```go
+func (s *dashboardServer) SetProjectCache(cache *ProjectCache) {
+    s.projectCache = cache
+}
+```
+
+**3. `getBackend(projectID)`** -- resolves the correct backend per request:
+```go
+func (s *dashboardServer) getBackend(projectID string) (storage.Backend, error) {
+    if projectID != "" && s.projectCache != nil {
+        return s.projectCache.GetBackend(projectID)  // route to project DB
+    }
+    if projectID != "" && s.projectCache == nil {
+        return nil, fmt.Errorf("project_id specified but no project cache configured")
+    }
+    return s.backend, nil  // default backend
+}
+```
+
+**4. Usage in RPC methods** -- extract `project_id` from proto request:
+```go
+backend, err := s.getBackend(req.Msg.GetProjectId())
+if err != nil { return nil, err }
+// use backend instead of s.backend
+```
+
+**Error behavior -- no silent fallbacks:**
+
+| Condition | Result |
+|-----------|--------|
+| `project_id` empty | Uses default `s.backend` |
+| `project_id` set, cache exists | Routes to project-specific backend via LRU cache |
+| `project_id` set, cache nil | **Error** (not fallback to default) |
+| Project not in registry | **Error** from `ProjectCache.GetBackend()` |
+
+**ProjectCache** (`project_cache.go`): Thread-safe LRU cache mapping project IDs to `storage.Backend` instances. Opens databases on demand, evicts least-recently-used when at capacity (default: 10). Proto request messages across all `.proto` files include `project_id` as an optional field.
 
 ### Error Handling
 
@@ -88,25 +141,7 @@ Clients can filter by task ID, initiative ID, or event types. Heartbeat support 
 
 ## WebSocket Protocol (Legacy)
 
-WebSocket handler at `/api/ws` (`websocket.go`) remains for backward compatibility.
-
-### Client Messages
-
-```json
-{"type": "subscribe", "task_id": "TASK-001"}
-{"type": "subscribe", "task_id": "*"}
-{"type": "unsubscribe"}
-{"type": "command", "task_id": "TASK-001", "action": "pause"}
-{"type": "ping"}
-```
-
-### Server Messages
-
-```json
-{"type": "subscribed", "task_id": "TASK-001"}
-{"type": "event", "event": "task_updated", "task_id": "...", "data": {...}}
-{"type": "pong"}
-```
+WebSocket handler at `/api/ws` (`websocket.go`) remains for backward compatibility. Supports `subscribe`/`unsubscribe`/`command`/`ping` client messages; forwards `event`/`subscribed`/`pong` server messages.
 
 ## PR Status Polling
 

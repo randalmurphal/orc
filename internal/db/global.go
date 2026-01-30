@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -28,6 +29,12 @@ func OpenGlobal() (*GlobalDB, error) {
 	}
 
 	path := filepath.Join(home, ".orc", "orc.db")
+	return OpenGlobalAt(path)
+}
+
+// OpenGlobalAt opens the global database at a specific path using SQLite.
+// This is useful for testing with isolated databases.
+func OpenGlobalAt(path string) (*GlobalDB, error) {
 	db, err := Open(path)
 	if err != nil {
 		return nil, err
@@ -647,4 +654,637 @@ func (g *GlobalDB) GetBudgetStatus(projectID string) (*BudgetStatus, error) {
 	}
 
 	return status, nil
+}
+
+// =============================================================================
+// Workflow Operations (Global - shared across projects)
+// =============================================================================
+
+// SavePhaseTemplate creates or updates a phase template in global DB.
+func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
+	thinkingEnabled := sqlNullBool(pt.ThinkingEnabled)
+	agentID := sqlNullString(pt.AgentID)
+	subAgents := sqlNullString(pt.SubAgents)
+
+	_, err := g.Exec(`
+		INSERT INTO phase_templates (id, name, description, agent_id, sub_agents,
+			prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
+			max_iterations, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, system_prompt, claude_config,
+			is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			agent_id = excluded.agent_id,
+			sub_agents = excluded.sub_agents,
+			prompt_source = excluded.prompt_source,
+			prompt_content = excluded.prompt_content,
+			prompt_path = excluded.prompt_path,
+			input_variables = excluded.input_variables,
+			output_schema = excluded.output_schema,
+			produces_artifact = excluded.produces_artifact,
+			artifact_type = excluded.artifact_type,
+			output_var_name = excluded.output_var_name,
+			output_type = excluded.output_type,
+			quality_checks = excluded.quality_checks,
+			max_iterations = excluded.max_iterations,
+			thinking_enabled = excluded.thinking_enabled,
+			gate_type = excluded.gate_type,
+			checkpoint = excluded.checkpoint,
+			retry_from_phase = excluded.retry_from_phase,
+			retry_prompt_path = excluded.retry_prompt_path,
+			system_prompt = excluded.system_prompt,
+			claude_config = excluded.claude_config,
+			updated_at = excluded.updated_at
+	`, pt.ID, pt.Name, pt.Description, agentID, subAgents,
+		pt.PromptSource, pt.PromptContent, pt.PromptPath,
+		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
+		pt.OutputType, pt.QualityChecks,
+		pt.MaxIterations, thinkingEnabled, pt.GateType, pt.Checkpoint,
+		pt.RetryFromPhase, pt.RetryPromptPath, "", "", // system_prompt, claude_config empty for now
+		pt.IsBuiltin, pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save phase template: %w", err)
+	}
+	return nil
+}
+
+// GetPhaseTemplate retrieves a phase template by ID from global DB.
+func (g *GlobalDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
+	row := g.QueryRow(`
+		SELECT id, name, description, agent_id, sub_agents,
+			prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
+			max_iterations, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+		FROM phase_templates WHERE id = ?
+	`, id)
+
+	pt, err := scanPhaseTemplate(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get phase template %s: %w", id, err)
+	}
+	return pt, nil
+}
+
+// ListPhaseTemplates returns all phase templates from global DB.
+func (g *GlobalDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
+	rows, err := g.Query(`
+		SELECT id, name, description, agent_id, sub_agents,
+			prompt_source, prompt_content, prompt_path,
+			input_variables, output_schema, produces_artifact, artifact_type, output_var_name,
+			output_type, quality_checks,
+			max_iterations, thinking_enabled, gate_type, checkpoint,
+			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at
+		FROM phase_templates
+		ORDER BY is_builtin DESC, name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list phase templates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var templates []*PhaseTemplate
+	for rows.Next() {
+		pt, err := scanPhaseTemplateRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan phase template: %w", err)
+		}
+		templates = append(templates, pt)
+	}
+	return templates, rows.Err()
+}
+
+// DeletePhaseTemplate removes a non-builtin phase template from global DB.
+func (g *GlobalDB) DeletePhaseTemplate(id string) error {
+	_, err := g.Exec("DELETE FROM phase_templates WHERE id = ? AND is_builtin = FALSE", id)
+	if err != nil {
+		return fmt.Errorf("delete phase template: %w", err)
+	}
+	return nil
+}
+
+// SaveWorkflow creates or updates a workflow in global DB.
+func (g *GlobalDB) SaveWorkflow(w *Workflow) error {
+	basedOn := sqlNullString(w.BasedOn)
+
+	_, err := g.Exec(`
+		INSERT INTO workflows (id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			workflow_type = excluded.workflow_type,
+			default_model = excluded.default_model,
+			default_thinking = excluded.default_thinking,
+			based_on = excluded.based_on,
+			updated_at = excluded.updated_at
+	`, w.ID, w.Name, w.Description, w.WorkflowType, w.DefaultModel, w.DefaultThinking,
+		w.IsBuiltin, basedOn, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("save workflow: %w", err)
+	}
+	return nil
+}
+
+// GetWorkflow retrieves a workflow by ID from global DB.
+func (g *GlobalDB) GetWorkflow(id string) (*Workflow, error) {
+	row := g.QueryRow(`
+		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at
+		FROM workflows WHERE id = ?
+	`, id)
+
+	w, err := scanWorkflow(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get workflow %s: %w", id, err)
+	}
+	return w, nil
+}
+
+// ListWorkflows returns all workflows from global DB.
+func (g *GlobalDB) ListWorkflows() ([]*Workflow, error) {
+	rows, err := g.Query(`
+		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, created_at, updated_at
+		FROM workflows
+		ORDER BY is_builtin DESC, name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list workflows: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var workflows []*Workflow
+	for rows.Next() {
+		w, err := scanWorkflowRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow: %w", err)
+		}
+		workflows = append(workflows, w)
+	}
+	return workflows, rows.Err()
+}
+
+// DeleteWorkflow removes a non-builtin workflow from global DB.
+func (g *GlobalDB) DeleteWorkflow(id string) error {
+	_, err := g.Exec("DELETE FROM workflows WHERE id = ? AND is_builtin = FALSE", id)
+	if err != nil {
+		return fmt.Errorf("delete workflow: %w", err)
+	}
+	return nil
+}
+
+// SaveWorkflowPhase creates or updates a workflow-phase link in global DB.
+func (g *GlobalDB) SaveWorkflowPhase(wp *WorkflowPhase) error {
+	thinkingOverride := sqlNullBool(wp.ThinkingOverride)
+	maxIterOverride := sqlNullInt(wp.MaxIterationsOverride)
+	posX := sqlNullFloat64(wp.PositionX)
+	posY := sqlNullFloat64(wp.PositionY)
+	agentOverride := sqlNullString(wp.AgentOverride)
+	subAgentsOverride := sqlNullString(wp.SubAgentsOverride)
+
+	res, err := g.Exec(`
+		INSERT INTO workflow_phases (workflow_id, phase_template_id, sequence, depends_on,
+			agent_override, sub_agents_override,
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			quality_checks_override, loop_config, claude_config_override, position_x, position_y)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(workflow_id, phase_template_id) DO UPDATE SET
+			sequence = excluded.sequence,
+			depends_on = excluded.depends_on,
+			agent_override = excluded.agent_override,
+			sub_agents_override = excluded.sub_agents_override,
+			max_iterations_override = excluded.max_iterations_override,
+			model_override = excluded.model_override,
+			thinking_override = excluded.thinking_override,
+			gate_type_override = excluded.gate_type_override,
+			condition = excluded.condition,
+			quality_checks_override = excluded.quality_checks_override,
+			loop_config = excluded.loop_config,
+			claude_config_override = excluded.claude_config_override,
+			position_x = excluded.position_x,
+			position_y = excluded.position_y
+	`, wp.WorkflowID, wp.PhaseTemplateID, wp.Sequence, wp.DependsOn,
+		agentOverride, subAgentsOverride,
+		maxIterOverride, wp.ModelOverride, thinkingOverride, wp.GateTypeOverride, wp.Condition,
+		wp.QualityChecksOverride, wp.LoopConfig, wp.ClaudeConfigOverride, posX, posY)
+	if err != nil {
+		return fmt.Errorf("save workflow phase: %w", err)
+	}
+
+	if wp.ID == 0 {
+		id, _ := res.LastInsertId()
+		wp.ID = int(id)
+	}
+	return nil
+}
+
+// GetWorkflowPhases returns all phases for a workflow in sequence order from global DB.
+func (g *GlobalDB) GetWorkflowPhases(workflowID string) ([]*WorkflowPhase, error) {
+	rows, err := g.Query(`
+		SELECT id, workflow_id, phase_template_id, sequence, depends_on,
+			agent_override, sub_agents_override,
+			max_iterations_override, model_override, thinking_override, gate_type_override, condition,
+			quality_checks_override, loop_config, claude_config_override, position_x, position_y
+		FROM workflow_phases
+		WHERE workflow_id = ?
+		ORDER BY sequence ASC
+	`, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("get workflow phases: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var phases []*WorkflowPhase
+	for rows.Next() {
+		wp, err := scanWorkflowPhaseRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow phase: %w", err)
+		}
+		phases = append(phases, wp)
+	}
+	return phases, rows.Err()
+}
+
+// DeleteWorkflowPhase removes a phase from a workflow in global DB.
+func (g *GlobalDB) DeleteWorkflowPhase(workflowID, phaseTemplateID string) error {
+	_, err := g.Exec("DELETE FROM workflow_phases WHERE workflow_id = ? AND phase_template_id = ?",
+		workflowID, phaseTemplateID)
+	if err != nil {
+		return fmt.Errorf("delete workflow phase: %w", err)
+	}
+	return nil
+}
+
+// SaveWorkflowVariable creates or updates a workflow variable in global DB.
+func (g *GlobalDB) SaveWorkflowVariable(wv *WorkflowVariable) error {
+	res, err := g.Exec(`
+		INSERT INTO workflow_variables (workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content, extract)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(workflow_id, name) DO UPDATE SET
+			description = excluded.description,
+			source_type = excluded.source_type,
+			source_config = excluded.source_config,
+			required = excluded.required,
+			default_value = excluded.default_value,
+			cache_ttl_seconds = excluded.cache_ttl_seconds,
+			script_content = excluded.script_content,
+			extract = excluded.extract
+	`, wv.WorkflowID, wv.Name, wv.Description, wv.SourceType, wv.SourceConfig,
+		wv.Required, wv.DefaultValue, wv.CacheTTLSeconds, wv.ScriptContent, wv.Extract)
+	if err != nil {
+		return fmt.Errorf("save workflow variable: %w", err)
+	}
+
+	if wv.ID == 0 {
+		id, _ := res.LastInsertId()
+		wv.ID = int(id)
+	}
+	return nil
+}
+
+// GetWorkflowVariables returns all variables for a workflow from global DB.
+func (g *GlobalDB) GetWorkflowVariables(workflowID string) ([]*WorkflowVariable, error) {
+	rows, err := g.Query(`
+		SELECT id, workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content, extract
+		FROM workflow_variables
+		WHERE workflow_id = ?
+		ORDER BY name ASC
+	`, workflowID)
+	if err != nil {
+		return nil, fmt.Errorf("get workflow variables: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var vars []*WorkflowVariable
+	for rows.Next() {
+		wv, err := scanWorkflowVariableRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan workflow variable: %w", err)
+		}
+		vars = append(vars, wv)
+	}
+	return vars, rows.Err()
+}
+
+// DeleteWorkflowVariable removes a variable from a workflow in global DB.
+func (g *GlobalDB) DeleteWorkflowVariable(workflowID, name string) error {
+	_, err := g.Exec("DELETE FROM workflow_variables WHERE workflow_id = ? AND name = ?",
+		workflowID, name)
+	if err != nil {
+		return fmt.Errorf("delete workflow variable: %w", err)
+	}
+	return nil
+}
+
+// =============================================================================
+// Agent Operations (Global - shared across projects)
+// =============================================================================
+
+// SaveAgent saves or updates an agent definition in global DB.
+func (g *GlobalDB) SaveAgent(a *Agent) error {
+	toolsJSON, err := json.Marshal(a.Tools)
+	if err != nil {
+		return fmt.Errorf("marshal agent tools: %w", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if a.CreatedAt == "" {
+		a.CreatedAt = now
+	}
+	a.UpdatedAt = now
+
+	_, err = g.Exec(`
+		INSERT INTO agents (id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			prompt = excluded.prompt,
+			tools = excluded.tools,
+			model = excluded.model,
+			system_prompt = excluded.system_prompt,
+			claude_config = excluded.claude_config,
+			is_builtin = excluded.is_builtin,
+			updated_at = excluded.updated_at
+	`, a.ID, a.Name, a.Description, a.Prompt, string(toolsJSON),
+		a.Model, a.SystemPrompt, a.ClaudeConfig, a.IsBuiltin, a.CreatedAt, a.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("save agent %s: %w", a.ID, err)
+	}
+
+	return nil
+}
+
+// GetAgent retrieves an agent by ID from global DB.
+func (g *GlobalDB) GetAgent(id string) (*Agent, error) {
+	var a Agent
+	var toolsJSON string
+	var model, systemPrompt, claudeConfig sql.NullString
+
+	err := g.QueryRow(`
+		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		FROM agents WHERE id = ?
+	`, id).Scan(
+		&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
+		&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get agent %s: %w", id, err)
+	}
+
+	if model.Valid {
+		a.Model = model.String
+	}
+	if systemPrompt.Valid {
+		a.SystemPrompt = systemPrompt.String
+	}
+	if claudeConfig.Valid {
+		a.ClaudeConfig = claudeConfig.String
+	}
+
+	if toolsJSON != "" {
+		if err := json.Unmarshal([]byte(toolsJSON), &a.Tools); err != nil {
+			return nil, fmt.Errorf("unmarshal agent tools: %w", err)
+		}
+	}
+
+	return &a, nil
+}
+
+// ListAgents returns all agents from global DB.
+func (g *GlobalDB) ListAgents() ([]*Agent, error) {
+	rows, err := g.Query(`
+		SELECT id, name, description, prompt, tools, model, system_prompt, claude_config, is_builtin, created_at, updated_at
+		FROM agents
+		ORDER BY is_builtin DESC, name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list agents: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var agents []*Agent
+	for rows.Next() {
+		var a Agent
+		var toolsJSON string
+		var model, systemPrompt, claudeConfig sql.NullString
+
+		if err := rows.Scan(
+			&a.ID, &a.Name, &a.Description, &a.Prompt, &toolsJSON,
+			&model, &systemPrompt, &claudeConfig, &a.IsBuiltin, &a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan agent: %w", err)
+		}
+
+		if model.Valid {
+			a.Model = model.String
+		}
+		if systemPrompt.Valid {
+			a.SystemPrompt = systemPrompt.String
+		}
+		if claudeConfig.Valid {
+			a.ClaudeConfig = claudeConfig.String
+		}
+
+		if toolsJSON != "" {
+			if err := json.Unmarshal([]byte(toolsJSON), &a.Tools); err != nil {
+				return nil, fmt.Errorf("unmarshal agent tools: %w", err)
+			}
+		}
+
+		agents = append(agents, &a)
+	}
+
+	return agents, nil
+}
+
+// DeleteAgent deletes a non-builtin agent by ID from global DB.
+func (g *GlobalDB) DeleteAgent(id string) error {
+	agent, err := g.GetAgent(id)
+	if err != nil {
+		return err
+	}
+	if agent == nil {
+		return nil
+	}
+	if agent.IsBuiltin {
+		return fmt.Errorf("cannot delete builtin agent %s", id)
+	}
+
+	_, err = g.Exec("DELETE FROM agents WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("delete agent %s: %w", id, err)
+	}
+
+	return nil
+}
+
+// CountAgents returns the number of agents in global DB.
+func (g *GlobalDB) CountAgents() (int, error) {
+	var count int
+	err := g.QueryRow("SELECT COUNT(*) FROM agents").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count agents: %w", err)
+	}
+	return count, nil
+}
+
+// SavePhaseAgent creates or updates a phase-agent association in global DB.
+func (g *GlobalDB) SavePhaseAgent(pa *PhaseAgent) error {
+	var weightFilterJSON string
+	if len(pa.WeightFilter) > 0 {
+		b, err := json.Marshal(pa.WeightFilter)
+		if err != nil {
+			return fmt.Errorf("marshal weight filter: %w", err)
+		}
+		weightFilterJSON = string(b)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if pa.CreatedAt == "" {
+		pa.CreatedAt = now
+	}
+	pa.UpdatedAt = now
+
+	query := `
+		INSERT INTO phase_agents (phase_template_id, agent_id, sequence, role, weight_filter, is_builtin, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(phase_template_id, agent_id) DO UPDATE SET
+			sequence = excluded.sequence,
+			role = excluded.role,
+			weight_filter = excluded.weight_filter,
+			is_builtin = excluded.is_builtin,
+			updated_at = excluded.updated_at
+	`
+
+	res, err := g.Exec(query,
+		pa.PhaseTemplateID, pa.AgentID, pa.Sequence, pa.Role,
+		weightFilterJSON, pa.IsBuiltin, pa.CreatedAt, pa.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("save phase agent %s/%s: %w", pa.PhaseTemplateID, pa.AgentID, err)
+	}
+
+	if pa.ID == 0 {
+		id, _ := res.LastInsertId()
+		pa.ID = id
+	}
+	return nil
+}
+
+// GetPhaseAgents returns all agent associations for a phase template from global DB.
+func (g *GlobalDB) GetPhaseAgents(phaseTemplateID string) ([]*PhaseAgent, error) {
+	query := `
+		SELECT id, phase_template_id, agent_id, sequence, role, weight_filter, is_builtin, created_at, updated_at
+		FROM phase_agents
+		WHERE phase_template_id = ?
+		ORDER BY sequence ASC, agent_id ASC
+	`
+
+	rows, err := g.Query(query, phaseTemplateID)
+	if err != nil {
+		return nil, fmt.Errorf("get phase agents for %s: %w", phaseTemplateID, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var agents []*PhaseAgent
+	for rows.Next() {
+		var pa PhaseAgent
+		var role sql.NullString
+		var weightFilterJSON sql.NullString
+
+		if err := rows.Scan(
+			&pa.ID, &pa.PhaseTemplateID, &pa.AgentID, &pa.Sequence,
+			&role, &weightFilterJSON, &pa.IsBuiltin, &pa.CreatedAt, &pa.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan phase agent: %w", err)
+		}
+
+		if role.Valid {
+			pa.Role = role.String
+		}
+
+		if weightFilterJSON.Valid && weightFilterJSON.String != "" {
+			if err := json.Unmarshal([]byte(weightFilterJSON.String), &pa.WeightFilter); err != nil {
+				return nil, fmt.Errorf("unmarshal weight filter: %w", err)
+			}
+		}
+
+		agents = append(agents, &pa)
+	}
+
+	return agents, rows.Err()
+}
+
+// GetPhaseAgentsForWeight returns agent associations for a phase template,
+// filtered to only agents that apply to the given task weight from global DB.
+func (g *GlobalDB) GetPhaseAgentsForWeight(phaseTemplateID, weight string) ([]*PhaseAgent, error) {
+	agents, err := g.GetPhaseAgents(phaseTemplateID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter by weight
+	var filtered []*PhaseAgent
+	for _, pa := range agents {
+		// No weight filter = applies to all weights
+		if len(pa.WeightFilter) == 0 {
+			filtered = append(filtered, pa)
+			continue
+		}
+
+		// Check if weight is in filter
+		for _, w := range pa.WeightFilter {
+			if w == weight {
+				filtered = append(filtered, pa)
+				break
+			}
+		}
+	}
+
+	return filtered, nil
+}
+
+// GetPhaseAgentsWithDefinitions returns agent associations with full definitions from global DB.
+func (g *GlobalDB) GetPhaseAgentsWithDefinitions(phaseTemplateID, weight string) ([]*AgentWithAssignment, error) {
+	phaseAgents, err := g.GetPhaseAgentsForWeight(phaseTemplateID, weight)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(phaseAgents) == 0 {
+		return nil, nil
+	}
+
+	var result []*AgentWithAssignment
+	for _, pa := range phaseAgents {
+		agent, err := g.GetAgent(pa.AgentID)
+		if err != nil {
+			return nil, fmt.Errorf("get agent %s: %w", pa.AgentID, err)
+		}
+		if agent == nil {
+			// Agent doesn't exist - skip
+			continue
+		}
+
+		result = append(result, &AgentWithAssignment{
+			Agent:      agent,
+			PhaseAgent: pa,
+		})
+	}
+
+	return result, nil
 }

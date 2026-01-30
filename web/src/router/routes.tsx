@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { NewTaskModal, ProjectSwitcher } from '@/components/overlays';
 import { useTaskStore } from '@/stores/taskStore';
+import { useCurrentProjectId, useProjectLoading } from '@/stores';
 
 // Lazy-loaded page components for code splitting
 // Each becomes a separate chunk, loaded on-demand when the route is visited
@@ -21,6 +22,7 @@ const Mcp = lazy(() => import('@/pages/environment/Mcp').then(m => ({ default: m
 const WorkflowsPage = lazy(() => import('@/pages/WorkflowsPage').then(m => ({ default: m.WorkflowsPage })));
 const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').then(m => ({ default: m.WorkflowEditorPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+const ProjectPickerPage = lazy(() => import('@/pages/ProjectPickerPage').then(m => ({ default: m.ProjectPickerPage })));
 
 // Settings sub-components (loaded with SettingsPage chunk)
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
@@ -64,6 +66,32 @@ const Preferences = lazy(() => import('@/pages/Preferences').then(m => ({ defaul
  */
 function LazyRoute({ children }: { children: React.ReactNode }) {
 	return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
+
+/**
+ * Root layout wrapper that shows ProjectPickerPage when no project is selected.
+ * Once a project is selected, renders the AppShellLayout with normal navigation.
+ */
+function RootLayout() {
+	const currentProjectId = useCurrentProjectId();
+	const loading = useProjectLoading();
+
+	// Show loader while projects are being fetched
+	if (loading) {
+		return <PageLoader />;
+	}
+
+	// Show project picker if no project is selected
+	if (!currentProjectId) {
+		return (
+			<LazyRoute>
+				<ProjectPickerPage />
+			</LazyRoute>
+		);
+	}
+
+	// Project selected - show the normal app
+	return <AppShellLayout />;
 }
 
 /**
@@ -112,7 +140,7 @@ function AppShellLayout() {
 export const routes: RouteObject[] = [
 	{
 		path: '/',
-		element: <AppShellLayout />,
+		element: <RootLayout />,
 		errorElement: <ErrorBoundary />,
 		children: [
 			// Index route redirects to board

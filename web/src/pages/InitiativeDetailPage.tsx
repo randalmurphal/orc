@@ -20,7 +20,7 @@ import {
 import { type Task, TaskStatus, type DependencyGraph as DependencyGraphData } from '@/gen/orc/v1/task_pb';
 import { initiativeClient, taskClient } from '@/lib/client';
 import { timestampToDate } from '@/lib/time';
-import { useInitiativeStore } from '@/stores';
+import { useInitiativeStore, useCurrentProjectId } from '@/stores';
 import { useDocumentTitle } from '@/hooks';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
@@ -96,6 +96,7 @@ function extractEmoji(text: string, status?: InitiativeStatus): string {
 
 export function InitiativeDetailPage() {
 	const { id } = useParams<{ id: string }>();
+	const projectId = useCurrentProjectId();
 	const updateInitiativeInStore = useInitiativeStore((state) => state.updateInitiative);
 
 	const [initiative, setInitiative] = useState<Initiative | null>(null);
@@ -193,11 +194,11 @@ export function InitiativeDetailPage() {
 	}, []);
 
 	const loadInitiative = useCallback(async () => {
-		if (!id) return;
+		if (!id || !projectId) return;
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await initiativeClient.getInitiative({ id });
+			const response = await initiativeClient.getInitiative({ projectId, initiativeId: id });
 			if (response.initiative) {
 				setInitiative(response.initiative);
 			}
@@ -206,14 +207,14 @@ export function InitiativeDetailPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [id]);
+	}, [projectId, id]);
 
 	const loadGraphData = useCallback(async () => {
-		if (!initiative || graphData) return; // Don't reload if already loaded
+		if (!initiative || !projectId || graphData) return; // Don't reload if already loaded
 		setGraphLoading(true);
 		setGraphError(null);
 		try {
-			const response = await initiativeClient.getDependencyGraph({ initiativeId: initiative.id });
+			const response = await initiativeClient.getDependencyGraph({ projectId, initiativeId: initiative.id });
 			if (response.graph) {
 				// Store proto graph directly - DependencyGraph now uses proto types
 				setGraphData(response.graph);
@@ -223,7 +224,7 @@ export function InitiativeDetailPage() {
 		} finally {
 			setGraphLoading(false);
 		}
-	}, [initiative, graphData]);
+	}, [initiative, projectId, graphData]);
 
 	useEffect(() => {
 		loadInitiative();
@@ -252,10 +253,11 @@ export function InitiativeDetailPage() {
 	}, [initiative]);
 
 	const saveEdit = useCallback(async () => {
-		if (!initiative) return;
+		if (!initiative || !projectId) return;
 		try {
 			const response = await initiativeClient.updateInitiative({
-				id: initiative.id,
+				projectId,
+				initiativeId: initiative.id,
 				title: editTitle,
 				vision: editVision,
 				status: editStatus,
@@ -270,15 +272,16 @@ export function InitiativeDetailPage() {
 		} catch (e) {
 			setError(e instanceof Error ? e.message : 'Failed to update initiative');
 		}
-	}, [initiative, editTitle, editVision, editStatus, editBranchBase, editBranchPrefix, updateInitiativeInStore]);
+	}, [projectId, initiative, editTitle, editVision, editStatus, editBranchBase, editBranchPrefix, updateInitiativeInStore]);
 
 	const handleStatusChange = useCallback(
 		async (newStatus: InitiativeStatus) => {
-			if (!initiative) return;
+			if (!initiative || !projectId) return;
 			setStatusActionLoading(true);
 			try {
 				const response = await initiativeClient.updateInitiative({
-					id: initiative.id,
+					projectId,
+					initiativeId: initiative.id,
 					status: newStatus,
 				});
 				if (response.initiative) {
@@ -291,7 +294,7 @@ export function InitiativeDetailPage() {
 				setStatusActionLoading(false);
 			}
 		},
-		[initiative, updateInitiativeInStore]
+		[projectId, initiative, updateInitiativeInStore]
 	);
 
 	const handleActivate = useCallback(() => handleStatusChange(InitiativeStatus.ACTIVE), [handleStatusChange]);
@@ -305,11 +308,12 @@ export function InitiativeDetailPage() {
 	}, [handleStatusChange]);
 
 	const openLinkTaskModal = useCallback(async () => {
+		if (!projectId) return;
 		setLinkTaskLoading(true);
 		setLinkTaskSearch('');
 		setLinkTaskModalOpen(true);
 		try {
-			const response = await taskClient.listTasks({});
+			const response = await taskClient.listTasks({ projectId });
 			setAvailableTasks(response.tasks);
 		} catch (e) {
 			console.error('Failed to load tasks:', e);
@@ -317,13 +321,14 @@ export function InitiativeDetailPage() {
 		} finally {
 			setLinkTaskLoading(false);
 		}
-	}, []);
+	}, [projectId]);
 
 	const linkTask = useCallback(
 		async (taskId: string) => {
-			if (!initiative) return;
+			if (!initiative || !projectId) return;
 			try {
 				await initiativeClient.linkTasks({
+					projectId,
 					initiativeId: initiative.id,
 					taskIds: [taskId],
 				});
@@ -333,14 +338,15 @@ export function InitiativeDetailPage() {
 				setError(e instanceof Error ? e.message : 'Failed to link task');
 			}
 		},
-		[initiative, loadInitiative]
+		[initiative, projectId, loadInitiative]
 	);
 
 	const unlinkTask = useCallback(
 		async (taskId: string) => {
-			if (!initiative || !confirm(`Remove task ${taskId} from this initiative?`)) return;
+			if (!initiative || !projectId || !confirm(`Remove task ${taskId} from this initiative?`)) return;
 			try {
 				await initiativeClient.unlinkTask({
+					projectId,
 					initiativeId: initiative.id,
 					taskId,
 				});
@@ -349,7 +355,7 @@ export function InitiativeDetailPage() {
 				setError(e instanceof Error ? e.message : 'Failed to remove task');
 			}
 		},
-		[initiative, loadInitiative]
+		[initiative, projectId, loadInitiative]
 	);
 
 	const openAddDecisionModal = useCallback(() => {
@@ -360,10 +366,11 @@ export function InitiativeDetailPage() {
 	}, []);
 
 	const addDecision = useCallback(async () => {
-		if (!initiative || !decisionText.trim()) return;
+		if (!initiative || !projectId || !decisionText.trim()) return;
 		setAddingDecision(true);
 		try {
 			await initiativeClient.addDecision({
+				projectId,
 				initiativeId: initiative.id,
 				decision: decisionText.trim(),
 				rationale: decisionRationale.trim() || undefined,
@@ -376,7 +383,7 @@ export function InitiativeDetailPage() {
 		} finally {
 			setAddingDecision(false);
 		}
-	}, [initiative, decisionText, decisionRationale, decisionBy, loadInitiative]);
+	}, [initiative, projectId, decisionText, decisionRationale, decisionBy, loadInitiative]);
 
 	const getStatusIcon = useCallback((status: TaskStatus) => {
 		switch (status) {

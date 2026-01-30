@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
@@ -75,7 +74,7 @@ Examples:
 }
 
 func runAgentList(cmd *cobra.Command, args []string) error {
-	projectRoot, err := config.FindProjectRoot()
+	projectRoot, err := ResolveProjectPath()
 	if err != nil {
 		return err
 	}
@@ -156,7 +155,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -260,7 +259,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -338,7 +337,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}
@@ -413,7 +412,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
-		projectRoot, err := config.FindProjectRoot()
+		projectRoot, err := ResolveProjectPath()
 		if err != nil {
 			return err
 		}

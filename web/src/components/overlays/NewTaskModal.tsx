@@ -153,6 +153,7 @@ export function NewTaskModal({ open, onClose, onCreate }: NewTaskModalProps) {
 		try {
 			const response = await taskClient.createTask(
 				create(CreateTaskRequestSchema, {
+					projectId: currentProjectId,
 					title: title.trim(),
 					description: description.trim() || undefined,
 					weight,

@@ -167,6 +167,8 @@ message ListBranchesRequest {
   optional BranchStatus status = 2;
   // Include orphaned branches
   bool include_orphaned = 3;
+  // Project ID
+  string project_id = 4;
 }
 
 message ListBranchesResponse {
@@ -175,6 +177,8 @@ message ListBranchesResponse {
 
 message GetBranchRequest {
   string name = 1;
+  // Project ID
+  string project_id = 2;
 }
 
 message GetBranchResponse {
@@ -184,6 +188,8 @@ message GetBranchResponse {
 message UpdateBranchStatusRequest {
   string name = 1;
   BranchStatus status = 2;
+  // Project ID
+  string project_id = 3;
 }
 
 message UpdateBranchStatusResponse {
@@ -194,6 +200,8 @@ message DeleteBranchRequest {
   string name = 1;
   // Force delete even if not merged
   bool force = 2;
+  // Project ID
+  string project_id = 3;
 }
 
 message DeleteBranchResponse {
@@ -205,6 +213,8 @@ message CleanupStaleBranchesRequest {
   int32 stale_days = 1;
   // Dry run (don't actually delete)
   bool dry_run = 2;
+  // Project ID
+  string project_id = 3;
 }
 
 message CleanupStaleBranchesResponse {

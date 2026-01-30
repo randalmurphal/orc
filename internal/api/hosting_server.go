@@ -32,6 +32,7 @@ type HostingProviderFactory func(ctx context.Context) (hosting.Provider, error)
 type hostingServer struct {
 	orcv1connect.UnimplementedHostingServiceHandler
 	backend       storage.Backend
+	projectCache  *ProjectCache // Multi-project: cache of backends per project
 	projectDir    string
 	logger        *slog.Logger
 	publisher     events.Publisher
@@ -76,6 +77,28 @@ func NewHostingServerWithExecutor(
 	}
 }
 
+// SetProjectCache sets the project cache for multi-project support.
+func (s *hostingServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+// Falls back to legacy single backend only when no projectID is specified.
+func (s *hostingServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
+}
+
 // getProvider creates a hosting provider, checking auth first.
 func (s *hostingServer) getProvider(ctx context.Context) (hosting.Provider, error) {
 	cfg := hosting.Config{}
@@ -102,7 +125,12 @@ func (s *hostingServer) CreatePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreatePRRequest],
 ) (*connect.Response[orcv1.CreatePRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -173,7 +201,12 @@ func (s *hostingServer) GetPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetPRRequest],
 ) (*connect.Response[orcv1.GetPRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -205,7 +238,12 @@ func (s *hostingServer) MergePR(
 	ctx context.Context,
 	req *connect.Request[orcv1.MergePRRequest],
 ) (*connect.Response[orcv1.MergePRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -246,7 +284,7 @@ func (s *hostingServer) MergePR(
 
 	// Update task status to completed
 	t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.logger.Error("failed to update task status after merge", "task", req.Msg.TaskId, "error", err)
 	}
 
@@ -260,7 +298,12 @@ func (s *hostingServer) SyncComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.SyncCommentsRequest],
 ) (*connect.Response[orcv1.SyncCommentsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -336,7 +379,12 @@ func (s *hostingServer) ImportComments(
 	ctx context.Context,
 	req *connect.Request[orcv1.ImportCommentsRequest],
 ) (*connect.Response[orcv1.ImportCommentsResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -435,7 +483,12 @@ func (s *hostingServer) GetChecks(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetChecksRequest],
 ) (*connect.Response[orcv1.GetChecksResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -487,7 +540,12 @@ func (s *hostingServer) RefreshPR(
 	ctx context.Context,
 	req *connect.Request[orcv1.RefreshPRRequest],
 ) (*connect.Response[orcv1.RefreshPRResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -532,7 +590,7 @@ func (s *hostingServer) RefreshPR(
 	t.Pr.ApprovalCount = int32(summary.ApprovalCount)
 	t.Pr.LastCheckedAt = timestamppb.Now()
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save task: %w", err))
 	}
 
@@ -546,7 +604,12 @@ func (s *hostingServer) ReplyToComment(
 	ctx context.Context,
 	req *connect.Request[orcv1.ReplyToCommentRequest],
 ) (*connect.Response[orcv1.ReplyToCommentResponse], error) {
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -600,8 +663,13 @@ func (s *hostingServer) AutofixComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load the task
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", req.Msg.TaskId))
 	}
@@ -682,7 +750,7 @@ func (s *hostingServer) AutofixComment(
 	t.Quality.TotalRetries++
 
 	// Save task before spawning executor
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -711,7 +779,7 @@ func (s *hostingServer) AutofixComment(
 				task.EnsureExecutionProto(t)
 				t.Execution.Error = &errStr
 				task.UpdateTimestampProto(t)
-				if saveErr := s.backend.SaveTask(t); saveErr != nil {
+				if saveErr := backend.SaveTask(t); saveErr != nil {
 					if s.logger != nil {
 						s.logger.Error("failed to save task after executor failure",
 							"task", taskID, "error", saveErr)

@@ -40,7 +40,7 @@ Examples:
 			query := args[0]
 
 			// Open project database
-			projectRoot, err := config.FindProjectRoot()
+			projectRoot, err := ResolveProjectPath()
 			if err != nil {
 				return fmt.Errorf("find project root: %w", err)
 			}

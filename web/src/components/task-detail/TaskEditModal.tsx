@@ -5,7 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Button } from '@/components/ui/Button';
 import { taskClient, workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import { useInitiatives } from '@/stores';
+import { useInitiatives, useCurrentProjectId } from '@/stores';
 import {
 	type Task,
 	TaskWeight,
@@ -89,6 +89,7 @@ interface TaskEditModalProps {
 }
 
 export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalProps) {
+	const projectId = useCurrentProjectId();
 	const [title, setTitle] = useState(task.title);
 	const [description, setDescription] = useState(task.description ?? '');
 	const [weight, setWeight] = useState<TaskWeight>(task.weight);
@@ -216,6 +217,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 	};
 
 	const handleSave = useCallback(async () => {
+		if (!projectId) return;
 		if (!title.trim()) {
 			toast.error('Title is required');
 			return;
@@ -228,6 +230,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 			const parsedReviewers = prReviewers.trim() ? prReviewers.split(',').map(s => s.trim()).filter(Boolean) : [];
 
 			const response = await taskClient.updateTask({
+				projectId,
 				taskId: task.id,
 				title: title.trim(),
 				description: description.trim() || undefined,
@@ -257,7 +260,7 @@ export function TaskEditModal({ open, task, onClose, onUpdate }: TaskEditModalPr
 		} finally {
 			setSaving(false);
 		}
-	}, [task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, branchName, prDraft, prDraftChanged, prLabels, prReviewers, onUpdate, onClose]);
+	}, [projectId, task.id, title, description, weight, priority, category, queue, initiativeId, workflowId, targetBranch, branchName, prDraft, prDraftChanged, prLabels, prReviewers, onUpdate, onClose]);
 
 	return (
 		<Modal open={open} title="Edit Task" onClose={onClose}>

@@ -32,7 +32,8 @@ type TaskExecutorFunc func(taskID string) error
 // taskServer implements the TaskServiceHandler interface.
 type taskServer struct {
 	orcv1connect.UnimplementedTaskServiceHandler
-	backend      storage.Backend
+	backend      storage.Backend   // Legacy: single project backend (fallback)
+	projectCache *ProjectCache     // Multi-project: cache of backends per project
 	config       *config.Config
 	logger       *slog.Logger
 	publisher    events.Publisher
@@ -40,6 +41,23 @@ type taskServer struct {
 	diffCache    *diff.Cache
 	projectDB    *db.ProjectDB
 	taskExecutor TaskExecutorFunc // Optional: spawns executor for RunTask
+}
+
+// getBackend returns the appropriate backend for a project ID.
+// If projectID is provided and projectCache is available, uses the cache.
+// Errors if projectID is provided but cache is not configured (prevents silent data leaks).
+// Falls back to legacy single backend only when no projectID is specified.
+func (s *taskServer) getBackend(projectID string) (storage.Backend, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetBackend(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, fmt.Errorf("project_id specified but no project cache configured")
+	}
+	if s.backend == nil {
+		return nil, fmt.Errorf("no backend available")
+	}
+	return s.backend, nil
 }
 
 // NewTaskServer creates a new TaskService handler.
@@ -90,12 +108,22 @@ func NewTaskServerWithExecutor(
 	}
 }
 
+// SetProjectCache sets the project cache for multi-project support.
+func (s *taskServer) SetProjectCache(cache *ProjectCache) {
+	s.projectCache = cache
+}
+
 // ListTasks returns all tasks with optional filtering.
 func (s *taskServer) ListTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListTasksRequest],
 ) (*connect.Response[orcv1.ListTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		// Return empty list if no tasks yet
 		return connect.NewResponse(&orcv1.ListTasksResponse{
@@ -226,13 +254,18 @@ func (s *taskServer) GetTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Populate computed fields
-	allTasks, _ := s.backend.LoadAllTasks()
+	allTasks, _ := backend.LoadAllTasks()
 	if allTasks != nil {
 		t.Blocks = task.ComputeBlocksProto(t.Id, allTasks)
 		t.ReferencedBy = task.ComputeReferencedByProto(t.Id, allTasks)
@@ -271,8 +304,13 @@ func (s *taskServer) CreateTask(
 		}
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Generate a new task ID
-	id, err := s.backend.GetNextTaskID()
+	id, err := backend.GetNextTaskID()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("generate task ID: %w", err))
 	}
@@ -337,7 +375,7 @@ func (s *taskServer) CreateTask(
 	}
 
 	// Save the task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -372,8 +410,13 @@ func (s *taskServer) UpdateTask(
 		}
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load existing task
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -456,7 +499,7 @@ func (s *taskServer) UpdateTask(
 	task.UpdateTimestampProto(t)
 
 	// Save the task
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -479,8 +522,13 @@ func (s *taskServer) DeleteTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check task exists
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -491,7 +539,7 @@ func (s *taskServer) DeleteTask(
 	}
 
 	// Delete the task
-	if err := s.backend.DeleteTask(req.Msg.TaskId); err != nil {
+	if err := backend.DeleteTask(req.Msg.TaskId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete task: %w", err))
 	}
 
@@ -512,7 +560,12 @@ func (s *taskServer) GetTaskState(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -531,7 +584,12 @@ func (s *taskServer) GetTaskPlan(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -626,13 +684,18 @@ func (s *taskServer) GetDependencies(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Load all tasks to compute dependencies
-	allTasks, err := s.backend.LoadAllTasks()
+	allTasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load tasks: %w", err))
 	}
@@ -725,13 +788,18 @@ func (s *taskServer) AddBlocker(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and blocker_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check blocker exists
-	if _, err := s.backend.LoadTask(req.Msg.BlockerId); err != nil {
+	if _, err := backend.LoadTask(req.Msg.BlockerId); err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("blocker task %s not found", req.Msg.BlockerId))
 	}
 
@@ -748,7 +816,7 @@ func (s *taskServer) AddBlocker(
 	}
 
 	t.BlockedBy = append(t.BlockedBy, req.Msg.BlockerId)
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -765,7 +833,12 @@ func (s *taskServer) RemoveBlocker(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and blocker_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -779,7 +852,7 @@ func (s *taskServer) RemoveBlocker(
 	}
 	t.BlockedBy = filtered
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -796,13 +869,18 @@ func (s *taskServer) AddRelated(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and related_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
 
 	// Check related task exists
-	if _, err := s.backend.LoadTask(req.Msg.RelatedId); err != nil {
+	if _, err := backend.LoadTask(req.Msg.RelatedId); err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("related task %s not found", req.Msg.RelatedId))
 	}
 
@@ -819,7 +897,7 @@ func (s *taskServer) AddRelated(
 	}
 
 	t.RelatedTo = append(t.RelatedTo, req.Msg.RelatedId)
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -836,7 +914,12 @@ func (s *taskServer) RemoveRelated(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id and related_id are required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -850,7 +933,7 @@ func (s *taskServer) RemoveRelated(
 	}
 	t.RelatedTo = filtered
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -872,7 +955,12 @@ func (s *taskServer) RunTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -902,7 +990,7 @@ func (s *taskServer) RunTask(
 	}
 
 	// Check if task is blocked by dependencies
-	allTasks, _ := s.backend.LoadAllTasks()
+	allTasks, _ := backend.LoadAllTasks()
 	if allTasks != nil {
 		taskMap := make(map[string]*orcv1.Task)
 		for _, at := range allTasks {
@@ -920,7 +1008,7 @@ func (s *taskServer) RunTask(
 	// Set task to running
 	task.MarkStartedProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -935,7 +1023,7 @@ func (s *taskServer) RunTask(
 			// Executor failed to spawn - revert status
 			t.Status = originalStatus
 			task.UpdateTimestampProto(t)
-			if saveErr := s.backend.SaveTask(t); saveErr != nil {
+			if saveErr := backend.SaveTask(t); saveErr != nil {
 				// Log but don't mask the original error
 				if s.logger != nil {
 					s.logger.Error("failed to revert task status after executor failure",
@@ -964,7 +1052,12 @@ func (s *taskServer) PauseTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -978,7 +1071,7 @@ func (s *taskServer) PauseTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -1001,7 +1094,12 @@ func (s *taskServer) ResumeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1017,7 +1115,7 @@ func (s *taskServer) ResumeTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -1040,7 +1138,12 @@ func (s *taskServer) SkipBlock(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1053,7 +1156,7 @@ func (s *taskServer) SkipBlock(
 		}
 		task.UpdateTimestampProto(t)
 
-		if err := s.backend.SaveTask(t); err != nil {
+		if err := backend.SaveTask(t); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 		}
 
@@ -1081,7 +1184,12 @@ func (s *taskServer) RetryTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1126,7 +1234,7 @@ func (s *taskServer) RetryTask(
 	task.EnsureQualityMetricsProto(t)
 	t.Quality.TotalRetries++
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -1150,7 +1258,12 @@ func (s *taskServer) RetryPreview(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1195,7 +1308,12 @@ func (s *taskServer) FinalizeTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1210,7 +1328,7 @@ func (s *taskServer) FinalizeTask(
 	t.Status = orcv1.TaskStatus_TASK_STATUS_FINALIZING
 	task.UpdateTimestampProto(t)
 
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save task: %w", err))
 	}
 
@@ -1241,8 +1359,13 @@ func (s *taskServer) GetFinalizeState(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Load task to get finalization state
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1283,7 +1406,12 @@ func (s *taskServer) GetDiff(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1338,7 +1466,12 @@ func (s *taskServer) GetDiffStats(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1395,7 +1528,12 @@ func (s *taskServer) GetFileDiff(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_path is required"))
 	}
 
-	t, err := s.backend.LoadTask(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	t, err := backend.LoadTask(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task %s not found", req.Msg.TaskId))
 	}
@@ -1786,7 +1924,12 @@ func (s *taskServer) ListAttachments(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	attachments, err := s.backend.ListAttachments(req.Msg.TaskId)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	attachments, err := backend.ListAttachments(req.Msg.TaskId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list attachments: %w", err))
 	}
@@ -1894,7 +2037,12 @@ func (s *taskServer) DeleteAttachment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
 	}
 
-	if err := s.backend.DeleteAttachment(req.Msg.TaskId, req.Msg.Filename); err != nil {
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	if err := backend.DeleteAttachment(req.Msg.TaskId, req.Msg.Filename); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete attachment: %w", err))
 	}
 
@@ -2156,8 +2304,13 @@ func (s *taskServer) ExportTask(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("task ID required"))
 	}
 
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
 	// Check if task exists
-	exists, err := s.backend.TaskExists(taskID)
+	exists, err := backend.TaskExists(taskID)
 	if err != nil || !exists {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("task not found: %s", taskID))
 	}
@@ -2192,18 +2345,18 @@ func (s *taskServer) ExportTask(
 	}
 
 	// Create export service
-	backend, err := storage.NewBackend(s.projectRoot, &cfg.Storage)
+	exportBackend, err := storage.NewBackend(s.projectRoot, &cfg.Storage)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create storage backend: %w", err))
 	}
-	defer func() { _ = backend.Close() }()
+	defer func() { _ = exportBackend.Close() }()
 
-	exportSvc := storage.NewExportService(backend, &cfg.Storage)
+	exportSvc := storage.NewExportService(exportBackend, &cfg.Storage)
 
 	// Perform export
 	if req.Msg.ToBranch {
 		// Get current branch for the task
-		t, err := s.backend.LoadTask(taskID)
+		t, err := backend.LoadTask(taskID)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load task: %w", err))
 		}
@@ -2235,7 +2388,12 @@ func (s *taskServer) PauseAllTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.PauseAllTasksRequest],
 ) (*connect.Response[orcv1.PauseAllTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -2244,7 +2402,7 @@ func (s *taskServer) PauseAllTasks(
 	for _, t := range tasks {
 		if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-			if err := s.backend.SaveTask(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				s.logger.Warn("failed to pause task", "task_id", t.Id, "error", err)
 				continue
 			}
@@ -2268,7 +2426,12 @@ func (s *taskServer) ResumeAllTasks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ResumeAllTasksRequest],
 ) (*connect.Response[orcv1.ResumeAllTasksResponse], error) {
-	tasks, err := s.backend.LoadAllTasks()
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load tasks: %w", err))
 	}
@@ -2277,7 +2440,7 @@ func (s *taskServer) ResumeAllTasks(
 	for _, t := range tasks {
 		if t.Status == orcv1.TaskStatus_TASK_STATUS_PAUSED {
 			t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-			if err := s.backend.SaveTask(t); err != nil {
+			if err := backend.SaveTask(t); err != nil {
 				s.logger.Warn("failed to resume task", "task_id", t.Id, "error", err)
 				continue
 			}
