@@ -14,9 +14,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { workflowClient } from '@/lib/client';
+import { workflowClient, configClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
+import type { Agent } from '@/gen/orc/v1/config_pb';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import './EditPhaseTemplateModal.css';
 
@@ -58,8 +59,26 @@ export function EditPhaseTemplateModal({
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
 	const [checkpoint, setCheckpoint] = useState(false);
 
+	// Agents list for dropdown
+	const [agents, setAgents] = useState<Agent[]>([]);
+	const [agentsLoading, setAgentsLoading] = useState(true);
+
 	// Loading state
 	const [saving, setSaving] = useState(false);
+
+	// Fetch agents list on mount
+	useEffect(() => {
+		let mounted = true;
+		configClient.listAgents({}).then((response) => {
+			if (mounted) {
+				setAgents(response.agents);
+				setAgentsLoading(false);
+			}
+		}).catch(() => {
+			if (mounted) setAgentsLoading(false);
+		});
+		return () => { mounted = false; };
+	}, []);
 
 	// Reset form when template changes or modal opens
 	useEffect(() => {
@@ -202,14 +221,21 @@ export function EditPhaseTemplateModal({
 							<label htmlFor="edit-template-agent" className="form-label">
 								Executor Agent
 							</label>
-							<input
+							<select
 								id="edit-template-agent"
-								type="text"
-								className="form-input"
+								className="form-select"
 								value={agentId}
 								onChange={(e) => setAgentId(e.target.value)}
-								placeholder="Agent ID (optional)"
-							/>
+								disabled={agentsLoading}
+							>
+								<option value="">None (no agent)</option>
+								{agents.map((agent) => (
+									<option key={agent.name} value={agent.name}>
+										{agent.name}
+										{agent.model ? ` (${agent.model})` : ''}
+									</option>
+								))}
+							</select>
 							<span className="form-help">Agent that runs this phase</span>
 						</div>
 

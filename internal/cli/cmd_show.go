@@ -14,6 +14,7 @@ import (
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
@@ -67,8 +68,25 @@ Examples:
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			// Create plan dynamically from task weight
-			p := createShowPlanForWeightProto(id, t.Weight)
+			// Create plan from actual workflow if a workflow run exists, otherwise from task weight
+			var p *executor.Plan
+			workflowID := t.GetWorkflowId()
+			if workflowID == "" {
+				// Check if there's a workflow run for this task
+				runs, _ := backend.ListWorkflowRuns(db.WorkflowRunListOpts{TaskID: id, Limit: 1})
+				if len(runs) > 0 {
+					workflowID = runs[0].WorkflowID
+				}
+			}
+			if workflowID != "" {
+				p, err = createShowPlanForWorkflow(id, workflowID, backend)
+				if err != nil {
+					// Fall back to weight-based display if workflow not found
+					p = createShowPlanForWeightProto(id, t.Weight)
+				}
+			} else {
+				p = createShowPlanForWeightProto(id, t.Weight)
+			}
 
 			// Merge phase states from task's execution state into the plan
 			mergePhaseStatesProto(p, t)
@@ -401,6 +419,33 @@ func showWithPager(content string) bool {
 		return false
 	}
 	return true
+}
+
+// createShowPlanForWorkflow creates an execution plan from actual workflow phases in the database.
+func createShowPlanForWorkflow(taskID, workflowID string, backend storage.Backend) (*executor.Plan, error) {
+	dbPhases, err := backend.GetWorkflowPhases(workflowID)
+	if err != nil {
+		return nil, err
+	}
+	if len(dbPhases) == 0 {
+		return nil, fmt.Errorf("no phases found for workflow %s", workflowID)
+	}
+
+	phases := make([]executor.PhaseDisplay, 0, len(dbPhases))
+	for _, wp := range dbPhases {
+		// The phase template ID is the display ID (e.g., "implement", "review", "my-custom-phase")
+		phases = append(phases, executor.PhaseDisplay{
+			ID:     wp.PhaseTemplateID,
+			Name:   wp.PhaseTemplateID, // Use template ID as name too
+			Status: orcv1.PhaseStatus_PHASE_STATUS_PENDING,
+			Gate:   gate.Gate{Type: gate.GateAuto},
+		})
+	}
+
+	return &executor.Plan{
+		TaskID: taskID,
+		Phases: phases,
+	}, nil
 }
 
 // createShowPlanForWeightProto creates an execution plan based on task weight (proto version).

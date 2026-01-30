@@ -133,6 +133,8 @@ function protoAgentToAgent(protoAgent: ProtoAgent, index: number): Agent {
 			successRate: 100,
 		},
 		tools,
+		description: protoAgent.description,
+		systemPrompt: protoAgent.systemPrompt,
 	};
 }
 

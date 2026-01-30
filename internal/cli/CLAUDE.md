@@ -16,6 +16,9 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_import_jira.go` | Import from Jira Cloud via API |
 | `cmd_migrate.go` | Plan migration commands (`orc migrate plans`) |
 | `cmd_run.go` | Task execution with auto-migration |
+| `cmd_phases.go` | Phase template CRUD (`orc phase new/show/config`) |
+| `cmd_workflows.go` | Workflow management (`orc workflow add-phase`) |
+| `cmd_show.go` | Task display with workflow-aware phase listing |
 
 ## Command Pattern
 
@@ -79,6 +82,28 @@ Import Jira Cloud issues as orc tasks. Epics → initiatives (default, disable w
 ### `orc migrate plans`
 
 Migrates stale task plans to current templates. Staleness detected via version mismatch, phase sequence change, or inline prompts. Preserves completed/skipped phase statuses. Flags: `--all`, `--dry-run`
+
+### `orc show TASK-ID`
+
+Displays task details including phases from actual workflow (not weight-derived). Falls back to weight-based display if no workflow found. Checks `task.WorkflowId` first, then `workflow_runs` table.
+
+### Phase Commands
+
+| Command | Purpose | Key Flags |
+|---------|---------|-----------|
+| `orc phase new ID` | Create phase template | `--agent`, `--max-iterations`, `--gate` |
+| `orc phase show ID` | View phase template details | - |
+| `orc phase config ID` | Update phase template | `--agent`, `--max-iterations`, `--thinking` |
+
+**`--agent` flag:** Sets the executor agent for the phase. Validates agent exists before saving.
+
+### Workflow Phase Commands
+
+| Command | Purpose | Key Flags |
+|---------|---------|-----------|
+| `orc workflow add-phase WF PHASE` | Add phase to workflow | `--agent` (override executor) |
+
+**Agent override:** When `--agent` is specified on `workflow add-phase`, it overrides the phase template's default agent for this workflow only.
 
 ## Global Flags
 

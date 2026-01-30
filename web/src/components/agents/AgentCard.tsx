@@ -54,6 +54,10 @@ export interface Agent {
 	tools: string[];
 	/** Whether the agent is disabled */
 	disabled?: boolean;
+	/** Agent description */
+	description?: string;
+	/** System prompt for executor role (shown as hint) */
+	systemPrompt?: string;
 }
 
 export interface AgentCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onClick' | 'onSelect'> {
@@ -117,7 +121,7 @@ const AgentCardInner = forwardRef<HTMLDivElement, AgentCardProps>(
 		},
 		ref
 	) => {
-		const { name, model, status, emoji, iconColor, stats, tools, disabled } = agent;
+		const { name, model, status, emoji, iconColor, stats, tools, disabled, description, systemPrompt } = agent;
 		const isInteractive = Boolean(onSelect) && !disabled;
 
 		// Memoize event handlers
@@ -200,6 +204,15 @@ const AgentCardInner = forwardRef<HTMLDivElement, AgentCardProps>(
 						{status}
 					</Badge>
 				</div>
+
+				{/* Description / System Prompt */}
+				{(description || systemPrompt) && (
+					<div className="agent-card-description">
+						{description || (systemPrompt && systemPrompt.length > 80
+							? `${systemPrompt.slice(0, 80)}...`
+							: systemPrompt)}
+					</div>
+				)}
 
 				{/* Stats */}
 				<div className="agent-card-stats">

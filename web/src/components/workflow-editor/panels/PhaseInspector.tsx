@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { workflowClient } from '@/lib/client';
+import { workflowClient, configClient } from '@/lib/client';
 import {
 	GateType,
 	VariableSourceType,
@@ -9,6 +9,7 @@ import type {
 	WorkflowPhase,
 	WorkflowWithDetails,
 } from '@/gen/orc/v1/workflow_pb';
+import type { Agent } from '@/gen/orc/v1/config_pb';
 import { PromptEditor } from './PromptEditor';
 import './PhaseInspector.css';
 
@@ -262,12 +263,38 @@ function SettingsTab({
 		phase.gateTypeOverride ?? GateType.UNSPECIFIED,
 	);
 
+	// Agent state
+	const [agents, setAgents] = useState<Agent[]>([]);
+	const [agentsLoading, setAgentsLoading] = useState(true);
+	const [agentOverride, setAgentOverride] = useState<string>(
+		phase.agentOverride ?? '',
+	);
+	const [subAgentsOverride, setSubAgentsOverride] = useState<string[]>(
+		phase.subAgentsOverride ?? [],
+	);
+
+	// Fetch agents list on mount
+	useEffect(() => {
+		let mounted = true;
+		configClient.listAgents({}).then((response) => {
+			if (mounted) {
+				setAgents(response.agents);
+				setAgentsLoading(false);
+			}
+		}).catch(() => {
+			if (mounted) setAgentsLoading(false);
+		});
+		return () => { mounted = false; };
+	}, []);
+
 	// Reset state when phase changes
 	useEffect(() => {
 		setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
 		setModelOverride(phase.modelOverride ?? '');
 		setThinkingOverride(phase.thinkingOverride ?? false);
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
+		setAgentOverride(phase.agentOverride ?? '');
+		setSubAgentsOverride(phase.subAgentsOverride ?? []);
 		onError(null);
 	}, [phase, onError]);
 
@@ -296,6 +323,8 @@ function SettingsTab({
 				setModelOverride(phase.modelOverride ?? '');
 				setThinkingOverride(phase.thinkingOverride ?? false);
 				setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
+				setAgentOverride(phase.agentOverride ?? '');
+				setSubAgentsOverride(phase.subAgentsOverride ?? []);
 			}
 		},
 		[workflowDetails, phase, onError, onWorkflowRefresh],
@@ -324,6 +353,20 @@ function SettingsTab({
 		const value = Number(e.target.value) as GateType;
 		setGateTypeOverride(value);
 		updatePhase({ gateTypeOverride: value || undefined });
+	};
+
+	const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		const value = e.target.value;
+		setAgentOverride(value);
+		updatePhase({ agentOverride: value || undefined });
+	};
+
+	const handleSubAgentToggle = (agentName: string, checked: boolean) => {
+		const newValue = checked
+			? [...subAgentsOverride, agentName]
+			: subAgentsOverride.filter((a) => a !== agentName);
+		setSubAgentsOverride(newValue);
+		updatePhase({ subAgentsOverride: newValue.length > 0 ? newValue : undefined });
 	};
 
 	const disabled = readOnly;
@@ -405,6 +448,64 @@ function SettingsTab({
 					max={20}
 					disabled={disabled}
 				/>
+			</div>
+
+			{/* Executor Agent */}
+			<div className="phase-inspector-setting">
+				<label htmlFor="inspector-agent" className="phase-inspector-setting-label">
+					Executor Agent
+				</label>
+				<select
+					id="inspector-agent"
+					className="phase-inspector-setting-select"
+					value={agentOverride}
+					onChange={handleAgentChange}
+					disabled={disabled || agentsLoading}
+				>
+					<option value="">
+						{phase.template?.agentId
+							? `Inherit (${phase.template.agentId})`
+							: 'Inherit from template'}
+					</option>
+					{agents.map((agent) => (
+						<option key={agent.name} value={agent.name}>
+							{agent.name}
+							{agent.model ? ` (${agent.model})` : ''}
+						</option>
+					))}
+				</select>
+				<span className="phase-inspector-setting-hint">
+					Agent that executes this phase
+				</span>
+			</div>
+
+			{/* Sub-Agents */}
+			<div className="phase-inspector-setting">
+				<label className="phase-inspector-setting-label">
+					Sub-Agents
+				</label>
+				<div className="phase-inspector-sub-agents">
+					{agentsLoading ? (
+						<span className="phase-inspector-loading">Loading agents...</span>
+					) : agents.length === 0 ? (
+						<span className="phase-inspector-empty">No agents available</span>
+					) : (
+						agents.map((agent) => (
+							<label key={agent.name} className="phase-inspector-checkbox-label">
+								<input
+									type="checkbox"
+									checked={subAgentsOverride.includes(agent.name)}
+									onChange={(e) => handleSubAgentToggle(agent.name, e.target.checked)}
+									disabled={disabled}
+								/>
+								<span>{agent.name}</span>
+							</label>
+						))
+					)}
+				</div>
+				<span className="phase-inspector-setting-hint">
+					Agents available for delegation during execution
+				</span>
 			</div>
 		</div>
 	);

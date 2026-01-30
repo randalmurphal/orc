@@ -57,7 +57,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				phase.maxIterationsOverride ??
 				template?.maxIterations ??
 				1,
-			agentId: template?.agentId,
+			agentId: phase.agentOverride || template?.agentId,
 			thinkingEnabled:
 				phase.thinkingOverride ?? template?.thinkingEnabled,
 		};

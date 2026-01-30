@@ -436,6 +436,12 @@ func (s *workflowServer) AddPhase(
 	if req.Msg.Condition != nil {
 		phase.Condition = *req.Msg.Condition
 	}
+	if req.Msg.AgentOverride != nil {
+		phase.AgentOverride = *req.Msg.AgentOverride
+	}
+	if len(req.Msg.SubAgentsOverride) > 0 {
+		phase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
+	}
 
 	if err := s.backend.SaveWorkflowPhase(phase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))
@@ -503,6 +509,12 @@ func (s *workflowServer) UpdatePhase(
 	}
 	if req.Msg.Condition != nil {
 		existingPhase.Condition = *req.Msg.Condition
+	}
+	if req.Msg.AgentOverride != nil {
+		existingPhase.AgentOverride = *req.Msg.AgentOverride
+	}
+	if len(req.Msg.SubAgentsOverride) > 0 {
+		existingPhase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
 
 	if err := s.backend.SaveWorkflowPhase(existingPhase); err != nil {
@@ -1344,6 +1356,16 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 		}
 		if p.LoopConfig != "" {
 			result[i].LoopConfig = &p.LoopConfig
+		}
+		// Agent overrides (must match dbWorkflowPhaseToProto)
+		if p.AgentOverride != "" {
+			result[i].AgentOverride = &p.AgentOverride
+		}
+		if p.SubAgentsOverride != "" {
+			var subAgentIDs []string
+			if err := json.Unmarshal([]byte(p.SubAgentsOverride), &subAgentIDs); err == nil {
+				result[i].SubAgentsOverride = subAgentIDs
+			}
 		}
 	}
 	return result

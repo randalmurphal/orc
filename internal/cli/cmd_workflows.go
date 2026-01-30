@@ -52,6 +52,7 @@ func init() {
 	workflowAddPhaseCmd.Flags().Int("max-iterations", 0, "Override max iterations")
 	workflowAddPhaseCmd.Flags().String("model", "", "Override model")
 	workflowAddPhaseCmd.Flags().String("gate-type", "", "Override gate type (auto, human)")
+	workflowAddPhaseCmd.Flags().String("agent", "", "Override executor agent (uses this agent instead of phase template's default)")
 
 	// Add-variable flags
 	workflowAddVariableCmd.Flags().String("source-type", "static", "Variable source (static, env, script, api)")
@@ -604,6 +605,20 @@ Examples:
 		}
 		if cmd.Flags().Changed("gate-type") {
 			newPhase.GateTypeOverride, _ = cmd.Flags().GetString("gate-type")
+		}
+		if cmd.Flags().Changed("agent") {
+			agentID, _ := cmd.Flags().GetString("agent")
+			// Validate agent exists
+			if agentID != "" {
+				agent, err := pdb.GetAgent(agentID)
+				if err != nil {
+					return fmt.Errorf("get agent: %w", err)
+				}
+				if agent == nil {
+					return fmt.Errorf("agent not found: %s", agentID)
+				}
+			}
+			newPhase.AgentOverride = agentID
 		}
 
 		if err := pdb.SaveWorkflowPhase(newPhase); err != nil {
