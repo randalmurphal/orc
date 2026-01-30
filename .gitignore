@@ -63,6 +63,12 @@ internal/api/static/*
 
 /test-results/
 
+# QA artifacts (should go to /tmp/orc-qa-*, but gitignore as safety net)
+QA-REPORT*
+QA-FINDINGS*
+qa-report*
+qa-findings*
+
 # Stray spec files created by Claude Code during spec phase
 # (specs are stored in the database, not as files)
 spec.md
