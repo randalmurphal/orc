@@ -814,7 +814,30 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					}
 				}
 
-				// No retry - log rejection and continue (automation-first)
+				// No retry available
+				if tmpl.ID == "review" {
+					// Review gate rejection is fatal — fail the run and task properly
+					we.logger.Warn("review gate rejected with no retries remaining, failing task",
+						"phase", tmpl.ID,
+						"reason", gateResult.Reason,
+					)
+					failErr := fmt.Errorf("review gate rejected: %s", gateResult.Reason)
+					if we.task != nil {
+						task.SetErrorProto(we.task.Execution, failErr.Error())
+						if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+							we.logger.Warn("failed to save error state", "error", saveErr)
+						}
+					}
+					we.failRun(run, t, failErr)
+					if t != nil {
+						if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
+							we.logger.Warn("failed to clear task executor", "error", clearErr)
+						}
+					}
+					return result, failErr
+				}
+
+				// Non-review phase — log rejection and continue (automation-first)
 				we.logger.Warn("gate rejected, continuing anyway (automation mode)",
 					"phase", tmpl.ID,
 					"reason", gateResult.Reason,
