@@ -270,6 +270,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	if wf == nil {
 		return nil, fmt.Errorf("workflow not found: %s", workflowID)
 	}
+	we.setWorkflow(workflow.DBWorkflowToWorkflow(wf)) // Store for failRun lifecycle triggers
 
 	// Load workflow phases
 	phases, err := we.projectDB.GetWorkflowPhases(workflowID)
