@@ -19,6 +19,10 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_phases.go` | Phase template CRUD (`orc phase new/show/config`) |
 | `cmd_workflows.go` | Workflow management (`orc workflow add-phase`) |
 | `cmd_show.go` | Task display with workflow-aware phase listing |
+| `cmd_gates.go` | Gate inspection (`orc gates list/show`) |
+| `cmd_gates_test.go` | Gate command tests |
+| `cmd_show_gates_test.go` | Gate display in `orc show` tests |
+| `cmd_run_skipgates_test.go` | `--skip-gates` flag tests |
 
 ## Command Pattern
 
@@ -57,7 +61,9 @@ Both `--branch` and `--target-branch` are validated via `git.ValidateBranchName(
 
 ### `orc run TASK-ID`
 
-Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Auto-migrates stale plans before execution. Flags: `--force`, `--profile`, `--auto-skip`
+Executes phases: setup worktree -> load plan -> execute phases -> create PR/merge. Auto-migrates stale plans before execution. Flags: `--force`, `--profile`, `--auto-skip`, `--skip-gates`
+
+`--skip-gates` bypasses all gate evaluations (auto-approves every phase). Useful for dev/testing iterations.
 
 ### `orc resume TASK-ID`
 
@@ -98,6 +104,17 @@ Migrates stale task plans to current templates. Staleness detected via version m
 ### `orc show TASK-ID`
 
 Displays task details including phases from actual workflow (not weight-derived). Falls back to weight-based display if no workflow found. Checks `task.WorkflowId` first, then `workflow_runs` table.
+
+`--gates` flag shows gate decision history (type, approved/rejected, reason) per phase. `--full` includes gates alongside session, cost, and review info.
+
+### Gate Commands
+
+| Command | Purpose |
+|---------|---------|
+| `orc gates list` | Table of gate config per workflow phase (`--json` for machine output) |
+| `orc gates show <phase>` | Detailed gate config: type, source, retry target, agent |
+
+Gate inspection uses `gate.Resolver` to show effective gate types after resolution hierarchy (task override > workflow phase > phase template > config > profile default).
 
 ### Phase Commands
 

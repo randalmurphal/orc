@@ -210,19 +210,21 @@ Task data stored in per-project SQLite (`<project>/.orc/orc.db`). Use `orc expor
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
 | `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` |
-| `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream` |
+| `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream`, `--skip-gates` |
 | `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
 
 ### Task Management
 
 | Command | Purpose |
 |---------|---------|
-| `orc show TASK-ID` | View task details, spec, state |
+| `orc show TASK-ID` | View task details, spec, state (`--gates` for gate history) |
 | `orc deps TASK-ID` | Show dependencies (`--tree`, `--graph`) |
 | `orc log TASK-ID` | View Claude transcripts (`--follow` for streaming) |
 | `orc resume TASK-ID` | Continue paused/failed/orphaned task |
 | `orc approve TASK-ID` | Approve blocked gate |
 | `orc resolve TASK-ID` | Mark failed task as resolved |
+| `orc gates list` | Show gate config for all workflow phases |
+| `orc gates show <phase>` | Detailed gate config for a phase |
 
 ### Initiatives
 
@@ -328,6 +330,7 @@ make e2e        # E2E (Playwright)
 | API Endpoints | `docs/API_REFERENCE.md` |
 | Architecture | `docs/architecture/OVERVIEW.md` |
 | Phase Model | `docs/architecture/PHASE_MODEL.md` |
+| Gates & Approvals | `docs/architecture/GATES.md` |
 | Config | `docs/specs/CONFIG_HIERARCHY.md` |
 | File Formats | `docs/specs/FILE_FORMATS.md` |
 | Constitution | `.orc/CONSTITUTION.md` |

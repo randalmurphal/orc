@@ -111,6 +111,7 @@ type WorkflowExecutor struct {
 	heartbeat    *HeartbeatRunner
 	fileWatcher  *FileWatcher
 	isResuming   bool              // True if resuming a paused/failed/blocked task
+	skipGates    bool              // When true, bypass all gate evaluations
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor
@@ -197,6 +198,13 @@ func WithWorkflowResourceTracker(rt *ResourceTracker) WorkflowExecutorOption {
 func WithWorkflowTriggerRunner(runner trigger.Runner) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.triggerRunner = runner
+	}
+}
+
+// WithSkipGates configures the executor to skip all gate evaluations.
+func WithSkipGates(skip bool) WorkflowExecutorOption {
+	return func(we *WorkflowExecutor) {
+		we.skipGates = skip
 	}
 }
 

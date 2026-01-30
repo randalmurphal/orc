@@ -230,6 +230,10 @@ func mergeConfigWithPath(tc *TrackedConfig, fileCfg *Config, raw map[string]inte
 		cfg.EnableCheckpoints = fileCfg.EnableCheckpoints
 		tc.SetSourceWithPath("enable_checkpoints", source, path)
 	}
+	if _, ok := raw["workflow"]; ok {
+		cfg.Workflow = fileCfg.Workflow
+		tc.SetSourceWithPath("workflow", source, path)
+	}
 
 	// Nested configs
 	if rawGates, ok := raw["gates"].(map[string]interface{}); ok {

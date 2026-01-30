@@ -81,6 +81,7 @@ const (
 	GateType_GATE_TYPE_AUTO        GateType = 1
 	GateType_GATE_TYPE_HUMAN       GateType = 2
 	GateType_GATE_TYPE_SKIP        GateType = 3
+	GateType_GATE_TYPE_AI          GateType = 4
 )
 
 // Enum value maps for GateType.
@@ -90,12 +91,14 @@ var (
 		1: "GATE_TYPE_AUTO",
 		2: "GATE_TYPE_HUMAN",
 		3: "GATE_TYPE_SKIP",
+		4: "GATE_TYPE_AI",
 	}
 	GateType_value = map[string]int32{
 		"GATE_TYPE_UNSPECIFIED": 0,
 		"GATE_TYPE_AUTO":        1,
 		"GATE_TYPE_HUMAN":       2,
 		"GATE_TYPE_SKIP":        3,
+		"GATE_TYPE_AI":          4,
 	}
 )
 

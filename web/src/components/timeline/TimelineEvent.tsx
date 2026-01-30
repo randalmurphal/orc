@@ -168,8 +168,40 @@ function extractDetails(event: TimelineEventData): Array<{ label: string; value:
 		details.push({ label: 'Iteration', value: String(event.iteration) });
 	}
 
-	// Gate decision reason
-	if (typeof data.reason === 'string' && data.reason) {
+	// Gate decision details
+	if (event.event_type === 'gate_decision') {
+		const approved = !!data.approved;
+		const reason = typeof data.reason === 'string' && data.reason ? data.reason : '';
+		const hasSource = typeof data.source === 'string' && !!data.source;
+		const hasRetry = typeof data.retry_from === 'string' && !!data.retry_from;
+		const outputKeys =
+			data.output_data && typeof data.output_data === 'object'
+				? Object.keys(data.output_data as Record<string, unknown>)
+				: [];
+		const hasEnhancedDetails = hasSource || hasRetry || outputKeys.length > 0;
+
+		// Decision line: show reason as value when no enhanced details, otherwise just status
+		if (!hasEnhancedDetails && reason) {
+			details.push({ label: 'Decision', value: reason });
+		} else {
+			details.push({ label: 'Decision', value: approved ? 'approved' : 'rejected' });
+		}
+		if (typeof data.gate_type === 'string' && data.gate_type) {
+			details.push({ label: 'Gate Type', value: data.gate_type });
+		}
+		if (hasSource) {
+			details.push({ label: 'Source', value: data.source as string });
+		}
+		if (hasRetry) {
+			details.push({ label: 'Retry From', value: data.retry_from as string });
+		}
+		if (outputKeys.length > 0) {
+			details.push({ label: 'Output Data', value: outputKeys.join(', ') });
+		}
+	}
+
+	// Reason (non-gate events only; gate_decision handles reason above)
+	if (event.event_type !== 'gate_decision' && typeof data.reason === 'string' && data.reason) {
 		details.push({ label: 'Reason', value: data.reason });
 	}
 

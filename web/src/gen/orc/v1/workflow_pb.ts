@@ -2210,6 +2210,11 @@ export enum GateType {
    * @generated from enum value: GATE_TYPE_SKIP = 3;
    */
   SKIP = 3,
+
+  /**
+   * @generated from enum value: GATE_TYPE_AI = 4;
+   */
+  AI = 4,
 }
 
 /**

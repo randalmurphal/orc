@@ -157,6 +157,9 @@ type Config struct {
 
 	// Checkpoint settings
 	EnableCheckpoints bool `yaml:"enable_checkpoints"`
+
+	// Workflow is the active workflow ID for this project
+	Workflow string `yaml:"workflow"`
 }
 
 // ResolveGateType returns the effective gate type for a phase given task weight.
