@@ -87,6 +87,17 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
 - Are success criteria addressed?
 - Missing functionality?
 
+### 6. Integration Completeness
+
+**Are new components actually wired into the system?**
+
+- [ ] All new functions are called from at least one production code path
+- [ ] No defined-but-never-called functions exist (dead code)
+- [ ] New interfaces have implementations wired into the system
+- [ ] If the task adds hooks/callbacks/triggers, they are registered
+
+Dead code or unwired integration is a **high-severity** finding.
+
 ### What NOT to Review
 - Style preferences, naming suggestions
 - "Nice to have" improvements
@@ -129,10 +140,7 @@ If you made fixes, commit them:
 git add -A && git commit -m "[orc] {{TASK_ID}}: review fixes"
 ```
 
-Then output ONLY this JSON:
-```json
-{"status": "complete", "summary": "Review PASSED: [list any fixes made, or 'No issues found']"}
-```
+Then output your structured response with status set to "complete" and a summary describing what fixes you made or that no issues were found.
 
 ---
 
@@ -148,10 +156,7 @@ Examples:
 
 Do NOT fix these yourself. Block so implement phase can address them properly.
 
-Output ONLY this JSON:
-```json
-{"status": "blocked", "reason": "Major implementation issues: [File:line - issue description]. Implement phase must fix: [summary of what must be fixed]"}
-```
+Output your structured response with status set to "blocked" and a reason describing the major issues found, including file and line references, and what the implement phase must fix.
 
 ---
 
@@ -167,10 +172,7 @@ Examples:
 
 Provide detailed context about WHY and WHAT should change.
 
-Output ONLY this JSON:
-```json
-{"status": "blocked", "reason": "Wrong approach: [current approach] is incorrect because [why]. Needs: [correct approach and key changes]"}
-```
+Output your structured response with status set to "blocked" and a reason explaining why the current approach is incorrect and what the correct approach should be.
 
 ---
 
@@ -180,8 +182,10 @@ Output ONLY this JSON:
 Found issues?
 ├─ No → Outcome 1 (pass)
 ├─ Yes, can fix in < 5 minutes? → Outcome 1 (fix and pass)
-├─ Yes, approach is correct but implementation is wrong → Outcome 2
+├─ Yes, any high-severity (dead code, missing integration, bugs, security)?
+│   → Outcome 2 or 3 (block)
+├─ Yes, medium-only → Outcome 1 (pass, document issues in summary)
 └─ Yes, approach itself is wrong → Outcome 3
 ```
 
-**Bias toward Outcome 1.** Most issues can be fixed in-place. Only block when genuinely necessary.
+**Base your decision purely on the severity of findings.** Any high-severity finding (dead code, missing integration, bugs, security issues) must block. Medium-only findings can pass with issues documented in the summary.
