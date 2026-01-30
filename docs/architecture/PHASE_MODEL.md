@@ -46,7 +46,10 @@ All three methods produce identical results.
 | `classify` | Determine task weight | weight assignment | Optional |
 | `research` | Investigate codebase | research.md | Yes |
 | `spec` | Define requirements | spec content (database) | Yes |
+| `tiny_spec` | Combined spec+TDD for small tasks | spec + test plan | Yes |
 | `design` | Architecture decisions | design.md | Yes |
+| `tdd_write` | Write failing tests before implementation (classifies solitary/sociable/integration, requires integration tests for wiring) | test files + test plan | Yes |
+| `breakdown` | Decompose spec into checkboxed implementation steps | breakdown content | Yes |
 | `implement` | Write code | code changes | **Yes** |
 | `review` | Code review | review findings + fixes | Yes |
 | `docs` | Create/update documentation | README.md, CLAUDE.md, etc. | Yes |

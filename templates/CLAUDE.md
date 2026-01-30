@@ -29,6 +29,8 @@ Workflows are now stored in the database, not YAML files. Use `workflow.SeedBuil
 
 **Key concepts:**
 - **TDD-first**: Tests written before implementation (medium/large via tdd_write phase)
+- **Test classification**: tdd_write classifies tests as solitary (mocked), sociable (real collaborators), or integration (wiring verification)
+- **Integration test mandate**: New code wired into existing paths MUST have integration tests proving the wiring works
 - **Review includes verification**: The review phase handles success criteria verification
 - **No separate test phase**: TDD handles testing upfront
 - **Composable phases**: Each phase is a reusable template in `phase_templates` table
@@ -67,7 +69,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `spec.md` | Technical specification with user stories and quality checklist |
 | `tiny_spec.md` | Combined spec+TDD for trivial/small tasks |
 | `design.md` | Create design document |
-| `tdd_write.md` | Write failing tests before implementation |
+| `tdd_write.md` | Write failing tests before implementation (classifies solitary/sociable/integration, requires integration tests for wiring) |
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
 | `review.md` | Multi-agent code review with verification |
