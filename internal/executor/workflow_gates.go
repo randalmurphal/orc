@@ -165,12 +165,6 @@ func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationRes
 	vars[varName] = string(data)
 }
 
-// isReviewPhaseGateRejectionFatal returns true if a gate rejection for the given
-// phase should fail the task instead of continuing. Only the review phase is fatal.
-func isReviewPhaseGateRejectionFatal(phaseID string) bool {
-	return phaseID == "review"
-}
-
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.
 // Uses the EventTaskUpdated type which the frontend listens for.
 func (we *WorkflowExecutor) publishTaskUpdated(t *orcv1.Task) {
