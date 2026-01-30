@@ -66,7 +66,7 @@ make dev-full               # API (:8080) + frontend (:5173)
 | `web/` | React 19 frontend | See `web/CLAUDE.md` |
 | `docs/` | Architecture, specs, ADRs | See `docs/CLAUDE.md` |
 
-**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite + GlobalDB/ProjectDB), `project/` (multi-project registry), `jira/` (Jira Cloud import)
+**Key packages:** `api/` (REST + WebSocket), `cli/` (Cobra), `executor/` (phase engine), `workflow/` (workflow definitions), `task/` (task model), `storage/` (database backend), `git/` (worktrees), `db/` (SQLite + GlobalDB/ProjectDB), `project/` (multi-project registry), `gate/` (quality gates: auto/human/AI/skip), `events/` (real-time event publishing), `trigger/` (lifecycle event triggers), `jira/` (Jira Cloud import)
 
 ## Task Model
 
