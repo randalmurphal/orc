@@ -36,9 +36,10 @@ func init() {
 	phaseNewCmd.Flags().Int("max-iterations", 20, "Maximum iterations")
 	phaseNewCmd.Flags().String("gate", "auto", "Gate type (auto, human, none)")
 	phaseNewCmd.Flags().Bool("artifact", false, "Phase produces an artifact")
+	phaseNewCmd.Flags().String("agent", "", "Executor agent ID (the agent that runs this phase)")
 
 	// Config flags
-	phaseConfigCmd.Flags().String("model", "", "Model override")
+	phaseConfigCmd.Flags().String("agent", "", "Executor agent ID")
 	phaseConfigCmd.Flags().Int("max-iterations", 0, "Max iterations override")
 	phaseConfigCmd.Flags().String("gate", "", "Gate type override")
 	phaseConfigCmd.Flags().Bool("thinking", false, "Enable extended thinking")
@@ -178,7 +179,9 @@ Examples:
 			fmt.Printf("Prompt Path: %s\n", t.PromptPath)
 		}
 		fmt.Printf("Max Iterations: %d\n", t.MaxIterations)
-		// TODO: Show agent ID when agent system is complete
+		if t.AgentID != "" {
+			fmt.Printf("Executor Agent: %s\n", t.AgentID)
+		}
 		if t.ThinkingEnabled != nil && *t.ThinkingEnabled {
 			fmt.Println("Extended Thinking: enabled")
 		}
@@ -258,6 +261,18 @@ Examples:
 		maxIter, _ := cmd.Flags().GetInt("max-iterations")
 		gate, _ := cmd.Flags().GetString("gate")
 		artifact, _ := cmd.Flags().GetBool("artifact")
+		agentID, _ := cmd.Flags().GetString("agent")
+
+		// Validate agent exists if specified
+		if agentID != "" {
+			agent, err := pdb.GetAgent(agentID)
+			if err != nil {
+				return fmt.Errorf("get agent: %w", err)
+			}
+			if agent == nil {
+				return fmt.Errorf("agent not found: %s", agentID)
+			}
+		}
 
 		// Get prompt content
 		var promptContent string
@@ -279,6 +294,7 @@ Examples:
 		tmpl := &db.PhaseTemplate{
 			ID:               phaseID,
 			Name:             phaseID,
+			AgentID:          agentID,
 			PromptSource:     promptSource,
 			PromptContent:    promptContent,
 			MaxIterations:    maxIter,
@@ -339,8 +355,21 @@ Examples:
 		// Apply updates
 		changed := false
 
-		// NOTE: Model is now set via agent reference, not directly on phase template
-		// TODO: Add --agent flag to set agent reference
+		if cmd.Flags().Changed("agent") {
+			agentID, _ := cmd.Flags().GetString("agent")
+			// Validate agent exists if specified
+			if agentID != "" {
+				agent, err := pdb.GetAgent(agentID)
+				if err != nil {
+					return fmt.Errorf("get agent: %w", err)
+				}
+				if agent == nil {
+					return fmt.Errorf("agent not found: %s", agentID)
+				}
+			}
+			tmpl.AgentID = agentID
+			changed = true
+		}
 
 		if cmd.Flags().Changed("max-iterations") {
 			maxIter, _ := cmd.Flags().GetInt("max-iterations")

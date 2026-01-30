@@ -2262,8 +2262,11 @@ type AddPhaseRequest struct {
 	ThinkingOverride      *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
 	GateTypeOverride      *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
 	Condition             *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Agent overrides
+	AgentOverride     *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
+	SubAgentsOverride []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AddPhaseRequest) Reset() {
@@ -2359,6 +2362,20 @@ func (x *AddPhaseRequest) GetCondition() string {
 	return ""
 }
 
+func (x *AddPhaseRequest) GetAgentOverride() string {
+	if x != nil && x.AgentOverride != nil {
+		return *x.AgentOverride
+	}
+	return ""
+}
+
+func (x *AddPhaseRequest) GetSubAgentsOverride() []string {
+	if x != nil {
+		return x.SubAgentsOverride
+	}
+	return nil
+}
+
 type AddPhaseResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Phase         *WorkflowPhase         `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
@@ -2414,8 +2431,11 @@ type UpdatePhaseRequest struct {
 	ThinkingOverride      *bool                  `protobuf:"varint,7,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
 	GateTypeOverride      *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
 	Condition             *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Agent overrides
+	AgentOverride     *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
+	SubAgentsOverride []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdatePhaseRequest) Reset() {
@@ -2509,6 +2529,20 @@ func (x *UpdatePhaseRequest) GetCondition() string {
 		return *x.Condition
 	}
 	return ""
+}
+
+func (x *UpdatePhaseRequest) GetAgentOverride() string {
+	if x != nil && x.AgentOverride != nil {
+		return *x.AgentOverride
+	}
+	return ""
+}
+
+func (x *UpdatePhaseRequest) GetSubAgentsOverride() []string {
+	if x != nil {
+		return x.SubAgentsOverride
+	}
+	return nil
 }
 
 type UpdatePhaseResponse struct {
@@ -4787,7 +4821,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bnew_name\x18\x03 \x01(\tH\x00R\anewName\x88\x01\x01B\v\n" +
 	"\t_new_name\"E\n" +
 	"\x15CloneWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\x86\x04\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xf5\x04\n" +
 	"\x0fAddPhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12*\n" +
@@ -4799,15 +4833,19 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0emodel_override\x18\x06 \x01(\tH\x01R\rmodelOverride\x88\x01\x01\x120\n" +
 	"\x11thinking_override\x18\a \x01(\bH\x02R\x10thinkingOverride\x88\x01\x01\x12C\n" +
 	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x03R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
-	"\tcondition\x18\t \x01(\tH\x04R\tcondition\x88\x01\x01B\x1a\n" +
+	"\tcondition\x18\t \x01(\tH\x04R\tcondition\x88\x01\x01\x12*\n" +
+	"\x0eagent_override\x18\n" +
+	" \x01(\tH\x05R\ragentOverride\x88\x01\x01\x12.\n" +
+	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverrideB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
-	"_condition\"?\n" +
+	"_conditionB\x11\n" +
+	"\x0f_agent_override\"?\n" +
 	"\x10AddPhaseResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\x8a\x04\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xf9\x04\n" +
 	"\x12UpdatePhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x19\n" +
@@ -4819,14 +4857,18 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0emodel_override\x18\x06 \x01(\tH\x02R\rmodelOverride\x88\x01\x01\x120\n" +
 	"\x11thinking_override\x18\a \x01(\bH\x03R\x10thinkingOverride\x88\x01\x01\x12C\n" +
 	"\x12gate_type_override\x18\b \x01(\x0e2\x10.orc.v1.GateTypeH\x04R\x10gateTypeOverride\x88\x01\x01\x12!\n" +
-	"\tcondition\x18\t \x01(\tH\x05R\tcondition\x88\x01\x01B\v\n" +
+	"\tcondition\x18\t \x01(\tH\x05R\tcondition\x88\x01\x01\x12*\n" +
+	"\x0eagent_override\x18\n" +
+	" \x01(\tH\x06R\ragentOverride\x88\x01\x01\x12.\n" +
+	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverrideB\v\n" +
 	"\t_sequenceB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
 	"\x12_thinking_overrideB\x15\n" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
-	"_condition\"B\n" +
+	"_conditionB\x11\n" +
+	"\x0f_agent_override\"B\n" +
 	"\x13UpdatePhaseResponse\x12+\n" +
 	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"P\n" +
 	"\x12RemovePhaseRequest\x12\x1f\n" +

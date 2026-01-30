@@ -275,7 +275,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	var t *orcv1.Task
 	switch opts.ContextType {
 	case ContextDefault:
-		t, err = we.createTaskForRunProto(opts)
+		t, err = we.createTaskForRunProto(opts, workflowID)
 		if err != nil {
 			return nil, fmt.Errorf("create task: %w", err)
 		}
@@ -288,6 +288,14 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			return nil, fmt.Errorf("load task %s: %w", opts.TaskID, err)
 		}
 		run.TaskID = &t.Id
+
+		// Set workflow_id on task if not already set (enables `orc show` to display correct phases)
+		if t.WorkflowId == nil || *t.WorkflowId != workflowID {
+			t.WorkflowId = &workflowID
+			if err := we.backend.SaveTask(t); err != nil {
+				we.logger.Error("failed to save workflow_id to task", "task_id", t.Id, "error", err)
+			}
+		}
 
 	}
 
@@ -969,7 +977,7 @@ func (we *WorkflowExecutor) evaluateLoopCondition(condition, targetPhase string,
 }
 
 // createTaskForRunProto creates a proto task for a default context run.
-func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions) (*orcv1.Task, error) {
+func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions, workflowID string) (*orcv1.Task, error) {
 	taskID, err := we.backend.GetNextTaskID()
 	if err != nil {
 		return nil, fmt.Errorf("get next task ID: %w", err)
@@ -977,6 +985,9 @@ func (we *WorkflowExecutor) createTaskForRunProto(opts WorkflowRunOptions) (*orc
 
 	t := task.NewProtoTask(taskID, truncateTitle(opts.Prompt))
 	task.SetDescriptionProto(t, opts.Prompt)
+
+	// Set workflow_id so task knows what workflow it's running
+	t.WorkflowId = &workflowID
 
 	// Set category from options or default to feature
 	if opts.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {

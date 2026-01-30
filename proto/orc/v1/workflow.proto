@@ -324,6 +324,9 @@ message AddPhaseRequest {
   optional bool thinking_override = 7;
   optional GateType gate_type_override = 8;
   optional string condition = 9;
+  // Agent overrides
+  optional string agent_override = 10;          // Override executor agent
+  repeated string sub_agents_override = 11;     // Override sub-agents
 }
 
 message AddPhaseResponse {
@@ -340,6 +343,9 @@ message UpdatePhaseRequest {
   optional bool thinking_override = 7;
   optional GateType gate_type_override = 8;
   optional string condition = 9;
+  // Agent overrides
+  optional string agent_override = 10;          // Override executor agent
+  repeated string sub_agents_override = 11;     // Override sub-agents
 }
 
 message UpdatePhaseResponse {
