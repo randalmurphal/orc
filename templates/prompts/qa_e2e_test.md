@@ -23,6 +23,19 @@ You are working in an **isolated git worktree**.
 - **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
 
+## QA Output Directory
+
+**ALL artifacts (reports, screenshots, scripts, findings) MUST be saved to:**
+`{{QA_OUTPUT_DIR}}`
+
+Create this directory before saving any files:
+```bash
+mkdir -p {{QA_OUTPUT_DIR}}
+```
+
+**CRITICAL:** Do NOT create files in the repo root or worktree directory.
+All QA artifacts go in `{{QA_OUTPUT_DIR}}` only.
+
 {{#if SPEC_CONTENT}}
 ## Specification
 
@@ -158,7 +171,7 @@ Output JSON matching QAE2ETestResultSchema:
       ],
       "expected": "Validation error shown for email field",
       "actual": "Form appears to submit but nothing happens, no error shown",
-      "screenshot_path": "/tmp/qa-{{TASK_ID}}/bug-001.png",
+      "screenshot_path": "{{QA_OUTPUT_DIR}}/bug-001.png",
       "suggested_fix": "Check email validation in SignupForm component"
     }
   ],
