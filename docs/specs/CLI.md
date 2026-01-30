@@ -411,14 +411,15 @@ orc reset TASK-001 --force   # Skip confirmation (for scripts/automation)
 Mark a task as resolved without re-running.
 
 ```bash
-orc resolve <task-id> [--message <msg>] [--cleanup] [--force]
+orc resolve <task-id> [--yes] [--message <msg>] [--cleanup] [--force]
 ```
 
 | Option | Description |
 |--------|-------------|
+| `--yes`, `-y` | Skip confirmation prompt (does not imply `--force`) |
 | `--message`, `-m` | Resolution message explaining why task was resolved |
 | `--cleanup` | Abort in-progress git operations and discard uncommitted changes in worktree |
-| `--force`, `-f` | Skip confirmation prompt and allow resolving non-failed tasks |
+| `--force`, `-f` | Skip confirmation and allow resolving non-failed tasks (implies `--yes`) |
 
 Marks a task as completed (resolved) without clearing its execution state. Unlike `reset` which clears progress for retry, `resolve` closes out a task while preserving execution context.
 
@@ -462,6 +463,7 @@ If the task has an associated worktree with uncommitted changes, in-progress git
 | Flag | Behavior |
 |------|----------|
 | `--cleanup` | Abort in-progress git ops, discard uncommitted changes, then resolve |
+| `--yes` | Skip confirmation prompt only (still requires failed status) |
 | `--force` | Skip confirmation and status checks (resolve any status) |
 | (default) | Show warnings and prompt for confirmation |
 
@@ -479,12 +481,13 @@ If the task has an associated worktree with uncommitted changes, in-progress git
 **Status behavior**:
 - Without `--force`: Only failed tasks can be resolved
 - With `--force`: Any status can be resolved (running, paused, blocked, created, etc.)
-- Confirmation prompt unless `--force` is used
+- Confirmation prompt unless `--yes` or `--force` is used
 
 **Examples**:
 ```bash
 orc resolve TASK-001                          # Resolve failed task with confirmation
-orc resolve TASK-001 -m "Fixed manually"      # With resolution message
+orc resolve TASK-001 --yes                    # Skip confirmation prompt
+orc resolve TASK-001 -y -m "Fixed manually"   # Skip prompt with message
 orc resolve TASK-001 --cleanup                # Clean up worktree state first
 orc resolve TASK-001 --force                  # Resolve any status (skip checks)
 orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message
