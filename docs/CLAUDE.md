@@ -89,7 +89,7 @@ docs/
 | `plans/2026-01-29-branch-control-plan.md` | Branch control implementation plan |
 | `plans/2025-01-29-multi-project-support-design.md` | Multi-project support design |
 | `plans/2025-01-29-multi-project-implementation.md` | Multi-project implementation plan |
-| `plans/2026-01-30-ai-gates-lifecycle-events-design.md` | AI gates & lifecycle events design |
+| `plans/2026-01-30-ai-gates-lifecycle-events-design.md` | AI gates & lifecycle events design (see `architecture/GATES.md` for implemented docs) |
 
 ## Quick Reference
 

@@ -163,7 +163,9 @@ workflows:
 | `on_task_failed` | Task fails during execution | Logged as warning |
 | `on_initiative_planned` | Initiative planning creates tasks | Error returned to caller |
 
-**Location**: `internal/workflow/types.go:59-101`, evaluation: `internal/trigger/runner.go:55`
+**Built-in trigger**: The `dependency-validator` agent runs on `on_initiative_planned` in `implement-medium` and `implement-large` workflows. It detects missing `blocked_by` dependencies between initiative tasks by analyzing descriptions/specs for code-level ordering requirements. See `templates/agents/dependency-validator.md`.
+
+**Location**: `internal/workflow/types.go:59-101`, evaluation: `internal/trigger/runner.go:55`, initiative trigger: `internal/trigger/runner.go:207`
 
 ---
 

@@ -381,6 +381,14 @@ func (c *CacheService) shouldUpdatePhase(existing *db.PhaseTemplate, rp Resolved
 
 // workflowToDBWorkflow converts a workflow.Workflow to db.Workflow.
 func workflowToDBWorkflow(wf *Workflow, source Source) *db.Workflow {
+	var triggersJSON string
+	if len(wf.Triggers) > 0 {
+		data, err := json.Marshal(wf.Triggers)
+		if err == nil {
+			triggersJSON = string(data)
+		}
+	}
+
 	return &db.Workflow{
 		ID:              wf.ID,
 		Name:            wf.Name,
@@ -390,6 +398,7 @@ func workflowToDBWorkflow(wf *Workflow, source Source) *db.Workflow {
 		DefaultThinking: wf.DefaultThinking,
 		IsBuiltin:       source == SourceEmbedded,
 		BasedOn:         wf.BasedOn,
+		Triggers:        triggersJSON,
 		CreatedAt:       wf.CreatedAt,
 		UpdatedAt:       time.Now(),
 	}
