@@ -32,6 +32,8 @@ Two database types with distinct responsibilities:
 | `schema/global_004.sql` | **Workflow tables for cross-project sharing** (phase_templates, workflows, workflow_phases, workflow_variables, agents, phase_agents) |
 | `schema/project_*.sql` | Per-project tables (tasks through project_047.sql) |
 | `schema/project_047.sql` | **Branch control columns on `tasks`**: `branch_name`, `pr_draft`, `pr_labels` (JSON), `pr_reviewers` (JSON), `pr_labels_set`, `pr_reviewers_set` |
+| `schema/global_005.sql` | **Extended gate config**: gate_input_config, gate_output_config, gate_mode, gate_agent_id on phase_templates; before_triggers on workflow_phases; triggers on workflows |
+| `schema/project_048.sql` | **Mirrors global_005** for project DB |
 
 ## File Structure
 
@@ -46,6 +48,7 @@ Two database types with distinct responsibilities:
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics, agent stats |
 | `plan.go` | Plan CRUD |
 | `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD, QualityCheck type |
+| `gate_config.go` | Gate config JSON parse/marshal: GateInputConfig, GateOutputConfig, BeforePhaseTrigger, WorkflowTrigger |
 | `phase_output.go` | Phase output CRUD (unified specs + artifacts) |
 | `project_command.go` | ProjectCommand CRUD (quality check commands) |
 | `event_log.go` | EventLog CRUD, batch insert, time/type filtering for timeline |

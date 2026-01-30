@@ -27,6 +27,24 @@ Compose phases into execution plans:
 - Custom variables
 - Context type (task, branch, PR, standalone)
 
+### Extended Gate Configuration
+
+Types for AI gates, triggers, and gate input/output control. All in `types.go`.
+
+| Type | Values | Purpose |
+|------|--------|---------|
+| `GateType` | `auto`, `human`, `skip`, `ai` | Phase gate approval type |
+| `GateMode` | `gate`, `reaction` | Sync (blocking) vs async (fire-and-forget) |
+| `GateAction` | `continue`, `retry`, `fail`, `skip_phase`, `run_script` | Gate outcome actions |
+| `WorkflowTriggerEvent` | `on_task_created`, `on_task_completed`, `on_task_failed`, `on_initiative_planned` | Lifecycle events |
+
+| Struct | Purpose | Used By |
+|--------|---------|---------|
+| `GateInputConfig` | Context passed to gate evaluator | Phase templates, triggers |
+| `GateOutputConfig` | Result handling (actions, variables) | Phase templates, triggers |
+| `BeforePhaseTrigger` | Pre-phase validation agent | `WorkflowPhase.BeforeTriggers` |
+| `WorkflowTrigger` | Lifecycle event handler | `Workflow.Triggers` |
+
 ### Workflow Runs
 
 Execution instances:
