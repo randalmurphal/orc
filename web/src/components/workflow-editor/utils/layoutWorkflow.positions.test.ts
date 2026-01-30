@@ -201,8 +201,8 @@ describe('layoutWorkflow - Position Persistence (SC-11)', () => {
 		});
 	});
 
-	describe('start/end nodes always use dagre', () => {
-		it('start and end nodes use dagre positions regardless of phase positions', () => {
+	describe('only phase nodes are produced (no start/end)', () => {
+		it('produces only phase nodes with stored positions', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -217,17 +217,11 @@ describe('layoutWorkflow - Position Persistence (SC-11)', () => {
 
 			const result = layoutWorkflow(details);
 
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-
-			// Start should be to the left of the phase
-			expect(startNode.position.x).toBeLessThan(200);
-			// End should be to the right of the phase
-			expect(endNode.position.x).toBeGreaterThan(200);
+			// Only phase nodes, no startEnd nodes
+			expect(result.nodes).toHaveLength(1);
+			expect(result.nodes[0].type).toBe('phase');
+			expect(result.nodes[0].position.x).toBe(200);
+			expect(result.nodes[0].position.y).toBe(200);
 		});
 	});
 

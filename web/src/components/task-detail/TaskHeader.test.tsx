@@ -37,6 +37,7 @@ vi.mock('@/stores', () => ({
 	useInitiatives: () => [
 		{ id: 'INIT-001', title: 'Test Initiative', status: 'active' },
 	],
+	useCurrentProjectId: () => 'test-project',
 }));
 
 vi.mock('@/stores/uiStore', () => ({

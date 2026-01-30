@@ -150,7 +150,7 @@ describe('AppShell', () => {
 	describe('right panel', () => {
 		it('should toggle right panel visibility on button click', async () => {
 			const { container } = renderWithProviders(
-				<AppShell>
+				<AppShell defaultPanelContent={<div>Panel</div>}>
 					<div>Content</div>
 				</AppShell>
 			);
@@ -229,7 +229,7 @@ describe('AppShell.css', () => {
 		// This test verifies the CSS file contains the correct values
 		// In a real test, we'd check computed styles, but for static analysis:
 		const { container } = renderWithProviders(
-			<AppShell>
+			<AppShell defaultPanelContent={<div>Panel</div>}>
 				<div>Content</div>
 			</AppShell>
 		);
@@ -246,7 +246,7 @@ describe('AppShell.css', () => {
 
 	it('should have panel-open class toggle grid-template-columns', () => {
 		const { container } = renderWithProviders(
-			<AppShell>
+			<AppShell defaultPanelContent={<div>Panel</div>}>
 				<div>Content</div>
 			</AppShell>
 		);

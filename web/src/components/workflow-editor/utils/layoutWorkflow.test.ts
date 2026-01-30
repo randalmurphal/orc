@@ -10,7 +10,7 @@ import { layoutWorkflow } from './layoutWorkflow';
 
 describe('layoutWorkflow', () => {
 	describe('node generation', () => {
-		it('produces startEnd nodes for a workflow with no phases', () => {
+		it('produces no nodes for a workflow with no phases', () => {
 			const details = createMockWorkflowWithDetails({
 				workflow: createMockWorkflow({ id: 'empty-wf', name: 'Empty' }),
 				phases: [],
@@ -18,14 +18,10 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const nodeTypes = result.nodes.map((n) => n.type);
-			expect(nodeTypes).toContain('startEnd');
-			expect(result.nodes).toHaveLength(2);
-			// Both start and end use 'startEnd' type
-			expect(result.nodes.filter((n) => n.type === 'startEnd')).toHaveLength(2);
+			expect(result.nodes).toHaveLength(0);
 		});
 
-		it('produces startEnd + phase nodes for a single-phase workflow', () => {
+		it('produces only phase nodes for a single-phase workflow', () => {
 			const details = createMockWorkflowWithDetails({
 				workflow: createMockWorkflow({ id: 'single', name: 'Single' }),
 				phases: [
@@ -39,9 +35,8 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			expect(result.nodes).toHaveLength(3);
+			expect(result.nodes).toHaveLength(1);
 			const types = result.nodes.map((n) => n.type);
-			expect(types).toContain('startEnd');
 			expect(types).toContain('phase');
 		});
 
@@ -57,8 +52,8 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			// 4 phases + start + end = 6
-			expect(result.nodes).toHaveLength(6);
+			// 4 phases only (no start/end nodes)
+			expect(result.nodes).toHaveLength(4);
 
 			const phaseNodes = result.nodes.filter((n) => n.type === 'phase');
 			expect(phaseNodes).toHaveLength(4);
@@ -111,7 +106,7 @@ describe('layoutWorkflow', () => {
 			expect(uniqueX.size).toBeGreaterThan(1);
 		});
 
-		it('lays out nodes left-to-right (start has smallest x)', () => {
+		it('lays out phases left-to-right by sequence order', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'spec', sequence: 1 }),
@@ -121,34 +116,22 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-			expect(startNode.position.x).toBeLessThan(endNode.position.x);
+			const specNode = result.nodes.find((n) => n.id === 'phase-1')!;
+			const implNode = result.nodes.find((n) => n.id === 'phase-2')!;
+			expect(specNode.position.x).toBeLessThan(implNode.position.x);
 		});
 	});
 
 	describe('sequential edges', () => {
-		it('creates a single edge between start and end for 0-phase workflow', () => {
+		it('creates no edges for 0-phase workflow', () => {
 			const details = createMockWorkflowWithDetails({ phases: [] });
 
 			const result = layoutWorkflow(details);
 
-			expect(result.edges).toHaveLength(1);
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-			expect(result.edges[0].source).toBe(startNode.id);
-			expect(result.edges[0].target).toBe(endNode.id);
+			expect(result.edges).toHaveLength(0);
 		});
 
-		it('creates sequential edges connecting start → phase → end for single phase', () => {
+		it('creates no sequential edges for a single phase (no neighbors)', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'implement', sequence: 1 }),
@@ -157,25 +140,11 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const phaseNode = result.nodes.find((n) => n.type === 'phase')!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-
-			// start → phase
-			const startEdge = result.edges.find(
-				(e) => e.source === startNode.id && e.target === phaseNode.id
+			// Single phase has no sequential edges (no start/end nodes)
+			const sequentialEdges = result.edges.filter(
+				(e) => e.type === 'sequential'
 			);
-			expect(startEdge).toBeDefined();
-
-			// phase → end
-			const endEdge = result.edges.find(
-				(e) => e.source === phaseNode.id && e.target === endNode.id
-			);
-			expect(endEdge).toBeDefined();
+			expect(sequentialEdges).toHaveLength(0);
 		});
 
 		it('creates sequential chain for multi-phase workflow sorted by sequence', () => {
@@ -190,28 +159,17 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-
-			// Sequential edges: start → spec → implement → review → end = 4 edges (minimum)
+			// Sequential edges: spec → implement → review = 2 edges
 			const sequentialEdges = result.edges.filter(
 				(e) => e.type === 'sequential'
 			);
-			expect(sequentialEdges.length).toBeGreaterThanOrEqual(4);
+			expect(sequentialEdges).toHaveLength(2);
 
-			// Verify chain connectivity: start reaches end through phase nodes
-			const hasStartToFirst = result.edges.some(
-				(e) => e.source === startNode.id
-			);
-			const hasLastToEnd = result.edges.some(
-				(e) => e.target === endNode.id
-			);
-			expect(hasStartToFirst).toBe(true);
-			expect(hasLastToEnd).toBe(true);
+			// Verify chain: spec(1) → implement(2) → review(3)
+			expect(sequentialEdges[0].source).toBe('phase-1');
+			expect(sequentialEdges[0].target).toBe('phase-2');
+			expect(sequentialEdges[1].source).toBe('phase-2');
+			expect(sequentialEdges[1].target).toBe('phase-3');
 		});
 	});
 
@@ -313,9 +271,9 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			// Should still produce valid output with all nodes
-			expect(result.nodes).toHaveLength(4); // 2 phases + start + end
-			expect(result.edges.length).toBeGreaterThanOrEqual(3);
+			// Should still produce valid output with all phase nodes
+			expect(result.nodes).toHaveLength(2); // 2 phases only
+			expect(result.edges.length).toBeGreaterThanOrEqual(1);
 		});
 
 		it('returns valid structure shape', () => {
@@ -353,7 +311,7 @@ describe('layoutWorkflow', () => {
 	});
 
 	describe('edge type assignment', () => {
-		it('assigns type sequential to sequential edges', () => {
+		it('assigns type sequential to phase-to-phase edges', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'spec', sequence: 1 }),
@@ -363,48 +321,16 @@ describe('layoutWorkflow', () => {
 
 			const result = layoutWorkflow(details);
 
-			// Sequential edges: start→spec, spec→implement, implement→end
+			// Sequential edges: spec→implement = 1
 			const sequentialEdges = result.edges.filter(
 				(e) => e.type !== 'dependency' && e.type !== 'loop' && e.type !== 'retry'
 			);
-			expect(sequentialEdges.length).toBeGreaterThanOrEqual(3);
+			expect(sequentialEdges).toHaveLength(1);
 
 			// Every sequential edge must have type: 'sequential'
 			for (const edge of sequentialEdges) {
 				expect(edge.type).toBe('sequential');
 			}
-		});
-
-		it('assigns type sequential to start-to-phase and phase-to-end edges', () => {
-			const details = createMockWorkflowWithDetails({
-				phases: [
-					createMockWorkflowPhase({ id: 1, phaseTemplateId: 'implement', sequence: 1 }),
-				],
-			});
-
-			const result = layoutWorkflow(details);
-
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			)!;
-			const phaseNode = result.nodes.find((n) => n.type === 'phase')!;
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			)!;
-
-			// start → phase edge
-			const startEdge = result.edges.find(
-				(e) => e.source === startNode.id && e.target === phaseNode.id
-			);
-			expect(startEdge).toBeDefined();
-			expect(startEdge!.type).toBe('sequential');
-
-			// phase → end edge
-			const endEdge = result.edges.find(
-				(e) => e.source === phaseNode.id && e.target === endNode.id
-			);
-			expect(endEdge).toBeDefined();
-			expect(endEdge!.type).toBe('sequential');
 		});
 	});
 
@@ -570,7 +496,7 @@ describe('layoutWorkflow', () => {
 			const result = layoutWorkflow(details);
 
 			// Layout should still work fine (not throw) even with backward retry edges
-			expect(result.nodes.length).toBe(4); // start + 2 phases + end
+			expect(result.nodes.length).toBe(2); // 2 phases only
 
 			// All nodes should have valid positions (dagre ran successfully)
 			for (const node of result.nodes) {
@@ -583,32 +509,6 @@ describe('layoutWorkflow', () => {
 	});
 
 	describe('custom node data shapes', () => {
-		it('produces StartEndNodeData with variant=start for start node', () => {
-			const details = createMockWorkflowWithDetails({ phases: [] });
-
-			const result = layoutWorkflow(details);
-
-			const startNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'start'
-			);
-			expect(startNode).toBeDefined();
-			expect(startNode!.data).toHaveProperty('variant', 'start');
-			expect(startNode!.data).toHaveProperty('label', 'Start');
-		});
-
-		it('produces StartEndNodeData with variant=end for end node', () => {
-			const details = createMockWorkflowWithDetails({ phases: [] });
-
-			const result = layoutWorkflow(details);
-
-			const endNode = result.nodes.find(
-				(n) => n.type === 'startEnd' && n.data.variant === 'end'
-			);
-			expect(endNode).toBeDefined();
-			expect(endNode!.data).toHaveProperty('variant', 'end');
-			expect(endNode!.data).toHaveProperty('label', 'End');
-		});
-
 		it('produces PhaseNodeData with templateName from joined template', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [

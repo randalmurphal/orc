@@ -39,5 +39,11 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
     },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   }
 );

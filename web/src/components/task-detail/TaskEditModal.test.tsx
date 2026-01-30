@@ -41,6 +41,7 @@ vi.mock('@/lib/client', () => ({
 // Mock stores
 vi.mock('@/stores', () => ({
 	useInitiatives: () => [],
+	useCurrentProjectId: () => 'test-project',
 }));
 
 vi.mock('@/stores/uiStore', () => ({
@@ -269,7 +270,8 @@ describe('TaskEditModal - Workflow Selector', () => {
 			await waitFor(() => {
 				expect(taskClient.updateTask).toHaveBeenCalledWith(
 					expect.objectContaining({
-						id: 'TASK-001',
+						taskId: 'TASK-001',
+						projectId: 'test-project',
 						workflowId: 'large',
 					})
 				);
@@ -351,7 +353,8 @@ describe('TaskEditModal - Workflow Selector', () => {
 			await waitFor(() => {
 				expect(taskClient.updateTask).toHaveBeenCalledWith(
 					expect.objectContaining({
-						id: 'TASK-001',
+						taskId: 'TASK-001',
+						projectId: 'test-project',
 						workflowId: undefined,
 					})
 				);

@@ -114,24 +114,15 @@ describe('WorkflowCanvas', () => {
 			expect(useWorkflowEditorStore.getState().selectedNodeId).toBe(phaseNode!.id);
 		});
 
-		it('does not select start/end nodes', () => {
+		it('only has phase nodes (no start/end nodes per design spec)', () => {
 			loadTestWorkflow();
 
 			render(<WorkflowCanvas />);
 
 			const nodes = useWorkflowEditorStore.getState().nodes;
-			const startNode = nodes.find(
-				(n) => n.type === 'startEnd' && (n.data as any).variant === 'start'
-			);
-			expect(startNode).toBeDefined();
-
-			const startNodeEl = document.querySelector(`[data-id="${startNode!.id}"]`);
-			if (startNodeEl) {
-				startNodeEl.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-			}
-
-			// Start node click should NOT set selectedNodeId
-			expect(useWorkflowEditorStore.getState().selectedNodeId).toBeNull();
+			// All nodes should be phase type (start/end nodes removed per design spec)
+			expect(nodes.every((n) => n.type === 'phase')).toBe(true);
+			expect(nodes.length).toBe(2); // spec + implement
 		});
 	});
 

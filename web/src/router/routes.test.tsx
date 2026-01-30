@@ -248,9 +248,18 @@ function renderWithRouter(initialPath: string = '/') {
 describe('Routes', () => {
 	beforeEach(() => {
 		// Reset stores between tests
+		// RootLayout requires currentProjectId to render app content;
+		// without it, ProjectPickerPage is shown instead.
 		useProjectStore.setState({
-			projects: [],
-			currentProjectId: null,
+			projects: [
+				{
+					id: 'test-project',
+					path: '/test/project',
+					name: 'Test Project',
+					createdAt: createTimestamp('2024-01-01T00:00:00Z'),
+				} as Project,
+			],
+			currentProjectId: 'test-project',
 			loading: false,
 			error: null,
 			_isHandlingPopState: false,

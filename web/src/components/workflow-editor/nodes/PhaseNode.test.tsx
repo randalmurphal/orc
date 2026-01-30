@@ -62,12 +62,12 @@ describe('PhaseNode', () => {
 		it('renders template name as header text', () => {
 			renderPhaseNode(createDefaultData({ templateName: 'Specification' }));
 
-			const nameEl = document.querySelector('.phase-node-name');
+			const nameEl = document.querySelector('.phase-node__name');
 			expect(nameEl).not.toBeNull();
 			expect(nameEl!.textContent).toBe('Specification');
 		});
 
-		it('renders phaseTemplateId in monospace as subtitle', () => {
+		it('renders phaseTemplateId as subtitle', () => {
 			renderPhaseNode(
 				createDefaultData({
 					templateName: 'Specification',
@@ -75,9 +75,7 @@ describe('PhaseNode', () => {
 				})
 			);
 
-			const templateIdEl = document.querySelector(
-				'.phase-node-template-id'
-			);
+			const templateIdEl = document.querySelector('.phase-node__id');
 			expect(templateIdEl).not.toBeNull();
 			expect(templateIdEl!.textContent).toBe('spec');
 		});
@@ -90,114 +88,35 @@ describe('PhaseNode', () => {
 				})
 			);
 
-			const nameEl = document.querySelector('.phase-node-name');
+			const nameEl = document.querySelector('.phase-node__name');
 			expect(nameEl).not.toBeNull();
 			expect(nameEl!.textContent).toBe('tdd_write');
 		});
 	});
 
-	describe('SC-2: sequence number badge', () => {
-		it('displays sequence number in badge', () => {
-			renderPhaseNode(createDefaultData({ sequence: 3 }));
+	describe('SC-2: type badge display', () => {
+		it('displays AI badge for AUTO gate type', () => {
+			renderPhaseNode(createDefaultData({ gateType: GateType.AUTO }));
 
-			const seqBadge = document.querySelector('.phase-node-sequence');
-			expect(seqBadge).not.toBeNull();
-			expect(seqBadge!.textContent).toBe('3');
+			const badge = document.querySelector('.phase-node__badge--ai');
+			expect(badge).not.toBeNull();
+			expect(badge!.textContent).toBe('AI');
 		});
 
-		it('displays sequence 1 for first phase', () => {
-			renderPhaseNode(createDefaultData({ sequence: 1 }));
+		it('displays Human badge for HUMAN gate type', () => {
+			renderPhaseNode(createDefaultData({ gateType: GateType.HUMAN }));
 
-			const seqBadge = document.querySelector('.phase-node-sequence');
-			expect(seqBadge).not.toBeNull();
-			expect(seqBadge!.textContent).toBe('1');
-		});
-	});
-
-	describe('SC-3: conditional metadata badges', () => {
-		it('renders gate badge with cyan styling when gateType is HUMAN', () => {
-			renderPhaseNode(
-				createDefaultData({ gateType: GateType.HUMAN })
-			);
-
-			const gateBadge = document.querySelector(
-				'.phase-node-badge--gate'
-			);
-			expect(gateBadge).not.toBeNull();
+			const badge = document.querySelector('.phase-node__badge--human');
+			expect(badge).not.toBeNull();
+			expect(badge!.textContent).toBe('Human');
 		});
 
-		it('renders iterations badge with orange styling when maxIterations is non-default', () => {
-			renderPhaseNode(
-				createDefaultData({ maxIterations: 5 })
-			);
+		it('displays Skip badge for SKIP gate type', () => {
+			renderPhaseNode(createDefaultData({ gateType: GateType.SKIP }));
 
-			const iterBadge = document.querySelector(
-				'.phase-node-badge--iterations'
-			);
-			expect(iterBadge).not.toBeNull();
-			expect(iterBadge!.textContent).toContain('5');
-		});
-
-		it('renders model badge with purple styling when agentId is set', () => {
-			renderPhaseNode(
-				createDefaultData({ agentId: 'opus' })
-			);
-
-			const modelBadge = document.querySelector(
-				'.phase-node-badge--model'
-			);
-			expect(modelBadge).not.toBeNull();
-			expect(modelBadge!.textContent).toContain('opus');
-		});
-
-		it('renders all 3 badges when all overrides are present', () => {
-			renderPhaseNode(
-				createDefaultData({
-					gateType: GateType.HUMAN,
-					maxIterations: 5,
-					agentId: 'opus',
-				})
-			);
-
-			expect(
-				document.querySelector('.phase-node-badge--gate')
-			).not.toBeNull();
-			expect(
-				document.querySelector('.phase-node-badge--iterations')
-			).not.toBeNull();
-			expect(
-				document.querySelector('.phase-node-badge--model')
-			).not.toBeNull();
-		});
-
-		it('renders no badges when data has defaults (AUTO gate, no model override)', () => {
-			renderPhaseNode(
-				createDefaultData({
-					gateType: GateType.AUTO,
-					maxIterations: 1,
-					agentId: undefined,
-				})
-			);
-
-			expect(
-				document.querySelector('.phase-node-badge--gate')
-			).toBeNull();
-			expect(
-				document.querySelector('.phase-node-badge--iterations')
-			).toBeNull();
-			expect(
-				document.querySelector('.phase-node-badge--model')
-			).toBeNull();
-		});
-
-		it('does not render gate badge for AUTO gate type', () => {
-			renderPhaseNode(
-				createDefaultData({ gateType: GateType.AUTO })
-			);
-
-			expect(
-				document.querySelector('.phase-node-badge--gate')
-			).toBeNull();
+			const badge = document.querySelector('.phase-node__badge--skip');
+			expect(badge).not.toBeNull();
+			expect(badge!.textContent).toBe('Skip');
 		});
 	});
 
@@ -369,7 +288,7 @@ describe('PhaseNode', () => {
 
 			const node = document.querySelector('.phase-node');
 			expect(node).not.toBeNull();
-			expect(node!.classList.contains('selected')).toBe(true);
+			expect(node!.classList.contains('phase-node--selected')).toBe(true);
 		});
 
 		it('does not add selected class when node is not selected', () => {
@@ -377,7 +296,7 @@ describe('PhaseNode', () => {
 
 			const node = document.querySelector('.phase-node');
 			expect(node).not.toBeNull();
-			expect(node!.classList.contains('selected')).toBe(false);
+			expect(node!.classList.contains('phase-node--selected')).toBe(false);
 		});
 	});
 
@@ -387,7 +306,7 @@ describe('PhaseNode', () => {
 				'This Is A Very Long Phase Template Name That Should Be Truncated';
 			renderPhaseNode(createDefaultData({ templateName: longName }));
 
-			const nameEl = document.querySelector('.phase-node-name');
+			const nameEl = document.querySelector('.phase-node__name');
 			expect(nameEl).not.toBeNull();
 			expect(nameEl!.textContent).toBe(longName);
 			// CSS handles truncation — just verify the text is present
@@ -405,15 +324,16 @@ describe('PhaseNode', () => {
 			expect(node).not.toBeNull();
 		});
 
-		it('renders gate badge for SKIP gate type', () => {
+		it('renders Skip badge for SKIP gate type', () => {
 			renderPhaseNode(
 				createDefaultData({ gateType: GateType.SKIP })
 			);
 
-			const gateBadge = document.querySelector(
-				'.phase-node-badge--gate'
+			const skipBadge = document.querySelector(
+				'.phase-node__badge--skip'
 			);
-			expect(gateBadge).not.toBeNull();
+			expect(skipBadge).not.toBeNull();
+			expect(skipBadge!.textContent).toBe('Skip');
 		});
 	});
 });

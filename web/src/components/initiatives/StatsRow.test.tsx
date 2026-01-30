@@ -4,9 +4,16 @@ import { createRef } from 'react';
 import {
 	StatsRow,
 	StatCard,
-	defaultStats,
 	type InitiativeStats,
 } from './StatsRow';
+
+const defaultStats: InitiativeStats = {
+	activeInitiatives: 0,
+	totalTasks: 0,
+	tasksThisWeek: 0,
+	completionRate: 0,
+	totalCost: 0,
+};
 import {
 	formatNumber,
 	formatCost,

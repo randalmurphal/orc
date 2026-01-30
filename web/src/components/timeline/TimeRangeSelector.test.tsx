@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import {
-	TimeRangeSelector,
-	getDateRange,
-	type CustomDateRange,
-} from './TimeRangeSelector';
+import { TimeRangeSelector } from './TimeRangeSelector';
+import { getDateRange, type CustomDateRange } from './time-range-utils';
 
 // Mock current date for consistent testing
 // Use explicit year/month/day to avoid UTC conversion issues

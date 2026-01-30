@@ -1,6 +1,6 @@
 // Event streaming hooks (Connect RPC)
+export { EventProvider } from './EventProvider';
 export {
-	EventProvider,
 	useEvents,
 	useTaskSubscription,
 	useConnectionStatus,
