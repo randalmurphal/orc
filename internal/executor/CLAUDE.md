@@ -13,7 +13,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()` | PR creation, merge, worktree setup/cleanup, sync |
 | `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
-| `workflow_gates.go` | ~165 | `evaluatePhaseGate()`, `resolveGateType()`, `triggerAutomationEvent()` | Gate evaluation (auto/human/AI), type resolution, event publishing |
+| `workflow_gates.go` | ~180 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()` | Gate evaluation (auto/human/AI), output variable pipeline, type resolution |
 | `workflow_triggers.go` | ~124 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
 
 ### Support Files
@@ -25,7 +25,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
-| `retry.go` | Retry context building (`BuildRetryContext`, `BuildRetryContextForFreshSession`) |
+| `retry.go` | Retry context building (`BuildRetryContext`, `BuildRetryContextForFreshSession`, `BuildRetryContextWithGateAnalysis`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing, loop condition evaluation |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
@@ -49,6 +49,7 @@ WorkflowExecutor.Run()
 │   ├── resolver.ResolveAll()         # Resolve all variables
 │   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
 │   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
+│   ├── applyGateOutputToVars()       # Store gate output data as workflow variable (if configured)
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
@@ -112,6 +113,8 @@ Resolved by `ResolveBranchName()` at `branch.go:169`:
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
 | `applyPhaseContentToVars()` | `workflow_executor.go:820` | Propagates phase content to subsequent phases |
+| `applyGateOutputToVars()` | `workflow_gates.go:141` | Stores gate output data as JSON workflow variable |
+| `BuildRetryContextWithGateAnalysis()` | `retry.go:71` | Extends retry context with gate analysis section |
 
 ### Phase Execution
 
@@ -183,6 +186,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS |
 | QA E2E | QA_ITERATION, QA_MAX_ITERATIONS, BEFORE_IMAGES, PREVIOUS_FINDINGS, QA_FINDINGS |
+| Gate Outputs | Custom variable names via `GateOutputConfig.variable_name` (JSON-serialized) |
 | Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT |
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
@@ -399,6 +403,7 @@ go test ./internal/executor/... -v
 | `workflow_completion_test.go` | PR options merging: `TestResolvePROptions` (8 cases) |
 | `workflow_executor_test.go` | Core executor behavior |
 | `phase_response_test.go` | Phase completion parsing |
+| `gate_output_pipeline_test.go` | Gate output variable pipeline: propagation, storage, retry context, rejection |
 | `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
 

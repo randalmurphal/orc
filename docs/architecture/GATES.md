@@ -248,6 +248,54 @@ phase_templates:
 
 ---
 
+## Gate Output Variable Pipeline
+
+Gate evaluations can produce structured output data that flows into the workflow variable system for use in subsequent phases.
+
+### Data Flow
+
+```
+GateAgentResponse.data → Decision.OutputData + Decision.OutputVar
+  → GateEvaluationResult.OutputData/OutputVar
+    → applyGateOutputToVars() → vars[OutputVar] = JSON(OutputData)
+      → {{VARIABLE_NAME}} in subsequent phase prompts
+```
+
+### Configuration
+
+```yaml
+gate_output_config:
+  variable_name: "SECURITY_RESULT"   # Variable name for downstream access
+  on_approved: continue
+  on_rejected: retry
+  retry_from: implement
+```
+
+### Behavior
+
+| Scenario | Output Stored? | Details |
+|----------|---------------|---------|
+| Gate approved with output data | Yes | `applyGateOutputToVars()` stores JSON to `vars[variable_name]` |
+| Gate rejected with output data | Yes | Output stored even on rejection (available to retry phase) |
+| No `variable_name` configured | No | Silently skipped |
+| No output data from gate | No | Silently skipped |
+| JSON serialization error | No | Logged warning, execution continues |
+
+### Retry Context with Gate Analysis
+
+When a gate rejects and triggers retry, `BuildRetryContextWithGateAnalysis()` appends a gate analysis section to `{{RETRY_CONTEXT}}`:
+
+```
+## Gate Analysis
+[Gate's structured analysis of why the phase was rejected]
+```
+
+This gives the retry phase actionable context about what the gate found, not just a rejection reason.
+
+**Implementation**: `executor/workflow_gates.go:141` (output storage), `executor/retry.go:71` (retry context)
+
+---
+
 ## Cross-Phase Retry
 
 When a gate rejects or a phase fails, orc can automatically retry from an earlier phase:
