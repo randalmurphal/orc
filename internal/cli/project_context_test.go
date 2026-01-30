@@ -56,8 +56,7 @@ func TestResolveProjectID_FromEnv(t *testing.T) {
 	})
 
 	// Set env var
-	os.Setenv("ORC_PROJECT", "env-project")
-	t.Cleanup(func() { os.Unsetenv("ORC_PROJECT") })
+	t.Setenv("ORC_PROJECT", "env-project")
 
 	// Flag should be empty
 	projectFlag = ""
@@ -90,10 +89,9 @@ func TestResolveProjectID_FlagTakesPriority(t *testing.T) {
 
 	// Set both flag and env
 	projectFlag = "flag-project"
-	os.Setenv("ORC_PROJECT", "env-project")
+	t.Setenv("ORC_PROJECT", "env-project")
 	t.Cleanup(func() {
 		projectFlag = ""
-		os.Unsetenv("ORC_PROJECT")
 	})
 
 	id, err := ResolveProjectID()
@@ -134,7 +132,7 @@ func TestResolveProjectID_FromCwd(t *testing.T) {
 
 	// Clear flag and env
 	projectFlag = ""
-	os.Unsetenv("ORC_PROJECT")
+	t.Setenv("ORC_PROJECT", "")
 
 	// Change to project dir
 	oldCwd, _ := os.Getwd()
@@ -225,7 +223,7 @@ func TestResolveProjectRef_ByPath(t *testing.T) {
 func TestIsMultiProjectMode(t *testing.T) {
 	// Clear state
 	projectFlag = ""
-	os.Unsetenv("ORC_PROJECT")
+	t.Setenv("ORC_PROJECT", "")
 
 	if IsMultiProjectMode() {
 		t.Error("expected single-project mode")
@@ -237,9 +235,9 @@ func TestIsMultiProjectMode(t *testing.T) {
 	}
 	projectFlag = ""
 
-	os.Setenv("ORC_PROJECT", "other-project")
+	t.Setenv("ORC_PROJECT", "other-project")
 	if !IsMultiProjectMode() {
 		t.Error("expected multi-project mode with env")
 	}
-	os.Unsetenv("ORC_PROJECT")
+	t.Setenv("ORC_PROJECT", "")
 }

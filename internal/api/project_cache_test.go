@@ -30,7 +30,7 @@ func TestProjectCache_GetOpensDatabase(t *testing.T) {
 
 	// Create cache
 	cache := NewProjectCache(10)
-	defer cache.Close()
+	defer func() { _ = cache.Close() }()
 
 	// Get should open the database
 	pdb, err := cache.Get(proj.ID)
@@ -73,7 +73,7 @@ func TestProjectCache_LRUEviction(t *testing.T) {
 
 	// Cache with max size 2
 	cache := NewProjectCache(2)
-	defer cache.Close()
+	defer func() { _ = cache.Close() }()
 
 	// Access projects 0 and 1
 	_, _ = cache.Get(projectIDs[0])
@@ -110,7 +110,7 @@ func TestProjectCache_GetProjectPath(t *testing.T) {
 	}
 
 	cache := NewProjectCache(10)
-	defer cache.Close()
+	defer func() { _ = cache.Close() }()
 
 	// Get path without opening database (from registry)
 	path, err := cache.GetProjectPath(proj.ID)
