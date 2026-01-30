@@ -129,9 +129,16 @@ Worktree handling:
 Note: --cleanup cleans the worktree state but preserves the worktree itself.
 Use 'orc cleanup TASK-XXX' to fully remove a worktree after resolving.
 
+Skipping confirmation:
+  By default, resolve asks for confirmation before proceeding. Use --yes/-y to
+  skip the confirmation prompt (useful in scripts and automated pipelines).
+  Note: --yes only skips the prompt; it does NOT allow resolving non-failed tasks.
+  Use --force to resolve tasks in any status.
+
 Examples:
   orc resolve TASK-001                          # Mark failed task as resolved
-  orc resolve TASK-001 -m "Fixed manually"      # With resolution message
+  orc resolve TASK-001 --yes                    # Skip confirmation prompt
+  orc resolve TASK-001 -y -m "Fixed manually"   # Skip prompt with message
   orc resolve TASK-001 --cleanup                # Clean up worktree state first
   orc resolve TASK-001 --force                  # Resolve any status (skip checks)
   orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message`,
@@ -155,6 +162,7 @@ Examples:
 
 			id := args[0]
 			force, _ := cmd.Flags().GetBool("force")
+			yes, _ := cmd.Flags().GetBool("yes")
 
 			// Load task to verify it exists and check status
 			t, err := backend.LoadTask(id)
@@ -321,7 +329,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			}
 
 			// Confirmation prompt
-			if !force && !quiet {
+			if !force && !quiet && !yes {
 				fmt.Printf("⚠️  Resolve task %s as completed?\n", id)
 				fmt.Println("   The task will be marked as completed (resolved).")
 				fmt.Println("   Execution state will be preserved for reference.")
@@ -406,6 +414,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation and allow resolving non-failed tasks")
+	cmd.Flags().BoolP("yes", "y", false, "skip confirmation prompt (does not imply --force)")
 	cmd.Flags().StringVarP(&message, "message", "m", "", "resolution message explaining why task was resolved")
 	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "abort in-progress git operations and discard uncommitted changes")
 	return cmd
