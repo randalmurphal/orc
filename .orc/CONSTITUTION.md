@@ -58,6 +58,12 @@ When rules conflict, higher priority wins:
 | **Rollback on Failure** | If side effect fails after status change, revert status to original | Partial updates cause orphaned state | Task stuck in "running" with no executor |
 | **Reload After Write** | API handlers returning modified objects MUST reload from database after save | Save may modify timestamps, normalize data | Stale data returned to clients |
 
+### Task Creation
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **Workflow ID on Create** | ALL task creation paths must assign `workflow_id` via `workflow.WeightToWorkflowID(weight)` (TASK-658) | `orc new` assigned it but `initiative plan` didn't | Tasks run without workflow, wrong phases execute |
+
 ### Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |

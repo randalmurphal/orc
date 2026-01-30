@@ -15,6 +15,7 @@ import (
 	"github.com/randalmurphal/orc/internal/detect"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // newInitiativePlanCmdWithTriggerRunner creates the initiative plan command with a trigger runner for testing.
@@ -240,6 +241,12 @@ Examples:
 					t.Weight = task.WeightToProto(mt.Weight)
 				} else {
 					t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+				}
+
+				// Auto-assign workflow based on weight
+				wfID := workflow.WeightToWorkflowID(t.Weight)
+				if wfID != "" {
+					t.WorkflowId = &wfID
 				}
 
 				// Set category (default feature)
