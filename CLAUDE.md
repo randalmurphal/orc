@@ -118,6 +118,9 @@ Key phases:
 | Category | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` | Affects how Claude approaches work |
 | Initiative | Initiative ID | Groups tasks with shared vision/decisions |
 | Description | Free text | **Flows into every phase prompt** - be specific! |
+| Branch Name | Custom branch name | Override default `orc/TASK-XXX` naming |
+| Target Branch | Branch name | PR target (default: repo default branch) |
+| PR Options | Draft, labels, reviewers | Control PR creation behavior |
 
 ### Dependencies
 
@@ -206,7 +209,7 @@ Task data stored in per-project SQLite (`<project>/.orc/orc.db`). Use `orc expor
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative` |
+| `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` |
 | `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream` |
 | `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
 

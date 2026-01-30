@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
+	"google.golang.org/protobuf/proto"
 )
 
 // setupWorkflowExecutorTest creates a test WorkflowExecutor with a real git repo
@@ -391,4 +393,181 @@ func TestAutoCommitBeforeCompletion_NonFatalErrors(t *testing.T) {
 	// }
 
 	t.Skip("Requires integration test with logger inspection")
+}
+
+func TestResolvePROptions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		task              *orcv1.Task
+		config            *config.Config
+		expectedDraft     bool
+		expectedLabels    []string
+		expectedReviewers []string
+	}{
+		{
+			name: "config defaults only - no task overrides",
+			task: &orcv1.Task{Id: "TASK-001"},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Draft:     false,
+						Labels:    []string{"auto"},
+						Reviewers: []string{"alice"},
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    []string{"auto"},
+			expectedReviewers: []string{"alice"},
+		},
+		{
+			name: "task overrides draft to true",
+			task: &orcv1.Task{
+				Id:      "TASK-001",
+				PrDraft: proto.Bool(true),
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Draft:     false,
+						Labels:    []string{"auto"},
+						Reviewers: []string{"alice"},
+					},
+				},
+			},
+			expectedDraft:     true,
+			expectedLabels:    []string{"auto"},
+			expectedReviewers: []string{"alice"},
+		},
+		{
+			name: "task overrides draft to false",
+			task: &orcv1.Task{
+				Id:      "TASK-001",
+				PrDraft: proto.Bool(false),
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Draft: true,
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    nil,
+			expectedReviewers: nil,
+		},
+		{
+			name: "task overrides labels",
+			task: &orcv1.Task{
+				Id:          "TASK-001",
+				PrLabels:    []string{"urgent", "hotfix"},
+				PrLabelsSet: true,
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Labels: []string{"auto"},
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    []string{"urgent", "hotfix"},
+			expectedReviewers: nil,
+		},
+		{
+			name: "task clears labels with empty set",
+			task: &orcv1.Task{
+				Id:          "TASK-001",
+				PrLabels:    nil,
+				PrLabelsSet: true,
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Labels: []string{"auto", "ci"},
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    nil,
+			expectedReviewers: nil,
+		},
+		{
+			name: "task overrides reviewers",
+			task: &orcv1.Task{
+				Id:             "TASK-001",
+				PrReviewers:    []string{"bob", "charlie"},
+				PrReviewersSet: true,
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Reviewers: []string{"alice"},
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    nil,
+			expectedReviewers: []string{"bob", "charlie"},
+		},
+		{
+			name: "all task overrides applied",
+			task: &orcv1.Task{
+				Id:             "TASK-001",
+				PrDraft:        proto.Bool(true),
+				PrLabels:       []string{"feature"},
+				PrLabelsSet:    true,
+				PrReviewers:    []string{"dave"},
+				PrReviewersSet: true,
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Draft:     false,
+						Labels:    []string{"auto"},
+						Reviewers: []string{"alice", "bob"},
+					},
+				},
+			},
+			expectedDraft:     true,
+			expectedLabels:    []string{"feature"},
+			expectedReviewers: []string{"dave"},
+		},
+		{
+			name: "PrLabelsSet false does not override config",
+			task: &orcv1.Task{
+				Id:          "TASK-001",
+				PrLabels:    []string{"ignored"},
+				PrLabelsSet: false,
+			},
+			config: &config.Config{
+				Completion: config.CompletionConfig{
+					PR: config.PRConfig{
+						Labels: []string{"from-config"},
+					},
+				},
+			},
+			expectedDraft:     false,
+			expectedLabels:    []string{"from-config"},
+			expectedReviewers: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := ResolvePROptions(tt.task, tt.config)
+
+			if opts.Draft != tt.expectedDraft {
+				t.Errorf("Draft = %v, want %v", opts.Draft, tt.expectedDraft)
+			}
+			if !reflect.DeepEqual(opts.Labels, tt.expectedLabels) {
+				t.Errorf("Labels = %v, want %v", opts.Labels, tt.expectedLabels)
+			}
+			if !reflect.DeepEqual(opts.Reviewers, tt.expectedReviewers) {
+				t.Errorf("Reviewers = %v, want %v", opts.Reviewers, tt.expectedReviewers)
+			}
+		})
+	}
 }
