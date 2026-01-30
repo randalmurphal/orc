@@ -1075,6 +1075,12 @@ func (s *configServer) CreateAgent(
 	if req.Msg.Prompt != nil {
 		agent.Prompt = *req.Msg.Prompt
 	}
+	if req.Msg.SystemPrompt != nil {
+		agent.SystemPrompt = *req.Msg.SystemPrompt
+	}
+	if req.Msg.ClaudeConfig != nil {
+		agent.ClaudeConfig = *req.Msg.ClaudeConfig
+	}
 	if req.Msg.Model != nil {
 		agent.Model = *req.Msg.Model
 	}
