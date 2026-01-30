@@ -498,6 +498,17 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 		workflow.Phases = append(workflow.Phases, wp)
 	}
 
+	// Convert triggers
+	for _, t := range wf.Triggers {
+		wt := WorkflowTrigger{
+			Event:   WorkflowTriggerEvent(t.Event),
+			AgentID: t.AgentID,
+			Mode:    GateMode(t.Mode),
+			Enabled: t.Enabled,
+		}
+		workflow.Triggers = append(workflow.Triggers, wt)
+	}
+
 	// Convert variables
 	for _, v := range wf.Variables {
 		wv := WorkflowVariable{
@@ -571,6 +582,14 @@ type workflowYAML struct {
 	BasedOn         string              `yaml:"based_on,omitempty"`
 	Phases          []workflowPhaseYAML `yaml:"phases,omitempty"`
 	Variables       []variableYAML      `yaml:"variables,omitempty"`
+	Triggers        []workflowTriggerYAML `yaml:"triggers,omitempty"`
+}
+
+type workflowTriggerYAML struct {
+	Event   string `yaml:"event"`
+	AgentID string `yaml:"agent_id"`
+	Mode    string `yaml:"mode,omitempty"`
+	Enabled bool   `yaml:"enabled,omitempty"`
 }
 
 type workflowPhaseYAML struct {

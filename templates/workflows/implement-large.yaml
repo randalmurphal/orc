@@ -26,3 +26,9 @@ phases:
   - template: docs
     sequence: 5
     depends_on: ["review"]
+
+triggers:
+  - event: on_initiative_planned
+    agent_id: dependency-validator
+    mode: gate
+    enabled: true
