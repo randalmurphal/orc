@@ -1,10 +1,12 @@
 package executor
 
 import (
+	"os/exec"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
+	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/initiative"
 	"google.golang.org/protobuf/proto"
 )
@@ -262,6 +264,127 @@ func TestIsDefaultBranch(t *testing.T) {
 			got := IsDefaultBranch(tt.branch)
 			if got != tt.expected {
 				t.Errorf("IsDefaultBranch(%q) = %v, want %v", tt.branch, got, tt.expected)
+			}
+		})
+	}
+}
+
+// newTestGit creates a minimal git repo and returns a *git.Git for testing.
+func newTestGit(t *testing.T) *git.Git {
+	t.Helper()
+	tmpDir := t.TempDir()
+
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@test.com"},
+		{"config", "user.name", "Test"},
+		{"commit", "--allow-empty", "-m", "init"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("git %v failed: %v", args, err)
+		}
+	}
+
+	g, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("git.New: %v", err)
+	}
+	return g
+}
+
+func TestResolveBranchName(t *testing.T) {
+	t.Parallel()
+	gitSvc := newTestGit(t)
+
+	tests := []struct {
+		name             string
+		task             *orcv1.Task
+		initiativePrefix string
+		expected         string
+	}{
+		{
+			name:             "no custom branch - auto-generated",
+			task:             &orcv1.Task{Id: "TASK-001"},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+		{
+			name:             "no custom branch with initiative prefix",
+			task:             &orcv1.Task{Id: "TASK-001"},
+			initiativePrefix: "feature/auth/",
+			expected:         "feature/auth/TASK-001",
+		},
+		{
+			name: "valid custom branch - used directly",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String("my-feature-branch"),
+			},
+			initiativePrefix: "feature/auth/",
+			expected:         "my-feature-branch",
+		},
+		{
+			name: "valid custom branch with slashes",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String("feature/my-work"),
+			},
+			initiativePrefix: "",
+			expected:         "feature/my-work",
+		},
+		{
+			name: "invalid custom branch - falls back to auto-generated",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String("..invalid"),
+			},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+		{
+			name: "empty custom branch - falls back to auto-generated",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String(""),
+			},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+		{
+			name: "nil BranchName - falls back to auto-generated",
+			task: &orcv1.Task{
+				Id: "TASK-001",
+			},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+		{
+			name: "invalid branch with @ alone - falls back",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String("@"),
+			},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+		{
+			name: "invalid branch with .lock suffix - falls back",
+			task: &orcv1.Task{
+				Id:         "TASK-001",
+				BranchName: proto.String("my-branch.lock"),
+			},
+			initiativePrefix: "",
+			expected:         "orc/TASK-001",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveBranchName(tt.task, gitSvc, tt.initiativePrefix)
+			if got != tt.expected {
+				t.Errorf("ResolveBranchName() = %q, want %q", got, tt.expected)
 			}
 		})
 	}

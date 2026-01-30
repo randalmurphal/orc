@@ -10,6 +10,7 @@ docs/
 ├── architecture/     # System architecture docs
 ├── specs/            # Feature specifications
 ├── decisions/        # Architecture Decision Records (ADRs)
+├── plans/            # Design documents and implementation plans
 ├── research/         # Research notes and analysis
 └── guides/           # User guides and troubleshooting
 ```
@@ -79,6 +80,15 @@ docs/
 | Document | Description |
 |----------|-------------|
 | `TROUBLESHOOTING.md` | Common issues and solutions |
+
+## Design Documents & Plans
+
+| Document | Description |
+|----------|-------------|
+| `plans/2026-01-29-branch-control-design.md` | Branch control feature design (custom branches, PR options) |
+| `plans/2026-01-29-branch-control-plan.md` | Branch control implementation plan |
+| `plans/2025-01-29-multi-project-support-design.md` | Multi-project support design |
+| `plans/2025-01-29-multi-project-implementation.md` | Multi-project implementation plan |
 
 ## Quick Reference
 

@@ -205,11 +205,26 @@ See also:
 			qaMaxIterations, _ := cmd.Flags().GetInt("qa-max-iterations")
 			gateOverrides, _ := cmd.Flags().GetStringSlice("gate")
 			specContent, _ := cmd.Flags().GetString("spec-content")
+			// Branch control flags
+			branchName, _ := cmd.Flags().GetString("branch")
+			prDraft, _ := cmd.Flags().GetBool("pr-draft")
+			prDraftSet := cmd.Flags().Changed("pr-draft")
+			prLabels, _ := cmd.Flags().GetStringSlice("pr-labels")
+			prLabelsSet := cmd.Flags().Changed("pr-labels")
+			prReviewers, _ := cmd.Flags().GetStringSlice("pr-reviewers")
+			prReviewersSet := cmd.Flags().Changed("pr-reviewers")
 
 			// Validate target branch if specified
 			if targetBranch != "" {
 				if err := git.ValidateBranchName(targetBranch); err != nil {
 					return fmt.Errorf("invalid target branch: %w", err)
+				}
+			}
+
+			// Validate custom branch name if specified
+			if branchName != "" {
+				if err := git.ValidateBranchName(branchName); err != nil {
+					return fmt.Errorf("invalid branch name: %w", err)
 				}
 			}
 
@@ -359,6 +374,20 @@ See also:
 				task.SetTargetBranchProto(t, targetBranch)
 			}
 
+			// Set branch control overrides
+			if branchName != "" {
+				task.SetBranchNameProto(t, branchName)
+			}
+			if prDraftSet {
+				task.SetPRDraftProto(t, prDraft)
+			}
+			if prLabelsSet {
+				task.SetPRLabelsProto(t, prLabels)
+			}
+			if prReviewersSet {
+				task.SetPRReviewersProto(t, prReviewers)
+			}
+
 			// Set QA-specific task metadata
 			if len(beforeImages) > 0 || qaMaxIterations > 0 {
 				if t.Metadata == nil {
@@ -494,6 +523,18 @@ See also:
 			if task.GetTargetBranchProto(t) != "" {
 				fmt.Printf("   Target Branch: %s\n", task.GetTargetBranchProto(t))
 			}
+			if task.GetBranchNameProto(t) != "" {
+				fmt.Printf("   Branch: %s\n", task.GetBranchNameProto(t))
+			}
+			if draft := task.GetPRDraftProto(t); draft != nil {
+				fmt.Printf("   PR Draft: %v\n", *draft)
+			}
+			if labels := task.GetPRLabelsProto(t); len(labels) > 0 {
+				fmt.Printf("   PR Labels: %s\n", strings.Join(labels, ", "))
+			}
+			if reviewers := task.GetPRReviewersProto(t); len(reviewers) > 0 {
+				fmt.Printf("   PR Reviewers: %s\n", strings.Join(reviewers, ", "))
+			}
 			if t.RequiresUiTesting {
 				fmt.Printf("   UI Testing: required (detected from task description)\n")
 			}
@@ -588,5 +629,10 @@ See also:
 	cmd.Flags().Int("qa-max-iterations", 0, "max QA iterations before stopping (default: 3)")
 	cmd.Flags().StringSlice("gate", nil, "gate overrides (phase:type, e.g., spec:human, review:ai)")
 	cmd.Flags().String("spec-content", "", "pre-populate spec content (enables spec phase auto-skip)")
+	// Branch control flags
+	cmd.Flags().String("branch", "", "custom branch name (default: auto-generated from task ID)")
+	cmd.Flags().Bool("pr-draft", false, "create PR as draft")
+	cmd.Flags().StringSlice("pr-labels", nil, "PR labels to apply")
+	cmd.Flags().StringSlice("pr-reviewers", nil, "PR reviewers to request")
 	return cmd
 }

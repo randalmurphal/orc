@@ -29,7 +29,13 @@ Modifiable properties:
   --priority      Change task priority (critical, high, normal, low)
   --status        Change task status (for administrative corrections)
   --initiative    Link/unlink task to initiative (use "" to unlink)
+
+Branch & PR control:
+  --branch-name   Custom branch name (overrides auto-generated from task ID)
   --target-branch Override PR target branch for this task
+  --pr-draft      PR draft mode (true/false/unset to clear)
+  --pr-labels     PR labels (comma-separated, replaces existing)
+  --pr-reviewers  PR reviewers (comma-separated, replaces existing)
 
 Dependency management:
   --blocked-by      Set tasks that must complete first (replaces existing)
@@ -57,7 +63,11 @@ Example:
   orc edit TASK-001 --blocked-by TASK-002,TASK-003
   orc edit TASK-001 --add-blocker TASK-004
   orc edit TASK-001 --remove-blocker TASK-002
-  orc edit TASK-001 --target-branch hotfix/v2.1`,
+  orc edit TASK-001 --target-branch hotfix/v2.1
+  orc edit TASK-001 --branch-name feature/custom-name
+  orc edit TASK-001 --pr-draft true         # create as draft PR
+  orc edit TASK-001 --pr-labels bug,urgent  # set PR labels
+  orc edit TASK-001 --pr-reviewers alice,bob`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := config.RequireInit(); err != nil {
@@ -83,11 +93,33 @@ Example:
 			newTargetBranch, _ := cmd.Flags().GetString("target-branch")
 			targetBranchChanged := cmd.Flags().Changed("target-branch")
 
+			// Branch control flags
+			newBranchName, _ := cmd.Flags().GetString("branch-name")
+			branchNameChanged := cmd.Flags().Changed("branch-name")
+			newPrDraft, _ := cmd.Flags().GetString("pr-draft")
+			prDraftChanged := cmd.Flags().Changed("pr-draft")
+			newPrLabels, _ := cmd.Flags().GetStringSlice("pr-labels")
+			prLabelsChanged := cmd.Flags().Changed("pr-labels")
+			newPrReviewers, _ := cmd.Flags().GetStringSlice("pr-reviewers")
+			prReviewersChanged := cmd.Flags().Changed("pr-reviewers")
+
 			// Validate target branch if specified (empty string clears it)
 			if targetBranchChanged && newTargetBranch != "" {
 				if err := git.ValidateBranchName(newTargetBranch); err != nil {
 					return fmt.Errorf("invalid target branch: %w", err)
 				}
+			}
+
+			// Validate branch name if specified (empty string clears it)
+			if branchNameChanged && newBranchName != "" {
+				if err := git.ValidateBranchName(newBranchName); err != nil {
+					return fmt.Errorf("invalid branch name: %w", err)
+				}
+			}
+
+			// Validate pr-draft value
+			if prDraftChanged && newPrDraft != "" && newPrDraft != "true" && newPrDraft != "false" {
+				return fmt.Errorf("invalid pr-draft value %q - valid options: true, false, \"\" (to clear)", newPrDraft)
 			}
 
 			// Dependency flags
@@ -240,6 +272,82 @@ Example:
 				if currentBranch != newTargetBranch {
 					task.SetTargetBranchProto(t, newTargetBranch)
 					changes = append(changes, "target_branch")
+				}
+			}
+
+			// Update branch name if flag was provided (even if empty, to allow clearing)
+			oldBranchName := ""
+			if t.BranchName != nil {
+				oldBranchName = *t.BranchName
+			}
+			if branchNameChanged {
+				currentName := ""
+				if t.BranchName != nil {
+					currentName = *t.BranchName
+				}
+				if currentName != newBranchName {
+					if newBranchName == "" {
+						t.BranchName = nil
+					} else {
+						t.BranchName = &newBranchName
+					}
+					changes = append(changes, "branch_name")
+				}
+			}
+
+			// Update PR draft mode if flag was provided
+			oldPrDraft := t.PrDraft
+			if prDraftChanged {
+				var newDraftVal *bool
+				if newPrDraft == "true" {
+					v := true
+					newDraftVal = &v
+				} else if newPrDraft == "false" {
+					v := false
+					newDraftVal = &v
+				}
+				// Compare: both nil, or both non-nil with same value
+				changed := (t.PrDraft == nil) != (newDraftVal == nil)
+				if !changed && t.PrDraft != nil && newDraftVal != nil {
+					changed = *t.PrDraft != *newDraftVal
+				}
+				if changed {
+					t.PrDraft = newDraftVal
+					changes = append(changes, "pr_draft")
+				}
+			}
+
+			// Update PR labels if flag was provided
+			oldPrLabels := t.PrLabels
+			if prLabelsChanged {
+				// Empty slice clears labels
+				if len(newPrLabels) == 0 {
+					if len(t.PrLabels) > 0 {
+						t.PrLabels = nil
+						t.PrLabelsSet = false
+						changes = append(changes, "pr_labels")
+					}
+				} else {
+					t.PrLabels = newPrLabels
+					t.PrLabelsSet = true
+					changes = append(changes, "pr_labels")
+				}
+			}
+
+			// Update PR reviewers if flag was provided
+			oldPrReviewers := t.PrReviewers
+			if prReviewersChanged {
+				// Empty slice clears reviewers
+				if len(newPrReviewers) == 0 {
+					if len(t.PrReviewers) > 0 {
+						t.PrReviewers = nil
+						t.PrReviewersSet = false
+						changes = append(changes, "pr_reviewers")
+					}
+				} else {
+					t.PrReviewers = newPrReviewers
+					t.PrReviewersSet = true
+					changes = append(changes, "pr_reviewers")
 				}
 			}
 
@@ -483,6 +591,58 @@ Example:
 						} else {
 							fmt.Printf("   Target Branch: cleared (was %s)\n", oldTargetBranch)
 						}
+					case "branch_name":
+						currentBranchName := ""
+						if t.BranchName != nil {
+							currentBranchName = *t.BranchName
+						}
+						if currentBranchName != "" {
+							if oldBranchName == "" {
+								fmt.Printf("   Branch Name: set to %s\n", currentBranchName)
+							} else {
+								fmt.Printf("   Branch Name: %s -> %s\n", oldBranchName, currentBranchName)
+							}
+						} else {
+							fmt.Printf("   Branch Name: cleared (was %s)\n", oldBranchName)
+						}
+					case "pr_draft":
+						if t.PrDraft != nil {
+							newVal := "false"
+							if *t.PrDraft {
+								newVal = "true"
+							}
+							if oldPrDraft == nil {
+								fmt.Printf("   PR Draft: set to %s\n", newVal)
+							} else {
+								oldVal := "false"
+								if *oldPrDraft {
+									oldVal = "true"
+								}
+								fmt.Printf("   PR Draft: %s -> %s\n", oldVal, newVal)
+							}
+						} else {
+							fmt.Printf("   PR Draft: cleared (will use default)\n")
+						}
+					case "pr_labels":
+						if len(t.PrLabels) > 0 {
+							if len(oldPrLabels) == 0 {
+								fmt.Printf("   PR Labels: set to [%s]\n", strings.Join(t.PrLabels, ", "))
+							} else {
+								fmt.Printf("   PR Labels: [%s] -> [%s]\n", strings.Join(oldPrLabels, ", "), strings.Join(t.PrLabels, ", "))
+							}
+						} else {
+							fmt.Printf("   PR Labels: cleared (was [%s])\n", strings.Join(oldPrLabels, ", "))
+						}
+					case "pr_reviewers":
+						if len(t.PrReviewers) > 0 {
+							if len(oldPrReviewers) == 0 {
+								fmt.Printf("   PR Reviewers: set to [%s]\n", strings.Join(t.PrReviewers, ", "))
+							} else {
+								fmt.Printf("   PR Reviewers: [%s] -> [%s]\n", strings.Join(oldPrReviewers, ", "), strings.Join(t.PrReviewers, ", "))
+							}
+						} else {
+							fmt.Printf("   PR Reviewers: cleared (was [%s])\n", strings.Join(oldPrReviewers, ", "))
+						}
 					}
 				}
 			}
@@ -499,6 +659,12 @@ Example:
 	cmd.Flags().StringP("status", "s", "", "new task status (created, classifying, planned, paused, blocked, completed, failed)")
 	cmd.Flags().StringP("initiative", "i", "", "link/unlink task to initiative (use \"\" to unlink)")
 	cmd.Flags().String("target-branch", "", "override PR target branch for this task (use \"\" to clear)")
+
+	// Branch control flags
+	cmd.Flags().String("branch-name", "", "custom branch name (overrides auto-generated from task ID)")
+	cmd.Flags().String("pr-draft", "", "PR draft mode (true/false, \"\" to clear)")
+	cmd.Flags().StringSlice("pr-labels", nil, "PR labels (comma-separated, replaces existing)")
+	cmd.Flags().StringSlice("pr-reviewers", nil, "PR reviewers (comma-separated, replaces existing)")
 
 	// Dependency flags
 	cmd.Flags().StringSlice("blocked-by", nil, "set blocked_by list (replaces existing)")

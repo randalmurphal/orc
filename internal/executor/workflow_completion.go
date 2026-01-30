@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/hosting"
 	_ "github.com/randalmurphal/orc/internal/hosting/github"
@@ -52,11 +53,8 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 		// Non-fatal: PR might still succeed if changes were committed by Claude
 	}
 
-	// Sync with target branch before completion
-	targetBranch := we.orcConfig.Completion.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
-	}
+	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
+	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
 
 	we.logger.Info("syncing with target branch before completion",
 		"target", targetBranch,
@@ -192,6 +190,33 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 	return nil
 }
 
+// ResolvePROptions builds PR creation options with task overrides applied.
+func ResolvePROptions(t *orcv1.Task, cfg *config.Config) hosting.PRCreateOptions {
+	prCfg := cfg.Completion.PR
+
+	opts := hosting.PRCreateOptions{
+		Draft:               prCfg.Draft,
+		Labels:              prCfg.Labels,
+		Reviewers:           prCfg.Reviewers,
+		TeamReviewers:       prCfg.TeamReviewers,
+		Assignees:           prCfg.Assignees,
+		MaintainerCanModify: prCfg.MaintainerCanModify,
+	}
+
+	// Apply task-level overrides
+	if t.PrDraft != nil {
+		opts.Draft = *t.PrDraft
+	}
+	if t.PrLabelsSet {
+		opts.Labels = t.PrLabels
+	}
+	if t.PrReviewersSet {
+		opts.Reviewers = t.PrReviewers
+	}
+
+	return opts
+}
+
 // createPR creates a pull request for the task branch.
 func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	if task.HasPRProto(t) {
@@ -212,7 +237,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("create hosting provider: %w", err)
 	}
 
-	// Build PR options from config
+	// Build PR options from config with task overrides
+	prOpts := ResolvePROptions(t, we.orcConfig)
 	prCfg := we.orcConfig.Completion.PR
 	ciCfg := we.orcConfig.Completion.CI
 
@@ -226,12 +252,12 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		Body:                body,
 		Head:                t.Branch,
 		Base:                targetBranch,
-		Draft:               prCfg.Draft,
-		Labels:              prCfg.Labels,
-		Reviewers:           prCfg.Reviewers,
-		TeamReviewers:       prCfg.TeamReviewers,
-		Assignees:           prCfg.Assignees,
-		MaintainerCanModify: prCfg.MaintainerCanModify,
+		Draft:               prOpts.Draft,
+		Labels:              prOpts.Labels,
+		Reviewers:           prOpts.Reviewers,
+		TeamReviewers:       prOpts.TeamReviewers,
+		Assignees:           prOpts.Assignees,
+		MaintainerCanModify: prOpts.MaintainerCanModify,
 	})
 	if err != nil {
 		return fmt.Errorf("create PR: %w", err)
@@ -297,7 +323,8 @@ func (we *WorkflowExecutor) setupWorktree(t *orcv1.Task) error {
 	}
 
 	// Set task branch before any git operations reference it
-	t.Branch = we.gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+	// Uses task.BranchName override if set, otherwise auto-generates from task ID
+	t.Branch = ResolveBranchName(t, we.gitOps, initiativePrefix)
 	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task branch", "task_id", t.Id, "error", err)
 	}
@@ -379,11 +406,8 @@ func (we *WorkflowExecutor) effectiveWorkingDir() string {
 // syncOnTaskStart syncs the task branch with target before execution starts.
 // This catches conflicts from parallel tasks early.
 func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) error {
-	cfg := we.orcConfig.Completion
-	targetBranch := cfg.TargetBranch
-	if targetBranch == "" {
-		targetBranch = "main"
-	}
+	// Resolve target branch using 5-level priority: task > initiative > staging > config > default
+	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
 
 	// Use worktree git if available
 	gitOps := we.gitOps
@@ -488,7 +512,7 @@ func (we *WorkflowExecutor) syncOnTaskStart(ctx context.Context, t *orcv1.Task) 
 				"conflict_files", result.ConflictFiles,
 				"commits_behind", result.CommitsBehind)
 
-			syncCfg := cfg.Sync
+			syncCfg := we.orcConfig.Completion.Sync
 			conflictCount := len(result.ConflictFiles)
 
 			// Check if we should fail on conflicts

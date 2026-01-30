@@ -163,3 +163,24 @@ func ResolveTargetBranchForTaskWithSource(t *orcv1.Task, backend storage.Backend
 	return ResolveTargetBranchSource(t, init, cfg)
 }
 
+// ResolveBranchName returns the branch name for a task.
+// Priority: task.BranchName (if valid) > auto-generated from task ID.
+// If the custom branch name is invalid, it logs a warning and falls back to auto-generated.
+func ResolveBranchName(t *orcv1.Task, gitSvc *git.Git, initiativePrefix string) string {
+	// Check for user-specified branch name
+	if branchName := t.GetBranchName(); branchName != "" {
+		// Validate the custom branch name
+		if err := git.ValidateBranchName(branchName); err != nil {
+			slog.Warn("custom branch name is invalid, falling back to auto-generated name",
+				"task_id", t.Id,
+				"branch_name", branchName,
+				"error", err,
+			)
+		} else {
+			return branchName
+		}
+	}
+	// Fall back to auto-generated name
+	return gitSvc.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+}
+

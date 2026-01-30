@@ -41,7 +41,19 @@ var exampleCmd = &cobra.Command{
 
 ### `orc new "title"`
 
-Creates task with AI weight classification. Flags: `--weight`, `--category`, `--template`, `--blocked-by`, `--initiative`
+Creates task with AI weight classification. Flags: `--weight`, `--category`, `--template`, `--blocked-by`, `--initiative`, `--branch`, `--target-branch`, `--pr-draft`, `--pr-labels`, `--pr-reviewers`
+
+Branch control flags (`cmd_new.go:627-636`):
+
+| Flag | Type | Purpose |
+|------|------|---------|
+| `--branch` | `string` | Custom branch name (default: auto-generated `orc/TASK-XXX`) |
+| `--target-branch` | `string` | PR target branch (default: repo default branch) |
+| `--pr-draft` | `bool` | Create PR as draft |
+| `--pr-labels` | `[]string` | Labels to apply to PR |
+| `--pr-reviewers` | `[]string` | Reviewers to request on PR |
+
+Both `--branch` and `--target-branch` are validated via `git.ValidateBranchName()` before task creation.
 
 ### `orc run TASK-ID`
 

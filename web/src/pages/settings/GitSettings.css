@@ -1,0 +1,137 @@
+/* Git Settings Page */
+.git-settings-page {
+	max-width: 800px;
+}
+
+.git-settings-header {
+	margin-bottom: var(--space-6);
+}
+
+.git-settings-header h3 {
+	font-size: var(--text-xl);
+	font-weight: var(--font-semibold);
+	margin-bottom: var(--space-2);
+}
+
+.git-settings-description {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+
+.git-settings-section {
+	margin-bottom: var(--space-6);
+	padding: var(--space-4);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+}
+
+.git-settings-section h4 {
+	font-size: var(--text-base);
+	font-weight: var(--font-semibold);
+	margin-bottom: var(--space-2);
+}
+
+.git-settings-info {
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+	margin-bottom: var(--space-3);
+}
+
+.git-settings-info code {
+	background: var(--bg-inset);
+	padding: var(--space-0-5) var(--space-1);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+}
+
+.git-settings-example {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.git-settings-example-item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.git-settings-example-label {
+	font-size: var(--text-sm);
+	color: var(--text-muted);
+	min-width: 120px;
+}
+
+.git-settings-example-item code {
+	background: var(--bg-inset);
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+}
+
+.git-settings-code {
+	background: var(--bg-inset);
+	padding: var(--space-3);
+	border-radius: var(--radius-md);
+	font-family: var(--font-mono);
+	font-size: var(--text-sm);
+	overflow-x: auto;
+	white-space: pre;
+	color: var(--text-primary);
+}
+
+.git-settings-overrides {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.git-settings-overrides li {
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+}
+
+.git-settings-overrides code {
+	background: var(--bg-inset);
+	padding: var(--space-0-5) var(--space-1);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--primary);
+}
+
+.git-settings-info-box {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-left: 3px solid var(--primary);
+	border-radius: var(--radius-md);
+	color: var(--text-secondary);
+	font-size: var(--text-sm);
+}
+
+.git-settings-info-box svg {
+	flex-shrink: 0;
+	color: var(--primary);
+}
+
+.git-settings-info-box p {
+	margin: 0;
+}
+
+.git-settings-info-box code {
+	background: var(--bg-inset);
+	padding: var(--space-0-5) var(--space-1);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+}

@@ -110,6 +110,7 @@ export function SettingsLayout() {
 
 					<NavGroup title="ORC">
 						<NavItem to="/settings/projects" icon="folder" label="Projects" />
+						<NavItem to="/settings/git" icon="git-branch" label="Git Settings" />
 						<NavItem to="/settings/billing" icon="dollar" label="Billing & Usage" />
 						<NavItem to="/settings/import-export" icon="export" label="Import / Export" />
 						<NavItem to="/settings/constitution" icon="shield" label="Constitution" />

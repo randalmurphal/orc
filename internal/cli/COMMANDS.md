@@ -6,7 +6,6 @@ Full command reference for the orc CLI.
 
 | File | Command | Description |
 |------|---------|-------------|
-| `cmd_go.go` | `orc go` | Main entry - interactive, headless, or quick mode |
 | `cmd_init.go` | `orc init` | Initialize .orc/ in project (<500ms) |
 | `cmd_setup.go` | `orc setup` | Claude-powered interactive setup |
 | `cmd_new.go` | `orc new "title"` | Create new task |

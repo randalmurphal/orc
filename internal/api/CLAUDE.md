@@ -26,7 +26,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 
 | Service | File | Project-Scoped | Key Methods |
 |---------|------|:--------------:|-------------|
-| `TaskService` | `task_server.go` | Yes | CRUD, Run/Pause/Resume, Diff, Comments, Attachments |
+| `TaskService` | `task_server.go` | Yes | CRUD, Run/Pause/Resume, Diff, Comments, Attachments, Branch Control |
 | `InitiativeService` | `initiative_server.go` | Yes | CRUD, Link tasks, Dependency graph |
 | `WorkflowService` | `workflow_server.go` | Yes | List, Get workflows and phases, Variables |
 | `TranscriptService` | `transcript_server.go` | Yes | Get, Stream transcripts |
@@ -122,6 +122,18 @@ Interceptors map internal errors to Connect codes (`interceptors.go:56-117`):
 | Task already running | `FailedPrecondition` |
 | Claude timeout | `DeadlineExceeded` |
 | Default | `Internal` |
+
+### Branch Control Validation (`task_server.go`)
+
+`CreateTask` and `UpdateTask` validate branch control fields:
+
+| Validation | Location | Error Code |
+|------------|----------|------------|
+| `branch_name` format | `git.ValidateBranchName()` | `InvalidArgument` |
+| `target_branch` format | `git.ValidateBranchName()` | `InvalidArgument` |
+| `branch_name` change while RUNNING | `task_server.go:426` | `FailedPrecondition` |
+
+`UpdateTask` uses `*_set` sentinel fields (`PrLabelsSet`, `PrReviewersSet`) to distinguish "set to empty" from "not provided" -- setting `*_set=false` clears the override.
 
 ### Server Streaming (Events)
 

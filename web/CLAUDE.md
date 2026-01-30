@@ -63,6 +63,7 @@ web/src/
 | `/initiatives/:id` | InitiativeDetailPage | Initiative detail view |
 | `/agents` | AgentsView | Agent configuration, execution settings |
 | `/settings` | SettingsPage | Configuration editor |
+| `/settings/git` | GitSettingsPage | Read-only view of project git defaults (branch naming, target branch, PR settings) |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 | `/timeline` | TimelinePage | Event timeline with filters |
@@ -102,6 +103,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `AppShell` | `layout/` | Main layout shell. Route-aware panel rendering via `useLocation` |
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
+| `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
+| `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
 | `WorkflowCanvas` | `workflow-editor/` | React Flow canvas with drag-to-add, delete, connections, layout persistence |
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |

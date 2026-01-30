@@ -605,6 +605,63 @@ func SetTargetBranchProto(t *orcv1.Task, branch string) {
 	}
 }
 
+// GetBranchNameProto returns the user-specified branch name or empty string.
+func GetBranchNameProto(t *orcv1.Task) string {
+	if t.BranchName != nil {
+		return *t.BranchName
+	}
+	return ""
+}
+
+// SetBranchNameProto sets the user-specified branch name.
+func SetBranchNameProto(t *orcv1.Task, name string) {
+	t.BranchName = &name
+}
+
+// GetPRDraftProto returns the PR draft override or nil if not set.
+func GetPRDraftProto(t *orcv1.Task) *bool {
+	return t.PrDraft
+}
+
+// SetPRDraftProto sets the PR draft override.
+func SetPRDraftProto(t *orcv1.Task, draft bool) {
+	t.PrDraft = &draft
+}
+
+// GetPRLabelsProto returns PR label overrides. Check PrLabelsSet to determine if set.
+func GetPRLabelsProto(t *orcv1.Task) []string {
+	return t.PrLabels
+}
+
+// SetPRLabelsProto sets PR label overrides.
+func SetPRLabelsProto(t *orcv1.Task, labels []string) {
+	t.PrLabels = labels
+	t.PrLabelsSet = true
+}
+
+// ClearPRLabelsProto clears PR label overrides (reverts to project default).
+func ClearPRLabelsProto(t *orcv1.Task) {
+	t.PrLabels = nil
+	t.PrLabelsSet = false
+}
+
+// GetPRReviewersProto returns PR reviewer overrides. Check PrReviewersSet to determine if set.
+func GetPRReviewersProto(t *orcv1.Task) []string {
+	return t.PrReviewers
+}
+
+// SetPRReviewersProto sets PR reviewer overrides.
+func SetPRReviewersProto(t *orcv1.Task, reviewers []string) {
+	t.PrReviewers = reviewers
+	t.PrReviewersSet = true
+}
+
+// ClearPRReviewersProto clears PR reviewer overrides (reverts to project default).
+func ClearPRReviewersProto(t *orcv1.Task) {
+	t.PrReviewers = nil
+	t.PrReviewersSet = false
+}
+
 // MarkStartedProto marks the task as started with the current timestamp.
 func MarkStartedProto(t *orcv1.Task) {
 	if t == nil {

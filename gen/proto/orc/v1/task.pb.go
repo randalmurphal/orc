@@ -1242,6 +1242,13 @@ type Task struct {
 	StartedAt           *timestamppb.Timestamp `protobuf:"bytes,24,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	CompletedAt         *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
 	Metadata            map[string]string      `protobuf:"bytes,26,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Branch control overrides
+	BranchName     *string  `protobuf:"bytes,31,opt,name=branch_name,json=branchName,proto3,oneof" json:"branch_name,omitempty"`          // User-specified branch name (empty = auto from task ID)
+	PrDraft        *bool    `protobuf:"varint,32,opt,name=pr_draft,json=prDraft,proto3,oneof" json:"pr_draft,omitempty"`                  // Override PR draft mode
+	PrLabels       []string `protobuf:"bytes,33,rep,name=pr_labels,json=prLabels,proto3" json:"pr_labels,omitempty"`                      // Override PR labels
+	PrReviewers    []string `protobuf:"bytes,34,rep,name=pr_reviewers,json=prReviewers,proto3" json:"pr_reviewers,omitempty"`             // Override PR reviewers
+	PrLabelsSet    bool     `protobuf:"varint,35,opt,name=pr_labels_set,json=prLabelsSet,proto3" json:"pr_labels_set,omitempty"`          // True = use pr_labels (even if empty)
+	PrReviewersSet bool     `protobuf:"varint,36,opt,name=pr_reviewers_set,json=prReviewersSet,proto3" json:"pr_reviewers_set,omitempty"` // True = use pr_reviewers (even if empty)
 	// Executor tracking fields (for orphan detection and process signaling)
 	ExecutorPid      int32                  `protobuf:"varint,27,opt,name=executor_pid,json=executorPid,proto3" json:"executor_pid,omitempty"`                     // Process ID of the executor
 	ExecutorHostname *string                `protobuf:"bytes,28,opt,name=executor_hostname,json=executorHostname,proto3,oneof" json:"executor_hostname,omitempty"` // Hostname where executor is running
@@ -1466,6 +1473,48 @@ func (x *Task) GetMetadata() map[string]string {
 		return x.Metadata
 	}
 	return nil
+}
+
+func (x *Task) GetBranchName() string {
+	if x != nil && x.BranchName != nil {
+		return *x.BranchName
+	}
+	return ""
+}
+
+func (x *Task) GetPrDraft() bool {
+	if x != nil && x.PrDraft != nil {
+		return *x.PrDraft
+	}
+	return false
+}
+
+func (x *Task) GetPrLabels() []string {
+	if x != nil {
+		return x.PrLabels
+	}
+	return nil
+}
+
+func (x *Task) GetPrReviewers() []string {
+	if x != nil {
+		return x.PrReviewers
+	}
+	return nil
+}
+
+func (x *Task) GetPrLabelsSet() bool {
+	if x != nil {
+		return x.PrLabelsSet
+	}
+	return false
+}
+
+func (x *Task) GetPrReviewersSet() bool {
+	if x != nil {
+		return x.PrReviewersSet
+	}
+	return false
 }
 
 func (x *Task) GetExecutorPid() int32 {
@@ -3256,22 +3305,29 @@ func (x *GetTaskResponse) GetTask() *Task {
 
 // CreateTask
 type CreateTaskRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project to create task in
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Weight        TaskWeight             `protobuf:"varint,4,opt,name=weight,proto3,enum=orc.v1.TaskWeight" json:"weight,omitempty"`
-	Queue         *TaskQueue             `protobuf:"varint,5,opt,name=queue,proto3,enum=orc.v1.TaskQueue,oneof" json:"queue,omitempty"`
-	Priority      *TaskPriority          `protobuf:"varint,6,opt,name=priority,proto3,enum=orc.v1.TaskPriority,oneof" json:"priority,omitempty"`
-	Category      *TaskCategory          `protobuf:"varint,7,opt,name=category,proto3,enum=orc.v1.TaskCategory,oneof" json:"category,omitempty"`
-	InitiativeId  *string                `protobuf:"bytes,8,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
-	WorkflowId    *string                `protobuf:"bytes,9,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
-	TargetBranch  *string                `protobuf:"bytes,10,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`
-	BlockedBy     []string               `protobuf:"bytes,11,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
-	RelatedTo     []string               `protobuf:"bytes,12,rep,name=related_to,json=relatedTo,proto3" json:"related_to,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId    string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project to create task in
+	Title        string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description  *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Weight       TaskWeight             `protobuf:"varint,4,opt,name=weight,proto3,enum=orc.v1.TaskWeight" json:"weight,omitempty"`
+	Queue        *TaskQueue             `protobuf:"varint,5,opt,name=queue,proto3,enum=orc.v1.TaskQueue,oneof" json:"queue,omitempty"`
+	Priority     *TaskPriority          `protobuf:"varint,6,opt,name=priority,proto3,enum=orc.v1.TaskPriority,oneof" json:"priority,omitempty"`
+	Category     *TaskCategory          `protobuf:"varint,7,opt,name=category,proto3,enum=orc.v1.TaskCategory,oneof" json:"category,omitempty"`
+	InitiativeId *string                `protobuf:"bytes,8,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	WorkflowId   *string                `protobuf:"bytes,9,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
+	TargetBranch *string                `protobuf:"bytes,10,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`
+	BlockedBy    []string               `protobuf:"bytes,11,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	RelatedTo    []string               `protobuf:"bytes,12,rep,name=related_to,json=relatedTo,proto3" json:"related_to,omitempty"`
+	Metadata     map[string]string      `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Branch control
+	BranchName     *string  `protobuf:"bytes,14,opt,name=branch_name,json=branchName,proto3,oneof" json:"branch_name,omitempty"`
+	PrDraft        *bool    `protobuf:"varint,15,opt,name=pr_draft,json=prDraft,proto3,oneof" json:"pr_draft,omitempty"`
+	PrLabels       []string `protobuf:"bytes,16,rep,name=pr_labels,json=prLabels,proto3" json:"pr_labels,omitempty"`
+	PrReviewers    []string `protobuf:"bytes,17,rep,name=pr_reviewers,json=prReviewers,proto3" json:"pr_reviewers,omitempty"`
+	PrLabelsSet    *bool    `protobuf:"varint,18,opt,name=pr_labels_set,json=prLabelsSet,proto3,oneof" json:"pr_labels_set,omitempty"`
+	PrReviewersSet *bool    `protobuf:"varint,19,opt,name=pr_reviewers_set,json=prReviewersSet,proto3,oneof" json:"pr_reviewers_set,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateTaskRequest) Reset() {
@@ -3395,6 +3451,48 @@ func (x *CreateTaskRequest) GetMetadata() map[string]string {
 	return nil
 }
 
+func (x *CreateTaskRequest) GetBranchName() string {
+	if x != nil && x.BranchName != nil {
+		return *x.BranchName
+	}
+	return ""
+}
+
+func (x *CreateTaskRequest) GetPrDraft() bool {
+	if x != nil && x.PrDraft != nil {
+		return *x.PrDraft
+	}
+	return false
+}
+
+func (x *CreateTaskRequest) GetPrLabels() []string {
+	if x != nil {
+		return x.PrLabels
+	}
+	return nil
+}
+
+func (x *CreateTaskRequest) GetPrReviewers() []string {
+	if x != nil {
+		return x.PrReviewers
+	}
+	return nil
+}
+
+func (x *CreateTaskRequest) GetPrLabelsSet() bool {
+	if x != nil && x.PrLabelsSet != nil {
+		return *x.PrLabelsSet
+	}
+	return false
+}
+
+func (x *CreateTaskRequest) GetPrReviewersSet() bool {
+	if x != nil && x.PrReviewersSet != nil {
+		return *x.PrReviewersSet
+	}
+	return false
+}
+
 type CreateTaskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Task          *Task                  `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
@@ -3441,23 +3539,30 @@ func (x *CreateTaskResponse) GetTask() *Task {
 
 // UpdateTask
 type UpdateTaskRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project containing the task
-	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Title         *string                `protobuf:"bytes,3,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Weight        *TaskWeight            `protobuf:"varint,5,opt,name=weight,proto3,enum=orc.v1.TaskWeight,oneof" json:"weight,omitempty"`
-	Queue         *TaskQueue             `protobuf:"varint,6,opt,name=queue,proto3,enum=orc.v1.TaskQueue,oneof" json:"queue,omitempty"`
-	Priority      *TaskPriority          `protobuf:"varint,7,opt,name=priority,proto3,enum=orc.v1.TaskPriority,oneof" json:"priority,omitempty"`
-	Category      *TaskCategory          `protobuf:"varint,8,opt,name=category,proto3,enum=orc.v1.TaskCategory,oneof" json:"category,omitempty"`
-	InitiativeId  *string                `protobuf:"bytes,9,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
-	TargetBranch  *string                `protobuf:"bytes,10,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`
-	BlockedBy     []string               `protobuf:"bytes,11,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
-	RelatedTo     []string               `protobuf:"bytes,12,rep,name=related_to,json=relatedTo,proto3" json:"related_to,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	WorkflowId    *string                `protobuf:"bytes,14,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId    string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"` // Required: project containing the task
+	TaskId       string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Title        *string                `protobuf:"bytes,3,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Description  *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Weight       *TaskWeight            `protobuf:"varint,5,opt,name=weight,proto3,enum=orc.v1.TaskWeight,oneof" json:"weight,omitempty"`
+	Queue        *TaskQueue             `protobuf:"varint,6,opt,name=queue,proto3,enum=orc.v1.TaskQueue,oneof" json:"queue,omitempty"`
+	Priority     *TaskPriority          `protobuf:"varint,7,opt,name=priority,proto3,enum=orc.v1.TaskPriority,oneof" json:"priority,omitempty"`
+	Category     *TaskCategory          `protobuf:"varint,8,opt,name=category,proto3,enum=orc.v1.TaskCategory,oneof" json:"category,omitempty"`
+	InitiativeId *string                `protobuf:"bytes,9,opt,name=initiative_id,json=initiativeId,proto3,oneof" json:"initiative_id,omitempty"`
+	TargetBranch *string                `protobuf:"bytes,10,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`
+	BlockedBy    []string               `protobuf:"bytes,11,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	RelatedTo    []string               `protobuf:"bytes,12,rep,name=related_to,json=relatedTo,proto3" json:"related_to,omitempty"`
+	Metadata     map[string]string      `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	WorkflowId   *string                `protobuf:"bytes,14,opt,name=workflow_id,json=workflowId,proto3,oneof" json:"workflow_id,omitempty"`
+	// Branch control (branch_name only modifiable before execution)
+	BranchName     *string  `protobuf:"bytes,15,opt,name=branch_name,json=branchName,proto3,oneof" json:"branch_name,omitempty"`
+	PrDraft        *bool    `protobuf:"varint,16,opt,name=pr_draft,json=prDraft,proto3,oneof" json:"pr_draft,omitempty"`
+	PrLabels       []string `protobuf:"bytes,17,rep,name=pr_labels,json=prLabels,proto3" json:"pr_labels,omitempty"`
+	PrReviewers    []string `protobuf:"bytes,18,rep,name=pr_reviewers,json=prReviewers,proto3" json:"pr_reviewers,omitempty"`
+	PrLabelsSet    *bool    `protobuf:"varint,19,opt,name=pr_labels_set,json=prLabelsSet,proto3,oneof" json:"pr_labels_set,omitempty"`
+	PrReviewersSet *bool    `protobuf:"varint,20,opt,name=pr_reviewers_set,json=prReviewersSet,proto3,oneof" json:"pr_reviewers_set,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateTaskRequest) Reset() {
@@ -3586,6 +3691,48 @@ func (x *UpdateTaskRequest) GetWorkflowId() string {
 		return *x.WorkflowId
 	}
 	return ""
+}
+
+func (x *UpdateTaskRequest) GetBranchName() string {
+	if x != nil && x.BranchName != nil {
+		return *x.BranchName
+	}
+	return ""
+}
+
+func (x *UpdateTaskRequest) GetPrDraft() bool {
+	if x != nil && x.PrDraft != nil {
+		return *x.PrDraft
+	}
+	return false
+}
+
+func (x *UpdateTaskRequest) GetPrLabels() []string {
+	if x != nil {
+		return x.PrLabels
+	}
+	return nil
+}
+
+func (x *UpdateTaskRequest) GetPrReviewers() []string {
+	if x != nil {
+		return x.PrReviewers
+	}
+	return nil
+}
+
+func (x *UpdateTaskRequest) GetPrLabelsSet() bool {
+	if x != nil && x.PrLabelsSet != nil {
+		return *x.PrLabelsSet
+	}
+	return false
+}
+
+func (x *UpdateTaskRequest) GetPrReviewersSet() bool {
+	if x != nil && x.PrReviewersSet != nil {
+		return *x.PrReviewersSet
+	}
+	return false
 }
 
 type UpdateTaskResponse struct {
@@ -7882,7 +8029,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\b_sessionB\b\n" +
 	"\x06_errorB\x10\n" +
 	"\x0e_retry_contextB\r\n" +
-	"\v_jsonl_path\"\x8f\x0e\n" +
+	"\v_jsonl_path\"\x80\x10\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12%\n" +
@@ -7916,11 +8063,18 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampH\bR\tstartedAt\x88\x01\x01\x12B\n" +
 	"\fcompleted_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampH\tR\vcompletedAt\x88\x01\x01\x126\n" +
-	"\bmetadata\x18\x1a \x03(\v2\x1a.orc.v1.Task.MetadataEntryR\bmetadata\x12!\n" +
+	"\bmetadata\x18\x1a \x03(\v2\x1a.orc.v1.Task.MetadataEntryR\bmetadata\x12$\n" +
+	"\vbranch_name\x18\x1f \x01(\tH\n" +
+	"R\n" +
+	"branchName\x88\x01\x01\x12\x1e\n" +
+	"\bpr_draft\x18  \x01(\bH\vR\aprDraft\x88\x01\x01\x12\x1b\n" +
+	"\tpr_labels\x18! \x03(\tR\bprLabels\x12!\n" +
+	"\fpr_reviewers\x18\" \x03(\tR\vprReviewers\x12\"\n" +
+	"\rpr_labels_set\x18# \x01(\bR\vprLabelsSet\x12(\n" +
+	"\x10pr_reviewers_set\x18$ \x01(\bR\x0eprReviewersSet\x12!\n" +
 	"\fexecutor_pid\x18\x1b \x01(\x05R\vexecutorPid\x120\n" +
-	"\x11executor_hostname\x18\x1c \x01(\tH\n" +
-	"R\x10executorHostname\x88\x01\x01\x12F\n" +
-	"\x0elast_heartbeat\x18\x1d \x01(\v2\x1a.google.protobuf.TimestampH\vR\rlastHeartbeat\x88\x01\x01\x12\x16\n" +
+	"\x11executor_hostname\x18\x1c \x01(\tH\fR\x10executorHostname\x88\x01\x01\x12F\n" +
+	"\x0elast_heartbeat\x18\x1d \x01(\v2\x1a.google.protobuf.TimestampH\rR\rlastHeartbeat\x88\x01\x01\x12\x16\n" +
 	"\x06blocks\x18d \x03(\tR\x06blocks\x12#\n" +
 	"\rreferenced_by\x18e \x03(\tR\freferencedBy\x12\x1d\n" +
 	"\n" +
@@ -7940,7 +8094,9 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\b_qualityB\x05\n" +
 	"\x03_prB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_atB\x14\n" +
+	"\r_completed_atB\x0e\n" +
+	"\f_branch_nameB\v\n" +
+	"\t_pr_draftB\x14\n" +
 	"\x12_executor_hostnameB\x11\n" +
 	"\x0f_last_heartbeat\"\xf8\x02\n" +
 	"\tPlanPhase\x12\x0e\n" +
@@ -8145,7 +8301,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"3\n" +
 	"\x0fGetTaskResponse\x12 \n" +
-	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\xd9\x05\n" +
+	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\xfb\a\n" +
 	"\x11CreateTaskRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
@@ -8164,7 +8320,15 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"blocked_by\x18\v \x03(\tR\tblockedBy\x12\x1d\n" +
 	"\n" +
 	"related_to\x18\f \x03(\tR\trelatedTo\x12C\n" +
-	"\bmetadata\x18\r \x03(\v2'.orc.v1.CreateTaskRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\r \x03(\v2'.orc.v1.CreateTaskRequest.MetadataEntryR\bmetadata\x12$\n" +
+	"\vbranch_name\x18\x0e \x01(\tH\aR\n" +
+	"branchName\x88\x01\x01\x12\x1e\n" +
+	"\bpr_draft\x18\x0f \x01(\bH\bR\aprDraft\x88\x01\x01\x12\x1b\n" +
+	"\tpr_labels\x18\x10 \x03(\tR\bprLabels\x12!\n" +
+	"\fpr_reviewers\x18\x11 \x03(\tR\vprReviewers\x12'\n" +
+	"\rpr_labels_set\x18\x12 \x01(\bH\tR\vprLabelsSet\x88\x01\x01\x12-\n" +
+	"\x10pr_reviewers_set\x18\x13 \x01(\bH\n" +
+	"R\x0eprReviewersSet\x88\x01\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0e\n" +
@@ -8174,9 +8338,13 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\t_categoryB\x10\n" +
 	"\x0e_initiative_idB\x0e\n" +
 	"\f_workflow_idB\x10\n" +
-	"\x0e_target_branch\"6\n" +
+	"\x0e_target_branchB\x0e\n" +
+	"\f_branch_nameB\v\n" +
+	"\t_pr_draftB\x10\n" +
+	"\x0e_pr_labels_setB\x13\n" +
+	"\x11_pr_reviewers_set\"6\n" +
 	"\x12CreateTaskResponse\x12 \n" +
-	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\x91\x06\n" +
+	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"\xb3\b\n" +
 	"\x11UpdateTaskRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
@@ -8196,7 +8364,15 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"related_to\x18\f \x03(\tR\trelatedTo\x12C\n" +
 	"\bmetadata\x18\r \x03(\v2'.orc.v1.UpdateTaskRequest.MetadataEntryR\bmetadata\x12$\n" +
 	"\vworkflow_id\x18\x0e \x01(\tH\bR\n" +
-	"workflowId\x88\x01\x01\x1a;\n" +
+	"workflowId\x88\x01\x01\x12$\n" +
+	"\vbranch_name\x18\x0f \x01(\tH\tR\n" +
+	"branchName\x88\x01\x01\x12\x1e\n" +
+	"\bpr_draft\x18\x10 \x01(\bH\n" +
+	"R\aprDraft\x88\x01\x01\x12\x1b\n" +
+	"\tpr_labels\x18\x11 \x03(\tR\bprLabels\x12!\n" +
+	"\fpr_reviewers\x18\x12 \x03(\tR\vprReviewers\x12'\n" +
+	"\rpr_labels_set\x18\x13 \x01(\bH\vR\vprLabelsSet\x88\x01\x01\x12-\n" +
+	"\x10pr_reviewers_set\x18\x14 \x01(\bH\fR\x0eprReviewersSet\x88\x01\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
@@ -8208,7 +8384,11 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\t_categoryB\x10\n" +
 	"\x0e_initiative_idB\x10\n" +
 	"\x0e_target_branchB\x0e\n" +
-	"\f_workflow_id\"6\n" +
+	"\f_workflow_idB\x0e\n" +
+	"\f_branch_nameB\v\n" +
+	"\t_pr_draftB\x10\n" +
+	"\x0e_pr_labels_setB\x13\n" +
+	"\x11_pr_reviewers_set\"6\n" +
 	"\x12UpdateTaskResponse\x12 \n" +
 	"\x04task\x18\x01 \x01(\v2\f.orc.v1.TaskR\x04task\"K\n" +
 	"\x11DeleteTaskRequest\x12\x1d\n" +

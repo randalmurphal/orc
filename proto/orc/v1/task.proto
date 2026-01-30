@@ -210,6 +210,14 @@ message Task {
   optional google.protobuf.Timestamp completed_at = 25;
   map<string, string> metadata = 26;
 
+  // Branch control overrides
+  optional string branch_name = 31;       // User-specified branch name (empty = auto from task ID)
+  optional bool pr_draft = 32;            // Override PR draft mode
+  repeated string pr_labels = 33;         // Override PR labels
+  repeated string pr_reviewers = 34;      // Override PR reviewers
+  bool pr_labels_set = 35;                // True = use pr_labels (even if empty)
+  bool pr_reviewers_set = 36;             // True = use pr_reviewers (even if empty)
+
   // Executor tracking fields (for orphan detection and process signaling)
   int32 executor_pid = 27;                               // Process ID of the executor
   optional string executor_hostname = 28;                // Hostname where executor is running
@@ -509,6 +517,14 @@ message CreateTaskRequest {
   repeated string blocked_by = 11;
   repeated string related_to = 12;
   map<string, string> metadata = 13;
+
+  // Branch control
+  optional string branch_name = 14;
+  optional bool pr_draft = 15;
+  repeated string pr_labels = 16;
+  repeated string pr_reviewers = 17;
+  optional bool pr_labels_set = 18;
+  optional bool pr_reviewers_set = 19;
 }
 
 message CreateTaskResponse {
@@ -531,6 +547,14 @@ message UpdateTaskRequest {
   repeated string related_to = 12;
   map<string, string> metadata = 13;
   optional string workflow_id = 14;
+
+  // Branch control (branch_name only modifiable before execution)
+  optional string branch_name = 15;
+  optional bool pr_draft = 16;
+  repeated string pr_labels = 17;
+  repeated string pr_reviewers = 18;
+  optional bool pr_labels_set = 19;
+  optional bool pr_reviewers_set = 20;
 }
 
 message UpdateTaskResponse {

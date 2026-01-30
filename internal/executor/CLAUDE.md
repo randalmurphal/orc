@@ -11,7 +11,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, result types |
 | `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~420 | `runCompletion()`, `createPR()`, `directMerge()`, `setupWorktree()` | PR creation, merge, worktree setup/cleanup, sync |
+| `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()` | PR creation, merge, worktree setup/cleanup, sync |
 | `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
 | `workflow_gates.go` | ~105 | `evaluatePhaseGate()`, `runResourceAnalysis()`, `triggerAutomationEvent()` | Gate evaluation, event publishing, resource tracking |
 
@@ -19,6 +19,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 | File | Purpose |
 |------|---------|
+| `branch.go` | Branch resolution: `ResolveTargetBranch()`, `ResolveBranchName()`, `IsDefaultBranch()` |
 | `executor.go` | `PhaseState`, model resolution, Claude path detection |
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
@@ -54,12 +55,56 @@ WorkflowExecutor.Run()
 └── completeRun()              # Finalization, cleanup
 ```
 
+## Branch Resolution (`branch.go`)
+
+### Target Branch (PR destination)
+
+5-level priority hierarchy resolved by `ResolveTargetBranch()`:
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 | `task.TargetBranch` | Task-level override |
+| 2 | `initiative.BranchBase` | Inherited from initiative |
+| 3 | `developer.StagingBranch` | Personal staging (when enabled) |
+| 4 | `config.Completion.TargetBranch` | Project default |
+| 5 | `"main"` | Hardcoded fallback |
+
+Invalid branch names at any level fall back to `"main"` with a warning log.
+
+### Task Branch (feature branch name)
+
+Resolved by `ResolveBranchName()` at `branch.go:169`:
+
+| Priority | Source | Result |
+|----------|--------|--------|
+| 1 | `task.BranchName` (if valid) | Custom name as-is |
+| 2 | Auto-generated | `orc/TASK-001` or `prefix/TASK-001` (with initiative prefix) |
+
+### PR Options (task overrides)
+
+`ResolvePROptions()` at `workflow_completion.go:194` merges project-level PR config with task-level overrides:
+
+| Task Field | Override Behavior |
+|------------|-------------------|
+| `PrDraft` | Overrides `config.Completion.PR.Draft` (if non-nil) |
+| `PrLabels` | Replaces project labels (if `PrLabelsSet` is true) |
+| `PrReviewers` | Replaces project reviewers (if `PrReviewersSet` is true) |
+
+### Worktree Creation (`worktree.go`)
+
+`SetupWorktreeForTask()` routes to custom or standard worktree creation:
+- **Custom branch** (`task.BranchName` set): Uses `gitOps.CreateWorktreeWithCustomBranch()`, worktree path derived from branch name
+- **Standard**: Uses `gitOps.CreateWorktreeWithInitiativePrefix()`, worktree path derived from task ID
+
 ## Key Functions
 
 ### Shared Utilities
 
 | Function | File:Line | Purpose |
 |----------|-----------|---------|
+| `ResolveBranchName()` | `branch.go:169` | Resolves task branch name: custom name (if valid) > auto-generated |
+| `ResolveTargetBranch()` | `branch.go:34` | Resolves PR target branch via 5-level hierarchy |
+| `ResolvePROptions()` | `workflow_completion.go:194` | Merges project PR config with task-level overrides (draft, labels, reviewers) |
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
 | `applyPhaseContentToVars()` | `workflow_executor.go:820` | Propagates phase content to subsequent phases |
@@ -345,7 +390,9 @@ go test ./internal/executor/... -v
 
 | Test File | Coverage |
 |-----------|----------|
+| `branch_test.go` | Branch resolution: `TestResolveBranchName` (9 cases), target branch resolution |
 | `executor_resolution_test.go` | Agent/model/config resolution (`setupTestExecutor` helper) |
+| `workflow_completion_test.go` | PR options merging: `TestResolvePROptions` (8 cases) |
 | `workflow_executor_test.go` | Core executor behavior |
 | `phase_response_test.go` | Phase completion parsing |
 

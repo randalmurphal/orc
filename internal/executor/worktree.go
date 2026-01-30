@@ -80,7 +80,18 @@ func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, ba
 	}
 
 	// Calculate expected branch name for this task
-	expectedBranch := gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+	// Use custom branch name if set, otherwise auto-generate from task ID
+	var expectedBranch string
+	var worktreePath string
+	useCustomBranch := t.BranchName != nil && *t.BranchName != ""
+
+	if useCustomBranch {
+		expectedBranch = *t.BranchName
+		worktreePath = gitOps.WorktreePathForCustomBranch(*t.BranchName)
+	} else {
+		expectedBranch = gitOps.BranchNameWithInitiativePrefix(t.Id, initiativePrefix)
+		worktreePath = gitOps.WorktreePathWithInitiativePrefix(t.Id, initiativePrefix)
+	}
 
 	// Prune stale worktree entries
 	if err := gitOps.PruneWorktrees(); err != nil {
@@ -91,7 +102,6 @@ func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, ba
 	}
 
 	// Check if worktree already exists
-	worktreePath := gitOps.WorktreePathWithInitiativePrefix(t.Id, initiativePrefix)
 	if info, err := os.Stat(worktreePath); err == nil {
 		if !info.IsDir() {
 			return nil, fmt.Errorf("worktree path exists but is not a directory: %s", worktreePath)
@@ -106,8 +116,14 @@ func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, ba
 		}, nil
 	}
 
-	// Create new worktree with initiative prefix
-	path, err := gitOps.CreateWorktreeWithInitiativePrefix(t.Id, targetBranch, initiativePrefix)
+	// Create new worktree
+	var path string
+	var err error
+	if useCustomBranch {
+		path, err = gitOps.CreateWorktreeWithCustomBranch(t.Id, *t.BranchName, targetBranch)
+	} else {
+		path, err = gitOps.CreateWorktreeWithInitiativePrefix(t.Id, targetBranch, initiativePrefix)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create worktree for %s: %w", t.Id, err)
 	}

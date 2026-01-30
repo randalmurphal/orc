@@ -30,7 +30,8 @@ Two database types with distinct responsibilities:
 |--------|---------|
 | `schema/global_001.sql`-`003.sql` | Cost log, budgets, projects table |
 | `schema/global_004.sql` | **Workflow tables for cross-project sharing** (phase_templates, workflows, workflow_phases, workflow_variables, agents, phase_agents) |
-| `schema/project_*.sql` | Per-project tables (tasks through project_043.sql) |
+| `schema/project_*.sql` | Per-project tables (tasks through project_047.sql) |
+| `schema/project_047.sql` | **Branch control columns on `tasks`**: `branch_name`, `pr_draft`, `pr_labels` (JSON), `pr_reviewers` (JSON), `pr_labels_set`, `pr_reviewers_set` |
 
 ## File Structure
 
