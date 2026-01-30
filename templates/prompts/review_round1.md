@@ -81,50 +81,30 @@ Use the available tools to:
 - **Maintainability**: Is the code clear and well-organized?
 - **Integration**: Does it integrate properly with existing code?
 
+- **Integration Completeness**: Are new components actually wired into the system?
+  - [ ] All new functions are called from at least one production code path
+  - [ ] No defined-but-never-called functions exist (dead code)
+  - [ ] New interfaces have implementations wired into the system
+  - [ ] If the task adds hooks/callbacks/triggers, they are registered
+
 ### Step 3: Document Findings
 
 For each issue found, categorize by severity:
 - **critical**: Incomplete updates (missed dependents), removed preserved functionality
-- **high**: Bugs, security issues, incorrect behavior
+- **high**: Bugs, security issues, incorrect behavior, dead code, missing integration
 - **medium**: Missing edge cases, unclear code, potential issues
 - **low**: Style issues, minor improvements, suggestions
 
 ## Output Format
 
-Output JSON matching the review findings schema:
+Output your structured response matching the review findings schema. Include the round number (1), a brief summary, a list of issues each with severity, file, line, description, and suggestion. Also include any questions requiring clarification and positives noticed in the implementation.
 
-```json
-{
-  "round": 1,
-  "summary": "Brief overview of review findings",
-  "issues": [
-    {"severity": "high", "file": "path/to/file.go", "line": 42, "description": "Issue description", "suggestion": "How to fix", "constitution_violation": "invariant"},
-    {"severity": "medium", "file": "path/to/another.go", "line": 100, "description": "Missing error handling", "suggestion": "Add retry logic"}
-  ],
-  "questions": ["Question requiring clarification"],
-  "positives": ["Good thing noticed in the implementation"]
-}
-```
-
-**Note:** Include `constitution_violation` field only if the issue violates a constitution rule. Value is `"invariant"` (blocker) or `"default"` (warning).
+**Note:** Include the `constitution_violation` field on issues only if applicable. Use "invariant" for blockers or "default" for warnings.
 
 ## If User Input Required
 
-If questions require user decisions, use the review decision schema:
-
-```json
-{
-  "status": "needs_user_input",
-  "summary": "Review requires user input",
-  "user_questions": ["Architecture question needing decision"],
-  "recommendation": "Await user decision before proceeding"
-}
-```
+If questions require user decisions, output your structured response with status set to "needs_user_input", a summary explaining the review requires user input, the list of user questions, and a recommendation to await user decision before proceeding.
 
 ## Phase Completion
 
-After documenting all findings, output ONLY this JSON:
-
-```json
-{"status": "complete", "summary": "Review round 1: [count] critical, [count] warnings, [count] suggestions"}
-```
+After documenting all findings, output your structured response with status set to "complete" and a summary listing the count of critical, warning, and suggestion findings from round 1.
