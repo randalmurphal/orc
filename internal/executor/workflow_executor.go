@@ -735,26 +735,29 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				}
 
 				// No retry available
-				if isReviewPhaseGateRejectionFatal(tmpl.ID) {
-					// Review gate rejection is fatal - fail the task
-					we.logger.Error("review gate rejected with no retries remaining, failing task",
+				if tmpl.ID == "review" {
+					// Review gate rejection is fatal — fail the run and task properly
+					we.logger.Warn("review gate rejected with no retries remaining, failing task",
 						"phase", tmpl.ID,
 						"reason", gateResult.Reason,
 					)
+					failErr := fmt.Errorf("review gate rejected: %s", gateResult.Reason)
 					if we.task != nil {
-						errMsg := fmt.Sprintf("review gate rejected: %s (phase %s)", gateResult.Reason, tmpl.ID)
-						task.SetErrorProto(we.task.Execution, errMsg)
-						if t != nil {
-							t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-						}
-						if err := we.backend.SaveTask(we.task); err != nil {
-							we.logger.Warn("failed to save failed state", "error", err)
+						task.SetErrorProto(we.task.Execution, failErr.Error())
+						if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+							we.logger.Warn("failed to save error state", "error", saveErr)
 						}
 					}
-					return result, fmt.Errorf("review gate rejected: %s", gateResult.Reason)
+					we.failRun(run, t, failErr)
+					if t != nil {
+						if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
+							we.logger.Warn("failed to clear task executor", "error", clearErr)
+						}
+					}
+					return result, failErr
 				}
 
-				// Non-review phase - log rejection and continue (automation-first)
+				// Non-review phase — log rejection and continue (automation-first)
 				we.logger.Warn("gate rejected, continuing anyway (automation mode)",
 					"phase", tmpl.ID,
 					"reason", gateResult.Reason,
