@@ -38,7 +38,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 - The server maintains an LRU cache of project databases
 - When `project_id` is provided, the request is routed to that project's SQLite database
 - When `project_id` is empty, the server uses the CWD-based legacy backend (single project)
-- All services follow this pattern: TaskService, InitiativeService, HostingService, DashboardService, DecisionService, NotificationService, BranchService
+- All project-scoped services follow this pattern: TaskService, InitiativeService, WorkflowService, TranscriptService, EventService, ConfigService, HostingService, DashboardService, DecisionService, NotificationService, BranchService
 
 **Services with project_id support:**
 
@@ -51,9 +51,13 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | DecisionService | `decision.proto` | ListDecisions, ResolveDecision, GetDecision, ListDecisionHistory |
 | NotificationService | `notification.proto` | ListNotifications, DismissNotification, DismissAllNotifications |
 | BranchService | `project.proto` | ListBranches, GetBranch, UpdateBranchStatus, DeleteBranch, CleanupStaleBranches |
+| ConfigService | `config.proto` | All request messages (GetConfig, UpdateConfig, GetSettings, UpdateSettings, GetSettingsHierarchy, ListHooks, CreateHook, UpdateHook, DeleteHook, ListSkills, CreateSkill, UpdateSkill, DeleteSkill, GetClaudeMd, UpdateClaudeMd, GetConstitution, UpdateConstitution, DeleteConstitution, ListPrompts, GetPrompt, GetDefaultPrompt, UpdatePrompt, DeletePrompt, ListPromptVariables, ListAgents, GetAgent, CreateAgent, UpdateAgent, DeleteAgent, ListScripts, DiscoverScripts, GetScript, CreateScript, UpdateScript, DeleteScript, ListTools, GetToolPermissions, UpdateToolPermissions, GetConfigStats) |
+| WorkflowService | `workflow.proto` | All request messages including run requests (ListWorkflowRuns, GetWorkflowRun, StartWorkflowRun, CancelWorkflowRun, SaveWorkflowLayout) |
+| TranscriptService | `transcript.proto` | All request messages |
+| EventService | `events.proto` | All request messages |
 | ProjectService | `project.proto` | N/A (manages projects themselves, not project-scoped) |
 
-**REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`).
+**REST API mapping:** For REST endpoints, `project_id` is passed as a query parameter (`?project_id=abc123`) or derived from the URL path (`/api/projects/:id/tasks`). File serving endpoints (`/files/tasks/{id}/attachments/*`, `/files/tasks/{id}/test-results/*`) and export/import endpoints (`/api/export`, `/api/import`) also accept `?project_id=...` for project routing.
 
 ---
 
