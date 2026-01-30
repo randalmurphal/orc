@@ -117,6 +117,17 @@ func WeightToWorkflowIDString(weight string) string {
 	}
 }
 
+// IsWeightBasedWorkflow returns true if the workflow ID is one of the
+// standard weight-based workflows (implement-trivial/small/medium/large).
+func IsWeightBasedWorkflow(workflowID string) bool {
+	switch workflowID {
+	case "implement-trivial", "implement-small", "implement-medium", "implement-large":
+		return true
+	default:
+		return false
+	}
+}
+
 // MigratePhaseTemplateModels is now a no-op since YAML files are the source of truth.
 // The CacheService handles updates automatically during SeedBuiltins/EnsureBuiltinsSynced.
 // This function is kept for backwards compatibility.

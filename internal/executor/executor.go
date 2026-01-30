@@ -326,7 +326,7 @@ func New(cfg *Config) *Executor {
 		config:          cfg,
 		orcConfig:       orcCfg,
 		client:          client,
-		gateEvaluator:   gate.New(client),
+		gateEvaluator:   gate.New(),
 		gitOps:          gitOps,
 		logger:          slog.Default(),
 		tokenPool:       pool,

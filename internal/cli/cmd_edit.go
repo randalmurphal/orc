@@ -12,6 +12,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // newEditCmd creates the edit command for modifying task properties.
@@ -690,6 +691,12 @@ func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error 
 	t.Execution.Error = nil
 	t.Execution.RetryContext = nil
 	t.Execution.Phases = make(map[string]*orcv1.PhaseState)
+
+	// Update workflow_id if it's weight-based (or empty), preserve explicit workflows
+	currentWorkflow := task.GetWorkflowIDProto(t)
+	if currentWorkflow == "" || workflow.IsWeightBasedWorkflow(currentWorkflow) {
+		task.SetWorkflowIDProto(t, workflow.WeightToWorkflowID(t.Weight))
+	}
 
 	// Update task status to planned
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
