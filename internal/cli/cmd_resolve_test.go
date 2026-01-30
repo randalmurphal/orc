@@ -1523,3 +1523,360 @@ func TestResolveCommand_FailedTaskNoForceMetadata(t *testing.T) {
 		t.Errorf("expected original_status NOT to be set for failed task, got %q", reloaded.Metadata["original_status"])
 	}
 }
+
+// =============================================================================
+// Tests for --yes flag (TASK-648 requirements)
+// =============================================================================
+
+// TestResolveCommand_YesFlagExists verifies that the --yes/-y flag is registered
+// on the resolve command with the correct shorthand.
+func TestResolveCommand_YesFlagExists(t *testing.T) {
+	cmd := newResolveCmd()
+
+	// Verify --yes flag exists
+	yesFlag := cmd.Flag("yes")
+	if yesFlag == nil {
+		t.Fatal("missing --yes flag on resolve command")
+	}
+
+	// Verify -y shorthand
+	if yesFlag.Shorthand != "y" {
+		t.Errorf("yes flag shorthand = %q, want 'y'", yesFlag.Shorthand)
+	}
+
+	// Verify default is false
+	if yesFlag.DefValue != "false" {
+		t.Errorf("yes flag default = %q, want 'false'", yesFlag.DefValue)
+	}
+}
+
+// TestResolveCommand_YesSkipsPromptForFailedTask verifies that --yes skips the
+// interactive confirmation prompt and resolves a failed task without reading stdin.
+// Maps to: SC-1, BDD-1
+func TestResolveCommand_YesSkipsPromptForFailedTask(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a failed task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-YES-001", "Test yes flag on failed task")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --yes (NOT --force) - should skip prompt and succeed
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-001", "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --yes on failed task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-001")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+
+	// Verify standard resolved metadata is present
+	if reloaded.Metadata["resolved"] != "true" {
+		t.Errorf("metadata resolved = %q, want 'true'", reloaded.Metadata["resolved"])
+	}
+
+	// --yes on a failed task is NOT force-resolving (task was already failed)
+	if reloaded.Metadata["force_resolved"] == "true" {
+		t.Error("expected force_resolved NOT to be set for failed task with --yes")
+	}
+}
+
+// TestResolveCommand_YesShortFlag verifies that -y works as short form of --yes.
+// Maps to: SC-2
+func TestResolveCommand_YesShortFlag(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a failed task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-YES-SHORT", "Test -y short flag")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with -y (short form) - should skip prompt and succeed
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-SHORT", "-y"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve -y on failed task failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-SHORT")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+}
+
+// TestResolveCommand_YesDoesNotImplyForce verifies that --yes alone does NOT
+// allow resolving non-failed tasks. Only --force grants that permission.
+// Maps to: SC-5, BDD-3
+func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Test various non-failed statuses with --yes (but NOT --force)
+	statuses := []struct {
+		status orcv1.TaskStatus
+		name   string
+	}{
+		{orcv1.TaskStatus_TASK_STATUS_CREATED, "created"},
+		{orcv1.TaskStatus_TASK_STATUS_RUNNING, "running"},
+		{orcv1.TaskStatus_TASK_STATUS_PAUSED, "paused"},
+		{orcv1.TaskStatus_TASK_STATUS_BLOCKED, "blocked"},
+		{orcv1.TaskStatus_TASK_STATUS_COMPLETED, "completed"},
+	}
+
+	for _, tc := range statuses {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create backend and save task with this status
+			backend := createResolveTestBackend(t, tmpDir)
+			tk := task.NewProtoTask("TASK-001", "Test task")
+			tk.Status = tc.status
+			if err := backend.SaveTask(tk); err != nil {
+				t.Fatalf("failed to save task: %v", err)
+			}
+			_ = backend.Close()
+
+			// Run resolve with --yes but WITHOUT --force - should fail
+			cmd := newResolveCmd()
+			cmd.SetArgs([]string{"TASK-001", "--yes"})
+			err := cmd.Execute()
+			if err == nil {
+				t.Errorf("expected error for status %s with --yes but no --force, got nil", tc.name)
+			}
+
+			// Verify error mentions --force
+			if err != nil && !strings.Contains(err.Error(), "--force") {
+				t.Errorf("error should mention --force, got: %s", err.Error())
+			}
+		})
+	}
+}
+
+// TestResolveCommand_YesWithCleanup verifies that --yes works together with --cleanup.
+// Maps to: BDD-5
+func TestResolveCommand_YesWithCleanup(t *testing.T) {
+	tmpDir := setupTestRepoForResolve(t)
+
+	// Create .orc directory for project detection
+	orcDir := filepath.Join(tmpDir, ".orc")
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create .orc directory: %v", err)
+	}
+
+	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to create git ops: %v", err)
+	}
+
+	baseBranch, _ := gitOps.GetCurrentBranch()
+
+	// Create worktree
+	worktreePath, err := gitOps.CreateWorktree("TASK-YES-CLEANUP", baseBranch)
+	if err != nil {
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+	defer func() { _ = gitOps.CleanupWorktree("TASK-YES-CLEANUP") }()
+
+	// Commit the injected .claude/ directory first
+	wtGit := gitOps.InWorktree(worktreePath)
+	ctx := wtGit.Context()
+	_, _ = ctx.RunGit("add", ".claude/")
+	_, _ = ctx.RunGit("commit", "-m", "Add Claude Code hooks")
+
+	// Create uncommitted changes
+	dirtyFile := filepath.Join(worktreePath, "dirty.txt")
+	if err := os.WriteFile(dirtyFile, []byte("dirty content"), 0644); err != nil {
+		t.Fatalf("failed to create dirty file: %v", err)
+	}
+
+	// Create a failed task
+	backend, err := storage.NewDatabaseBackend(tmpDir, nil)
+	if err != nil {
+		t.Fatalf("create backend: %v", err)
+	}
+
+	tk := task.NewProtoTask("TASK-YES-CLEANUP", "Test yes with cleanup")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Change to project dir and run resolve with --yes --cleanup
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-CLEANUP", "--yes", "--cleanup"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --yes --cleanup failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend, _ = storage.NewDatabaseBackend(tmpDir, nil)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-CLEANUP")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+
+	// Verify worktree was cleaned up
+	clean, _ := wtGit.IsClean()
+	if !clean {
+		t.Error("expected worktree to be clean after --yes --cleanup")
+	}
+}
+
+// TestResolveCommand_YesWithMessage verifies that --yes works together with -m message.
+func TestResolveCommand_YesWithMessage(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a failed task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-YES-MSG", "Test yes with message")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with --yes -m "message"
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-MSG", "--yes", "-m", "Fixed in hotfix deploy"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --yes -m failed: %v", err)
+	}
+
+	// Verify task was resolved with message
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-MSG")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+
+	if reloaded.Metadata["resolution_message"] != "Fixed in hotfix deploy" {
+		t.Errorf("resolution_message = %q, want 'Fixed in hotfix deploy'",
+			reloaded.Metadata["resolution_message"])
+	}
+}
+
+// TestResolveCommand_YesAndForceTogether verifies that --yes and --force together
+// both take effect: skip prompt AND allow non-failed tasks.
+func TestResolveCommand_YesAndForceTogether(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a running task (non-failed)
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-YES-FORCE", "Test yes + force")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with both --yes and --force
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-FORCE", "--yes", "--force"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --yes --force failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-FORCE")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+
+	// force_resolved should be set (non-failed task)
+	if reloaded.Metadata["force_resolved"] != "true" {
+		t.Error("expected force_resolved metadata to be 'true'")
+	}
+	if reloaded.Metadata["original_status"] != "running" {
+		t.Errorf("original_status = %q, want 'running'", reloaded.Metadata["original_status"])
+	}
+}
+
+// TestResolveCommand_YesAndQuietTogether verifies that --yes and --quiet together
+// are redundant but harmless.
+func TestResolveCommand_YesAndQuietTogether(t *testing.T) {
+	tmpDir := withResolveTestDir(t)
+
+	// Create a failed task
+	backend := createResolveTestBackend(t, tmpDir)
+	tk := task.NewProtoTask("TASK-YES-QUIET", "Test yes + quiet")
+	tk.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+	if err := backend.SaveTask(tk); err != nil {
+		t.Fatalf("failed to save task: %v", err)
+	}
+	_ = backend.Close()
+
+	// Run resolve with both --yes and --quiet
+	// Note: --quiet is a persistent flag from root, so we need to set it via the root command
+	// or use the flag directly. Since these tests use newResolveCmd() directly,
+	// we'll set the package-level quiet variable instead.
+	origQuiet := quiet
+	quiet = true
+	defer func() { quiet = origQuiet }()
+
+	cmd := newResolveCmd()
+	cmd.SetArgs([]string{"TASK-YES-QUIET", "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("resolve --yes --quiet failed: %v", err)
+	}
+
+	// Verify task was resolved
+	backend = createResolveTestBackend(t, tmpDir)
+	defer func() { _ = backend.Close() }()
+
+	reloaded, err := backend.LoadTask("TASK-YES-QUIET")
+	if err != nil {
+		t.Fatalf("failed to reload task: %v", err)
+	}
+
+	if reloaded.Status != orcv1.TaskStatus_TASK_STATUS_RESOLVED {
+		t.Errorf("task status = %s, want %s", reloaded.Status, orcv1.TaskStatus_TASK_STATUS_RESOLVED)
+	}
+}
