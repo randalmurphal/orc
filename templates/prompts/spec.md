@@ -156,6 +156,11 @@ Create specific, testable criteria with **explicit verification methods**:
 - Expected results must be concrete (exit code 0, output contains X, file exists)
 - Error paths MUST be specified - what happens when things fail?
 - Focus on user-visible behavior, not implementation details
+
+**Wiring Checklist** - Every spec's success criteria MUST include:
+- All new functions are called from at least one production code path
+- All new interfaces have registered implementations
+- Integration tests verify the wiring exists
 </success_criteria>
 
 <behavioral_specs>
@@ -223,6 +228,11 @@ Describe:
 2. **No orphan components** - A component that exists but isn't used is not "done"
 3. **Routes must render new pages** - Creating a page means updating the router
 4. **Replaced components must be removed** - Don't leave dead code
+
+**Mandatory Questions** - Every spec MUST answer these:
+- What existing code paths will call the new code?
+- Where will the new code be registered/wired?
+- What integration tests will verify the wiring?
 
 ## Step 8: Category-Specific Analysis
 
