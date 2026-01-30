@@ -3,6 +3,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -16,7 +17,16 @@ import (
 	"github.com/randalmurphal/orc/internal/task"
 )
 
+// newInitiativePlanCmdWithTriggerRunner creates the initiative plan command with a trigger runner for testing.
+func newInitiativePlanCmdWithTriggerRunner(runner CLIInitiativeTriggerRunner) *cobra.Command {
+	return newInitiativePlanCmdInternal(runner)
+}
+
 func newInitiativePlanCmd() *cobra.Command {
+	return newInitiativePlanCmdInternal(nil)
+}
+
+func newInitiativePlanCmdInternal(triggerRunner CLIInitiativeTriggerRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plan <manifest.yaml>",
 		Short: "Create multiple tasks from a manifest file",
@@ -292,6 +302,19 @@ Examples:
 			// Save initiative with updated task list
 			if err := backend.SaveInitiative(init); err != nil {
 				return fmt.Errorf("update initiative: %w", err)
+			}
+
+			// Fire on_initiative_planned lifecycle trigger
+			if triggerRunner != nil && len(createdTasks) > 0 {
+				if err := triggerRunner.RunInitiativePlannedTrigger(
+					context.Background(),
+					nil, // Triggers resolved by the runner
+					targetInitiativeID,
+					createdTasks,
+				); err != nil {
+					// Log but don't fail the plan command
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: initiative planned trigger failed: %v\n", err)
+				}
 			}
 
 			fmt.Printf("\nSummary: %d task(s) created in %s\n", len(createdTasks), targetInitiativeID)

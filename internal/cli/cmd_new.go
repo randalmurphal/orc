@@ -19,8 +19,17 @@ import (
 	"github.com/randalmurphal/orc/internal/workflow"
 )
 
+// newNewCmdWithTriggerRunner creates the new task command with a trigger runner for testing.
+func newNewCmdWithTriggerRunner(runner CLILifecycleTriggerRunner) *cobra.Command {
+	return newNewCmdInternal(runner)
+}
+
 // newNewCmd creates the new task command
 func newNewCmd() *cobra.Command {
+	return newNewCmdInternal(nil)
+}
+
+func newNewCmdInternal(triggerRunner CLILifecycleTriggerRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
 		Short: "Create a new task to be orchestrated by orc",
@@ -441,6 +450,13 @@ See also:
 			t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED
 			if err := backend.SaveTask(t); err != nil {
 				return fmt.Errorf("save task: %w", err)
+			}
+
+			// Fire on_task_created lifecycle triggers if workflow was explicitly set
+			if triggerRunner != nil && (cmd.Flags().Changed("weight") || cmd.Flags().Changed("workflow")) {
+				if msg := fireOnTaskCreatedTrigger(triggerRunner, backend, t); msg != "" {
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), msg)
+				}
 			}
 
 			// Save pre-populated spec if provided (enables spec phase auto-skip)
