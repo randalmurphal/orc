@@ -95,7 +95,7 @@ func (s *eventServer) Subscribe(
 	}
 
 	// Get backend for initiative filtering (use first project_id if specified)
-	var filterBackend storage.Backend = s.backend
+	filterBackend := s.backend
 	if len(req.Msg.ProjectIds) > 0 && s.projectCache != nil {
 		if b, err := s.projectCache.GetBackend(req.Msg.ProjectIds[0]); err == nil {
 			filterBackend = b

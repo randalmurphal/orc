@@ -407,7 +407,7 @@ describe('CommandEditor', () => {
 				id: 'cmd-code',
 				name: '/test',
 				path: '.claude/commands/test.md',
-				content: 'run \`hello\` now',
+				content: 'run `hello` now',
 			};
 
 			const { container } = render(
@@ -441,7 +441,7 @@ describe('CommandEditor', () => {
 				id: 'cmd-no-md-code',
 				name: '/test',
 				path: '.claude/commands/test.md',
-				content: 'run \`hello\` now',
+				content: 'run `hello` now',
 			};
 
 			const { container } = render(

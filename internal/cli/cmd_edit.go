@@ -299,10 +299,11 @@ Example:
 			oldPrDraft := t.PrDraft
 			if prDraftChanged {
 				var newDraftVal *bool
-				if newPrDraft == "true" {
+				switch newPrDraft {
+				case "true":
 					v := true
 					newDraftVal = &v
-				} else if newPrDraft == "false" {
+				case "false":
 					v := false
 					newDraftVal = &v
 				}
