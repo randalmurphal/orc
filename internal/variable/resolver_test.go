@@ -20,7 +20,7 @@ func TestResolveStatic(t *testing.T) {
 		SourceConfig: json.RawMessage(`{"value": "hello world"}`),
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, nil)
+	resolved, err := resolver.Resolve(context.Background(), &def, nil, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestResolveEnv(t *testing.T) {
 		SourceConfig: json.RawMessage(`{"var": "TEST_ENV_VAR"}`),
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, nil)
+	resolved, err := resolver.Resolve(context.Background(), &def, nil, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestResolveEnvDefault(t *testing.T) {
 		SourceConfig: json.RawMessage(`{"var": "NONEXISTENT_VAR_12345", "default": "fallback"}`),
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, nil)
+	resolved, err := resolver.Resolve(context.Background(), &def, nil, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestResolveEnvFromContext(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, rctx)
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestResolvePhaseOutput(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, rctx)
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestResolvePromptFragment(t *testing.T) {
 		SourceConfig: json.RawMessage(`{"path": "test.md"}`),
 	}
 
-	resolved, err := resolver.Resolve(context.Background(), &def, nil)
+	resolved, err := resolver.Resolve(context.Background(), &def, nil, VariableSet{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -465,5 +465,222 @@ func TestResolveNonRequiredWithDefault(t *testing.T) {
 
 	if vars["OPTIONAL_VAR"] != "default value" {
 		t.Errorf("expected 'default value', got '%s'", vars["OPTIONAL_VAR"])
+	}
+}
+
+func TestResolveStaticWithInterpolation(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Variables resolved in order, later can reference earlier via {{VAR}}
+	defs := []Definition{
+		{
+			Name:         "PREFIX",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "hello"}`),
+		},
+		{
+			Name:         "COMBINED",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "{{PREFIX}} world"}`),
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), defs, &ResolutionContext{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["PREFIX"] != "hello" {
+		t.Errorf("PREFIX: expected 'hello', got '%s'", vars["PREFIX"])
+	}
+	if vars["COMBINED"] != "hello world" {
+		t.Errorf("COMBINED: expected 'hello world', got '%s'", vars["COMBINED"])
+	}
+}
+
+func TestResolvePhaseOutputWithExtraction(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Phase output is JSON, extract specific field
+	def := Definition{
+		Name:         "SCORE",
+		SourceType:   SourcePhaseOutput,
+		SourceConfig: json.RawMessage(`{"phase": "spec"}`),
+		Extract:      "data.score",
+	}
+
+	rctx := &ResolutionContext{
+		PriorOutputs: map[string]string{
+			"spec": `{"status": "complete", "data": {"score": 95, "notes": "excellent"}}`,
+		},
+	}
+
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resolved.Value != "95" {
+		t.Errorf("expected '95', got '%s'", resolved.Value)
+	}
+}
+
+func TestResolvePhaseOutputWithNestedExtraction(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Extract nested array element
+	def := Definition{
+		Name:         "FIRST_ITEM",
+		SourceType:   SourcePhaseOutput,
+		SourceConfig: json.RawMessage(`{"phase": "breakdown"}`),
+		Extract:      "tasks.0.title",
+	}
+
+	rctx := &ResolutionContext{
+		PriorOutputs: map[string]string{
+			"breakdown": `{"tasks": [{"title": "First task", "done": false}, {"title": "Second task", "done": false}]}`,
+		},
+	}
+
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resolved.Value != "First task" {
+		t.Errorf("expected 'First task', got '%s'", resolved.Value)
+	}
+}
+
+func TestResolveBuiltinVariablesUsedInInterpolation(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Built-in variables should be available for interpolation
+	defs := []Definition{
+		{
+			Name:         "TASK_LABEL",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "[{{TASK_ID}}] {{TASK_TITLE}}"}`),
+		},
+	}
+
+	rctx := &ResolutionContext{
+		TaskID:    "TASK-123",
+		TaskTitle: "Fix the bug",
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), defs, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["TASK_LABEL"] != "[TASK-123] Fix the bug" {
+		t.Errorf("expected '[TASK-123] Fix the bug', got '%s'", vars["TASK_LABEL"])
+	}
+}
+
+func TestResolveVariableChaining(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Chain of variables: A -> B -> C
+	defs := []Definition{
+		{
+			Name:         "VAR_A",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "alpha"}`),
+		},
+		{
+			Name:         "VAR_B",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "{{VAR_A}}-beta"}`),
+		},
+		{
+			Name:         "VAR_C",
+			SourceType:   SourceStatic,
+			SourceConfig: json.RawMessage(`{"value": "{{VAR_B}}-gamma"}`),
+		},
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), defs, &ResolutionContext{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if vars["VAR_A"] != "alpha" {
+		t.Errorf("VAR_A: expected 'alpha', got '%s'", vars["VAR_A"])
+	}
+	if vars["VAR_B"] != "alpha-beta" {
+		t.Errorf("VAR_B: expected 'alpha-beta', got '%s'", vars["VAR_B"])
+	}
+	if vars["VAR_C"] != "alpha-beta-gamma" {
+		t.Errorf("VAR_C: expected 'alpha-beta-gamma', got '%s'", vars["VAR_C"])
+	}
+}
+
+func TestResolveExtractionOnNonJSON(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Extract on non-JSON should return empty (path not found)
+	def := Definition{
+		Name:         "FIELD",
+		SourceType:   SourcePhaseOutput,
+		SourceConfig: json.RawMessage(`{"phase": "spec"}`),
+		Extract:      "data.field",
+	}
+
+	rctx := &ResolutionContext{
+		PriorOutputs: map[string]string{
+			"spec": "This is plain text, not JSON",
+		},
+	}
+
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resolved.Value != "" {
+		t.Errorf("expected empty string for non-JSON extraction, got '%s'", resolved.Value)
+	}
+}
+
+func TestResolveExtractionMissingPath(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// Extract path doesn't exist in JSON
+	def := Definition{
+		Name:         "MISSING",
+		SourceType:   SourcePhaseOutput,
+		SourceConfig: json.RawMessage(`{"phase": "spec"}`),
+		Extract:      "nonexistent.path",
+	}
+
+	rctx := &ResolutionContext{
+		PriorOutputs: map[string]string{
+			"spec": `{"other": "field"}`,
+		},
+	}
+
+	resolved, err := resolver.Resolve(context.Background(), &def, rctx, VariableSet{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if resolved.Value != "" {
+		t.Errorf("expected empty string for missing path, got '%s'", resolved.Value)
 	}
 }

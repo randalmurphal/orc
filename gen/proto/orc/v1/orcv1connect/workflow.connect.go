@@ -63,6 +63,9 @@ const (
 	// WorkflowServiceAddVariableProcedure is the fully-qualified name of the WorkflowService's
 	// AddVariable RPC.
 	WorkflowServiceAddVariableProcedure = "/orc.v1.WorkflowService/AddVariable"
+	// WorkflowServiceUpdateVariableProcedure is the fully-qualified name of the WorkflowService's
+	// UpdateVariable RPC.
+	WorkflowServiceUpdateVariableProcedure = "/orc.v1.WorkflowService/UpdateVariable"
 	// WorkflowServiceRemoveVariableProcedure is the fully-qualified name of the WorkflowService's
 	// RemoveVariable RPC.
 	WorkflowServiceRemoveVariableProcedure = "/orc.v1.WorkflowService/RemoveVariable"
@@ -119,6 +122,7 @@ type WorkflowServiceClient interface {
 	UpdatePhase(context.Context, *connect.Request[v1.UpdatePhaseRequest]) (*connect.Response[v1.UpdatePhaseResponse], error)
 	RemovePhase(context.Context, *connect.Request[v1.RemovePhaseRequest]) (*connect.Response[v1.RemovePhaseResponse], error)
 	AddVariable(context.Context, *connect.Request[v1.AddVariableRequest]) (*connect.Response[v1.AddVariableResponse], error)
+	UpdateVariable(context.Context, *connect.Request[v1.UpdateVariableRequest]) (*connect.Response[v1.UpdateVariableResponse], error)
 	RemoveVariable(context.Context, *connect.Request[v1.RemoveVariableRequest]) (*connect.Response[v1.RemoveVariableResponse], error)
 	ListPhaseTemplates(context.Context, *connect.Request[v1.ListPhaseTemplatesRequest]) (*connect.Response[v1.ListPhaseTemplatesResponse], error)
 	GetPhaseTemplate(context.Context, *connect.Request[v1.GetPhaseTemplateRequest]) (*connect.Response[v1.GetPhaseTemplateResponse], error)
@@ -204,6 +208,12 @@ func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+WorkflowServiceAddVariableProcedure,
 			connect.WithSchema(workflowServiceMethods.ByName("AddVariable")),
+			connect.WithClientOptions(opts...),
+		),
+		updateVariable: connect.NewClient[v1.UpdateVariableRequest, v1.UpdateVariableResponse](
+			httpClient,
+			baseURL+WorkflowServiceUpdateVariableProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("UpdateVariable")),
 			connect.WithClientOptions(opts...),
 		),
 		removeVariable: connect.NewClient[v1.RemoveVariableRequest, v1.RemoveVariableResponse](
@@ -305,6 +315,7 @@ type workflowServiceClient struct {
 	updatePhase         *connect.Client[v1.UpdatePhaseRequest, v1.UpdatePhaseResponse]
 	removePhase         *connect.Client[v1.RemovePhaseRequest, v1.RemovePhaseResponse]
 	addVariable         *connect.Client[v1.AddVariableRequest, v1.AddVariableResponse]
+	updateVariable      *connect.Client[v1.UpdateVariableRequest, v1.UpdateVariableResponse]
 	removeVariable      *connect.Client[v1.RemoveVariableRequest, v1.RemoveVariableResponse]
 	listPhaseTemplates  *connect.Client[v1.ListPhaseTemplatesRequest, v1.ListPhaseTemplatesResponse]
 	getPhaseTemplate    *connect.Client[v1.GetPhaseTemplateRequest, v1.GetPhaseTemplateResponse]
@@ -369,6 +380,11 @@ func (c *workflowServiceClient) RemovePhase(ctx context.Context, req *connect.Re
 // AddVariable calls orc.v1.WorkflowService.AddVariable.
 func (c *workflowServiceClient) AddVariable(ctx context.Context, req *connect.Request[v1.AddVariableRequest]) (*connect.Response[v1.AddVariableResponse], error) {
 	return c.addVariable.CallUnary(ctx, req)
+}
+
+// UpdateVariable calls orc.v1.WorkflowService.UpdateVariable.
+func (c *workflowServiceClient) UpdateVariable(ctx context.Context, req *connect.Request[v1.UpdateVariableRequest]) (*connect.Response[v1.UpdateVariableResponse], error) {
+	return c.updateVariable.CallUnary(ctx, req)
 }
 
 // RemoveVariable calls orc.v1.WorkflowService.RemoveVariable.
@@ -453,6 +469,7 @@ type WorkflowServiceHandler interface {
 	UpdatePhase(context.Context, *connect.Request[v1.UpdatePhaseRequest]) (*connect.Response[v1.UpdatePhaseResponse], error)
 	RemovePhase(context.Context, *connect.Request[v1.RemovePhaseRequest]) (*connect.Response[v1.RemovePhaseResponse], error)
 	AddVariable(context.Context, *connect.Request[v1.AddVariableRequest]) (*connect.Response[v1.AddVariableResponse], error)
+	UpdateVariable(context.Context, *connect.Request[v1.UpdateVariableRequest]) (*connect.Response[v1.UpdateVariableResponse], error)
 	RemoveVariable(context.Context, *connect.Request[v1.RemoveVariableRequest]) (*connect.Response[v1.RemoveVariableResponse], error)
 	ListPhaseTemplates(context.Context, *connect.Request[v1.ListPhaseTemplatesRequest]) (*connect.Response[v1.ListPhaseTemplatesResponse], error)
 	GetPhaseTemplate(context.Context, *connect.Request[v1.GetPhaseTemplateRequest]) (*connect.Response[v1.GetPhaseTemplateResponse], error)
@@ -534,6 +551,12 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 		WorkflowServiceAddVariableProcedure,
 		svc.AddVariable,
 		connect.WithSchema(workflowServiceMethods.ByName("AddVariable")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceUpdateVariableHandler := connect.NewUnaryHandler(
+		WorkflowServiceUpdateVariableProcedure,
+		svc.UpdateVariable,
+		connect.WithSchema(workflowServiceMethods.ByName("UpdateVariable")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workflowServiceRemoveVariableHandler := connect.NewUnaryHandler(
@@ -642,6 +665,8 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 			workflowServiceRemovePhaseHandler.ServeHTTP(w, r)
 		case WorkflowServiceAddVariableProcedure:
 			workflowServiceAddVariableHandler.ServeHTTP(w, r)
+		case WorkflowServiceUpdateVariableProcedure:
+			workflowServiceUpdateVariableHandler.ServeHTTP(w, r)
 		case WorkflowServiceRemoveVariableProcedure:
 			workflowServiceRemoveVariableHandler.ServeHTTP(w, r)
 		case WorkflowServiceListPhaseTemplatesProcedure:
@@ -717,6 +742,10 @@ func (UnimplementedWorkflowServiceHandler) RemovePhase(context.Context, *connect
 
 func (UnimplementedWorkflowServiceHandler) AddVariable(context.Context, *connect.Request[v1.AddVariableRequest]) (*connect.Response[v1.AddVariableResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.AddVariable is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) UpdateVariable(context.Context, *connect.Request[v1.UpdateVariableRequest]) (*connect.Response[v1.UpdateVariableResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.UpdateVariable is not implemented"))
 }
 
 func (UnimplementedWorkflowServiceHandler) RemoveVariable(context.Context, *connect.Request[v1.RemoveVariableRequest]) (*connect.Response[v1.RemoveVariableResponse], error) {

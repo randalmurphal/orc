@@ -462,7 +462,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					// Load content from completed phase for variable chaining
 					// Phase outputs are stored in unified phase_outputs table keyed by run ID
 					if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
-						applyPhaseContentToVars(vars, rctx, phase.PhaseTemplateID, output.Content)
+						applyPhaseContentToVars(vars, rctx, phase.PhaseTemplateID, output.Content, output.OutputVarName)
 					}
 					continue
 				}
@@ -547,7 +547,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Update variables with phase output content
 		if phaseResult.Content != "" {
-			applyPhaseContentToVars(vars, rctx, phaseResult.PhaseID, phaseResult.Content)
+			applyPhaseContentToVars(vars, rctx, phaseResult.PhaseID, phaseResult.Content, tmpl.OutputVarName)
 		}
 
 		// Check for loop configuration and handle iterative loops
@@ -890,23 +890,24 @@ type PhaseResult struct {
 // Called both when resuming from completed phases and after phase completion.
 // For phases with structured JSON output, this formats the content appropriately
 // for injection into subsequent phase prompts.
-func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionContext, phaseID, content string) {
+//
+// outputVarName is the variable name from the phase template (e.g., "SPEC_CONTENT").
+// If empty, falls back to inferOutputVarName() for backward compatibility.
+func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionContext, phaseID, content, outputVarName string) {
 	// Store raw output for OUTPUT_* variable (used by loop condition evaluation)
 	vars["OUTPUT_"+phaseID] = content
 
-	// Phase-specific handling with formatting where applicable
-	switch phaseID {
-	case "spec", "tiny_spec":
-		vars["SPEC_CONTENT"] = content
-	case "tdd_write":
-		vars["TDD_TESTS_CONTENT"] = content
-	case "breakdown":
-		vars["BREAKDOWN_CONTENT"] = content
-	case "research":
-		vars["RESEARCH_CONTENT"] = content
-	case "qa_e2e_test":
-		// Parse and format findings for prompt injection
-		// Raw JSON is kept in OUTPUT_qa_e2e_test for loop condition evaluation
+	// Determine the output variable name
+	varName := outputVarName
+	if varName == "" {
+		varName = inferOutputVarName(phaseID)
+	}
+
+	// Set the named variable (e.g., SPEC_CONTENT, TDD_TESTS_CONTENT)
+	vars[varName] = content
+
+	// Special case: QA findings need additional formatting for the fix phase
+	if phaseID == "qa_e2e_test" {
 		result, err := ParseQAE2ETestResult(content)
 		if err == nil {
 			vars["QA_FINDINGS"] = result.FormatFindingsForFix()

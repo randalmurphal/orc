@@ -279,12 +279,12 @@ describe('AgentsView', () => {
 	});
 
 	describe('Add Agent button', () => {
-		it('is disabled until feature is implemented', async () => {
+		it('is enabled and can be clicked', async () => {
 			render(<AgentsView />);
 
 			await waitFor(() => {
 				const button = screen.getByRole('button', { name: /add agent/i });
-				expect(button).toBeDisabled();
+				expect(button).not.toBeDisabled();
 			});
 		});
 	});

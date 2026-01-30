@@ -138,9 +138,9 @@ describe('PhaseNode', () => {
 			expect(iterBadge!.textContent).toContain('5');
 		});
 
-		it('renders model badge with purple styling when modelOverride is set', () => {
+		it('renders model badge with purple styling when agentId is set', () => {
 			renderPhaseNode(
-				createDefaultData({ modelOverride: 'opus' })
+				createDefaultData({ agentId: 'opus' })
 			);
 
 			const modelBadge = document.querySelector(
@@ -155,7 +155,7 @@ describe('PhaseNode', () => {
 				createDefaultData({
 					gateType: GateType.HUMAN,
 					maxIterations: 5,
-					modelOverride: 'opus',
+					agentId: 'opus',
 				})
 			);
 
@@ -175,7 +175,7 @@ describe('PhaseNode', () => {
 				createDefaultData({
 					gateType: GateType.AUTO,
 					maxIterations: 1,
-					modelOverride: undefined,
+					agentId: undefined,
 				})
 			);
 

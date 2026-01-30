@@ -8,9 +8,11 @@ import {
 import type {
 	WorkflowPhase,
 	WorkflowWithDetails,
+	WorkflowVariable,
 } from '@/gen/orc/v1/workflow_pb';
 import type { Agent } from '@/gen/orc/v1/config_pb';
 import { PromptEditor } from './PromptEditor';
+import { VariableModal } from '../VariableModal';
 import './PhaseInspector.css';
 
 type InspectorTab = 'prompt' | 'variables' | 'settings';
@@ -132,6 +134,7 @@ export function PhaseInspector({
 						workflowDetails={workflowDetails}
 						readOnly={readOnly}
 						workflowIsBuiltin={workflowIsBuiltin}
+						onWorkflowRefresh={onWorkflowRefresh}
 					/>
 				</Tabs.Content>
 
@@ -157,9 +160,13 @@ interface VariablesTabProps {
 	workflowDetails: WorkflowWithDetails;
 	readOnly: boolean;
 	workflowIsBuiltin: boolean;
+	onWorkflowRefresh?: () => void;
 }
 
-function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: VariablesTabProps) {
+function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin, onWorkflowRefresh }: VariablesTabProps) {
+	const [modalOpen, setModalOpen] = useState(false);
+	const [editingVariable, setEditingVariable] = useState<WorkflowVariable | undefined>(undefined);
+
 	const template = phase.template;
 	const inputVariables = template?.inputVariables ?? [];
 	const inputVariableNames = new Set(inputVariables);
@@ -167,6 +174,23 @@ function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: V
 	const workflowVariableNames = new Set(workflowVariables.map((v) => v.name));
 	// Filter out workflow variables that are already shown in Input Variables
 	const availableVariables = workflowVariables.filter((wv) => !inputVariableNames.has(wv.name));
+
+	// Get available phase IDs for phase_output dropdown
+	const availablePhases = workflowDetails.phases?.map((p) => p.phaseTemplateId) ?? [];
+
+	const handleAddVariable = useCallback(() => {
+		setEditingVariable(undefined);
+		setModalOpen(true);
+	}, []);
+
+	const handleEditVariable = useCallback((wv: WorkflowVariable) => {
+		setEditingVariable(wv);
+		setModalOpen(true);
+	}, []);
+
+	const handleModalSuccess = useCallback(() => {
+		onWorkflowRefresh?.();
+	}, [onWorkflowRefresh]);
 
 	return (
 		<div className="phase-inspector-variables">
@@ -204,11 +228,24 @@ function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: V
 				) : (
 					<ul className="phase-inspector-var-list">
 						{availableVariables.map((wv) => (
-							<li key={wv.id} className="phase-inspector-var-item" title={wv.name}>
+							<li
+								key={wv.id}
+								className={`phase-inspector-var-item ${!workflowIsBuiltin ? 'phase-inspector-var-item--clickable' : ''}`}
+								title={wv.description || wv.name}
+								onClick={!workflowIsBuiltin ? () => handleEditVariable(wv) : undefined}
+							>
 								<span className="phase-inspector-var-source-badge">
 									{formatSourceType(wv.sourceType)}
 								</span>
 								<code className="phase-inspector-wf-var-code">{wv.name}</code>
+								{wv.extract && (
+									<span
+										className="phase-inspector-var-extract"
+										title={`Extracts: ${wv.extract}`}
+									>
+										↳
+									</span>
+								)}
 								{wv.required && (
 									<span
 										className="phase-inspector-var-required"
@@ -222,11 +259,24 @@ function VariablesTab({ phase, workflowDetails, readOnly, workflowIsBuiltin }: V
 					</ul>
 				)}
 				{!readOnly && !workflowIsBuiltin && (
-					<button className="phase-inspector-add-var-btn">
+					<button
+						className="phase-inspector-add-var-btn"
+						onClick={handleAddVariable}
+					>
 						+ Add Variable
 					</button>
 				)}
 			</div>
+
+			{/* Variable Modal */}
+			<VariableModal
+				open={modalOpen}
+				onOpenChange={setModalOpen}
+				workflowId={workflowDetails.workflow?.id ?? ''}
+				variable={editingVariable}
+				availablePhases={availablePhases}
+				onSuccess={handleModalSuccess}
+			/>
 		</div>
 	);
 }
