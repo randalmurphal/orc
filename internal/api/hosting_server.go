@@ -759,7 +759,7 @@ func (s *hostingServer) AutofixComment(
 		taskID := t.Id
 		errChan := make(chan error, 1)
 		go func() {
-			errChan <- s.taskExecutor(taskID)
+			errChan <- s.taskExecutor(taskID, req.Msg.GetProjectId())
 		}()
 
 		// Wait briefly for immediate spawn failures, but don't block on slow executors

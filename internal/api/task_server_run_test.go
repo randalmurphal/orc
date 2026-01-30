@@ -164,7 +164,7 @@ func TestRunTask_SpawnsExecutor(t *testing.T) {
 	var mu sync.Mutex
 
 	// Create mock executor callback
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		mu.Lock()
 		calledTaskID = taskID
 		mu.Unlock()
@@ -226,7 +226,7 @@ func TestRunTask_ExecutorFailure_RevertsStatus(t *testing.T) {
 	}
 
 	// Mock executor that always fails
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		return errors.New("executor spawn failed: no Claude process available")
 	}
 
@@ -365,7 +365,7 @@ func TestRunTask_FailedTask_AllowsRetry(t *testing.T) {
 
 	// Track executor invocation
 	var executorCalled atomic.Bool
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		executorCalled.Store(true)
 		return nil
 	}
@@ -574,7 +574,7 @@ func TestRunTask_DependencyCompleted_AllowsRun(t *testing.T) {
 	}
 
 	var executorCalled atomic.Bool
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		executorCalled.Store(true)
 		return nil
 	}
@@ -621,7 +621,7 @@ func TestRunTask_ConcurrentCalls_SecondFails(t *testing.T) {
 	executorStarted := make(chan struct{})
 	executorDone := make(chan struct{})
 
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		close(executorStarted) // Signal we started
 		<-executorDone        // Wait until test says to finish
 		return nil

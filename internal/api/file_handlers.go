@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -49,14 +50,41 @@ func (s *Server) registerFileRoutes() {
 	s.mux.Handle("/", staticHandler())
 }
 
+// resolveProjectBackend resolves the backend and workDir for an HTTP request.
+// Reads project_id from query parameter.
+func (s *Server) resolveProjectBackend(r *http.Request) (storage.Backend, string, error) {
+	projectID := r.URL.Query().Get("project_id")
+	if projectID != "" && s.projectCache != nil {
+		backend, err := s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return nil, "", fmt.Errorf("resolve project backend: %w", err)
+		}
+		workDir, err := s.projectCache.GetProjectPath(projectID)
+		if err != nil {
+			return nil, "", fmt.Errorf("resolve project path: %w", err)
+		}
+		return backend, workDir, nil
+	}
+	if projectID != "" && s.projectCache == nil {
+		return nil, "", fmt.Errorf("project_id specified but no project cache configured")
+	}
+	return s.backend, s.workDir, nil
+}
+
 // serveAttachment returns a specific attachment file.
 // GET /files/tasks/{id}/attachments/{filename}
 func (s *Server) serveAttachment(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 	filename := r.PathValue("filename")
 
+	backend, _, err := s.resolveProjectBackend(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Verify task exists
-	exists, err := s.backend.TaskExists(taskID)
+	exists, err := backend.TaskExists(taskID)
 	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -65,7 +93,7 @@ func (s *Server) serveAttachment(w http.ResponseWriter, r *http.Request) {
 	// Sanitize filename
 	filename = filepath.Base(filename)
 
-	attachment, data, err := s.backend.GetAttachment(taskID, filename)
+	attachment, data, err := backend.GetAttachment(taskID, filename)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "attachment not found", http.StatusNotFound)
@@ -100,8 +128,14 @@ func (s *Server) serveAttachment(w http.ResponseWriter, r *http.Request) {
 func (s *Server) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
+	backend, _, err := s.resolveProjectBackend(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Verify task exists
-	exists, err := s.backend.TaskExists(taskID)
+	exists, err := backend.TaskExists(taskID)
 	if err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
@@ -141,7 +175,7 @@ func (s *Server) uploadAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save the attachment
-	attachment, err := s.backend.SaveAttachment(taskID, filename, header.Header.Get("Content-Type"), data)
+	attachment, err := backend.SaveAttachment(taskID, filename, header.Header.Get("Content-Type"), data)
 	if err != nil {
 		s.jsonError(w, fmt.Sprintf("failed to save attachment: %v", err), http.StatusInternalServerError)
 		return
@@ -157,8 +191,14 @@ func (s *Server) serveScreenshot(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 	filename := r.PathValue("filename")
 
+	backend, workDir, err := s.resolveProjectBackend(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Verify task exists
-	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
+	if exists, err := backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -166,7 +206,7 @@ func (s *Server) serveScreenshot(w http.ResponseWriter, r *http.Request) {
 	// Sanitize filename
 	filename = filepath.Base(filename)
 
-	screenshot, reader, err := task.GetScreenshot(s.workDir, taskID, filename)
+	screenshot, reader, err := task.GetScreenshot(workDir, taskID, filename)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "screenshot not found", http.StatusNotFound)
@@ -207,8 +247,14 @@ func (s *Server) serveTrace(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 	filename := r.PathValue("filename")
 
+	backend, workDir, err := s.resolveProjectBackend(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Verify task exists
-	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
+	if exists, err := backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
@@ -216,7 +262,7 @@ func (s *Server) serveTrace(w http.ResponseWriter, r *http.Request) {
 	// Sanitize filename
 	filename = filepath.Base(filename)
 
-	reader, err := task.GetTrace(s.workDir, taskID, filename)
+	reader, err := task.GetTrace(workDir, taskID, filename)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "trace not found", http.StatusNotFound)
@@ -241,13 +287,19 @@ func (s *Server) serveTrace(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveHTMLReport(w http.ResponseWriter, r *http.Request) {
 	taskID := r.PathValue("id")
 
+	backend, workDir, err := s.resolveProjectBackend(r)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Verify task exists
-	if exists, err := s.backend.TaskExists(taskID); err != nil || !exists {
+	if exists, err := backend.TaskExists(taskID); err != nil || !exists {
 		s.jsonError(w, "task not found", http.StatusNotFound)
 		return
 	}
 
-	reader, err := task.GetHTMLReport(s.workDir, taskID)
+	reader, err := task.GetHTMLReport(workDir, taskID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			s.jsonError(w, "HTML report not found", http.StatusNotFound)

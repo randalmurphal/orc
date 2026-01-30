@@ -105,9 +105,9 @@ func (s *ExportServer) HandleExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the project backend
-	// TODO: extract project_id from request once export proto supports it
-	backend, err := s.getBackend("")
+	// Resolve the project backend from query param
+	projectID := r.URL.Query().Get("project_id")
+	backend, err := s.getBackend(projectID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to resolve backend: %v", err), http.StatusInternalServerError)
 		return
@@ -204,9 +204,9 @@ func (s *ExportServer) HandleImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the project backend
-	// TODO: extract project_id from request once export proto supports it
-	backend, err := s.getBackend("")
+	// Resolve the project backend from query param
+	projectID := r.URL.Query().Get("project_id")
+	backend, err := s.getBackend(projectID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to resolve backend: %v", err), http.StatusInternalServerError)
 		return

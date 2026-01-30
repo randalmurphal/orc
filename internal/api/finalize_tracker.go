@@ -11,6 +11,7 @@ import (
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/hosting"
+	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 )
 
@@ -178,13 +179,27 @@ func (ft *finalizeTracker) startCleanup(ctx context.Context, interval, retention
 const EventFinalize events.EventType = "finalize"
 
 // TriggerFinalizeOnApproval is called when a PR is approved and auto-trigger is enabled.
-func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
+func (s *Server) TriggerFinalizeOnApproval(taskID string, projectID string) (bool, error) {
 	if !s.orcConfig.ShouldAutoTriggerFinalizeOnApproval() {
 		s.logger.Debug("auto-trigger on approval disabled", "task", taskID)
 		return false, nil
 	}
 
-	t, err := s.backend.LoadTask(taskID)
+	backend := s.backend
+	workDir := s.workDir
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return false, fmt.Errorf("resolve project backend: %w", err)
+		}
+		workDir, err = s.projectCache.GetProjectPath(projectID)
+		if err != nil {
+			return false, fmt.Errorf("resolve project path: %w", err)
+		}
+	}
+
+	t, err := backend.LoadTask(taskID)
 	if err != nil {
 		return false, fmt.Errorf("load task: %w", err)
 	}
@@ -232,13 +247,13 @@ func (s *Server) TriggerFinalizeOnApproval(taskID string) (bool, error) {
 	ctx, cancel := context.WithCancel(s.serverCtx)
 	finTracker.setCancel(taskID, cancel)
 
-	go s.runFinalizeAsync(ctx, taskID, t, FinalizeRequest{Force: true}, finState)
+	go s.runFinalizeAsync(ctx, taskID, t, FinalizeRequest{Force: true}, finState, backend, workDir)
 
 	return true, nil
 }
 
 // runFinalizeAsync runs the finalize operation asynchronously.
-func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.Task, _ FinalizeRequest, finState *FinalizeState) {
+func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.Task, _ FinalizeRequest, finState *FinalizeState, backend storage.Backend, workDir string) {
 	defer finTracker.cancel(taskID)
 
 	if ctx.Err() != nil {
@@ -255,7 +270,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	finState.mu.Unlock()
 	s.publishFinalizeEvent(taskID, finState)
 
-	t, loadErr := s.backend.LoadTask(taskID)
+	t, loadErr := backend.LoadTask(taskID)
 	if loadErr != nil {
 		s.finalizeFailed(taskID, finState, fmt.Errorf("reload task: %w", loadErr))
 		return
@@ -284,7 +299,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		CommitPrefix: s.orcConfig.CommitPrefix,
 		WorktreeDir:  s.orcConfig.Worktree.Dir,
 	}
-	gitSvc, err := git.New(s.workDir, gitCfg)
+	gitSvc, err := git.New(workDir, gitCfg)
 	if err != nil {
 		s.finalizeFailed(taskID, finState, fmt.Errorf("create git service: %w", err))
 		return
@@ -309,9 +324,9 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		executor.WithFinalizeLogger(s.logger),
 		executor.WithFinalizeConfig(execCfg),
 		executor.WithFinalizeOrcConfig(s.orcConfig),
-		executor.WithFinalizeWorkingDir(s.workDir),
-		executor.WithFinalizeTaskDir(task.TaskDirIn(s.workDir, taskID)),
-		executor.WithFinalizeBackend(s.backend),
+		executor.WithFinalizeWorkingDir(workDir),
+		executor.WithFinalizeTaskDir(task.TaskDirIn(workDir, taskID)),
+		executor.WithFinalizeBackend(backend),
 		executor.WithFinalizeClaudePath(claudePath),
 		executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {
 			finState.mu.Lock()
@@ -343,14 +358,14 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 
 	task.EnsureExecutionProto(t)
 	task.StartPhaseProto(t.Execution, "finalize")
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		s.logger.Warn("failed to save task", "error", err)
 	}
 
 	result, err := finalizeExec.Execute(ctx, t, finalizePhase, t.Execution)
 	if err != nil {
 		task.FailPhaseProto(t.Execution, "finalize", err)
-		_ = s.backend.SaveTask(t)
+		_ = backend.SaveTask(t)
 		s.finalizeFailed(taskID, finState, err)
 		return
 	}
@@ -362,7 +377,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	} else if result.Error != nil {
 		task.FailPhaseProto(t.Execution, "finalize", result.Error)
 	}
-	_ = s.backend.SaveTask(t)
+	_ = backend.SaveTask(t)
 
 	finResult := &FinalizeResult{
 		Synced:       result.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED,
@@ -386,14 +401,14 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 				TokenEnvVar: s.orcConfig.Hosting.TokenEnvVar,
 			}
 		}
-		hostingProvider, providerErr := hosting.NewProvider(s.workDir, hostingCfg)
+		hostingProvider, providerErr := hosting.NewProvider(workDir, hostingCfg)
 		if providerErr != nil {
 			s.logger.Warn("failed to create hosting provider for CI merge", "error", providerErr)
 		}
 
 		ciMergerOpts := []executor.CIMergerOption{
 			executor.WithCIMergerLogger(s.logger),
-			executor.WithCIMergerWorkDir(s.workDir),
+			executor.WithCIMergerWorkDir(workDir),
 		}
 		if hostingProvider != nil {
 			ciMergerOpts = append(ciMergerOpts, executor.WithCIMergerHostingProvider(hostingProvider))

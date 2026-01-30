@@ -2022,6 +2022,7 @@ func (x *ConfigStats) GetPermissionsProfile() string {
 
 type GetConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2054,6 +2055,13 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetConfigRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetConfigResponse struct {
@@ -2102,12 +2110,13 @@ func (x *GetConfigResponse) GetConfig() *Config {
 
 type UpdateConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Automation    *AutomationConfig      `protobuf:"bytes,1,opt,name=automation,proto3,oneof" json:"automation,omitempty"`
-	Completion    *CompletionConfig      `protobuf:"bytes,2,opt,name=completion,proto3,oneof" json:"completion,omitempty"`
-	Export        *ExportConfig          `protobuf:"bytes,3,opt,name=export,proto3,oneof" json:"export,omitempty"`
-	Claude        *ClaudeConfig          `protobuf:"bytes,4,opt,name=claude,proto3,oneof" json:"claude,omitempty"`
-	Execution     *ExecutionConfig       `protobuf:"bytes,5,opt,name=execution,proto3,oneof" json:"execution,omitempty"`
-	Jira          *JiraConfig            `protobuf:"bytes,6,opt,name=jira,proto3,oneof" json:"jira,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Automation    *AutomationConfig      `protobuf:"bytes,2,opt,name=automation,proto3,oneof" json:"automation,omitempty"`
+	Completion    *CompletionConfig      `protobuf:"bytes,3,opt,name=completion,proto3,oneof" json:"completion,omitempty"`
+	Export        *ExportConfig          `protobuf:"bytes,4,opt,name=export,proto3,oneof" json:"export,omitempty"`
+	Claude        *ClaudeConfig          `protobuf:"bytes,5,opt,name=claude,proto3,oneof" json:"claude,omitempty"`
+	Execution     *ExecutionConfig       `protobuf:"bytes,6,opt,name=execution,proto3,oneof" json:"execution,omitempty"`
+	Jira          *JiraConfig            `protobuf:"bytes,7,opt,name=jira,proto3,oneof" json:"jira,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2140,6 +2149,13 @@ func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateConfigRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateConfigRequest) GetAutomation() *AutomationConfig {
@@ -2230,7 +2246,8 @@ func (x *UpdateConfigResponse) GetConfig() *Config {
 
 type GetSettingsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         SettingsScope          `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2263,6 +2280,13 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetSettingsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetSettingsRequest) GetScope() SettingsScope {
@@ -2318,8 +2342,9 @@ func (x *GetSettingsResponse) GetSettings() *Settings {
 
 type UpdateSettingsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         SettingsScope          `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Settings      *Settings              `protobuf:"bytes,2,opt,name=settings,proto3" json:"settings,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Settings      *Settings              `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2352,6 +2377,13 @@ func (x *UpdateSettingsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateSettingsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *UpdateSettingsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateSettingsRequest) GetScope() SettingsScope {
@@ -2414,6 +2446,7 @@ func (x *UpdateSettingsResponse) GetSettings() *Settings {
 
 type GetSettingsHierarchyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2446,6 +2479,13 @@ func (x *GetSettingsHierarchyRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetSettingsHierarchyRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsHierarchyRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetSettingsHierarchyRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetSettingsHierarchyResponse struct {
@@ -2494,7 +2534,8 @@ func (x *GetSettingsHierarchyResponse) GetHierarchy() *SettingsHierarchy {
 
 type ListHooksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *SettingsScope         `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         *SettingsScope         `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2527,6 +2568,13 @@ func (x *ListHooksRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListHooksRequest.ProtoReflect.Descriptor instead.
 func (*ListHooksRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ListHooksRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListHooksRequest) GetScope() SettingsScope {
@@ -2582,14 +2630,15 @@ func (x *ListHooksResponse) GetHooks() []*Hook {
 
 type CreateHookRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Event         HookEvent              `protobuf:"varint,2,opt,name=event,proto3,enum=orc.v1.HookEvent" json:"event,omitempty"`
-	Matcher       *string                `protobuf:"bytes,3,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
-	Command       string                 `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
-	WorkingDir    *string                `protobuf:"bytes,5,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Timeout       int32                  `protobuf:"varint,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,8,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Event         HookEvent              `protobuf:"varint,3,opt,name=event,proto3,enum=orc.v1.HookEvent" json:"event,omitempty"`
+	Matcher       *string                `protobuf:"bytes,4,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
+	Command       string                 `protobuf:"bytes,5,opt,name=command,proto3" json:"command,omitempty"`
+	WorkingDir    *string                `protobuf:"bytes,6,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
+	Env           map[string]string      `protobuf:"bytes,7,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Timeout       int32                  `protobuf:"varint,8,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,9,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2622,6 +2671,13 @@ func (x *CreateHookRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateHookRequest.ProtoReflect.Descriptor instead.
 func (*CreateHookRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *CreateHookRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateHookRequest) GetName() string {
@@ -2726,15 +2782,16 @@ func (x *CreateHookResponse) GetHook() *Hook {
 
 type UpdateHookRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Event         *HookEvent             `protobuf:"varint,3,opt,name=event,proto3,enum=orc.v1.HookEvent,oneof" json:"event,omitempty"`
-	Matcher       *string                `protobuf:"bytes,4,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
-	Command       *string                `protobuf:"bytes,5,opt,name=command,proto3,oneof" json:"command,omitempty"`
-	WorkingDir    *string                `protobuf:"bytes,6,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,7,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Timeout       *int32                 `protobuf:"varint,8,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Enabled       *bool                  `protobuf:"varint,9,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Event         *HookEvent             `protobuf:"varint,4,opt,name=event,proto3,enum=orc.v1.HookEvent,oneof" json:"event,omitempty"`
+	Matcher       *string                `protobuf:"bytes,5,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
+	Command       *string                `protobuf:"bytes,6,opt,name=command,proto3,oneof" json:"command,omitempty"`
+	WorkingDir    *string                `protobuf:"bytes,7,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
+	Env           map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Timeout       *int32                 `protobuf:"varint,9,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Enabled       *bool                  `protobuf:"varint,10,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2767,6 +2824,13 @@ func (x *UpdateHookRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateHookRequest.ProtoReflect.Descriptor instead.
 func (*UpdateHookRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *UpdateHookRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateHookRequest) GetName() string {
@@ -2878,8 +2942,9 @@ func (x *UpdateHookResponse) GetHook() *Hook {
 
 type DeleteHookRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2912,6 +2977,13 @@ func (x *DeleteHookRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteHookRequest.ProtoReflect.Descriptor instead.
 func (*DeleteHookRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *DeleteHookRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeleteHookRequest) GetName() string {
@@ -2974,7 +3046,8 @@ func (x *DeleteHookResponse) GetMessage() string {
 
 type ListSkillsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *SettingsScope         `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         *SettingsScope         `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3007,6 +3080,13 @@ func (x *ListSkillsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListSkillsRequest.ProtoReflect.Descriptor instead.
 func (*ListSkillsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ListSkillsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListSkillsRequest) GetScope() SettingsScope {
@@ -3062,12 +3142,13 @@ func (x *ListSkillsResponse) GetSkills() []*Skill {
 
 type CreateSkillRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	UserInvocable bool                   `protobuf:"varint,4,opt,name=user_invocable,json=userInvocable,proto3" json:"user_invocable,omitempty"`
-	InputSchema   *string                `protobuf:"bytes,5,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,6,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	UserInvocable bool                   `protobuf:"varint,5,opt,name=user_invocable,json=userInvocable,proto3" json:"user_invocable,omitempty"`
+	InputSchema   *string                `protobuf:"bytes,6,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,7,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3100,6 +3181,13 @@ func (x *CreateSkillRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateSkillRequest.ProtoReflect.Descriptor instead.
 func (*CreateSkillRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *CreateSkillRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateSkillRequest) GetName() string {
@@ -3190,12 +3278,13 @@ func (x *CreateSkillResponse) GetSkill() *Skill {
 
 type UpdateSkillRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Content       *string                `protobuf:"bytes,4,opt,name=content,proto3,oneof" json:"content,omitempty"`
-	UserInvocable *bool                  `protobuf:"varint,5,opt,name=user_invocable,json=userInvocable,proto3,oneof" json:"user_invocable,omitempty"`
-	InputSchema   *string                `protobuf:"bytes,6,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Content       *string                `protobuf:"bytes,5,opt,name=content,proto3,oneof" json:"content,omitempty"`
+	UserInvocable *bool                  `protobuf:"varint,6,opt,name=user_invocable,json=userInvocable,proto3,oneof" json:"user_invocable,omitempty"`
+	InputSchema   *string                `protobuf:"bytes,7,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3228,6 +3317,13 @@ func (x *UpdateSkillRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateSkillRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSkillRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *UpdateSkillRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateSkillRequest) GetName() string {
@@ -3318,8 +3414,9 @@ func (x *UpdateSkillResponse) GetSkill() *Skill {
 
 type DeleteSkillRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3352,6 +3449,13 @@ func (x *DeleteSkillRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteSkillRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSkillRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *DeleteSkillRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeleteSkillRequest) GetName() string {
@@ -3414,6 +3518,7 @@ func (x *DeleteSkillResponse) GetMessage() string {
 
 type GetClaudeMdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3446,6 +3551,13 @@ func (x *GetClaudeMdRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetClaudeMdRequest.ProtoReflect.Descriptor instead.
 func (*GetClaudeMdRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetClaudeMdRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetClaudeMdResponse struct {
@@ -3494,8 +3606,9 @@ func (x *GetClaudeMdResponse) GetFiles() []*ClaudeMd {
 
 type UpdateClaudeMdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         SettingsScope          `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3528,6 +3641,13 @@ func (x *UpdateClaudeMdRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateClaudeMdRequest.ProtoReflect.Descriptor instead.
 func (*UpdateClaudeMdRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *UpdateClaudeMdRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateClaudeMdRequest) GetScope() SettingsScope {
@@ -3590,6 +3710,7 @@ func (x *UpdateClaudeMdResponse) GetClaudeMd() *ClaudeMd {
 
 type GetConstitutionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3622,6 +3743,13 @@ func (x *GetConstitutionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*GetConstitutionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *GetConstitutionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetConstitutionResponse struct {
@@ -3670,7 +3798,8 @@ func (x *GetConstitutionResponse) GetConstitution() *Constitution {
 
 type UpdateConstitutionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3703,6 +3832,13 @@ func (x *UpdateConstitutionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConstitutionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *UpdateConstitutionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateConstitutionRequest) GetContent() string {
@@ -3758,6 +3894,7 @@ func (x *UpdateConstitutionResponse) GetConstitution() *Constitution {
 
 type DeleteConstitutionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3790,6 +3927,13 @@ func (x *DeleteConstitutionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteConstitutionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConstitutionRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *DeleteConstitutionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type DeleteConstitutionResponse struct {
@@ -3838,6 +3982,7 @@ func (x *DeleteConstitutionResponse) GetMessage() string {
 
 type ListPromptsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3870,6 +4015,13 @@ func (x *ListPromptsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListPromptsRequest.ProtoReflect.Descriptor instead.
 func (*ListPromptsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ListPromptsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type ListPromptsResponse struct {
@@ -3918,7 +4070,8 @@ func (x *ListPromptsResponse) GetPrompts() []*PromptTemplate {
 
 type GetPromptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Phase         string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3951,6 +4104,13 @@ func (x *GetPromptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetPromptRequest.ProtoReflect.Descriptor instead.
 func (*GetPromptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *GetPromptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetPromptRequest) GetPhase() string {
@@ -4006,7 +4166,8 @@ func (x *GetPromptResponse) GetPrompt() *PromptTemplate {
 
 type GetDefaultPromptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Phase         string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4039,6 +4200,13 @@ func (x *GetDefaultPromptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetDefaultPromptRequest.ProtoReflect.Descriptor instead.
 func (*GetDefaultPromptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *GetDefaultPromptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetDefaultPromptRequest) GetPhase() string {
@@ -4094,8 +4262,9 @@ func (x *GetDefaultPromptResponse) GetPrompt() *PromptTemplate {
 
 type UpdatePromptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Phase         string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4128,6 +4297,13 @@ func (x *UpdatePromptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdatePromptRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePromptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *UpdatePromptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdatePromptRequest) GetPhase() string {
@@ -4190,7 +4366,8 @@ func (x *UpdatePromptResponse) GetPrompt() *PromptTemplate {
 
 type DeletePromptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Phase         string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4223,6 +4400,13 @@ func (x *DeletePromptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeletePromptRequest.ProtoReflect.Descriptor instead.
 func (*DeletePromptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *DeletePromptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeletePromptRequest) GetPhase() string {
@@ -4278,6 +4462,7 @@ func (x *DeletePromptResponse) GetMessage() string {
 
 type ListPromptVariablesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4310,6 +4495,13 @@ func (x *ListPromptVariablesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListPromptVariablesRequest.ProtoReflect.Descriptor instead.
 func (*ListPromptVariablesRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *ListPromptVariablesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type ListPromptVariablesResponse struct {
@@ -4359,7 +4551,8 @@ func (x *ListPromptVariablesResponse) GetVariables() []*PromptVariable {
 // Agent request/response messages
 type ListAgentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *SettingsScope         `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         *SettingsScope         `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4392,6 +4585,13 @@ func (x *ListAgentsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListAgentsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *ListAgentsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListAgentsRequest) GetScope() SettingsScope {
@@ -4447,7 +4647,8 @@ func (x *ListAgentsResponse) GetAgents() []*Agent {
 
 type GetAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4480,6 +4681,13 @@ func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetAgentRequest.ProtoReflect.Descriptor instead.
 func (*GetAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *GetAgentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetAgentRequest) GetName() string {
@@ -4535,18 +4743,19 @@ func (x *GetAgentResponse) GetAgent() *Agent {
 
 type CreateAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Unique identifier
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
-	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
-	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
-	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
-	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
-	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,12,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"` // Unique identifier
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Model         *string                `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	Tools         *ToolPermissions       `protobuf:"bytes,6,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
+	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
+	ClaudeConfig  *string                `protobuf:"bytes,9,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	WorkDir       *string                `protobuf:"bytes,10,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
+	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
+	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,13,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4579,6 +4788,13 @@ func (x *CreateAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateAgentRequest.ProtoReflect.Descriptor instead.
 func (*CreateAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *CreateAgentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateAgentRequest) GetId() string {
@@ -4711,17 +4927,18 @@ func (x *CreateAgentResponse) GetAgent() *Agent {
 
 type UpdateAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Agent ID to update
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
-	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
-	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
-	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
-	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
-	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"` // Agent ID to update
+	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Model         *string                `protobuf:"bytes,5,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	Tools         *ToolPermissions       `protobuf:"bytes,6,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
+	Prompt        *string                `protobuf:"bytes,7,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,8,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
+	ClaudeConfig  *string                `protobuf:"bytes,9,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	WorkDir       *string                `protobuf:"bytes,10,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
+	SkillRefs     []string               `protobuf:"bytes,11,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
+	Timeout       *string                `protobuf:"bytes,12,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4754,6 +4971,13 @@ func (x *UpdateAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateAgentRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *UpdateAgentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateAgentRequest) GetId() string {
@@ -4879,7 +5103,8 @@ func (x *UpdateAgentResponse) GetAgent() *Agent {
 
 type DeleteAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4912,6 +5137,13 @@ func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteAgentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *DeleteAgentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeleteAgentRequest) GetName() string {
@@ -4968,6 +5200,7 @@ func (x *DeleteAgentResponse) GetMessage() string {
 // Script request/response messages
 type ListScriptsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5000,6 +5233,13 @@ func (x *ListScriptsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListScriptsRequest.ProtoReflect.Descriptor instead.
 func (*ListScriptsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *ListScriptsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type ListScriptsResponse struct {
@@ -5048,6 +5288,7 @@ func (x *ListScriptsResponse) GetScripts() []*Script {
 
 type DiscoverScriptsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5080,6 +5321,13 @@ func (x *DiscoverScriptsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DiscoverScriptsRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverScriptsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *DiscoverScriptsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type DiscoverScriptsResponse struct {
@@ -5128,7 +5376,8 @@ func (x *DiscoverScriptsResponse) GetScripts() []*Script {
 
 type GetScriptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5161,6 +5410,13 @@ func (x *GetScriptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetScriptRequest.ProtoReflect.Descriptor instead.
 func (*GetScriptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *GetScriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *GetScriptRequest) GetName() string {
@@ -5216,10 +5472,11 @@ func (x *GetScriptResponse) GetScript() *Script {
 
 type CreateScriptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Language      *string                `protobuf:"bytes,4,opt,name=language,proto3,oneof" json:"language,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Language      *string                `protobuf:"bytes,5,opt,name=language,proto3,oneof" json:"language,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5252,6 +5509,13 @@ func (x *CreateScriptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateScriptRequest.ProtoReflect.Descriptor instead.
 func (*CreateScriptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *CreateScriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreateScriptRequest) GetName() string {
@@ -5328,10 +5592,11 @@ func (x *CreateScriptResponse) GetScript() *Script {
 
 type UpdateScriptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Path          *string                `protobuf:"bytes,2,opt,name=path,proto3,oneof" json:"path,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Language      *string                `protobuf:"bytes,4,opt,name=language,proto3,oneof" json:"language,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Path          *string                `protobuf:"bytes,3,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Language      *string                `protobuf:"bytes,5,opt,name=language,proto3,oneof" json:"language,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5364,6 +5629,13 @@ func (x *UpdateScriptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateScriptRequest.ProtoReflect.Descriptor instead.
 func (*UpdateScriptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *UpdateScriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateScriptRequest) GetName() string {
@@ -5440,7 +5712,8 @@ func (x *UpdateScriptResponse) GetScript() *Script {
 
 type DeleteScriptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5473,6 +5746,13 @@ func (x *DeleteScriptRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteScriptRequest.ProtoReflect.Descriptor instead.
 func (*DeleteScriptRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *DeleteScriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *DeleteScriptRequest) GetName() string {
@@ -5529,8 +5809,9 @@ func (x *DeleteScriptResponse) GetMessage() string {
 // Tool request/response messages
 type ListToolsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *SettingsScope         `protobuf:"varint,1,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
-	ByCategory    bool                   `protobuf:"varint,2,opt,name=by_category,json=byCategory,proto3" json:"by_category,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Scope         *SettingsScope         `protobuf:"varint,2,opt,name=scope,proto3,enum=orc.v1.SettingsScope,oneof" json:"scope,omitempty"`
+	ByCategory    bool                   `protobuf:"varint,3,opt,name=by_category,json=byCategory,proto3" json:"by_category,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5563,6 +5844,13 @@ func (x *ListToolsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListToolsRequest.ProtoReflect.Descriptor instead.
 func (*ListToolsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *ListToolsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *ListToolsRequest) GetScope() SettingsScope {
@@ -5677,6 +5965,7 @@ func (x *ToolList) GetTools() []*ToolInfo {
 
 type GetToolPermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5709,6 +5998,13 @@ func (x *GetToolPermissionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetToolPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*GetToolPermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *GetToolPermissionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetToolPermissionsResponse struct {
@@ -5757,7 +6053,8 @@ func (x *GetToolPermissionsResponse) GetPermissions() *ToolPermissions {
 
 type UpdateToolPermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Permissions   *ToolPermissions       `protobuf:"bytes,1,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Permissions   *ToolPermissions       `protobuf:"bytes,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5790,6 +6087,13 @@ func (x *UpdateToolPermissionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateToolPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateToolPermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *UpdateToolPermissionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *UpdateToolPermissionsRequest) GetPermissions() *ToolPermissions {
@@ -5846,6 +6150,7 @@ func (x *UpdateToolPermissionsResponse) GetPermissions() *ToolPermissions {
 // Config stats request/response
 type GetConfigStatsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5878,6 +6183,13 @@ func (x *GetConfigStatsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConfigStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigStatsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *GetConfigStatsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type GetConfigStatsResponse struct {
@@ -6132,21 +6444,25 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x14slash_commands_count\x18\x01 \x01(\x05R\x12slashCommandsCount\x12$\n" +
 	"\x0eclaude_md_size\x18\x02 \x01(\x03R\fclaudeMdSize\x12*\n" +
 	"\x11mcp_servers_count\x18\x03 \x01(\x05R\x0fmcpServersCount\x12/\n" +
-	"\x13permissions_profile\x18\x04 \x01(\tR\x12permissionsProfile\"\x12\n" +
-	"\x10GetConfigRequest\";\n" +
-	"\x11GetConfigResponse\x12&\n" +
-	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xad\x03\n" +
-	"\x13UpdateConfigRequest\x12=\n" +
+	"\x13permissions_profile\x18\x04 \x01(\tR\x12permissionsProfile\"1\n" +
+	"\x10GetConfigRequest\x12\x1d\n" +
 	"\n" +
-	"automation\x18\x01 \x01(\v2\x18.orc.v1.AutomationConfigH\x00R\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\";\n" +
+	"\x11GetConfigResponse\x12&\n" +
+	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"\xcc\x03\n" +
+	"\x13UpdateConfigRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12=\n" +
+	"\n" +
+	"automation\x18\x02 \x01(\v2\x18.orc.v1.AutomationConfigH\x00R\n" +
 	"automation\x88\x01\x01\x12=\n" +
 	"\n" +
-	"completion\x18\x02 \x01(\v2\x18.orc.v1.CompletionConfigH\x01R\n" +
+	"completion\x18\x03 \x01(\v2\x18.orc.v1.CompletionConfigH\x01R\n" +
 	"completion\x88\x01\x01\x121\n" +
-	"\x06export\x18\x03 \x01(\v2\x14.orc.v1.ExportConfigH\x02R\x06export\x88\x01\x01\x121\n" +
-	"\x06claude\x18\x04 \x01(\v2\x14.orc.v1.ClaudeConfigH\x03R\x06claude\x88\x01\x01\x12:\n" +
-	"\texecution\x18\x05 \x01(\v2\x17.orc.v1.ExecutionConfigH\x04R\texecution\x88\x01\x01\x12+\n" +
-	"\x04jira\x18\x06 \x01(\v2\x12.orc.v1.JiraConfigH\x05R\x04jira\x88\x01\x01B\r\n" +
+	"\x06export\x18\x04 \x01(\v2\x14.orc.v1.ExportConfigH\x02R\x06export\x88\x01\x01\x121\n" +
+	"\x06claude\x18\x05 \x01(\v2\x14.orc.v1.ClaudeConfigH\x03R\x06claude\x88\x01\x01\x12:\n" +
+	"\texecution\x18\x06 \x01(\v2\x17.orc.v1.ExecutionConfigH\x04R\texecution\x88\x01\x01\x12+\n" +
+	"\x04jira\x18\a \x01(\v2\x12.orc.v1.JiraConfigH\x05R\x04jira\x88\x01\x01B\r\n" +
 	"\v_automationB\r\n" +
 	"\v_completionB\t\n" +
 	"\a_exportB\t\n" +
@@ -6155,34 +6471,44 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"_executionB\a\n" +
 	"\x05_jira\">\n" +
 	"\x14UpdateConfigResponse\x12&\n" +
-	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"A\n" +
-	"\x12GetSettingsRequest\x12+\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\"C\n" +
+	"\x06config\x18\x01 \x01(\v2\x0e.orc.v1.ConfigR\x06config\"`\n" +
+	"\x12GetSettingsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12+\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\"C\n" +
 	"\x13GetSettingsResponse\x12,\n" +
-	"\bsettings\x18\x01 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"r\n" +
-	"\x15UpdateSettingsRequest\x12+\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12,\n" +
-	"\bsettings\x18\x02 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"F\n" +
+	"\bsettings\x18\x01 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"\x91\x01\n" +
+	"\x15UpdateSettingsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12+\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12,\n" +
+	"\bsettings\x18\x03 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"F\n" +
 	"\x16UpdateSettingsResponse\x12,\n" +
-	"\bsettings\x18\x01 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"\x1d\n" +
-	"\x1bGetSettingsHierarchyRequest\"W\n" +
+	"\bsettings\x18\x01 \x01(\v2\x10.orc.v1.SettingsR\bsettings\"<\n" +
+	"\x1bGetSettingsHierarchyRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"W\n" +
 	"\x1cGetSettingsHierarchyResponse\x127\n" +
-	"\thierarchy\x18\x01 \x01(\v2\x19.orc.v1.SettingsHierarchyR\thierarchy\"N\n" +
-	"\x10ListHooksRequest\x120\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
+	"\thierarchy\x18\x01 \x01(\v2\x19.orc.v1.SettingsHierarchyR\thierarchy\"m\n" +
+	"\x10ListHooksRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x120\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
 	"\x06_scope\"7\n" +
 	"\x11ListHooksResponse\x12\"\n" +
-	"\x05hooks\x18\x01 \x03(\v2\f.orc.v1.HookR\x05hooks\"\x80\x03\n" +
-	"\x11CreateHookRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
-	"\x05event\x18\x02 \x01(\x0e2\x11.orc.v1.HookEventR\x05event\x12\x1d\n" +
-	"\amatcher\x18\x03 \x01(\tH\x00R\amatcher\x88\x01\x01\x12\x18\n" +
-	"\acommand\x18\x04 \x01(\tR\acommand\x12$\n" +
-	"\vworking_dir\x18\x05 \x01(\tH\x01R\n" +
+	"\x05hooks\x18\x01 \x03(\v2\f.orc.v1.HookR\x05hooks\"\x9f\x03\n" +
+	"\x11CreateHookRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
+	"\x05event\x18\x03 \x01(\x0e2\x11.orc.v1.HookEventR\x05event\x12\x1d\n" +
+	"\amatcher\x18\x04 \x01(\tH\x00R\amatcher\x88\x01\x01\x12\x18\n" +
+	"\acommand\x18\x05 \x01(\tR\acommand\x12$\n" +
+	"\vworking_dir\x18\x06 \x01(\tH\x01R\n" +
 	"workingDir\x88\x01\x01\x124\n" +
-	"\x03env\x18\x06 \x03(\v2\".orc.v1.CreateHookRequest.EnvEntryR\x03env\x12\x18\n" +
-	"\atimeout\x18\a \x01(\x05R\atimeout\x12+\n" +
-	"\x05scope\x18\b \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x1a6\n" +
+	"\x03env\x18\a \x03(\v2\".orc.v1.CreateHookRequest.EnvEntryR\x03env\x12\x18\n" +
+	"\atimeout\x18\b \x01(\x05R\atimeout\x12+\n" +
+	"\x05scope\x18\t \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\n" +
@@ -6190,18 +6516,21 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\b_matcherB\x0e\n" +
 	"\f_working_dir\"6\n" +
 	"\x12CreateHookResponse\x12 \n" +
-	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"\xdc\x03\n" +
-	"\x11UpdateHookRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12,\n" +
-	"\x05event\x18\x03 \x01(\x0e2\x11.orc.v1.HookEventH\x00R\x05event\x88\x01\x01\x12\x1d\n" +
-	"\amatcher\x18\x04 \x01(\tH\x01R\amatcher\x88\x01\x01\x12\x1d\n" +
-	"\acommand\x18\x05 \x01(\tH\x02R\acommand\x88\x01\x01\x12$\n" +
-	"\vworking_dir\x18\x06 \x01(\tH\x03R\n" +
+	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"\xfb\x03\n" +
+	"\x11UpdateHookRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
+	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12,\n" +
+	"\x05event\x18\x04 \x01(\x0e2\x11.orc.v1.HookEventH\x00R\x05event\x88\x01\x01\x12\x1d\n" +
+	"\amatcher\x18\x05 \x01(\tH\x01R\amatcher\x88\x01\x01\x12\x1d\n" +
+	"\acommand\x18\x06 \x01(\tH\x02R\acommand\x88\x01\x01\x12$\n" +
+	"\vworking_dir\x18\a \x01(\tH\x03R\n" +
 	"workingDir\x88\x01\x01\x124\n" +
-	"\x03env\x18\a \x03(\v2\".orc.v1.UpdateHookRequest.EnvEntryR\x03env\x12\x1d\n" +
-	"\atimeout\x18\b \x01(\x05H\x04R\atimeout\x88\x01\x01\x12\x1d\n" +
-	"\aenabled\x18\t \x01(\bH\x05R\aenabled\x88\x01\x01\x1a6\n" +
+	"\x03env\x18\b \x03(\v2\".orc.v1.UpdateHookRequest.EnvEntryR\x03env\x12\x1d\n" +
+	"\atimeout\x18\t \x01(\x05H\x04R\atimeout\x88\x01\x01\x12\x1d\n" +
+	"\aenabled\x18\n" +
+	" \x01(\bH\x05R\aenabled\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
@@ -6216,111 +6545,149 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\b_enabled\"6\n" +
 	"\x12UpdateHookResponse\x12 \n" +
-	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"T\n" +
-	"\x11DeleteHookRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\".\n" +
+	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"s\n" +
+	"\x11DeleteHookRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
+	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\".\n" +
 	"\x12DeleteHookResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"O\n" +
-	"\x11ListSkillsRequest\x120\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"n\n" +
+	"\x11ListSkillsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x120\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
 	"\x06_scope\";\n" +
 	"\x12ListSkillsResponse\x12%\n" +
-	"\x06skills\x18\x01 \x03(\v2\r.orc.v1.SkillR\x06skills\"\xf1\x01\n" +
-	"\x12CreateSkillRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x12%\n" +
-	"\x0euser_invocable\x18\x04 \x01(\bR\ruserInvocable\x12&\n" +
-	"\finput_schema\x18\x05 \x01(\tH\x00R\vinputSchema\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\x06 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\x0f\n" +
+	"\x06skills\x18\x01 \x03(\v2\r.orc.v1.SkillR\x06skills\"\x90\x02\n" +
+	"\x12CreateSkillRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12%\n" +
+	"\x0euser_invocable\x18\x05 \x01(\bR\ruserInvocable\x12&\n" +
+	"\finput_schema\x18\x06 \x01(\tH\x00R\vinputSchema\x88\x01\x01\x12+\n" +
+	"\x05scope\x18\a \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\x0f\n" +
 	"\r_input_schema\":\n" +
 	"\x13CreateSkillResponse\x12#\n" +
-	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"\xaf\x02\n" +
-	"\x12UpdateSkillRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1d\n" +
-	"\acontent\x18\x04 \x01(\tH\x01R\acontent\x88\x01\x01\x12*\n" +
-	"\x0euser_invocable\x18\x05 \x01(\bH\x02R\ruserInvocable\x88\x01\x01\x12&\n" +
-	"\finput_schema\x18\x06 \x01(\tH\x03R\vinputSchema\x88\x01\x01B\x0e\n" +
+	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"\xce\x02\n" +
+	"\x12UpdateSkillRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
+	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1d\n" +
+	"\acontent\x18\x05 \x01(\tH\x01R\acontent\x88\x01\x01\x12*\n" +
+	"\x0euser_invocable\x18\x06 \x01(\bH\x02R\ruserInvocable\x88\x01\x01\x12&\n" +
+	"\finput_schema\x18\a \x01(\tH\x03R\vinputSchema\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
 	"\b_contentB\x11\n" +
 	"\x0f_user_invocableB\x0f\n" +
 	"\r_input_schema\":\n" +
 	"\x13UpdateSkillResponse\x12#\n" +
-	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"U\n" +
-	"\x12DeleteSkillRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\"/\n" +
+	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"t\n" +
+	"\x12DeleteSkillRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
+	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\"/\n" +
 	"\x13DeleteSkillResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x14\n" +
-	"\x12GetClaudeMdRequest\"=\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"3\n" +
+	"\x12GetClaudeMdRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"=\n" +
 	"\x13GetClaudeMdResponse\x12&\n" +
-	"\x05files\x18\x01 \x03(\v2\x10.orc.v1.ClaudeMdR\x05files\"^\n" +
-	"\x15UpdateClaudeMdRequest\x12+\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"G\n" +
+	"\x05files\x18\x01 \x03(\v2\x10.orc.v1.ClaudeMdR\x05files\"}\n" +
+	"\x15UpdateClaudeMdRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12+\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"G\n" +
 	"\x16UpdateClaudeMdResponse\x12-\n" +
-	"\tclaude_md\x18\x01 \x01(\v2\x10.orc.v1.ClaudeMdR\bclaudeMd\"\x18\n" +
-	"\x16GetConstitutionRequest\"S\n" +
+	"\tclaude_md\x18\x01 \x01(\v2\x10.orc.v1.ClaudeMdR\bclaudeMd\"7\n" +
+	"\x16GetConstitutionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"S\n" +
 	"\x17GetConstitutionResponse\x128\n" +
-	"\fconstitution\x18\x01 \x01(\v2\x14.orc.v1.ConstitutionR\fconstitution\"5\n" +
-	"\x19UpdateConstitutionRequest\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\"V\n" +
+	"\fconstitution\x18\x01 \x01(\v2\x14.orc.v1.ConstitutionR\fconstitution\"T\n" +
+	"\x19UpdateConstitutionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"V\n" +
 	"\x1aUpdateConstitutionResponse\x128\n" +
-	"\fconstitution\x18\x01 \x01(\v2\x14.orc.v1.ConstitutionR\fconstitution\"\x1b\n" +
-	"\x19DeleteConstitutionRequest\"6\n" +
+	"\fconstitution\x18\x01 \x01(\v2\x14.orc.v1.ConstitutionR\fconstitution\":\n" +
+	"\x19DeleteConstitutionRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"6\n" +
 	"\x1aDeleteConstitutionResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x14\n" +
-	"\x12ListPromptsRequest\"G\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"3\n" +
+	"\x12ListPromptsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"G\n" +
 	"\x13ListPromptsResponse\x120\n" +
-	"\aprompts\x18\x01 \x03(\v2\x16.orc.v1.PromptTemplateR\aprompts\"(\n" +
-	"\x10GetPromptRequest\x12\x14\n" +
-	"\x05phase\x18\x01 \x01(\tR\x05phase\"C\n" +
+	"\aprompts\x18\x01 \x03(\v2\x16.orc.v1.PromptTemplateR\aprompts\"G\n" +
+	"\x10GetPromptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\"C\n" +
 	"\x11GetPromptResponse\x12.\n" +
-	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"/\n" +
-	"\x17GetDefaultPromptRequest\x12\x14\n" +
-	"\x05phase\x18\x01 \x01(\tR\x05phase\"J\n" +
+	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"N\n" +
+	"\x17GetDefaultPromptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\"J\n" +
 	"\x18GetDefaultPromptResponse\x12.\n" +
-	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"E\n" +
-	"\x13UpdatePromptRequest\x12\x14\n" +
-	"\x05phase\x18\x01 \x01(\tR\x05phase\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"F\n" +
+	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"d\n" +
+	"\x13UpdatePromptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\"F\n" +
 	"\x14UpdatePromptResponse\x12.\n" +
-	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"+\n" +
-	"\x13DeletePromptRequest\x12\x14\n" +
-	"\x05phase\x18\x01 \x01(\tR\x05phase\"0\n" +
+	"\x06prompt\x18\x01 \x01(\v2\x16.orc.v1.PromptTemplateR\x06prompt\"J\n" +
+	"\x13DeletePromptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\"0\n" +
 	"\x14DeletePromptResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x1c\n" +
-	"\x1aListPromptVariablesRequest\"S\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\";\n" +
+	"\x1aListPromptVariablesRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"S\n" +
 	"\x1bListPromptVariablesResponse\x124\n" +
-	"\tvariables\x18\x01 \x03(\v2\x16.orc.v1.PromptVariableR\tvariables\"O\n" +
-	"\x11ListAgentsRequest\x120\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
+	"\tvariables\x18\x01 \x03(\v2\x16.orc.v1.PromptVariableR\tvariables\"n\n" +
+	"\x11ListAgentsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x120\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
 	"\x06_scope\";\n" +
 	"\x12ListAgentsResponse\x12%\n" +
-	"\x06agents\x18\x01 \x03(\v2\r.orc.v1.AgentR\x06agents\"%\n" +
-	"\x0fGetAgentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"7\n" +
-	"\x10GetAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\x81\x04\n" +
-	"\x12CreateAgentRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
-	"\x05model\x18\x04 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
-	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\x06 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
-	"\rsystem_prompt\x18\a \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\b \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
-	"\bwork_dir\x18\t \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\x06agents\x18\x01 \x03(\v2\r.orc.v1.AgentR\x06agents\"D\n" +
+	"\x0fGetAgentRequest\x12\x1d\n" +
 	"\n" +
-	"skill_refs\x18\n" +
-	" \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\v \x01(\tH\x06R\atimeout\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\f \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\b\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"7\n" +
+	"\x10GetAgentResponse\x12#\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xa0\x04\n" +
+	"\x12CreateAgentRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
+	"\x05model\x18\x05 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
+	"\x05tools\x18\x06 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\a \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
+	"\rsystem_prompt\x18\b \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
+	"\rclaude_config\x18\t \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\bwork_dir\x18\n" +
+	" \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"skill_refs\x18\v \x03(\tR\tskillRefs\x12\x1d\n" +
+	"\atimeout\x18\f \x01(\tH\x06R\atimeout\x88\x01\x01\x12+\n" +
+	"\x05scope\x18\r \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
 	"\a_promptB\x10\n" +
@@ -6330,21 +6697,23 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\b_timeout\":\n" +
 	"\x13CreateAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xf7\x03\n" +
-	"\x12UpdateAgentRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x19\n" +
-	"\x05model\x18\x04 \x01(\tH\x02R\x05model\x88\x01\x01\x122\n" +
-	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x03R\x05tools\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\x06 \x01(\tH\x04R\x06prompt\x88\x01\x01\x12(\n" +
-	"\rsystem_prompt\x18\a \x01(\tH\x05R\fsystemPrompt\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\b \x01(\tH\x06R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
-	"\bwork_dir\x18\t \x01(\tH\aR\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\x96\x04\n" +
+	"\x12UpdateAgentRequest\x12\x1d\n" +
 	"\n" +
-	"skill_refs\x18\n" +
-	" \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\v \x01(\tH\bR\atimeout\x88\x01\x01B\a\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\x05 \x01(\tH\x02R\x05model\x88\x01\x01\x122\n" +
+	"\x05tools\x18\x06 \x01(\v2\x17.orc.v1.ToolPermissionsH\x03R\x05tools\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\a \x01(\tH\x04R\x06prompt\x88\x01\x01\x12(\n" +
+	"\rsystem_prompt\x18\b \x01(\tH\x05R\fsystemPrompt\x88\x01\x01\x12(\n" +
+	"\rclaude_config\x18\t \x01(\tH\x06R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\bwork_dir\x18\n" +
+	" \x01(\tH\aR\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"skill_refs\x18\v \x03(\tR\tskillRefs\x12\x1d\n" +
+	"\atimeout\x18\f \x01(\tH\bR\atimeout\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\b\n" +
 	"\x06_modelB\b\n" +
@@ -6356,46 +6725,62 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\b_timeout\":\n" +
 	"\x13UpdateAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"(\n" +
-	"\x12DeleteAgentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"/\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"G\n" +
+	"\x12DeleteAgentRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"/\n" +
 	"\x13DeleteAgentResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x14\n" +
-	"\x12ListScriptsRequest\"?\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"3\n" +
+	"\x12ListScriptsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"?\n" +
 	"\x13ListScriptsResponse\x12(\n" +
-	"\ascripts\x18\x01 \x03(\v2\x0e.orc.v1.ScriptR\ascripts\"\x18\n" +
-	"\x16DiscoverScriptsRequest\"C\n" +
+	"\ascripts\x18\x01 \x03(\v2\x0e.orc.v1.ScriptR\ascripts\"7\n" +
+	"\x16DiscoverScriptsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"C\n" +
 	"\x17DiscoverScriptsResponse\x12(\n" +
-	"\ascripts\x18\x01 \x03(\v2\x0e.orc.v1.ScriptR\ascripts\"&\n" +
-	"\x10GetScriptRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\";\n" +
+	"\ascripts\x18\x01 \x03(\v2\x0e.orc.v1.ScriptR\ascripts\"E\n" +
+	"\x10GetScriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\";\n" +
 	"\x11GetScriptResponse\x12&\n" +
-	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\"\x8d\x01\n" +
-	"\x13CreateScriptRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
-	"\blanguage\x18\x04 \x01(\tH\x00R\blanguage\x88\x01\x01B\v\n" +
+	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\"\xac\x01\n" +
+	"\x13CreateScriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1f\n" +
+	"\blanguage\x18\x05 \x01(\tH\x00R\blanguage\x88\x01\x01B\v\n" +
 	"\t_language\">\n" +
 	"\x14CreateScriptResponse\x12&\n" +
-	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\"\xb0\x01\n" +
-	"\x13UpdateScriptRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x17\n" +
-	"\x04path\x18\x02 \x01(\tH\x00R\x04path\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
-	"\blanguage\x18\x04 \x01(\tH\x02R\blanguage\x88\x01\x01B\a\n" +
+	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\"\xcf\x01\n" +
+	"\x13UpdateScriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x17\n" +
+	"\x04path\x18\x03 \x01(\tH\x00R\x04path\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\blanguage\x18\x05 \x01(\tH\x02R\blanguage\x88\x01\x01B\a\n" +
 	"\x05_pathB\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_language\">\n" +
 	"\x14UpdateScriptResponse\x12&\n" +
-	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\")\n" +
-	"\x13DeleteScriptRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"0\n" +
+	"\x06script\x18\x01 \x01(\v2\x0e.orc.v1.ScriptR\x06script\"H\n" +
+	"\x13DeleteScriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"0\n" +
 	"\x14DeleteScriptResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"o\n" +
-	"\x10ListToolsRequest\x120\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01\x12\x1f\n" +
-	"\vby_category\x18\x02 \x01(\bR\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x8e\x01\n" +
+	"\x10ListToolsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x120\n" +
+	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01\x12\x1f\n" +
+	"\vby_category\x18\x03 \x01(\bR\n" +
 	"byCategoryB\b\n" +
 	"\x06_scope\"\xd8\x01\n" +
 	"\x11ListToolsResponse\x12&\n" +
@@ -6406,15 +6791,21 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12&\n" +
 	"\x05value\x18\x02 \x01(\v2\x10.orc.v1.ToolListR\x05value:\x028\x01\"2\n" +
 	"\bToolList\x12&\n" +
-	"\x05tools\x18\x01 \x03(\v2\x10.orc.v1.ToolInfoR\x05tools\"\x1b\n" +
-	"\x19GetToolPermissionsRequest\"W\n" +
+	"\x05tools\x18\x01 \x03(\v2\x10.orc.v1.ToolInfoR\x05tools\":\n" +
+	"\x19GetToolPermissionsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"W\n" +
 	"\x1aGetToolPermissionsResponse\x129\n" +
-	"\vpermissions\x18\x01 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"Y\n" +
-	"\x1cUpdateToolPermissionsRequest\x129\n" +
-	"\vpermissions\x18\x01 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"Z\n" +
+	"\vpermissions\x18\x01 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"x\n" +
+	"\x1cUpdateToolPermissionsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x129\n" +
+	"\vpermissions\x18\x02 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"Z\n" +
 	"\x1dUpdateToolPermissionsResponse\x129\n" +
-	"\vpermissions\x18\x01 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"\x17\n" +
-	"\x15GetConfigStatsRequest\"C\n" +
+	"\vpermissions\x18\x01 \x01(\v2\x17.orc.v1.ToolPermissionsR\vpermissions\"6\n" +
+	"\x15GetConfigStatsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"C\n" +
 	"\x16GetConfigStatsResponse\x12)\n" +
 	"\x05stats\x18\x01 \x01(\v2\x13.orc.v1.ConfigStatsR\x05stats*f\n" +
 	"\rSettingsScope\x12\x1e\n" +

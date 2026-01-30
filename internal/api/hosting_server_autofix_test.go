@@ -135,7 +135,7 @@ func TestAutofixComment_StartsExecution(t *testing.T) {
 
 	var executorCalled atomic.Bool
 	var executorTaskID string
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		executorCalled.Store(true)
 		executorTaskID = taskID
 		return nil
@@ -218,7 +218,7 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 	}
 
 	commentBody := "Error handling is missing for the nil case"
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		return nil
 	}
 
@@ -310,7 +310,7 @@ func TestAutofixComment_ReturnsImmediately(t *testing.T) {
 	// Slow executor to simulate real execution
 	executorStarted := make(chan struct{})
 	executorDone := make(chan struct{})
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		close(executorStarted)
 		<-executorDone // Block until test says to finish
 		return nil
@@ -402,7 +402,7 @@ func TestAutofixComment_PublishesCompletionEvent(t *testing.T) {
 		t.Fatalf("save task: %v", err)
 	}
 
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		return nil
 	}
 
@@ -479,7 +479,7 @@ func TestAutofixComment_TaskAlreadyRunning(t *testing.T) {
 		},
 	}
 
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		t.Error("executor should not be called for already-running task")
 		return nil
 	}
@@ -807,7 +807,7 @@ func TestAutofixComment_TaskPaused_AllowsAutofix(t *testing.T) {
 	}
 
 	var executorCalled atomic.Bool
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		executorCalled.Store(true)
 		return nil
 	}
@@ -881,7 +881,7 @@ func TestAutofixComment_ExecutorFails(t *testing.T) {
 	}
 
 	// Executor that always fails
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		return errors.New("no Claude process available")
 	}
 
@@ -1030,7 +1030,7 @@ func TestAutofixComment_LongCommentTruncated(t *testing.T) {
 	// Create a comment body > 10KB
 	longBody := strings.Repeat("This is a very long comment. ", 500) // ~15KB
 
-	mockExecutor := func(taskID string) error {
+	mockExecutor := func(taskID, projectID string) error {
 		return nil
 	}
 

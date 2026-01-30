@@ -70,6 +70,18 @@ func (s *configServer) getBackend(projectID string) (storage.Backend, error) {
 	return s.backend, nil
 }
 
+// getWorkDir returns the work directory for the given project ID.
+// Uses projectCache to resolve project-specific paths, falls back to default workDir.
+func (s *configServer) getWorkDir(projectID string) (string, error) {
+	if projectID != "" && s.projectCache != nil {
+		return s.projectCache.GetProjectPath(projectID)
+	}
+	if projectID != "" && s.projectCache == nil {
+		return "", fmt.Errorf("project_id specified but no project cache configured")
+	}
+	return s.workDir, nil
+}
+
 // GetConfig returns the ORC configuration.
 func (s *configServer) GetConfig(
 	ctx context.Context,
@@ -97,7 +109,11 @@ func (s *configServer) UpdateConfig(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateConfigRequest],
 ) (*connect.Response[orcv1.UpdateConfigResponse], error) {
-	configPath := filepath.Join(s.workDir, config.OrcDir, config.ConfigFileName)
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	configPath := filepath.Join(workDir, config.OrcDir, config.ConfigFileName)
 
 	cfg, err := config.LoadFile(configPath)
 	if err != nil {
@@ -237,17 +253,21 @@ func (s *configServer) GetSettings(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetSettingsRequest],
 ) (*connect.Response[orcv1.GetSettingsResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var settings *claudeconfig.Settings
-	var err error
 
 	switch req.Msg.Scope {
 	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
 		settings, err = claudeconfig.LoadGlobalSettings()
 	case orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT:
-		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+		settings, err = claudeconfig.LoadProjectSettings(workDir)
 	default:
 		// Merged (default)
-		settings, err = claudeconfig.LoadSettings(s.workDir)
+		settings, err = claudeconfig.LoadSettings(workDir)
 	}
 
 	if err != nil {
@@ -265,14 +285,18 @@ func (s *configServer) UpdateSettings(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateSettingsRequest],
 ) (*connect.Response[orcv1.UpdateSettingsResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	settings := protoToClaudeSettings(req.Msg.Settings)
 
-	var err error
 	switch req.Msg.Scope {
 	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
 		err = claudeconfig.SaveGlobalSettings(settings)
 	default:
-		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+		err = claudeconfig.SaveProjectSettings(workDir, settings)
 	}
 
 	if err != nil {
@@ -289,9 +313,14 @@ func (s *configServer) GetSettingsHierarchy(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetSettingsHierarchyRequest],
 ) (*connect.Response[orcv1.GetSettingsHierarchyResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	globalSettings, _ := claudeconfig.LoadGlobalSettings()
-	projectSettings, _ := claudeconfig.LoadProjectSettings(s.workDir)
-	mergedSettings, _ := claudeconfig.LoadSettings(s.workDir)
+	projectSettings, _ := claudeconfig.LoadProjectSettings(workDir)
+	mergedSettings, _ := claudeconfig.LoadSettings(workDir)
 
 	return connect.NewResponse(&orcv1.GetSettingsHierarchyResponse{
 		Hierarchy: &orcv1.SettingsHierarchy{
@@ -307,8 +336,12 @@ func (s *configServer) ListHooks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListHooksRequest],
 ) (*connect.Response[orcv1.ListHooksResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var settings *claudeconfig.Settings
-	var err error
 	var scope orcv1.SettingsScope
 
 	if req.Msg.Scope != nil {
@@ -319,7 +352,7 @@ func (s *configServer) ListHooks(
 	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
 		settings, err = claudeconfig.LoadGlobalSettings()
 	default:
-		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+		settings, err = claudeconfig.LoadProjectSettings(workDir)
 		scope = orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT
 	}
 
@@ -361,13 +394,17 @@ func (s *configServer) CreateHook(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreateHookRequest],
 ) (*connect.Response[orcv1.CreateHookResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var settings *claudeconfig.Settings
-	var err error
 
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		settings, err = claudeconfig.LoadGlobalSettings()
 	} else {
-		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+		settings, err = claudeconfig.LoadProjectSettings(workDir)
 	}
 
 	if err != nil {
@@ -409,7 +446,7 @@ func (s *configServer) CreateHook(
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		err = claudeconfig.SaveGlobalSettings(settings)
 	} else {
-		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+		err = claudeconfig.SaveProjectSettings(workDir, settings)
 	}
 
 	if err != nil {
@@ -444,13 +481,17 @@ func (s *configServer) DeleteHook(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteHookRequest],
 ) (*connect.Response[orcv1.DeleteHookResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var settings *claudeconfig.Settings
-	var err error
 
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		settings, err = claudeconfig.LoadGlobalSettings()
 	} else {
-		settings, err = claudeconfig.LoadProjectSettings(s.workDir)
+		settings, err = claudeconfig.LoadProjectSettings(workDir)
 	}
 
 	if err != nil || settings == nil || settings.Hooks == nil {
@@ -491,7 +532,7 @@ func (s *configServer) DeleteHook(
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		err = claudeconfig.SaveGlobalSettings(settings)
 	} else {
-		err = claudeconfig.SaveProjectSettings(s.workDir, settings)
+		err = claudeconfig.SaveProjectSettings(workDir, settings)
 	}
 
 	if err != nil {
@@ -510,6 +551,11 @@ func (s *configServer) ListSkills(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListSkillsRequest],
 ) (*connect.Response[orcv1.ListSkillsResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	// When no scope specified, return ALL skills (global + project)
 	// This matches GetConfigStats.slashCommandsCount behavior
 	if req.Msg.Scope == nil {
@@ -527,7 +573,7 @@ func (s *configServer) ListSkills(
 		}
 
 		// Collect project skills and commands
-		projectClaudeDir := filepath.Join(s.workDir, ".claude")
+		projectClaudeDir := filepath.Join(workDir, ".claude")
 		projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
 		for _, skill := range projectSkills {
 			protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT))
@@ -550,7 +596,7 @@ func (s *configServer) ListSkills(
 		}
 		claudeDir = filepath.Join(homeDir, ".claude")
 	} else {
-		claudeDir = filepath.Join(s.workDir, ".claude")
+		claudeDir = filepath.Join(workDir, ".claude")
 	}
 
 	var protoSkills []*orcv1.Skill
@@ -578,6 +624,11 @@ func (s *configServer) CreateSkill(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var skillDir string
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		homeDir, err := os.UserHomeDir()
@@ -586,7 +637,7 @@ func (s *configServer) CreateSkill(
 		}
 		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
 	} else {
-		skillDir = filepath.Join(s.workDir, ".claude", "skills", req.Msg.Name)
+		skillDir = filepath.Join(workDir, ".claude", "skills", req.Msg.Name)
 	}
 
 	skill := &claudeconfig.Skill{
@@ -609,6 +660,11 @@ func (s *configServer) UpdateSkill(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateSkillRequest],
 ) (*connect.Response[orcv1.UpdateSkillResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var baseDir string
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		homeDir, err := os.UserHomeDir()
@@ -617,7 +673,7 @@ func (s *configServer) UpdateSkill(
 		}
 		baseDir = filepath.Join(homeDir, ".claude", "skills")
 	} else {
-		baseDir = filepath.Join(s.workDir, ".claude", "skills")
+		baseDir = filepath.Join(workDir, ".claude", "skills")
 	}
 
 	skillDir := filepath.Join(baseDir, req.Msg.Name)
@@ -656,6 +712,11 @@ func (s *configServer) DeleteSkill(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteSkillRequest],
 ) (*connect.Response[orcv1.DeleteSkillResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var skillDir string
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		homeDir, err := os.UserHomeDir()
@@ -664,7 +725,7 @@ func (s *configServer) DeleteSkill(
 		}
 		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
 	} else {
-		skillDir = filepath.Join(s.workDir, ".claude", "skills", req.Msg.Name)
+		skillDir = filepath.Join(workDir, ".claude", "skills", req.Msg.Name)
 	}
 
 	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
@@ -685,6 +746,11 @@ func (s *configServer) GetClaudeMd(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetClaudeMdRequest],
 ) (*connect.Response[orcv1.GetClaudeMdResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var files []*orcv1.ClaudeMd
 
 	// Check global CLAUDE.md
@@ -699,7 +765,7 @@ func (s *configServer) GetClaudeMd(
 	}
 
 	// Check project CLAUDE.md
-	projectPath := filepath.Join(s.workDir, "CLAUDE.md")
+	projectPath := filepath.Join(workDir, "CLAUDE.md")
 	if content, err := os.ReadFile(projectPath); err == nil {
 		files = append(files, &orcv1.ClaudeMd{
 			Path:    projectPath,
@@ -718,6 +784,11 @@ func (s *configServer) UpdateClaudeMd(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateClaudeMdRequest],
 ) (*connect.Response[orcv1.UpdateClaudeMdResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	var path string
 	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
 		homeDir, err := os.UserHomeDir()
@@ -726,7 +797,7 @@ func (s *configServer) UpdateClaudeMd(
 		}
 		path = filepath.Join(homeDir, "CLAUDE.md")
 	} else {
-		path = filepath.Join(s.workDir, "CLAUDE.md")
+		path = filepath.Join(workDir, "CLAUDE.md")
 	}
 
 	if err := os.WriteFile(path, []byte(req.Msg.Content), 0644); err != nil {
@@ -747,8 +818,7 @@ func (s *configServer) GetConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetConstitutionRequest],
 ) (*connect.Response[orcv1.GetConstitutionResponse], error) {
-	// TODO: use req.Msg.GetProjectId() once config.proto GetConstitutionRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -775,8 +845,7 @@ func (s *configServer) UpdateConstitution(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	// TODO: use req.Msg.GetProjectId() once config.proto UpdateConstitutionRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -801,8 +870,7 @@ func (s *configServer) DeleteConstitution(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteConstitutionRequest],
 ) (*connect.Response[orcv1.DeleteConstitutionResponse], error) {
-	// TODO: use req.Msg.GetProjectId() once config.proto DeleteConstitutionRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -821,12 +889,17 @@ func (s *configServer) GetConfigStats(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetConfigStatsRequest],
 ) (*connect.Response[orcv1.GetConfigStatsResponse], error) {
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
 	stats := &orcv1.ConfigStats{}
 
 	// Count skills (slash commands)
 	homeDir, _ := os.UserHomeDir()
 	globalClaudeDir := filepath.Join(homeDir, ".claude")
-	projectClaudeDir := filepath.Join(s.workDir, ".claude")
+	projectClaudeDir := filepath.Join(workDir, ".claude")
 
 	globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
 	projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
@@ -839,17 +912,17 @@ func (s *configServer) GetConfigStats(
 	if info, err := os.Stat(filepath.Join(homeDir, "CLAUDE.md")); err == nil {
 		claudeMdSize += info.Size()
 	}
-	if info, err := os.Stat(filepath.Join(s.workDir, "CLAUDE.md")); err == nil {
+	if info, err := os.Stat(filepath.Join(workDir, "CLAUDE.md")); err == nil {
 		claudeMdSize += info.Size()
 	}
 	stats.ClaudeMdSize = claudeMdSize
 
 	// Count MCP servers from ~/.claude.json and .mcp.json
-	mcpCount, _ := claudeconfig.CountMCPServers(s.workDir)
+	mcpCount, _ := claudeconfig.CountMCPServers(workDir)
 	stats.McpServersCount = int32(mcpCount)
 
 	// Get permissions profile
-	settings, _ := claudeconfig.LoadSettings(s.workDir)
+	settings, _ := claudeconfig.LoadSettings(workDir)
 	if settings != nil && settings.Permissions != nil {
 		if len(settings.Permissions.Allow) > 0 && len(settings.Permissions.Deny) == 0 {
 			stats.PermissionsProfile = "allowlist"
@@ -874,7 +947,11 @@ func (s *configServer) ListPrompts(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListPromptsRequest],
 ) (*connect.Response[orcv1.ListPromptsResponse], error) {
-	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	svc := prompt.NewService(filepath.Join(workDir, ".orc"))
 	prompts, err := svc.List()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list prompts: %w", err))
@@ -895,7 +972,11 @@ func (s *configServer) GetPrompt(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetPromptRequest],
 ) (*connect.Response[orcv1.GetPromptResponse], error) {
-	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	svc := prompt.NewService(filepath.Join(workDir, ".orc"))
 	p, err := svc.Get(req.Msg.Phase)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("prompt not found"))
@@ -911,7 +992,11 @@ func (s *configServer) GetDefaultPrompt(
 	ctx context.Context,
 	req *connect.Request[orcv1.GetDefaultPromptRequest],
 ) (*connect.Response[orcv1.GetDefaultPromptResponse], error) {
-	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	svc := prompt.NewService(filepath.Join(workDir, ".orc"))
 	p, err := svc.GetDefault(req.Msg.Phase)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("default prompt not found"))
@@ -931,7 +1016,11 @@ func (s *configServer) UpdatePrompt(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	svc := prompt.NewService(filepath.Join(workDir, ".orc"))
 	if err := svc.Save(req.Msg.Phase, req.Msg.Content); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save prompt: %w", err))
 	}
@@ -951,7 +1040,11 @@ func (s *configServer) DeletePrompt(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeletePromptRequest],
 ) (*connect.Response[orcv1.DeletePromptResponse], error) {
-	svc := prompt.NewService(filepath.Join(s.workDir, ".orc"))
+	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	svc := prompt.NewService(filepath.Join(workDir, ".orc"))
 
 	if !svc.HasOverride(req.Msg.Phase) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no override exists for this phase"))
@@ -994,8 +1087,7 @@ func (s *configServer) ListAgents(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListAgentsRequest],
 ) (*connect.Response[orcv1.ListAgentsResponse], error) {
-	// TODO: use req.Msg.GetProjectId() once config.proto ListAgentsRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1065,8 +1157,7 @@ func (s *configServer) GetAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
-	// TODO: use req.Msg.GetProjectId() once config.proto GetAgentRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1097,8 +1188,7 @@ func (s *configServer) CreateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
 	}
 
-	// TODO: use req.Msg.GetProjectId() once config.proto CreateAgentRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1156,8 +1246,7 @@ func (s *configServer) UpdateAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	// TODO: use req.Msg.GetProjectId() once config.proto UpdateAgentRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -1219,8 +1308,7 @@ func (s *configServer) DeleteAgent(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
 
-	// TODO: use req.Msg.GetProjectId() once config.proto DeleteAgentRequest has project_id
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
