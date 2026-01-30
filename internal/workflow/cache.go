@@ -99,6 +99,10 @@ func (c *CacheService) SyncAll() (*SyncResult, error) {
 			}
 			result.WorkflowsAdded++
 		} else {
+			// Always clean up stale phases (handles removed phases between versions)
+			if err := c.removeStalePhases(rw.Workflow); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("cleanup stale phases %s: %v", rw.Workflow.ID, err))
+			}
 			// Check if file is newer (for file-based sources)
 			if c.shouldUpdateWorkflow(existing, rw) {
 				if err := c.saveWorkflowWithRelations(rw.Workflow, dbWorkflow); err != nil {
@@ -279,6 +283,30 @@ func (c *CacheService) EnsureSynced() (bool, error) {
 	return true, nil
 }
 
+// removeStalePhases deletes workflow phases from the DB that are no longer in the definition.
+func (c *CacheService) removeStalePhases(wf *Workflow) error {
+	currentPhaseIDs := make(map[string]bool, len(wf.Phases))
+	for _, phase := range wf.Phases {
+		currentPhaseIDs[phase.PhaseTemplateID] = true
+	}
+
+	existingPhases, err := c.gdb.GetWorkflowPhases(wf.ID)
+	if err != nil {
+		return fmt.Errorf("get existing workflow phases: %w", err)
+	}
+	for _, existing := range existingPhases {
+		if !currentPhaseIDs[existing.PhaseTemplateID] {
+			if err := c.gdb.DeleteWorkflowPhase(wf.ID, existing.PhaseTemplateID); err != nil {
+				return fmt.Errorf("delete stale phase %s: %w", existing.PhaseTemplateID, err)
+			}
+			slog.Info("removed stale workflow phase",
+				"workflow", wf.ID,
+				"phase", existing.PhaseTemplateID)
+		}
+	}
+	return nil
+}
+
 // saveWorkflowWithRelations saves a workflow and its phases/variables to the DB.
 func (c *CacheService) saveWorkflowWithRelations(wf *Workflow, dbWorkflow *db.Workflow) error {
 	if err := c.gdb.SaveWorkflow(dbWorkflow); err != nil {
@@ -291,6 +319,11 @@ func (c *CacheService) saveWorkflowWithRelations(wf *Workflow, dbWorkflow *db.Wo
 		if err := c.gdb.SaveWorkflowPhase(dbPhase); err != nil {
 			return fmt.Errorf("save workflow phase %s: %w", phase.PhaseTemplateID, err)
 		}
+	}
+
+	// Remove stale phases no longer in the workflow definition
+	if err := c.removeStalePhases(wf); err != nil {
+		return fmt.Errorf("cleanup stale phases: %w", err)
 	}
 
 	// Save variables
