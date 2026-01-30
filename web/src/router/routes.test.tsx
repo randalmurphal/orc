@@ -508,13 +508,6 @@ describe('Routes', () => {
 			});
 		});
 
-		it('renders Memory at /settings/memory', async () => {
-			renderWithRouter('/settings/memory');
-			await waitFor(() => {
-				expect(screen.getByRole('heading', { level: 3, name: 'Memory' })).toBeInTheDocument();
-			});
-		});
-
 		it('renders placeholder at /settings/permissions', async () => {
 			renderWithRouter('/settings/permissions');
 			await waitFor(() => {

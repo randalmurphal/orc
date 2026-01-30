@@ -38,11 +38,11 @@ function renderWithRouter(initialRoute: string = '/settings/commands') {
 					<Route path="commands" element={<div data-testid="commands-content">Commands Content</div>} />
 					<Route path="claude-md" element={<div data-testid="claude-md-content">CLAUDE.md Content</div>} />
 					<Route path="mcp" element={<div data-testid="mcp-content">MCP Content</div>} />
-					<Route path="memory" element={<div data-testid="memory-content">Memory Content</div>} />
 					<Route path="permissions" element={<div data-testid="permissions-content">Permissions Content</div>} />
 					<Route path="projects" element={<div data-testid="projects-content">Projects Content</div>} />
 					<Route path="billing" element={<div data-testid="billing-content">Billing Content</div>} />
 					<Route path="import-export" element={<div data-testid="import-export-content">Import/Export Content</div>} />
+					<Route path="constitution" element={<div data-testid="constitution-content">Constitution Content</div>} />
 					<Route path="profile" element={<div data-testid="profile-content">Profile Content</div>} />
 					<Route path="api-keys" element={<div data-testid="api-keys-content">API Keys Content</div>} />
 				</Route>
@@ -90,13 +90,13 @@ describe('SettingsLayout', () => {
 			expect(screen.getByText('Slash Commands')).toBeInTheDocument();
 			expect(screen.getByText('CLAUDE.md')).toBeInTheDocument();
 			expect(screen.getByText('MCP Servers')).toBeInTheDocument();
-			expect(screen.getByText('Memory')).toBeInTheDocument();
 			expect(screen.getByText('Permissions')).toBeInTheDocument();
 
 			// ORC section
 			expect(screen.getByText('Projects')).toBeInTheDocument();
 			expect(screen.getByText('Billing & Usage')).toBeInTheDocument();
 			expect(screen.getByText('Import / Export')).toBeInTheDocument();
+			expect(screen.getByText('Constitution')).toBeInTheDocument();
 
 			// ACCOUNT section
 			expect(screen.getByText('Profile')).toBeInTheDocument();
@@ -251,11 +251,6 @@ describe('SettingsLayout', () => {
 			expect(screen.getByTestId('mcp-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/memory', () => {
-			renderWithRouter('/settings/memory');
-			expect(screen.getByTestId('memory-content')).toBeInTheDocument();
-		});
-
 		it('renders correct content for /settings/permissions', () => {
 			renderWithRouter('/settings/permissions');
 			expect(screen.getByTestId('permissions-content')).toBeInTheDocument();
@@ -274,6 +269,11 @@ describe('SettingsLayout', () => {
 		it('renders correct content for /settings/import-export', () => {
 			renderWithRouter('/settings/import-export');
 			expect(screen.getByTestId('import-export-content')).toBeInTheDocument();
+		});
+
+		it('renders correct content for /settings/constitution', () => {
+			renderWithRouter('/settings/constitution');
+			expect(screen.getByTestId('constitution-content')).toBeInTheDocument();
 		});
 
 		it('renders correct content for /settings/profile', () => {

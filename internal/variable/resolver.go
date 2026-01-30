@@ -36,15 +36,18 @@ func NewResolver(projectRoot string) *Resolver {
 
 // ResolveAll resolves all variable definitions and returns a VariableSet.
 // Built-in variables (TASK_*, PHASE_*, etc.) are included automatically.
+// Variables are resolved in order, so later variables can reference earlier ones
+// via {{VAR}} interpolation in their source configs.
 func (r *Resolver) ResolveAll(ctx context.Context, defs []Definition, rctx *ResolutionContext) (VariableSet, error) {
 	vars := make(VariableSet)
 
 	// First, add built-in variables from the resolution context
 	r.addBuiltinVariables(vars, rctx)
 
-	// Then resolve custom variable definitions
+	// Then resolve custom variable definitions in order.
+	// Each variable can reference previously resolved variables via {{VAR}} patterns.
 	for _, def := range defs {
-		resolved, err := r.Resolve(ctx, &def, rctx)
+		resolved, err := r.Resolve(ctx, &def, rctx, vars)
 		if err != nil {
 			if def.Required {
 				return nil, fmt.Errorf("resolve required variable %s: %w", def.Name, err)
@@ -62,7 +65,8 @@ func (r *Resolver) ResolveAll(ctx context.Context, defs []Definition, rctx *Reso
 }
 
 // Resolve resolves a single variable definition.
-func (r *Resolver) Resolve(ctx context.Context, def *Definition, rctx *ResolutionContext) (*ResolvedVariable, error) {
+// currentVars contains already-resolved variables used for {{VAR}} interpolation in source configs.
+func (r *Resolver) Resolve(ctx context.Context, def *Definition, rctx *ResolutionContext, currentVars VariableSet) (*ResolvedVariable, error) {
 	// Check cache first
 	cacheKey := CacheKey(def, rctx)
 	if def.CacheTTL > 0 {
@@ -77,23 +81,66 @@ func (r *Resolver) Resolve(ctx context.Context, def *Definition, rctx *Resolutio
 		}
 	}
 
-	// Resolve based on source type
+	// Resolve based on source type.
+	// Pattern: parse config -> interpolate with currentVars -> resolve -> extract.
 	var value string
 	var err error
 
 	switch def.SourceType {
 	case SourceStatic:
-		value, err = r.resolveStatic(def)
+		cfg, parseErr := ParseStaticConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse static config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value = cfg.Value
+
 	case SourceEnv:
-		value, err = r.resolveEnv(def, rctx)
+		cfg, parseErr := ParseEnvConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse env config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value, err = r.resolveEnvWithConfig(cfg, rctx)
+
 	case SourceScript:
-		value, err = r.resolveScript(ctx, def)
+		cfg, parseErr := ParseScriptConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse script config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value, err = r.scriptExecutor.Execute(ctx, cfg, r.projectRoot)
+
 	case SourceAPI:
-		value, err = r.resolveAPI(ctx, def)
+		cfg, parseErr := ParseAPIConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse api config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value, err = r.resolveAPIWithConfig(ctx, cfg)
+
 	case SourcePhaseOutput:
-		value, err = r.resolvePhaseOutput(def, rctx)
+		cfg, parseErr := ParsePhaseOutputConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse phase output config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value, err = r.resolvePhaseOutputWithConfig(cfg, rctx)
+
 	case SourcePromptFragment:
-		value, err = r.resolvePromptFragment(def)
+		cfg, parseErr := ParsePromptFragmentConfig(def.SourceConfig)
+		if parseErr != nil {
+			err = fmt.Errorf("parse prompt fragment config: %w", parseErr)
+			break
+		}
+		cfg.Interpolate(currentVars)
+		value, err = r.resolvePromptFragmentWithConfig(cfg)
+
 	default:
 		return nil, fmt.Errorf("unknown source type: %s", def.SourceType)
 	}
@@ -104,6 +151,11 @@ func (r *Resolver) Resolve(ctx context.Context, def *Definition, rctx *Resolutio
 			Source: def.SourceType,
 			Error:  err,
 		}, err
+	}
+
+	// Apply JSONPath extraction if configured
+	if def.Extract != "" {
+		value = ExtractJSONPath(value, def.Extract)
 	}
 
 	// Cache if TTL is set
@@ -120,22 +172,8 @@ func (r *Resolver) Resolve(ctx context.Context, def *Definition, rctx *Resolutio
 	}, nil
 }
 
-// resolveStatic returns a static value.
-func (r *Resolver) resolveStatic(def *Definition) (string, error) {
-	cfg, err := ParseStaticConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse static config: %w", err)
-	}
-	return cfg.Value, nil
-}
-
-// resolveEnv reads an environment variable.
-func (r *Resolver) resolveEnv(def *Definition, rctx *ResolutionContext) (string, error) {
-	cfg, err := ParseEnvConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse env config: %w", err)
-	}
-
+// resolveEnvWithConfig reads an environment variable with a pre-parsed config.
+func (r *Resolver) resolveEnvWithConfig(cfg *EnvConfig, rctx *ResolutionContext) (string, error) {
 	// Check context environment first (for testing)
 	if rctx != nil && rctx.Environment != nil {
 		if value, ok := rctx.Environment[cfg.Var]; ok {
@@ -152,23 +190,8 @@ func (r *Resolver) resolveEnv(def *Definition, rctx *ResolutionContext) (string,
 	return value, nil
 }
 
-// resolveScript executes a script and returns its output.
-func (r *Resolver) resolveScript(ctx context.Context, def *Definition) (string, error) {
-	cfg, err := ParseScriptConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse script config: %w", err)
-	}
-
-	return r.scriptExecutor.Execute(ctx, cfg, r.projectRoot)
-}
-
-// resolveAPI makes an HTTP request and returns the response.
-func (r *Resolver) resolveAPI(ctx context.Context, def *Definition) (string, error) {
-	cfg, err := ParseAPIConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse api config: %w", err)
-	}
-
+// resolveAPIWithConfig makes an HTTP request with a pre-parsed config.
+func (r *Resolver) resolveAPIWithConfig(ctx context.Context, cfg *APIConfig) (string, error) {
 	// Validate URL
 	if !strings.HasPrefix(cfg.URL, "https://") && !strings.HasPrefix(cfg.URL, "http://") {
 		return "", fmt.Errorf("invalid URL scheme: must be http or https")
@@ -219,25 +242,16 @@ func (r *Resolver) resolveAPI(ctx context.Context, def *Definition) (string, err
 
 	result := string(body)
 
-	// Apply jq filter if specified
+	// Apply JQ filter if specified (using gjson syntax, not actual jq)
 	if cfg.JQFilter != "" {
-		// For now, we don't implement jq - that would require a dependency.
-		// Instead, we'll support simple JSON path extraction in a future iteration.
-		// Just return the full response for now.
-		// TODO: Add jq support via gojq or similar
-		_ = cfg.JQFilter
+		result = ExtractJSONPath(result, cfg.JQFilter)
 	}
 
 	return strings.TrimSpace(result), nil
 }
 
-// resolvePhaseOutput reads the artifact or transcript from a prior phase.
-func (r *Resolver) resolvePhaseOutput(def *Definition, rctx *ResolutionContext) (string, error) {
-	cfg, err := ParsePhaseOutputConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse phase output config: %w", err)
-	}
-
+// resolvePhaseOutputWithConfig reads the artifact from a prior phase with a pre-parsed config.
+func (r *Resolver) resolvePhaseOutputWithConfig(cfg *PhaseOutputConfig, rctx *ResolutionContext) (string, error) {
 	if rctx == nil || rctx.PriorOutputs == nil {
 		return "", fmt.Errorf("no prior outputs available")
 	}
@@ -250,13 +264,8 @@ func (r *Resolver) resolvePhaseOutput(def *Definition, rctx *ResolutionContext) 
 	return value, nil
 }
 
-// resolvePromptFragment reads a prompt fragment file.
-func (r *Resolver) resolvePromptFragment(def *Definition) (string, error) {
-	cfg, err := ParsePromptFragmentConfig(def.SourceConfig)
-	if err != nil {
-		return "", fmt.Errorf("parse prompt fragment config: %w", err)
-	}
-
+// resolvePromptFragmentWithConfig reads a prompt fragment file with a pre-parsed config.
+func (r *Resolver) resolvePromptFragmentWithConfig(cfg *PromptFragmentConfig) (string, error) {
 	// Resolve path
 	var fragmentPath string
 	if filepath.IsAbs(cfg.Path) {

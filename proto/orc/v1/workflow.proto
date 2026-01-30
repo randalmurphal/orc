@@ -149,6 +149,7 @@ message WorkflowVariable {
   optional string default_value = 8;
   int32 cache_ttl_seconds = 9;
   optional string script_content = 10;
+  optional string extract = 11;  // gjson path for JSONPath extraction
 }
 
 message WorkflowWithDetails {
@@ -227,6 +228,7 @@ service WorkflowService {
   rpc UpdatePhase(UpdatePhaseRequest) returns (UpdatePhaseResponse);
   rpc RemovePhase(RemovePhaseRequest) returns (RemovePhaseResponse);
   rpc AddVariable(AddVariableRequest) returns (AddVariableResponse);
+  rpc UpdateVariable(UpdateVariableRequest) returns (UpdateVariableResponse);
   rpc RemoveVariable(RemoveVariableRequest) returns (RemoveVariableResponse);
   rpc ListPhaseTemplates(ListPhaseTemplatesRequest) returns (ListPhaseTemplatesResponse);
   rpc GetPhaseTemplate(GetPhaseTemplateRequest) returns (GetPhaseTemplateResponse);
@@ -370,9 +372,26 @@ message AddVariableRequest {
   bool required = 6;
   optional string default_value = 7;
   int32 cache_ttl_seconds = 8;
+  optional string extract = 9;  // gjson path for JSONPath extraction
 }
 
 message AddVariableResponse {
+  WorkflowVariable variable = 1;
+}
+
+message UpdateVariableRequest {
+  string workflow_id = 1;
+  string name = 2;  // Variable name to update (immutable key)
+  optional string description = 3;
+  VariableSourceType source_type = 4;
+  string source_config = 5;
+  bool required = 6;
+  optional string default_value = 7;
+  int32 cache_ttl_seconds = 8;
+  optional string extract = 9;
+}
+
+message UpdateVariableResponse {
   WorkflowVariable variable = 1;
 }
 

@@ -25,7 +25,7 @@ Services are registered in `server_connect.go:15-79`. Each implements a handler 
 |---------|------|-------------|
 | `TaskService` | `task_server.go` | CRUD, Run/Pause/Resume, Diff, Comments, Attachments |
 | `InitiativeService` | `initiative_server.go` | CRUD, Link tasks, Dependency graph |
-| `WorkflowService` | `workflow_server.go` | List, Get workflows and phases |
+| `WorkflowService` | `workflow_server.go` | List, Get workflows and phases, AddVariable, UpdateVariable, DeleteVariable |
 | `TranscriptService` | `transcript_server.go` | Get, Stream transcripts |
 | `EventService` | `event_server.go` | Subscribe (streaming), GetEvents, GetTimeline |
 | `ConfigService` | `config_server.go` | Get/Update orc config |

@@ -606,6 +606,9 @@ func (s *workflowServer) AddVariable(
 	if req.Msg.DefaultValue != nil {
 		variable.DefaultValue = *req.Msg.DefaultValue
 	}
+	if req.Msg.Extract != nil {
+		variable.Extract = *req.Msg.Extract
+	}
 
 	if err := s.backend.SaveWorkflowVariable(variable); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save variable: %w", err))
@@ -613,6 +616,69 @@ func (s *workflowServer) AddVariable(
 
 	return connect.NewResponse(&orcv1.AddVariableResponse{
 		Variable: dbWorkflowVariableToProto(variable),
+	}), nil
+}
+
+// UpdateVariable updates an existing variable in a workflow.
+func (s *workflowServer) UpdateVariable(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateVariableRequest],
+) (*connect.Response[orcv1.UpdateVariableResponse], error) {
+	if req.Msg.WorkflowId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow_id is required"))
+	}
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+
+	// Verify workflow exists and is not builtin
+	wf, err := s.backend.GetWorkflow(req.Msg.WorkflowId)
+	if err != nil || wf == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.WorkflowId))
+	}
+	if wf.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in workflow"))
+	}
+
+	// Get existing variable
+	variables, err := s.backend.GetWorkflowVariables(req.Msg.WorkflowId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get workflow variables: %w", err))
+	}
+
+	var existingVar *db.WorkflowVariable
+	for _, v := range variables {
+		if v.Name == req.Msg.Name {
+			existingVar = v
+			break
+		}
+	}
+	if existingVar == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("variable %s not found in workflow", req.Msg.Name))
+	}
+
+	// Update fields
+	existingVar.SourceType = protoVariableSourceTypeToString(req.Msg.SourceType)
+	existingVar.SourceConfig = req.Msg.SourceConfig
+	existingVar.Required = req.Msg.Required
+	existingVar.CacheTTLSeconds = int(req.Msg.CacheTtlSeconds)
+
+	if req.Msg.Description != nil {
+		existingVar.Description = *req.Msg.Description
+	}
+	if req.Msg.DefaultValue != nil {
+		existingVar.DefaultValue = *req.Msg.DefaultValue
+	}
+	if req.Msg.Extract != nil {
+		existingVar.Extract = *req.Msg.Extract
+	}
+
+	if err := s.backend.SaveWorkflowVariable(existingVar); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save variable: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateVariableResponse{
+		Variable: dbWorkflowVariableToProto(existingVar),
 	}), nil
 }
 
@@ -1374,15 +1440,7 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 func dbWorkflowVariablesToProto(vars []*db.WorkflowVariable) []*orcv1.WorkflowVariable {
 	result := make([]*orcv1.WorkflowVariable, len(vars))
 	for i, v := range vars {
-		result[i] = &orcv1.WorkflowVariable{
-			Id:         int32(v.ID),
-			WorkflowId: v.WorkflowID,
-			Name:       v.Name,
-			Required:   v.Required,
-		}
-		if v.Description != "" {
-			result[i].Description = &v.Description
-		}
+		result[i] = dbWorkflowVariableToProto(v)
 	}
 	return result
 }
@@ -1553,6 +1611,9 @@ func dbWorkflowVariableToProto(v *db.WorkflowVariable) *orcv1.WorkflowVariable {
 	}
 	if v.DefaultValue != "" {
 		result.DefaultValue = &v.DefaultValue
+	}
+	if v.Extract != "" {
+		result.Extract = &v.Extract
 	}
 	return result
 }

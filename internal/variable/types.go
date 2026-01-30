@@ -45,7 +45,13 @@ type Definition struct {
 	SourceType SourceType `json:"source_type"`
 
 	// SourceConfig is source-specific configuration as JSON.
+	// Fields within the config support {{VAR}} interpolation with already-resolved variables.
 	SourceConfig json.RawMessage `json:"source_config"`
+
+	// Extract is a gjson path expression to extract a value from the resolved output.
+	// Applied after source resolution. If the path doesn't match, returns empty string.
+	// Examples: "data.id", "items.0.name", "results.#(status==\"active\")#"
+	Extract string `json:"extract,omitempty"`
 
 	// Required indicates if resolution failure should stop execution.
 	Required bool `json:"required"`

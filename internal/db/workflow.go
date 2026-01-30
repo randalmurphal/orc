@@ -190,6 +190,7 @@ type WorkflowVariable struct {
 	DefaultValue    string `json:"default_value,omitempty"`
 	CacheTTLSeconds int    `json:"cache_ttl_seconds"`
 	ScriptContent   string `json:"script_content,omitempty"`
+	Extract         string `json:"extract,omitempty"` // gjson path for JSONPath extraction
 }
 
 // WorkflowRun represents an execution instance of a workflow.
@@ -553,8 +554,8 @@ func (p *ProjectDB) UpdateWorkflowPhasePositions(workflowID string, positions ma
 // SaveWorkflowVariable creates or updates a workflow variable.
 func (p *ProjectDB) SaveWorkflowVariable(wv *WorkflowVariable) error {
 	res, err := p.Exec(`
-		INSERT INTO workflow_variables (workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workflow_variables (workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content, extract)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(workflow_id, name) DO UPDATE SET
 			description = excluded.description,
 			source_type = excluded.source_type,
@@ -562,9 +563,10 @@ func (p *ProjectDB) SaveWorkflowVariable(wv *WorkflowVariable) error {
 			required = excluded.required,
 			default_value = excluded.default_value,
 			cache_ttl_seconds = excluded.cache_ttl_seconds,
-			script_content = excluded.script_content
+			script_content = excluded.script_content,
+			extract = excluded.extract
 	`, wv.WorkflowID, wv.Name, wv.Description, wv.SourceType, wv.SourceConfig,
-		wv.Required, wv.DefaultValue, wv.CacheTTLSeconds, wv.ScriptContent)
+		wv.Required, wv.DefaultValue, wv.CacheTTLSeconds, wv.ScriptContent, wv.Extract)
 	if err != nil {
 		return fmt.Errorf("save workflow variable: %w", err)
 	}
@@ -579,7 +581,7 @@ func (p *ProjectDB) SaveWorkflowVariable(wv *WorkflowVariable) error {
 // GetWorkflowVariables returns all variables for a workflow.
 func (p *ProjectDB) GetWorkflowVariables(workflowID string) ([]*WorkflowVariable, error) {
 	rows, err := p.Query(`
-		SELECT id, workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content
+		SELECT id, workflow_id, name, description, source_type, source_config, required, default_value, cache_ttl_seconds, script_content, extract
 		FROM workflow_variables
 		WHERE workflow_id = ?
 		ORDER BY name ASC
@@ -1043,11 +1045,11 @@ func scanWorkflowPhaseRow(rows *sql.Rows) (*WorkflowPhase, error) {
 
 func scanWorkflowVariableRow(rows *sql.Rows) (*WorkflowVariable, error) {
 	wv := &WorkflowVariable{}
-	var description, defaultValue, scriptContent sql.NullString
+	var description, defaultValue, scriptContent, extract sql.NullString
 
 	err := rows.Scan(
 		&wv.ID, &wv.WorkflowID, &wv.Name, &description, &wv.SourceType, &wv.SourceConfig,
-		&wv.Required, &defaultValue, &wv.CacheTTLSeconds, &scriptContent,
+		&wv.Required, &defaultValue, &wv.CacheTTLSeconds, &scriptContent, &extract,
 	)
 	if err != nil {
 		return nil, err
@@ -1056,6 +1058,7 @@ func scanWorkflowVariableRow(rows *sql.Rows) (*WorkflowVariable, error) {
 	wv.Description = description.String
 	wv.DefaultValue = defaultValue.String
 	wv.ScriptContent = scriptContent.String
+	wv.Extract = extract.String
 
 	return wv, nil
 }
