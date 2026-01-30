@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/decision.proto.
  */
 export const file_orc_v1_decision: GenFile = /*@__PURE__*/
-  fileDesc("ChVvcmMvdjEvZGVjaXNpb24ucHJvdG8SBm9yYy52MSJqCg5EZWNpc2lvbk9wdGlvbhIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEhMKC3JlY29tbWVuZGVkGAQgASgIQg4KDF9kZXNjcmlwdGlvbiLiAQoPUGVuZGluZ0RlY2lzaW9uEgoKAmlkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoKdGFza190aXRsZRgDIAEoCRINCgVwaGFzZRgEIAEoCRIRCglnYXRlX3R5cGUYBSABKAkSEAoIcXVlc3Rpb24YBiABKAkSDwoHY29udGV4dBgHIAEoCRInCgdvcHRpb25zGAggAygLMhYub3JjLnYxLkRlY2lzaW9uT3B0aW9uEjAKDHJlcXVlc3RlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi6AEKEFJlc29sdmVkRGVjaXNpb24SCgoCaWQYASABKAkSDwoHdGFza19pZBgCIAEoCRINCgVwaGFzZRgDIAEoCRIQCghhcHByb3ZlZBgEIAEoCBIcCg9zZWxlY3RlZF9vcHRpb24YBSABKAlIAIgBARITCgtyZXNvbHZlZF9ieRgGIAEoCRITCgZyZWFzb24YByABKAlIAYgBARIvCgtyZXNvbHZlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3NlbGVjdGVkX29wdGlvbkIJCgdfcmVhc29uIlMKG0xpc3RQZW5kaW5nRGVjaXNpb25zUmVxdWVzdBIUCgd0YXNrX2lkGAEgASgJSACIAQESEgoKcHJvamVjdF9pZBgCIAEoCUIKCghfdGFza19pZCJKChxMaXN0UGVuZGluZ0RlY2lzaW9uc1Jlc3BvbnNlEioKCWRlY2lzaW9ucxgBIAMoCzIXLm9yYy52MS5QZW5kaW5nRGVjaXNpb24iOwoZR2V0UGVuZGluZ0RlY2lzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJIkcKGkdldFBlbmRpbmdEZWNpc2lvblJlc3BvbnNlEikKCGRlY2lzaW9uGAEgASgLMhcub3JjLnYxLlBlbmRpbmdEZWNpc2lvbiLGAQoWUmVzb2x2ZURlY2lzaW9uUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghhcHByb3ZlZBgCIAEoCBIcCg9zZWxlY3RlZF9vcHRpb24YAyABKAlIAIgBARITCgZyZWFzb24YBCABKAlIAYgBARIYCgtyZXNvbHZlZF9ieRgFIAEoCUgCiAEBEhIKCnByb2plY3RfaWQYBiABKAlCEgoQX3NlbGVjdGVkX29wdGlvbkIJCgdfcmVhc29uQg4KDF9yZXNvbHZlZF9ieSJFChdSZXNvbHZlRGVjaXNpb25SZXNwb25zZRIqCghkZWNpc2lvbhgBIAEoCzIYLm9yYy52MS5SZXNvbHZlZERlY2lzaW9uIncKHExpc3RSZXNvbHZlZERlY2lzaW9uc1JlcXVlc3QSIQoEcGFnZRgBIAEoCzITLm9yYy52MS5QYWdlUmVxdWVzdBIUCgd0YXNrX2lkGAIgASgJSACIAQESEgoKcHJvamVjdF9pZBgDIAEoCUIKCghfdGFza19pZCJwCh1MaXN0UmVzb2x2ZWREZWNpc2lvbnNSZXNwb25zZRIrCglkZWNpc2lvbnMYASADKAsyGC5vcmMudjEuUmVzb2x2ZWREZWNpc2lvbhIiCgRwYWdlGAIgASgLMhQub3JjLnYxLlBhZ2VSZXNwb25zZTKLAwoPRGVjaXNpb25TZXJ2aWNlEmEKFExpc3RQZW5kaW5nRGVjaXNpb25zEiMub3JjLnYxLkxpc3RQZW5kaW5nRGVjaXNpb25zUmVxdWVzdBokLm9yYy52MS5MaXN0UGVuZGluZ0RlY2lzaW9uc1Jlc3BvbnNlElsKEkdldFBlbmRpbmdEZWNpc2lvbhIhLm9yYy52MS5HZXRQZW5kaW5nRGVjaXNpb25SZXF1ZXN0GiIub3JjLnYxLkdldFBlbmRpbmdEZWNpc2lvblJlc3BvbnNlElIKD1Jlc29sdmVEZWNpc2lvbhIeLm9yYy52MS5SZXNvbHZlRGVjaXNpb25SZXF1ZXN0Gh8ub3JjLnYxLlJlc29sdmVEZWNpc2lvblJlc3BvbnNlEmQKFUxpc3RSZXNvbHZlZERlY2lzaW9ucxIkLm9yYy52MS5MaXN0UmVzb2x2ZWREZWNpc2lvbnNSZXF1ZXN0GiUub3JjLnYxLkxpc3RSZXNvbHZlZERlY2lzaW9uc1Jlc3BvbnNlQokBCgpjb20ub3JjLnYxQg1EZWNpc2lvblByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_orc_v1_common]);
+  fileDesc("ChVvcmMvdjEvZGVjaXNpb24ucHJvdG8SBm9yYy52MSJqCg5EZWNpc2lvbk9wdGlvbhIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEhMKC3JlY29tbWVuZGVkGAQgASgIQg4KDF9kZXNjcmlwdGlvbiLiAQoPUGVuZGluZ0RlY2lzaW9uEgoKAmlkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoKdGFza190aXRsZRgDIAEoCRINCgVwaGFzZRgEIAEoCRIRCglnYXRlX3R5cGUYBSABKAkSEAoIcXVlc3Rpb24YBiABKAkSDwoHY29udGV4dBgHIAEoCRInCgdvcHRpb25zGAggAygLMhYub3JjLnYxLkRlY2lzaW9uT3B0aW9uEjAKDHJlcXVlc3RlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi6AEKEFJlc29sdmVkRGVjaXNpb24SCgoCaWQYASABKAkSDwoHdGFza19pZBgCIAEoCRINCgVwaGFzZRgDIAEoCRIQCghhcHByb3ZlZBgEIAEoCBIcCg9zZWxlY3RlZF9vcHRpb24YBSABKAlIAIgBARITCgtyZXNvbHZlZF9ieRgGIAEoCRITCgZyZWFzb24YByABKAlIAYgBARIvCgtyZXNvbHZlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3NlbGVjdGVkX29wdGlvbkIJCgdfcmVhc29uIlMKG0xpc3RQZW5kaW5nRGVjaXNpb25zUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhQKB3Rhc2tfaWQYAiABKAlIAIgBAUIKCghfdGFza19pZCJKChxMaXN0UGVuZGluZ0RlY2lzaW9uc1Jlc3BvbnNlEioKCWRlY2lzaW9ucxgBIAMoCzIXLm9yYy52MS5QZW5kaW5nRGVjaXNpb24iOwoZR2V0UGVuZGluZ0RlY2lzaW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgoKAmlkGAIgASgJIkcKGkdldFBlbmRpbmdEZWNpc2lvblJlc3BvbnNlEikKCGRlY2lzaW9uGAEgASgLMhcub3JjLnYxLlBlbmRpbmdEZWNpc2lvbiLGAQoWUmVzb2x2ZURlY2lzaW9uUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgoKAmlkGAIgASgJEhAKCGFwcHJvdmVkGAMgASgIEhwKD3NlbGVjdGVkX29wdGlvbhgEIAEoCUgAiAEBEhMKBnJlYXNvbhgFIAEoCUgBiAEBEhgKC3Jlc29sdmVkX2J5GAYgASgJSAKIAQFCEgoQX3NlbGVjdGVkX29wdGlvbkIJCgdfcmVhc29uQg4KDF9yZXNvbHZlZF9ieSJFChdSZXNvbHZlRGVjaXNpb25SZXNwb25zZRIqCghkZWNpc2lvbhgBIAEoCzIYLm9yYy52MS5SZXNvbHZlZERlY2lzaW9uIncKHExpc3RSZXNvbHZlZERlY2lzaW9uc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIhCgRwYWdlGAIgASgLMhMub3JjLnYxLlBhZ2VSZXF1ZXN0EhQKB3Rhc2tfaWQYAyABKAlIAIgBAUIKCghfdGFza19pZCJwCh1MaXN0UmVzb2x2ZWREZWNpc2lvbnNSZXNwb25zZRIrCglkZWNpc2lvbnMYASADKAsyGC5vcmMudjEuUmVzb2x2ZWREZWNpc2lvbhIiCgRwYWdlGAIgASgLMhQub3JjLnYxLlBhZ2VSZXNwb25zZTKLAwoPRGVjaXNpb25TZXJ2aWNlEmEKFExpc3RQZW5kaW5nRGVjaXNpb25zEiMub3JjLnYxLkxpc3RQZW5kaW5nRGVjaXNpb25zUmVxdWVzdBokLm9yYy52MS5MaXN0UGVuZGluZ0RlY2lzaW9uc1Jlc3BvbnNlElsKEkdldFBlbmRpbmdEZWNpc2lvbhIhLm9yYy52MS5HZXRQZW5kaW5nRGVjaXNpb25SZXF1ZXN0GiIub3JjLnYxLkdldFBlbmRpbmdEZWNpc2lvblJlc3BvbnNlElIKD1Jlc29sdmVEZWNpc2lvbhIeLm9yYy52MS5SZXNvbHZlRGVjaXNpb25SZXF1ZXN0Gh8ub3JjLnYxLlJlc29sdmVEZWNpc2lvblJlc3BvbnNlEmQKFUxpc3RSZXNvbHZlZERlY2lzaW9ucxIkLm9yYy52MS5MaXN0UmVzb2x2ZWREZWNpc2lvbnNSZXF1ZXN0GiUub3JjLnYxLkxpc3RSZXNvbHZlZERlY2lzaW9uc1Jlc3BvbnNlQokBCgpjb20ub3JjLnYxQg1EZWNpc2lvblByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_orc_v1_common]);
 
 /**
  * Decision option
@@ -210,18 +210,18 @@ export const ResolvedDecisionSchema: GenMessage<ResolvedDecision> = /*@__PURE__*
  */
 export type ListPendingDecisionsRequest = Message<"orc.v1.ListPendingDecisionsRequest"> & {
   /**
-   * Filter by task ID
-   *
-   * @generated from field: optional string task_id = 1;
-   */
-  taskId?: string;
-
-  /**
    * Project ID
    *
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * Filter by task ID
+   *
+   * @generated from field: optional string task_id = 2;
+   */
+  taskId?: string;
 };
 
 /**
@@ -253,16 +253,16 @@ export const ListPendingDecisionsResponseSchema: GenMessage<ListPendingDecisions
  */
 export type GetPendingDecisionRequest = Message<"orc.v1.GetPendingDecisionRequest"> & {
   /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
    * Project ID
    *
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
 };
 
 /**
@@ -294,42 +294,42 @@ export const GetPendingDecisionResponseSchema: GenMessage<GetPendingDecisionResp
  */
 export type ResolveDecisionRequest = Message<"orc.v1.ResolveDecisionRequest"> & {
   /**
-   * @generated from field: string id = 1;
+   * Project ID
+   *
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string id = 2;
    */
   id: string;
 
   /**
-   * @generated from field: bool approved = 2;
+   * @generated from field: bool approved = 3;
    */
   approved: boolean;
 
   /**
    * Selected option ID
    *
-   * @generated from field: optional string selected_option = 3;
+   * @generated from field: optional string selected_option = 4;
    */
   selectedOption?: string;
 
   /**
    * Reason for decision
    *
-   * @generated from field: optional string reason = 4;
+   * @generated from field: optional string reason = 5;
    */
   reason?: string;
 
   /**
    * Who is making the decision
    *
-   * @generated from field: optional string resolved_by = 5;
+   * @generated from field: optional string resolved_by = 6;
    */
   resolvedBy?: string;
-
-  /**
-   * Project ID
-   *
-   * @generated from field: string project_id = 6;
-   */
-  projectId: string;
 };
 
 /**
@@ -361,23 +361,23 @@ export const ResolveDecisionResponseSchema: GenMessage<ResolveDecisionResponse> 
  */
 export type ListResolvedDecisionsRequest = Message<"orc.v1.ListResolvedDecisionsRequest"> & {
   /**
-   * @generated from field: orc.v1.PageRequest page = 1;
+   * Project ID
+   *
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: orc.v1.PageRequest page = 2;
    */
   page?: PageRequest;
 
   /**
    * Filter by task ID
    *
-   * @generated from field: optional string task_id = 2;
+   * @generated from field: optional string task_id = 3;
    */
   taskId?: string;
-
-  /**
-   * Project ID
-   *
-   * @generated from field: string project_id = 3;
-   */
-  projectId: string;
 };
 
 /**

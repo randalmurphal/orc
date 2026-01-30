@@ -215,8 +215,8 @@ func (x *ListNotificationsResponse) GetNotifications() []*Notification {
 // DismissNotification
 type DismissNotificationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -251,16 +251,16 @@ func (*DismissNotificationRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_notification_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DismissNotificationRequest) GetId() string {
+func (x *DismissNotificationRequest) GetProjectId() string {
 	if x != nil {
-		return x.Id
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *DismissNotificationRequest) GetProjectId() string {
+func (x *DismissNotificationRequest) GetId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.Id
 	}
 	return ""
 }
@@ -410,10 +410,10 @@ const file_orc_v1_notification_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"W\n" +
 	"\x19ListNotificationsResponse\x12:\n" +
 	"\rnotifications\x18\x01 \x03(\v2\x14.orc.v1.NotificationR\rnotifications\"K\n" +
-	"\x1aDismissNotificationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\x1aDismissNotificationRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"\x1d\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\x1d\n" +
 	"\x1bDismissNotificationResponse\"?\n" +
 	"\x1eDismissAllNotificationsRequest\x12\x1d\n" +
 	"\n" +

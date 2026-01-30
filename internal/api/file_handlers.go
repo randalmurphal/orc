@@ -41,6 +41,7 @@ func (s *Server) registerFileRoutes() {
 
 	// Export/Import API (tar.gz archive operations)
 	exportServer := NewExportServer(s.backend, s.workDir, s.logger)
+	exportServer.SetProjectCache(s.projectCache)
 	s.mux.HandleFunc("POST /api/export", cors(exportServer.HandleExport))
 	s.mux.HandleFunc("POST /api/import", cors(exportServer.HandleImport))
 

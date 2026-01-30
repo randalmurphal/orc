@@ -606,7 +606,7 @@ func (s *taskServer) GetTaskPlan(
 	// Get workflow phases to determine correct order
 	var phaseOrder []string
 	if t.WorkflowId != nil && *t.WorkflowId != "" {
-		workflowPhases, err := s.projectDB.GetWorkflowPhases(*t.WorkflowId)
+		workflowPhases, err := backend.GetWorkflowPhases(*t.WorkflowId)
 		if err == nil && len(workflowPhases) > 0 {
 			// Build phase order from workflow (already sorted by sequence)
 			for _, wp := range workflowPhases {
@@ -1591,11 +1591,11 @@ func (s *taskServer) ListComments(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	var comments []db.TaskComment
 
@@ -1635,11 +1635,11 @@ func (s *taskServer) CreateComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	author := "user"
 	if req.Msg.Author != nil {
@@ -1683,11 +1683,11 @@ func (s *taskServer) UpdateComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	comment, err := pdb.GetTaskComment(req.Msg.CommentId)
 	if err != nil {
@@ -1725,11 +1725,11 @@ func (s *taskServer) DeleteComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	if err := pdb.DeleteTaskComment(req.Msg.CommentId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete comment: %w", err))
@@ -1753,11 +1753,11 @@ func (s *taskServer) ListReviewComments(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	status := ""
 	if req.Msg.Status != nil && *req.Msg.Status != orcv1.CommentStatus_COMMENT_STATUS_UNSPECIFIED {
@@ -1791,11 +1791,11 @@ func (s *taskServer) CreateReviewComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	severity := db.SeveritySuggestion
 	if req.Msg.Severity != orcv1.CommentSeverity_COMMENT_SEVERITY_UNSPECIFIED {
@@ -1850,11 +1850,11 @@ func (s *taskServer) UpdateReviewComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	comment, err := pdb.GetReviewComment(req.Msg.CommentId)
 	if err != nil {
@@ -1896,11 +1896,11 @@ func (s *taskServer) DeleteReviewComment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("comment_id is required"))
 	}
 
-	pdb, err := db.OpenProject(s.projectRoot)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("open database: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
-	defer func() { _ = pdb.Close() }()
+	pdb := backend.DB()
 
 	if err := pdb.DeleteReviewComment(req.Msg.CommentId); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete comment: %w", err))
@@ -1949,7 +1949,7 @@ func (s *taskServer) UploadAttachment(
 	ctx context.Context,
 	stream *connect.ClientStream[orcv1.UploadAttachmentRequest],
 ) (*connect.Response[orcv1.UploadAttachmentResponse], error) {
-	var taskID, filename, contentType string
+	var taskID, filename, contentType, projectID string
 	var data []byte
 
 	// Receive the stream
@@ -1960,6 +1960,7 @@ func (s *taskServer) UploadAttachment(
 			taskID = d.Metadata.TaskId
 			filename = d.Metadata.Filename
 			contentType = d.Metadata.ContentType
+			projectID = d.Metadata.ProjectId
 		case *orcv1.UploadAttachmentRequest_Chunk:
 			data = append(data, d.Chunk...)
 		}
@@ -1980,7 +1981,12 @@ func (s *taskServer) UploadAttachment(
 		contentType = "application/octet-stream"
 	}
 
-	attachment, err := s.backend.SaveAttachment(taskID, filename, contentType, data)
+	backend, err := s.getBackend(projectID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	attachment, err := backend.SaveAttachment(taskID, filename, contentType, data)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save attachment: %w", err))
 	}
@@ -2003,7 +2009,12 @@ func (s *taskServer) DownloadAttachment(
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
 	}
 
-	_, data, err := s.backend.GetAttachment(req.Msg.TaskId, req.Msg.Filename)
+	backend, err := s.getBackend(req.Msg.GetProjectId())
+	if err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
+	}
+
+	_, data, err := backend.GetAttachment(req.Msg.TaskId, req.Msg.Filename)
 	if err != nil {
 		return connect.NewError(connect.CodeNotFound, fmt.Errorf("attachment not found: %w", err))
 	}

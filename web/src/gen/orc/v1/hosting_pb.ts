@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/hosting.proto.
  */
 export const file_orc_v1_hosting: GenFile = /*@__PURE__*/
-  fileDesc("ChRvcmMvdjEvaG9zdGluZy5wcm90bxIGb3JjLnYxIrkDCgJQUhIOCgZudW1iZXIYASABKAUSDQoFdGl0bGUYAiABKAkSDAoEYm9keRgDIAEoCRINCgVzdGF0ZRgEIAEoCRILCgN1cmwYBSABKAkSEAoIaHRtbF91cmwYBiABKAkSDAoEaGVhZBgHIAEoCRIMCgRiYXNlGAggASgJEhYKCW1lcmdlYWJsZRgJIAEoCEgAiAEBEhwKD21lcmdlYWJsZV9zdGF0ZRgKIAEoCUgBiAEBEg0KBWRyYWZ0GAsgASgIEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKCW1lcmdlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAogBARIQCghoZWFkX3NoYRgPIAEoCRIOCgZsYWJlbHMYECADKAkSEQoJYXNzaWduZWVzGBEgAygJQgwKCl9tZXJnZWFibGVCEgoQX21lcmdlYWJsZV9zdGF0ZUIMCgpfbWVyZ2VkX2F0IsMBCglQUkNvbW1lbnQSCgoCaWQYASABKAMSDAoEYm9keRgCIAEoCRIRCgRwYXRoGAMgASgJSACIAQESEQoEbGluZRgEIAEoBUgBiAEBEg4KBmF1dGhvchgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCgl0aHJlYWRfaWQYByABKANIAogBAUIHCgVfcGF0aEIHCgVfbGluZUIMCgpfdGhyZWFkX2lkIowCCghDaGVja1J1bhIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIXCgpjb25jbHVzaW9uGAQgASgJSACIAQESMwoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARI1Cgxjb21wbGV0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESFQoIaHRtbF91cmwYByABKAlIA4gBAUINCgtfY29uY2x1c2lvbkINCgtfc3RhcnRlZF9hdEIPCg1fY29tcGxldGVkX2F0QgsKCV9odG1sX3VybCJfCgxDaGVja1N1bW1hcnkSDgoGcGFzc2VkGAEgASgFEg4KBmZhaWxlZBgCIAEoBRIPCgdwZW5kaW5nGAMgASgFEg8KB25ldXRyYWwYBCABKAUSDQoFdG90YWwYBSABKAUiUAoKU3luY1Jlc3VsdBIQCghpbXBvcnRlZBgBIAEoBRIPCgd1cGRhdGVkGAIgASgFEhAKCHJlc29sdmVkGAMgASgFEg0KBXRvdGFsGAQgASgFIn0KDUF1dG9maXhSZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIXCgpjb21taXRfc2hhGAIgASgJSACIAQESEgoFZXJyb3IYAyABKAlIAYgBARIVCg1maWxlc19jaGFuZ2VkGAQgAygJQg0KC19jb21taXRfc2hhQggKBl9lcnJvciKIAgoPQ3JlYXRlUFJSZXF1ZXN0Eg8KB3Rhc2tfaWQYASABKAkSEgoFdGl0bGUYAiABKAlIAIgBARIRCgRib2R5GAMgASgJSAGIAQESEQoEYmFzZRgEIAEoCUgCiAEBEg4KBmxhYmVscxgFIAMoCRIRCglyZXZpZXdlcnMYBiADKAkSDQoFZHJhZnQYByABKAgSFgoOdGVhbV9yZXZpZXdlcnMYCCADKAkSEQoJYXNzaWduZWVzGAkgAygJEh0KFW1haW50YWluZXJfY2FuX21vZGlmeRgKIAEoCBISCgpwcm9qZWN0X2lkGAsgASgJQggKBl90aXRsZUIHCgVfYm9keUIHCgVfYmFzZSI7ChBDcmVhdGVQUlJlc3BvbnNlEhYKAnByGAEgASgLMgoub3JjLnYxLlBSEg8KB2NyZWF0ZWQYAiABKAgiMwoMR2V0UFJSZXF1ZXN0Eg8KB3Rhc2tfaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCSInCg1HZXRQUlJlc3BvbnNlEhYKAnByGAEgASgLMgoub3JjLnYxLlBSIoUBCg5NZXJnZVBSUmVxdWVzdBIPCgd0YXNrX2lkGAEgASgJEhMKBm1ldGhvZBgCIAEoCUgAiAEBEhsKDmNvbW1pdF9tZXNzYWdlGAMgASgJSAGIAQESEgoKcHJvamVjdF9pZBgEIAEoCUIJCgdfbWV0aG9kQhEKD19jb21taXRfbWVzc2FnZSJzCg9NZXJnZVBSUmVzcG9uc2USDgoGbWVyZ2VkGAEgASgIEh0KEG1lcmdlX2NvbW1pdF9zaGEYAiABKAlIAIgBARISCgVlcnJvchgDIAEoCUgBiAEBQhMKEV9tZXJnZV9jb21taXRfc2hhQggKBl9lcnJvciI6ChNTeW5jQ29tbWVudHNSZXF1ZXN0Eg8KB3Rhc2tfaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCSI6ChRTeW5jQ29tbWVudHNSZXNwb25zZRIiCgZyZXN1bHQYASABKAsyEi5vcmMudjEuU3luY1Jlc3VsdCI8ChVJbXBvcnRDb21tZW50c1JlcXVlc3QSDwoHdGFza19pZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJIk8KFkltcG9ydENvbW1lbnRzUmVzcG9uc2USEAoIaW1wb3J0ZWQYASABKAUSIwoIY29tbWVudHMYAiADKAsyES5vcmMudjEuUFJDb21tZW50IjcKEEdldENoZWNrc1JlcXVlc3QSDwoHdGFza19pZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJIlwKEUdldENoZWNrc1Jlc3BvbnNlEiAKBmNoZWNrcxgBIAMoCzIQLm9yYy52MS5DaGVja1J1bhIlCgdzdW1tYXJ5GAIgASgLMhQub3JjLnYxLkNoZWNrU3VtbWFyeSI3ChBSZWZyZXNoUFJSZXF1ZXN0Eg8KB3Rhc2tfaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCSIrChFSZWZyZXNoUFJSZXNwb25zZRIWCgJwchgBIAEoCzIKLm9yYy52MS5QUiJhChVSZXBseVRvQ29tbWVudFJlcXVlc3QSDwoHdGFza19pZBgBIAEoCRISCgpjb21tZW50X2lkGAIgASgDEg8KB2NvbnRlbnQYAyABKAkSEgoKcHJvamVjdF9pZBgEIAEoCSI8ChZSZXBseVRvQ29tbWVudFJlc3BvbnNlEiIKB2NvbW1lbnQYASABKAsyES5vcmMudjEuUFJDb21tZW50IlAKFUF1dG9maXhDb21tZW50UmVxdWVzdBIPCgd0YXNrX2lkGAEgASgJEhIKCmNvbW1lbnRfaWQYAiABKAMSEgoKcHJvamVjdF9pZBgDIAEoCSI/ChZBdXRvZml4Q29tbWVudFJlc3BvbnNlEiUKBnJlc3VsdBgBIAEoCzIVLm9yYy52MS5BdXRvZml4UmVzdWx0MoMFCg5Ib3N0aW5nU2VydmljZRI9CghDcmVhdGVQUhIXLm9yYy52MS5DcmVhdGVQUlJlcXVlc3QaGC5vcmMudjEuQ3JlYXRlUFJSZXNwb25zZRI0CgVHZXRQUhIULm9yYy52MS5HZXRQUlJlcXVlc3QaFS5vcmMudjEuR2V0UFJSZXNwb25zZRI6CgdNZXJnZVBSEhYub3JjLnYxLk1lcmdlUFJSZXF1ZXN0Ghcub3JjLnYxLk1lcmdlUFJSZXNwb25zZRJJCgxTeW5jQ29tbWVudHMSGy5vcmMudjEuU3luY0NvbW1lbnRzUmVxdWVzdBocLm9yYy52MS5TeW5jQ29tbWVudHNSZXNwb25zZRJPCg5JbXBvcnRDb21tZW50cxIdLm9yYy52MS5JbXBvcnRDb21tZW50c1JlcXVlc3QaHi5vcmMudjEuSW1wb3J0Q29tbWVudHNSZXNwb25zZRJACglHZXRDaGVja3MSGC5vcmMudjEuR2V0Q2hlY2tzUmVxdWVzdBoZLm9yYy52MS5HZXRDaGVja3NSZXNwb25zZRJACglSZWZyZXNoUFISGC5vcmMudjEuUmVmcmVzaFBSUmVxdWVzdBoZLm9yYy52MS5SZWZyZXNoUFJSZXNwb25zZRJPCg5SZXBseVRvQ29tbWVudBIdLm9yYy52MS5SZXBseVRvQ29tbWVudFJlcXVlc3QaHi5vcmMudjEuUmVwbHlUb0NvbW1lbnRSZXNwb25zZRJPCg5BdXRvZml4Q29tbWVudBIdLm9yYy52MS5BdXRvZml4Q29tbWVudFJlcXVlc3QaHi5vcmMudjEuQXV0b2ZpeENvbW1lbnRSZXNwb25zZUKIAQoKY29tLm9yYy52MUIMSG9zdGluZ1Byb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChRvcmMvdjEvaG9zdGluZy5wcm90bxIGb3JjLnYxIrkDCgJQUhIOCgZudW1iZXIYASABKAUSDQoFdGl0bGUYAiABKAkSDAoEYm9keRgDIAEoCRINCgVzdGF0ZRgEIAEoCRILCgN1cmwYBSABKAkSEAoIaHRtbF91cmwYBiABKAkSDAoEaGVhZBgHIAEoCRIMCgRiYXNlGAggASgJEhYKCW1lcmdlYWJsZRgJIAEoCEgAiAEBEhwKD21lcmdlYWJsZV9zdGF0ZRgKIAEoCUgBiAEBEg0KBWRyYWZ0GAsgASgIEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKCW1lcmdlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAogBARIQCghoZWFkX3NoYRgPIAEoCRIOCgZsYWJlbHMYECADKAkSEQoJYXNzaWduZWVzGBEgAygJQgwKCl9tZXJnZWFibGVCEgoQX21lcmdlYWJsZV9zdGF0ZUIMCgpfbWVyZ2VkX2F0IsMBCglQUkNvbW1lbnQSCgoCaWQYASABKAMSDAoEYm9keRgCIAEoCRIRCgRwYXRoGAMgASgJSACIAQESEQoEbGluZRgEIAEoBUgBiAEBEg4KBmF1dGhvchgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCgl0aHJlYWRfaWQYByABKANIAogBAUIHCgVfcGF0aEIHCgVfbGluZUIMCgpfdGhyZWFkX2lkIowCCghDaGVja1J1bhIKCgJpZBgBIAEoAxIMCgRuYW1lGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIXCgpjb25jbHVzaW9uGAQgASgJSACIAQESMwoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARI1Cgxjb21wbGV0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESFQoIaHRtbF91cmwYByABKAlIA4gBAUINCgtfY29uY2x1c2lvbkINCgtfc3RhcnRlZF9hdEIPCg1fY29tcGxldGVkX2F0QgsKCV9odG1sX3VybCJfCgxDaGVja1N1bW1hcnkSDgoGcGFzc2VkGAEgASgFEg4KBmZhaWxlZBgCIAEoBRIPCgdwZW5kaW5nGAMgASgFEg8KB25ldXRyYWwYBCABKAUSDQoFdG90YWwYBSABKAUiUAoKU3luY1Jlc3VsdBIQCghpbXBvcnRlZBgBIAEoBRIPCgd1cGRhdGVkGAIgASgFEhAKCHJlc29sdmVkGAMgASgFEg0KBXRvdGFsGAQgASgFIn0KDUF1dG9maXhSZXN1bHQSDwoHc3VjY2VzcxgBIAEoCBIXCgpjb21taXRfc2hhGAIgASgJSACIAQESEgoFZXJyb3IYAyABKAlIAYgBARIVCg1maWxlc19jaGFuZ2VkGAQgAygJQg0KC19jb21taXRfc2hhQggKBl9lcnJvciKIAgoPQ3JlYXRlUFJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCRISCgV0aXRsZRgDIAEoCUgAiAEBEhEKBGJvZHkYBCABKAlIAYgBARIRCgRiYXNlGAUgASgJSAKIAQESDgoGbGFiZWxzGAYgAygJEhEKCXJldmlld2VycxgHIAMoCRINCgVkcmFmdBgIIAEoCBIWCg50ZWFtX3Jldmlld2VycxgJIAMoCRIRCglhc3NpZ25lZXMYCiADKAkSHQoVbWFpbnRhaW5lcl9jYW5fbW9kaWZ5GAsgASgIQggKBl90aXRsZUIHCgVfYm9keUIHCgVfYmFzZSI7ChBDcmVhdGVQUlJlc3BvbnNlEhYKAnByGAEgASgLMgoub3JjLnYxLlBSEg8KB2NyZWF0ZWQYAiABKAgiMwoMR2V0UFJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSInCg1HZXRQUlJlc3BvbnNlEhYKAnByGAEgASgLMgoub3JjLnYxLlBSIoUBCg5NZXJnZVBSUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEwoGbWV0aG9kGAMgASgJSACIAQESGwoOY29tbWl0X21lc3NhZ2UYBCABKAlIAYgBAUIJCgdfbWV0aG9kQhEKD19jb21taXRfbWVzc2FnZSJzCg9NZXJnZVBSUmVzcG9uc2USDgoGbWVyZ2VkGAEgASgIEh0KEG1lcmdlX2NvbW1pdF9zaGEYAiABKAlIAIgBARISCgVlcnJvchgDIAEoCUgBiAEBQhMKEV9tZXJnZV9jb21taXRfc2hhQggKBl9lcnJvciI6ChNTeW5jQ29tbWVudHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSI6ChRTeW5jQ29tbWVudHNSZXNwb25zZRIiCgZyZXN1bHQYASABKAsyEi5vcmMudjEuU3luY1Jlc3VsdCI8ChVJbXBvcnRDb21tZW50c1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIk8KFkltcG9ydENvbW1lbnRzUmVzcG9uc2USEAoIaW1wb3J0ZWQYASABKAUSIwoIY29tbWVudHMYAiADKAsyES5vcmMudjEuUFJDb21tZW50IjcKEEdldENoZWNrc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJIlwKEUdldENoZWNrc1Jlc3BvbnNlEiAKBmNoZWNrcxgBIAMoCzIQLm9yYy52MS5DaGVja1J1bhIlCgdzdW1tYXJ5GAIgASgLMhQub3JjLnYxLkNoZWNrU3VtbWFyeSI3ChBSZWZyZXNoUFJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHdGFza19pZBgCIAEoCSIrChFSZWZyZXNoUFJSZXNwb25zZRIWCgJwchgBIAEoCzIKLm9yYy52MS5QUiJhChVSZXBseVRvQ29tbWVudFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIPCgd0YXNrX2lkGAIgASgJEhIKCmNvbW1lbnRfaWQYAyABKAMSDwoHY29udGVudBgEIAEoCSI8ChZSZXBseVRvQ29tbWVudFJlc3BvbnNlEiIKB2NvbW1lbnQYASABKAsyES5vcmMudjEuUFJDb21tZW50IlAKFUF1dG9maXhDb21tZW50UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSEgoKY29tbWVudF9pZBgDIAEoAyI/ChZBdXRvZml4Q29tbWVudFJlc3BvbnNlEiUKBnJlc3VsdBgBIAEoCzIVLm9yYy52MS5BdXRvZml4UmVzdWx0MoMFCg5Ib3N0aW5nU2VydmljZRI9CghDcmVhdGVQUhIXLm9yYy52MS5DcmVhdGVQUlJlcXVlc3QaGC5vcmMudjEuQ3JlYXRlUFJSZXNwb25zZRI0CgVHZXRQUhIULm9yYy52MS5HZXRQUlJlcXVlc3QaFS5vcmMudjEuR2V0UFJSZXNwb25zZRI6CgdNZXJnZVBSEhYub3JjLnYxLk1lcmdlUFJSZXF1ZXN0Ghcub3JjLnYxLk1lcmdlUFJSZXNwb25zZRJJCgxTeW5jQ29tbWVudHMSGy5vcmMudjEuU3luY0NvbW1lbnRzUmVxdWVzdBocLm9yYy52MS5TeW5jQ29tbWVudHNSZXNwb25zZRJPCg5JbXBvcnRDb21tZW50cxIdLm9yYy52MS5JbXBvcnRDb21tZW50c1JlcXVlc3QaHi5vcmMudjEuSW1wb3J0Q29tbWVudHNSZXNwb25zZRJACglHZXRDaGVja3MSGC5vcmMudjEuR2V0Q2hlY2tzUmVxdWVzdBoZLm9yYy52MS5HZXRDaGVja3NSZXNwb25zZRJACglSZWZyZXNoUFISGC5vcmMudjEuUmVmcmVzaFBSUmVxdWVzdBoZLm9yYy52MS5SZWZyZXNoUFJSZXNwb25zZRJPCg5SZXBseVRvQ29tbWVudBIdLm9yYy52MS5SZXBseVRvQ29tbWVudFJlcXVlc3QaHi5vcmMudjEuUmVwbHlUb0NvbW1lbnRSZXNwb25zZRJPCg5BdXRvZml4Q29tbWVudBIdLm9yYy52MS5BdXRvZml4Q29tbWVudFJlcXVlc3QaHi5vcmMudjEuQXV0b2ZpeENvbW1lbnRSZXNwb25zZUKIAQoKY29tLm9yYy52MUIMSG9zdGluZ1Byb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Pull request
@@ -385,65 +385,65 @@ export const AutofixResultSchema: GenMessage<AutofixResult> = /*@__PURE__*/
  */
 export type CreatePRRequest = Message<"orc.v1.CreatePRRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
    */
   taskId: string;
 
   /**
-   * @generated from field: optional string title = 2;
+   * @generated from field: optional string title = 3;
    */
   title?: string;
 
   /**
-   * @generated from field: optional string body = 3;
+   * @generated from field: optional string body = 4;
    */
   body?: string;
 
   /**
-   * @generated from field: optional string base = 4;
+   * @generated from field: optional string base = 5;
    */
   base?: string;
 
   /**
-   * @generated from field: repeated string labels = 5;
+   * @generated from field: repeated string labels = 6;
    */
   labels: string[];
 
   /**
-   * @generated from field: repeated string reviewers = 6;
+   * @generated from field: repeated string reviewers = 7;
    */
   reviewers: string[];
 
   /**
-   * @generated from field: bool draft = 7;
+   * @generated from field: bool draft = 8;
    */
   draft: boolean;
 
   /**
    * Team reviewer slugs (GitHub) or group paths (GitLab)
    *
-   * @generated from field: repeated string team_reviewers = 8;
+   * @generated from field: repeated string team_reviewers = 9;
    */
   teamReviewers: string[];
 
   /**
    * Usernames to assign
    *
-   * @generated from field: repeated string assignees = 9;
+   * @generated from field: repeated string assignees = 10;
    */
   assignees: string[];
 
   /**
    * Allow maintainers to push (GitHub) / allow collaboration (GitLab)
    *
-   * @generated from field: bool maintainer_can_modify = 10;
+   * @generated from field: bool maintainer_can_modify = 11;
    */
   maintainerCanModify: boolean;
-
-  /**
-   * @generated from field: string project_id = 11;
-   */
-  projectId: string;
 };
 
 /**
@@ -482,14 +482,14 @@ export const CreatePRResponseSchema: GenMessage<CreatePRResponse> = /*@__PURE__*
  */
 export type GetPRRequest = Message<"orc.v1.GetPRRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
-   */
-  taskId: string;
-
-  /**
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
 };
 
 /**
@@ -521,28 +521,28 @@ export const GetPRResponseSchema: GenMessage<GetPRResponse> = /*@__PURE__*/
  */
 export type MergePRRequest = Message<"orc.v1.MergePRRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
    */
   taskId: string;
 
   /**
    * Merge method: "merge", "squash", "rebase"
    *
-   * @generated from field: optional string method = 2;
+   * @generated from field: optional string method = 3;
    */
   method?: string;
 
   /**
    * Commit message for squash/merge
    *
-   * @generated from field: optional string commit_message = 3;
+   * @generated from field: optional string commit_message = 4;
    */
   commitMessage?: string;
-
-  /**
-   * @generated from field: string project_id = 4;
-   */
-  projectId: string;
 };
 
 /**
@@ -584,14 +584,14 @@ export const MergePRResponseSchema: GenMessage<MergePRResponse> = /*@__PURE__*/
  */
 export type SyncCommentsRequest = Message<"orc.v1.SyncCommentsRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
-   */
-  taskId: string;
-
-  /**
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
 };
 
 /**
@@ -623,14 +623,14 @@ export const SyncCommentsResponseSchema: GenMessage<SyncCommentsResponse> = /*@_
  */
 export type ImportCommentsRequest = Message<"orc.v1.ImportCommentsRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
-   */
-  taskId: string;
-
-  /**
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
 };
 
 /**
@@ -667,14 +667,14 @@ export const ImportCommentsResponseSchema: GenMessage<ImportCommentsResponse> = 
  */
 export type GetChecksRequest = Message<"orc.v1.GetChecksRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
-   */
-  taskId: string;
-
-  /**
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
 };
 
 /**
@@ -711,14 +711,14 @@ export const GetChecksResponseSchema: GenMessage<GetChecksResponse> = /*@__PURE_
  */
 export type RefreshPRRequest = Message<"orc.v1.RefreshPRRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
-   */
-  taskId: string;
-
-  /**
-   * @generated from field: string project_id = 2;
+   * @generated from field: string project_id = 1;
    */
   projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
 };
 
 /**
@@ -750,24 +750,24 @@ export const RefreshPRResponseSchema: GenMessage<RefreshPRResponse> = /*@__PURE_
  */
 export type ReplyToCommentRequest = Message<"orc.v1.ReplyToCommentRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
    */
   taskId: string;
 
   /**
-   * @generated from field: int64 comment_id = 2;
+   * @generated from field: int64 comment_id = 3;
    */
   commentId: bigint;
 
   /**
-   * @generated from field: string content = 3;
+   * @generated from field: string content = 4;
    */
   content: string;
-
-  /**
-   * @generated from field: string project_id = 4;
-   */
-  projectId: string;
 };
 
 /**
@@ -799,19 +799,19 @@ export const ReplyToCommentResponseSchema: GenMessage<ReplyToCommentResponse> = 
  */
 export type AutofixCommentRequest = Message<"orc.v1.AutofixCommentRequest"> & {
   /**
-   * @generated from field: string task_id = 1;
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
    */
   taskId: string;
 
   /**
-   * @generated from field: int64 comment_id = 2;
+   * @generated from field: int64 comment_id = 3;
    */
   commentId: bigint;
-
-  /**
-   * @generated from field: string project_id = 3;
-   */
-  projectId: string;
 };
 
 /**

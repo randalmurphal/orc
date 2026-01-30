@@ -50,8 +50,8 @@ message ListNotificationsResponse {
 
 // DismissNotification
 message DismissNotificationRequest {
-  string id = 1;
-  string project_id = 2;
+  string project_id = 1;
+  string id = 2;
 }
 
 message DismissNotificationResponse {}

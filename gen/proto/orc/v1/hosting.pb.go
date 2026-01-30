@@ -629,20 +629,20 @@ func (x *AutofixResult) GetFilesChanged() []string {
 
 type CreatePRRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
-	TaskId    string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	Title     *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Body      *string                `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
-	Base      *string                `protobuf:"bytes,4,opt,name=base,proto3,oneof" json:"base,omitempty"`
-	Labels    []string               `protobuf:"bytes,5,rep,name=labels,proto3" json:"labels,omitempty"`
-	Reviewers []string               `protobuf:"bytes,6,rep,name=reviewers,proto3" json:"reviewers,omitempty"`
-	Draft     bool                   `protobuf:"varint,7,opt,name=draft,proto3" json:"draft,omitempty"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId    string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Title     *string                `protobuf:"bytes,3,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Body      *string                `protobuf:"bytes,4,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	Base      *string                `protobuf:"bytes,5,opt,name=base,proto3,oneof" json:"base,omitempty"`
+	Labels    []string               `protobuf:"bytes,6,rep,name=labels,proto3" json:"labels,omitempty"`
+	Reviewers []string               `protobuf:"bytes,7,rep,name=reviewers,proto3" json:"reviewers,omitempty"`
+	Draft     bool                   `protobuf:"varint,8,opt,name=draft,proto3" json:"draft,omitempty"`
 	// Team reviewer slugs (GitHub) or group paths (GitLab)
-	TeamReviewers []string `protobuf:"bytes,8,rep,name=team_reviewers,json=teamReviewers,proto3" json:"team_reviewers,omitempty"`
+	TeamReviewers []string `protobuf:"bytes,9,rep,name=team_reviewers,json=teamReviewers,proto3" json:"team_reviewers,omitempty"`
 	// Usernames to assign
-	Assignees []string `protobuf:"bytes,9,rep,name=assignees,proto3" json:"assignees,omitempty"`
+	Assignees []string `protobuf:"bytes,10,rep,name=assignees,proto3" json:"assignees,omitempty"`
 	// Allow maintainers to push (GitHub) / allow collaboration (GitLab)
-	MaintainerCanModify bool   `protobuf:"varint,10,opt,name=maintainer_can_modify,json=maintainerCanModify,proto3" json:"maintainer_can_modify,omitempty"`
-	ProjectId           string `protobuf:"bytes,11,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	MaintainerCanModify bool `protobuf:"varint,11,opt,name=maintainer_can_modify,json=maintainerCanModify,proto3" json:"maintainer_can_modify,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -675,6 +675,13 @@ func (x *CreatePRRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreatePRRequest.ProtoReflect.Descriptor instead.
 func (*CreatePRRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CreatePRRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 func (x *CreatePRRequest) GetTaskId() string {
@@ -747,13 +754,6 @@ func (x *CreatePRRequest) GetMaintainerCanModify() bool {
 	return false
 }
 
-func (x *CreatePRRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
-	}
-	return ""
-}
-
 type CreatePRResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Pr            *PR                    `protobuf:"bytes,1,opt,name=pr,proto3" json:"pr,omitempty"`
@@ -808,8 +808,8 @@ func (x *CreatePRResponse) GetCreated() bool {
 
 type GetPRRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -844,16 +844,16 @@ func (*GetPRRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetPRRequest) GetTaskId() string {
+func (x *GetPRRequest) GetProjectId() string {
 	if x != nil {
-		return x.TaskId
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *GetPRRequest) GetProjectId() string {
+func (x *GetPRRequest) GetTaskId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.TaskId
 	}
 	return ""
 }
@@ -903,13 +903,13 @@ func (x *GetPRResponse) GetPr() *PR {
 }
 
 type MergePRRequest struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId    string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	// Merge method: "merge", "squash", "rebase"
-	Method *string `protobuf:"bytes,2,opt,name=method,proto3,oneof" json:"method,omitempty"`
+	Method *string `protobuf:"bytes,3,opt,name=method,proto3,oneof" json:"method,omitempty"`
 	// Commit message for squash/merge
-	CommitMessage *string `protobuf:"bytes,3,opt,name=commit_message,json=commitMessage,proto3,oneof" json:"commit_message,omitempty"`
-	ProjectId     string  `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	CommitMessage *string `protobuf:"bytes,4,opt,name=commit_message,json=commitMessage,proto3,oneof" json:"commit_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -944,6 +944,13 @@ func (*MergePRRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{10}
 }
 
+func (x *MergePRRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 func (x *MergePRRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
@@ -961,13 +968,6 @@ func (x *MergePRRequest) GetMethod() string {
 func (x *MergePRRequest) GetCommitMessage() string {
 	if x != nil && x.CommitMessage != nil {
 		return *x.CommitMessage
-	}
-	return ""
-}
-
-func (x *MergePRRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
 	}
 	return ""
 }
@@ -1034,8 +1034,8 @@ func (x *MergePRResponse) GetError() string {
 
 type SyncCommentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1070,16 +1070,16 @@ func (*SyncCommentsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *SyncCommentsRequest) GetTaskId() string {
+func (x *SyncCommentsRequest) GetProjectId() string {
 	if x != nil {
-		return x.TaskId
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *SyncCommentsRequest) GetProjectId() string {
+func (x *SyncCommentsRequest) GetTaskId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.TaskId
 	}
 	return ""
 }
@@ -1130,8 +1130,8 @@ func (x *SyncCommentsResponse) GetResult() *SyncResult {
 
 type ImportCommentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1166,16 +1166,16 @@ func (*ImportCommentsRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *ImportCommentsRequest) GetTaskId() string {
+func (x *ImportCommentsRequest) GetProjectId() string {
 	if x != nil {
-		return x.TaskId
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *ImportCommentsRequest) GetProjectId() string {
+func (x *ImportCommentsRequest) GetTaskId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.TaskId
 	}
 	return ""
 }
@@ -1234,8 +1234,8 @@ func (x *ImportCommentsResponse) GetComments() []*PRComment {
 
 type GetChecksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1270,16 +1270,16 @@ func (*GetChecksRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *GetChecksRequest) GetTaskId() string {
+func (x *GetChecksRequest) GetProjectId() string {
 	if x != nil {
-		return x.TaskId
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *GetChecksRequest) GetProjectId() string {
+func (x *GetChecksRequest) GetTaskId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.TaskId
 	}
 	return ""
 }
@@ -1338,8 +1338,8 @@ func (x *GetChecksResponse) GetSummary() *CheckSummary {
 
 type RefreshPRRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1374,16 +1374,16 @@ func (*RefreshPRRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *RefreshPRRequest) GetTaskId() string {
+func (x *RefreshPRRequest) GetProjectId() string {
 	if x != nil {
-		return x.TaskId
+		return x.ProjectId
 	}
 	return ""
 }
 
-func (x *RefreshPRRequest) GetProjectId() string {
+func (x *RefreshPRRequest) GetTaskId() string {
 	if x != nil {
-		return x.ProjectId
+		return x.TaskId
 	}
 	return ""
 }
@@ -1434,10 +1434,10 @@ func (x *RefreshPRResponse) GetPr() *PR {
 
 type ReplyToCommentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	CommentId     int64                  `protobuf:"varint,2,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
-	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	CommentId     int64                  `protobuf:"varint,3,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
+	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1472,6 +1472,13 @@ func (*ReplyToCommentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{20}
 }
 
+func (x *ReplyToCommentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 func (x *ReplyToCommentRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
@@ -1489,13 +1496,6 @@ func (x *ReplyToCommentRequest) GetCommentId() int64 {
 func (x *ReplyToCommentRequest) GetContent() string {
 	if x != nil {
 		return x.Content
-	}
-	return ""
-}
-
-func (x *ReplyToCommentRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
 	}
 	return ""
 }
@@ -1546,9 +1546,9 @@ func (x *ReplyToCommentResponse) GetComment() *PRComment {
 
 type AutofixCommentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
-	CommentId     int64                  `protobuf:"varint,2,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	CommentId     int64                  `protobuf:"varint,3,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1583,6 +1583,13 @@ func (*AutofixCommentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_hosting_proto_rawDescGZIP(), []int{22}
 }
 
+func (x *AutofixCommentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 func (x *AutofixCommentRequest) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
@@ -1595,13 +1602,6 @@ func (x *AutofixCommentRequest) GetCommentId() int64 {
 		return x.CommentId
 	}
 	return 0
-}
-
-func (x *AutofixCommentRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
-	}
-	return ""
 }
 
 type AutofixCommentResponse struct {
@@ -1727,20 +1727,20 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\rfiles_changed\x18\x04 \x03(\tR\ffilesChangedB\r\n" +
 	"\v_commit_shaB\b\n" +
 	"\x06_error\"\xf7\x02\n" +
-	"\x0fCreatePRRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
-	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x17\n" +
-	"\x04body\x18\x03 \x01(\tH\x01R\x04body\x88\x01\x01\x12\x17\n" +
-	"\x04base\x18\x04 \x01(\tH\x02R\x04base\x88\x01\x01\x12\x16\n" +
-	"\x06labels\x18\x05 \x03(\tR\x06labels\x12\x1c\n" +
-	"\treviewers\x18\x06 \x03(\tR\treviewers\x12\x14\n" +
-	"\x05draft\x18\a \x01(\bR\x05draft\x12%\n" +
-	"\x0eteam_reviewers\x18\b \x03(\tR\rteamReviewers\x12\x1c\n" +
-	"\tassignees\x18\t \x03(\tR\tassignees\x122\n" +
-	"\x15maintainer_can_modify\x18\n" +
-	" \x01(\bR\x13maintainerCanModify\x12\x1d\n" +
+	"\x0fCreatePRRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\v \x01(\tR\tprojectIdB\b\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
+	"\x05title\x18\x03 \x01(\tH\x00R\x05title\x88\x01\x01\x12\x17\n" +
+	"\x04body\x18\x04 \x01(\tH\x01R\x04body\x88\x01\x01\x12\x17\n" +
+	"\x04base\x18\x05 \x01(\tH\x02R\x04base\x88\x01\x01\x12\x16\n" +
+	"\x06labels\x18\x06 \x03(\tR\x06labels\x12\x1c\n" +
+	"\treviewers\x18\a \x03(\tR\treviewers\x12\x14\n" +
+	"\x05draft\x18\b \x01(\bR\x05draft\x12%\n" +
+	"\x0eteam_reviewers\x18\t \x03(\tR\rteamReviewers\x12\x1c\n" +
+	"\tassignees\x18\n" +
+	" \x03(\tR\tassignees\x122\n" +
+	"\x15maintainer_can_modify\x18\v \x01(\bR\x13maintainerCanModifyB\b\n" +
 	"\x06_titleB\a\n" +
 	"\x05_bodyB\a\n" +
 	"\x05_base\"H\n" +
@@ -1748,19 +1748,19 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\x02pr\x18\x01 \x01(\v2\n" +
 	".orc.v1.PRR\x02pr\x12\x18\n" +
 	"\acreated\x18\x02 \x01(\bR\acreated\"F\n" +
-	"\fGetPRRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\fGetPRRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"+\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"+\n" +
 	"\rGetPRResponse\x12\x1a\n" +
 	"\x02pr\x18\x01 \x01(\v2\n" +
 	".orc.v1.PRR\x02pr\"\xaf\x01\n" +
-	"\x0eMergePRRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1b\n" +
-	"\x06method\x18\x02 \x01(\tH\x00R\x06method\x88\x01\x01\x12*\n" +
-	"\x0ecommit_message\x18\x03 \x01(\tH\x01R\rcommitMessage\x88\x01\x01\x12\x1d\n" +
+	"\x0eMergePRRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x04 \x01(\tR\tprojectIdB\t\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x1b\n" +
+	"\x06method\x18\x03 \x01(\tH\x00R\x06method\x88\x01\x01\x12*\n" +
+	"\x0ecommit_message\x18\x04 \x01(\tH\x01R\rcommitMessage\x88\x01\x01B\t\n" +
 	"\a_methodB\x11\n" +
 	"\x0f_commit_message\"\x92\x01\n" +
 	"\x0fMergePRResponse\x12\x16\n" +
@@ -1769,48 +1769,48 @@ const file_orc_v1_hosting_proto_rawDesc = "" +
 	"\x05error\x18\x03 \x01(\tH\x01R\x05error\x88\x01\x01B\x13\n" +
 	"\x11_merge_commit_shaB\b\n" +
 	"\x06_error\"M\n" +
-	"\x13SyncCommentsRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x13SyncCommentsRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"B\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"B\n" +
 	"\x14SyncCommentsResponse\x12*\n" +
 	"\x06result\x18\x01 \x01(\v2\x12.orc.v1.SyncResultR\x06result\"O\n" +
-	"\x15ImportCommentsRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x15ImportCommentsRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"c\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"c\n" +
 	"\x16ImportCommentsResponse\x12\x1a\n" +
 	"\bimported\x18\x01 \x01(\x05R\bimported\x12-\n" +
 	"\bcomments\x18\x02 \x03(\v2\x11.orc.v1.PRCommentR\bcomments\"J\n" +
-	"\x10GetChecksRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x10GetChecksRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"m\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"m\n" +
 	"\x11GetChecksResponse\x12(\n" +
 	"\x06checks\x18\x01 \x03(\v2\x10.orc.v1.CheckRunR\x06checks\x12.\n" +
 	"\asummary\x18\x02 \x01(\v2\x14.orc.v1.CheckSummaryR\asummary\"J\n" +
-	"\x10RefreshPRRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x10RefreshPRRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"/\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\"/\n" +
 	"\x11RefreshPRResponse\x12\x1a\n" +
 	"\x02pr\x18\x01 \x01(\v2\n" +
 	".orc.v1.PRR\x02pr\"\x88\x01\n" +
-	"\x15ReplyToCommentRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x15ReplyToCommentRequest\x12\x1d\n" +
 	"\n" +
-	"comment_id\x18\x02 \x01(\x03R\tcommentId\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\x12\x1d\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x04 \x01(\tR\tprojectId\"E\n" +
+	"comment_id\x18\x03 \x01(\x03R\tcommentId\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\"E\n" +
 	"\x16ReplyToCommentResponse\x12+\n" +
 	"\acomment\x18\x01 \x01(\v2\x11.orc.v1.PRCommentR\acomment\"n\n" +
-	"\x15AutofixCommentRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1d\n" +
+	"\x15AutofixCommentRequest\x12\x1d\n" +
 	"\n" +
-	"comment_id\x18\x02 \x01(\x03R\tcommentId\x12\x1d\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x03 \x01(\tR\tprojectId\"G\n" +
+	"comment_id\x18\x03 \x01(\x03R\tcommentId\"G\n" +
 	"\x16AutofixCommentResponse\x12-\n" +
 	"\x06result\x18\x01 \x01(\v2\x15.orc.v1.AutofixResultR\x06result2\x83\x05\n" +
 	"\x0eHostingService\x12=\n" +

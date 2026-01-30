@@ -21,6 +21,7 @@ import {
 	useIsPaused,
 	useSessionStore,
 	useCurrentProject,
+	useCurrentProjectId,
 } from '@/stores';
 import { AppShellContext } from './AppShellContext';
 import './TopBar.css';
@@ -59,6 +60,7 @@ export function TopBar({
 	className = '',
 }: TopBarProps) {
 	const currentProject = useCurrentProject();
+	const projectId = useCurrentProjectId();
 	const duration = useFormattedDuration();
 	const formattedTokens = useFormattedTokens();
 	const formattedCost = useFormattedCost();
@@ -82,9 +84,9 @@ export function TopBar({
 
 	const handlePauseResume = async () => {
 		if (isPaused) {
-			await resumeAll();
+			await resumeAll(projectId ?? undefined);
 		} else {
-			await pauseAll();
+			await pauseAll(projectId ?? undefined);
 		}
 	};
 

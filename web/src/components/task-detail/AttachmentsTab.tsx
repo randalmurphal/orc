@@ -35,8 +35,9 @@ function formatDate(date: Date | null): string {
 }
 
 // Get attachment URL (uses /files/ endpoint for binary file serving)
-function getAttachmentUrl(taskId: string, filename: string): string {
-	return `/files/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
+function getAttachmentUrl(taskId: string, filename: string, projectId?: string | null): string {
+	const base = `/files/tasks/${taskId}/attachments/${encodeURIComponent(filename)}`;
+	return projectId ? `${base}?project=${encodeURIComponent(projectId)}` : base;
 }
 
 export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
@@ -82,7 +83,10 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 				for (const file of files) {
 					const formData = new FormData();
 					formData.append('file', file);
-					const res = await fetch(`/files/tasks/${taskId}/attachments`, {
+					const uploadUrl = projectId
+						? `/files/tasks/${taskId}/attachments?project=${encodeURIComponent(projectId)}`
+						: `/files/tasks/${taskId}/attachments`;
+					const res = await fetch(uploadUrl, {
 						method: 'POST',
 						body: formData,
 					});
@@ -99,7 +103,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 				setUploading(false);
 			}
 		},
-		[taskId, loadAttachments]
+		[projectId, taskId, loadAttachments]
 	);
 
 	const handleDelete = useCallback(
@@ -149,10 +153,10 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 
 	const openLightbox = useCallback(
 		(filename: string) => {
-			setLightboxImage(getAttachmentUrl(taskId, filename));
+			setLightboxImage(getAttachmentUrl(taskId, filename, projectId));
 			setLightboxFilename(filename);
 		},
-		[taskId]
+		[projectId, taskId]
 	);
 
 	const closeLightbox = useCallback(() => {
@@ -227,7 +231,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 											aria-label={`Preview ${attachment.filename}`}
 										>
 											<img
-												src={getAttachmentUrl(taskId, attachment.filename)}
+												src={getAttachmentUrl(taskId, attachment.filename, projectId)}
 												alt={attachment.filename}
 												loading="lazy"
 											/>
@@ -264,7 +268,7 @@ export function AttachmentsTab({ taskId }: AttachmentsTabProps) {
 									<div key={attachment.filename} className="file-item">
 										<Icon name="file" size={16} className="file-icon" />
 										<a
-											href={getAttachmentUrl(taskId, attachment.filename)}
+											href={getAttachmentUrl(taskId, attachment.filename, projectId)}
 											className="file-name"
 											target="_blank"
 											rel="noopener noreferrer"

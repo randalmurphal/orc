@@ -303,7 +303,7 @@ func (s *workflowServer) ListWorkflowRuns(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListWorkflowRunsRequest],
 ) (*connect.Response[orcv1.ListWorkflowRunsResponse], error) {
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
@@ -342,7 +342,7 @@ func (s *workflowServer) GetWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
@@ -1118,7 +1118,7 @@ func (s *workflowServer) StartWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
 	}
 
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
@@ -1166,7 +1166,7 @@ func (s *workflowServer) CancelWorkflowRun(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}
@@ -1204,7 +1204,7 @@ func (s *workflowServer) SaveWorkflowLayout(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow_id is required"))
 	}
 
-	backend, err := s.getBackend("")
+	backend, err := s.getBackend(req.Msg.GetProjectId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid project: %w", err))
 	}

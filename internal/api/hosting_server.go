@@ -312,12 +312,8 @@ func (s *hostingServer) SyncComments(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("task has no branch"))
 	}
 
-	// Get local review comments
-	pdb, err := db.OpenProject(s.projectDir)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to open database: %w", err))
-	}
-	defer func() { _ = pdb.Close() }()
+	// Get local review comments from the project-specific backend
+	pdb := backend.DB()
 
 	comments, err := pdb.ListReviewComments(req.Msg.TaskId, "")
 	if err != nil {
@@ -417,11 +413,8 @@ func (s *hostingServer) ImportComments(
 		}), nil
 	}
 
-	pdb, err := db.OpenProject(s.projectDir)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to open database: %w", err))
-	}
-	defer func() { _ = pdb.Close() }()
+	// Get the project-specific database from the resolved backend
+	pdb := backend.DB()
 
 	// Get existing comments for deduplication
 	existingComments, err := pdb.ListReviewComments(req.Msg.TaskId, "")
