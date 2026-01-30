@@ -184,7 +184,7 @@ See also:
 	cmd.Flags().IntP("tail", "n", 100, "number of entries to show (0 for all)")
 	cmd.Flags().BoolP("follow", "f", false, "stream new messages as they are written")
 	cmd.Flags().BoolP("response-only", "r", false, "show only Claude's responses (assistant messages)")
-	cmd.Flags().BoolP("prompt-only", "P", false, "show only the prompts (user messages)")
+	cmd.Flags().Bool("prompt-only", false, "show only the prompts (user messages)")
 	cmd.Flags().Bool("no-color", false, "disable color output")
 	cmd.Flags().Bool("raw", false, "show raw JSON content (unformatted)")
 
