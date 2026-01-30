@@ -117,6 +117,7 @@ Use `--force` when a task is stuck in 'running' status but its PR was already me
 
 | Flag | Description |
 |------|-------------|
+| `--yes, -y` | Skip confirmation prompt (does not imply `--force`) |
 | `--message, -m` | Resolution message |
 | `--cleanup` | Abort git ops, discard changes |
 | `--force, -f` | Skip confirmation and allow resolving non-failed tasks |
