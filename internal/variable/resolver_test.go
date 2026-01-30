@@ -203,6 +203,38 @@ func TestResolveAllWithBuiltins(t *testing.T) {
 	}
 }
 
+func TestResolveAllQAOutputDir(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	// When TaskID is set and QA context is active, QA_OUTPUT_DIR should be populated
+	rctx := &ResolutionContext{
+		TaskID:      "TASK-123",
+		QAIteration: 1,
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := "/tmp/orc-qa-TASK-123"
+	if vars["QA_OUTPUT_DIR"] != expected {
+		t.Errorf("QA_OUTPUT_DIR: expected %q, got %q", expected, vars["QA_OUTPUT_DIR"])
+	}
+
+	// When TaskID is empty, QA_OUTPUT_DIR should be empty
+	emptyCtx := &ResolutionContext{}
+	vars2, err := resolver.ResolveAll(context.Background(), nil, emptyCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if vars2["QA_OUTPUT_DIR"] != "" {
+		t.Errorf("QA_OUTPUT_DIR with empty TaskID: expected empty, got %q", vars2["QA_OUTPUT_DIR"])
+	}
+}
+
 func TestCache(t *testing.T) {
 	t.Parallel()
 

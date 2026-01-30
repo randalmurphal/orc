@@ -23,6 +23,13 @@ You are working in an **isolated git worktree**.
 - **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
 
+## QA Output Directory
+
+QA artifacts (reports, screenshots, findings) are located in:
+`{{QA_OUTPUT_DIR}}`
+
+Screenshots referenced in findings below can be found in this directory.
+
 ## QA Findings to Fix
 
 The following issues were identified during E2E testing. You must investigate the root cause and apply fixes.
