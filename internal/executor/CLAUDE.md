@@ -14,6 +14,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()` | PR creation, merge, worktree setup/cleanup, sync |
 | `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
 | `workflow_gates.go` | ~165 | `evaluatePhaseGate()`, `resolveGateType()`, `triggerAutomationEvent()` | Gate evaluation (auto/human/AI), type resolution, event publishing |
+| `workflow_triggers.go` | ~124 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
 
 ### Support Files
 
@@ -46,12 +47,15 @@ WorkflowExecutor.Run()
 ├── for each phase:
 │   ├── enrichContextForPhase()       # Add phase-specific context
 │   ├── resolver.ResolveAll()         # Resolve all variables
+│   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
 │   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
 │   └── recordCostToGlobal()          # Track costs
+├── handleCompletionWithTriggers()    # on_task_completed gates
+├── fireLifecycleTriggers()           # on_task_failed (on failure path)
 └── completeRun()              # Finalization, cleanup
 ```
 
@@ -395,8 +399,10 @@ go test ./internal/executor/... -v
 | `workflow_completion_test.go` | PR options merging: `TestResolvePROptions` (8 cases) |
 | `workflow_executor_test.go` | Core executor behavior |
 | `phase_response_test.go` | Phase completion parsing |
+| `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
+| `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
 
-**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`
+**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`
 
 ## Common Gotchas
 
