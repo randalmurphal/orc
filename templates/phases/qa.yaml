@@ -10,9 +10,6 @@ output_type: none
 produces_artifact: false
 
 max_iterations: 10
-model: sonnet
 thinking: false
 gate_type: human
 checkpoint: false
-
-claude_config: '{}'

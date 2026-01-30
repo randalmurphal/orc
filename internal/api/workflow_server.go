@@ -114,10 +114,21 @@ func (s *workflowServer) GetWorkflow(
 	phases, _ := s.backend.GetWorkflowPhases(w.ID)
 	variables, _ := s.backend.GetWorkflowVariables(w.ID)
 
+	// Convert phases to proto
+	protoPhases := dbWorkflowPhasesToProto(phases)
+
+	// Fetch and attach phase templates for each phase
+	for i, phase := range phases {
+		tmpl, err := s.backend.GetPhaseTemplate(phase.PhaseTemplateID)
+		if err == nil && tmpl != nil {
+			protoPhases[i].Template = dbPhaseTemplateToProto(tmpl)
+		}
+	}
+
 	return connect.NewResponse(&orcv1.GetWorkflowResponse{
 		Workflow: &orcv1.WorkflowWithDetails{
 			Workflow:  dbWorkflowToProto(w),
-			Phases:    dbWorkflowPhasesToProto(phases),
+			Phases:    protoPhases,
 			Variables: dbWorkflowVariablesToProto(variables),
 		},
 	}), nil
@@ -162,10 +173,47 @@ func (s *workflowServer) UpdateWorkflow(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	// Resolve the workflow to get source info
+	// First check the database for the workflow (handles API/CLI-created workflows)
+	dbWf, err := s.backend.GetWorkflow(req.Msg.Id)
+	if err == nil && dbWf != nil {
+		// Found in database - update directly
+		if dbWf.IsBuiltin {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in workflow"))
+		}
+
+		// Apply updates
+		if req.Msg.Name != nil {
+			dbWf.Name = *req.Msg.Name
+		}
+		if req.Msg.Description != nil {
+			dbWf.Description = *req.Msg.Description
+		}
+		if req.Msg.DefaultModel != nil {
+			dbWf.DefaultModel = *req.Msg.DefaultModel
+		}
+		if req.Msg.DefaultThinking != nil {
+			dbWf.DefaultThinking = *req.Msg.DefaultThinking
+		}
+
+		// Save to database
+		if err := s.backend.SaveWorkflow(dbWf); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
+		}
+
+		return connect.NewResponse(&orcv1.UpdateWorkflowResponse{
+			Workflow: dbWorkflowToProto(dbWf),
+		}), nil
+	}
+
+	// Not found in database - try file-based resolver for YAML workflows
 	resolved, err := s.resolver.ResolveWorkflow(req.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("workflow %s not found", req.Msg.Id))
+	}
+
+	// Cannot modify embedded/built-in workflows
+	if resolved.Source == workflow.SourceEmbedded {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in workflow"))
 	}
 
 	// Apply updates to the workflow
@@ -183,13 +231,12 @@ func (s *workflowServer) UpdateWorkflow(
 		wf.DefaultThinking = *req.Msg.DefaultThinking
 	}
 
-	// Write back to file if source is file-based (not embedded/database)
+	// Write back to file
 	writeLevel := workflow.SourceToWriteLevel(resolved.Source)
 	if writeLevel != "" {
 		writer := workflow.NewWriterFromOrcDir(s.resolver.OrcDir())
 		if _, writeErr := writer.WriteWorkflow(wf, writeLevel); writeErr != nil {
 			s.logger.Warn("failed to write workflow file", "id", req.Msg.Id, "error", writeErr)
-			// Fall through to DB update
 		}
 	}
 
@@ -704,9 +751,7 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ArtifactType != nil {
 		tmpl.ArtifactType = *req.Msg.ArtifactType
 	}
-	if req.Msg.ModelOverride != nil {
-		tmpl.ModelOverride = *req.Msg.ModelOverride
-	}
+	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
@@ -777,9 +822,7 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	if req.Msg.MaxIterations != nil {
 		pt.MaxIterations = int(*req.Msg.MaxIterations)
 	}
-	if req.Msg.ModelOverride != nil {
-		pt.ModelOverride = *req.Msg.ModelOverride
-	}
+	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
 		pt.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
@@ -1425,6 +1468,16 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 		PhaseTemplateId: p.PhaseTemplateID,
 		Sequence:        int32(p.Sequence),
 	}
+	// Agent overrides
+	if p.AgentOverride != "" {
+		result.AgentOverride = &p.AgentOverride
+	}
+	if p.SubAgentsOverride != "" {
+		var subAgentIDs []string
+		if err := json.Unmarshal([]byte(p.SubAgentsOverride), &subAgentIDs); err == nil {
+			result.SubAgentsOverride = subAgentIDs
+		}
+	}
 	if p.MaxIterationsOverride != nil {
 		v := int32(*p.MaxIterationsOverride)
 		result.MaxIterationsOverride = &v
@@ -1511,9 +1564,18 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	if t.ArtifactType != "" {
 		result.ArtifactType = &t.ArtifactType
 	}
-	if t.ModelOverride != "" {
-		result.ModelOverride = &t.ModelOverride
+	// Agent references (WHO runs this phase)
+	if t.AgentID != "" {
+		result.AgentId = &t.AgentID
 	}
+	if t.SubAgents != "" {
+		var subAgentIDs []string
+		if err := json.Unmarshal([]byte(t.SubAgents), &subAgentIDs); err == nil {
+			result.SubAgentIds = subAgentIDs
+		}
+	}
+
+	// Execution config
 	if t.ThinkingEnabled != nil {
 		result.ThinkingEnabled = t.ThinkingEnabled
 	}
@@ -1522,9 +1584,6 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	}
 	if t.RetryPromptPath != "" {
 		result.RetryPromptPath = &t.RetryPromptPath
-	}
-	if t.ClaudeConfig != "" {
-		result.ClaudeConfig = &t.ClaudeConfig
 	}
 	return result
 }

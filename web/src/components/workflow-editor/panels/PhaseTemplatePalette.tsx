@@ -132,9 +132,9 @@ export function PhaseTemplatePalette({ readOnly, workflowId: _workflowId }: Phas
 											</p>
 										)}
 										<div className="phase-palette-card-badges">
-											{t.modelOverride && (
+											{t.agentId && (
 												<span className="phase-palette-badge phase-palette-badge--model">
-													{t.modelOverride}
+													{t.agentId}
 												</span>
 											)}
 											{formatGateLabel(t.gateType) && (

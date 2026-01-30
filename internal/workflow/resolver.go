@@ -526,6 +526,8 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		ID:               pt.ID,
 		Name:             pt.Name,
 		Description:      pt.Description,
+		AgentID:          pt.AgentID,   // Agent reference (executor)
+		SubAgents:        pt.SubAgents, // Sub-agents (JSON array)
 		PromptSource:     PromptSource(pt.PromptSource),
 		PromptPath:       pt.PromptPath,
 		PromptContent:    pt.PromptContent,
@@ -534,13 +536,10 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
 		MaxIterations:    pt.MaxIterations,
-		ModelOverride:    pt.Model,
 		GateType:         GateType(pt.GateType),
 		Checkpoint:       pt.Checkpoint,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
-		ClaudeConfig:     pt.ClaudeConfig,
-		SystemPrompt:     pt.SystemPrompt,
 	}
 
 	if pt.Thinking != nil {
@@ -596,26 +595,33 @@ type variableYAML struct {
 
 // phaseYAML is the YAML structure for phase template files.
 type phaseYAML struct {
-	ID               string   `yaml:"id"`
-	Name             string   `yaml:"name"`
-	Description      string   `yaml:"description,omitempty"`
-	PromptSource     string   `yaml:"prompt_source,omitempty"`
-	PromptPath       string   `yaml:"prompt_path,omitempty"`
-	PromptContent    string   `yaml:"prompt_content,omitempty"`
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
+	Description string `yaml:"description,omitempty"`
+
+	// Agent configuration (WHO runs this phase)
+	AgentID   string `yaml:"agent_id,omitempty"`   // References agents.id
+	SubAgents string `yaml:"sub_agents,omitempty"` // JSON array of agent IDs
+
+	// Prompt configuration
+	PromptSource  string   `yaml:"prompt_source,omitempty"`
+	PromptPath    string   `yaml:"prompt_path,omitempty"`
+	PromptContent string   `yaml:"prompt_content,omitempty"`
+
+	// Contract
 	InputVariables   []string `yaml:"input_variables,omitempty"`
 	OutputSchema     string   `yaml:"output_schema,omitempty"`
 	OutputVarName    string   `yaml:"output_var_name,omitempty"`
 	OutputType       string   `yaml:"output_type,omitempty"`
 	ProducesArtifact bool     `yaml:"produces_artifact,omitempty"`
 	ArtifactType     string   `yaml:"artifact_type,omitempty"`
-	MaxIterations    int      `yaml:"max_iterations,omitempty"`
-	Model            string   `yaml:"model,omitempty"`
-	Thinking         *bool    `yaml:"thinking,omitempty"`
-	GateType         string   `yaml:"gate_type,omitempty"`
-	Checkpoint       bool     `yaml:"checkpoint,omitempty"`
-	RetryFromPhase   string   `yaml:"retry_from_phase,omitempty"`
-	RetryPromptPath  string   `yaml:"retry_prompt_path,omitempty"`
-	ClaudeConfig     string   `yaml:"claude_config,omitempty"`
-	SystemPrompt     string   `yaml:"system_prompt,omitempty"`
-	QualityChecks    string   `yaml:"quality_checks,omitempty"`
+
+	// Execution config
+	MaxIterations  int    `yaml:"max_iterations,omitempty"`
+	Thinking       *bool  `yaml:"thinking,omitempty"` // Phase-level thinking
+	GateType       string `yaml:"gate_type,omitempty"`
+	Checkpoint     bool   `yaml:"checkpoint,omitempty"`
+	RetryFromPhase string `yaml:"retry_from_phase,omitempty"`
+	RetryPromptPath string `yaml:"retry_prompt_path,omitempty"`
+	QualityChecks  string `yaml:"quality_checks,omitempty"`
 }

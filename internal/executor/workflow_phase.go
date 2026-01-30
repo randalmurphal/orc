@@ -617,17 +617,53 @@ func (we *WorkflowExecutor) loadSystemPromptFile(path string) (string, error) {
 	return string(content), nil
 }
 
+// resolveExecutorAgent resolves the executor agent for a phase.
+// Priority: workflow_phases.agent_override > phase_templates.agent_id
+// Returns nil if no agent is configured (agents are optional during transition period).
+func (we *WorkflowExecutor) resolveExecutorAgent(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) *db.Agent {
+	// 1. Check workflow_phases.agent_override (per-workflow override)
+	if phase.AgentOverride != "" {
+		agent, err := we.projectDB.GetAgent(phase.AgentOverride)
+		if err != nil {
+			we.logger.Warn("failed to load agent override",
+				"agent_id", phase.AgentOverride,
+				"phase", tmpl.ID,
+				"error", err,
+			)
+			return nil
+		}
+		return agent
+	}
+
+	// 2. Use phase_templates.agent_id (phase template default)
+	if tmpl.AgentID != "" {
+		agent, err := we.projectDB.GetAgent(tmpl.AgentID)
+		if err != nil {
+			we.logger.Warn("failed to load phase agent",
+				"agent_id", tmpl.AgentID,
+				"phase", tmpl.ID,
+				"error", err,
+			)
+			return nil
+		}
+		return agent
+	}
+
+	// No agent configured - caller should use fallback defaults
+	return nil
+}
+
 // resolvePhaseModel determines which model to use for a phase.
-// Priority: workflow phase override > phase template default > config default
+// Priority: workflow phase override > executor agent model > config default
 func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) string {
 	// Workflow phase override takes precedence (per-workflow customization)
 	if phase.ModelOverride != "" {
 		return phase.ModelOverride
 	}
 
-	// Phase template default (defined in seed.go, stored in database)
-	if tmpl.ModelOverride != "" {
-		return tmpl.ModelOverride
+	// Executor agent model
+	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.Model != "" {
+		return agent.Model
 	}
 
 	// Config default model
@@ -875,20 +911,21 @@ func (we *WorkflowExecutor) runQualityChecks(ctx context.Context, cfg PhaseExecu
 // getEffectivePhaseClaudeConfig resolves the effective Claude configuration for a phase.
 // Priority order:
 //  1. workflow_phases.claude_config_override (per-workflow override)
-//  2. phase_templates.claude_config (template default)
+//  2. executor agent claude_config (from resolved agent)
 //
 // After merging, it also:
 //  3. Resolves agent_ref to merge agent configuration
 //  4. Loads skill_refs to inject skill content into AppendSystemPrompt
-//  5. Sets system prompt from DB-stored content (DB-first approach)
+//  5. Sets system prompt from executor agent (DB-first approach)
 func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) *PhaseClaudeConfig {
 	var cfg *PhaseClaudeConfig
 
-	// 1. Load from phase template
-	if tmpl != nil && tmpl.ClaudeConfig != "" {
-		base, err := ParsePhaseClaudeConfig(tmpl.ClaudeConfig)
+	// 1. Load executor agent's ClaudeConfig as base
+	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.ClaudeConfig != "" {
+		base, err := ParsePhaseClaudeConfig(agent.ClaudeConfig)
 		if err != nil {
-			we.logger.Warn("failed to parse phase template claude_config",
+			we.logger.Warn("failed to parse agent claude_config",
+				"agent_id", agent.ID,
 				"phase", tmpl.ID,
 				"error", err,
 			)
@@ -897,7 +934,7 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 		}
 	}
 
-	// 2. Merge workflow phase override
+	// 2. Merge workflow phase override (can override agent config)
 	if phase != nil && phase.ClaudeConfigOverride != "" {
 		override, err := ParsePhaseClaudeConfig(phase.ClaudeConfigOverride)
 		if err != nil {
@@ -919,7 +956,7 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 		cfg = &PhaseClaudeConfig{}
 	}
 
-	// 3. Resolve agent reference
+	// 3. Resolve agent reference (from claude_config JSON)
 	if cfg.AgentRef != "" {
 		claudeDir := filepath.Join(we.workingDir, ".claude")
 		resolver := NewAgentResolver(we.workingDir, claudeDir)
@@ -946,10 +983,10 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 	}
 
 	// 5. Resolve system prompt (DB-first approach)
-	// Priority: phase_templates.system_prompt (DB) > claude_config.system_prompt_file > claude_config.system_prompt
-	if tmpl != nil && tmpl.SystemPrompt != "" {
+	// Priority: executor_agent.system_prompt (DB) > claude_config.system_prompt_file > claude_config.system_prompt
+	if agent := we.resolveExecutorAgent(tmpl, phase); agent != nil && agent.SystemPrompt != "" {
 		// DB-stored system prompt takes precedence (editable via UI)
-		cfg.SystemPrompt = tmpl.SystemPrompt
+		cfg.SystemPrompt = agent.SystemPrompt
 	} else if cfg.SystemPromptFile != "" {
 		// Fallback: file reference (for backward compatibility)
 		content, err := we.loadSystemPromptFile(cfg.SystemPromptFile)

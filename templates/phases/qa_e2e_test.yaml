@@ -12,32 +12,6 @@ produces_artifact: true
 artifact_type: qa_findings
 
 max_iterations: 20
-model: sonnet
 thinking: false
 gate_type: auto
 checkpoint: false
-
-claude_config: |
-  {
-    "allowed_tools": [
-      "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_click",
-      "mcp__playwright__browser_type",
-      "mcp__playwright__browser_take_screenshot",
-      "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_resize",
-      "mcp__playwright__browser_console_messages",
-      "mcp__playwright__browser_wait_for",
-      "mcp__playwright__browser_evaluate",
-      "mcp__playwright__browser_press_key",
-      "Bash", "Read", "Write", "Glob", "Grep"
-    ],
-    "disallowed_tools": ["Edit", "NotebookEdit"],
-    "mcp_servers": {
-      "playwright": {
-        "command": "npx",
-        "args": ["-y", "@playwright/mcp@latest", "--isolated"]
-      }
-    },
-    "append_system_prompt": "You are the QA tester. Use Playwright MCP tools directly to test the UI. Do NOT delegate to sub-agents. Test functional behavior (happy path, edge cases, error handling), visual consistency (layout, spacing, responsive), and basic accessibility (keyboard nav, ARIA labels). Report only findings with confidence >= 80."
-  }

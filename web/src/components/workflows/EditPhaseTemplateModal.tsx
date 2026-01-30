@@ -3,9 +3,12 @@
  *
  * Features:
  * - Edit phase template name, description
- * - Edit execution settings (model, gate type, max iterations)
+ * - Edit execution settings (agent, gate type, max iterations)
  * - Edit checkpoint and thinking settings
  * - Built-in templates cannot be edited (shows clone suggestion)
+ *
+ * Note: Model is now on the Agent, not the PhaseTemplate.
+ * Agent assignment is done via agentId.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -30,13 +33,6 @@ export interface EditPhaseTemplateModalProps {
 	onUpdated: (template: PhaseTemplate) => void;
 }
 
-const MODEL_OPTIONS = [
-	{ value: '', label: 'Default (inherit)' },
-	{ value: 'sonnet', label: 'Sonnet' },
-	{ value: 'opus', label: 'Opus' },
-	{ value: 'haiku', label: 'Haiku' },
-];
-
 const GATE_TYPE_OPTIONS = [
 	{ value: GateType.AUTO, label: 'Auto' },
 	{ value: GateType.HUMAN, label: 'Human' },
@@ -56,7 +52,7 @@ export function EditPhaseTemplateModal({
 	// Form state
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
-	const [modelOverride, setModelOverride] = useState('');
+	const [agentId, setAgentId] = useState('');
 	const [maxIterations, setMaxIterations] = useState(50);
 	const [gateType, setGateType] = useState<GateType>(GateType.AUTO);
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
@@ -70,7 +66,7 @@ export function EditPhaseTemplateModal({
 		if (open && template) {
 			setName(template.name || '');
 			setDescription(template.description || '');
-			setModelOverride(template.modelOverride || '');
+			setAgentId(template.agentId || '');
 			setMaxIterations(template.maxIterations || 50);
 			setGateType(template.gateType || GateType.AUTO);
 			setThinkingEnabled(template.thinkingEnabled || false);
@@ -88,7 +84,7 @@ export function EditPhaseTemplateModal({
 				id: template.id,
 				name: name.trim() || undefined,
 				description: description.trim() || undefined,
-				modelOverride: modelOverride || undefined,
+				agentId: agentId.trim() || undefined,
 				maxIterations: maxIterations,
 				gateType: gateType,
 				thinkingEnabled: thinkingEnabled,
@@ -109,7 +105,7 @@ export function EditPhaseTemplateModal({
 		template,
 		name,
 		description,
-		modelOverride,
+		agentId,
 		maxIterations,
 		gateType,
 		thinkingEnabled,
@@ -200,24 +196,21 @@ export function EditPhaseTemplateModal({
 				<div className="edit-template-section">
 					<h3 className="edit-template-section-title">Execution</h3>
 
-					{/* Model and Gate Type */}
+					{/* Agent ID and Gate Type */}
 					<div className="form-row">
 						<div className="form-group form-group-half">
-							<label htmlFor="edit-template-model" className="form-label">
-								LLM Model
+							<label htmlFor="edit-template-agent" className="form-label">
+								Executor Agent
 							</label>
-							<select
-								id="edit-template-model"
-								className="form-select"
-								value={modelOverride}
-								onChange={(e) => setModelOverride(e.target.value)}
-							>
-								{MODEL_OPTIONS.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
+							<input
+								id="edit-template-agent"
+								type="text"
+								className="form-input"
+								value={agentId}
+								onChange={(e) => setAgentId(e.target.value)}
+								placeholder="Agent ID (optional)"
+							/>
+							<span className="form-help">Agent that runs this phase</span>
 						</div>
 
 						<div className="form-group form-group-half">

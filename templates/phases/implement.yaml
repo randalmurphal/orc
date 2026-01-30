@@ -10,11 +10,9 @@ output_type: code
 produces_artifact: false
 
 max_iterations: 50
-model: opus
 thinking: false
 gate_type: auto
 checkpoint: true
 retry_from_phase: breakdown
 
 quality_checks: '[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]'
-claude_config: '{"append_system_prompt": "Sub-agents available: code-simplifier (for medium/large tasks). After completing implementation and passing all quality checks, delegate to code-simplifier to clean up recently modified code before marking complete."}'

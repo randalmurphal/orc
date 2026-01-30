@@ -334,6 +334,8 @@ func marshalPhaseYAML(phase *PhaseTemplate) ([]byte, error) {
 		ID:               phase.ID,
 		Name:             phase.Name,
 		Description:      phase.Description,
+		AgentID:          phase.AgentID,
+		SubAgents:        phase.SubAgents,
 		PromptSource:     string(phase.PromptSource),
 		PromptPath:       phase.PromptPath,
 		PromptContent:    phase.PromptContent,
@@ -342,14 +344,11 @@ func marshalPhaseYAML(phase *PhaseTemplate) ([]byte, error) {
 		ProducesArtifact: phase.ProducesArtifact,
 		ArtifactType:     phase.ArtifactType,
 		MaxIterations:    phase.MaxIterations,
-		Model:            phase.ModelOverride,
 		Thinking:         phase.ThinkingEnabled,
 		GateType:         string(phase.GateType),
 		Checkpoint:       phase.Checkpoint,
 		RetryFromPhase:   phase.RetryFromPhase,
 		RetryPromptPath:  phase.RetryPromptPath,
-		ClaudeConfig:     phase.ClaudeConfig,
-		SystemPrompt:     phase.SystemPrompt,
 	}
 
 	return yaml.Marshal(pt)

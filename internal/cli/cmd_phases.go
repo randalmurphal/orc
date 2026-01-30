@@ -178,9 +178,7 @@ Examples:
 			fmt.Printf("Prompt Path: %s\n", t.PromptPath)
 		}
 		fmt.Printf("Max Iterations: %d\n", t.MaxIterations)
-		if t.ModelOverride != "" {
-			fmt.Printf("Model Override: %s\n", t.ModelOverride)
-		}
+		// TODO: Show agent ID when agent system is complete
 		if t.ThinkingEnabled != nil && *t.ThinkingEnabled {
 			fmt.Println("Extended Thinking: enabled")
 		}
@@ -341,11 +339,8 @@ Examples:
 		// Apply updates
 		changed := false
 
-		if cmd.Flags().Changed("model") {
-			model, _ := cmd.Flags().GetString("model")
-			tmpl.ModelOverride = model
-			changed = true
-		}
+		// NOTE: Model is now set via agent reference, not directly on phase template
+		// TODO: Add --agent flag to set agent reference
 
 		if cmd.Flags().Changed("max-iterations") {
 			maxIter, _ := cmd.Flags().GetInt("max-iterations")

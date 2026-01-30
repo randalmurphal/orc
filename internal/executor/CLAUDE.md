@@ -207,22 +207,18 @@ The review phase supports multiple rounds via `RetryContext`:
 
 **Post-Success Cleanup:** After successful review round 2+, `RetryContext` is cleared to prevent stale context on future runs.
 
-## Model Configuration
+## Agent & Model Resolution
 
-Model selection is workflow-based via phase templates (see `internal/workflow/seed.go`):
+Phase = Agent (WHO) + Prompt (WHAT). Resolution functions in `workflow_phase.go`:
 
-```
-workflow_phases.model_override    # Workflow-specific override
-phase_templates.model_override    # Phase template default
-config.Model                      # Global fallback
-```
+| Function | Line | Resolution Order |
+|----------|------|------------------|
+| `resolveExecutorAgent()` | 623 | phase.AgentOverride → tmpl.AgentID → nil |
+| `resolvePhaseModel()` | 658 | phase.ModelOverride → agent.Model → config.Model → "opus" |
+| `getEffectivePhaseClaudeConfig()` | 920 | Merge agent + phase config → nil if empty |
+| `shouldUseThinking()` | 679 | phase.ThinkingOverride → tmpl.ThinkingEnabled → phase defaults |
 
-**Default per phase template:**
-| Phase | Model | Thinking | Rationale |
-|-------|-------|----------|-----------|
-| spec, review, research | opus | true | Decision phases need deep reasoning |
-| tiny_spec, tdd_write, breakdown, implement, docs | opus | false | Execution phases |
-| qa | sonnet | false | Test execution is mechanical |
+**Phase defaults:** spec/review → thinking=true, implement → thinking=false
 
 ## Claude Call Patterns
 
@@ -347,19 +343,13 @@ defer heartbeatRunner.Stop()
 go test ./internal/executor/... -v
 ```
 
-**Mock injection:**
-```go
-mock := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
-executor := NewWorkflowExecutor(backend, projectDB, orcConfig, workDir,
-    WithWorkflowTurnExecutor(mock),
-)
-```
+| Test File | Coverage |
+|-----------|----------|
+| `executor_resolution_test.go` | Agent/model/config resolution (`setupTestExecutor` helper) |
+| `workflow_executor_test.go` | Core executor behavior |
+| `phase_response_test.go` | Phase completion parsing |
 
-| Executor | Option |
-|----------|--------|
-| `WorkflowExecutor` | `WithWorkflowTurnExecutor(mock)` |
-| `FinalizeExecutor` | `WithFinalizeTurnExecutor(mock)` |
-| `ConflictResolver` | `WithResolverTurnExecutor(mock)` |
+**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`
 
 ## Common Gotchas
 

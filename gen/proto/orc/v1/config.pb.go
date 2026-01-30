@@ -1586,21 +1586,28 @@ func (x *AgentStats) GetSuccessRate() float64 {
 	return 0
 }
 
-// SubAgent definition
+// Agent definition - unified concept for both executor and sub-agent roles
+// Can be used as main phase executor OR as sub-agent
 type Agent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Model         *string                `protobuf:"bytes,3,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	Tools         *ToolPermissions       `protobuf:"bytes,4,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,5,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
-	WorkDir       *string                `protobuf:"bytes,6,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
-	SkillRefs     []string               `protobuf:"bytes,7,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
-	Timeout       *string                `protobuf:"bytes,8,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Path          *string                `protobuf:"bytes,9,opt,name=path,proto3,oneof" json:"path,omitempty"` // for global agents from .md files
-	Scope         SettingsScope          `protobuf:"varint,10,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Status        *string                `protobuf:"bytes,11,opt,name=status,proto3,oneof" json:"status,omitempty"` // "active" or "idle"
-	Stats         *AgentStats            `protobuf:"bytes,12,opt,name=stats,proto3,oneof" json:"stats,omitempty"`   // Runtime statistics
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Unique identifier (for DB agents)
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
+	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role context
+	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role - system prompt
+	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON additional config
+	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
+	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
+	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Path          *string                `protobuf:"bytes,12,opt,name=path,proto3,oneof" json:"path,omitempty"` // for global agents from .md files
+	Scope         SettingsScope          `protobuf:"varint,13,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Status        *string                `protobuf:"bytes,14,opt,name=status,proto3,oneof" json:"status,omitempty"`                   // "active" or "idle"
+	Stats         *AgentStats            `protobuf:"bytes,15,opt,name=stats,proto3,oneof" json:"stats,omitempty"`                     // Runtime statistics
+	IsBuiltin     bool                   `protobuf:"varint,16,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"` // Whether this is a built-in agent
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Note: NO thinking_enabled - that's a phase-level concern, not agent
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1635,6 +1642,13 @@ func (*Agent) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{18}
 }
 
+func (x *Agent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 func (x *Agent) GetName() string {
 	if x != nil {
 		return x.Name
@@ -1666,6 +1680,20 @@ func (x *Agent) GetTools() *ToolPermissions {
 func (x *Agent) GetPrompt() string {
 	if x != nil && x.Prompt != nil {
 		return *x.Prompt
+	}
+	return ""
+}
+
+func (x *Agent) GetSystemPrompt() string {
+	if x != nil && x.SystemPrompt != nil {
+		return *x.SystemPrompt
+	}
+	return ""
+}
+
+func (x *Agent) GetClaudeConfig() string {
+	if x != nil && x.ClaudeConfig != nil {
+		return *x.ClaudeConfig
 	}
 	return ""
 }
@@ -1715,6 +1743,27 @@ func (x *Agent) GetStatus() string {
 func (x *Agent) GetStats() *AgentStats {
 	if x != nil {
 		return x.Stats
+	}
+	return nil
+}
+
+func (x *Agent) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+func (x *Agent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Agent) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
 	}
 	return nil
 }
@@ -4486,15 +4535,18 @@ func (x *GetAgentResponse) GetAgent() *Agent {
 
 type CreateAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Model         *string                `protobuf:"bytes,3,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	Tools         *ToolPermissions       `protobuf:"bytes,4,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,5,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
-	WorkDir       *string                `protobuf:"bytes,6,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
-	SkillRefs     []string               `protobuf:"bytes,7,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
-	Timeout       *string                `protobuf:"bytes,8,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,9,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Unique identifier
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
+	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
+	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
+	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
+	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Scope         SettingsScope          `protobuf:"varint,12,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4529,6 +4581,13 @@ func (*CreateAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{75}
 }
 
+func (x *CreateAgentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 func (x *CreateAgentRequest) GetName() string {
 	if x != nil {
 		return x.Name
@@ -4560,6 +4619,20 @@ func (x *CreateAgentRequest) GetTools() *ToolPermissions {
 func (x *CreateAgentRequest) GetPrompt() string {
 	if x != nil && x.Prompt != nil {
 		return *x.Prompt
+	}
+	return ""
+}
+
+func (x *CreateAgentRequest) GetSystemPrompt() string {
+	if x != nil && x.SystemPrompt != nil {
+		return *x.SystemPrompt
+	}
+	return ""
+}
+
+func (x *CreateAgentRequest) GetClaudeConfig() string {
+	if x != nil && x.ClaudeConfig != nil {
+		return *x.ClaudeConfig
 	}
 	return ""
 }
@@ -4638,14 +4711,17 @@ func (x *CreateAgentResponse) GetAgent() *Agent {
 
 type UpdateAgentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Model         *string                `protobuf:"bytes,3,opt,name=model,proto3,oneof" json:"model,omitempty"`
-	Tools         *ToolPermissions       `protobuf:"bytes,4,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
-	Prompt        *string                `protobuf:"bytes,5,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`
-	WorkDir       *string                `protobuf:"bytes,6,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
-	SkillRefs     []string               `protobuf:"bytes,7,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
-	Timeout       *string                `protobuf:"bytes,8,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // Agent ID to update
+	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Model         *string                `protobuf:"bytes,4,opt,name=model,proto3,oneof" json:"model,omitempty"`
+	Tools         *ToolPermissions       `protobuf:"bytes,5,opt,name=tools,proto3,oneof" json:"tools,omitempty"`
+	Prompt        *string                `protobuf:"bytes,6,opt,name=prompt,proto3,oneof" json:"prompt,omitempty"`                                 // For sub-agent role
+	SystemPrompt  *string                `protobuf:"bytes,7,opt,name=system_prompt,json=systemPrompt,proto3,oneof" json:"system_prompt,omitempty"` // For executor role
+	ClaudeConfig  *string                `protobuf:"bytes,8,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // For executor role - JSON config
+	WorkDir       *string                `protobuf:"bytes,9,opt,name=work_dir,json=workDir,proto3,oneof" json:"work_dir,omitempty"`
+	SkillRefs     []string               `protobuf:"bytes,10,rep,name=skill_refs,json=skillRefs,proto3" json:"skill_refs,omitempty"`
+	Timeout       *string                `protobuf:"bytes,11,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4680,9 +4756,16 @@ func (*UpdateAgentRequest) Descriptor() ([]byte, []int) {
 	return file_orc_v1_config_proto_rawDescGZIP(), []int{77}
 }
 
-func (x *UpdateAgentRequest) GetName() string {
+func (x *UpdateAgentRequest) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateAgentRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
@@ -4711,6 +4794,20 @@ func (x *UpdateAgentRequest) GetTools() *ToolPermissions {
 func (x *UpdateAgentRequest) GetPrompt() string {
 	if x != nil && x.Prompt != nil {
 		return *x.Prompt
+	}
+	return ""
+}
+
+func (x *UpdateAgentRequest) GetSystemPrompt() string {
+	if x != nil && x.SystemPrompt != nil {
+		return *x.SystemPrompt
+	}
+	return ""
+}
+
+func (x *UpdateAgentRequest) GetClaudeConfig() string {
+	if x != nil && x.ClaudeConfig != nil {
+		return *x.ClaudeConfig
 	}
 	return ""
 }
@@ -5982,25 +6079,36 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\ftokens_today\x18\x01 \x01(\x03R\vtokensToday\x12\x1d\n" +
 	"\n" +
 	"tasks_done\x18\x02 \x01(\x05R\ttasksDone\x12!\n" +
-	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\xef\x03\n" +
-	"\x05Agent\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\x05model\x18\x03 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
-	"\x05tools\x18\x04 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\x05 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12\x1e\n" +
-	"\bwork_dir\x18\x06 \x01(\tH\x03R\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\fsuccess_rate\x18\x03 \x01(\x01R\vsuccessRate\"\x8c\x06\n" +
+	"\x05Agent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
+	"\x05model\x18\x04 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
+	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\x06 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
+	"\rsystem_prompt\x18\a \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
+	"\rclaude_config\x18\b \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\bwork_dir\x18\t \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"skill_refs\x18\a \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\b \x01(\tH\x04R\atimeout\x88\x01\x01\x12\x17\n" +
-	"\x04path\x18\t \x01(\tH\x05R\x04path\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\n" +
-	" \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x1b\n" +
-	"\x06status\x18\v \x01(\tH\x06R\x06status\x88\x01\x01\x12-\n" +
-	"\x05stats\x18\f \x01(\v2\x12.orc.v1.AgentStatsH\aR\x05stats\x88\x01\x01B\b\n" +
+	"skill_refs\x18\n" +
+	" \x03(\tR\tskillRefs\x12\x1d\n" +
+	"\atimeout\x18\v \x01(\tH\x06R\atimeout\x88\x01\x01\x12\x17\n" +
+	"\x04path\x18\f \x01(\tH\aR\x04path\x88\x01\x01\x12+\n" +
+	"\x05scope\x18\r \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x1b\n" +
+	"\x06status\x18\x0e \x01(\tH\bR\x06status\x88\x01\x01\x12-\n" +
+	"\x05stats\x18\x0f \x01(\v2\x12.orc.v1.AgentStatsH\tR\x05stats\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\x10 \x01(\bR\tisBuiltin\x129\n" +
+	"\n" +
+	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
-	"\a_promptB\v\n" +
+	"\a_promptB\x10\n" +
+	"\x0e_system_promptB\x10\n" +
+	"\x0e_claude_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeoutB\a\n" +
@@ -6197,40 +6305,53 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x0fGetAgentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"7\n" +
 	"\x10GetAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xf9\x02\n" +
-	"\x12CreateAgentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\x05model\x18\x03 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
-	"\x05tools\x18\x04 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\x05 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12\x1e\n" +
-	"\bwork_dir\x18\x06 \x01(\tH\x03R\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\x81\x04\n" +
+	"\x12CreateAgentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
+	"\x05model\x18\x04 \x01(\tH\x00R\x05model\x88\x01\x01\x122\n" +
+	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x01R\x05tools\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\x06 \x01(\tH\x02R\x06prompt\x88\x01\x01\x12(\n" +
+	"\rsystem_prompt\x18\a \x01(\tH\x03R\fsystemPrompt\x88\x01\x01\x12(\n" +
+	"\rclaude_config\x18\b \x01(\tH\x04R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\bwork_dir\x18\t \x01(\tH\x05R\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"skill_refs\x18\a \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\b \x01(\tH\x04R\atimeout\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\t \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\b\n" +
+	"skill_refs\x18\n" +
+	" \x03(\tR\tskillRefs\x12\x1d\n" +
+	"\atimeout\x18\v \x01(\tH\x06R\atimeout\x88\x01\x01\x12+\n" +
+	"\x05scope\x18\f \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
-	"\a_promptB\v\n" +
+	"\a_promptB\x10\n" +
+	"\x0e_system_promptB\x10\n" +
+	"\x0e_claude_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeout\":\n" +
 	"\x13CreateAgentResponse\x12#\n" +
-	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xe1\x02\n" +
-	"\x12UpdateAgentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x19\n" +
-	"\x05model\x18\x03 \x01(\tH\x01R\x05model\x88\x01\x01\x122\n" +
-	"\x05tools\x18\x04 \x01(\v2\x17.orc.v1.ToolPermissionsH\x02R\x05tools\x88\x01\x01\x12\x1b\n" +
-	"\x06prompt\x18\x05 \x01(\tH\x03R\x06prompt\x88\x01\x01\x12\x1e\n" +
-	"\bwork_dir\x18\x06 \x01(\tH\x04R\aworkDir\x88\x01\x01\x12\x1d\n" +
+	"\x05agent\x18\x01 \x01(\v2\r.orc.v1.AgentR\x05agent\"\xf7\x03\n" +
+	"\x12UpdateAgentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x19\n" +
+	"\x05model\x18\x04 \x01(\tH\x02R\x05model\x88\x01\x01\x122\n" +
+	"\x05tools\x18\x05 \x01(\v2\x17.orc.v1.ToolPermissionsH\x03R\x05tools\x88\x01\x01\x12\x1b\n" +
+	"\x06prompt\x18\x06 \x01(\tH\x04R\x06prompt\x88\x01\x01\x12(\n" +
+	"\rsystem_prompt\x18\a \x01(\tH\x05R\fsystemPrompt\x88\x01\x01\x12(\n" +
+	"\rclaude_config\x18\b \x01(\tH\x06R\fclaudeConfig\x88\x01\x01\x12\x1e\n" +
+	"\bwork_dir\x18\t \x01(\tH\aR\aworkDir\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"skill_refs\x18\a \x03(\tR\tskillRefs\x12\x1d\n" +
-	"\atimeout\x18\b \x01(\tH\x05R\atimeout\x88\x01\x01B\x0e\n" +
+	"skill_refs\x18\n" +
+	" \x03(\tR\tskillRefs\x12\x1d\n" +
+	"\atimeout\x18\v \x01(\tH\bR\atimeout\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\b\n" +
 	"\x06_modelB\b\n" +
 	"\x06_toolsB\t\n" +
-	"\a_promptB\v\n" +
+	"\a_promptB\x10\n" +
+	"\x0e_system_promptB\x10\n" +
+	"\x0e_claude_configB\v\n" +
 	"\t_work_dirB\n" +
 	"\n" +
 	"\b_timeout\":\n" +
@@ -6510,153 +6631,155 @@ var file_orc_v1_config_proto_depIdxs = []int32{
 	21,  // 22: orc.v1.Agent.tools:type_name -> orc.v1.ToolPermissions
 	0,   // 23: orc.v1.Agent.scope:type_name -> orc.v1.SettingsScope
 	19,  // 24: orc.v1.Agent.stats:type_name -> orc.v1.AgentStats
-	2,   // 25: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
-	3,   // 26: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
-	4,   // 27: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
-	7,   // 28: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
-	8,   // 29: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
-	9,   // 30: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
-	10,  // 31: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
-	2,   // 32: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
-	0,   // 33: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	11,  // 34: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
-	0,   // 35: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	11,  // 36: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
-	11,  // 37: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
-	12,  // 38: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
-	0,   // 39: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 40: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
-	1,   // 41: orc.v1.CreateHookRequest.event:type_name -> orc.v1.HookEvent
-	110, // 42: orc.v1.CreateHookRequest.env:type_name -> orc.v1.CreateHookRequest.EnvEntry
-	0,   // 43: orc.v1.CreateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 44: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 45: orc.v1.UpdateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	1,   // 46: orc.v1.UpdateHookRequest.event:type_name -> orc.v1.HookEvent
-	111, // 47: orc.v1.UpdateHookRequest.env:type_name -> orc.v1.UpdateHookRequest.EnvEntry
-	13,  // 48: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 49: orc.v1.DeleteHookRequest.scope:type_name -> orc.v1.SettingsScope
-	0,   // 50: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 51: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
-	0,   // 52: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 53: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 54: orc.v1.UpdateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 55: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 56: orc.v1.DeleteSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	15,  // 57: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
-	0,   // 58: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
-	15,  // 59: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
-	18,  // 60: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	18,  // 61: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	16,  // 62: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
-	16,  // 63: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	16,  // 64: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	16,  // 65: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	17,  // 66: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
-	0,   // 67: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
-	20,  // 68: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
-	20,  // 69: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
-	21,  // 70: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	0,   // 71: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
-	20,  // 72: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
-	21,  // 73: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	20,  // 74: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
-	23,  // 75: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
-	23,  // 76: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
-	23,  // 77: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
-	23,  // 78: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
-	23,  // 79: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
-	0,   // 80: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
-	22,  // 81: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
-	112, // 82: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
-	22,  // 83: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
-	21,  // 84: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	21,  // 85: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
-	21,  // 86: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	24,  // 87: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
-	97,  // 88: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
-	25,  // 89: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
-	27,  // 90: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
-	29,  // 91: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
-	31,  // 92: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
-	33,  // 93: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
-	35,  // 94: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
-	37,  // 95: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
-	39,  // 96: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
-	41,  // 97: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
-	43,  // 98: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
-	45,  // 99: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
-	47,  // 100: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
-	49,  // 101: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
-	51,  // 102: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
-	53,  // 103: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
-	55,  // 104: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
-	57,  // 105: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
-	59,  // 106: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
-	61,  // 107: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
-	63,  // 108: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
-	65,  // 109: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
-	67,  // 110: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
-	69,  // 111: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
-	71,  // 112: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
-	73,  // 113: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
-	75,  // 114: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
-	77,  // 115: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
-	79,  // 116: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
-	81,  // 117: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
-	83,  // 118: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
-	85,  // 119: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
-	87,  // 120: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
-	89,  // 121: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
-	91,  // 122: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
-	93,  // 123: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
-	95,  // 124: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
-	98,  // 125: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
-	100, // 126: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
-	102, // 127: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
-	26,  // 128: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
-	28,  // 129: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
-	30,  // 130: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
-	32,  // 131: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
-	34,  // 132: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
-	36,  // 133: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
-	38,  // 134: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
-	40,  // 135: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
-	42,  // 136: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
-	44,  // 137: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
-	46,  // 138: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
-	48,  // 139: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
-	50,  // 140: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
-	52,  // 141: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
-	54,  // 142: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
-	56,  // 143: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
-	58,  // 144: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
-	60,  // 145: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
-	62,  // 146: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
-	64,  // 147: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
-	66,  // 148: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
-	68,  // 149: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
-	70,  // 150: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
-	72,  // 151: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
-	74,  // 152: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
-	76,  // 153: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
-	78,  // 154: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
-	80,  // 155: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
-	82,  // 156: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
-	84,  // 157: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
-	86,  // 158: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
-	88,  // 159: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
-	90,  // 160: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
-	92,  // 161: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
-	94,  // 162: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
-	96,  // 163: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
-	99,  // 164: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
-	101, // 165: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
-	103, // 166: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
-	128, // [128:167] is the sub-list for method output_type
-	89,  // [89:128] is the sub-list for method input_type
-	89,  // [89:89] is the sub-list for extension type_name
-	89,  // [89:89] is the sub-list for extension extendee
-	0,   // [0:89] is the sub-list for field type_name
+	113, // 25: orc.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
+	113, // 26: orc.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
+	2,   // 27: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
+	3,   // 28: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
+	4,   // 29: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
+	7,   // 30: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
+	8,   // 31: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
+	9,   // 32: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
+	10,  // 33: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
+	2,   // 34: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
+	0,   // 35: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 36: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
+	0,   // 37: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 38: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
+	11,  // 39: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
+	12,  // 40: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
+	0,   // 41: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
+	13,  // 42: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
+	1,   // 43: orc.v1.CreateHookRequest.event:type_name -> orc.v1.HookEvent
+	110, // 44: orc.v1.CreateHookRequest.env:type_name -> orc.v1.CreateHookRequest.EnvEntry
+	0,   // 45: orc.v1.CreateHookRequest.scope:type_name -> orc.v1.SettingsScope
+	13,  // 46: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
+	0,   // 47: orc.v1.UpdateHookRequest.scope:type_name -> orc.v1.SettingsScope
+	1,   // 48: orc.v1.UpdateHookRequest.event:type_name -> orc.v1.HookEvent
+	111, // 49: orc.v1.UpdateHookRequest.env:type_name -> orc.v1.UpdateHookRequest.EnvEntry
+	13,  // 50: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
+	0,   // 51: orc.v1.DeleteHookRequest.scope:type_name -> orc.v1.SettingsScope
+	0,   // 52: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 53: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
+	0,   // 54: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 55: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
+	0,   // 56: orc.v1.UpdateSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 57: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
+	0,   // 58: orc.v1.DeleteSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	15,  // 59: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
+	0,   // 60: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
+	15,  // 61: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
+	18,  // 62: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	18,  // 63: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	16,  // 64: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
+	16,  // 65: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 66: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 67: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	17,  // 68: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
+	0,   // 69: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 70: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
+	20,  // 71: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 72: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	0,   // 73: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 74: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 75: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	20,  // 76: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
+	23,  // 77: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 78: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 79: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 80: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 81: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
+	0,   // 82: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
+	22,  // 83: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
+	112, // 84: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
+	22,  // 85: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
+	21,  // 86: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 87: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 88: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	24,  // 89: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
+	97,  // 90: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
+	25,  // 91: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
+	27,  // 92: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
+	29,  // 93: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
+	31,  // 94: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
+	33,  // 95: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
+	35,  // 96: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
+	37,  // 97: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
+	39,  // 98: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
+	41,  // 99: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
+	43,  // 100: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
+	45,  // 101: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
+	47,  // 102: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
+	49,  // 103: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
+	51,  // 104: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
+	53,  // 105: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
+	55,  // 106: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
+	57,  // 107: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
+	59,  // 108: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
+	61,  // 109: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
+	63,  // 110: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
+	65,  // 111: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
+	67,  // 112: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
+	69,  // 113: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
+	71,  // 114: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
+	73,  // 115: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
+	75,  // 116: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
+	77,  // 117: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
+	79,  // 118: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
+	81,  // 119: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
+	83,  // 120: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
+	85,  // 121: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
+	87,  // 122: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
+	89,  // 123: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
+	91,  // 124: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
+	93,  // 125: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
+	95,  // 126: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
+	98,  // 127: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
+	100, // 128: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
+	102, // 129: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
+	26,  // 130: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
+	28,  // 131: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
+	30,  // 132: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
+	32,  // 133: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
+	34,  // 134: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
+	36,  // 135: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
+	38,  // 136: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
+	40,  // 137: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
+	42,  // 138: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
+	44,  // 139: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
+	46,  // 140: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
+	48,  // 141: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
+	50,  // 142: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
+	52,  // 143: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
+	54,  // 144: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
+	56,  // 145: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
+	58,  // 146: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
+	60,  // 147: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
+	62,  // 148: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
+	64,  // 149: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
+	66,  // 150: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
+	68,  // 151: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
+	70,  // 152: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
+	72,  // 153: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
+	74,  // 154: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
+	76,  // 155: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
+	78,  // 156: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
+	80,  // 157: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
+	82,  // 158: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
+	84,  // 159: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
+	86,  // 160: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
+	88,  // 161: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
+	90,  // 162: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
+	92,  // 163: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
+	94,  // 164: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
+	96,  // 165: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
+	99,  // 166: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
+	101, // 167: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
+	103, // 168: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
+	130, // [130:169] is the sub-list for method output_type
+	91,  // [91:130] is the sub-list for method input_type
+	91,  // [91:91] is the sub-list for extension type_name
+	91,  // [91:91] is the sub-list for extension extendee
+	0,   // [0:91] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_config_proto_init() }
