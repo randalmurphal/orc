@@ -31,7 +31,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 | `WorkflowService` | `workflow_server.go` | Yes | List, Get workflows and phases, Variables |
 | `TranscriptService` | `transcript_server.go` | Yes | Get, Stream transcripts |
 | `EventService` | `event_server.go` | Yes | Subscribe (streaming), GetEvents, GetTimeline |
-| `ConfigService` | `config_server.go` | Yes | Get/Update orc config |
+| `ConfigService` | `config_server.go` | Yes | Config, Settings, Hooks, Skills, ClaudeMd, Constitution, Prompts, Agents, Scripts, Tools |
 | `HostingService` | `hosting_server.go` | Yes | PR CRUD, Refresh, AutofixComment |
 | `DashboardService` | `dashboard_server.go` | Yes | Stats, Metrics (TTL cache + singleflight) |
 | `ProjectService` | `project_server.go` | No | Multi-project management (global) |
@@ -44,43 +44,17 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 
 ### Service Implementation
 
-```go
-type taskServer struct {
-    orcv1connect.UnimplementedTaskServiceHandler
-    backend   storage.Backend
-    config    *config.Config
-    logger    *slog.Logger
-    publisher events.Publisher
-}
-
-func (s *taskServer) GetTask(
-    ctx context.Context,
-    req *connect.Request[orcv1.GetTaskRequest],
-) (*connect.Response[orcv1.GetTaskResponse], error) {
-    // Implementation
-}
-```
+Each `*_server.go` embeds `Unimplemented*Handler`, holds `backend storage.Backend`, `projectCache *ProjectCache`, and service-specific deps. RPC methods receive `connect.Request[T]` and return `connect.Response[T]`.
 
 ### Multi-Project Routing
 
 Every project-scoped server follows this pattern for multi-project support:
 
-**1. Struct fields** -- each server has `backend` (default) and `projectCache`:
-```go
-type dashboardServer struct {
-    backend      storage.Backend   // default project backend
-    projectCache *ProjectCache     // LRU cache of project backends
-}
-```
+**1. Struct fields** -- each server has `backend` (default) and `projectCache`.
 
-**2. `SetProjectCache()`** -- called during registration (`server_connect.go:27-71`):
-```go
-func (s *dashboardServer) SetProjectCache(cache *ProjectCache) {
-    s.projectCache = cache
-}
-```
+**2. `SetProjectCache()`** -- called during registration (`server_connect.go:27-71`).
 
-**3. `getBackend(projectID)`** -- resolves the correct backend per request:
+**3. `getBackend(projectID)`** -- resolves the correct `storage.Backend` (DB access):
 ```go
 func (s *dashboardServer) getBackend(projectID string) (storage.Backend, error) {
     if projectID != "" && s.projectCache != nil {
@@ -93,7 +67,9 @@ func (s *dashboardServer) getBackend(projectID string) (storage.Backend, error) 
 }
 ```
 
-**4. Usage in RPC methods** -- extract `project_id` from proto request:
+**4. `getWorkDir(projectID)`** (`config_server.go:75`) -- resolves filesystem path via `projectCache.GetProjectPath()`. Same routing logic as `getBackend` but returns a directory path. Used by services needing filesystem access (config files, prompts, agents, scripts) -- not just DB access.
+
+**5. Usage in RPC methods** -- extract `project_id` from proto request:
 ```go
 backend, err := s.getBackend(req.Msg.GetProjectId())
 if err != nil { return nil, err }
@@ -104,12 +80,43 @@ if err != nil { return nil, err }
 
 | Condition | Result |
 |-----------|--------|
-| `project_id` empty | Uses default `s.backend` |
-| `project_id` set, cache exists | Routes to project-specific backend via LRU cache |
+| `project_id` empty | Uses default `s.backend` / `s.workDir` |
+| `project_id` set, cache exists | Routes to project-specific backend/path via LRU cache |
 | `project_id` set, cache nil | **Error** (not fallback to default) |
-| Project not in registry | **Error** from `ProjectCache.GetBackend()` |
+| Project not in registry | **Error** from `ProjectCache.GetBackend()` / `GetProjectPath()` |
 
 **ProjectCache** (`project_cache.go`): Thread-safe LRU cache mapping project IDs to `storage.Backend` instances. Opens databases on demand, evicts least-recently-used when at capacity (default: 10). Proto request messages across all `.proto` files include `project_id` as an optional field.
+
+### HTTP File Routes (Non-RPC)
+
+`file_handlers.go:55` provides `resolveProjectBackend(r *http.Request)` for non-RPC HTTP routes (attachments, screenshots, traces, export/import). Reads `project_id` from query params instead of proto messages:
+
+```go
+func (s *Server) resolveProjectBackend(r *http.Request) (storage.Backend, string, error) {
+    projectID := r.URL.Query().Get("project_id")
+    // returns (backend, workDir, error) -- same routing logic as getBackend/getWorkDir
+}
+```
+
+### Project-Aware Server Methods
+
+`server.go` task lifecycle methods accept `(id, projectID string)` and resolve backend/workDir from `projectCache` when projectID is non-empty:
+
+| Method | Signature | Location |
+|--------|-----------|----------|
+| `startTask` | `(id, projectID string) error` | `server.go:757` |
+| `pauseTask` | `(id, projectID string) (map[string]any, error)` | `server.go:600` |
+| `resumeTask` | `(id, projectID string) (map[string]any, error)` | `server.go:627` |
+| `cancelTask` | `(id, projectID string) (map[string]any, error)` | `server.go:827` |
+| `GetSessionMetrics` | `(projectID string) SessionMetricsResponse` | `server.go:881` |
+
+`TaskExecutorFunc` (`task_server.go:30`) signature: `func(taskID, projectID string) error`. This is how project context flows from Connect RPC through to `Server.startTask`.
+
+WebSocket callers pass `""` for projectID (backwards compat with single-project mode).
+
+### Finalize Tracker Project Support
+
+`finalize_tracker.go:182`: `TriggerFinalizeOnApproval(taskID, projectID string)` resolves backend/workDir from projectCache. `runFinalizeAsync` (`finalize_tracker.go:256`) accepts pre-resolved `backend` and `workDir` parameters. The PR poller passes `""` since it operates on the default backend.
 
 ### Error Handling
 
@@ -137,19 +144,7 @@ Interceptors map internal errors to Connect codes (`interceptors.go:56-117`):
 
 ### Server Streaming (Events)
 
-`EventService.Subscribe` provides real-time events via server streaming (`event_server.go:60-136`):
-
-```go
-func (s *eventServer) Subscribe(
-    ctx context.Context,
-    req *connect.Request[orcv1.SubscribeRequest],
-    stream *connect.ServerStream[orcv1.SubscribeResponse],
-) error {
-    // Subscribe to publisher, forward events to stream
-}
-```
-
-Clients can filter by task ID, initiative ID, or event types. Heartbeat support included.
+`EventService.Subscribe` (`event_server.go:60-136`) provides real-time events via server streaming. Clients filter by task ID, initiative ID, or event types. Heartbeat support included.
 
 ## WebSocket Protocol (Legacy)
 
