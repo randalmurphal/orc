@@ -429,19 +429,22 @@ service ConfigService {
 // REQUEST/RESPONSE MESSAGES
 // =============================================================================
 
-message GetConfigRequest {}
+message GetConfigRequest {
+  string project_id = 1;
+}
 
 message GetConfigResponse {
   Config config = 1;
 }
 
 message UpdateConfigRequest {
-  optional AutomationConfig automation = 1;
-  optional CompletionConfig completion = 2;
-  optional ExportConfig export = 3;
-  optional ClaudeConfig claude = 4;
-  optional ExecutionConfig execution = 5;
-  optional JiraConfig jira = 6;
+  string project_id = 1;
+  optional AutomationConfig automation = 2;
+  optional CompletionConfig completion = 3;
+  optional ExportConfig export = 4;
+  optional ClaudeConfig claude = 5;
+  optional ExecutionConfig execution = 6;
+  optional JiraConfig jira = 7;
 }
 
 message UpdateConfigResponse {
@@ -449,7 +452,8 @@ message UpdateConfigResponse {
 }
 
 message GetSettingsRequest {
-  SettingsScope scope = 1;
+  string project_id = 1;
+  SettingsScope scope = 2;
 }
 
 message GetSettingsResponse {
@@ -457,22 +461,26 @@ message GetSettingsResponse {
 }
 
 message UpdateSettingsRequest {
-  SettingsScope scope = 1;
-  Settings settings = 2;
+  string project_id = 1;
+  SettingsScope scope = 2;
+  Settings settings = 3;
 }
 
 message UpdateSettingsResponse {
   Settings settings = 1;
 }
 
-message GetSettingsHierarchyRequest {}
+message GetSettingsHierarchyRequest {
+  string project_id = 1;
+}
 
 message GetSettingsHierarchyResponse {
   SettingsHierarchy hierarchy = 1;
 }
 
 message ListHooksRequest {
-  optional SettingsScope scope = 1;
+  string project_id = 1;
+  optional SettingsScope scope = 2;
 }
 
 message ListHooksResponse {
@@ -480,14 +488,15 @@ message ListHooksResponse {
 }
 
 message CreateHookRequest {
-  string name = 1;
-  HookEvent event = 2;
-  optional string matcher = 3;
-  string command = 4;
-  optional string working_dir = 5;
-  map<string, string> env = 6;
-  int32 timeout = 7;
-  SettingsScope scope = 8;
+  string project_id = 1;
+  string name = 2;
+  HookEvent event = 3;
+  optional string matcher = 4;
+  string command = 5;
+  optional string working_dir = 6;
+  map<string, string> env = 7;
+  int32 timeout = 8;
+  SettingsScope scope = 9;
 }
 
 message CreateHookResponse {
@@ -495,15 +504,16 @@ message CreateHookResponse {
 }
 
 message UpdateHookRequest {
-  string name = 1;
-  SettingsScope scope = 2;
-  optional HookEvent event = 3;
-  optional string matcher = 4;
-  optional string command = 5;
-  optional string working_dir = 6;
-  map<string, string> env = 7;
-  optional int32 timeout = 8;
-  optional bool enabled = 9;
+  string project_id = 1;
+  string name = 2;
+  SettingsScope scope = 3;
+  optional HookEvent event = 4;
+  optional string matcher = 5;
+  optional string command = 6;
+  optional string working_dir = 7;
+  map<string, string> env = 8;
+  optional int32 timeout = 9;
+  optional bool enabled = 10;
 }
 
 message UpdateHookResponse {
@@ -511,8 +521,9 @@ message UpdateHookResponse {
 }
 
 message DeleteHookRequest {
-  string name = 1;
-  SettingsScope scope = 2;
+  string project_id = 1;
+  string name = 2;
+  SettingsScope scope = 3;
 }
 
 message DeleteHookResponse {
@@ -520,7 +531,8 @@ message DeleteHookResponse {
 }
 
 message ListSkillsRequest {
-  optional SettingsScope scope = 1;
+  string project_id = 1;
+  optional SettingsScope scope = 2;
 }
 
 message ListSkillsResponse {
@@ -528,12 +540,13 @@ message ListSkillsResponse {
 }
 
 message CreateSkillRequest {
-  string name = 1;
-  string description = 2;
-  string content = 3;
-  bool user_invocable = 4;
-  optional string input_schema = 5;
-  SettingsScope scope = 6;
+  string project_id = 1;
+  string name = 2;
+  string description = 3;
+  string content = 4;
+  bool user_invocable = 5;
+  optional string input_schema = 6;
+  SettingsScope scope = 7;
 }
 
 message CreateSkillResponse {
@@ -541,12 +554,13 @@ message CreateSkillResponse {
 }
 
 message UpdateSkillRequest {
-  string name = 1;
-  SettingsScope scope = 2;
-  optional string description = 3;
-  optional string content = 4;
-  optional bool user_invocable = 5;
-  optional string input_schema = 6;
+  string project_id = 1;
+  string name = 2;
+  SettingsScope scope = 3;
+  optional string description = 4;
+  optional string content = 5;
+  optional bool user_invocable = 6;
+  optional string input_schema = 7;
 }
 
 message UpdateSkillResponse {
@@ -554,57 +568,69 @@ message UpdateSkillResponse {
 }
 
 message DeleteSkillRequest {
-  string name = 1;
-  SettingsScope scope = 2;
+  string project_id = 1;
+  string name = 2;
+  SettingsScope scope = 3;
 }
 
 message DeleteSkillResponse {
   string message = 1;
 }
 
-message GetClaudeMdRequest {}
+message GetClaudeMdRequest {
+  string project_id = 1;
+}
 
 message GetClaudeMdResponse {
   repeated ClaudeMd files = 1;
 }
 
 message UpdateClaudeMdRequest {
-  SettingsScope scope = 1;
-  string content = 2;
+  string project_id = 1;
+  SettingsScope scope = 2;
+  string content = 3;
 }
 
 message UpdateClaudeMdResponse {
   ClaudeMd claude_md = 1;
 }
 
-message GetConstitutionRequest {}
+message GetConstitutionRequest {
+  string project_id = 1;
+}
 
 message GetConstitutionResponse {
   Constitution constitution = 1;
 }
 
 message UpdateConstitutionRequest {
-  string content = 1;
+  string project_id = 1;
+  string content = 2;
 }
 
 message UpdateConstitutionResponse {
   Constitution constitution = 1;
 }
 
-message DeleteConstitutionRequest {}
+message DeleteConstitutionRequest {
+  string project_id = 1;
+}
 
 message DeleteConstitutionResponse {
   string message = 1;
 }
 
-message ListPromptsRequest {}
+message ListPromptsRequest {
+  string project_id = 1;
+}
 
 message ListPromptsResponse {
   repeated PromptTemplate prompts = 1;
 }
 
 message GetPromptRequest {
-  string phase = 1;
+  string project_id = 1;
+  string phase = 2;
 }
 
 message GetPromptResponse {
@@ -612,7 +638,8 @@ message GetPromptResponse {
 }
 
 message GetDefaultPromptRequest {
-  string phase = 1;
+  string project_id = 1;
+  string phase = 2;
 }
 
 message GetDefaultPromptResponse {
@@ -620,8 +647,9 @@ message GetDefaultPromptResponse {
 }
 
 message UpdatePromptRequest {
-  string phase = 1;
-  string content = 2;
+  string project_id = 1;
+  string phase = 2;
+  string content = 3;
 }
 
 message UpdatePromptResponse {
@@ -629,14 +657,17 @@ message UpdatePromptResponse {
 }
 
 message DeletePromptRequest {
-  string phase = 1;
+  string project_id = 1;
+  string phase = 2;
 }
 
 message DeletePromptResponse {
   string message = 1;
 }
 
-message ListPromptVariablesRequest {}
+message ListPromptVariablesRequest {
+  string project_id = 1;
+}
 
 message ListPromptVariablesResponse {
   repeated PromptVariable variables = 1;
@@ -644,7 +675,8 @@ message ListPromptVariablesResponse {
 
 // Agent request/response messages
 message ListAgentsRequest {
-  optional SettingsScope scope = 1;
+  string project_id = 1;
+  optional SettingsScope scope = 2;
 }
 
 message ListAgentsResponse {
@@ -652,7 +684,8 @@ message ListAgentsResponse {
 }
 
 message GetAgentRequest {
-  string name = 1;
+  string project_id = 1;
+  string name = 2;
 }
 
 message GetAgentResponse {
@@ -660,18 +693,19 @@ message GetAgentResponse {
 }
 
 message CreateAgentRequest {
-  string id = 1;                         // Unique identifier
-  string name = 2;
-  string description = 3;
-  optional string model = 4;
-  optional ToolPermissions tools = 5;
-  optional string prompt = 6;            // For sub-agent role
-  optional string system_prompt = 7;     // For executor role
-  optional string claude_config = 8;     // For executor role - JSON config
-  optional string work_dir = 9;
-  repeated string skill_refs = 10;
-  optional string timeout = 11;
-  SettingsScope scope = 12;
+  string project_id = 1;
+  string id = 2;                         // Unique identifier
+  string name = 3;
+  string description = 4;
+  optional string model = 5;
+  optional ToolPermissions tools = 6;
+  optional string prompt = 7;            // For sub-agent role
+  optional string system_prompt = 8;     // For executor role
+  optional string claude_config = 9;     // For executor role - JSON config
+  optional string work_dir = 10;
+  repeated string skill_refs = 11;
+  optional string timeout = 12;
+  SettingsScope scope = 13;
 }
 
 message CreateAgentResponse {
@@ -679,17 +713,18 @@ message CreateAgentResponse {
 }
 
 message UpdateAgentRequest {
-  string id = 1;                         // Agent ID to update
-  optional string name = 2;
-  optional string description = 3;
-  optional string model = 4;
-  optional ToolPermissions tools = 5;
-  optional string prompt = 6;            // For sub-agent role
-  optional string system_prompt = 7;     // For executor role
-  optional string claude_config = 8;     // For executor role - JSON config
-  optional string work_dir = 9;
-  repeated string skill_refs = 10;
-  optional string timeout = 11;
+  string project_id = 1;
+  string id = 2;                         // Agent ID to update
+  optional string name = 3;
+  optional string description = 4;
+  optional string model = 5;
+  optional ToolPermissions tools = 6;
+  optional string prompt = 7;            // For sub-agent role
+  optional string system_prompt = 8;     // For executor role
+  optional string claude_config = 9;     // For executor role - JSON config
+  optional string work_dir = 10;
+  repeated string skill_refs = 11;
+  optional string timeout = 12;
 }
 
 message UpdateAgentResponse {
@@ -697,7 +732,8 @@ message UpdateAgentResponse {
 }
 
 message DeleteAgentRequest {
-  string name = 1;
+  string project_id = 1;
+  string name = 2;
 }
 
 message DeleteAgentResponse {
@@ -705,20 +741,25 @@ message DeleteAgentResponse {
 }
 
 // Script request/response messages
-message ListScriptsRequest {}
+message ListScriptsRequest {
+  string project_id = 1;
+}
 
 message ListScriptsResponse {
   repeated Script scripts = 1;
 }
 
-message DiscoverScriptsRequest {}
+message DiscoverScriptsRequest {
+  string project_id = 1;
+}
 
 message DiscoverScriptsResponse {
   repeated Script scripts = 1;
 }
 
 message GetScriptRequest {
-  string name = 1;
+  string project_id = 1;
+  string name = 2;
 }
 
 message GetScriptResponse {
@@ -726,10 +767,11 @@ message GetScriptResponse {
 }
 
 message CreateScriptRequest {
-  string name = 1;
-  string path = 2;
-  string description = 3;
-  optional string language = 4;
+  string project_id = 1;
+  string name = 2;
+  string path = 3;
+  string description = 4;
+  optional string language = 5;
 }
 
 message CreateScriptResponse {
@@ -737,10 +779,11 @@ message CreateScriptResponse {
 }
 
 message UpdateScriptRequest {
-  string name = 1;
-  optional string path = 2;
-  optional string description = 3;
-  optional string language = 4;
+  string project_id = 1;
+  string name = 2;
+  optional string path = 3;
+  optional string description = 4;
+  optional string language = 5;
 }
 
 message UpdateScriptResponse {
@@ -748,7 +791,8 @@ message UpdateScriptResponse {
 }
 
 message DeleteScriptRequest {
-  string name = 1;
+  string project_id = 1;
+  string name = 2;
 }
 
 message DeleteScriptResponse {
@@ -757,8 +801,9 @@ message DeleteScriptResponse {
 
 // Tool request/response messages
 message ListToolsRequest {
-  optional SettingsScope scope = 1;
-  bool by_category = 2;
+  string project_id = 1;
+  optional SettingsScope scope = 2;
+  bool by_category = 3;
 }
 
 message ListToolsResponse {
@@ -770,14 +815,17 @@ message ToolList {
   repeated ToolInfo tools = 1;
 }
 
-message GetToolPermissionsRequest {}
+message GetToolPermissionsRequest {
+  string project_id = 1;
+}
 
 message GetToolPermissionsResponse {
   ToolPermissions permissions = 1;
 }
 
 message UpdateToolPermissionsRequest {
-  ToolPermissions permissions = 1;
+  string project_id = 1;
+  ToolPermissions permissions = 2;
 }
 
 message UpdateToolPermissionsResponse {
@@ -785,7 +833,9 @@ message UpdateToolPermissionsResponse {
 }
 
 // Config stats request/response
-message GetConfigStatsRequest {}
+message GetConfigStatsRequest {
+  string project_id = 1;
+}
 
 message GetConfigStatsResponse {
   ConfigStats stats = 1;

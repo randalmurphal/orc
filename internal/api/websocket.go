@@ -221,7 +221,7 @@ func (h *WSHandler) handleSubscribe(c *wsConnection, taskID string) {
 	if taskID == events.GlobalTaskID && h.server != nil {
 		h.logger.Debug("websocket subscribed to all tasks (global)")
 		// Send initial session_update event
-		sessionMetrics := h.server.GetSessionMetrics()
+		sessionMetrics := h.server.GetSessionMetrics("")
 		h.sendJSON(c, map[string]any{
 			"type":    "event",
 			"event":   string(events.EventSessionUpdate),
@@ -259,11 +259,11 @@ func (h *WSHandler) handleCommand(c *wsConnection, msg WSMessage) {
 
 	switch msg.Action {
 	case "pause":
-		result, err = h.server.pauseTask(msg.TaskID)
+		result, err = h.server.pauseTask(msg.TaskID, "")
 	case "resume":
-		result, err = h.server.resumeTask(msg.TaskID)
+		result, err = h.server.resumeTask(msg.TaskID, "")
 	case "cancel":
-		result, err = h.server.cancelTask(msg.TaskID)
+		result, err = h.server.cancelTask(msg.TaskID, "")
 	default:
 		h.sendError(c, "unknown action: "+msg.Action)
 		return

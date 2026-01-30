@@ -342,7 +342,7 @@ func (s *Server) StartContext(ctx context.Context) error {
 
 			// Auto-trigger finalize when PR is approved (if enabled in config)
 			if pr.Status == orcv1.PRStatus_PR_STATUS_APPROVED {
-				triggered, err := s.TriggerFinalizeOnApproval(taskID)
+				triggered, err := s.TriggerFinalizeOnApproval(taskID, "")
 				if err != nil {
 					s.logger.Error("failed to auto-trigger finalize", "task", taskID, "error", err)
 				} else if triggered {
@@ -597,18 +597,23 @@ func (s *Server) jsonError(w http.ResponseWriter, message string, status int) {
 }
 
 // pauseTask pauses a running task (called by WebSocket handler).
-// TODO: WebSocket methods need project context for multi-project support.
-// These receive task IDs but no project IDs. A deeper refactor is needed to
-// either look up the project from the task, or pass project context through
-// the WebSocket protocol.
-func (s *Server) pauseTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTask(id)
+func (s *Server) pauseTask(id string, projectID string) (map[string]any, error) {
+	backend := s.backend
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve project backend: %w", err)
+		}
+	}
+
+	t, err := backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PAUSED
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -619,9 +624,22 @@ func (s *Server) pauseTask(id string) (map[string]any, error) {
 }
 
 // resumeTask resumes a paused, blocked, or failed task (called by WebSocket handler).
-// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
-func (s *Server) resumeTask(id string) (map[string]any, error) {
-	t, err := s.backend.LoadTask(id)
+func (s *Server) resumeTask(id string, projectID string) (map[string]any, error) {
+	backend := s.backend
+	workDir := s.workDir
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve project backend: %w", err)
+		}
+		workDir, err = s.projectCache.GetProjectPath(projectID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve project path: %w", err)
+		}
+	}
+
+	t, err := backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
@@ -676,7 +694,7 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 	// Update task status
 	t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -703,10 +721,10 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(
-			s.backend,
-			s.backend.DB(),
+			backend,
+			backend.DB(),
 			s.orcConfig,
-			s.workDir,
+			workDir,
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
@@ -736,9 +754,22 @@ func (s *Server) resumeTask(id string) (map[string]any, error) {
 
 // startTask starts a task execution (called by taskServer.RunTask).
 // This spawns a WorkflowExecutor goroutine similar to resumeTask.
-// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
-func (s *Server) startTask(id string) error {
-	t, err := s.backend.LoadTask(id)
+func (s *Server) startTask(id string, projectID string) error {
+	backend := s.backend
+	workDir := s.workDir
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return fmt.Errorf("resolve project backend: %w", err)
+		}
+		workDir, err = s.projectCache.GetProjectPath(projectID)
+		if err != nil {
+			return fmt.Errorf("resolve project path: %w", err)
+		}
+	}
+
+	t, err := backend.LoadTask(id)
 	if err != nil {
 		return fmt.Errorf("task not found: %w", err)
 	}
@@ -765,10 +796,10 @@ func (s *Server) startTask(id string) error {
 
 		// Create WorkflowExecutor
 		we := executor.NewWorkflowExecutor(
-			s.backend,
-			s.backend.DB(),
+			backend,
+			backend.DB(),
 			s.orcConfig,
-			s.workDir,
+			workDir,
 			executor.WithWorkflowPublisher(s.publisher),
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
@@ -793,8 +824,7 @@ func (s *Server) startTask(id string) error {
 }
 
 // cancelTask cancels a running task (called by WebSocket handler).
-// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
-func (s *Server) cancelTask(id string) (map[string]any, error) {
+func (s *Server) cancelTask(id string, projectID string) (map[string]any, error) {
 	s.runningTasksMu.RLock()
 	cancel, exists := s.runningTasks[id]
 	s.runningTasksMu.RUnlock()
@@ -803,13 +833,22 @@ func (s *Server) cancelTask(id string) (map[string]any, error) {
 		cancel()
 	}
 
-	t, err := s.backend.LoadTask(id)
+	backend := s.backend
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve project backend: %w", err)
+		}
+	}
+
+	t, err := backend.LoadTask(id)
 	if err != nil {
 		return nil, fmt.Errorf("task not found")
 	}
 
 	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
-	if err := s.backend.SaveTask(t); err != nil {
+	if err := backend.SaveTask(t); err != nil {
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -839,13 +878,25 @@ type SessionMetricsResponse struct {
 }
 
 // GetSessionMetrics returns current session metrics (used by WebSocket handler).
-// TODO: WebSocket methods need project context for multi-project support (see pauseTask).
-// Currently aggregates metrics across the default backend only.
-func (s *Server) GetSessionMetrics() SessionMetricsResponse {
+func (s *Server) GetSessionMetrics(projectID string) SessionMetricsResponse {
 	duration := int64(time.Since(s.sessionStart).Seconds())
 
+	backend := s.backend
+	if projectID != "" && s.projectCache != nil {
+		var err error
+		backend, err = s.projectCache.GetBackend(projectID)
+		if err != nil {
+			s.logger.Error("failed to resolve project backend for metrics", "error", err)
+			return SessionMetricsResponse{
+				SessionID:       s.sessionID,
+				StartedAt:       s.sessionStart,
+				DurationSeconds: duration,
+			}
+		}
+	}
+
 	// Handle nil backend (can happen in tests)
-	if s.backend == nil {
+	if backend == nil {
 		return SessionMetricsResponse{
 			SessionID:       s.sessionID,
 			StartedAt:       s.sessionStart,
@@ -853,7 +904,7 @@ func (s *Server) GetSessionMetrics() SessionMetricsResponse {
 		}
 	}
 
-	tasks, err := s.backend.LoadAllTasks()
+	tasks, err := backend.LoadAllTasks()
 	if err != nil {
 		s.logger.Error("failed to load tasks for session metrics", "error", err)
 		return SessionMetricsResponse{

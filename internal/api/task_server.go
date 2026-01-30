@@ -27,7 +27,7 @@ import (
 // TaskExecutorFunc is the callback type for spawning task executors.
 // It takes a task ID and spawns a WorkflowExecutor goroutine.
 // Returns error if the executor fails to spawn (not execution errors).
-type TaskExecutorFunc func(taskID string) error
+type TaskExecutorFunc func(taskID, projectID string) error
 
 // taskServer implements the TaskServiceHandler interface.
 type taskServer struct {
@@ -1019,7 +1019,7 @@ func (s *taskServer) RunTask(
 
 	// Spawn executor if callback is set
 	if s.taskExecutor != nil {
-		if err := s.taskExecutor(t.Id); err != nil {
+		if err := s.taskExecutor(t.Id, req.Msg.GetProjectId()); err != nil {
 			// Executor failed to spawn - revert status
 			t.Status = originalStatus
 			task.UpdateTimestampProto(t)
