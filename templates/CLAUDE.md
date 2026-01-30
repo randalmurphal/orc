@@ -10,7 +10,7 @@ templates/
 ├── prompts/              # ALL prompt templates
 │   ├── *.md              # Phase and session prompts (22 files)
 │   └── automation/*.md   # Maintenance automation templates (8 files)
-├── agents/               # Sub-agent definitions
+├── agents/               # Sub-agent definitions (7 built-in)
 ├── docs/                 # Documentation templates
 ├── scripts/              # Helper scripts
 └── pr-body.md            # PR description template
@@ -83,6 +83,22 @@ Use it to sync with target branch and resolve conflicts before merge.
 **Gates:** `conflict_resolution.md`
 
 **Automation:** `automation/*.md` (8 maintenance templates)
+
+## Built-in Agents
+
+Agent definitions in `agents/*.md` with YAML frontmatter (name, model, tools) + prompt. Seeded to GlobalDB on startup via `workflow.SeedAgents()`.
+
+| Agent ID | Model | Purpose | Used By |
+|----------|-------|---------|---------|
+| `code-reviewer` | sonnet | Guidelines compliance review | Review phase (parallel) |
+| `code-simplifier` | sonnet | Complexity and simplification analysis | Review phase (parallel) |
+| `comment-analyzer` | haiku | Comment quality and accuracy | Review phase (parallel) |
+| `dependency-validator` | haiku | Detect missing code-level deps between initiative tasks | `on_initiative_planned` trigger |
+| `pr-test-analyzer` | haiku | Test coverage and quality analysis | Review phase (parallel) |
+| `silent-failure-hunter` | sonnet | Error handling and silent failure detection | Review phase (parallel) |
+| `type-design-analyzer` | haiku | Type system and interface design review | Review phase (parallel) |
+
+**Trigger agents** (like `dependency-validator`) run via `WorkflowTrigger` definitions, not phase agents. See `docs/architecture/GATES.md` for trigger configuration.
 
 ## Prompt Structure
 
