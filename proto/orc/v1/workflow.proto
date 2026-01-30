@@ -24,6 +24,7 @@ enum GateType {
   GATE_TYPE_AUTO = 1;
   GATE_TYPE_HUMAN = 2;
   GATE_TYPE_SKIP = 3;
+  GATE_TYPE_AI = 4;
 }
 
 enum WorkflowType {
