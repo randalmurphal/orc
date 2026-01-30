@@ -431,18 +431,21 @@ type PhaseTemplate struct {
 	ProducesArtifact bool                   `protobuf:"varint,9,opt,name=produces_artifact,json=producesArtifact,proto3" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,10,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
 	MaxIterations    int32                  `protobuf:"varint,11,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
-	ModelOverride    *string                `protobuf:"bytes,12,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingEnabled  *bool                  `protobuf:"varint,13,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"`
-	GateType         GateType               `protobuf:"varint,14,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
-	Checkpoint       bool                   `protobuf:"varint,15,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
-	RetryFromPhase   *string                `protobuf:"bytes,16,opt,name=retry_from_phase,json=retryFromPhase,proto3,oneof" json:"retry_from_phase,omitempty"`
-	RetryPromptPath  *string                `protobuf:"bytes,17,opt,name=retry_prompt_path,json=retryPromptPath,proto3,oneof" json:"retry_prompt_path,omitempty"`
-	ClaudeConfig     *string                `protobuf:"bytes,18,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`
-	IsBuiltin        bool                   `protobuf:"varint,19,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Field 12 removed: model_override - now on Agent
+	ThinkingEnabled *bool    `protobuf:"varint,13,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern (NOT on agent)
+	GateType        GateType `protobuf:"varint,14,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
+	Checkpoint      bool     `protobuf:"varint,15,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
+	RetryFromPhase  *string  `protobuf:"bytes,16,opt,name=retry_from_phase,json=retryFromPhase,proto3,oneof" json:"retry_from_phase,omitempty"`
+	RetryPromptPath *string  `protobuf:"bytes,17,opt,name=retry_prompt_path,json=retryPromptPath,proto3,oneof" json:"retry_prompt_path,omitempty"`
+	// Field 18 removed: claude_config - now on Agent
+	IsBuiltin bool                   `protobuf:"varint,19,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// NEW: Agent references
+	AgentId       *string  `protobuf:"bytes,22,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`         // Executor agent reference
+	SubAgentIds   []string `protobuf:"bytes,23,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"` // Sub-agent references
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PhaseTemplate) Reset() {
@@ -552,13 +555,6 @@ func (x *PhaseTemplate) GetMaxIterations() int32 {
 	return 0
 }
 
-func (x *PhaseTemplate) GetModelOverride() string {
-	if x != nil && x.ModelOverride != nil {
-		return *x.ModelOverride
-	}
-	return ""
-}
-
 func (x *PhaseTemplate) GetThinkingEnabled() bool {
 	if x != nil && x.ThinkingEnabled != nil {
 		return *x.ThinkingEnabled
@@ -594,13 +590,6 @@ func (x *PhaseTemplate) GetRetryPromptPath() string {
 	return ""
 }
 
-func (x *PhaseTemplate) GetClaudeConfig() string {
-	if x != nil && x.ClaudeConfig != nil {
-		return *x.ClaudeConfig
-	}
-	return ""
-}
-
 func (x *PhaseTemplate) GetIsBuiltin() bool {
 	if x != nil {
 		return x.IsBuiltin
@@ -618,6 +607,20 @@ func (x *PhaseTemplate) GetCreatedAt() *timestamppb.Timestamp {
 func (x *PhaseTemplate) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *PhaseTemplate) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *PhaseTemplate) GetSubAgentIds() []string {
+	if x != nil {
+		return x.SubAgentIds
 	}
 	return nil
 }
@@ -746,17 +749,20 @@ type WorkflowPhase struct {
 	Sequence              int32                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	DependsOn             []string               `protobuf:"bytes,5,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	MaxIterationsOverride *int32                 `protobuf:"varint,6,opt,name=max_iterations_override,json=maxIterationsOverride,proto3,oneof" json:"max_iterations_override,omitempty"`
-	ModelOverride         *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingOverride      *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"`
+	ModelOverride         *string                `protobuf:"bytes,7,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`           // Can still override model at workflow level
+	ThinkingOverride      *bool                  `protobuf:"varint,8,opt,name=thinking_override,json=thinkingOverride,proto3,oneof" json:"thinking_override,omitempty"` // Phase-level thinking override
 	GateTypeOverride      *GateType              `protobuf:"varint,9,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
 	Condition             *string                `protobuf:"bytes,10,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
-	ClaudeConfigOverride  *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
+	ClaudeConfigOverride  *string                `protobuf:"bytes,11,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"` // Can still override claude config
 	PositionX             *float64               `protobuf:"fixed64,12,opt,name=position_x,json=positionX,proto3,oneof" json:"position_x,omitempty"`
 	PositionY             *float64               `protobuf:"fixed64,13,opt,name=position_y,json=positionY,proto3,oneof" json:"position_y,omitempty"`
 	LoopConfig            *string                `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
-	Template              *PhaseTemplate         `protobuf:"bytes,100,opt,name=template,proto3" json:"template,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// NEW: Agent overrides
+	AgentOverride     *string        `protobuf:"bytes,15,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
+	SubAgentsOverride []string       `protobuf:"bytes,16,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
+	Template          *PhaseTemplate `protobuf:"bytes,100,opt,name=template,proto3" json:"template,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *WorkflowPhase) Reset() {
@@ -885,6 +891,20 @@ func (x *WorkflowPhase) GetLoopConfig() string {
 		return *x.LoopConfig
 	}
 	return ""
+}
+
+func (x *WorkflowPhase) GetAgentOverride() string {
+	if x != nil && x.AgentOverride != nil {
+		return *x.AgentOverride
+	}
+	return ""
+}
+
+func (x *WorkflowPhase) GetSubAgentsOverride() []string {
+	if x != nil {
+		return x.SubAgentsOverride
+	}
+	return nil
 }
 
 func (x *WorkflowPhase) GetTemplate() *PhaseTemplate {
@@ -3084,12 +3104,14 @@ type CreatePhaseTemplateRequest struct {
 	ProducesArtifact bool                   `protobuf:"varint,8,opt,name=produces_artifact,json=producesArtifact,proto3" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,9,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
 	MaxIterations    int32                  `protobuf:"varint,10,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
-	ModelOverride    *string                `protobuf:"bytes,11,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingEnabled  *bool                  `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"`
-	GateType         GateType               `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
-	Checkpoint       bool                   `protobuf:"varint,14,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Field 11 removed: model_override - now on Agent
+	ThinkingEnabled *bool    `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
+	GateType        GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
+	Checkpoint      bool     `protobuf:"varint,14,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
+	AgentId         *string  `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`         // Executor agent reference
+	SubAgentIds     []string `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"` // Sub-agent references
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CreatePhaseTemplateRequest) Reset() {
@@ -3192,13 +3214,6 @@ func (x *CreatePhaseTemplateRequest) GetMaxIterations() int32 {
 	return 0
 }
 
-func (x *CreatePhaseTemplateRequest) GetModelOverride() string {
-	if x != nil && x.ModelOverride != nil {
-		return *x.ModelOverride
-	}
-	return ""
-}
-
 func (x *CreatePhaseTemplateRequest) GetThinkingEnabled() bool {
 	if x != nil && x.ThinkingEnabled != nil {
 		return *x.ThinkingEnabled
@@ -3218,6 +3233,20 @@ func (x *CreatePhaseTemplateRequest) GetCheckpoint() bool {
 		return x.Checkpoint
 	}
 	return false
+}
+
+func (x *CreatePhaseTemplateRequest) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *CreatePhaseTemplateRequest) GetSubAgentIds() []string {
+	if x != nil {
+		return x.SubAgentIds
+	}
+	return nil
 }
 
 type CreatePhaseTemplateResponse struct {
@@ -3276,12 +3305,14 @@ type UpdatePhaseTemplateRequest struct {
 	ProducesArtifact *bool                  `protobuf:"varint,8,opt,name=produces_artifact,json=producesArtifact,proto3,oneof" json:"produces_artifact,omitempty"`
 	ArtifactType     *string                `protobuf:"bytes,9,opt,name=artifact_type,json=artifactType,proto3,oneof" json:"artifact_type,omitempty"`
 	MaxIterations    *int32                 `protobuf:"varint,10,opt,name=max_iterations,json=maxIterations,proto3,oneof" json:"max_iterations,omitempty"`
-	ModelOverride    *string                `protobuf:"bytes,11,opt,name=model_override,json=modelOverride,proto3,oneof" json:"model_override,omitempty"`
-	ThinkingEnabled  *bool                  `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"`
-	GateType         *GateType              `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType,oneof" json:"gate_type,omitempty"`
-	Checkpoint       *bool                  `protobuf:"varint,14,opt,name=checkpoint,proto3,oneof" json:"checkpoint,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Field 11 removed: model_override - now on Agent
+	ThinkingEnabled *bool     `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
+	GateType        *GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType,oneof" json:"gate_type,omitempty"`
+	Checkpoint      *bool     `protobuf:"varint,14,opt,name=checkpoint,proto3,oneof" json:"checkpoint,omitempty"`
+	AgentId         *string   `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`         // Executor agent reference
+	SubAgentIds     []string  `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"` // Sub-agent references
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdatePhaseTemplateRequest) Reset() {
@@ -3384,13 +3415,6 @@ func (x *UpdatePhaseTemplateRequest) GetMaxIterations() int32 {
 	return 0
 }
 
-func (x *UpdatePhaseTemplateRequest) GetModelOverride() string {
-	if x != nil && x.ModelOverride != nil {
-		return *x.ModelOverride
-	}
-	return ""
-}
-
 func (x *UpdatePhaseTemplateRequest) GetThinkingEnabled() bool {
 	if x != nil && x.ThinkingEnabled != nil {
 		return *x.ThinkingEnabled
@@ -3410,6 +3434,20 @@ func (x *UpdatePhaseTemplateRequest) GetCheckpoint() bool {
 		return *x.Checkpoint
 	}
 	return false
+}
+
+func (x *UpdatePhaseTemplateRequest) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *UpdatePhaseTemplateRequest) GetSubAgentIds() []string {
+	if x != nil {
+		return x.SubAgentIds
+	}
+	return nil
 }
 
 type UpdatePhaseTemplateResponse struct {
@@ -4494,7 +4532,7 @@ var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xbe\b\n" +
+	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\x94\b\n" +
 	"\rPhaseTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -4508,32 +4546,31 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11produces_artifact\x18\t \x01(\bR\x10producesArtifact\x12(\n" +
 	"\rartifact_type\x18\n" +
 	" \x01(\tH\x04R\fartifactType\x88\x01\x01\x12%\n" +
-	"\x0emax_iterations\x18\v \x01(\x05R\rmaxIterations\x12*\n" +
-	"\x0emodel_override\x18\f \x01(\tH\x05R\rmodelOverride\x88\x01\x01\x12.\n" +
-	"\x10thinking_enabled\x18\r \x01(\bH\x06R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
+	"\x0emax_iterations\x18\v \x01(\x05R\rmaxIterations\x12.\n" +
+	"\x10thinking_enabled\x18\r \x01(\bH\x05R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
 	"\tgate_type\x18\x0e \x01(\x0e2\x10.orc.v1.GateTypeR\bgateType\x12\x1e\n" +
 	"\n" +
 	"checkpoint\x18\x0f \x01(\bR\n" +
 	"checkpoint\x12-\n" +
-	"\x10retry_from_phase\x18\x10 \x01(\tH\aR\x0eretryFromPhase\x88\x01\x01\x12/\n" +
-	"\x11retry_prompt_path\x18\x11 \x01(\tH\bR\x0fretryPromptPath\x88\x01\x01\x12(\n" +
-	"\rclaude_config\x18\x12 \x01(\tH\tR\fclaudeConfig\x88\x01\x01\x12\x1d\n" +
+	"\x10retry_from_phase\x18\x10 \x01(\tH\x06R\x0eretryFromPhase\x88\x01\x01\x12/\n" +
+	"\x11retry_prompt_path\x18\x11 \x01(\tH\aR\x0fretryPromptPath\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"is_builtin\x18\x13 \x01(\bR\tisBuiltin\x129\n" +
 	"\n" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1e\n" +
+	"\bagent_id\x18\x16 \x01(\tH\bR\aagentId\x88\x01\x01\x12\"\n" +
+	"\rsub_agent_ids\x18\x17 \x03(\tR\vsubAgentIdsB\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_prompt_contentB\x0e\n" +
 	"\f_prompt_pathB\x10\n" +
 	"\x0e_output_schemaB\x10\n" +
-	"\x0e_artifact_typeB\x11\n" +
-	"\x0f_model_overrideB\x13\n" +
+	"\x0e_artifact_typeB\x13\n" +
 	"\x11_thinking_enabledB\x13\n" +
 	"\x11_retry_from_phaseB\x14\n" +
-	"\x12_retry_prompt_pathB\x10\n" +
-	"\x0e_claude_config\"\xc9\x03\n" +
+	"\x12_retry_prompt_pathB\v\n" +
+	"\t_agent_id\"\xc9\x03\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -4551,7 +4588,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
-	"\t_based_on\"\xb9\x06\n" +
+	"\t_based_on\"\xa8\a\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -4572,7 +4609,9 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
 	"position_y\x18\r \x01(\x01H\aR\tpositionY\x88\x01\x01\x12$\n" +
 	"\vloop_config\x18\x0e \x01(\tH\bR\n" +
-	"loopConfig\x88\x01\x01\x121\n" +
+	"loopConfig\x88\x01\x01\x12*\n" +
+	"\x0eagent_override\x18\x0f \x01(\tH\tR\ragentOverride\x88\x01\x01\x12.\n" +
+	"\x13sub_agents_override\x18\x10 \x03(\tR\x11subAgentsOverride\x121\n" +
 	"\btemplate\x18d \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplateB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
@@ -4583,7 +4622,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17_claude_config_overrideB\r\n" +
 	"\v_position_xB\r\n" +
 	"\v_position_yB\x0e\n" +
-	"\f_loop_config\"\xb3\x03\n" +
+	"\f_loop_configB\x11\n" +
+	"\x0f_agent_override\"\xb3\x03\n" +
 	"\x10WorkflowVariable\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -4829,7 +4869,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xc6\x05\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xd8\x05\n" +
 	"\x1aCreatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -4842,22 +4882,23 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11produces_artifact\x18\b \x01(\bR\x10producesArtifact\x12(\n" +
 	"\rartifact_type\x18\t \x01(\tH\x04R\fartifactType\x88\x01\x01\x12%\n" +
 	"\x0emax_iterations\x18\n" +
-	" \x01(\x05R\rmaxIterations\x12*\n" +
-	"\x0emodel_override\x18\v \x01(\tH\x05R\rmodelOverride\x88\x01\x01\x12.\n" +
-	"\x10thinking_enabled\x18\f \x01(\bH\x06R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
+	" \x01(\x05R\rmaxIterations\x12.\n" +
+	"\x10thinking_enabled\x18\f \x01(\bH\x05R\x0fthinkingEnabled\x88\x01\x01\x12-\n" +
 	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeR\bgateType\x12\x1e\n" +
 	"\n" +
 	"checkpoint\x18\x0e \x01(\bR\n" +
-	"checkpointB\x0e\n" +
+	"checkpoint\x12\x1e\n" +
+	"\bagent_id\x18\x0f \x01(\tH\x06R\aagentId\x88\x01\x01\x12\"\n" +
+	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIdsB\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_prompt_contentB\x0e\n" +
 	"\f_prompt_pathB\x10\n" +
 	"\x0e_output_schemaB\x10\n" +
-	"\x0e_artifact_typeB\x11\n" +
-	"\x0f_model_overrideB\x13\n" +
-	"\x11_thinking_enabled\"P\n" +
+	"\x0e_artifact_typeB\x13\n" +
+	"\x11_thinking_enabledB\v\n" +
+	"\t_agent_id\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xc5\x06\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xd7\x06\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -4870,14 +4911,15 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11produces_artifact\x18\b \x01(\bH\x06R\x10producesArtifact\x88\x01\x01\x12(\n" +
 	"\rartifact_type\x18\t \x01(\tH\aR\fartifactType\x88\x01\x01\x12*\n" +
 	"\x0emax_iterations\x18\n" +
-	" \x01(\x05H\bR\rmaxIterations\x88\x01\x01\x12*\n" +
-	"\x0emodel_override\x18\v \x01(\tH\tR\rmodelOverride\x88\x01\x01\x12.\n" +
-	"\x10thinking_enabled\x18\f \x01(\bH\n" +
-	"R\x0fthinkingEnabled\x88\x01\x01\x122\n" +
-	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeH\vR\bgateType\x88\x01\x01\x12#\n" +
+	" \x01(\x05H\bR\rmaxIterations\x88\x01\x01\x12.\n" +
+	"\x10thinking_enabled\x18\f \x01(\bH\tR\x0fthinkingEnabled\x88\x01\x01\x122\n" +
+	"\tgate_type\x18\r \x01(\x0e2\x10.orc.v1.GateTypeH\n" +
+	"R\bgateType\x88\x01\x01\x12#\n" +
 	"\n" +
-	"checkpoint\x18\x0e \x01(\bH\fR\n" +
-	"checkpoint\x88\x01\x01B\a\n" +
+	"checkpoint\x18\x0e \x01(\bH\vR\n" +
+	"checkpoint\x88\x01\x01\x12\x1e\n" +
+	"\bagent_id\x18\x0f \x01(\tH\fR\aagentId\x88\x01\x01\x12\"\n" +
+	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIdsB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_prompt_sourceB\x11\n" +
@@ -4886,12 +4928,12 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_output_schemaB\x14\n" +
 	"\x12_produces_artifactB\x10\n" +
 	"\x0e_artifact_typeB\x11\n" +
-	"\x0f_max_iterationsB\x11\n" +
-	"\x0f_model_overrideB\x13\n" +
+	"\x0f_max_iterationsB\x13\n" +
 	"\x11_thinking_enabledB\f\n" +
 	"\n" +
 	"_gate_typeB\r\n" +
-	"\v_checkpoint\"P\n" +
+	"\v_checkpointB\v\n" +
+	"\t_agent_id\"P\n" +
 	"\x1bUpdatePhaseTemplateResponse\x121\n" +
 	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\",\n" +
 	"\x1aDeletePhaseTemplateRequest\x12\x0e\n" +

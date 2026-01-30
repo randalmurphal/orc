@@ -37,7 +37,7 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 	const statusClass = getStatusClass(d.status);
 	const gateLabel = formatGateType(d.gateType);
 	const showIterBadge = d.maxIterations > ITERATIONS_BADGE_THRESHOLD;
-	const showBadges = gateLabel || showIterBadge || d.modelOverride;
+	const showBadges = gateLabel || showIterBadge || d.agentId;
 	// SC-4: Don't show $0.00 cost badge (avoid clutter)
 	const hasCostToShow = d.costUsd !== undefined && d.costUsd > 0;
 	const hasExecutionData = d.iterations !== undefined || hasCostToShow;
@@ -70,9 +70,9 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 							×{d.maxIterations}
 						</span>
 					)}
-					{d.modelOverride && (
+					{d.agentId && (
 						<span className="phase-node-badge phase-node-badge--model">
-							{d.modelOverride}
+							{d.agentId}
 						</span>
 					)}
 				</div>

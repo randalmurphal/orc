@@ -57,8 +57,7 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				phase.maxIterationsOverride ??
 				template?.maxIterations ??
 				1,
-			modelOverride:
-				phase.modelOverride ?? template?.modelOverride,
+			agentId: template?.agentId,
 			thinkingEnabled:
 				phase.thinkingOverride ?? template?.thinkingEnabled,
 		};

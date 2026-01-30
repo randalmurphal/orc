@@ -1017,6 +1017,172 @@ func (s *configServer) ListAgents(
 	}), nil
 }
 
+// GetAgent returns a single agent by name.
+func (s *configServer) GetAgent(
+	ctx context.Context,
+	req *connect.Request[orcv1.GetAgentRequest],
+) (*connect.Response[orcv1.GetAgentResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+
+	pdb := s.backend.(*storage.DatabaseBackend).DB()
+
+	agent, err := pdb.GetAgent(req.Msg.Name)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get agent: %w", err))
+	}
+	if agent == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("agent %s not found", req.Msg.Name))
+	}
+
+	return connect.NewResponse(&orcv1.GetAgentResponse{
+		Agent: dbAgentToProto(agent, nil, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT),
+	}), nil
+}
+
+// CreateAgent creates a new custom agent.
+func (s *configServer) CreateAgent(
+	ctx context.Context,
+	req *connect.Request[orcv1.CreateAgentRequest],
+) (*connect.Response[orcv1.CreateAgentResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+	if req.Msg.Description == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("description is required"))
+	}
+
+	pdb := s.backend.(*storage.DatabaseBackend).DB()
+
+	// Check if agent already exists
+	existing, err := pdb.GetAgent(req.Msg.Name)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("check existing agent: %w", err))
+	}
+	if existing != nil {
+		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("agent %s already exists", req.Msg.Name))
+	}
+
+	// Build agent from request
+	agent := &db.Agent{
+		ID:          req.Msg.Name,
+		Name:        req.Msg.Name,
+		Description: req.Msg.Description,
+		IsBuiltin:   false,
+	}
+
+	if req.Msg.Prompt != nil {
+		agent.Prompt = *req.Msg.Prompt
+	}
+	if req.Msg.Model != nil {
+		agent.Model = *req.Msg.Model
+	}
+	if req.Msg.Tools != nil && len(req.Msg.Tools.Allow) > 0 {
+		agent.Tools = req.Msg.Tools.Allow
+	}
+
+	// Save to database
+	if err := pdb.SaveAgent(agent); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save agent: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.CreateAgentResponse{
+		Agent: dbAgentToProto(agent, nil, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT),
+	}), nil
+}
+
+// UpdateAgent updates an existing custom agent.
+func (s *configServer) UpdateAgent(
+	ctx context.Context,
+	req *connect.Request[orcv1.UpdateAgentRequest],
+) (*connect.Response[orcv1.UpdateAgentResponse], error) {
+	if req.Msg.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	}
+
+	pdb := s.backend.(*storage.DatabaseBackend).DB()
+
+	// Get existing agent
+	agent, err := pdb.GetAgent(req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get agent: %w", err))
+	}
+	if agent == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("agent %s not found", req.Msg.GetId()))
+	}
+
+	// Cannot modify built-in agents
+	if agent.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in agent"))
+	}
+
+	// Apply updates
+	if req.Msg.Name != nil {
+		agent.Name = *req.Msg.Name
+	}
+	if req.Msg.Description != nil {
+		agent.Description = *req.Msg.Description
+	}
+	if req.Msg.Prompt != nil {
+		agent.Prompt = *req.Msg.Prompt
+	}
+	if req.Msg.SystemPrompt != nil {
+		agent.SystemPrompt = *req.Msg.SystemPrompt
+	}
+	if req.Msg.ClaudeConfig != nil {
+		agent.ClaudeConfig = *req.Msg.ClaudeConfig
+	}
+	if req.Msg.Model != nil {
+		agent.Model = *req.Msg.Model
+	}
+	if req.Msg.Tools != nil {
+		agent.Tools = req.Msg.Tools.Allow
+	}
+
+	// Save updates
+	if err := pdb.SaveAgent(agent); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save agent: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateAgentResponse{
+		Agent: dbAgentToProto(agent, nil, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT),
+	}), nil
+}
+
+// DeleteAgent deletes a custom agent.
+func (s *configServer) DeleteAgent(
+	ctx context.Context,
+	req *connect.Request[orcv1.DeleteAgentRequest],
+) (*connect.Response[orcv1.DeleteAgentResponse], error) {
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+
+	pdb := s.backend.(*storage.DatabaseBackend).DB()
+
+	// Get agent to check if it exists and is not built-in
+	agent, err := pdb.GetAgent(req.Msg.Name)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get agent: %w", err))
+	}
+	if agent == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("agent %s not found", req.Msg.Name))
+	}
+	if agent.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot delete built-in agent"))
+	}
+
+	// Delete agent
+	if err := pdb.DeleteAgent(req.Msg.Name); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete agent: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.DeleteAgentResponse{
+		Message: fmt.Sprintf("Agent %s deleted successfully", req.Msg.Name),
+	}), nil
+}
+
 // dbAgentToProto converts a db.Agent to proto Agent with stats and status.
 func dbAgentToProto(a *db.Agent, stats *db.AgentStats, scope orcv1.SettingsScope) *orcv1.Agent {
 	agent := &orcv1.Agent{

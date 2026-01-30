@@ -12,9 +12,6 @@ produces_artifact: true
 artifact_type: spec
 
 max_iterations: 10
-model: opus
 thinking: false
 gate_type: auto
 checkpoint: true
-
-claude_config: '{"disallowed_tools": ["Write", "Edit"]}'

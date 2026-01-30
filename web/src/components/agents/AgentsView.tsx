@@ -10,6 +10,7 @@ import type { Agent as ProtoAgent, Config } from '@/gen/orc/v1/config_pb';
 import { AgentCard, type Agent, type AgentStatus, type IconColor } from './AgentCard';
 import { ExecutionSettings, type ExecutionSettingsData } from './ExecutionSettings';
 import { ToolPermissions, type ToolId } from './ToolPermissions';
+import { AddAgentModal } from './AddAgentModal';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import './AgentsView.css';
@@ -173,6 +174,7 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 		git_operations: true,
 		mcp_servers: true,
 	});
+	const [addModalOpen, setAddModalOpen] = useState(false);
 
 	// Load agents and config from API
 	const loadData = useCallback(async () => {
@@ -202,8 +204,19 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 
 	// Handle new agent button click
 	const handleAddAgent = useCallback(() => {
-		window.dispatchEvent(new CustomEvent('orc:add-agent'));
+		setAddModalOpen(true);
 	}, []);
+
+	// Handle modal close
+	const handleAddModalClose = useCallback(() => {
+		setAddModalOpen(false);
+	}, []);
+
+	// Handle agent created
+	const handleAgentCreated = useCallback(() => {
+		setAddModalOpen(false);
+		loadData(); // Refresh the list
+	}, [loadData]);
 
 	// Handle agent card selection
 	const handleSelectAgent = useCallback((agent: Agent) => {
@@ -253,8 +266,6 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 					variant="primary"
 					leftIcon={<Icon name="plus" size={12} />}
 					onClick={handleAddAgent}
-					disabled
-					title="Coming soon"
 				>
 					Add Agent
 				</Button>
@@ -313,6 +324,13 @@ export function AgentsView({ className = '' }: AgentsViewProps) {
 					/>
 				</section>
 			</div>
+
+			{/* Add Agent Modal */}
+			<AddAgentModal
+				open={addModalOpen}
+				onClose={handleAddModalClose}
+				onCreate={handleAgentCreated}
+			/>
 		</div>
 	);
 }

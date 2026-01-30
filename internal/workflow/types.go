@@ -81,13 +81,18 @@ const (
 )
 
 // PhaseTemplate is a reusable phase definition (lego block).
+// Agent (WHO runs it) + Prompt (WHAT to do).
 // Stored in phase_templates table.
 type PhaseTemplate struct {
 	ID          string `json:"id" db:"id"`
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description,omitempty" db:"description"`
 
-	// Prompt configuration
+	// Agent configuration (WHO runs this phase)
+	AgentID   string `json:"agent_id,omitempty" db:"agent_id"`     // References agents.id - the executor agent
+	SubAgents string `json:"sub_agents,omitempty" db:"sub_agents"` // JSON array of agent IDs
+
+	// Prompt configuration (WHAT to do)
 	PromptSource  PromptSource `json:"prompt_source" db:"prompt_source"`
 	PromptContent string       `json:"prompt_content,omitempty" db:"prompt_content"`
 	PromptPath    string       `json:"prompt_path,omitempty" db:"prompt_path"`
@@ -100,23 +105,13 @@ type PhaseTemplate struct {
 
 	// Execution config
 	MaxIterations   int      `json:"max_iterations" db:"max_iterations"`
-	ModelOverride   string   `json:"model_override,omitempty" db:"model_override"`
-	ThinkingEnabled *bool    `json:"thinking_enabled,omitempty" db:"thinking_enabled"`
+	ThinkingEnabled *bool    `json:"thinking_enabled,omitempty" db:"thinking_enabled"` // Phase-level concern
 	GateType        GateType `json:"gate_type" db:"gate_type"`
 	Checkpoint      bool     `json:"checkpoint" db:"checkpoint"`
 
 	// Retry configuration
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`
-
-	// Claude CLI configuration (JSON)
-	// See executor.PhaseClaudeConfig for structure
-	ClaudeConfig string `json:"claude_config,omitempty" db:"claude_config"`
-
-	// System prompt for the main phase agent (role-framing)
-	// This is passed via --system-prompt to Claude CLI
-	// Stored directly in DB for editability (not file references)
-	SystemPrompt string `json:"system_prompt,omitempty" db:"system_prompt"`
 
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin" db:"is_builtin"`
@@ -441,13 +436,13 @@ func (wr *WorkflowRun) IsComplete() bool {
 }
 
 // GetEffectiveModel returns the model to use for a phase, considering overrides.
+// Note: Full agent-based model resolution is handled in the executor.
+// This method provides a fallback for workflow-level defaults.
 func (wp *WorkflowPhase) GetEffectiveModel(workflow *Workflow) string {
 	if wp.ModelOverride != "" {
 		return wp.ModelOverride
 	}
-	if wp.Template != nil && wp.Template.ModelOverride != "" {
-		return wp.Template.ModelOverride
-	}
+	// Agent model is resolved in executor.resolveExecutorAgent()
 	return workflow.DefaultModel
 }
 

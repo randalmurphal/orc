@@ -148,21 +148,21 @@ describe('PhaseTemplatePalette', () => {
 	});
 
 	describe('badges', () => {
-		it('shows model badge when modelOverride is set', () => {
+		it('shows agent badge when agentId is set', () => {
 			const templates = [
 				createMockPhaseTemplate({
 					id: 'implement',
 					name: 'Implement',
 					description: 'Implement the feature',
-					modelOverride: 'opus',
+					agentId: 'impl-executor',
 				}),
 			];
 			vi.mocked(usePhaseTemplates).mockReturnValue(templates);
 
 			render(<PhaseTemplatePalette readOnly={false} workflowId="test-wf" />);
 
-			// Should show a badge with the model name
-			expect(screen.getByText('opus')).toBeTruthy();
+			// Should show a badge with the agent id
+			expect(screen.getByText('impl-executor')).toBeTruthy();
 		});
 
 		it('shows gate badge when gateType is HUMAN', () => {

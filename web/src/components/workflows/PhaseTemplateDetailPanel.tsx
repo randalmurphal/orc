@@ -163,10 +163,10 @@ export function PhaseTemplateDetailPanel({
 						<Icon name="refresh" size={12} />
 						Max iterations: {template.maxIterations}
 					</span>
-					{template.modelOverride && (
+					{template.agentId && (
 						<span className="template-detail-meta-item">
 							<Icon name="cpu" size={12} />
-							{template.modelOverride}
+							Agent: {template.agentId}
 						</span>
 					)}
 					{template.thinkingEnabled && (

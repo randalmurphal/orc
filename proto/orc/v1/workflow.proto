@@ -89,16 +89,19 @@ message PhaseTemplate {
   bool produces_artifact = 9;
   optional string artifact_type = 10;
   int32 max_iterations = 11;
-  optional string model_override = 12;
-  optional bool thinking_enabled = 13;
+  // Field 12 removed: model_override - now on Agent
+  optional bool thinking_enabled = 13;   // Phase-level concern (NOT on agent)
   GateType gate_type = 14;
   bool checkpoint = 15;
   optional string retry_from_phase = 16;
   optional string retry_prompt_path = 17;
-  optional string claude_config = 18;
+  // Field 18 removed: claude_config - now on Agent
   bool is_builtin = 19;
   google.protobuf.Timestamp created_at = 20;
   google.protobuf.Timestamp updated_at = 21;
+  // NEW: Agent references
+  optional string agent_id = 22;              // Executor agent reference
+  repeated string sub_agent_ids = 23;         // Sub-agent references
 }
 
 message Workflow {
@@ -121,14 +124,17 @@ message WorkflowPhase {
   int32 sequence = 4;
   repeated string depends_on = 5;
   optional int32 max_iterations_override = 6;
-  optional string model_override = 7;
-  optional bool thinking_override = 8;
+  optional string model_override = 7;           // Can still override model at workflow level
+  optional bool thinking_override = 8;          // Phase-level thinking override
   optional GateType gate_type_override = 9;
   optional string condition = 10;
-  optional string claude_config_override = 11;
+  optional string claude_config_override = 11;  // Can still override claude config
   optional double position_x = 12;
   optional double position_y = 13;
   optional string loop_config = 14;
+  // NEW: Agent overrides
+  optional string agent_override = 15;          // Override executor agent
+  repeated string sub_agents_override = 16;     // Override sub-agents
   PhaseTemplate template = 100;
 }
 
@@ -404,10 +410,12 @@ message CreatePhaseTemplateRequest {
   bool produces_artifact = 8;
   optional string artifact_type = 9;
   int32 max_iterations = 10;
-  optional string model_override = 11;
-  optional bool thinking_enabled = 12;
+  // Field 11 removed: model_override - now on Agent
+  optional bool thinking_enabled = 12;   // Phase-level concern
   GateType gate_type = 13;
   bool checkpoint = 14;
+  optional string agent_id = 15;         // Executor agent reference
+  repeated string sub_agent_ids = 16;    // Sub-agent references
 }
 
 message CreatePhaseTemplateResponse {
@@ -425,10 +433,12 @@ message UpdatePhaseTemplateRequest {
   optional bool produces_artifact = 8;
   optional string artifact_type = 9;
   optional int32 max_iterations = 10;
-  optional string model_override = 11;
-  optional bool thinking_enabled = 12;
+  // Field 11 removed: model_override - now on Agent
+  optional bool thinking_enabled = 12;   // Phase-level concern
   optional GateType gate_type = 13;
   optional bool checkpoint = 14;
+  optional string agent_id = 15;         // Executor agent reference
+  repeated string sub_agent_ids = 16;    // Sub-agent references
 }
 
 message UpdatePhaseTemplateResponse {

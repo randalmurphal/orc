@@ -271,20 +271,28 @@ message AgentStats {
   double success_rate = 3;    // Success rate 0.0-1.0
 }
 
-// SubAgent definition
+// Agent definition - unified concept for both executor and sub-agent roles
+// Can be used as main phase executor OR as sub-agent
 message Agent {
-  string name = 1;
-  string description = 2;
-  optional string model = 3;
-  optional ToolPermissions tools = 4;
-  optional string prompt = 5;
-  optional string work_dir = 6;
-  repeated string skill_refs = 7;
-  optional string timeout = 8;
-  optional string path = 9; // for global agents from .md files
-  SettingsScope scope = 10;
-  optional string status = 11;     // "active" or "idle"
-  optional AgentStats stats = 12;  // Runtime statistics
+  string id = 1;                         // Unique identifier (for DB agents)
+  string name = 2;
+  string description = 3;
+  optional string model = 4;
+  optional ToolPermissions tools = 5;
+  optional string prompt = 6;            // For sub-agent role context
+  optional string system_prompt = 7;     // For executor role - system prompt
+  optional string claude_config = 8;     // For executor role - JSON additional config
+  optional string work_dir = 9;
+  repeated string skill_refs = 10;
+  optional string timeout = 11;
+  optional string path = 12;             // for global agents from .md files
+  SettingsScope scope = 13;
+  optional string status = 14;           // "active" or "idle"
+  optional AgentStats stats = 15;        // Runtime statistics
+  bool is_builtin = 16;                  // Whether this is a built-in agent
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+  // Note: NO thinking_enabled - that's a phase-level concern, not agent
 }
 
 // Tool permissions
@@ -652,15 +660,18 @@ message GetAgentResponse {
 }
 
 message CreateAgentRequest {
-  string name = 1;
-  string description = 2;
-  optional string model = 3;
-  optional ToolPermissions tools = 4;
-  optional string prompt = 5;
-  optional string work_dir = 6;
-  repeated string skill_refs = 7;
-  optional string timeout = 8;
-  SettingsScope scope = 9;
+  string id = 1;                         // Unique identifier
+  string name = 2;
+  string description = 3;
+  optional string model = 4;
+  optional ToolPermissions tools = 5;
+  optional string prompt = 6;            // For sub-agent role
+  optional string system_prompt = 7;     // For executor role
+  optional string claude_config = 8;     // For executor role - JSON config
+  optional string work_dir = 9;
+  repeated string skill_refs = 10;
+  optional string timeout = 11;
+  SettingsScope scope = 12;
 }
 
 message CreateAgentResponse {
@@ -668,14 +679,17 @@ message CreateAgentResponse {
 }
 
 message UpdateAgentRequest {
-  string name = 1;
-  optional string description = 2;
-  optional string model = 3;
-  optional ToolPermissions tools = 4;
-  optional string prompt = 5;
-  optional string work_dir = 6;
-  repeated string skill_refs = 7;
-  optional string timeout = 8;
+  string id = 1;                         // Agent ID to update
+  optional string name = 2;
+  optional string description = 3;
+  optional string model = 4;
+  optional ToolPermissions tools = 5;
+  optional string prompt = 6;            // For sub-agent role
+  optional string system_prompt = 7;     // For executor role
+  optional string claude_config = 8;     // For executor role - JSON config
+  optional string work_dir = 9;
+  repeated string skill_refs = 10;
+  optional string timeout = 11;
 }
 
 message UpdateAgentResponse {

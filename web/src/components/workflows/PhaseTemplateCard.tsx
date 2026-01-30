@@ -105,10 +105,10 @@ export function PhaseTemplateCard({ template, source, onSelect }: PhaseTemplateC
 					<Icon name="file-text" size={12} />
 					{template.promptSource}
 				</span>
-				{template.modelOverride && (
+				{template.agentId && (
 					<span className="phase-template-card-model">
 						<Icon name="cpu" size={12} />
-						{template.modelOverride}
+						{template.agentId}
 					</span>
 				)}
 			</div>
