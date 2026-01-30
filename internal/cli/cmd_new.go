@@ -204,6 +204,7 @@ See also:
 			beforeImages, _ := cmd.Flags().GetStringSlice("before-images")
 			qaMaxIterations, _ := cmd.Flags().GetInt("qa-max-iterations")
 			gateOverrides, _ := cmd.Flags().GetStringSlice("gate")
+			specContent, _ := cmd.Flags().GetString("spec-content")
 
 			// Validate target branch if specified
 			if targetBranch != "" {
@@ -406,6 +407,13 @@ See also:
 				return fmt.Errorf("save task: %w", err)
 			}
 
+			// Save pre-populated spec if provided (enables spec phase auto-skip)
+			if specContent != "" {
+				if err := backend.SaveSpecForTask(id, specContent, "brainstorm"); err != nil {
+					return fmt.Errorf("save spec content: %w", err)
+				}
+			}
+
 			// Save gate overrides if provided
 			if len(gateOverrides) > 0 {
 				// Need project DB if not already opened
@@ -572,5 +580,6 @@ See also:
 	cmd.Flags().StringSlice("before-images", nil, "baseline images for visual comparison (QA E2E workflow)")
 	cmd.Flags().Int("qa-max-iterations", 0, "max QA iterations before stopping (default: 3)")
 	cmd.Flags().StringSlice("gate", nil, "gate overrides (phase:type, e.g., spec:human, review:ai)")
+	cmd.Flags().String("spec-content", "", "pre-populate spec content (enables spec phase auto-skip)")
 	return cmd
 }
