@@ -167,6 +167,15 @@ Cache keys include context (task ID for phase outputs) to prevent cross-task con
 
 This package is used by:
 - `internal/executor/workflow_executor.go` - THE executor, uses `Resolver.ResolveAll()` and `RenderTemplate()`
+- `internal/executor/workflow_gates.go` - Gate output pipeline stores JSON-serialized gate data as variables via `applyGateOutputToVars()`
 - `internal/workflow/` - Defines workflow variables stored in database
 
 All template rendering goes through this package. The executor populates `ResolutionContext` via `buildResolutionContext()` and `enrichContextForPhase()`.
+
+### Variable Sources
+
+Variables come from multiple sources, resolved in this order:
+1. **Built-in** - Task, phase, git, initiative context from `ResolutionContext`
+2. **Gate outputs** - JSON-serialized structured data from gate evaluations (stored by `applyGateOutputToVars()`)
+3. **Phase outputs** - Prior phase content (spec, research, etc.)
+4. **Custom definitions** - Static, env, script, API, phase_output, prompt_fragment sources
