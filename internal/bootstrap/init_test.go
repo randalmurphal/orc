@@ -12,8 +12,12 @@ func TestRun_CreatesStructure(t *testing.T) {
 	tmpDir := t.TempDir()
 	homeDir := filepath.Join(tmpDir, "home")
 	projectDir := filepath.Join(tmpDir, "project")
-	os.MkdirAll(homeDir, 0755)
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("MkdirAll homeDir: %v", err)
+	}
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll projectDir: %v", err)
+	}
 	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	// Create a fake go.mod so detection works
@@ -68,8 +72,12 @@ func TestRun_Performance(t *testing.T) {
 	tmpDir := t.TempDir()
 	homeDir := filepath.Join(tmpDir, "home")
 	projectDir := filepath.Join(tmpDir, "project")
-	os.MkdirAll(homeDir, 0755)
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("MkdirAll homeDir: %v", err)
+	}
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll projectDir: %v", err)
+	}
 	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	start := time.Now()
@@ -90,8 +98,12 @@ func TestRun_AlreadyInitialized(t *testing.T) {
 	tmpDir := t.TempDir()
 	homeDir := filepath.Join(tmpDir, "home")
 	projectDir := filepath.Join(tmpDir, "project")
-	os.MkdirAll(homeDir, 0755)
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("MkdirAll homeDir: %v", err)
+	}
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll projectDir: %v", err)
+	}
 	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	// First init
@@ -120,8 +132,12 @@ func TestRun_WithProfile(t *testing.T) {
 	tmpDir := t.TempDir()
 	homeDir := filepath.Join(tmpDir, "home")
 	projectDir := filepath.Join(tmpDir, "project")
-	os.MkdirAll(homeDir, 0755)
-	os.MkdirAll(projectDir, 0755)
+	if err := os.MkdirAll(homeDir, 0755); err != nil {
+		t.Fatalf("MkdirAll homeDir: %v", err)
+	}
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("MkdirAll projectDir: %v", err)
+	}
 	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	result, err := Run(Options{WorkDir: projectDir, Profile: "strict"})
