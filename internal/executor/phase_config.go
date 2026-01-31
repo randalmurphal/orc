@@ -58,18 +58,22 @@ type PhaseClaudeConfig struct {
 // HookMatcher defines a single hook matcher entry in Claude Code's settings.json.
 // Each matcher specifies a tool pattern and one or more hook commands to run.
 type HookMatcher struct {
-	Matcher string      `json:"matcher"`
+	Matcher string      `json:"matcher,omitempty"`
 	Hooks   []HookEntry `json:"hooks"`
 }
 
 // HookEntry defines a single hook command within a HookMatcher.
 type HookEntry struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
+	Type    string `json:"type"`              // "command" or "prompt"
+	Command string `json:"command,omitempty"` // For type: "command"
+	Prompt  string `json:"prompt,omitempty"`  // For type: "prompt"
+	Timeout int    `json:"timeout,omitempty"` // Optional timeout in seconds
+	Once    bool   `json:"once,omitempty"`    // Fire once then remove
 }
 
 // WorktreeBaseConfig contains base configuration for worktree setup.
-// Used by ApplyPhaseSettings to configure the worktree's .claude/ directory.
+// Replaces the old ClaudeCodeHookConfig. Used by ApplyPhaseSettings to
+// configure the worktree's .claude/ directory with safety-critical settings.
 type WorktreeBaseConfig struct {
 	// WorktreePath is the absolute path to the worktree.
 	WorktreePath string
@@ -79,9 +83,6 @@ type WorktreeBaseConfig struct {
 
 	// TaskID is the task identifier.
 	TaskID string
-
-	// InjectUserEnv loads environment variables from user's ~/.claude/settings.json.
-	InjectUserEnv bool
 
 	// AdditionalEnv are extra environment variables to inject.
 	AdditionalEnv map[string]string

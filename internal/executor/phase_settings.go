@@ -62,6 +62,13 @@ func ApplyPhaseSettings(
 		return fmt.Errorf("read settings.json: %w", err)
 	}
 
+	// Always write the isolation hook script (safety-critical, every phase needs it)
+	if baseCfg != nil && hsGetter != nil {
+		if err := writeIsolationScript(worktreePath, hsGetter); err != nil {
+			return err
+		}
+	}
+
 	// Collect all hook script IDs referenced in phase config, resolve them,
 	// and write script files to .claude/hooks/
 	if err := writeHookScriptFiles(worktreePath, phaseCfg, hsGetter); err != nil {
@@ -112,23 +119,7 @@ func mergeHooksIntoSettings(settings map[string]any, phaseCfg *PhaseClaudeConfig
 		existingHooks = make(map[string]any)
 	}
 
-	// Build isolation hook (always added)
-	isolationHook := map[string]any{
-		"matcher": "Edit|Write|Read|Glob|Grep|MultiEdit",
-		"hooks": []any{
-			map[string]any{
-				"type":    "command",
-				"command": fmt.Sprintf(`ORC_WORKTREE_PATH="%s" ORC_MAIN_REPO_PATH="%s" ORC_TASK_ID="%s" echo "isolation-active"`, baseCfg.WorktreePath, baseCfg.MainRepoPath, baseCfg.TaskID),
-			},
-		},
-	}
-
-	// Get existing PreToolUse matchers and add isolation hook
-	existingPreToolUse, _ := existingHooks["PreToolUse"].([]any)
-	existingPreToolUse = append(existingPreToolUse, isolationHook)
-	existingHooks["PreToolUse"] = existingPreToolUse
-
-	// Add phase hooks (PreToolUse phase hooks will correctly append to the base that includes isolation)
+	// Add phase hooks first (appending to existing project hooks, never replacing)
 	if phaseCfg != nil {
 		for event, matchers := range phaseCfg.Hooks {
 			existing, _ := existingHooks[event].([]any)
@@ -139,6 +130,21 @@ func mergeHooksIntoSettings(settings map[string]any, phaseCfg *PhaseClaudeConfig
 			existingHooks[event] = existing
 		}
 	}
+
+	// Append isolation hook last (always added, runs after phase hooks)
+	isolationScriptPath := filepath.Join(worktreePath, ".claude", "hooks", "orc-worktree-isolation.py")
+	isolationHook := map[string]any{
+		"matcher": "Edit|Write|Read|Glob|Grep|MultiEdit",
+		"hooks": []any{
+			map[string]any{
+				"type":    "command",
+				"command": fmt.Sprintf(`ORC_WORKTREE_PATH="%s" ORC_MAIN_REPO_PATH="%s" ORC_TASK_ID="%s" python3 "%s"`, baseCfg.WorktreePath, baseCfg.MainRepoPath, baseCfg.TaskID, isolationScriptPath),
+			},
+		},
+	}
+	preToolUse, _ := existingHooks["PreToolUse"].([]any)
+	preToolUse = append(preToolUse, isolationHook)
+	existingHooks["PreToolUse"] = preToolUse
 
 	settings["hooks"] = existingHooks
 }
@@ -166,17 +172,24 @@ func resolveHookMatcher(m HookMatcher, worktreePath string) map[string]any {
 }
 
 // mergeEnvVars merges environment variables from base config and phase config into settings.
+// Existing project env vars from settings.json are preserved; orc env vars are layered on top.
 func mergeEnvVars(settings map[string]any, phaseCfg *PhaseClaudeConfig, baseCfg *WorktreeBaseConfig) {
+	// Start with existing project env vars (preserve them)
 	env := make(map[string]any)
+	if existingEnv, ok := settings["env"].(map[string]any); ok {
+		for k, v := range existingEnv {
+			env[k] = v
+		}
+	}
 
-	// Base config additional env
+	// Base config additional env (layers on top of project env)
 	if baseCfg != nil {
 		for k, v := range baseCfg.AdditionalEnv {
 			env[k] = v
 		}
 	}
 
-	// Phase config env (takes precedence)
+	// Phase config env (highest precedence)
 	if phaseCfg != nil {
 		for k, v := range phaseCfg.Env {
 			env[k] = v
@@ -283,7 +296,7 @@ func writeSkillFiles(worktreePath string, phaseCfg *PhaseClaudeConfig, sGetter S
 		for filename, content := range skill.SupportingFiles {
 			// Prevent path traversal
 			if strings.Contains(filename, "..") || filepath.IsAbs(filename) {
-				return fmt.Errorf("invalid supporting filename %q in skill %s: must be relative without ..", filename, skillID)
+				return fmt.Errorf("invalid supporting filename %q in skill %s: must be relative without path traversal", filename, skillID)
 			}
 			filePath := filepath.Join(skillDir, filename)
 			if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
@@ -328,8 +341,32 @@ func resetClaudeDir(worktreePath, sourceBranch string) error {
 	cmd = exec.Command("git", "clean", "-fd", ".claude/")
 	cmd.Dir = worktreePath
 	if cleanOutput, cleanErr := cmd.CombinedOutput(); cleanErr != nil {
-		// Non-fatal: clean might fail if not in a git repo, but checkout succeeded
-		_ = cleanOutput
+		return fmt.Errorf("git clean .claude/: %s: %w", strings.TrimSpace(string(cleanOutput)), cleanErr)
+	}
+
+	return nil
+}
+
+// writeIsolationScript writes the worktree isolation hook script to .claude/hooks/.
+// This is always written for every phase as a safety measure.
+func writeIsolationScript(worktreePath string, hsGetter HookScriptGetter) error {
+	isoScript, err := hsGetter.GetHookScript("orc-worktree-isolation")
+	if err != nil {
+		return fmt.Errorf("get isolation hook script: %w", err)
+	}
+	if isoScript == nil {
+		// Isolation script not seeded yet — not a fatal error during early bootstrap
+		return nil
+	}
+
+	hooksDir := filepath.Join(worktreePath, ".claude", "hooks")
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		return fmt.Errorf("create hooks dir for isolation script: %w", err)
+	}
+
+	scriptPath := filepath.Join(hooksDir, "orc-worktree-isolation.py")
+	if err := os.WriteFile(scriptPath, []byte(isoScript.Content), 0755); err != nil {
+		return fmt.Errorf("write isolation script: %w", err)
 	}
 
 	return nil

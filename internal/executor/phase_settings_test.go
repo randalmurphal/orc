@@ -29,14 +29,12 @@ func TestWorktreeBaseConfig_FieldsExist(t *testing.T) {
 		WorktreePath:  "/tmp/worktree",
 		MainRepoPath:  "/home/user/repo",
 		TaskID:        "TASK-001",
-		InjectUserEnv: true,
 		AdditionalEnv: map[string]string{"FOO": "bar"},
 	}
 
 	assert.Equal(t, "/tmp/worktree", cfg.WorktreePath)
 	assert.Equal(t, "/home/user/repo", cfg.MainRepoPath)
 	assert.Equal(t, "TASK-001", cfg.TaskID)
-	assert.True(t, cfg.InjectUserEnv)
 	assert.Equal(t, "bar", cfg.AdditionalEnv["FOO"])
 }
 
