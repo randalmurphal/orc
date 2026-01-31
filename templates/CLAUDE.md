@@ -72,7 +72,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `tdd_write.md` | Write failing tests before implementation (classifies solitary/sociable/integration, requires integration tests for wiring) |
 | `breakdown.md` | Break spec into checkboxed implementation tasks |
 | `implement.md` | Implementation with TDD context, must make tests pass |
-| `review.md` | Multi-agent code review with verification |
+| `review.md` | Multi-agent code review (6 reviewers incl. no-op detection) + success criteria verification |
 | `docs.md` | Documentation (AI doc standards, hierarchical inheritance, doc type templates) |
 | `qa.md` | Manual QA verification session |
 | `test.md` | Test execution template |
@@ -200,6 +200,18 @@ Spec phases include a quality checklist that must pass before implementation:
 | `max_3_clarifications` | ≤3 clarifications, rest are assumptions |
 
 Failed checklist triggers retry with feedback.
+
+## No-Op Prevention
+
+All spec/TDD/review templates include guards against hollow implementations:
+
+| Template | Guard | Purpose |
+|----------|-------|---------|
+| `spec.md` | Implementation Verification Requirements | Requires concrete file paths, function signatures, observable behaviors |
+| `tiny_spec.md` | Verification Requirements | Success criteria must describe observable behavior changes |
+| `tdd_write.md` | Test Quality Gates | Tests must fail before implementation, not pass with empty stubs |
+| `review.md` | Reviewer 6: No-Op Detection Specialist | Verifies actual behavioral changes, flags pass-through implementations |
+| `review.md` | No-Op Detection Checklist | Blockers for: unused functions, ignored params, dead columns, vacuous tests |
 
 ## Review Conditionals
 

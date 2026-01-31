@@ -710,7 +710,7 @@ func (g *GlobalDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		pt.InputVariables, pt.OutputSchema, pt.ProducesArtifact, pt.ArtifactType, pt.OutputVarName,
 		pt.OutputType, pt.QualityChecks,
 		pt.MaxIterations, thinkingEnabled, pt.GateType, pt.Checkpoint,
-		pt.RetryFromPhase, pt.RetryPromptPath, "", "", // system_prompt, claude_config empty for now
+		pt.RetryFromPhase, pt.RetryPromptPath, "", pt.ClaudeConfig, // system_prompt empty, claude_config from struct
 		pt.IsBuiltin, pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
 		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID)
 	if err != nil {
@@ -728,7 +728,8 @@ func (g *GlobalDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			output_type, quality_checks,
 			max_iterations, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
+			COALESCE(claude_config, '') as claude_config
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -751,7 +752,8 @@ func (g *GlobalDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			output_type, quality_checks,
 			max_iterations, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
+			COALESCE(claude_config, '') as claude_config
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)

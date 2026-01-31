@@ -16,3 +16,5 @@ thinking: false
 gate_type: auto
 checkpoint: true
 retry_from_phase: spec
+
+claude_config: '{"hooks":{"PreToolUse":[{"matcher":"Edit|Write|MultiEdit","hooks":[{"type":"command","command":"bash {{hook:orc-tdd-discipline}}"}]}]}}'
