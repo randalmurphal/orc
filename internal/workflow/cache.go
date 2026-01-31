@@ -488,39 +488,6 @@ func workflowVariableToDBVariable(wv *WorkflowVariable) *db.WorkflowVariable {
 	}
 }
 
-// DBPhaseToWorkflowPhase converts a db.PhaseTemplate to workflow.PhaseTemplate.
-func DBPhaseToWorkflowPhase(dbPt *db.PhaseTemplate) *PhaseTemplate {
-	pt := &PhaseTemplate{
-		ID:               dbPt.ID,
-		Name:             dbPt.Name,
-		Description:      dbPt.Description,
-		AgentID:          dbPt.AgentID,
-		SubAgents:        dbPt.SubAgents,
-		PromptSource:     PromptSource(dbPt.PromptSource),
-		PromptContent:    dbPt.PromptContent,
-		PromptPath:       dbPt.PromptPath,
-		OutputSchema:     dbPt.OutputSchema,
-		ProducesArtifact: dbPt.ProducesArtifact,
-		ArtifactType:     dbPt.ArtifactType,
-		MaxIterations:    dbPt.MaxIterations,
-		ThinkingEnabled:  dbPt.ThinkingEnabled,
-		GateType:         GateType(dbPt.GateType),
-		Checkpoint:       dbPt.Checkpoint,
-		RetryFromPhase:   dbPt.RetryFromPhase,
-		RetryPromptPath:  dbPt.RetryPromptPath,
-		IsBuiltin:        dbPt.IsBuiltin,
-		CreatedAt:        dbPt.CreatedAt,
-		UpdatedAt:        dbPt.UpdatedAt,
-	}
-
-	// Parse input variables
-	if dbPt.InputVariables != "" {
-		_ = json.Unmarshal([]byte(dbPt.InputVariables), &pt.InputVariables)
-	}
-
-	return pt
-}
-
 // DBWorkflowToWorkflow converts a db.Workflow to workflow.Workflow.
 func DBWorkflowToWorkflow(dbWf *db.Workflow) *Workflow {
 	return &Workflow{

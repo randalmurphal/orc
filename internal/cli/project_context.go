@@ -59,19 +59,6 @@ func ResolveProjectID() (string, error) {
 	return "", fmt.Errorf("not in an orc project; use --project or cd to a project directory")
 }
 
-// ResolveProjectIDRequired is like ResolveProjectID but returns an error if
-// no project is found (even in single-project mode).
-func ResolveProjectIDRequired() (string, error) {
-	projectID, err := ResolveProjectID()
-	if err != nil {
-		return "", err
-	}
-	if projectID == "" {
-		return "", fmt.Errorf("project ID required; use --project or register the project with 'orc projects add'")
-	}
-	return projectID, nil
-}
-
 // ResolveProjectPath returns the project path for the resolved project.
 // If no project ID is resolved (single-project mode), returns current project root.
 func ResolveProjectPath() (string, error) {
@@ -133,12 +120,6 @@ func resolveProjectRef(ref string) (string, error) {
 	}
 
 	return "", fmt.Errorf("project not found: %s (not a valid ID, name, or path)", ref)
-}
-
-// GetProjectFlag returns the current value of the --project flag.
-// Useful for commands that need to pass the flag to subprocesses.
-func GetProjectFlag() string {
-	return projectFlag
 }
 
 // IsMultiProjectMode returns true if we're operating in multi-project mode

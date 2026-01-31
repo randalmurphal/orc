@@ -116,11 +116,6 @@ func WithHeartbeatCallback(fn func()) ActivityTrackerOption {
 	return func(t *ActivityTracker) { t.onHeartbeat = fn }
 }
 
-// WithTurnTimeoutCallback sets a callback when turn timeout is reached.
-func WithTurnTimeoutCallback(fn func()) ActivityTrackerOption {
-	return func(t *ActivityTracker) { t.onTurnTimeout = fn }
-}
-
 // WithActivityMaxIterations sets the maximum iterations for progress display.
 func WithActivityMaxIterations(max int) ActivityTrackerOption {
 	return func(t *ActivityTracker) { t.maxIterations = max }
@@ -210,13 +205,6 @@ func (t *ActivityTracker) TurnDuration() time.Duration {
 		return 0
 	}
 	return time.Since(t.turnStart)
-}
-
-// IdleDuration returns how long since last activity.
-func (t *ActivityTracker) IdleDuration() time.Duration {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return time.Since(t.lastActivity)
 }
 
 // ChunksReceived returns the number of chunks received this turn.

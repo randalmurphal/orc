@@ -53,8 +53,3 @@ func LoadPhaseAgents(gdb *db.GlobalDB, phaseTemplateID string, weight string, va
 	return result, nil
 }
 
-// GroupAgentsBySequence groups agents by their execution sequence.
-// Agents with the same sequence run in parallel.
-func GroupAgentsBySequence(agents []*db.AgentWithAssignment) [][]*db.AgentWithAssignment {
-	return db.GroupBySequence(agents)
-}

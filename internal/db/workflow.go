@@ -33,19 +33,6 @@ func ParseQualityChecks(jsonStr string) ([]QualityCheck, error) {
 	return checks, nil
 }
 
-// MarshalQualityChecks serializes quality checks to JSON string.
-// Returns empty string for nil/empty slice.
-func MarshalQualityChecks(checks []QualityCheck) (string, error) {
-	if len(checks) == 0 {
-		return "", nil
-	}
-	data, err := json.Marshal(checks)
-	if err != nil {
-		return "", fmt.Errorf("marshal quality checks: %w", err)
-	}
-	return string(data), nil
-}
-
 // PhaseTemplate represents a reusable phase definition.
 // Agent (WHO runs it) + Prompt (WHAT to do).
 type PhaseTemplate struct {
@@ -146,19 +133,6 @@ func ParseLoopConfig(jsonStr string) (*LoopConfig, error) {
 		return nil, fmt.Errorf("parse loop config: %w", err)
 	}
 	return &cfg, nil
-}
-
-// MarshalLoopConfig serializes LoopConfig to JSON string.
-// Returns empty string for nil.
-func MarshalLoopConfig(cfg *LoopConfig) (string, error) {
-	if cfg == nil {
-		return "", nil
-	}
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return "", fmt.Errorf("marshal loop config: %w", err)
-	}
-	return string(data), nil
 }
 
 // WorkflowPhase links a phase template to a workflow.

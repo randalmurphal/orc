@@ -3,53 +3,7 @@ package task
 
 import (
 	"fmt"
-	"strings"
 )
-
-// ValidationError represents a single validation error.
-type ValidationError struct {
-	Field   string
-	Value   string
-	Message string
-}
-
-func (e ValidationError) Error() string {
-	if e.Value != "" {
-		return fmt.Sprintf("%s: %s (got %q)", e.Field, e.Message, e.Value)
-	}
-	return fmt.Sprintf("%s: %s", e.Field, e.Message)
-}
-
-// ValidationErrors is a collection of validation errors.
-type ValidationErrors []ValidationError
-
-// Error returns a combined error message.
-func (e ValidationErrors) Error() string {
-	if len(e) == 0 {
-		return ""
-	}
-	var msgs []string
-	for _, err := range e {
-		msgs = append(msgs, err.Error())
-	}
-	return strings.Join(msgs, "; ")
-}
-
-// HasErrors returns true if there are any validation errors.
-func (e ValidationErrors) HasErrors() bool {
-	return len(e) > 0
-}
-
-// ToError returns an error if there are validation errors, nil otherwise.
-func (e ValidationErrors) ToError() error {
-	if len(e) == 0 {
-		return nil
-	}
-	return e
-}
-
-// Note: The Validate method on *Task was removed as part of the proto migration.
-// For orcv1.Task validation, use the individual IsValid* functions or proto validation.
 
 // DependencyError represents an error related to task dependencies.
 type DependencyError struct {

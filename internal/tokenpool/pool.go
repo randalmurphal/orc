@@ -259,20 +259,6 @@ func (p *Pool) SwitchTo(accountID string) error {
 	return fmt.Errorf("account %q not found or not enabled", accountID)
 }
 
-// Config returns the pool configuration.
-func (p *Pool) Config() *PoolConfig {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.config
-}
-
-// SaveConfig saves the pool configuration to disk.
-func (p *Pool) SaveConfig() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.config.Save(p.configPath)
-}
-
 // AddAccount adds an account to the pool.
 func (p *Pool) AddAccount(account *Account) error {
 	p.mu.Lock()

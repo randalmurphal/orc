@@ -282,11 +282,6 @@ func (g *Git) DeleteBranch(branch string, force bool) error {
 	return g.ctx.DeleteBranch(branch, force)
 }
 
-// GetRemoteURL returns the URL of the origin remote.
-func (g *Git) GetRemoteURL() (string, error) {
-	return g.ctx.GetRemoteURL("origin")
-}
-
 // HasRemote checks if a remote exists in the repository.
 // Returns true if the remote is configured, false otherwise.
 // This is useful for detecting sandbox/test repositories that don't have remotes.

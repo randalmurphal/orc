@@ -117,7 +117,14 @@ Pay special attention to:
 
 ## Step 2: Impact Analysis
 
-Before modifying shared code, identify all callers and dependents. Before claiming completion, verify all new code is reachable from production code paths.
+Before modifying shared code, identify all callers and dependents.
+
+### 2d. Forward-Looking Integration Check
+
+Before claiming completion, verify all new code is reachable from production code paths:
+- Are all new functions called from at least one production code path?
+- Are all new interfaces registered and wired into the system?
+- Is there any unused new code that should be integrated but isn't?
 
 ## Step 3: Follow Breakdown
 
@@ -144,7 +151,14 @@ Follow existing code patterns. Stay within scope but be thorough within that sco
 
 ## Step 5: Self-Review
 
-Before completing: all success criteria addressed, all TDD tests pass, all breakdown items completed (if provided), preservation requirements verified, scope boundaries respected, code follows project patterns, all new functions called from production code (no dead code), no TODO comments left behind.
+Before completing: all success criteria addressed, all TDD tests pass, all breakdown items completed (if provided), preservation requirements verified, scope boundaries respected, code follows project patterns, no TODO comments left behind.
+
+## Step 7: Self-Review
+
+Dead code prevention checklist:
+- All new functions are called from at least one production code path (no dead code)
+- All new interfaces are registered and wired into the system
+- No unused imports, variables, or helper functions left behind
 
 ## Completion Criteria
 

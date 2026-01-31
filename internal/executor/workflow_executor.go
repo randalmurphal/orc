@@ -161,25 +161,11 @@ func WithWorkflowClaudePath(path string) WorkflowExecutorOption {
 	}
 }
 
-// WithWorkflowGlobalDB sets the global database for cost tracking.
-func WithWorkflowGlobalDB(gdb *db.GlobalDB) WorkflowExecutorOption {
-	return func(we *WorkflowExecutor) {
-		we.globalDB = gdb
-	}
-}
-
 // WithWorkflowTurnExecutor sets a TurnExecutor for testing.
 // When set, executeWithClaude uses this instead of creating a real ClaudeExecutor.
 func WithWorkflowTurnExecutor(te TurnExecutor) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.turnExecutor = te
-	}
-}
-
-// WithWorkflowTokenPool sets the token pool for automatic account switching on rate limits.
-func WithWorkflowTokenPool(pool *tokenpool.Pool) WorkflowExecutorOption {
-	return func(we *WorkflowExecutor) {
-		we.tokenPool = pool
 	}
 }
 
@@ -194,13 +180,6 @@ func WithWorkflowAutomationService(svc *automation.Service) WorkflowExecutorOpti
 func WithWorkflowSessionBroadcaster(sb *SessionBroadcaster) WorkflowExecutorOption {
 	return func(we *WorkflowExecutor) {
 		we.sessionBroadcaster = sb
-	}
-}
-
-// WithWorkflowResourceTracker sets the resource tracker for orphan process detection.
-func WithWorkflowResourceTracker(rt *ResourceTracker) WorkflowExecutorOption {
-	return func(we *WorkflowExecutor) {
-		we.resourceTracker = rt
 	}
 }
 

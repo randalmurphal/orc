@@ -57,14 +57,6 @@ type ExecutorConfig struct {
 	OrcConfig *config.Config
 }
 
-// GetTargetBranch returns the target branch, defaulting to "main" if not set.
-func (c ExecutorConfig) GetTargetBranch() string {
-	if c.TargetBranch == "" {
-		return "main"
-	}
-	return c.TargetBranch
-}
-
 // DefaultConfigForWeight returns the recommended configuration for a task weight.
 func DefaultConfigForWeight(weight orcv1.TaskWeight) ExecutorConfig {
 	// Base timeout settings (can be overridden by config)
@@ -131,16 +123,3 @@ const (
 	ExecutorTypeFull     ExecutorType = "full"
 )
 
-// ExecutorTypeForWeight returns the recommended executor type for a task weight.
-func ExecutorTypeForWeight(weight orcv1.TaskWeight) ExecutorType {
-	switch weight {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
-		return ExecutorTypeTrivial
-	case orcv1.TaskWeight_TASK_WEIGHT_SMALL, orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
-		return ExecutorTypeStandard
-	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
-		return ExecutorTypeFull
-	default:
-		return ExecutorTypeStandard
-	}
-}

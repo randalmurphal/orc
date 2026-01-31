@@ -51,9 +51,3 @@ func InstallHooks(projectDir string) error {
 	return nil
 }
 
-// HooksInstalled checks if orc hooks are already installed.
-func HooksInstalled(projectDir string) bool {
-	hookPath := filepath.Join(projectDir, HookDir, OrcStopHook)
-	_, err := os.Stat(hookPath)
-	return err == nil
-}

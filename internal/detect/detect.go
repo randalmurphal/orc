@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // ProjectType represents the detected project type.
@@ -550,10 +548,3 @@ func DescribeProject(d *Detection) string {
 	return strings.Join(parts, " ")
 }
 
-// MarshalYAML allows Detection to be serialized.
-func (d *Detection) MarshalYAML() (interface{}, error) {
-	type alias Detection
-	return (*alias)(d), nil
-}
-
-var _ yaml.Marshaler = (*Detection)(nil)

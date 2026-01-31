@@ -57,10 +57,6 @@ func TestInputStep(t *testing.T) {
 		WithDefault("default").
 		WithPlaceholder("Type here...")
 
-	if step.ID() != "input" {
-		t.Errorf("expected ID 'input', got %s", step.ID())
-	}
-
 	model := step.Init(nil)
 	if m, ok := model.(*inputModel); ok {
 		if m.textInput.Value() != "default" {

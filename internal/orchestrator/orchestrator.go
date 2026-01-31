@@ -320,11 +320,6 @@ func (o *Orchestrator) AddPendingTasks() error {
 	return nil
 }
 
-// PauseTask pauses a running task.
-func (o *Orchestrator) PauseTask(taskID string) error {
-	return o.workerPool.StopWorker(taskID)
-}
-
 // Status returns the current orchestrator status.
 func (o *Orchestrator) Status() *OrchestratorStatus {
 	o.mu.RLock()
