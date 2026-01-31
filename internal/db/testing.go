@@ -11,31 +11,6 @@ import (
 	"testing"
 )
 
-// NewTestDB creates an in-memory database for testing.
-// The database is automatically closed when the test completes.
-//
-// Usage:
-//
-//	func TestSomething(t *testing.T) {
-//	    t.Parallel() // Always add for faster tests
-//	    db := db.NewTestDB(t)
-//	    // use db...
-//	}
-func NewTestDB(t testing.TB) *DB {
-	t.Helper()
-
-	db, err := OpenInMemory()
-	if err != nil {
-		t.Fatalf("create test db: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
-
-	return db
-}
-
 // NewTestProjectDB creates an in-memory project database for testing.
 // The database is automatically closed when the test completes.
 // Schema migrations are applied automatically.

@@ -105,15 +105,6 @@ func OpenWithDialect(dsn string, dialect driver.Dialect) (*DB, error) {
 	return &DB{driver: drv, path: dsn}, nil
 }
 
-// OpenWithDriver opens a database using a provided driver instance.
-// Useful for testing or custom driver configurations.
-func OpenWithDriver(drv driver.Driver, dsn string) (*DB, error) {
-	if err := drv.Open(dsn); err != nil {
-		return nil, err
-	}
-	return &DB{driver: drv, path: dsn}, nil
-}
-
 // Close closes the database connection.
 func (d *DB) Close() error {
 	return d.driver.Close()

@@ -32,20 +32,6 @@ func ParseWriteLevel(s string) (WriteLevel, error) {
 	}
 }
 
-// WriteLevelToSource converts a WriteLevel to a Source.
-func WriteLevelToSource(level WriteLevel) Source {
-	switch level {
-	case WriteLevelPersonal:
-		return SourcePersonalGlobal
-	case WriteLevelLocal:
-		return SourceProjectLocal
-	case WriteLevelProject:
-		return SourceProject
-	default:
-		return SourceProject
-	}
-}
-
 // SourceToWriteLevel converts a Source to a WriteLevel.
 // Returns empty string for non-writable sources (embedded, database).
 func SourceToWriteLevel(source Source) WriteLevel {

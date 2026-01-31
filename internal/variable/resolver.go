@@ -436,11 +436,6 @@ func formatInitiativeContext(rctx *ResolutionContext) string {
 	return sb.String()
 }
 
-// ClearCache clears the resolver's cache.
-func (r *Resolver) ClearCache() {
-	r.cache.Clear()
-}
-
 // RenderTemplate applies variable substitution to a template string.
 // Variables use the {{VAR}} format. Missing variables are replaced with empty strings.
 // Also handles {{#if VAR}}...{{/if}} conditional blocks.

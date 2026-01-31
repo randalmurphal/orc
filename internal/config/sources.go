@@ -127,7 +127,3 @@ func (tc *TrackedConfig) GetTrackedSource(path string) TrackedSource {
 	return TrackedSource{Source: SourceDefault}
 }
 
-// GetSourceLevel returns the ConfigLevel for a config path.
-func (tc *TrackedConfig) GetSourceLevel(path string) ConfigLevel {
-	return tc.GetSource(path).Level()
-}

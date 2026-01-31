@@ -38,27 +38,6 @@ func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
 	return total, nil
 }
 
-// SeedBuiltinsFromDir populates the database with built-in phase templates and workflows
-// using a specific orc directory. This is useful for testing.
-func SeedBuiltinsFromDir(gdb *db.GlobalDB, orcDir string) (int, error) {
-	cache := NewCacheServiceFromOrcDir(orcDir, gdb)
-	result, err := cache.SyncAll()
-	if err != nil {
-		return 0, err
-	}
-
-	total := result.WorkflowsAdded + result.WorkflowsUpdated + result.PhasesAdded + result.PhasesUpdated
-	return total, nil
-}
-
-// EnsureBuiltinsSynced ensures the database is up to date with YAML files.
-// This is a more lightweight check than SeedBuiltins - it only syncs if stale.
-// Returns true if sync was performed.
-func EnsureBuiltinsSynced(gdb *db.GlobalDB) (bool, error) {
-	cache := NewCacheServiceFromOrcDir("", gdb)
-	return cache.EnsureSynced()
-}
-
 // ListBuiltinWorkflowIDs returns all built-in workflow IDs.
 // This reads from embedded YAML files.
 func ListBuiltinWorkflowIDs() []string {
@@ -134,11 +113,3 @@ func IsWeightBasedWorkflow(workflowID string) bool {
 	}
 }
 
-// MigratePhaseTemplateModels is now a no-op since YAML files are the source of truth.
-// The CacheService handles updates automatically during SeedBuiltins/EnsureBuiltinsSynced.
-// This function is kept for backwards compatibility.
-// Returns 0 (no updates needed - handled by cache sync).
-func MigratePhaseTemplateModels(_ *db.ProjectDB) (int, error) {
-	// No-op: YAML files are authoritative, cache sync handles updates
-	return 0, nil
-}

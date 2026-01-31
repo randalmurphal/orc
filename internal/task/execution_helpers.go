@@ -3,8 +3,6 @@
 package task
 
 import (
-	"strings"
-
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -110,47 +108,6 @@ func SkipPhaseProto(e *orcv1.ExecutionState, phaseID string, reason string) {
 	RecordGateDecisionProto(e, phaseID, "skip", true, reason)
 }
 
-// IncrementIterationProto increments the iteration count for the current phase.
-func IncrementIterationProto(e *orcv1.ExecutionState, currentPhase string) {
-	if e == nil {
-		return
-	}
-	e.CurrentIteration++
-
-	if e.Phases != nil && e.Phases[currentPhase] != nil {
-		e.Phases[currentPhase].Iterations++
-	}
-}
-
-// AddTokensProto adds token usage to the state.
-func AddTokensProto(e *orcv1.ExecutionState, currentPhase string, input, output, cacheCreation, cacheRead int32) {
-	if e == nil {
-		return
-	}
-
-	// Ensure tokens struct exists
-	if e.Tokens == nil {
-		e.Tokens = &orcv1.TokenUsage{}
-	}
-
-	e.Tokens.InputTokens += input
-	e.Tokens.OutputTokens += output
-	e.Tokens.CacheCreationInputTokens += cacheCreation
-	e.Tokens.CacheReadInputTokens += cacheRead
-	e.Tokens.TotalTokens += input + output
-
-	if e.Phases != nil && e.Phases[currentPhase] != nil {
-		if e.Phases[currentPhase].Tokens == nil {
-			e.Phases[currentPhase].Tokens = &orcv1.TokenUsage{}
-		}
-		e.Phases[currentPhase].Tokens.InputTokens += input
-		e.Phases[currentPhase].Tokens.OutputTokens += output
-		e.Phases[currentPhase].Tokens.CacheCreationInputTokens += cacheCreation
-		e.Phases[currentPhase].Tokens.CacheReadInputTokens += cacheRead
-		e.Phases[currentPhase].Tokens.TotalTokens += input + output
-	}
-}
-
 // RecordGateDecisionProto records a gate evaluation result.
 func RecordGateDecisionProto(e *orcv1.ExecutionState, phase, gateType string, approved bool, reason string) {
 	if e == nil {
@@ -175,49 +132,6 @@ func GetResumePhaseProto(e *orcv1.ExecutionState) string {
 	// Deprecated: phases don't track running/interrupted state anymore.
 	// Use task.current_phase for the phase to resume.
 	return ""
-}
-
-// IsPhaseCompletedProto returns true if a phase is completed or skipped.
-func IsPhaseCompletedProto(e *orcv1.ExecutionState, phaseID string) bool {
-	if e == nil || e.Phases == nil {
-		return false
-	}
-	ps, ok := e.Phases[phaseID]
-	if !ok {
-		return false
-	}
-	return ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED ||
-		ps.Status == orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-}
-
-// IsPhaseSkippedProto returns true if a phase was skipped.
-func IsPhaseSkippedProto(e *orcv1.ExecutionState, phaseID string) bool {
-	if e == nil || e.Phases == nil {
-		return false
-	}
-	ps, ok := e.Phases[phaseID]
-	if !ok {
-		return false
-	}
-	return ps.Status == orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
-}
-
-// GetSkipReasonProto returns the skip reason for a phase, if any.
-func GetSkipReasonProto(e *orcv1.ExecutionState, phaseID string) string {
-	if e == nil || e.Phases == nil {
-		return ""
-	}
-	ps, ok := e.Phases[phaseID]
-	if !ok || ps.Status != orcv1.PhaseStatus_PHASE_STATUS_SKIPPED {
-		return ""
-	}
-	if ps.Error == nil {
-		return ""
-	}
-	if strings.HasPrefix(*ps.Error, "skipped: ") {
-		return strings.TrimPrefix(*ps.Error, "skipped: ")
-	}
-	return *ps.Error
 }
 
 // ResetPhaseProto resets a phase to pending state for retry.
@@ -249,33 +163,12 @@ func SetRetryContextProto(e *orcv1.ExecutionState, fromPhase, toPhase, reason, f
 	}
 }
 
-// SetRetryContextFileProto sets the context file path for detailed retry context.
-func SetRetryContextFileProto(e *orcv1.ExecutionState, contextFile string) {
-	if e == nil || e.RetryContext == nil {
-		return
-	}
-	e.RetryContext.ContextFile = &contextFile
-}
-
-// ClearRetryContextProto clears the retry context after successful completion.
-func ClearRetryContextProto(e *orcv1.ExecutionState) {
-	if e == nil {
-		return
-	}
-	e.RetryContext = nil
-}
-
 // GetRetryContextProto returns the current retry context.
 func GetRetryContextProto(e *orcv1.ExecutionState) *orcv1.RetryContext {
 	if e == nil {
 		return nil
 	}
 	return e.RetryContext
-}
-
-// HasRetryContextProto returns true if there is an active retry context.
-func HasRetryContextProto(e *orcv1.ExecutionState) bool {
-	return e != nil && e.RetryContext != nil
 }
 
 // ResetExecutionStateProto resets the entire execution state back to initial pending state.
@@ -297,24 +190,6 @@ func ResetExecutionStateProto(e *orcv1.ExecutionState) {
 	e.RetryContext = nil
 	e.Session = nil
 	e.Gates = nil
-}
-
-// SetSessionProto updates the session info.
-func SetSessionProto(e *orcv1.ExecutionState, id, model, status string, turnCount int32) {
-	if e == nil {
-		return
-	}
-	now := timestamppb.Now()
-	if e.Session == nil {
-		e.Session = &orcv1.SessionInfo{
-			CreatedAt: now,
-		}
-	}
-	e.Session.Id = id
-	e.Session.Model = model
-	e.Session.Status = status
-	e.Session.TurnCount = turnCount
-	e.Session.LastActivity = now
 }
 
 // AddCostProto adds cost to the execution state and optionally to the current phase.
@@ -339,18 +214,6 @@ func AddCostProto(e *orcv1.ExecutionState, currentPhase string, costUSD float64)
 	}
 }
 
-// GetPhaseSessionIDProto returns the session ID for a specific phase.
-func GetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID string) string {
-	if e == nil || e.Phases == nil {
-		return ""
-	}
-	ps, ok := e.Phases[phaseID]
-	if !ok || ps.SessionId == nil {
-		return ""
-	}
-	return *ps.SessionId
-}
-
 // SetPhaseSessionIDProto stores the session ID for a specific phase.
 func SetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID, sessionID string) {
 	if e == nil {
@@ -358,35 +221,6 @@ func SetPhaseSessionIDProto(e *orcv1.ExecutionState, phaseID, sessionID string) 
 	}
 	EnsurePhaseProto(e, phaseID)
 	e.Phases[phaseID].SessionId = &sessionID
-}
-
-// RecordValidationProto records a validation decision for the specified phase.
-func RecordValidationProto(e *orcv1.ExecutionState, phaseID string, entry *orcv1.ValidationEntry) {
-	if e == nil || entry == nil {
-		return
-	}
-	EnsurePhaseProto(e, phaseID)
-	e.Phases[phaseID].ValidationHistory = append(e.Phases[phaseID].ValidationHistory, entry)
-}
-
-// GetLastValidationProto returns the most recent validation entry for the specified phase.
-func GetLastValidationProto(e *orcv1.ExecutionState, phaseID string) *orcv1.ValidationEntry {
-	if e == nil || e.Phases == nil || e.Phases[phaseID] == nil {
-		return nil
-	}
-	history := e.Phases[phaseID].ValidationHistory
-	if len(history) == 0 {
-		return nil
-	}
-	return history[len(history)-1]
-}
-
-// GetErrorProto returns the error string, or empty if nil.
-func GetErrorProto(e *orcv1.ExecutionState) string {
-	if e == nil || e.Error == nil {
-		return ""
-	}
-	return *e.Error
 }
 
 // SetErrorProto sets the error string.
@@ -399,83 +233,6 @@ func SetErrorProto(e *orcv1.ExecutionState, errMsg string) {
 	} else {
 		e.Error = &errMsg
 	}
-}
-
-// GetJSONLPathProto returns the JSONL path, or empty if nil.
-func GetJSONLPathProto(e *orcv1.ExecutionState) string {
-	if e == nil || e.JsonlPath == nil {
-		return ""
-	}
-	return *e.JsonlPath
-}
-
-// SetJSONLPathProto sets the JSONL path.
-func SetJSONLPathProto(e *orcv1.ExecutionState, path string) {
-	if e == nil {
-		return
-	}
-	if path == "" {
-		e.JsonlPath = nil
-	} else {
-		e.JsonlPath = &path
-	}
-}
-
-// EffectiveInputTokensProto returns the total input context size including cached tokens.
-func EffectiveInputTokensProto(t *orcv1.TokenUsage) int32 {
-	if t == nil {
-		return 0
-	}
-	return t.InputTokens + t.CacheCreationInputTokens + t.CacheReadInputTokens
-}
-
-// EffectiveTotalTokensProto returns the total tokens including cached inputs.
-func EffectiveTotalTokensProto(t *orcv1.TokenUsage) int32 {
-	if t == nil {
-		return 0
-	}
-	return EffectiveInputTokensProto(t) + t.OutputTokens
-}
-
-// GetPhaseStatusProto returns the status of a phase, or PENDING if not found.
-func GetPhaseStatusProto(e *orcv1.ExecutionState, phaseID string) orcv1.PhaseStatus {
-	if e == nil || e.Phases == nil || e.Phases[phaseID] == nil {
-		return orcv1.PhaseStatus_PHASE_STATUS_PENDING
-	}
-	return e.Phases[phaseID].Status
-}
-
-// GetPhaseIterationsProto returns the number of iterations for a phase.
-func GetPhaseIterationsProto(e *orcv1.ExecutionState, phaseID string) int32 {
-	if e == nil || e.Phases == nil || e.Phases[phaseID] == nil {
-		return 0
-	}
-	return e.Phases[phaseID].Iterations
-}
-
-// AddArtifactProto adds an artifact to the specified phase.
-func AddArtifactProto(e *orcv1.ExecutionState, phaseID, artifact string) {
-	if e == nil || artifact == "" {
-		return
-	}
-	EnsurePhaseProto(e, phaseID)
-	e.Phases[phaseID].Artifacts = append(e.Phases[phaseID].Artifacts, artifact)
-}
-
-// GetPhaseArtifactsProto returns the artifacts for a phase.
-func GetPhaseArtifactsProto(e *orcv1.ExecutionState, phaseID string) []string {
-	if e == nil || e.Phases == nil || e.Phases[phaseID] == nil {
-		return nil
-	}
-	return e.Phases[phaseID].Artifacts
-}
-
-// GetPhaseCommitSHAProto returns the commit SHA for a phase.
-func GetPhaseCommitSHAProto(e *orcv1.ExecutionState, phaseID string) string {
-	if e == nil || e.Phases == nil || e.Phases[phaseID] == nil || e.Phases[phaseID].CommitSha == nil {
-		return ""
-	}
-	return *e.Phases[phaseID].CommitSha
 }
 
 // SetPhaseCommitSHAProto sets the commit SHA for a phase.

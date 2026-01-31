@@ -39,16 +39,6 @@ func InitProtoExecutionState() *orcv1.ExecutionState {
 	}
 }
 
-// IsTerminalProto returns true if the task is in a terminal state.
-func IsTerminalProto(t *orcv1.Task) bool {
-	if t == nil {
-		return false
-	}
-	return t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED ||
-		t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED ||
-		t.Status == orcv1.TaskStatus_TASK_STATUS_RESOLVED
-}
-
 // CanRunProto returns true if the task can be executed.
 func CanRunProto(t *orcv1.Task) bool {
 	if t == nil {
@@ -101,25 +91,6 @@ func ElapsedProto(t *orcv1.Task) time.Duration {
 		return 0
 	}
 	return time.Since(startTime)
-}
-
-// IsBacklogProto returns true if the task is in the backlog queue.
-func IsBacklogProto(t *orcv1.Task) bool {
-	return GetQueueProto(t) == orcv1.TaskQueue_TASK_QUEUE_BACKLOG
-}
-
-// MoveToBacklogProto moves the task to the backlog queue.
-func MoveToBacklogProto(t *orcv1.Task) {
-	if t != nil {
-		t.Queue = orcv1.TaskQueue_TASK_QUEUE_BACKLOG
-	}
-}
-
-// MoveToActiveProto moves the task to the active queue.
-func MoveToActiveProto(t *orcv1.Task) {
-	if t != nil {
-		t.Queue = orcv1.TaskQueue_TASK_QUEUE_ACTIVE
-	}
 }
 
 // SetInitiativeProto links the task to an initiative.
@@ -208,24 +179,6 @@ func SetMergedInfoProto(t *orcv1.Task, prURL, targetBranch string) {
 	t.Pr.MergedAt = timestamppb.Now()
 	t.Pr.TargetBranch = &targetBranch
 	t.Pr.Status = orcv1.PRStatus_PR_STATUS_MERGED
-}
-
-// UpdatePRStatusProto updates the PR status fields from fetched data.
-func UpdatePRStatusProto(t *orcv1.Task, status orcv1.PRStatus, checksStatus string, mergeable bool, reviewCount, approvalCount int) {
-	if t == nil {
-		return
-	}
-	if t.Pr == nil {
-		t.Pr = &orcv1.PRInfo{}
-	}
-	t.Pr.Status = status
-	if checksStatus != "" {
-		t.Pr.ChecksStatus = &checksStatus
-	}
-	t.Pr.Mergeable = mergeable
-	t.Pr.ReviewCount = int32(reviewCount)
-	t.Pr.ApprovalCount = int32(approvalCount)
-	t.Pr.LastCheckedAt = timestamppb.Now()
 }
 
 // SetTestingRequirementsProto configures testing requirements based on project and task context.
@@ -392,24 +345,6 @@ func ComputeDependencyStatusProto(t *orcv1.Task) orcv1.DependencyStatus {
 	return orcv1.DependencyStatus_DEPENDENCY_STATUS_READY
 }
 
-// HasUnmetDependenciesProto returns true if any task in BlockedBy is not completed.
-func HasUnmetDependenciesProto(t *orcv1.Task, tasks map[string]*orcv1.Task) bool {
-	if t == nil {
-		return false
-	}
-	for _, blockerID := range t.BlockedBy {
-		blocker, exists := tasks[blockerID]
-		if !exists {
-			// Missing task is treated as unmet dependency
-			return true
-		}
-		if !IsDoneProto(blocker.Status) {
-			return true
-		}
-	}
-	return false
-}
-
 // GetUnmetDependenciesProto returns the IDs of tasks that block this one and aren't completed.
 func GetUnmetDependenciesProto(t *orcv1.Task, tasks map[string]*orcv1.Task) []string {
 	if t == nil {
@@ -502,35 +437,6 @@ func RecordManualInterventionProto(t *orcv1.Task, reason string) {
 	}
 	t.Quality.ManualIntervention = true
 	t.Quality.ManualInterventionReason = &reason
-}
-
-// GetPhaseRetriesProto returns the retry count for a specific phase, or 0 if not tracked.
-func GetPhaseRetriesProto(t *orcv1.Task, phase string) int {
-	if t == nil || t.Quality == nil || t.Quality.PhaseRetries == nil {
-		return 0
-	}
-	return int(t.Quality.PhaseRetries[phase])
-}
-
-// GetTotalRetriesProto returns the total retry count across all phases.
-func GetTotalRetriesProto(t *orcv1.Task) int {
-	if t == nil || t.Quality == nil {
-		return 0
-	}
-	return int(t.Quality.TotalRetries)
-}
-
-// GetReviewRejectionsProto returns the review rejection count.
-func GetReviewRejectionsProto(t *orcv1.Task) int {
-	if t == nil || t.Quality == nil {
-		return 0
-	}
-	return int(t.Quality.ReviewRejections)
-}
-
-// HadManualInterventionProto returns true if manual intervention was required.
-func HadManualInterventionProto(t *orcv1.Task) bool {
-	return t != nil && t.Quality != nil && t.Quality.ManualIntervention
 }
 
 // GetDescriptionProto returns the task description, or empty string if nil.
@@ -647,12 +553,6 @@ func SetPRLabelsProto(t *orcv1.Task, labels []string) {
 	t.PrLabelsSet = true
 }
 
-// ClearPRLabelsProto clears PR label overrides (reverts to project default).
-func ClearPRLabelsProto(t *orcv1.Task) {
-	t.PrLabels = nil
-	t.PrLabelsSet = false
-}
-
 // GetPRReviewersProto returns PR reviewer overrides. Check PrReviewersSet to determine if set.
 func GetPRReviewersProto(t *orcv1.Task) []string {
 	return t.PrReviewers
@@ -662,12 +562,6 @@ func GetPRReviewersProto(t *orcv1.Task) []string {
 func SetPRReviewersProto(t *orcv1.Task, reviewers []string) {
 	t.PrReviewers = reviewers
 	t.PrReviewersSet = true
-}
-
-// ClearPRReviewersProto clears PR reviewer overrides (reverts to project default).
-func ClearPRReviewersProto(t *orcv1.Task) {
-	t.PrReviewers = nil
-	t.PrReviewersSet = false
 }
 
 // MarkStartedProto marks the task as started with the current timestamp.
@@ -690,17 +584,6 @@ func MarkCompletedProto(t *orcv1.Task) {
 	t.CompletedAt = now
 	t.UpdatedAt = now
 	t.Status = orcv1.TaskStatus_TASK_STATUS_COMPLETED
-}
-
-// MarkFailedProto marks the task as failed with the current timestamp.
-func MarkFailedProto(t *orcv1.Task) {
-	if t == nil {
-		return
-	}
-	now := timestamppb.Now()
-	t.CompletedAt = now
-	t.UpdatedAt = now
-	t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
 }
 
 // UpdateTimestampProto sets the UpdatedAt field to the current time.
@@ -768,16 +651,6 @@ func CheckOrphanedProto(t *orcv1.Task) (bool, string) {
 
 	// PID is alive - task is NOT orphaned, regardless of heartbeat
 	return false, ""
-}
-
-// InterruptPhaseOnTaskProto marks a phase as interrupted on a task's execution state.
-// This is a convenience wrapper around the ExecutionState-level function.
-func InterruptPhaseOnTaskProto(t *orcv1.Task, phaseID string) {
-	if t == nil {
-		return
-	}
-	EnsureExecutionProto(t)
-	InterruptPhaseProto(t.Execution, phaseID)
 }
 
 // GetTotalTokensProto returns the total token count from the task's execution state.

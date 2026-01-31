@@ -8,53 +8,6 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
-// SavePhaseContentToDatabase extracts content from JSON output and saves to phase_outputs table.
-// For content-producing phases (design, research, docs, tdd_write, breakdown), agents output
-// structured JSON with a "content" field containing the full phase output.
-//
-// NOTE: This function requires a workflow run ID. For direct execution from workflow_phase.go,
-// use backend.SavePhaseOutput() directly which is the preferred approach.
-// Returns true if content was saved, false if the phase doesn't produce content or no content found.
-func SavePhaseContentToDatabase(backend storage.Backend, runID, taskID, phaseID, output string) (bool, error) {
-	// Skip for spec phases - use SaveSpecToDatabase instead
-	if phaseID == "spec" || phaseID == "tiny_spec" {
-		return false, nil
-	}
-
-	// Only content-producing phases need content extraction
-	if !contentProducingPhases[phaseID] {
-		return false, nil
-	}
-
-	// Extract content from JSON output
-	content := ExtractContentFromOutput(output)
-	if content == "" {
-		return false, nil // No content in output
-	}
-
-	content = strings.TrimSpace(content)
-
-	// Determine output variable name
-	outputVarName := inferOutputVarName(phaseID)
-
-	// Save to phase_outputs table
-	phaseOutput := &storage.PhaseOutputInfo{
-		WorkflowRunID:   runID,
-		PhaseTemplateID: phaseID,
-		TaskID:          &taskID,
-		Content:         content,
-		OutputVarName:   outputVarName,
-		ArtifactType:    phaseID,
-		Source:          "executor",
-	}
-	if err := backend.SavePhaseOutput(phaseOutput); err != nil {
-		return false, fmt.Errorf("save phase content to database: %w", err)
-	}
-
-	return true, nil
-}
-
-
 // inferOutputVarName returns the standard output variable name for a phase ID.
 func inferOutputVarName(phaseID string) string {
 	switch phaseID {

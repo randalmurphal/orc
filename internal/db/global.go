@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/randalmurphal/orc/internal/db/driver"
 )
 
 // ErrBudgetNotFound is returned when no budget exists for a project.
@@ -36,22 +34,6 @@ func OpenGlobal() (*GlobalDB, error) {
 // This is useful for testing with isolated databases.
 func OpenGlobalAt(path string) (*GlobalDB, error) {
 	db, err := Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Migrate("global"); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("migrate global db: %w", err)
-	}
-
-	return &GlobalDB{DB: db}, nil
-}
-
-// OpenGlobalWithDialect opens the global database with a specific dialect.
-// For SQLite, dsn is the file path. For PostgreSQL, dsn is the connection string.
-func OpenGlobalWithDialect(dsn string, dialect driver.Dialect) (*GlobalDB, error) {
-	db, err := OpenWithDialect(dsn, dialect)
 	if err != nil {
 		return nil, err
 	}

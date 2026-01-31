@@ -124,13 +124,3 @@ func readTeamServerURL(path string) string {
 	return cfg.Team.ServerURL
 }
 
-// DetectModeForCwd detects the mode for the current working directory.
-// Uses FindProjectRoot for worktree awareness.
-func DetectModeForCwd() Mode {
-	root, err := FindProjectRoot()
-	if err != nil {
-		// Not in a project - default to solo
-		return ModeSolo
-	}
-	return DetectMode(root)
-}

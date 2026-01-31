@@ -452,33 +452,6 @@ func (c *InitiativeCompleter) approvePR(ctx context.Context, prNumber int, comme
 	return c.provider.ApprovePR(ctx, prNumber, comment)
 }
 
-// ManualCompleteInitiative triggers completion for an initiative that's in pending state.
-// This is used for safe/strict profiles where auto-merge is disabled.
-func (c *InitiativeCompleter) ManualCompleteInitiative(ctx context.Context, initiativeID string) (*InitiativeCompletionResult, error) {
-	// Load the initiative
-	init, err := c.backend.LoadInitiative(initiativeID)
-	if err != nil {
-		return nil, fmt.Errorf("load initiative %s: %w", initiativeID, err)
-	}
-	if init == nil {
-		return nil, fmt.Errorf("initiative %s not found", initiativeID)
-	}
-
-	// Check if initiative has a branch base configured
-	if !init.HasBranchBase() {
-		return nil, fmt.Errorf("initiative %s has no branch base configured", initiativeID)
-	}
-
-	// Verify all tasks are complete
-	taskLoader := c.createTaskLoader()
-	if !init.AllTasksCompleteWithLoader(taskLoader) {
-		return nil, fmt.Errorf("initiative %s has incomplete tasks", initiativeID)
-	}
-
-	// Force auto-merge flow
-	return c.autoMergeInitiative(ctx, init)
-}
-
 // CheckAndCompleteInitiativeNoBranch marks an initiative as completed if:
 // 1. The initiative has no BranchBase configured
 // 2. All tasks in the initiative are complete
