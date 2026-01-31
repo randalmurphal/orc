@@ -44,13 +44,6 @@ Review the implementation artifact's "Impact Analysis Results" section:
 - [ ] No callers/importers were missed
 - [ ] Changes propagated to all necessary files
 
-```bash
-# Verify no broken references
-go build ./... 2>&1 | grep -i "undefined\|cannot find"
-# Or for TypeScript
-bun run typecheck 2>&1 | grep -i "cannot find\|not found"
-```
-
 ### 2. Preservation Check (CRITICAL)
 
 **Was anything removed that shouldn't have been?**
@@ -59,12 +52,6 @@ Cross-reference spec's "Preservation Requirements" table:
 - [ ] All preserved behaviors still work
 - [ ] No features accidentally removed
 - [ ] Run preservation verification commands from spec
-
-```bash
-# Check diff for removed functionality
-git diff origin/{{TARGET_BRANCH}}...HEAD --stat
-git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
-```
 
 **Red flags:**
 - Large deletions without corresponding additions
@@ -101,6 +88,8 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
 - Code that's structurally correct but behaviorally wrong
 - Tests that verify existence ("file was created") but not behavior ("file does X when run")
 
+If success criteria are vague or untestable, this is a blocking finding — the spec phase failed and implementation cannot be properly reviewed.
+
 ### 6. Integration Completeness
 
 **Are new components actually wired into the system?**
@@ -118,6 +107,17 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
 
 Dead code, unwired integration, or incomplete bug fixes are **high-severity** findings.
 
+### 7. Over-Engineering Check
+
+Did the implementation add functionality, abstractions, or error handling beyond what the spec requested?
+- Unrequested helper functions or utility classes
+- Interfaces with only one implementation
+- Error handling for impossible scenarios
+- Configurability that wasn't asked for
+- Changes to files not mentioned in the spec ("while I'm here" changes)
+
+If you find over-engineering, flag it. The spec defines what should be built — nothing more.
+
 ### What NOT to Review
 - Style preferences, naming suggestions
 - "Nice to have" improvements
@@ -126,18 +126,8 @@ Dead code, unwired integration, or incomplete bug fixes are **high-severity** fi
 
 ## Process
 
-1. Run linting:
-   ```bash
-   # Go
-   go vet ./... && golangci-lint run ./...
-   # Node/TypeScript
-   bun run typecheck && bun run lint
-   ```
-
-2. Check changed files:
-   ```bash
-   git diff --name-only origin/{{TARGET_BRANCH}}...HEAD
-   ```
+1. Run linting and check changed files
+2. Review each changed file against the spec
 
 ---
 
