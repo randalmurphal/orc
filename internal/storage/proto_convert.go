@@ -126,6 +126,10 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 		PrReviewers:    prReviewersJSON,
 		PrLabelsSet:    t.PrLabelsSet,
 		PrReviewersSet: t.PrReviewersSet,
+		// PR tracking fields
+		PrURL:    task.GetPRURLProto(t),
+		PrNumber: task.GetPRNumberProto(t),
+		PrStatus: task.PRStatusFromProto(task.GetPRStatusProto(t)),
 	}
 }
 
@@ -194,7 +198,7 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		_ = json.Unmarshal([]byte(dbTask.PrReviewers), &prReviewers)
 	}
 
-	return &orcv1.Task{
+	t := &orcv1.Task{
 		Id:               dbTask.ID,
 		Title:            dbTask.Title,
 		Description:      stringToPtr(dbTask.Description),
@@ -227,6 +231,16 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		PrLabelsSet:    dbTask.PrLabelsSet,
 		PrReviewersSet: dbTask.PrReviewersSet,
 	}
+
+	// Restore PR tracking info
+	if dbTask.PrURL != "" {
+		task.SetPRInfoProto(t, dbTask.PrURL, dbTask.PrNumber)
+		if dbTask.PrStatus != "" {
+			t.Pr.Status = task.PRStatusToProto(dbTask.PrStatus)
+		}
+	}
+
+	return t
 }
 
 // ============================================================================
