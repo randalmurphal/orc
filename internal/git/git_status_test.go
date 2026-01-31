@@ -606,7 +606,7 @@ func TestIsRebaseInProgress_NoRebase(t *testing.T) {
 // TestIsRebaseInProgress_InWorktree tests IsRebaseInProgress in a worktree context
 func TestIsRebaseInProgress_InWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-REBASE-CHECK", baseBranch)
@@ -644,7 +644,7 @@ func TestIsMergeInProgress_NoMerge(t *testing.T) {
 // TestIsMergeInProgress_InWorktree tests IsMergeInProgress in a worktree context
 func TestIsMergeInProgress_InWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-MERGE-CHECK", baseBranch)
@@ -725,7 +725,7 @@ func TestDiscardChanges(t *testing.T) {
 // TestDiscardChanges_InWorktree tests DiscardChanges in a worktree context
 func TestDiscardChanges_InWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-DISCARD", baseBranch)
