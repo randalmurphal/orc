@@ -67,6 +67,12 @@ const secondaryNavItems: NavItemConfig[] = [
 		description: 'Agent management',
 	},
 	{
+		icon: 'terminal',
+		label: 'Environ',
+		path: '/environment',
+		description: 'Environment: hooks, skills, and configuration',
+	},
+	{
 		icon: 'settings',
 		label: 'Settings',
 		path: '/settings',

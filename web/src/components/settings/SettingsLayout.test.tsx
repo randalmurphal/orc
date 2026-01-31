@@ -80,6 +80,7 @@ describe('SettingsLayout', () => {
 
 			expect(screen.getByText('CLAUDE CODE')).toBeInTheDocument();
 			expect(screen.getByText('ORC')).toBeInTheDocument();
+			expect(screen.getByText('ENVIRONMENT')).toBeInTheDocument();
 			expect(screen.getByText('ACCOUNT')).toBeInTheDocument();
 		});
 
@@ -89,7 +90,6 @@ describe('SettingsLayout', () => {
 			// CLAUDE CODE section
 			expect(screen.getByText('Slash Commands')).toBeInTheDocument();
 			expect(screen.getByText('CLAUDE.md')).toBeInTheDocument();
-			expect(screen.getByText('MCP Servers')).toBeInTheDocument();
 			expect(screen.getByText('Permissions')).toBeInTheDocument();
 
 			// ORC section
@@ -97,6 +97,15 @@ describe('SettingsLayout', () => {
 			expect(screen.getByText('Billing & Usage')).toBeInTheDocument();
 			expect(screen.getByText('Import / Export')).toBeInTheDocument();
 			expect(screen.getByText('Constitution')).toBeInTheDocument();
+
+			// ENVIRONMENT section
+			expect(screen.getByText('Hooks')).toBeInTheDocument();
+			expect(screen.getByText('Skills')).toBeInTheDocument();
+			expect(screen.getByText('Tools')).toBeInTheDocument();
+			expect(screen.getByText('Config')).toBeInTheDocument();
+
+			// MCP Servers appears in both CLAUDE CODE and ENVIRONMENT
+			expect(screen.getAllByText('MCP Servers')).toHaveLength(2);
 
 			// ACCOUNT section
 			expect(screen.getByText('Profile')).toBeInTheDocument();
@@ -165,8 +174,8 @@ describe('SettingsLayout', () => {
 			let activeItem = container.querySelector('.settings-nav-item--active');
 			expect(within(activeItem as HTMLElement).getByText('Slash Commands')).toBeInTheDocument();
 
-			// Click MCP Servers
-			fireEvent.click(screen.getByText('MCP Servers'));
+			// Click MCP Servers (first one is in CLAUDE CODE section, links to /settings/mcp)
+			fireEvent.click(screen.getAllByText('MCP Servers')[0]);
 
 			// MCP should now be active
 			activeItem = container.querySelector('.settings-nav-item--active');
@@ -216,7 +225,8 @@ describe('SettingsLayout', () => {
 		it('Enter key on nav item triggers navigation', () => {
 			renderWithRouter('/settings/commands');
 
-			const mcpLink = screen.getByText('MCP Servers');
+			// First MCP Servers link is in CLAUDE CODE section, links to /settings/mcp
+			const mcpLink = screen.getAllByText('MCP Servers')[0];
 			mcpLink.focus();
 			fireEvent.keyDown(mcpLink, { key: 'Enter' });
 

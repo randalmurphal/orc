@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { workflowClient, configClient } from '@/lib/client';
+import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import {
 	GateType,
 	VariableSourceType,
@@ -12,9 +12,14 @@ import type {
 	WorkflowWithDetails,
 	WorkflowVariable,
 } from '@/gen/orc/v1/workflow_pb';
-import type { Agent } from '@/gen/orc/v1/config_pb';
-import { mergeClaudeConfigs } from '@/lib/claudeConfigUtils';
+import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
+import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
+import { mergeClaudeConfigs, parseClaudeConfig, serializeClaudeConfig } from '@/lib/claudeConfigUtils';
+import type { ClaudeConfigState } from '@/lib/claudeConfigUtils';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
+import { LibraryPicker } from '@/components/core/LibraryPicker';
+import { TagInput } from '@/components/core/TagInput';
+import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import { PromptEditor } from './PromptEditor';
 import { VariableModal } from '../VariableModal';
 import './PhaseInspector.css';
@@ -696,8 +701,12 @@ function SettingsTab({
 				</span>
 			</div>
 
-			{/* Claude Config Summary (read-only) */}
-			<ClaudeConfigSummary phase={phase} />
+			{/* Claude Config Override (editable) */}
+			<ClaudeConfigEditor
+				phase={phase}
+				disabled={readOnly}
+				onSave={(json) => updatePhase({ claudeConfigOverride: json || undefined })}
+			/>
 
 			{/* Danger Zone - Remove Phase */}
 			{!readOnly && onDeletePhase && (
@@ -715,87 +724,271 @@ function SettingsTab({
 	);
 }
 
-// ─── Claude Config Summary (read-only in Settings tab) ─────────────────────
+// ─── Claude Config Editor (editable in Settings tab) ────────────────────────
 
-interface ClaudeConfigSummaryProps {
+interface ClaudeConfigEditorProps {
 	phase: WorkflowPhase;
+	disabled: boolean;
+	onSave: (json: string) => void;
 }
 
-function ClaudeConfigSummary({ phase }: ClaudeConfigSummaryProps) {
-	const template = phase.template;
-	const templateConfigStr = (template as Record<string, unknown> | undefined)?.claudeConfig as string | undefined;
-	const overrideConfigStr = phase.claudeConfigOverride;
+function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps) {
+	// Structured override fields
+	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
+	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+	const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>([]);
+	const [allowedTools, setAllowedTools] = useState<string[]>([]);
+	const [disallowedTools, setDisallowedTools] = useState<string[]>([]);
+	const [envVars, setEnvVars] = useState<Record<string, string>>({});
+	const [extraFields, setExtraFields] = useState<Record<string, unknown>>({});
 
-	const merged = useMemo(
-		() => mergeClaudeConfigs(templateConfigStr, overrideConfigStr),
-		[templateConfigStr, overrideConfigStr],
+	// JSON override textarea
+	const [jsonText, setJsonText] = useState('');
+	const [jsonError, setJsonError] = useState('');
+	const jsonActiveRef = useRef(false);
+
+	// Library data
+	const [hooks, setHooks] = useState<Hook[]>([]);
+	const [skills, setSkills] = useState<Skill[]>([]);
+	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
+	const [hooksLoading, setHooksLoading] = useState(true);
+	const [skillsLoading, setSkillsLoading] = useState(true);
+	const [mcpLoading, setMcpLoading] = useState(true);
+	const [hooksError, setHooksError] = useState('');
+	const [skillsError, setSkillsError] = useState('');
+	const [mcpError, setMcpError] = useState('');
+
+	// Fetch library data on mount
+	useEffect(() => {
+		let mounted = true;
+		configClient.listHooks({}).then((r) => {
+			if (mounted) { setHooks(r.hooks); setHooksLoading(false); }
+		}).catch(() => {
+			if (mounted) { setHooksError('Failed to load hooks'); setHooksLoading(false); }
+		});
+		configClient.listSkills({}).then((r) => {
+			if (mounted) { setSkills(r.skills); setSkillsLoading(false); }
+		}).catch(() => {
+			if (mounted) { setSkillsError('Failed to load skills'); setSkillsLoading(false); }
+		});
+		mcpClient.listMCPServers({}).then((r) => {
+			if (mounted) { setMcpServers(r.servers); setMcpLoading(false); }
+		}).catch(() => {
+			if (mounted) { setMcpError('Failed to load MCP servers'); setMcpLoading(false); }
+		});
+		return () => { mounted = false; };
+	}, []);
+
+	// Parse override when phase changes
+	useEffect(() => {
+		const config = parseClaudeConfig(phase.claudeConfigOverride);
+		setSelectedHooks(config.hooks);
+		setSelectedSkills(config.skillRefs);
+		setSelectedMCPServers(config.mcpServers);
+		setAllowedTools(config.allowedTools);
+		setDisallowedTools(config.disallowedTools);
+		setEnvVars(config.env);
+		setExtraFields(config.extra);
+		jsonActiveRef.current = false;
+	}, [phase.id, phase.claudeConfigOverride]);
+
+	// Sync structured fields -> JSON text (when not editing JSON directly)
+	useEffect(() => {
+		if (!jsonActiveRef.current) {
+			setJsonText(serializeClaudeConfig({
+				hooks: selectedHooks,
+				skillRefs: selectedSkills,
+				mcpServers: selectedMCPServers,
+				allowedTools,
+				disallowedTools,
+				env: envVars,
+				extra: extraFields,
+			}));
+		}
+	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields]);
+
+	// Save helper - serializes all current fields with an override for the changed field
+	const saveConfig = useCallback(
+		(overrides: Partial<ClaudeConfigState>) => {
+			const json = serializeClaudeConfig({
+				hooks: overrides.hooks ?? selectedHooks,
+				skillRefs: overrides.skillRefs ?? selectedSkills,
+				mcpServers: overrides.mcpServers ?? selectedMCPServers,
+				allowedTools: overrides.allowedTools ?? allowedTools,
+				disallowedTools: overrides.disallowedTools ?? disallowedTools,
+				env: overrides.env ?? envVars,
+				extra: overrides.extra ?? extraFields,
+			});
+			onSave(json);
+		},
+		[selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields, onSave],
 	);
 
-	const hasAnyConfig =
-		merged.hooks.length > 0 ||
-		merged.skillRefs.length > 0 ||
-		merged.mcpServers.length > 0 ||
-		merged.allowedTools.length > 0 ||
-		merged.disallowedTools.length > 0 ||
-		Object.keys(merged.env).length > 0;
+	// Handle JSON override blur
+	const handleJsonBlur = useCallback(() => {
+		try {
+			const parsed = JSON.parse(jsonText);
+			if (typeof parsed !== 'object' || parsed === null) {
+				setJsonError('Invalid JSON');
+				return;
+			}
+			const config = parseClaudeConfig(jsonText);
+			setSelectedHooks(config.hooks);
+			setSelectedSkills(config.skillRefs);
+			setSelectedMCPServers(config.mcpServers);
+			setAllowedTools(config.allowedTools);
+			setDisallowedTools(config.disallowedTools);
+			setEnvVars(config.env);
+			setExtraFields(config.extra);
+			setJsonError('');
+			jsonActiveRef.current = false;
+			onSave(jsonText);
+		} catch {
+			setJsonError('Invalid JSON');
+		}
+	}, [jsonText, onSave]);
 
-	if (!hasAnyConfig) return null;
+	// Merged config for reference display
+	const template = phase.template;
+	const templateConfigStr = (template as Record<string, unknown> | undefined)?.claudeConfig as string | undefined;
+	const merged = useMemo(
+		() => mergeClaudeConfigs(templateConfigStr, phase.claudeConfigOverride),
+		[templateConfigStr, phase.claudeConfigOverride],
+	);
+
+	const inheritedCount =
+		(templateConfigStr ? parseClaudeConfig(templateConfigStr) : null);
 
 	return (
 		<div className="claude-config-summary">
 			<h4 className="claude-config-summary__title">Claude Config</h4>
 
-			{merged.hooks.length > 0 && (
-				<CollapsibleSettingsSection title="Hooks" badgeCount={merged.hooks.length} defaultExpanded>
-					{merged.hooks.map((hook) => (
-						<div key={hook} className="claude-config-summary__item">{hook}</div>
-					))}
-				</CollapsibleSettingsSection>
+			{inheritedCount && (
+				(inheritedCount.hooks.length > 0 ||
+				 inheritedCount.skillRefs.length > 0 ||
+				 inheritedCount.mcpServers.length > 0 ||
+				 inheritedCount.allowedTools.length > 0 ||
+				 inheritedCount.disallowedTools.length > 0 ||
+				 Object.keys(inheritedCount.env).length > 0) && (
+					<div className="phase-inspector-setting-hint" style={{ marginBottom: '8px' }}>
+						Inherited from template: {[
+							inheritedCount.hooks.length > 0 && `${inheritedCount.hooks.length} hooks`,
+							inheritedCount.skillRefs.length > 0 && `${inheritedCount.skillRefs.length} skills`,
+							inheritedCount.mcpServers.length > 0 && `${inheritedCount.mcpServers.length} MCP servers`,
+							inheritedCount.allowedTools.length > 0 && `${inheritedCount.allowedTools.length} allowed tools`,
+							inheritedCount.disallowedTools.length > 0 && `${inheritedCount.disallowedTools.length} disallowed tools`,
+							Object.keys(inheritedCount.env).length > 0 && `${Object.keys(inheritedCount.env).length} env vars`,
+						].filter(Boolean).join(', ')}
+					</div>
+				)
 			)}
 
-			{merged.skillRefs.length > 0 && (
-				<CollapsibleSettingsSection title="Skills" badgeCount={merged.skillRefs.length} defaultExpanded>
-					{merged.skillRefs.map((skill) => (
-						<div key={skill} className="claude-config-summary__item">{skill}</div>
-					))}
-				</CollapsibleSettingsSection>
-			)}
+			<CollapsibleSettingsSection title="Hooks" badgeCount={merged.hooks.length}>
+				<LibraryPicker
+					type="hooks"
+					items={hooks}
+					selectedNames={selectedHooks}
+					onSelectionChange={(names) => {
+						setSelectedHooks(names);
+						jsonActiveRef.current = false;
+						saveConfig({ hooks: names });
+					}}
+					error={hooksError}
+					loading={hooksLoading}
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
 
-			{merged.mcpServers.length > 0 && (
-				<CollapsibleSettingsSection title="MCP Servers" badgeCount={merged.mcpServers.length} defaultExpanded>
-					{merged.mcpServers.map((server) => (
-						<div key={server} className="claude-config-summary__item">{server}</div>
-					))}
-				</CollapsibleSettingsSection>
-			)}
+			<CollapsibleSettingsSection title="MCP Servers" badgeCount={merged.mcpServers.length}>
+				<LibraryPicker
+					type="mcpServers"
+					items={mcpServers}
+					selectedNames={selectedMCPServers}
+					onSelectionChange={(names) => {
+						setSelectedMCPServers(names);
+						jsonActiveRef.current = false;
+						saveConfig({ mcpServers: names });
+					}}
+					error={mcpError}
+					loading={mcpLoading}
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
 
-			{merged.allowedTools.length > 0 && (
-				<CollapsibleSettingsSection title="Allowed Tools" badgeCount={merged.allowedTools.length} defaultExpanded>
-					{merged.allowedTools.map((tool) => (
-						<div key={tool} className="claude-config-summary__item">{tool}</div>
-					))}
-				</CollapsibleSettingsSection>
-			)}
+			<CollapsibleSettingsSection title="Skills" badgeCount={merged.skillRefs.length}>
+				<LibraryPicker
+					type="skills"
+					items={skills}
+					selectedNames={selectedSkills}
+					onSelectionChange={(names) => {
+						setSelectedSkills(names);
+						jsonActiveRef.current = false;
+						saveConfig({ skillRefs: names });
+					}}
+					error={skillsError}
+					loading={skillsLoading}
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
 
-			{merged.disallowedTools.length > 0 && (
-				<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={merged.disallowedTools.length} defaultExpanded>
-					{merged.disallowedTools.map((tool) => (
-						<div key={tool} className="claude-config-summary__item">{tool}</div>
-					))}
-				</CollapsibleSettingsSection>
-			)}
+			<CollapsibleSettingsSection title="Allowed Tools" badgeCount={merged.allowedTools.length}>
+				<TagInput
+					tags={allowedTools}
+					onChange={(tags) => {
+						setAllowedTools(tags);
+						jsonActiveRef.current = false;
+						saveConfig({ allowedTools: tags });
+					}}
+					placeholder="Add tool name..."
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
 
-			{Object.keys(merged.env).length > 0 && (
-				<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(merged.env).length} defaultExpanded>
-					{Object.entries(merged.env).map(([key, value]) => (
-						<div key={key} className="claude-config-summary__env-item">
-							<span className="claude-config-summary__env-key">{key}</span>
-							<span className="claude-config-summary__env-sep">=</span>
-							<span className="claude-config-summary__env-value">{value}</span>
-						</div>
-					))}
-				</CollapsibleSettingsSection>
-			)}
+			<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={merged.disallowedTools.length}>
+				<TagInput
+					tags={disallowedTools}
+					onChange={(tags) => {
+						setDisallowedTools(tags);
+						jsonActiveRef.current = false;
+						saveConfig({ disallowedTools: tags });
+					}}
+					placeholder="Add tool name..."
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
+
+			<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(merged.env).length}>
+				<KeyValueEditor
+					entries={envVars}
+					onChange={(entries) => {
+						setEnvVars(entries);
+						jsonActiveRef.current = false;
+						saveConfig({ env: entries });
+					}}
+					disabled={disabled}
+				/>
+			</CollapsibleSettingsSection>
+
+			<CollapsibleSettingsSection title="JSON Override" badgeCount={0}>
+				<div className="claude-config-json-override">
+					<textarea
+						className={`claude-config-json-textarea ${jsonError ? 'claude-config-json-textarea--error' : ''}`}
+						value={jsonText}
+						onChange={(e) => {
+							setJsonText(e.target.value);
+							jsonActiveRef.current = true;
+							setJsonError('');
+						}}
+						onBlur={handleJsonBlur}
+						rows={6}
+						disabled={disabled}
+						aria-label="Claude config JSON override"
+					/>
+					{jsonError && (
+						<span className="claude-config-json-error">{jsonError}</span>
+					)}
+				</div>
+			</CollapsibleSettingsSection>
 		</div>
 	);
 }

@@ -44,6 +44,11 @@ vi.mock('@/lib/client', () => ({
 	},
 	configClient: {
 		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+		listHooks: vi.fn().mockResolvedValue({ hooks: [] }),
+		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
 	},
 }));
 
