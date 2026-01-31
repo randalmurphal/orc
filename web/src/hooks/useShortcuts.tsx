@@ -136,11 +136,11 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions = {}) {
 			// Legacy navigation (redirect to new routes)
 			onGoDashboard: () => navigate('/stats'),
 			onGoTasks: () => navigate('/board'),
-			onGoEnvironment: () => navigate('/settings'),
+			onGoEnvironment: () => navigate('/environment'),
 			onGoPreferences: () => navigate('/preferences'),
-			onGoPrompts: () => navigate('/settings/prompts/system'),
-			onGoHooks: () => navigate('/settings/automation/hooks'),
-			onGoSkills: () => navigate('/settings/advanced/skills'),
+			onGoPrompts: () => navigate('/environment/prompts'),
+			onGoHooks: () => navigate('/environment/hooks'),
+			onGoSkills: () => navigate('/environment/skills'),
 		});
 
 		return cleanup;
