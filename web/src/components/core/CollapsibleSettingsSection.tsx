@@ -13,6 +13,8 @@ export interface CollapsibleSettingSectionProps {
 	title: string;
 	/** Number of active items (shown as badge) */
 	badgeCount: number;
+	/** Custom badge text (overrides badgeCount display, always shown) */
+	badgeText?: string;
 	/** Section content (shown when expanded) */
 	children: ReactNode;
 	/** Whether the section starts expanded */
@@ -24,6 +26,7 @@ export interface CollapsibleSettingSectionProps {
 export function CollapsibleSettingsSection({
 	title,
 	badgeCount,
+	badgeText,
 	children,
 	defaultExpanded = false,
 	disabled = false,
@@ -37,7 +40,10 @@ export function CollapsibleSettingsSection({
 	}, [disabled]);
 
 	return (
-		<div className={`settings-section ${disabled ? 'settings-section--disabled' : ''}`}>
+		<div
+			className={`settings-section ${disabled ? 'settings-section--disabled' : ''}`}
+			data-testid="collapsible-section"
+		>
 			<button
 				type="button"
 				className="settings-section__header"
@@ -49,9 +55,11 @@ export function CollapsibleSettingsSection({
 					▸
 				</span>
 				<span className="settings-section__title">{title}</span>
-				{badgeCount > 0 && (
+				{!expanded && (badgeText !== undefined ? (
+					<span className="settings-section__badge">{badgeText}</span>
+				) : badgeCount > 0 ? (
 					<span className="settings-section__badge">{badgeCount}</span>
-				)}
+				) : null)}
 			</button>
 			{expanded && (
 				<div className="settings-section__body">

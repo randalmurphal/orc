@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -13,6 +13,8 @@ import type {
 	WorkflowVariable,
 } from '@/gen/orc/v1/workflow_pb';
 import type { Agent } from '@/gen/orc/v1/config_pb';
+import { mergeClaudeConfigs } from '@/lib/claudeConfigUtils';
+import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { PromptEditor } from './PromptEditor';
 import { VariableModal } from '../VariableModal';
 import './PhaseInspector.css';
@@ -694,6 +696,9 @@ function SettingsTab({
 				</span>
 			</div>
 
+			{/* Claude Config Summary (read-only) */}
+			<ClaudeConfigSummary phase={phase} />
+
 			{/* Danger Zone - Remove Phase */}
 			{!readOnly && onDeletePhase && (
 				<div className="phase-inspector-danger-zone">
@@ -705,6 +710,91 @@ function SettingsTab({
 						Remove Phase
 					</button>
 				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Claude Config Summary (read-only in Settings tab) ─────────────────────
+
+interface ClaudeConfigSummaryProps {
+	phase: WorkflowPhase;
+}
+
+function ClaudeConfigSummary({ phase }: ClaudeConfigSummaryProps) {
+	const template = phase.template;
+	const templateConfigStr = (template as Record<string, unknown> | undefined)?.claudeConfig as string | undefined;
+	const overrideConfigStr = phase.claudeConfigOverride;
+
+	const merged = useMemo(
+		() => mergeClaudeConfigs(templateConfigStr, overrideConfigStr),
+		[templateConfigStr, overrideConfigStr],
+	);
+
+	const hasAnyConfig =
+		merged.hooks.length > 0 ||
+		merged.skillRefs.length > 0 ||
+		merged.mcpServers.length > 0 ||
+		merged.allowedTools.length > 0 ||
+		merged.disallowedTools.length > 0 ||
+		Object.keys(merged.env).length > 0;
+
+	if (!hasAnyConfig) return null;
+
+	return (
+		<div className="claude-config-summary">
+			<h4 className="claude-config-summary__title">Claude Config</h4>
+
+			{merged.hooks.length > 0 && (
+				<CollapsibleSettingsSection title="Hooks" badgeCount={merged.hooks.length} defaultExpanded>
+					{merged.hooks.map((hook) => (
+						<div key={hook} className="claude-config-summary__item">{hook}</div>
+					))}
+				</CollapsibleSettingsSection>
+			)}
+
+			{merged.skillRefs.length > 0 && (
+				<CollapsibleSettingsSection title="Skills" badgeCount={merged.skillRefs.length} defaultExpanded>
+					{merged.skillRefs.map((skill) => (
+						<div key={skill} className="claude-config-summary__item">{skill}</div>
+					))}
+				</CollapsibleSettingsSection>
+			)}
+
+			{merged.mcpServers.length > 0 && (
+				<CollapsibleSettingsSection title="MCP Servers" badgeCount={merged.mcpServers.length} defaultExpanded>
+					{merged.mcpServers.map((server) => (
+						<div key={server} className="claude-config-summary__item">{server}</div>
+					))}
+				</CollapsibleSettingsSection>
+			)}
+
+			{merged.allowedTools.length > 0 && (
+				<CollapsibleSettingsSection title="Allowed Tools" badgeCount={merged.allowedTools.length} defaultExpanded>
+					{merged.allowedTools.map((tool) => (
+						<div key={tool} className="claude-config-summary__item">{tool}</div>
+					))}
+				</CollapsibleSettingsSection>
+			)}
+
+			{merged.disallowedTools.length > 0 && (
+				<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={merged.disallowedTools.length} defaultExpanded>
+					{merged.disallowedTools.map((tool) => (
+						<div key={tool} className="claude-config-summary__item">{tool}</div>
+					))}
+				</CollapsibleSettingsSection>
+			)}
+
+			{Object.keys(merged.env).length > 0 && (
+				<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(merged.env).length} defaultExpanded>
+					{Object.entries(merged.env).map(([key, value]) => (
+						<div key={key} className="claude-config-summary__env-item">
+							<span className="claude-config-summary__env-key">{key}</span>
+							<span className="claude-config-summary__env-sep">=</span>
+							<span className="claude-config-summary__env-value">{value}</span>
+						</div>
+					))}
+				</CollapsibleSettingsSection>
 			)}
 		</div>
 	);

@@ -206,3 +206,95 @@ func TestDbWorkflowPhasesToProto_IncludesNewFields(t *testing.T) {
 		t.Errorf("expected LoopConfig=%q, got %v", `{"count": 2}`, p.LoopConfig)
 	}
 }
+
+// TASK-670: Tests for claude_config_override field mapping
+
+func TestDbWorkflowPhaseToProto_ClaudeConfigOverride(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty claude_config_override", func(t *testing.T) {
+		t.Parallel()
+		phase := &db.WorkflowPhase{
+			ID:              1,
+			WorkflowID:      "wf-1",
+			PhaseTemplateID: "tmpl-1",
+			Sequence:        1,
+		}
+		proto := dbWorkflowPhaseToProto(phase)
+		if proto.ClaudeConfigOverride != nil {
+			t.Errorf("expected nil ClaudeConfigOverride, got %v", *proto.ClaudeConfigOverride)
+		}
+	})
+
+	t.Run("set claude_config_override", func(t *testing.T) {
+		t.Parallel()
+		configJSON := `{"hooks":["my-hook"],"env":{"KEY":"value"}}`
+		phase := &db.WorkflowPhase{
+			ID:                   2,
+			WorkflowID:           "wf-1",
+			PhaseTemplateID:      "tmpl-1",
+			Sequence:             1,
+			ClaudeConfigOverride: configJSON,
+		}
+		proto := dbWorkflowPhaseToProto(phase)
+		if proto.ClaudeConfigOverride == nil {
+			t.Fatal("expected ClaudeConfigOverride to be set, got nil")
+		}
+		if *proto.ClaudeConfigOverride != configJSON {
+			t.Errorf("expected ClaudeConfigOverride=%q, got %q", configJSON, *proto.ClaudeConfigOverride)
+		}
+	})
+
+	t.Run("claude_config_override round-trips with complex JSON", func(t *testing.T) {
+		t.Parallel()
+		configJSON := `{"hooks":["h1","h2"],"skill_refs":["s1"],"mcp_servers":{"mcp-1":{}},"allowed_tools":["Bash","Read"],"disallowed_tools":["Write"],"env":{"NODE_ENV":"test","DEBUG":"1"}}`
+		phase := &db.WorkflowPhase{
+			ID:                   3,
+			WorkflowID:           "wf-1",
+			PhaseTemplateID:      "tmpl-1",
+			Sequence:             1,
+			ClaudeConfigOverride: configJSON,
+		}
+		proto := dbWorkflowPhaseToProto(phase)
+		if proto.ClaudeConfigOverride == nil || *proto.ClaudeConfigOverride != configJSON {
+			t.Errorf("expected ClaudeConfigOverride=%q, got %v", configJSON, proto.ClaudeConfigOverride)
+		}
+	})
+}
+
+func TestDbWorkflowPhasesToProto_IncludesClaudeConfigOverride(t *testing.T) {
+	t.Parallel()
+
+	configJSON := `{"hooks":["test-hook"]}`
+	phases := []*db.WorkflowPhase{
+		{
+			ID:                   1,
+			WorkflowID:           "wf-1",
+			PhaseTemplateID:      "spec",
+			Sequence:             1,
+			ClaudeConfigOverride: configJSON,
+		},
+		{
+			ID:              2,
+			WorkflowID:      "wf-1",
+			PhaseTemplateID: "implement",
+			Sequence:        2,
+		},
+	}
+
+	result := dbWorkflowPhasesToProto(phases)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 phases, got %d", len(result))
+	}
+
+	// First phase should have claude_config_override
+	if result[0].ClaudeConfigOverride == nil || *result[0].ClaudeConfigOverride != configJSON {
+		t.Errorf("phase 0: expected ClaudeConfigOverride=%q, got %v", configJSON, result[0].ClaudeConfigOverride)
+	}
+
+	// Second phase should not have claude_config_override
+	if result[1].ClaudeConfigOverride != nil {
+		t.Errorf("phase 1: expected nil ClaudeConfigOverride, got %v", *result[1].ClaudeConfigOverride)
+	}
+}

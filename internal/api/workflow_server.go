@@ -1490,6 +1490,9 @@ func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase 
 				result[i].SubAgentsOverride = subAgentIDs
 			}
 		}
+		if p.ClaudeConfigOverride != "" {
+			result[i].ClaudeConfigOverride = &p.ClaudeConfigOverride
+		}
 	}
 	return result
 }
@@ -1646,6 +1649,9 @@ func dbWorkflowPhaseToProto(p *db.WorkflowPhase) *orcv1.WorkflowPhase {
 	}
 	if p.LoopConfig != "" {
 		result.LoopConfig = &p.LoopConfig
+	}
+	if p.ClaudeConfigOverride != "" {
+		result.ClaudeConfigOverride = &p.ClaudeConfigOverride
 	}
 	return result
 }

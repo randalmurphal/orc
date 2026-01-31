@@ -722,4 +722,735 @@ describe('PhaseListEditor', () => {
 			expect(within(phaseItem).getByText(/opus/i)).toBeInTheDocument();
 		});
 	});
+
+	// ─── TASK-670: Claude Config Override Sections ─────────────────────────────
+
+	describe('SC-1: Claude config collapsible sections in edit dialog', () => {
+		it('should render 7 collapsible claude_config sections in edit dialog', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// 7 collapsible sections should be visible below the existing 4 overrides
+			expect(await screen.findByText(/hooks/i)).toBeInTheDocument();
+			expect(screen.getByText(/mcp servers/i)).toBeInTheDocument();
+			expect(screen.getByText(/skills/i)).toBeInTheDocument();
+			expect(screen.getByText(/allowed tools/i)).toBeInTheDocument();
+			expect(screen.getByText(/disallowed tools/i)).toBeInTheDocument();
+			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+			expect(screen.getByText(/json override/i)).toBeInTheDocument();
+		});
+
+		it('should render sections as collapsible (initially collapsed)', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Sections should use CollapsibleSettingsSection component
+			// which has a data-testid or specific class pattern
+			const sections = await screen.findAllByTestId(/collapsible-section/);
+			expect(sections.length).toBeGreaterThanOrEqual(7);
+		});
+	});
+
+	describe('SC-2: Editor types for claude_config sections', () => {
+		it('should render LibraryPicker for hooks section', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Should show a library picker for hooks
+			expect(screen.getByTestId(/library-picker-hooks|hooks-picker/)).toBeInTheDocument();
+		});
+
+		it('should render TagInput for allowed tools section', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand allowed tools section
+			const toolsHeader = await screen.findByText(/allowed tools/i);
+			await user.click(toolsHeader);
+
+			// Should show a tag input for tools
+			expect(screen.getByTestId(/tag-input-allowed-tools|allowed-tools-input/)).toBeInTheDocument();
+		});
+
+		it('should render KeyValueEditor for env vars section', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand env vars section
+			const envHeader = await screen.findByText(/env vars/i);
+			await user.click(envHeader);
+
+			// Should show a key-value editor for env vars
+			expect(screen.getByTestId(/key-value-editor-env|env-editor/)).toBeInTheDocument();
+		});
+
+		it('should render textarea for JSON override section', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand JSON override section
+			const jsonHeader = await screen.findByText(/json override/i);
+			await user.click(jsonHeader);
+
+			// Should show a textarea for raw JSON editing
+			expect(screen.getByRole('textbox', { name: /json override/i })).toBeInTheDocument();
+		});
+	});
+
+	describe('SC-3: Save serializes claudeConfigOverride', () => {
+		it('should include claudeConfigOverride in onUpdatePhase call when overrides added (BDD-2)', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section and add a hook override
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Add a hook (interact with the library picker)
+			const hooksPicker = screen.getByTestId(/library-picker-hooks|hooks-picker/);
+			expect(hooksPicker).toBeInTheDocument();
+			// The specific interaction depends on LibraryPicker API,
+			// but we simulate selecting a hook item
+			const addHookButton = within(hooksPicker).getByRole('button', { name: /add|select/i });
+			await user.click(addHookButton);
+
+			// Save
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			expect(mockOnUpdatePhase).toHaveBeenCalledWith(
+				1,
+				expect.objectContaining({
+					claudeConfigOverride: expect.stringContaining('hooks'),
+				}),
+			);
+		});
+
+		it('should omit claudeConfigOverride when no claude_config sections changed', async () => {
+			const user = userEvent.setup();
+			render(<PhaseListEditor {...defaultProps} />);
+
+			const phaseItems = screen.getAllByTestId(/phase-item/);
+			const editButton = within(phaseItems[0]).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Save without changing any claude_config sections
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			// claudeConfigOverride should be undefined or empty string when no overrides
+			const call = mockOnUpdatePhase.mock.calls[0];
+			const overrides = call[1];
+			expect(
+				overrides.claudeConfigOverride === undefined ||
+				overrides.claudeConfigOverride === '' ||
+				overrides.claudeConfigOverride === '{}'
+			).toBe(true);
+		});
+
+		it('should produce valid JSON in claudeConfigOverride', async () => {
+			const user = userEvent.setup();
+			// Create a phase that already has claude_config_override
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks":["existing-hook"],"allowed_tools":["Bash"]}',
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Save with existing overrides
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			const call = mockOnUpdatePhase.mock.calls[0];
+			const overrides = call[1];
+			if (overrides.claudeConfigOverride) {
+				// Should be valid JSON
+				expect(() => JSON.parse(overrides.claudeConfigOverride)).not.toThrow();
+			}
+		});
+	});
+
+	describe('SC-5: Inherited vs override visual distinction (BDD-1)', () => {
+		it('should show inherited items dimmed with "inherited" badge', async () => {
+			const user = userEvent.setup();
+			// Phase with template that has claude_config
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"], "env": {"NODE_ENV": "test"}}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Inherited hooks should show with inherited styling
+			const inheritedItem = screen.getByText('lint-hook');
+			expect(inheritedItem.closest('[class*="inherited"]')).toBeTruthy();
+
+			// Should have "inherited" badge
+			expect(screen.getByText(/inherited/i)).toBeInTheDocument();
+		});
+
+		it('should show override items with "override" badge', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Override hook should have override styling
+			const overrideItem = screen.getByText('my-hook');
+			expect(overrideItem.closest('[class*="override"]')).toBeTruthy();
+		});
+
+		it('should show all items as override when template has no claude_config', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						// No claudeConfig on template
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// No inherited badge should appear
+			expect(screen.queryByText(/inherited/i)).not.toBeInTheDocument();
+		});
+	});
+
+	describe('SC-6: Section badge counts with inherited/override breakdown', () => {
+		it('should show badge count with inherited/override breakdown', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Hooks section badge should show "2 — 1 inherited, 1 override"
+			expect(screen.getByText(/2.*1 inherited.*1 override/i)).toBeInTheDocument();
+		});
+
+		it('should show "0" badge when section is empty', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						// No claude_config
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Look for a section badge showing 0
+			// The hooks section header should show "0" or similar
+			const hooksHeader = await screen.findByText(/hooks/i);
+			const section = hooksHeader.closest('[data-testid*="collapsible-section"]');
+			expect(section).toBeTruthy();
+			expect(within(section!).getByText(/\b0\b/)).toBeInTheDocument();
+		});
+
+		it('should show all inherited when no overrides exist', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["hook-a", "hook-b"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Should show "2 inherited" (no override count)
+			expect(screen.getByText(/2 inherited/i)).toBeInTheDocument();
+		});
+
+		it('should show all override when no inherited exist', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["hook-a", "hook-b"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						// No claudeConfig on template
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Should show "2 override" (no inherited count)
+			expect(screen.getByText(/2 override/i)).toBeInTheDocument();
+		});
+	});
+
+	describe('SC-7: Clear override button per section (BDD-3)', () => {
+		it('should show clear override button when section has overrides', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Clear override button should be visible
+			expect(screen.getByRole('button', { name: /clear override/i })).toBeInTheDocument();
+		});
+
+		it('should reset override items when clear override clicked', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Verify override hook exists
+			expect(screen.getByText('my-hook')).toBeInTheDocument();
+
+			// Click clear override
+			const clearButton = screen.getByRole('button', { name: /clear override/i });
+			await user.click(clearButton);
+
+			// Override hook should be removed, only inherited remains
+			expect(screen.queryByText('my-hook')).not.toBeInTheDocument();
+			expect(screen.getByText('lint-hook')).toBeInTheDocument();
+		});
+
+		it('should exclude cleared section from save JSON', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"], "allowed_tools": ["Bash"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section and clear
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			const clearButton = screen.getByRole('button', { name: /clear override/i });
+			await user.click(clearButton);
+
+			// Save
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			const call = mockOnUpdatePhase.mock.calls[0];
+			const overrides = call[1];
+
+			// The saved JSON should not contain hooks key, but should still have allowed_tools
+			if (overrides.claudeConfigOverride) {
+				const parsed = JSON.parse(overrides.claudeConfigOverride);
+				expect(parsed.hooks).toBeUndefined();
+				expect(parsed.allowed_tools).toEqual(['Bash']);
+			}
+		});
+
+		it('should hide or disable clear button when section has no overrides', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					// No claude_config_override
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["lint-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Clear button should be disabled or not present
+			const clearButton = screen.queryByRole('button', { name: /clear override/i });
+			if (clearButton) {
+				expect(clearButton).toBeDisabled();
+			} else {
+				expect(clearButton).toBeNull();
+			}
+		});
+	});
+
+	describe('SC-8: PhaseOverrides interface extension', () => {
+		it('should propagate claudeConfigOverride through onUpdatePhase', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"env": {"KEY": "value"}}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Save with existing overrides
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			// The second argument should have claudeConfigOverride as a string field
+			const call = mockOnUpdatePhase.mock.calls[0];
+			const overrides = call[1];
+			expect('claudeConfigOverride' in overrides).toBe(true);
+			expect(typeof overrides.claudeConfigOverride === 'string' || overrides.claudeConfigOverride === undefined).toBe(true);
+		});
+	});
+
+	describe('Failure modes: Claude config sections', () => {
+		it('should handle template with no claude_config gracefully', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						// No claudeConfig
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// All sections should render without error, showing 0 inherited items
+			expect(await screen.findByText(/hooks/i)).toBeInTheDocument();
+			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+		});
+
+		it('should handle phase with no template nested data', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					// No template field
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Should render as override-only mode
+			expect(await screen.findByText(/hooks/i)).toBeInTheDocument();
+		});
+
+		it('should clear claudeConfigOverride when all sections cleared (save with empty overrides)', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["my-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Clear the hooks override
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+			const clearButton = screen.getByRole('button', { name: /clear override/i });
+			await user.click(clearButton);
+
+			// Save
+			const saveButton = screen.getByRole('button', { name: /save phase/i });
+			await user.click(saveButton);
+
+			const call = mockOnUpdatePhase.mock.calls[0];
+			const overrides = call[1];
+			// claudeConfigOverride should be empty/undefined when all cleared
+			expect(
+				overrides.claudeConfigOverride === undefined ||
+				overrides.claudeConfigOverride === '' ||
+				overrides.claudeConfigOverride === '{}'
+			).toBe(true);
+		});
+	});
+
+	describe('Edge cases: Claude config sections', () => {
+		it('should handle duplicate hook in template and override', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["shared-hook"]}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+						claudeConfig: '{"hooks": ["shared-hook"]}',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+
+			// Should show as inherited (template wins for display)
+			const hookItems = screen.getAllByText('shared-hook');
+			expect(hookItems).toHaveLength(1); // Should not duplicate
+		});
+
+		it('should pre-fill edit dialog with existing claude_config_override', async () => {
+			const user = userEvent.setup();
+			const phases = [
+				createMockWorkflowPhase({
+					id: 1,
+					phaseTemplateId: 'implement',
+					sequence: 1,
+					claudeConfigOverride: '{"hooks": ["existing-hook"], "env": {"MY_VAR": "my-value"}}',
+					template: createMockPhaseTemplate({
+						id: 'implement',
+						name: 'Implement',
+					}),
+				}),
+			];
+
+			render(<PhaseListEditor {...defaultProps} phases={phases} />);
+
+			const phaseItem = screen.getByTestId(/phase-item/);
+			const editButton = within(phaseItem).getByRole('button', { name: /edit/i });
+			await user.click(editButton);
+
+			// Expand hooks section - should see existing override hook
+			const hooksHeader = await screen.findByText(/hooks/i);
+			await user.click(hooksHeader);
+			expect(screen.getByText('existing-hook')).toBeInTheDocument();
+
+			// Expand env vars section - should see existing override env var
+			const envHeader = screen.getByText(/env vars/i);
+			await user.click(envHeader);
+			expect(screen.getByText('MY_VAR')).toBeInTheDocument();
+		});
+	});
 });
