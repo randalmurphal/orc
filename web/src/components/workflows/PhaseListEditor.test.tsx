@@ -738,8 +738,8 @@ describe('PhaseListEditor', () => {
 			expect(await screen.findByText(/hooks/i)).toBeInTheDocument();
 			expect(screen.getByText(/mcp servers/i)).toBeInTheDocument();
 			expect(screen.getByText(/skills/i)).toBeInTheDocument();
-			expect(screen.getByText(/allowed tools/i)).toBeInTheDocument();
-			expect(screen.getByText(/disallowed tools/i)).toBeInTheDocument();
+			expect(screen.getByText(/^Allowed Tools$/i)).toBeInTheDocument();
+			expect(screen.getByText(/^Disallowed Tools$/i)).toBeInTheDocument();
 			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
 			expect(screen.getByText(/json override/i)).toBeInTheDocument();
 		});
@@ -785,7 +785,7 @@ describe('PhaseListEditor', () => {
 			await user.click(editButton);
 
 			// Expand allowed tools section
-			const toolsHeader = await screen.findByText(/allowed tools/i);
+			const toolsHeader = await screen.findByText(/^Allowed Tools$/i);
 			await user.click(toolsHeader);
 
 			// Should show a tag input for tools
