@@ -133,6 +133,15 @@ grep -r "FunctionName" --include="*.go" . | grep -v "_test.go"
 
 3. If anything is unused, **wire it in now** — don't leave dead code for a future task
 
+**For bug fixes:** Before finishing, grep for the buggy pattern across the codebase.
+
+```bash
+# Find all code paths with the same pattern as the bug
+grep -rn "the_buggy_pattern" --include="*.go" . | grep -v "_test.go"
+```
+
+If other code paths have the same bug, fix them now or document them as out-of-scope in your output. Do NOT silently leave known instances of the same bug unfixed.
+
 **Do NOT proceed to Step 3 until you've mapped dependencies.**
 
 ## Step 3: Follow Breakdown

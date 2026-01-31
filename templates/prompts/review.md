@@ -96,7 +96,13 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
 - [ ] New interfaces have implementations wired into the system
 - [ ] If the task adds hooks/callbacks/triggers, they are registered
 
-Dead code or unwired integration is a **high-severity** finding.
+**For bug fixes:** The fix may be correct where applied but incomplete across the codebase.
+
+- [ ] Grep for the function/pattern being fixed — does the same bug exist in other code paths?
+- [ ] If the spec lists a "Pattern Prevalence" table, verify ALL listed paths were addressed
+- [ ] If you find unlisted paths with the same bug, this is a **high-severity** finding
+
+Dead code, unwired integration, or incomplete bug fixes are **high-severity** findings.
 
 ### What NOT to Review
 - Style preferences, naming suggestions
