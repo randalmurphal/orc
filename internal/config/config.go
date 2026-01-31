@@ -85,6 +85,10 @@ type Config struct {
 	// Validation configuration for Haiku validation and backpressure
 	Validation ValidationConfig `yaml:"validation"`
 
+	// ErrorPatterns describes language-specific error handling idioms.
+	// Auto-detected during init, user-editable. Injected into agent prompts as {{ERROR_PATTERNS}}.
+	ErrorPatterns string `yaml:"error_patterns,omitempty"`
+
 	// Documentation configuration
 	Documentation DocumentationConfig `yaml:"documentation"`
 
