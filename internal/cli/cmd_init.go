@@ -17,6 +17,15 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
+// defaultErrorPatterns maps primary language to error handling idioms.
+var defaultErrorPatterns = map[string]string{
+	"go":         "Always check error returns with `if err != nil`. Wrap errors with context: `fmt.Errorf(\"context: %%w\", err)`. Never discard errors with `_` in production. Use `errors.Is`/`errors.As` for comparison.",
+	"python":     "Use specific exception types, never bare `except`. Log with `logger.exception()` for stack traces. Use `contextlib.suppress` only for documented expected cases.",
+	"typescript": "Avoid broad `catch(e)` — catch specific error types. Never swallow errors in empty catch blocks. Use typed error responses at API boundaries.",
+	"rust":       "Use `?` operator for propagation. Use `thiserror` for library errors, `anyhow` for application errors. Never `.unwrap()` in production code.",
+	"java":       "Catch specific exceptions, never bare `Exception`. Always log with context. Use try-with-resources for closeable resources.",
+}
+
 // newInitCmd creates the init command
 func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -179,6 +188,13 @@ func applyPostBootstrapConfig(projectPath string, state *InitWizardState) error 
 		cfg.MCP.Playwright.Enabled = true
 		cfg.MCP.Playwright.Headless = state.PlaywrightConfig.Headless
 		cfg.MCP.Playwright.Browser = state.PlaywrightConfig.Browser
+	}
+
+	// Set default error patterns based on detected language
+	if state.PrimaryLanguage != "" && cfg.ErrorPatterns == "" {
+		if patterns, ok := defaultErrorPatterns[state.PrimaryLanguage]; ok {
+			cfg.ErrorPatterns = patterns
+		}
 	}
 
 	// Save back

@@ -112,6 +112,11 @@ func (we *WorkflowExecutor) buildResolutionContext(
 		rctx.CoverageThreshold = we.orcConfig.Testing.CoverageThreshold
 	}
 
+	// Set error patterns from orc config
+	if we.orcConfig != nil && we.orcConfig.ErrorPatterns != "" {
+		rctx.ErrorPatterns = we.orcConfig.ErrorPatterns
+	}
+
 	// Merge user-provided variables
 	if opts.Variables != nil {
 		rctx.Environment = opts.Variables

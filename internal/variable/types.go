@@ -223,6 +223,10 @@ type ResolutionContext struct {
 	// Used to inject project-level principles into phase prompts.
 	ConstitutionContent string
 
+	// ErrorPatterns describes language-specific error handling idioms.
+	// Injected into agents as {{ERROR_PATTERNS}}.
+	ErrorPatterns string
+
 	// Initiative context (when task belongs to an initiative)
 	InitiativeID        string
 	InitiativeTitle     string

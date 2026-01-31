@@ -318,6 +318,11 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	// Constitution content (project-level principles)
 	vars["CONSTITUTION_CONTENT"] = rctx.ConstitutionContent
 
+	// Error patterns (language-specific error handling idioms)
+	if rctx.ErrorPatterns != "" {
+		vars["ERROR_PATTERNS"] = rctx.ErrorPatterns
+	}
+
 	// Initiative context
 	vars["INITIATIVE_ID"] = rctx.InitiativeID
 	vars["INITIATIVE_TITLE"] = rctx.InitiativeTitle
