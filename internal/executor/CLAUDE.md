@@ -34,6 +34,9 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
 | `quality_checks.go` | Phase-level quality checks (tests, lint, build, typecheck) |
 | `checklist_validation.go` | Spec and criteria validation |
+| `phase_settings.go` | Unified `ApplyPhaseSettings()` entry point: hooks + skills + hook scripts |
+| `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
+| `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 
 ## Architecture
@@ -51,6 +54,7 @@ WorkflowExecutor.Run()
 │   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
 │   ├── applyGateOutputToVars()       # Store gate output data as workflow variable (if configured)
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
+│   ├── ApplyPhaseSettings()          # Configure Claude Code env (hooks, skills, hook scripts)
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
@@ -136,6 +140,9 @@ createPR()
 | `applyPhaseContentToVars()` | `workflow_executor.go:820` | Propagates phase content to subsequent phases |
 | `applyGateOutputToVars()` | `workflow_gates.go:141` | Stores gate output data as JSON workflow variable |
 | `BuildRetryContextWithGateAnalysis()` | `retry.go:71` | Extends retry context with gate analysis section |
+| `ApplyPhaseSettings()` | `phase_settings.go:27` | Unified phase settings: reset → load config → hooks + skills + scripts |
+| `CleanupPhaseSettings()` | `phase_settings.go:215` | Removes all phase-specific Claude Code settings |
+| `DescribePhaseSettings()` | `phase_settings.go:225` | Human-readable description for logging/debugging |
 
 ### Phase Execution
 
@@ -224,6 +231,24 @@ See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, A
 - `ExtractPhaseContent()` parses JSON and extracts `content`
 - `SaveSpecToDatabase()` extracts spec from JSON and saves to database
 - **Failure handling:** Extraction failures call `failRun()` to ensure task status becomes `StatusFailed`
+
+## Phase Settings (`phase_settings.go`, `claude_hooks.go`, `hook_scripts.go`)
+
+Unified system to configure Claude Code's environment per-phase. Config source: `.orc/config.yaml` under `phase_settings:`.
+
+**Flow:** `ApplyPhaseSettings()` → reset previous → load config → apply hooks + skills + scripts
+
+| Component | Target File | Applied By |
+|-----------|------------|------------|
+| Hooks (PreToolUse, PostToolUse, etc.) | `.claude/settings.local.json` | `applyPhaseHooks()` |
+| Skills (file paths) | `.claude/settings.json` (merged) | `applyPhaseSkills()` |
+| Hook scripts (`.orc/hooks/{phase}/`) | `.claude/hooks/` (copied) | `applyPhaseHookScripts()` |
+
+**Resolution:** phase-specific settings > `"default"` > empty. Config loaded via `internal/config.LoadPhaseSettings()`.
+
+**Skill merging:** Orc-managed skills (paths containing `.orc/` or `orc-` prefix) are replaced on phase switch. User skills are preserved. See `isOrcManagedSkill()`.
+
+**Config:** See `internal/config/phase_settings.go` for types (`PhaseSettings`, `HookCommand`, `PhaseSettingsConfig`).
 
 ## Completion Detection
 
@@ -428,6 +453,7 @@ go test ./internal/executor/... -v
 | `gate_output_pipeline_test.go` | Gate output variable pipeline: propagation, storage, retry context, rejection |
 | `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
+| `phase_settings_test.go` | Phase settings: apply/cleanup, skill merging, orc-managed detection |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 
