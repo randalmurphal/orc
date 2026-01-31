@@ -1,7 +1,7 @@
 ---
 name: pr-test-analyzer
 description: Reviews test coverage quality and completeness. Use to identify critical gaps in test coverage for new functionality and edge cases.
-model: opus
+model: sonnet
 tools: ["Read", "Grep", "Glob"]
 ---
 

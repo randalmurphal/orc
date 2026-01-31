@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews code for adherence to project guidelines (CLAUDE.md), style guides, and best practices. Use after writing or modifying code, before commits or PRs.
-model: sonnet
+model: opus
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 
