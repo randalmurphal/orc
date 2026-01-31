@@ -106,8 +106,7 @@ describe('TagInput', () => {
 		);
 
 		// Click remove on "Read"
-		const removeButtons = screen.getAllByRole('button', { name: /remove/i });
-		// Find the one near "Read"
+		// Find the remove button near "Read"
 		const readChip = screen.getByText('Read').closest('[data-tag]');
 		const readRemoveBtn = readChip?.querySelector('button');
 		if (readRemoveBtn) {

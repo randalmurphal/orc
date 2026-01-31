@@ -184,29 +184,25 @@ message SettingsHierarchy {
   Settings merged = 3;
 }
 
-// Hook definition
+// Hook definition (backed by hook_scripts table in GlobalDB)
 message Hook {
   // Hook name
   string name = 1;
-  // Event that triggers hook
-  HookEvent event = 2;
-  // Matcher pattern (glob for tool names)
-  optional string matcher = 3;
-  // Command to execute
-  string command = 4;
-  // Working directory
-  optional string working_dir = 5;
-  // Environment variables
-  map<string, string> env = 6;
-  // Timeout in seconds
-  int32 timeout = 7;
-  // Whether hook is enabled
-  bool enabled = 8;
   // Settings scope
   SettingsScope scope = 9;
+  // DB primary key
+  string id = 10;
+  // Human-readable description
+  string description = 11;
+  // Script body (bash content)
+  string content = 12;
+  // Event type: "Stop", "PreToolUse", "PostToolUse"
+  string event_type = 13;
+  // Whether this is a built-in hook
+  bool is_builtin = 14;
 }
 
-// Skill definition
+// Skill definition (backed by skills table in GlobalDB)
 message Skill {
   // Skill name
   string name = 1;
@@ -220,6 +216,12 @@ message Skill {
   optional string input_schema = 5;
   // Settings scope
   SettingsScope scope = 6;
+  // DB primary key
+  string id = 8;
+  // Whether this is a built-in skill
+  bool is_builtin = 9;
+  // Supporting files: filename -> content
+  map<string, string> supporting_files = 10;
 }
 
 // CLAUDE.md content
@@ -490,13 +492,12 @@ message ListHooksResponse {
 message CreateHookRequest {
   string project_id = 1;
   string name = 2;
-  HookEvent event = 3;
-  optional string matcher = 4;
-  string command = 5;
-  optional string working_dir = 6;
-  map<string, string> env = 7;
-  int32 timeout = 8;
-  SettingsScope scope = 9;
+  // Script body (bash content)
+  string content = 10;
+  // Event type: "Stop", "PreToolUse", "PostToolUse"
+  string event_type = 11;
+  // Human-readable description
+  string description = 12;
 }
 
 message CreateHookResponse {
@@ -505,15 +506,13 @@ message CreateHookResponse {
 
 message UpdateHookRequest {
   string project_id = 1;
-  string name = 2;
-  SettingsScope scope = 3;
-  optional HookEvent event = 4;
-  optional string matcher = 5;
-  optional string command = 6;
-  optional string working_dir = 7;
-  map<string, string> env = 8;
-  optional int32 timeout = 9;
-  optional bool enabled = 10;
+  // Hook ID to update
+  string id = 10;
+  // Optional field updates
+  optional string name = 11;
+  optional string description = 12;
+  optional string content = 13;
+  optional string event_type = 14;
 }
 
 message UpdateHookResponse {
@@ -522,8 +521,8 @@ message UpdateHookResponse {
 
 message DeleteHookRequest {
   string project_id = 1;
-  string name = 2;
-  SettingsScope scope = 3;
+  // Hook ID to delete
+  string id = 10;
 }
 
 message DeleteHookResponse {
@@ -555,12 +554,12 @@ message CreateSkillResponse {
 
 message UpdateSkillRequest {
   string project_id = 1;
-  string name = 2;
-  SettingsScope scope = 3;
-  optional string description = 4;
-  optional string content = 5;
-  optional bool user_invocable = 6;
-  optional string input_schema = 7;
+  // Skill ID to update
+  string id = 10;
+  // Optional field updates
+  optional string name = 11;
+  optional string description = 12;
+  optional string content = 13;
 }
 
 message UpdateSkillResponse {
@@ -569,8 +568,8 @@ message UpdateSkillResponse {
 
 message DeleteSkillRequest {
   string project_id = 1;
-  string name = 2;
-  SettingsScope scope = 3;
+  // Skill ID to delete
+  string id = 10;
 }
 
 message DeleteSkillResponse {

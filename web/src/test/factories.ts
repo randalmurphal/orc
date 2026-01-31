@@ -84,7 +84,6 @@ import {
 import {
 	HookSchema,
 	SkillSchema,
-	HookEvent,
 	SettingsScope,
 	type Hook,
 	type Skill,
@@ -459,12 +458,10 @@ export function createMockValidateWorkflowResponse(valid: boolean, issues: Valid
 export function createMockHook(overrides: Partial<Omit<Hook, '$typeName' | '$unknown'>> = {}): Hook {
 	const base = create(HookSchema, {
 		name: 'test-hook',
-		event: HookEvent.PRE_TOOL_USE,
-		command: 'echo "hook"',
-		timeout: 10,
-		enabled: true,
+		eventType: 'PreToolUse',
+		content: '#!/bin/bash\necho "hook"',
+		description: 'Test hook',
 		scope: SettingsScope.GLOBAL,
-		env: {},
 	});
 	return Object.assign(base, overrides);
 }

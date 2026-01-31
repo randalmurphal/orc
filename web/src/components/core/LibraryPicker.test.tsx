@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LibraryPicker } from './LibraryPicker';
 import {
@@ -25,7 +25,6 @@ import {
 	createMockSkill,
 	createMockMCPServerInfo,
 } from '@/test/factories';
-import { HookEvent } from '@/gen/orc/v1/config_pb';
 import type { Hook } from '@/gen/orc/v1/config_pb';
 import type { Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
@@ -54,10 +53,10 @@ describe('LibraryPicker', () => {
 
 	describe('SC-4: Hooks - fetch, group by event type, multi-select', () => {
 		const mockHooks: Hook[] = [
-			createMockHook({ name: 'pre-tool-guard', event: HookEvent.PRE_TOOL_USE, command: 'guard.sh' }),
-			createMockHook({ name: 'post-tool-log', event: HookEvent.POST_TOOL_USE, command: 'log.sh' }),
-			createMockHook({ name: 'on-stop-cleanup', event: HookEvent.STOP, command: 'cleanup.sh' }),
-			createMockHook({ name: 'notify-slack', event: HookEvent.NOTIFICATION, command: 'slack.sh' }),
+			createMockHook({ name: 'pre-tool-guard', eventType: 'PreToolUse', content: '#!/bin/bash\nguard.sh' }),
+			createMockHook({ name: 'post-tool-log', eventType: 'PostToolUse', content: '#!/bin/bash\nlog.sh' }),
+			createMockHook({ name: 'on-stop-cleanup', eventType: 'Stop', content: '#!/bin/bash\ncleanup.sh' }),
+			createMockHook({ name: 'notify-slack', eventType: 'PostToolUse', content: '#!/bin/bash\nslack.sh' }),
 		];
 
 		it('displays hooks grouped by event type', async () => {
@@ -94,7 +93,6 @@ describe('LibraryPicker', () => {
 			expect(screen.getByText(/PostToolUse/i)).toBeInTheDocument();
 			// AMEND-001: /Stop/i also matches hook name "on-stop-cleanup", use anchored regex
 			expect(screen.getByText(/^Stop$/i)).toBeInTheDocument();
-			expect(screen.getByText(/Notification/i)).toBeInTheDocument();
 		});
 
 		it('supports multi-select - toggling hooks on', async () => {

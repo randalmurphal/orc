@@ -27,7 +27,9 @@ import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vite
 import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditPhaseTemplateModal } from './EditPhaseTemplateModal';
-import { HookEvent } from '@/gen/orc/v1/config_pb';
+import { create } from '@bufbuild/protobuf';
+import { ListHooksResponseSchema, ListSkillsResponseSchema, ListAgentsResponseSchema } from '@/gen/orc/v1/config_pb';
+import { ListMCPServersResponseSchema } from '@/gen/orc/v1/mcp_pb';
 import {
 	createMockPhaseTemplate,
 	createMockUpdatePhaseTemplateResponse,
@@ -79,8 +81,8 @@ beforeAll(() => {
 
 // Standard mock data for library pickers
 const mockHooks = [
-	createMockHook({ name: 'pre-guard', event: HookEvent.PRE_TOOL_USE }),
-	createMockHook({ name: 'post-log', event: HookEvent.POST_TOOL_USE }),
+	createMockHook({ name: 'pre-guard', eventType: 'PreToolUse' }),
+	createMockHook({ name: 'post-log', eventType: 'PostToolUse' }),
 ];
 const mockSkills = [
 	createMockSkill({ name: 'python-style', description: 'Python coding standards' }),
@@ -91,10 +93,10 @@ const mockMCPServers = [
 ];
 
 function setupMocks() {
-	vi.mocked(configClient.listAgents).mockResolvedValue({ agents: [] });
-	vi.mocked(configClient.listHooks).mockResolvedValue({ hooks: mockHooks });
-	vi.mocked(configClient.listSkills).mockResolvedValue({ skills: mockSkills });
-	vi.mocked(mcpClient.listMCPServers).mockResolvedValue({ servers: mockMCPServers });
+	vi.mocked(configClient.listAgents).mockResolvedValue(create(ListAgentsResponseSchema, { agents: [] }));
+	vi.mocked(configClient.listHooks).mockResolvedValue(create(ListHooksResponseSchema, { hooks: mockHooks }));
+	vi.mocked(configClient.listSkills).mockResolvedValue(create(ListSkillsResponseSchema, { skills: mockSkills }));
+	vi.mocked(mcpClient.listMCPServers).mockResolvedValue(create(ListMCPServersResponseSchema, { servers: mockMCPServers }));
 }
 
 const mockOnClose = vi.fn();

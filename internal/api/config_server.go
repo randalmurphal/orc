@@ -30,8 +30,14 @@ type configServer struct {
 	orcConfig    *config.Config
 	backend      storage.Backend
 	projectCache *ProjectCache
+	globalDB     *db.GlobalDB
 	workDir      string
 	logger       *slog.Logger
+}
+
+// SetGlobalDB sets the GlobalDB dependency for hook/skill CRUD operations.
+func (s *configServer) SetGlobalDB(gdb *db.GlobalDB) {
+	s.globalDB = gdb
 }
 
 // NewConfigServer creates a new ConfigService handler.
@@ -331,57 +337,23 @@ func (s *configServer) GetSettingsHierarchy(
 	}), nil
 }
 
-// ListHooks returns all hooks.
+// ListHooks returns all hooks from GlobalDB hook_scripts table.
 func (s *configServer) ListHooks(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListHooksRequest],
 ) (*connect.Response[orcv1.ListHooksResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	scripts, err := s.globalDB.ListHookScripts()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list hook scripts: %w", err))
 	}
 
-	var settings *claudeconfig.Settings
-	var scope orcv1.SettingsScope
-
-	if req.Msg.Scope != nil {
-		scope = *req.Msg.Scope
-	}
-
-	switch scope {
-	case orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL:
-		settings, err = claudeconfig.LoadGlobalSettings()
-	default:
-		settings, err = claudeconfig.LoadProjectSettings(workDir)
-		scope = orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT
-	}
-
-	if err != nil || settings == nil || settings.Hooks == nil {
-		return connect.NewResponse(&orcv1.ListHooksResponse{
-			Hooks: []*orcv1.Hook{},
-		}), nil
-	}
-
-	var hooks []*orcv1.Hook
-	for event, eventHooks := range settings.Hooks {
-		for _, h := range eventHooks {
-			// Each Hook contains a Matcher and array of HookEntry
-			for _, entry := range h.Hooks {
-				hooks = append(hooks, &orcv1.Hook{
-					Name:    entry.Command, // Use command as identifier
-					Event:   stringToProtoHookEvent(event),
-					Command: entry.Command,
-					Enabled: true,
-					Scope:   scope,
-					Matcher: func() *string {
-						if h.Matcher != "" {
-							return &h.Matcher
-						}
-						return nil
-					}(),
-				})
-			}
-		}
+	hooks := make([]*orcv1.Hook, len(scripts))
+	for i, hs := range scripts {
+		hooks[i] = hookScriptToProto(hs)
 	}
 
 	return connect.NewResponse(&orcv1.ListHooksResponse{
@@ -389,154 +361,124 @@ func (s *configServer) ListHooks(
 	}), nil
 }
 
-// CreateHook creates a new hook.
+// CreateHook creates a new hook in GlobalDB.
 func (s *configServer) CreateHook(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreateHookRequest],
 ) (*connect.Response[orcv1.CreateHookResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	// Validation
+	if req.Msg.Name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+	if req.Msg.Content == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
+	}
+	if req.Msg.EventType == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("event_type is required"))
+	}
+
+	// Check for duplicate name
+	existing, err := s.globalDB.ListHookScripts()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list hook scripts: %w", err))
 	}
-
-	var settings *claudeconfig.Settings
-
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		settings, err = claudeconfig.LoadGlobalSettings()
-	} else {
-		settings, err = claudeconfig.LoadProjectSettings(workDir)
-	}
-
-	if err != nil {
-		settings = &claudeconfig.Settings{}
-	}
-
-	if settings.Hooks == nil {
-		settings.Hooks = make(map[string][]claudeconfig.Hook)
-	}
-
-	event := protoHookEventToString(req.Msg.Event)
-	matcher := ""
-	if req.Msg.Matcher != nil {
-		matcher = *req.Msg.Matcher
-	}
-
-	// Create new hook entry
-	hookEntry := claudeconfig.HookEntry{
-		Type:    "command",
-		Command: req.Msg.Command,
-	}
-
-	// Find or create hook with matching matcher
-	found := false
-	for i, h := range settings.Hooks[event] {
-		if h.Matcher == matcher {
-			settings.Hooks[event][i].Hooks = append(settings.Hooks[event][i].Hooks, hookEntry)
-			found = true
-			break
+	for _, hs := range existing {
+		if hs.Name == req.Msg.Name {
+			return nil, connect.NewError(connect.CodeAlreadyExists,
+				fmt.Errorf("hook with name %q already exists", req.Msg.Name))
 		}
 	}
-	if !found {
-		settings.Hooks[event] = append(settings.Hooks[event], claudeconfig.Hook{
-			Matcher: matcher,
-			Hooks:   []claudeconfig.HookEntry{hookEntry},
-		})
+
+	id := fmt.Sprintf("hook-%d", time.Now().UnixNano())
+	hs := &db.HookScript{
+		ID:          id,
+		Name:        req.Msg.Name,
+		Description: req.Msg.Description,
+		Content:     req.Msg.Content,
+		EventType:   req.Msg.EventType,
+		IsBuiltin:   false,
 	}
 
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		err = claudeconfig.SaveGlobalSettings(settings)
-	} else {
-		err = claudeconfig.SaveProjectSettings(workDir, settings)
-	}
-
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save settings: %w", err))
+	if err := s.globalDB.SaveHookScript(hs); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save hook script: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.CreateHookResponse{
-		Hook: &orcv1.Hook{
-			Name:    req.Msg.Command,
-			Event:   req.Msg.Event,
-			Command: req.Msg.Command,
-			Matcher: req.Msg.Matcher,
-			Enabled: true,
-			Scope:   req.Msg.Scope,
-		},
+		Hook: hookScriptToProto(hs),
 	}), nil
 }
 
-// UpdateHook updates an existing hook.
+// UpdateHook updates an existing hook in GlobalDB.
 func (s *configServer) UpdateHook(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateHookRequest],
 ) (*connect.Response[orcv1.UpdateHookResponse], error) {
-	// Hook updates are complex due to nested structure
-	// For now, recommend delete + create workflow
-	return nil, connect.NewError(connect.CodeUnimplemented,
-		errors.New("hook updates not supported - use delete + create"))
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	hs, err := s.globalDB.GetHookScript(req.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get hook script: %w", err))
+	}
+	if hs == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("hook %s not found", req.Msg.Id))
+	}
+
+	if hs.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in hook"))
+	}
+
+	// Apply optional updates
+	if req.Msg.Name != nil {
+		hs.Name = *req.Msg.Name
+	}
+	if req.Msg.Description != nil {
+		hs.Description = *req.Msg.Description
+	}
+	if req.Msg.Content != nil {
+		hs.Content = *req.Msg.Content
+	}
+	if req.Msg.EventType != nil {
+		hs.EventType = *req.Msg.EventType
+	}
+
+	if err := s.globalDB.SaveHookScript(hs); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save hook script: %w", err))
+	}
+
+	return connect.NewResponse(&orcv1.UpdateHookResponse{
+		Hook: hookScriptToProto(hs),
+	}), nil
 }
 
-// DeleteHook deletes a hook.
+// DeleteHook deletes a hook from GlobalDB.
 func (s *configServer) DeleteHook(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteHookRequest],
 ) (*connect.Response[orcv1.DeleteHookResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	hs, err := s.globalDB.GetHookScript(req.Msg.Id)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get hook script: %w", err))
+	}
+	if hs == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("hook %s not found", req.Msg.Id))
 	}
 
-	var settings *claudeconfig.Settings
-
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		settings, err = claudeconfig.LoadGlobalSettings()
-	} else {
-		settings, err = claudeconfig.LoadProjectSettings(workDir)
+	if hs.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot delete built-in hook"))
 	}
 
-	if err != nil || settings == nil || settings.Hooks == nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("hook not found"))
-	}
-
-	// Find and delete hook by command name
-	found := false
-	for event, hooks := range settings.Hooks {
-		for i := range hooks {
-			for j, entry := range hooks[i].Hooks {
-				if entry.Command == req.Msg.Name {
-					// Remove the entry
-					hooks[i].Hooks = append(hooks[i].Hooks[:j], hooks[i].Hooks[j+1:]...)
-					// If no more entries, remove the hook
-					if len(hooks[i].Hooks) == 0 {
-						settings.Hooks[event] = append(hooks[:i], hooks[i+1:]...)
-					} else {
-						settings.Hooks[event] = hooks
-					}
-					found = true
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-		if found {
-			break
-		}
-	}
-
-	if !found {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("hook not found"))
-	}
-
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		err = claudeconfig.SaveGlobalSettings(settings)
-	} else {
-		err = claudeconfig.SaveProjectSettings(workDir, settings)
-	}
-
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to save settings: %w", err))
+	if err := s.globalDB.DeleteHookScript(req.Msg.Id); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete hook script: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.DeleteHookResponse{
@@ -544,196 +486,140 @@ func (s *configServer) DeleteHook(
 	}), nil
 }
 
-// ListSkills returns all skills.
-// When no scope is specified, returns ALL skills (global + project) to match GetConfigStats behavior.
-// When a specific scope is provided, returns only skills from that scope.
+// ListSkills returns all skills from GlobalDB skills table.
 func (s *configServer) ListSkills(
 	ctx context.Context,
 	req *connect.Request[orcv1.ListSkillsRequest],
 ) (*connect.Response[orcv1.ListSkillsResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	dbSkills, err := s.globalDB.ListSkills()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list skills: %w", err))
 	}
 
-	// When no scope specified, return ALL skills (global + project)
-	// This matches GetConfigStats.slashCommandsCount behavior
-	if req.Msg.Scope == nil {
-		var protoSkills []*orcv1.Skill
-
-		// Collect global skills and commands
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			globalClaudeDir := filepath.Join(homeDir, ".claude")
-			globalSkills, _ := claudeconfig.DiscoverSkills(globalClaudeDir)
-			for _, skill := range globalSkills {
-				protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL))
-			}
-			protoSkills = append(protoSkills, discoverCommands(globalClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL)...)
-		}
-
-		// Collect project skills and commands
-		projectClaudeDir := filepath.Join(workDir, ".claude")
-		projectSkills, _ := claudeconfig.DiscoverSkills(projectClaudeDir)
-		for _, skill := range projectSkills {
-			protoSkills = append(protoSkills, claudeSkillToProto(skill, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT))
-		}
-		protoSkills = append(protoSkills, discoverCommands(projectClaudeDir, orcv1.SettingsScope_SETTINGS_SCOPE_PROJECT)...)
-
-		return connect.NewResponse(&orcv1.ListSkillsResponse{
-			Skills: protoSkills,
-		}), nil
+	protoSkills := make([]*orcv1.Skill, len(dbSkills))
+	for i, sk := range dbSkills {
+		protoSkills[i] = dbSkillToProto(sk)
 	}
-
-	// Scope-specific behavior (preserved from original)
-	var claudeDir string
-	scope := *req.Msg.Scope
-
-	if scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
-		}
-		claudeDir = filepath.Join(homeDir, ".claude")
-	} else {
-		claudeDir = filepath.Join(workDir, ".claude")
-	}
-
-	var protoSkills []*orcv1.Skill
-
-	skills, err := claudeconfig.DiscoverSkills(claudeDir)
-	if err == nil {
-		for _, skill := range skills {
-			protoSkills = append(protoSkills, claudeSkillToProto(skill, scope))
-		}
-	}
-
-	protoSkills = append(protoSkills, discoverCommands(claudeDir, scope)...)
 
 	return connect.NewResponse(&orcv1.ListSkillsResponse{
 		Skills: protoSkills,
 	}), nil
 }
 
-// CreateSkill creates a new skill.
+// CreateSkill creates a new skill in GlobalDB.
 func (s *configServer) CreateSkill(
 	ctx context.Context,
 	req *connect.Request[orcv1.CreateSkillRequest],
 ) (*connect.Response[orcv1.CreateSkillResponse], error) {
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
 	if req.Msg.Name == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
 	}
+	if req.Msg.Content == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("content is required"))
+	}
 
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	// Check for duplicate name
+	existing, err := s.globalDB.ListSkills()
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list skills: %w", err))
 	}
-
-	var skillDir string
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
+	for _, sk := range existing {
+		if sk.Name == req.Msg.Name {
+			return nil, connect.NewError(connect.CodeAlreadyExists,
+				fmt.Errorf("skill with name %q already exists", req.Msg.Name))
 		}
-		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
-	} else {
-		skillDir = filepath.Join(workDir, ".claude", "skills", req.Msg.Name)
 	}
 
-	skill := &claudeconfig.Skill{
+	id := fmt.Sprintf("skill-%d", time.Now().UnixNano())
+	sk := &db.Skill{
+		ID:          id,
 		Name:        req.Msg.Name,
 		Description: req.Msg.Description,
 		Content:     req.Msg.Content,
+		IsBuiltin:   false,
 	}
 
-	if err := claudeconfig.WriteSkillMD(skill, skillDir); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create skill: %w", err))
+	if err := s.globalDB.SaveSkill(sk); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save skill: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.CreateSkillResponse{
-		Skill: claudeSkillToProto(skill, req.Msg.Scope),
+		Skill: dbSkillToProto(sk),
 	}), nil
 }
 
-// UpdateSkill updates an existing skill.
+// UpdateSkill updates an existing skill in GlobalDB.
 func (s *configServer) UpdateSkill(
 	ctx context.Context,
 	req *connect.Request[orcv1.UpdateSkillRequest],
 ) (*connect.Response[orcv1.UpdateSkillResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	sk, err := s.globalDB.GetSkill(req.Msg.Id)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get skill: %w", err))
+	}
+	if sk == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("skill %s not found", req.Msg.Id))
 	}
 
-	var baseDir string
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
-		}
-		baseDir = filepath.Join(homeDir, ".claude", "skills")
-	} else {
-		baseDir = filepath.Join(workDir, ".claude", "skills")
+	if sk.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot modify built-in skill"))
 	}
 
-	skillDir := filepath.Join(baseDir, req.Msg.Name)
-
-	// Check if skill exists
-	skillPath := filepath.Join(skillDir, "SKILL.md")
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("skill not found"))
+	// Apply optional updates
+	if req.Msg.Name != nil {
+		sk.Name = *req.Msg.Name
 	}
-
-	// Load existing skill
-	skill, err := claudeconfig.ParseSkillMD(skillPath)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to load skill: %w", err))
-	}
-
-	// Apply updates
 	if req.Msg.Description != nil {
-		skill.Description = *req.Msg.Description
+		sk.Description = *req.Msg.Description
 	}
 	if req.Msg.Content != nil {
-		skill.Content = *req.Msg.Content
+		sk.Content = *req.Msg.Content
 	}
 
-	if err := claudeconfig.WriteSkillMD(skill, skillDir); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update skill: %w", err))
+	if err := s.globalDB.SaveSkill(sk); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save skill: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.UpdateSkillResponse{
-		Skill: claudeSkillToProto(skill, req.Msg.Scope),
+		Skill: dbSkillToProto(sk),
 	}), nil
 }
 
-// DeleteSkill deletes a skill.
+// DeleteSkill deletes a skill from GlobalDB.
 func (s *configServer) DeleteSkill(
 	ctx context.Context,
 	req *connect.Request[orcv1.DeleteSkillRequest],
 ) (*connect.Response[orcv1.DeleteSkillResponse], error) {
-	workDir, err := s.getWorkDir(req.Msg.GetProjectId())
+	if s.globalDB == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("globalDB not configured"))
+	}
+
+	sk, err := s.globalDB.GetSkill(req.Msg.Id)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get skill: %w", err))
+	}
+	if sk == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("skill %s not found", req.Msg.Id))
 	}
 
-	var skillDir string
-	if req.Msg.Scope == orcv1.SettingsScope_SETTINGS_SCOPE_GLOBAL {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get home directory: %w", err))
-		}
-		skillDir = filepath.Join(homeDir, ".claude", "skills", req.Msg.Name)
-	} else {
-		skillDir = filepath.Join(workDir, ".claude", "skills", req.Msg.Name)
+	if sk.IsBuiltin {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cannot delete built-in skill"))
 	}
 
-	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("skill not found"))
-	}
-
-	if err := os.RemoveAll(skillDir); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete skill: %w", err))
+	if err := s.globalDB.DeleteSkill(req.Msg.Id); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete skill: %w", err))
 	}
 
 	return connect.NewResponse(&orcv1.DeleteSkillResponse{
@@ -1535,44 +1421,27 @@ func protoToClaudeSettings(s *orcv1.Settings) *claudeconfig.Settings {
 	return result
 }
 
-func stringToProtoHookEvent(event string) orcv1.HookEvent {
-	switch event {
-	case "PreToolUse":
-		return orcv1.HookEvent_HOOK_EVENT_PRE_TOOL_USE
-	case "PostToolUse":
-		return orcv1.HookEvent_HOOK_EVENT_POST_TOOL_USE
-	case "Notification":
-		return orcv1.HookEvent_HOOK_EVENT_NOTIFICATION
-	case "Stop":
-		return orcv1.HookEvent_HOOK_EVENT_STOP
-	default:
-		return orcv1.HookEvent_HOOK_EVENT_UNSPECIFIED
+// hookScriptToProto converts a db.HookScript to proto Hook.
+func hookScriptToProto(hs *db.HookScript) *orcv1.Hook {
+	return &orcv1.Hook{
+		Id:          hs.ID,
+		Name:        hs.Name,
+		Description: hs.Description,
+		Content:     hs.Content,
+		EventType:   hs.EventType,
+		IsBuiltin:   hs.IsBuiltin,
 	}
 }
 
-func protoHookEventToString(event orcv1.HookEvent) string {
-	switch event {
-	case orcv1.HookEvent_HOOK_EVENT_PRE_TOOL_USE:
-		return "PreToolUse"
-	case orcv1.HookEvent_HOOK_EVENT_POST_TOOL_USE:
-		return "PostToolUse"
-	case orcv1.HookEvent_HOOK_EVENT_NOTIFICATION:
-		return "Notification"
-	case orcv1.HookEvent_HOOK_EVENT_STOP:
-		return "Stop"
-	default:
-		return ""
-	}
-}
-
-func claudeSkillToProto(s *claudeconfig.Skill, scope orcv1.SettingsScope) *orcv1.Skill {
+// dbSkillToProto converts a db.Skill to proto Skill.
+func dbSkillToProto(s *db.Skill) *orcv1.Skill {
 	return &orcv1.Skill{
-		Name:        s.Name,
-		Description: s.Description,
-		Content:     s.Content,
-		// Note: UserInvocable is a proto field but claudeconfig.Skill doesn't track it
-		// It's determined by skill naming convention or config
-		Scope: scope,
+		Id:              s.ID,
+		Name:            s.Name,
+		Description:     s.Description,
+		Content:         s.Content,
+		IsBuiltin:       s.IsBuiltin,
+		SupportingFiles: s.SupportingFiles,
 	}
 }
 

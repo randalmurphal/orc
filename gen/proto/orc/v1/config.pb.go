@@ -1051,27 +1051,23 @@ func (x *SettingsHierarchy) GetMerged() *Settings {
 	return nil
 }
 
-// Hook definition
+// Hook definition (backed by hook_scripts table in GlobalDB)
 type Hook struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Hook name
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Event that triggers hook
-	Event HookEvent `protobuf:"varint,2,opt,name=event,proto3,enum=orc.v1.HookEvent" json:"event,omitempty"`
-	// Matcher pattern (glob for tool names)
-	Matcher *string `protobuf:"bytes,3,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
-	// Command to execute
-	Command string `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
-	// Working directory
-	WorkingDir *string `protobuf:"bytes,5,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
-	// Environment variables
-	Env map[string]string `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Timeout in seconds
-	Timeout int32 `protobuf:"varint,7,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	// Whether hook is enabled
-	Enabled bool `protobuf:"varint,8,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Settings scope
-	Scope         SettingsScope `protobuf:"varint,9,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	Scope SettingsScope `protobuf:"varint,9,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	// DB primary key
+	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"`
+	// Human-readable description
+	Description string `protobuf:"bytes,11,opt,name=description,proto3" json:"description,omitempty"`
+	// Script body (bash content)
+	Content string `protobuf:"bytes,12,opt,name=content,proto3" json:"content,omitempty"`
+	// Event type: "Stop", "PreToolUse", "PostToolUse"
+	EventType string `protobuf:"bytes,13,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	// Whether this is a built-in hook
+	IsBuiltin     bool `protobuf:"varint,14,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1113,55 +1109,6 @@ func (x *Hook) GetName() string {
 	return ""
 }
 
-func (x *Hook) GetEvent() HookEvent {
-	if x != nil {
-		return x.Event
-	}
-	return HookEvent_HOOK_EVENT_UNSPECIFIED
-}
-
-func (x *Hook) GetMatcher() string {
-	if x != nil && x.Matcher != nil {
-		return *x.Matcher
-	}
-	return ""
-}
-
-func (x *Hook) GetCommand() string {
-	if x != nil {
-		return x.Command
-	}
-	return ""
-}
-
-func (x *Hook) GetWorkingDir() string {
-	if x != nil && x.WorkingDir != nil {
-		return *x.WorkingDir
-	}
-	return ""
-}
-
-func (x *Hook) GetEnv() map[string]string {
-	if x != nil {
-		return x.Env
-	}
-	return nil
-}
-
-func (x *Hook) GetTimeout() int32 {
-	if x != nil {
-		return x.Timeout
-	}
-	return 0
-}
-
-func (x *Hook) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
-	}
-	return false
-}
-
 func (x *Hook) GetScope() SettingsScope {
 	if x != nil {
 		return x.Scope
@@ -1169,7 +1116,42 @@ func (x *Hook) GetScope() SettingsScope {
 	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
 }
 
-// Skill definition
+func (x *Hook) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Hook) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Hook) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *Hook) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *Hook) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+// Skill definition (backed by skills table in GlobalDB)
 type Skill struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Skill name
@@ -1183,9 +1165,15 @@ type Skill struct {
 	// Input schema (JSON)
 	InputSchema *string `protobuf:"bytes,5,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
 	// Settings scope
-	Scope         SettingsScope `protobuf:"varint,6,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Scope SettingsScope `protobuf:"varint,6,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	// DB primary key
+	Id string `protobuf:"bytes,8,opt,name=id,proto3" json:"id,omitempty"`
+	// Whether this is a built-in skill
+	IsBuiltin bool `protobuf:"varint,9,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	// Supporting files: filename -> content
+	SupportingFiles map[string]string `protobuf:"bytes,10,rep,name=supporting_files,json=supportingFiles,proto3" json:"supporting_files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Skill) Reset() {
@@ -1258,6 +1246,27 @@ func (x *Skill) GetScope() SettingsScope {
 		return x.Scope
 	}
 	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
+}
+
+func (x *Skill) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Skill) GetIsBuiltin() bool {
+	if x != nil {
+		return x.IsBuiltin
+	}
+	return false
+}
+
+func (x *Skill) GetSupportingFiles() map[string]string {
+	if x != nil {
+		return x.SupportingFiles
+	}
+	return nil
 }
 
 // CLAUDE.md content
@@ -2629,16 +2638,15 @@ func (x *ListHooksResponse) GetHooks() []*Hook {
 }
 
 type CreateHookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Event         HookEvent              `protobuf:"varint,3,opt,name=event,proto3,enum=orc.v1.HookEvent" json:"event,omitempty"`
-	Matcher       *string                `protobuf:"bytes,4,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
-	Command       string                 `protobuf:"bytes,5,opt,name=command,proto3" json:"command,omitempty"`
-	WorkingDir    *string                `protobuf:"bytes,6,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,7,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Timeout       int32                  `protobuf:"varint,8,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,9,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Script body (bash content)
+	Content string `protobuf:"bytes,10,opt,name=content,proto3" json:"content,omitempty"`
+	// Event type: "Stop", "PreToolUse", "PostToolUse"
+	EventType string `protobuf:"bytes,11,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	// Human-readable description
+	Description   string `protobuf:"bytes,12,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2687,53 +2695,25 @@ func (x *CreateHookRequest) GetName() string {
 	return ""
 }
 
-func (x *CreateHookRequest) GetEvent() HookEvent {
+func (x *CreateHookRequest) GetContent() string {
 	if x != nil {
-		return x.Event
-	}
-	return HookEvent_HOOK_EVENT_UNSPECIFIED
-}
-
-func (x *CreateHookRequest) GetMatcher() string {
-	if x != nil && x.Matcher != nil {
-		return *x.Matcher
+		return x.Content
 	}
 	return ""
 }
 
-func (x *CreateHookRequest) GetCommand() string {
+func (x *CreateHookRequest) GetEventType() string {
 	if x != nil {
-		return x.Command
+		return x.EventType
 	}
 	return ""
 }
 
-func (x *CreateHookRequest) GetWorkingDir() string {
-	if x != nil && x.WorkingDir != nil {
-		return *x.WorkingDir
+func (x *CreateHookRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
 	}
 	return ""
-}
-
-func (x *CreateHookRequest) GetEnv() map[string]string {
-	if x != nil {
-		return x.Env
-	}
-	return nil
-}
-
-func (x *CreateHookRequest) GetTimeout() int32 {
-	if x != nil {
-		return x.Timeout
-	}
-	return 0
-}
-
-func (x *CreateHookRequest) GetScope() SettingsScope {
-	if x != nil {
-		return x.Scope
-	}
-	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
 }
 
 type CreateHookResponse struct {
@@ -2781,17 +2761,15 @@ func (x *CreateHookResponse) GetHook() *Hook {
 }
 
 type UpdateHookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Event         *HookEvent             `protobuf:"varint,4,opt,name=event,proto3,enum=orc.v1.HookEvent,oneof" json:"event,omitempty"`
-	Matcher       *string                `protobuf:"bytes,5,opt,name=matcher,proto3,oneof" json:"matcher,omitempty"`
-	Command       *string                `protobuf:"bytes,6,opt,name=command,proto3,oneof" json:"command,omitempty"`
-	WorkingDir    *string                `protobuf:"bytes,7,opt,name=working_dir,json=workingDir,proto3,oneof" json:"working_dir,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Timeout       *int32                 `protobuf:"varint,9,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	Enabled       *bool                  `protobuf:"varint,10,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Hook ID to update
+	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"`
+	// Optional field updates
+	Name          *string `protobuf:"bytes,11,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string `protobuf:"bytes,12,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Content       *string `protobuf:"bytes,13,opt,name=content,proto3,oneof" json:"content,omitempty"`
+	EventType     *string `protobuf:"bytes,14,opt,name=event_type,json=eventType,proto3,oneof" json:"event_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2833,67 +2811,39 @@ func (x *UpdateHookRequest) GetProjectId() string {
 	return ""
 }
 
+func (x *UpdateHookRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 func (x *UpdateHookRequest) GetName() string {
-	if x != nil {
-		return x.Name
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
 
-func (x *UpdateHookRequest) GetScope() SettingsScope {
-	if x != nil {
-		return x.Scope
-	}
-	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
-}
-
-func (x *UpdateHookRequest) GetEvent() HookEvent {
-	if x != nil && x.Event != nil {
-		return *x.Event
-	}
-	return HookEvent_HOOK_EVENT_UNSPECIFIED
-}
-
-func (x *UpdateHookRequest) GetMatcher() string {
-	if x != nil && x.Matcher != nil {
-		return *x.Matcher
+func (x *UpdateHookRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
 
-func (x *UpdateHookRequest) GetCommand() string {
-	if x != nil && x.Command != nil {
-		return *x.Command
+func (x *UpdateHookRequest) GetContent() string {
+	if x != nil && x.Content != nil {
+		return *x.Content
 	}
 	return ""
 }
 
-func (x *UpdateHookRequest) GetWorkingDir() string {
-	if x != nil && x.WorkingDir != nil {
-		return *x.WorkingDir
+func (x *UpdateHookRequest) GetEventType() string {
+	if x != nil && x.EventType != nil {
+		return *x.EventType
 	}
 	return ""
-}
-
-func (x *UpdateHookRequest) GetEnv() map[string]string {
-	if x != nil {
-		return x.Env
-	}
-	return nil
-}
-
-func (x *UpdateHookRequest) GetTimeout() int32 {
-	if x != nil && x.Timeout != nil {
-		return *x.Timeout
-	}
-	return 0
-}
-
-func (x *UpdateHookRequest) GetEnabled() bool {
-	if x != nil && x.Enabled != nil {
-		return *x.Enabled
-	}
-	return false
 }
 
 type UpdateHookResponse struct {
@@ -2941,10 +2891,10 @@ func (x *UpdateHookResponse) GetHook() *Hook {
 }
 
 type DeleteHookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Hook ID to delete
+	Id            string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2986,18 +2936,11 @@ func (x *DeleteHookRequest) GetProjectId() string {
 	return ""
 }
 
-func (x *DeleteHookRequest) GetName() string {
+func (x *DeleteHookRequest) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
-}
-
-func (x *DeleteHookRequest) GetScope() SettingsScope {
-	if x != nil {
-		return x.Scope
-	}
-	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
 }
 
 type DeleteHookResponse struct {
@@ -3277,14 +3220,14 @@ func (x *CreateSkillResponse) GetSkill() *Skill {
 }
 
 type UpdateSkillRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Content       *string                `protobuf:"bytes,5,opt,name=content,proto3,oneof" json:"content,omitempty"`
-	UserInvocable *bool                  `protobuf:"varint,6,opt,name=user_invocable,json=userInvocable,proto3,oneof" json:"user_invocable,omitempty"`
-	InputSchema   *string                `protobuf:"bytes,7,opt,name=input_schema,json=inputSchema,proto3,oneof" json:"input_schema,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Skill ID to update
+	Id string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"`
+	// Optional field updates
+	Name          *string `protobuf:"bytes,11,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string `protobuf:"bytes,12,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Content       *string `protobuf:"bytes,13,opt,name=content,proto3,oneof" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3326,18 +3269,18 @@ func (x *UpdateSkillRequest) GetProjectId() string {
 	return ""
 }
 
-func (x *UpdateSkillRequest) GetName() string {
+func (x *UpdateSkillRequest) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
 }
 
-func (x *UpdateSkillRequest) GetScope() SettingsScope {
-	if x != nil {
-		return x.Scope
+func (x *UpdateSkillRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
-	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
+	return ""
 }
 
 func (x *UpdateSkillRequest) GetDescription() string {
@@ -3350,20 +3293,6 @@ func (x *UpdateSkillRequest) GetDescription() string {
 func (x *UpdateSkillRequest) GetContent() string {
 	if x != nil && x.Content != nil {
 		return *x.Content
-	}
-	return ""
-}
-
-func (x *UpdateSkillRequest) GetUserInvocable() bool {
-	if x != nil && x.UserInvocable != nil {
-		return *x.UserInvocable
-	}
-	return false
-}
-
-func (x *UpdateSkillRequest) GetInputSchema() string {
-	if x != nil && x.InputSchema != nil {
-		return *x.InputSchema
 	}
 	return ""
 }
@@ -3413,10 +3342,10 @@ func (x *UpdateSkillResponse) GetSkill() *Skill {
 }
 
 type DeleteSkillRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         SettingsScope          `protobuf:"varint,3,opt,name=scope,proto3,enum=orc.v1.SettingsScope" json:"scope,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Skill ID to delete
+	Id            string `protobuf:"bytes,10,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3458,18 +3387,11 @@ func (x *DeleteSkillRequest) GetProjectId() string {
 	return ""
 }
 
-func (x *DeleteSkillRequest) GetName() string {
+func (x *DeleteSkillRequest) GetId() string {
 	if x != nil {
-		return x.Name
+		return x.Id
 	}
 	return ""
-}
-
-func (x *DeleteSkillRequest) GetScope() SettingsScope {
-	if x != nil {
-		return x.Scope
-	}
-	return SettingsScope_SETTINGS_SCOPE_UNSPECIFIED
 }
 
 type DeleteSkillResponse struct {
@@ -6338,31 +6260,33 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x11SettingsHierarchy\x12(\n" +
 	"\x06global\x18\x01 \x01(\v2\x10.orc.v1.SettingsR\x06global\x12*\n" +
 	"\aproject\x18\x02 \x01(\v2\x10.orc.v1.SettingsR\aproject\x12(\n" +
-	"\x06merged\x18\x03 \x01(\v2\x10.orc.v1.SettingsR\x06merged\"\x80\x03\n" +
+	"\x06merged\x18\x03 \x01(\v2\x10.orc.v1.SettingsR\x06merged\"\xd1\x01\n" +
 	"\x04Hook\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
-	"\x05event\x18\x02 \x01(\x0e2\x11.orc.v1.HookEventR\x05event\x12\x1d\n" +
-	"\amatcher\x18\x03 \x01(\tH\x00R\amatcher\x88\x01\x01\x12\x18\n" +
-	"\acommand\x18\x04 \x01(\tR\acommand\x12$\n" +
-	"\vworking_dir\x18\x05 \x01(\tH\x01R\n" +
-	"workingDir\x88\x01\x01\x12'\n" +
-	"\x03env\x18\x06 \x03(\v2\x15.orc.v1.Hook.EnvEntryR\x03env\x12\x18\n" +
-	"\atimeout\x18\a \x01(\x05R\atimeout\x12\x18\n" +
-	"\aenabled\x18\b \x01(\bR\aenabled\x12+\n" +
-	"\x05scope\x18\t \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x1a6\n" +
-	"\bEnvEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
+	"\x05scope\x18\t \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x0e\n" +
+	"\x02id\x18\n" +
+	" \x01(\tR\x02id\x12 \n" +
+	"\vdescription\x18\v \x01(\tR\vdescription\x12\x18\n" +
+	"\acontent\x18\f \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
-	"\b_matcherB\x0e\n" +
-	"\f_working_dir\"\xe4\x01\n" +
+	"event_type\x18\r \x01(\tR\teventType\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\x0e \x01(\bR\tisBuiltin\"\xa6\x03\n" +
 	"\x05Skill\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12%\n" +
 	"\x0euser_invocable\x18\x04 \x01(\bR\ruserInvocable\x12&\n" +
 	"\finput_schema\x18\x05 \x01(\tH\x00R\vinputSchema\x88\x01\x01\x12+\n" +
-	"\x05scope\x18\x06 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\x0f\n" +
+	"\x05scope\x18\x06 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12\x0e\n" +
+	"\x02id\x18\b \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"is_builtin\x18\t \x01(\bR\tisBuiltin\x12M\n" +
+	"\x10supporting_files\x18\n" +
+	" \x03(\v2\".orc.v1.Skill.SupportingFilesEntryR\x0fsupportingFiles\x1aB\n" +
+	"\x14SupportingFilesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
 	"\r_input_schema\"e\n" +
 	"\bClaudeMd\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
@@ -6496,61 +6420,40 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x05scope\x18\x02 \x01(\x0e2\x15.orc.v1.SettingsScopeH\x00R\x05scope\x88\x01\x01B\b\n" +
 	"\x06_scope\"7\n" +
 	"\x11ListHooksResponse\x12\"\n" +
-	"\x05hooks\x18\x01 \x03(\v2\f.orc.v1.HookR\x05hooks\"\x9f\x03\n" +
+	"\x05hooks\x18\x01 \x03(\v2\f.orc.v1.HookR\x05hooks\"\xa1\x01\n" +
 	"\x11CreateHookRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
-	"\x05event\x18\x03 \x01(\x0e2\x11.orc.v1.HookEventR\x05event\x12\x1d\n" +
-	"\amatcher\x18\x04 \x01(\tH\x00R\amatcher\x88\x01\x01\x12\x18\n" +
-	"\acommand\x18\x05 \x01(\tR\acommand\x12$\n" +
-	"\vworking_dir\x18\x06 \x01(\tH\x01R\n" +
-	"workingDir\x88\x01\x01\x124\n" +
-	"\x03env\x18\a \x03(\v2\".orc.v1.CreateHookRequest.EnvEntryR\x03env\x12\x18\n" +
-	"\atimeout\x18\b \x01(\x05R\atimeout\x12+\n" +
-	"\x05scope\x18\t \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x1a6\n" +
-	"\bEnvEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\acontent\x18\n" +
+	" \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
-	"\b_matcherB\x0e\n" +
-	"\f_working_dir\"6\n" +
+	"event_type\x18\v \x01(\tR\teventType\x12 \n" +
+	"\vdescription\x18\f \x01(\tR\vdescription\"6\n" +
 	"\x12CreateHookResponse\x12 \n" +
-	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"\xfb\x03\n" +
+	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"\xf9\x01\n" +
 	"\x11UpdateHookRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12,\n" +
-	"\x05event\x18\x04 \x01(\x0e2\x11.orc.v1.HookEventH\x00R\x05event\x88\x01\x01\x12\x1d\n" +
-	"\amatcher\x18\x05 \x01(\tH\x01R\amatcher\x88\x01\x01\x12\x1d\n" +
-	"\acommand\x18\x06 \x01(\tH\x02R\acommand\x88\x01\x01\x12$\n" +
-	"\vworking_dir\x18\a \x01(\tH\x03R\n" +
-	"workingDir\x88\x01\x01\x124\n" +
-	"\x03env\x18\b \x03(\v2\".orc.v1.UpdateHookRequest.EnvEntryR\x03env\x12\x1d\n" +
-	"\atimeout\x18\t \x01(\x05H\x04R\atimeout\x88\x01\x01\x12\x1d\n" +
-	"\aenabled\x18\n" +
-	" \x01(\bH\x05R\aenabled\x88\x01\x01\x1a6\n" +
-	"\bEnvEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
-	"\x06_eventB\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\n" +
+	" \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\v \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\f \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
+	"\acontent\x18\r \x01(\tH\x02R\acontent\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"\b_matcherB\n" +
+	"event_type\x18\x0e \x01(\tH\x03R\teventType\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_descriptionB\n" +
 	"\n" +
-	"\b_commandB\x0e\n" +
-	"\f_working_dirB\n" +
-	"\n" +
-	"\b_timeoutB\n" +
-	"\n" +
-	"\b_enabled\"6\n" +
+	"\b_contentB\r\n" +
+	"\v_event_type\"6\n" +
 	"\x12UpdateHookResponse\x12 \n" +
-	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"s\n" +
+	"\x04hook\x18\x01 \x01(\v2\f.orc.v1.HookR\x04hook\"B\n" +
 	"\x11DeleteHookRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\".\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\n" +
+	" \x01(\tR\x02id\".\n" +
 	"\x12DeleteHookResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"n\n" +
 	"\x11ListSkillsRequest\x12\x1d\n" +
@@ -6571,28 +6474,26 @@ const file_orc_v1_config_proto_rawDesc = "" +
 	"\x05scope\x18\a \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scopeB\x0f\n" +
 	"\r_input_schema\":\n" +
 	"\x13CreateSkillResponse\x12#\n" +
-	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"\xce\x02\n" +
+	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"\xc7\x01\n" +
 	"\x12UpdateSkillRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x1d\n" +
-	"\acontent\x18\x05 \x01(\tH\x01R\acontent\x88\x01\x01\x12*\n" +
-	"\x0euser_invocable\x18\x06 \x01(\bH\x02R\ruserInvocable\x88\x01\x01\x12&\n" +
-	"\finput_schema\x18\a \x01(\tH\x03R\vinputSchema\x88\x01\x01B\x0e\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\n" +
+	" \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\v \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\f \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
+	"\acontent\x18\r \x01(\tH\x02R\acontent\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
-	"\b_contentB\x11\n" +
-	"\x0f_user_invocableB\x0f\n" +
-	"\r_input_schema\":\n" +
+	"\b_content\":\n" +
 	"\x13UpdateSkillResponse\x12#\n" +
-	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"t\n" +
+	"\x05skill\x18\x01 \x01(\v2\r.orc.v1.SkillR\x05skill\"C\n" +
 	"\x12DeleteSkillRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12+\n" +
-	"\x05scope\x18\x03 \x01(\x0e2\x15.orc.v1.SettingsScopeR\x05scope\"/\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x0e\n" +
+	"\x02id\x18\n" +
+	" \x01(\tR\x02id\"/\n" +
 	"\x13DeleteSkillResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"3\n" +
 	"\x12GetClaudeMdRequest\x12\x1d\n" +
@@ -6879,7 +6780,7 @@ func file_orc_v1_config_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_orc_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 111)
+var file_orc_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 109)
 var file_orc_v1_config_proto_goTypes = []any{
 	(SettingsScope)(0),                    // 0: orc.v1.SettingsScope
 	(HookEvent)(0),                        // 1: orc.v1.HookEvent
@@ -6990,11 +6891,9 @@ var file_orc_v1_config_proto_goTypes = []any{
 	nil,                                   // 106: orc.v1.JiraConfig.CategoryOverridesEntry
 	nil,                                   // 107: orc.v1.JiraConfig.PriorityOverridesEntry
 	nil,                                   // 108: orc.v1.Settings.PermissionsEntry
-	nil,                                   // 109: orc.v1.Hook.EnvEntry
-	nil,                                   // 110: orc.v1.CreateHookRequest.EnvEntry
-	nil,                                   // 111: orc.v1.UpdateHookRequest.EnvEntry
-	nil,                                   // 112: orc.v1.ListToolsResponse.ByCategoryEntry
-	(*timestamppb.Timestamp)(nil),         // 113: google.protobuf.Timestamp
+	nil,                                   // 109: orc.v1.Skill.SupportingFilesEntry
+	nil,                                   // 110: orc.v1.ListToolsResponse.ByCategoryEntry
+	(*timestamppb.Timestamp)(nil),         // 111: google.protobuf.Timestamp
 }
 var file_orc_v1_config_proto_depIdxs = []int32{
 	3,   // 0: orc.v1.Config.automation:type_name -> orc.v1.AutomationConfig
@@ -7013,164 +6912,154 @@ var file_orc_v1_config_proto_depIdxs = []int32{
 	11,  // 13: orc.v1.SettingsHierarchy.global:type_name -> orc.v1.Settings
 	11,  // 14: orc.v1.SettingsHierarchy.project:type_name -> orc.v1.Settings
 	11,  // 15: orc.v1.SettingsHierarchy.merged:type_name -> orc.v1.Settings
-	1,   // 16: orc.v1.Hook.event:type_name -> orc.v1.HookEvent
-	109, // 17: orc.v1.Hook.env:type_name -> orc.v1.Hook.EnvEntry
-	0,   // 18: orc.v1.Hook.scope:type_name -> orc.v1.SettingsScope
-	0,   // 19: orc.v1.Skill.scope:type_name -> orc.v1.SettingsScope
-	0,   // 20: orc.v1.ClaudeMd.scope:type_name -> orc.v1.SettingsScope
-	113, // 21: orc.v1.Constitution.updated_at:type_name -> google.protobuf.Timestamp
-	21,  // 22: orc.v1.Agent.tools:type_name -> orc.v1.ToolPermissions
-	0,   // 23: orc.v1.Agent.scope:type_name -> orc.v1.SettingsScope
-	19,  // 24: orc.v1.Agent.stats:type_name -> orc.v1.AgentStats
-	113, // 25: orc.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
-	113, // 26: orc.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
-	2,   // 27: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
-	3,   // 28: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
-	4,   // 29: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
-	7,   // 30: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
-	8,   // 31: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
-	9,   // 32: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
-	10,  // 33: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
-	2,   // 34: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
-	0,   // 35: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	11,  // 36: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
-	0,   // 37: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
-	11,  // 38: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
-	11,  // 39: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
-	12,  // 40: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
-	0,   // 41: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 42: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
-	1,   // 43: orc.v1.CreateHookRequest.event:type_name -> orc.v1.HookEvent
-	110, // 44: orc.v1.CreateHookRequest.env:type_name -> orc.v1.CreateHookRequest.EnvEntry
-	0,   // 45: orc.v1.CreateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	13,  // 46: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 47: orc.v1.UpdateHookRequest.scope:type_name -> orc.v1.SettingsScope
-	1,   // 48: orc.v1.UpdateHookRequest.event:type_name -> orc.v1.HookEvent
-	111, // 49: orc.v1.UpdateHookRequest.env:type_name -> orc.v1.UpdateHookRequest.EnvEntry
-	13,  // 50: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
-	0,   // 51: orc.v1.DeleteHookRequest.scope:type_name -> orc.v1.SettingsScope
-	0,   // 52: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 53: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
-	0,   // 54: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 55: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 56: orc.v1.UpdateSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	14,  // 57: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
-	0,   // 58: orc.v1.DeleteSkillRequest.scope:type_name -> orc.v1.SettingsScope
-	15,  // 59: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
-	0,   // 60: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
-	15,  // 61: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
-	18,  // 62: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	18,  // 63: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
-	16,  // 64: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
-	16,  // 65: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	16,  // 66: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	16,  // 67: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
-	17,  // 68: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
-	0,   // 69: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
-	20,  // 70: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
-	20,  // 71: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
-	21,  // 72: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	0,   // 73: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
-	20,  // 74: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
-	21,  // 75: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
-	20,  // 76: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
-	23,  // 77: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
-	23,  // 78: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
-	23,  // 79: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
-	23,  // 80: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
-	23,  // 81: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
-	0,   // 82: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
-	22,  // 83: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
-	112, // 84: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
-	22,  // 85: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
-	21,  // 86: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	21,  // 87: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
-	21,  // 88: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
-	24,  // 89: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
-	97,  // 90: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
-	25,  // 91: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
-	27,  // 92: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
-	29,  // 93: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
-	31,  // 94: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
-	33,  // 95: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
-	35,  // 96: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
-	37,  // 97: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
-	39,  // 98: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
-	41,  // 99: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
-	43,  // 100: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
-	45,  // 101: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
-	47,  // 102: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
-	49,  // 103: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
-	51,  // 104: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
-	53,  // 105: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
-	55,  // 106: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
-	57,  // 107: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
-	59,  // 108: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
-	61,  // 109: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
-	63,  // 110: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
-	65,  // 111: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
-	67,  // 112: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
-	69,  // 113: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
-	71,  // 114: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
-	73,  // 115: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
-	75,  // 116: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
-	77,  // 117: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
-	79,  // 118: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
-	81,  // 119: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
-	83,  // 120: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
-	85,  // 121: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
-	87,  // 122: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
-	89,  // 123: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
-	91,  // 124: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
-	93,  // 125: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
-	95,  // 126: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
-	98,  // 127: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
-	100, // 128: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
-	102, // 129: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
-	26,  // 130: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
-	28,  // 131: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
-	30,  // 132: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
-	32,  // 133: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
-	34,  // 134: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
-	36,  // 135: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
-	38,  // 136: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
-	40,  // 137: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
-	42,  // 138: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
-	44,  // 139: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
-	46,  // 140: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
-	48,  // 141: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
-	50,  // 142: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
-	52,  // 143: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
-	54,  // 144: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
-	56,  // 145: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
-	58,  // 146: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
-	60,  // 147: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
-	62,  // 148: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
-	64,  // 149: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
-	66,  // 150: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
-	68,  // 151: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
-	70,  // 152: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
-	72,  // 153: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
-	74,  // 154: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
-	76,  // 155: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
-	78,  // 156: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
-	80,  // 157: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
-	82,  // 158: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
-	84,  // 159: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
-	86,  // 160: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
-	88,  // 161: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
-	90,  // 162: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
-	92,  // 163: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
-	94,  // 164: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
-	96,  // 165: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
-	99,  // 166: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
-	101, // 167: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
-	103, // 168: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
-	130, // [130:169] is the sub-list for method output_type
-	91,  // [91:130] is the sub-list for method input_type
-	91,  // [91:91] is the sub-list for extension type_name
-	91,  // [91:91] is the sub-list for extension extendee
-	0,   // [0:91] is the sub-list for field type_name
+	0,   // 16: orc.v1.Hook.scope:type_name -> orc.v1.SettingsScope
+	0,   // 17: orc.v1.Skill.scope:type_name -> orc.v1.SettingsScope
+	109, // 18: orc.v1.Skill.supporting_files:type_name -> orc.v1.Skill.SupportingFilesEntry
+	0,   // 19: orc.v1.ClaudeMd.scope:type_name -> orc.v1.SettingsScope
+	111, // 20: orc.v1.Constitution.updated_at:type_name -> google.protobuf.Timestamp
+	21,  // 21: orc.v1.Agent.tools:type_name -> orc.v1.ToolPermissions
+	0,   // 22: orc.v1.Agent.scope:type_name -> orc.v1.SettingsScope
+	19,  // 23: orc.v1.Agent.stats:type_name -> orc.v1.AgentStats
+	111, // 24: orc.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
+	111, // 25: orc.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
+	2,   // 26: orc.v1.GetConfigResponse.config:type_name -> orc.v1.Config
+	3,   // 27: orc.v1.UpdateConfigRequest.automation:type_name -> orc.v1.AutomationConfig
+	4,   // 28: orc.v1.UpdateConfigRequest.completion:type_name -> orc.v1.CompletionConfig
+	7,   // 29: orc.v1.UpdateConfigRequest.export:type_name -> orc.v1.ExportConfig
+	8,   // 30: orc.v1.UpdateConfigRequest.claude:type_name -> orc.v1.ClaudeConfig
+	9,   // 31: orc.v1.UpdateConfigRequest.execution:type_name -> orc.v1.ExecutionConfig
+	10,  // 32: orc.v1.UpdateConfigRequest.jira:type_name -> orc.v1.JiraConfig
+	2,   // 33: orc.v1.UpdateConfigResponse.config:type_name -> orc.v1.Config
+	0,   // 34: orc.v1.GetSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 35: orc.v1.GetSettingsResponse.settings:type_name -> orc.v1.Settings
+	0,   // 36: orc.v1.UpdateSettingsRequest.scope:type_name -> orc.v1.SettingsScope
+	11,  // 37: orc.v1.UpdateSettingsRequest.settings:type_name -> orc.v1.Settings
+	11,  // 38: orc.v1.UpdateSettingsResponse.settings:type_name -> orc.v1.Settings
+	12,  // 39: orc.v1.GetSettingsHierarchyResponse.hierarchy:type_name -> orc.v1.SettingsHierarchy
+	0,   // 40: orc.v1.ListHooksRequest.scope:type_name -> orc.v1.SettingsScope
+	13,  // 41: orc.v1.ListHooksResponse.hooks:type_name -> orc.v1.Hook
+	13,  // 42: orc.v1.CreateHookResponse.hook:type_name -> orc.v1.Hook
+	13,  // 43: orc.v1.UpdateHookResponse.hook:type_name -> orc.v1.Hook
+	0,   // 44: orc.v1.ListSkillsRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 45: orc.v1.ListSkillsResponse.skills:type_name -> orc.v1.Skill
+	0,   // 46: orc.v1.CreateSkillRequest.scope:type_name -> orc.v1.SettingsScope
+	14,  // 47: orc.v1.CreateSkillResponse.skill:type_name -> orc.v1.Skill
+	14,  // 48: orc.v1.UpdateSkillResponse.skill:type_name -> orc.v1.Skill
+	15,  // 49: orc.v1.GetClaudeMdResponse.files:type_name -> orc.v1.ClaudeMd
+	0,   // 50: orc.v1.UpdateClaudeMdRequest.scope:type_name -> orc.v1.SettingsScope
+	15,  // 51: orc.v1.UpdateClaudeMdResponse.claude_md:type_name -> orc.v1.ClaudeMd
+	18,  // 52: orc.v1.GetConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	18,  // 53: orc.v1.UpdateConstitutionResponse.constitution:type_name -> orc.v1.Constitution
+	16,  // 54: orc.v1.ListPromptsResponse.prompts:type_name -> orc.v1.PromptTemplate
+	16,  // 55: orc.v1.GetPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 56: orc.v1.GetDefaultPromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	16,  // 57: orc.v1.UpdatePromptResponse.prompt:type_name -> orc.v1.PromptTemplate
+	17,  // 58: orc.v1.ListPromptVariablesResponse.variables:type_name -> orc.v1.PromptVariable
+	0,   // 59: orc.v1.ListAgentsRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 60: orc.v1.ListAgentsResponse.agents:type_name -> orc.v1.Agent
+	20,  // 61: orc.v1.GetAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 62: orc.v1.CreateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	0,   // 63: orc.v1.CreateAgentRequest.scope:type_name -> orc.v1.SettingsScope
+	20,  // 64: orc.v1.CreateAgentResponse.agent:type_name -> orc.v1.Agent
+	21,  // 65: orc.v1.UpdateAgentRequest.tools:type_name -> orc.v1.ToolPermissions
+	20,  // 66: orc.v1.UpdateAgentResponse.agent:type_name -> orc.v1.Agent
+	23,  // 67: orc.v1.ListScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 68: orc.v1.DiscoverScriptsResponse.scripts:type_name -> orc.v1.Script
+	23,  // 69: orc.v1.GetScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 70: orc.v1.CreateScriptResponse.script:type_name -> orc.v1.Script
+	23,  // 71: orc.v1.UpdateScriptResponse.script:type_name -> orc.v1.Script
+	0,   // 72: orc.v1.ListToolsRequest.scope:type_name -> orc.v1.SettingsScope
+	22,  // 73: orc.v1.ListToolsResponse.tools:type_name -> orc.v1.ToolInfo
+	110, // 74: orc.v1.ListToolsResponse.by_category:type_name -> orc.v1.ListToolsResponse.ByCategoryEntry
+	22,  // 75: orc.v1.ToolList.tools:type_name -> orc.v1.ToolInfo
+	21,  // 76: orc.v1.GetToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 77: orc.v1.UpdateToolPermissionsRequest.permissions:type_name -> orc.v1.ToolPermissions
+	21,  // 78: orc.v1.UpdateToolPermissionsResponse.permissions:type_name -> orc.v1.ToolPermissions
+	24,  // 79: orc.v1.GetConfigStatsResponse.stats:type_name -> orc.v1.ConfigStats
+	97,  // 80: orc.v1.ListToolsResponse.ByCategoryEntry.value:type_name -> orc.v1.ToolList
+	25,  // 81: orc.v1.ConfigService.GetConfig:input_type -> orc.v1.GetConfigRequest
+	27,  // 82: orc.v1.ConfigService.UpdateConfig:input_type -> orc.v1.UpdateConfigRequest
+	29,  // 83: orc.v1.ConfigService.GetSettings:input_type -> orc.v1.GetSettingsRequest
+	31,  // 84: orc.v1.ConfigService.UpdateSettings:input_type -> orc.v1.UpdateSettingsRequest
+	33,  // 85: orc.v1.ConfigService.GetSettingsHierarchy:input_type -> orc.v1.GetSettingsHierarchyRequest
+	35,  // 86: orc.v1.ConfigService.ListHooks:input_type -> orc.v1.ListHooksRequest
+	37,  // 87: orc.v1.ConfigService.CreateHook:input_type -> orc.v1.CreateHookRequest
+	39,  // 88: orc.v1.ConfigService.UpdateHook:input_type -> orc.v1.UpdateHookRequest
+	41,  // 89: orc.v1.ConfigService.DeleteHook:input_type -> orc.v1.DeleteHookRequest
+	43,  // 90: orc.v1.ConfigService.ListSkills:input_type -> orc.v1.ListSkillsRequest
+	45,  // 91: orc.v1.ConfigService.CreateSkill:input_type -> orc.v1.CreateSkillRequest
+	47,  // 92: orc.v1.ConfigService.UpdateSkill:input_type -> orc.v1.UpdateSkillRequest
+	49,  // 93: orc.v1.ConfigService.DeleteSkill:input_type -> orc.v1.DeleteSkillRequest
+	51,  // 94: orc.v1.ConfigService.GetClaudeMd:input_type -> orc.v1.GetClaudeMdRequest
+	53,  // 95: orc.v1.ConfigService.UpdateClaudeMd:input_type -> orc.v1.UpdateClaudeMdRequest
+	55,  // 96: orc.v1.ConfigService.GetConstitution:input_type -> orc.v1.GetConstitutionRequest
+	57,  // 97: orc.v1.ConfigService.UpdateConstitution:input_type -> orc.v1.UpdateConstitutionRequest
+	59,  // 98: orc.v1.ConfigService.DeleteConstitution:input_type -> orc.v1.DeleteConstitutionRequest
+	61,  // 99: orc.v1.ConfigService.ListPrompts:input_type -> orc.v1.ListPromptsRequest
+	63,  // 100: orc.v1.ConfigService.GetPrompt:input_type -> orc.v1.GetPromptRequest
+	65,  // 101: orc.v1.ConfigService.GetDefaultPrompt:input_type -> orc.v1.GetDefaultPromptRequest
+	67,  // 102: orc.v1.ConfigService.UpdatePrompt:input_type -> orc.v1.UpdatePromptRequest
+	69,  // 103: orc.v1.ConfigService.DeletePrompt:input_type -> orc.v1.DeletePromptRequest
+	71,  // 104: orc.v1.ConfigService.ListPromptVariables:input_type -> orc.v1.ListPromptVariablesRequest
+	73,  // 105: orc.v1.ConfigService.ListAgents:input_type -> orc.v1.ListAgentsRequest
+	75,  // 106: orc.v1.ConfigService.GetAgent:input_type -> orc.v1.GetAgentRequest
+	77,  // 107: orc.v1.ConfigService.CreateAgent:input_type -> orc.v1.CreateAgentRequest
+	79,  // 108: orc.v1.ConfigService.UpdateAgent:input_type -> orc.v1.UpdateAgentRequest
+	81,  // 109: orc.v1.ConfigService.DeleteAgent:input_type -> orc.v1.DeleteAgentRequest
+	83,  // 110: orc.v1.ConfigService.ListScripts:input_type -> orc.v1.ListScriptsRequest
+	85,  // 111: orc.v1.ConfigService.DiscoverScripts:input_type -> orc.v1.DiscoverScriptsRequest
+	87,  // 112: orc.v1.ConfigService.GetScript:input_type -> orc.v1.GetScriptRequest
+	89,  // 113: orc.v1.ConfigService.CreateScript:input_type -> orc.v1.CreateScriptRequest
+	91,  // 114: orc.v1.ConfigService.UpdateScript:input_type -> orc.v1.UpdateScriptRequest
+	93,  // 115: orc.v1.ConfigService.DeleteScript:input_type -> orc.v1.DeleteScriptRequest
+	95,  // 116: orc.v1.ConfigService.ListTools:input_type -> orc.v1.ListToolsRequest
+	98,  // 117: orc.v1.ConfigService.GetToolPermissions:input_type -> orc.v1.GetToolPermissionsRequest
+	100, // 118: orc.v1.ConfigService.UpdateToolPermissions:input_type -> orc.v1.UpdateToolPermissionsRequest
+	102, // 119: orc.v1.ConfigService.GetConfigStats:input_type -> orc.v1.GetConfigStatsRequest
+	26,  // 120: orc.v1.ConfigService.GetConfig:output_type -> orc.v1.GetConfigResponse
+	28,  // 121: orc.v1.ConfigService.UpdateConfig:output_type -> orc.v1.UpdateConfigResponse
+	30,  // 122: orc.v1.ConfigService.GetSettings:output_type -> orc.v1.GetSettingsResponse
+	32,  // 123: orc.v1.ConfigService.UpdateSettings:output_type -> orc.v1.UpdateSettingsResponse
+	34,  // 124: orc.v1.ConfigService.GetSettingsHierarchy:output_type -> orc.v1.GetSettingsHierarchyResponse
+	36,  // 125: orc.v1.ConfigService.ListHooks:output_type -> orc.v1.ListHooksResponse
+	38,  // 126: orc.v1.ConfigService.CreateHook:output_type -> orc.v1.CreateHookResponse
+	40,  // 127: orc.v1.ConfigService.UpdateHook:output_type -> orc.v1.UpdateHookResponse
+	42,  // 128: orc.v1.ConfigService.DeleteHook:output_type -> orc.v1.DeleteHookResponse
+	44,  // 129: orc.v1.ConfigService.ListSkills:output_type -> orc.v1.ListSkillsResponse
+	46,  // 130: orc.v1.ConfigService.CreateSkill:output_type -> orc.v1.CreateSkillResponse
+	48,  // 131: orc.v1.ConfigService.UpdateSkill:output_type -> orc.v1.UpdateSkillResponse
+	50,  // 132: orc.v1.ConfigService.DeleteSkill:output_type -> orc.v1.DeleteSkillResponse
+	52,  // 133: orc.v1.ConfigService.GetClaudeMd:output_type -> orc.v1.GetClaudeMdResponse
+	54,  // 134: orc.v1.ConfigService.UpdateClaudeMd:output_type -> orc.v1.UpdateClaudeMdResponse
+	56,  // 135: orc.v1.ConfigService.GetConstitution:output_type -> orc.v1.GetConstitutionResponse
+	58,  // 136: orc.v1.ConfigService.UpdateConstitution:output_type -> orc.v1.UpdateConstitutionResponse
+	60,  // 137: orc.v1.ConfigService.DeleteConstitution:output_type -> orc.v1.DeleteConstitutionResponse
+	62,  // 138: orc.v1.ConfigService.ListPrompts:output_type -> orc.v1.ListPromptsResponse
+	64,  // 139: orc.v1.ConfigService.GetPrompt:output_type -> orc.v1.GetPromptResponse
+	66,  // 140: orc.v1.ConfigService.GetDefaultPrompt:output_type -> orc.v1.GetDefaultPromptResponse
+	68,  // 141: orc.v1.ConfigService.UpdatePrompt:output_type -> orc.v1.UpdatePromptResponse
+	70,  // 142: orc.v1.ConfigService.DeletePrompt:output_type -> orc.v1.DeletePromptResponse
+	72,  // 143: orc.v1.ConfigService.ListPromptVariables:output_type -> orc.v1.ListPromptVariablesResponse
+	74,  // 144: orc.v1.ConfigService.ListAgents:output_type -> orc.v1.ListAgentsResponse
+	76,  // 145: orc.v1.ConfigService.GetAgent:output_type -> orc.v1.GetAgentResponse
+	78,  // 146: orc.v1.ConfigService.CreateAgent:output_type -> orc.v1.CreateAgentResponse
+	80,  // 147: orc.v1.ConfigService.UpdateAgent:output_type -> orc.v1.UpdateAgentResponse
+	82,  // 148: orc.v1.ConfigService.DeleteAgent:output_type -> orc.v1.DeleteAgentResponse
+	84,  // 149: orc.v1.ConfigService.ListScripts:output_type -> orc.v1.ListScriptsResponse
+	86,  // 150: orc.v1.ConfigService.DiscoverScripts:output_type -> orc.v1.DiscoverScriptsResponse
+	88,  // 151: orc.v1.ConfigService.GetScript:output_type -> orc.v1.GetScriptResponse
+	90,  // 152: orc.v1.ConfigService.CreateScript:output_type -> orc.v1.CreateScriptResponse
+	92,  // 153: orc.v1.ConfigService.UpdateScript:output_type -> orc.v1.UpdateScriptResponse
+	94,  // 154: orc.v1.ConfigService.DeleteScript:output_type -> orc.v1.DeleteScriptResponse
+	96,  // 155: orc.v1.ConfigService.ListTools:output_type -> orc.v1.ListToolsResponse
+	99,  // 156: orc.v1.ConfigService.GetToolPermissions:output_type -> orc.v1.GetToolPermissionsResponse
+	101, // 157: orc.v1.ConfigService.UpdateToolPermissions:output_type -> orc.v1.UpdateToolPermissionsResponse
+	103, // 158: orc.v1.ConfigService.GetConfigStats:output_type -> orc.v1.GetConfigStatsResponse
+	120, // [120:159] is the sub-list for method output_type
+	81,  // [81:120] is the sub-list for method input_type
+	81,  // [81:81] is the sub-list for extension type_name
+	81,  // [81:81] is the sub-list for extension extendee
+	0,   // [0:81] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_config_proto_init() }
@@ -7181,7 +7070,6 @@ func file_orc_v1_config_proto_init() {
 	file_orc_v1_config_proto_msgTypes[2].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[8].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[9].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[11].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[12].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[14].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[15].OneofWrappers = []any{}
@@ -7190,7 +7078,6 @@ func file_orc_v1_config_proto_init() {
 	file_orc_v1_config_proto_msgTypes[21].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[25].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[33].OneofWrappers = []any{}
-	file_orc_v1_config_proto_msgTypes[35].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[37].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[41].OneofWrappers = []any{}
 	file_orc_v1_config_proto_msgTypes[43].OneofWrappers = []any{}
@@ -7207,7 +7094,7 @@ func file_orc_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_config_proto_rawDesc), len(file_orc_v1_config_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   111,
+			NumMessages:   109,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
