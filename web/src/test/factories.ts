@@ -78,7 +78,21 @@ import {
 	type ValidateWorkflowResponse,
 	ValidationIssueSchema,
 	type ValidationIssue,
+	UpdatePhaseTemplateResponseSchema,
+	type UpdatePhaseTemplateResponse,
 } from '@/gen/orc/v1/workflow_pb';
+import {
+	HookSchema,
+	SkillSchema,
+	HookEvent,
+	SettingsScope,
+	type Hook,
+	type Skill,
+} from '@/gen/orc/v1/config_pb';
+import {
+	MCPServerInfoSchema,
+	type MCPServerInfo,
+} from '@/gen/orc/v1/mcp_pb';
 import { TimestampSchema } from '@bufbuild/protobuf/wkt';
 
 /**
@@ -437,4 +451,57 @@ export function createMockValidationIssue(severity: string, message: string, pha
  */
 export function createMockValidateWorkflowResponse(valid: boolean, issues: ValidationIssue[] = []): ValidateWorkflowResponse {
 	return create(ValidateWorkflowResponseSchema, { valid, issues });
+}
+
+/**
+ * Create a mock Hook with proto-compatible types
+ */
+export function createMockHook(overrides: Partial<Omit<Hook, '$typeName' | '$unknown'>> = {}): Hook {
+	const base = create(HookSchema, {
+		name: 'test-hook',
+		event: HookEvent.PRE_TOOL_USE,
+		command: 'echo "hook"',
+		timeout: 10,
+		enabled: true,
+		scope: SettingsScope.GLOBAL,
+		env: {},
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock Skill with proto-compatible types
+ */
+export function createMockSkill(overrides: Partial<Omit<Skill, '$typeName' | '$unknown'>> = {}): Skill {
+	const base = create(SkillSchema, {
+		name: 'test-skill',
+		description: 'A test skill',
+		content: '# Test skill content',
+		userInvocable: true,
+		scope: SettingsScope.GLOBAL,
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock MCPServerInfo with proto-compatible types
+ */
+export function createMockMCPServerInfo(overrides: Partial<Omit<MCPServerInfo, '$typeName' | '$unknown'>> = {}): MCPServerInfo {
+	const base = create(MCPServerInfoSchema, {
+		name: 'test-mcp',
+		type: 'stdio',
+		command: 'npx test-server',
+		disabled: false,
+		hasEnv: false,
+		envCount: 0,
+		argsCount: 0,
+	});
+	return Object.assign(base, overrides);
+}
+
+/**
+ * Create a mock UpdatePhaseTemplateResponse with proto-compatible types
+ */
+export function createMockUpdatePhaseTemplateResponse(template: PhaseTemplate): UpdatePhaseTemplateResponse {
+	return create(UpdatePhaseTemplateResponseSchema, { template });
 }
