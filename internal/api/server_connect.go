@@ -47,6 +47,7 @@ func (s *Server) registerConnectHandlers() {
 	configSvc := NewConfigServer(s.orcConfig, s.backend, s.workDir, s.logger)
 	if cs, ok := configSvc.(*configServer); ok {
 		cs.SetProjectCache(s.projectCache)
+		cs.SetGlobalDB(s.globalDB)
 	}
 	hostingSvc := NewHostingServerWithExecutor(s.backend, s.workDir, s.logger, s.publisher, s.orcConfig, s.startTask, nil)
 	if hs, ok := hostingSvc.(*hostingServer); ok {

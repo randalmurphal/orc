@@ -238,26 +238,33 @@ func copyAndDelete(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
 
 	info, err := in.Stat()
 	if err != nil {
+		_ = in.Close()
 		return err
 	}
 
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
 	if err != nil {
+		_ = in.Close()
 		return err
 	}
-	defer out.Close()
 
 	if _, err := io.Copy(out, in); err != nil {
+		_ = in.Close()
+		_ = out.Close()
 		return err
 	}
 
 	// Close before deleting
-	in.Close()
-	out.Close()
+	if err := in.Close(); err != nil {
+		_ = out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
 
 	return os.Remove(src)
 }
@@ -299,7 +306,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	info, err := in.Stat()
 	if err != nil {
@@ -310,7 +317,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	_, err = io.Copy(out, in)
 	return err

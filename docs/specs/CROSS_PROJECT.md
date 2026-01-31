@@ -1,8 +1,10 @@
 # Cross-Project Resources
 
-**Status**: Planning
+**Status**: Partially Superseded
 **Priority**: P2
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-31
+
+> **Note**: The Skills and Hooks sections of this spec are superseded by TASK-668, which implemented GlobalDB CRUD for both resource types. Skills and hooks are now stored in `hook_scripts` and `skills` tables in GlobalDB with full CRUD via ConfigService RPC. The filesystem-based resolution described below no longer applies to these resource types.
 
 ---
 

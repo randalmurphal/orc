@@ -903,26 +903,33 @@ Resolves a pending gate decision by approving or rejecting it.
 | PUT | `/api/prompts/:phase` | Save prompt override |
 | DELETE | `/api/prompts/:phase` | Delete prompt override |
 
-### Hooks
+### Hooks (GlobalDB CRUD)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/hooks` | List all hooks (map of event to hooks) |
-| GET | `/api/hooks/types` | Get valid hook event types |
-| POST | `/api/hooks` | Create hook (event + matcher + command) |
-| GET | `/api/hooks/:event` | Get hooks for event type |
-| PUT | `/api/hooks/:event` | Update hooks for event |
-| DELETE | `/api/hooks/:event` | Delete all hooks for event |
+Hooks are stored in the `hook_scripts` table in GlobalDB. Built-in hooks (`is_builtin=true`) cannot be modified or deleted.
 
-### Skills
+| RPC Method | Description |
+|------------|-------------|
+| `ListHooks` | List all hooks, ordered by built-in status then name |
+| `CreateHook` | Create hook (name, content, event_type required; rejects duplicates) |
+| `UpdateHook` | Update hook by ID (rejects built-in modifications) |
+| `DeleteHook` | Delete hook by ID (rejects built-in deletions) |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/skills` | List skills |
-| POST | `/api/skills` | Create skill (name, description, content) |
-| GET | `/api/skills/:name` | Get skill with content |
-| PUT | `/api/skills/:name` | Update skill |
-| DELETE | `/api/skills/:name` | Delete skill |
+**Event types**: `PreToolUse`, `PostToolUse`, `Notification`, `Stop`
+
+**Error codes**: `InvalidArgument` (missing fields), `AlreadyExists` (duplicate name), `NotFound`, `PermissionDenied` (built-in)
+
+### Skills (GlobalDB CRUD)
+
+Skills are stored in the `skills` table in GlobalDB. Built-in skills (`is_builtin=true`) cannot be modified or deleted.
+
+| RPC Method | Description |
+|------------|-------------|
+| `ListSkills` | List all skills, ordered by built-in status then name |
+| `CreateSkill` | Create skill (name, content required; rejects duplicates) |
+| `UpdateSkill` | Update skill by ID (rejects built-in modifications) |
+| `DeleteSkill` | Delete skill by ID (rejects built-in deletions) |
+
+**Error codes**: `InvalidArgument` (missing fields), `AlreadyExists` (duplicate name), `NotFound`, `PermissionDenied` (built-in)
 
 ### Settings (Claude Code)
 

@@ -11,7 +11,7 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
-	"github.com/randalmurphal/orc/internal/automation"
+
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
@@ -201,25 +201,11 @@ type Executor struct {
 	publisher     events.Publisher
 	backend       storage.Backend
 
-	// Pending gate decisions (for headless mode)
-	pendingDecisions *gate.PendingDecisionStore
-	headless         bool // True if running in API/headless mode
-
 	// Token pool for automatic account switching (nil if disabled)
 	tokenPool *tokenpool.Pool
 
-	// Runtime state for current task
-	worktreePath  string // Path to worktree if enabled
-	currentTaskID string // Task ID for hooks (e.g., TDD enforcement)
-
 	// Resource tracker for process/memory diagnostics
 	resourceTracker *ResourceTracker
-
-	// Resume session ID for continuing paused tasks with Claude's --resume flag
-	resumeSessionID string
-
-	// Automation service for trigger-based automation
-	automationSvc *automation.Service
 
 	// Global database for cross-project cost tracking
 	globalDB *db.GlobalDB
@@ -229,10 +215,6 @@ type Executor struct {
 
 	// ClaudeCLI path (resolved absolute path)
 	claudePath string
-
-	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
-	// When set, passed to sub-executors (StandardExecutor, FullExecutor, etc.)
-	turnExecutor TurnExecutor
 }
 
 // New creates a new executor with the given configuration.

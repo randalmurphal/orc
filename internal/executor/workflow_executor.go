@@ -24,7 +24,7 @@ import (
 	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
-	"github.com/randalmurphal/orc/internal/tokenpool"
+
 	"github.com/randalmurphal/orc/internal/trigger"
 	"github.com/randalmurphal/orc/internal/variable"
 	"github.com/randalmurphal/orc/internal/workflow"
@@ -107,7 +107,6 @@ type WorkflowExecutor struct {
 	// Optional components
 	gitOps             *git.Git
 	publisher          *events.PublishHelper
-	tokenPool          *tokenpool.Pool          // For automatic account switching on rate limits
 	automationSvc      *automation.Service      // For automation event triggers
 	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
 	resourceTracker    *ResourceTracker         // For orphan process detection
