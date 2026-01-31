@@ -70,6 +70,7 @@ For each issue from Round 1:
 
 While reviewing the fixes:
 - Any new issues introduced by the fixes?
+- New over-engineering introduced during fix
 - Any patterns that were missed in Round 1?
 - Verify no regressions in existing functionality
 

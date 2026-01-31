@@ -78,6 +78,7 @@ Use the available tools to:
 - **Error handling**: Are errors handled gracefully with clear messages?
 - **Security**: Any potential vulnerabilities (injection, XSS, auth issues)?
 - **Performance**: Any obvious performance issues (N+1 queries, memory leaks)?
+- **Over-engineering**: Unrequested abstractions, scope creep
 - **Maintainability**: Is the code clear and well-organized?
 - **Integration**: Does it integrate properly with existing code?
 
