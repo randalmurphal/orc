@@ -5,20 +5,27 @@
  * - Edit phase template name, description
  * - Edit execution settings (agent, gate type, max iterations)
  * - Edit checkpoint and thinking settings
+ * - 7 collapsible settings sections for claude_config (hooks, MCP servers, skills,
+ *   allowed/disallowed tools, env vars, JSON override)
  * - Built-in templates cannot be edited (shows clone suggestion)
  *
  * Note: Model is now on the Agent, not the PhaseTemplate.
  * Agent assignment is done via agentId.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
-import { workflowClient, configClient } from '@/lib/client';
+import { workflowClient, configClient, mcpClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
-import type { Agent } from '@/gen/orc/v1/config_pb';
+import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
+import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
+import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
+import { LibraryPicker } from '@/components/core/LibraryPicker';
+import { TagInput } from '@/components/core/TagInput';
+import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import './EditPhaseTemplateModal.css';
 
 export interface EditPhaseTemplateModalProps {
@@ -40,6 +47,88 @@ const GATE_TYPE_OPTIONS = [
 	{ value: GateType.SKIP, label: 'Skip' },
 ];
 
+/** Parse claude_config JSON string into structured state */
+function parseClaudeConfig(configStr: string | undefined): {
+	hooks: string[];
+	skillRefs: string[];
+	mcpServers: string[];
+	allowedTools: string[];
+	disallowedTools: string[];
+	env: Record<string, string>;
+	extra: Record<string, unknown>;
+} {
+	const defaults = {
+		hooks: [] as string[],
+		skillRefs: [] as string[],
+		mcpServers: [] as string[],
+		allowedTools: [] as string[],
+		disallowedTools: [] as string[],
+		env: {} as Record<string, string>,
+		extra: {} as Record<string, unknown>,
+	};
+
+	if (!configStr) return defaults;
+
+	try {
+		const parsed = JSON.parse(configStr);
+		if (typeof parsed !== 'object' || parsed === null) return defaults;
+
+		const {
+			hooks,
+			skill_refs,
+			mcp_servers,
+			allowed_tools,
+			disallowed_tools,
+			env,
+			...rest
+		} = parsed;
+
+		return {
+			hooks: Array.isArray(hooks) ? hooks : [],
+			skillRefs: Array.isArray(skill_refs) ? skill_refs : [],
+			mcpServers: mcp_servers && typeof mcp_servers === 'object'
+				? Object.keys(mcp_servers)
+				: [],
+			allowedTools: Array.isArray(allowed_tools) ? allowed_tools : [],
+			disallowedTools: Array.isArray(disallowed_tools) ? disallowed_tools : [],
+			env: env && typeof env === 'object' ? env : {},
+			extra: rest,
+		};
+	} catch {
+		console.warn('Failed to parse claude_config JSON:', configStr);
+		return defaults;
+	}
+}
+
+/** Serialize structured state back to claude_config JSON */
+function serializeClaudeConfig(state: {
+	hooks: string[];
+	skillRefs: string[];
+	mcpServers: string[];
+	allowedTools: string[];
+	disallowedTools: string[];
+	env: Record<string, string>;
+	extra: Record<string, unknown>;
+	mcpServerData: Record<string, unknown>;
+}): string {
+	const config: Record<string, unknown> = { ...state.extra };
+
+	if (state.hooks.length > 0) config.hooks = state.hooks;
+	if (state.skillRefs.length > 0) config.skill_refs = state.skillRefs;
+	if (Object.keys(state.mcpServers).length > 0) {
+		const servers: Record<string, unknown> = {};
+		for (const name of state.mcpServers) {
+			servers[name] = state.mcpServerData[name] || {};
+		}
+		config.mcp_servers = servers;
+	}
+	if (state.allowedTools.length > 0) config.allowed_tools = state.allowedTools;
+	if (state.disallowedTools.length > 0) config.disallowed_tools = state.disallowedTools;
+	if (Object.keys(state.env).length > 0) config.env = state.env;
+
+	return JSON.stringify(config, null, 2);
+}
+
 /**
  * EditPhaseTemplateModal allows editing phase template metadata.
  */
@@ -59,6 +148,31 @@ export function EditPhaseTemplateModal({
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
 	const [checkpoint, setCheckpoint] = useState(false);
 
+	// Claude config structured state
+	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
+	const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+	const [selectedMCPServers, setSelectedMCPServers] = useState<string[]>([]);
+	const [allowedTools, setAllowedTools] = useState<string[]>([]);
+	const [disallowedTools, setDisallowedTools] = useState<string[]>([]);
+	const [envVars, setEnvVars] = useState<Record<string, string>>({});
+	const [extraFields, setExtraFields] = useState<Record<string, unknown>>({});
+	const [mcpServerData, setMcpServerData] = useState<Record<string, unknown>>({});
+
+	// JSON override state
+	const [jsonOverride, setJsonOverride] = useState('');
+	const [jsonError, setJsonError] = useState('');
+
+	// Library data
+	const [hooks, setHooks] = useState<Hook[]>([]);
+	const [skills, setSkills] = useState<Skill[]>([]);
+	const [mcpServers, setMcpServers] = useState<MCPServerInfo[]>([]);
+	const [hooksError, setHooksError] = useState('');
+	const [skillsError, setSkillsError] = useState('');
+	const [mcpError, setMcpError] = useState('');
+	const [hooksLoading, setHooksLoading] = useState(true);
+	const [skillsLoading, setSkillsLoading] = useState(true);
+	const [mcpLoading, setMcpLoading] = useState(true);
+
 	// Agents list for dropdown
 	const [agents, setAgents] = useState<Agent[]>([]);
 	const [agentsLoading, setAgentsLoading] = useState(true);
@@ -66,9 +180,13 @@ export function EditPhaseTemplateModal({
 	// Loading state
 	const [saving, setSaving] = useState(false);
 
-	// Fetch agents list on mount
+	// Track whether JSON override was the last edit source
+	const jsonOverrideActiveRef = useRef(false);
+
+	// Fetch agents, hooks, skills, MCP servers on mount
 	useEffect(() => {
 		let mounted = true;
+
 		configClient.listAgents({}).then((response) => {
 			if (mounted) {
 				setAgents(response.agents);
@@ -77,6 +195,43 @@ export function EditPhaseTemplateModal({
 		}).catch(() => {
 			if (mounted) setAgentsLoading(false);
 		});
+
+		configClient.listHooks({}).then((response) => {
+			if (mounted) {
+				setHooks(response.hooks);
+				setHooksLoading(false);
+			}
+		}).catch(() => {
+			if (mounted) {
+				setHooksError('Failed to load hooks');
+				setHooksLoading(false);
+			}
+		});
+
+		configClient.listSkills({}).then((response) => {
+			if (mounted) {
+				setSkills(response.skills);
+				setSkillsLoading(false);
+			}
+		}).catch(() => {
+			if (mounted) {
+				setSkillsError('Failed to load skills');
+				setSkillsLoading(false);
+			}
+		});
+
+		mcpClient.listMCPServers({}).then((response) => {
+			if (mounted) {
+				setMcpServers(response.servers);
+				setMcpLoading(false);
+			}
+		}).catch(() => {
+			if (mounted) {
+				setMcpError('Failed to load MCP servers');
+				setMcpLoading(false);
+			}
+		});
+
 		return () => { mounted = false; };
 	}, []);
 
@@ -90,8 +245,86 @@ export function EditPhaseTemplateModal({
 			setGateType(template.gateType || GateType.AUTO);
 			setThinkingEnabled(template.thinkingEnabled || false);
 			setCheckpoint(template.checkpoint || false);
+
+			// Parse claude_config
+			const config = parseClaudeConfig(template.claudeConfig);
+			setSelectedHooks(config.hooks);
+			setSelectedSkills(config.skillRefs);
+			setSelectedMCPServers(config.mcpServers);
+			setAllowedTools(config.allowedTools);
+			setDisallowedTools(config.disallowedTools);
+			setEnvVars(config.env);
+			setExtraFields(config.extra);
+
+			// Parse MCP server data for serialization
+			if (template.claudeConfig) {
+				try {
+					const parsed = JSON.parse(template.claudeConfig);
+					if (parsed.mcp_servers && typeof parsed.mcp_servers === 'object') {
+						setMcpServerData(parsed.mcp_servers);
+					} else {
+						setMcpServerData({});
+					}
+				} catch {
+					setMcpServerData({});
+				}
+			} else {
+				setMcpServerData({});
+			}
+
+			// Reset JSON override state
+			setJsonError('');
+			jsonOverrideActiveRef.current = false;
 		}
 	}, [open, template]);
+
+	// Update JSON override when structured fields change (but not when JSON override is being edited)
+	useEffect(() => {
+		if (!jsonOverrideActiveRef.current) {
+			const json = serializeClaudeConfig({
+				hooks: selectedHooks,
+				skillRefs: selectedSkills,
+				mcpServers: selectedMCPServers,
+				allowedTools,
+				disallowedTools,
+				env: envVars,
+				extra: extraFields,
+				mcpServerData,
+			});
+			setJsonOverride(json);
+		}
+	}, [selectedHooks, selectedSkills, selectedMCPServers, allowedTools, disallowedTools, envVars, extraFields, mcpServerData]);
+
+	// Handle JSON override blur (apply changes)
+	const handleJsonBlur = useCallback(() => {
+		try {
+			const parsed = JSON.parse(jsonOverride);
+			if (typeof parsed !== 'object' || parsed === null) {
+				setJsonError('Invalid JSON');
+				return;
+			}
+
+			// Re-parse into structured fields
+			const config = parseClaudeConfig(jsonOverride);
+			setSelectedHooks(config.hooks);
+			setSelectedSkills(config.skillRefs);
+			setSelectedMCPServers(config.mcpServers);
+			setAllowedTools(config.allowedTools);
+			setDisallowedTools(config.disallowedTools);
+			setEnvVars(config.env);
+			setExtraFields(config.extra);
+
+			// Update MCP server data
+			if (parsed.mcp_servers && typeof parsed.mcp_servers === 'object') {
+				setMcpServerData(parsed.mcp_servers);
+			}
+
+			setJsonError('');
+			jsonOverrideActiveRef.current = false;
+		} catch {
+			setJsonError('Invalid JSON');
+		}
+	}, [jsonOverride]);
 
 	// Handle save
 	const handleSave = useCallback(async () => {
@@ -99,6 +332,17 @@ export function EditPhaseTemplateModal({
 
 		setSaving(true);
 		try {
+			const claudeConfig = serializeClaudeConfig({
+				hooks: selectedHooks,
+				skillRefs: selectedSkills,
+				mcpServers: selectedMCPServers,
+				allowedTools,
+				disallowedTools,
+				env: envVars,
+				extra: extraFields,
+				mcpServerData,
+			});
+
 			const response = await workflowClient.updatePhaseTemplate({
 				id: template.id,
 				name: name.trim() || undefined,
@@ -108,6 +352,7 @@ export function EditPhaseTemplateModal({
 				gateType: gateType,
 				thinkingEnabled: thinkingEnabled,
 				checkpoint: checkpoint,
+				claudeConfig: claudeConfig,
 			});
 			if (response.template) {
 				toast.success('Phase template updated successfully');
@@ -129,6 +374,14 @@ export function EditPhaseTemplateModal({
 		gateType,
 		thinkingEnabled,
 		checkpoint,
+		selectedHooks,
+		selectedSkills,
+		selectedMCPServers,
+		allowedTools,
+		disallowedTools,
+		envVars,
+		extraFields,
+		mcpServerData,
 		onUpdated,
 		onClose,
 	]);
@@ -299,6 +552,105 @@ export function EditPhaseTemplateModal({
 							</label>
 						</div>
 					</div>
+				</div>
+
+				{/* Claude Config Settings Sections */}
+				<div className="edit-template-section">
+					<h3 className="edit-template-section-title">Claude Config</h3>
+
+					<CollapsibleSettingsSection title="Hooks" badgeCount={selectedHooks.length}>
+						<LibraryPicker
+							type="hooks"
+							items={hooks}
+							selectedNames={selectedHooks}
+							onSelectionChange={(names) => {
+								setSelectedHooks(names);
+								jsonOverrideActiveRef.current = false;
+							}}
+							error={hooksError}
+							loading={hooksLoading}
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="MCP Servers" badgeCount={selectedMCPServers.length}>
+						<LibraryPicker
+							type="mcpServers"
+							items={mcpServers}
+							selectedNames={selectedMCPServers}
+							onSelectionChange={(names) => {
+								setSelectedMCPServers(names);
+								jsonOverrideActiveRef.current = false;
+							}}
+							error={mcpError}
+							loading={mcpLoading}
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="Skills" badgeCount={selectedSkills.length}>
+						<LibraryPicker
+							type="skills"
+							items={skills}
+							selectedNames={selectedSkills}
+							onSelectionChange={(names) => {
+								setSelectedSkills(names);
+								jsonOverrideActiveRef.current = false;
+							}}
+							error={skillsError}
+							loading={skillsLoading}
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="Allowed Tools" badgeCount={allowedTools.length}>
+						<TagInput
+							tags={allowedTools}
+							onChange={(tags) => {
+								setAllowedTools(tags);
+								jsonOverrideActiveRef.current = false;
+							}}
+							placeholder="Add tool name..."
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={disallowedTools.length}>
+						<TagInput
+							tags={disallowedTools}
+							onChange={(tags) => {
+								setDisallowedTools(tags);
+								jsonOverrideActiveRef.current = false;
+							}}
+							placeholder="Add tool name..."
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(envVars).length}>
+						<KeyValueEditor
+							entries={envVars}
+							onChange={(entries) => {
+								setEnvVars(entries);
+								jsonOverrideActiveRef.current = false;
+							}}
+						/>
+					</CollapsibleSettingsSection>
+
+					<CollapsibleSettingsSection title="JSON Override" badgeCount={0}>
+						<div className="edit-template-json-override">
+							<textarea
+								className={`edit-template-json-textarea ${jsonError ? 'edit-template-json-textarea--error' : ''}`}
+								value={jsonOverride}
+								onChange={(e) => {
+									setJsonOverride(e.target.value);
+									jsonOverrideActiveRef.current = true;
+									setJsonError('');
+								}}
+								onBlur={handleJsonBlur}
+								rows={8}
+								aria-label="JSON override"
+							/>
+							{jsonError && (
+								<span className="edit-template-json-error">{jsonError}</span>
+							)}
+						</div>
+					</CollapsibleSettingsSection>
 				</div>
 
 				{/* Actions */}

@@ -115,6 +115,11 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: draggable phase templates for adding to canvas |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |
+| `EditPhaseTemplateModal` | `workflows/` | Phase template editor with 7 collapsible claude_config sections + JSON override |
+| `CollapsibleSettingsSection` | `core/` | Collapsible header with chevron + badge counter. Used in phase template editor |
+| `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
+| `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
+| `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
 
 ## React Patterns
 
