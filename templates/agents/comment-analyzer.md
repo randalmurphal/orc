@@ -1,7 +1,7 @@
 ---
 name: comment-analyzer
 description: Analyzes code comments for accuracy, completeness, and long-term maintainability. Use to verify comments match actual code behavior and prevent comment rot.
-model: opus
+model: haiku
 tools: ["Read", "Grep", "Glob"]
 ---
 

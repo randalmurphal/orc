@@ -1,7 +1,7 @@
 ---
 name: spec-quality-auditor
 description: Reviews specification quality by checking that all success criteria are behavioral, testable, and concrete. Catches vague or existential-only criteria before they cascade downstream.
-model: sonnet
+model: opus
 tools: ["Read", "Grep", "Glob"]
 ---
 

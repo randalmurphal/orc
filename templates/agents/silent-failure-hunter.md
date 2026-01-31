@@ -1,7 +1,7 @@
 ---
 name: silent-failure-hunter
 description: Identifies silent failures, inadequate error handling, and inappropriate fallback behavior. Use when reviewing code with error handling, try-catch blocks, or fallback logic.
-model: sonnet
+model: opus
 tools: ["Read", "Grep", "Glob"]
 ---
 

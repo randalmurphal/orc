@@ -1,7 +1,7 @@
 ---
 name: code-simplifier
 description: Simplifies code for clarity, consistency, and maintainability while preserving functionality. Use after implementation to clean up recently modified code.
-model: sonnet
+model: opus
 tools: ["Read", "Edit", "Grep", "Glob", "Bash"]
 ---
 

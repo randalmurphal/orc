@@ -1,7 +1,7 @@
 ---
 name: type-design-analyzer
 description: Analyzes type design for encapsulation and invariant expression. Use when introducing new types or refactoring existing ones to ensure proper design.
-model: opus
+model: sonnet
 tools: ["Read", "Grep", "Glob"]
 ---
 

@@ -144,8 +144,8 @@ func TestSeedAgents(t *testing.T) {
 	if agent == nil {
 		t.Fatal("code-reviewer agent not found")
 	}
-	if agent.Model != "sonnet" {
-		t.Errorf("code-reviewer model = %s, want sonnet", agent.Model)
+	if agent.Model != "opus" {
+		t.Errorf("code-reviewer model = %s, want opus", agent.Model)
 	}
 	if len(agent.Tools) == 0 {
 		t.Error("code-reviewer has no tools")

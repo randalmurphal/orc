@@ -1,7 +1,7 @@
 ---
 name: over-engineering-detector
 description: Detects code that exceeds specification scope — unrequested abstractions, unnecessary error handling, future-proofing, and file proliferation. Use after implementation to catch over-engineering before review.
-model: sonnet
+model: opus
 tools: ["Read", "Grep", "Glob"]
 ---
 
