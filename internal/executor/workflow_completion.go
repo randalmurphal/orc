@@ -217,10 +217,10 @@ func ResolvePROptions(t *orcv1.Task, cfg *config.Config) hosting.PRCreateOptions
 	return opts
 }
 
-// createPR creates a pull request for the task branch.
+// createPR creates a pull request for the task branch, or reuses an existing one.
 func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps *git.Git, targetBranch string) error {
 	if task.HasPRProto(t) {
-		we.logger.Info("PR already exists", "url", task.GetPRURLProto(t))
+		we.logger.Info("PR already exists in task metadata", "url", task.GetPRURLProto(t))
 		return nil
 	}
 
@@ -237,16 +237,50 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("create hosting provider: %w", err)
 	}
 
-	// Build PR options from config with task overrides
-	prOpts := ResolvePROptions(t, we.orcConfig)
+	// Build PR title and body (used for both create and update)
 	prCfg := we.orcConfig.Completion.PR
 	ciCfg := we.orcConfig.Completion.CI
-
 	description := task.GetDescriptionProto(t)
 	body := fmt.Sprintf("## Task: %s\n\n%s\n\n---\nCreated by orc workflow execution.",
 		t.Title, description)
 	prTitle := fmt.Sprintf("[orc] %s: %s", t.Id, t.Title)
 
+	// Check if an open PR already exists on this branch (handles stale/orphaned PRs)
+	existingPR, findErr := provider.FindPRByBranch(ctx, t.Branch)
+	if findErr != nil && !errors.Is(findErr, hosting.ErrNoPRFound) {
+		// Network or API error — log warning and fall through to CreatePR (best-effort)
+		we.logger.Warn("could not check for existing PR on branch, will attempt create",
+			"branch", t.Branch, "error", findErr)
+	}
+
+	if findErr == nil && existingPR != nil {
+		// Existing open PR found — reuse it
+		we.logger.Info("reusing existing PR on branch",
+			"branch", t.Branch, "pr", existingPR.Number, "url", existingPR.HTMLURL)
+
+		// Update title and body to match current task
+		if updateErr := provider.UpdatePR(ctx, existingPR.Number, hosting.PRUpdateOptions{
+			Title: prTitle,
+			Body:  body,
+		}); updateErr != nil {
+			we.logger.Warn("failed to update existing PR, continuing with stale metadata",
+				"pr", existingPR.Number, "error", updateErr)
+		}
+
+		// Save PR info to task metadata
+		task.SetPRInfoProto(t, existingPR.HTMLURL, existingPR.Number)
+		if err := we.backend.SaveTask(t); err != nil {
+			we.logger.Warn("failed to save task with PR info", "task", t.Id, "error", err)
+		}
+
+		// Apply auto-merge/approve settings to reused PR
+		we.applyPRAutomation(ctx, provider, existingPR.Number, prCfg, ciCfg)
+
+		return nil
+	}
+
+	// No existing PR — create a new one
+	prOpts := ResolvePROptions(t, we.orcConfig)
 	pr, err := provider.CreatePR(ctx, hosting.PRCreateOptions{
 		Title:               prTitle,
 		Body:                body,
@@ -263,21 +297,8 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 		return fmt.Errorf("create PR: %w", err)
 	}
 
-	// Enable auto-merge if configured (GitLab only; GitHub returns ErrAutoMergeNotSupported)
-	if prCfg.AutoMerge {
-		if amErr := provider.EnableAutoMerge(ctx, pr.Number, ciCfg.MergeMethod); amErr != nil {
-			if !errors.Is(amErr, hosting.ErrAutoMergeNotSupported) {
-				we.logger.Warn("failed to enable auto-merge", "pr", pr.Number, "error", amErr)
-			}
-		}
-	}
-
-	// Auto-approve if configured
-	if prCfg.AutoApprove {
-		if apErr := provider.ApprovePR(ctx, pr.Number, "Auto-approved by orc"); apErr != nil {
-			we.logger.Warn("failed to auto-approve PR", "pr", pr.Number, "error", apErr)
-		}
-	}
+	// Apply auto-merge/approve settings to new PR
+	we.applyPRAutomation(ctx, provider, pr.Number, prCfg, ciCfg)
 
 	// Update task with PR info
 	task.SetPRInfoProto(t, pr.HTMLURL, pr.Number)
@@ -289,8 +310,27 @@ func (we *WorkflowExecutor) createPR(ctx context.Context, t *orcv1.Task, gitOps 
 	return nil
 }
 
-// getHostingProvider creates a hosting provider from the executor's config and working directory.
+// applyPRAutomation enables auto-merge and auto-approve on a PR if configured.
+func (we *WorkflowExecutor) applyPRAutomation(ctx context.Context, provider hosting.Provider, prNumber int, prCfg config.PRConfig, ciCfg config.CIConfig) {
+	if prCfg.AutoMerge {
+		if amErr := provider.EnableAutoMerge(ctx, prNumber, ciCfg.MergeMethod); amErr != nil {
+			if !errors.Is(amErr, hosting.ErrAutoMergeNotSupported) {
+				we.logger.Warn("failed to enable auto-merge", "pr", prNumber, "error", amErr)
+			}
+		}
+	}
+	if prCfg.AutoApprove {
+		if apErr := provider.ApprovePR(ctx, prNumber, "Auto-approved by orc"); apErr != nil {
+			we.logger.Warn("failed to auto-approve PR", "pr", prNumber, "error", apErr)
+		}
+	}
+}
+
+// getHostingProvider returns the injected hosting provider (for testing) or creates one from config.
 func (we *WorkflowExecutor) getHostingProvider() (hosting.Provider, error) {
+	if we.hostingProvider != nil {
+		return we.hostingProvider, nil
+	}
 	cfg := hosting.Config{}
 	if we.orcConfig != nil {
 		cfg = hosting.Config{
