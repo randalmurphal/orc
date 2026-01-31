@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -115,7 +114,7 @@ func TestBuildBlockedContext_NilConfig(t *testing.T) {
 	t.Parallel()
 	tk := task.NewProtoTask("TASK-001", "Test task")
 
-	ctx := buildBlockedContextProto(tk, nil)
+	ctx := buildBlockedContextProto(tk, nil, "/tmp")
 
 	if ctx == nil {
 		t.Fatal("expected non-nil context")
@@ -137,7 +136,7 @@ func TestBuildBlockedContext_WorktreeDisabled(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if ctx.WorktreePath != "" {
 		t.Errorf("expected empty WorktreePath when worktree disabled, got %q", ctx.WorktreePath)
@@ -153,12 +152,12 @@ func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 			Dir:     ".orc/worktrees",
 		},
 	}
+	projectRoot := t.TempDir()
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, projectRoot)
 
-	// ResolveWorktreeDir joins relative Dir with cwd, producing an absolute path
-	cwd, _ := os.Getwd()
-	expected := filepath.Join(cwd, ".orc/worktrees") + "/orc-TASK-001"
+	// ResolveWorktreeDir joins relative Dir with projectRoot, producing an absolute path
+	expected := filepath.Join(projectRoot, ".orc/worktrees") + "/orc-TASK-001"
 	if ctx.WorktreePath != expected {
 		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expected)
 	}
@@ -170,15 +169,15 @@ func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
 			Enabled: true,
-			Dir:     "", // Empty triggers registry lookup, falls back to <cwd>/.orc/worktrees
+			Dir:     "", // Empty triggers registry lookup, falls back to <projectRoot>/.orc/worktrees
 		},
 	}
+	projectRoot := t.TempDir()
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, projectRoot)
 
-	// With empty Dir, ResolveWorktreeDir falls back to <projectDir>/.orc/worktrees
-	cwd, _ := os.Getwd()
-	expected := filepath.Join(cwd, ".orc", "worktrees") + "/orc-TASK-002"
+	// With empty Dir and unregistered project, falls back to <projectRoot>/.orc/worktrees
+	expected := filepath.Join(projectRoot, ".orc", "worktrees") + "/orc-TASK-002"
 	if ctx.WorktreePath != expected {
 		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expected)
 	}
@@ -196,7 +195,7 @@ func TestBuildBlockedContext_WithConflictFiles(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if len(ctx.ConflictFiles) != 2 {
 		t.Fatalf("expected 2 conflict files, got %d", len(ctx.ConflictFiles))
@@ -218,7 +217,7 @@ func TestBuildBlockedContext_NoBlockedError(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if len(ctx.ConflictFiles) != 0 {
 		t.Errorf("expected 0 conflict files, got %d", len(ctx.ConflictFiles))
@@ -235,7 +234,7 @@ func TestBuildBlockedContext_NilMetadata(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if len(ctx.ConflictFiles) != 0 {
 		t.Errorf("expected 0 conflict files with nil metadata, got %d", len(ctx.ConflictFiles))
@@ -255,7 +254,7 @@ func TestBuildBlockedContext_RebaseStrategy(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if ctx.SyncStrategy != progress.SyncStrategyRebase {
 		t.Errorf("SyncStrategy = %q, want %q", ctx.SyncStrategy, progress.SyncStrategyRebase)
@@ -275,7 +274,7 @@ func TestBuildBlockedContext_MergeStrategy(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if ctx.SyncStrategy != progress.SyncStrategyMerge {
 		t.Errorf("SyncStrategy = %q, want %q", ctx.SyncStrategy, progress.SyncStrategyMerge)
@@ -291,7 +290,7 @@ func TestBuildBlockedContext_TargetBranch(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if ctx.TargetBranch != "develop" {
 		t.Errorf("TargetBranch = %q, want 'develop'", ctx.TargetBranch)
@@ -307,7 +306,7 @@ func TestBuildBlockedContext_DefaultTargetBranch(t *testing.T) {
 		},
 	}
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, "/tmp")
 
 	if ctx.TargetBranch != "main" {
 		t.Errorf("TargetBranch = %q, want 'main'", ctx.TargetBranch)
@@ -334,12 +333,12 @@ func TestBuildBlockedContext_FullContext(t *testing.T) {
 			},
 		},
 	}
+	projectRoot := t.TempDir()
 
-	ctx := buildBlockedContextProto(tk, cfg)
+	ctx := buildBlockedContextProto(tk, cfg, projectRoot)
 
 	// Verify all fields are populated correctly
-	cwd, _ := os.Getwd()
-	expectedWT := filepath.Join(cwd, "custom/worktrees") + "/orc-TASK-123"
+	expectedWT := filepath.Join(projectRoot, "custom/worktrees") + "/orc-TASK-123"
 	if ctx.WorktreePath != expectedWT {
 		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expectedWT)
 	}

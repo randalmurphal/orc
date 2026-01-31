@@ -8,6 +8,14 @@ import (
 	"testing"
 )
 
+// testConfigWithWorktreeDir returns a DefaultConfig with WorktreeDir set to
+// a subdirectory of tmpDir, matching what production code does for unregistered projects.
+func testConfigWithWorktreeDir(tmpDir string) Config {
+	cfg := DefaultConfig()
+	cfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	return cfg
+}
+
 func TestBranchName(t *testing.T) {
 	tmpDir := setupTestRepo(t)
 	g, _ := New(tmpDir, DefaultConfig())
@@ -20,7 +28,9 @@ func TestBranchName(t *testing.T) {
 
 func TestWorktreePath(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorktreeDir = ".orc/worktrees"
+	g, _ := New(tmpDir, cfg)
 
 	path := g.WorktreePath("TASK-001")
 	if !strings.Contains(path, ".orc/worktrees") {
@@ -34,7 +44,7 @@ func TestWorktreePath(t *testing.T) {
 
 func TestCreateAndCleanupWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	// Get current branch to use as base
 	baseBranch, _ := g.GetCurrentBranch()
@@ -64,7 +74,7 @@ func TestCreateAndCleanupWorktree(t *testing.T) {
 
 func TestInWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-001", baseBranch)
@@ -111,7 +121,7 @@ func TestCleanupWorktree_NotExists(t *testing.T) {
 // TestIsInWorktreeContext tests worktree context tracking
 func TestIsInWorktreeContext(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	// Main git instance is not in worktree context
 	if g.IsInWorktreeContext() {
@@ -136,7 +146,7 @@ func TestIsInWorktreeContext(t *testing.T) {
 // TestInjectWorktreeHooks_Integration tests hook injection into a real worktree
 func TestInjectWorktreeHooks_Integration(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-002", baseBranch)
@@ -218,7 +228,7 @@ func TestInjectWorktreeHooks_Integration(t *testing.T) {
 // TestRemoveWorktreeHooks_Integration tests hook removal during cleanup
 func TestRemoveWorktreeHooks_Integration(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-003", baseBranch)
@@ -256,7 +266,7 @@ func TestRemoveWorktreeHooks_Integration(t *testing.T) {
 // TestCreateWorktree_HooksContainProtectedBranches tests hooks contain all protected branches
 func TestCreateWorktree_HooksContainProtectedBranches(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-004", baseBranch)
@@ -300,7 +310,7 @@ func TestPruneWorktrees(t *testing.T) {
 // TestCreateWorktree_StaleWorktree tests that CreateWorktree handles stale registrations
 func TestCreateWorktree_StaleWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 
@@ -347,7 +357,7 @@ func TestCreateWorktree_StaleWorktree(t *testing.T) {
 // TestCreateWorktree_StaleWorktree_ExistingBranch tests stale worktree with existing branch
 func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 
@@ -395,7 +405,7 @@ func TestCreateWorktree_StaleWorktree_ExistingBranch(t *testing.T) {
 // a Git instance with its own independent mutex.
 func TestInWorktree_IndependentMutex(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 	worktreePath, err := g.CreateWorktree("TASK-MUTEX", baseBranch)
@@ -443,7 +453,7 @@ func TestInWorktree_IndependentMutex(t *testing.T) {
 // TestCleanupWorktreeAtPath tests path-based worktree cleanup
 func TestCleanupWorktreeAtPath(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	// Get current branch to use as base
 	baseBranch, _ := g.GetCurrentBranch()
@@ -486,7 +496,7 @@ func TestCleanupWorktreeAtPath_EmptyPath(t *testing.T) {
 // TestCleanupWorktreeAtPath_InitiativePrefix tests cleanup of initiative-prefixed worktrees
 func TestCleanupWorktreeAtPath_InitiativePrefix(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 
@@ -523,7 +533,7 @@ func TestCleanupWorktreeAtPath_InitiativePrefix(t *testing.T) {
 // works correctly for initiative-prefixed worktrees where ID-based cleanup would fail
 func TestCleanupWorktreeAtPath_VsCleanupWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	baseBranch, _ := g.GetCurrentBranch()
 

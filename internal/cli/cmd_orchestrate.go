@@ -10,7 +10,6 @@ import (
 
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/orchestrator"
 	"github.com/randalmurphal/orc/internal/prompt"
 	"github.com/spf13/cobra"
@@ -85,10 +84,7 @@ func runOrchestrate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
 	}
-	gitCfg := git.Config{
-		WorktreeDir: config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd),
-	}
-	gitOps, err := git.New(".", gitCfg)
+	gitOps, err := NewGitOpsFromConfig(cwd, cfg)
 	if err != nil {
 		return fmt.Errorf("init git: %w", err)
 	}
