@@ -96,7 +96,7 @@ message PhaseTemplate {
   bool checkpoint = 15;
   optional string retry_from_phase = 16;
   optional string retry_prompt_path = 17;
-  // Field 18 removed: claude_config - now on Agent
+  optional string claude_config = 18;  // Per-phase settings (hooks, MCP, skills, env) - JSON PhaseClaudeConfig
   bool is_builtin = 19;
   google.protobuf.Timestamp created_at = 20;
   google.protobuf.Timestamp updated_at = 21;
@@ -442,6 +442,7 @@ message CreatePhaseTemplateRequest {
   bool checkpoint = 14;
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
+  optional string claude_config = 17;    // Per-phase settings JSON
 }
 
 message CreatePhaseTemplateResponse {
@@ -465,6 +466,7 @@ message UpdatePhaseTemplateRequest {
   optional bool checkpoint = 14;
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
+  optional string claude_config = 17;    // Per-phase settings JSON
 }
 
 message UpdatePhaseTemplateResponse {
