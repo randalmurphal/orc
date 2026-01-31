@@ -20,8 +20,9 @@ import (
 // mcpServer implements the MCPServiceHandler interface.
 type mcpServer struct {
 	orcv1connect.UnimplementedMCPServiceHandler
-	workDir string
-	logger  *slog.Logger
+	workDir     string
+	logger      *slog.Logger
+	testHomeDir string // For test isolation of GLOBAL scope
 }
 
 // NewMCPServer creates a new MCPService handler.

@@ -273,6 +273,83 @@ func (x *MCPServer) GetDisabled() bool {
 	return false
 }
 
+// DiscoveredMCPServer represents an MCP server found during scan
+type DiscoveredMCPServer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // "stdio" or "sse"
+	Command       *string                `protobuf:"bytes,3,opt,name=command,proto3,oneof" json:"command,omitempty"`
+	Url           *string                `protobuf:"bytes,4,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"` // "new" or "modified"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoveredMCPServer) Reset() {
+	*x = DiscoveredMCPServer{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredMCPServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredMCPServer) ProtoMessage() {}
+
+func (x *DiscoveredMCPServer) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredMCPServer.ProtoReflect.Descriptor instead.
+func (*DiscoveredMCPServer) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DiscoveredMCPServer) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DiscoveredMCPServer) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *DiscoveredMCPServer) GetCommand() string {
+	if x != nil && x.Command != nil {
+		return *x.Command
+	}
+	return ""
+}
+
+func (x *DiscoveredMCPServer) GetUrl() string {
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+func (x *DiscoveredMCPServer) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 // ListMCPServers
 type ListMCPServersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -283,7 +360,7 @@ type ListMCPServersRequest struct {
 
 func (x *ListMCPServersRequest) Reset() {
 	*x = ListMCPServersRequest{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[2]
+	mi := &file_orc_v1_mcp_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +372,7 @@ func (x *ListMCPServersRequest) String() string {
 func (*ListMCPServersRequest) ProtoMessage() {}
 
 func (x *ListMCPServersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[2]
+	mi := &file_orc_v1_mcp_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +385,7 @@ func (x *ListMCPServersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMCPServersRequest.ProtoReflect.Descriptor instead.
 func (*ListMCPServersRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{2}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListMCPServersRequest) GetScope() MCPScope {
@@ -327,7 +404,7 @@ type ListMCPServersResponse struct {
 
 func (x *ListMCPServersResponse) Reset() {
 	*x = ListMCPServersResponse{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[3]
+	mi := &file_orc_v1_mcp_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -339,7 +416,7 @@ func (x *ListMCPServersResponse) String() string {
 func (*ListMCPServersResponse) ProtoMessage() {}
 
 func (x *ListMCPServersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[3]
+	mi := &file_orc_v1_mcp_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -352,7 +429,7 @@ func (x *ListMCPServersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMCPServersResponse.ProtoReflect.Descriptor instead.
 func (*ListMCPServersResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{3}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListMCPServersResponse) GetServers() []*MCPServerInfo {
@@ -372,7 +449,7 @@ type GetMCPServerRequest struct {
 
 func (x *GetMCPServerRequest) Reset() {
 	*x = GetMCPServerRequest{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[4]
+	mi := &file_orc_v1_mcp_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +461,7 @@ func (x *GetMCPServerRequest) String() string {
 func (*GetMCPServerRequest) ProtoMessage() {}
 
 func (x *GetMCPServerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[4]
+	mi := &file_orc_v1_mcp_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,7 +474,7 @@ func (x *GetMCPServerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMCPServerRequest.ProtoReflect.Descriptor instead.
 func (*GetMCPServerRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{4}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetMCPServerRequest) GetName() string {
@@ -416,7 +493,7 @@ type GetMCPServerResponse struct {
 
 func (x *GetMCPServerResponse) Reset() {
 	*x = GetMCPServerResponse{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[5]
+	mi := &file_orc_v1_mcp_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +505,7 @@ func (x *GetMCPServerResponse) String() string {
 func (*GetMCPServerResponse) ProtoMessage() {}
 
 func (x *GetMCPServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[5]
+	mi := &file_orc_v1_mcp_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +518,7 @@ func (x *GetMCPServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMCPServerResponse.ProtoReflect.Descriptor instead.
 func (*GetMCPServerResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{5}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetMCPServerResponse) GetServer() *MCPServer {
@@ -468,7 +545,7 @@ type CreateMCPServerRequest struct {
 
 func (x *CreateMCPServerRequest) Reset() {
 	*x = CreateMCPServerRequest{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[6]
+	mi := &file_orc_v1_mcp_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +557,7 @@ func (x *CreateMCPServerRequest) String() string {
 func (*CreateMCPServerRequest) ProtoMessage() {}
 
 func (x *CreateMCPServerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[6]
+	mi := &file_orc_v1_mcp_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +570,7 @@ func (x *CreateMCPServerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMCPServerRequest.ProtoReflect.Descriptor instead.
 func (*CreateMCPServerRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{6}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreateMCPServerRequest) GetName() string {
@@ -561,7 +638,7 @@ type CreateMCPServerResponse struct {
 
 func (x *CreateMCPServerResponse) Reset() {
 	*x = CreateMCPServerResponse{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[7]
+	mi := &file_orc_v1_mcp_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +650,7 @@ func (x *CreateMCPServerResponse) String() string {
 func (*CreateMCPServerResponse) ProtoMessage() {}
 
 func (x *CreateMCPServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[7]
+	mi := &file_orc_v1_mcp_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +663,7 @@ func (x *CreateMCPServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMCPServerResponse.ProtoReflect.Descriptor instead.
 func (*CreateMCPServerResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{7}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateMCPServerResponse) GetServer() *MCPServerInfo {
@@ -613,7 +690,7 @@ type UpdateMCPServerRequest struct {
 
 func (x *UpdateMCPServerRequest) Reset() {
 	*x = UpdateMCPServerRequest{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[8]
+	mi := &file_orc_v1_mcp_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +702,7 @@ func (x *UpdateMCPServerRequest) String() string {
 func (*UpdateMCPServerRequest) ProtoMessage() {}
 
 func (x *UpdateMCPServerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[8]
+	mi := &file_orc_v1_mcp_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +715,7 @@ func (x *UpdateMCPServerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMCPServerRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMCPServerRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateMCPServerRequest) GetName() string {
@@ -706,7 +783,7 @@ type UpdateMCPServerResponse struct {
 
 func (x *UpdateMCPServerResponse) Reset() {
 	*x = UpdateMCPServerResponse{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[9]
+	mi := &file_orc_v1_mcp_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -718,7 +795,7 @@ func (x *UpdateMCPServerResponse) String() string {
 func (*UpdateMCPServerResponse) ProtoMessage() {}
 
 func (x *UpdateMCPServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[9]
+	mi := &file_orc_v1_mcp_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -731,7 +808,7 @@ func (x *UpdateMCPServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMCPServerResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMCPServerResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateMCPServerResponse) GetServer() *MCPServerInfo {
@@ -751,7 +828,7 @@ type DeleteMCPServerRequest struct {
 
 func (x *DeleteMCPServerRequest) Reset() {
 	*x = DeleteMCPServerRequest{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[10]
+	mi := &file_orc_v1_mcp_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +840,7 @@ func (x *DeleteMCPServerRequest) String() string {
 func (*DeleteMCPServerRequest) ProtoMessage() {}
 
 func (x *DeleteMCPServerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[10]
+	mi := &file_orc_v1_mcp_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +853,7 @@ func (x *DeleteMCPServerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMCPServerRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMCPServerRequest) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteMCPServerRequest) GetName() string {
@@ -794,7 +871,7 @@ type DeleteMCPServerResponse struct {
 
 func (x *DeleteMCPServerResponse) Reset() {
 	*x = DeleteMCPServerResponse{}
-	mi := &file_orc_v1_mcp_proto_msgTypes[11]
+	mi := &file_orc_v1_mcp_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +883,7 @@ func (x *DeleteMCPServerResponse) String() string {
 func (*DeleteMCPServerResponse) ProtoMessage() {}
 
 func (x *DeleteMCPServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_mcp_proto_msgTypes[11]
+	mi := &file_orc_v1_mcp_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +896,314 @@ func (x *DeleteMCPServerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMCPServerResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMCPServerResponse) Descriptor() ([]byte, []int) {
-	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{12}
+}
+
+// ExportMCPServers
+type ExportMCPServersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ServerNames   []string               `protobuf:"bytes,1,rep,name=server_names,json=serverNames,proto3" json:"server_names,omitempty"`
+	Source        MCPScope               `protobuf:"varint,2,opt,name=source,proto3,enum=orc.v1.MCPScope" json:"source,omitempty"`
+	Destination   MCPScope               `protobuf:"varint,3,opt,name=destination,proto3,enum=orc.v1.MCPScope" json:"destination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportMCPServersRequest) Reset() {
+	*x = ExportMCPServersRequest{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportMCPServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportMCPServersRequest) ProtoMessage() {}
+
+func (x *ExportMCPServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportMCPServersRequest.ProtoReflect.Descriptor instead.
+func (*ExportMCPServersRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ExportMCPServersRequest) GetServerNames() []string {
+	if x != nil {
+		return x.ServerNames
+	}
+	return nil
+}
+
+func (x *ExportMCPServersRequest) GetSource() MCPScope {
+	if x != nil {
+		return x.Source
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+func (x *ExportMCPServersRequest) GetDestination() MCPScope {
+	if x != nil {
+		return x.Destination
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+type ExportMCPServersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExportedCount int32                  `protobuf:"varint,1,opt,name=exported_count,json=exportedCount,proto3" json:"exported_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportMCPServersResponse) Reset() {
+	*x = ExportMCPServersResponse{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportMCPServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportMCPServersResponse) ProtoMessage() {}
+
+func (x *ExportMCPServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportMCPServersResponse.ProtoReflect.Descriptor instead.
+func (*ExportMCPServersResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ExportMCPServersResponse) GetExportedCount() int32 {
+	if x != nil {
+		return x.ExportedCount
+	}
+	return 0
+}
+
+// ScanMCPServers
+type ScanMCPServersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        MCPScope               `protobuf:"varint,1,opt,name=source,proto3,enum=orc.v1.MCPScope" json:"source,omitempty"`
+	CompareTo     MCPScope               `protobuf:"varint,2,opt,name=compare_to,json=compareTo,proto3,enum=orc.v1.MCPScope" json:"compare_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanMCPServersRequest) Reset() {
+	*x = ScanMCPServersRequest{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanMCPServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanMCPServersRequest) ProtoMessage() {}
+
+func (x *ScanMCPServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanMCPServersRequest.ProtoReflect.Descriptor instead.
+func (*ScanMCPServersRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ScanMCPServersRequest) GetSource() MCPScope {
+	if x != nil {
+		return x.Source
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+func (x *ScanMCPServersRequest) GetCompareTo() MCPScope {
+	if x != nil {
+		return x.CompareTo
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+type ScanMCPServersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Servers       []*DiscoveredMCPServer `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanMCPServersResponse) Reset() {
+	*x = ScanMCPServersResponse{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanMCPServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanMCPServersResponse) ProtoMessage() {}
+
+func (x *ScanMCPServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanMCPServersResponse.ProtoReflect.Descriptor instead.
+func (*ScanMCPServersResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ScanMCPServersResponse) GetServers() []*DiscoveredMCPServer {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+// ImportMCPServers
+type ImportMCPServersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ServerNames   []string               `protobuf:"bytes,1,rep,name=server_names,json=serverNames,proto3" json:"server_names,omitempty"`
+	Source        MCPScope               `protobuf:"varint,2,opt,name=source,proto3,enum=orc.v1.MCPScope" json:"source,omitempty"`
+	Destination   MCPScope               `protobuf:"varint,3,opt,name=destination,proto3,enum=orc.v1.MCPScope" json:"destination,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportMCPServersRequest) Reset() {
+	*x = ImportMCPServersRequest{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportMCPServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportMCPServersRequest) ProtoMessage() {}
+
+func (x *ImportMCPServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportMCPServersRequest.ProtoReflect.Descriptor instead.
+func (*ImportMCPServersRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ImportMCPServersRequest) GetServerNames() []string {
+	if x != nil {
+		return x.ServerNames
+	}
+	return nil
+}
+
+func (x *ImportMCPServersRequest) GetSource() MCPScope {
+	if x != nil {
+		return x.Source
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+func (x *ImportMCPServersRequest) GetDestination() MCPScope {
+	if x != nil {
+		return x.Destination
+	}
+	return MCPScope_MCP_SCOPE_UNSPECIFIED
+}
+
+type ImportMCPServersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ImportedCount int32                  `protobuf:"varint,1,opt,name=imported_count,json=importedCount,proto3" json:"imported_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportMCPServersResponse) Reset() {
+	*x = ImportMCPServersResponse{}
+	mi := &file_orc_v1_mcp_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportMCPServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportMCPServersResponse) ProtoMessage() {}
+
+func (x *ImportMCPServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_mcp_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportMCPServersResponse.ProtoReflect.Descriptor instead.
+func (*ImportMCPServersResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_mcp_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ImportMCPServersResponse) GetImportedCount() int32 {
+	if x != nil {
+		return x.ImportedCount
+	}
+	return 0
 }
 
 var File_orc_v1_mcp_proto protoreflect.FileDescriptor
@@ -852,6 +1236,15 @@ const file_orc_v1_mcp_proto_rawDesc = "" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\n" +
+	"\n" +
+	"\b_commandB\x06\n" +
+	"\x04_url\"\x9f\x01\n" +
+	"\x13DiscoveredMCPServer\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1d\n" +
+	"\acommand\x18\x03 \x01(\tH\x00R\acommand\x88\x01\x01\x12\x15\n" +
+	"\x03url\x18\x04 \x01(\tH\x01R\x03url\x88\x01\x01\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06statusB\n" +
 	"\n" +
 	"\b_commandB\x06\n" +
 	"\x04_url\"?\n" +
@@ -902,18 +1295,39 @@ const file_orc_v1_mcp_proto_rawDesc = "" +
 	"\x06server\x18\x01 \x01(\v2\x15.orc.v1.MCPServerInfoR\x06server\",\n" +
 	"\x16DeleteMCPServerRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\x19\n" +
-	"\x17DeleteMCPServerResponse*R\n" +
+	"\x17DeleteMCPServerResponse\"\x9a\x01\n" +
+	"\x17ExportMCPServersRequest\x12!\n" +
+	"\fserver_names\x18\x01 \x03(\tR\vserverNames\x12(\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x10.orc.v1.MCPScopeR\x06source\x122\n" +
+	"\vdestination\x18\x03 \x01(\x0e2\x10.orc.v1.MCPScopeR\vdestination\"A\n" +
+	"\x18ExportMCPServersResponse\x12%\n" +
+	"\x0eexported_count\x18\x01 \x01(\x05R\rexportedCount\"r\n" +
+	"\x15ScanMCPServersRequest\x12(\n" +
+	"\x06source\x18\x01 \x01(\x0e2\x10.orc.v1.MCPScopeR\x06source\x12/\n" +
+	"\n" +
+	"compare_to\x18\x02 \x01(\x0e2\x10.orc.v1.MCPScopeR\tcompareTo\"O\n" +
+	"\x16ScanMCPServersResponse\x125\n" +
+	"\aservers\x18\x01 \x03(\v2\x1b.orc.v1.DiscoveredMCPServerR\aservers\"\x9a\x01\n" +
+	"\x17ImportMCPServersRequest\x12!\n" +
+	"\fserver_names\x18\x01 \x03(\tR\vserverNames\x12(\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x10.orc.v1.MCPScopeR\x06source\x122\n" +
+	"\vdestination\x18\x03 \x01(\x0e2\x10.orc.v1.MCPScopeR\vdestination\"A\n" +
+	"\x18ImportMCPServersResponse\x12%\n" +
+	"\x0eimported_count\x18\x01 \x01(\x05R\rimportedCount*R\n" +
 	"\bMCPScope\x12\x19\n" +
 	"\x15MCP_SCOPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11MCP_SCOPE_PROJECT\x10\x01\x12\x14\n" +
-	"\x10MCP_SCOPE_GLOBAL\x10\x022\xa4\x03\n" +
+	"\x10MCP_SCOPE_GLOBAL\x10\x022\xa3\x05\n" +
 	"\n" +
 	"MCPService\x12O\n" +
 	"\x0eListMCPServers\x12\x1d.orc.v1.ListMCPServersRequest\x1a\x1e.orc.v1.ListMCPServersResponse\x12I\n" +
 	"\fGetMCPServer\x12\x1b.orc.v1.GetMCPServerRequest\x1a\x1c.orc.v1.GetMCPServerResponse\x12R\n" +
 	"\x0fCreateMCPServer\x12\x1e.orc.v1.CreateMCPServerRequest\x1a\x1f.orc.v1.CreateMCPServerResponse\x12R\n" +
 	"\x0fUpdateMCPServer\x12\x1e.orc.v1.UpdateMCPServerRequest\x1a\x1f.orc.v1.UpdateMCPServerResponse\x12R\n" +
-	"\x0fDeleteMCPServer\x12\x1e.orc.v1.DeleteMCPServerRequest\x1a\x1f.orc.v1.DeleteMCPServerResponseB\x84\x01\n" +
+	"\x0fDeleteMCPServer\x12\x1e.orc.v1.DeleteMCPServerRequest\x1a\x1f.orc.v1.DeleteMCPServerResponse\x12U\n" +
+	"\x10ExportMCPServers\x12\x1f.orc.v1.ExportMCPServersRequest\x1a .orc.v1.ExportMCPServersResponse\x12O\n" +
+	"\x0eScanMCPServers\x12\x1d.orc.v1.ScanMCPServersRequest\x1a\x1e.orc.v1.ScanMCPServersResponse\x12U\n" +
+	"\x10ImportMCPServers\x12\x1f.orc.v1.ImportMCPServersRequest\x1a .orc.v1.ImportMCPServersResponseB\x84\x01\n" +
 	"\n" +
 	"com.orc.v1B\bMcpProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -930,49 +1344,69 @@ func file_orc_v1_mcp_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_mcp_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_orc_v1_mcp_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_orc_v1_mcp_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_orc_v1_mcp_proto_goTypes = []any{
-	(MCPScope)(0),                   // 0: orc.v1.MCPScope
-	(*MCPServerInfo)(nil),           // 1: orc.v1.MCPServerInfo
-	(*MCPServer)(nil),               // 2: orc.v1.MCPServer
-	(*ListMCPServersRequest)(nil),   // 3: orc.v1.ListMCPServersRequest
-	(*ListMCPServersResponse)(nil),  // 4: orc.v1.ListMCPServersResponse
-	(*GetMCPServerRequest)(nil),     // 5: orc.v1.GetMCPServerRequest
-	(*GetMCPServerResponse)(nil),    // 6: orc.v1.GetMCPServerResponse
-	(*CreateMCPServerRequest)(nil),  // 7: orc.v1.CreateMCPServerRequest
-	(*CreateMCPServerResponse)(nil), // 8: orc.v1.CreateMCPServerResponse
-	(*UpdateMCPServerRequest)(nil),  // 9: orc.v1.UpdateMCPServerRequest
-	(*UpdateMCPServerResponse)(nil), // 10: orc.v1.UpdateMCPServerResponse
-	(*DeleteMCPServerRequest)(nil),  // 11: orc.v1.DeleteMCPServerRequest
-	(*DeleteMCPServerResponse)(nil), // 12: orc.v1.DeleteMCPServerResponse
-	nil,                             // 13: orc.v1.MCPServer.EnvEntry
-	nil,                             // 14: orc.v1.CreateMCPServerRequest.EnvEntry
-	nil,                             // 15: orc.v1.UpdateMCPServerRequest.EnvEntry
+	(MCPScope)(0),                    // 0: orc.v1.MCPScope
+	(*MCPServerInfo)(nil),            // 1: orc.v1.MCPServerInfo
+	(*MCPServer)(nil),                // 2: orc.v1.MCPServer
+	(*DiscoveredMCPServer)(nil),      // 3: orc.v1.DiscoveredMCPServer
+	(*ListMCPServersRequest)(nil),    // 4: orc.v1.ListMCPServersRequest
+	(*ListMCPServersResponse)(nil),   // 5: orc.v1.ListMCPServersResponse
+	(*GetMCPServerRequest)(nil),      // 6: orc.v1.GetMCPServerRequest
+	(*GetMCPServerResponse)(nil),     // 7: orc.v1.GetMCPServerResponse
+	(*CreateMCPServerRequest)(nil),   // 8: orc.v1.CreateMCPServerRequest
+	(*CreateMCPServerResponse)(nil),  // 9: orc.v1.CreateMCPServerResponse
+	(*UpdateMCPServerRequest)(nil),   // 10: orc.v1.UpdateMCPServerRequest
+	(*UpdateMCPServerResponse)(nil),  // 11: orc.v1.UpdateMCPServerResponse
+	(*DeleteMCPServerRequest)(nil),   // 12: orc.v1.DeleteMCPServerRequest
+	(*DeleteMCPServerResponse)(nil),  // 13: orc.v1.DeleteMCPServerResponse
+	(*ExportMCPServersRequest)(nil),  // 14: orc.v1.ExportMCPServersRequest
+	(*ExportMCPServersResponse)(nil), // 15: orc.v1.ExportMCPServersResponse
+	(*ScanMCPServersRequest)(nil),    // 16: orc.v1.ScanMCPServersRequest
+	(*ScanMCPServersResponse)(nil),   // 17: orc.v1.ScanMCPServersResponse
+	(*ImportMCPServersRequest)(nil),  // 18: orc.v1.ImportMCPServersRequest
+	(*ImportMCPServersResponse)(nil), // 19: orc.v1.ImportMCPServersResponse
+	nil,                              // 20: orc.v1.MCPServer.EnvEntry
+	nil,                              // 21: orc.v1.CreateMCPServerRequest.EnvEntry
+	nil,                              // 22: orc.v1.UpdateMCPServerRequest.EnvEntry
 }
 var file_orc_v1_mcp_proto_depIdxs = []int32{
-	13, // 0: orc.v1.MCPServer.env:type_name -> orc.v1.MCPServer.EnvEntry
+	20, // 0: orc.v1.MCPServer.env:type_name -> orc.v1.MCPServer.EnvEntry
 	0,  // 1: orc.v1.ListMCPServersRequest.scope:type_name -> orc.v1.MCPScope
 	1,  // 2: orc.v1.ListMCPServersResponse.servers:type_name -> orc.v1.MCPServerInfo
 	2,  // 3: orc.v1.GetMCPServerResponse.server:type_name -> orc.v1.MCPServer
-	14, // 4: orc.v1.CreateMCPServerRequest.env:type_name -> orc.v1.CreateMCPServerRequest.EnvEntry
+	21, // 4: orc.v1.CreateMCPServerRequest.env:type_name -> orc.v1.CreateMCPServerRequest.EnvEntry
 	1,  // 5: orc.v1.CreateMCPServerResponse.server:type_name -> orc.v1.MCPServerInfo
-	15, // 6: orc.v1.UpdateMCPServerRequest.env:type_name -> orc.v1.UpdateMCPServerRequest.EnvEntry
+	22, // 6: orc.v1.UpdateMCPServerRequest.env:type_name -> orc.v1.UpdateMCPServerRequest.EnvEntry
 	1,  // 7: orc.v1.UpdateMCPServerResponse.server:type_name -> orc.v1.MCPServerInfo
-	3,  // 8: orc.v1.MCPService.ListMCPServers:input_type -> orc.v1.ListMCPServersRequest
-	5,  // 9: orc.v1.MCPService.GetMCPServer:input_type -> orc.v1.GetMCPServerRequest
-	7,  // 10: orc.v1.MCPService.CreateMCPServer:input_type -> orc.v1.CreateMCPServerRequest
-	9,  // 11: orc.v1.MCPService.UpdateMCPServer:input_type -> orc.v1.UpdateMCPServerRequest
-	11, // 12: orc.v1.MCPService.DeleteMCPServer:input_type -> orc.v1.DeleteMCPServerRequest
-	4,  // 13: orc.v1.MCPService.ListMCPServers:output_type -> orc.v1.ListMCPServersResponse
-	6,  // 14: orc.v1.MCPService.GetMCPServer:output_type -> orc.v1.GetMCPServerResponse
-	8,  // 15: orc.v1.MCPService.CreateMCPServer:output_type -> orc.v1.CreateMCPServerResponse
-	10, // 16: orc.v1.MCPService.UpdateMCPServer:output_type -> orc.v1.UpdateMCPServerResponse
-	12, // 17: orc.v1.MCPService.DeleteMCPServer:output_type -> orc.v1.DeleteMCPServerResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	0,  // 8: orc.v1.ExportMCPServersRequest.source:type_name -> orc.v1.MCPScope
+	0,  // 9: orc.v1.ExportMCPServersRequest.destination:type_name -> orc.v1.MCPScope
+	0,  // 10: orc.v1.ScanMCPServersRequest.source:type_name -> orc.v1.MCPScope
+	0,  // 11: orc.v1.ScanMCPServersRequest.compare_to:type_name -> orc.v1.MCPScope
+	3,  // 12: orc.v1.ScanMCPServersResponse.servers:type_name -> orc.v1.DiscoveredMCPServer
+	0,  // 13: orc.v1.ImportMCPServersRequest.source:type_name -> orc.v1.MCPScope
+	0,  // 14: orc.v1.ImportMCPServersRequest.destination:type_name -> orc.v1.MCPScope
+	4,  // 15: orc.v1.MCPService.ListMCPServers:input_type -> orc.v1.ListMCPServersRequest
+	6,  // 16: orc.v1.MCPService.GetMCPServer:input_type -> orc.v1.GetMCPServerRequest
+	8,  // 17: orc.v1.MCPService.CreateMCPServer:input_type -> orc.v1.CreateMCPServerRequest
+	10, // 18: orc.v1.MCPService.UpdateMCPServer:input_type -> orc.v1.UpdateMCPServerRequest
+	12, // 19: orc.v1.MCPService.DeleteMCPServer:input_type -> orc.v1.DeleteMCPServerRequest
+	14, // 20: orc.v1.MCPService.ExportMCPServers:input_type -> orc.v1.ExportMCPServersRequest
+	16, // 21: orc.v1.MCPService.ScanMCPServers:input_type -> orc.v1.ScanMCPServersRequest
+	18, // 22: orc.v1.MCPService.ImportMCPServers:input_type -> orc.v1.ImportMCPServersRequest
+	5,  // 23: orc.v1.MCPService.ListMCPServers:output_type -> orc.v1.ListMCPServersResponse
+	7,  // 24: orc.v1.MCPService.GetMCPServer:output_type -> orc.v1.GetMCPServerResponse
+	9,  // 25: orc.v1.MCPService.CreateMCPServer:output_type -> orc.v1.CreateMCPServerResponse
+	11, // 26: orc.v1.MCPService.UpdateMCPServer:output_type -> orc.v1.UpdateMCPServerResponse
+	13, // 27: orc.v1.MCPService.DeleteMCPServer:output_type -> orc.v1.DeleteMCPServerResponse
+	15, // 28: orc.v1.MCPService.ExportMCPServers:output_type -> orc.v1.ExportMCPServersResponse
+	17, // 29: orc.v1.MCPService.ScanMCPServers:output_type -> orc.v1.ScanMCPServersResponse
+	19, // 30: orc.v1.MCPService.ImportMCPServers:output_type -> orc.v1.ImportMCPServersResponse
+	23, // [23:31] is the sub-list for method output_type
+	15, // [15:23] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_mcp_proto_init() }
@@ -982,15 +1416,16 @@ func file_orc_v1_mcp_proto_init() {
 	}
 	file_orc_v1_mcp_proto_msgTypes[0].OneofWrappers = []any{}
 	file_orc_v1_mcp_proto_msgTypes[1].OneofWrappers = []any{}
-	file_orc_v1_mcp_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orc_v1_mcp_proto_msgTypes[8].OneofWrappers = []any{}
+	file_orc_v1_mcp_proto_msgTypes[2].OneofWrappers = []any{}
+	file_orc_v1_mcp_proto_msgTypes[7].OneofWrappers = []any{}
+	file_orc_v1_mcp_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_mcp_proto_rawDesc), len(file_orc_v1_mcp_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
