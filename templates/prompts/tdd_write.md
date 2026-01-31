@@ -101,6 +101,42 @@ You are writing tests for code that DOES NOT YET EXIST.
 - Test WHAT it does, not HOW it does it
 </critical_mindset>
 
+<test_isolation>
+## Test Isolation
+
+Tests must not depend on each other. Each test sets up its own state and cleans up after itself.
+
+- Use temporary directories for filesystem isolation
+- Isolate environment variables per test
+- Use in-memory databases or test fixtures for storage isolation
+- Never share mutable state between tests
+</test_isolation>
+
+<error_path_testing>
+## Error Path Testing
+
+Every error path in the spec's Failure Modes table MUST have a corresponding test. Error paths are not optional — they are first-class test targets.
+
+- Test that errors are returned (not swallowed)
+- Test that error messages are meaningful
+- Test that partial state is cleaned up on failure
+- Test boundary conditions that trigger errors
+</error_path_testing>
+
+<test_classification>
+## Test Classification
+
+Classify each test you write into one of three types:
+
+**Solitary tests**: Test a single unit in isolation with all collaborators replaced by test doubles (mocks, stubs, fakes). Use when the unit under test has complex logic that needs focused verification.
+
+**Sociable tests**: Test a unit with its real collaborators. Preferred when collaborators are fast, deterministic, and side-effect free. Gives higher confidence that units work together correctly.
+
+**Integration tests**: Test that new code is properly wired into existing code paths. Required when your task creates new functions or interfaces that should be called from production code. Verifies the connection exists, not just that individual pieces work.
+
+If your task creates new functions that should be called from existing code paths, you MUST write an integration test proving the wiring works.
+</test_classification>
+
 <context>
 <task>
 ID: {{TASK_ID}}
