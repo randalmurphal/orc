@@ -308,6 +308,11 @@ Define test types (unit/integration/E2E) with commands. List in-scope and out-of
 
 ### Integration Requirements
 
+Answer these mandatory questions:
+- What existing code paths will call the new code?
+- Where will the new code be registered/wired into the system?
+- What integration tests will verify the wiring is complete?
+
 | New File | Consumer | Integration Task | Included in This Spec? |
 |----------|----------|------------------|------------------------|
 | [component.tsx] | [Page or parent] | [Update import/render] | Yes / No (blocked by X) |
