@@ -129,7 +129,7 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Load phase agents from global database and add to Claude config
 	if rctx.TaskWeight != "" && we.globalDB != nil {
-		phaseAgents, err := LoadPhaseAgents(we.globalDB, tmpl.ID, rctx.TaskWeight)
+		phaseAgents, err := LoadPhaseAgents(we.globalDB, tmpl.ID, rctx.TaskWeight, vars)
 		if err != nil {
 			we.logger.Warn("failed to load phase agents", "phase", tmpl.ID, "weight", rctx.TaskWeight, "error", err)
 		} else if len(phaseAgents) > 0 {
