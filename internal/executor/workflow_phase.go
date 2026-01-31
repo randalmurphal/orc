@@ -150,6 +150,30 @@ func (we *WorkflowExecutor) executePhase(
 		claudeConfig.MCPServers = MergeMCPConfigSettings(claudeConfig.MCPServers, rctx.TaskID, we.orcConfig)
 	}
 
+	// Phase settings lifecycle: reset → apply → execute → reset
+	// Only when running in a worktree (standalone mode has no worktree)
+	if we.worktreePath != "" && we.globalDB != nil {
+		// Pre-reset: restore .claude/ to clean project state from target branch
+		if err := resetClaudeDir(we.worktreePath, rctx.TargetBranch); err != nil {
+			we.logger.Warn("pre-reset .claude/ failed, continuing (ApplyPhaseSettings will overwrite)",
+				"phase", tmpl.ID,
+				"error", err,
+			)
+		}
+
+		// Apply phase-specific settings (hooks, skills, MCP servers, env vars)
+		baseCfg := &WorktreeBaseConfig{
+			WorktreePath: we.worktreePath,
+			MainRepoPath: we.workingDir,
+			TaskID:       rctx.TaskID,
+		}
+		if err := ApplyPhaseSettings(we.worktreePath, claudeConfig, baseCfg, we.globalDB, we.globalDB); err != nil {
+			result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
+			result.Error = err.Error()
+			return result, fmt.Errorf("apply phase settings for %s: %w", tmpl.ID, err)
+		}
+	}
+
 	// Build execution context for ClaudeExecutor
 	// Use worktree path if available, otherwise fall back to original working dir
 	execConfig := PhaseExecutionConfig{
@@ -169,6 +193,16 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Execute with ClaudeExecutor
 	execResult, err := we.executeWithClaude(ctx, execConfig)
+
+	// Post-reset: restore .claude/ for next phase (non-fatal)
+	if we.worktreePath != "" && we.globalDB != nil {
+		if resetErr := resetClaudeDir(we.worktreePath, rctx.TargetBranch); resetErr != nil {
+			we.logger.Warn("post-reset .claude/ failed",
+				"phase", tmpl.ID,
+				"error", resetErr,
+			)
+		}
+	}
 	if err != nil {
 		result.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING.String()
 		result.Error = err.Error()
