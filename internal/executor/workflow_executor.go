@@ -21,6 +21,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/tokenpool"
@@ -110,6 +111,7 @@ type WorkflowExecutor struct {
 	automationSvc      *automation.Service      // For automation event triggers
 	sessionBroadcaster *SessionBroadcaster      // For real-time session metrics
 	resourceTracker    *ResourceTracker         // For orphan process detection
+	hostingProvider    hosting.Provider         // Injected hosting provider (for testing)
 
 	// Per-run state (set during Run)
 	worktreePath string            // Path to worktree (if created)
