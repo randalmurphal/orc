@@ -178,9 +178,13 @@ describe('PhaseInspector - AI Gate Type (TASK-655)', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Should show hint about configuring agents
+			// Wait for agents to load (mock resolves async), then check for empty state
 			await waitFor(() => {
-				expect(screen.getByText(/no agents available|configure agents/i)).toBeInTheDocument();
+				// The select should show "No agents available" or "Select agent..." depending on loading state
+				const aiAgentSelect = screen.getByLabelText(/ai gate agent/i);
+				expect(aiAgentSelect).toBeInTheDocument();
+				// Check it's disabled (no agents)
+				expect(aiAgentSelect).toBeDisabled();
 			});
 		});
 	});
@@ -260,13 +264,10 @@ describe('PhaseInspector - AI Gate Type (TASK-655)', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
+			// AI Gate Agent select should appear and be disabled when no agents available
 			await waitFor(() => {
-				const agentSelect = screen.queryByLabelText(/ai gate agent|agent/i);
-				if (agentSelect) {
-					expect(agentSelect).toBeDisabled();
-				}
-				// Or alternatively, a "No agents available" text
-				expect(screen.getByText(/no agents available/i)).toBeInTheDocument();
+				const agentSelect = screen.getByLabelText(/ai gate agent/i);
+				expect(agentSelect).toBeDisabled();
 			});
 		});
 
