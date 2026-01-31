@@ -24,6 +24,18 @@ const WorkflowEditorPage = lazy(() => import('@/components/workflow-editor').the
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 const ProjectPickerPage = lazy(() => import('@/pages/ProjectPickerPage').then(m => ({ default: m.ProjectPickerPage })));
 
+// Environment section pages
+const EnvironmentLayout = lazy(() => import('@/pages/environment/EnvironmentLayout').then(m => ({ default: m.EnvironmentLayout })));
+const EnvSettings = lazy(() => import('@/pages/environment/Settings').then(m => ({ default: m.Settings })));
+const EnvPrompts = lazy(() => import('@/pages/environment/Prompts').then(m => ({ default: m.Prompts })));
+const EnvScripts = lazy(() => import('@/pages/environment/Scripts').then(m => ({ default: m.Scripts })));
+const EnvHooks = lazy(() => import('@/pages/environment/Hooks').then(m => ({ default: m.Hooks })));
+const EnvSkills = lazy(() => import('@/pages/environment/Skills').then(m => ({ default: m.Skills })));
+const EnvConfig = lazy(() => import('@/pages/environment/Config').then(m => ({ default: m.Config })));
+const EnvClaudeMd = lazy(() => import('@/pages/environment/ClaudeMd').then(m => ({ default: m.ClaudeMd })));
+const EnvTools = lazy(() => import('@/pages/environment/Tools').then(m => ({ default: m.Tools })));
+const EnvAgents = lazy(() => import('@/pages/environment/Agents').then(m => ({ default: m.Agents })));
+
 // Settings sub-components (loaded with SettingsPage chunk)
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
 const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
@@ -394,14 +406,60 @@ export const routes: RouteObject[] = [
 					</LazyRoute>
 				),
 			},
-			// Legacy environment routes redirect to settings
+			// Environment section with sub-navigation
 			{
 				path: 'environment',
-				element: <Navigate to="/settings" replace />,
-			},
-			{
-				path: 'environment/*',
-				element: <Navigate to="/settings" replace />,
+				element: (
+					<LazyRoute>
+						<EnvironmentLayout />
+					</LazyRoute>
+				),
+				children: [
+					{
+						index: true,
+						element: <Navigate to="/environment/hooks" replace />,
+					},
+					{
+						path: 'settings',
+						element: <LazyRoute><EnvSettings /></LazyRoute>,
+					},
+					{
+						path: 'prompts',
+						element: <LazyRoute><EnvPrompts /></LazyRoute>,
+					},
+					{
+						path: 'scripts',
+						element: <LazyRoute><EnvScripts /></LazyRoute>,
+					},
+					{
+						path: 'hooks',
+						element: <LazyRoute><EnvHooks /></LazyRoute>,
+					},
+					{
+						path: 'skills',
+						element: <LazyRoute><EnvSkills /></LazyRoute>,
+					},
+					{
+						path: 'mcp',
+						element: <LazyRoute><Mcp /></LazyRoute>,
+					},
+					{
+						path: 'config',
+						element: <LazyRoute><EnvConfig /></LazyRoute>,
+					},
+					{
+						path: 'claudemd',
+						element: <LazyRoute><EnvClaudeMd /></LazyRoute>,
+					},
+					{
+						path: 'tools',
+						element: <LazyRoute><EnvTools /></LazyRoute>,
+					},
+					{
+						path: 'agents',
+						element: <LazyRoute><EnvAgents /></LazyRoute>,
+					},
+				],
 			},
 			// 404 catch-all
 			{

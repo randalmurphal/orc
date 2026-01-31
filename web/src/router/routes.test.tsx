@@ -568,20 +568,20 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('Legacy /environment routes redirect to /settings', () => {
-		it('redirects /environment to /settings', async () => {
-			renderWithRouter('/environment');
+	describe('/environment routes render environment pages', () => {
+		it('renders environment layout at /environment/hooks', async () => {
+			renderWithRouter('/environment/hooks');
 			await waitFor(() => {
-				// Should redirect to /settings which redirects to /settings/commands
-				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+				// Should render the environment layout
+				expect(document.querySelector('.environment-layout')).toBeInTheDocument();
 			});
 		});
 
-		it('redirects /environment/settings to /settings', async () => {
-			renderWithRouter('/environment/settings');
+		it('renders environment layout at /environment/skills', async () => {
+			renderWithRouter('/environment/skills');
 			await waitFor(() => {
-				// Should redirect to /settings which redirects to /settings/commands
-				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+				// Should render the environment layout
+				expect(document.querySelector('.environment-layout')).toBeInTheDocument();
 			});
 		});
 	});

@@ -516,3 +516,39 @@
 	font-family: var(--font-mono, monospace);
 	color: var(--text-muted);
 }
+
+/* JSON Override in Claude Config Editor */
+.claude-config-json-override {
+	display: flex;
+	flex-direction: column;
+	gap: 0.375rem;
+}
+
+.claude-config-json-textarea {
+	width: 100%;
+	min-height: 100px;
+	padding: 0.5rem;
+	font-family: var(--font-mono, monospace);
+	font-size: var(--text-xs);
+	line-height: 1.5;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm, 4px);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	resize: vertical;
+	box-sizing: border-box;
+}
+
+.claude-config-json-textarea:focus {
+	outline: 2px solid var(--accent-primary, #3b82f6);
+	outline-offset: -1px;
+}
+
+.claude-config-json-textarea--error {
+	border-color: var(--red-500, #ef4444);
+}
+
+.claude-config-json-error {
+	font-size: 0.75rem;
+	color: var(--red-600, #dc2626);
+}
