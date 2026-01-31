@@ -50,8 +50,41 @@ type PhaseClaudeConfig struct {
 	AgentRef     string                      `json:"agent_ref,omitempty"`     // --agent: Use existing agent by name
 	InlineAgents map[string]InlineAgentDef `json:"inline_agents,omitempty"` // --agents: Define subagents inline
 
-	// Hook handling
-	CaptureHookEvents []string `json:"capture_hook_events,omitempty"` // Hook events to capture (PreToolUse, PostToolUse, etc.)
+	// Hook handling — maps event type (e.g. "PreToolUse") to matchers.
+	// Matches Claude Code's settings.json hooks format.
+	Hooks map[string][]HookMatcher `json:"hooks,omitempty"`
+}
+
+// HookMatcher defines a single hook matcher entry in Claude Code's settings.json.
+// Each matcher specifies a tool pattern and one or more hook commands to run.
+type HookMatcher struct {
+	Matcher string      `json:"matcher"`
+	Hooks   []HookEntry `json:"hooks"`
+}
+
+// HookEntry defines a single hook command within a HookMatcher.
+type HookEntry struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+}
+
+// WorktreeBaseConfig contains base configuration for worktree setup.
+// Used by ApplyPhaseSettings to configure the worktree's .claude/ directory.
+type WorktreeBaseConfig struct {
+	// WorktreePath is the absolute path to the worktree.
+	WorktreePath string
+
+	// MainRepoPath is the absolute path to the main repository.
+	MainRepoPath string
+
+	// TaskID is the task identifier.
+	TaskID string
+
+	// InjectUserEnv loads environment variables from user's ~/.claude/settings.json.
+	InjectUserEnv bool
+
+	// AdditionalEnv are extra environment variables to inject.
+	AdditionalEnv map[string]string
 }
 
 // InlineAgentDef matches Claude CLI's --agents JSON format for defining
@@ -159,18 +192,19 @@ func (p *PhaseClaudeConfig) Merge(override *PhaseClaudeConfig) *PhaseClaudeConfi
 		maps.Copy(result.InlineAgents, override.InlineAgents)
 	}
 
-	// Hooks - append unique
-	if len(override.CaptureHookEvents) > 0 {
-		seen := make(map[string]bool)
-		for _, e := range result.CaptureHookEvents {
-			seen[e] = true
+	// Hooks - per event key, append matchers (not replace).
+	// Deep-copy base hooks first to avoid mutating originals.
+	if len(p.Hooks) > 0 || len(override.Hooks) > 0 {
+		merged := make(map[string][]HookMatcher)
+		for event, matchers := range p.Hooks {
+			cp := make([]HookMatcher, len(matchers))
+			copy(cp, matchers)
+			merged[event] = cp
 		}
-		for _, e := range override.CaptureHookEvents {
-			if !seen[e] {
-				result.CaptureHookEvents = append(result.CaptureHookEvents, e)
-				seen[e] = true
-			}
+		for event, matchers := range override.Hooks {
+			merged[event] = append(merged[event], matchers...)
 		}
+		result.Hooks = merged
 	}
 
 	return &result
@@ -197,7 +231,7 @@ func (p *PhaseClaudeConfig) IsEmpty() bool {
 		len(p.SkillRefs) == 0 &&
 		p.AgentRef == "" &&
 		len(p.InlineAgents) == 0 &&
-		len(p.CaptureHookEvents) == 0
+		len(p.Hooks) == 0
 }
 
 // JSON returns the config as a JSON string for database storage.
