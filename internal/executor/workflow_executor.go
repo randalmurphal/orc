@@ -263,7 +263,50 @@ func NewWorkflowExecutor(
 
 // Run executes a workflow with the given options.
 // This is the main entry point for workflow execution.
-func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts WorkflowRunOptions) (*WorkflowRunResult, error) {
+func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts WorkflowRunOptions) (runResult *WorkflowRunResult, runErr error) {
+	// Panic recovery: catch any unhandled panic and record it to DB.
+	// Without this, a panic silently kills the executor process and the task
+	// stays in "running" state forever with no error recorded.
+	// Variables `run` and `t` are captured by reference — the defer sees their
+	// current values at panic time, not their zero values from function entry.
+	var run *db.WorkflowRun
+	var t *orcv1.Task
+	defer func() {
+		if r := recover(); r != nil {
+			panicErr := fmt.Errorf("executor panic: %v", r)
+			we.logger.Error("panic recovered in Run()",
+				"panic", r,
+				"workflow", workflowID,
+				"task", func() string {
+					if t != nil {
+						return t.Id
+					}
+					return ""
+				}(),
+			)
+			// Record failure to DB if we have enough state
+			if run != nil {
+				we.failRun(run, t, panicErr)
+			} else if t != nil {
+				// run not created yet, but task exists — mark task failed directly
+				t.Status = orcv1.TaskStatus_TASK_STATUS_FAILED
+				task.SetErrorProto(t.Execution, panicErr.Error())
+				task.UpdateTimestampProto(t)
+				if saveErr := we.backend.SaveTask(t); saveErr != nil {
+					we.logger.Error("failed to save task after panic", "error", saveErr)
+				}
+			}
+			// Clear executor claim so task isn't orphaned
+			if t != nil {
+				if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
+					we.logger.Error("failed to clear executor after panic", "error", clearErr)
+				}
+			}
+			runResult = nil
+			runErr = panicErr
+		}
+	}()
+
 	// Load workflow from database
 	wf, err := we.projectDB.GetWorkflow(workflowID)
 	if err != nil {
@@ -312,7 +355,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	// Build context data based on context type
 	contextData := we.buildContextData(opts)
 
-	run := &db.WorkflowRun{
+	run = &db.WorkflowRun{
 		ID:           runID,
 		WorkflowID:   workflowID,
 		ContextType:  string(opts.ContextType),
@@ -325,7 +368,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	}
 
 	// Handle task creation/loading based on context type
-	var t *orcv1.Task
 	switch opts.ContextType {
 	case ContextDefault:
 		t, err = we.createTaskForRunProto(opts, workflowID)
