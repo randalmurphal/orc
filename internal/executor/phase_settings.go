@@ -110,21 +110,43 @@ func ApplyPhaseSettings(
 	return nil
 }
 
-// mergeHooksIntoSettings merges phase hooks and isolation hooks into the settings map.
-// Project hooks from existing settings.json are preserved; new hooks are appended.
+// mergeHooksIntoSettings rebuilds the hooks section in settings from scratch.
+// Existing orc-managed hooks are stripped first to prevent accumulation across
+// repeated ApplyPhaseSettings calls (e.g., when resetClaudeDir fails between phases).
+// Project hooks (those not managed by orc) are preserved.
 func mergeHooksIntoSettings(settings map[string]any, phaseCfg *PhaseClaudeConfig, baseCfg *WorktreeBaseConfig, worktreePath string) {
-	// Get existing hooks from settings
 	existingHooks, _ := settings["hooks"].(map[string]any)
 	if existingHooks == nil {
 		existingHooks = make(map[string]any)
 	}
 
-	// Add phase hooks first (appending to existing project hooks, never replacing)
+	// Strip orc-managed hooks from all event keys before rebuilding.
+	// This makes the function idempotent — calling it N times produces
+	// the same result as calling it once.
+	for event, val := range existingHooks {
+		matchers, ok := val.([]any)
+		if !ok {
+			continue
+		}
+		var kept []any
+		for _, m := range matchers {
+			if !isOrcManagedHook(m) {
+				kept = append(kept, m)
+			}
+		}
+		if len(kept) > 0 {
+			existingHooks[event] = kept
+		} else {
+			delete(existingHooks, event)
+		}
+	}
+
+	// Add phase hooks (appending to preserved project hooks)
 	if phaseCfg != nil {
 		for event, matchers := range phaseCfg.Hooks {
 			existing, _ := existingHooks[event].([]any)
 			for _, m := range matchers {
-				resolved := resolveHookMatcher(m, worktreePath)
+				resolved := markOrcManaged(resolveHookMatcher(m, worktreePath))
 				existing = append(existing, resolved)
 			}
 			existingHooks[event] = existing
@@ -133,7 +155,7 @@ func mergeHooksIntoSettings(settings map[string]any, phaseCfg *PhaseClaudeConfig
 
 	// Append isolation hook last (always added, runs after phase hooks)
 	isolationScriptPath := filepath.Join(worktreePath, ".claude", "hooks", "orc-worktree-isolation.py")
-	isolationHook := map[string]any{
+	isolationHook := markOrcManaged(map[string]any{
 		"matcher": "Edit|Write|Read|Glob|Grep|MultiEdit",
 		"hooks": []any{
 			map[string]any{
@@ -141,12 +163,33 @@ func mergeHooksIntoSettings(settings map[string]any, phaseCfg *PhaseClaudeConfig
 				"command": fmt.Sprintf(`ORC_WORKTREE_PATH="%s" ORC_MAIN_REPO_PATH="%s" ORC_TASK_ID="%s" python3 "%s"`, baseCfg.WorktreePath, baseCfg.MainRepoPath, baseCfg.TaskID, isolationScriptPath),
 			},
 		},
-	}
+	})
 	preToolUse, _ := existingHooks["PreToolUse"].([]any)
 	preToolUse = append(preToolUse, isolationHook)
 	existingHooks["PreToolUse"] = preToolUse
 
 	settings["hooks"] = existingHooks
+}
+
+// orcManagedKey is a sentinel field added to hooks created by orc.
+// Used to distinguish orc hooks from project hooks during deduplication.
+const orcManagedKey = "_orc_managed"
+
+// isOrcManagedHook checks if a hook matcher entry was created by orc
+// by looking for the sentinel field.
+func isOrcManagedHook(matcher any) bool {
+	m, ok := matcher.(map[string]any)
+	if !ok {
+		return false
+	}
+	managed, _ := m[orcManagedKey].(bool)
+	return managed
+}
+
+// markOrcManaged adds the sentinel field to a hook matcher map.
+func markOrcManaged(m map[string]any) map[string]any {
+	m[orcManagedKey] = true
+	return m
 }
 
 // resolveHookMatcher converts a HookMatcher to a map[string]any for JSON,

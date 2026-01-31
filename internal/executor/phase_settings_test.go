@@ -514,6 +514,102 @@ func TestApplyPhaseSettings_MissingSkill(t *testing.T) {
 	assert.Error(t, err, "should error when skill ID not found in DB")
 }
 
+// --- Idempotency ---
+
+func TestApplyPhaseSettings_Idempotent(t *testing.T) {
+	t.Parallel()
+	worktree := t.TempDir()
+
+	baseCfg := &WorktreeBaseConfig{
+		WorktreePath: worktree,
+		MainRepoPath: "/fake/main/repo",
+		TaskID:       "TASK-001",
+	}
+
+	phaseCfg := &PhaseClaudeConfig{
+		Hooks: map[string][]HookMatcher{
+			"PreToolUse": {
+				{Matcher: "Bash", Hooks: []HookEntry{{Type: "command", Command: "echo phase-hook"}}},
+			},
+		},
+	}
+
+	hsGetter := &mockHookScriptGetter{scripts: map[string]*db.HookScript{}}
+	sGetter := &mockSkillGetter{skills: map[string]*db.Skill{}}
+
+	// Apply settings 3 times (simulates resetClaudeDir failing between phases)
+	for i := 0; i < 3; i++ {
+		err := ApplyPhaseSettings(worktree, phaseCfg, baseCfg, hsGetter, sGetter)
+		require.NoError(t, err, "apply #%d", i+1)
+	}
+
+	// Read final settings.json
+	data, err := os.ReadFile(filepath.Join(worktree, ".claude", "settings.json"))
+	require.NoError(t, err)
+
+	var settings map[string]any
+	require.NoError(t, json.Unmarshal(data, &settings))
+
+	hooksMap, _ := settings["hooks"].(map[string]any)
+	require.NotNil(t, hooksMap)
+
+	preToolUse, _ := hooksMap["PreToolUse"].([]any)
+	require.NotNil(t, preToolUse)
+
+	// Should have exactly 2 entries: 1 phase hook + 1 isolation hook
+	// NOT 3x phase hooks + 3x isolation hooks
+	assert.Equal(t, 2, len(preToolUse),
+		"calling ApplyPhaseSettings 3 times should produce same result as once; got %d hooks instead of 2", len(preToolUse))
+
+	// Verify we have both types
+	var hasPhaseHook, hasIsolationHook bool
+	for _, h := range preToolUse {
+		m, _ := h.(map[string]any)
+		matcher, _ := m["matcher"].(string)
+		if matcher == "Bash" {
+			hasPhaseHook = true
+		}
+		if matcher == "Edit|Write|Read|Glob|Grep|MultiEdit" {
+			hasIsolationHook = true
+		}
+	}
+	assert.True(t, hasPhaseHook, "should have the phase hook")
+	assert.True(t, hasIsolationHook, "should have the isolation hook")
+}
+
+func TestApplyPhaseSettings_PreservesProjectHooksDuringDedup(t *testing.T) {
+	t.Parallel()
+	worktree := setupWorktreeWithProjectHooks(t)
+
+	baseCfg := &WorktreeBaseConfig{
+		WorktreePath: worktree,
+		MainRepoPath: "/fake/main/repo",
+		TaskID:       "TASK-001",
+	}
+
+	hsGetter := &mockHookScriptGetter{scripts: map[string]*db.HookScript{}}
+	sGetter := &mockSkillGetter{skills: map[string]*db.Skill{}}
+
+	// Apply twice to verify project hooks aren't stripped
+	for i := 0; i < 2; i++ {
+		err := ApplyPhaseSettings(worktree, nil, baseCfg, hsGetter, sGetter)
+		require.NoError(t, err, "apply #%d", i+1)
+	}
+
+	data, err := os.ReadFile(filepath.Join(worktree, ".claude", "settings.json"))
+	require.NoError(t, err)
+
+	var settings map[string]any
+	require.NoError(t, json.Unmarshal(data, &settings))
+
+	hooksMap, _ := settings["hooks"].(map[string]any)
+	preToolUse, _ := hooksMap["PreToolUse"].([]any)
+
+	// Should have project hook + isolation hook (not 2x isolation hooks)
+	assert.Equal(t, 2, len(preToolUse),
+		"should have 1 project hook + 1 isolation hook, got %d", len(preToolUse))
+}
+
 // --- SC-11: resetClaudeDir ---
 
 func TestResetClaudeDir_RestoresFromBranch(t *testing.T) {
