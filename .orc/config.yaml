@@ -17,7 +17,7 @@ retry:
     max_retries: 2
 worktree:
     enabled: true
-    dir: .orc/worktrees
+    dir: ""
     cleanup_on_complete: true
     cleanup_on_fail: false
 completion:
