@@ -105,26 +105,69 @@ Agent definitions in `agents/*.md` with YAML frontmatter (name, model, tools) + 
 
 **Trigger agents** (like `dependency-validator`) run via `WorkflowTrigger` definitions, not phase agents. See `docs/architecture/GATES.md` for trigger configuration.
 
-## Prompt Structure
+## Prompt Structure Best Practices
+
+Based on Anthropic prompting research. These patterns are applied across all phase and agent prompts.
+
+### Section Ordering (Critical)
+
+Prompts follow this top-to-bottom order for optimal model attention:
+
+| Order | Section | Why First |
+|-------|---------|-----------|
+| 1 | **Output format** (`<output_format>`) | Model anchors on expected structure early |
+| 2 | **Critical constraints** (quality gates, checklists) | Hard requirements before creative work |
+| 3 | **Examples** (multishot, input→output pairs) | Concrete patterns calibrate behavior |
+| 4 | **Context** (task metadata, project detection) | Ground the model in specifics |
+| 5 | **Injected artifacts** (constitution, initiative, spec) | Reference material |
+| 6 | **Instructions** (streamlined guidance) | Last — model has full context to interpret |
+
+### XML Tags for Structure
+
+Use XML tags (`<output_format>`, `<project_context>`, `<instructions>`) instead of markdown headers for machine-parsed sections. Models parse XML boundaries more reliably than `##` headers in long prompts.
+
+### System Identity
+
+Every phase prompt starts with a one-line identity statement: "You are a [role] working on [task type]." This anchors the model's behavior before any instructions.
+
+### Failure Mode Priming
+
+State the most common failure mode explicitly near the top:
+- **Spec**: "Most common failure is success criteria that verify existence instead of behavior"
+- **Implement**: "Most common failure is declaring completion without running verification"
+- **TDD**: "Most common failure is tests that pass with empty stubs"
+
+### Agent Prompt Patterns
+
+Agent prompts use `<project_context>` blocks with template variables:
 
 ```markdown
-# Phase Name
+<project_context>
+Language: {{LANGUAGE}}
+Frameworks: {{FRAMEWORKS}}
+{{CONSTITUTION_CONTENT}}
+</project_context>
+```
 
-## Context
-- Task: {{TASK_TITLE}}
-- Phase: {{PHASE}}
+Variables are rendered via `ToInlineAgentDef()` in `executor/agent_loader.go` before dispatch.
 
-{{RETRY_CONTEXT}}
+### Agent Model Tiers
 
-## Instructions
-[Phase-specific]
+| Tier | Model | When to Use | Examples |
+|------|-------|-------------|---------|
+| Critical | opus | Quality-sensitive analysis, complex reasoning | code-reviewer, silent-failure-hunter |
+| Standard | sonnet | Structured analysis with clear rubrics | pr-test-analyzer, type-design-analyzer |
+| Simple | haiku | Pattern matching, low-judgment tasks | comment-analyzer, dependency-validator |
 
-## Completion
-When ready to signal phase status, output valid JSON (constrained by --json-schema):
+### Completion Format
+
+```json
 {"status": "complete", "summary": "Brief description", "artifact": "...content..."}
 {"status": "blocked", "reason": "Why blocked and what's needed"}
 {"status": "continue", "reason": "What was done and what's next"}
 ```
+
+Output constrained via `--json-schema`. See `executor/phase_response.go` for per-phase schemas.
 
 ## Artifact Output
 
