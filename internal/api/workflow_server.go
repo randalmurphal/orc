@@ -869,6 +869,9 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
 	}
+	if req.Msg.ClaudeConfig != nil {
+		tmpl.ClaudeConfig = *req.Msg.ClaudeConfig
+	}
 
 	if tmpl.MaxIterations == 0 {
 		tmpl.MaxIterations = 20
@@ -939,6 +942,9 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
 		pt.ThinkingEnabled = req.Msg.ThinkingEnabled
+	}
+	if req.Msg.ClaudeConfig != nil {
+		pt.ClaudeConfig = *req.Msg.ClaudeConfig
 	}
 	if req.Msg.GateType != nil {
 		pt.GateType = workflow.GateType(protoGateTypeToString(*req.Msg.GateType))
@@ -1718,6 +1724,9 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	}
 	if t.RetryPromptPath != "" {
 		result.RetryPromptPath = &t.RetryPromptPath
+	}
+	if t.ClaudeConfig != "" {
+		result.ClaudeConfig = &t.ClaudeConfig
 	}
 	return result
 }
