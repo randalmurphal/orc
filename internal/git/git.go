@@ -46,7 +46,7 @@ func DefaultConfig() Config {
 	return Config{
 		BranchPrefix:      "orc/",
 		CommitPrefix:      "[orc]",
-		WorktreeDir:       ".orc/worktrees",
+		WorktreeDir:       "",
 		ProtectedBranches: DefaultProtectedBranches,
 	}
 }

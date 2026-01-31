@@ -891,7 +891,11 @@ func TestResolveCommand_CleanupFlag(t *testing.T) {
 		t.Fatalf("create config.yaml: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	// Use explicit WorktreeDir matching what config.ResolveWorktreeDir("", tmpDir)
+	// returns for unregistered projects: <tmpDir>/.orc/worktrees
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -1017,7 +1021,11 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 		t.Fatalf("create config.yaml: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	// Use explicit WorktreeDir matching what config.ResolveWorktreeDir("", tmpDir)
+	// returns for unregistered projects: <tmpDir>/.orc/worktrees
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -1105,7 +1113,11 @@ func TestResolveCommand_CleanWorktree(t *testing.T) {
 		t.Fatalf("create config.yaml: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	// Use explicit WorktreeDir matching what config.ResolveWorktreeDir("", tmpDir)
+	// returns for unregistered projects: <tmpDir>/.orc/worktrees
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -1702,7 +1714,11 @@ func TestResolveCommand_YesWithCleanup(t *testing.T) {
 		t.Fatalf("create config.yaml: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	// Use explicit WorktreeDir matching what config.ResolveWorktreeDir("", tmpDir)
+	// returns for unregistered projects: <tmpDir>/.orc/worktrees
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}

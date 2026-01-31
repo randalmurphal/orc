@@ -186,7 +186,7 @@ Example:
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task to get updated metadata with conflict info
 					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContextProto(t, cfg)
+					blockedCtx := buildBlockedContextProto(t, cfg, projectRoot)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), finalizeElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}

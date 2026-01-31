@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -48,13 +47,12 @@ func containsPhase(phases []string, phaseID string) bool {
 
 // buildBlockedContextProto creates progress context for blocked task display (proto version).
 // Used by finalize, resume, and other commands that handle blocked tasks.
-func buildBlockedContextProto(t *orcv1.Task, cfg *config.Config) *progress.BlockedContext {
+func buildBlockedContextProto(t *orcv1.Task, cfg *config.Config, projectRoot string) *progress.BlockedContext {
 	ctx := &progress.BlockedContext{}
 
 	// Get worktree path from task ID and config
 	if cfg != nil && cfg.Worktree.Enabled {
-		cwd, _ := os.Getwd()
-		resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd)
+		resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot)
 		ctx.WorktreePath = resolvedDir + "/orc-" + t.Id
 	}
 

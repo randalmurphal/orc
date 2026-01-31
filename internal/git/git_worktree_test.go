@@ -20,7 +20,9 @@ func TestBranchName(t *testing.T) {
 
 func TestWorktreePath(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	cfg := DefaultConfig()
+	cfg.WorktreeDir = ".orc/worktrees"
+	g, _ := New(tmpDir, cfg)
 
 	path := g.WorktreePath("TASK-001")
 	if !strings.Contains(path, ".orc/worktrees") {

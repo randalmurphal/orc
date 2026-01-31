@@ -264,7 +264,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
 					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContextProto(t, cfg)
+					blockedCtx := buildBlockedContextProto(t, cfg, projectRoot)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}
