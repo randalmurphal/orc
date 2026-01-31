@@ -31,7 +31,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 | `WorkflowService` | `workflow_server.go` | Yes | List, Get workflows and phases, Variables |
 | `TranscriptService` | `transcript_server.go` | Yes | Get, Stream transcripts |
 | `EventService` | `event_server.go` | Yes | Subscribe (streaming), GetEvents, GetTimeline |
-| `ConfigService` | `config_server.go` | Yes | Config, Settings, Hooks (GlobalDB CRUD), Skills (GlobalDB CRUD), ClaudeMd, Constitution, Prompts, Agents, Scripts, Tools |
+| `ConfigService` | `config_server.go` | Yes | Config, Settings, Hooks (CRUD + Export/Import), Skills (CRUD + Export/Import), ScanClaudeDir, ClaudeMd, Constitution, Prompts, Agents, Scripts, Tools |
 | `HostingService` | `hosting_server.go` | Yes | PR CRUD, Refresh, AutofixComment |
 | `DashboardService` | `dashboard_server.go` | Yes | Stats, Metrics (TTL cache + singleflight) |
 | `ProjectService` | `project_server.go` | No | Multi-project management (global) |
@@ -52,7 +52,7 @@ Every project-scoped server follows this pattern for multi-project support:
 
 **1. Struct fields** -- each server has `backend` (default) and `projectCache`.
 
-**2. `SetProjectCache()`** -- called during registration (`server_connect.go:27-71`). `ConfigService` also receives `SetGlobalDB()` for hooks/skills CRUD.
+**2. `SetProjectCache()`** -- called during registration (`server_connect.go:27-71`). `ConfigService` also receives `SetGlobalDB()` for hooks/skills CRUD and filesystem sync (`config_server_export.go`).
 
 **3. `getBackend(projectID)`** -- resolves the correct `storage.Backend` (DB access):
 ```go

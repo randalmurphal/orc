@@ -144,6 +144,21 @@ const (
 	// ConfigServiceGetConfigStatsProcedure is the fully-qualified name of the ConfigService's
 	// GetConfigStats RPC.
 	ConfigServiceGetConfigStatsProcedure = "/orc.v1.ConfigService/GetConfigStats"
+	// ConfigServiceExportHooksProcedure is the fully-qualified name of the ConfigService's ExportHooks
+	// RPC.
+	ConfigServiceExportHooksProcedure = "/orc.v1.ConfigService/ExportHooks"
+	// ConfigServiceImportHooksProcedure is the fully-qualified name of the ConfigService's ImportHooks
+	// RPC.
+	ConfigServiceImportHooksProcedure = "/orc.v1.ConfigService/ImportHooks"
+	// ConfigServiceExportSkillsProcedure is the fully-qualified name of the ConfigService's
+	// ExportSkills RPC.
+	ConfigServiceExportSkillsProcedure = "/orc.v1.ConfigService/ExportSkills"
+	// ConfigServiceImportSkillsProcedure is the fully-qualified name of the ConfigService's
+	// ImportSkills RPC.
+	ConfigServiceImportSkillsProcedure = "/orc.v1.ConfigService/ImportSkills"
+	// ConfigServiceScanClaudeDirProcedure is the fully-qualified name of the ConfigService's
+	// ScanClaudeDir RPC.
+	ConfigServiceScanClaudeDirProcedure = "/orc.v1.ConfigService/ScanClaudeDir"
 )
 
 // ConfigServiceClient is a client for the orc.v1.ConfigService service.
@@ -215,6 +230,16 @@ type ConfigServiceClient interface {
 	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
 	// Config stats
 	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
+	// Export hooks to .claude/ directory
+	ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error)
+	// Import hooks from .claude/ directory
+	ImportHooks(context.Context, *connect.Request[v1.ImportHooksRequest]) (*connect.Response[v1.ImportHooksResponse], error)
+	// Export skills to .claude/ directory
+	ExportSkills(context.Context, *connect.Request[v1.ExportSkillsRequest]) (*connect.Response[v1.ExportSkillsResponse], error)
+	// Import skills from .claude/ directory
+	ImportSkills(context.Context, *connect.Request[v1.ImportSkillsRequest]) (*connect.Response[v1.ImportSkillsResponse], error)
+	// Scan .claude/ directory for discoverable hooks and skills
+	ScanClaudeDir(context.Context, *connect.Request[v1.ScanClaudeDirRequest]) (*connect.Response[v1.ScanClaudeDirResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the orc.v1.ConfigService service. By default, it
@@ -462,6 +487,36 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
 			connect.WithClientOptions(opts...),
 		),
+		exportHooks: connect.NewClient[v1.ExportHooksRequest, v1.ExportHooksResponse](
+			httpClient,
+			baseURL+ConfigServiceExportHooksProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ExportHooks")),
+			connect.WithClientOptions(opts...),
+		),
+		importHooks: connect.NewClient[v1.ImportHooksRequest, v1.ImportHooksResponse](
+			httpClient,
+			baseURL+ConfigServiceImportHooksProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ImportHooks")),
+			connect.WithClientOptions(opts...),
+		),
+		exportSkills: connect.NewClient[v1.ExportSkillsRequest, v1.ExportSkillsResponse](
+			httpClient,
+			baseURL+ConfigServiceExportSkillsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ExportSkills")),
+			connect.WithClientOptions(opts...),
+		),
+		importSkills: connect.NewClient[v1.ImportSkillsRequest, v1.ImportSkillsResponse](
+			httpClient,
+			baseURL+ConfigServiceImportSkillsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ImportSkills")),
+			connect.WithClientOptions(opts...),
+		),
+		scanClaudeDir: connect.NewClient[v1.ScanClaudeDirRequest, v1.ScanClaudeDirResponse](
+			httpClient,
+			baseURL+ConfigServiceScanClaudeDirProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ScanClaudeDir")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -506,6 +561,11 @@ type configServiceClient struct {
 	getToolPermissions    *connect.Client[v1.GetToolPermissionsRequest, v1.GetToolPermissionsResponse]
 	updateToolPermissions *connect.Client[v1.UpdateToolPermissionsRequest, v1.UpdateToolPermissionsResponse]
 	getConfigStats        *connect.Client[v1.GetConfigStatsRequest, v1.GetConfigStatsResponse]
+	exportHooks           *connect.Client[v1.ExportHooksRequest, v1.ExportHooksResponse]
+	importHooks           *connect.Client[v1.ImportHooksRequest, v1.ImportHooksResponse]
+	exportSkills          *connect.Client[v1.ExportSkillsRequest, v1.ExportSkillsResponse]
+	importSkills          *connect.Client[v1.ImportSkillsRequest, v1.ImportSkillsResponse]
+	scanClaudeDir         *connect.Client[v1.ScanClaudeDirRequest, v1.ScanClaudeDirResponse]
 }
 
 // GetConfig calls orc.v1.ConfigService.GetConfig.
@@ -703,6 +763,31 @@ func (c *configServiceClient) GetConfigStats(ctx context.Context, req *connect.R
 	return c.getConfigStats.CallUnary(ctx, req)
 }
 
+// ExportHooks calls orc.v1.ConfigService.ExportHooks.
+func (c *configServiceClient) ExportHooks(ctx context.Context, req *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error) {
+	return c.exportHooks.CallUnary(ctx, req)
+}
+
+// ImportHooks calls orc.v1.ConfigService.ImportHooks.
+func (c *configServiceClient) ImportHooks(ctx context.Context, req *connect.Request[v1.ImportHooksRequest]) (*connect.Response[v1.ImportHooksResponse], error) {
+	return c.importHooks.CallUnary(ctx, req)
+}
+
+// ExportSkills calls orc.v1.ConfigService.ExportSkills.
+func (c *configServiceClient) ExportSkills(ctx context.Context, req *connect.Request[v1.ExportSkillsRequest]) (*connect.Response[v1.ExportSkillsResponse], error) {
+	return c.exportSkills.CallUnary(ctx, req)
+}
+
+// ImportSkills calls orc.v1.ConfigService.ImportSkills.
+func (c *configServiceClient) ImportSkills(ctx context.Context, req *connect.Request[v1.ImportSkillsRequest]) (*connect.Response[v1.ImportSkillsResponse], error) {
+	return c.importSkills.CallUnary(ctx, req)
+}
+
+// ScanClaudeDir calls orc.v1.ConfigService.ScanClaudeDir.
+func (c *configServiceClient) ScanClaudeDir(ctx context.Context, req *connect.Request[v1.ScanClaudeDirRequest]) (*connect.Response[v1.ScanClaudeDirResponse], error) {
+	return c.scanClaudeDir.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the orc.v1.ConfigService service.
 type ConfigServiceHandler interface {
 	// Get ORC configuration
@@ -772,6 +857,16 @@ type ConfigServiceHandler interface {
 	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
 	// Config stats
 	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
+	// Export hooks to .claude/ directory
+	ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error)
+	// Import hooks from .claude/ directory
+	ImportHooks(context.Context, *connect.Request[v1.ImportHooksRequest]) (*connect.Response[v1.ImportHooksResponse], error)
+	// Export skills to .claude/ directory
+	ExportSkills(context.Context, *connect.Request[v1.ExportSkillsRequest]) (*connect.Response[v1.ExportSkillsResponse], error)
+	// Import skills from .claude/ directory
+	ImportSkills(context.Context, *connect.Request[v1.ImportSkillsRequest]) (*connect.Response[v1.ImportSkillsResponse], error)
+	// Scan .claude/ directory for discoverable hooks and skills
+	ScanClaudeDir(context.Context, *connect.Request[v1.ScanClaudeDirRequest]) (*connect.Response[v1.ScanClaudeDirResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1015,6 +1110,36 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceExportHooksHandler := connect.NewUnaryHandler(
+		ConfigServiceExportHooksProcedure,
+		svc.ExportHooks,
+		connect.WithSchema(configServiceMethods.ByName("ExportHooks")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceImportHooksHandler := connect.NewUnaryHandler(
+		ConfigServiceImportHooksProcedure,
+		svc.ImportHooks,
+		connect.WithSchema(configServiceMethods.ByName("ImportHooks")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceExportSkillsHandler := connect.NewUnaryHandler(
+		ConfigServiceExportSkillsProcedure,
+		svc.ExportSkills,
+		connect.WithSchema(configServiceMethods.ByName("ExportSkills")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceImportSkillsHandler := connect.NewUnaryHandler(
+		ConfigServiceImportSkillsProcedure,
+		svc.ImportSkills,
+		connect.WithSchema(configServiceMethods.ByName("ImportSkills")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceScanClaudeDirHandler := connect.NewUnaryHandler(
+		ConfigServiceScanClaudeDirProcedure,
+		svc.ScanClaudeDir,
+		connect.WithSchema(configServiceMethods.ByName("ScanClaudeDir")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
@@ -1095,6 +1220,16 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceUpdateToolPermissionsHandler.ServeHTTP(w, r)
 		case ConfigServiceGetConfigStatsProcedure:
 			configServiceGetConfigStatsHandler.ServeHTTP(w, r)
+		case ConfigServiceExportHooksProcedure:
+			configServiceExportHooksHandler.ServeHTTP(w, r)
+		case ConfigServiceImportHooksProcedure:
+			configServiceImportHooksHandler.ServeHTTP(w, r)
+		case ConfigServiceExportSkillsProcedure:
+			configServiceExportSkillsHandler.ServeHTTP(w, r)
+		case ConfigServiceImportSkillsProcedure:
+			configServiceImportSkillsHandler.ServeHTTP(w, r)
+		case ConfigServiceScanClaudeDirProcedure:
+			configServiceScanClaudeDirHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1258,4 +1393,24 @@ func (UnimplementedConfigServiceHandler) UpdateToolPermissions(context.Context, 
 
 func (UnimplementedConfigServiceHandler) GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetConfigStats is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ExportHooks is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ImportHooks(context.Context, *connect.Request[v1.ImportHooksRequest]) (*connect.Response[v1.ImportHooksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ImportHooks is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ExportSkills(context.Context, *connect.Request[v1.ExportSkillsRequest]) (*connect.Response[v1.ExportSkillsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ExportSkills is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ImportSkills(context.Context, *connect.Request[v1.ImportSkillsRequest]) (*connect.Response[v1.ImportSkillsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ImportSkills is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ScanClaudeDir(context.Context, *connect.Request[v1.ScanClaudeDirRequest]) (*connect.Response[v1.ScanClaudeDirResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.ScanClaudeDir is not implemented"))
 }
