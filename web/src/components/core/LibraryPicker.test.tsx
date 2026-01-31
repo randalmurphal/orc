@@ -79,7 +79,7 @@ describe('LibraryPicker', () => {
 		});
 
 		it('shows group headers for event types', async () => {
-			render(
+			const { container } = render(
 				<LibraryPicker
 					type="hooks"
 					items={mockHooks}
@@ -89,10 +89,12 @@ describe('LibraryPicker', () => {
 			);
 
 			// Group headers should appear for each event type
-			expect(screen.getByText(/PreToolUse/i)).toBeInTheDocument();
-			expect(screen.getByText(/PostToolUse/i)).toBeInTheDocument();
-			// AMEND-001: /Stop/i also matches hook name "on-stop-cleanup", use anchored regex
-			expect(screen.getByText(/^Stop$/i)).toBeInTheDocument();
+			// Use specific class selector since event type also appears in item details
+			const groupHeaders = container.querySelectorAll('.library-picker__group-header');
+			const headerTexts = Array.from(groupHeaders).map((h) => h.textContent);
+			expect(headerTexts).toContain('PreToolUse');
+			expect(headerTexts).toContain('PostToolUse');
+			expect(headerTexts).toContain('Stop');
 		});
 
 		it('supports multi-select - toggling hooks on', async () => {
