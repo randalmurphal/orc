@@ -203,9 +203,10 @@ func TestListBuiltinAgentIDs_CountIncludesDependencyValidator(t *testing.T) {
 	t.Parallel()
 
 	ids := ListBuiltinAgentIDs()
-	// Was 6, now should be 7 with dependency-validator
-	if len(ids) != 7 {
-		t.Errorf("ListBuiltinAgentIDs() returned %d, want 7; got %v", len(ids), ids)
+	// 9 built-in agents: code-reviewer, code-simplifier, comment-analyzer, dependency-validator,
+	// over-engineering-detector, pr-test-analyzer, silent-failure-hunter, spec-quality-auditor, type-design-analyzer
+	if len(ids) != 9 {
+		t.Errorf("ListBuiltinAgentIDs() returned %d, want 9; got %v", len(ids), ids)
 	}
 }
 
