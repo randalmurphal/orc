@@ -251,6 +251,24 @@ Describe:
 #### Root Cause (if known)
 [Where the bug originates in the code]
 
+#### Pattern Prevalence (REQUIRED for bugs)
+
+The bug you found in one code path likely exists in others. **You MUST check.**
+
+1. Identify the buggy pattern (e.g., "sets weight but doesn't set workflow_id")
+2. Grep the codebase for ALL locations with the same pattern
+3. List every code path that has the same issue
+
+| Code Path | File:Line | Has Bug? | In Scope? |
+|-----------|-----------|----------|-----------|
+| [path 1] | file.go:123 | Yes/No | Yes / No (separate task) |
+
+**If other paths have the same bug, they MUST be either:**
+- Included in this task's scope and success criteria, OR
+- Explicitly documented as out-of-scope with a note to create follow-up tasks
+
+Leaving known instances of the same bug unfixed without documentation is a spec failure.
+
 ---
 
 **For FEATURE tasks (category = feature):**
