@@ -169,6 +169,14 @@ func GetPRURLProto(t *orcv1.Task) string {
 	return *t.Pr.Url
 }
 
+// GetPRNumberProto returns the PR number, or 0 if no PR exists.
+func GetPRNumberProto(t *orcv1.Task) int {
+	if t == nil || t.Pr == nil || t.Pr.Number == nil {
+		return 0
+	}
+	return int(*t.Pr.Number)
+}
+
 // SetPRInfoProto sets or updates the PR information for the task.
 func SetPRInfoProto(t *orcv1.Task, url string, number int) {
 	if t == nil {

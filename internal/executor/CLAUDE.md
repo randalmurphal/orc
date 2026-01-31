@@ -11,7 +11,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, result types |
 | `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()` | PR creation, merge, worktree setup/cleanup, sync |
+| `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `applyPRAutomation()` | PR creation/reuse, merge, worktree setup/cleanup, sync |
 | `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
 | `workflow_gates.go` | ~180 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()` | Gate evaluation (auto/human/AI), output variable pipeline, type resolution |
 | `workflow_triggers.go` | ~124 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
@@ -84,6 +84,27 @@ Resolved by `ResolveBranchName()` at `branch.go:169`:
 |----------|--------|--------|
 | 1 | `task.BranchName` (if valid) | Custom name as-is |
 | 2 | Auto-generated | `orc/TASK-001` or `prefix/TASK-001` (with initiative prefix) |
+
+### PR Creation Flow (`workflow_completion.go:220`)
+
+`createPR()` is **idempotent** — safe to call on resume or retry:
+
+```
+createPR()
+├── HasPRProto(t)?           → skip (fast path: task already has PR metadata)
+├── PushWithForceFallback()  → push branch to remote
+├── FindPRByBranch()         → check for existing open PR on branch
+│   ├── Found?               → reuse: UpdatePR(title/body) + save PR info
+│   ├── ErrNoPRFound?        → create new PR via CreatePR()
+│   └── Network error?       → log warning, fall through to CreatePR()
+└── applyPRAutomation()      → auto-merge/approve on both new and reused PRs
+```
+
+**Key behaviors:**
+- Reused PRs get title/body updated to match current task
+- `FindPRByBranch` failure is best-effort (doesn't block PR creation)
+- `UpdatePR` failure on reuse logs warning but saves PR info (PR exists, just stale metadata)
+- PR info persisted to task via `task.SetPRInfoProto()` + `backend.SaveTask()`
 
 ### PR Options (task overrides)
 
@@ -401,13 +422,14 @@ go test ./internal/executor/... -v
 | `branch_test.go` | Branch resolution: `TestResolveBranchName` (9 cases), target branch resolution |
 | `executor_resolution_test.go` | Agent/model/config resolution (`setupTestExecutor` helper) |
 | `workflow_completion_test.go` | PR options merging: `TestResolvePROptions` (8 cases) |
+| `create_pr_test.go` | PR creation/reuse: stale PR detection, idempotency, error paths, automation settings |
 | `workflow_executor_test.go` | Core executor behavior |
 | `phase_response_test.go` | Phase completion parsing |
 | `gate_output_pipeline_test.go` | Gate output variable pipeline: propagation, storage, retry context, rejection |
 | `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
 
-**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`
+**Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 
 ## Common Gotchas
 

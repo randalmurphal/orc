@@ -101,9 +101,11 @@ Key phases:
 
 ### Task Completion Flow
 
-1. **Task completes** → PR created on hosting provider (GitHub or GitLab) if `completion.action: pr`
+1. **Task completes** → PR created or reused on hosting provider (GitHub or GitLab) if `completion.action: pr`
 2. **Review PR** → Manual review opportunity
 3. **`orc finalize TASK-XXX`** → Syncs with target branch, resolves conflicts, optionally enables auto-merge
+
+**PR creation is idempotent:** If an open PR already exists on the task branch (from a previous run), it's reused and updated rather than creating a duplicate. See `executor/CLAUDE.md` for the full flow.
 
 **Note:** Auto-merge and CI polling are **disabled by default**. Set `completion.pr.auto_merge: true` and `completion.ci.wait_for_ci: true` to enable. GitHub auto-merge requires GraphQL (not supported); GitLab auto-merge is fully supported via `MergeWhenPipelineSucceeds`.
 

@@ -51,6 +51,11 @@ type Task struct {
 	PrReviewers    string  // JSON array of PR reviewers
 	PrLabelsSet    bool    // True if pr_labels explicitly set
 	PrReviewersSet bool    // True if pr_reviewers explicitly set
+
+	// PR tracking (set after PR creation/reuse)
+	PrURL    string // URL of the created/reused PR
+	PrNumber int    // PR number
+	PrStatus string // PR status (pending_review, approved, merged, closed)
 }
 
 // SaveTask creates or updates a task.
@@ -121,8 +126,8 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 	}
 
 	_, err := p.Exec(`
-		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -154,11 +159,15 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 			pr_labels = excluded.pr_labels,
 			pr_reviewers = excluded.pr_reviewers,
 			pr_labels_set = excluded.pr_labels_set,
-			pr_reviewers_set = excluded.pr_reviewers_set
+			pr_reviewers_set = excluded.pr_reviewers_set,
+			pr_url = excluded.pr_url,
+			pr_number = excluded.pr_number,
+			pr_status = excluded.pr_status
 	`, t.ID, t.Title, t.Description, t.Weight, t.WorkflowID, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.TargetBranch, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation,
-		t.BranchName, prDraft, t.PrLabels, t.PrReviewers, prLabelsSet, prReviewersSet)
+		t.BranchName, prDraft, t.PrLabels, t.PrReviewers, prLabelsSet, prReviewersSet,
+		t.PrURL, t.PrNumber, t.PrStatus)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -168,7 +177,7 @@ func (p *ProjectDB) SaveTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (p *ProjectDB) GetTask(id string) (*Task, error) {
 	row := p.QueryRow(`
-		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status
 		FROM tasks WHERE id = ?
 	`, id)
 
@@ -239,7 +248,7 @@ func (p *ProjectDB) ListTasks(opts ListOpts) ([]Task, int, error) {
 
 	// Query tasks
 	query := `
-		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set
+		SELECT id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status
 		FROM tasks
 	` + whereClause + " ORDER BY created_at DESC"
 
@@ -609,8 +618,8 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 	}
 
 	_, err := tx.Exec(`
-		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, title, description, weight, workflow_id, status, state_status, current_phase, branch, worktree_path, queue, priority, category, initiative_id, target_branch, created_at, started_at, completed_at, updated_at, total_cost_usd, metadata, retry_context, quality, executor_pid, executor_hostname, executor_started_at, last_heartbeat, is_automation, branch_name, pr_draft, pr_labels, pr_reviewers, pr_labels_set, pr_reviewers_set, pr_url, pr_number, pr_status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
 			description = excluded.description,
@@ -643,11 +652,15 @@ func SaveTaskTx(tx *TxOps, t *Task) error {
 			pr_labels = excluded.pr_labels,
 			pr_reviewers = excluded.pr_reviewers,
 			pr_labels_set = excluded.pr_labels_set,
-			pr_reviewers_set = excluded.pr_reviewers_set
+			pr_reviewers_set = excluded.pr_reviewers_set,
+			pr_url = excluded.pr_url,
+			pr_number = excluded.pr_number,
+			pr_status = excluded.pr_status
 	`, t.ID, t.Title, t.Description, t.Weight, t.WorkflowID, t.Status, stateStatus, t.CurrentPhase, t.Branch, t.WorktreePath,
 		queue, priority, category, t.InitiativeID, t.TargetBranch, t.CreatedAt.Format(time.RFC3339), startedAt, completedAt, updatedAt, t.TotalCostUSD, t.Metadata, t.RetryContext, t.Quality,
 		t.ExecutorPID, t.ExecutorHostname, executorStartedAt, lastHeartbeat, isAutomation,
-		t.BranchName, prDraft, t.PrLabels, t.PrReviewers, prLabelsSet, prReviewersSet)
+		t.BranchName, prDraft, t.PrLabels, t.PrReviewers, prLabelsSet, prReviewersSet,
+		t.PrURL, t.PrNumber, t.PrStatus)
 	if err != nil {
 		return fmt.Errorf("save task: %w", err)
 	}
@@ -693,11 +706,15 @@ func scanTask(row *sql.Row) (*Task, error) {
 	var isAutomation sql.NullInt64
 	var branchName, prLabels, prReviewers sql.NullString
 	var prDraft, prLabelsSet, prReviewersSet sql.NullInt64
+	var prURL sql.NullString
+	var prNumber sql.NullInt64
+	var prStatus sql.NullString
 
 	if err := row.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation,
-		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet); err != nil {
+		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet,
+		&prURL, &prNumber, &prStatus); err != nil {
 		return nil, err
 	}
 
@@ -814,6 +831,17 @@ func scanTask(row *sql.Row) (*Task, error) {
 	}
 	if prReviewersSet.Valid && prReviewersSet.Int64 == 1 {
 		t.PrReviewersSet = true
+	}
+
+	// PR tracking fields
+	if prURL.Valid {
+		t.PrURL = prURL.String
+	}
+	if prNumber.Valid {
+		t.PrNumber = int(prNumber.Int64)
+	}
+	if prStatus.Valid {
+		t.PrStatus = prStatus.String
 	}
 
 	return &t, nil
@@ -830,11 +858,15 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	var isAutomation sql.NullInt64
 	var branchName, prLabels, prReviewers sql.NullString
 	var prDraft, prLabelsSet, prReviewersSet sql.NullInt64
+	var prURL sql.NullString
+	var prNumber sql.NullInt64
+	var prStatus sql.NullString
 
 	if err := rows.Scan(&t.ID, &t.Title, &description, &t.Weight, &workflowID, &t.Status, &stateStatus, &currentPhase, &branch, &worktreePath,
 		&queue, &priority, &category, &initiativeID, &targetBranch, &createdAt, &startedAt, &completedAt, &updatedAt, &t.TotalCostUSD, &metadata, &retryContext, &quality,
 		&executorPID, &executorHostname, &executorStartedAt, &lastHeartbeat, &isAutomation,
-		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet); err != nil {
+		&branchName, &prDraft, &prLabels, &prReviewers, &prLabelsSet, &prReviewersSet,
+		&prURL, &prNumber, &prStatus); err != nil {
 		return nil, err
 	}
 
@@ -951,6 +983,17 @@ func scanTaskRows(rows *sql.Rows) (*Task, error) {
 	}
 	if prReviewersSet.Valid && prReviewersSet.Int64 == 1 {
 		t.PrReviewersSet = true
+	}
+
+	// PR tracking fields
+	if prURL.Valid {
+		t.PrURL = prURL.String
+	}
+	if prNumber.Valid {
+		t.PrNumber = int(prNumber.Int64)
+	}
+	if prStatus.Valid {
+		t.PrStatus = prStatus.String
 	}
 
 	return &t, nil
