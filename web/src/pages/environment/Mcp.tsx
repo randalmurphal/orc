@@ -1,10 +1,12 @@
 /**
  * MCP page (/environment/mcp)
  * Displays and edits MCP server configuration from .mcp.json
+ * Tabbed layout: Library + Export/Import (matching Hooks.tsx pattern)
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { create } from '@bufbuild/protobuf';
+import * as Tabs from '@radix-ui/react-tabs';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
@@ -18,7 +20,12 @@ import {
 	CreateMCPServerRequestSchema,
 	UpdateMCPServerRequestSchema,
 	DeleteMCPServerRequestSchema,
+	ExportMCPServersRequestSchema,
+	ScanMCPServersRequestSchema,
+	ImportMCPServersRequestSchema,
+	MCPScope,
 	type MCPServerInfo,
+	type DiscoveredMCPServer,
 } from '@/gen/orc/v1/mcp_pb';
 import './environment.css';
 
@@ -60,6 +67,20 @@ export function Mcp() {
 	const [envVars, setEnvVars] = useState<EnvVar[]>([]);
 	const [saving, setSaving] = useState(false);
 	const [editorLoading, setEditorLoading] = useState(false);
+
+	// Export/Import state
+	const [exportSource, setExportSource] = useState<MCPScope>(MCPScope.MCP_SCOPE_PROJECT);
+	const [exportDest, setExportDest] = useState<MCPScope>(MCPScope.MCP_SCOPE_GLOBAL);
+	const [exportServers, setExportServers] = useState<MCPServerInfo[]>([]);
+	const [selectedExportNames, setSelectedExportNames] = useState<Set<string>>(new Set());
+	const [exporting, setExporting] = useState(false);
+	const [exportLoading, setExportLoading] = useState(false);
+	const [scanSource, setScanSource] = useState<MCPScope>(MCPScope.MCP_SCOPE_GLOBAL);
+	const [scanCompareTo, setScanCompareTo] = useState<MCPScope>(MCPScope.MCP_SCOPE_PROJECT);
+	const [scanning, setScanning] = useState(false);
+	const [discoveredServers, setDiscoveredServers] = useState<DiscoveredMCPServer[]>([]);
+	const [selectedImportNames, setSelectedImportNames] = useState<Set<string>>(new Set());
+	const [importing, setImporting] = useState(false);
 
 	const loadServers = useCallback(async () => {
 		try {
@@ -231,6 +252,112 @@ export function Mcp() {
 		setEnvVars(updated);
 	};
 
+	// Export/Import handlers
+	const loadExportServers = useCallback(async () => {
+		try {
+			setExportLoading(true);
+			const response = await mcpClient.listMCPServers(
+				create(ListMCPServersRequestSchema, { scope: exportSource })
+			);
+			setExportServers(response.servers);
+			setSelectedExportNames(new Set());
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to load servers for export');
+		} finally {
+			setExportLoading(false);
+		}
+	}, [exportSource]);
+
+	const handleExport = async () => {
+		if (selectedExportNames.size === 0) {
+			toast.error('Select at least one server to export');
+			return;
+		}
+		try {
+			setExporting(true);
+			const resp = await mcpClient.exportMCPServers(
+				create(ExportMCPServersRequestSchema, {
+					serverNames: Array.from(selectedExportNames),
+					source: exportSource,
+					destination: exportDest,
+				})
+			);
+			toast.success(`Exported ${resp.exportedCount} server(s)`);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to export servers');
+		} finally {
+			setExporting(false);
+		}
+	};
+
+	const handleScan = async () => {
+		try {
+			setScanning(true);
+			const resp = await mcpClient.scanMCPServers(
+				create(ScanMCPServersRequestSchema, {
+					source: scanSource,
+					compareTo: scanCompareTo,
+				})
+			);
+			setDiscoveredServers(resp.servers);
+			setSelectedImportNames(new Set(resp.servers.map((s) => s.name)));
+			if (resp.servers.length === 0) {
+				toast.info('No new or modified servers found');
+			}
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to scan servers');
+		} finally {
+			setScanning(false);
+		}
+	};
+
+	const handleImport = async () => {
+		const namesToImport = Array.from(selectedImportNames);
+		if (namesToImport.length === 0) {
+			toast.error('Select at least one server to import');
+			return;
+		}
+		try {
+			setImporting(true);
+			const resp = await mcpClient.importMCPServers(
+				create(ImportMCPServersRequestSchema, {
+					serverNames: namesToImport,
+					source: scanSource,
+					destination: scanCompareTo,
+				})
+			);
+			toast.success(`Imported ${resp.importedCount} server(s)`);
+			setDiscoveredServers([]);
+			setSelectedImportNames(new Set());
+			await loadServers();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to import servers');
+		} finally {
+			setImporting(false);
+		}
+	};
+
+	const toggleExportName = (name: string) => {
+		setSelectedExportNames((prev) => {
+			const next = new Set(prev);
+			if (next.has(name)) next.delete(name);
+			else next.add(name);
+			return next;
+		});
+	};
+
+	const toggleImportName = (name: string) => {
+		setSelectedImportNames((prev) => {
+			const next = new Set(prev);
+			if (next.has(name)) next.delete(name);
+			else next.add(name);
+			return next;
+		});
+	};
+
+	const scopeLabel = (scope: MCPScope) =>
+		scope === MCPScope.MCP_SCOPE_GLOBAL ? 'Global ~/.claude/' : 'Project .mcp.json';
+
 	if (loading) {
 		return (
 			<div className="page environment-mcp-page">
@@ -269,77 +396,210 @@ export function Mcp() {
 				</div>
 			</div>
 
-			{servers.length === 0 ? (
-				<div className="env-empty">
-					<Icon name="server" size={48} />
-					<p>No MCP servers configured</p>
-					<p className="env-empty-hint">
-						Add servers to extend Claude Code with external tools and capabilities.
-					</p>
-				</div>
-			) : (
-				<div className="env-card-grid">
-					{servers.map((server) => (
-						<div
-							key={server.name}
-							className={`env-card mcp-card ${server.disabled ? 'disabled' : ''}`}
-						>
-							<div className="env-card-header">
-								<h4 className="env-card-title">
-									<Icon name={server.type === 'sse' ? 'globe' : 'terminal'} size={16} />
-									{server.name}
-								</h4>
-								<div className="env-card-actions">
+			<Tabs.Root defaultValue="library">
+				<Tabs.List className="env-scope-tabs" aria-label="MCP view">
+					<Tabs.Trigger value="library">Library</Tabs.Trigger>
+					<Tabs.Trigger value="export-import">Export / Import</Tabs.Trigger>
+				</Tabs.List>
+
+				<Tabs.Content value="library">
+					{servers.length === 0 ? (
+						<div className="env-empty">
+							<Icon name="server" size={48} />
+							<p>No MCP servers configured</p>
+							<p className="env-empty-hint">
+								Add servers to extend Claude Code with external tools and capabilities.
+							</p>
+						</div>
+					) : (
+						<div className="env-card-grid">
+							{servers.map((server) => (
+								<div
+									key={server.name}
+									className={`env-card mcp-card ${server.disabled ? 'disabled' : ''}`}
+								>
+									<div className="env-card-header">
+										<h4 className="env-card-title">
+											<Icon name={server.type === 'sse' ? 'globe' : 'terminal'} size={16} />
+											{server.name}
+										</h4>
+										<div className="env-card-actions">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleToggle(server)}
+												aria-label={server.disabled ? 'Enable' : 'Disable'}
+											>
+												<Icon name={server.disabled ? 'eye' : 'eye-off'} size={14} />
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleEdit(server.name)}
+											>
+												<Icon name="edit" size={14} />
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => handleDelete(server.name)}
+											>
+												<Icon name="trash" size={14} />
+											</Button>
+										</div>
+									</div>
+									<div className="mcp-card-type">{server.type}</div>
+									{server.type === 'stdio' && server.command && (
+										<div className="mcp-card-command">{server.command}</div>
+									)}
+									{server.type === 'sse' && server.url && (
+										<div className="mcp-card-url">{server.url}</div>
+									)}
+									<div className="mcp-card-meta">
+										{server.argsCount > 0 && (
+											<span className="mcp-card-badge">
+												{server.argsCount} arg{server.argsCount !== 1 ? 's' : ''}
+											</span>
+										)}
+										{server.hasEnv && (
+											<span className="mcp-card-badge">
+												{server.envCount} env var{server.envCount !== 1 ? 's' : ''}
+											</span>
+										)}
+										{server.disabled && (
+											<span className="mcp-card-badge disabled">Disabled</span>
+										)}
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</Tabs.Content>
+
+				<Tabs.Content value="export-import">
+					<div className="export-import-section">
+						{/* Export Panel */}
+						<div className="export-import-panel">
+							<h4>Export MCP Servers</h4>
+							<p className="env-page-description">Copy MCP servers from one scope to another.</p>
+							<div className="export-import-controls">
+								<div className="export-dest-selector">
+									<span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>From:</span>
 									<Button
-										variant="ghost"
+										variant={exportSource === MCPScope.MCP_SCOPE_PROJECT ? 'primary' : 'secondary'}
 										size="sm"
-										onClick={() => handleToggle(server)}
-										aria-label={server.disabled ? 'Enable' : 'Disable'}
+										onClick={() => setExportSource(MCPScope.MCP_SCOPE_PROJECT)}
 									>
-										<Icon name={server.disabled ? 'eye' : 'eye-off'} size={14} />
+										Project
 									</Button>
 									<Button
-										variant="ghost"
+										variant={exportSource === MCPScope.MCP_SCOPE_GLOBAL ? 'primary' : 'secondary'}
 										size="sm"
-										onClick={() => handleEdit(server.name)}
+										onClick={() => setExportSource(MCPScope.MCP_SCOPE_GLOBAL)}
 									>
-										<Icon name="edit" size={14} />
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => handleDelete(server.name)}
-									>
-										<Icon name="trash" size={14} />
+										Global
 									</Button>
 								</div>
+								<div className="export-dest-selector">
+									<span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>To:</span>
+									<Button
+										variant={exportDest === MCPScope.MCP_SCOPE_PROJECT ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setExportDest(MCPScope.MCP_SCOPE_PROJECT)}
+									>
+										Project
+									</Button>
+									<Button
+										variant={exportDest === MCPScope.MCP_SCOPE_GLOBAL ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setExportDest(MCPScope.MCP_SCOPE_GLOBAL)}
+									>
+										Global
+									</Button>
+								</div>
+								<Button variant="secondary" size="sm" onClick={loadExportServers} loading={exportLoading}>
+									<Icon name="refresh" size={14} />
+									Load
+								</Button>
 							</div>
-							<div className="mcp-card-type">{server.type}</div>
-							{server.type === 'stdio' && server.command && (
-								<div className="mcp-card-command">{server.command}</div>
+							{exportServers.length === 0 ? (
+								<div className="hooks-empty">No servers in {scopeLabel(exportSource)}. Click Load to refresh.</div>
+							) : (
+								<div className="export-import-list">
+									{exportServers.map((server) => (
+										<label key={server.name} className="export-import-item">
+											<input
+												type="checkbox"
+												checked={selectedExportNames.has(server.name)}
+												onChange={() => toggleExportName(server.name)}
+											/>
+											<span className="export-import-item-name">{server.name}</span>
+											<span className="export-import-item-meta">{server.type}</span>
+										</label>
+									))}
+								</div>
 							)}
-							{server.type === 'sse' && server.url && (
-								<div className="mcp-card-url">{server.url}</div>
-							)}
-							<div className="mcp-card-meta">
-								{server.argsCount > 0 && (
-									<span className="mcp-card-badge">
-										{server.argsCount} arg{server.argsCount !== 1 ? 's' : ''}
-									</span>
-								)}
-								{server.hasEnv && (
-									<span className="mcp-card-badge">
-										{server.envCount} env var{server.envCount !== 1 ? 's' : ''}
-									</span>
-								)}
-								{server.disabled && (
-									<span className="mcp-card-badge disabled">Disabled</span>
-								)}
-							</div>
+							<Button variant="primary" size="sm" onClick={handleExport} loading={exporting} disabled={selectedExportNames.size === 0}>
+								Export Selected ({selectedExportNames.size})
+							</Button>
 						</div>
-					))}
-				</div>
-			)}
+
+						{/* Import Panel */}
+						<div className="export-import-panel">
+							<h4>Import MCP Servers</h4>
+							<p className="env-page-description">Scan for new or modified servers and import them.</p>
+							<div className="export-import-controls">
+								<div className="export-dest-selector">
+									<span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Scan:</span>
+									<Button
+										variant={scanSource === MCPScope.MCP_SCOPE_GLOBAL ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => { setScanSource(MCPScope.MCP_SCOPE_GLOBAL); setScanCompareTo(MCPScope.MCP_SCOPE_PROJECT); }}
+									>
+										Global
+									</Button>
+									<Button
+										variant={scanSource === MCPScope.MCP_SCOPE_PROJECT ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => { setScanSource(MCPScope.MCP_SCOPE_PROJECT); setScanCompareTo(MCPScope.MCP_SCOPE_GLOBAL); }}
+									>
+										Project
+									</Button>
+								</div>
+								<Button variant="secondary" size="sm" onClick={handleScan} loading={scanning}>
+									<Icon name="search" size={14} />
+									Scan
+								</Button>
+							</div>
+							{discoveredServers.length === 0 ? (
+								<div className="hooks-empty">No items discovered. Click Scan to search.</div>
+							) : (
+								<div className="export-import-list">
+									{discoveredServers.map((server) => (
+										<label key={server.name} className="export-import-item">
+											<input
+												type="checkbox"
+												checked={selectedImportNames.has(server.name)}
+												onChange={() => toggleImportName(server.name)}
+											/>
+											<span className="export-import-item-name">{server.name}</span>
+											<span className={`export-import-badge export-import-badge-${server.status}`}>
+												{server.status}
+											</span>
+											<span className="export-import-item-meta">{server.type}</span>
+										</label>
+									))}
+								</div>
+							)}
+							{discoveredServers.length > 0 && (
+								<Button variant="primary" size="sm" onClick={handleImport} loading={importing} disabled={selectedImportNames.size === 0}>
+									Import Selected ({selectedImportNames.size})
+								</Button>
+							)}
+						</div>
+					</div>
+				</Tabs.Content>
+			</Tabs.Root>
 
 			{/* Editor Modal */}
 			<Modal

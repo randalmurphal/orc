@@ -47,6 +47,15 @@ const (
 	// MCPServiceDeleteMCPServerProcedure is the fully-qualified name of the MCPService's
 	// DeleteMCPServer RPC.
 	MCPServiceDeleteMCPServerProcedure = "/orc.v1.MCPService/DeleteMCPServer"
+	// MCPServiceExportMCPServersProcedure is the fully-qualified name of the MCPService's
+	// ExportMCPServers RPC.
+	MCPServiceExportMCPServersProcedure = "/orc.v1.MCPService/ExportMCPServers"
+	// MCPServiceScanMCPServersProcedure is the fully-qualified name of the MCPService's ScanMCPServers
+	// RPC.
+	MCPServiceScanMCPServersProcedure = "/orc.v1.MCPService/ScanMCPServers"
+	// MCPServiceImportMCPServersProcedure is the fully-qualified name of the MCPService's
+	// ImportMCPServers RPC.
+	MCPServiceImportMCPServersProcedure = "/orc.v1.MCPService/ImportMCPServers"
 )
 
 // MCPServiceClient is a client for the orc.v1.MCPService service.
@@ -61,6 +70,12 @@ type MCPServiceClient interface {
 	UpdateMCPServer(context.Context, *connect.Request[v1.UpdateMCPServerRequest]) (*connect.Response[v1.UpdateMCPServerResponse], error)
 	// Delete an MCP server
 	DeleteMCPServer(context.Context, *connect.Request[v1.DeleteMCPServerRequest]) (*connect.Response[v1.DeleteMCPServerResponse], error)
+	// Export MCP servers from source scope to destination scope
+	ExportMCPServers(context.Context, *connect.Request[v1.ExportMCPServersRequest]) (*connect.Response[v1.ExportMCPServersResponse], error)
+	// Scan source scope for new/modified MCP servers compared to another scope
+	ScanMCPServers(context.Context, *connect.Request[v1.ScanMCPServersRequest]) (*connect.Response[v1.ScanMCPServersResponse], error)
+	// Import MCP servers from source scope to destination scope (rejects duplicates)
+	ImportMCPServers(context.Context, *connect.Request[v1.ImportMCPServersRequest]) (*connect.Response[v1.ImportMCPServersResponse], error)
 }
 
 // NewMCPServiceClient constructs a client for the orc.v1.MCPService service. By default, it uses
@@ -104,16 +119,37 @@ func NewMCPServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(mCPServiceMethods.ByName("DeleteMCPServer")),
 			connect.WithClientOptions(opts...),
 		),
+		exportMCPServers: connect.NewClient[v1.ExportMCPServersRequest, v1.ExportMCPServersResponse](
+			httpClient,
+			baseURL+MCPServiceExportMCPServersProcedure,
+			connect.WithSchema(mCPServiceMethods.ByName("ExportMCPServers")),
+			connect.WithClientOptions(opts...),
+		),
+		scanMCPServers: connect.NewClient[v1.ScanMCPServersRequest, v1.ScanMCPServersResponse](
+			httpClient,
+			baseURL+MCPServiceScanMCPServersProcedure,
+			connect.WithSchema(mCPServiceMethods.ByName("ScanMCPServers")),
+			connect.WithClientOptions(opts...),
+		),
+		importMCPServers: connect.NewClient[v1.ImportMCPServersRequest, v1.ImportMCPServersResponse](
+			httpClient,
+			baseURL+MCPServiceImportMCPServersProcedure,
+			connect.WithSchema(mCPServiceMethods.ByName("ImportMCPServers")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // mCPServiceClient implements MCPServiceClient.
 type mCPServiceClient struct {
-	listMCPServers  *connect.Client[v1.ListMCPServersRequest, v1.ListMCPServersResponse]
-	getMCPServer    *connect.Client[v1.GetMCPServerRequest, v1.GetMCPServerResponse]
-	createMCPServer *connect.Client[v1.CreateMCPServerRequest, v1.CreateMCPServerResponse]
-	updateMCPServer *connect.Client[v1.UpdateMCPServerRequest, v1.UpdateMCPServerResponse]
-	deleteMCPServer *connect.Client[v1.DeleteMCPServerRequest, v1.DeleteMCPServerResponse]
+	listMCPServers   *connect.Client[v1.ListMCPServersRequest, v1.ListMCPServersResponse]
+	getMCPServer     *connect.Client[v1.GetMCPServerRequest, v1.GetMCPServerResponse]
+	createMCPServer  *connect.Client[v1.CreateMCPServerRequest, v1.CreateMCPServerResponse]
+	updateMCPServer  *connect.Client[v1.UpdateMCPServerRequest, v1.UpdateMCPServerResponse]
+	deleteMCPServer  *connect.Client[v1.DeleteMCPServerRequest, v1.DeleteMCPServerResponse]
+	exportMCPServers *connect.Client[v1.ExportMCPServersRequest, v1.ExportMCPServersResponse]
+	scanMCPServers   *connect.Client[v1.ScanMCPServersRequest, v1.ScanMCPServersResponse]
+	importMCPServers *connect.Client[v1.ImportMCPServersRequest, v1.ImportMCPServersResponse]
 }
 
 // ListMCPServers calls orc.v1.MCPService.ListMCPServers.
@@ -141,6 +177,21 @@ func (c *mCPServiceClient) DeleteMCPServer(ctx context.Context, req *connect.Req
 	return c.deleteMCPServer.CallUnary(ctx, req)
 }
 
+// ExportMCPServers calls orc.v1.MCPService.ExportMCPServers.
+func (c *mCPServiceClient) ExportMCPServers(ctx context.Context, req *connect.Request[v1.ExportMCPServersRequest]) (*connect.Response[v1.ExportMCPServersResponse], error) {
+	return c.exportMCPServers.CallUnary(ctx, req)
+}
+
+// ScanMCPServers calls orc.v1.MCPService.ScanMCPServers.
+func (c *mCPServiceClient) ScanMCPServers(ctx context.Context, req *connect.Request[v1.ScanMCPServersRequest]) (*connect.Response[v1.ScanMCPServersResponse], error) {
+	return c.scanMCPServers.CallUnary(ctx, req)
+}
+
+// ImportMCPServers calls orc.v1.MCPService.ImportMCPServers.
+func (c *mCPServiceClient) ImportMCPServers(ctx context.Context, req *connect.Request[v1.ImportMCPServersRequest]) (*connect.Response[v1.ImportMCPServersResponse], error) {
+	return c.importMCPServers.CallUnary(ctx, req)
+}
+
 // MCPServiceHandler is an implementation of the orc.v1.MCPService service.
 type MCPServiceHandler interface {
 	// List all MCP servers
@@ -153,6 +204,12 @@ type MCPServiceHandler interface {
 	UpdateMCPServer(context.Context, *connect.Request[v1.UpdateMCPServerRequest]) (*connect.Response[v1.UpdateMCPServerResponse], error)
 	// Delete an MCP server
 	DeleteMCPServer(context.Context, *connect.Request[v1.DeleteMCPServerRequest]) (*connect.Response[v1.DeleteMCPServerResponse], error)
+	// Export MCP servers from source scope to destination scope
+	ExportMCPServers(context.Context, *connect.Request[v1.ExportMCPServersRequest]) (*connect.Response[v1.ExportMCPServersResponse], error)
+	// Scan source scope for new/modified MCP servers compared to another scope
+	ScanMCPServers(context.Context, *connect.Request[v1.ScanMCPServersRequest]) (*connect.Response[v1.ScanMCPServersResponse], error)
+	// Import MCP servers from source scope to destination scope (rejects duplicates)
+	ImportMCPServers(context.Context, *connect.Request[v1.ImportMCPServersRequest]) (*connect.Response[v1.ImportMCPServersResponse], error)
 }
 
 // NewMCPServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -192,6 +249,24 @@ func NewMCPServiceHandler(svc MCPServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(mCPServiceMethods.ByName("DeleteMCPServer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	mCPServiceExportMCPServersHandler := connect.NewUnaryHandler(
+		MCPServiceExportMCPServersProcedure,
+		svc.ExportMCPServers,
+		connect.WithSchema(mCPServiceMethods.ByName("ExportMCPServers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	mCPServiceScanMCPServersHandler := connect.NewUnaryHandler(
+		MCPServiceScanMCPServersProcedure,
+		svc.ScanMCPServers,
+		connect.WithSchema(mCPServiceMethods.ByName("ScanMCPServers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	mCPServiceImportMCPServersHandler := connect.NewUnaryHandler(
+		MCPServiceImportMCPServersProcedure,
+		svc.ImportMCPServers,
+		connect.WithSchema(mCPServiceMethods.ByName("ImportMCPServers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.MCPService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MCPServiceListMCPServersProcedure:
@@ -204,6 +279,12 @@ func NewMCPServiceHandler(svc MCPServiceHandler, opts ...connect.HandlerOption) 
 			mCPServiceUpdateMCPServerHandler.ServeHTTP(w, r)
 		case MCPServiceDeleteMCPServerProcedure:
 			mCPServiceDeleteMCPServerHandler.ServeHTTP(w, r)
+		case MCPServiceExportMCPServersProcedure:
+			mCPServiceExportMCPServersHandler.ServeHTTP(w, r)
+		case MCPServiceScanMCPServersProcedure:
+			mCPServiceScanMCPServersHandler.ServeHTTP(w, r)
+		case MCPServiceImportMCPServersProcedure:
+			mCPServiceImportMCPServersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -231,4 +312,16 @@ func (UnimplementedMCPServiceHandler) UpdateMCPServer(context.Context, *connect.
 
 func (UnimplementedMCPServiceHandler) DeleteMCPServer(context.Context, *connect.Request[v1.DeleteMCPServerRequest]) (*connect.Response[v1.DeleteMCPServerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.MCPService.DeleteMCPServer is not implemented"))
+}
+
+func (UnimplementedMCPServiceHandler) ExportMCPServers(context.Context, *connect.Request[v1.ExportMCPServersRequest]) (*connect.Response[v1.ExportMCPServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.MCPService.ExportMCPServers is not implemented"))
+}
+
+func (UnimplementedMCPServiceHandler) ScanMCPServers(context.Context, *connect.Request[v1.ScanMCPServersRequest]) (*connect.Response[v1.ScanMCPServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.MCPService.ScanMCPServers is not implemented"))
+}
+
+func (UnimplementedMCPServiceHandler) ImportMCPServers(context.Context, *connect.Request[v1.ImportMCPServersRequest]) (*connect.Response[v1.ImportMCPServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.MCPService.ImportMCPServers is not implemented"))
 }
