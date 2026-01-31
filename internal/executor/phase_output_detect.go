@@ -29,15 +29,6 @@ type PhaseOutputDetector struct {
 	backend storage.Backend // Optional: used for spec detection from database
 }
 
-// NewPhaseOutputDetector creates a detector for a task.
-func NewPhaseOutputDetector(taskID string, weight orcv1.TaskWeight) *PhaseOutputDetector {
-	return &PhaseOutputDetector{
-		taskDir: task.TaskDir(taskID),
-		taskID:  taskID,
-		weight:  weight,
-	}
-}
-
 // NewPhaseOutputDetectorWithDir creates a detector for a task in a specific directory.
 func NewPhaseOutputDetectorWithDir(taskDir, taskID string, weight orcv1.TaskWeight) *PhaseOutputDetector {
 	return &PhaseOutputDetector{

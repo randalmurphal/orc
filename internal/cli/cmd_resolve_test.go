@@ -23,10 +23,13 @@ func withResolveTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	origDir, err := os.Getwd()
@@ -879,10 +882,13 @@ func TestResolveCommand_DetectsMergeInProgress(t *testing.T) {
 func TestResolveCommand_CleanupFlag(t *testing.T) {
 	tmpDir := setupTestRepoForResolve(t)
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	gitOps, err := git.New(tmpDir, git.DefaultConfig())
@@ -1002,10 +1008,13 @@ func TestResolveCommand_NoWorktree(t *testing.T) {
 func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 	tmpDir := setupTestRepoForResolve(t)
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	gitOps, err := git.New(tmpDir, git.DefaultConfig())
@@ -1087,10 +1096,13 @@ func TestResolveCommand_ForceSkipsChecks(t *testing.T) {
 func TestResolveCommand_CleanWorktree(t *testing.T) {
 	tmpDir := setupTestRepoForResolve(t)
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	gitOps, err := git.New(tmpDir, git.DefaultConfig())
@@ -1681,10 +1693,13 @@ func TestResolveCommand_YesDoesNotImplyForce(t *testing.T) {
 func TestResolveCommand_YesWithCleanup(t *testing.T) {
 	tmpDir := setupTestRepoForResolve(t)
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	gitOps, err := git.New(tmpDir, git.DefaultConfig())

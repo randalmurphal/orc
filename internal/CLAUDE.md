@@ -104,12 +104,12 @@ executor := NewExecutor(
 
 Orc uses two database tiers for multi-project support:
 
-| Tier | Type | Scope | Contents |
-|------|------|-------|----------|
-| `GlobalDB` | `db.GlobalDB` | Shared across all projects | Built-in workflows, agents, project registry |
-| `ProjectDB` | `db.ProjectDB` | Per-project | Tasks, initiatives, transcripts, events |
+| Tier | Type | Location | Contents |
+|------|------|----------|----------|
+| `GlobalDB` | `db.GlobalDB` | `~/.orc/orc.db` | Built-in workflows, agents, project registry |
+| `ProjectDB` | `db.ProjectDB` | `~/.orc/projects/<id>/orc.db` | Tasks, initiatives, transcripts, events |
 
-API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents.
+All runtime state lives in `~/.orc/`, keeping project `.orc/` directories config-only (git-tracked). API services resolve the correct `ProjectDB` via `getBackend(projectID)`, which routes through `ProjectCache` (`api/project_cache.go`) -- an LRU cache of open database connections. Server startup seeds the `GlobalDB` with built-in workflows and agents.
 
 ### Interface-Based Design
 
@@ -130,14 +130,32 @@ make test-short     # Without race detector (faster)
 
 **NEVER use `os.Chdir()` in tests** - it's process-wide and not goroutine-safe.
 
-Use explicit path parameters with `t.TempDir()`:
+**NEVER let tests touch the real `~/.orc/` directory.** Any test that calls `bootstrap.Run()`, `project.RegisterProject()`, `db.OpenProject()`, or anything that resolves `GlobalPath()` MUST isolate HOME:
 
 ```go
 func TestSomething(t *testing.T) {
     tmpDir := t.TempDir()
-    err := config.InitAt(tmpDir, false)
-    task, err := task.LoadFrom(tmpDir, "TASK-001")
+    homeDir := filepath.Join(tmpDir, "home")
+    projectDir := filepath.Join(tmpDir, "project")
+    os.MkdirAll(homeDir, 0755)
+    os.MkdirAll(projectDir, 0755)
+    t.Setenv("HOME", homeDir) // Isolate from real ~/.orc
+
+    // Now homeDir/.orc/ is the global dir, projectDir/.orc/ is the project dir
+    // These MUST be different directories to avoid collision
+    result, err := bootstrap.Run(bootstrap.Options{WorkDir: projectDir})
 }
+```
+
+**Why separate dirs?** `~/.orc/` (global state) and `<project>/.orc/` (config) must not overlap. If `HOME == projectDir`, both resolve to the same `.orc/` directory, causing subtle bugs.
+
+**Prefer `t.TempDir()` over `os.MkdirTemp()`** — `t.TempDir()` is automatically cleaned up by the test framework. `os.MkdirTemp()` requires manual `defer os.RemoveAll()`.
+
+**Prefer in-memory databases** when testing storage logic that doesn't need file I/O:
+
+```go
+backend := storage.NewTestBackend(t)  // In-memory, auto-cleanup
+globalDB := storage.NewTestGlobalDB(t)
 ```
 
 **Path-aware function variants:**

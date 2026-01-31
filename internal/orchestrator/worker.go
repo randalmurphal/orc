@@ -380,10 +380,11 @@ func (p *WorkerPool) GetWorkers() map[string]*Worker {
 }
 
 // WorktreePath returns the worktree path for a task.
-func WorktreePath(taskID string, cfg *config.Config) string {
-	worktreeDir := ".orc/worktrees"
-	if cfg != nil && cfg.Worktree.Dir != "" {
-		worktreeDir = cfg.Worktree.Dir
+func WorktreePath(taskID string, cfg *config.Config, projectDir string) string {
+	var configDir string
+	if cfg != nil {
+		configDir = cfg.Worktree.Dir
 	}
-	return filepath.Join(worktreeDir, fmt.Sprintf("orc-%s", taskID))
+	resolvedDir := config.ResolveWorktreeDir(configDir, projectDir)
+	return filepath.Join(resolvedDir, fmt.Sprintf("orc-%s", taskID))
 }

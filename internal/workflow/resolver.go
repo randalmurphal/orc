@@ -31,11 +31,10 @@ type ResolvedPhase struct {
 }
 
 // Resolver resolves workflows and phases from multiple sources.
-// Priority order: personal > local > shared > project > embedded
+// Priority order: personal > local > project > embedded
 type Resolver struct {
 	personalDir string // ~/.orc/
 	localDir    string // .orc/local/
-	sharedDir   string // .orc/shared/
 	projectDir  string // .orc/
 	embedded    bool   // Whether to check embedded templates
 }
@@ -54,13 +53,6 @@ func WithPersonalDir(dir string) ResolverOption {
 func WithLocalDir(dir string) ResolverOption {
 	return func(r *Resolver) {
 		r.localDir = dir
-	}
-}
-
-// WithSharedDir sets the shared directory (.orc/shared/).
-func WithSharedDir(dir string) ResolverOption {
-	return func(r *Resolver) {
-		r.sharedDir = dir
 	}
 }
 
@@ -110,7 +102,6 @@ func NewResolverFromOrcDir(orcDir string) *Resolver {
 	return NewResolver(
 		WithPersonalDir(personalDir),
 		WithLocalDir(filepath.Join(orcDir, "local")),
-		WithSharedDir(filepath.Join(orcDir, "shared")),
 		WithProjectDir(orcDir),
 		WithEmbedded(true),
 	)
@@ -127,7 +118,6 @@ func (r *Resolver) ResolveWorkflow(id string) (*ResolvedWorkflow, error) {
 	}{
 		{r.personalDir, "workflows", SourcePersonalGlobal},
 		{r.localDir, "workflows", SourceProjectLocal},
-		{r.sharedDir, "workflows", SourceProjectShared},
 		{r.projectDir, "workflows", SourceProject},
 	}
 
@@ -180,7 +170,6 @@ func (r *Resolver) ResolvePhase(id string) (*ResolvedPhase, error) {
 	}{
 		{r.personalDir, "phases", SourcePersonalGlobal},
 		{r.localDir, "phases", SourceProjectLocal},
-		{r.sharedDir, "phases", SourceProjectShared},
 		{r.projectDir, "phases", SourceProject},
 	}
 
@@ -234,7 +223,6 @@ func (r *Resolver) ListWorkflows() ([]ResolvedWorkflow, error) {
 	}{
 		{r.personalDir, "workflows", SourcePersonalGlobal},
 		{r.localDir, "workflows", SourceProjectLocal},
-		{r.sharedDir, "workflows", SourceProjectShared},
 		{r.projectDir, "workflows", SourceProject},
 	}
 
@@ -324,7 +312,6 @@ func (r *Resolver) ListPhases() ([]ResolvedPhase, error) {
 	}{
 		{r.personalDir, "phases", SourcePersonalGlobal},
 		{r.localDir, "phases", SourceProjectLocal},
-		{r.sharedDir, "phases", SourceProjectShared},
 		{r.projectDir, "phases", SourceProject},
 	}
 

@@ -111,8 +111,9 @@ func TestDetectMode_Solo(t *testing.T) {
 	}
 }
 
-func TestDetectMode_P2P(t *testing.T) {
-	// Create a temporary project directory with .orc/shared/
+func TestDetectMode_SharedDirNoLongerTriggersP2P(t *testing.T) {
+	// P2P auto-detection via .orc/shared/ was removed.
+	// Having .orc/shared/ should now result in solo mode.
 	tmpDir := t.TempDir()
 
 	// Create .orc/shared directory
@@ -122,8 +123,8 @@ func TestDetectMode_P2P(t *testing.T) {
 	}
 
 	mode := DetectMode(tmpDir)
-	if mode != ModeP2P {
-		t.Errorf("DetectMode() = %v, want %v", mode, ModeP2P)
+	if mode != ModeSolo {
+		t.Errorf("DetectMode() = %v, want %v", mode, ModeSolo)
 	}
 }
 
@@ -152,8 +153,8 @@ team:
 	}
 }
 
-func TestDetectMode_TeamPriority(t *testing.T) {
-	// Team mode should take priority over P2P mode
+func TestDetectMode_TeamWithSharedDir(t *testing.T) {
+	// Team mode should be detected even with .orc/shared/ present
 	tmpDir := t.TempDir()
 
 	// Create both .orc/shared/ AND team.server_url config
@@ -173,7 +174,7 @@ team:
 
 	mode := DetectMode(tmpDir)
 	if mode != ModeTeam {
-		t.Errorf("DetectMode() with both P2P and Team indicators = %v, want %v (team should have priority)", mode, ModeTeam)
+		t.Errorf("DetectMode() with shared dir and team config = %v, want %v", mode, ModeTeam)
 	}
 }
 

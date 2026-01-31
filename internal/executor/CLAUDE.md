@@ -126,6 +126,8 @@ createPR()
 - **Custom branch** (`task.BranchName` set): Uses `gitOps.CreateWorktreeWithCustomBranch()`, worktree path derived from branch name
 - **Standard**: Uses `gitOps.CreateWorktreeWithInitiativePrefix()`, worktree path derived from task ID
 
+Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside the project directory). The worktree path is resolved via `config.ResolveWorktreeDir()` and displayed in `orc show` and `orc status`.
+
 ## Key Functions
 
 ### Shared Utilities

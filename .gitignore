@@ -32,32 +32,14 @@ web/test-results/
 # Playwright MCP screenshots
 .playwright-mcp/
 
-# Orc worktrees (parallel task execution)
-.orc/worktrees/
-
-# Orc data directories (synced via CR-SQLite, not git)
-.orc/tasks/
-.orc/initiatives/
-
-# Nested .orc directories (test artifacts, subdirectories)
-# Use **/ to match anywhere in the tree
-**/.orc/orc.db
-**/.orc/orc.db-*
-**/.orc/tasks/
-**/.orc/initiatives/
-
 # Go workspace (local development only)
 go.work
 go.work.sum
 internal/api/static/*
 !internal/api/static/.gitkeep
-.orc/orc.db
 
 # orc - Claude Code Task Orchestrator
-# SQLite WAL files (regenerated on open)
-.orc/orc.db-journal
-.orc/orc.db-wal
-.orc/orc.db-shm
+# All runtime state (DB, worktrees, exports) lives in ~/.orc/, not here.
 .mcp.json
 .claude/settings.json
 

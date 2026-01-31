@@ -131,13 +131,12 @@ func TestSaveTeamRegistry(t *testing.T) {
 func TestTeamInitCreatesDirectoryStructure(t *testing.T) {
 	tmpDir := withTempDirForTeam(t)
 
-	// Create .orc directory with database so findProjectRoot/isRealOrcProject can find it
+	// Create .orc directory with config.yaml so findProjectRoot/isRealOrcProject can find it
 	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
 		t.Fatalf("mkdir .orc: %v", err)
 	}
-	// Create database file to satisfy isRealOrcProject check
-	if err := os.WriteFile(filepath.Join(tmpDir, ".orc", "orc.db"), []byte("sqlite"), 0644); err != nil {
-		t.Fatalf("create db: %v", err)
+	if err := os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	// Run team init
@@ -209,9 +208,9 @@ func TestTeamInitFailsWithoutForce(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc/shared"), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	// Create database file to satisfy isRealOrcProject check
-	if err := os.WriteFile(filepath.Join(tmpDir, ".orc", "orc.db"), []byte("sqlite"), 0644); err != nil {
-		t.Fatalf("create db: %v", err)
+	// Create config.yaml to satisfy isRealOrcProject check
+	if err := os.WriteFile(filepath.Join(tmpDir, ".orc", "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	// Should fail without force

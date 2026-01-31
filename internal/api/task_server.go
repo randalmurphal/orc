@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"time"
 
 	"connectrpc.com/connect"
@@ -2476,7 +2477,7 @@ func (s *taskServer) ExportTask(
 	return connect.NewResponse(&orcv1.ExportTaskResponse{
 		Success:    true,
 		TaskId:     taskID,
-		ExportedTo: ".orc/exports/" + taskID,
+		ExportedTo: filepath.Join(task.ExportPath(s.projectRoot), taskID),
 	}), nil
 }
 

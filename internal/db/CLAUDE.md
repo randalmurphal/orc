@@ -9,7 +9,7 @@ Two database types with distinct responsibilities:
 | Type | Path | Purpose |
 |------|------|---------|
 | **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects registry, cost_log, budgets, workflows, phase templates, agents |
-| **ProjectDB** | `.orc/orc.db` | Per-project: tasks, phases, transcripts, initiatives, events, FTS |
+| **ProjectDB** | `~/.orc/projects/<id>/orc.db` | Per-project: tasks, phases, transcripts, initiatives, events, FTS |
 
 ### Data Split
 

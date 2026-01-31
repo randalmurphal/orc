@@ -74,8 +74,7 @@ type teamConfigRaw struct {
 //
 // Detection priority (highest wins):
 //  1. Team mode: team.server_url is configured
-//  2. P2P mode: .orc/shared/ directory exists
-//  3. Solo mode: default
+//  2. Solo mode: default
 //
 // This function checks config sources in order:
 // - Project config (.orc/config.yaml)
@@ -84,12 +83,6 @@ func DetectMode(projectPath string) Mode {
 	// Check for team server configuration first (highest priority)
 	if hasTeamServer(projectPath) {
 		return ModeTeam
-	}
-
-	// Check for shared directory (P2P mode indicator)
-	sharedDir := filepath.Join(projectPath, OrcDir, "shared")
-	if _, err := os.Stat(sharedDir); err == nil {
-		return ModeP2P
 	}
 
 	// Default: solo mode

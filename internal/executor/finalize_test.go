@@ -61,7 +61,6 @@ func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
 		WithFinalizeConfig(cfg),
 		WithFinalizeOrcConfig(orcCfg),
 		WithFinalizeWorkingDir("/tmp/test"),
-		WithFinalizeTaskDir("/tmp/test/task"),
 	)
 
 	if exec.logger != logger {
@@ -72,9 +71,6 @@ func TestNewFinalizeExecutor_WithOptions(t *testing.T) {
 	}
 	if exec.workingDir != "/tmp/test" {
 		t.Errorf("expected workingDir = '/tmp/test', got '%s'", exec.workingDir)
-	}
-	if exec.taskDir != "/tmp/test/task" {
-		t.Errorf("expected taskDir = '/tmp/test/task', got '%s'", exec.taskDir)
 	}
 }
 

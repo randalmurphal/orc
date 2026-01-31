@@ -14,6 +14,10 @@ import (
 func TestProjectCache_GetOpensDatabase(t *testing.T) {
 	// Setup: create a temp project with initialized .orc directory
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	projectPath := filepath.Join(tmpDir, "test-project")
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		t.Fatal(err)
@@ -53,6 +57,10 @@ func TestProjectCache_GetOpensDatabase(t *testing.T) {
 
 func TestProjectCache_LRUEviction(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create 3 projects
 	var projectIDs []string
@@ -96,6 +104,10 @@ func TestProjectCache_LRUEviction(t *testing.T) {
 
 func TestProjectCache_GetProjectPath(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	projectPath := filepath.Join(tmpDir, "test-project")
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		t.Fatal(err)
@@ -134,6 +146,10 @@ func TestProjectCache_GetProjectPath(t *testing.T) {
 
 func TestProjectCache_Close(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	projectPath := filepath.Join(tmpDir, "test-project")
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		t.Fatal(err)

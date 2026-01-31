@@ -1,7 +1,7 @@
 package task
 
 import (
-	"os"
+
 	"path/filepath"
 	"testing"
 )
@@ -157,10 +157,10 @@ func TestSequenceStore_SetSequence_SoloMode(t *testing.T) {
 
 func TestTaskIDGenerator_SoloMode(t *testing.T) {
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-	_ = os.MkdirAll(tasksDir, 0755)
+	seqPath := filepath.Join(tmpDir, "sequences.yaml")
+	store := NewSequenceStore(seqPath)
 
-	gen := NewTaskIDGenerator(ModeSolo, "", WithTasksDir(tasksDir))
+	gen := NewTaskIDGenerator(ModeSolo, "", WithSequenceStore(store))
 
 	id1, err := gen.Next()
 	if err != nil {
@@ -169,9 +169,6 @@ func TestTaskIDGenerator_SoloMode(t *testing.T) {
 	if id1 != "TASK-001" {
 		t.Errorf("first ID = %s, want TASK-001", id1)
 	}
-
-	// Create task directory to simulate task creation
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-001"), 0755)
 
 	id2, err := gen.Next()
 	if err != nil {
@@ -184,12 +181,10 @@ func TestTaskIDGenerator_SoloMode(t *testing.T) {
 
 func TestTaskIDGenerator_P2PMode(t *testing.T) {
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, ".orc", "local", "sequences.yaml")
-	_ = os.MkdirAll(tasksDir, 0755)
 
 	store := NewSequenceStore(seqPath)
-	gen := NewTaskIDGenerator(ModeP2P, "AM", WithSequenceStore(store), WithTasksDir(tasksDir))
+	gen := NewTaskIDGenerator(ModeP2P, "AM", WithSequenceStore(store))
 
 	id1, err := gen.Next()
 	if err != nil {
@@ -247,42 +242,16 @@ func TestTaskIDGenerator_MultiplePrefixes(t *testing.T) {
 	}
 }
 
-func TestTaskIDGenerator_FallbackToDirectoryScan(t *testing.T) {
-	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
-	_ = os.MkdirAll(tasksDir, 0755)
-
-	// Create existing task directories
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-005"), 0755)
-
-	// Generator without sequence store falls back to directory scan
-	gen := NewTaskIDGenerator(ModeP2P, "AM", WithTasksDir(tasksDir))
-
-	id, err := gen.Next()
-	if err != nil {
-		t.Fatalf("Next() failed: %v", err)
-	}
-	if id != "TASK-AM-006" {
-		t.Errorf("ID = %s, want TASK-AM-006", id)
-	}
-}
-
 func TestTaskIDGenerator_ScanExisting(t *testing.T) {
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, "sequences.yaml")
-	_ = os.MkdirAll(tasksDir, 0755)
-
-	// Create existing task directories that are ahead of sequence store
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-001"), 0755)
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-010"), 0755)
 
 	store := NewSequenceStore(seqPath)
+	// Set sequence to 10 to simulate existing tasks ahead
+	_ = store.SetSequence("AM", 10)
+
 	gen := NewTaskIDGenerator(ModeP2P, "AM",
 		WithSequenceStore(store),
-		WithTasksDir(tasksDir),
-		WithScanExisting(true),
 	)
 
 	id, err := gen.Next()
@@ -294,23 +263,19 @@ func TestTaskIDGenerator_ScanExisting(t *testing.T) {
 	}
 }
 
-func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
+func TestTaskIDGenerator_SequenceStoreCatchUp(t *testing.T) {
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, ".orc", "tasks")
 	seqPath := filepath.Join(tmpDir, "sequences.yaml")
-	_ = os.MkdirAll(tasksDir, 0755)
-
-	// Create existing task far ahead (e.g., TASK-AM-100)
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-100"), 0755)
 
 	store := NewSequenceStore(seqPath)
+	// Set sequence far ahead to simulate catch-up scenario
+	_ = store.SetSequence("AM", 100)
+
 	gen := NewTaskIDGenerator(ModeP2P, "AM",
 		WithSequenceStore(store),
-		WithTasksDir(tasksDir),
-		WithScanExisting(true),
 	)
 
-	// First call should catch up efficiently to 101
+	// First call should return 101
 	id1, err := gen.Next()
 	if err != nil {
 		t.Fatalf("Next() failed: %v", err)
@@ -319,16 +284,13 @@ func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
 		t.Errorf("ID = %s, want TASK-AM-101", id1)
 	}
 
-	// Verify store was set to 100 (maxExisting), so NextSequence returns 101
+	// Verify store was incremented
 	current, _ := store.GetSequence("AM")
-	if current != 100 {
-		t.Errorf("stored sequence after catch-up = %d, want 100", current)
+	if current != 101 {
+		t.Errorf("stored sequence after first call = %d, want 101", current)
 	}
 
-	// Simulate task creation by adding the directory
-	_ = os.MkdirAll(filepath.Join(tasksDir, "TASK-AM-101"), 0755)
-
-	// Next call should return 102 (101 from NextSequence, but 101 exists, so catches up)
+	// Next call should return 102
 	id2, err := gen.Next()
 	if err != nil {
 		t.Fatalf("Next() failed: %v", err)
@@ -337,10 +299,10 @@ func TestTaskIDGenerator_ScanExisting_EfficientCatchUp(t *testing.T) {
 		t.Errorf("ID = %s, want TASK-AM-102", id2)
 	}
 
-	// Verify the stored sequence is 101 (set from maxExisting after catch-up)
+	// Verify store was incremented again
 	current, _ = store.GetSequence("AM")
-	if current != 101 {
-		t.Errorf("stored sequence = %d, want 101", current)
+	if current != 102 {
+		t.Errorf("stored sequence = %d, want 102", current)
 	}
 }
 
@@ -498,10 +460,10 @@ func TestParseTaskID_Prefixed(t *testing.T) {
 }
 
 func TestDefaultSequencePath(t *testing.T) {
-	path := DefaultSequencePath()
+	path := DefaultSequencePath("")
 	expected := ".orc/local/sequences.yaml"
 	if path != expected {
-		t.Errorf("DefaultSequencePath() = %q, want %q", path, expected)
+		t.Errorf("DefaultSequencePath(\"\") = %q, want %q", path, expected)
 	}
 }
 
@@ -516,17 +478,12 @@ func TestTaskIDGenerator_Prefix(t *testing.T) {
 	}
 }
 
-func TestTaskIDGenerator_EmptyDir(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Don't create the tasks directory
+func TestTaskIDGenerator_NoStore(t *testing.T) {
+	// Without a sequence store, generation should return an error
+	gen := NewTaskIDGenerator(ModeSolo, "")
 
-	gen := NewTaskIDGenerator(ModeSolo, "", WithTasksDir(filepath.Join(tmpDir, ".orc", "tasks")))
-
-	id, err := gen.Next()
-	if err != nil {
-		t.Fatalf("Next() failed: %v", err)
-	}
-	if id != "TASK-001" {
-		t.Errorf("ID = %s, want TASK-001", id)
+	_, err := gen.Next()
+	if err == nil {
+		t.Fatal("Next() should fail without a sequence store")
 	}
 }

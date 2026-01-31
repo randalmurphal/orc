@@ -18,8 +18,7 @@ type Source string
 
 const (
 	SourcePersonalGlobal Source = "personal_global" // ~/.orc/prompts/
-	SourceProjectLocal   Source = "project_local"   // .orc/local/prompts/
-	SourceProjectShared  Source = "project_shared"  // .orc/shared/prompts/
+	SourceProjectLocal   Source = "project_local"   // ~/.orc/projects/<id>/prompts/
 	SourceProject        Source = "project"         // .orc/prompts/
 	SourceEmbedded       Source = "embedded"        // Embedded in binary
 	SourceInline         Source = "inline"          // Inline in plan YAML (handled by executor)
@@ -77,10 +76,9 @@ func (s *Service) projectPromptPath(phase string) string {
 
 // Resolve returns the prompt content for a phase, using the full resolution chain:
 // 1. Personal (~/.orc/prompts/)
-// 2. Local (.orc/local/prompts/)
-// 3. Shared (.orc/shared/prompts/)
-// 4. Project (.orc/prompts/)
-// 5. Embedded (built-in)
+// 2. Local (~/.orc/projects/<id>/prompts/)
+// 3. Project (.orc/prompts/)
+// 4. Embedded (built-in)
 //
 // Supports prompt inheritance via frontmatter (extends, prepend, append).
 // Returns content, source, and any error.
@@ -130,7 +128,6 @@ func (s *Service) List() ([]PromptInfo, error) {
 	}{
 		{s.resolver.personalDir, SourcePersonalGlobal},
 		{s.resolver.localDir, SourceProjectLocal},
-		{s.resolver.sharedDir, SourceProjectShared},
 		{s.resolver.projectDir, SourceProject},
 	}
 
@@ -235,7 +232,7 @@ func (s *Service) Delete(phase string) error {
 }
 
 // HasOverride checks if an override exists for a phase in any source.
-// Returns true if the prompt is overridden in personal, local, shared, or project directories.
+// Returns true if the prompt is overridden in personal, local, or project directories.
 func (s *Service) HasOverride(phase string) bool {
 	resolved, err := s.resolver.Resolve(phase)
 	if err != nil {

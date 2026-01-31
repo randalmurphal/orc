@@ -26,7 +26,7 @@ func Default() *Config {
 		},
 		Worktree: WorktreeConfig{
 			Enabled:           true,
-			Dir:               ".orc/worktrees",
+			Dir:               "", // Empty = use ~/.orc/worktrees/<project-id>/
 			CleanupOnComplete: true,
 			CleanupOnFail:     false, // Keep for debugging
 		},

@@ -79,45 +79,6 @@ gates:
 	}
 }
 
-func TestLoadWithSources_SharedDirConfig(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Use empty home
-	t.Setenv("HOME", filepath.Join(tmpDir, "nonexistent"))
-
-	// Create .orc/config.yaml with one value
-	orcDir := filepath.Join(tmpDir, ".orc")
-	sharedDir := filepath.Join(orcDir, "shared")
-	_ = os.MkdirAll(sharedDir, 0755)
-	_ = os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("profile: safe\nmodel: model-a"), 0644)
-
-	// Create .orc/shared/config.yaml that overrides
-	_ = os.WriteFile(filepath.Join(sharedDir, "config.yaml"), []byte("model: model-b"), 0644)
-
-	tc, err := LoadWithSourcesFrom(tmpDir)
-	if err != nil {
-		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
-	}
-
-	// Profile from .orc/config.yaml (not overridden)
-	if tc.Config.Profile != ProfileSafe {
-		t.Errorf("Profile = %q, want safe", tc.Config.Profile)
-	}
-
-	// Model from .orc/shared/config.yaml (overrides .orc/config.yaml)
-	if tc.Config.Model != "model-b" {
-		t.Errorf("Model = %q, want model-b", tc.Config.Model)
-	}
-
-	// Both should be SourceShared
-	if tc.GetSource("profile") != SourceShared {
-		t.Errorf("profile source = %q, want shared", tc.GetSource("profile"))
-	}
-	if tc.GetSource("model") != SourceShared {
-		t.Errorf("model source = %q, want shared", tc.GetSource("model"))
-	}
-}
-
 func TestLoadWithSources_PersonalConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -158,34 +119,31 @@ retry:
 	}
 }
 
-func TestLoadWithSources_LocalConfig(t *testing.T) {
+func TestLoadWithSources_ProjectSpecificPersonalConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create fake home with global personal config
+	// Create fake home with global personal config and project-specific personal config.
+	// Personal config resolution: ~/.orc/config.yaml first, then ~/.orc/projects/<id>/config.yaml.
+	// Without project registration, only ~/.orc/config.yaml is loaded.
 	fakeHome := filepath.Join(tmpDir, "home")
 	_ = os.MkdirAll(filepath.Join(fakeHome, ".orc"), 0755)
 	t.Setenv("HOME", fakeHome)
 	_ = os.WriteFile(filepath.Join(fakeHome, ".orc", "config.yaml"),
 		[]byte("profile: safe\nmodel: global-model"), 0644)
 
-	// Create local personal config (.orc/local/config.yaml)
-	localDir := filepath.Join(tmpDir, ".orc", "local")
-	_ = os.MkdirAll(localDir, 0755)
-	_ = os.WriteFile(filepath.Join(localDir, "config.yaml"), []byte("model: local-model"), 0644)
-
 	tc, err := LoadWithSourcesFrom(tmpDir)
 	if err != nil {
 		t.Fatalf("LoadWithSourcesFrom failed: %v", err)
 	}
 
-	// Profile from ~/.orc/config.yaml (not overridden)
+	// Profile from ~/.orc/config.yaml
 	if tc.Config.Profile != ProfileSafe {
 		t.Errorf("Profile = %q, want safe", tc.Config.Profile)
 	}
 
-	// Model from .orc/local/config.yaml (overrides ~/.orc/config.yaml)
-	if tc.Config.Model != "local-model" {
-		t.Errorf("Model = %q, want local-model", tc.Config.Model)
+	// Model from ~/.orc/config.yaml (no project-specific override without registration)
+	if tc.Config.Model != "global-model" {
+		t.Errorf("Model = %q, want global-model", tc.Config.Model)
 	}
 
 	// Both should be SourcePersonal

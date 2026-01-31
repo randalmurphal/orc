@@ -210,25 +210,52 @@ func WithSessionID(id string) RalphOption {
 
 // IsOrcWorktree checks if the given path is within an orc worktree.
 // This is used by the stop hook to determine if it should apply ralph logic.
+// Supports both new global location (~/.orc/worktrees/*/orc-*) and legacy
+// project-local location (.orc/worktrees/orc-*).
 func IsOrcWorktree(path string) bool {
-	// Check if path contains .orc/worktrees/orc-
+	// Check new global location: ~/.orc/worktrees/<project-id>/orc-*
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		globalPattern := filepath.Join(homeDir, ".orc", "worktrees")
+		if strings.HasPrefix(path, globalPattern) && strings.Contains(path, "/orc-") {
+			return true
+		}
+	}
+	// Legacy: check .orc/worktrees/orc-
 	return strings.Contains(path, ".orc/worktrees/orc-")
 }
 
 // ExtractTaskIDFromWorktree extracts the task ID from a worktree path.
 // Returns empty string if path is not an orc worktree.
+// Supports both new global location (~/.orc/worktrees/<project-id>/orc-TASK-XXX)
+// and legacy project-local location (.orc/worktrees/orc-TASK-XXX).
 func ExtractTaskIDFromWorktree(path string) string {
-	// Look for pattern: .orc/worktrees/orc-TASK-XXX
+	// Check new global location: ~/.orc/worktrees/<project-id>/orc-TASK-XXX
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		globalPattern := filepath.Join(homeDir, ".orc", "worktrees")
+		if strings.HasPrefix(path, globalPattern) {
+			// Find /orc- in the path after the global prefix
+			orcIdx := strings.Index(path, "/orc-")
+			if orcIdx != -1 {
+				start := orcIdx + len("/orc-")
+				rest := path[start:]
+				endIdx := strings.Index(rest, "/")
+				if endIdx == -1 {
+					return rest
+				}
+				return rest[:endIdx]
+			}
+		}
+	}
+
+	// Legacy: look for pattern .orc/worktrees/orc-TASK-XXX
 	idx := strings.Index(path, ".orc/worktrees/orc-")
 	if idx == -1 {
 		return ""
 	}
 
-	// Get the worktree name (everything after orc-)
 	start := idx + len(".orc/worktrees/orc-")
 	rest := path[start:]
 
-	// Find end of task ID (next / or end of string)
 	endIdx := strings.Index(rest, "/")
 	if endIdx == -1 {
 		return rest

@@ -364,21 +364,6 @@ func SaveFromTask(taskID, name, description string, global bool, backend storage
 		CreatedAt:   time.Now(),
 	}
 
-	// Copy custom prompts if they exist
-	promptsDir := filepath.Join(task.TaskDir(taskID), "prompts")
-	if info, err := os.Stat(promptsDir); err == nil && info.IsDir() {
-		entries, _ := os.ReadDir(promptsDir)
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
-				phase := strings.TrimSuffix(entry.Name(), ".md")
-				if template.Prompts == nil {
-					template.Prompts = make(map[string]string)
-				}
-				template.Prompts[phase] = entry.Name()
-			}
-		}
-	}
-
 	if err := template.Save(global); err != nil {
 		return nil, err
 	}

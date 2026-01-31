@@ -15,7 +15,6 @@ type WriteLevel string
 const (
 	WriteLevelPersonal WriteLevel = "personal" // ~/.orc/
 	WriteLevelLocal    WriteLevel = "local"    // .orc/local/
-	WriteLevelShared   WriteLevel = "shared"   // .orc/shared/
 	WriteLevelProject  WriteLevel = "project"  // .orc/
 )
 
@@ -26,12 +25,10 @@ func ParseWriteLevel(s string) (WriteLevel, error) {
 		return WriteLevelPersonal, nil
 	case "local":
 		return WriteLevelLocal, nil
-	case "shared", "team":
-		return WriteLevelShared, nil
 	case "project", "":
 		return WriteLevelProject, nil
 	default:
-		return "", fmt.Errorf("invalid write level: %s (valid: personal, local, shared, project)", s)
+		return "", fmt.Errorf("invalid write level: %s (valid: personal, local, project)", s)
 	}
 }
 
@@ -42,8 +39,6 @@ func WriteLevelToSource(level WriteLevel) Source {
 		return SourcePersonalGlobal
 	case WriteLevelLocal:
 		return SourceProjectLocal
-	case WriteLevelShared:
-		return SourceProjectShared
 	case WriteLevelProject:
 		return SourceProject
 	default:
@@ -59,8 +54,6 @@ func SourceToWriteLevel(source Source) WriteLevel {
 		return WriteLevelPersonal
 	case SourceProjectLocal:
 		return WriteLevelLocal
-	case SourceProjectShared:
-		return WriteLevelShared
 	case SourceProject:
 		return WriteLevelProject
 	default:
@@ -72,7 +65,6 @@ func SourceToWriteLevel(source Source) WriteLevel {
 type Writer struct {
 	personalDir string // ~/.orc/
 	localDir    string // .orc/local/
-	sharedDir   string // .orc/shared/
 	projectDir  string // .orc/
 }
 
@@ -90,13 +82,6 @@ func WithWriterPersonalDir(dir string) WriterOption {
 func WithWriterLocalDir(dir string) WriterOption {
 	return func(w *Writer) {
 		w.localDir = dir
-	}
-}
-
-// WithWriterSharedDir sets the shared directory.
-func WithWriterSharedDir(dir string) WriterOption {
-	return func(w *Writer) {
-		w.sharedDir = dir
 	}
 }
 
@@ -131,7 +116,6 @@ func NewWriterFromOrcDir(orcDir string) *Writer {
 	return NewWriter(
 		WithWriterPersonalDir(personalDir),
 		WithWriterLocalDir(filepath.Join(orcDir, "local")),
-		WithWriterSharedDir(filepath.Join(orcDir, "shared")),
 		WithWriterProjectDir(orcDir),
 	)
 }
@@ -266,11 +250,6 @@ func (w *Writer) dirForLevel(level WriteLevel) (string, error) {
 			return "", fmt.Errorf("local directory not configured")
 		}
 		return w.localDir, nil
-	case WriteLevelShared:
-		if w.sharedDir == "" {
-			return "", fmt.Errorf("shared directory not configured")
-		}
-		return w.sharedDir, nil
 	case WriteLevelProject:
 		if w.projectDir == "" {
 			return "", fmt.Errorf("project directory not configured")

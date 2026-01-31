@@ -19,9 +19,13 @@ import (
 func withDepsTestDir(t *testing.T) (string, storage.Backend) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, task.OrcDir, task.TasksDir)
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("create tasks directory: %v", err)
+	orcDir := filepath.Join(tmpDir, task.OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("create orc directory: %v", err)
+	}
+	// Create config.yaml to mark as orc project
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(""), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	// Create backend for database operations

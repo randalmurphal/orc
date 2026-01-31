@@ -7,41 +7,28 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/randalmurphal/orc/internal/project"
 )
-
-// Path utility functions (no I/O, just path computation)
-
-// TaskDir returns the task directory path for the current working directory.
-func TaskDir(id string) string {
-	return TaskDirIn("", id)
-}
-
-// TaskDirIn returns the task directory path for a specific project directory.
-func TaskDirIn(projectDir, id string) string {
-	return filepath.Join(projectDir, OrcDir, TasksDir, id)
-}
-
-// SpecPath returns the spec file path for the current working directory.
-func SpecPath(id string) string {
-	return SpecPathIn("", id)
-}
-
-// SpecPathIn returns the spec file path for a specific project directory.
-func SpecPathIn(projectDir, id string) string {
-	return filepath.Join(TaskDirIn(projectDir, id), "spec.md")
-}
 
 const (
 	// OrcDir is the default orc configuration directory
 	OrcDir = ".orc"
-	// TasksDir is the subdirectory for tasks
-	TasksDir = "tasks"
 	// ExportsDir is the subdirectory for exports
 	ExportsDir = "exports"
 )
 
-// ExportPath returns the default export directory path.
+// ExportPath returns the export directory path.
+// Resolves to ~/.orc/projects/<id>/exports/ for registered projects.
+// Falls back to <projectDir>/.orc/exports/ for unregistered projects.
 func ExportPath(projectDir string) string {
+	projectID, err := project.ResolveProjectID(projectDir)
+	if err == nil {
+		exportDir, err := project.ProjectExportDir(projectID)
+		if err == nil {
+			return exportDir
+		}
+	}
 	return filepath.Join(projectDir, OrcDir, ExportsDir)
 }
 

@@ -6,7 +6,6 @@ type Source string
 const (
 	SourcePersonalGlobal Source = "personal_global" // ~/.orc/workflows/ or ~/.orc/phases/
 	SourceProjectLocal   Source = "project_local"   // .orc/local/workflows/ or .orc/local/phases/
-	SourceProjectShared  Source = "project_shared"  // .orc/shared/workflows/ or .orc/shared/phases/
 	SourceProject        Source = "project"         // .orc/workflows/ or .orc/phases/
 	SourceEmbedded       Source = "embedded"        // Embedded in binary
 	SourceDatabase       Source = "database"        // Legacy: loaded from database (for migration)
@@ -19,10 +18,8 @@ func SourcePriority(s Source) int {
 		return 1
 	case SourceProjectLocal:
 		return 2
-	case SourceProjectShared:
-		return 3
 	case SourceProject:
-		return 4
+		return 3
 	case SourceEmbedded:
 		return 5
 	case SourceDatabase:
@@ -39,8 +36,6 @@ func SourceDisplayName(s Source) string {
 		return "Personal (~/.orc/)"
 	case SourceProjectLocal:
 		return "Local (.orc/local/)"
-	case SourceProjectShared:
-		return "Shared (.orc/shared/)"
 	case SourceProject:
 		return "Project (.orc/)"
 	case SourceEmbedded:
@@ -55,7 +50,7 @@ func SourceDisplayName(s Source) string {
 // IsEditable returns true if the source allows editing (file-based sources).
 func (s Source) IsEditable() bool {
 	switch s {
-	case SourcePersonalGlobal, SourceProjectLocal, SourceProjectShared, SourceProject:
+	case SourcePersonalGlobal, SourceProjectLocal, SourceProject:
 		return true
 	default:
 		return false

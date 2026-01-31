@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/internal/util"
 	"gopkg.in/yaml.v3"
 )
@@ -189,8 +190,7 @@ type TaskIDGenerator struct {
 	mode         Mode
 	prefix       string
 	store        *SequenceStore
-	tasksDir     string // For scanning existing tasks
-	scanExisting bool   // Whether to scan existing tasks for max sequence
+	scanExisting bool // Whether to scan existing tasks for max sequence
 }
 
 // GeneratorOption configures the TaskIDGenerator.
@@ -200,13 +200,6 @@ type GeneratorOption func(*TaskIDGenerator)
 func WithSequenceStore(store *SequenceStore) GeneratorOption {
 	return func(g *TaskIDGenerator) {
 		g.store = store
-	}
-}
-
-// WithTasksDir sets the tasks directory for scanning existing IDs.
-func WithTasksDir(dir string) GeneratorOption {
-	return func(g *TaskIDGenerator) {
-		g.tasksDir = dir
 	}
 }
 
@@ -283,65 +276,17 @@ func ResolvePrefix(source PrefixSource, identity *IdentityConfig) (string, error
 // For solo mode: TASK-001
 // For p2p/team mode with prefix: TASK-AM-001
 func (g *TaskIDGenerator) Next() (string, error) {
-	// If no store, fall back to scanning directory
 	if g.store == nil {
-		return g.nextFromDirectory()
+		return "", fmt.Errorf("sequence store required for ID generation")
 	}
 
 	// Get next sequence from store
 	seq, err := g.store.NextSequence(g.prefix)
 	if err != nil {
-		// Fall back to directory scan on error
-		return g.nextFromDirectory()
-	}
-
-	// Optionally verify against existing tasks
-	if g.scanExisting && g.tasksDir != "" {
-		maxExisting := g.scanMaxSequence()
-		if maxExisting >= seq {
-			seq = maxExisting + 1
-			// Set store directly to maxExisting for efficient catch-up
-			// (avoids multiple increments when existing tasks are far ahead)
-			_ = g.store.SetSequence(g.prefix, maxExisting)
-		}
+		return "", fmt.Errorf("get next sequence: %w", err)
 	}
 
 	return g.formatID(seq), nil
-}
-
-// nextFromDirectory generates the next ID by scanning the tasks directory.
-// This is the fallback when no sequence store is available.
-func (g *TaskIDGenerator) nextFromDirectory() (string, error) {
-	dir := g.tasksDir
-	if dir == "" {
-		dir = filepath.Join(OrcDir, TasksDir)
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return g.formatID(1), nil
-		}
-		return "", fmt.Errorf("read tasks directory: %w", err)
-	}
-
-	maxNum := g.scanMaxSequenceFromEntries(entries)
-	return g.formatID(maxNum + 1), nil
-}
-
-// scanMaxSequence scans the tasks directory for the maximum existing sequence.
-func (g *TaskIDGenerator) scanMaxSequence() int {
-	dir := g.tasksDir
-	if dir == "" {
-		dir = filepath.Join(OrcDir, TasksDir)
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return 0
-	}
-
-	return g.scanMaxSequenceFromEntries(entries)
 }
 
 // scanMaxSequenceFromEntries finds the max sequence number from directory entries.
@@ -418,8 +363,15 @@ func ParseTaskID(id string) (prefix string, seq int, ok bool) {
 	return "", 0, false
 }
 
-// DefaultSequencePath returns the default path for the sequences file.
-// This is .orc/local/sequences.yaml
-func DefaultSequencePath() string {
+// DefaultSequencePath returns the path for the sequences file.
+// If projectID is provided, returns ~/.orc/projects/<id>/sequences.yaml.
+// Falls back to .orc/local/sequences.yaml for unregistered projects.
+func DefaultSequencePath(projectID string) string {
+	if projectID != "" {
+		seqPath, err := project.ProjectSequencesPath(projectID)
+		if err == nil {
+			return seqPath
+		}
+	}
 	return filepath.Join(OrcDir, "local", "sequences.yaml")
 }

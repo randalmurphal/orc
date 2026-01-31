@@ -489,7 +489,7 @@ func getConfigDocs() []ConfigDoc {
 
 		// Worktree
 		{Key: "worktree.enabled", Type: "bool", Default: "true", EnvVar: "ORC_WORKTREE_ENABLED", Description: "Enable git worktree isolation", Category: "Worktree"},
-		{Key: "worktree.dir", Type: "string", Default: ".orc/worktrees", EnvVar: "", Description: "Worktree directory", Category: "Worktree"},
+		{Key: "worktree.dir", Type: "string", Default: "", EnvVar: "", Description: "Worktree directory (empty = ~/.orc/worktrees/<project-id>/)", Category: "Worktree"},
 		{Key: "worktree.cleanup_on_complete", Type: "bool", Default: "true", EnvVar: "", Description: "Remove worktree after success", Category: "Worktree"},
 		{Key: "worktree.cleanup_on_fail", Type: "bool", Default: "false", EnvVar: "", Description: "Remove worktree after failure", Category: "Worktree"},
 

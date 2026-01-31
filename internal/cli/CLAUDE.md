@@ -78,6 +78,8 @@ Dependency-aware: BLOCKED (waiting on deps), READY (deps complete)
 
 **Phase display:** Reads `task.CurrentPhase` directly from the task record (set by executor before each phase starts). Only shows "starting" when CurrentPhase is genuinely empty (task just created). No enrichment from `workflow_runs`.
 
+**Worktree path:** Displayed for running tasks. Resolved via `config.ResolveWorktreeDir()` → absolute path at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/`.
+
 ### `orc deps [TASK-ID]`
 
 Views: default (single task), `--tree` (recursive), `--graph` (ASCII)
@@ -111,6 +113,8 @@ Migrates stale task plans to current templates. Staleness detected via version m
 Displays task details including phases from actual workflow (not weight-derived). Falls back to weight-based display if no workflow found. Checks `task.WorkflowId` first, then `workflow_runs` table.
 
 `--gates` flag shows gate decision history (type, approved/rejected, reason) per phase. `--full` includes gates alongside session, cost, and review info.
+
+**Worktree path:** Displayed for running/in-progress tasks when worktree exists on disk.
 
 ### Gate Commands
 

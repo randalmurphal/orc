@@ -1854,8 +1854,6 @@ func workflowSourceToProto(s workflow.Source) orcv1.DefinitionSource {
 		return orcv1.DefinitionSource_DEFINITION_SOURCE_EMBEDDED
 	case workflow.SourceProject:
 		return orcv1.DefinitionSource_DEFINITION_SOURCE_PROJECT
-	case workflow.SourceProjectShared:
-		return orcv1.DefinitionSource_DEFINITION_SOURCE_SHARED
 	case workflow.SourceProjectLocal:
 		return orcv1.DefinitionSource_DEFINITION_SOURCE_LOCAL
 	case workflow.SourcePersonalGlobal:

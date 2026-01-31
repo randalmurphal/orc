@@ -6,15 +6,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/randalmurphal/orc/internal/project"
 	"gopkg.in/yaml.v3"
 )
 
 // Loader handles loading and merging configuration from multiple sources.
-// It implements the 4-level configuration hierarchy:
+// It implements the 3-level configuration hierarchy:
 //
 //	Level 1: Runtime (env vars, CLI flags) - highest priority
-//	Level 2: Personal (~/.orc/, .orc/local/) - user preferences
-//	Level 3: Shared (.orc/shared/, .orc/) - team defaults
+//	Level 2: Personal (~/.orc/config.yaml, ~/.orc/projects/<id>/config.yaml) - user preferences
+//	Level 3: Project (.orc/config.yaml) - project defaults
 //	Level 4: Defaults (built-in) - lowest priority
 //
 // Note: CLI flags are not handled by the Loader. They are applied at the CLI
@@ -24,6 +25,7 @@ import (
 type Loader struct {
 	projectDir string // Project directory (containing .orc/)
 	userDir    string // User config directory (~/.orc/)
+	projectID  string // Project ID for personal config resolution
 }
 
 // NewLoader creates a new configuration loader.
@@ -45,9 +47,14 @@ func NewLoader(projectDir string) *Loader {
 	if home, err := os.UserHomeDir(); err == nil {
 		userDir = filepath.Join(home, ".orc")
 	}
+
+	// Resolve project ID for personal config path
+	projectID, _ := project.ResolveProjectID(projectDir)
+
 	return &Loader{
 		projectDir: projectDir,
 		userDir:    userDir,
+		projectID:  projectID,
 	}
 }
 
@@ -65,8 +72,8 @@ func (l *Loader) SetProjectDir(dir string) {
 //
 // Resolution order (later levels override earlier):
 //  1. Defaults (built-in)
-//  2. Shared: .orc/config.yaml, .orc/shared/config.yaml
-//  3. Personal: ~/.orc/config.yaml, .orc/local/config.yaml
+//  2. Project: .orc/config.yaml
+//  3. Personal: ~/.orc/config.yaml, ~/.orc/projects/<id>/config.yaml
 //  4. Runtime: environment variables (ORC_*)
 //
 // Personal settings always override shared settings (individual autonomy).
@@ -76,19 +83,22 @@ func (l *Loader) Load() (*TrackedConfig, error) {
 	// Level 4: Defaults (already set in NewTrackedConfig)
 	markDefaults(tc)
 
-	// Level 3: Shared (team/project defaults)
-	// Load .orc/config.yaml first, then .orc/shared/config.yaml can override
+	// Level 3: Project defaults (.orc/config.yaml)
 	l.loadLevel(tc, LevelShared, SourceShared, []string{
-		filepath.Join(l.projectDir, OrcDir, ConfigFileName),           // .orc/config.yaml
-		filepath.Join(l.projectDir, OrcDir, "shared", ConfigFileName), // .orc/shared/config.yaml
+		filepath.Join(l.projectDir, OrcDir, ConfigFileName), // .orc/config.yaml
 	})
 
 	// Level 2: Personal (user preferences)
-	// Load ~/.orc/config.yaml first, then .orc/local/config.yaml can override
-	l.loadLevel(tc, LevelPersonal, SourcePersonal, []string{
-		filepath.Join(l.userDir, ConfigFileName),                     // ~/.orc/config.yaml
-		filepath.Join(l.projectDir, OrcDir, "local", ConfigFileName), // .orc/local/config.yaml
-	})
+	// Load ~/.orc/config.yaml first, then project-specific personal config can override
+	personalPaths := []string{
+		filepath.Join(l.userDir, ConfigFileName), // ~/.orc/config.yaml
+	}
+	if l.projectID != "" {
+		if localCfgPath, err := project.ProjectLocalConfigPath(l.projectID); err == nil {
+			personalPaths = append(personalPaths, localCfgPath) // ~/.orc/projects/<id>/config.yaml
+		}
+	}
+	l.loadLevel(tc, LevelPersonal, SourcePersonal, personalPaths)
 
 	// Level 1: Runtime (env vars)
 	ApplyEnvVars(tc)
@@ -120,29 +130,32 @@ func (l *Loader) loadLevel(tc *TrackedConfig, level ConfigLevel, source ConfigSo
 // GetConfigPaths returns the list of config file paths that would be checked.
 // Useful for debugging and displaying configuration resolution.
 func (l *Loader) GetConfigPaths() map[ConfigLevel][]string {
+	personalPaths := []string{
+		filepath.Join(l.userDir, ConfigFileName),
+	}
+	if l.projectID != "" {
+		if localCfgPath, err := project.ProjectLocalConfigPath(l.projectID); err == nil {
+			personalPaths = append(personalPaths, localCfgPath)
+		}
+	}
 	return map[ConfigLevel][]string{
 		LevelShared: {
 			filepath.Join(l.projectDir, OrcDir, ConfigFileName),
-			filepath.Join(l.projectDir, OrcDir, "shared", ConfigFileName),
 		},
-		LevelPersonal: {
-			filepath.Join(l.userDir, ConfigFileName),
-			filepath.Join(l.projectDir, OrcDir, "local", ConfigFileName),
-		},
+		LevelPersonal: personalPaths,
 	}
 }
 
 // LoadWithSources loads configuration with source tracking.
 // This is the main entry point, using the current working directory.
 //
-// 4-Level Configuration Hierarchy:
+// Configuration Hierarchy:
 //  1. Runtime: env vars, CLI flags (highest priority)
-//  2. Personal: ~/.orc/config.yaml, .orc/local/config.yaml
-//  3. Shared: .orc/shared/config.yaml, .orc/config.yaml
+//  2. Personal: ~/.orc/config.yaml, ~/.orc/projects/<id>/config.yaml
+//  3. Project: .orc/config.yaml
 //  4. Defaults: Built-in values (lowest priority)
 //
-// Key principle: Personal settings always override shared settings.
-// This ensures individual developers maintain control over their preferences.
+// Key principle: Personal settings always override project settings.
 func LoadWithSources() (*TrackedConfig, error) {
 	return NewLoader("").Load()
 }

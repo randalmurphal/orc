@@ -3,6 +3,7 @@ package git
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -70,6 +71,15 @@ func New(workDir string, cfg Config) (*Git, error) {
 		executorPrefix:    cfg.ExecutorPrefix,
 		protectedBranches: protectedBranches,
 	}, nil
+}
+
+// worktreeBasePath returns the absolute base directory for worktrees.
+// Handles both absolute and relative worktree directory configurations.
+func (g *Git) worktreeBasePath() string {
+	if filepath.IsAbs(g.worktreeDir) {
+		return g.worktreeDir
+	}
+	return filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
 }
 
 // Context returns the underlying git context.

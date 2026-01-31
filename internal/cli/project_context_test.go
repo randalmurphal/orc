@@ -11,6 +11,10 @@ import (
 
 func TestResolveProjectID_FromFlag(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	// Set up a test registry
 	reg := &project.Registry{
@@ -21,10 +25,6 @@ func TestResolveProjectID_FromFlag(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		// Clean up registry
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	// Test resolution by ID
 	projectFlag = "proj-1"
@@ -41,6 +41,10 @@ func TestResolveProjectID_FromFlag(t *testing.T) {
 
 func TestResolveProjectID_FromEnv(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	// Set up a test registry
 	reg := &project.Registry{
@@ -51,9 +55,6 @@ func TestResolveProjectID_FromEnv(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	// Set env var
 	t.Setenv("ORC_PROJECT", "env-project")
@@ -72,6 +73,10 @@ func TestResolveProjectID_FromEnv(t *testing.T) {
 
 func TestResolveProjectID_FlagTakesPriority(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	// Set up a test registry with two projects
 	reg := &project.Registry{
@@ -83,9 +88,6 @@ func TestResolveProjectID_FlagTakesPriority(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	// Set both flag and env
 	projectFlag = "flag-project"
@@ -105,30 +107,33 @@ func TestResolveProjectID_FlagTakesPriority(t *testing.T) {
 
 func TestResolveProjectID_FromCwd(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
 
 	// Create .orc directory to make it a project root
-	orcDir := filepath.Join(tmpDir, ".orc")
+	// Also serves as the HOME/.orc dir for registry
+	projectDir := filepath.Join(tmpDir, "myproject")
+	orcDir := filepath.Join(projectDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("failed to create .orc dir: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create HOME .orc dir: %v", err)
+	}
 
 	// Initialize config (force=true since .orc dir already exists)
-	if err := config.InitAt(tmpDir, true); err != nil {
+	if err := config.InitAt(projectDir, true); err != nil {
 		t.Fatalf("failed to init config: %v", err)
 	}
 
 	// Set up registry with this project
 	reg := &project.Registry{
 		Projects: []project.Project{
-			{ID: "cwd-project", Name: "cwd-test", Path: tmpDir},
+			{ID: "cwd-project", Name: "cwd-test", Path: projectDir},
 		},
 	}
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	// Clear flag and env
 	projectFlag = ""
@@ -136,7 +141,7 @@ func TestResolveProjectID_FromCwd(t *testing.T) {
 
 	// Change to project dir
 	oldCwd, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
+	if err := os.Chdir(projectDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 	t.Cleanup(func() { _ = os.Chdir(oldCwd) })
@@ -152,6 +157,10 @@ func TestResolveProjectID_FromCwd(t *testing.T) {
 
 func TestResolveProjectRef_ByName(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	reg := &project.Registry{
 		Projects: []project.Project{
@@ -161,9 +170,6 @@ func TestResolveProjectRef_ByName(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	id, err := resolveProjectRef("my-project")
 	if err != nil {
@@ -176,6 +182,10 @@ func TestResolveProjectRef_ByName(t *testing.T) {
 
 func TestResolveProjectRef_AmbiguousName(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	reg := &project.Registry{
 		Projects: []project.Project{
@@ -186,9 +196,6 @@ func TestResolveProjectRef_AmbiguousName(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	_, err := resolveProjectRef("dupe")
 	if err == nil {
@@ -198,6 +205,10 @@ func TestResolveProjectRef_AmbiguousName(t *testing.T) {
 
 func TestResolveProjectRef_ByPath(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".orc"), 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
 
 	reg := &project.Registry{
 		Projects: []project.Project{
@@ -207,9 +218,6 @@ func TestResolveProjectRef_ByPath(t *testing.T) {
 	if err := reg.Save(); err != nil {
 		t.Fatalf("failed to save registry: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Remove(filepath.Join(os.Getenv("HOME"), ".orc", "projects.json"))
-	})
 
 	id, err := resolveProjectRef(tmpDir)
 	if err != nil {

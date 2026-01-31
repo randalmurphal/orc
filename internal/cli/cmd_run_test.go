@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/randalmurphal/orc/internal/config"
@@ -154,7 +156,9 @@ func TestBuildBlockedContext_WorktreeEnabled(t *testing.T) {
 
 	ctx := buildBlockedContextProto(tk, cfg)
 
-	expected := ".orc/worktrees/orc-TASK-001"
+	// ResolveWorktreeDir joins relative Dir with cwd, producing an absolute path
+	cwd, _ := os.Getwd()
+	expected := filepath.Join(cwd, ".orc/worktrees") + "/orc-TASK-001"
 	if ctx.WorktreePath != expected {
 		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expected)
 	}
@@ -166,13 +170,15 @@ func TestBuildBlockedContext_WorktreeDefaultDir(t *testing.T) {
 	cfg := &config.Config{
 		Worktree: config.WorktreeConfig{
 			Enabled: true,
-			Dir:     "", // Empty should default to .orc/worktrees
+			Dir:     "", // Empty triggers registry lookup, falls back to <cwd>/.orc/worktrees
 		},
 	}
 
 	ctx := buildBlockedContextProto(tk, cfg)
 
-	expected := ".orc/worktrees/orc-TASK-002"
+	// With empty Dir, ResolveWorktreeDir falls back to <projectDir>/.orc/worktrees
+	cwd, _ := os.Getwd()
+	expected := filepath.Join(cwd, ".orc", "worktrees") + "/orc-TASK-002"
 	if ctx.WorktreePath != expected {
 		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expected)
 	}
@@ -332,8 +338,10 @@ func TestBuildBlockedContext_FullContext(t *testing.T) {
 	ctx := buildBlockedContextProto(tk, cfg)
 
 	// Verify all fields are populated correctly
-	if ctx.WorktreePath != "custom/worktrees/orc-TASK-123" {
-		t.Errorf("WorktreePath = %q, want 'custom/worktrees/orc-TASK-123'", ctx.WorktreePath)
+	cwd, _ := os.Getwd()
+	expectedWT := filepath.Join(cwd, "custom/worktrees") + "/orc-TASK-123"
+	if ctx.WorktreePath != expectedWT {
+		t.Errorf("WorktreePath = %q, want %q", ctx.WorktreePath, expectedWT)
 	}
 	if len(ctx.ConflictFiles) != 3 {
 		t.Errorf("expected 3 conflict files, got %d", len(ctx.ConflictFiles))

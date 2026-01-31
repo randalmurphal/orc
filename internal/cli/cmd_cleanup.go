@@ -69,7 +69,7 @@ Examples:
 			gitCfg := git.Config{
 				BranchPrefix:   cfg.BranchPrefix,
 				CommitPrefix:   cfg.CommitPrefix,
-				WorktreeDir:    cfg.Worktree.Dir,
+				WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot),
 				ExecutorPrefix: cfg.ExecutorPrefix(),
 			}
 			gitOps, err := git.New(projectRoot, gitCfg)

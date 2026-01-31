@@ -43,8 +43,9 @@ var protoJSONUnmarshaler = protojson.UnmarshalOptions{
 }
 
 // TestResultsPath returns the full path to the test-results directory for a task.
+// During execution, projectDir is typically the worktree path.
 func TestResultsPath(projectDir, taskID string) string {
-	return filepath.Join(projectDir, OrcDir, TasksDir, taskID, TestResultsDir)
+	return filepath.Join(projectDir, ".orc-test-results", taskID)
 }
 
 // ScreenshotsPath returns the full path to the screenshots directory for a task.

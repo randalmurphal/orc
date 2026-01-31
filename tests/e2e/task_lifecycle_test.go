@@ -26,7 +26,6 @@ func TestTaskLifecycleCreation(t *testing.T) {
 	// Create task ID generator
 	gen := task.NewTaskIDGenerator(task.ModeSolo, "",
 		task.WithSequenceStore(store),
-		task.WithTasksDir(tasksDir),
 	)
 
 	// Generate task ID

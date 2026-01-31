@@ -9,13 +9,13 @@ import (
 	"github.com/randalmurphal/orc/tests/testutil"
 )
 
-// TestConfigResolutionShared verifies that shared config values are applied.
+// TestConfigResolutionShared verifies that project config values are applied
+// at the shared level.
 func TestConfigResolutionShared(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
 
-	// Set value in shared config
-	repo.SetSharedConfig("profile", "safe")
+	// Set value in project config (loaded at shared level)
+	repo.SetConfig("profile", "safe")
 
 	// Create empty user dir to isolate from real ~/.orc/config.yaml
 	emptyUserDir := t.TempDir()
@@ -29,7 +29,7 @@ func TestConfigResolutionShared(t *testing.T) {
 		t.Fatalf("load config: %v", err)
 	}
 
-	// Verify shared value is applied
+	// Verify project value is applied
 	if tc.Config.Profile != "safe" {
 		t.Errorf("profile = %q, want %q", tc.Config.Profile, "safe")
 	}
@@ -39,20 +39,19 @@ func TestConfigResolutionShared(t *testing.T) {
 	if ts.Source != config.SourceShared {
 		t.Errorf("profile source = %v, want %v", ts.Source, config.SourceShared)
 	}
-	// Verify path points to shared config
+	// Verify path points to project config
 	if ts.Path == "" {
 		t.Error("profile path should be set for shared source")
 	}
 }
 
 // TestConfigResolutionPersonalOverridesShared verifies that personal config
-// overrides shared config.
+// overrides project config.
 func TestConfigResolutionPersonalOverridesShared(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
 
-	// Set value in shared config
-	repo.SetSharedConfig("profile", "safe")
+	// Set value in project config (loaded at shared level)
+	repo.SetConfig("profile", "safe")
 
 	// Create personal config with different value
 	userHome := testutil.MockUserConfig(t, "AM")
@@ -88,10 +87,6 @@ func TestConfigResolutionPersonalOverridesShared(t *testing.T) {
 // override all other sources.
 func TestConfigResolutionEnvOverridesAll(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
-
-	// Set value in shared config
-	repo.SetSharedConfig("profile", "safe")
 
 	// Set value in project config
 	repo.SetConfig("profile", "auto")
@@ -123,12 +118,10 @@ func TestConfigResolutionEnvOverridesAll(t *testing.T) {
 // for multiple config values from different sources.
 func TestConfigResolutionSourceTracking(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
 
-	// Set values at different levels
-	repo.SetSharedConfig("profile", "safe")
-	repo.SetSharedConfig("model", "claude-sonnet")
-
+	// Set values at project level (loaded as shared source)
+	repo.SetConfig("profile", "safe")
+	repo.SetConfig("model", "claude-sonnet")
 	repo.SetConfig("max_iterations", 50)
 
 	// Create personal config
@@ -211,44 +204,41 @@ func TestConfigResolutionDefaults(t *testing.T) {
 	}
 }
 
-// TestConfigResolutionLocalOverridesProject verifies that .orc/local/config.yaml
-// overrides .orc/config.yaml (both at personal level but local is more specific).
+// TestConfigResolutionPersonalOverridesProject verifies that personal config
+// (~/.orc/config.yaml) overrides project config (.orc/config.yaml).
 func TestConfigResolutionLocalOverridesProject(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
 
 	// Set value in project config
 	repo.SetConfig("profile", "auto")
 
-	// Create local config with different value
-	localDir := filepath.Join(repo.OrcDir, "local")
-	if err := os.MkdirAll(localDir, 0755); err != nil {
-		t.Fatalf("create local dir: %v", err)
-	}
-	localConfig := map[string]any{
-		"profile": "strict",
-	}
-	testutil.WriteYAML(t, filepath.Join(localDir, "config.yaml"), localConfig)
+	// Create personal config with different value
+	userHome := testutil.MockUserConfig(t, "AM")
+	userConfigPath := filepath.Join(userHome, ".orc", "config.yaml")
+	userConfig := testutil.ReadYAML(t, userConfigPath)
+	userConfig["profile"] = "strict"
+	testutil.WriteYAML(t, userConfigPath, userConfig)
 
 	loader := config.NewLoader(repo.RootDir)
+	loader.SetUserDir(filepath.Join(userHome, ".orc"))
 
 	tc, err := loader.Load()
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
 
-	// Verify local overrides project
+	// Verify personal overrides project
 	if tc.Config.Profile != "strict" {
-		t.Errorf("profile = %q, want %q (local should override project)", tc.Config.Profile, "strict")
+		t.Errorf("profile = %q, want %q (personal should override project)", tc.Config.Profile, "strict")
 	}
 }
 
 // TestConfigResolutionNestedValues verifies resolution of nested config values.
 func TestConfigResolutionNestedValues(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
 
-	// Set nested values in shared config
-	sharedConfig := map[string]any{
+	// Set nested values in project config (loaded at shared level)
+	projectConfig := map[string]any{
 		"version": 1,
 		"gates": map[string]any{
 			"default_type": "ai",
@@ -259,7 +249,7 @@ func TestConfigResolutionNestedValues(t *testing.T) {
 			"max_retries": 3,
 		},
 	}
-	testutil.WriteYAML(t, filepath.Join(repo.OrcDir, "shared", "config.yaml"), sharedConfig)
+	testutil.WriteYAML(t, filepath.Join(repo.OrcDir, "config.yaml"), projectConfig)
 
 	// Create empty user dir to isolate from real ~/.orc/config.yaml
 	emptyUserDir := t.TempDir()

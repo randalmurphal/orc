@@ -85,10 +85,9 @@ func Run(opts Options) (*Result, error) {
 		}
 	}
 
-	// 1. Create .orc/ directory structure
+	// 1. Create .orc/ directory structure (config-only, all git-tracked)
 	dirs := []string{
 		orcDir,
-		filepath.Join(orcDir, "tasks"),
 		filepath.Join(orcDir, "prompts"),
 	}
 	for _, dir := range dirs {
@@ -112,14 +111,26 @@ func Run(opts Options) (*Result, error) {
 	}
 	// If config exists, preserve user customizations
 
-	// 3. Create project SQLite database and run migrations
+	// 3. Register in global registry FIRST (need project ID for DB path resolution)
+	proj, err := project.RegisterProject(opts.WorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("register project: %w", err)
+	}
+
+	// 3b. Create runtime directories at ~/.orc/projects/<id>/ and ~/.orc/worktrees/<id>/
+	if err := project.EnsureProjectDirs(proj.ID); err != nil {
+		return nil, fmt.Errorf("create project runtime dirs: %w", err)
+	}
+
+	// 4. Create project SQLite database and run migrations
+	// DB is now at ~/.orc/projects/<id>/orc.db (resolved via registry)
 	pdb, err := db.OpenProject(opts.WorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("create project database: %w", err)
 	}
 	defer func() { _ = pdb.Close() }()
 
-	// 4. Run detection and store in SQLite
+	// 5. Run detection and store in SQLite
 	detection, err := detect.Detect(opts.WorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("detect project: %w", err)
@@ -138,19 +149,13 @@ func Run(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("store detection: %w", err)
 	}
 
-	// 4b. Seed project commands for quality checks
+	// 5b. Seed project commands for quality checks
 	if err := seedProjectCommands(pdb, detection); err != nil {
 		// Non-fatal - just warn
 		fmt.Fprintf(os.Stderr, "Warning: could not seed project commands: %v\n", err)
 	}
 
-	// 5. Register in global registry (YAML - for backwards compat during migration)
-	proj, err := project.RegisterProject(opts.WorkDir)
-	if err != nil {
-		return nil, fmt.Errorf("register project: %w", err)
-	}
-
-	// Also sync to global SQLite database
+	// 6. Sync to global SQLite database
 	gdb, err := db.OpenGlobal()
 	if err != nil {
 		// Non-fatal - YAML registry is the fallback

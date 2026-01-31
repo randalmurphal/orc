@@ -76,10 +76,10 @@ func (g *Git) tryCreateWorktree(branchName, worktreePath, baseBranch string) (st
 // this function will automatically prune stale entries and retry.
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 	branchName := g.BranchName(taskID)
-	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
+	worktreePath := WorktreePath(g.worktreeBasePath(), taskID, g.executorPrefix)
 
 	// Ensure worktrees directory exists
-	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	worktreesDir := g.worktreeBasePath()
 	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
 		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
@@ -132,10 +132,10 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 // as the worktree would lack branch protection.
 func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativePrefix string) (string, error) {
 	branchName := g.BranchNameWithInitiativePrefix(taskID, initiativePrefix)
-	worktreePath := WorktreePathWithPrefix(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix, initiativePrefix)
+	worktreePath := WorktreePathWithPrefix(g.worktreeBasePath(), taskID, g.executorPrefix, initiativePrefix)
 
 	// Ensure worktrees directory exists
-	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	worktreesDir := g.worktreeBasePath()
 	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
 		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
@@ -178,10 +178,10 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 func (g *Git) CreateWorktreeWithCustomBranch(taskID, customBranchName, baseBranch string) (string, error) {
 	// Derive worktree directory from custom branch name (replace slashes with hyphens)
 	worktreeDirName := strings.ReplaceAll(customBranchName, "/", "-")
-	worktreePath := filepath.Join(g.ctx.RepoPath(), g.worktreeDir, worktreeDirName)
+	worktreePath := filepath.Join(g.worktreeBasePath(), worktreeDirName)
 
 	// Ensure worktrees directory exists
-	worktreesDir := filepath.Join(g.ctx.RepoPath(), g.worktreeDir)
+	worktreesDir := g.worktreeBasePath()
 	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
 		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
@@ -217,14 +217,14 @@ func (g *Git) CreateWorktreeWithCustomBranch(taskID, customBranchName, baseBranc
 // The path is derived by replacing slashes in the branch name with hyphens.
 func (g *Git) WorktreePathForCustomBranch(customBranchName string) string {
 	worktreeDirName := strings.ReplaceAll(customBranchName, "/", "-")
-	return filepath.Join(g.ctx.RepoPath(), g.worktreeDir, worktreeDirName)
+	return filepath.Join(g.worktreeBasePath(), worktreeDirName)
 }
 
 // CleanupWorktree removes a task's worktree.
 // Note: This uses the default worktree path calculation. For initiative-prefixed
 // worktrees, use CleanupWorktreeAtPath with the actual path.
 func (g *Git) CleanupWorktree(taskID string) error {
-	worktreePath := WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
+	worktreePath := WorktreePath(g.worktreeBasePath(), taskID, g.executorPrefix)
 
 	if err := g.ctx.CleanupWorktree(worktreePath); err != nil {
 		return fmt.Errorf("cleanup worktree for %s: %w", taskID, err)
@@ -262,13 +262,13 @@ func (g *Git) PruneWorktrees() error {
 // WorktreePath returns the path to a task's worktree.
 // Uses executor prefix in p2p/team mode for isolated worktrees.
 func (g *Git) WorktreePath(taskID string) string {
-	return WorktreePath(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix)
+	return WorktreePath(g.worktreeBasePath(), taskID, g.executorPrefix)
 }
 
 // WorktreePathWithInitiativePrefix returns the path to a task's worktree with initiative prefix support.
 // When initiativePrefix is non-empty, it's used in the worktree directory name.
 func (g *Git) WorktreePathWithInitiativePrefix(taskID, initiativePrefix string) string {
-	return WorktreePathWithPrefix(filepath.Join(g.ctx.RepoPath(), g.worktreeDir), taskID, g.executorPrefix, initiativePrefix)
+	return WorktreePathWithPrefix(g.worktreeBasePath(), taskID, g.executorPrefix, initiativePrefix)
 }
 
 // InWorktree returns a Git instance operating in the specified worktree.

@@ -12,7 +12,7 @@ import (
 
 func TestTestResultsPath(t *testing.T) {
 	result := TestResultsPath("/project", "TASK-001")
-	expected := filepath.Join("/project", OrcDir, TasksDir, "TASK-001", TestResultsDir)
+	expected := filepath.Join("/project", ".orc-test-results", "TASK-001")
 	if result != expected {
 		t.Errorf("TestResultsPath() = %q, want %q", result, expected)
 	}
@@ -20,7 +20,7 @@ func TestTestResultsPath(t *testing.T) {
 
 func TestScreenshotsPath(t *testing.T) {
 	result := ScreenshotsPath("/project", "TASK-001")
-	expected := filepath.Join("/project", OrcDir, TasksDir, "TASK-001", TestResultsDir, ScreenshotsSubDir)
+	expected := filepath.Join("/project", ".orc-test-results", "TASK-001", ScreenshotsSubDir)
 	if result != expected {
 		t.Errorf("ScreenshotsPath() = %q, want %q", result, expected)
 	}
@@ -28,7 +28,7 @@ func TestScreenshotsPath(t *testing.T) {
 
 func TestTracesPath(t *testing.T) {
 	result := TracesPath("/project", "TASK-001")
-	expected := filepath.Join("/project", OrcDir, TasksDir, "TASK-001", TestResultsDir, TracesSubDir)
+	expected := filepath.Join("/project", ".orc-test-results", "TASK-001", TracesSubDir)
 	if result != expected {
 		t.Errorf("TracesPath() = %q, want %q", result, expected)
 	}
@@ -38,11 +38,8 @@ func TestGetTestResults_NoResults(t *testing.T) {
 	tmpDir := t.TempDir()
 	taskID := "TASK-001"
 
-	// Create task directory but no test-results
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
-	if err := os.MkdirAll(taskDir, 0755); err != nil {
-		t.Fatal(err)
-	}
+	// Don't create the test-results directory - verify GetTestResults
+	// handles the case where no results directory exists at all.
 
 	info, err := GetTestResults(tmpDir, taskID)
 	if err != nil {
@@ -340,7 +337,7 @@ func TestSaveTestReport(t *testing.T) {
 	taskID := "TASK-001"
 
 	// Create task directory
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	taskDir := filepath.Join(tmpDir, ".orc-test-results", taskID)
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -378,7 +375,7 @@ func TestSaveScreenshot(t *testing.T) {
 	taskID := "TASK-001"
 
 	// Create task directory
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	taskDir := filepath.Join(tmpDir, ".orc-test-results", taskID)
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +413,7 @@ func TestSaveScreenshot_InvalidFilename(t *testing.T) {
 	taskID := "TASK-001"
 
 	// Create task directory
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	taskDir := filepath.Join(tmpDir, ".orc-test-results", taskID)
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +551,7 @@ func TestInitTestResultsDir(t *testing.T) {
 	taskID := "TASK-001"
 
 	// Create task directory
-	taskDir := filepath.Join(tmpDir, OrcDir, TasksDir, taskID)
+	taskDir := filepath.Join(tmpDir, ".orc-test-results", taskID)
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		t.Fatal(err)
 	}

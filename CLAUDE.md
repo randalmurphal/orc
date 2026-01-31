@@ -183,7 +183,7 @@ Orc supports multiple projects from a single installation. Data is split between
 | Component | Location | Contents |
 |-----------|----------|----------|
 | **GlobalDB** | `~/.orc/orc.db` | Project registry, cost tracking, budgets, workflows, agents, phase templates |
-| **ProjectDB** | `<project>/.orc/orc.db` | Tasks, initiatives, transcripts, phases, events, FTS |
+| **ProjectDB** | `~/.orc/projects/<id>/orc.db` | Tasks, initiatives, transcripts, phases, events, FTS |
 | **ProjectCache** | `internal/api/project_cache.go` | LRU cache for project DB connections (thread-safe) |
 
 ### How It Works
@@ -196,12 +196,31 @@ Orc supports multiple projects from a single installation. Data is split between
 ## File Layout
 
 ```
-~/.orc/                          # Global: config, orc.db (GlobalDB), projects.json, token pool
-<project>/.orc/                  # Per-project: orc.db (ProjectDB), config, prompts, worktrees
-.claude/                         # Claude Code settings, hooks, skills
+~/.orc/                              # Global
+  orc.db                             # GlobalDB
+  projects.yaml                      # Project registry
+  config.yaml                        # User-wide config
+  prompts/                           # Personal global prompt overrides
+  projects/<project-id>/             # Per-project runtime state
+    orc.db (+journal/wal/shm)        # ProjectDB
+    config.yaml                      # Personal project config
+    prompts/                         # Personal project prompts
+    sequences.yaml                   # ID sequences
+    exports/                         # Export archives
+  worktrees/<project-id>/            # Worktrees (isolated from project dir)
+    orc-TASK-001/
+    orc-TASK-002/
+
+<project>/.orc/                      # Config-only (all git-tracked)
+  config.yaml                        # Project config
+  CONSTITUTION.md                    # Project principles
+  prompts/                           # Project prompt templates
+  system_prompts/                    # System prompt overrides
+
+.claude/                             # Claude Code settings, hooks, skills
 ```
 
-Task data stored in per-project SQLite (`<project>/.orc/orc.db`). Use `orc export --all-tasks --all` for full backup to `.orc/exports/`.
+Task data stored in per-project SQLite (`~/.orc/projects/<id>/orc.db`). Use `orc export --all-tasks --all` for full backup.
 
 ## Commands
 
@@ -255,7 +274,7 @@ Run `orc initiative --help` for full subcommand list.
 
 | Command | Purpose |
 |---------|---------|
-| `orc export --all-tasks` | Full backup (tar.gz) to `.orc/exports/` |
+| `orc export --all-tasks` | Full backup (tar.gz) to `~/.orc/projects/<id>/exports/` |
 | `orc export --all-tasks --initiatives` | Include initiatives |
 | `orc export --all-tasks --minimal` | Smaller backup (no transcripts) |
 | `orc import` | Restore from `.orc/exports/` (auto-detect format) |

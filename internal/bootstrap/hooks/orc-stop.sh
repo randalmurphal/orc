@@ -11,9 +11,12 @@ set -euo pipefail
 # Read hook input from stdin (advanced stop hook API)
 HOOK_INPUT=$(cat)
 
-# Check if we're in an orc worktree (path contains .orc/worktrees/orc-)
+# Check if we're in an orc worktree
+# Supports both new global location (~/.orc/worktrees/*/orc-*) and legacy (.orc/worktrees/orc-*)
 CWD=$(pwd)
-if [[ ! "$CWD" =~ \.orc/worktrees/orc- ]]; then
+if [[ "$CWD" =~ \.orc/worktrees/orc- ]] || [[ "$CWD" =~ "$HOME/.orc/worktrees/".*/orc- ]]; then
+    : # In an orc worktree, continue
+else
     # Not an orc worktree - allow normal exit
     exit 0
 fi

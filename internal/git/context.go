@@ -80,6 +80,9 @@ func (g *Context) WorkDir() string {
 
 // WorktreeDirPath returns the path to the worktrees directory.
 func (g *Context) WorktreeDirPath() string {
+	if filepath.IsAbs(g.worktreeDir) {
+		return g.worktreeDir
+	}
 	return filepath.Join(g.repoPath, g.worktreeDir)
 }
 
@@ -289,13 +292,14 @@ type WorktreeInfo struct {
 // Returns the path to the worktree directory.
 func (g *Context) CreateContextWorktree(branch string) (string, error) {
 	safeName := SanitizeBranchName(branch)
-	worktreePath := filepath.Join(g.repoPath, g.worktreeDir, safeName)
+	worktreeBase := g.WorktreeDirPath()
+	worktreePath := filepath.Join(worktreeBase, safeName)
 
 	if _, err := os.Stat(worktreePath); err == nil {
 		return "", ErrWorktreeExists
 	}
 
-	worktreesDir := filepath.Join(g.repoPath, g.worktreeDir)
+	worktreesDir := worktreeBase
 	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
 		return "", fmt.Errorf("create worktrees dir: %w", err)
 	}
