@@ -286,6 +286,30 @@ func (s *InputStep) WithDefault(val string) *InputStep {
 	return s
 }
 
+func (s *InputStep) ID() string          { return s.id }
+func (s *InputStep) Title() string       { return s.title }
+func (s *InputStep) Description() string { return s.description }
+func (s *InputStep) StateKey() string    { return s.stateKey }
+
+func (s *InputStep) Skip(state State) bool {
+	if s.skipFunc != nil {
+		return s.skipFunc(state)
+	}
+	return false
+}
+
+// WithDescription sets the step description.
+func (s *InputStep) WithDescription(desc string) *InputStep {
+	s.description = desc
+	return s
+}
+
+// WithSkipFunc sets a function to determine if this step should be skipped.
+func (s *InputStep) WithSkipFunc(fn func(State) bool) *InputStep {
+	s.skipFunc = fn
+	return s
+}
+
 func (s *InputStep) Init(state State) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = s.placeholder
