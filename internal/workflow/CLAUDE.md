@@ -8,6 +8,7 @@ Configurable workflow system for orc. Replaces weight-based task execution with 
 |------|---------|
 | `types.go` | Domain types (Workflow, PhaseTemplate, WorkflowRun, etc.) |
 | `seed.go` | Built-in workflow/phase definitions and seeding |
+| `seed_agents.go` | Agent definitions, parsing, seeding to GlobalDB |
 
 ## Core Concepts
 
@@ -82,6 +83,26 @@ Execution instances:
 | `qa_e2e_fix` | Fix issues from QA testing | No |
 | `research` | Research patterns | Yes (research) |
 
+## Built-in Agents
+
+9 agents defined in `templates/agents/*.md` with YAML frontmatter + markdown prompt body. Parsed by `ParseAgentMarkdown()`, seeded to GlobalDB by `SeedAgents()`. Idempotent — existing agents are skipped.
+
+```go
+// Agent file format (templates/agents/<name>.md):
+// ---
+// name: agent-id
+// description: What it does
+// model: opus|sonnet|haiku
+// tools: ["Read", "Grep", "Glob"]
+// ---
+// Prompt body with {{TEMPLATE_VARIABLES}}
+
+SeedAgents(gdb)           // Seed all agents + phase_agents associations
+ListBuiltinAgentIDs()     // Returns all 9 agent IDs
+```
+
+Agent prompts support `{{VARIABLE}}` rendering via `executor.ToInlineAgentDef()`. See `templates/CLAUDE.md` for the full agent list and model tier strategy.
+
 ## Usage
 
 ```go
@@ -90,8 +111,12 @@ import "github.com/randalmurphal/orc/internal/workflow"
 // Seed built-ins on startup
 seeded, err := workflow.SeedBuiltins(pdb)
 
-// List available workflows
+// Seed agents (separate call, needs GlobalDB)
+seeded, err := workflow.SeedAgents(gdb)
+
+// List available workflows/agents
 ids := workflow.ListBuiltinWorkflowIDs()
+agentIDs := workflow.ListBuiltinAgentIDs()
 ```
 
 ## Database Operations

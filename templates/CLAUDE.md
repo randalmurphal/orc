@@ -10,7 +10,7 @@ templates/
 ├── prompts/              # ALL prompt templates
 │   ├── *.md              # Phase and session prompts (22 files)
 │   └── automation/*.md   # Maintenance automation templates (8 files)
-├── agents/               # Sub-agent definitions (7 built-in)
+├── agents/               # Sub-agent definitions (9 built-in)
 ├── docs/                 # Documentation templates
 ├── scripts/              # Helper scripts
 └── pr-body.md            # PR description template
@@ -55,6 +55,7 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{INITIATIVE_CONTEXT}}` | Initiative details |
 | `{{LANGUAGE}}`, `{{HAS_FRONTEND}}`, `{{HAS_TESTS}}` | Project detection |
 | `{{TEST_COMMAND}}`, `{{LINT_COMMAND}}`, `{{BUILD_COMMAND}}` | Project commands |
+| `{{ERROR_PATTERNS}}` | Language-specific error handling idioms |
 | `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing |
 | `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}` | Review phase |
 | `{{VERIFICATION_RESULTS}}` | Implement verification |
@@ -92,36 +93,81 @@ Agent definitions in `agents/*.md` with YAML frontmatter (name, model, tools) + 
 
 | Agent ID | Model | Purpose | Used By |
 |----------|-------|---------|---------|
-| `code-reviewer` | sonnet | Guidelines compliance review | Review phase (parallel) |
-| `code-simplifier` | sonnet | Complexity and simplification analysis | Review phase (parallel) |
+| `code-reviewer` | opus | Guidelines compliance review | Review phase (parallel) |
+| `code-simplifier` | opus | Complexity and simplification analysis | Review phase (parallel) |
 | `comment-analyzer` | haiku | Comment quality and accuracy | Review phase (parallel) |
 | `dependency-validator` | haiku | Detect missing code-level deps between initiative tasks | `on_initiative_planned` trigger |
-| `pr-test-analyzer` | haiku | Test coverage and quality analysis | Review phase (parallel) |
-| `silent-failure-hunter` | sonnet | Error handling and silent failure detection | Review phase (parallel) |
-| `type-design-analyzer` | haiku | Type system and interface design review | Review phase (parallel) |
+| `over-engineering-detector` | opus | Detects scope creep and unnecessary abstractions | Review phase (parallel) |
+| `pr-test-analyzer` | sonnet | Test coverage and quality analysis | Review phase (parallel) |
+| `silent-failure-hunter` | opus | Error handling and silent failure detection | Review phase (parallel) |
+| `spec-quality-auditor` | opus | Validates success criteria are behavioral and testable | Review phase (parallel) |
+| `type-design-analyzer` | sonnet | Type system and interface design review | Review phase (parallel) |
 
 **Trigger agents** (like `dependency-validator`) run via `WorkflowTrigger` definitions, not phase agents. See `docs/architecture/GATES.md` for trigger configuration.
 
-## Prompt Structure
+## Prompt Structure Best Practices
+
+Based on Anthropic prompting research. These patterns are applied across all phase and agent prompts.
+
+### Section Ordering (Critical)
+
+Prompts follow this top-to-bottom order for optimal model attention:
+
+| Order | Section | Why First |
+|-------|---------|-----------|
+| 1 | **Output format** (`<output_format>`) | Model anchors on expected structure early |
+| 2 | **Critical constraints** (quality gates, checklists) | Hard requirements before creative work |
+| 3 | **Examples** (multishot, input→output pairs) | Concrete patterns calibrate behavior |
+| 4 | **Context** (task metadata, project detection) | Ground the model in specifics |
+| 5 | **Injected artifacts** (constitution, initiative, spec) | Reference material |
+| 6 | **Instructions** (streamlined guidance) | Last — model has full context to interpret |
+
+### XML Tags for Structure
+
+Use XML tags (`<output_format>`, `<project_context>`, `<instructions>`) instead of markdown headers for machine-parsed sections. Models parse XML boundaries more reliably than `##` headers in long prompts.
+
+### System Identity
+
+Every phase prompt starts with a one-line identity statement: "You are a [role] working on [task type]." This anchors the model's behavior before any instructions.
+
+### Failure Mode Priming
+
+State the most common failure mode explicitly near the top:
+- **Spec**: "Most common failure is success criteria that verify existence instead of behavior"
+- **Implement**: "Most common failure is declaring completion without running verification"
+- **TDD**: "Most common failure is tests that pass with empty stubs"
+
+### Agent Prompt Patterns
+
+Agent prompts use `<project_context>` blocks with template variables:
 
 ```markdown
-# Phase Name
+<project_context>
+Language: {{LANGUAGE}}
+Frameworks: {{FRAMEWORKS}}
+{{CONSTITUTION_CONTENT}}
+</project_context>
+```
 
-## Context
-- Task: {{TASK_TITLE}}
-- Phase: {{PHASE}}
+Variables are rendered via `ToInlineAgentDef()` in `executor/agent_loader.go` before dispatch.
 
-{{RETRY_CONTEXT}}
+### Agent Model Tiers
 
-## Instructions
-[Phase-specific]
+| Tier | Model | When to Use | Examples |
+|------|-------|-------------|---------|
+| Critical | opus | Quality-sensitive analysis, complex reasoning | code-reviewer, silent-failure-hunter |
+| Standard | sonnet | Structured analysis with clear rubrics | pr-test-analyzer, type-design-analyzer |
+| Simple | haiku | Pattern matching, low-judgment tasks | comment-analyzer, dependency-validator |
 
-## Completion
-When ready to signal phase status, output valid JSON (constrained by --json-schema):
+### Completion Format
+
+```json
 {"status": "complete", "summary": "Brief description", "artifact": "...content..."}
 {"status": "blocked", "reason": "Why blocked and what's needed"}
 {"status": "continue", "reason": "What was done and what's next"}
 ```
+
+Output constrained via `--json-schema`. See `executor/phase_response.go` for per-phase schemas.
 
 ## Artifact Output
 
