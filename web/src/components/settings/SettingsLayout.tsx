@@ -116,6 +116,14 @@ export function SettingsLayout() {
 						<NavItem to="/settings/constitution" icon="shield" label="Constitution" />
 					</NavGroup>
 
+					<NavGroup title="ENVIRONMENT">
+						<NavItem to="/environment/hooks" icon="terminal" label="Hooks" />
+						<NavItem to="/environment/skills" icon="layers" label="Skills" />
+						<NavItem to="/environment/mcp" icon="mcp" label="MCP Servers" />
+						<NavItem to="/environment/tools" icon="settings" label="Tools" />
+						<NavItem to="/environment/config" icon="file-text" label="Config" />
+					</NavGroup>
+
 					<NavGroup title="ACCOUNT">
 						<NavItem to="/settings/profile" icon="user" label="Profile" />
 						<NavItem to="/settings/api-keys" icon="settings" label="API Keys" />
