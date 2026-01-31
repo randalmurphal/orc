@@ -257,11 +257,9 @@ func (m *confirmModel) View() string {
 type InputStep struct {
 	id           string
 	title        string
-	description  string
 	placeholder  string
 	defaultValue string
 	stateKey     string
-	skipFunc     func(State) bool
 	validate     func(string) error
 }
 
