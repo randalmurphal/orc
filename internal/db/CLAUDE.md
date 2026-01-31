@@ -8,7 +8,7 @@ Two database types with distinct responsibilities:
 
 | Type | Path | Purpose |
 |------|------|---------|
-| **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects registry, cost_log, budgets, workflows, phase templates, agents |
+| **GlobalDB** | `~/.orc/orc.db` | Cross-project: projects registry, cost_log, budgets, workflows, phase templates, agents, hook_scripts, skills |
 | **ProjectDB** | `~/.orc/projects/<id>/orc.db` | Per-project: tasks, phases, transcripts, initiatives, events, FTS |
 
 ### Data Split
@@ -20,7 +20,8 @@ Two database types with distinct responsibilities:
 | Workflow definitions (shared) | Transcripts, FTS search |
 | Phase templates (shared) | Event log, timeline |
 | Agent definitions (shared) | Workflow runs (execution records) |
-| Future: shared settings | Attachments, comments, branches |
+| Hook scripts (shared) | Attachments, comments, branches |
+| Skills (shared) | |
 
 **Key insight**: GlobalDB holds data that spans projects (definitions, registry). ProjectDB holds project-specific execution data. Workflow/agent definitions live in GlobalDB so all projects share them; workflow runs live in ProjectDB since they belong to a specific project.
 
@@ -33,6 +34,7 @@ Two database types with distinct responsibilities:
 | `schema/project_*.sql` | Per-project tables (tasks through project_047.sql) |
 | `schema/project_047.sql` | **Branch control columns on `tasks`**: `branch_name`, `pr_draft`, `pr_labels` (JSON), `pr_reviewers` (JSON), `pr_labels_set`, `pr_reviewers_set` |
 | `schema/global_005.sql` | **Extended gate config**: gate_input_config, gate_output_config, gate_mode, gate_agent_id on phase_templates; before_triggers on workflow_phases; triggers on workflows |
+| `schema/global_006.sql` | **Hook scripts and skills tables**: `hook_scripts` (id, name, description, content, event_type, is_builtin), `skills` (id, name, description, content, supporting_files, is_builtin) |
 | `schema/project_048.sql` | **Mirrors global_005** for project DB |
 
 ## File Structure
@@ -60,6 +62,8 @@ Two database types with distinct responsibilities:
 | `review_comment.go` | Review comment CRUD |
 | `task_comment.go` | Task comment CRUD |
 | `team.go` | Team members, claims, activity |
+| `hook_scripts.go` | Hook script CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection |
+| `skills.go` | Skill CRUD (GlobalDB): Save/Get/List/Delete, upsert pattern, built-in protection, JSON supporting_files |
 | `constitution.go` | Constitution CRUD, validation checks |
 | `dashboard.go` | Dashboard SQL aggregates (status counts, cost by date, initiative stats) |
 

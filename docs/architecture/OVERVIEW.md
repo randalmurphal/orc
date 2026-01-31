@@ -132,7 +132,7 @@ Orc supports multiple projects from a single server instance using a two-tier da
 
 | Tier | Instance | Stores |
 |------|----------|--------|
-| **GlobalDB** | One per server | Project registry, built-in workflows, built-in agents |
+| **GlobalDB** | One per server | Project registry, built-in workflows, built-in agents, hook scripts, skills |
 | **ProjectDB** | One per project | Tasks, initiatives, transcripts, events, config |
 
 ### Connection Management
