@@ -31,3 +31,9 @@ var Workflows embed.FS
 //
 //go:embed phases/*.yaml
 var Phases embed.FS
+
+// Hooks contains embedded hook script files.
+// Each file is a standalone hook script (bash or python) for Claude Code hooks.
+//
+//go:embed hooks/*
+var Hooks embed.FS
