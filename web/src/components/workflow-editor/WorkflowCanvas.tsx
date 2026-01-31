@@ -509,7 +509,7 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 				onNodeDragStop={onNodeDragStop}
 				fitView
 				fitViewOptions={{ padding: 0.2 }}
-				minZoom={0.3}
+				minZoom={0.1}
 				maxZoom={1.5}
 			>
 				<MiniMap
