@@ -11,6 +11,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // AutoTaskCreator implements TaskCreator for creating automation tasks.
@@ -89,6 +90,12 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	t.Weight = task.WeightToProto(tmpl.Weight)
 	t.Category = task.CategoryToProto(tmpl.Category)
 	t.Queue = orcv1.TaskQueue_TASK_QUEUE_ACTIVE
+
+	// Auto-assign workflow based on weight
+	wfID := workflow.WeightToWorkflowID(t.Weight)
+	if wfID != "" {
+		t.WorkflowId = &wfID
+	}
 	// Priority can be set via trigger action, default to normal
 	t.Priority = orcv1.TaskPriority_TASK_PRIORITY_NORMAL
 	// Mark as automation task for efficient database querying

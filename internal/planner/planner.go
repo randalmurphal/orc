@@ -10,6 +10,7 @@ import (
 	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // Options configures the planner.
@@ -157,6 +158,12 @@ func (p *Planner) CreateTasks(breakdown *TaskBreakdown) ([]CreationResult, error
 		t.Description = &proposed.Description
 		t.Weight = task.WeightToProto(string(proposed.Weight))
 		t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED // Plans are created dynamically at runtime
+
+		// Auto-assign workflow based on weight
+		wfID := workflow.WeightToWorkflowID(t.Weight)
+		if wfID != "" {
+			t.WorkflowId = &wfID
+		}
 
 		// Save task
 		if err := p.opts.Backend.SaveTask(t); err != nil {
