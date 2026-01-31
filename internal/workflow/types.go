@@ -183,6 +183,9 @@ type PhaseTemplate struct {
 	RetryFromPhase  string `json:"retry_from_phase,omitempty" db:"retry_from_phase"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty" db:"retry_prompt_path"`
 
+	// Claude CLI configuration (JSON PhaseClaudeConfig)
+	ClaudeConfig string `json:"claude_config,omitempty" yaml:"claude_config" db:"claude_config"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin" db:"is_builtin"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`

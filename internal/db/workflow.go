@@ -89,6 +89,10 @@ type PhaseTemplate struct {
 	RetryFromPhase  string `json:"retry_from_phase,omitempty"`
 	RetryPromptPath string `json:"retry_prompt_path,omitempty"`
 
+	// Claude CLI configuration (JSON PhaseClaudeConfig)
+	// Phase-specific Claude settings: hooks, MCP servers, env vars, etc.
+	ClaudeConfig string `json:"claude_config,omitempty"`
+
 	// Metadata
 	IsBuiltin bool      `json:"is_builtin"`
 	CreatedAt time.Time `json:"created_at"`
@@ -290,8 +294,9 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			output_type, quality_checks,
 			max_iterations, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
+			claude_config)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -317,6 +322,7 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 			gate_output_config = excluded.gate_output_config,
 			gate_mode = excluded.gate_mode,
 			gate_agent_id = excluded.gate_agent_id,
+			claude_config = excluded.claude_config,
 			updated_at = excluded.updated_at
 	`, pt.ID, pt.Name, pt.Description, agentID, subAgents,
 		pt.PromptSource, pt.PromptContent, pt.PromptPath,
@@ -325,7 +331,8 @@ func (p *ProjectDB) SavePhaseTemplate(pt *PhaseTemplate) error {
 		pt.MaxIterations, thinkingEnabled, pt.GateType, pt.Checkpoint,
 		pt.RetryFromPhase, pt.RetryPromptPath, pt.IsBuiltin,
 		pt.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339),
-		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID)
+		pt.GateInputConfig, pt.GateOutputConfig, pt.GateMode, gateAgentID,
+		pt.ClaudeConfig)
 	if err != nil {
 		return fmt.Errorf("save phase template: %w", err)
 	}
@@ -341,7 +348,8 @@ func (p *ProjectDB) GetPhaseTemplate(id string) (*PhaseTemplate, error) {
 			output_type, quality_checks,
 			max_iterations, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
+			COALESCE(claude_config, '') as claude_config
 		FROM phase_templates WHERE id = ?
 	`, id)
 
@@ -364,7 +372,8 @@ func (p *ProjectDB) ListPhaseTemplates() ([]*PhaseTemplate, error) {
 			output_type, quality_checks,
 			max_iterations, thinking_enabled, gate_type, checkpoint,
 			retry_from_phase, retry_prompt_path, is_builtin, created_at, updated_at,
-			gate_input_config, gate_output_config, gate_mode, gate_agent_id
+			gate_input_config, gate_output_config, gate_mode, gate_agent_id,
+			COALESCE(claude_config, '') as claude_config
 		FROM phase_templates
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -970,6 +979,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	var outputType, qualityChecks sql.NullString
 	var retryFromPhase, retryPromptPath sql.NullString
 	var gateInputConfig, gateOutputConfig, gateMode, gateAgentID sql.NullString
+	var claudeConfig sql.NullString
 
 	err := row.Scan(
 		&pt.ID, &pt.Name, &description, &agentID, &subAgents,
@@ -979,6 +989,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 		&pt.MaxIterations, &thinkingEnabled, &pt.GateType, &pt.Checkpoint,
 		&retryFromPhase, &retryPromptPath, &pt.IsBuiltin, &createdAt, &updatedAt,
 		&gateInputConfig, &gateOutputConfig, &gateMode, &gateAgentID,
+		&claudeConfig,
 	)
 	if err != nil {
 		return nil, err
@@ -1002,6 +1013,7 @@ func scanPhaseTemplate(row rowScanner) (*PhaseTemplate, error) {
 	pt.GateOutputConfig = gateOutputConfig.String
 	pt.GateMode = gateMode.String
 	pt.GateAgentID = gateAgentID.String
+	pt.ClaudeConfig = claudeConfig.String
 	pt.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	pt.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 

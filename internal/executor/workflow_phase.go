@@ -16,7 +16,6 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/automation"
 	"github.com/randalmurphal/orc/internal/db"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -149,26 +148,6 @@ func (we *WorkflowExecutor) executePhase(
 	// This applies orc config settings to MCP servers defined in phase templates
 	if claudeConfig != nil && len(claudeConfig.MCPServers) > 0 {
 		claudeConfig.MCPServers = MergeMCPConfigSettings(claudeConfig.MCPServers, rctx.TaskID, we.orcConfig)
-
-		// Inject MCP servers into worktree settings.json so subagents get them too
-		if we.worktreePath != "" {
-			mcpServers := make(map[string]git.MCPServerConfig)
-			for name, server := range claudeConfig.MCPServers {
-				mcpServers[name] = git.MCPServerConfig{
-					Command: server.Command,
-					Args:    server.Args,
-					Env:     server.Env,
-				}
-			}
-			if err := git.InjectMCPServersToWorktree(we.worktreePath, mcpServers); err != nil {
-				we.logger.Warn("failed to inject MCP servers to worktree", "error", err)
-			} else {
-				we.logger.Info("injected MCP servers to worktree settings.json",
-					"phase", tmpl.ID,
-					"servers", fmt.Sprintf("%v", maps.Keys(mcpServers)),
-				)
-			}
-		}
 	}
 
 	// Build execution context for ClaudeExecutor
@@ -934,7 +913,24 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 		}
 	}
 
-	// 2. Merge workflow phase override (can override agent config)
+	// 2. Merge template's claude_config (between agent and workflow override)
+	if tmpl != nil && tmpl.ClaudeConfig != "" {
+		tmplCfg, err := ParsePhaseClaudeConfig(tmpl.ClaudeConfig)
+		if err != nil {
+			we.logger.Warn("failed to parse template claude_config",
+				"phase", tmpl.ID,
+				"error", err,
+			)
+		} else if tmplCfg != nil {
+			if cfg == nil {
+				cfg = tmplCfg
+			} else {
+				cfg = cfg.Merge(tmplCfg)
+			}
+		}
+	}
+
+	// 3. Merge workflow phase override (can override agent + template config)
 	if phase != nil && phase.ClaudeConfigOverride != "" {
 		override, err := ParsePhaseClaudeConfig(phase.ClaudeConfigOverride)
 		if err != nil {
@@ -956,7 +952,7 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 		cfg = &PhaseClaudeConfig{}
 	}
 
-	// 3. Resolve agent reference (from claude_config JSON)
+	// 4. Resolve agent reference (from claude_config JSON)
 	if cfg.AgentRef != "" {
 		claudeDir := filepath.Join(we.workingDir, ".claude")
 		resolver := NewAgentResolver(we.workingDir, claudeDir)
@@ -966,19 +962,6 @@ func (we *WorkflowExecutor) getEffectivePhaseClaudeConfig(tmpl *db.PhaseTemplate
 				"error", err,
 			)
 			// Continue without agent config - it's not fatal
-		}
-	}
-
-	// 4. Load skills and inject content
-	if len(cfg.SkillRefs) > 0 {
-		claudeDir := filepath.Join(we.workingDir, ".claude")
-		loader := NewSkillLoader(claudeDir)
-		if err := loader.LoadSkillsForConfig(cfg); err != nil {
-			we.logger.Warn("failed to load skills",
-				"skill_refs", cfg.SkillRefs,
-				"error", err,
-			)
-			// Continue without skills - it's not fatal
 		}
 	}
 
