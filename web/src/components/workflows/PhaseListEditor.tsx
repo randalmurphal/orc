@@ -338,7 +338,10 @@ export function PhaseListEditor({
 									size="sm"
 									title="Move up"
 									aria-label="Move up"
-									onClick={() => handleMovePhase(phase, 'up')}
+									onClick={(e) => {
+										e.stopPropagation();
+										handleMovePhase(phase, 'up');
+									}}
 									disabled={loading || isFirst}
 								>
 									<Icon name="chevron-up" size={14} />
@@ -348,7 +351,10 @@ export function PhaseListEditor({
 									size="sm"
 									title="Move down"
 									aria-label="Move down"
-									onClick={() => handleMovePhase(phase, 'down')}
+									onClick={(e) => {
+										e.stopPropagation();
+										handleMovePhase(phase, 'down');
+									}}
 									disabled={loading || isLast}
 								>
 									<Icon name="chevron-down" size={14} />
@@ -358,7 +364,10 @@ export function PhaseListEditor({
 									size="sm"
 									title="Edit"
 									aria-label="Edit"
-									onClick={() => handleEditClick(phase)}
+									onClick={(e) => {
+										e.stopPropagation();
+										handleEditClick(phase);
+									}}
 									disabled={loading}
 								>
 									<Icon name="edit" size={14} />
@@ -368,7 +377,10 @@ export function PhaseListEditor({
 									size="sm"
 									title="Delete"
 									aria-label="Delete"
-									onClick={() => handleRemovePhase(phase)}
+									onClick={(e) => {
+										e.stopPropagation();
+										handleRemovePhase(phase);
+									}}
 									disabled={loading}
 								>
 									<Icon name="trash" size={14} />
@@ -385,7 +397,10 @@ export function PhaseListEditor({
 					variant="secondary"
 					size="sm"
 					leftIcon={<Icon name="plus" size={14} />}
-					onClick={() => setAddDialogOpen(true)}
+					onClick={(e) => {
+						e.stopPropagation();
+						setAddDialogOpen(true);
+					}}
 					disabled={loading}
 				>
 					Add Phase
@@ -449,7 +464,8 @@ export function PhaseListEditor({
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => {
+							onClick={(e) => {
+								e.stopPropagation();
 								setAddDialogOpen(false);
 								setSelectedTemplateId('');
 							}}
@@ -459,7 +475,10 @@ export function PhaseListEditor({
 						<Button
 							variant="primary"
 							size="sm"
-							onClick={handleAddPhase}
+							onClick={(e) => {
+								e.stopPropagation();
+								handleAddPhase();
+							}}
 							disabled={!selectedTemplateId}
 						>
 							Add
@@ -644,14 +663,18 @@ export function PhaseListEditor({
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => {
+							onClick={(e) => {
+								e.stopPropagation();
 								setEditingPhase(null);
 								setEditOverrides({});
 							}}
 						>
 							Cancel
 						</Button>
-						<Button variant="primary" size="sm" onClick={handleSavePhase}>
+						<Button variant="primary" size="sm" onClick={(e) => {
+							e.stopPropagation();
+							handleSavePhase();
+						}}>
 							Save Phase
 						</Button>
 					</div>

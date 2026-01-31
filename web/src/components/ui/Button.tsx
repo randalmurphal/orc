@@ -40,6 +40,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 	(
 		{
+			type = 'button',
 			variant = 'secondary',
 			size = 'md',
 			loading = false,
@@ -69,6 +70,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 		return (
 			<button
 				ref={ref}
+				type={type}
 				className={classes}
 				disabled={isDisabled}
 				aria-disabled={isDisabled || undefined}
