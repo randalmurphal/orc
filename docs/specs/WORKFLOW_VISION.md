@@ -135,7 +135,7 @@ func loadPriorContent(taskDir string, phaseID string) string {
 This enables:
 - `{{SPEC_CONTENT}}` contains actual spec in implement phase
 - `{{RESEARCH_CONTENT}}` contains research findings
-- `{{DESIGN_CONTENT}}` contains architecture decisions
+- `{{TDD_TESTS_CONTENT}}` contains TDD test artifacts
 
 ### 4. Task Dependencies
 

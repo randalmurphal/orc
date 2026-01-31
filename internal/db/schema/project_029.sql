@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS phase_outputs (
     task_id TEXT,                           -- Nullable for non-task runs (branch, PR, standalone)
     content TEXT NOT NULL,
     content_hash TEXT,
-    output_var_name TEXT NOT NULL,          -- Variable name (e.g., 'SPEC_CONTENT', 'DESIGN_CONTENT')
-    artifact_type TEXT,                     -- 'spec', 'tests', 'breakdown', 'research', 'docs', 'design'
+    output_var_name TEXT NOT NULL,          -- Variable name (e.g., 'SPEC_CONTENT', 'TDD_TESTS_CONTENT')
+    artifact_type TEXT,                     -- 'spec', 'tests', 'breakdown', 'research', 'docs'
     source TEXT,                            -- 'workflow', 'import', 'manual', 'migrated'
     iteration INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
@@ -61,7 +61,6 @@ SELECT
     pa.content,
     pa.content_hash,
     CASE pa.phase_id
-        WHEN 'design' THEN 'DESIGN_CONTENT'
         WHEN 'tdd_write' THEN 'TDD_TESTS_CONTENT'
         WHEN 'breakdown' THEN 'BREAKDOWN_CONTENT'
         WHEN 'research' THEN 'RESEARCH_CONTENT'

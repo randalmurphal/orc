@@ -52,6 +52,19 @@ Before defining success criteria:
 The task description is a starting point. The initiative vision is the source of truth.
 </initiative_alignment>
 
+<referenced_files_study>
+**CRITICAL: If the task description references any files** (paths, documents, designs, specs, configs), you MUST:
+
+1. **Read every referenced file** before writing any success criteria
+2. **Extract behavioral requirements** — What should each component DO, not just exist?
+3. **Cross-reference** your planned success criteria against the content of referenced files
+4. **Add missing criteria** for any requirements from referenced files not covered by your initial analysis
+
+Referenced files describe intended architecture, behavior, or constraints. Your spec must ensure every behavioral aspect mentioned in them is testable.
+
+**Common failure:** A referenced document describes a script that "blocks on first attempt, allows on second" but the spec only says "script is embedded and seeded to DB." This produces success criteria that pass with a no-op script. Instead, the spec must include criteria like "script blocks the first stop attempt (exit 2) and allows the second (exit 0)."
+</referenced_files_study>
+
 <clarification_rules>
 **Maximum 3 [NEEDS CLARIFICATION] items.** For everything else:
 - Make an informed assumption
@@ -161,6 +174,18 @@ Create specific, testable criteria with **explicit verification methods**:
 - All new functions are called from at least one production code path
 - All new interfaces have registered implementations
 - Integration tests verify the wiring exists
+
+**All Code Must Be Tested** - If the task produces ANY executable code, it requires behavioral tests:
+
+| Code Type | What To Test | Anti-Pattern |
+|-----------|-------------|--------------|
+| Scripts (bash, python) | Input/output behavior, exit codes, error handling | "Script file exists on disk" |
+| Hook scripts | Blocking/allowing behavior, correct exit codes | "Hook is seeded to DB" |
+| Templates | Rendered output correctness | "Template file is embedded" |
+| Config generators | Generated config is valid and functional | "Config file was written" |
+| CLI tools | Command output, flags, error messages | "Binary compiles" |
+
+**The rule:** If code goes into the repo, success criteria must verify it WORKS, not just that it EXISTS. Infrastructure tests (file exists, DB record created) are necessary but insufficient. Every piece of executable code also needs behavioral tests proving it does what it's supposed to do.
 </success_criteria>
 
 <behavioral_specs>
@@ -325,7 +350,7 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 | ID | Check | Pass? |
 |----|-------|-------|
 | all_criteria_verifiable | Every SC has executable verification | |
-| no_technical_metrics | SC describes user behavior, not internals | |
+| no_existence_only_criteria | SC verifies behavior, not just existence (no "file exists" or "record created" without behavioral verification) | |
 | p1_stories_independent | P1 stories can ship alone | |
 | scope_explicit | In/out scope clearly listed | |
 | max_3_clarifications | ≤3 clarifications, rest are assumptions | |
@@ -375,7 +400,7 @@ Define upfront what reviewers should check.
   "content": "# Specification: [Title]\n\n## Problem Statement\n...",
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
-    {"id": "no_technical_metrics", "check": "SC describes user behavior, not internals", "passed": true},
+    {"id": "no_existence_only_criteria", "check": "SC verifies behavior, not just existence", "passed": true},
     {"id": "p1_stories_independent", "check": "P1 stories can ship alone", "passed": true},
     {"id": "scope_explicit", "check": "In/out scope clearly listed", "passed": true},
     {"id": "max_3_clarifications", "check": "≤3 clarifications, rest are assumptions", "passed": true}
