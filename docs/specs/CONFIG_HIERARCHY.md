@@ -24,10 +24,10 @@ Highest Priority
 │    (temporary, not persisted)           │  (ORC_*, --model, --profile)
 ├─────────────────────────────────────────┤
 │ 2. PERSONAL                             │  ~/.orc/config.yaml
-│    (user's machine-wide defaults)       │  .orc/local/config.yaml
+│    (user's machine-wide defaults)       │  ~/.orc/projects/<id>/config.yaml
 ├─────────────────────────────────────────┤
-│ 3. SHARED                               │  .orc/shared/config.yaml
-│    (team defaults, git-tracked)         │  .orc/config.yaml
+│ 3. PROJECT                              │  .orc/config.yaml
+│    (project defaults, git-tracked)      │
 ├─────────────────────────────────────────┤
 │ 4. DEFAULTS                             │  Built-in code defaults
 │    (fallback values)                    │
@@ -42,10 +42,10 @@ Lowest Priority
 |-----------|-----------|-----------|
 | env vars | Runtime | Temporary overrides, same purpose |
 | CLI flags | Runtime | Temporary overrides, same purpose |
-| user global | Personal | User's preferences |
-| project local | Personal | User's project-specific preferences |
-| project shared | Shared | Team defaults |
-| project root | Shared | Project defaults (same as team) |
+| user global | Personal | User's preferences (`~/.orc/config.yaml`) |
+| project local | Personal | User's project-specific preferences (`~/.orc/projects/<id>/config.yaml`) |
+| project shared | Removed | `.orc/shared/` eliminated — use project config |
+| project root | Project | Project defaults (`.orc/config.yaml`, git-tracked) |
 | system (/etc/) | Removed | Rarely used, admins can use env vars |
 | built-in | Defaults | Fallback |
 
@@ -60,17 +60,15 @@ Lowest Priority
 
 **Personal** (Level 2)
 - `~/.orc/config.yaml` - User's global defaults
-- `.orc/local/config.yaml` - User's project-specific (gitignored)
+- `~/.orc/projects/<id>/config.yaml` - User's project-specific preferences
 - Persisted, applies to all commands
-- Second priority - wins over team/shared
-- **Within-level order**: `.orc/local/` overrides `~/.orc/` (project-specific > global)
+- Second priority - wins over project defaults
+- **Within-level order**: project-specific overrides global (project-specific > global)
 
-**Shared** (Level 3)
-- `.orc/config.yaml` - Project defaults
-- `.orc/shared/config.yaml` - Team defaults (git-tracked)
-- Git-tracked, shared with team
-- Third priority - team baseline
-- **Within-level order**: `.orc/shared/` overrides `.orc/config.yaml` (team > project)
+**Project** (Level 3)
+- `.orc/config.yaml` - Project defaults (git-tracked)
+- Third priority - project baseline
+- **Note**: The old `.orc/shared/` and `.orc/local/` directories have been removed. Personal config moved to `~/.orc/projects/<id>/`.
 
 **Defaults** (Level 4)
 - Built-in values in code

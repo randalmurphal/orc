@@ -890,23 +890,26 @@ func TestDefault_ArtifactSkipConfig(t *testing.T) {
 	}
 }
 
-func TestHasTasksDir(t *testing.T) {
+func TestHasConfigFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// No .orc/tasks directory
-	if hasTasksDir(tmpDir) {
-		t.Error("hasTasksDir should return false when no tasks dir exists")
+	// No .orc/config.yaml
+	if hasConfigFile(tmpDir) {
+		t.Error("hasConfigFile should return false when no config file exists")
 	}
 
-	// Create .orc/tasks
-	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("failed to create tasks dir: %v", err)
+	// Create .orc/config.yaml
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create orc dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(""), 0644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
 	}
 
 	// Now should return true
-	if !hasTasksDir(tmpDir) {
-		t.Error("hasTasksDir should return true when tasks dir exists")
+	if !hasConfigFile(tmpDir) {
+		t.Error("hasConfigFile should return true when config file exists")
 	}
 }
 
@@ -918,11 +921,14 @@ func TestFindProjectRoot_CurrentDir(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(origWd) }()
 
-	// Create temp project with tasks
+	// Create temp project with config
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("failed to create tasks dir: %v", err)
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create orc dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte(""), 0644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
 	}
 
 	// Change to temp dir
@@ -981,11 +987,11 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 		t.Fatalf("failed to create .orc dir: %v", err)
 	}
 
-	// Create a database file to simulate a real initialized project
-	// (orc init always creates the database)
-	dbPath := filepath.Join(orcDir, "orc.db")
-	if err := os.WriteFile(dbPath, []byte("sqlite"), 0644); err != nil {
-		t.Fatalf("failed to create db file: %v", err)
+	// Create config.yaml to simulate a real initialized project
+	// (orc init always creates config.yaml)
+	cfgPath := filepath.Join(orcDir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte(""), 0644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
 	}
 
 	// Change to temp dir
@@ -993,7 +999,7 @@ func TestFindProjectRoot_FallbackToOrcDir(t *testing.T) {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 
-	// FindProjectRoot should fallback to current dir (has .orc with database)
+	// FindProjectRoot should fallback to current dir (has .orc with config.yaml)
 	root, err := FindProjectRoot()
 	if err != nil {
 		t.Fatalf("FindProjectRoot() failed: %v", err)
@@ -1020,10 +1026,10 @@ func TestFindProjectRoot_WorktreePath(t *testing.T) {
 		t.Fatalf("failed to create main .orc dir: %v", err)
 	}
 
-	// Create database in main project
-	dbPath := filepath.Join(mainOrcDir, "orc.db")
-	if err := os.WriteFile(dbPath, []byte("sqlite"), 0644); err != nil {
-		t.Fatalf("failed to create db file: %v", err)
+	// Create config.yaml in main project
+	cfgPath := filepath.Join(mainOrcDir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte(""), 0644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
 	}
 
 	// Create worktree path with .orc/ (simulating tracked files from git checkout)
@@ -1085,12 +1091,16 @@ func TestFindProjectRoot_WalkUpDirectories(t *testing.T) {
 	defer func() { _ = os.Chdir(origWd) }()
 
 	// Create temp project structure:
-	// tmpDir/.orc/tasks (project root)
+	// tmpDir/.orc/config.yaml (project root)
 	// tmpDir/subdir/subsubdir (current dir)
 	tmpDir := t.TempDir()
-	tasksDir := filepath.Join(tmpDir, OrcDir, "tasks")
-	if err := os.MkdirAll(tasksDir, 0755); err != nil {
-		t.Fatalf("failed to create tasks dir: %v", err)
+	orcDir := filepath.Join(tmpDir, OrcDir)
+	if err := os.MkdirAll(orcDir, 0755); err != nil {
+		t.Fatalf("failed to create .orc dir: %v", err)
+	}
+	cfgPath := filepath.Join(orcDir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte(""), 0644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
 	}
 	subsubdir := filepath.Join(tmpDir, "subdir", "subsubdir")
 	if err := os.MkdirAll(subsubdir, 0755); err != nil {

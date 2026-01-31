@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"syscall"
 
@@ -314,6 +315,13 @@ func runRun(cmd *cobra.Command, args []string) error {
 	disp.Info(fmt.Sprintf("Running workflow: %s [profile: %s]", workflowID, orcConfig.Profile))
 	if prompt != "" && len(prompt) <= 60 {
 		disp.Info(fmt.Sprintf("Prompt: %s", prompt))
+	}
+
+	// Log worktree path
+	if orcConfig.Worktree.Enabled {
+		resolvedDir := config.ResolveWorktreeDir(orcConfig.Worktree.Dir, projectRoot)
+		worktreePath := filepath.Join(resolvedDir, "orc-"+taskID)
+		fmt.Fprintf(os.Stderr, "Worktree: %s\n", worktreePath)
 	}
 
 	// Execute workflow

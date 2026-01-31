@@ -281,7 +281,7 @@ func New(cfg *Config) *Executor {
 	gitCfg := git.Config{
 		BranchPrefix:   cfg.BranchPrefix,
 		CommitPrefix:   cfg.CommitPrefix,
-		WorktreeDir:    orcCfg.Worktree.Dir,
+		WorktreeDir:    config.ResolveWorktreeDir(orcCfg.Worktree.Dir, cfg.WorkDir),
 		ExecutorPrefix: orcCfg.ExecutorPrefix(),
 	}
 	gitOps, err := git.New(cfg.WorkDir, gitCfg)

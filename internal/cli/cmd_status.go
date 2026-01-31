@@ -3,6 +3,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -286,11 +287,9 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 					// Construct worktree path
 					cfg, _ := config.Load()
 					if cfg != nil && cfg.Worktree.Enabled {
-						worktreeDir := cfg.Worktree.Dir
-						if worktreeDir == "" {
-							worktreeDir = ".orc/worktrees"
-						}
-						worktreePath = worktreeDir + "/orc-" + t.Id
+						cwd, _ := os.Getwd()
+						resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd)
+						worktreePath = resolvedDir + "/orc-" + t.Id
 					}
 				}
 			}
@@ -312,14 +311,23 @@ func showStatus(cmd *cobra.Command, showAll bool) error {
 			_, _ = fmt.Fprintln(out, "\u23f3 RUNNING")
 		}
 		_, _ = fmt.Fprintln(out)
+		cfg, _ := config.Load()
 		for _, t := range running {
 			phase := task.GetCurrentPhaseProto(t)
 			if phase == "" {
 				phase = "starting"
 			}
 			_, _ = fmt.Fprintf(w, "  %s\t%s\t[%s]\n", t.Id, truncate(t.Title, 40), phase)
+			_ = w.Flush()
+			if cfg != nil && cfg.Worktree.Enabled {
+				cwd, _ := os.Getwd()
+				resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd)
+				worktreePath := resolvedDir + "/orc-" + t.Id
+				if _, statErr := os.Stat(worktreePath); statErr == nil {
+					_, _ = fmt.Fprintf(out, "      Worktree: %s\n", worktreePath)
+				}
+			}
 		}
-		_ = w.Flush()
 		_, _ = fmt.Fprintln(out)
 	}
 

@@ -9,15 +9,10 @@ import (
 )
 
 // orcGitignoreEntries are the entries orc adds to .gitignore.
-// Task runtime state should not be in git - use export/import for sharing.
+// Runtime state (DB, worktrees, exports) lives in ~/.orc/ now.
+// Only .mcp.json needs ignoring in the project directory.
 var orcGitignoreEntries = []string{
 	"# orc - Claude Code Task Orchestrator",
-	".orc/tasks/",
-	".orc/worktrees/",
-	".orc/orc.db",
-	".orc/orc.db-journal",
-	".orc/orc.db-wal",
-	".orc/orc.db-shm",
 	".mcp.json",
 }
 

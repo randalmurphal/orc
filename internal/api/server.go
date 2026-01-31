@@ -973,7 +973,7 @@ func (s *Server) pruneStaleWorktrees() {
 	gitCfg := git.Config{
 		BranchPrefix:   s.orcConfig.BranchPrefix,
 		CommitPrefix:   s.orcConfig.CommitPrefix,
-		WorktreeDir:    s.orcConfig.Worktree.Dir,
+		WorktreeDir:    config.ResolveWorktreeDir(s.orcConfig.Worktree.Dir, s.workDir),
 		ExecutorPrefix: s.orcConfig.ExecutorPrefix(),
 	}
 	gitOps, err := git.New(s.workDir, gitCfg)

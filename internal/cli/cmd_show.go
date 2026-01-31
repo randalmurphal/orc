@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -166,6 +167,21 @@ Examples:
 			}
 			if t.CompletedAt != nil {
 				fmt.Printf("Completed: %s\n", t.CompletedAt.AsTime().Format(time.RFC3339))
+			}
+
+			// Show worktree path for running tasks
+			if t.Status == orcv1.TaskStatus_TASK_STATUS_RUNNING || t.Status == orcv1.TaskStatus_TASK_STATUS_FINALIZING {
+				cfg, _ := config.Load()
+				if cfg != nil && cfg.Worktree.Enabled {
+					projectRoot, _ := config.FindProjectRoot()
+					if projectRoot != "" {
+						resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot)
+						worktreePath := filepath.Join(resolvedDir, "orc-"+t.Id)
+						if _, statErr := os.Stat(worktreePath); statErr == nil {
+							fmt.Printf("Worktree:  %s\n", worktreePath)
+						}
+					}
+				}
 			}
 
 			if t.Description != nil && *t.Description != "" {

@@ -64,53 +64,10 @@ func TestPromptResolutionProjectOverride(t *testing.T) {
 	}
 }
 
-// TestPromptResolutionSharedOverride verifies that shared prompts
-// override embedded but are overridden by project prompts.
-func TestPromptResolutionSharedOverride(t *testing.T) {
+// TestPromptResolutionLocalOverridesAll verifies that project-local prompts
+// have higher priority than project prompts.
+func TestPromptResolutionLocalOverridesAll(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
-
-	// Create shared prompt
-	sharedPromptDir := filepath.Join(repo.OrcDir, "shared", "prompts")
-	if err := os.MkdirAll(sharedPromptDir, 0755); err != nil {
-		t.Fatalf("create shared prompt dir: %v", err)
-	}
-
-	sharedContent := "# Shared Implement Prompt\nThis is the team's standard prompt."
-	if err := os.WriteFile(filepath.Join(sharedPromptDir, "implement.md"), []byte(sharedContent), 0644); err != nil {
-		t.Fatalf("write shared prompt: %v", err)
-	}
-
-	svc := prompt.NewService(repo.OrcDir)
-
-	content, source, err := svc.Resolve("implement")
-	if err != nil {
-		t.Fatalf("resolve implement prompt: %v", err)
-	}
-
-	if source != prompt.SourceProjectShared {
-		t.Errorf("source = %v, want %v", source, prompt.SourceProjectShared)
-	}
-
-	if content != sharedContent {
-		t.Errorf("content = %q, want %q", content, sharedContent)
-	}
-}
-
-// TestPromptResolutionPersonalOverridesAll verifies that personal prompts
-// have highest priority.
-func TestPromptResolutionPersonalOverridesAll(t *testing.T) {
-	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
-
-	// Create shared prompt
-	sharedPromptDir := filepath.Join(repo.OrcDir, "shared", "prompts")
-	if err := os.MkdirAll(sharedPromptDir, 0755); err != nil {
-		t.Fatalf("create shared prompt dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(sharedPromptDir, "implement.md"), []byte("shared"), 0644); err != nil {
-		t.Fatalf("write shared prompt: %v", err)
-	}
 
 	// Create project prompt
 	promptDir := filepath.Join(repo.OrcDir, "prompts")
@@ -121,7 +78,7 @@ func TestPromptResolutionPersonalOverridesAll(t *testing.T) {
 		t.Fatalf("write project prompt: %v", err)
 	}
 
-	// Create local prompt (personal level)
+	// Create local prompt (simulating ~/.orc/projects/<id>/prompts/)
 	localPromptDir := filepath.Join(repo.OrcDir, "local", "prompts")
 	if err := os.MkdirAll(localPromptDir, 0755); err != nil {
 		t.Fatalf("create local prompt dir: %v", err)
@@ -131,65 +88,50 @@ func TestPromptResolutionPersonalOverridesAll(t *testing.T) {
 		t.Fatalf("write local prompt: %v", err)
 	}
 
-	svc := prompt.NewService(repo.OrcDir)
+	// Use a custom resolver with explicit localDir since tests can't resolve project IDs
+	resolver := prompt.NewResolver(
+		prompt.WithLocalDir(localPromptDir),
+		prompt.WithProjectDir(promptDir),
+		prompt.WithEmbedded(true),
+	)
 
-	content, source, err := svc.Resolve("implement")
+	resolved, err := resolver.Resolve("implement")
 	if err != nil {
 		t.Fatalf("resolve implement prompt: %v", err)
 	}
 
-	// Local (personal) should win
-	if source != prompt.SourceProjectLocal {
-		t.Errorf("source = %v, want %v", source, prompt.SourceProjectLocal)
+	// Local should win over project
+	if resolved.Source != prompt.SourceProjectLocal {
+		t.Errorf("source = %v, want %v", resolved.Source, prompt.SourceProjectLocal)
 	}
 
-	if content != localContent {
-		t.Errorf("content = %q, want %q", content, localContent)
+	if resolved.Content != localContent {
+		t.Errorf("content = %q, want %q", resolved.Content, localContent)
 	}
 }
 
 // TestPromptResolutionHierarchy verifies the full resolution hierarchy.
 func TestPromptResolutionHierarchy(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
 
-	svc := prompt.NewService(repo.OrcDir)
+	promptDir := filepath.Join(repo.OrcDir, "prompts")
+	localPromptDir := filepath.Join(repo.OrcDir, "local", "prompts")
 
 	// Phase 1: Only embedded exists
-	_, source, err := svc.Resolve("implement")
+	resolver := prompt.NewResolver(
+		prompt.WithProjectDir(promptDir),
+		prompt.WithEmbedded(true),
+	)
+
+	resolved, err := resolver.Resolve("implement")
 	if err != nil {
 		t.Fatalf("resolve embedded: %v", err)
 	}
-	if source != prompt.SourceEmbedded {
-		t.Errorf("phase 1: source = %v, want embedded", source)
+	if resolved.Source != prompt.SourceEmbedded {
+		t.Errorf("phase 1: source = %v, want embedded", resolved.Source)
 	}
 
-	// Phase 2: Add shared prompt
-	sharedPromptDir := filepath.Join(repo.OrcDir, "shared", "prompts")
-	if err := os.MkdirAll(sharedPromptDir, 0755); err != nil {
-		t.Fatalf("create shared prompt dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(sharedPromptDir, "implement.md"), []byte("shared"), 0644); err != nil {
-		t.Fatalf("write shared prompt: %v", err)
-	}
-
-	// Recreate service to pick up new files
-	svc = prompt.NewService(repo.OrcDir)
-
-	_, source, err = svc.Resolve("implement")
-	if err != nil {
-		t.Fatalf("resolve after shared: %v", err)
-	}
-	if source != prompt.SourceProjectShared {
-		t.Errorf("phase 2: source = %v, want shared", source)
-	}
-
-	// Phase 3: Add project prompt
-	// NOTE: In the prompt resolution hierarchy, shared (priority 3) has
-	// HIGHER priority than project (priority 4). So adding a project
-	// prompt does NOT override the shared prompt. This is by design -
-	// team standards (shared) take precedence over project defaults.
-	promptDir := filepath.Join(repo.OrcDir, "prompts")
+	// Phase 2: Add project prompt
 	if err := os.MkdirAll(promptDir, 0755); err != nil {
 		t.Fatalf("create prompt dir: %v", err)
 	}
@@ -197,19 +139,21 @@ func TestPromptResolutionHierarchy(t *testing.T) {
 		t.Fatalf("write project prompt: %v", err)
 	}
 
-	svc = prompt.NewService(repo.OrcDir)
+	// Recreate resolver to pick up new files
+	resolver = prompt.NewResolver(
+		prompt.WithProjectDir(promptDir),
+		prompt.WithEmbedded(true),
+	)
 
-	_, source, err = svc.Resolve("implement")
+	resolved, err = resolver.Resolve("implement")
 	if err != nil {
 		t.Fatalf("resolve after project: %v", err)
 	}
-	// Shared has higher priority than project, so shared still wins
-	if source != prompt.SourceProjectShared {
-		t.Errorf("phase 3: source = %v, want project_shared (shared has higher priority)", source)
+	if resolved.Source != prompt.SourceProject {
+		t.Errorf("phase 2: source = %v, want project", resolved.Source)
 	}
 
-	// Phase 4: Add local prompt
-	localPromptDir := filepath.Join(repo.OrcDir, "local", "prompts")
+	// Phase 3: Add local prompt (simulating ~/.orc/projects/<id>/prompts/)
 	if err := os.MkdirAll(localPromptDir, 0755); err != nil {
 		t.Fatalf("create local prompt dir: %v", err)
 	}
@@ -217,15 +161,19 @@ func TestPromptResolutionHierarchy(t *testing.T) {
 		t.Fatalf("write local prompt: %v", err)
 	}
 
-	svc = prompt.NewService(repo.OrcDir)
+	resolver = prompt.NewResolver(
+		prompt.WithLocalDir(localPromptDir),
+		prompt.WithProjectDir(promptDir),
+		prompt.WithEmbedded(true),
+	)
 
-	_, source, err = svc.Resolve("implement")
+	resolved, err = resolver.Resolve("implement")
 	if err != nil {
 		t.Fatalf("resolve after local: %v", err)
 	}
 	// Local wins
-	if source != prompt.SourceProjectLocal {
-		t.Errorf("phase 4: source = %v, want local", source)
+	if resolved.Source != prompt.SourceProjectLocal {
+		t.Errorf("phase 3: source = %v, want project_local", resolved.Source)
 	}
 }
 

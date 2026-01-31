@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/randalmurphal/orc/internal/project"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,6 +37,30 @@ func ExpandPath(path string) string {
 		return filepath.Join(home, path[2:])
 	}
 	return path
+}
+
+// ResolveWorktreeDir returns the absolute worktree directory path.
+// If configDir is non-empty, it's treated as a user override (relative to projectDir if not absolute).
+// If empty, resolves to ~/.orc/worktrees/<project-id>/ via the project registry.
+// Falls back to <projectDir>/.orc/worktrees if project is not registered.
+func ResolveWorktreeDir(configDir, projectDir string) string {
+	if configDir != "" {
+		if filepath.IsAbs(configDir) {
+			return configDir
+		}
+		return filepath.Join(projectDir, configDir)
+	}
+	// Resolve from project registry
+	projectID, err := project.ResolveProjectID(projectDir)
+	if err != nil {
+		// Fallback for unregistered projects
+		return filepath.Join(projectDir, ".orc", "worktrees")
+	}
+	wtDir, err := project.ProjectWorktreeDir(projectID)
+	if err != nil {
+		return filepath.Join(projectDir, ".orc", "worktrees")
+	}
+	return wtDir
 }
 
 // Config represents the orc configuration.
@@ -360,13 +385,13 @@ func RequireInitAt(basePath string) error {
 	return nil
 }
 
-// FindProjectRoot finds the main project root directory that contains the .orc/tasks directory.
-// This handles git worktrees where tasks are stored in the main repo, not the worktree.
+// FindProjectRoot finds the main project root directory that contains .orc/config.yaml.
+// This handles git worktrees where config is stored in the main repo, not the worktree.
 //
 // Resolution order:
-// 1. If current directory has .orc/tasks, use current directory
-// 2. If in a git worktree, find the main repo and check for .orc/tasks there
-// 3. Walk up directories looking for .orc/tasks
+// 1. If current directory has .orc/config.yaml, use current directory
+// 2. If in a git worktree, find the main repo and check for .orc/config.yaml there
+// 3. Walk up directories looking for .orc/config.yaml
 // 4. If still not found, return current directory as fallback
 func FindProjectRoot() (string, error) {
 	// Allow override via environment variable (for testing)
@@ -379,23 +404,23 @@ func FindProjectRoot() (string, error) {
 		return "", fmt.Errorf("get working directory: %w", err)
 	}
 
-	// Check if current directory has tasks
-	if hasTasksDir(cwd) {
+	// Check if current directory has config
+	if hasConfigFile(cwd) {
 		return cwd, nil
 	}
 
 	// Check if we're in a git worktree
 	mainRepo, err := findMainGitRepo()
 	if err == nil && mainRepo != "" && mainRepo != cwd {
-		if hasTasksDir(mainRepo) {
+		if hasConfigFile(mainRepo) {
 			return mainRepo, nil
 		}
 	}
 
-	// Walk up directories looking for .orc/tasks
+	// Walk up directories looking for .orc/config.yaml
 	dir := cwd
 	for {
-		if hasTasksDir(dir) {
+		if hasConfigFile(dir) {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
@@ -411,9 +436,9 @@ func FindProjectRoot() (string, error) {
 		return mainRoot, nil
 	}
 
-	// Fallback: return current directory (may have .orc but no tasks yet)
-	// IMPORTANT: Only if this looks like a real orc project, not a worktree with
-	// tracked .orc/ files. Check for database or tasks directory, not just .orc/.
+	// Fallback: return current directory if it looks like a real orc project.
+	// IMPORTANT: Only if this has .orc/config.yaml, not just a worktree with
+	// tracked .orc/ files.
 	if isRealOrcProject(cwd) {
 		return cwd, nil
 	}
@@ -421,58 +446,65 @@ func FindProjectRoot() (string, error) {
 	return "", fmt.Errorf("not in an orc project (no %s directory found)", OrcDir)
 }
 
-// hasTasksDir checks if a directory has .orc/tasks
-func hasTasksDir(dir string) bool {
-	tasksPath := filepath.Join(dir, OrcDir, "tasks")
-	info, err := os.Stat(tasksPath)
-	return err == nil && info.IsDir()
+// hasConfigFile checks if a directory has .orc/config.yaml (the marker for an orc project)
+func hasConfigFile(dir string) bool {
+	cfgPath := filepath.Join(dir, OrcDir, "config.yaml")
+	info, err := os.Stat(cfgPath)
+	return err == nil && !info.IsDir()
 }
 
 // extractMainRepoFromWorktreePath extracts the main project root from a path
-// that is inside an orc worktree directory (e.g., /repo/.orc/worktrees/task-xxx).
+// that is inside an orc worktree directory.
+// Supports both new location (~/.orc/worktrees/<project-id>/orc-TASK-XXX)
+// and legacy location (<project>/.orc/worktrees/orc-TASK-XXX).
 // Returns empty string if the path doesn't look like a worktree path.
 func extractMainRepoFromWorktreePath(path string) string {
-	// Look for ".orc/worktrees/" in the path
+	// Check new location: ~/.orc/worktrees/<project-id>/orc-TASK-XXX
+	homeDir, err := os.UserHomeDir()
+	if err == nil {
+		globalWorktrees := filepath.Join(homeDir, ".orc", "worktrees")
+		if strings.HasPrefix(path, globalWorktrees) {
+			rel, relErr := filepath.Rel(globalWorktrees, path)
+			if relErr == nil {
+				parts := strings.SplitN(rel, string(filepath.Separator), 2)
+				if len(parts) >= 1 {
+					projectID := parts[0]
+					reg, regErr := project.LoadRegistry()
+					if regErr == nil {
+						for _, p := range reg.Projects {
+							if p.ID == projectID && hasConfigFile(p.Path) {
+								return p.Path
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Legacy fallback: look for .orc/worktrees/ in path
 	worktreeMarker := filepath.Join(OrcDir, "worktrees")
 	idx := strings.Index(path, worktreeMarker)
 	if idx == -1 {
 		return ""
 	}
 
-	// Extract the part before ".orc/worktrees/"
-	// e.g., /repo/.orc/worktrees/task-xxx -> /repo
-	mainRoot := path[:idx]
+	mainRoot := strings.TrimSuffix(path[:idx], string(filepath.Separator))
 	if mainRoot == "" {
 		return ""
 	}
 
-	// Remove trailing slash if present
-	mainRoot = strings.TrimSuffix(mainRoot, string(filepath.Separator))
-
-	// Verify this looks like a real project (has database or tasks)
-	if hasTasksDir(mainRoot) || hasDatabase(mainRoot) {
+	if hasConfigFile(mainRoot) {
 		return mainRoot
 	}
 
 	return ""
 }
 
-// hasDatabase checks if a directory has .orc/orc.db
-func hasDatabase(dir string) bool {
-	dbPath := filepath.Join(dir, OrcDir, "orc.db")
-	info, err := os.Stat(dbPath)
-	return err == nil && !info.IsDir()
-}
-
 // isRealOrcProject checks if a directory is a real orc project (not just
-// a worktree with tracked .orc/ files). A real project has either a database
-// or a tasks directory, not just the .orc/ directory from git checkout.
+// a worktree with tracked .orc/ files). A real project has .orc/config.yaml.
 func isRealOrcProject(dir string) bool {
-	if !IsInitializedAt(dir) {
-		return false
-	}
-	// Must have either database or tasks directory
-	return hasTasksDir(dir) || hasDatabase(dir)
+	return hasConfigFile(dir)
 }
 
 // findMainGitRepo uses git to find the main repository when in a worktree.

@@ -101,6 +101,9 @@ func withInitiativePlanTestDir(t *testing.T) string {
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
+	}
 
 	gitDir := filepath.Join(tmpDir, ".git")
 	if err := os.MkdirAll(gitDir, 0755); err != nil {

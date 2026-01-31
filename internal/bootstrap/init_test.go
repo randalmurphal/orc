@@ -10,11 +10,16 @@ import (
 
 func TestRun_CreatesStructure(t *testing.T) {
 	tmpDir := t.TempDir()
+	homeDir := filepath.Join(tmpDir, "home")
+	projectDir := filepath.Join(tmpDir, "project")
+	os.MkdirAll(homeDir, 0755)
+	os.MkdirAll(projectDir, 0755)
+	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	// Create a fake go.mod so detection works
-	_ = os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test"), 0644)
+	_ = os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test"), 0644)
 
-	result, err := Run(Options{WorkDir: tmpDir})
+	result, err := Run(Options{WorkDir: projectDir})
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -22,11 +27,10 @@ func TestRun_CreatesStructure(t *testing.T) {
 	// Check directories created
 	dirs := []string{
 		".orc",
-		".orc/tasks",
 		".orc/prompts",
 	}
 	for _, dir := range dirs {
-		path := filepath.Join(tmpDir, dir)
+		path := filepath.Join(projectDir, dir)
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("directory %s not created", dir)
 		}
@@ -62,9 +66,14 @@ func TestRun_Performance(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	homeDir := filepath.Join(tmpDir, "home")
+	projectDir := filepath.Join(tmpDir, "project")
+	os.MkdirAll(homeDir, 0755)
+	os.MkdirAll(projectDir, 0755)
+	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	start := time.Now()
-	_, err := Run(Options{WorkDir: tmpDir})
+	_, err := Run(Options{WorkDir: projectDir})
 	duration := time.Since(start)
 
 	if err != nil {
@@ -79,15 +88,20 @@ func TestRun_Performance(t *testing.T) {
 
 func TestRun_AlreadyInitialized(t *testing.T) {
 	tmpDir := t.TempDir()
+	homeDir := filepath.Join(tmpDir, "home")
+	projectDir := filepath.Join(tmpDir, "project")
+	os.MkdirAll(homeDir, 0755)
+	os.MkdirAll(projectDir, 0755)
+	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
 	// First init
-	_, err := Run(Options{WorkDir: tmpDir})
+	_, err := Run(Options{WorkDir: projectDir})
 	if err != nil {
 		t.Fatalf("first Run failed: %v", err)
 	}
 
 	// Second init without force should fail
-	_, err = Run(Options{WorkDir: tmpDir})
+	_, err = Run(Options{WorkDir: projectDir})
 	if err == nil {
 		t.Error("expected error for already initialized")
 	}
@@ -96,7 +110,7 @@ func TestRun_AlreadyInitialized(t *testing.T) {
 	}
 
 	// With force should succeed
-	_, err = Run(Options{WorkDir: tmpDir, Force: true})
+	_, err = Run(Options{WorkDir: projectDir, Force: true})
 	if err != nil {
 		t.Fatalf("Run with Force failed: %v", err)
 	}
@@ -104,8 +118,13 @@ func TestRun_AlreadyInitialized(t *testing.T) {
 
 func TestRun_WithProfile(t *testing.T) {
 	tmpDir := t.TempDir()
+	homeDir := filepath.Join(tmpDir, "home")
+	projectDir := filepath.Join(tmpDir, "project")
+	os.MkdirAll(homeDir, 0755)
+	os.MkdirAll(projectDir, 0755)
+	t.Setenv("HOME", homeDir) // Isolate from real ~/.orc registry
 
-	result, err := Run(Options{WorkDir: tmpDir, Profile: "strict"})
+	result, err := Run(Options{WorkDir: projectDir, Profile: "strict"})
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -169,8 +188,8 @@ func TestUpdateGitignore_Existing(t *testing.T) {
 	}
 
 	// Check new entries added
-	if !strings.Contains(string(content), ".orc/worktrees/") {
-		t.Error(".orc/worktrees/ not added")
+	if !strings.Contains(string(content), ".mcp.json") {
+		t.Error(".mcp.json not added")
 	}
 }
 

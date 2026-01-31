@@ -147,7 +147,6 @@ Example:
 				executor.WithFinalizeConfig(execCfg),
 				executor.WithFinalizeOrcConfig(cfg),
 				executor.WithFinalizeWorkingDir(projectRoot),
-				executor.WithFinalizeTaskDir(task.TaskDirIn(projectRoot, id)),
 				executor.WithFinalizeBackend(backend),
 				executor.WithFinalizeClaudePath(executor.ResolveClaudePath("claude")),
 				executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {

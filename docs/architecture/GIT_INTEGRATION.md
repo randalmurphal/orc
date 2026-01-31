@@ -63,12 +63,9 @@ Files changed:
 Parallel task execution via git worktrees:
 
 ```
-project/                      # Main working directory
-├── .orc/
-│   └── worktrees/
-│       ├── TASK-001/        # Worktree for task 1
-│       └── TASK-002/        # Worktree for task 2
-└── ...
+~/.orc/worktrees/<project-id>/    # Worktrees (outside project dir)
+├── orc-TASK-001/                 # Worktree for task 1
+└── orc-TASK-002/                 # Worktree for task 2
 ```
 
 ### Creating Worktrees
@@ -76,9 +73,9 @@ project/                      # Main working directory
 ```go
 func CreateWorktree(taskID string) (string, error) {
     branch := fmt.Sprintf("orc/%s", taskID)
-    path := fmt.Sprintf(".orc/worktrees/%s", taskID)
-    
-    // Create worktree
+    path := filepath.Join(worktreeDir, fmt.Sprintf("orc-%s", taskID))
+
+    // Create worktree (worktreeDir resolved from ~/.orc/worktrees/<project-id>/)
     cmd := exec.Command("git", "worktree", "add", path, branch)
     return path, cmd.Run()
 }
@@ -196,7 +193,7 @@ When using `InWorktree()`, the returned instance gets a new (unlocked) mutex:
 mainGit := git.New(...)
 
 // Worktree instance - independent mutex
-worktreeGit := mainGit.InWorktree(".orc/worktrees/TASK-001")
+worktreeGit := mainGit.InWorktree("~/.orc/worktrees/<project-id>/orc-TASK-001")
 
 // These don't contend - different directories, different mutexes
 go mainGit.CreateCheckpoint(...)     // Uses mainGit.mu
@@ -649,8 +646,8 @@ When enabled, `safe` and `strict` profiles still require human approval before t
 After task completion:
 
 ```bash
-# Remove worktree
-git worktree remove .orc/worktrees/TASK-001
+# Remove worktree (path is under ~/.orc/worktrees/<project-id>/)
+git worktree remove ~/.orc/worktrees/<project-id>/orc-TASK-001
 
 # Delete branch
 git branch -d orc/TASK-001
@@ -672,14 +669,13 @@ orc cleanup --older-than 7d    # Remove branches older than 7 days
 ## .gitignore
 
 ```gitignore
-# Orc worktrees (ephemeral)
-.orc/worktrees/
-
-# Orc cache (regenerable)
-.orc/cache/
+# orc - Claude Code Task Orchestrator
+.mcp.json
 ```
 
-**Tracked**: `.orc/tasks/`, `.orc/config.yaml`, `.orc/prompts/`
+All runtime state (databases, worktrees, exports) lives in `~/.orc/`, outside the project directory.
+
+**Tracked in `.orc/`**: `config.yaml`, `CONSTITUTION.md`, `prompts/`, `system_prompts/`
 
 ---
 

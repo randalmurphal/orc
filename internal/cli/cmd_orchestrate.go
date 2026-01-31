@@ -81,8 +81,12 @@ func runOrchestrate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create git operations
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
 	gitCfg := git.Config{
-		WorktreeDir: cfg.Worktree.Dir,
+		WorktreeDir: config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd),
 	}
 	gitOps, err := git.New(".", gitCfg)
 	if err != nil {

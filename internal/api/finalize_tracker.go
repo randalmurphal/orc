@@ -7,6 +7,7 @@ import (
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
 	"github.com/randalmurphal/orc/internal/git"
@@ -297,7 +298,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	gitCfg := git.Config{
 		BranchPrefix: s.orcConfig.BranchPrefix,
 		CommitPrefix: s.orcConfig.CommitPrefix,
-		WorktreeDir:  s.orcConfig.Worktree.Dir,
+		WorktreeDir:  config.ResolveWorktreeDir(s.orcConfig.Worktree.Dir, workDir),
 	}
 	gitSvc, err := git.New(workDir, gitCfg)
 	if err != nil {
@@ -325,7 +326,6 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 		executor.WithFinalizeConfig(execCfg),
 		executor.WithFinalizeOrcConfig(s.orcConfig),
 		executor.WithFinalizeWorkingDir(workDir),
-		executor.WithFinalizeTaskDir(task.TaskDirIn(workDir, taskID)),
 		executor.WithFinalizeBackend(backend),
 		executor.WithFinalizeClaudePath(claudePath),
 		executor.WithFinalizeExecutionUpdater(func(exec *orcv1.ExecutionState) {

@@ -31,15 +31,17 @@ func TestModeDetectionSolo(t *testing.T) {
 	}
 }
 
-// TestModeDetectionP2P verifies P2P mode detection when .orc/shared/ exists.
+// TestModeDetectionP2P verifies P2P mode detection when configured in project config.
 func TestModeDetectionP2P(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
+
+	// Set P2P mode in project config
+	repo.SetConfig("task_id.mode", "p2p")
+	repo.SetConfig("task_id.prefix_source", "initials")
 
 	// Create empty user dir to isolate from real ~/.orc/config.yaml
 	emptyUserDir := t.TempDir()
 
-	// Shared config should have set P2P mode
 	loader := config.NewLoader(repo.RootDir)
 	loader.SetUserDir(emptyUserDir)
 	tc, err := loader.Load()
@@ -109,7 +111,10 @@ func TestModeDetectionSharedDirectoryCheck(t *testing.T) {
 // TestModeDetectionPrefixSourceInitials verifies initials prefix source.
 func TestModeDetectionPrefixSourceInitials(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
-	repo.InitSharedDir()
+
+	// Set P2P mode in project config
+	repo.SetConfig("task_id.mode", "p2p")
+	repo.SetConfig("task_id.prefix_source", "initials")
 
 	// Set identity
 	userHome := testutil.MockUserConfig(t, "AM")
@@ -127,7 +132,7 @@ func TestModeDetectionPrefixSourceInitials(t *testing.T) {
 		t.Errorf("TaskID.Mode = %q, want p2p", tc.Config.TaskID.Mode)
 	}
 
-	// Prefix source should be initials (set by InitSharedDir)
+	// Prefix source should be initials (set in project config)
 	if tc.Config.TaskID.PrefixSource != "initials" {
 		t.Errorf("TaskID.PrefixSource = %q, want initials", tc.Config.TaskID.PrefixSource)
 	}

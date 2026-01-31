@@ -35,8 +35,14 @@ type ConstitutionCheck struct {
 var ErrNoConstitution = errors.New("no constitution configured for this project")
 
 // constitutionPath returns the path to the constitution file.
+// The constitution lives at <project>/.orc/CONSTITUTION.md (git-tracked),
+// NOT in the database directory (~/.orc/projects/<id>/).
 func (p *ProjectDB) constitutionPath() string {
-	// DB path is .orc/orc.db, so dir is .orc
+	if p.projectDir != "" {
+		return filepath.Join(p.projectDir, ".orc", ConstitutionFileName)
+	}
+	// Fallback for tests / in-memory DBs: derive from DB path.
+	// This works when DB is at <project>/.orc/orc.db (legacy layout).
 	orcDir := filepath.Dir(p.Path())
 	return filepath.Join(orcDir, ConstitutionFileName)
 }

@@ -19,10 +19,12 @@ This package handles the `orc init` command - creating the `.orc/` directory str
 
 ## Initialization Steps
 
-1. Create `.orc/` directory structure
+1. Create `.orc/` directory structure (config-only)
 2. Write minimal `config.yaml` (profile: auto, version: 1)
-3. Create and migrate SQLite database (`.orc/orc.db`)
-4. Run project detection, store in SQLite
+3. Register project in global registry (`~/.orc/projects.yaml`)
+4. Create `~/.orc/projects/<id>/` runtime directories
+5. Create and migrate SQLite database (`~/.orc/projects/<id>/orc.db`)
+6. Run project detection, store in SQLite
 4b. Seed project commands (tests, lint, build, typecheck) based on detection
 5. Register project in global registry (`~/.orc/projects.yaml`)
 6. Update `.gitignore` with orc patterns
@@ -67,16 +69,10 @@ fmt.Printf("Initialized in %v\n", result.Duration)
 Added automatically:
 ```
 # orc - Claude Code Task Orchestrator
-.orc/tasks/
-.orc/worktrees/
-.orc/orc.db
-.orc/orc.db-journal
-.orc/orc.db-wal
-.orc/orc.db-shm
 .mcp.json
 ```
 
-**Why .orc/tasks/ is ignored:** Task runtime state should not be in git (same pattern as Terraform state files). Use `orc export/import` for sharing tasks between machines or team members.
+All runtime state (databases, worktrees, exports, sequences) lives in `~/.orc/`, outside the project directory. The project `.orc/` directory contains only git-tracked config files.
 
 ## TDD Enforcement Hook
 

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -52,12 +53,9 @@ func buildBlockedContextProto(t *orcv1.Task, cfg *config.Config) *progress.Block
 
 	// Get worktree path from task ID and config
 	if cfg != nil && cfg.Worktree.Enabled {
-		// Construct worktree path using config's worktree directory
-		worktreeDir := cfg.Worktree.Dir
-		if worktreeDir == "" {
-			worktreeDir = ".orc/worktrees"
-		}
-		ctx.WorktreePath = worktreeDir + "/orc-" + t.Id
+		cwd, _ := os.Getwd()
+		resolvedDir := config.ResolveWorktreeDir(cfg.Worktree.Dir, cwd)
+		ctx.WorktreePath = resolvedDir + "/orc-" + t.Id
 	}
 
 	// Extract conflict files from task metadata if available

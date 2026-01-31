@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -277,59 +276,33 @@ func TestTaskIDResolvePrefix(t *testing.T) {
 	}
 }
 
-// TestTaskIDDirectoryScan verifies fallback to directory scanning.
-func TestTaskIDDirectoryScan(t *testing.T) {
-	repo := testutil.SetupTestRepo(t)
+// TestTaskIDRequiresStore verifies that a sequence store is required.
+func TestTaskIDRequiresStore(t *testing.T) {
+	// Generator without sequence store should error
+	gen := task.NewTaskIDGenerator(task.ModeSolo, "")
 
-	// Create some existing tasks (simulating manual creation)
-	tasksDir := filepath.Join(repo.OrcDir, "tasks")
-	for _, taskID := range []string{"TASK-001", "TASK-002", "TASK-003"} {
-		taskDir := filepath.Join(tasksDir, taskID)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
-	}
-
-	// Generator without sequence store (will scan directory)
-	gen := task.NewTaskIDGenerator(task.ModeSolo, "",
-		task.WithTasksDir(tasksDir),
-		task.WithScanExisting(true),
-	)
-
-	// Next ID should be TASK-004
-	id, err := gen.Next()
-	if err != nil {
-		t.Fatalf("generate next ID: %v", err)
-	}
-	if id != "TASK-004" {
-		t.Errorf("next ID = %q, want TASK-004 (after existing 001-003)", id)
+	_, err := gen.Next()
+	if err == nil {
+		t.Error("expected error when no sequence store is configured")
 	}
 }
 
-// TestTaskIDSequenceStoreWithCatchup verifies catch-up when existing tasks
-// are ahead of stored sequence.
+// TestTaskIDSequenceStoreWithCatchup verifies catch-up when sequence
+// is set ahead (e.g., from external sync).
 func TestTaskIDSequenceStoreWithCatchup(t *testing.T) {
 	repo := testutil.SetupTestRepo(t)
 
 	seqPath := filepath.Join(repo.OrcDir, "local", "sequences.yaml")
-	tasksDir := filepath.Join(repo.OrcDir, "tasks")
 
-	// Create store with initial sequence
+	// Create store and set sequence to simulate existing tasks up to 5
 	store := task.NewSequenceStore(seqPath)
-
-	// Manually create tasks up to TASK-005
-	for _, num := range []string{"001", "002", "003", "004", "005"} {
-		taskDir := filepath.Join(tasksDir, "TASK-"+num)
-		if err := os.MkdirAll(taskDir, 0755); err != nil {
-			t.Fatalf("create task dir: %v", err)
-		}
+	if err := store.SetSequence("", 5); err != nil {
+		t.Fatalf("set sequence: %v", err)
 	}
 
-	// Generator with scan enabled should catch up
+	// Generator should continue from stored sequence
 	gen := task.NewTaskIDGenerator(task.ModeSolo, "",
 		task.WithSequenceStore(store),
-		task.WithTasksDir(tasksDir),
-		task.WithScanExisting(true),
 	)
 
 	// Next ID should be TASK-006
@@ -338,7 +311,7 @@ func TestTaskIDSequenceStoreWithCatchup(t *testing.T) {
 		t.Fatalf("generate next ID: %v", err)
 	}
 	if id != "TASK-006" {
-		t.Errorf("next ID = %q, want TASK-006 (catch-up from existing)", id)
+		t.Errorf("next ID = %q, want TASK-006 (catch-up from stored sequence)", id)
 	}
 }
 

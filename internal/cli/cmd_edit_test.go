@@ -335,10 +335,13 @@ func hasSubstring(s, substr string) bool {
 // setupTestWorkDir changes to the given directory and returns the original directory.
 func setupTestWorkDir(t *testing.T, dir string) string {
 	t.Helper()
-	// Create .orc directory to satisfy project root detection
+	// Create .orc directory with config.yaml to satisfy project root detection
 	orcDir := filepath.Join(dir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	origDir, err := os.Getwd()

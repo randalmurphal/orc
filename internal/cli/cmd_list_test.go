@@ -24,10 +24,13 @@ func withListTestDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 
-	// Create .orc directory for project detection
+	// Create .orc directory with config.yaml for project detection
 	orcDir := filepath.Join(tmpDir, ".orc")
 	if err := os.MkdirAll(orcDir, 0755); err != nil {
 		t.Fatalf("create .orc directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(orcDir, "config.yaml"), []byte("version: 1\n"), 0644); err != nil {
+		t.Fatalf("create config.yaml: %v", err)
 	}
 
 	// Set ORC_PROJECT_ROOT instead of using os.Chdir()

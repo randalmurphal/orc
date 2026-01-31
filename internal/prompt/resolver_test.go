@@ -11,7 +11,6 @@ func TestNewResolver(t *testing.T) {
 	r := NewResolver(
 		WithPersonalDir("/home/test/.orc/prompts"),
 		WithLocalDir("/project/.orc/local/prompts"),
-		WithSharedDir("/project/.orc/shared/prompts"),
 		WithProjectDir("/project/.orc/prompts"),
 	)
 
@@ -20,9 +19,6 @@ func TestNewResolver(t *testing.T) {
 	}
 	if r.localDir != "/project/.orc/local/prompts" {
 		t.Errorf("expected localDir '/project/.orc/local/prompts', got %q", r.localDir)
-	}
-	if r.sharedDir != "/project/.orc/shared/prompts" {
-		t.Errorf("expected sharedDir '/project/.orc/shared/prompts', got %q", r.sharedDir)
 	}
 	if r.projectDir != "/project/.orc/prompts" {
 		t.Errorf("expected projectDir '/project/.orc/prompts', got %q", r.projectDir)
@@ -35,12 +31,6 @@ func TestNewResolver(t *testing.T) {
 func TestResolverFromOrcDir(t *testing.T) {
 	r := NewResolverFromOrcDir("/project/.orc")
 
-	if r.localDir != "/project/.orc/local/prompts" {
-		t.Errorf("expected localDir '/project/.orc/local/prompts', got %q", r.localDir)
-	}
-	if r.sharedDir != "/project/.orc/shared/prompts" {
-		t.Errorf("expected sharedDir '/project/.orc/shared/prompts', got %q", r.sharedDir)
-	}
 	if r.projectDir != "/project/.orc/prompts" {
 		t.Errorf("expected projectDir '/project/.orc/prompts', got %q", r.projectDir)
 	}
@@ -52,10 +42,9 @@ func TestResolve_PersonalOverridesAll(t *testing.T) {
 	// Setup directories
 	personalDir := filepath.Join(tmpDir, "personal", "prompts")
 	localDir := filepath.Join(tmpDir, "project", ".orc", "local", "prompts")
-	sharedDir := filepath.Join(tmpDir, "project", ".orc", "shared", "prompts")
 	projectDir := filepath.Join(tmpDir, "project", ".orc", "prompts")
 
-	for _, dir := range []string{personalDir, localDir, sharedDir, projectDir} {
+	for _, dir := range []string{personalDir, localDir, projectDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -68,9 +57,6 @@ func TestResolve_PersonalOverridesAll(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +64,6 @@ func TestResolve_PersonalOverridesAll(t *testing.T) {
 	r := NewResolver(
 		WithPersonalDir(personalDir),
 		WithLocalDir(localDir),
-		WithSharedDir(sharedDir),
 		WithProjectDir(projectDir),
 		WithEmbedded(true),
 	)
@@ -96,14 +81,14 @@ func TestResolve_PersonalOverridesAll(t *testing.T) {
 	}
 }
 
-func TestResolve_LocalOverridesShared(t *testing.T) {
+func TestResolve_LocalOverridesProject(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Setup only local and shared
+	// Setup only local and project
 	localDir := filepath.Join(tmpDir, "local", "prompts")
-	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
+	projectDir := filepath.Join(tmpDir, "project", "prompts")
 
-	for _, dir := range []string{localDir, sharedDir} {
+	for _, dir := range []string{localDir, projectDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -112,13 +97,13 @@ func TestResolve_LocalOverridesShared(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(localDir, "implement.md"), []byte("local prompt"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	r := NewResolver(
 		WithLocalDir(localDir),
-		WithSharedDir(sharedDir),
+		WithProjectDir(projectDir),
 		WithEmbedded(true),
 	)
 
@@ -132,44 +117,6 @@ func TestResolve_LocalOverridesShared(t *testing.T) {
 	}
 	if resolved.Source != SourceProjectLocal {
 		t.Errorf("expected source project_local, got %q", resolved.Source)
-	}
-}
-
-func TestResolve_SharedOverridesProject(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
-	projectDir := filepath.Join(tmpDir, "project", "prompts")
-
-	for _, dir := range []string{sharedDir, projectDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte("shared prompt"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte("project prompt"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	r := NewResolver(
-		WithSharedDir(sharedDir),
-		WithProjectDir(projectDir),
-		WithEmbedded(true),
-	)
-
-	resolved, err := r.Resolve("implement")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if resolved.Content != "shared prompt" {
-		t.Errorf("expected shared prompt, got %q", resolved.Content)
-	}
-	if resolved.Source != SourceProjectShared {
-		t.Errorf("expected source project_shared, got %q", resolved.Source)
 	}
 }
 
@@ -207,7 +154,6 @@ func TestResolve_FallsBackToEmbedded(t *testing.T) {
 	r := NewResolver(
 		WithPersonalDir(filepath.Join(tmpDir, "personal", "prompts")),
 		WithLocalDir(filepath.Join(tmpDir, "local", "prompts")),
-		WithSharedDir(filepath.Join(tmpDir, "shared", "prompts")),
 		WithProjectDir(filepath.Join(tmpDir, "project", "prompts")),
 		WithEmbedded(true),
 	)
@@ -366,29 +312,29 @@ append: |
 func TestResolve_InheritanceChain(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
+	projectDir := filepath.Join(tmpDir, "project", "prompts")
 	localDir := filepath.Join(tmpDir, "local", "prompts")
-	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(localDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Shared extends embedded
-	sharedContent := `---
+	// Project extends embedded
+	projectContent := `---
 extends: embedded
 prepend: |
-  SHARED PREPEND
+  PROJECT PREPEND
 ---
 `
-	if err := os.WriteFile(filepath.Join(sharedDir, "implement.md"), []byte(sharedContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projectDir, "implement.md"), []byte(projectContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Local extends shared
+	// Local extends project
 	localContent := `---
-extends: shared
+extends: project
 prepend: |
   LOCAL PREPEND
 ---
@@ -399,7 +345,7 @@ prepend: |
 
 	r := NewResolver(
 		WithLocalDir(localDir),
-		WithSharedDir(sharedDir),
+		WithProjectDir(projectDir),
 		WithEmbedded(true),
 	)
 
@@ -414,14 +360,14 @@ prepend: |
 	if len(resolved.InheritedFrom) < 2 {
 		t.Fatalf("expected at least 2 inherited sources, got %d", len(resolved.InheritedFrom))
 	}
-	if resolved.InheritedFrom[0] != SourceProjectShared {
-		t.Errorf("expected first inherited from shared, got %q", resolved.InheritedFrom[0])
+	if resolved.InheritedFrom[0] != SourceProject {
+		t.Errorf("expected first inherited from project, got %q", resolved.InheritedFrom[0])
 	}
 	if resolved.InheritedFrom[1] != SourceEmbedded {
 		t.Errorf("expected second inherited from embedded, got %q", resolved.InheritedFrom[1])
 	}
 
-	// Check order: LOCAL PREPEND then SHARED PREPEND then embedded
+	// Check order: LOCAL PREPEND then PROJECT PREPEND then embedded
 	if resolved.Content[:14] != "LOCAL PREPEND\n" {
 		t.Errorf("expected content to start with LOCAL PREPEND, got %q", resolved.Content[:30])
 	}
@@ -578,8 +524,7 @@ func TestSourcePriority(t *testing.T) {
 	}{
 		{SourcePersonalGlobal, 1},
 		{SourceProjectLocal, 2},
-		{SourceProjectShared, 3},
-		{SourceProject, 4},
+		{SourceProject, 3},
 		{SourceEmbedded, 5},
 		{Source("unknown"), 99},
 	}
@@ -596,11 +541,8 @@ func TestSourcePriority(t *testing.T) {
 	if SourcePriority(SourcePersonalGlobal) >= SourcePriority(SourceProjectLocal) {
 		t.Error("personal should have higher priority than local")
 	}
-	if SourcePriority(SourceProjectLocal) >= SourcePriority(SourceProjectShared) {
-		t.Error("local should have higher priority than shared")
-	}
-	if SourcePriority(SourceProjectShared) >= SourcePriority(SourceProject) {
-		t.Error("shared should have higher priority than project")
+	if SourcePriority(SourceProjectLocal) >= SourcePriority(SourceProject) {
+		t.Error("local should have higher priority than project")
 	}
 	if SourcePriority(SourceProject) >= SourcePriority(SourceEmbedded) {
 		t.Error("project should have higher priority than embedded")
@@ -613,8 +555,7 @@ func TestSourceDisplayName(t *testing.T) {
 		want   string
 	}{
 		{SourcePersonalGlobal, "Personal (~/.orc/prompts/)"},
-		{SourceProjectLocal, "Local (.orc/local/prompts/)"},
-		{SourceProjectShared, "Shared (.orc/shared/prompts/)"},
+		{SourceProjectLocal, "Local (~/.orc/projects/<id>/prompts/)"},
 		{SourceProject, "Project (.orc/prompts/)"},
 		{SourceEmbedded, "Embedded (built-in)"},
 		{Source("custom"), "custom"},
@@ -695,38 +636,38 @@ Body`
 func TestResolve_InheritanceCycleDetection(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	sharedDir := filepath.Join(tmpDir, "shared", "prompts")
+	projectDir := filepath.Join(tmpDir, "project", "prompts")
 	localDir := filepath.Join(tmpDir, "local", "prompts")
-	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(localDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Create a cycle: local extends shared, shared extends local
+	// Create a cycle: local extends project, project extends local
 	localContent := `---
-extends: shared
+extends: project
 prepend: |
   LOCAL
 ---
 `
-	sharedContent := `---
+	projectContent := `---
 extends: local
 prepend: |
-  SHARED
+  PROJECT
 ---
 `
 	if err := os.WriteFile(filepath.Join(localDir, "cycle.md"), []byte(localContent), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(sharedDir, "cycle.md"), []byte(sharedContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(projectDir, "cycle.md"), []byte(projectContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	r := NewResolver(
 		WithLocalDir(localDir),
-		WithSharedDir(sharedDir),
+		WithProjectDir(projectDir),
 		WithEmbedded(false),
 	)
 

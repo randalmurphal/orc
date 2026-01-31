@@ -52,7 +52,7 @@
 
 ```
 1. USER CREATES TASK
-   └─► Task stored in SQLite (.orc/orc.db)
+   └─► Task stored in SQLite (~/.orc/projects/<id>/orc.db)
        └─► Git branch created: orc/TASK-ID
 
 2. WEIGHT CLASSIFICATION (AI)

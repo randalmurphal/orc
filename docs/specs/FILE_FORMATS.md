@@ -2,13 +2,13 @@
 
 **Purpose**: Define data structures and file formats used by orc.
 
-> **Note**: Task data (tasks, plans, states, specs, initiatives) is stored in **SQLite** (`.orc/orc.db`), not YAML files. This document describes the data schemas for reference. Configuration files (`config.yaml`, `prompts/`) remain as files. Use `orc export --all-tasks --all` for full portable backup.
+> **Note**: Task data (tasks, plans, states, specs, initiatives) is stored in **SQLite** (`~/.orc/projects/<id>/orc.db`), not YAML files. This document describes the data schemas for reference. Configuration files (`config.yaml`, `prompts/`) remain as files in the project `.orc/` directory. Use `orc export --all-tasks --all` for full portable backup.
 
 ---
 
 ## Export Format (Cross-Machine Portability)
 
-Export files are YAML with versioning for compatibility. Default location: `.orc/exports/`
+Export files are YAML with versioning for compatibility. Default location: `~/.orc/projects/<id>/exports/`
 
 ### Task Export
 

@@ -44,7 +44,6 @@ type FinalizeExecutor struct {
 	config           ExecutorConfig
 	orcConfig        *config.Config
 	workingDir       string
-	taskDir          string
 	executionUpdater func(*orcv1.ExecutionState)
 	backend          storage.Backend
 
@@ -87,11 +86,6 @@ func WithFinalizeOrcConfig(cfg *config.Config) FinalizeExecutorOption {
 // WithFinalizeWorkingDir sets the working directory.
 func WithFinalizeWorkingDir(dir string) FinalizeExecutorOption {
 	return func(e *FinalizeExecutor) { e.workingDir = dir }
-}
-
-// WithFinalizeTaskDir sets the task directory.
-func WithFinalizeTaskDir(dir string) FinalizeExecutorOption {
-	return func(e *FinalizeExecutor) { e.taskDir = dir }
 }
 
 // WithFinalizeExecutionUpdater sets the execution state updater callback.

@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/randalmurphal/orc/internal/db/driver"
+	"github.com/randalmurphal/orc/internal/project"
 )
 
 // TxRunner provides a transactional execution interface.
@@ -60,15 +63,97 @@ func (t *TxOps) Dialect() driver.Dialect {
 	return t.dialect
 }
 
-// ProjectDB provides operations on a project database (.orc/orc.db).
+// ProjectDB provides operations on a project database.
+// The database is stored at ~/.orc/projects/<project-id>/orc.db.
 type ProjectDB struct {
 	*DB
+	// projectDir is the project's working directory (e.g., /home/user/repos/myproject).
+	// Used to locate git-tracked files like CONSTITUTION.md that live in <project>/.orc/.
+	// Empty when opened via OpenProjectAtPath (tests) or OpenInMemory.
+	projectDir string
 }
 
-// OpenProject opens the project database at {projectPath}/.orc/orc.db using SQLite.
+// ProjectDir returns the project's working directory.
+// Returns empty string if unknown (e.g., in-memory or test databases).
+func (p *ProjectDB) ProjectDir() string {
+	return p.projectDir
+}
+
+// OpenProject opens the project database for the project at projectPath.
+// The database is resolved to ~/.orc/projects/<id>/orc.db via the project registry.
+// If the project has an old-layout database at <project>/.orc/orc.db, it is auto-migrated.
+// Falls back to the legacy path if the project is not yet registered (e.g., during first init).
 func OpenProject(projectPath string) (*ProjectDB, error) {
-	path := filepath.Join(projectPath, ".orc", "orc.db")
-	db, err := Open(path)
+	projectID, err := project.ResolveProjectID(projectPath)
+	if err != nil {
+		// Project not registered yet (first init, or test).
+		// Fall back to legacy path for backwards compatibility.
+		legacyPath := filepath.Join(projectPath, ".orc", "orc.db")
+		pdb, legacyErr := OpenProjectAtPath(legacyPath)
+		if legacyErr != nil {
+			return nil, legacyErr
+		}
+		pdb.projectDir = projectPath
+		return pdb, nil
+	}
+
+	// Auto-migrate from old layout if needed
+	if migrated, err := project.MigrateIfNeeded(projectPath, projectID); err != nil {
+		slog.Warn("failed to migrate project data, using new path anyway",
+			"project_id", projectID,
+			"error", err,
+		)
+	} else if migrated {
+		slog.Info("migrated project data to ~/.orc/projects/",
+			"project_id", projectID,
+		)
+	}
+
+	dbPath, err := project.ProjectDBPath(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project db path: %w", err)
+	}
+
+	pdb, err := OpenProjectAtPath(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	pdb.projectDir = projectPath
+	return pdb, nil
+}
+
+// OpenProjectByID opens the project database using only the project ID.
+// The database is at ~/.orc/projects/<id>/orc.db.
+func OpenProjectByID(projectID string) (*ProjectDB, error) {
+	dbPath, err := project.ProjectDBPath(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project db path: %w", err)
+	}
+	pdb, err := OpenProjectAtPath(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	// Look up project path from registry for constitution file access.
+	reg, regErr := project.LoadRegistry()
+	if regErr == nil {
+		for _, p := range reg.Projects {
+			if p.ID == projectID {
+				pdb.projectDir = p.Path
+				break
+			}
+		}
+	}
+	return pdb, nil
+}
+
+// OpenProjectAtPath opens a project database at an explicit file path.
+// Used by tests and when the caller has already resolved the path.
+func OpenProjectAtPath(dbPath string) (*ProjectDB, error) {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		return nil, fmt.Errorf("create db directory %s: %w", filepath.Dir(dbPath), err)
+	}
+
+	db, err := Open(dbPath)
 	if err != nil {
 		return nil, err
 	}

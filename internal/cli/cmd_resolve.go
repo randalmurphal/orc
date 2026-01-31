@@ -247,7 +247,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				gitCfg := git.Config{
 					BranchPrefix:   cfg.BranchPrefix,
 					CommitPrefix:   cfg.CommitPrefix,
-					WorktreeDir:    cfg.Worktree.Dir,
+					WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot),
 					ExecutorPrefix: cfg.ExecutorPrefix(),
 				}
 				gitOps, err = git.New(projectRoot, gitCfg)

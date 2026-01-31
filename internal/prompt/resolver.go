@@ -8,9 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/randalmurphal/orc/internal/project"
 	"github.com/randalmurphal/orc/templates"
 	"gopkg.in/yaml.v3"
 )
+
+// resolveProjectIDForPrompts resolves the project ID from a project directory.
+// Returns empty string on error (non-fatal).
+func resolveProjectIDForPrompts(projectDir string) (string, error) {
+	return project.ResolveProjectID(projectDir)
+}
 
 // ResolvedPrompt contains the resolved prompt content and metadata.
 type ResolvedPrompt struct {
@@ -22,7 +29,7 @@ type ResolvedPrompt struct {
 
 // PromptMeta contains frontmatter metadata for prompt inheritance.
 type PromptMeta struct {
-	Extends string `yaml:"extends"` // Source to inherit from: embedded, shared, project
+	Extends string `yaml:"extends"` // Source to inherit from: embedded, project, local, personal
 	Prepend string `yaml:"prepend"` // Content to prepend to parent
 	Append  string `yaml:"append"`  // Content to append to parent
 }
@@ -30,8 +37,7 @@ type PromptMeta struct {
 // Resolver resolves prompts from multiple sources with inheritance support.
 type Resolver struct {
 	personalDir string // ~/.orc/prompts/
-	localDir    string // .orc/local/prompts/
-	sharedDir   string // .orc/shared/prompts/
+	localDir    string // ~/.orc/projects/<id>/prompts/ (personal project overrides)
 	projectDir  string // .orc/prompts/
 	embedded    bool   // Whether to check embedded templates
 }
@@ -50,13 +56,6 @@ func WithPersonalDir(dir string) ResolverOption {
 func WithLocalDir(dir string) ResolverOption {
 	return func(r *Resolver) {
 		r.localDir = dir
-	}
-}
-
-// WithSharedDir sets the shared prompts directory (.orc/shared/prompts/).
-func WithSharedDir(dir string) ResolverOption {
-	return func(r *Resolver) {
-		r.sharedDir = dir
 	}
 }
 
@@ -86,6 +85,7 @@ func NewResolver(opts ...ResolverOption) *Resolver {
 }
 
 // NewResolverFromOrcDir creates a Resolver configured for a project.
+// The localDir resolves to ~/.orc/projects/<id>/prompts/ if the project is registered.
 func NewResolverFromOrcDir(orcDir string) *Resolver {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -98,10 +98,18 @@ func NewResolverFromOrcDir(orcDir string) *Resolver {
 		personalDir = filepath.Join(homeDir, ".orc", "prompts")
 	}
 
+	// Resolve project-specific personal prompts dir via project registry
+	var localDir string
+	projectDir := filepath.Dir(orcDir) // .orc -> project root
+	if projectID, err := resolveProjectIDForPrompts(projectDir); err == nil && projectID != "" {
+		if homeDir != "" {
+			localDir = filepath.Join(homeDir, ".orc", "projects", projectID, "prompts")
+		}
+	}
+
 	return NewResolver(
 		WithPersonalDir(personalDir),
-		WithLocalDir(filepath.Join(orcDir, "local", "prompts")),
-		WithSharedDir(filepath.Join(orcDir, "shared", "prompts")),
+		WithLocalDir(localDir),
 		WithProjectDir(filepath.Join(orcDir, "prompts")),
 		WithEmbedded(true),
 	)
@@ -109,10 +117,9 @@ func NewResolverFromOrcDir(orcDir string) *Resolver {
 
 // Resolve returns the prompt content for a phase, checking sources in priority order:
 // 1. Personal (~/.orc/prompts/)
-// 2. Local (.orc/local/prompts/)
-// 3. Shared (.orc/shared/prompts/)
-// 4. Project (.orc/prompts/)
-// 5. Embedded (built-in)
+// 2. Local (~/.orc/projects/<id>/prompts/)
+// 3. Project (.orc/prompts/)
+// 4. Embedded (built-in)
 //
 // If the prompt has inheritance frontmatter, it will resolve the parent and combine.
 func (r *Resolver) Resolve(phase string) (*ResolvedPrompt, error) {
@@ -125,7 +132,6 @@ func (r *Resolver) Resolve(phase string) (*ResolvedPrompt, error) {
 	}{
 		{r.personalDir, SourcePersonalGlobal},
 		{r.localDir, SourceProjectLocal},
-		{r.sharedDir, SourceProjectShared},
 		{r.projectDir, SourceProject},
 	}
 
@@ -177,13 +183,6 @@ func (r *Resolver) ResolveFromSource(phase string, source Source) (*ResolvedProm
 		var data []byte
 		data, err = os.ReadFile(filepath.Join(r.localDir, filename))
 		content = string(data)
-	case SourceProjectShared:
-		if r.sharedDir == "" {
-			return nil, fmt.Errorf("shared directory not configured")
-		}
-		var data []byte
-		data, err = os.ReadFile(filepath.Join(r.sharedDir, filename))
-		content = string(data)
 	case SourceProject:
 		if r.projectDir == "" {
 			return nil, fmt.Errorf("project directory not configured")
@@ -226,8 +225,6 @@ func (r *Resolver) resolveWithInheritanceTracked(content string, source Source, 
 	switch meta.Extends {
 	case "embedded":
 		parentSource = SourceEmbedded
-	case "shared":
-		parentSource = SourceProjectShared
 	case "project":
 		parentSource = SourceProject
 	case "local":
@@ -293,12 +290,6 @@ func (r *Resolver) readFromSource(phase string, source Source) (string, error) {
 			return "", fmt.Errorf("local directory not configured")
 		}
 		data, err := os.ReadFile(filepath.Join(r.localDir, filename))
-		return string(data), err
-	case SourceProjectShared:
-		if r.sharedDir == "" {
-			return "", fmt.Errorf("shared directory not configured")
-		}
-		data, err := os.ReadFile(filepath.Join(r.sharedDir, filename))
 		return string(data), err
 	case SourceProject:
 		if r.projectDir == "" {
@@ -386,10 +377,8 @@ func SourcePriority(s Source) int {
 		return 1
 	case SourceProjectLocal:
 		return 2
-	case SourceProjectShared:
-		return 3
 	case SourceProject:
-		return 4
+		return 3
 	case SourceEmbedded:
 		return 5
 	default:
@@ -403,9 +392,7 @@ func SourceDisplayName(s Source) string {
 	case SourcePersonalGlobal:
 		return "Personal (~/.orc/prompts/)"
 	case SourceProjectLocal:
-		return "Local (.orc/local/prompts/)"
-	case SourceProjectShared:
-		return "Shared (.orc/shared/prompts/)"
+		return "Local (~/.orc/projects/<id>/prompts/)"
 	case SourceProject:
 		return "Project (.orc/prompts/)"
 	case SourceEmbedded:
