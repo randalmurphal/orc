@@ -521,6 +521,29 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		we.isResuming = opts.IsResume
 		if we.isResuming {
 			we.logger.Info("detected resume from interrupted state", "task", t.Id)
+
+			// If the previous run had an active retry (e.g., review rejected → retry implement),
+			// reset phases from the retry target through the rejecting phase so they re-execute.
+			// Without this, the resume skip logic sees them as "completed" and skips them.
+			if rc := task.GetRetryContextProto(t.Execution); rc != nil {
+				we.logger.Info("resetting phases for pending retry",
+					"from", rc.ToPhase, "through", rc.FromPhase)
+				inRange := false
+				for _, p := range phases {
+					if p.PhaseTemplateID == rc.ToPhase {
+						inRange = true
+					}
+					if inRange {
+						task.ResetPhaseProto(t.Execution, p.PhaseTemplateID)
+					}
+					if p.PhaseTemplateID == rc.FromPhase {
+						break
+					}
+				}
+				if err := we.backend.SaveTask(t); err != nil {
+					we.logger.Warn("failed to save retry phase reset on resume", "error", err)
+				}
+			}
 		}
 		t.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
 		if err := we.backend.SaveTask(t); err != nil {
@@ -850,6 +873,16 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								tmpl.ID, reason, phaseResult.Content,
 								retryCounts[tmpl.ID], "", gateContext,
 							)
+						}
+
+						// Reset phase completion status for retry phases
+						if we.task != nil {
+							for k := retryIdx; k <= i; k++ {
+								task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
+							}
+							if err := we.backend.SaveTask(we.task); err != nil {
+								we.logger.Warn("failed to save retry phase reset", "error", err)
+							}
 						}
 
 						// Jump back to retry phase
