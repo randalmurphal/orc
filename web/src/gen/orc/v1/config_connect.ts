@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateAgentRequest, CreateAgentResponse, CreateHookRequest, CreateHookResponse, CreateScriptRequest, CreateScriptResponse, CreateSkillRequest, CreateSkillResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteScriptRequest, DeleteScriptResponse, DeleteSkillRequest, DeleteSkillResponse, DiscoverScriptsRequest, DiscoverScriptsResponse, GetAgentRequest, GetAgentResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConfigStatsRequest, GetConfigStatsResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetScriptRequest, GetScriptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, GetToolPermissionsRequest, GetToolPermissionsResponse, ListAgentsRequest, ListAgentsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListScriptsRequest, ListScriptsResponse, ListSkillsRequest, ListSkillsResponse, ListToolsRequest, ListToolsResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateScriptRequest, UpdateScriptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse, UpdateToolPermissionsRequest, UpdateToolPermissionsResponse } from "./config_pb.js";
+import { CreateAgentRequest, CreateAgentResponse, CreateHookRequest, CreateHookResponse, CreateScriptRequest, CreateScriptResponse, CreateSkillRequest, CreateSkillResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteScriptRequest, DeleteScriptResponse, DeleteSkillRequest, DeleteSkillResponse, DiscoverScriptsRequest, DiscoverScriptsResponse, ExportHooksRequest, ExportHooksResponse, ExportSkillsRequest, ExportSkillsResponse, GetAgentRequest, GetAgentResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConfigStatsRequest, GetConfigStatsResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetScriptRequest, GetScriptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, GetToolPermissionsRequest, GetToolPermissionsResponse, ImportHooksRequest, ImportHooksResponse, ImportSkillsRequest, ImportSkillsResponse, ListAgentsRequest, ListAgentsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListScriptsRequest, ListScriptsResponse, ListSkillsRequest, ListSkillsResponse, ListToolsRequest, ListToolsResponse, ScanClaudeDirRequest, ScanClaudeDirResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateScriptRequest, UpdateScriptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse, UpdateToolPermissionsRequest, UpdateToolPermissionsResponse } from "./config_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -417,6 +417,61 @@ export const ConfigService = {
       name: "GetConfigStats",
       I: GetConfigStatsRequest,
       O: GetConfigStatsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Export hooks to .claude/ directory
+     *
+     * @generated from rpc orc.v1.ConfigService.ExportHooks
+     */
+    exportHooks: {
+      name: "ExportHooks",
+      I: ExportHooksRequest,
+      O: ExportHooksResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Import hooks from .claude/ directory
+     *
+     * @generated from rpc orc.v1.ConfigService.ImportHooks
+     */
+    importHooks: {
+      name: "ImportHooks",
+      I: ImportHooksRequest,
+      O: ImportHooksResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Export skills to .claude/ directory
+     *
+     * @generated from rpc orc.v1.ConfigService.ExportSkills
+     */
+    exportSkills: {
+      name: "ExportSkills",
+      I: ExportSkillsRequest,
+      O: ExportSkillsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Import skills from .claude/ directory
+     *
+     * @generated from rpc orc.v1.ConfigService.ImportSkills
+     */
+    importSkills: {
+      name: "ImportSkills",
+      I: ImportSkillsRequest,
+      O: ImportSkillsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Scan .claude/ directory for discoverable hooks and skills
+     *
+     * @generated from rpc orc.v1.ConfigService.ScanClaudeDir
+     */
+    scanClaudeDir: {
+      name: "ScanClaudeDir",
+      I: ScanClaudeDirRequest,
+      O: ScanClaudeDirResponse,
       kind: MethodKind.Unary,
     },
   }

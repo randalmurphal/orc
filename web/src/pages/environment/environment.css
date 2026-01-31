@@ -1380,3 +1380,108 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =============================================================================
+   EXPORT / IMPORT
+   ============================================================================= */
+
+.export-import-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+.export-import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.export-import-panel h4 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.export-import-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.export-dest-selector {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.export-import-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.export-import-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.export-import-item:hover {
+  background: var(--bg-hover);
+}
+
+.export-import-item input[type="checkbox"] {
+  flex-shrink: 0;
+}
+
+.export-import-item-name {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.export-import-item-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.export-import-badge {
+  font-size: var(--text-xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-medium);
+}
+
+.export-import-badge-new {
+  background: var(--green-bg, rgba(34, 197, 94, 0.1));
+  color: var(--green, #22c55e);
+}
+
+.export-import-badge-modified {
+  background: var(--yellow-bg, rgba(234, 179, 8, 0.1));
+  color: var(--yellow, #eab308);
+}
+
+.export-import-preview {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+@media (max-width: 768px) {
+  .export-import-section {
+    grid-template-columns: 1fr;
+  }
+}

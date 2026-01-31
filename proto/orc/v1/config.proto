@@ -425,6 +425,17 @@ service ConfigService {
 
   // Config stats
   rpc GetConfigStats(GetConfigStatsRequest) returns (GetConfigStatsResponse);
+
+  // Export hooks to .claude/ directory
+  rpc ExportHooks(ExportHooksRequest) returns (ExportHooksResponse);
+  // Import hooks from .claude/ directory
+  rpc ImportHooks(ImportHooksRequest) returns (ImportHooksResponse);
+  // Export skills to .claude/ directory
+  rpc ExportSkills(ExportSkillsRequest) returns (ExportSkillsResponse);
+  // Import skills from .claude/ directory
+  rpc ImportSkills(ImportSkillsRequest) returns (ImportSkillsResponse);
+  // Scan .claude/ directory for discoverable hooks and skills
+  rpc ScanClaudeDir(ScanClaudeDirRequest) returns (ScanClaudeDirResponse);
 }
 
 // =============================================================================
@@ -838,4 +849,62 @@ message GetConfigStatsRequest {
 
 message GetConfigStatsResponse {
   ConfigStats stats = 1;
+}
+
+// Export/Import request/response messages
+
+message ExportHooksRequest {
+  string project_id = 1;
+  repeated string hook_ids = 2;       // GlobalDB hook IDs to export
+  SettingsScope destination = 3;       // PROJECT or GLOBAL
+}
+
+message ExportHooksResponse {
+  repeated string written_paths = 1;   // Absolute paths of written files
+}
+
+message ExportSkillsRequest {
+  string project_id = 1;
+  repeated string skill_ids = 2;
+  SettingsScope destination = 3;
+}
+
+message ExportSkillsResponse {
+  repeated string written_paths = 1;
+}
+
+message DiscoveredItem {
+  string name = 1;
+  string content = 2;                  // Full content (hook script body / SKILL.md)
+  string item_type = 3;               // "hook" or "skill"
+  string status = 4;                   // "new" or "modified"
+  string event_type = 5;              // For hooks: inferred from name, empty if unknown
+  map<string, string> supporting_files = 6;  // For skills: filename -> content
+}
+
+message ScanClaudeDirRequest {
+  string project_id = 1;
+  SettingsScope source = 2;           // PROJECT or GLOBAL
+}
+
+message ScanClaudeDirResponse {
+  repeated DiscoveredItem items = 1;
+}
+
+message ImportHooksRequest {
+  string project_id = 1;
+  repeated DiscoveredItem items = 2;
+}
+
+message ImportHooksResponse {
+  repeated Hook imported = 1;
+}
+
+message ImportSkillsRequest {
+  string project_id = 1;
+  repeated DiscoveredItem items = 2;
+}
+
+message ImportSkillsResponse {
+  repeated Skill imported = 1;
 }
