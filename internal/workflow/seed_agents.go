@@ -49,8 +49,10 @@ var builtinAgentFiles = []string{
 	"agents/code-simplifier.md",
 	"agents/comment-analyzer.md",
 	"agents/dependency-validator.md",
+	"agents/over-engineering-detector.md",
 	"agents/pr-test-analyzer.md",
 	"agents/silent-failure-hunter.md",
+	"agents/spec-quality-auditor.md",
 	"agents/type-design-analyzer.md",
 }
 
@@ -64,8 +66,12 @@ var builtinPhaseAgents = []db.PhaseAgent{
 	{PhaseTemplateID: "review", AgentID: "comment-analyzer", Sequence: 0, Role: "documentation", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
 	{PhaseTemplateID: "review", AgentID: "type-design-analyzer", Sequence: 0, Role: "type-design", WeightFilter: []string{"large"}, IsBuiltin: true},
 
-	// Implement phase - code-simplifier runs AFTER main implementation (sequence 1)
+	// Spec phase - quality auditor runs after spec generation (sequence 1)
+	{PhaseTemplateID: "spec", AgentID: "spec-quality-auditor", Sequence: 1, Role: "spec-quality", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
+
+	// Implement phase - code-simplifier and over-engineering-detector run AFTER main implementation (sequence 1)
 	{PhaseTemplateID: "implement", AgentID: "code-simplifier", Sequence: 1, Role: "simplifier", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
+	{PhaseTemplateID: "implement", AgentID: "over-engineering-detector", Sequence: 1, Role: "over-engineering", WeightFilter: []string{"medium", "large"}, IsBuiltin: true},
 
 }
 
@@ -169,8 +175,10 @@ func ListBuiltinAgentIDs() []string {
 		"code-simplifier",
 		"comment-analyzer",
 		"dependency-validator",
+		"over-engineering-detector",
 		"pr-test-analyzer",
 		"silent-failure-hunter",
+		"spec-quality-auditor",
 		"type-design-analyzer",
 	}
 }

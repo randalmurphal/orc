@@ -144,8 +144,8 @@ func TestSeedAgents(t *testing.T) {
 	if agent == nil {
 		t.Fatal("code-reviewer agent not found")
 	}
-	if agent.Model != "opus" {
-		t.Errorf("code-reviewer model = %s, want opus", agent.Model)
+	if agent.Model != "sonnet" {
+		t.Errorf("code-reviewer model = %s, want sonnet", agent.Model)
 	}
 	if len(agent.Tools) == 0 {
 		t.Error("code-reviewer has no tools")
@@ -172,19 +172,20 @@ func TestSeedAgents(t *testing.T) {
 
 func TestListBuiltinAgentIDs(t *testing.T) {
 	ids := ListBuiltinAgentIDs()
-	if len(ids) != 7 {
-		t.Errorf("ListBuiltinAgentIDs returned %d, want 7", len(ids))
+	if len(ids) != 9 {
+		t.Errorf("ListBuiltinAgentIDs returned %d, want 9", len(ids))
 	}
 
 	expected := map[string]bool{
-		// Review agents
-		"code-reviewer":         true,
-		"code-simplifier":       true,
-		"comment-analyzer":      true,
-		"dependency-validator":  true,
-		"pr-test-analyzer":      true,
-		"silent-failure-hunter": true,
-		"type-design-analyzer":  true,
+		"code-reviewer":              true,
+		"code-simplifier":            true,
+		"comment-analyzer":           true,
+		"dependency-validator":       true,
+		"over-engineering-detector":  true,
+		"pr-test-analyzer":           true,
+		"silent-failure-hunter":      true,
+		"spec-quality-auditor":       true,
+		"type-design-analyzer":       true,
 	}
 
 	for _, id := range ids {
