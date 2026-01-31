@@ -161,13 +161,18 @@ func (we *WorkflowExecutor) loadInitiativeContext(rctx *variable.ResolutionConte
 }
 
 // loadProjectDetectionContext loads project detection data into the resolution context.
+// It reads from both the legacy detection table and the newer project_languages table.
+// project_languages is the authoritative source for build_command and per-language data.
 func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.ResolutionContext) {
 	dbBackend, ok := we.backend.(*storage.DatabaseBackend)
 	if !ok {
 		return
 	}
 
-	detection, err := dbBackend.DB().LoadDetection()
+	pdb := dbBackend.DB()
+
+	// Load from legacy detection table (language, frameworks, test/lint commands)
+	detection, err := pdb.LoadDetection()
 	if err != nil || detection == nil {
 		return
 	}
@@ -178,11 +183,30 @@ func (we *WorkflowExecutor) loadProjectDetectionContext(rctx *variable.Resolutio
 	rctx.LintCommand = detection.LintCommand
 	rctx.Frameworks = detection.Frameworks
 
-	// Determine HasFrontend from frameworks
-	for _, f := range detection.Frameworks {
-		switch f {
-		case "react", "vue", "angular", "svelte", "nextjs", "nuxt", "gatsby", "astro":
-			rctx.HasFrontend = true
+	// Supplement with project_languages data (has build_command, per-language overrides)
+	primaryLang, err := pdb.GetPrimaryLanguage()
+	if err == nil && primaryLang != nil {
+		rctx.BuildCommand = primaryLang.BuildCommand
+
+		// project_languages may have more accurate per-language commands
+		if primaryLang.TestCommand != "" {
+			rctx.TestCommand = primaryLang.TestCommand
+		}
+		if primaryLang.LintCommand != "" {
+			rctx.LintCommand = primaryLang.LintCommand
+		}
+	}
+
+	// HasFrontend: prefer DB query (checks language, root_path, frameworks) over framework switch
+	if hasFE, feErr := pdb.HasFrontend(); feErr == nil {
+		rctx.HasFrontend = hasFE
+	} else {
+		// Fallback to framework-based detection from legacy detection table
+		for _, f := range detection.Frameworks {
+			switch f {
+			case "react", "vue", "angular", "svelte", "nextjs", "nuxt", "gatsby", "astro":
+				rctx.HasFrontend = true
+			}
 		}
 	}
 }
