@@ -66,34 +66,6 @@ func (c *Cache) Delete(key string) {
 	delete(c.entries, key)
 }
 
-// Clear removes all cached values.
-func (c *Cache) Clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.entries = make(map[string]*cacheEntry)
-}
-
-// Cleanup removes all expired entries.
-// This should be called periodically to prevent memory growth.
-func (c *Cache) Cleanup() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	now := time.Now()
-	for key, entry := range c.entries {
-		if now.After(entry.expiresAt) {
-			delete(c.entries, key)
-		}
-	}
-}
-
-// Size returns the number of entries in the cache (including expired ones).
-func (c *Cache) Size() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return len(c.entries)
-}
-
 // CacheKey generates a cache key for a variable definition.
 // The key includes the source type and relevant config to ensure
 // different configurations produce different cache entries.

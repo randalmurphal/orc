@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -134,25 +133,6 @@ func (r *TestRepo) InitSharedDir() {
 	WriteYAML(r.t, filepath.Join(sharedDir, "team.yaml"), teamRegistry)
 }
 
-// CreateWorktree creates a worktree directory for testing.
-func (r *TestRepo) CreateWorktree(taskID, executorPrefix string) string {
-	r.t.Helper()
-
-	var dirName string
-	if executorPrefix == "" {
-		dirName = "orc-" + taskID
-	} else {
-		dirName = "orc-" + taskID + "-" + strings.ToLower(executorPrefix)
-	}
-
-	worktreePath := filepath.Join(r.OrcDir, "worktrees", dirName)
-	if err := os.MkdirAll(worktreePath, 0755); err != nil {
-		r.t.Fatalf("create worktree directory: %v", err)
-	}
-
-	return worktreePath
-}
-
 // CreateTask creates a task directory with task.yaml.
 func (r *TestRepo) CreateTask(taskID, title string) string {
 	r.t.Helper()
@@ -196,35 +176,6 @@ func (r *TestRepo) SetConfig(key string, value interface{}) {
 	current[parts[len(parts)-1]] = value
 
 	WriteYAML(r.t, configPath, config)
-}
-
-// SetSharedConfig sets a value in the shared config.
-func (r *TestRepo) SetSharedConfig(key string, value interface{}) {
-	r.t.Helper()
-
-	sharedConfigPath := filepath.Join(r.OrcDir, "shared", "config.yaml")
-	if _, err := os.Stat(sharedConfigPath); os.IsNotExist(err) {
-		r.InitSharedDir()
-	}
-
-	config := ReadYAML(r.t, sharedConfigPath)
-
-	// Handle nested keys
-	parts := strings.Split(key, ".")
-	current := config
-	for i, part := range parts[:len(parts)-1] {
-		if _, ok := current[part]; !ok {
-			current[part] = make(map[string]interface{})
-		}
-		var ok bool
-		current, ok = current[part].(map[string]interface{})
-		if !ok {
-			r.t.Fatalf("config path %s is not a map at %s", key, strings.Join(parts[:i+1], "."))
-		}
-	}
-	current[parts[len(parts)-1]] = value
-
-	WriteYAML(r.t, sharedConfigPath, config)
 }
 
 // MockUserConfig creates a mock user config in a temp directory and returns the path.
@@ -296,17 +247,6 @@ func AssertBranchExists(t *testing.T, repoDir, branchName string) {
 	}
 }
 
-// AssertBranchNotExists checks that a git branch does not exist.
-func AssertBranchNotExists(t *testing.T, repoDir, branchName string) {
-	t.Helper()
-
-	cmd := exec.Command("git", "rev-parse", "--verify", branchName)
-	cmd.Dir = repoDir
-	if err := cmd.Run(); err == nil {
-		t.Errorf("branch %s exists but should not", branchName)
-	}
-}
-
 // AssertWorktreeExists checks that a worktree directory exists.
 func AssertWorktreeExists(t *testing.T, path string) {
 	t.Helper()
@@ -374,44 +314,6 @@ func AssertFileContains(t *testing.T, path, content string) {
 	if !strings.Contains(string(data), content) {
 		t.Errorf("file %s does not contain %q\ncontents: %s", path, content, string(data))
 	}
-}
-
-// AssertFileNotContains checks that a file does not contain a specific string.
-func AssertFileNotContains(t *testing.T, path, content string) {
-	t.Helper()
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Errorf("read file %s: %v", path, err)
-		return
-	}
-
-	if strings.Contains(string(data), content) {
-		t.Errorf("file %s contains %q but should not", path, content)
-	}
-}
-
-// CreatePIDFile creates a PID file with the given PID.
-func CreatePIDFile(t *testing.T, worktreePath string, pid int) string {
-	t.Helper()
-
-	if err := os.MkdirAll(worktreePath, 0755); err != nil {
-		t.Fatalf("create worktree directory: %v", err)
-	}
-
-	pidFile := filepath.Join(worktreePath, ".orc.pid")
-	content := strconv.Itoa(pid)
-	if err := os.WriteFile(pidFile, []byte(content), 0644); err != nil {
-		t.Fatalf("write PID file: %v", err)
-	}
-
-	return pidFile
-}
-
-// WritePIDFile writes a PID file with proper formatting.
-// This is an alias for CreatePIDFile for clarity.
-func WritePIDFile(t *testing.T, worktreePath string, pid int) string {
-	return CreatePIDFile(t, worktreePath, pid)
 }
 
 // CreateBranch creates a git branch in the repo.

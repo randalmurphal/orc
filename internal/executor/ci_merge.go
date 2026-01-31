@@ -65,11 +65,6 @@ type CIMerger struct {
 // CIMergerOption configures a CIMerger.
 type CIMergerOption func(*CIMerger)
 
-// WithCIMergerPublisher sets the event publisher.
-func WithCIMergerPublisher(p events.Publisher) CIMergerOption {
-	return func(m *CIMerger) { m.publisher = events.NewPublishHelper(p) }
-}
-
 // WithCIMergerLogger sets the logger.
 func WithCIMergerLogger(l *slog.Logger) CIMergerOption {
 	return func(m *CIMerger) { m.logger = l }
@@ -78,11 +73,6 @@ func WithCIMergerLogger(l *slog.Logger) CIMergerOption {
 // WithCIMergerWorkDir sets the working directory for git commands.
 func WithCIMergerWorkDir(dir string) CIMergerOption {
 	return func(m *CIMerger) { m.workDir = dir }
-}
-
-// WithCIMergerBackend sets the storage backend for task persistence.
-func WithCIMergerBackend(b storage.Backend) CIMergerOption {
-	return func(m *CIMerger) { m.backend = b }
 }
 
 // WithCIMergerHostingProvider sets the hosting provider for CI and merge operations.

@@ -227,9 +227,3 @@ func CompleteStep() tea.Cmd {
 	}
 }
 
-// CancelStep returns a command that signals step cancellation.
-func CancelStep(reason string) tea.Cmd {
-	return func() tea.Msg {
-		return StepCancelMsg{Reason: reason}
-	}
-}

@@ -274,12 +274,6 @@ func NewInputStep(id, title string) *InputStep {
 	}
 }
 
-// WithDescription sets the step description.
-func (s *InputStep) WithDescription(desc string) *InputStep {
-	s.description = desc
-	return s
-}
-
 // WithPlaceholder sets the placeholder text.
 func (s *InputStep) WithPlaceholder(placeholder string) *InputStep {
 	s.placeholder = placeholder
@@ -292,35 +286,6 @@ func (s *InputStep) WithDefault(val string) *InputStep {
 	return s
 }
 
-// WithStateKey sets the key where the result is stored in state.
-func (s *InputStep) WithStateKey(key string) *InputStep {
-	s.stateKey = key
-	return s
-}
-
-// WithSkipFunc sets a function to determine if this step should be skipped.
-func (s *InputStep) WithSkipFunc(fn func(State) bool) *InputStep {
-	s.skipFunc = fn
-	return s
-}
-
-// WithValidation sets a validation function.
-func (s *InputStep) WithValidation(fn func(string) error) *InputStep {
-	s.validate = fn
-	return s
-}
-
-func (s *InputStep) ID() string          { return s.id }
-func (s *InputStep) Title() string       { return s.title }
-func (s *InputStep) Description() string { return s.description }
-
-func (s *InputStep) Skip(state State) bool {
-	if s.skipFunc != nil {
-		return s.skipFunc(state)
-	}
-	return false
-}
-
 func (s *InputStep) Init(state State) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = s.placeholder
@@ -331,12 +296,6 @@ func (s *InputStep) Init(state State) tea.Model {
 	return &inputModel{
 		textInput: ti,
 		validate:  s.validate,
-	}
-}
-
-func (s *InputStep) Result(model tea.Model, state State) {
-	if m, ok := model.(*inputModel); ok {
-		state[s.stateKey] = m.textInput.Value()
 	}
 }
 

@@ -59,11 +59,6 @@ func DefaultService() *Service {
 	return NewService(".orc")
 }
 
-// Resolver returns the underlying resolver for advanced usage.
-func (s *Service) Resolver() *Resolver {
-	return s.resolver
-}
-
 // projectPromptsDir returns the path to the project prompts directory.
 func (s *Service) projectPromptsDir() string {
 	return filepath.Join(s.orcDir, "prompts")

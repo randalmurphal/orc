@@ -122,30 +122,6 @@ func OpenProject(projectPath string) (*ProjectDB, error) {
 	return pdb, nil
 }
 
-// OpenProjectByID opens the project database using only the project ID.
-// The database is at ~/.orc/projects/<id>/orc.db.
-func OpenProjectByID(projectID string) (*ProjectDB, error) {
-	dbPath, err := project.ProjectDBPath(projectID)
-	if err != nil {
-		return nil, fmt.Errorf("resolve project db path: %w", err)
-	}
-	pdb, err := OpenProjectAtPath(dbPath)
-	if err != nil {
-		return nil, err
-	}
-	// Look up project path from registry for constitution file access.
-	reg, regErr := project.LoadRegistry()
-	if regErr == nil {
-		for _, p := range reg.Projects {
-			if p.ID == projectID {
-				pdb.projectDir = p.Path
-				break
-			}
-		}
-	}
-	return pdb, nil
-}
-
 // OpenProjectAtPath opens a project database at an explicit file path.
 // Used by tests and when the caller has already resolved the path.
 func OpenProjectAtPath(dbPath string) (*ProjectDB, error) {
@@ -154,22 +130,6 @@ func OpenProjectAtPath(dbPath string) (*ProjectDB, error) {
 	}
 
 	db, err := Open(dbPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Migrate("project"); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("migrate project db: %w", err)
-	}
-
-	return &ProjectDB{DB: db}, nil
-}
-
-// OpenProjectWithDialect opens the project database with a specific dialect.
-// For SQLite, dsn is the file path. For PostgreSQL, dsn is the connection string.
-func OpenProjectWithDialect(dsn string, dialect driver.Dialect) (*ProjectDB, error) {
-	db, err := OpenWithDialect(dsn, dialect)
 	if err != nil {
 		return nil, err
 	}

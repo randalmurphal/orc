@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -316,20 +315,6 @@ func (p *WorkerPool) publishEvent(event events.Event) {
 	}
 }
 
-// StopWorker stops a specific worker.
-func (p *WorkerPool) StopWorker(taskID string) error {
-	p.mu.Lock()
-	worker, exists := p.workers[taskID]
-	p.mu.Unlock()
-
-	if !exists {
-		return fmt.Errorf("worker not found for task %s", taskID)
-	}
-
-	worker.Stop()
-	return nil
-}
-
 // GetWorker returns a worker by task ID.
 func (p *WorkerPool) GetWorker(taskID string) *Worker {
 	p.mu.RLock()
@@ -379,12 +364,3 @@ func (p *WorkerPool) GetWorkers() map[string]*Worker {
 	return workers
 }
 
-// WorktreePath returns the worktree path for a task.
-func WorktreePath(taskID string, cfg *config.Config, projectDir string) string {
-	var configDir string
-	if cfg != nil {
-		configDir = cfg.Worktree.Dir
-	}
-	resolvedDir := config.ResolveWorktreeDir(configDir, projectDir)
-	return filepath.Join(resolvedDir, fmt.Sprintf("orc-%s", taskID))
-}

@@ -152,14 +152,6 @@ type ResolvedVariable struct {
 	Error error
 }
 
-// IsExpired returns true if the cached value has expired.
-func (rv *ResolvedVariable) IsExpired() bool {
-	if rv.CachedUntil.IsZero() {
-		return true // Not cached
-	}
-	return time.Now().After(rv.CachedUntil)
-}
-
 // ResolutionContext provides context for variable resolution.
 // This is passed to the resolver to provide access to task, phase, and workflow data.
 type ResolutionContext struct {

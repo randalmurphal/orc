@@ -489,14 +489,6 @@ func NewMockTurnExecutor(response string) *MockTurnExecutor {
 	}
 }
 
-// NewMockTurnExecutorWithResponses creates a mock with a queue of responses.
-func NewMockTurnExecutorWithResponses(responses ...string) *MockTurnExecutor {
-	return &MockTurnExecutor{
-		Responses:      responses,
-		SessionIDValue: "mock-session-123",
-	}
-}
-
 // ExecuteTurn returns the next response from the queue or DefaultResponse.
 func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnResult, error) {
 	m.callCount++
