@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -195,7 +194,7 @@ const (
 // ParseReviewFindings parses JSON review findings from Claude's response.
 func ParseReviewFindings(response string) (*ReviewFindings, error) {
 	var findings ReviewFindings
-	if err := json.Unmarshal([]byte(response), &findings); err != nil {
+	if err := unmarshalWithFallback(response, &findings); err != nil {
 		return nil, fmt.Errorf("parse review findings JSON: %w", err)
 	}
 
@@ -216,7 +215,7 @@ func ParseReviewFindings(response string) (*ReviewFindings, error) {
 // ParseReviewDecision parses JSON review decision from Claude's response.
 func ParseReviewDecision(response string) (*ReviewDecision, error) {
 	var decision ReviewDecision
-	if err := json.Unmarshal([]byte(response), &decision); err != nil {
+	if err := unmarshalWithFallback(response, &decision); err != nil {
 		return nil, fmt.Errorf("parse review decision JSON: %w", err)
 	}
 

@@ -324,23 +324,35 @@ Please:
 Do NOT output completion until all verifications pass.`, err.Error())
 }
 
+// unmarshalWithFallback attempts json.Unmarshal, and on failure tries stripping
+// any non-JSON prefix (e.g., "(no content)" from Claude session resume). This is
+// a defensive measure — Claude sometimes prepends text before JSON output.
+func unmarshalWithFallback(s string, v any) error {
+	if err := json.Unmarshal([]byte(s), v); err != nil {
+		if idx := strings.Index(s, "{"); idx > 0 {
+			if err2 := json.Unmarshal([]byte(s[idx:]), v); err2 == nil {
+				return nil
+			}
+		}
+		return err
+	}
+	return nil
+}
+
 // ParsePhaseResponse parses a JSON response into a PhaseResponse struct.
 // Returns an error if the content is not valid JSON or doesn't match the schema.
 func ParsePhaseResponse(content string) (*PhaseResponse, error) {
 	var resp PhaseResponse
-	if err := json.Unmarshal([]byte(content), &resp); err != nil {
+	if err := unmarshalWithFallback(content, &resp); err != nil {
 		return nil, fmt.Errorf("invalid phase response JSON: %w", err)
 	}
 
-	// Validate status is one of the expected values
 	switch resp.Status {
 	case "complete", "blocked", "continue":
-		// Valid
+		return &resp, nil
 	default:
 		return nil, fmt.Errorf("invalid phase status: %q (expected complete, blocked, or continue)", resp.Status)
 	}
-
-	return &resp, nil
 }
 
 // IsComplete returns true if the phase completed successfully.
