@@ -330,6 +330,8 @@ message AddPhaseRequest {
   // Agent overrides
   optional string agent_override = 10;          // Override executor agent
   repeated string sub_agents_override = 11;     // Override sub-agents
+  // Claude configuration override (JSON)
+  optional string claude_config_override = 12;
 }
 
 message AddPhaseResponse {
@@ -349,6 +351,8 @@ message UpdatePhaseRequest {
   // Agent overrides
   optional string agent_override = 10;          // Override executor agent
   repeated string sub_agents_override = 11;     // Override sub-agents
+  // Claude configuration override (JSON)
+  optional string claude_config_override = 12;
 }
 
 message UpdatePhaseResponse {

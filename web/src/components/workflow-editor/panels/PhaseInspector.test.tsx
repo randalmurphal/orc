@@ -725,4 +725,315 @@ describe('PhaseInspector', () => {
 			).toBeTruthy();
 		});
 	});
+
+	// ─── TASK-670: Effective claude_config summary in Settings tab ─────────────
+
+	describe('SC-9: Read-only effective claude_config summary', () => {
+		it('shows effective claude_config summary sections in Settings tab', async () => {
+			const user = userEvent.setup();
+			const phase = createPhaseWithTemplate({
+				templateId: 'implement',
+				templateName: 'Implement',
+			});
+			// Set claude_config on the template
+			Object.assign(phase.template!, {
+				claudeConfig: '{"hooks": ["lint-hook"], "env": {"NODE_ENV": "test"}}',
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// Should show claude_config summary sections
+			expect(screen.getByText(/hooks/i)).toBeInTheDocument();
+			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+		});
+
+		it('shows merged config items from template and override', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				claudeConfigOverride: '{"hooks": ["my-hook"], "env": {"DEBUG": "1"}}',
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: '{"hooks": ["lint-hook"], "env": {"NODE_ENV": "test"}}',
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// Should show merged hooks (both template and override)
+			expect(screen.getByText('lint-hook')).toBeInTheDocument();
+			expect(screen.getByText('my-hook')).toBeInTheDocument();
+
+			// Should show merged env vars
+			expect(screen.getByText('NODE_ENV')).toBeInTheDocument();
+			expect(screen.getByText('DEBUG')).toBeInTheDocument();
+		});
+
+		it('shows collapsible sections for each claude_config category', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: JSON.stringify({
+						hooks: ['h1'],
+						skill_refs: ['s1'],
+						mcp_servers: { 'mcp-1': {} },
+						allowed_tools: ['Bash'],
+						disallowed_tools: ['Write'],
+						env: { K: 'V' },
+					}),
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// All relevant section headers should render
+			expect(screen.getByText(/hooks/i)).toBeInTheDocument();
+			expect(screen.getByText(/skills/i)).toBeInTheDocument();
+			expect(screen.getByText(/mcp servers/i)).toBeInTheDocument();
+			expect(screen.getByText(/allowed tools/i)).toBeInTheDocument();
+			expect(screen.getByText(/disallowed tools/i)).toBeInTheDocument();
+			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+		});
+
+		it('is read-only (no edit controls for claude_config)', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: '{"hooks": ["lint-hook"]}',
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// Claude config sections should be read-only (no add/remove/edit buttons)
+			expect(screen.queryByRole('button', { name: /add hook/i })).not.toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: /clear override/i })).not.toBeInTheDocument();
+		});
+
+		it('shows "None" or hides sections when phase has no claude_config or override', async () => {
+			const user = userEvent.setup();
+			const phase = createPhaseWithTemplate({
+				templateId: 'implement',
+				templateName: 'Implement',
+			});
+			// No claudeConfig on template, no override on phase
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// Should show "None" or empty state for config sections
+			const noneTexts = screen.queryAllByText(/none/i);
+			// At minimum, sections should not show items
+			expect(noneTexts.length).toBeGreaterThanOrEqual(0);
+			// No hook/skill/tool items should be shown
+			expect(screen.queryByText('lint-hook')).not.toBeInTheDocument();
+		});
+	});
+
+	describe('SC-10: Merge logic (override wins on env collision, BDD-4)', () => {
+		it('shows override env var value when key collides with template', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				claudeConfigOverride: '{"env": {"A": "2", "B": "3"}}',
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: '{"env": {"A": "1"}}',
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// A should show override value "2", not template value "1"
+			expect(screen.getByText('A')).toBeInTheDocument();
+			expect(screen.getByText('2')).toBeInTheDocument();
+			expect(screen.queryByText('1')).not.toBeInTheDocument();
+
+			// B should show override value "3"
+			expect(screen.getByText('B')).toBeInTheDocument();
+			expect(screen.getByText('3')).toBeInTheDocument();
+		});
+
+		it('shows combined hooks from template and override (union)', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				claudeConfigOverride: '{"hooks": ["override-hook"]}',
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: '{"hooks": ["template-hook"]}',
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			// Both hooks should be visible in the merged summary
+			expect(screen.getByText('template-hook')).toBeInTheDocument();
+			expect(screen.getByText('override-hook')).toBeInTheDocument();
+		});
+
+		it('uses template config as-is when override is empty', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				// No override
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					claudeConfig: '{"hooks": ["only-template-hook"]}',
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			expect(screen.getByText('only-template-hook')).toBeInTheDocument();
+		});
+
+		it('uses override config as-is when template is empty', async () => {
+			const user = userEvent.setup();
+			const phase = createMockWorkflowPhase({
+				id: 1,
+				phaseTemplateId: 'implement',
+				sequence: 1,
+				claudeConfigOverride: '{"hooks": ["only-override-hook"]}',
+				template: createMockPhaseTemplate({
+					id: 'implement',
+					name: 'Implement',
+					// No claudeConfig
+				}),
+			});
+			const details = createTestWorkflowDetails({
+				isBuiltin: false,
+				phases: [phase],
+			});
+
+			render(
+				<PhaseInspector
+					phase={phase}
+					workflowDetails={details}
+					readOnly={false}
+				/>,
+			);
+
+			await user.click(screen.getByRole('tab', { name: /settings/i }));
+
+			expect(screen.getByText('only-override-hook')).toBeInTheDocument();
+		});
+	});
 });

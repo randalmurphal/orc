@@ -2211,7 +2211,10 @@ Update a phase within a workflow. Used by the visual editor for connection manag
   "model_override": "opus",
   "thinking_override": true,
   "gate_type_override": "human",
-  "condition": "{{HAS_TESTS}}"
+  "condition": "{{HAS_TESTS}}",
+  "agent_override": "custom-agent",
+  "sub_agents_override": ["reviewer", "tester"],
+  "claude_config_override": "{\"hooks\":[\"pre-commit\"],\"allowed_tools\":[\"Bash\"]}"
 }
 ```
 
@@ -2226,6 +2229,9 @@ All fields are optional. Only provided fields are updated.
 | `thinking_override` | Override extended thinking setting |
 | `gate_type_override` | Override gate type (`auto`, `human`, `skip`) |
 | `condition` | Conditional execution expression |
+| `agent_override` | Override executor agent for this phase |
+| `sub_agents_override` | Override available sub-agents (array of agent IDs) |
+| `claude_config_override` | JSON string overriding claude_config (hooks, skills, MCP servers, tools, env vars). Merged with template config at execution time |
 
 **Response:** Returns the updated `WorkflowPhase` object.
 
