@@ -229,6 +229,7 @@ func ResetPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	e.Phases[phaseID].Error = nil
 	e.Phases[phaseID].CompletedAt = nil
 	e.Phases[phaseID].InterruptedAt = nil
+	e.Phases[phaseID].SessionId = nil // Clear session so retry starts fresh with full prompt
 }
 
 // SetRetryContextProto sets the retry context for cross-phase retry.

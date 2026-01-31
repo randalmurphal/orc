@@ -551,6 +551,7 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		Checkpoint:       pt.Checkpoint,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
+		ClaudeConfig:     pt.ClaudeConfig,
 	}
 
 	if pt.Thinking != nil {
@@ -643,4 +644,5 @@ type phaseYAML struct {
 	RetryFromPhase string `yaml:"retry_from_phase,omitempty"`
 	RetryPromptPath string `yaml:"retry_prompt_path,omitempty"`
 	QualityChecks  string `yaml:"quality_checks,omitempty"`
+	ClaudeConfig   string `yaml:"claude_config,omitempty"`
 }

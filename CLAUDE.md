@@ -97,7 +97,7 @@ Key phases:
 - **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
 - **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
 - **breakdown**: Decomposes large tasks into checkboxed implementation steps
-- **review**: Multi-agent code review with 5 specialized reviewers + success criteria verification
+- **review**: Multi-agent code review with 6 specialized reviewers + no-op detection + success criteria verification
 
 ### Task Completion Flow
 

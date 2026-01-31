@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"log/slog"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -19,6 +20,11 @@ func SeedBuiltins(gdb *db.GlobalDB) (int, error) {
 	result, err := cache.SyncAll()
 	if err != nil {
 		return 0, err
+	}
+
+	// Seed hook scripts to GlobalDB so they're available for phase settings
+	if _, err := SeedHookScripts(gdb); err != nil {
+		return 0, fmt.Errorf("seed hook scripts: %w", err)
 	}
 
 	total := result.WorkflowsAdded + result.WorkflowsUpdated + result.PhasesAdded + result.PhasesUpdated

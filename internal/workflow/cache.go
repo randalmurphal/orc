@@ -431,6 +431,7 @@ func workflowPhaseToDBPhase(pt *PhaseTemplate, source Source) *db.PhaseTemplate 
 		Checkpoint:       pt.Checkpoint,
 		RetryFromPhase:   pt.RetryFromPhase,
 		RetryPromptPath:  pt.RetryPromptPath,
+		ClaudeConfig:     pt.ClaudeConfig,
 		IsBuiltin:        source == SourceEmbedded,
 		CreatedAt:        pt.CreatedAt,
 		UpdatedAt:        time.Now(),
