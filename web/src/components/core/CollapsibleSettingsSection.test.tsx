@@ -65,9 +65,7 @@ describe('CollapsibleSettingsSection', () => {
 			</CollapsibleSettingsSection>
 		);
 
-		// Badge should show "0" or not be present
-		const badge = screen.queryByText('0');
-		// Either the badge shows 0 or is hidden - both are acceptable per spec
+		// Badge should show "0" or not be present - either is acceptable per spec
 		expect(screen.getByText('Hooks')).toBeInTheDocument();
 	});
 

@@ -7,10 +7,8 @@
  */
 
 import { useCallback } from 'react';
-import type { Hook } from '@/gen/orc/v1/config_pb';
-import type { Skill } from '@/gen/orc/v1/config_pb';
+import type { Hook, Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
-import { HookEvent } from '@/gen/orc/v1/config_pb';
 import './LibraryPicker.css';
 
 export type LibraryPickerType = 'hooks' | 'skills' | 'mcpServers';
@@ -32,11 +30,11 @@ export interface LibraryPickerProps {
 	disabled?: boolean;
 }
 
-const HOOK_EVENT_LABELS: Record<number, string> = {
-	[HookEvent.PRE_TOOL_USE]: 'PreToolUse',
-	[HookEvent.POST_TOOL_USE]: 'PostToolUse',
-	[HookEvent.STOP]: 'Stop',
-	[HookEvent.NOTIFICATION]: 'Notification',
+const HOOK_EVENT_LABELS: Record<string, string> = {
+	'PreToolUse': 'PreToolUse',
+	'PostToolUse': 'PostToolUse',
+	'Stop': 'Stop',
+	'Notification': 'Notification',
 };
 
 const EMPTY_MESSAGES: Record<LibraryPickerType, string> = {
@@ -95,9 +93,9 @@ function renderHooks(
 	toggleSelection: (name: string) => void
 ) {
 	// Group hooks by event type
-	const groups = new Map<number, Hook[]>();
+	const groups = new Map<string, Hook[]>();
 	for (const hook of hooks) {
-		const event = hook.event;
+		const event = hook.eventType || 'Unknown';
 		if (!groups.has(event)) {
 			groups.set(event, []);
 		}
@@ -121,7 +119,7 @@ function renderHooks(
 								onClick={() => toggleSelection(hook.name)}
 							>
 								<span className="library-picker__item-name">{hook.name}</span>
-								<span className="library-picker__item-detail">{hook.command}</span>
+								<span className="library-picker__item-detail">{hook.eventType}</span>
 							</div>
 						);
 					})}

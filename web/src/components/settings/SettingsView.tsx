@@ -87,7 +87,7 @@ export function SettingsView() {
 			const skillToDelete = skills.find((s) => s.name === id);
 			if (!skillToDelete) return;
 
-			await configClient.deleteSkill({ name: id, scope: skillToDelete.scope });
+			await configClient.deleteSkill({ id: skillToDelete.id });
 			setSkills((prev) => prev.filter((s) => s.name !== id));
 
 			if (selectedId === id) {
@@ -108,8 +108,8 @@ export function SettingsView() {
 
 		try {
 			await configClient.updateSkill({
+				id: selectedSkill.id,
 				name: selectedId,
-				scope: selectedSkill.scope,
 				description: selectedSkill.description,
 				content: editorContent,
 			});
