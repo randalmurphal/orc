@@ -162,8 +162,10 @@ func NewClaudeExecutor(opts ...ClaudeExecutorOption) *ClaudeExecutor {
 	// Create transcript handler if we have backend and taskID
 	if e.backend != nil && e.taskID != "" {
 		var captureHookEvents []string
-		if e.phaseConfig != nil {
-			captureHookEvents = e.phaseConfig.CaptureHookEvents
+		if e.phaseConfig != nil && len(e.phaseConfig.Hooks) > 0 {
+			for event := range e.phaseConfig.Hooks {
+				captureHookEvents = append(captureHookEvents, event)
+			}
 		}
 		e.transcriptHandler = NewTranscriptStreamHandler(
 			e.backend, e.logger,

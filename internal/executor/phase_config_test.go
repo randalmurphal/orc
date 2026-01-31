@@ -88,10 +88,11 @@ func TestParsePhaseClaudeConfig(t *testing.T) {
 			},
 		},
 		{
-			name:  "capture hook events",
-			input: `{"capture_hook_events": ["PreToolUse", "PostToolUse"]}`,
+			name:  "hooks field",
+			input: `{"hooks": {"PreToolUse": [{"matcher": "Edit", "hooks": [{"type": "command", "command": "test.sh"}]}]}}`,
 			validate: func(t *testing.T, cfg *PhaseClaudeConfig) {
-				assert.Equal(t, []string{"PreToolUse", "PostToolUse"}, cfg.CaptureHookEvents)
+				require.Contains(t, cfg.Hooks, "PreToolUse")
+				assert.Len(t, cfg.Hooks["PreToolUse"], 1)
 			},
 		},
 		{
@@ -202,18 +203,27 @@ func TestPhaseClaudeConfig_Merge(t *testing.T) {
 		assert.Equal(t, "cmd2", result.MCPServers["server2"].Command)
 	})
 
-	t.Run("hook events deduplicated", func(t *testing.T) {
+	t.Run("hooks merge appends per event key", func(t *testing.T) {
 		base := &PhaseClaudeConfig{
-			CaptureHookEvents: []string{"PreToolUse", "PostToolUse"},
+			Hooks: map[string][]HookMatcher{
+				"PreToolUse": {
+					{Matcher: "Edit", Hooks: []HookEntry{{Type: "command", Command: "a.sh"}}},
+				},
+			},
 		}
 		override := &PhaseClaudeConfig{
-			CaptureHookEvents: []string{"PostToolUse", "SessionEnd"},
+			Hooks: map[string][]HookMatcher{
+				"PreToolUse": {
+					{Matcher: "Write", Hooks: []HookEntry{{Type: "command", Command: "b.sh"}}},
+				},
+				"PostToolUse": {
+					{Matcher: "Bash", Hooks: []HookEntry{{Type: "command", Command: "c.sh"}}},
+				},
+			},
 		}
 		result := base.Merge(override)
-		assert.Len(t, result.CaptureHookEvents, 3)
-		assert.Contains(t, result.CaptureHookEvents, "PreToolUse")
-		assert.Contains(t, result.CaptureHookEvents, "PostToolUse")
-		assert.Contains(t, result.CaptureHookEvents, "SessionEnd")
+		assert.Len(t, result.Hooks["PreToolUse"], 2)
+		assert.Len(t, result.Hooks["PostToolUse"], 1)
 	})
 
 	t.Run("budget preserved from base if not overridden", func(t *testing.T) {

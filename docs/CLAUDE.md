@@ -47,6 +47,8 @@ docs/
 | `CROSS_PROJECT.md` | Multi-project support |
 | `INIT_WIZARD.md` | Interactive initialization |
 | `TASK_ENHANCEMENT.md` | AI task enhancement |
+| `PHASE_SETTINGS_DESIGN.md` | Per-phase Claude Code settings (hooks, skills, hook scripts) |
+| `PHASE_SETTINGS_UI_DESIGN.md` | Frontend UI for phase settings management |
 | `TASK_TEMPLATES.md` | Task template system |
 | `PROJECT_DETECTION.md` | Project type detection |
 | `TUI_WATCH.md` | Terminal UI specification |
