@@ -29,10 +29,6 @@ DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
 {{SPEC_CONTENT}}
 </specification>
 
-<design>
-{{DESIGN_CONTENT}}
-</design>
-
 <breakdown>
 {{BREAKDOWN_CONTENT}}
 </breakdown>

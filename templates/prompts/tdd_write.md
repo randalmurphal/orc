@@ -30,9 +30,6 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 {{SPEC_CONTENT}}
 </specification>
 
-<design>
-{{DESIGN_CONTENT}}
-</design>
 </context>
 
 <instructions>
@@ -98,6 +95,20 @@ Classify each test you write into one of these types:
 | **Integration** | New code is wired into existing code paths | New functions/interfaces that must be called from existing code |
 
 **Default:** Most tests are solitary tests. Write sociable tests when collaborators are fast and deterministic. Write integration tests when you need to verify wiring.
+
+### Embedded Code / Script Testing
+
+If the task produces **executable code that lives in the repo** (scripts, hooks, templates, config generators), you MUST write behavioral tests for that code — not just tests for the infrastructure that embeds or deploys it.
+
+| Code Type | Test Approach | Example |
+|-----------|---------------|---------|
+| Bash scripts | Run script with controlled input, assert exit code and output | `echo '{"tool_name":"Write"}' \| bash script.sh; assert exit 2` |
+| Python scripts | Import or subprocess, test with real inputs | `subprocess.run([script], input=json, capture_output=True)` |
+| Hook scripts | Test blocking/allowing behavior with mock hook input | Assert exit 0 (allow) vs exit 2 (block) |
+| Templates | Render with known data, assert output structure | `tmpl.Execute(data); assert output contains expected` |
+
+**Anti-pattern:** Writing tests that only verify "script file exists on disk" or "script content was seeded to DB." These are infrastructure tests — necessary but NOT sufficient. The script's actual behavior (what it does when executed) must also be tested.
+
 
 ### Integration Test Requirement
 

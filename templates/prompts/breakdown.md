@@ -18,10 +18,6 @@ Target: {{TARGET_BRANCH}}
 {{SPEC_CONTENT}}
 </specification>
 
-<design>
-{{DESIGN_CONTENT}}
-</design>
-
 <tdd_tests>
 {{TDD_TESTS_CONTENT}}
 </tdd_tests>

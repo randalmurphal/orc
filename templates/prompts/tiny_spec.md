@@ -161,7 +161,7 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
   },
   "quality_checklist": [
     {"id": "all_criteria_verifiable", "check": "Every SC has executable verification", "passed": true},
-    {"id": "no_technical_metrics", "check": "SC describes behavior, not internals", "passed": true},
+    {"id": "no_existence_only_criteria", "check": "SC verifies behavior, not just existence", "passed": true},
     {"id": "p1_stories_independent", "check": "Task can be completed independently", "passed": true},
     {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
     {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},

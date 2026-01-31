@@ -83,9 +83,23 @@ git diff origin/{{TARGET_BRANCH}}...HEAD | grep "^-" | grep -v "^---"
 - Missing input validation
 - Auth bypass
 
-### 5. Spec Compliance
-- Are success criteria addressed?
-- Missing functionality?
+### 5. Spec Compliance (CRITICAL)
+
+**For EACH success criterion (SC-X) in the specification:**
+1. Identify the specific code that satisfies it
+2. Verify the code actually works (not a placeholder, not a no-op)
+3. Check that tests exist that would fail if the criterion weren't met
+
+**If the task description references files** (designs, specs, docs):
+- Read the referenced files and cross-reference implementation against them
+- Verify behavioral requirements from referenced files are implemented, not just structural ones
+- Check that embedded code (scripts, hooks, templates) does what the referenced files say it should
+
+**Red flags for incomplete implementation:**
+- Functions that exist but are empty or return hardcoded values
+- Scripts that exit 0 without doing anything (no-op)
+- Code that's structurally correct but behaviorally wrong
+- Tests that verify existence ("file was created") but not behavior ("file does X when run")
 
 ### 6. Integration Completeness
 

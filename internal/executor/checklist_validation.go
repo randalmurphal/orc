@@ -34,7 +34,7 @@ type Assumption struct {
 // If any of these fail, the spec phase will retry with feedback.
 var requiredChecks = map[string]bool{
 	"all_criteria_verifiable": true,
-	"no_technical_metrics":    true,
+	"no_existence_only_criteria": true,
 	"p1_stories_independent":  true,
 	"scope_explicit":          true,
 	"max_3_clarifications":    true,
@@ -84,8 +84,8 @@ func FormatChecklistFeedback(failures []ChecklistItem) string {
 		switch item.ID {
 		case "all_criteria_verifiable":
 			sb.WriteString("- **all_criteria_verifiable**: Every success criterion must have an executable verification method (command, test, file check). No vague criteria like \"code is clean\" - use `npm run lint` exit 0.\n")
-		case "no_technical_metrics":
-			sb.WriteString("- **no_technical_metrics**: Success criteria should describe user-visible behavior, not implementation details. Instead of \"uses React hooks\", say \"component re-renders on state change\".\n")
+		case "no_existence_only_criteria":
+			sb.WriteString("- **no_existence_only_criteria**: Success criteria must verify behavior, not just existence. Instead of \"file exists on disk\" or \"record created in DB\", require behavioral verification like \"script blocks first stop attempt (exit 2)\" or \"function returns error on invalid input\".\n")
 		case "p1_stories_independent":
 			sb.WriteString("- **p1_stories_independent**: Each P1 (MVP) user story must be completable and testable in isolation. If a story can't ship alone, break it down further.\n")
 		case "scope_explicit":
