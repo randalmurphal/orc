@@ -1061,7 +1061,7 @@ describe('PhaseListEditor', () => {
 			const hooksHeader = await screen.findByText(/hooks/i);
 			const section = hooksHeader.closest('[data-testid*="collapsible-section"]');
 			expect(section).toBeTruthy();
-			expect(within(section!).getByText(/\b0\b/)).toBeInTheDocument();
+			expect(within(section! as HTMLElement).getByText(/\b0\b/)).toBeInTheDocument();
 		});
 
 		it('should show all inherited when no overrides exist', async () => {
