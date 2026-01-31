@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { create } from '@bufbuild/protobuf';
+import * as Tabs from '@radix-ui/react-tabs';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Icon } from '@/components/ui/Icon';
@@ -15,10 +16,15 @@ import { useDocumentTitle } from '@/hooks';
 import { configClient } from '@/lib/client';
 import {
 	type Hook,
+	type DiscoveredItem,
 	ListHooksRequestSchema,
 	CreateHookRequestSchema,
 	UpdateHookRequestSchema,
 	DeleteHookRequestSchema,
+	ExportHooksRequestSchema,
+	ImportHooksRequestSchema,
+	ScanClaudeDirRequestSchema,
+	SettingsScope,
 } from '@/gen/orc/v1/config_pb';
 import './environment.css';
 
@@ -191,6 +197,100 @@ export function Hooks() {
 		}
 	};
 
+	// Export/Import state
+	const [exportDest, setExportDest] = useState<SettingsScope>(SettingsScope.PROJECT);
+	const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set());
+	const [exporting, setExporting] = useState(false);
+	const [scanSource, setScanSource] = useState<SettingsScope>(SettingsScope.PROJECT);
+	const [scanning, setScanning] = useState(false);
+	const [discoveredItems, setDiscoveredItems] = useState<DiscoveredItem[]>([]);
+	const [selectedImportNames, setSelectedImportNames] = useState<Set<string>>(new Set());
+	const [importing, setImporting] = useState(false);
+
+	const handleExport = async () => {
+		if (selectedExportIds.size === 0) {
+			toast.error('Select at least one hook to export');
+			return;
+		}
+		try {
+			setExporting(true);
+			const resp = await configClient.exportHooks(
+				create(ExportHooksRequestSchema, {
+					hookIds: Array.from(selectedExportIds),
+					destination: exportDest,
+				})
+			);
+			toast.success(`Exported ${resp.writtenPaths.length} hook(s)`);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to export hooks');
+		} finally {
+			setExporting(false);
+		}
+	};
+
+	const handleScan = async () => {
+		try {
+			setScanning(true);
+			const resp = await configClient.scanClaudeDir(
+				create(ScanClaudeDirRequestSchema, {
+					source: scanSource,
+				})
+			);
+			const hookItems = resp.items.filter((i) => i.itemType === 'hook');
+			setDiscoveredItems(hookItems);
+			setSelectedImportNames(new Set(hookItems.map((i) => i.name)));
+			if (hookItems.length === 0) {
+				toast.info('No new or modified hooks found');
+			}
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to scan directory');
+		} finally {
+			setScanning(false);
+		}
+	};
+
+	const handleImport = async () => {
+		const itemsToImport = discoveredItems.filter((i) => selectedImportNames.has(i.name));
+		if (itemsToImport.length === 0) {
+			toast.error('Select at least one hook to import');
+			return;
+		}
+		try {
+			setImporting(true);
+			const resp = await configClient.importHooks(
+				create(ImportHooksRequestSchema, {
+					items: itemsToImport,
+				})
+			);
+			toast.success(`Imported ${resp.imported.length} hook(s)`);
+			setDiscoveredItems([]);
+			setSelectedImportNames(new Set());
+			await loadData();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Failed to import hooks');
+		} finally {
+			setImporting(false);
+		}
+	};
+
+	const toggleExportId = (id: string) => {
+		setSelectedExportIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	const toggleImportName = (name: string) => {
+		setSelectedImportNames((prev) => {
+			const next = new Set(prev);
+			if (next.has(name)) next.delete(name);
+			else next.add(name);
+			return next;
+		});
+	};
+
 	// Group hooks by event type for display
 	const hooksByEvent = HOOK_EVENT_TYPES.reduce(
 		(acc, eventType) => {
@@ -242,28 +342,64 @@ export function Hooks() {
 				</Button>
 			</div>
 
-			<div className="hooks-groups">
-				{HOOK_EVENT_TYPES.map((eventType) => {
-					const info = HOOK_EVENT_INFO[eventType];
-					const eventHooks = hooksByEvent[eventType] || [];
+			<Tabs.Root defaultValue="library">
+				<Tabs.List className="env-scope-tabs" aria-label="Hooks view">
+					<Tabs.Trigger value="library">Library</Tabs.Trigger>
+					<Tabs.Trigger value="export-import">Export / Import</Tabs.Trigger>
+				</Tabs.List>
 
-					return (
-						<div key={eventType} className="hooks-group">
-							<div className="hooks-group-header">
-								<div className="hooks-group-title-row">
-									<Icon name={info.icon} size={16} />
-									<h4 className="hooks-group-title">{eventType}</h4>
-									{eventHooks.length > 0 && (
-										<span className="hooks-group-count">
-											{eventHooks.length} hook{eventHooks.length !== 1 ? 's' : ''}
-										</span>
+				<Tabs.Content value="library">
+					<div className="hooks-groups">
+						{HOOK_EVENT_TYPES.map((eventType) => {
+							const info = HOOK_EVENT_INFO[eventType];
+							const eventHooks = hooksByEvent[eventType] || [];
+
+							return (
+								<div key={eventType} className="hooks-group">
+									<div className="hooks-group-header">
+										<div className="hooks-group-title-row">
+											<Icon name={info.icon} size={16} />
+											<h4 className="hooks-group-title">{eventType}</h4>
+											{eventHooks.length > 0 && (
+												<span className="hooks-group-count">
+													{eventHooks.length} hook{eventHooks.length !== 1 ? 's' : ''}
+												</span>
+											)}
+										</div>
+										<p className="hooks-group-description">{info.description}</p>
+									</div>
+									{eventHooks.length > 0 ? (
+										<div className="hooks-list">
+											{eventHooks.map((hook) => (
+												<HookItem
+													key={hook.id}
+													hook={hook}
+													onEdit={handleEdit}
+													onClone={handleClone}
+													onDelete={handleDelete}
+												/>
+											))}
+										</div>
+									) : (
+										<div className="hooks-empty">No hooks configured</div>
 									)}
 								</div>
-								<p className="hooks-group-description">{info.description}</p>
-							</div>
-							{eventHooks.length > 0 ? (
+							);
+						})}
+						{otherHooks.length > 0 && (
+							<div className="hooks-group">
+								<div className="hooks-group-header">
+									<div className="hooks-group-title-row">
+										<Icon name="code" size={16} />
+										<h4 className="hooks-group-title">Other</h4>
+										<span className="hooks-group-count">
+											{otherHooks.length} hook{otherHooks.length !== 1 ? 's' : ''}
+										</span>
+									</div>
+									<p className="hooks-group-description">Hooks with custom event types</p>
+								</div>
 								<div className="hooks-list">
-									{eventHooks.map((hook) => (
+									{otherHooks.map((hook) => (
 										<HookItem
 											key={hook.id}
 											hook={hook}
@@ -273,38 +409,114 @@ export function Hooks() {
 										/>
 									))}
 								</div>
+							</div>
+						)}
+					</div>
+				</Tabs.Content>
+
+				<Tabs.Content value="export-import">
+					<div className="export-import-section">
+						<div className="export-import-panel">
+							<h4>Export Hooks</h4>
+							<p className="env-page-description">Export hooks from the library to .claude/hooks/ directory.</p>
+							<div className="export-import-controls">
+								<div className="export-dest-selector">
+									<Button
+										variant={exportDest === SettingsScope.PROJECT ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setExportDest(SettingsScope.PROJECT)}
+									>
+										Project .claude/
+									</Button>
+									<Button
+										variant={exportDest === SettingsScope.GLOBAL ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setExportDest(SettingsScope.GLOBAL)}
+									>
+										User ~/.claude/
+									</Button>
+								</div>
+							</div>
+							{hooks.length === 0 ? (
+								<div className="hooks-empty">No hooks in library to export</div>
 							) : (
-								<div className="hooks-empty">No hooks configured</div>
+								<div className="export-import-list">
+									{hooks.map((hook) => (
+										<label key={hook.id} className="export-import-item">
+											<input
+												type="checkbox"
+												checked={selectedExportIds.has(hook.id)}
+												onChange={() => toggleExportId(hook.id)}
+											/>
+											<span className="export-import-item-name">{hook.name}</span>
+											<span className="export-import-item-meta">{hook.eventType}</span>
+										</label>
+									))}
+								</div>
+							)}
+							<Button variant="primary" size="sm" onClick={handleExport} loading={exporting} disabled={selectedExportIds.size === 0}>
+								Export Selected ({selectedExportIds.size})
+							</Button>
+						</div>
+
+						<div className="export-import-panel">
+							<h4>Import Hooks</h4>
+							<p className="env-page-description">Scan .claude/hooks/ directory and import discovered hooks.</p>
+							<div className="export-import-controls">
+								<div className="export-dest-selector">
+									<Button
+										variant={scanSource === SettingsScope.PROJECT ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setScanSource(SettingsScope.PROJECT)}
+									>
+										Project .claude/
+									</Button>
+									<Button
+										variant={scanSource === SettingsScope.GLOBAL ? 'primary' : 'secondary'}
+										size="sm"
+										onClick={() => setScanSource(SettingsScope.GLOBAL)}
+									>
+										User ~/.claude/
+									</Button>
+								</div>
+								<Button variant="secondary" size="sm" onClick={handleScan} loading={scanning}>
+									<Icon name="search" size={14} />
+									Scan
+								</Button>
+							</div>
+							{discoveredItems.length === 0 ? (
+								<div className="hooks-empty">No items discovered. Click Scan to search.</div>
+							) : (
+								<div className="export-import-list">
+									{discoveredItems.map((item) => (
+										<label key={item.name} className="export-import-item">
+											<input
+												type="checkbox"
+												checked={selectedImportNames.has(item.name)}
+												onChange={() => toggleImportName(item.name)}
+											/>
+											<span className="export-import-item-name">{item.name}</span>
+											<span className={`export-import-badge export-import-badge-${item.status}`}>
+												{item.status}
+											</span>
+											{item.content && (
+												<code className="export-import-preview">
+													{item.content.length > 60 ? item.content.slice(0, 60) + '…' : item.content}
+												</code>
+											)}
+										</label>
+									))}
+								</div>
+							)}
+							{discoveredItems.length > 0 && (
+								<Button variant="primary" size="sm" onClick={handleImport} loading={importing} disabled={selectedImportNames.size === 0}>
+									Import Selected ({selectedImportNames.size})
+								</Button>
 							)}
 						</div>
-					);
-				})}
-				{otherHooks.length > 0 && (
-					<div className="hooks-group">
-						<div className="hooks-group-header">
-							<div className="hooks-group-title-row">
-								<Icon name="code" size={16} />
-								<h4 className="hooks-group-title">Other</h4>
-								<span className="hooks-group-count">
-									{otherHooks.length} hook{otherHooks.length !== 1 ? 's' : ''}
-								</span>
-							</div>
-							<p className="hooks-group-description">Hooks with custom event types</p>
-						</div>
-						<div className="hooks-list">
-							{otherHooks.map((hook) => (
-								<HookItem
-									key={hook.id}
-									hook={hook}
-									onEdit={handleEdit}
-									onClone={handleClone}
-									onDelete={handleDelete}
-								/>
-							))}
-						</div>
 					</div>
-				)}
-			</div>
+				</Tabs.Content>
+			</Tabs.Root>
 
 			{/* Editor Modal */}
 			<Modal
