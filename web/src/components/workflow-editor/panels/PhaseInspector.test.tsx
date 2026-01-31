@@ -42,6 +42,11 @@ vi.mock('@/lib/client', () => ({
 	},
 	configClient: {
 		listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+		listHooks: vi.fn().mockResolvedValue({ hooks: [] }),
+		listSkills: vi.fn().mockResolvedValue({ skills: [] }),
+	},
+	mcpClient: {
+		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
 	},
 }));
 
@@ -726,10 +731,10 @@ describe('PhaseInspector', () => {
 		});
 	});
 
-	// ─── TASK-670: Effective claude_config summary in Settings tab ─────────────
+	// ─── TASK-670: Claude config editor in Settings tab ─────────────────────
 
-	describe('SC-9: Read-only effective claude_config summary', () => {
-		it('shows effective claude_config summary sections in Settings tab', async () => {
+	describe('SC-9: Claude config editor sections', () => {
+		it('shows collapsible section headers in Settings tab', async () => {
 			const user = userEvent.setup();
 			const phase = createPhaseWithTemplate({
 				templateId: 'implement',
@@ -754,12 +759,14 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Should show claude_config summary sections
-			expect(screen.getByText(/hooks/i)).toBeInTheDocument();
-			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+			// Claude Config heading
+			expect(screen.getByText('Claude Config')).toBeInTheDocument();
+			// Section headers rendered as collapsible sections (7 total: hooks, mcp, skills, allowed, disallowed, env, json)
+			const sections = screen.getAllByTestId('collapsible-section');
+			expect(sections.length).toBeGreaterThanOrEqual(6);
 		});
 
-		it('shows merged config items from template and override', async () => {
+		it('shows inherited template config hint when template has config', async () => {
 			const user = userEvent.setup();
 			const phase = createMockWorkflowPhase({
 				id: 1,
@@ -787,13 +794,8 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Should show merged hooks (both template and override)
-			expect(screen.getByText('lint-hook')).toBeInTheDocument();
-			expect(screen.getByText('my-hook')).toBeInTheDocument();
-
-			// Should show merged env vars
-			expect(screen.getByText('NODE_ENV')).toBeInTheDocument();
-			expect(screen.getByText('DEBUG')).toBeInTheDocument();
+			// Should show inherited hint with template item counts
+			expect(screen.getByText(/inherited from template/i)).toBeInTheDocument();
 		});
 
 		it('shows collapsible sections for each claude_config category', async () => {
@@ -830,13 +832,15 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// All relevant section headers should render
-			expect(screen.getByText(/hooks/i)).toBeInTheDocument();
-			expect(screen.getByText(/skills/i)).toBeInTheDocument();
-			expect(screen.getByText(/mcp servers/i)).toBeInTheDocument();
-			expect(screen.getByText(/allowed tools/i)).toBeInTheDocument();
-			expect(screen.getByText(/disallowed tools/i)).toBeInTheDocument();
-			expect(screen.getByText(/env vars/i)).toBeInTheDocument();
+			// All section header buttons should render (collapsed by default)
+			const sectionButtons = screen.getAllByRole('button', { expanded: false });
+			const sectionTexts = sectionButtons.map((b) => b.textContent);
+			expect(sectionTexts.some((t) => t?.match(/hooks/i))).toBe(true);
+			expect(sectionTexts.some((t) => t?.match(/skills/i))).toBe(true);
+			expect(sectionTexts.some((t) => t?.match(/mcp servers/i))).toBe(true);
+			expect(sectionTexts.some((t) => t?.match(/allowed tools/i))).toBe(true);
+			expect(sectionTexts.some((t) => t?.match(/disallowed tools/i))).toBe(true);
+			expect(sectionTexts.some((t) => t?.match(/env vars/i))).toBe(true);
 		});
 
 		it('is read-only (no edit controls for claude_config)', async () => {
@@ -866,18 +870,17 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Claude config sections should be read-only (no add/remove/edit buttons)
+			// Claude config sections should not have add/clear buttons
 			expect(screen.queryByRole('button', { name: /add hook/i })).not.toBeInTheDocument();
 			expect(screen.queryByRole('button', { name: /clear override/i })).not.toBeInTheDocument();
 		});
 
-		it('shows "None" or hides sections when phase has no claude_config or override', async () => {
+		it('shows section headers even when phase has no claude_config or override', async () => {
 			const user = userEvent.setup();
 			const phase = createPhaseWithTemplate({
 				templateId: 'implement',
 				templateName: 'Implement',
 			});
-			// No claudeConfig on template, no override on phase
 			const details = createTestWorkflowDetails({
 				isBuiltin: false,
 				phases: [phase],
@@ -893,17 +896,16 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Should show "None" or empty state for config sections
-			const noneTexts = screen.queryAllByText(/none/i);
-			// At minimum, sections should not show items
-			expect(noneTexts.length).toBeGreaterThanOrEqual(0);
-			// No hook/skill/tool items should be shown
+			// Section headers still render (collapsed, with 0 badge)
+			const sections = screen.getAllByTestId('collapsible-section');
+			expect(sections.length).toBeGreaterThanOrEqual(6);
+			// No hook items should be shown
 			expect(screen.queryByText('lint-hook')).not.toBeInTheDocument();
 		});
 	});
 
 	describe('SC-10: Merge logic (override wins on env collision, BDD-4)', () => {
-		it('shows override env var value when key collides with template', async () => {
+		it('shows override env vars in editor when key collides with template', async () => {
 			const user = userEvent.setup();
 			const phase = createMockWorkflowPhase({
 				id: 1,
@@ -931,17 +933,22 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// A should show override value "2", not template value "1"
-			expect(screen.getByText('A')).toBeInTheDocument();
-			expect(screen.getByText('2')).toBeInTheDocument();
-			expect(screen.queryByText('1')).not.toBeInTheDocument();
+			// Expand the Env Vars section
+			const envSection = screen.getAllByRole('button', { expanded: false })
+				.find((b) => b.textContent?.match(/env vars/i));
+			expect(envSection).toBeDefined();
+			await user.click(envSection!);
 
-			// B should show override value "3"
-			expect(screen.getByText('B')).toBeInTheDocument();
-			expect(screen.getByText('3')).toBeInTheDocument();
+			// Override env vars should be editable (A=2, B=3)
+			const inputs = screen.getAllByRole('textbox');
+			const inputValues = inputs.map((i) => (i as HTMLInputElement).value);
+			expect(inputValues).toContain('A');
+			expect(inputValues).toContain('2');
+			expect(inputValues).toContain('B');
+			expect(inputValues).toContain('3');
 		});
 
-		it('shows combined hooks from template and override (union)', async () => {
+		it('shows hooks badge count reflecting merged hooks', async () => {
 			const user = userEvent.setup();
 			const phase = createMockWorkflowPhase({
 				id: 1,
@@ -969,18 +976,19 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			// Both hooks should be visible in the merged summary
-			expect(screen.getByText('template-hook')).toBeInTheDocument();
-			expect(screen.getByText('override-hook')).toBeInTheDocument();
+			// Hooks section should show a badge with the merged count (2)
+			const hooksButton = screen.getAllByRole('button', { expanded: false })
+				.find((b) => b.textContent?.match(/hooks/i));
+			expect(hooksButton).toBeDefined();
+			expect(hooksButton!.textContent).toMatch(/2/);
 		});
 
-		it('uses template config as-is when override is empty', async () => {
+		it('uses template config badge when override is empty', async () => {
 			const user = userEvent.setup();
 			const phase = createMockWorkflowPhase({
 				id: 1,
 				phaseTemplateId: 'implement',
 				sequence: 1,
-				// No override
 				template: createMockPhaseTemplate({
 					id: 'implement',
 					name: 'Implement',
@@ -1002,10 +1010,14 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			expect(screen.getByText('only-template-hook')).toBeInTheDocument();
+			// Hooks section badge should show 1 (from template)
+			const hooksButton = screen.getAllByRole('button', { expanded: false })
+				.find((b) => b.textContent?.match(/hooks/i));
+			expect(hooksButton).toBeDefined();
+			expect(hooksButton!.textContent).toMatch(/1/);
 		});
 
-		it('uses override config as-is when template is empty', async () => {
+		it('uses override config badge when template is empty', async () => {
 			const user = userEvent.setup();
 			const phase = createMockWorkflowPhase({
 				id: 1,
@@ -1015,7 +1027,6 @@ describe('PhaseInspector', () => {
 				template: createMockPhaseTemplate({
 					id: 'implement',
 					name: 'Implement',
-					// No claudeConfig
 				}),
 			});
 			const details = createTestWorkflowDetails({
@@ -1033,7 +1044,11 @@ describe('PhaseInspector', () => {
 
 			await user.click(screen.getByRole('tab', { name: /settings/i }));
 
-			expect(screen.getByText('only-override-hook')).toBeInTheDocument();
+			// Hooks section badge should show 1 (from override)
+			const hooksButton = screen.getAllByRole('button', { expanded: false })
+				.find((b) => b.textContent?.match(/hooks/i));
+			expect(hooksButton).toBeDefined();
+			expect(hooksButton!.textContent).toMatch(/1/);
 		});
 	});
 });
