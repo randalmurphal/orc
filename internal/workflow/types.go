@@ -402,12 +402,6 @@ type PromptFragmentSourceConfig struct {
 
 // --------- Helper Methods ---------
 
-// MarshalContextData converts ContextData to JSON for DB storage.
-func (cd ContextData) MarshalJSON() ([]byte, error) {
-	type Alias ContextData
-	return json.Marshal(Alias(cd))
-}
-
 // ParseInputVariables parses the JSON array of input variable names.
 func (pt *PhaseTemplate) ParseInputVariables(raw string) error {
 	if raw == "" {
@@ -442,76 +436,6 @@ func (wp *WorkflowPhase) DependsOnJSON() string {
 	}
 	b, _ := json.Marshal(wp.DependsOn)
 	return string(b)
-}
-
-// ParseContextData parses the JSON context data.
-func (wr *WorkflowRun) ParseContextData(raw string) error {
-	if raw == "" {
-		wr.ContextData = ContextData{}
-		return nil
-	}
-	return json.Unmarshal([]byte(raw), &wr.ContextData)
-}
-
-// ContextDataJSON returns context data as JSON string.
-func (wr *WorkflowRun) ContextDataJSON() string {
-	b, _ := json.Marshal(wr.ContextData)
-	return string(b)
-}
-
-// ParseVariablesSnapshot parses the JSON variables snapshot.
-func (wr *WorkflowRun) ParseVariablesSnapshot(raw string) error {
-	if raw == "" {
-		wr.VariablesSnapshot = nil
-		return nil
-	}
-	return json.Unmarshal([]byte(raw), &wr.VariablesSnapshot)
-}
-
-// VariablesSnapshotJSON returns variables snapshot as JSON string.
-func (wr *WorkflowRun) VariablesSnapshotJSON() string {
-	if len(wr.VariablesSnapshot) == 0 {
-		return ""
-	}
-	b, _ := json.Marshal(wr.VariablesSnapshot)
-	return string(b)
-}
-
-// GetPhaseByID returns a phase from the run by template ID.
-func (wr *WorkflowRun) GetPhaseByID(templateID string) *WorkflowRunPhase {
-	for i := range wr.Phases {
-		if wr.Phases[i].PhaseTemplateID == templateID {
-			return &wr.Phases[i]
-		}
-	}
-	return nil
-}
-
-// CurrentRunPhase returns the currently running or next pending phase.
-func (wr *WorkflowRun) CurrentRunPhase() *WorkflowRunPhase {
-	// First look for running phase
-	for i := range wr.Phases {
-		if wr.Phases[i].Status == PhaseStatusRunning {
-			return &wr.Phases[i]
-		}
-	}
-	// Then look for first pending phase
-	for i := range wr.Phases {
-		if wr.Phases[i].Status == PhaseStatusPending {
-			return &wr.Phases[i]
-		}
-	}
-	return nil
-}
-
-// IsComplete returns true if all phases are completed or skipped.
-func (wr *WorkflowRun) IsComplete() bool {
-	for _, phase := range wr.Phases {
-		if phase.Status != PhaseStatusCompleted && phase.Status != PhaseStatusSkipped {
-			return false
-		}
-	}
-	return true
 }
 
 // GetEffectiveModel returns the model to use for a phase, considering overrides.

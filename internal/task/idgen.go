@@ -190,7 +190,6 @@ type TaskIDGenerator struct {
 	mode         Mode
 	prefix       string
 	store        *SequenceStore
-	scanExisting bool // Whether to scan existing tasks for max sequence
 }
 
 // GeneratorOption configures the TaskIDGenerator.
@@ -200,14 +199,6 @@ type GeneratorOption func(*TaskIDGenerator)
 func WithSequenceStore(store *SequenceStore) GeneratorOption {
 	return func(g *TaskIDGenerator) {
 		g.store = store
-	}
-}
-
-// WithScanExisting enables scanning existing tasks to determine max sequence.
-// This is useful for backwards compatibility or when sequence file is lost.
-func WithScanExisting(scan bool) GeneratorOption {
-	return func(g *TaskIDGenerator) {
-		g.scanExisting = scan
 	}
 }
 
@@ -287,35 +278,6 @@ func (g *TaskIDGenerator) Next() (string, error) {
 	}
 
 	return g.formatID(seq), nil
-}
-
-// scanMaxSequenceFromEntries finds the max sequence number from directory entries.
-func (g *TaskIDGenerator) scanMaxSequenceFromEntries(entries []os.DirEntry) int {
-	var pattern *regexp.Regexp
-	if g.prefix == "" {
-		// Solo mode: TASK-001
-		pattern = regexp.MustCompile(`^TASK-(\d+)$`)
-	} else {
-		// Prefixed mode: TASK-AM-001
-		pattern = regexp.MustCompile(fmt.Sprintf(`^TASK-%s-(\d+)$`, regexp.QuoteMeta(g.prefix)))
-	}
-
-	maxNum := 0
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		matches := pattern.FindStringSubmatch(entry.Name())
-		if len(matches) == 2 {
-			num, _ := strconv.Atoi(matches[1])
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	return maxNum
 }
 
 // formatID formats a task ID with the given sequence number.

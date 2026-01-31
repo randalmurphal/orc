@@ -41,19 +41,6 @@ type hostingServer struct {
 	clientFactory HostingProviderFactory // Optional: for testing dependency injection
 }
 
-// NewHostingServer creates a new HostingService handler.
-func NewHostingServer(
-	backend storage.Backend,
-	projectDir string,
-	logger *slog.Logger,
-) orcv1connect.HostingServiceHandler {
-	return &hostingServer{
-		backend:    backend,
-		projectDir: projectDir,
-		logger:     logger,
-	}
-}
-
 // NewHostingServerWithExecutor creates a HostingService handler with autofix execution support.
 // The executor callback is called by AutofixComment to spawn a WorkflowExecutor goroutine.
 // The clientFactory is optional - if nil, uses the default getProvider method.

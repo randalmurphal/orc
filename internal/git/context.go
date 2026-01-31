@@ -2,10 +2,8 @@ package git
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -59,14 +57,6 @@ func WithWorktreeDir(dir string) ContextOption {
 	}
 }
 
-// WithRunner sets a custom command runner for git operations.
-// This is primarily used for testing to inject mock command execution.
-func WithRunner(runner CommandRunner) ContextOption {
-	return func(g *Context) {
-		g.runner = runner
-	}
-}
-
 // RepoPath returns the path to the main repository.
 func (g *Context) RepoPath() string {
 	return g.repoPath
@@ -76,14 +66,6 @@ func (g *Context) RepoPath() string {
 // This is the repo path unless working in a worktree.
 func (g *Context) WorkDir() string {
 	return g.workDir
-}
-
-// WorktreeDirPath returns the path to the worktrees directory.
-func (g *Context) WorktreeDirPath() string {
-	if filepath.IsAbs(g.worktreeDir) {
-		return g.worktreeDir
-	}
-	return filepath.Join(g.repoPath, g.worktreeDir)
 }
 
 // InWorktree returns a new Context that operates in the specified worktree.
@@ -136,24 +118,6 @@ func (g *Context) DeleteBranch(name string, force bool) error {
 	return nil
 }
 
-// BranchExists checks if a branch exists.
-func (g *Context) BranchExists(name string) bool {
-	_, err := g.runGit("rev-parse", "--verify", name)
-	return err == nil
-}
-
-// Stage adds files to the staging area.
-func (g *Context) Stage(files ...string) error {
-	if len(files) == 0 {
-		return nil
-	}
-	args := append([]string{"add", "--"}, files...)
-	if _, err := g.runGit(args...); err != nil {
-		return &GitError{Op: "stage files", Err: err}
-	}
-	return nil
-}
-
 // StageAll stages all changes (git add -A).
 func (g *Context) StageAll() error {
 	if _, err := g.runGit("add", "-A"); err != nil {
@@ -191,38 +155,12 @@ func (g *Context) Push(remote, branch string, setUpstream bool) error {
 	return nil
 }
 
-// Pull pulls changes from the remote.
-func (g *Context) Pull(remote, branch string) error {
-	if _, err := g.runGit("pull", remote, branch); err != nil {
-		return &GitError{Op: "pull", Err: err}
-	}
-	return nil
-}
-
 // Fetch fetches updates from the remote.
 func (g *Context) Fetch(remote string) error {
 	if _, err := g.runGit("fetch", remote); err != nil {
 		return &GitError{Op: "fetch", Err: err}
 	}
 	return nil
-}
-
-// Diff returns the diff between two refs.
-func (g *Context) Diff(base, head string) (string, error) {
-	diff, err := g.runGit("diff", base+"..."+head)
-	if err != nil {
-		return "", &GitError{Op: "diff", Err: err}
-	}
-	return diff, nil
-}
-
-// DiffStaged returns the diff of staged changes.
-func (g *Context) DiffStaged() (string, error) {
-	diff, err := g.runGit("diff", "--cached")
-	if err != nil {
-		return "", &GitError{Op: "diff staged", Err: err}
-	}
-	return diff, nil
 }
 
 // Status returns the working tree status in short format.
@@ -250,12 +188,6 @@ func (g *Context) HeadCommit() (string, error) {
 		return "", &GitError{Op: "get HEAD commit", Err: err}
 	}
 	return sha, nil
-}
-
-// IsBranchPushed checks if the branch exists on the remote.
-func (g *Context) IsBranchPushed(branch string) bool {
-	_, err := g.runGit("rev-parse", "--verify", "origin/"+branch)
-	return err == nil
 }
 
 // GetRemoteURL returns the URL of the specified remote.
@@ -287,38 +219,6 @@ type WorktreeInfo struct {
 	Commit string // HEAD commit SHA
 }
 
-// CreateContextWorktree creates an isolated worktree for the branch.
-// If the branch doesn't exist, it will be created.
-// Returns the path to the worktree directory.
-func (g *Context) CreateContextWorktree(branch string) (string, error) {
-	safeName := SanitizeBranchName(branch)
-	worktreeBase := g.WorktreeDirPath()
-	worktreePath := filepath.Join(worktreeBase, safeName)
-
-	if _, err := os.Stat(worktreePath); err == nil {
-		return "", ErrWorktreeExists
-	}
-
-	worktreesDir := worktreeBase
-	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
-		return "", fmt.Errorf("create worktrees dir: %w", err)
-	}
-
-	_, err := g.runGit("worktree", "add", "-b", branch, worktreePath, "HEAD")
-	if err != nil {
-		_, err = g.runGit("worktree", "add", worktreePath, branch)
-		if err != nil {
-			if strings.Contains(err.Error(), "not a valid reference") ||
-				strings.Contains(err.Error(), "invalid reference") {
-				return "", fmt.Errorf("branch %q does not exist and could not be created: %w", branch, err)
-			}
-			return "", &GitError{Op: "create worktree", Err: err}
-		}
-	}
-
-	return worktreePath, nil
-}
-
 // CleanupWorktree removes a worktree and its registration.
 func (g *Context) CleanupWorktree(worktreePath string) error {
 	_, err := g.runGit("worktree", "remove", worktreePath)
@@ -331,101 +231,3 @@ func (g *Context) CleanupWorktree(worktreePath string) error {
 	return nil
 }
 
-// ListWorktrees returns all active worktrees.
-func (g *Context) ListWorktrees() ([]WorktreeInfo, error) {
-	output, err := g.runGit("worktree", "list", "--porcelain")
-	if err != nil {
-		return nil, &GitError{Op: "list worktrees", Err: err}
-	}
-
-	var worktrees []WorktreeInfo
-	var current WorktreeInfo
-
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			if current.Path != "" {
-				worktrees = append(worktrees, current)
-				current = WorktreeInfo{}
-			}
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(line, "worktree "):
-			current.Path = strings.TrimPrefix(line, "worktree ")
-		case strings.HasPrefix(line, "HEAD "):
-			current.Commit = strings.TrimPrefix(line, "HEAD ")
-		case strings.HasPrefix(line, "branch "):
-			ref := strings.TrimPrefix(line, "branch ")
-			current.Branch = strings.TrimPrefix(ref, "refs/heads/")
-		case line == "detached":
-			current.Branch = "(detached)"
-		}
-	}
-
-	if current.Path != "" {
-		worktrees = append(worktrees, current)
-	}
-
-	return worktrees, nil
-}
-
-// GetWorktree returns information about a specific worktree by branch name.
-func (g *Context) GetWorktree(branch string) (*WorktreeInfo, error) {
-	worktrees, err := g.ListWorktrees()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, wt := range worktrees {
-		if wt.Branch == branch {
-			return &wt, nil
-		}
-	}
-
-	return nil, ErrWorktreeNotFound
-}
-
-// GetWorktreeByPath returns information about a specific worktree by path.
-func (g *Context) GetWorktreeByPath(path string) (*WorktreeInfo, error) {
-	worktrees, err := g.ListWorktrees()
-	if err != nil {
-		return nil, err
-	}
-
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return nil, fmt.Errorf("resolve path: %w", err)
-	}
-
-	for _, wt := range worktrees {
-		wtAbs, err := filepath.Abs(wt.Path)
-		if err != nil {
-			continue
-		}
-		if wtAbs == absPath {
-			return &wt, nil
-		}
-	}
-
-	return nil, ErrWorktreeNotFound
-}
-
-// PruneWorktrees removes stale worktree administrative files.
-func (g *Context) PruneWorktrees() error {
-	if _, err := g.runGit("worktree", "prune"); err != nil {
-		return &GitError{Op: "prune worktrees", Err: err}
-	}
-	return nil
-}
-
-// SanitizeBranchName converts a branch name to a safe directory name.
-func SanitizeBranchName(branch string) string {
-	safe := strings.ReplaceAll(branch, "/", "-")
-	safe = strings.ToLower(safe)
-	safe = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(safe, "")
-	safe = regexp.MustCompile(`-+`).ReplaceAllString(safe, "-")
-	safe = strings.Trim(safe, "-")
-	return safe
-}

@@ -172,11 +172,6 @@ func (se *ScriptExecutor) validatePath(scriptPath string) error {
 	return fmt.Errorf("script path %s is outside allowed directories", scriptPath)
 }
 
-// AddAllowedDir adds an additional allowed directory for scripts.
-func (se *ScriptExecutor) AddAllowedDir(dir string) {
-	se.AllowedDirs = append(se.AllowedDirs, dir)
-}
-
 // limitedWriter wraps a writer and limits the amount of data written.
 type limitedWriter struct {
 	w       *bytes.Buffer
@@ -202,13 +197,3 @@ func (lw *limitedWriter) Write(p []byte) (n int, err error) {
 	return len(p), err
 }
 
-// EnsureScriptsDir creates the .orc/scripts directory if it doesn't exist.
-func EnsureScriptsDir(projectRoot string) error {
-	dir := filepath.Join(projectRoot, DefaultScriptsSubdir)
-	return os.MkdirAll(dir, 0755)
-}
-
-// ScriptsDir returns the path to the .orc/scripts directory.
-func ScriptsDir(projectRoot string) string {
-	return filepath.Join(projectRoot, DefaultScriptsSubdir)
-}

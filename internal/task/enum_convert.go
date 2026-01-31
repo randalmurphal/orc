@@ -283,34 +283,6 @@ func PRStatusFromProto(s orcv1.PRStatus) string {
 	}
 }
 
-// DependencyStatusToProto converts a string dependency status to proto DependencyStatus.
-func DependencyStatusToProto(s string) orcv1.DependencyStatus {
-	switch s {
-	case "blocked":
-		return orcv1.DependencyStatus_DEPENDENCY_STATUS_BLOCKED
-	case "ready":
-		return orcv1.DependencyStatus_DEPENDENCY_STATUS_READY
-	case "none":
-		return orcv1.DependencyStatus_DEPENDENCY_STATUS_NONE
-	default:
-		return orcv1.DependencyStatus_DEPENDENCY_STATUS_NONE
-	}
-}
-
-// DependencyStatusFromProto converts a proto DependencyStatus to string.
-func DependencyStatusFromProto(s orcv1.DependencyStatus) string {
-	switch s {
-	case orcv1.DependencyStatus_DEPENDENCY_STATUS_BLOCKED:
-		return "blocked"
-	case orcv1.DependencyStatus_DEPENDENCY_STATUS_READY:
-		return "ready"
-	case orcv1.DependencyStatus_DEPENDENCY_STATUS_NONE:
-		return "none"
-	default:
-		return "none"
-	}
-}
-
 // ValidWeightsProto returns all valid weight proto values.
 func ValidWeightsProto() []orcv1.TaskWeight {
 	return []orcv1.TaskWeight{
@@ -321,72 +293,6 @@ func ValidWeightsProto() []orcv1.TaskWeight {
 	}
 }
 
-// IsValidWeightProto returns true if the weight is a valid weight value.
-func IsValidWeightProto(w orcv1.TaskWeight) bool {
-	switch w {
-	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL,
-		orcv1.TaskWeight_TASK_WEIGHT_SMALL,
-		orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
-		orcv1.TaskWeight_TASK_WEIGHT_LARGE:
-		return true
-	default:
-		return false
-	}
-}
-
-// ValidStatusesProto returns all valid status proto values.
-func ValidStatusesProto() []orcv1.TaskStatus {
-	return []orcv1.TaskStatus{
-		orcv1.TaskStatus_TASK_STATUS_CREATED,
-		orcv1.TaskStatus_TASK_STATUS_CLASSIFYING,
-		orcv1.TaskStatus_TASK_STATUS_PLANNED,
-		orcv1.TaskStatus_TASK_STATUS_RUNNING,
-		orcv1.TaskStatus_TASK_STATUS_PAUSED,
-		orcv1.TaskStatus_TASK_STATUS_BLOCKED,
-		orcv1.TaskStatus_TASK_STATUS_FINALIZING,
-		orcv1.TaskStatus_TASK_STATUS_COMPLETED,
-		orcv1.TaskStatus_TASK_STATUS_FAILED,
-		orcv1.TaskStatus_TASK_STATUS_RESOLVED,
-	}
-}
-
-// IsValidStatusProto returns true if the status is a valid status value.
-func IsValidStatusProto(s orcv1.TaskStatus) bool {
-	switch s {
-	case orcv1.TaskStatus_TASK_STATUS_CREATED,
-		orcv1.TaskStatus_TASK_STATUS_CLASSIFYING,
-		orcv1.TaskStatus_TASK_STATUS_PLANNED,
-		orcv1.TaskStatus_TASK_STATUS_RUNNING,
-		orcv1.TaskStatus_TASK_STATUS_PAUSED,
-		orcv1.TaskStatus_TASK_STATUS_BLOCKED,
-		orcv1.TaskStatus_TASK_STATUS_FINALIZING,
-		orcv1.TaskStatus_TASK_STATUS_COMPLETED,
-		orcv1.TaskStatus_TASK_STATUS_FAILED,
-		orcv1.TaskStatus_TASK_STATUS_RESOLVED:
-		return true
-	default:
-		return false
-	}
-}
-
-// ValidQueuesProto returns all valid queue proto values.
-func ValidQueuesProto() []orcv1.TaskQueue {
-	return []orcv1.TaskQueue{
-		orcv1.TaskQueue_TASK_QUEUE_ACTIVE,
-		orcv1.TaskQueue_TASK_QUEUE_BACKLOG,
-	}
-}
-
-// IsValidQueueProto returns true if the queue is a valid queue value.
-func IsValidQueueProto(q orcv1.TaskQueue) bool {
-	switch q {
-	case orcv1.TaskQueue_TASK_QUEUE_ACTIVE, orcv1.TaskQueue_TASK_QUEUE_BACKLOG:
-		return true
-	default:
-		return false
-	}
-}
-
 // ValidPrioritiesProto returns all valid priority proto values.
 func ValidPrioritiesProto() []orcv1.TaskPriority {
 	return []orcv1.TaskPriority{
@@ -394,19 +300,6 @@ func ValidPrioritiesProto() []orcv1.TaskPriority {
 		orcv1.TaskPriority_TASK_PRIORITY_HIGH,
 		orcv1.TaskPriority_TASK_PRIORITY_NORMAL,
 		orcv1.TaskPriority_TASK_PRIORITY_LOW,
-	}
-}
-
-// IsValidPriorityProto returns true if the priority is a valid priority value.
-func IsValidPriorityProto(p orcv1.TaskPriority) bool {
-	switch p {
-	case orcv1.TaskPriority_TASK_PRIORITY_CRITICAL,
-		orcv1.TaskPriority_TASK_PRIORITY_HIGH,
-		orcv1.TaskPriority_TASK_PRIORITY_NORMAL,
-		orcv1.TaskPriority_TASK_PRIORITY_LOW:
-		return true
-	default:
-		return false
 	}
 }
 

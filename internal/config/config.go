@@ -321,11 +321,6 @@ func (c *Config) SaveTo(path string) error {
 	return nil
 }
 
-// Init initializes the orc directory structure in the current directory.
-func Init(force bool) error {
-	return InitAt(".", force)
-}
-
 // InitAt initializes the orc directory structure at the specified base path.
 func InitAt(basePath string, force bool) error {
 	orcDir := filepath.Join(basePath, OrcDir)
@@ -355,11 +350,6 @@ func InitAt(basePath string, force bool) error {
 	}
 
 	return nil
-}
-
-// IsInitialized returns true if orc is initialized in the current directory.
-func IsInitialized() bool {
-	return IsInitializedAt(".")
 }
 
 // IsInitializedAt returns true if orc is initialized at the specified base path.

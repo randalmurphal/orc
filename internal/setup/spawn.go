@@ -66,32 +66,3 @@ func (s *Spawner) RunInteractive(ctx context.Context, prompt string) error {
 	return nil
 }
 
-// RunWithOutput spawns Claude and captures the output.
-// This is useful for non-interactive use cases.
-func (s *Spawner) RunWithOutput(ctx context.Context, prompt string) (string, error) {
-	args := []string{
-		"--print",
-		"-p", prompt,
-	}
-
-	if s.opts.Model != "" {
-		args = append(args, "--model", s.opts.Model)
-	}
-
-	if s.opts.DangerouslySkipPermissions {
-		args = append(args, "--dangerously-skip-permissions")
-	}
-
-	cmd := exec.CommandContext(ctx, s.opts.ClaudePath, args...)
-	cmd.Dir = s.opts.WorkDir
-
-	output, err := cmd.Output()
-	if err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", fmt.Errorf("claude exited with error: %w", err)
-	}
-
-	return string(output), nil
-}

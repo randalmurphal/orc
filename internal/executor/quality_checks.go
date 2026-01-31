@@ -94,11 +94,6 @@ func (r *QualityCheckResult) AsContext() string {
 	return sb.String()
 }
 
-// HasFailures returns true if any check failed.
-func (r *QualityCheckResult) HasFailures() bool {
-	return !r.AllPassed
-}
-
 // FailureSummary returns a brief summary of what failed.
 func (r *QualityCheckResult) FailureSummary() string {
 	if r.AllPassed {
