@@ -43,6 +43,15 @@ message MCPServer {
   bool disabled = 8;
 }
 
+// DiscoveredMCPServer represents an MCP server found during scan
+message DiscoveredMCPServer {
+  string name = 1;
+  string type = 2;           // "stdio" or "sse"
+  optional string command = 3;
+  optional string url = 4;
+  string status = 5;         // "new" or "modified"
+}
+
 // =============================================================================
 // SERVICE
 // =============================================================================
@@ -58,6 +67,12 @@ service MCPService {
   rpc UpdateMCPServer(UpdateMCPServerRequest) returns (UpdateMCPServerResponse);
   // Delete an MCP server
   rpc DeleteMCPServer(DeleteMCPServerRequest) returns (DeleteMCPServerResponse);
+  // Export MCP servers from source scope to destination scope
+  rpc ExportMCPServers(ExportMCPServersRequest) returns (ExportMCPServersResponse);
+  // Scan source scope for new/modified MCP servers compared to another scope
+  rpc ScanMCPServers(ScanMCPServersRequest) returns (ScanMCPServersResponse);
+  // Import MCP servers from source scope to destination scope (rejects duplicates)
+  rpc ImportMCPServers(ImportMCPServersRequest) returns (ImportMCPServersResponse);
 }
 
 // =============================================================================
@@ -120,3 +135,35 @@ message DeleteMCPServerRequest {
 }
 
 message DeleteMCPServerResponse {}
+
+// ExportMCPServers
+message ExportMCPServersRequest {
+  repeated string server_names = 1;
+  MCPScope source = 2;
+  MCPScope destination = 3;
+}
+
+message ExportMCPServersResponse {
+  int32 exported_count = 1;
+}
+
+// ScanMCPServers
+message ScanMCPServersRequest {
+  MCPScope source = 1;
+  MCPScope compare_to = 2;
+}
+
+message ScanMCPServersResponse {
+  repeated DiscoveredMCPServer servers = 1;
+}
+
+// ImportMCPServers
+message ImportMCPServersRequest {
+  repeated string server_names = 1;
+  MCPScope source = 2;
+  MCPScope destination = 3;
+}
+
+message ImportMCPServersResponse {
+  int32 imported_count = 1;
+}

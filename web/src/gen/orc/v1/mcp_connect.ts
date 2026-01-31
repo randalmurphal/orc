@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateMCPServerRequest, CreateMCPServerResponse, DeleteMCPServerRequest, DeleteMCPServerResponse, GetMCPServerRequest, GetMCPServerResponse, ListMCPServersRequest, ListMCPServersResponse, UpdateMCPServerRequest, UpdateMCPServerResponse } from "./mcp_pb.js";
+import { CreateMCPServerRequest, CreateMCPServerResponse, DeleteMCPServerRequest, DeleteMCPServerResponse, ExportMCPServersRequest, ExportMCPServersResponse, GetMCPServerRequest, GetMCPServerResponse, ImportMCPServersRequest, ImportMCPServersResponse, ListMCPServersRequest, ListMCPServersResponse, ScanMCPServersRequest, ScanMCPServersResponse, UpdateMCPServerRequest, UpdateMCPServerResponse } from "./mcp_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -65,6 +65,39 @@ export const MCPService = {
       name: "DeleteMCPServer",
       I: DeleteMCPServerRequest,
       O: DeleteMCPServerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Export MCP servers from source scope to destination scope
+     *
+     * @generated from rpc orc.v1.MCPService.ExportMCPServers
+     */
+    exportMCPServers: {
+      name: "ExportMCPServers",
+      I: ExportMCPServersRequest,
+      O: ExportMCPServersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Scan source scope for new/modified MCP servers compared to another scope
+     *
+     * @generated from rpc orc.v1.MCPService.ScanMCPServers
+     */
+    scanMCPServers: {
+      name: "ScanMCPServers",
+      I: ScanMCPServersRequest,
+      O: ScanMCPServersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Import MCP servers from source scope to destination scope (rejects duplicates)
+     *
+     * @generated from rpc orc.v1.MCPService.ImportMCPServers
+     */
+    importMCPServers: {
+      name: "ImportMCPServers",
+      I: ImportMCPServersRequest,
+      O: ImportMCPServersResponse,
       kind: MethodKind.Unary,
     },
   }

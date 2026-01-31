@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/mcp.proto.
  */
 export const file_orc_v1_mcp: GenFile = /*@__PURE__*/
-  fileDesc("ChBvcmMvdjEvbWNwLnByb3RvEgZvcmMudjEisQEKDU1DUFNlcnZlckluZm8SDAoEbmFtZRgBIAEoCRIMCgR0eXBlGAIgASgJEhQKB2NvbW1hbmQYAyABKAlIAIgBARIQCgN1cmwYBCABKAlIAYgBARIQCghkaXNhYmxlZBgFIAEoCBIPCgdoYXNfZW52GAYgASgIEhEKCWVudl9jb3VudBgHIAEoBRISCgphcmdzX2NvdW50GAggASgFQgoKCF9jb21tYW5kQgYKBF91cmwi6QEKCU1DUFNlcnZlchIMCgRuYW1lGAEgASgJEgwKBHR5cGUYAiABKAkSFAoHY29tbWFuZBgDIAEoCUgAiAEBEgwKBGFyZ3MYBCADKAkSJwoDZW52GAUgAygLMhoub3JjLnYxLk1DUFNlcnZlci5FbnZFbnRyeRIQCgN1cmwYBiABKAlIAYgBARIPCgdoZWFkZXJzGAcgAygJEhAKCGRpc2FibGVkGAggASgIGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCgoIX2NvbW1hbmRCBgoEX3VybCI4ChVMaXN0TUNQU2VydmVyc1JlcXVlc3QSHwoFc2NvcGUYASABKA4yEC5vcmMudjEuTUNQU2NvcGUiQAoWTGlzdE1DUFNlcnZlcnNSZXNwb25zZRImCgdzZXJ2ZXJzGAEgAygLMhUub3JjLnYxLk1DUFNlcnZlckluZm8iIwoTR2V0TUNQU2VydmVyUmVxdWVzdBIMCgRuYW1lGAEgASgJIjkKFEdldE1DUFNlcnZlclJlc3BvbnNlEiEKBnNlcnZlchgBIAEoCzIRLm9yYy52MS5NQ1BTZXJ2ZXIikQIKFkNyZWF0ZU1DUFNlcnZlclJlcXVlc3QSDAoEbmFtZRgBIAEoCRIRCgR0eXBlGAIgASgJSACIAQESFAoHY29tbWFuZBgDIAEoCUgBiAEBEgwKBGFyZ3MYBCADKAkSNAoDZW52GAUgAygLMicub3JjLnYxLkNyZWF0ZU1DUFNlcnZlclJlcXVlc3QuRW52RW50cnkSEAoDdXJsGAYgASgJSAKIAQESDwoHaGVhZGVycxgHIAMoCRIQCghkaXNhYmxlZBgIIAEoCBoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgcKBV90eXBlQgoKCF9jb21tYW5kQgYKBF91cmwiQAoXQ3JlYXRlTUNQU2VydmVyUmVzcG9uc2USJQoGc2VydmVyGAEgASgLMhUub3JjLnYxLk1DUFNlcnZlckluZm8iowIKFlVwZGF0ZU1DUFNlcnZlclJlcXVlc3QSDAoEbmFtZRgBIAEoCRIRCgR0eXBlGAIgASgJSACIAQESFAoHY29tbWFuZBgDIAEoCUgBiAEBEgwKBGFyZ3MYBCADKAkSNAoDZW52GAUgAygLMicub3JjLnYxLlVwZGF0ZU1DUFNlcnZlclJlcXVlc3QuRW52RW50cnkSEAoDdXJsGAYgASgJSAKIAQESDwoHaGVhZGVycxgHIAMoCRIVCghkaXNhYmxlZBgIIAEoCEgDiAEBGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCBwoFX3R5cGVCCgoIX2NvbW1hbmRCBgoEX3VybEILCglfZGlzYWJsZWQiQAoXVXBkYXRlTUNQU2VydmVyUmVzcG9uc2USJQoGc2VydmVyGAEgASgLMhUub3JjLnYxLk1DUFNlcnZlckluZm8iJgoWRGVsZXRlTUNQU2VydmVyUmVxdWVzdBIMCgRuYW1lGAEgASgJIhkKF0RlbGV0ZU1DUFNlcnZlclJlc3BvbnNlKlIKCE1DUFNjb3BlEhkKFU1DUF9TQ09QRV9VTlNQRUNJRklFRBAAEhUKEU1DUF9TQ09QRV9QUk9KRUNUEAESFAoQTUNQX1NDT1BFX0dMT0JBTBACMqQDCgpNQ1BTZXJ2aWNlEk8KDkxpc3RNQ1BTZXJ2ZXJzEh0ub3JjLnYxLkxpc3RNQ1BTZXJ2ZXJzUmVxdWVzdBoeLm9yYy52MS5MaXN0TUNQU2VydmVyc1Jlc3BvbnNlEkkKDEdldE1DUFNlcnZlchIbLm9yYy52MS5HZXRNQ1BTZXJ2ZXJSZXF1ZXN0Ghwub3JjLnYxLkdldE1DUFNlcnZlclJlc3BvbnNlElIKD0NyZWF0ZU1DUFNlcnZlchIeLm9yYy52MS5DcmVhdGVNQ1BTZXJ2ZXJSZXF1ZXN0Gh8ub3JjLnYxLkNyZWF0ZU1DUFNlcnZlclJlc3BvbnNlElIKD1VwZGF0ZU1DUFNlcnZlchIeLm9yYy52MS5VcGRhdGVNQ1BTZXJ2ZXJSZXF1ZXN0Gh8ub3JjLnYxLlVwZGF0ZU1DUFNlcnZlclJlc3BvbnNlElIKD0RlbGV0ZU1DUFNlcnZlchIeLm9yYy52MS5EZWxldGVNQ1BTZXJ2ZXJSZXF1ZXN0Gh8ub3JjLnYxLkRlbGV0ZU1DUFNlcnZlclJlc3BvbnNlQoQBCgpjb20ub3JjLnYxQghNY3BQcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM");
+  fileDesc("ChBvcmMvdjEvbWNwLnByb3RvEgZvcmMudjEisQEKDU1DUFNlcnZlckluZm8SDAoEbmFtZRgBIAEoCRIMCgR0eXBlGAIgASgJEhQKB2NvbW1hbmQYAyABKAlIAIgBARIQCgN1cmwYBCABKAlIAYgBARIQCghkaXNhYmxlZBgFIAEoCBIPCgdoYXNfZW52GAYgASgIEhEKCWVudl9jb3VudBgHIAEoBRISCgphcmdzX2NvdW50GAggASgFQgoKCF9jb21tYW5kQgYKBF91cmwi6QEKCU1DUFNlcnZlchIMCgRuYW1lGAEgASgJEgwKBHR5cGUYAiABKAkSFAoHY29tbWFuZBgDIAEoCUgAiAEBEgwKBGFyZ3MYBCADKAkSJwoDZW52GAUgAygLMhoub3JjLnYxLk1DUFNlcnZlci5FbnZFbnRyeRIQCgN1cmwYBiABKAlIAYgBARIPCgdoZWFkZXJzGAcgAygJEhAKCGRpc2FibGVkGAggASgIGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCgoIX2NvbW1hbmRCBgoEX3VybCJ9ChNEaXNjb3ZlcmVkTUNQU2VydmVyEgwKBG5hbWUYASABKAkSDAoEdHlwZRgCIAEoCRIUCgdjb21tYW5kGAMgASgJSACIAQESEAoDdXJsGAQgASgJSAGIAQESDgoGc3RhdHVzGAUgASgJQgoKCF9jb21tYW5kQgYKBF91cmwiOAoVTGlzdE1DUFNlcnZlcnNSZXF1ZXN0Eh8KBXNjb3BlGAEgASgOMhAub3JjLnYxLk1DUFNjb3BlIkAKFkxpc3RNQ1BTZXJ2ZXJzUmVzcG9uc2USJgoHc2VydmVycxgBIAMoCzIVLm9yYy52MS5NQ1BTZXJ2ZXJJbmZvIiMKE0dldE1DUFNlcnZlclJlcXVlc3QSDAoEbmFtZRgBIAEoCSI5ChRHZXRNQ1BTZXJ2ZXJSZXNwb25zZRIhCgZzZXJ2ZXIYASABKAsyES5vcmMudjEuTUNQU2VydmVyIpECChZDcmVhdGVNQ1BTZXJ2ZXJSZXF1ZXN0EgwKBG5hbWUYASABKAkSEQoEdHlwZRgCIAEoCUgAiAEBEhQKB2NvbW1hbmQYAyABKAlIAYgBARIMCgRhcmdzGAQgAygJEjQKA2VudhgFIAMoCzInLm9yYy52MS5DcmVhdGVNQ1BTZXJ2ZXJSZXF1ZXN0LkVudkVudHJ5EhAKA3VybBgGIAEoCUgCiAEBEg8KB2hlYWRlcnMYByADKAkSEAoIZGlzYWJsZWQYCCABKAgaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIHCgVfdHlwZUIKCghfY29tbWFuZEIGCgRfdXJsIkAKF0NyZWF0ZU1DUFNlcnZlclJlc3BvbnNlEiUKBnNlcnZlchgBIAEoCzIVLm9yYy52MS5NQ1BTZXJ2ZXJJbmZvIqMCChZVcGRhdGVNQ1BTZXJ2ZXJSZXF1ZXN0EgwKBG5hbWUYASABKAkSEQoEdHlwZRgCIAEoCUgAiAEBEhQKB2NvbW1hbmQYAyABKAlIAYgBARIMCgRhcmdzGAQgAygJEjQKA2VudhgFIAMoCzInLm9yYy52MS5VcGRhdGVNQ1BTZXJ2ZXJSZXF1ZXN0LkVudkVudHJ5EhAKA3VybBgGIAEoCUgCiAEBEg8KB2hlYWRlcnMYByADKAkSFQoIZGlzYWJsZWQYCCABKAhIA4gBARoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgcKBV90eXBlQgoKCF9jb21tYW5kQgYKBF91cmxCCwoJX2Rpc2FibGVkIkAKF1VwZGF0ZU1DUFNlcnZlclJlc3BvbnNlEiUKBnNlcnZlchgBIAEoCzIVLm9yYy52MS5NQ1BTZXJ2ZXJJbmZvIiYKFkRlbGV0ZU1DUFNlcnZlclJlcXVlc3QSDAoEbmFtZRgBIAEoCSIZChdEZWxldGVNQ1BTZXJ2ZXJSZXNwb25zZSJ4ChdFeHBvcnRNQ1BTZXJ2ZXJzUmVxdWVzdBIUCgxzZXJ2ZXJfbmFtZXMYASADKAkSIAoGc291cmNlGAIgASgOMhAub3JjLnYxLk1DUFNjb3BlEiUKC2Rlc3RpbmF0aW9uGAMgASgOMhAub3JjLnYxLk1DUFNjb3BlIjIKGEV4cG9ydE1DUFNlcnZlcnNSZXNwb25zZRIWCg5leHBvcnRlZF9jb3VudBgBIAEoBSJfChVTY2FuTUNQU2VydmVyc1JlcXVlc3QSIAoGc291cmNlGAEgASgOMhAub3JjLnYxLk1DUFNjb3BlEiQKCmNvbXBhcmVfdG8YAiABKA4yEC5vcmMudjEuTUNQU2NvcGUiRgoWU2Nhbk1DUFNlcnZlcnNSZXNwb25zZRIsCgdzZXJ2ZXJzGAEgAygLMhsub3JjLnYxLkRpc2NvdmVyZWRNQ1BTZXJ2ZXIieAoXSW1wb3J0TUNQU2VydmVyc1JlcXVlc3QSFAoMc2VydmVyX25hbWVzGAEgAygJEiAKBnNvdXJjZRgCIAEoDjIQLm9yYy52MS5NQ1BTY29wZRIlCgtkZXN0aW5hdGlvbhgDIAEoDjIQLm9yYy52MS5NQ1BTY29wZSIyChhJbXBvcnRNQ1BTZXJ2ZXJzUmVzcG9uc2USFgoOaW1wb3J0ZWRfY291bnQYASABKAUqUgoITUNQU2NvcGUSGQoVTUNQX1NDT1BFX1VOU1BFQ0lGSUVEEAASFQoRTUNQX1NDT1BFX1BST0pFQ1QQARIUChBNQ1BfU0NPUEVfR0xPQkFMEAIyowUKCk1DUFNlcnZpY2USTwoOTGlzdE1DUFNlcnZlcnMSHS5vcmMudjEuTGlzdE1DUFNlcnZlcnNSZXF1ZXN0Gh4ub3JjLnYxLkxpc3RNQ1BTZXJ2ZXJzUmVzcG9uc2USSQoMR2V0TUNQU2VydmVyEhsub3JjLnYxLkdldE1DUFNlcnZlclJlcXVlc3QaHC5vcmMudjEuR2V0TUNQU2VydmVyUmVzcG9uc2USUgoPQ3JlYXRlTUNQU2VydmVyEh4ub3JjLnYxLkNyZWF0ZU1DUFNlcnZlclJlcXVlc3QaHy5vcmMudjEuQ3JlYXRlTUNQU2VydmVyUmVzcG9uc2USUgoPVXBkYXRlTUNQU2VydmVyEh4ub3JjLnYxLlVwZGF0ZU1DUFNlcnZlclJlcXVlc3QaHy5vcmMudjEuVXBkYXRlTUNQU2VydmVyUmVzcG9uc2USUgoPRGVsZXRlTUNQU2VydmVyEh4ub3JjLnYxLkRlbGV0ZU1DUFNlcnZlclJlcXVlc3QaHy5vcmMudjEuRGVsZXRlTUNQU2VydmVyUmVzcG9uc2USVQoQRXhwb3J0TUNQU2VydmVycxIfLm9yYy52MS5FeHBvcnRNQ1BTZXJ2ZXJzUmVxdWVzdBogLm9yYy52MS5FeHBvcnRNQ1BTZXJ2ZXJzUmVzcG9uc2USTwoOU2Nhbk1DUFNlcnZlcnMSHS5vcmMudjEuU2Nhbk1DUFNlcnZlcnNSZXF1ZXN0Gh4ub3JjLnYxLlNjYW5NQ1BTZXJ2ZXJzUmVzcG9uc2USVQoQSW1wb3J0TUNQU2VydmVycxIfLm9yYy52MS5JbXBvcnRNQ1BTZXJ2ZXJzUmVxdWVzdBogLm9yYy52MS5JbXBvcnRNQ1BTZXJ2ZXJzUmVzcG9uc2VChAEKCmNvbS5vcmMudjFCCE1jcFByb3RvUAFaM2dpdGh1Yi5jb20vcmFuZGFsbXVycGhhbC9vcmMvZ2VuL3Byb3RvL29yYy92MTtvcmN2MaICA09YWKoCBk9yYy5WMcoCBk9yY1xWMeICEk9yY1xWMVxHUEJNZXRhZGF0YeoCB09yYzo6VjFiBnByb3RvMw");
 
 /**
  * MCPServerInfo is the summary view of an MCP server
@@ -125,6 +125,49 @@ export const MCPServerSchema: GenMessage<MCPServer> = /*@__PURE__*/
   messageDesc(file_orc_v1_mcp, 1);
 
 /**
+ * DiscoveredMCPServer represents an MCP server found during scan
+ *
+ * @generated from message orc.v1.DiscoveredMCPServer
+ */
+export type DiscoveredMCPServer = Message<"orc.v1.DiscoveredMCPServer"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * "stdio" or "sse"
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: optional string command = 3;
+   */
+  command?: string;
+
+  /**
+   * @generated from field: optional string url = 4;
+   */
+  url?: string;
+
+  /**
+   * "new" or "modified"
+   *
+   * @generated from field: string status = 5;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message orc.v1.DiscoveredMCPServer.
+ * Use `create(DiscoveredMCPServerSchema)` to create a new message.
+ */
+export const DiscoveredMCPServerSchema: GenMessage<DiscoveredMCPServer> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 2);
+
+/**
  * ListMCPServers
  *
  * @generated from message orc.v1.ListMCPServersRequest
@@ -141,7 +184,7 @@ export type ListMCPServersRequest = Message<"orc.v1.ListMCPServersRequest"> & {
  * Use `create(ListMCPServersRequestSchema)` to create a new message.
  */
 export const ListMCPServersRequestSchema: GenMessage<ListMCPServersRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 2);
+  messageDesc(file_orc_v1_mcp, 3);
 
 /**
  * @generated from message orc.v1.ListMCPServersResponse
@@ -158,7 +201,7 @@ export type ListMCPServersResponse = Message<"orc.v1.ListMCPServersResponse"> & 
  * Use `create(ListMCPServersResponseSchema)` to create a new message.
  */
 export const ListMCPServersResponseSchema: GenMessage<ListMCPServersResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 3);
+  messageDesc(file_orc_v1_mcp, 4);
 
 /**
  * GetMCPServer
@@ -177,7 +220,7 @@ export type GetMCPServerRequest = Message<"orc.v1.GetMCPServerRequest"> & {
  * Use `create(GetMCPServerRequestSchema)` to create a new message.
  */
 export const GetMCPServerRequestSchema: GenMessage<GetMCPServerRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 4);
+  messageDesc(file_orc_v1_mcp, 5);
 
 /**
  * @generated from message orc.v1.GetMCPServerResponse
@@ -194,7 +237,7 @@ export type GetMCPServerResponse = Message<"orc.v1.GetMCPServerResponse"> & {
  * Use `create(GetMCPServerResponseSchema)` to create a new message.
  */
 export const GetMCPServerResponseSchema: GenMessage<GetMCPServerResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 5);
+  messageDesc(file_orc_v1_mcp, 6);
 
 /**
  * CreateMCPServer
@@ -250,7 +293,7 @@ export type CreateMCPServerRequest = Message<"orc.v1.CreateMCPServerRequest"> & 
  * Use `create(CreateMCPServerRequestSchema)` to create a new message.
  */
 export const CreateMCPServerRequestSchema: GenMessage<CreateMCPServerRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 6);
+  messageDesc(file_orc_v1_mcp, 7);
 
 /**
  * @generated from message orc.v1.CreateMCPServerResponse
@@ -267,7 +310,7 @@ export type CreateMCPServerResponse = Message<"orc.v1.CreateMCPServerResponse"> 
  * Use `create(CreateMCPServerResponseSchema)` to create a new message.
  */
 export const CreateMCPServerResponseSchema: GenMessage<CreateMCPServerResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 7);
+  messageDesc(file_orc_v1_mcp, 8);
 
 /**
  * UpdateMCPServer
@@ -323,7 +366,7 @@ export type UpdateMCPServerRequest = Message<"orc.v1.UpdateMCPServerRequest"> & 
  * Use `create(UpdateMCPServerRequestSchema)` to create a new message.
  */
 export const UpdateMCPServerRequestSchema: GenMessage<UpdateMCPServerRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 8);
+  messageDesc(file_orc_v1_mcp, 9);
 
 /**
  * @generated from message orc.v1.UpdateMCPServerResponse
@@ -340,7 +383,7 @@ export type UpdateMCPServerResponse = Message<"orc.v1.UpdateMCPServerResponse"> 
  * Use `create(UpdateMCPServerResponseSchema)` to create a new message.
  */
 export const UpdateMCPServerResponseSchema: GenMessage<UpdateMCPServerResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 9);
+  messageDesc(file_orc_v1_mcp, 10);
 
 /**
  * DeleteMCPServer
@@ -359,7 +402,7 @@ export type DeleteMCPServerRequest = Message<"orc.v1.DeleteMCPServerRequest"> & 
  * Use `create(DeleteMCPServerRequestSchema)` to create a new message.
  */
 export const DeleteMCPServerRequestSchema: GenMessage<DeleteMCPServerRequest> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 10);
+  messageDesc(file_orc_v1_mcp, 11);
 
 /**
  * @generated from message orc.v1.DeleteMCPServerResponse
@@ -372,7 +415,140 @@ export type DeleteMCPServerResponse = Message<"orc.v1.DeleteMCPServerResponse"> 
  * Use `create(DeleteMCPServerResponseSchema)` to create a new message.
  */
 export const DeleteMCPServerResponseSchema: GenMessage<DeleteMCPServerResponse> = /*@__PURE__*/
-  messageDesc(file_orc_v1_mcp, 11);
+  messageDesc(file_orc_v1_mcp, 12);
+
+/**
+ * ExportMCPServers
+ *
+ * @generated from message orc.v1.ExportMCPServersRequest
+ */
+export type ExportMCPServersRequest = Message<"orc.v1.ExportMCPServersRequest"> & {
+  /**
+   * @generated from field: repeated string server_names = 1;
+   */
+  serverNames: string[];
+
+  /**
+   * @generated from field: orc.v1.MCPScope source = 2;
+   */
+  source: MCPScope;
+
+  /**
+   * @generated from field: orc.v1.MCPScope destination = 3;
+   */
+  destination: MCPScope;
+};
+
+/**
+ * Describes the message orc.v1.ExportMCPServersRequest.
+ * Use `create(ExportMCPServersRequestSchema)` to create a new message.
+ */
+export const ExportMCPServersRequestSchema: GenMessage<ExportMCPServersRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 13);
+
+/**
+ * @generated from message orc.v1.ExportMCPServersResponse
+ */
+export type ExportMCPServersResponse = Message<"orc.v1.ExportMCPServersResponse"> & {
+  /**
+   * @generated from field: int32 exported_count = 1;
+   */
+  exportedCount: number;
+};
+
+/**
+ * Describes the message orc.v1.ExportMCPServersResponse.
+ * Use `create(ExportMCPServersResponseSchema)` to create a new message.
+ */
+export const ExportMCPServersResponseSchema: GenMessage<ExportMCPServersResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 14);
+
+/**
+ * ScanMCPServers
+ *
+ * @generated from message orc.v1.ScanMCPServersRequest
+ */
+export type ScanMCPServersRequest = Message<"orc.v1.ScanMCPServersRequest"> & {
+  /**
+   * @generated from field: orc.v1.MCPScope source = 1;
+   */
+  source: MCPScope;
+
+  /**
+   * @generated from field: orc.v1.MCPScope compare_to = 2;
+   */
+  compareTo: MCPScope;
+};
+
+/**
+ * Describes the message orc.v1.ScanMCPServersRequest.
+ * Use `create(ScanMCPServersRequestSchema)` to create a new message.
+ */
+export const ScanMCPServersRequestSchema: GenMessage<ScanMCPServersRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 15);
+
+/**
+ * @generated from message orc.v1.ScanMCPServersResponse
+ */
+export type ScanMCPServersResponse = Message<"orc.v1.ScanMCPServersResponse"> & {
+  /**
+   * @generated from field: repeated orc.v1.DiscoveredMCPServer servers = 1;
+   */
+  servers: DiscoveredMCPServer[];
+};
+
+/**
+ * Describes the message orc.v1.ScanMCPServersResponse.
+ * Use `create(ScanMCPServersResponseSchema)` to create a new message.
+ */
+export const ScanMCPServersResponseSchema: GenMessage<ScanMCPServersResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 16);
+
+/**
+ * ImportMCPServers
+ *
+ * @generated from message orc.v1.ImportMCPServersRequest
+ */
+export type ImportMCPServersRequest = Message<"orc.v1.ImportMCPServersRequest"> & {
+  /**
+   * @generated from field: repeated string server_names = 1;
+   */
+  serverNames: string[];
+
+  /**
+   * @generated from field: orc.v1.MCPScope source = 2;
+   */
+  source: MCPScope;
+
+  /**
+   * @generated from field: orc.v1.MCPScope destination = 3;
+   */
+  destination: MCPScope;
+};
+
+/**
+ * Describes the message orc.v1.ImportMCPServersRequest.
+ * Use `create(ImportMCPServersRequestSchema)` to create a new message.
+ */
+export const ImportMCPServersRequestSchema: GenMessage<ImportMCPServersRequest> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 17);
+
+/**
+ * @generated from message orc.v1.ImportMCPServersResponse
+ */
+export type ImportMCPServersResponse = Message<"orc.v1.ImportMCPServersResponse"> & {
+  /**
+   * @generated from field: int32 imported_count = 1;
+   */
+  importedCount: number;
+};
+
+/**
+ * Describes the message orc.v1.ImportMCPServersResponse.
+ * Use `create(ImportMCPServersResponseSchema)` to create a new message.
+ */
+export const ImportMCPServersResponseSchema: GenMessage<ImportMCPServersResponse> = /*@__PURE__*/
+  messageDesc(file_orc_v1_mcp, 18);
 
 /**
  * MCP server scope
@@ -459,6 +635,36 @@ export const MCPService: GenService<{
     methodKind: "unary";
     input: typeof DeleteMCPServerRequestSchema;
     output: typeof DeleteMCPServerResponseSchema;
+  },
+  /**
+   * Export MCP servers from source scope to destination scope
+   *
+   * @generated from rpc orc.v1.MCPService.ExportMCPServers
+   */
+  exportMCPServers: {
+    methodKind: "unary";
+    input: typeof ExportMCPServersRequestSchema;
+    output: typeof ExportMCPServersResponseSchema;
+  },
+  /**
+   * Scan source scope for new/modified MCP servers compared to another scope
+   *
+   * @generated from rpc orc.v1.MCPService.ScanMCPServers
+   */
+  scanMCPServers: {
+    methodKind: "unary";
+    input: typeof ScanMCPServersRequestSchema;
+    output: typeof ScanMCPServersResponseSchema;
+  },
+  /**
+   * Import MCP servers from source scope to destination scope (rejects duplicates)
+   *
+   * @generated from rpc orc.v1.MCPService.ImportMCPServers
+   */
+  importMCPServers: {
+    methodKind: "unary";
+    input: typeof ImportMCPServersRequestSchema;
+    output: typeof ImportMCPServersResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_orc_v1_mcp, 0);
