@@ -47,7 +47,7 @@ web/src/
 ├── stores/               # Zustand stores (10 stores — see State Management)
 ├── hooks/                # Custom hooks (useShortcuts, useEvents, useDocumentTitle, etc.)
 ├── pages/                # Route pages
-├── lib/                  # Generic utilities (client.ts, time.ts, format.ts)
+├── lib/                  # Utilities (client.ts, time.ts, format.ts, claudeConfigUtils.ts)
 ├── gen/                  # Generated protobuf types (orc/v1/)
 └── test/                 # Test utilities and mock factories
 ```
@@ -110,13 +110,14 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
-| `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs for selected phase |
+| `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs + read-only merged claude_config summary |
 | `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: draggable phase templates for adding to canvas |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |
+| `PhaseListEditor` | `workflows/` | Phase list with add/edit/remove/reorder. Edit dialog shows inherited vs override claude_config sections |
 | `EditPhaseTemplateModal` | `workflows/` | Phase template editor with 7 collapsible claude_config sections + JSON override |
-| `CollapsibleSettingsSection` | `core/` | Collapsible header with chevron + badge counter. Used in phase template editor |
+| `CollapsibleSettingsSection` | `core/` | Collapsible header with chevron + badge counter. Used in phase editors and inspectors |
 | `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
 | `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
