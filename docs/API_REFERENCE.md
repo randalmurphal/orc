@@ -51,7 +51,7 @@ All Connect RPC services accept a `project_id` field in their request messages. 
 | DecisionService | `decision.proto` | ListDecisions, ResolveDecision, GetDecision, ListDecisionHistory |
 | NotificationService | `notification.proto` | ListNotifications, DismissNotification, DismissAllNotifications |
 | BranchService | `project.proto` | ListBranches, GetBranch, UpdateBranchStatus, DeleteBranch, CleanupStaleBranches |
-| ConfigService | `config.proto` | All request messages (GetConfig, UpdateConfig, GetSettings, UpdateSettings, GetSettingsHierarchy, ListHooks, CreateHook, UpdateHook, DeleteHook, ListSkills, CreateSkill, UpdateSkill, DeleteSkill, GetClaudeMd, UpdateClaudeMd, GetConstitution, UpdateConstitution, DeleteConstitution, ListPrompts, GetPrompt, GetDefaultPrompt, UpdatePrompt, DeletePrompt, ListPromptVariables, ListAgents, GetAgent, CreateAgent, UpdateAgent, DeleteAgent, ListScripts, DiscoverScripts, GetScript, CreateScript, UpdateScript, DeleteScript, ListTools, GetToolPermissions, UpdateToolPermissions, GetConfigStats) |
+| ConfigService | `config.proto` | All request messages (GetConfig, UpdateConfig, GetSettings, UpdateSettings, GetSettingsHierarchy, ListHooks, CreateHook, UpdateHook, DeleteHook, ExportHooks, ImportHooks, ListSkills, CreateSkill, UpdateSkill, DeleteSkill, ExportSkills, ImportSkills, ScanClaudeDir, GetClaudeMd, UpdateClaudeMd, GetConstitution, UpdateConstitution, DeleteConstitution, ListPrompts, GetPrompt, GetDefaultPrompt, UpdatePrompt, DeletePrompt, ListPromptVariables, ListAgents, GetAgent, CreateAgent, UpdateAgent, DeleteAgent, ListScripts, DiscoverScripts, GetScript, CreateScript, UpdateScript, DeleteScript, ListTools, GetToolPermissions, UpdateToolPermissions, GetConfigStats) |
 | WorkflowService | `workflow.proto` | All request messages including run requests (ListWorkflowRuns, GetWorkflowRun, StartWorkflowRun, CancelWorkflowRun, SaveWorkflowLayout) |
 | TranscriptService | `transcript.proto` | All request messages |
 | EventService | `events.proto` | All request messages |
@@ -913,6 +913,8 @@ Hooks are stored in the `hook_scripts` table in GlobalDB. Built-in hooks (`is_bu
 | `CreateHook` | Create hook (name, content, event_type required; rejects duplicates) |
 | `UpdateHook` | Update hook by ID (rejects built-in modifications) |
 | `DeleteHook` | Delete hook by ID (rejects built-in deletions) |
+| `ExportHooks` | Export hooks from GlobalDB to `.claude/hooks/` (PROJECT or GLOBAL scope) |
+| `ImportHooks` | Import discovered hook files into GlobalDB (rejects duplicates, built-in collisions) |
 
 **Event types**: `PreToolUse`, `PostToolUse`, `Notification`, `Stop`
 
@@ -928,8 +930,28 @@ Skills are stored in the `skills` table in GlobalDB. Built-in skills (`is_builti
 | `CreateSkill` | Create skill (name, content required; rejects duplicates) |
 | `UpdateSkill` | Update skill by ID (rejects built-in modifications) |
 | `DeleteSkill` | Delete skill by ID (rejects built-in deletions) |
+| `ExportSkills` | Export skills from GlobalDB to `.claude/skills/` (SKILL.md + supporting files) |
+| `ImportSkills` | Import discovered skill directories into GlobalDB (rejects duplicates) |
 
 **Error codes**: `InvalidArgument` (missing fields), `AlreadyExists` (duplicate name), `NotFound`, `PermissionDenied` (built-in)
+
+### Filesystem Sync (Hooks & Skills)
+
+Bidirectional sync between GlobalDB and `.claude/` filesystem directories. Supports both PROJECT (`.claude/`) and GLOBAL (`~/.claude/`) scopes.
+
+| RPC Method | Description |
+|------------|-------------|
+| `ScanClaudeDir` | Scan `.claude/hooks/` and `.claude/skills/` for items not in GlobalDB. Returns `DiscoveredItem` list with `new`/`modified` status |
+| `ExportHooks` | Write GlobalDB hooks to `.claude/hooks/` as executable scripts (0755) |
+| `ExportSkills` | Write GlobalDB skills to `.claude/skills/<name>/SKILL.md` + supporting files |
+| `ImportHooks` | Create GlobalDB entries from discovered hooks (validates no duplicates or built-in collisions) |
+| `ImportSkills` | Create GlobalDB entries from discovered skills (validates no duplicates) |
+
+**Round-trip workflow**: Export (GlobalDB → filesystem) → Edit files → Scan (detect changes) → Import (filesystem → GlobalDB)
+
+**Security**: Path traversal validation on all names/IDs. Binary files (null bytes) skipped during scan. Content previews truncated to 10KB.
+
+**Implementation**: `config_server_export.go`
 
 ### Settings (Claude Code)
 

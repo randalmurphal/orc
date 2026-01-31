@@ -33,6 +33,7 @@ type configServer struct {
 	globalDB     *db.GlobalDB
 	workDir      string
 	logger       *slog.Logger
+	testHomeDir  string // For test isolation of GLOBAL destination
 }
 
 // SetGlobalDB sets the GlobalDB dependency for hook/skill CRUD operations.
