@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/variable"
 )
 
 // AgentWithAssignment combines agent definition with phase assignment info.
@@ -16,10 +17,15 @@ type AgentWithAssignment struct {
 }
 
 // ToInlineAgentDef converts a database Agent to an InlineAgentDef for Claude CLI.
-func ToInlineAgentDef(a *db.Agent) InlineAgentDef {
+// If vars is non-empty, template variables in the agent prompt are rendered.
+func ToInlineAgentDef(a *db.Agent, vars map[string]string) InlineAgentDef {
+	prompt := a.Prompt
+	if len(vars) > 0 {
+		prompt = variable.RenderTemplate(prompt, vars)
+	}
 	return InlineAgentDef{
 		Description: a.Description,
-		Prompt:      a.Prompt,
+		Prompt:      prompt,
 		Tools:       a.Tools,
 		Model:       a.Model,
 	}
@@ -27,7 +33,7 @@ func ToInlineAgentDef(a *db.Agent) InlineAgentDef {
 
 // LoadPhaseAgents loads agents for a phase template, filtered by task weight.
 // Returns a map of agent ID to InlineAgentDef suitable for Claude CLI --agents flag.
-func LoadPhaseAgents(gdb *db.GlobalDB, phaseTemplateID string, weight string) (map[string]InlineAgentDef, error) {
+func LoadPhaseAgents(gdb *db.GlobalDB, phaseTemplateID string, weight string, vars map[string]string) (map[string]InlineAgentDef, error) {
 	// Load agents with their definitions from global DB
 	agentsWithDefs, err := gdb.GetPhaseAgentsWithDefinitions(phaseTemplateID, weight)
 	if err != nil {
@@ -41,7 +47,7 @@ func LoadPhaseAgents(gdb *db.GlobalDB, phaseTemplateID string, weight string) (m
 	// Convert to inline agent format
 	result := make(map[string]InlineAgentDef, len(agentsWithDefs))
 	for _, awa := range agentsWithDefs {
-		result[awa.Agent.ID] = ToInlineAgentDef(awa.Agent)
+		result[awa.Agent.ID] = ToInlineAgentDef(awa.Agent, vars)
 	}
 
 	return result, nil
