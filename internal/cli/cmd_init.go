@@ -19,7 +19,7 @@ import (
 
 // defaultErrorPatterns maps primary language to error handling idioms.
 var defaultErrorPatterns = map[string]string{
-	"go":         "Always check error returns with `if err != nil`. Wrap errors with context: `fmt.Errorf(\"context: %%w\", err)`. Never discard errors with `_` in production. Use `errors.Is`/`errors.As` for comparison.",
+	"go":         "Always check error returns with `if err != nil`. Wrap errors with context: `fmt.Errorf(\"context: %w\", err)`. Never discard errors with `_` in production. Use `errors.Is`/`errors.As` for comparison.",
 	"python":     "Use specific exception types, never bare `except`. Log with `logger.exception()` for stack traces. Use `contextlib.suppress` only for documented expected cases.",
 	"typescript": "Avoid broad `catch(e)` — catch specific error types. Never swallow errors in empty catch blocks. Use typed error responses at API boundaries.",
 	"rust":       "Use `?` operator for propagation. Use `thiserror` for library errors, `anyhow` for application errors. Never `.unwrap()` in production code.",

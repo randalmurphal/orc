@@ -9,6 +9,9 @@ You detect implementations that exceed what the specification requested.
 
 <project_context>
 Language: {{LANGUAGE}}
+Frameworks: {{FRAMEWORKS}}
+
+{{CONSTITUTION_CONTENT}}
 </project_context>
 
 ## What You Check

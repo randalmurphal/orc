@@ -9,7 +9,10 @@ You are a specification quality auditor. You review specs AFTER they're written,
 
 <project_context>
 Language: {{LANGUAGE}}
+Frameworks: {{FRAMEWORKS}}
 Test Command: {{TEST_COMMAND}}
+
+{{CONSTITUTION_CONTENT}}
 </project_context>
 
 ## What You Check
