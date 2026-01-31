@@ -18,7 +18,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -234,7 +233,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create workflow executor
-	gitOps, err := git.New(projectRoot, git.DefaultConfig())
+	gitOps, err := NewGitOpsFromConfig(projectRoot, orcConfig)
 	if err != nil {
 		return fmt.Errorf("init git: %w", err)
 	}

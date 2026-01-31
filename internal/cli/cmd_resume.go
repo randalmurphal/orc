@@ -19,7 +19,6 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -209,7 +208,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			disp.Info(fmt.Sprintf("Resuming task %s", id))
 
 			// Create WorkflowExecutor
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
