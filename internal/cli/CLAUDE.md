@@ -24,6 +24,23 @@ Command-line interface using Cobra. Each command is in its own file.
 | `cmd_gates_test.go` | Gate command tests |
 | `cmd_show_gates_test.go` | Gate display in `orc show` tests |
 | `cmd_run_skipgates_test.go` | `--skip-gates` flag tests |
+| `git_helpers.go` | `NewGitOpsFromConfig()` — ONE way to create `git.Git` |
+
+## Git Operations
+
+**ONE way to create `git.Git` in CLI commands:**
+
+```go
+gitOps, err := NewGitOpsFromConfig(projectRoot, orcConfig)
+```
+
+Defined in `git_helpers.go`. Resolves worktree dir via `config.ResolveWorktreeDir`, sets branch/commit prefix and executor prefix from orc config.
+
+| Do | Don't |
+|----|-------|
+| `NewGitOpsFromConfig(root, cfg)` | `git.New(root, git.DefaultConfig())` |
+| Use the helper for every command | Inline `git.Config{}` construction |
+| Pass `projectRoot` from `ResolveProjectPath()` | Use `os.Getwd()` for path resolution |
 
 ## Command Pattern
 

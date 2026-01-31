@@ -63,7 +63,9 @@ func setupSyncCleanupTest(t *testing.T, taskID string) *syncCleanupTestEnv {
 	runGitCmdOrFatal(t, repoDir, "push", "-u", "origin", "main")
 
 	// Create git ops
-	gitOps, err := git.New(repoDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(repoDir, ".orc", "worktrees")
+	gitOps, err := git.New(repoDir, gitCfg)
 	if err != nil {
 		t.Fatalf("git.New: %v", err)
 	}

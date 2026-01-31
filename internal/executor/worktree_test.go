@@ -35,7 +35,9 @@ func TestSetupWorktreeForTask_NilTask(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -58,7 +60,9 @@ func TestSetupWorktreeForTask_CreatesWorktree(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -112,7 +116,9 @@ func TestSetupWorktreeForTask_ReusesExisting(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -156,7 +162,9 @@ func TestSetupWorktreeForTask_SwitchesToCorrectBranch(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -227,7 +235,9 @@ func TestSetupWorktreeForTask_WithTargetBranchOverride(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -264,7 +274,9 @@ func TestSetupWorktreeForTask_ReturnsAbsolutePath(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -302,7 +314,9 @@ func TestCleanupWorktree_RemovesDirectory(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -342,7 +356,9 @@ func TestCleanupWorktree_NonexistentPath_NoError(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -391,7 +407,9 @@ func TestWorktreeExists_ReturnsTrueWhenExists(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -521,7 +539,9 @@ func TestSetupWorktreeForTask_StaleWorktree(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -576,7 +596,9 @@ func TestSetupWorktreeForTask_CleansDirtyWorktree(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -656,7 +678,9 @@ func TestSetupWorktreeForTask_AbortsRebaseInProgress(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}
@@ -738,7 +762,9 @@ func TestSetupWorktreeForTask_AbortsMergeInProgress(t *testing.T) {
 		t.Fatalf("failed to init test repo: %v", err)
 	}
 
-	gitOps, err := git.New(tmpDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(tmpDir, ".orc", "worktrees")
+	gitOps, err := git.New(tmpDir, gitCfg)
 	if err != nil {
 		t.Fatalf("failed to create git ops: %v", err)
 	}

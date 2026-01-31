@@ -258,7 +258,7 @@ func TestHasRemote_WithRemote(t *testing.T) {
 // TestHasRemote_InWorktree tests HasRemote in worktree context
 func TestHasRemote_InWorktree(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, _ := New(tmpDir, DefaultConfig())
+	g, _ := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 
 	// Add a remote to main repo (use file:// to avoid HTTPS auth prompts)
 	cmd := exec.Command("git", "remote", "add", "origin", "file:///tmp/fake-remote.git")
@@ -340,7 +340,7 @@ func TestMainRepoProtection_CheckoutSafeBlocked(t *testing.T) {
 // TestMainRepoProtection_WorktreeContextAllowed tests that worktree context allows operations
 func TestMainRepoProtection_WorktreeContextAllowed(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, err := New(tmpDir, DefaultConfig())
+	g, err := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 	if err != nil {
 		t.Fatalf("failed to create Git: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestMainRepoProtection_WorktreeContextAllowed(t *testing.T) {
 // TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations verifies main repo stays untouched
 func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, err := New(tmpDir, DefaultConfig())
+	g, err := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 	if err != nil {
 		t.Fatalf("failed to create Git: %v", err)
 	}
@@ -418,7 +418,7 @@ func TestMainRepoProtection_MainBranchUnchangedAfterWorktreeOperations(t *testin
 // TestMainRepoProtection_ProtectedBranchRewindBlocked tests that Rewind is blocked on protected branches
 func TestMainRepoProtection_ProtectedBranchRewindBlocked(t *testing.T) {
 	tmpDir := setupTestRepo(t)
-	g, err := New(tmpDir, DefaultConfig())
+	g, err := New(tmpDir, testConfigWithWorktreeDir(tmpDir))
 	if err != nil {
 		t.Fatalf("failed to create Git: %v", err)
 	}

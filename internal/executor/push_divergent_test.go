@@ -30,7 +30,9 @@ func TestDivergentBranchPush_SucceedsWithForceFallback(t *testing.T) {
 	defer cleanup()
 
 	// Create Git instance for local repo
-	gitOps, err := git.New(localDir, git.DefaultConfig())
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(localDir, ".orc", "worktrees")
+	gitOps, err := git.New(localDir, gitCfg)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -186,7 +188,9 @@ func TestCreatePR_UsesForceFallbackForDivergentBranch(t *testing.T) {
 	remoteDir, localDir, cleanup := setupRemoteAndLocalReposForExecutor(t)
 	defer cleanup()
 
-	gitOps, _ := git.New(localDir, git.DefaultConfig())
+	gitCfg2 := git.DefaultConfig()
+	gitCfg2.WorktreeDir = filepath.Join(localDir, ".orc", "worktrees")
+	gitOps, _ := git.New(localDir, gitCfg2)
 	baseBranch, _ := gitOps.GetCurrentBranch()
 
 	// Create worktree
@@ -279,7 +283,9 @@ func TestDirectMerge_UsesForceFallbackForDivergentBranch(t *testing.T) {
 	remoteDir, localDir, cleanup := setupRemoteAndLocalReposForExecutor(t)
 	defer cleanup()
 
-	gitOps, _ := git.New(localDir, git.DefaultConfig())
+	gitCfg3 := git.DefaultConfig()
+	gitCfg3.WorktreeDir = filepath.Join(localDir, ".orc", "worktrees")
+	gitOps, _ := git.New(localDir, gitCfg3)
 	baseBranch, _ := gitOps.GetCurrentBranch()
 
 	// Create worktree
@@ -370,7 +376,9 @@ func TestResume_InterruptedTaskWithRemoteCommits(t *testing.T) {
 	remoteDir, localDir, cleanup := setupRemoteAndLocalReposForExecutor(t)
 	defer cleanup()
 
-	gitOps, _ := git.New(localDir, git.DefaultConfig())
+	gitCfg4 := git.DefaultConfig()
+	gitCfg4.WorktreeDir = filepath.Join(localDir, ".orc", "worktrees")
+	gitOps, _ := git.New(localDir, gitCfg4)
 	baseBranch, _ := gitOps.GetCurrentBranch()
 
 	// === First execution: Make commits and push ===

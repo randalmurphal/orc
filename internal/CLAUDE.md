@@ -91,6 +91,16 @@ return fmt.Errorf("load task %s: %w", id, err)
 
 **Task Consistency:** Task status and execution state are unified in `orcv1.Task` (the proto domain model from `gen/proto/orc/v1/task.pb.go`). When execution fails, update both `t.Status` and `t.Execution` fields, then save with `backend.SaveTask(t)`. See `executor/CLAUDE.md` for the complete error handling checklist.
 
+### Construction Helpers
+
+When multiple packages need the same object built from config, create ONE helper and use it everywhere. Never let callers build the object inline — config fields get missed, defaults diverge, and bugs happen silently.
+
+| Object | Helper | Location |
+|--------|--------|----------|
+| `git.Git` (CLI) | `NewGitOpsFromConfig()` | `cli/git_helpers.go` |
+
+`git.DefaultConfig()` intentionally has an empty `WorktreeDir` — callers MUST set it explicitly via the helper or `config.ResolveWorktreeDir()`.
+
 ### Functional Options
 
 ```go

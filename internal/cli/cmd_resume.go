@@ -19,7 +19,6 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/executor"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/progress"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -209,7 +208,7 @@ Use --force to resume a task even if it appears to still be running.`,
 			disp.Info(fmt.Sprintf("Resuming task %s", id))
 
 			// Create WorkflowExecutor
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
@@ -265,7 +264,7 @@ Use --force to resume a task even if it appears to still be running.`,
 				if errors.Is(err, executor.ErrTaskBlocked) {
 					// Reload task for summary (execution state is now in task.Execution)
 					t, _ = backend.LoadTask(id)
-					blockedCtx := buildBlockedContextProto(t, cfg)
+					blockedCtx := buildBlockedContextProto(t, cfg, projectRoot)
 					disp.TaskBlockedWithContext(task.GetTotalTokensProto(t), taskElapsedProto(t), "sync conflict", blockedCtx)
 					return nil // Not a fatal error - task execution succeeded
 				}

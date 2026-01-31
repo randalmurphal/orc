@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/randalmurphal/orc/internal/config"
-	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -142,7 +141,12 @@ Example:
 				return fmt.Errorf("find project root: %w", err)
 			}
 
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
@@ -247,7 +251,12 @@ Example:
 				return fmt.Errorf("find project root: %w", err)
 			}
 
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}

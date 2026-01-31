@@ -244,13 +244,7 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 			var gitOps *git.Git
 			var wtStatus *worktreeStatus
 			if cfg.Worktree.Enabled {
-				gitCfg := git.Config{
-					BranchPrefix:   cfg.BranchPrefix,
-					CommitPrefix:   cfg.CommitPrefix,
-					WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot),
-					ExecutorPrefix: cfg.ExecutorPrefix(),
-				}
-				gitOps, err = git.New(projectRoot, gitCfg)
+				gitOps, err = NewGitOpsFromConfig(projectRoot, cfg)
 				if err != nil {
 					// Non-fatal: warn but continue
 					if !quiet {

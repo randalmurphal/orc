@@ -107,7 +107,7 @@ Example:
 				return nil
 			}
 
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
@@ -172,7 +172,7 @@ Example:
 				return fmt.Errorf("find project root: %w", err)
 			}
 
-			gitOps, err := git.New(projectRoot, git.DefaultConfig())
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}

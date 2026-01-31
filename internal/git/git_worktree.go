@@ -21,6 +21,16 @@ func (g *Git) BranchNameWithInitiativePrefix(taskID, initiativePrefix string) st
 	return BranchNameWithPrefix(taskID, g.executorPrefix, initiativePrefix)
 }
 
+// validateWorktreeConfig checks that the worktree directory is configured.
+// This must be called before any operation that creates worktrees, since an empty
+// worktreeDir would silently create worktrees relative to the repo root.
+func (g *Git) validateWorktreeConfig() error {
+	if g.worktreeDir == "" {
+		return fmt.Errorf("worktree directory not configured: set WorktreeDir in git.Config")
+	}
+	return nil
+}
+
 // tryCreateWorktree attempts to create a worktree, handling stale registrations.
 // If the initial attempt fails, it prunes stale worktree entries and retries.
 // This handles the case where a worktree directory was deleted but git still has
@@ -75,6 +85,10 @@ func (g *Git) tryCreateWorktree(branchName, worktreePath, baseBranch string) (st
 // If a stale worktree registration exists (directory deleted but git still tracks it),
 // this function will automatically prune stale entries and retry.
 func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
+	if err := g.validateWorktreeConfig(); err != nil {
+		return "", err
+	}
+
 	branchName := g.BranchName(taskID)
 	worktreePath := WorktreePath(g.worktreeBasePath(), taskID, g.executorPrefix)
 
@@ -131,6 +145,10 @@ func (g *Git) CreateWorktree(taskID, baseBranch string) (string, error) {
 // Hook injection failure is fatal - the function returns an error if hooks cannot be installed,
 // as the worktree would lack branch protection.
 func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativePrefix string) (string, error) {
+	if err := g.validateWorktreeConfig(); err != nil {
+		return "", err
+	}
+
 	branchName := g.BranchNameWithInitiativePrefix(taskID, initiativePrefix)
 	worktreePath := WorktreePathWithPrefix(g.worktreeBasePath(), taskID, g.executorPrefix, initiativePrefix)
 
@@ -176,6 +194,10 @@ func (g *Git) CreateWorktreeWithInitiativePrefix(taskID, baseBranch, initiativeP
 // Hook injection failure is fatal - the function returns an error if hooks cannot be installed,
 // as the worktree would lack branch protection.
 func (g *Git) CreateWorktreeWithCustomBranch(taskID, customBranchName, baseBranch string) (string, error) {
+	if err := g.validateWorktreeConfig(); err != nil {
+		return "", err
+	}
+
 	// Derive worktree directory from custom branch name (replace slashes with hyphens)
 	worktreeDirName := strings.ReplaceAll(customBranchName, "/", "-")
 	worktreePath := filepath.Join(g.worktreeBasePath(), worktreeDirName)

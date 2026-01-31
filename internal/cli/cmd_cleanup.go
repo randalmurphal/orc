@@ -66,13 +66,7 @@ Examples:
 			}
 
 			// Initialize git operations
-			gitCfg := git.Config{
-				BranchPrefix:   cfg.BranchPrefix,
-				CommitPrefix:   cfg.CommitPrefix,
-				WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectRoot),
-				ExecutorPrefix: cfg.ExecutorPrefix(),
-			}
-			gitOps, err := git.New(projectRoot, gitCfg)
+			gitOps, err := NewGitOpsFromConfig(projectRoot, cfg)
 			if err != nil {
 				return fmt.Errorf("init git: %w", err)
 			}
