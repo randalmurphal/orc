@@ -142,7 +142,23 @@ The initiative's **Vision** and **Decisions** flow into every linked task's prom
 
 ### Completion Detection
 
-Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blocked phases output `{"status": "blocked", "reason": "..."}`. Failed phases trigger retry from earlier phase with `{{RETRY_CONTEXT}}`.
+Phases complete when Claude outputs JSON with `{"status": "complete", ...}`. Blocked phases output `{"status": "blocked", "reason": "..."}`. Failed phases trigger retry with structured retry variables.
+
+### Retry Variables
+
+On retry, template variables are populated from two sources:
+
+| Variable | Source | Purpose |
+|----------|--------|---------|
+| `{{RETRY_ATTEMPT}}` | Both | Current attempt number |
+| `{{RETRY_FROM_PHASE}}` | Variable resolver | Phase that triggered the retry |
+| `{{RETRY_REASON}}` | Variable resolver | Why the previous attempt failed |
+| `{{RETRY_FEEDBACK}}` | Prompt service | Specific feedback from the failed attempt |
+| `{{RETRY_FAILED_CRITERIA}}` | Prompt service | Success criteria not met |
+| `{{RETRY_MAX_ATTEMPTS}}` | Prompt service | Maximum attempts allowed |
+| `{{RETRY_CONTEXT}}` | Both | Combined retry context (backward compatible) |
+
+Templates use `{{#if RETRY_ATTEMPT}}` as the guard conditional (empty on first run). See `variable.Resolver.resolveBuiltins()` and `prompt.Service.populateRetryVariables()`.
 
 ## Configuration
 

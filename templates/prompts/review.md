@@ -81,7 +81,17 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 </specification>
 {{/if}}
 
-{{RETRY_CONTEXT}}
+{{#if RETRY_ATTEMPT}}
+<retry_context>
+## Re-Review Context
+
+This is re-review attempt **{{RETRY_ATTEMPT}}**, triggered from the **{{RETRY_FROM_PHASE}}** phase.
+
+**Reason for retry:** {{RETRY_REASON}}
+
+Pay special attention to whether the issues from the previous review have been addressed.
+</retry_context>
+{{/if}}
 </context>
 
 <instructions>
