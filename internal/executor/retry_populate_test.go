@@ -4,23 +4,22 @@ import (
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
-func TestPopulateRetryFields_FromProto(t *testing.T) {
+func TestPopulateRetryFields_FromTaskMetadata(t *testing.T) {
 	t.Parallel()
 
 	rctx := &variable.ResolutionContext{}
 
-	e := &orcv1.ExecutionState{
-		RetryContext: &orcv1.RetryContext{
-			FromPhase: "review",
-			Reason:    "Gate rejected: code quality issues",
-			Attempt:   3,
-		},
+	// Create task with retry state in metadata
+	tsk := &orcv1.Task{
+		Id: "TASK-001",
 	}
+	task.SetRetryState(tsk, "review", "implement", "Gate rejected: code quality issues", "", 3)
 
-	PopulateRetryFields(rctx, e)
+	PopulateRetryFields(rctx, tsk)
 
 	if rctx.RetryAttempt != 3 {
 		t.Errorf("RetryAttempt: expected 3, got %d", rctx.RetryAttempt)
@@ -33,37 +32,38 @@ func TestPopulateRetryFields_FromProto(t *testing.T) {
 	}
 }
 
-func TestPopulateRetryFields_NilExecution(t *testing.T) {
+func TestPopulateRetryFields_NilTask(t *testing.T) {
 	t.Parallel()
 
 	rctx := &variable.ResolutionContext{}
 
-	// Should not panic with nil execution state
+	// Should not panic with nil task
 	PopulateRetryFields(rctx, nil)
 
 	if rctx.RetryAttempt != 0 {
-		t.Errorf("RetryAttempt should be 0 with nil execution, got %d", rctx.RetryAttempt)
+		t.Errorf("RetryAttempt should be 0 with nil task, got %d", rctx.RetryAttempt)
 	}
 	if rctx.RetryFromPhase != "" {
-		t.Errorf("RetryFromPhase should be empty with nil execution, got %q", rctx.RetryFromPhase)
+		t.Errorf("RetryFromPhase should be empty with nil task, got %q", rctx.RetryFromPhase)
 	}
 	if rctx.RetryReason != "" {
-		t.Errorf("RetryReason should be empty with nil execution, got %q", rctx.RetryReason)
+		t.Errorf("RetryReason should be empty with nil task, got %q", rctx.RetryReason)
 	}
 }
 
-func TestPopulateRetryFields_NilRetryContext(t *testing.T) {
+func TestPopulateRetryFields_NoRetryState(t *testing.T) {
 	t.Parallel()
 
 	rctx := &variable.ResolutionContext{}
 
-	e := &orcv1.ExecutionState{
-		RetryContext: nil,
+	// Task without any retry state set
+	tsk := &orcv1.Task{
+		Id: "TASK-002",
 	}
 
-	PopulateRetryFields(rctx, e)
+	PopulateRetryFields(rctx, tsk)
 
 	if rctx.RetryAttempt != 0 {
-		t.Errorf("RetryAttempt should be 0 with nil retry context, got %d", rctx.RetryAttempt)
+		t.Errorf("RetryAttempt should be 0 with no retry state, got %d", rctx.RetryAttempt)
 	}
 }

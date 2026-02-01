@@ -717,8 +717,8 @@ func (s *hostingServer) AutofixComment(
 		currentRetries = t.Quality.TotalRetries
 	}
 
-	// Set retry context pointing to implement phase
-	task.SetRetryContextProto(t.Execution, "implement", "", "autofix PR comment", retryContext, currentRetries+1)
+	// Set retry state pointing to implement phase
+	task.SetRetryState(t, "implement", "", "autofix PR comment", retryContext, currentRetries+1)
 
 	// Update task status to running
 	task.MarkStartedProto(t)

@@ -658,11 +658,11 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 	// Find resume phase with smart retry handling (mirrors CLI logic)
 	resumePhase := task.GetResumePhaseProto(exec)
 
-	// If no interrupted/running phase, check retry context
+	// If no interrupted/running phase, check retry state in task metadata
 	if resumePhase == "" {
-		if rc := exec.GetRetryContext(); rc != nil && rc.ToPhase != "" {
-			resumePhase = rc.ToPhase
-			s.logger.Info("resuming from retry target", "task", id, "from", rc.FromPhase, "to", rc.ToPhase)
+		if rs := task.GetRetryState(t); rs != nil && rs.ToPhase != "" {
+			resumePhase = rs.ToPhase
+			s.logger.Info("resuming from retry target", "task", id, "from", rs.FromPhase, "to", rs.ToPhase)
 		}
 	}
 

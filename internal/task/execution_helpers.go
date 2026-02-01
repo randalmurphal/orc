@@ -146,31 +146,6 @@ func ResetPhaseProto(e *orcv1.ExecutionState, phaseID string) {
 	e.Phases[phaseID].SessionId = nil // Clear session so retry starts fresh with full prompt
 }
 
-// SetRetryContextProto sets the retry context for cross-phase retry.
-func SetRetryContextProto(e *orcv1.ExecutionState, fromPhase, toPhase, reason, failureOutput string, attempt int32) {
-	if e == nil {
-		return
-	}
-	e.RetryContext = &orcv1.RetryContext{
-		FromPhase: fromPhase,
-		ToPhase:   toPhase,
-		Reason:    reason,
-		Attempt:   attempt,
-		Timestamp: timestamppb.Now(),
-	}
-	if failureOutput != "" {
-		e.RetryContext.FailureOutput = &failureOutput
-	}
-}
-
-// GetRetryContextProto returns the current retry context.
-func GetRetryContextProto(e *orcv1.ExecutionState) *orcv1.RetryContext {
-	if e == nil {
-		return nil
-	}
-	return e.RetryContext
-}
-
 // ResetExecutionStateProto resets the entire execution state back to initial pending state.
 func ResetExecutionStateProto(e *orcv1.ExecutionState) {
 	if e == nil {
@@ -185,9 +160,9 @@ func ResetExecutionStateProto(e *orcv1.ExecutionState) {
 	}
 
 	// Reset to initial state
+	// Note: retry state is stored in task metadata, not execution state
 	e.CurrentIteration = 0
 	e.Error = nil
-	e.RetryContext = nil
 	e.Session = nil
 	e.Gates = nil
 }
