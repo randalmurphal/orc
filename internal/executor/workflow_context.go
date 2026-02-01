@@ -222,10 +222,8 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 	// Load structured retry fields from task metadata
 	PopulateRetryFields(rctx, t)
 
-	// Load review context for review phases
-	if phaseID == "review" {
-		we.loadReviewContextProto(rctx, t)
-	}
+	// Note: Review round detection now uses LoopIteration from the loop system.
+	// ReviewFindings is populated via output_transform "format_findings" in workflow phase config.
 
 	// Load test results for review phase
 	if phaseID == "review" {
@@ -321,37 +319,6 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 	return defs
 }
 
-// loadReviewContextProto loads review-specific context into the resolution context.
-func (we *WorkflowExecutor) loadReviewContextProto(rctx *variable.ResolutionContext, t *orcv1.Task) {
-	// Determine review round from retry context
-	// Round 2 is when we're re-entering review after it blocked and we retried from implement
-	// The retry context's FromPhase indicates which phase triggered the retry
-	round := 1
-	rs := task.GetRetryState(t)
-	if rs != nil && rs.FromPhase == "review" {
-		round = 2
-		we.logger.Debug("detected review round 2 from retry context",
-			"task_id", t.Id,
-			"from_phase", rs.FromPhase,
-			"to_phase", rs.ToPhase,
-		)
-
-		// Load round 1 findings from RetryState.FailureOutput
-		// (stored by SetRetryState when review blocked)
-		if rs.FailureOutput != "" {
-			findings, err := ParseReviewFindings(rs.FailureOutput)
-			if err != nil {
-				we.logger.Warn("failed to parse review findings from retry context (round 2 will proceed without findings)",
-					"task_id", t.Id,
-					"error", err,
-				)
-			} else {
-				rctx.ReviewFindings = FormatFindingsForRound2(findings)
-			}
-		}
-	}
-	rctx.ReviewRound = round
-}
 
 // loadPriorPhaseContentProto loads content from a completed prior phase using proto types.
 func (we *WorkflowExecutor) loadPriorPhaseContentProto(taskID string, e *orcv1.ExecutionState, phaseID string) string {
