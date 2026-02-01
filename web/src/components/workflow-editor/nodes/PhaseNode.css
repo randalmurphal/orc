@@ -10,7 +10,7 @@
 	border-radius: var(--radius-lg);
 	min-width: 200px;
 	max-width: 260px;
-	overflow: hidden;
+	overflow: visible;
 	transition:
 		transform var(--duration-fast) var(--ease-out),
 		box-shadow var(--duration-fast) var(--ease-out),
@@ -206,6 +206,32 @@
 .phase-node--blocked {
 	opacity: 0.6;
 	border-color: rgba(249, 115, 22, 0.3);
+}
+
+/* ─── Connection Handles ─────────────────────────────────────────────────────── */
+
+.phase-node__handle {
+	width: 10px;
+	height: 10px;
+	background: var(--border);
+	border: 2px solid var(--bg-card);
+	border-radius: 50%;
+	transition:
+		background var(--duration-fast) var(--ease-out),
+		transform var(--duration-fast) var(--ease-out);
+}
+
+.phase-node__handle:hover {
+	background: var(--primary);
+	transform: scale(1.3);
+}
+
+.phase-node:hover .phase-node__handle {
+	background: var(--text-muted);
+}
+
+.phase-node:hover .phase-node__handle:hover {
+	background: var(--primary);
 }
 
 /* ─── Animations ─────────────────────────────────────────────────────────────── */

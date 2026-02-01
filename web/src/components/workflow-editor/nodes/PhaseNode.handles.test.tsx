@@ -1,15 +1,18 @@
 /**
- * TDD Tests for PhaseNode connection handles (SC-9)
+ * TDD Tests for PhaseNode connection handles
  *
- * Tests for TASK-640: Connection handles on phase nodes
+ * TASK-684: Visual editor - add connection handles to phase nodes
+ * (Originally from TASK-640, extended for TASK-684 CSS styling)
  *
- * Success Criteria Coverage:
- * - SC-9: Connection handles appear on phase nodes (source on right, target on left)
- *         and are interactive in edit mode
- *
- * Edge cases:
- * - Handles hidden in read-only mode
- * - Handles properly positioned for edge connections
+ * Success Criteria (derived from task description):
+ * - SC-1: Target handle rendered for incoming dependency edges
+ * - SC-2: Source handle rendered for outgoing dependency edges
+ * - SC-3: Target handle positioned on left side (horizontal flow)
+ * - SC-4: Source handle positioned on right side (horizontal flow)
+ * - SC-5: Handles interactive in edit mode (isConnectable=true)
+ * - SC-6: Handles non-interactive in read-only mode (isConnectable=false)
+ * - SC-7: Handles styled with CSS (themed, consistent sizing)
+ * - SC-8: Handles present across all node states
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -69,7 +72,7 @@ beforeAll(() => {
 	});
 });
 
-describe('PhaseNode - Connection Handles (SC-9)', () => {
+describe('PhaseNode - Connection Handles (TASK-684)', () => {
 	describe('handle presence and position', () => {
 		it('renders target handle on left side', () => {
 			const { container } = renderPhaseNode(createDefaultData());
@@ -189,27 +192,49 @@ describe('PhaseNode - Connection Handles (SC-9)', () => {
 		});
 	});
 
-	describe('handle styling', () => {
-		it('handles have appropriate size for interaction', () => {
+	describe('handle styling (SC-7)', () => {
+		it('both handles have custom class for themed CSS styling', () => {
+			const { container } = renderPhaseNode(createDefaultData());
+
+			const handles = container.querySelectorAll('.react-flow__handle');
+			expect(handles.length).toBe(2);
+			handles.forEach((handle) => {
+				// Handles must have a custom class for themed styling
+				// (small circles, visible on hover, themed colors)
+				expect(handle.classList.contains('phase-node__handle')).toBe(true);
+			});
+		});
+
+		it('target handle has custom styling class', () => {
+			const { container } = renderPhaseNode(createDefaultData());
+
+			const targetHandle = container.querySelector('.react-flow__handle-left');
+			expect(targetHandle).not.toBeNull();
+			expect(targetHandle?.classList.contains('phase-node__handle')).toBe(
+				true
+			);
+		});
+
+		it('source handle has custom styling class', () => {
+			const { container } = renderPhaseNode(createDefaultData());
+
+			const sourceHandle = container.querySelector(
+				'.react-flow__handle-right'
+			);
+			expect(sourceHandle).not.toBeNull();
+			expect(sourceHandle?.classList.contains('phase-node__handle')).toBe(
+				true
+			);
+		});
+
+		it('handles are scoped within phase-node for CSS targeting', () => {
 			const { container } = renderPhaseNode(createDefaultData());
 
 			const handles = container.querySelectorAll('.react-flow__handle');
 			handles.forEach((handle) => {
-				// Default React Flow handles are 6x6px, but custom styling may adjust
-				// Just verify they have dimensions
-				// Note: getBoundingClientRect returns 0s in JSDOM, so we verify presence only
-				// In JSDOM, getBoundingClientRect returns 0s, so we check CSS classes instead
-				expect(handle).not.toBeNull();
+				// Handles must be inside .phase-node for CSS selectors to work
+				expect(handle.closest('.phase-node')).not.toBeNull();
 			});
-		});
-
-		it('handles use workflow editor handle styling', () => {
-			const { container } = renderPhaseNode(createDefaultData());
-
-			const handles = container.querySelectorAll('.react-flow__handle');
-			// Custom handle styling is applied via CSS
-			// We verify the handles exist and would receive the styling
-			expect(handles.length).toBe(2);
 		});
 	});
 
@@ -240,7 +265,7 @@ describe('PhaseNode - Connection Handles (SC-9)', () => {
 				createDefaultData({
 					gateType: GateType.HUMAN,
 					maxIterations: 5,
-					modelOverride: 'opus',
+					agentId: 'custom-agent',
 				})
 			);
 
