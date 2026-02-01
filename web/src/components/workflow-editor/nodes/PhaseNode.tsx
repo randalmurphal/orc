@@ -72,6 +72,7 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 				type="target"
 				position={Position.Left}
 				isConnectable={isConnectable}
+				className="phase-node__handle"
 				data-handletype="target"
 			/>
 
@@ -115,6 +116,7 @@ export function PhaseNode({ data, selected, isConnectable }: NodeProps) {
 				type="source"
 				position={Position.Right}
 				isConnectable={isConnectable}
+				className="phase-node__handle"
 				data-handletype="source"
 			/>
 		</div>
