@@ -90,18 +90,29 @@ func (we *WorkflowExecutor) executePhase(
 		we.publisher.PhaseStart(t.Id, tmpl.ID)
 	}
 
-	// For review phase, use round-specific template if available
+	// Use iteration-specific template if LoopTemplates is configured
 	effectiveTemplate := tmpl
-	if tmpl.ID == "review" && rctx != nil && rctx.ReviewRound > 1 {
-		roundTemplate := *tmpl
-		// Replace "review.md" with "review_round{N}.md" in prompt path
-		roundPath := strings.Replace(tmpl.PromptPath, "review.md", fmt.Sprintf("review_round%d.md", rctx.ReviewRound), 1)
-		roundTemplate.PromptPath = roundPath
-		effectiveTemplate = &roundTemplate
-		we.logger.Info("using round-specific review template",
-			"round", rctx.ReviewRound,
-			"path", roundPath,
-		)
+	if phase.LoopConfig != "" && rctx != nil {
+		loopCfg, err := db.ParseLoopConfig(phase.LoopConfig)
+		if err != nil {
+			we.logger.Warn("failed to parse loop config, using base template",
+				"phase", tmpl.ID,
+				"error", err,
+			)
+		} else if loopCfg != nil && len(loopCfg.LoopTemplates) > 0 {
+			iteration := rctx.GetEffectiveReviewRound()
+			iterationTemplate := loopCfg.GetTemplateForIteration(iteration, tmpl.PromptPath)
+			if iterationTemplate != tmpl.PromptPath {
+				roundTemplate := *tmpl
+				roundTemplate.PromptPath = iterationTemplate
+				effectiveTemplate = &roundTemplate
+				we.logger.Info("using iteration-specific template",
+					"phase", tmpl.ID,
+					"iteration", iteration,
+					"path", iterationTemplate,
+				)
+			}
+		}
 	}
 
 	// Load prompt template
