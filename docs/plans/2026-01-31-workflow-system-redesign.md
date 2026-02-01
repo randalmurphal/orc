@@ -126,10 +126,14 @@ Every setting has a clear, documented resolution order. Executor walks top-down,
 ```
 1. phase.model_override           → per-phase in workflow
 2. workflow.default_model          → workflow-level        [FIX: currently skipped]
-3. agent.model                     → from phase template's agent
+3. agent.model                     → from phase template's agent (resolveExecutorAgent)
 4. config.yaml model               → project/personal config
-5. "claude-sonnet-4-20250514"      → hardcoded fallback
+5. "opus"                          → hardcoded fallback (preserves current behavior)
 ```
+
+> **Current code:** `resolvePhaseModel()` at `workflow_phase.go:658-676`.
+> Step 2 is the fix — insert `workflow.DefaultModel` between phase override and agent model.
+> Fallback stays `"opus"` to avoid silent behavioral change.
 
 ### Thinking
 
@@ -137,8 +141,15 @@ Every setting has a clear, documented resolution order. Executor walks top-down,
 1. phase.thinking_override         → per-phase in workflow
 2. workflow.default_thinking        → workflow-level        [FIX: currently skipped]
 3. phase_template.thinking_enabled → template default
-4. false                           → hardcoded fallback
+4. phase-specific defaults          → spec/review → true, all others → false
 ```
+
+> **Current code:** `shouldUseThinking()` at `workflow_phase.go:679-697`.
+> Step 2 is the fix — insert `workflow.DefaultThinking` between phase override and template.
+> **Critical:** Step 4 preserves the existing phase-specific defaults. Current code
+> hardcodes `spec` and `review` phases to `thinking=true` even when the template
+> doesn't set `thinking_enabled`. Dropping this would silently disable thinking
+> for spec/review phases. The implementation MUST preserve this behavior.
 
 ### Max Iterations
 
@@ -149,16 +160,29 @@ Every setting has a clear, documented resolution order. Executor walks top-down,
 4. 20                              → hardcoded fallback
 ```
 
+> **Current code:** `workflow_phase.go:119-122` uses `tmpl.MaxIterations` directly
+> with NO fallback to 20. The helper `GetEffectiveMaxIterations()` at `types.go:454`
+> provides this fallback but is never called from the executor. The implementation
+> must wire the fallback into the executor, not just add step 2.
+
 ### Gate Type
 
+The gate type resolution is an existing 6-level hierarchy in `gate/resolver.go:63-126`.
+This redesign does NOT change the gate resolution — only adds gate output actions (Section 9).
+
 ```
-1. phase.gate_type_override        → per-phase in workflow
-2. phase_template.gate_type        → template default
-3. config.yaml gates.default_type  → project config
-4. "auto"                          → hardcoded fallback
+1. task-specific override          → task_gate_overrides table (highest precedence)
+2. weight-specific override        → config.Gates.WeightOverrides[weight][phase]
+3. phase-specific override (config)→ config.Gates.PhaseOverrides[phase]
+4. phase gates from database       → phase_gates table
+5. enabled/disabled check          → config.Gates.EnabledPhases/DisabledPhases
+6. default gate type               → config.Gates.DefaultType or "auto"
 ```
 
-No workflow-level default for gates. Gates are inherently per-phase.
+> **No changes to this chain.** The existing 6-level hierarchy is correct and complete.
+> Gate output actions (Section 9) are a separate concern — they control what happens
+> AFTER the gate decides, not which gate type runs. No workflow-level default for
+> gate types. Gates are inherently per-phase.
 
 ### Completion Action
 
@@ -226,17 +250,32 @@ weight_workflows:
 
 ### Task Model Changes
 
+> **Already implemented:** `Task.WorkflowId` is field 12 in the proto, stored in DB,
+> and set via CLI `--workflow` flag. `WeightsConfig` exists at `config_types.go:562`
+> with `GetWorkflowID(weight)` method. `cmd_new.go` already has `--workflow` flag
+> and falls back to `workflow.WeightToWorkflowID(weight)` when no explicit workflow given.
+
+**Remaining work:**
+- CLI `orc new` currently calls hardcoded `workflow.WeightToWorkflowID()` — should use `config.Weights.GetWorkflowID()` for config-based override
+- `cmd_run.go:197-200` fails with error when `workflow_id` is empty instead of falling back to weight-based lookup — add fallback
+- Web UI task creation form needs workflow selector (pre-filled from weight, user can change)
+
 ```protobuf
 message Task {
   // existing...
   string weight = X;             // stays, defaults to "medium"
-  string workflow_id = X;        // NEW: explicit workflow reference
+  string workflow_id = 12;       // ALREADY EXISTS: explicit workflow reference
   // The executor uses workflow_id, never weight, to determine phases.
   // Weight is metadata for reporting/filtering/prompt-tone.
 }
 ```
 
 ### CLI Changes
+
+> **Already implemented:** `--workflow` flag exists on `orc new`. When not provided,
+> `workflow.WeightToWorkflowID(weight)` is called. This behavior is preserved.
+
+**Remaining work:** Switch from hardcoded `WeightToWorkflowID()` to config-based `config.Weights.GetWorkflowID()` so users can override the mapping in config.yaml.
 
 ```bash
 # Weight implies workflow (current behavior, preserved)
@@ -705,9 +744,25 @@ These are **simple built-in variables** set by the executor on retry, available 
 
 **Phase output variables remain available:**
 
-The rejecting phase's output is already stored under its `output_var_name` (e.g., review phase stores `REVIEW_OUTPUT`). When implementation retries, `{{REVIEW_OUTPUT}}` is still available — it's the review findings that caused the rejection.
+The rejecting phase's output is already stored under its `output_var_name` because
+`applyPhaseContentToVars()` at `workflow_executor.go:676` runs BEFORE gate evaluation
+at line 748. When a gate rejects, the phase output is already in the `vars` map. When
+the executor jumps back to the retry target phase (`i = retryIdx - 1`), the same
+`vars` map is reused — so phase outputs from the rejected phase are available to the
+retried phase via `{{REVIEW_OUTPUT}}` or similar.
 
-Similarly, the gate's structured output is stored via `applyGateOutputToVars()` under the configured variable name. This already works.
+Similarly, the gate's structured output is stored via `applyGateOutputToVars()` under
+the configured variable name at line 778. This already works.
+
+> **Implementation note:** TASK-709 must verify this behavior is a guarantee, not an
+> accident. Specifically: the `vars` map must NOT be rebuilt when jumping to a retry
+> target. If future refactoring introduces variable scope per phase, this would break.
+> Add a test that asserts phase output variables survive retry.
+
+**ContextFile is dead code:** `RetryContext.ContextFile` exists in the proto
+(`common.proto:110`) and is read in `retry.go:31-32`, but `SetRetryContextProto()`
+in `task/execution_helpers.go:150` never sets it. No code path populates this field.
+Safe to drop when removing the RetryContext proto.
 
 **The key insight:** Retry context isn't a special thing. It's just "the previous phase's output variables + gate output variables + a few retry metadata variables." The variable system already handles all of this. We just need to stop pre-formatting it into a markdown blob and let templates compose the pieces.
 
@@ -771,6 +826,34 @@ The current review round detection (`if tmpl.ID == "review" && rctx.ReviewRound 
 - Round-specific templates (`review_round2.md`) become condition-based: "if this is a retry, use the shorter review template"
 - The loop system handles all of this generically
 
+**Sub-problems that MUST be solved for this generalization:**
+
+1. **Iteration-specific JSON schemas:** The review phase uses different JSON schemas
+   for round 1 (`ReviewFindingsSchema`) vs round 2 (`ReviewDecisionSchema`). This is
+   in `GetSchemaForPhaseWithRound()` at `phase_response.go`. The loop system needs a
+   mechanism to select schemas per-iteration — either:
+   - A `loop_schemas` map on the phase: `{1: "findings", 2: "decision"}`
+   - Or: use the same schema for all iterations and move round-specific behavior to
+     the prompt/agent side (simpler, preferred if feasible)
+
+2. **Iteration-specific templates:** Current code at `workflow_phase.go:93-105` swaps
+   `review.md` for `review_round2.md` when `ReviewRound > 1`. The loop system could:
+   - Add `loop_templates` map on the phase: `{1: "review", "default": "review_round2"}`
+   - Or: use `{{#if RETRY_ATTEMPT}}` conditionals in a single template (preferred if
+     the templates are similar enough)
+
+3. **Output parsing/reformatting between iterations:** `loadReviewContextProto()` at
+   `workflow_context.go:340-349` parses round 1 output with `ParseReviewFindings()`
+   and reformats it via `FormatFindingsForRound2()` before injecting as
+   `REVIEW_FINDINGS`. The loop system needs either:
+   - A generic "transform function" on the loop config that processes previous
+     iteration output before injecting into the next iteration
+   - Or: move the formatting into the template itself (less clean but simpler)
+
+> **Weight: This task (TASK-710) should be `large`, not `medium`.** The special-casing
+> is deeply embedded in 4 files (workflow_phase.go, workflow_context.go, phase_response.go,
+> review.go) and touching any of it risks breaking the most critical quality gate in orc.
+
 ---
 
 ## 11. Task Breakdown
@@ -788,10 +871,10 @@ These are the implementation tasks, roughly ordered by dependency:
 | 5 | Add `completion_action` to workflow model + DB + API + UI | medium | None |
 | 6 | Add `target_branch` to workflow model + DB + API + UI | small | None |
 | 7 | Redesign Create Workflow modal (new fields, remove type) | medium | 1, 4, 5, 6 |
-| 8 | Decouple weight from workflow: add `workflow_id` to task model | medium | None |
-| 9 | Add weight → workflow config mapping | small | 8 |
+| 8 | Decouple weight from workflow: switch to config-based weight→workflow mapping | small | None |
+| 9 | Add `cmd_run` fallback for empty workflow_id + use config.Weights everywhere | small | 8 |
 | 10 | Update task creation UI with workflow selector | medium | 8, 9 |
-| 11 | Update CLI task creation with `--workflow` flag | small | 8, 9 |
+| 11 | ~~Update CLI with --workflow flag~~ (already exists) — merged into 8 | — | — |
 
 ### Phase Templates
 
@@ -816,7 +899,7 @@ These are the implementation tasks, roughly ordered by dependency:
 |---|------|--------|-------------|
 | 19 | Phase condition evaluator in executor | medium | None |
 | 20 | Condition editor UI in phase inspector | medium | 19 |
-| 21 | Phase loop executor logic | medium | None |
+| 21 | Phase loop executor logic | medium | 19 |
 | 22 | Loop editor UI in phase inspector | small | 21 |
 | 23 | Visual editor: loop edge rendering | small | 16, 22 |
 
@@ -840,7 +923,7 @@ These are the implementation tasks, roughly ordered by dependency:
 | 32 | Update built-in templates to use structured retry variables instead of {{RETRY_CONTEXT}} | medium | 31 |
 | 33 | Remove BuildRetryContext() formatters and pre-formatted RETRY_CONTEXT variable | small | 32 |
 | 34 | Ensure phase output variables survive retry (available to retried phase) | medium | 31 |
-| 35 | Generalize review round detection into loop system (remove special-case) | medium | 21, 31 |
+| 35 | Generalize review round detection into loop system (remove special-case) | large | 21, 31 |
 | 36 | Deprecate and remove RetryContext proto field (migration) | small | 32, 33 |
 
 ### Summary
@@ -872,8 +955,8 @@ ALTER TABLE workflows ADD COLUMN target_branch TEXT DEFAULT '';
 -- Step 2: Drop column in subsequent migration
 -- ALTER TABLE workflows DROP COLUMN workflow_type;
 
--- Add workflow_id to tasks
-ALTER TABLE tasks ADD COLUMN workflow_id TEXT DEFAULT '';
+-- NOTE: tasks.workflow_id column ALREADY EXISTS (proto field 12, stored in DB).
+-- No migration needed for workflow_id.
 ```
 
 ### Proto Changes
@@ -898,6 +981,6 @@ message Workflow {
 ### Backward Compatibility
 
 - Existing YAML files with `workflow_type` are parsed but field is ignored
-- Existing tasks without `workflow_id` continue to use weight-based lookup
-- Weight → workflow mapping defaults match current hardcoded behavior
-- No breaking changes to CLI (new flags are optional)
+- **Existing tasks without `workflow_id`:** Currently `cmd_run.go:197-200` fails with error when `workflow_id` is empty. MUST add fallback to `config.Weights.GetWorkflowID(weight)` so taskswithout `workflow_id` still work.
+- Weight → workflow mapping defaults match current hardcoded behavior (`WeightsConfig` at `config_types.go:562` already provides this)
+- No breaking changes to CLI (new flags are optional, `--workflow` already exists)
