@@ -343,6 +343,12 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["REVIEW_ROUND"] = fmt.Sprintf("%d", rctx.ReviewRound)
 	vars["REVIEW_FINDINGS"] = rctx.ReviewFindings
 
+	// Loop context
+	// LOOP_ITERATION is empty when not in a loop (0), otherwise stringified
+	if rctx.LoopIteration > 0 {
+		vars["LOOP_ITERATION"] = fmt.Sprintf("%d", rctx.LoopIteration)
+	}
+
 	// Project detection context
 	vars["LANGUAGE"] = rctx.Language
 	if rctx.HasFrontend {

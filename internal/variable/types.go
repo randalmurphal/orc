@@ -238,8 +238,11 @@ type ResolutionContext struct {
 	InitiativeTasks     string // Formatted task list for automation
 
 	// Review context
-	ReviewRound    int    // Current review round (1 or 2)
+	ReviewRound    int    // Current review round (1 or 2) - legacy, prefer LoopIteration
 	ReviewFindings string // Previous round's findings (for round 2+)
+
+	// Loop context (generic loop iteration tracking)
+	LoopIteration int // Current loop iteration (0 = not in a loop, 1 = first iteration, etc.)
 
 	// Project detection context
 	Language     string   // Primary language (go, typescript, python, etc.)
@@ -271,6 +274,24 @@ type ResolutionContext struct {
 	QAFindings       string // Formatted QA findings from qa_e2e_test phase (survives ResolveAll)
 	BeforeImages     string // Newline-separated paths to baseline images for visual comparison
 	PreviousFindings string // Formatted findings from previous QA iteration (for verification)
+}
+
+// GetEffectiveReviewRound returns the effective review round.
+// Prefers LoopIteration (new system), falls back to ReviewRound (legacy).
+// Returns 1 as the minimum (first round).
+func (rctx *ResolutionContext) GetEffectiveReviewRound() int {
+	// If LoopIteration is set (non-zero), use it as the round
+	if rctx.LoopIteration > 0 {
+		return rctx.LoopIteration
+	}
+
+	// Fall back to legacy ReviewRound field
+	if rctx.ReviewRound > 0 {
+		return rctx.ReviewRound
+	}
+
+	// Default to round 1
+	return 1
 }
 
 // VariableSet is a map of variable name to resolved value.
