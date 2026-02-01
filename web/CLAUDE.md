@@ -120,7 +120,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |
 | `PhaseListEditor` | `workflows/` | Phase list with add/edit/remove/reorder. Edit dialog shows inherited vs override claude_config sections |
-| `EditPhaseTemplateModal` | `workflows/` | Phase template editor with 7 collapsible claude_config sections + JSON override |
+| `EditPhaseTemplateModal` | `workflows/` | Phase template editor: data flow (input/output vars, prompt source), 7 claude_config sections, JSON override |
 | `CollapsibleSettingsSection` | `core/` | Collapsible header with chevron + badge counter. Used in phase editors and inspectors |
 | `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |

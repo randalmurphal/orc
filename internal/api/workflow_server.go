@@ -942,6 +942,10 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	if req.Msg.OutputVarName != nil {
 		pt.OutputVarName = *req.Msg.OutputVarName
 	}
+	// repeated fields are always present; update if non-nil
+	if req.Msg.InputVariables != nil {
+		pt.InputVariables = req.Msg.InputVariables
+	}
 	if req.Msg.MaxIterations != nil {
 		pt.MaxIterations = int(*req.Msg.MaxIterations)
 	}
@@ -1698,6 +1702,13 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	// Phase output variable name
 	if t.OutputVarName != "" {
 		result.OutputVarName = &t.OutputVarName
+	}
+	// Input variables (JSON array in DB → string slice in proto)
+	if t.InputVariables != "" {
+		var inputVars []string
+		if err := json.Unmarshal([]byte(t.InputVariables), &inputVars); err == nil {
+			result.InputVariables = inputVars
+		}
 	}
 
 	// Agent references (WHO runs this phase)

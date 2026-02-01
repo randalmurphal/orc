@@ -76,7 +76,7 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
 				<div className="tag-input__chips">
 					{tags.map((tag, index) => (
 						<span key={tag} className="tag-input__chip" data-tag={tag} title={tag}>
-							<span className="tag-input__chip-text">{tag}</span>
+							<span className="label-text">{tag}</span>
 							{!disabled && (
 								<button
 									type="button"
