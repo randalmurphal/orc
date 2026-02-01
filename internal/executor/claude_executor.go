@@ -523,13 +523,8 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		content = m.DefaultResponse
 	}
 
-	// Parse status from content using phase-specific parser (same as real executor)
-	status, reason, parseErr := ParsePhaseSpecificResponse(m.PhaseID, m.ReviewRound, content)
-
 	result := &TurnResult{
 		Content:   content,
-		Status:    status,
-		Reason:    reason,
 		NumTurns:  1,
 		SessionID: m.SessionIDValue,
 		Usage: &orcv1.TokenUsage{
@@ -538,10 +533,19 @@ func (m *MockTurnExecutor) ExecuteTurn(ctx context.Context, prompt string) (*Tur
 		},
 	}
 
-	if parseErr != nil {
-		result.IsError = true
-		result.ErrorText = parseErr.Error()
-		return result, parseErr
+	// Parse status from content using phase-specific parser (same as real executor).
+	// When PhaseID is empty, skip parsing and let the executor's own
+	// ParsePhaseSpecificResponse handle it with the correct phase ID.
+	// This supports integration tests where the mock serves multiple phases.
+	if m.PhaseID != "" {
+		status, reason, parseErr := ParsePhaseSpecificResponse(m.PhaseID, m.ReviewRound, content)
+		result.Status = status
+		result.Reason = reason
+		if parseErr != nil {
+			result.IsError = true
+			result.ErrorText = parseErr.Error()
+			return result, parseErr
+		}
 	}
 
 	return result, nil

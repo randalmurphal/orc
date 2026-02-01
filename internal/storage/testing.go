@@ -43,6 +43,8 @@ func NewTestBackend(t testing.TB) *DatabaseBackend {
 }
 
 // seedTestPhaseTemplates creates minimal phase template entries for FK constraints.
+// Uses PromptSource "db" with inline content so integration tests don't require
+// embedded template files on the filesystem.
 func seedTestPhaseTemplates(backend *DatabaseBackend) {
 	ids := []string{
 		"spec", "tiny_spec", "tdd_write", "breakdown",
@@ -50,9 +52,11 @@ func seedTestPhaseTemplates(backend *DatabaseBackend) {
 	}
 	for _, id := range ids {
 		_ = backend.SavePhaseTemplate(&db.PhaseTemplate{
-			ID:           id,
-			Name:         id,
-			PromptSource: "embedded",
+			ID:            id,
+			Name:          id,
+			PromptSource:  "db",
+			PromptContent: "Test prompt for " + id,
+			MaxIterations: 10,
 		})
 	}
 }

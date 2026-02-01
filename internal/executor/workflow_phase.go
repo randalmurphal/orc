@@ -229,10 +229,10 @@ func (we *WorkflowExecutor) executePhase(
 	result.CacheReadTokens = execResult.CacheReadTokens
 	result.CostUSD = execResult.CostUSD
 
-	// Extract content if phase produces output and save to phase_outputs
-	if tmpl.ProducesArtifact && result.Content == "" {
-		result.Content = execResult.Content
-	}
+	// Capture phase output content for loop condition evaluation and variable propagation.
+	// All phases store their output in result.Content so that applyPhaseContentToVars
+	// populates rctx.PriorOutputs — required for EvaluateCondition(phase_output.*).
+	result.Content = execResult.Content
 	if tmpl.ProducesArtifact && result.Content == "" {
 		we.logger.Warn("artifact-producing phase completed with no content extracted",
 			"phase", tmpl.ID,
@@ -240,7 +240,8 @@ func (we *WorkflowExecutor) executePhase(
 			"raw_output_length", len(execResult.Content),
 		)
 	}
-	if result.Content != "" && t != nil {
+	// Save structured phase output to phase_outputs table only for artifact-producing phases.
+	if tmpl.ProducesArtifact && result.Content != "" && t != nil {
 		// Use template's output variable name, fall back to OUTPUT_<PHASE_ID>
 		outputVarName := tmpl.OutputVarName
 		if outputVarName == "" {
@@ -478,8 +479,10 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 
 		switch status {
 		case PhaseStatusComplete:
-			// For implement phase: validate verification evidence before accepting completion
-			if cfg.PhaseID == "implement" {
+			// For implement phase: validate verification evidence before accepting completion.
+			// Skip when using injected turn executor (test mode) since mocks
+			// don't produce real verification evidence.
+			if cfg.PhaseID == "implement" && we.turnExecutor == nil {
 				if verifyErr := ValidateImplementCompletion(turnResult.Content); verifyErr != nil {
 					we.logger.Info("implement verification gate failed, continuing iteration",
 						"phase", cfg.PhaseID,

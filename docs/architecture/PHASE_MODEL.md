@@ -530,6 +530,45 @@ When a condition evaluates to false, the phase is skipped with status `skipped` 
 
 ---
 
+## Phase Loops
+
+Phases can loop back to earlier phases based on configurable conditions. Stored in `WorkflowPhase.LoopConfig` (JSON column in DB), evaluated after phase completion by the executor (`internal/executor/workflow_executor.go:721`).
+
+### Loop Configuration
+
+```json
+{
+  "loop_to_phase": "implement",
+  "condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+  "max_loops": 3
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `loop_to_phase` | Yes | Target phase ID (must precede current phase in sequence) |
+| `condition` | Yes | JSON object condition OR legacy string (`"has_findings"`, `"status_needs_fix"`, `"not_empty"`) |
+| `max_loops` | No | Max loop iterations. Resolution: `max_loops` > `max_iterations` > 3 (default) |
+
+### Loop vs Condition
+
+| Feature | `condition` (phase skip) | `loop_config` (phase loop) |
+|---------|--------------------------|----------------------------|
+| When evaluated | Before phase starts | After phase completes |
+| Effect when true | Phase runs | Loop back to earlier phase |
+| Effect when false | Phase skipped | Continue to next phase |
+| Uses same evaluator | Yes (`EvaluateCondition()`) | Yes (JSON objects) + legacy strings |
+
+### Iteration Counter
+
+Loop iterations and gate retries share a **unified counter**: `PhaseState.Iterations`. When `loop_config.max_loops` is set, it takes precedence over config `max_retries` for that phase.
+
+### Implementation
+
+See `internal/executor/CLAUDE.md` for the full execution flow. Key type: `db.LoopConfig` (`internal/db/workflow.go:114`).
+
+---
+
 ## Linting Requirements
 
 Static analysis and linting are **mandatory** quality gates for phase completion. Linting errors are blocking issues that must be fixed before proceeding.
