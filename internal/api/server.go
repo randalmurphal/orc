@@ -846,18 +846,22 @@ func (s *Server) startTask(id string, projectID string) error {
 // prepareExecutorDeps creates gitOps and resolves claudePath from server config,
 // matching CLI behavior (see cli.NewGitOpsFromConfig and cmd_run.go).
 func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, error) {
+	cfg := s.orcConfig
+	if cfg == nil {
+		cfg = config.Default()
+	}
 	gitCfg := git.Config{
-		BranchPrefix:   s.orcConfig.BranchPrefix,
-		CommitPrefix:   s.orcConfig.CommitPrefix,
-		WorktreeDir:    config.ResolveWorktreeDir(s.orcConfig.Worktree.Dir, projectDir),
-		ExecutorPrefix: s.orcConfig.ExecutorPrefix(),
+		BranchPrefix:   cfg.BranchPrefix,
+		CommitPrefix:   cfg.CommitPrefix,
+		WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectDir),
+		ExecutorPrefix: cfg.ExecutorPrefix(),
 	}
 	gitOps, err := git.New(projectDir, gitCfg)
 	if err != nil {
 		return nil, "", fmt.Errorf("init git: %w", err)
 	}
 
-	claudePath := s.orcConfig.ClaudePath
+	claudePath := cfg.ClaudePath
 	if claudePath == "" {
 		claudePath = "claude"
 	}
