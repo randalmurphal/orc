@@ -39,6 +39,23 @@ func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err erro
 	}
 }
 
+// failGateRejection records the error in execution state, fails the run, and clears the executor.
+// Used by the gate handling section when a rejection should terminate the task.
+func (we *WorkflowExecutor) failGateRejection(run *db.WorkflowRun, t *orcv1.Task, failErr error) {
+	if we.task != nil {
+		task.SetErrorProto(we.task.Execution, failErr.Error())
+		if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
+			we.logger.Warn("failed to save error state", "error", saveErr)
+		}
+	}
+	we.failRun(run, t, failErr)
+	if t != nil {
+		if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
+			we.logger.Warn("failed to clear task executor", "error", clearErr)
+		}
+	}
+}
+
 // failSetup handles failures during setup phase (before any phase runs).
 func (we *WorkflowExecutor) failSetup(run *db.WorkflowRun, t *orcv1.Task, err error) {
 	taskID := ""

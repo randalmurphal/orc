@@ -894,136 +894,206 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			}
 
 			if !gateResult.Approved {
-				// Gate rejected - check if we should retry
-				// Use unified counter: PhaseState.Iterations for task contexts,
-				// fallbackLoopCounts for non-task contexts.
-				var retryCount int
-				var retryMax int
-				if we.task != nil {
-					task.EnsurePhaseProto(we.task.Execution, tmpl.ID)
-					retryCount = int(we.task.Execution.Phases[tmpl.ID].Iterations)
-					// Check loop_config max_loops first, then config max_retries
-					if phase.LoopConfig != "" {
-						if lc, err := db.ParseLoopConfig(phase.LoopConfig); err == nil && lc != nil {
-							retryMax = lc.EffectiveMaxLoops()
+				// Empty string means legacy behavior (phase-specific dispatch)
+				rejectedAction := resolveRejectedAction(gateResult.OutputConfig)
+
+				// run_script: warn if empty script path, then resolve to secondary action (fail).
+				// The script itself already executed during evaluatePhaseGate if Script was set.
+				if rejectedAction == workflow.GateActionRunScript {
+					if gateResult.OutputConfig != nil && gateResult.OutputConfig.Script == "" {
+						we.logger.Warn("on_rejected: run_script with empty script path, applying fail",
+							"phase", tmpl.ID)
+					}
+					rejectedAction = workflow.GateActionFail
+				}
+
+				switch rejectedAction {
+				case workflow.GateActionSkipPhase, workflow.GateActionContinue:
+					// skip_phase / continue: don't retry or fail, proceed to next phase
+					we.logger.Info("gate rejected, action allows continuation",
+						"phase", tmpl.ID,
+						"action", string(rejectedAction),
+						"reason", gateResult.Reason,
+					)
+
+				case workflow.GateActionFail:
+					// SC-1: fail immediately regardless of phase type
+					failErr := fmt.Errorf("gate rejected: %s", gateResult.Reason)
+					we.failGateRejection(run, t, failErr)
+					return result, failErr
+
+				default:
+					// Retry action or legacy behavior
+
+					// Calculate retry counter (shared by explicit retry and legacy)
+					var retryCount int
+					var retryMax int
+					if we.task != nil {
+						task.EnsurePhaseProto(we.task.Execution, tmpl.ID)
+						retryCount = int(we.task.Execution.Phases[tmpl.ID].Iterations)
+						if phase.LoopConfig != "" {
+							if lc, err := db.ParseLoopConfig(phase.LoopConfig); err == nil && lc != nil {
+								retryMax = lc.EffectiveMaxLoops()
+							} else {
+								retryMax = maxRetries
+							}
 						} else {
 							retryMax = maxRetries
 						}
 					} else {
+						retryCount = fallbackLoopCounts[tmpl.ID]
 						retryMax = maxRetries
 					}
-				} else {
-					retryCount = fallbackLoopCounts[tmpl.ID]
-					retryMax = maxRetries
-				}
 
-				if gateResult.RetryPhase != "" && retryCount < retryMax {
-					// Increment unified counter
-					retryCount++
-					if we.task != nil {
-						we.task.Execution.Phases[tmpl.ID].Iterations = int32(retryCount)
-					} else {
-						fallbackLoopCounts[tmpl.ID] = retryCount
-					}
-
-					we.logger.Info("gate rejected, retrying from earlier phase",
-						"failed_phase", tmpl.ID,
-						"reason", gateResult.Reason,
-						"retry_from", gateResult.RetryPhase,
-						"retry_count", retryCount,
-					)
-
-					// Find retry target phase index
-					retryIdx := -1
-					for j := 0; j <= i; j++ {
-						if phases[j].PhaseTemplateID == gateResult.RetryPhase {
-							retryIdx = j
-							break
+					// SC-2/SC-3: explicit retry action — validate preconditions
+					if rejectedAction == workflow.GateActionRetry {
+						if gateResult.RetryPhase == "" {
+							failErr := fmt.Errorf("gate rejected with retry action but no retry_from configured for phase %s", tmpl.ID)
+							we.failGateRejection(run, t, failErr)
+							return result, failErr
+						}
+						if retryCount >= retryMax {
+							// SC-3: max retries exhausted
+							failErr := fmt.Errorf("gate rejected: max retries (%d) exhausted for phase %s: %s", retryMax, tmpl.ID, gateResult.Reason)
+							we.failGateRejection(run, t, failErr)
+							return result, failErr
 						}
 					}
 
-					if retryIdx >= 0 {
-						// Track quality metrics
-						if t != nil {
-							task.RecordPhaseRetryProto(t, tmpl.ID)
-							if tmpl.ID == "review" {
-								task.RecordReviewRejectionProto(t)
-							}
-							if err := we.backend.SaveTask(t); err != nil {
-								we.logger.Warn("failed to save task after retry", "task", t.Id, "error", err)
-							}
-						}
-
-						// Save retry context with gate analysis
+					// Retry attempt (both explicit retry action and legacy behavior)
+					if gateResult.RetryPhase != "" && retryCount < retryMax {
+						retryCount++
 						if we.task != nil {
-							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
-							task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
-							if err := we.backend.SaveTask(we.task); err != nil {
-								we.logger.Warn("failed to save retry state", "error", err)
-							}
+							we.task.Execution.Phases[tmpl.ID].Iterations = int32(retryCount)
+						} else {
+							fallbackLoopCounts[tmpl.ID] = retryCount
+						}
 
-							// Build enriched retry context string with gate analysis
-							// This updates the resolution context so {{RETRY_CONTEXT}} in
-							// the retry phase prompt includes the gate evaluator's output.
-							gateContext := ""
-							if gateResult.OutputData != nil {
-								if gateJSON, jsonErr := json.Marshal(gateResult.OutputData); jsonErr == nil {
-									gateContext = string(gateJSON)
+						we.logger.Info("gate rejected, retrying from earlier phase",
+							"failed_phase", tmpl.ID,
+							"reason", gateResult.Reason,
+							"retry_from", gateResult.RetryPhase,
+							"retry_count", retryCount,
+						)
+
+						retryIdx := -1
+						for j := 0; j <= i; j++ {
+							if phases[j].PhaseTemplateID == gateResult.RetryPhase {
+								retryIdx = j
+								break
+							}
+						}
+
+						if retryIdx >= 0 {
+							if t != nil {
+								task.RecordPhaseRetryProto(t, tmpl.ID)
+								if tmpl.ID == "review" {
+									task.RecordReviewRejectionProto(t)
+								}
+								if err := we.backend.SaveTask(t); err != nil {
+									we.logger.Warn("failed to save task after retry", "task", t.Id, "error", err)
 								}
 							}
-							rctx.RetryContext = BuildRetryContextWithGateAnalysis(
-								tmpl.ID, reason, phaseResult.Content,
-								retryCount, "", gateContext,
-							)
-						}
 
-						// Reset phase completion status for retry phases
-						if we.task != nil {
-							for k := retryIdx; k <= i; k++ {
-								task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
-							}
-							if err := we.backend.SaveTask(we.task); err != nil {
-								we.logger.Warn("failed to save retry phase reset", "error", err)
-							}
-						}
+							if we.task != nil {
+								reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
+								task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
+								if err := we.backend.SaveTask(we.task); err != nil {
+									we.logger.Warn("failed to save retry state", "error", err)
+								}
 
-						// Jump back to retry phase
-						i = retryIdx - 1 // Will be incremented by loop
-						continue
+								gateContext := ""
+								if gateResult.OutputData != nil {
+									if gateJSON, jsonErr := json.Marshal(gateResult.OutputData); jsonErr == nil {
+										gateContext = string(gateJSON)
+									}
+								}
+								rctx.RetryContext = BuildRetryContextWithGateAnalysis(
+									tmpl.ID, reason, phaseResult.Content,
+									retryCount, "", gateContext,
+								)
+							}
+
+							// Reset phase completion status for retry phases
+							if we.task != nil {
+								for k := retryIdx; k <= i; k++ {
+									task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
+								}
+								// Clear structured retry context so gate-triggered retries
+								// don't cause review to think it's round 2. The retry info
+								// is already in rctx.RetryContext string for variable pipeline.
+								we.task.Execution.RetryContext = nil
+								if err := we.backend.SaveTask(we.task); err != nil {
+									we.logger.Warn("failed to save retry phase reset", "error", err)
+								}
+							}
+
+							i = retryIdx - 1 // Will be incremented by loop
+							continue
+						}
 					}
-				}
 
-				// No retry available
-				if tmpl.ID == "review" {
-					// Review gate rejection is fatal — fail the run and task properly
-					we.logger.Warn("review gate rejected with no retries remaining, failing task",
+					// No retry executed — handle based on action type
+					if rejectedAction == workflow.GateActionRetry {
+						failErr := fmt.Errorf("gate rejected: retry target %q not found for phase %s", gateResult.RetryPhase, tmpl.ID)
+						we.failGateRejection(run, t, failErr)
+						return result, failErr
+					}
+
+					// Legacy behavior (empty action): review→fail, other→continue
+					if tmpl.ID == "review" {
+						we.logger.Warn("review gate rejected with no retries remaining",
+							"phase", tmpl.ID, "reason", gateResult.Reason)
+						failErr := fmt.Errorf("review gate rejected: %s", gateResult.Reason)
+						we.failGateRejection(run, t, failErr)
+						return result, failErr
+					}
+
+					// Non-review phase — log rejection and continue (automation-first)
+					we.logger.Warn("gate rejected, continuing anyway (automation mode)",
 						"phase", tmpl.ID,
 						"reason", gateResult.Reason,
 					)
-					failErr := fmt.Errorf("review gate rejected: %s", gateResult.Reason)
-					if we.task != nil {
-						task.SetErrorProto(we.task.Execution, failErr.Error())
-						if saveErr := we.backend.SaveTask(we.task); saveErr != nil {
-							we.logger.Warn("failed to save error state", "error", saveErr)
-						}
-					}
-					we.failRun(run, t, failErr)
-					if t != nil {
-						if clearErr := we.backend.ClearTaskExecutor(t.Id); clearErr != nil {
-							we.logger.Warn("failed to clear task executor", "error", clearErr)
-						}
-					}
-					return result, failErr
 				}
+			} else {
+				// Gate approved — dispatch approved action
+				approvedAction := resolveApprovedAction(gateResult.OutputConfig)
 
-				// Non-review phase — log rejection and continue (automation-first)
-				we.logger.Warn("gate rejected, continuing anyway (automation mode)",
-					"phase", tmpl.ID,
-					"reason", gateResult.Reason,
-				)
+				switch approvedAction {
+				case workflow.GateActionSkipPhase:
+					// SC-5: skip the NEXT phase in sequence
+					if i+1 < len(phases) {
+						nextPhaseID := phases[i+1].PhaseTemplateID
+						we.logger.Info("on_approved: skip_phase, skipping next phase",
+							"current_phase", tmpl.ID,
+							"skipped_phase", nextPhaseID,
+						)
+						if we.task != nil {
+							task.EnsurePhaseProto(we.task.Execution, nextPhaseID)
+							we.task.Execution.Phases[nextPhaseID].Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED
+							if err := we.backend.SaveTask(we.task); err != nil {
+								we.logger.Warn("failed to save skipped phase", "error", err)
+							}
+						}
+						i++ // Skip next phase in the loop
+					} else {
+						we.logger.Warn("on_approved: skip_phase on last phase — nothing to skip",
+							"phase", tmpl.ID,
+						)
+					}
+
+				case workflow.GateActionRunScript:
+					// SC-9: script already ran in evaluatePhaseGate if Script was set.
+					// Secondary action for approved run_script is continue (no-op).
+					if gateResult.OutputConfig != nil && gateResult.OutputConfig.Script == "" {
+						we.logger.Warn("on_approved: run_script with empty script path",
+							"phase", tmpl.ID)
+					}
+
+				// case workflow.GateActionContinue: default — no action needed
+				}
 			}
 
-			// Record gate decision in state
 			if we.task != nil {
 				task.RecordGateDecisionProto(we.task.Execution, tmpl.ID, tmpl.GateType, gateResult.Approved, gateResult.Reason)
 

@@ -48,6 +48,32 @@ Actions define what happens on gate approval or rejection:
 
 **Location**: `internal/workflow/types.go:48-57`
 
+### Action Dispatch (Executor)
+
+Actions are resolved via `resolveApprovedAction()`/`resolveRejectedAction()` in `internal/executor/gate_actions.go` and dispatched in the main phase loop (`internal/executor/workflow_executor.go`).
+
+**On Rejection:**
+
+| Configured Action | Executor Behavior |
+|-------------------|-------------------|
+| `fail` | Task fails immediately |
+| `retry` | Retries from `retry_from` phase; falls back to fail if max retries exceeded or no `retry_from` |
+| `skip_phase` / `continue` | Proceeds to next phase (rejection ignored) |
+| `run_script` | Script already executed during gate evaluation; applies `fail` as secondary action |
+| *(empty)* | Legacy behavior: review phase → fail, other phases → continue |
+
+**On Approval:**
+
+| Configured Action | Executor Behavior |
+|-------------------|-------------------|
+| `continue` / *(empty)* | Default — proceed to next phase |
+| `skip_phase` | Marks the NEXT phase as `SKIPPED` and advances past it |
+| `run_script` | Script already executed during gate evaluation; secondary is continue |
+
+**Script execution:** Scripts run during `evaluatePhaseGate()` via `runGateScript()` (`workflow_gates.go:145`). Script output can override the gate decision (flip approved↔rejected). Infrastructure errors (missing script, timeout) log warnings and continue.
+
+**RetryFrom precedence:** `GateOutputConfig.RetryFrom` > `PhaseTemplate.RetryFromPhase` > config retry map. See `resolveRetryFrom()` at `gate_actions.go:44`.
+
 ---
 
 ## Gate Input/Output Configuration
