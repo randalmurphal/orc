@@ -241,6 +241,10 @@ service WorkflowService {
   rpc CancelWorkflowRun(CancelWorkflowRunRequest) returns (CancelWorkflowRunResponse);
   rpc SaveWorkflowLayout(SaveWorkflowLayoutRequest) returns (SaveWorkflowLayoutResponse);
   rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse);
+  // Before-phase trigger CRUD (manages JSON array on workflow phases)
+  rpc AddBeforePhaseTrigger(AddBeforePhaseTriggerRequest) returns (AddBeforePhaseTriggerResponse);
+  rpc UpdateBeforePhaseTrigger(UpdateBeforePhaseTriggerRequest) returns (UpdateBeforePhaseTriggerResponse);
+  rpc RemoveBeforePhaseTrigger(RemoveBeforePhaseTriggerRequest) returns (RemoveBeforePhaseTriggerResponse);
 }
 
 // =============================================================================
@@ -581,4 +585,45 @@ message ValidationIssue {
 message ValidateWorkflowResponse {
   bool valid = 1;
   repeated ValidationIssue issues = 2;
+}
+
+// =============================================================================
+// BEFORE-PHASE TRIGGER CRUD
+// =============================================================================
+
+message AddBeforePhaseTriggerRequest {
+  string workflow_id = 1;
+  int32 phase_id = 2;
+  string agent_id = 3;
+  optional string mode = 4;          // "gate" (default) or "reaction"
+  optional string input_config = 5;  // JSON GateInputConfig
+  optional string output_config = 6; // JSON GateOutputConfig
+}
+
+message AddBeforePhaseTriggerResponse {
+  WorkflowPhase phase = 1;
+}
+
+message UpdateBeforePhaseTriggerRequest {
+  string workflow_id = 1;
+  int32 phase_id = 2;
+  int32 trigger_index = 3;
+  optional string agent_id = 4;
+  optional string mode = 5;
+  optional string input_config = 6;
+  optional string output_config = 7;
+}
+
+message UpdateBeforePhaseTriggerResponse {
+  WorkflowPhase phase = 1;
+}
+
+message RemoveBeforePhaseTriggerRequest {
+  string workflow_id = 1;
+  int32 phase_id = 2;
+  int32 trigger_index = 3;
+}
+
+message RemoveBeforePhaseTriggerResponse {
+  WorkflowPhase phase = 1;
 }
