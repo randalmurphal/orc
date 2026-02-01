@@ -160,3 +160,82 @@
 .edit-template-path-input .form-input {
 	border-radius: 0 4px 4px 0;
 }
+
+/* Prompt editor textarea */
+.edit-template-prompt-editor {
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.edit-template-prompt-textarea {
+	width: 100%;
+	min-height: 200px;
+	padding: 0.5rem;
+	border: none;
+	font-family: monospace;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	resize: vertical;
+	background: var(--bg-primary, white);
+	color: var(--text-primary);
+}
+
+.edit-template-prompt-textarea:focus {
+	outline: none;
+}
+
+.edit-template-prompt-editor:focus-within {
+	outline: 2px solid var(--accent-primary, #3b82f6);
+	outline-offset: -1px;
+}
+
+/* Switch warning */
+.edit-template-switch-warning {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem;
+	background: var(--yellow-50, #fefce8);
+	border: 1px solid var(--yellow-200, #fef08a);
+	border-radius: 4px;
+	font-size: 0.8125rem;
+	color: var(--yellow-800, #854d0e);
+}
+
+.edit-template-switch-warning svg {
+	color: var(--yellow-600, #ca8a04);
+	flex-shrink: 0;
+}
+
+.edit-template-switch-warning-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-left: auto;
+}
+
+.edit-template-switch-warning-btn {
+	padding: 0.25rem 0.75rem;
+	font-size: 0.75rem;
+	border: 1px solid var(--yellow-300, #fde047);
+	border-radius: 4px;
+	background: transparent;
+	color: var(--yellow-800, #854d0e);
+	cursor: pointer;
+}
+
+.edit-template-switch-warning-btn:hover {
+	background: var(--yellow-100, #fef9c3);
+}
+
+.edit-template-switch-warning-btn--confirm {
+	background: var(--yellow-500, #eab308);
+	border-color: var(--yellow-500, #eab308);
+	color: white;
+}
+
+.edit-template-switch-warning-btn--confirm:hover {
+	background: var(--yellow-600, #ca8a04);
+	border-color: var(--yellow-600, #ca8a04);
+}
