@@ -2,7 +2,7 @@
 name: description-auditor
 description: Use when auditing task description quality and scope. Validates tasks have enough context for isolated agents to succeed AND aren't too complex for a single task.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 ---
 
 # Description Quality & Scope Auditor
