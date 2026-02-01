@@ -83,6 +83,8 @@ Zustand stores in `stores/`. Each exports the base store hook + granular selecto
 | `uiStore` | `usePendingDecisions`, `useWsStatus`, `useToasts` | |
 | `preferencesStore` | `useTheme`, `useBoardViewMode` | |
 | `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun` | React Flow state + execution tracking |
+| `dependencyStore` | `useDependencyFilter` | URL + localStorage persisted dependency status filter |
+| `statsStore` | `useStats`, `useCostSummary` | Dashboard statistics, cost summaries, daily metrics |
 
 **Pattern — `useShallow` for derived selectors:**
 ```tsx
@@ -107,6 +109,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
 | `WorkflowCanvas` | `workflow-editor/` | React Flow canvas with drag-to-add, delete, connections, layout persistence |
+| `PhaseNode` | `workflow-editor/nodes/` | Custom React Flow node: connection handles (L/R), category color accents, status states, gate badges |
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
