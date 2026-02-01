@@ -25,7 +25,7 @@
 	max-width: 200px;
 }
 
-.tag-input__chip-text {
+.tag-input__chip .label-text {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
