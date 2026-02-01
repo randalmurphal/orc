@@ -786,6 +786,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							fallbackLoopCounts[tmpl.ID] = loopCount
 						}
 
+						// Set loop iteration for template/schema selection.
+						// LoopIteration is 1-indexed: loopCount+1 because we're about to run iteration N+1
+						// where N is the number of loops completed.
+						rctx.LoopIteration = loopCount + 1
 						// Keep QA compatibility: populate rctx.QAIteration/QAMaxIterations
 						rctx.QAIteration = loopCount
 						rctx.QAMaxIterations = maxLoops
