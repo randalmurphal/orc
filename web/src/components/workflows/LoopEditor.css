@@ -1,0 +1,107 @@
+/**
+ * LoopEditor styles
+ *
+ * Matches the existing phase inspector settings styling
+ */
+
+.loop-editor {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+}
+
+/* ─── Field Container ─────────────────────────────────────────────────────── */
+
+.loop-editor__field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1-5);
+}
+
+.loop-editor__label {
+	font-size: var(--text-sm);
+	font-weight: 500;
+	color: var(--text-primary);
+}
+
+.loop-editor__hint {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+.loop-editor__hint--above {
+	margin-bottom: var(--space-1);
+}
+
+/* ─── Select Wrapper (for clear button positioning) ───────────────────────── */
+
+.loop-editor__select-wrapper {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* ─── Select Input ────────────────────────────────────────────────────────── */
+
+.loop-editor__select {
+	flex: 1;
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.loop-editor__select:focus {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.loop-editor__select:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ─── Number Input ────────────────────────────────────────────────────────── */
+
+.loop-editor__input {
+	width: 80px;
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.loop-editor__input:focus {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.loop-editor__input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ─── Clear Button ────────────────────────────────────────────────────────── */
+
+.loop-editor__clear-btn {
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+	white-space: nowrap;
+}
+
+.loop-editor__clear-btn:hover {
+	color: var(--red, #ef4444);
+	border-color: var(--red, #ef4444);
+}
