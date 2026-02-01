@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -105,20 +106,47 @@ type Workflow struct {
 
 // LoopConfig defines looping behavior for a workflow phase.
 // When configured, the phase can trigger a loop back to an earlier phase
-// based on output conditions (e.g., QA finds issues → fix → retest).
+// based on output conditions (e.g., review finds issues → fix → re-review).
+//
+// Condition supports two formats:
+//   - JSON object (new): {"field":"phase_output.review.status","op":"eq","value":"needs_changes"}
+//   - JSON string (legacy): "has_findings", "not_empty", "status_needs_fix"
 type LoopConfig struct {
-	// Condition defines when to loop. Options:
-	// - "has_findings": loop if phase output contains findings
-	// - "not_empty": loop if phase output is not empty
-	// - "status_needs_fix": loop if status field equals "needs_fix"
-	Condition string `json:"condition"`
-
 	// LoopToPhase is the phase to loop back to (must be earlier in sequence).
 	LoopToPhase string `json:"loop_to_phase"`
 
-	// MaxIterations is the maximum number of loop iterations (default: 3).
-	// The executor tracks iterations and stops when limit is reached.
+	// Condition defines when to loop. Stored as json.RawMessage to support
+	// both JSON object conditions (new) and JSON string conditions (legacy).
+	Condition json.RawMessage `json:"condition,omitempty"`
+
+	// MaxLoops is the maximum number of loop iterations (new field).
+	MaxLoops int `json:"max_loops,omitempty"`
+
+	// MaxIterations is the legacy maximum iterations field (backward compat).
 	MaxIterations int `json:"max_iterations,omitempty"`
+}
+
+// EffectiveMaxLoops returns the effective max loop count with precedence:
+// MaxLoops > MaxIterations > 3 (default).
+func (lc *LoopConfig) EffectiveMaxLoops() int {
+	if lc.MaxLoops > 0 {
+		return lc.MaxLoops
+	}
+	if lc.MaxIterations > 0 {
+		return lc.MaxIterations
+	}
+	return 3
+}
+
+// IsLegacyCondition returns true if the condition is a JSON string (legacy format)
+// rather than a JSON object (new format).
+func (lc *LoopConfig) IsLegacyCondition() bool {
+	if len(lc.Condition) == 0 {
+		return false
+	}
+	// A JSON string starts with '"', a JSON object starts with '{'
+	trimmed := bytes.TrimSpace(lc.Condition)
+	return len(trimmed) > 0 && trimmed[0] == '"'
 }
 
 // ParseLoopConfig parses a JSON string into LoopConfig.

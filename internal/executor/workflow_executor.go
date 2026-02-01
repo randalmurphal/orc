@@ -538,8 +538,9 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		PhaseResults: make([]PhaseResult, 0, len(phases)),
 	}
 
-	// Track retry counts per phase to prevent infinite loops
-	retryCounts := make(map[string]int)
+	// Fallback loop/retry counts for non-task contexts (no PhaseState available).
+	// For task contexts, PhaseState.Iterations is the authoritative counter.
+	fallbackLoopCounts := make(map[string]int)
 	maxRetries := 3
 	if we.orcConfig != nil && we.orcConfig.Retry.MaxRetries > 0 {
 		maxRetries = we.orcConfig.Retry.MaxRetries
@@ -722,27 +723,47 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			loopCfg, loopErr := db.ParseLoopConfig(phase.LoopConfig)
 			if loopErr != nil {
 				we.logger.Warn("invalid loop config", "phase", tmpl.ID, "error", loopErr)
-			} else if loopCfg != nil {
-				// Initialize loop iteration tracking in resolution context
-				if rctx.QAIteration == 0 {
-					rctx.QAIteration = 1
+			} else if loopCfg != nil && len(loopCfg.Condition) > 0 {
+				maxLoops := loopCfg.EffectiveMaxLoops()
+
+				// Evaluate condition: dispatch based on condition type
+				var shouldLoop bool
+				if loopCfg.IsLegacyCondition() {
+					// Legacy string condition → delegate to existing evaluator
+					var legacyCond string
+					if err := json.Unmarshal(loopCfg.Condition, &legacyCond); err != nil {
+						we.logger.Warn("invalid legacy loop condition", "phase", tmpl.ID, "error", err)
+					} else {
+						shouldLoop = we.evaluateLoopCondition(legacyCond, tmpl.ID, vars, rctx)
+					}
+				} else {
+					// JSON object condition → use EvaluateCondition
+					condCtx := &ConditionContext{
+						Task: t,
+						Vars: vars,
+						RCtx: rctx,
+					}
+					condResult, condErr := EvaluateCondition(string(loopCfg.Condition), condCtx)
+					if condErr != nil {
+						we.logger.Warn("invalid loop condition", "phase", tmpl.ID, "error", condErr)
+						// Fail-safe: continue forward (no loop)
+					} else {
+						shouldLoop = condResult
+					}
 				}
-				if rctx.QAMaxIterations == 0 && loopCfg.MaxIterations > 0 {
-					rctx.QAMaxIterations = loopCfg.MaxIterations
+
+				// Get current loop count from PhaseState.Iterations (task context)
+				// or fallbackLoopCounts (non-task context)
+				var loopCount int
+				if we.task != nil {
+					task.EnsurePhaseProto(we.task.Execution, tmpl.ID)
+					loopCount = int(we.task.Execution.Phases[tmpl.ID].Iterations)
+				} else {
+					loopCount = fallbackLoopCounts[tmpl.ID]
 				}
 
-				// Evaluate loop condition based on prior phase output
-				shouldLoop := we.evaluateLoopCondition(loopCfg.Condition, loopCfg.LoopToPhase, vars, rctx)
-
-				if shouldLoop && rctx.QAIteration < rctx.QAMaxIterations {
-					we.logger.Info("loop condition met, looping back",
-						"phase", tmpl.ID,
-						"loop_to", loopCfg.LoopToPhase,
-						"iteration", rctx.QAIteration,
-						"max_iterations", rctx.QAMaxIterations,
-					)
-
-					// Find loop target phase index
+				if shouldLoop && loopCount < maxLoops {
+					// Find loop target phase index (must precede current phase)
 					loopIdx := -1
 					for j := 0; j < i; j++ {
 						if phases[j].PhaseTemplateID == loopCfg.LoopToPhase {
@@ -751,20 +772,54 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						}
 					}
 
-					if loopIdx >= 0 {
-						rctx.QAIteration++
-						// Store previous findings for verification in next test iteration
+					if loopIdx < 0 {
+						we.logger.Warn("loop target phase not found",
+							"phase", tmpl.ID,
+							"loop_to", loopCfg.LoopToPhase,
+						)
+					} else {
+						// Increment loop counter
+						loopCount++
+						if we.task != nil {
+							we.task.Execution.Phases[tmpl.ID].Iterations = int32(loopCount)
+						} else {
+							fallbackLoopCounts[tmpl.ID] = loopCount
+						}
+
+						// Keep QA compatibility: populate rctx.QAIteration/QAMaxIterations
+						rctx.QAIteration = loopCount
+						rctx.QAMaxIterations = maxLoops
+
+						// Store previous findings for verification in next iteration
 						if findingsContent, ok := rctx.PriorOutputs[loopCfg.LoopToPhase]; ok {
 							rctx.PreviousFindings = findingsContent
 						}
 
-						// Reset phase completion status for loop-back phases
+						we.logger.Info("loop condition met, looping back",
+							"phase", tmpl.ID,
+							"loop_to", loopCfg.LoopToPhase,
+							"loop_count", loopCount,
+							"max_loops", maxLoops,
+						)
+
+						// Publish phase_loop event
+						if t != nil {
+							we.publisher.PhaseLoop(t.Id, tmpl.ID, loopCfg.LoopToPhase, loopCount)
+						}
+
+						// Reset phase completion status for loop-back phases.
+						// Target phases get Iterations = loopCount + 1 to reflect
+						// total execution count (initial + loop-backs).
+						// The loop-owning phase (tmpl.ID) is skipped since its
+						// Iterations is the loop counter, already set above.
 						if we.task != nil {
 							for k := loopIdx; k <= i; k++ {
 								phaseID := phases[k].PhaseTemplateID
 								if ps, exists := we.task.Execution.Phases[phaseID]; exists {
 									ps.Status = orcv1.PhaseStatus_PHASE_STATUS_PENDING
-									ps.Iterations++
+									if phaseID != tmpl.ID {
+										ps.Iterations = int32(loopCount + 1)
+									}
 								}
 							}
 							if err := we.backend.SaveTask(we.task); err != nil {
@@ -779,8 +834,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				} else if shouldLoop {
 					we.logger.Info("max loop iterations reached",
 						"phase", tmpl.ID,
-						"iteration", rctx.QAIteration,
-						"max_iterations", rctx.QAMaxIterations,
+						"loop_count", loopCount,
+						"max_loops", maxLoops,
 					)
 				}
 			}
@@ -840,13 +895,42 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 			if !gateResult.Approved {
 				// Gate rejected - check if we should retry
-				if gateResult.RetryPhase != "" && retryCounts[tmpl.ID] < maxRetries {
-					retryCounts[tmpl.ID]++
+				// Use unified counter: PhaseState.Iterations for task contexts,
+				// fallbackLoopCounts for non-task contexts.
+				var retryCount int
+				var retryMax int
+				if we.task != nil {
+					task.EnsurePhaseProto(we.task.Execution, tmpl.ID)
+					retryCount = int(we.task.Execution.Phases[tmpl.ID].Iterations)
+					// Check loop_config max_loops first, then config max_retries
+					if phase.LoopConfig != "" {
+						if lc, err := db.ParseLoopConfig(phase.LoopConfig); err == nil && lc != nil {
+							retryMax = lc.EffectiveMaxLoops()
+						} else {
+							retryMax = maxRetries
+						}
+					} else {
+						retryMax = maxRetries
+					}
+				} else {
+					retryCount = fallbackLoopCounts[tmpl.ID]
+					retryMax = maxRetries
+				}
+
+				if gateResult.RetryPhase != "" && retryCount < retryMax {
+					// Increment unified counter
+					retryCount++
+					if we.task != nil {
+						we.task.Execution.Phases[tmpl.ID].Iterations = int32(retryCount)
+					} else {
+						fallbackLoopCounts[tmpl.ID] = retryCount
+					}
+
 					we.logger.Info("gate rejected, retrying from earlier phase",
 						"failed_phase", tmpl.ID,
 						"reason", gateResult.Reason,
 						"retry_from", gateResult.RetryPhase,
-						"retry_count", retryCounts[tmpl.ID],
+						"retry_count", retryCount,
 					)
 
 					// Find retry target phase index
@@ -873,7 +957,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 						// Save retry context with gate analysis
 						if we.task != nil {
 							reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
-							task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCounts[tmpl.ID]))
+							task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
 							if err := we.backend.SaveTask(we.task); err != nil {
 								we.logger.Warn("failed to save retry state", "error", err)
 							}
@@ -889,7 +973,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							}
 							rctx.RetryContext = BuildRetryContextWithGateAnalysis(
 								tmpl.ID, reason, phaseResult.Content,
-								retryCounts[tmpl.ID], "", gateContext,
+								retryCount, "", gateContext,
 							)
 						}
 
@@ -1161,17 +1245,17 @@ func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionCo
 	}
 }
 
-// evaluateLoopCondition checks if a loop condition is met based on phase output.
+// evaluateLoopCondition checks if a legacy loop condition is met based on phase output.
 // Supported conditions:
-// - "has_findings": checks if the target phase output contains any findings
-// - "not_empty": checks if the target phase output is not empty
+// - "has_findings": checks if the phase output contains any findings
+// - "not_empty": checks if the phase output is not empty
 // - "status_needs_fix": checks if the output status indicates fixes needed
-func (we *WorkflowExecutor) evaluateLoopCondition(condition, targetPhase string, vars map[string]string, rctx *variable.ResolutionContext) bool {
-	// Get the target phase output
+func (we *WorkflowExecutor) evaluateLoopCondition(condition, phaseID string, vars map[string]string, rctx *variable.ResolutionContext) bool {
+	// Get the phase output from prior outputs or variable map
 	output := ""
-	if o, ok := rctx.PriorOutputs[targetPhase]; ok {
+	if o, ok := rctx.PriorOutputs[phaseID]; ok {
 		output = o
-	} else if o, ok := vars["OUTPUT_"+targetPhase]; ok {
+	} else if o, ok := vars["OUTPUT_"+phaseID]; ok {
 		output = o
 	}
 

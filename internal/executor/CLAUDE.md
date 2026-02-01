@@ -8,7 +8,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 | File | Lines | Key Functions | Purpose |
 |------|-------|---------------|---------|
-| `workflow_executor.go` | ~790 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, result types |
+| `workflow_executor.go` | ~880 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, result types |
 | `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
 | `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `applyPRAutomation()` | PR creation/reuse, merge, worktree setup/cleanup, sync |
@@ -27,7 +27,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
 | `retry.go` | Retry context building (`BuildRetryContext`, `BuildRetryContextForFreshSession`, `BuildRetryContextWithGateAnalysis`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
-| `qa.go` | QA E2E types, parsing, loop condition evaluation |
+| `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
@@ -38,7 +38,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
-| `condition.go` | Phase condition evaluator: `EvalCondition()`, `PhaseVars` |
+| `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
+| `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
 
 ## Architecture
 
@@ -60,6 +61,7 @@ WorkflowExecutor.Run()
 │   ├── executePhaseWithTimeout()     # Run with timeout
 │   │   └── executeWithClaude()       # ClaudeExecutor
 │   ├── applyPhaseContentToVars()     # Store output for subsequent phases
+│   ├── evaluateLoopConfig()          # Check loop_config: condition + max_loops → jump back
 │   └── recordCostToGlobal()          # Track costs
 ├── handleCompletionWithTriggers()    # on_task_completed gates
 ├── fireLifecycleTriggers()           # on_task_failed (on failure path)
@@ -141,7 +143,7 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `ResolvePROptions()` | `workflow_completion.go:194` | Merges project PR config with task-level overrides (draft, labels, reviewers) |
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
-| `applyPhaseContentToVars()` | `workflow_executor.go:820` | Propagates phase content to subsequent phases |
+| `applyPhaseContentToVars()` | `workflow_executor.go:739` | Propagates phase content to subsequent phases |
 | `applyGateOutputToVars()` | `workflow_gates.go:141` | Stores gate output data as JSON workflow variable |
 | `BuildRetryContextWithGateAnalysis()` | `retry.go:71` | Extends retry context with gate analysis section |
 | `ApplyPhaseSettings()` | `phase_settings.go:27` | Unified phase settings: reset → load config → hooks + skills + scripts |
@@ -184,15 +186,31 @@ type PhaseBlockedError struct {
 | `enrichContextForPhase()` | `workflow_context.go:198` | Adds phase-specific context |
 | `loadInitiativeContext()` | `workflow_context.go:135` | Loads initiative vision/decisions |
 
-### QA E2E Loop Execution
+### Phase Loop System (`workflow_executor.go:721-841`)
 
-| Function | File:Line | Purpose |
-|----------|-----------|---------|
-| `EvaluateLoopCondition()` | `qa.go` | Evaluates loop condition against phase output |
-| `ParseQAE2ETestResult()` | `qa.go` | Parses qa_e2e_test phase JSON output |
-| `ParseQAE2EFixResult()` | `qa.go` | Parses qa_e2e_fix phase JSON output |
+Generic loop-back mechanism. Any phase can loop to an earlier phase based on configurable conditions stored in `WorkflowPhase.LoopConfig` (JSON in DB).
 
-**Loop Conditions:**
+**Loop Config** (`db.LoopConfig` at `db/workflow.go:114`):
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `loop_to_phase` | string | Target phase (must precede current) |
+| `condition` | JSON | Legacy string OR JSON object condition |
+| `max_loops` | int | Loop limit (`EffectiveMaxLoops()`: max_loops > max_iterations > 3) |
+
+**Execution Flow** (after phase completes):
+1. Parse `phase.LoopConfig` → `db.LoopConfig`
+2. Evaluate condition (legacy string → `evaluateLoopCondition()`, JSON object → `EvaluateCondition()`)
+3. Check iteration count < `EffectiveMaxLoops()`
+4. Find target phase index (must be earlier)
+5. Reset phases from target to current → PENDING
+6. Increment `PhaseState.Iterations` (unified with gate retry counter)
+7. Publish `PhaseLoop` event (`events/publish_helper.go:176`)
+8. Jump index back to target phase
+
+**Fail-safe behavior:** Invalid condition → no loop. Missing target → no loop. Max exceeded → continue forward.
+
+**Legacy loop conditions** (string format, used by QA E2E):
 
 | Condition | Evaluates True When |
 |-----------|---------------------|
@@ -200,10 +218,7 @@ type PhaseBlockedError struct {
 | `not_empty` | Output is non-empty (trimmed) |
 | `status_needs_fix` | Status field is "needs_fix" |
 
-**Loop Flow:**
-```
-qa_e2e_test outputs findings → LoopConfig.Condition="has_findings" → true → inject qa_e2e_fix → execute fix → loop back to qa_e2e_test → repeat until no findings or MaxIterations
-```
+**JSON object conditions** use the same `EvaluateCondition()` system as phase skip conditions (see `docs/architecture/PHASE_MODEL.md`).
 
 ## Variable Resolution
 
@@ -459,6 +474,7 @@ go test ./internal/executor/... -v
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
 | `phase_settings_test.go` | Phase settings: apply/cleanup, skill merging, orc-managed detection |
 | `condition_test.go` | Phase condition evaluation: operators, composites, variable resolution |
+| `phase_loop_test.go` | Phase loop: JSON/legacy conditions, max enforcement, counter unification, events |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 

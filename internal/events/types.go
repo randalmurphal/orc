@@ -97,9 +97,11 @@ type TranscriptLine struct {
 // PhaseUpdate represents a phase status change.
 type PhaseUpdate struct {
 	Phase     string `json:"phase"`
-	Status    string `json:"status"` // started, completed, failed, skipped
+	Status    string `json:"status"` // running, completed, failed, skipped, looping
 	CommitSHA string `json:"commit_sha,omitempty"`
 	Error     string `json:"error,omitempty"`
+	LoopTo    string `json:"loop_to,omitempty"`
+	LoopCount int    `json:"loop_count,omitempty"`
 }
 
 // TokenUpdate represents token usage information.

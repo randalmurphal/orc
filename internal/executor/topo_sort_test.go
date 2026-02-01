@@ -27,7 +27,7 @@ func makePhaseWithLoop(templateID string, seq int, dependsOn []string, loopToPha
 	p := makePhase(templateID, seq, dependsOn)
 	if loopToPhase != "" {
 		cfg := db.LoopConfig{
-			Condition:     "has_findings",
+			Condition:     json.RawMessage(`"has_findings"`),
 			LoopToPhase:   loopToPhase,
 			MaxIterations: 3,
 		}
