@@ -14,7 +14,11 @@ const BUILTIN_VARIABLES = {
 	'Execution Context': [
 		{ name: 'PHASE', description: 'Current phase ID' },
 		{ name: 'ITERATION', description: 'Current iteration number' },
-		{ name: 'RETRY_CONTEXT', description: 'Context from failed attempt (if retrying)' },
+	],
+	'Retry Context': [
+		{ name: 'RETRY_ATTEMPT', description: 'Retry attempt number (e.g., 2, 3)' },
+		{ name: 'RETRY_FROM_PHASE', description: 'Phase that triggered the retry' },
+		{ name: 'RETRY_REASON', description: 'Reason the retry was triggered' },
 	],
 	'Git Context': [
 		{ name: 'WORKTREE_PATH', description: 'Path to git worktree' },

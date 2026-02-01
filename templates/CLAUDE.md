@@ -50,7 +50,8 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{SPEC_CONTENT}}` | Spec phase artifact |
 | `{{TDD_TESTS_CONTENT}}`, `{{TDD_TEST_PLAN}}` | TDD phase output |
 | `{{BREAKDOWN_CONTENT}}` | Task breakdown output |
-| `{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}` | Retry context (attempt number, source phase, reason) |
+| `{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}` | Retry context via variable resolver (empty on first run) |
+| `{{RETRY_FEEDBACK}}`, `{{RETRY_FAILED_CRITERIA}}`, `{{RETRY_MAX_ATTEMPTS}}` | Structured retry context via prompt service. `{{RETRY_CONTEXT}}` available for backward compat |
 | `{{WORKTREE_PATH}}`, `{{TASK_BRANCH}}`, `{{TARGET_BRANCH}}` | Git context |
 | `{{INITIATIVE_CONTEXT}}` | Initiative details |
 | `{{LANGUAGE}}`, `{{HAS_FRONTEND}}`, `{{HAS_TESTS}}` | Project detection |

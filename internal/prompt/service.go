@@ -250,9 +250,13 @@ func GetVariableReference() map[string]string {
 		"{{WEIGHT}}":           "Task weight classification (trivial/small/medium/large)",
 
 		// Execution context
-		"{{PHASE}}":         "Current phase ID",
-		"{{ITERATION}}":     "Current iteration number within the phase",
-		"{{RETRY_CONTEXT}}": "Context from failed phase when retrying",
+		"{{PHASE}}":     "Current phase ID",
+		"{{ITERATION}}": "Current iteration number within the phase",
+
+		// Retry context (only populated when retrying a failed phase)
+		"{{RETRY_ATTEMPT}}":    "Retry attempt number (e.g., 2, 3)",
+		"{{RETRY_FROM_PHASE}}": "Phase that triggered the retry (e.g., review)",
+		"{{RETRY_REASON}}":     "Reason the retry was triggered",
 
 		// Git context
 		"{{WORKTREE_PATH}}": "Absolute path to the isolated worktree directory",
