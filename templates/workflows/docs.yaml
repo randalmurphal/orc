@@ -1,7 +1,6 @@
 id: docs
 name: "Documentation"
 description: "Documentation update workflow"
-workflow_type: branch
 
 phases:
   - template: docs

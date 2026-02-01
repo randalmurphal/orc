@@ -91,7 +91,6 @@ type Workflow struct {
 	ID              string    `json:"id"`
 	Name            string    `json:"name"`
 	Description     string    `json:"description,omitempty"`
-	WorkflowType    string    `json:"workflow_type"` // 'task', 'branch', 'standalone'
 	DefaultModel    string    `json:"default_model,omitempty"`
 	DefaultThinking bool      `json:"default_thinking"`
 	IsBuiltin       bool      `json:"is_builtin"`
@@ -385,18 +384,17 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 	basedOn := sqlNullString(w.BasedOn)
 
 	_, err := p.Exec(`
-		INSERT INTO workflows (id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workflows (id, name, description, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
-			workflow_type = excluded.workflow_type,
 			default_model = excluded.default_model,
 			default_thinking = excluded.default_thinking,
 			based_on = excluded.based_on,
 			triggers = excluded.triggers,
 			updated_at = excluded.updated_at
-	`, w.ID, w.Name, w.Description, w.WorkflowType, w.DefaultModel, w.DefaultThinking,
+	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultThinking,
 		w.IsBuiltin, basedOn, w.Triggers, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save workflow: %w", err)
@@ -407,7 +405,7 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 // GetWorkflow retrieves a workflow by ID.
 func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 	row := p.QueryRow(`
-		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows WHERE id = ?
 	`, id)
 
@@ -424,7 +422,7 @@ func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 // ListWorkflows returns all workflows.
 func (p *ProjectDB) ListWorkflows() ([]*Workflow, error) {
 	rows, err := p.Query(`
-		SELECT id, name, description, workflow_type, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -1004,7 +1002,7 @@ func scanWorkflow(row rowScanner) (*Workflow, error) {
 	var description, defaultModel, basedOn, triggers sql.NullString
 
 	err := row.Scan(
-		&w.ID, &w.Name, &description, &w.WorkflowType, &defaultModel, &w.DefaultThinking,
+		&w.ID, &w.Name, &description, &defaultModel, &w.DefaultThinking,
 		&w.IsBuiltin, &basedOn, &triggers, &createdAt, &updatedAt,
 	)
 	if err != nil {

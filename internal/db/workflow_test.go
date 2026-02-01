@@ -118,7 +118,7 @@ func TestWorkflowCRUD(t *testing.T) {
 		ID:           "test-workflow",
 		Name:         "Test Workflow",
 		Description:  "A test workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -229,7 +229,7 @@ func TestWorkflowPhases(t *testing.T) {
 	wf := &Workflow{
 		ID:           "test-wf",
 		Name:         "Test Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -303,7 +303,7 @@ func TestWorkflowVariables(t *testing.T) {
 	wf := &Workflow{
 		ID:           "var-test-wf",
 		Name:         "Variable Test Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -396,7 +396,7 @@ func TestWorkflowRunCRUD(t *testing.T) {
 	wf := &Workflow{
 		ID:           "run-test-wf",
 		Name:         "Run Test Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -537,7 +537,7 @@ func TestWorkflowRunPhases(t *testing.T) {
 	wf := &Workflow{
 		ID:           "phase-run-wf",
 		Name:         "Phase Run Test",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -646,7 +646,7 @@ func TestListWorkflowRunsFiltering(t *testing.T) {
 	wf := &Workflow{
 		ID:           "filter-wf",
 		Name:         "Filter Test",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

@@ -1,7 +1,6 @@
 id: implement-large
 name: "Implement (Large)"
 description: "Full implementation workflow: spec, TDD, breakdown, implement, review, docs"
-workflow_type: task
 
 phases:
   - template: spec

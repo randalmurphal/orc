@@ -55,7 +55,7 @@ func TestSaveWorkflowLayout_Success(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-custom",
 		Name:         "Custom Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -68,7 +68,7 @@ func TestSaveWorkflowLayout_Success(t *testing.T) {
 	err = backend.SaveWorkflow(&db.Workflow{
 		ID:           "wf-custom",
 		Name:         "Custom Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -149,7 +149,7 @@ func TestSaveWorkflowLayout_BuiltinWorkflow_Rejected(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-builtin",
 		Name:         "Built-in Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    true,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

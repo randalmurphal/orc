@@ -1,7 +1,6 @@
 id: implement-trivial
 name: "Implement (Trivial)"
 description: "Direct implementation: short tests + build, no spec overhead"
-workflow_type: task
 
 phases:
   - template: implement

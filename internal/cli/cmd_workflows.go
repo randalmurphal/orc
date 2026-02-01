@@ -38,8 +38,6 @@ func init() {
 	// New flags
 	workflowNewCmd.Flags().String("from", "", "Clone from existing workflow")
 	workflowNewCmd.Flags().String("description", "", "Workflow description")
-	workflowNewCmd.Flags().String("type", "task", "Workflow type (task, branch, standalone)")
-
 	// Edit flags
 	workflowEditCmd.Flags().String("name", "", "New workflow name")
 	workflowEditCmd.Flags().String("description", "", "New description")
@@ -121,23 +119,23 @@ Examples:
 		// Display as table
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		if showSources {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tSOURCE")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tSOURCE")
 		} else {
-			_, _ = fmt.Fprintln(w, "ID\tNAME\tTYPE\tPHASES\tBUILT-IN")
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tPHASES\tBUILT-IN")
 		}
 		for _, rw := range filtered {
 			phaseCount := len(rw.Workflow.Phases)
 			if showSources {
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
-					rw.Workflow.ID, rw.Workflow.Name, rw.Workflow.WorkflowType,
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+					rw.Workflow.ID, rw.Workflow.Name,
 					phaseCount, workflow.SourceDisplayName(rw.Source))
 			} else {
 				builtinStr := ""
 				if rw.Source == workflow.SourceEmbedded {
 					builtinStr = "yes"
 				}
-				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
-					rw.Workflow.ID, rw.Workflow.Name, rw.Workflow.WorkflowType,
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+					rw.Workflow.ID, rw.Workflow.Name,
 					phaseCount, builtinStr)
 			}
 		}
@@ -180,7 +178,6 @@ Examples:
 		if wf.Description != "" {
 			fmt.Printf("Description: %s\n", wf.Description)
 		}
-		fmt.Printf("Type: %s\n", wf.WorkflowType)
 		if wf.DefaultModel != "" {
 			fmt.Printf("Default Model: %s\n", wf.DefaultModel)
 		}
@@ -285,7 +282,6 @@ Examples:
 
 		fromID, _ := cmd.Flags().GetString("from")
 		desc, _ := cmd.Flags().GetString("description")
-		wfType, _ := cmd.Flags().GetString("type")
 
 		if fromID != "" {
 			// Clone existing workflow
@@ -302,7 +298,6 @@ Examples:
 				ID:              workflowID,
 				Name:            workflowID,
 				Description:     desc,
-				WorkflowType:    source.WorkflowType,
 				DefaultModel:    source.DefaultModel,
 				DefaultThinking: source.DefaultThinking,
 				IsBuiltin:       false,
@@ -364,11 +359,10 @@ Examples:
 		} else {
 			// Create empty workflow
 			newWf := &db.Workflow{
-				ID:           workflowID,
-				Name:         workflowID,
-				Description:  desc,
-				WorkflowType: wfType,
-				IsBuiltin:    false,
+				ID:          workflowID,
+				Name:        workflowID,
+				Description: desc,
+				IsBuiltin:   false,
 			}
 
 			if err := gdb.SaveWorkflow(newWf); err != nil {

@@ -135,15 +135,6 @@ const (
 	SourceTypePromptFragment VariableSourceType = "prompt_fragment" // Reusable prompt snippet
 )
 
-// WorkflowType defines the primary use case of a workflow.
-type WorkflowType string
-
-const (
-	WorkflowTypeTask       WorkflowType = "task"       // Creates/attaches to task
-	WorkflowTypeBranch     WorkflowType = "branch"     // Works on branches
-	WorkflowTypeStandalone WorkflowType = "standalone" // No git context
-)
-
 // PhaseTemplate is a reusable phase definition (lego block).
 // Agent (WHO runs it) + Prompt (WHAT to do).
 // Stored in phase_templates table.
@@ -199,7 +190,6 @@ type Workflow struct {
 	ID              string       `json:"id" db:"id"`
 	Name            string       `json:"name" db:"name"`
 	Description     string       `json:"description,omitempty" db:"description"`
-	WorkflowType    WorkflowType `json:"workflow_type" db:"workflow_type"`
 	DefaultModel    string       `json:"default_model,omitempty" db:"default_model"`
 	DefaultThinking bool         `json:"default_thinking" db:"default_thinking"`
 	IsBuiltin       bool         `json:"is_builtin" db:"is_builtin"`

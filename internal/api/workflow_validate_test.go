@@ -23,7 +23,7 @@ func TestValidateWorkflow_ValidLinearWorkflow(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-linear",
 		Name:         "Linear Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -93,7 +93,7 @@ func TestValidateWorkflow_CycleDetected(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-cycle",
 		Name:         "Cyclic Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -169,7 +169,7 @@ func TestValidateWorkflow_InvalidDependencyReference(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-bad-dep",
 		Name:         "Bad Dependency Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -235,7 +235,7 @@ func TestValidateWorkflow_InvalidLoopToPhase(t *testing.T) {
 	err := globalDB.SaveWorkflow(&db.Workflow{
 		ID:           "wf-bad-loop",
 		Name:         "Bad Loop Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

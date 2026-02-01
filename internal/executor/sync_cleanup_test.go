@@ -125,7 +125,7 @@ func setupSyncCleanupTest(t *testing.T, taskID string) *syncCleanupTestEnv {
 	if err := projectDB.SaveWorkflow(&db.Workflow{
 		ID:           "test-workflow",
 		Name:         "Test Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}); err != nil {
