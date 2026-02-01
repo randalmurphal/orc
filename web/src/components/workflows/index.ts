@@ -13,3 +13,4 @@ export { PhaseListEditor, type PhaseListEditorProps, type PhaseOverrides, type A
 export { PhaseTemplateDetailPanel, type PhaseTemplateDetailPanelProps } from './PhaseTemplateDetailPanel';
 export { ClonePhaseTemplateModal, type ClonePhaseTemplateModalProps } from './ClonePhaseTemplateModal';
 export { EditPhaseTemplateModal, type EditPhaseTemplateModalProps } from './EditPhaseTemplateModal';
+export { ConditionEditor, type ConditionEditorProps } from './ConditionEditor';
