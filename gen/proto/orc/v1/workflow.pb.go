@@ -2396,8 +2396,10 @@ type UpdatePhaseRequest struct {
 	SubAgentsOverrideSet *bool    `protobuf:"varint,13,opt,name=sub_agents_override_set,json=subAgentsOverrideSet,proto3,oneof" json:"sub_agents_override_set,omitempty"` // True = update sub_agents (even if empty)
 	// Claude configuration override (JSON)
 	ClaudeConfigOverride *string `protobuf:"bytes,12,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Loop configuration (JSON)
+	LoopConfig    *string `protobuf:"bytes,14,opt,name=loop_config,json=loopConfig,proto3,oneof" json:"loop_config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdatePhaseRequest) Reset() {
@@ -2517,6 +2519,13 @@ func (x *UpdatePhaseRequest) GetSubAgentsOverrideSet() bool {
 func (x *UpdatePhaseRequest) GetClaudeConfigOverride() string {
 	if x != nil && x.ClaudeConfigOverride != nil {
 		return *x.ClaudeConfigOverride
+	}
+	return ""
+}
+
+func (x *UpdatePhaseRequest) GetLoopConfig() string {
+	if x != nil && x.LoopConfig != nil {
+		return *x.LoopConfig
 	}
 	return ""
 }
@@ -5811,7 +5820,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0f_agent_overrideB\x19\n" +
 	"\x17_claude_config_override\"?\n" +
 	"\x10AddPhaseResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xa7\x06\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xdd\x06\n" +
 	"\x12UpdatePhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x19\n" +
@@ -5828,7 +5837,9 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	" \x01(\tH\x06R\ragentOverride\x88\x01\x01\x12.\n" +
 	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x12:\n" +
 	"\x17sub_agents_override_set\x18\r \x01(\bH\aR\x14subAgentsOverrideSet\x88\x01\x01\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\bR\x14claudeConfigOverride\x88\x01\x01B\v\n" +
+	"\x16claude_config_override\x18\f \x01(\tH\bR\x14claudeConfigOverride\x88\x01\x01\x12$\n" +
+	"\vloop_config\x18\x0e \x01(\tH\tR\n" +
+	"loopConfig\x88\x01\x01B\v\n" +
 	"\t_sequenceB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
@@ -5838,7 +5849,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"_conditionB\x11\n" +
 	"\x0f_agent_overrideB\x1a\n" +
 	"\x18_sub_agents_override_setB\x19\n" +
-	"\x17_claude_config_override\"B\n" +
+	"\x17_claude_config_overrideB\x0e\n" +
+	"\f_loop_config\"B\n" +
 	"\x13UpdatePhaseResponse\x12+\n" +
 	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"P\n" +
 	"\x12RemovePhaseRequest\x12\x1f\n" +

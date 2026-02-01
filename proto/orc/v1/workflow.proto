@@ -359,6 +359,8 @@ message UpdatePhaseRequest {
   optional bool sub_agents_override_set = 13;   // True = update sub_agents (even if empty)
   // Claude configuration override (JSON)
   optional string claude_config_override = 12;
+  // Loop configuration (JSON)
+  optional string loop_config = 14;
 }
 
 message UpdatePhaseResponse {

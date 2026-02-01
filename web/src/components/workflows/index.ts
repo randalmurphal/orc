@@ -14,3 +14,4 @@ export { PhaseTemplateDetailPanel, type PhaseTemplateDetailPanelProps } from './
 export { ClonePhaseTemplateModal, type ClonePhaseTemplateModalProps } from './ClonePhaseTemplateModal';
 export { EditPhaseTemplateModal, type EditPhaseTemplateModalProps } from './EditPhaseTemplateModal';
 export { ConditionEditor, type ConditionEditorProps } from './ConditionEditor';
+export { LoopEditor, type LoopEditorProps } from './LoopEditor';
