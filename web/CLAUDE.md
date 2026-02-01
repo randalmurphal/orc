@@ -114,13 +114,14 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
-| `PhaseInspector` | `workflow-editor/panels/` | Right panel: Prompt/Variables/Settings tabs + read-only merged claude_config summary |
+| `PhaseInspector` | `workflow-editor/panels/` | Right panel: Phase Input/Prompt/Completion/Settings tabs, condition editor, claude_config |
 | `PromptEditor` | `workflow-editor/panels/` | Prompt viewer with variable highlighting, editable textarea for custom |
 | `PhaseTemplatePalette` | `workflow-editor/panels/` | Left panel: draggable phase templates for adding to canvas |
 | `VariableModal` | `workflow-editor/` | Create/edit workflow variables with source-specific forms |
 | `VariableReferencePanel` | `workflow-editor/` | Shows available `{{VAR}}` patterns grouped by category |
 | `PhaseListEditor` | `workflows/` | Phase list with add/edit/remove/reorder. Edit dialog shows inherited vs override claude_config sections |
 | `EditPhaseTemplateModal` | `workflows/` | Phase template editor: data flow (input/output vars, prompt source), 7 claude_config sections, JSON override |
+| `ConditionEditor` | `workflows/` | Visual condition builder + raw JSON mode. Operators: eq/neq/in/contains/exists/gt/lt. Logic: all/any |
 | `CollapsibleSettingsSection` | `core/` | Collapsible header with chevron + badge counter. Used in phase editors and inspectors |
 | `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
