@@ -1,0 +1,1065 @@
+version: 1
+
+# UX Simplification Initiative
+# Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+#
+# Relationship to INIT-036 (Workflow System Redesign):
+# - WAITS FOR: Backend tasks (677-681, 685, 707, 711) that provide infrastructure
+# - SUPERSEDES: UI tasks (696-706, 719) that will be reimplemented with new design
+#
+# All tasks reference the brainstorm document for design requirements.
+
+create_initiative:
+  title: "UX Simplification"
+  vision: |
+    Make orc intuitive - users should understand and use its power without
+    fighting the UI. Workflow-centric model, gates as edges, never leave
+    the editor, agent-first CLI, real-time collaboration.
+
+    Core problem: "I built it and I don't understand it."
+
+    Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+
+decisions:
+  - text: "Kill Agents and Environ from main nav"
+    rationale: "Agents are implementation details. Config moves to phase inspector + Settings > Agents. Environ merges into Settings."
+
+  - text: "Gates are edges, not node properties"
+    rationale: "Mental model: phases are work (nodes), gates are transitions (edges). Matches how people think about workflows."
+
+  - text: "Kill weight entirely - workflow-first task creation"
+    rationale: "Weight was confusing indirection. Users pick workflows directly. Old weight→workflow mapping becomes smart defaults."
+
+  - text: "CLI is agent-first - no interactive prompts by default"
+    rationale: "CLI primary users are agents. Clear errors, JSON output, explicit flags. TUI (bubbletea) will be interactive human mode later."
+
+  - text: "Two-level view: Board (attention) vs Task Detail (deep work)"
+    rationale: "Board shows what needs focus. Task Detail is where you collaborate with the agent."
+
+  - text: "Real-time feedback with timing options"
+    rationale: "Send Now (pause agent), Send When Done (queue), Save for Later (manual). Users can steer agents mid-execution."
+
+tasks:
+  # ========================================
+  # PHASE 1: NAVIGATION & SETTINGS
+  # No backend dependencies - can start immediately
+  # ========================================
+
+  - id: 1
+    title: "Kill Agents and Environ from main navigation"
+    weight: small
+    category: refactor
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Navigation Changes"
+
+      Remove Agents and Environ from the main navigation bar.
+
+      Current navigation:
+        Board | Initiatives | Timeline | Stats | Workflows | Agents | Environ | Settings | Help
+
+      New navigation:
+        Board | Initiatives | Timeline | Stats | Workflows | Settings | Help
+
+      Files to modify:
+      - web/src/components/layout/MainLayout.tsx - Remove nav links
+      - web/src/App.tsx - Remove routes (keep components for now, Settings will use them)
+
+      DO NOT delete the Agents and Environ page components yet - they'll be moved
+      to Settings in a separate task.
+
+  - id: 2
+    title: "Create Settings page with Agents and Environment tabs"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [1]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Navigation Changes"
+
+      Create a new Settings page with tabbed navigation containing:
+      - General (existing settings)
+      - Agents (moved from /agents)
+      - Environment (moved from /environ)
+
+      The Settings page should be at /settings with sub-routes:
+      - /settings (redirects to /settings/general)
+      - /settings/general
+      - /settings/agents
+      - /settings/environment
+
+      Reuse the existing AgentsPage and EnvironPage components as tab content.
+      Use the project's existing tab component pattern (see SettingsPage for reference).
+
+      After this task, the /agents and /environ routes can be removed from App.tsx.
+
+  # ========================================
+  # PHASE 2: WORKFLOW EDITOR CORE
+  # Gate edges depend on INIT-036 backend tasks (when ready)
+  # ========================================
+
+  - id: 3
+    title: "Add workflow-level settings to editor left palette"
+    weight: medium
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Workflow Editor Enhancements" (Left Palette)
+      Section: "Workflow-Level Settings" table
+
+      Add a collapsible "Workflow Settings" section to the left palette containing:
+
+      Essential (always visible):
+      - Name (readonly, just display)
+      - Default Model (dropdown: opus/sonnet/haiku)
+      - Default Thinking (toggle)
+
+      Collapsible "Git & Completion":
+      - Git Mode (worktree/branch/none)
+      - Target Branch (text input)
+      - Completion Action (pr/merge/commit/none)
+      - PR Draft (toggle)
+      - Auto Merge (toggle)
+
+      Changes should update the workflow via existing API.
+      Use existing form components from the project.
+
+  - id: 4
+    title: "Add agents section to editor left palette"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [3]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Workflow Editor Enhancements" (Left Palette - Agents section)
+
+      Add a collapsible "Agents" section below Workflow Settings in the left palette.
+
+      Display available agents in a compact list:
+      - Built-in agents (grouped)
+      - Custom agents (grouped)
+
+      Each agent shows: icon, name, brief description (truncated)
+
+      Interaction: Click agent to see details in inspector (when no phase selected)
+      or assign to selected phase.
+
+      Use existing agent API endpoints. Show loading state while fetching.
+
+  - id: 5
+    title: "Redesign phase inspector with full configuration"
+    weight: large
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Workflow Editor Enhancements" (Right Inspector)
+      Section: "Phase-Level Settings" table
+
+      When a phase is selected, the inspector shows comprehensive configuration:
+
+      ALWAYS VISIBLE:
+      - Phase name (editable)
+      - Executor (agent dropdown) - NEW, was missing!
+      - Model (dropdown with "inherit" option)
+      - Max Iterations (number input)
+
+      COLLAPSIBLE SECTIONS:
+
+      ▸ Sub-Agents
+        - List of assigned sub-agents
+        - Add/remove buttons
+        - Drag to reorder
+
+      ▸ Prompt
+        - Source toggle: Template / Custom / File
+        - Prompt text editor (monaco or textarea)
+        - File path input (when source=file)
+
+      ▸ Data Flow
+        - Input Variables (list)
+        - Output Variable (text)
+        - Produces Artifact (toggle)
+        - Artifact Type (dropdown when produces_artifact=true)
+
+      ▸ Environment
+        - Working Directory (dropdown: worktree/main/custom)
+        - Environment Variables (key-value editor)
+        - MCP Servers (list with add/remove)
+        - Skills (list with add/remove)
+        - Hooks (list with add/remove)
+
+      ▸ Advanced
+        - Thinking Override (toggle with "inherit" option)
+
+      Use existing form patterns. Each section should save on blur/change.
+
+  - id: 6
+    title: "Implement gates as edges visual model"
+    weight: large
+    category: feature
+    priority: critical
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Gates as Transitions (Edge-Based Model)"
+      Section: "Gate-Level Settings" table
+
+      MAJOR PARADIGM SHIFT: Gates move from phase properties to edge properties.
+
+      Visual design:
+      - Lines flow from left canvas edge → through phases → to right canvas edge
+      - No explicit Start/End nodes (ugly)
+      - Gate symbols (◆) sit ON the edges between phases
+      - Entry edge (before first phase) and exit edge (after last phase)
+
+      Gate symbol visual states:
+      | Visual | Color  | Meaning                    |
+      |--------|--------|----------------------------|
+      | ───    | Gray   | Passthrough (no gate)      |
+      | ──○──  | Blue   | Auto (system checks)       |
+      | ──◆──  | Yellow | Human approval required    |
+      | ──◆──  | Purple | AI evaluates               |
+      | ──◆──  | Red    | Blocked/failed             |
+      | ──◆──  | Green  | Passed                     |
+
+      Interaction:
+      - Click gate symbol → Inspector shows gate config
+      - Hover → Tooltip with config summary
+      - Drag edge → Gate travels with the connection
+
+      This requires:
+      1. Custom edge component for React Flow
+      2. Gate data on edges instead of nodes
+      3. Inspector panel switching between phase/gate modes
+
+      NOTE: Backend changes for gate-on-edge model may need coordination
+      with INIT-036 backend tasks.
+
+  - id: 7
+    title: "Add gate inspector panel"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [6]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Gate-Level Settings" table
+
+      When a gate (edge) is selected, the inspector shows gate configuration:
+
+      APPROVAL:
+      - Type: Auto / Human / AI / None (radio buttons or dropdown)
+
+      AUTO CONFIG (when type=auto):
+      - Criteria checkboxes: has_output, no_errors, completion_marker
+      - Custom check pattern (text input)
+
+      HUMAN CONFIG (when type=human):
+      - Review prompt (textarea)
+
+      AI CONFIG (when type=ai):
+      - Reviewer agent (dropdown)
+      - Context sources (multi-select: phase_outputs, task_details, vars)
+
+      FAILURE HANDLING:
+      - On Fail: retry / retry_from / fail / pause (dropdown)
+      - Retry From (phase dropdown, visible when on_fail=retry_from)
+      - Max Retries (number input)
+
+      ADVANCED (collapsible):
+      - Before Script (file path input)
+      - After Script (file path input)
+      - Store Result As (variable name input)
+
+  - id: 8
+    title: "Implement loop edges as backward connections"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [6]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Loops Are Just Backward Edges"
+
+      Loops are not special - they're just edges that go backward with their own gate.
+
+      Visual representation:
+      ```
+      ══◆══╗        ╔══◆══╗        ╔══◆══
+           ║        ║     ║        ║
+      ┌────╨───┐ ┌──╨────┐ ┌──────╨┐
+      │  Spec  │ │Implmnt│ │Review │
+      └────────┘ └───────┘ └───────┘
+                     ↑          │
+                     └────◆─────┘
+                       Loop gate
+      ```
+
+      Implementation:
+      - Allow edge creation from later phase to earlier phase
+      - Backward edges render with distinctive curve (below phases)
+      - Gate on backward edge = loop condition
+      - Same gate inspector for loop gates
+
+      Remove separate "loop config" - it's now just a backward edge with a gate.
+
+  - id: 9
+    title: "Add variable tooltips on phase hover"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [5]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Variable System UX"
+
+      Clean canvas - no variable clutter on phase nodes.
+      Details on demand via hover tooltip.
+
+      When hovering over a phase node, show tooltip:
+      ```
+      ┌─────────────────────────┐
+      │ Inputs: SPEC_CONTENT    │
+      │         BREAKDOWN       │
+      │ Output: IMPLEMENTATION  │
+      └─────────────────────────┘
+      ```
+
+      Keep the canvas clean - full variable details are in the inspector
+      when phase is selected.
+
+  # ========================================
+  # PHASE 3: TASK CREATION FLOW
+  # Depends on INIT-036 weight decoupling (TASK-682 - DONE)
+  # ========================================
+
+  - id: 10
+    title: "Implement workflow-first task creation modal (Step 1: Picker)"
+    weight: medium
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Task Creation Flow (Workflow-First)"
+      Section: "UI: Two-Step Flow"
+
+      Replace current task creation with two-step workflow-first flow.
+
+      STEP 1: Workflow Picker
+      ```
+      ┌─────────────────────────────────────────────────────────────────┐
+      │ New Task                                                        │
+      ├─────────────────────────────────────────────────────────────────┤
+      │ Choose a workflow                                               │
+      │                                                                 │
+      │ ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+      │ │ ★ Implement     │  │   Implement     │  │   Implement     │  │
+      │ │   (Small)       │  │   (Medium)      │  │   (Large)       │  │
+      │ │ 3 phases        │  │ 5 phases        │  │ 6 phases        │  │
+      │ └────────●────────┘  └─────────────────┘  └─────────────────┘  │
+      │      Default                                                    │
+      │                                                                 │
+      │ ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+      │ │   Review        │  │   QA E2E        │  │   Spec Only     │  │
+      │ └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+      │                                                                 │
+      │                                              [Cancel] [Next →]  │
+      └─────────────────────────────────────────────────────────────────┘
+      ```
+
+      Features:
+      - Grid of workflow cards
+      - Default workflow marked with star
+      - Card shows: name, phase count, brief description
+      - Click to select, double-click to select and proceed
+      - Next button goes to Step 2
+
+  - id: 11
+    title: "Implement workflow-first task creation modal (Step 2: Details)"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [10]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Task Creation Flow (Workflow-First)"
+      Section: "UI: Two-Step Flow"
+
+      STEP 2: Task Details
+      ```
+      ┌─────────────────────────────────────────────────────────────────┐
+      │ New Task                                                        │
+      ├─────────────────────────────────────────────────────────────────┤
+      │ Workflow: Implement (Small)                      [← Change]     │
+      │                                                                 │
+      │ Title                                                           │
+      │ ┌─────────────────────────────────────────────────────────────┐│
+      │ │ Fix authentication bug in login flow                        ││
+      │ └─────────────────────────────────────────────────────────────┘│
+      │                                                                 │
+      │ Description (optional)                                          │
+      │ ┌─────────────────────────────────────────────────────────────┐│
+      │ │                                                             ││
+      │ └─────────────────────────────────────────────────────────────┘│
+      │                                                                 │
+      │ ▸ Advanced (category, priority, initiative, branch)            │
+      │                                                                 │
+      │                              [← Back] [Create] [Create & Run]   │
+      └─────────────────────────────────────────────────────────────────┘
+      ```
+
+      Features:
+      - Shows selected workflow with [Change] link to go back
+      - Title (required)
+      - Description (optional, textarea)
+      - Advanced section (collapsed by default):
+        - Category dropdown
+        - Priority dropdown
+        - Initiative dropdown
+        - Branch name override
+        - Target branch override
+        - PR options (draft, labels, reviewers)
+      - Three actions: Back, Create, Create & Run
+
+  - id: 12
+    title: "Update CLI task creation for workflow-first model"
+    weight: small
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: CLI is Agent-First"
+
+      CLI is agent-first - no interactive prompts by default.
+
+      Behavior:
+      ```bash
+      # Uses project default workflow - no prompts
+      orc new "Fix auth bug"
+
+      # Explicit workflow
+      orc new "Fix auth bug" --workflow implement-small
+      orc new "Fix auth bug" -W implement-small
+
+      # Short alias for common workflows
+      orc new "Fix auth bug" -w small  # Maps to implement-small
+
+      # Error if no default and no flag (not a prompt!)
+      $ orc new "Fix bug"
+      Error: No default workflow configured.
+      Use --workflow <id> or set defaults.workflow in .orc/config.yaml
+
+      # List workflows
+      $ orc workflows
+      ID                NAME                  PHASES  DEFAULT
+      implement-small   Implement (Small)     3       ★
+      implement-medium  Implement (Medium)    5
+      ...
+      ```
+
+      Changes needed:
+      - Add --workflow/-W flag to `orc new`
+      - Add -w shorthand that maps to common workflows
+      - Error with clear message if no default and no --workflow
+      - Add `orc workflows` command to list available
+      - Update help text extensively
+
+      NOTE: Weight is NOT removed yet for backward compatibility.
+      Task creation accepts either --workflow or --weight (weight maps to workflow).
+
+  # ========================================
+  # PHASE 4: BOARD REDESIGN
+  # No backend dependencies
+  # ========================================
+
+  - id: 13
+    title: "Redesign Board as attention management dashboard"
+    weight: large
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Two-Level View Hierarchy"
+      Section: "Board (Dashboard) - Attention Management"
+
+      Complete redesign of the Board page for attention management.
+
+      Layout:
+      ```
+      ┌─────────────────────────────────────────────────────────────────────────┐
+      │  RUNNING                                                                │
+      │  ┌──────────────────────────────────────┐  ┌──────────────────────────┐│
+      │  │ TASK-042 Fix auth bug                │  │ TASK-045 Add caching    ││
+      │  │ ● Implement (1:23)                   │  │ ✓ Review → ◆ Waiting    ││
+      │  │ ████████░░░░░░░░                     │  │ ████████████████░░      ││
+      │  └──────────────────────────────────────┘  └──────────────────────────┘│
+      │                                                                         │
+      │  NEEDS ATTENTION                                                        │
+      │  ┌──────────────────────────────────────┐                              │
+      │  │ ◆ TASK-045 - Gate waiting            │  [Approve] [View]           │
+      │  └──────────────────────────────────────┘                              │
+      │                                                                         │
+      │  QUEUE                                                                  │
+      │  TASK-046 Refactor database layer        implement-medium   Ready      │
+      │  TASK-047 Update API docs                docs                Ready      │
+      └─────────────────────────────────────────────────────────────────────────┘
+      ```
+
+      Sections:
+      1. RUNNING - Active tasks with real-time progress
+         - Task card: ID, title, current phase, elapsed time, progress bar
+         - Progress bar shows phase completion
+         - Status indicators: ● running, ✓ phase done, ◆ waiting
+
+      2. NEEDS ATTENTION - Tasks requiring user action
+         - Gate approvals
+         - Failed tasks
+         - Quick action buttons inline
+
+      3. QUEUE - Ready tasks waiting to run
+         - Compact list view
+         - Workflow name, ready status
+         - Click to view or run
+
+      Click any task → navigates to Task Detail Page
+
+  - id: 14
+    title: "Add real-time progress updates to Board running tasks"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [13]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Board (Dashboard) - Attention Management"
+
+      Running task cards need real-time updates via WebSocket.
+
+      Data displayed:
+      - Current phase name
+      - Elapsed time (live counter)
+      - Progress bar (phases completed / total phases)
+      - Phase status transition animations
+
+      WebSocket events to handle:
+      - phase_started: Update current phase, animate transition
+      - phase_completed: Increment progress, show checkmark
+      - phase_failed: Show error indicator
+      - gate_waiting: Show gate symbol
+      - task_completed: Move to completed section
+
+      Use existing WebSocket infrastructure. Add smooth animations for
+      state transitions.
+
+  # ========================================
+  # PHASE 5: TASK DETAIL PAGE
+  # Deep work view with live output and diff
+  # ========================================
+
+  - id: 15
+    title: "Create Task Detail Page layout"
+    weight: large
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Task Detail Page - Deep Work"
+
+      New page for deep work on a single task.
+
+      Layout:
+      ```
+      ┌─────────────────────────────────────────────────────────────────────────┐
+      │  ← Back to Board                                                        │
+      │                                                                         │
+      │  TASK-042: Fix authentication bug in login flow                         │
+      │  Workflow: implement-small  •  Branch: orc/TASK-042  •  ⏱ 3:42         │
+      ├─────────────────────────────────────────────────────────────────────────┤
+      │                                                                         │
+      │  WORKFLOW PROGRESS                                                      │
+      │  ═══◆═══╗        ╔═══●═══╗        ╔═══○═══                             │
+      │         ║        ║       ║        ║                                     │
+      │    ┌────╨───┐ ┌──╨──┐ ┌──╨────┐                                        │
+      │    │ ✓ Spec │ │●Impl│ │○Review│                                        │
+      │    └────────┘ └─────┘ └───────┘                                        │
+      │                                                                         │
+      ├───────────────────────────────┬─────────────────────────────────────────┤
+      │  LIVE OUTPUT                  │  CHANGES                                │
+      │  (left panel)                 │  (right panel)                          │
+      ├───────────────────────────────┴─────────────────────────────────────────┤
+      │  Tokens: 45.2K  •  Cost: $1.96  •  Iterations: 2/10                    │
+      │  [Pause] [Cancel] [Retry from Spec]                                    │
+      └─────────────────────────────────────────────────────────────────────────┘
+      ```
+
+      Components:
+      - Header: Back link, task info, branch, elapsed time
+      - Workflow progress: Visual phase progression with gate states
+      - Split pane: Live output (left) + Changes (right)
+      - Footer: Token/cost stats, action buttons
+
+      Route: /tasks/:id
+      Use resizable split pane component.
+
+  - id: 16
+    title: "Implement live output panel for Task Detail"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [15]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Task Detail Page - Deep Work" (LIVE OUTPUT section)
+
+      Left panel showing real-time Claude output.
+
+      Features:
+      - Stream output as it arrives (WebSocket)
+      - Smart truncation (keep recent, collapse old)
+      - Syntax highlighting for code blocks
+      - Test results formatting (✓/✗ with colors)
+      - [Expand Output] button for full view
+      - Auto-scroll to bottom (toggleable)
+
+      Output types to handle:
+      - Plain text (Claude thinking)
+      - File operations (Reading/Writing file.go)
+      - Command output (Running tests...)
+      - Test results (structured ✓/✗)
+      - Errors (red highlighting)
+
+      Use existing transcript streaming infrastructure.
+
+  - id: 17
+    title: "Implement changes panel with file list for Task Detail"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [15]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Task Detail Page - Deep Work" (CHANGES section)
+      Section: "Diff View (lazygit-Inspired)"
+
+      Right panel showing changed files with inline diff preview.
+
+      Layout (lazygit-inspired):
+      ```
+      │  CHANGES                                │
+      │                                         │
+      │  internal/auth/login.go         +32 -8 │  ← File list
+      │  internal/auth/validate.go      +12 -0 │
+      │  internal/auth/login_test.go    +18 -2 │
+      │                                         │
+      │  ─────────────────────────────────────  │
+      │   func Login(ctx context.Context) {    │  ← Inline preview
+      │  +    if err := validateToken(); err { │
+      │  +        return fmt.Errorf("...")     │
+      │                                         │
+      │  [View Full Diff] [Open in GitHub]     │
+      ```
+
+      Features:
+      - File list with +/- line counts
+      - Click file to show inline diff preview
+      - Selected file highlighted
+      - Syntax highlighting in diff
+      - [View Full Diff] opens full diff modal
+      - [Open in GitHub] external link
+
+      Get file changes from git diff API endpoint.
+
+  - id: 18
+    title: "Implement full diff view modal (lazygit-style)"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [17]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Diff View (lazygit-Inspired)"
+
+      Full-screen diff modal for detailed review.
+
+      Layout:
+      ```
+      ┌─────────────────────────────────────────────────────────────────────────┐
+      │  Changes for TASK-042                                    [Close]        │
+      ├─────────────────────┬───────────────────────────────────────────────────┤
+      │  FILES              │  DIFF                                             │
+      │                     │                                                   │
+      │  ● login.go    +32  │  internal/auth/login.go                          │
+      │    validate.go +12  │  ─────────────────────────────────────────────── │
+      │    login_test  +18  │                                                   │
+      │                     │  @@ -45,6 +45,14 @@ func Login(ctx ...           │
+      │                     │   func Login(ctx context.Context, creds ...       │
+      │                     │  +    if err := validateToken(token); err != nil {│
+      │                     │  +        return fmt.Errorf("token: %w", err)     │
+      │                     │       user, err := db.GetUser(ctx, creds.Email)   │
+      │                     │                                                   │
+      ├─────────────────────┴───────────────────────────────────────────────────┤
+      │  [Approve Changes] [Request Changes] [Add Comment] [Back]              │
+      └─────────────────────────────────────────────────────────────────────────┘
+      ```
+
+      Features:
+      - Split pane: file list (left), diff (right)
+      - File list with selection state
+      - Full unified diff view with syntax highlighting
+      - Navigate with j/k or arrow keys
+      - Click line to add inline comment (for feedback system)
+      - Action buttons: Approve, Request Changes, Add Comment
+      - External links: View on GitHub, Open PR, Compare with main
+
+  - id: 19
+    title: "Add workflow progress visualization to Task Detail"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [15]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Task Detail Page - Deep Work" (WORKFLOW PROGRESS section)
+
+      Visual phase progression matching the gate-as-edges design.
+
+      Display:
+      ```
+      WORKFLOW PROGRESS
+      ═══◆═══╗        ╔═══●═══╗        ╔═══○═══
+              ║        ║       ║        ║
+         ┌────╨───┐ ┌──╨──┐ ┌──╨────┐
+         │ ✓ Spec │ │●Impl│ │○Review│
+         └────────┘ └─────┘ └───────┘
+      ```
+
+      Status indicators:
+      - ✓ = Completed (green)
+      - ● = Active/running (blue, animated)
+      - ○ = Pending (gray)
+      - ✗ = Failed (red)
+      - ◆ = Gate waiting (yellow)
+
+      Gate symbols on edges match gate states.
+      Click phase to jump to that phase's output in transcript.
+
+  # ========================================
+  # PHASE 6: REAL-TIME FEEDBACK SYSTEM
+  # Pair programming with agent
+  # ========================================
+
+  - id: 20
+    title: "Backend API for real-time feedback to agents"
+    weight: medium
+    category: feature
+    priority: high
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Real-Time Agent Collaboration"
+      Section: "Backend Requirements"
+
+      Add API endpoints for sending feedback to running agents.
+
+      Data model:
+      ```go
+      type Feedback struct {
+          ID       string    `json:"id"`
+          TaskID   string    `json:"task_id"`
+          Type     string    `json:"type"`     // inline, general, approval, direction
+          File     string    `json:"file"`     // For inline comments
+          Line     int       `json:"line"`     // For inline comments
+          Text     string    `json:"text"`
+          Timing   string    `json:"timing"`   // now, when_done, manual
+          SentAt   time.Time `json:"sent_at"`
+          Received bool      `json:"received"`
+      }
+      ```
+
+      API endpoints:
+      - POST /api/tasks/{id}/feedback - Add feedback item
+      - GET /api/tasks/{id}/feedback - List pending feedback
+      - POST /api/tasks/{id}/feedback/send - Send queued feedback
+      - DELETE /api/tasks/{id}/feedback/{feedbackId} - Remove feedback
+
+      Timing behavior:
+      - "now": Pause agent, inject feedback, resume
+      - "when_done": Queue, inject after current phase (before gate)
+      - "manual": Store only, user triggers send explicitly
+
+      Feedback injection: Add to agent context as user message on next prompt.
+
+  - id: 21
+    title: "Implement feedback panel UI"
+    weight: medium
+    category: feature
+    priority: high
+    depends_on: [15, 20]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Feedback Panel"
+
+      Collapsible panel for managing feedback to agent.
+
+      Layout:
+      ```
+      ┌─────────────────────────────────────────────────────────────────────────┐
+      │  FEEDBACK TO AGENT                                          [Collapse] │
+      ├─────────────────────────────────────────────────────────────────────────┤
+      │                                                                         │
+      │  Pending feedback (2):                                                  │
+      │  • 📍 login.go:47 - "Use validateSession() instead"          [×]      │
+      │  • 📝 General - "Also add a test for expired tokens"         [×]      │
+      │                                                                         │
+      │  ┌─────────────────────────────────────────────────────────────────┐   │
+      │  │ Add a note...                                                   │   │
+      │  └─────────────────────────────────────────────────────────────────┘   │
+      │                                                                         │
+      │  [Send Now - Pause Agent]  [Send When Phase Done]  [Save for Later]    │
+      │                                                                         │
+      └─────────────────────────────────────────────────────────────────────────┘
+      ```
+
+      Features:
+      - Show pending feedback items
+      - Remove individual items (×)
+      - Add general note input
+      - Three send timing options as buttons
+      - Visual feedback on send (animation, success message)
+
+  - id: 22
+    title: "Implement inline code comments for feedback"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [18, 21]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Inline Comments on Code"
+
+      Click any line in the diff to add feedback.
+
+      Interaction:
+      1. In diff view, hover shows "+" icon on line gutter
+      2. Click "+" to open inline comment input
+      3. Type comment, press Enter or click Add
+      4. Comment appears in feedback panel
+      5. Line shows comment indicator in diff
+
+      Visual:
+      ```
+      │  +    if err := validateToken(token); err != nil {                 │
+      │  +        return fmt.Errorf("token: %w", err)                      │
+      │                                                                    │
+      │  💬 ┌────────────────────────────────────────────────────────────┐│
+      │     │ Use validateSession() instead - it already handles both   ││
+      │     │ token AND session validation. See auth/session.go:84      ││
+      │     └────────────────────────────────────────────────────────────┘│
+      ```
+
+      Comment type: "inline" with file and line stored.
+      Agent sees: "User commented on file.go:47: [comment text]"
+
+  # ========================================
+  # PHASE 7: ERROR STATES & RECOVERY
+  # Better error handling throughout
+  # ========================================
+
+  - id: 23
+    title: "Add error states to Board task cards"
+    weight: small
+    category: feature
+    priority: normal
+    depends_on: [13]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Error States & Recovery"
+      Section: "Board (Compact Error)"
+
+      Running task cards show error state clearly.
+
+      Error card:
+      ```
+      ┌──────────────────────────────────────┐
+      │ TASK-042 Fix auth bug                │
+      │ ✗ Implement (failed)                 │
+      │ ████████████░░░░░░░░ Error           │
+      │ [View] [Retry] [Abort]               │
+      └──────────────────────────────────────┘
+      ```
+
+      Features:
+      - Red border/background for failed state
+      - ✗ icon with phase name
+      - Progress bar shows where it stopped
+      - Quick action buttons: View, Retry, Abort
+      - Hover shows brief error message
+
+  - id: 24
+    title: "Add comprehensive error display to Task Detail"
+    weight: medium
+    category: feature
+    priority: normal
+    depends_on: [15]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Error States & Recovery"
+      Section: "Task Detail (Full Context)"
+
+      Full error context and recovery options on Task Detail page.
+
+      Layout:
+      ```
+      ├─────────────────────────────────────────────────────────────────────────┤
+      │  ✗ PHASE FAILED: Implement                                              │
+      │                                                                         │
+      │  Error: Tests failed after 3 attempts                                   │
+      │                                                                         │
+      │  ┌─────────────────────────────────────────────────────────────────┐   │
+      │  │ === FAILED: TestLoginInvalidToken ===                           │   │
+      │  │ Expected: error "invalid token"                                 │   │
+      │  │ Got: nil                                                        │   │
+      │  └─────────────────────────────────────────────────────────────────┘   │
+      │                                                                         │
+      │  [Retry Implement]  [Retry from Spec]  [Fix Manually]  [Abort Task]    │
+      │                                                                         │
+      │  💬 Add guidance for retry: [_______________________________]          │
+      │                                                                         │
+      └─────────────────────────────────────────────────────────────────────────┘
+      ```
+
+      Features:
+      - Clear error message and phase
+      - Full error output in scrollable box
+      - Recovery action buttons:
+        - Retry this phase (re-run with error context)
+        - Retry from earlier (dropdown to select phase)
+        - Fix manually (mark for manual intervention)
+        - Abort task (stop and clean up)
+      - Guidance input: user note injected into retry context
+
+  # ========================================
+  # PHASE 8: GUIDED WORKFLOW CREATION
+  # Progressive disclosure for new users
+  # ========================================
+
+  - id: 25
+    title: "Implement guided workflow creation wizard"
+    weight: large
+    category: feature
+    priority: normal
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed Guided Creation Flow"
+
+      Step-by-step wizard for creating new workflows.
+
+      STEP 1: Intent
+      ```
+      What kind of workflow?
+
+      [Build] [Review] [Test] [Document] [Custom]
+
+                                    [Skip to Editor →]
+      ```
+
+      STEP 2: Name
+      ```
+      Name your workflow
+
+      ┌─────────────────────────────────────┐
+      │ Code Review with Security           │
+      └─────────────────────────────────────┘
+
+      ID: code-review-security (auto-generated)
+
+      ▸ Description (optional)
+      ▸ Default model (optional)
+      ```
+
+      STEP 3: Phases
+      ```
+      Choose your phases
+
+      Recommended for "Review":
+      ☑ Code Review
+      ☐ Security Scan
+      ☐ Docs Check
+
+      Or drag to reorder...
+      ```
+
+      STEP 4: Opens Editor
+      With phases pre-configured, user can refine.
+
+      Features:
+      - Intent selection pre-fills recommendations
+      - Skip to Editor for power users
+      - ID auto-generated from name
+      - Phase recommendations based on intent
+      - Smooth transitions between steps
+
+  # ========================================
+  # PHASE 9: CLEANUP & POLISH
+  # Kill auto-generated executors, polish
+  # ========================================
+
+  - id: 26
+    title: "Remove auto-generated executor agents"
+    weight: small
+    category: refactor
+    priority: normal
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Agent Management"
+      Section: "No More Auto-Generated Executors"
+
+      Kill the "{Phase}-executor" pattern. Phases reference agents by ID directly.
+
+      Current behavior:
+      - Auto-generated "Spec-executor", "Implement-executor", etc.
+      - Clutters agent list
+      - Not useful - just wrappers
+
+      New behavior:
+      - Phases reference built-in agents directly
+      - No auto-generation
+      - Clean agent list shows only real agents
+
+      Files to modify:
+      - Backend code that auto-generates executors
+      - Built-in workflow definitions to reference real agents
+      - Migration to clean up existing auto-generated agents
+
+  - id: 27
+    title: "Kill weight from task model"
+    weight: medium
+    category: refactor
+    priority: low
+    depends_on: [12]
+    description: |
+      Design doc: docs/plans/2026-02-01-ux-simplification-brainstorm.md
+      Section: "Agreed: Task Creation Flow (Workflow-First)"
+      Section: "Kill Weight Entirely"
+
+      Final removal of weight from task model.
+
+      CAUTION: This is a breaking change. Only do after:
+      1. CLI workflow flag is working (task 12)
+      2. UI workflow picker is working (tasks 10, 11)
+      3. Deprecation period with warnings
+
+      Changes:
+      - Remove weight field from Task proto
+      - Remove weight from DB schema (migration)
+      - Remove weight from API
+      - Remove weight from CLI (--weight becomes error)
+      - Remove weight from UI
+      - Update all documentation
+
+      Backward compatibility:
+      - Old tasks with weight still work (workflow_id takes precedence)
+      - Weight field ignored if present in import
