@@ -719,3 +719,63 @@ func TestResolveExtractionMissingPath(t *testing.T) {
 		t.Errorf("expected empty string for missing path, got '%s'", resolved.Value)
 	}
 }
+
+func TestResolveAllRetryVariables(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	rctx := &ResolutionContext{
+		TaskID:         "TASK-001",
+		Phase:          "implement",
+		RetryAttempt:   2,
+		RetryFromPhase: "review",
+		RetryReason:    "Gate rejected: 3 issues found",
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	tests := map[string]string{
+		"RETRY_ATTEMPT":    "2",
+		"RETRY_FROM_PHASE": "review",
+		"RETRY_REASON":     "Gate rejected: 3 issues found",
+	}
+
+	for name, expected := range tests {
+		if vars[name] != expected {
+			t.Errorf("%s: expected %q, got %q", name, expected, vars[name])
+		}
+	}
+}
+
+func TestResolveAllRetryVariables_EmptyWhenNoRetry(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(t.TempDir())
+
+	rctx := &ResolutionContext{
+		TaskID: "TASK-001",
+		Phase:  "implement",
+		// No retry fields set (zero values)
+	}
+
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// When no retry is active, RETRY_ATTEMPT should not be in the variable set
+	// so that {{#if RETRY_ATTEMPT}} conditionals skip the block.
+	if val, exists := vars["RETRY_ATTEMPT"]; exists && val != "" {
+		t.Errorf("RETRY_ATTEMPT should be empty when no retry active, got %q", val)
+	}
+	if val, exists := vars["RETRY_FROM_PHASE"]; exists && val != "" {
+		t.Errorf("RETRY_FROM_PHASE should be empty when no retry active, got %q", val)
+	}
+	if val, exists := vars["RETRY_REASON"]; exists && val != "" {
+		t.Errorf("RETRY_REASON should be empty when no retry active, got %q", val)
+	}
+}
