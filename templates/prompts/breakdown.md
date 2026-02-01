@@ -44,13 +44,17 @@ Branch: {{TASK_BRANCH}}
 Target: {{TARGET_BRANCH}}
 </worktree_safety>
 
+{{#if SPEC_CONTENT}}
 <specification>
 {{SPEC_CONTENT}}
 </specification>
+{{/if}}
 
+{{#if TDD_TESTS_CONTENT}}
 <tdd_tests>
 {{TDD_TESTS_CONTENT}}
 </tdd_tests>
+{{/if}}
 </context>
 
 <instructions>

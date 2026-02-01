@@ -233,6 +233,13 @@ func (we *WorkflowExecutor) executePhase(
 	if tmpl.ProducesArtifact && result.Content == "" {
 		result.Content = execResult.Content
 	}
+	if tmpl.ProducesArtifact && result.Content == "" {
+		we.logger.Warn("artifact-producing phase completed with no content extracted",
+			"phase", tmpl.ID,
+			"output_var", tmpl.OutputVarName,
+			"raw_output_length", len(execResult.Content),
+		)
+	}
 	if result.Content != "" && t != nil {
 		// Use template's output variable name, fall back to OUTPUT_<PHASE_ID>
 		outputVarName := tmpl.OutputVarName

@@ -674,6 +674,11 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		// Update variables with phase output content
 		if phaseResult.Content != "" {
 			applyPhaseContentToVars(vars, rctx, phaseResult.PhaseID, phaseResult.Content, tmpl.OutputVarName)
+		} else if tmpl.ProducesArtifact {
+			slog.Warn("phase produces artifact but content is empty — downstream templates will have empty variable",
+				"phase", tmpl.ID,
+				"output_var", tmpl.OutputVarName,
+			)
 		}
 
 		// Check for loop configuration and handle iterative loops

@@ -3,7 +3,9 @@
 package detect
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 // LanguageInfo contains detection results for a single language at a specific path.
@@ -245,6 +247,9 @@ func detectPythonBuildTool(path string) BuildTool {
 // Per-language command inference with relative path support
 
 func inferGoTestCommand(fullPath, relativePath string) string {
+	if cmd := makefileTarget(fullPath, relativePath, "test"); cmd != "" {
+		return cmd
+	}
 	if relativePath != "" {
 		return "cd " + relativePath + " && go test ./..."
 	}
@@ -252,6 +257,9 @@ func inferGoTestCommand(fullPath, relativePath string) string {
 }
 
 func inferGoLintCommand(fullPath, relativePath string) string {
+	if cmd := makefileTarget(fullPath, relativePath, "lint"); cmd != "" {
+		return cmd
+	}
 	if relativePath != "" {
 		return "cd " + relativePath + " && golangci-lint run"
 	}
@@ -259,10 +267,41 @@ func inferGoLintCommand(fullPath, relativePath string) string {
 }
 
 func inferGoBuildCommand(fullPath, relativePath string) string {
+	if cmd := makefileTarget(fullPath, relativePath, "build"); cmd != "" {
+		return cmd
+	}
 	if relativePath != "" {
 		return "cd " + relativePath + " && go build ./..."
 	}
 	return "go build ./..."
+}
+
+// makefileTarget checks if a Makefile exists at fullPath with the given target.
+// Returns the make command (with cd prefix if needed), or empty string if not found.
+func makefileTarget(fullPath, relativePath, target string) string {
+	makefilePath := filepath.Join(fullPath, "Makefile")
+	content, err := os.ReadFile(makefilePath)
+	if err != nil {
+		return ""
+	}
+	if !hasMakeTarget(string(content), target) {
+		return ""
+	}
+	if relativePath != "" {
+		return "cd " + relativePath + " && make " + target
+	}
+	return "make " + target
+}
+
+// hasMakeTarget checks if a Makefile contains a target definition (e.g., "build:" at line start).
+func hasMakeTarget(content, target string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, target+":") {
+			return true
+		}
+	}
+	return false
 }
 
 func inferJSTestCommand(fullPath, relativePath string, tool BuildTool) string {

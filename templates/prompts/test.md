@@ -26,9 +26,11 @@ You are working in an **isolated git worktree**.
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
 - Merging happens via PR after all phases complete
 
+{{#if SPEC_CONTENT}}
 ## Specification
 
 {{SPEC_CONTENT}}
+{{/if}}
 
 ## Instructions
 
