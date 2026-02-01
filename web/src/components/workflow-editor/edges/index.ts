@@ -3,12 +3,14 @@ import { SequentialEdge } from './SequentialEdge';
 import { LoopEdge } from './LoopEdge';
 import { RetryEdge } from './RetryEdge';
 import { DependencyEdge } from './DependencyEdge';
+import { ConditionalEdge } from './ConditionalEdge';
 
 export const edgeTypes: EdgeTypes = {
 	sequential: SequentialEdge,
 	loop: LoopEdge,
 	retry: RetryEdge,
 	dependency: DependencyEdge,
+	conditional: ConditionalEdge,
 };
 
-export { SequentialEdge, LoopEdge, RetryEdge, DependencyEdge };
+export { SequentialEdge, LoopEdge, RetryEdge, DependencyEdge, ConditionalEdge };

@@ -1,7 +1,7 @@
 import { getBezierPath, type EdgeProps, EdgeLabelRenderer } from '@xyflow/react';
 import './edges.css';
 
-export function DependencyEdge({
+export function ConditionalEdge({
 	id,
 	sourceX,
 	sourceY,
@@ -20,11 +20,12 @@ export function DependencyEdge({
 		targetPosition,
 	});
 
-	const isAnimated = (data as Record<string, unknown>)?.animated === true;
+	const edgeData = data as Record<string, unknown> | undefined;
+	const condition = edgeData?.condition as string | undefined;
 
 	return (
 		<>
-			<g className="edge-dependency">
+			<g className="edge-conditional">
 				<path
 					id={id}
 					d={edgePath}
@@ -38,24 +39,21 @@ export function DependencyEdge({
 					strokeWidth={20}
 					className="react-flow__edge-interaction"
 				/>
-				{isAnimated && (
-					<circle r="3" className="edge-dot">
-						<animateMotion dur="1.5s" repeatCount="indefinite" path={edgePath} />
-					</circle>
-				)}
 			</g>
-			<EdgeLabelRenderer>
-				<div
-					className="edge-label edge-label-dependency"
-					style={{
-						position: 'absolute',
-						transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-						pointerEvents: 'none',
-					}}
-				>
-					dep
-				</div>
-			</EdgeLabelRenderer>
+			{condition && (
+				<EdgeLabelRenderer>
+					<div
+						className="edge-label edge-label-conditional"
+						style={{
+							position: 'absolute',
+							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+							pointerEvents: 'none',
+						}}
+					>
+						{condition}
+					</div>
+				</EdgeLabelRenderer>
+			)}
 		</>
 	);
 }
