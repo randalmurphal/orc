@@ -22,6 +22,7 @@ import { TagInput } from '@/components/core/TagInput';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import { PromptEditor } from './PromptEditor';
 import { VariableModal } from '../VariableModal';
+import { ConditionEditor } from '@/components/workflows';
 import './PhaseInspector.css';
 
 type InspectorTab = 'input' | 'prompt' | 'criteria' | 'settings';
@@ -438,6 +439,10 @@ function SettingsTab({
 	const [claudeConfigDraft, setClaudeConfigDraft] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
+	// Condition state — tracks pending condition changes
+	const [conditionDraft, setConditionDraft] = useState<string | undefined>(undefined);
+	const [conditionDirty, setConditionDirty] = useState(false);
+
 	// Fetch agents list on mount
 	useEffect(() => {
 		let mounted = true;
@@ -461,6 +466,8 @@ function SettingsTab({
 		setAgentOverride(phase.agentOverride ?? '');
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
 		setClaudeConfigDraft(null);
+		setConditionDraft(phase.condition);
+		setConditionDirty(false);
 		onError(null);
 	}, [phase, onError]);
 
@@ -475,8 +482,9 @@ function SettingsTab({
 		const currSorted = [...subAgentsOverride].sort();
 		if (JSON.stringify(currSorted) !== JSON.stringify(origSorted)) return true;
 		if (claudeConfigDraft !== null) return true;
+		if (conditionDirty) return true;
 		return false;
-	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, phase]);
+	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, phase]);
 
 	// Save all pending changes in one API call
 	const handleSave = useCallback(async () => {
@@ -496,8 +504,10 @@ function SettingsTab({
 				subAgentsOverride,
 				subAgentsOverrideSet: true,
 				...(claudeConfigDraft !== null ? { claudeConfigOverride: claudeConfigDraft || undefined } : {}),
+				...(conditionDirty ? { condition: conditionDraft || '' } : {}),
 			});
 			setClaudeConfigDraft(null);
+			setConditionDirty(false);
 			onWorkflowRefresh?.();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Update failed';
@@ -505,7 +515,7 @@ function SettingsTab({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, onError, onWorkflowRefresh]);
+	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, onError, onWorkflowRefresh]);
 
 	// Discard all pending changes
 	const handleDiscard = useCallback(() => {
@@ -516,6 +526,8 @@ function SettingsTab({
 		setAgentOverride(phase.agentOverride ?? '');
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
 		setClaudeConfigDraft(null);
+		setConditionDraft(phase.condition);
+		setConditionDirty(false);
 		onError(null);
 	}, [phase, onError]);
 
@@ -524,6 +536,12 @@ function SettingsTab({
 			checked ? [...prev, agentName] : prev.filter((a) => a !== agentName),
 		);
 	};
+
+	// Handle condition changes from ConditionEditor
+	const handleConditionChange = useCallback((newCondition: string) => {
+		setConditionDraft(newCondition || undefined);
+		setConditionDirty(true);
+	}, []);
 
 	const disabled = readOnly;
 
@@ -716,6 +734,15 @@ function SettingsTab({
 					Agents available for delegation during execution
 				</span>
 			</div>
+
+			{/* Condition — conditional phase execution */}
+			<CollapsibleSettingsSection title="Condition" badgeCount={conditionDraft || phase.condition ? 1 : 0} defaultExpanded>
+				<ConditionEditor
+					condition={(conditionDirty ? conditionDraft : phase.condition) || ''}
+					onChange={handleConditionChange}
+					disabled={readOnly}
+				/>
+			</CollapsibleSettingsSection>
 
 			{/* Claude Config Override (editable) — changes accumulate in claudeConfigDraft */}
 			<ClaudeConfigEditor

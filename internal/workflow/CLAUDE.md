@@ -28,21 +28,39 @@ Compose phases into execution plans:
 - Custom variables
 - Context type (task, branch, PR, standalone)
 
-### Phase Conditions (`types.go:60`)
+### Phase Conditions (`executor/condition.go:29`)
 
-`PhaseCondition` guards phase execution. Nil condition = always run.
+JSON condition string on `WorkflowPhase.Condition`. Empty/null = always run.
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `Var` | string | Variable to check (`weight`, `category`, `has_tests`, `language`) |
-| `Op` | string | Operator (`eq`, `neq`, `in`, `not_in`, `contains`) |
-| `Value` | string | Single comparison value |
-| `Values` | []string | Multiple values (for `in`/`not_in`) |
-| `And` | []PhaseCondition | All must be true |
-| `Or` | []PhaseCondition | Any must be true |
-| `Not` | *PhaseCondition | Negation |
+**Simple condition format:**
+```json
+{"field": "task.weight", "op": "eq", "value": "medium"}
+```
 
-Evaluated by `executor.EvalCondition()` (`executor/condition.go:22`). See `seed.go` for built-in usage (tdd_write: `weight in [medium, large]`, breakdown: `weight eq large`).
+**Compound condition format:**
+```json
+{"all": [{"field": "...", "op": "...", "value": "..."}]}
+{"any": [{"field": "...", "op": "...", "value": "..."}]}
+```
+
+| Operator | Value Type | Purpose |
+|----------|------------|---------|
+| `eq` | string | Field equals value |
+| `neq` | string | Field not equals value |
+| `in` | string[] | Field in array of values |
+| `contains` | string | Field contains substring |
+| `exists` | - | Field is non-empty |
+| `gt` | string | Greater than (numeric/lexical) |
+| `lt` | string | Less than (numeric/lexical) |
+
+| Field Prefix | Example | Source |
+|--------------|---------|--------|
+| `task.` | `task.weight`, `task.category` | Task properties |
+| `var.` | `var.MY_VAR` | Workflow variables |
+| `env.` | `env.CI` | Environment variables |
+| `phase_output.` | `phase_output.spec` | Prior phase artifact |
+
+Evaluated by `executor.EvaluateCondition()`. UI: `web/src/components/workflows/ConditionEditor.tsx`.
 
 ### Extended Gate Configuration
 
