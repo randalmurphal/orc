@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhaseTemplatePalette } from './PhaseTemplatePalette';
 import { PhaseInspector } from './PhaseInspector';
@@ -51,6 +51,8 @@ vi.mock('@/lib/client', () => ({
 		listMCPServers: vi.fn().mockResolvedValue({ servers: [] }),
 	},
 }));
+
+import { workflowClient } from '@/lib/client';
 
 // Mock toast notifications
 const mockToast = vi.fn();
@@ -190,11 +192,16 @@ describe('Read-Only Mode for Built-in Workflows (TASK-641)', () => {
 	describe('SC-2: Prompt read-only determined by template.isBuiltin', () => {
 		it('shows read-only prompt view (no textarea) for built-in template in custom workflow', async () => {
 			// Custom workflow (isBuiltin: false) with built-in template (template.isBuiltin: true)
+			vi.mocked(workflowClient.getPromptContent).mockResolvedValue({
+				content: 'Built-in prompt content',
+				source: PromptSource.EMBEDDED,
+			} as any);
+
 			const builtinTemplatePhase = createPhaseWithTemplate({
 				templateId: 'implement',
 				isBuiltin: true, // Template is built-in
 				promptSource: PromptSource.EMBEDDED,
-				promptContent: 'Built-in prompt content',
+				promptContent: '',
 			});
 
 			const customWorkflowWithBuiltinTemplate = createTestWorkflowDetails({
@@ -214,8 +221,10 @@ describe('Read-Only Mode for Built-in Workflows (TASK-641)', () => {
 			// Even though workflow is custom (readOnly=false), the prompt should be
 			// read-only because template.isBuiltin is true
 			expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-			// Should see the prompt content in read-only view
-			expect(screen.getByText(/built-in prompt content/i)).toBeInTheDocument();
+			// Should see the prompt content in read-only view (fetched from API)
+			await waitFor(() => {
+				expect(screen.getByText(/built-in prompt content/i)).toBeInTheDocument();
+			});
 		});
 
 		it('shows editable textarea for custom template in custom workflow', async () => {
@@ -248,15 +257,20 @@ describe('Read-Only Mode for Built-in Workflows (TASK-641)', () => {
 			expect(textarea).toHaveValue('Custom prompt content');
 		});
 
-		it('shows read-only prompt for built-in template even when workflow.readOnly is false', () => {
+		it('shows read-only prompt for built-in template even when workflow.readOnly is false', async () => {
 			// This tests the specific case where PhaseInspector receives readOnly=false
 			// but the template itself is built-in - prompt should still be read-only
+			vi.mocked(workflowClient.getPromptContent).mockResolvedValue({
+				content: 'You are a specification writer.',
+				source: PromptSource.EMBEDDED,
+			} as any);
+
 			const builtinTemplatePhase = createPhaseWithTemplate({
 				templateId: 'spec',
 				templateName: 'Full Spec',
 				isBuiltin: true,
 				promptSource: PromptSource.EMBEDDED,
-				promptContent: 'You are a specification writer.',
+				promptContent: '',
 			});
 
 			const customWorkflow = createTestWorkflowDetails({
@@ -275,8 +289,10 @@ describe('Read-Only Mode for Built-in Workflows (TASK-641)', () => {
 
 			// No textarea should be present - prompt is determined by template.isBuiltin
 			expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-			// Clone Template button should be visible for built-in templates
-			expect(screen.getByRole('button', { name: /clone template/i })).toBeInTheDocument();
+			// Clone Template button should be visible for built-in templates (after fetch)
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /clone template/i })).toBeInTheDocument();
+			});
 		});
 	});
 

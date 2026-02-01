@@ -178,6 +178,9 @@ func TestResolveAllWithBuiltins(t *testing.T) {
 		PriorOutputs: map[string]string{
 			"spec": "Spec content here",
 		},
+		PhaseOutputVars: map[string]string{
+			"SPEC_CONTENT": "Spec content here",
+		},
 	}
 
 	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)

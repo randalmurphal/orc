@@ -53,12 +53,19 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 		loadFromWorkflow: (details: WorkflowWithDetails) => {
 			const { nodes, edges } = layoutWorkflow(details);
 			const isBuiltin = details.workflow?.isBuiltin ?? false;
-			set({
-				nodes,
-				edges,
-				workflowDetails: details,
-				readOnly: isBuiltin,
-				selectedNodeId: null,
+			set((state) => {
+				// Preserve selection if the node still exists (e.g. after a settings refresh)
+				const preservedSelection =
+					state.selectedNodeId && nodes.some((n) => n.id === state.selectedNodeId)
+						? state.selectedNodeId
+						: null;
+				return {
+					nodes,
+					edges,
+					workflowDetails: details,
+					readOnly: isBuiltin,
+					selectedNodeId: preservedSelection,
+				};
 			});
 		},
 

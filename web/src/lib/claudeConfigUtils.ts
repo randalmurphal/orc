@@ -27,7 +27,47 @@ const DEFAULTS: ClaudeConfigState = {
 	extra: {},
 };
 
-/** Parse claude_config JSON string into structured state. */
+/**
+ * Extract hook script names from Claude Code hook config format.
+ * Looks for {{hook:id}} patterns in hook commands.
+ * Falls back to event type labels when no script references found.
+ *
+ * Example input: {"Stop": [{"hooks": [{"type": "command", "command": "bash {{hook:orc-verify-completion}}"}]}]}
+ * Example output: ["orc-verify-completion"]
+ */
+function extractHookRefsFromConfig(hooks: Record<string, unknown>): string[] {
+	const refs = new Set<string>();
+	const hookRefPattern = /\{\{hook:([^}]+)\}\}/g;
+
+	for (const [eventType, matchers] of Object.entries(hooks)) {
+		if (!Array.isArray(matchers)) continue;
+		let foundRef = false;
+		for (const matcher of matchers) {
+			if (!matcher || typeof matcher !== 'object') continue;
+			const hookEntries = (matcher as Record<string, unknown>).hooks;
+			if (!Array.isArray(hookEntries)) continue;
+			for (const entry of hookEntries) {
+				if (!entry || typeof entry !== 'object') continue;
+				const command = (entry as Record<string, unknown>).command;
+				if (typeof command === 'string') {
+					let match;
+					while ((match = hookRefPattern.exec(command)) !== null) {
+						refs.add(match[1]);
+						foundRef = true;
+					}
+				}
+			}
+		}
+		if (!foundRef) {
+			refs.add(`${eventType} hook`);
+		}
+	}
+
+	return [...refs];
+}
+
+/** Parse claude_config JSON string into structured state.
+ * Handles both simple name arrays (user overrides) and Claude Code event map format (templates). */
 export function parseClaudeConfig(configStr: string | undefined): ClaudeConfigState {
 	if (!configStr) return { ...DEFAULTS, env: {}, extra: {} };
 
@@ -47,8 +87,17 @@ export function parseClaudeConfig(configStr: string | undefined): ClaudeConfigSt
 			...rest
 		} = parsed;
 
+		// Parse hooks — supports both array format (hook names from UI)
+		// and object format (Claude Code event map from templates)
+		let parsedHooks: string[] = [];
+		if (Array.isArray(hooks)) {
+			parsedHooks = hooks;
+		} else if (hooks && typeof hooks === 'object') {
+			parsedHooks = extractHookRefsFromConfig(hooks as Record<string, unknown>);
+		}
+
 		return {
-			hooks: Array.isArray(hooks) ? hooks : [],
+			hooks: parsedHooks,
 			skillRefs: Array.isArray(skill_refs) ? skill_refs : [],
 			mcpServers: mcp_servers && typeof mcp_servers === 'object' && !Array.isArray(mcp_servers)
 				? Object.keys(mcp_servers)

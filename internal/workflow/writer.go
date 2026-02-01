@@ -306,6 +306,7 @@ func marshalPhaseYAML(phase *PhaseTemplate) ([]byte, error) {
 		PromptContent:    phase.PromptContent,
 		InputVariables:   phase.InputVariables,
 		OutputSchema:     phase.OutputSchema,
+		OutputVarName:    phase.OutputVarName,
 		ProducesArtifact: phase.ProducesArtifact,
 		ArtifactType:     phase.ArtifactType,
 		MaxIterations:    phase.MaxIterations,

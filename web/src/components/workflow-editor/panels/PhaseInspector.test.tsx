@@ -593,8 +593,9 @@ describe('PhaseInspector', () => {
 			await user.clear(maxIterationsInput);
 			await user.type(maxIterationsInput, '5');
 
-			// Trigger the change (blur)
-			await user.tab();
+			// Click Save button (manual save pattern)
+			const saveBtn = screen.getByRole('button', { name: /save changes/i });
+			await user.click(saveBtn);
 
 			await waitFor(() => {
 				expect(workflowClient.updatePhase).toHaveBeenCalledWith(
@@ -634,7 +635,10 @@ describe('PhaseInspector', () => {
 			const maxIterationsInput = screen.getByLabelText(/max iterations/i);
 			await user.clear(maxIterationsInput);
 			await user.type(maxIterationsInput, '99');
-			await user.tab();
+
+			// Click Save button to trigger the API call that fails
+			const saveBtn = screen.getByRole('button', { name: /save changes/i });
+			await user.click(saveBtn);
 
 			await waitFor(() => {
 				// Error message should be visible

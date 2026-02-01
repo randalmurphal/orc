@@ -1079,19 +1079,26 @@ type PhaseResult struct {
 // for injection into subsequent phase prompts.
 //
 // outputVarName is the variable name from the phase template (e.g., "SPEC_CONTENT").
-// If empty, falls back to inferOutputVarName() for backward compatibility.
+// If empty, falls back to OUTPUT_<PHASE_ID>.
 func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionContext, phaseID, content, outputVarName string) {
 	// Store raw output for OUTPUT_* variable (used by loop condition evaluation)
 	vars["OUTPUT_"+phaseID] = content
 
-	// Determine the output variable name
+	// Determine the output variable name from template metadata, fallback to OUTPUT_<PHASE_ID>
 	varName := outputVarName
 	if varName == "" {
-		varName = inferOutputVarName(phaseID)
+		varName = "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phaseID, "-", "_"))
 	}
 
 	// Set the named variable (e.g., SPEC_CONTENT, TDD_TESTS_CONTENT)
 	vars[varName] = content
+
+	// Track named output variable in resolution context so the resolver
+	// can populate it as a built-in variable on subsequent ResolveAll() calls
+	if rctx.PhaseOutputVars == nil {
+		rctx.PhaseOutputVars = make(map[string]string)
+	}
+	rctx.PhaseOutputVars[varName] = content
 
 	// Special case: QA findings need additional formatting for the fix phase
 	if phaseID == "qa_e2e_test" {

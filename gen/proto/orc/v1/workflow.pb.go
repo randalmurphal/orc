@@ -445,8 +445,9 @@ type PhaseTemplate struct {
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// NEW: Agent references
-	AgentId       *string  `protobuf:"bytes,22,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`         // Executor agent reference
-	SubAgentIds   []string `protobuf:"bytes,23,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"` // Sub-agent references
+	AgentId       *string  `protobuf:"bytes,22,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
+	SubAgentIds   []string `protobuf:"bytes,23,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
+	OutputVarName *string  `protobuf:"bytes,24,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output (e.g., 'SPEC_CONTENT')
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -633,6 +634,13 @@ func (x *PhaseTemplate) GetSubAgentIds() []string {
 		return x.SubAgentIds
 	}
 	return nil
+}
+
+func (x *PhaseTemplate) GetOutputVarName() string {
+	if x != nil && x.OutputVarName != nil {
+		return *x.OutputVarName
+	}
+	return ""
 }
 
 type Workflow struct {
@@ -2459,8 +2467,9 @@ type UpdatePhaseRequest struct {
 	GateTypeOverride      *GateType              `protobuf:"varint,8,opt,name=gate_type_override,json=gateTypeOverride,proto3,enum=orc.v1.GateType,oneof" json:"gate_type_override,omitempty"`
 	Condition             *string                `protobuf:"bytes,9,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 	// Agent overrides
-	AgentOverride     *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`         // Override executor agent
-	SubAgentsOverride []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"` // Override sub-agents
+	AgentOverride        *string  `protobuf:"bytes,10,opt,name=agent_override,json=agentOverride,proto3,oneof" json:"agent_override,omitempty"`                           // Override executor agent
+	SubAgentsOverride    []string `protobuf:"bytes,11,rep,name=sub_agents_override,json=subAgentsOverride,proto3" json:"sub_agents_override,omitempty"`                   // Override sub-agents
+	SubAgentsOverrideSet *bool    `protobuf:"varint,13,opt,name=sub_agents_override_set,json=subAgentsOverrideSet,proto3,oneof" json:"sub_agents_override_set,omitempty"` // True = update sub_agents (even if empty)
 	// Claude configuration override (JSON)
 	ClaudeConfigOverride *string `protobuf:"bytes,12,opt,name=claude_config_override,json=claudeConfigOverride,proto3,oneof" json:"claude_config_override,omitempty"`
 	unknownFields        protoimpl.UnknownFields
@@ -2572,6 +2581,13 @@ func (x *UpdatePhaseRequest) GetSubAgentsOverride() []string {
 		return x.SubAgentsOverride
 	}
 	return nil
+}
+
+func (x *UpdatePhaseRequest) GetSubAgentsOverrideSet() bool {
+	if x != nil && x.SubAgentsOverrideSet != nil {
+		return *x.SubAgentsOverrideSet
+	}
+	return false
 }
 
 func (x *UpdatePhaseRequest) GetClaudeConfigOverride() string {
@@ -3338,9 +3354,10 @@ type CreatePhaseTemplateRequest struct {
 	ThinkingEnabled *bool    `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
 	GateType        GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType" json:"gate_type,omitempty"`
 	Checkpoint      bool     `protobuf:"varint,14,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
-	AgentId         *string  `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                // Executor agent reference
-	SubAgentIds     []string `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`        // Sub-agent references
-	ClaudeConfig    *string  `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // Per-phase settings JSON
+	AgentId         *string  `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
+	SubAgentIds     []string `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
+	ClaudeConfig    *string  `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
+	OutputVarName   *string  `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3487,6 +3504,13 @@ func (x *CreatePhaseTemplateRequest) GetClaudeConfig() string {
 	return ""
 }
 
+func (x *CreatePhaseTemplateRequest) GetOutputVarName() string {
+	if x != nil && x.OutputVarName != nil {
+		return *x.OutputVarName
+	}
+	return ""
+}
+
 type CreatePhaseTemplateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Template      *PhaseTemplate         `protobuf:"bytes,1,opt,name=template,proto3" json:"template,omitempty"`
@@ -3547,9 +3571,10 @@ type UpdatePhaseTemplateRequest struct {
 	ThinkingEnabled *bool     `protobuf:"varint,12,opt,name=thinking_enabled,json=thinkingEnabled,proto3,oneof" json:"thinking_enabled,omitempty"` // Phase-level concern
 	GateType        *GateType `protobuf:"varint,13,opt,name=gate_type,json=gateType,proto3,enum=orc.v1.GateType,oneof" json:"gate_type,omitempty"`
 	Checkpoint      *bool     `protobuf:"varint,14,opt,name=checkpoint,proto3,oneof" json:"checkpoint,omitempty"`
-	AgentId         *string   `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                // Executor agent reference
-	SubAgentIds     []string  `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`        // Sub-agent references
-	ClaudeConfig    *string   `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"` // Per-phase settings JSON
+	AgentId         *string   `protobuf:"bytes,15,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`                     // Executor agent reference
+	SubAgentIds     []string  `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
+	ClaudeConfig    *string   `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
+	OutputVarName   *string   `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3692,6 +3717,13 @@ func (x *UpdatePhaseTemplateRequest) GetSubAgentIds() []string {
 func (x *UpdatePhaseTemplateRequest) GetClaudeConfig() string {
 	if x != nil && x.ClaudeConfig != nil {
 		return *x.ClaudeConfig
+	}
+	return ""
+}
+
+func (x *UpdatePhaseTemplateRequest) GetOutputVarName() string {
+	if x != nil && x.OutputVarName != nil {
+		return *x.OutputVarName
 	}
 	return ""
 }
@@ -4818,7 +4850,7 @@ var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
-	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\xd0\b\n" +
+	"\x15orc/v1/workflow.proto\x12\x06orc.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x13orc/v1/common.proto\x1a\x11orc/v1/task.proto\"\x91\t\n" +
 	"\rPhaseTemplate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -4848,7 +4880,9 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1e\n" +
 	"\bagent_id\x18\x16 \x01(\tH\tR\aagentId\x88\x01\x01\x12\"\n" +
-	"\rsub_agent_ids\x18\x17 \x03(\tR\vsubAgentIdsB\x0e\n" +
+	"\rsub_agent_ids\x18\x17 \x03(\tR\vsubAgentIds\x12+\n" +
+	"\x0foutput_var_name\x18\x18 \x01(\tH\n" +
+	"R\routputVarName\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_prompt_contentB\x0e\n" +
 	"\f_prompt_pathB\x10\n" +
@@ -4858,7 +4892,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x11_retry_from_phaseB\x14\n" +
 	"\x12_retry_prompt_pathB\x10\n" +
 	"\x0e_claude_configB\v\n" +
-	"\t_agent_id\"\xc9\x03\n" +
+	"\t_agent_idB\x12\n" +
+	"\x10_output_var_name\"\xc9\x03\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5104,7 +5139,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0f_agent_overrideB\x19\n" +
 	"\x17_claude_config_override\"?\n" +
 	"\x10AddPhaseResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xcf\x05\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\xa7\x06\n" +
 	"\x12UpdatePhaseRequest\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x19\n" +
@@ -5119,8 +5154,9 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\tcondition\x18\t \x01(\tH\x05R\tcondition\x88\x01\x01\x12*\n" +
 	"\x0eagent_override\x18\n" +
 	" \x01(\tH\x06R\ragentOverride\x88\x01\x01\x12.\n" +
-	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x129\n" +
-	"\x16claude_config_override\x18\f \x01(\tH\aR\x14claudeConfigOverride\x88\x01\x01B\v\n" +
+	"\x13sub_agents_override\x18\v \x03(\tR\x11subAgentsOverride\x12:\n" +
+	"\x17sub_agents_override_set\x18\r \x01(\bH\aR\x14subAgentsOverrideSet\x88\x01\x01\x129\n" +
+	"\x16claude_config_override\x18\f \x01(\tH\bR\x14claudeConfigOverride\x88\x01\x01B\v\n" +
 	"\t_sequenceB\x1a\n" +
 	"\x18_max_iterations_overrideB\x11\n" +
 	"\x0f_model_overrideB\x14\n" +
@@ -5128,7 +5164,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x13_gate_type_overrideB\f\n" +
 	"\n" +
 	"_conditionB\x11\n" +
-	"\x0f_agent_overrideB\x19\n" +
+	"\x0f_agent_overrideB\x1a\n" +
+	"\x18_sub_agents_override_setB\x19\n" +
 	"\x17_claude_config_override\"B\n" +
 	"\x13UpdatePhaseResponse\x12+\n" +
 	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"P\n" +
@@ -5193,7 +5230,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x17GetPhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"M\n" +
 	"\x18GetPhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\x94\x06\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xd5\x06\n" +
 	"\x1aCreatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5214,7 +5251,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"checkpoint\x12\x1e\n" +
 	"\bagent_id\x18\x0f \x01(\tH\x06R\aagentId\x88\x01\x01\x12\"\n" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
-	"\rclaude_config\x18\x11 \x01(\tH\aR\fclaudeConfig\x88\x01\x01B\x0e\n" +
+	"\rclaude_config\x18\x11 \x01(\tH\aR\fclaudeConfig\x88\x01\x01\x12+\n" +
+	"\x0foutput_var_name\x18\x12 \x01(\tH\bR\routputVarName\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x11\n" +
 	"\x0f_prompt_contentB\x0e\n" +
 	"\f_prompt_pathB\x10\n" +
@@ -5222,9 +5260,10 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_artifact_typeB\x13\n" +
 	"\x11_thinking_enabledB\v\n" +
 	"\t_agent_idB\x10\n" +
-	"\x0e_claude_config\"P\n" +
+	"\x0e_claude_configB\x12\n" +
+	"\x10_output_var_name\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\x93\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xd4\a\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -5246,7 +5285,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"checkpoint\x88\x01\x01\x12\x1e\n" +
 	"\bagent_id\x18\x0f \x01(\tH\fR\aagentId\x88\x01\x01\x12\"\n" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
-	"\rclaude_config\x18\x11 \x01(\tH\rR\fclaudeConfig\x88\x01\x01B\a\n" +
+	"\rclaude_config\x18\x11 \x01(\tH\rR\fclaudeConfig\x88\x01\x01\x12+\n" +
+	"\x0foutput_var_name\x18\x12 \x01(\tH\x0eR\routputVarName\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_prompt_sourceB\x11\n" +
@@ -5261,7 +5301,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"_gate_typeB\r\n" +
 	"\v_checkpointB\v\n" +
 	"\t_agent_idB\x10\n" +
-	"\x0e_claude_config\"P\n" +
+	"\x0e_claude_configB\x12\n" +
+	"\x10_output_var_name\"P\n" +
 	"\x1bUpdatePhaseTemplateResponse\x121\n" +
 	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\",\n" +
 	"\x1aDeletePhaseTemplateRequest\x12\x0e\n" +

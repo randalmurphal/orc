@@ -18,6 +18,7 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/workflow"
+	"github.com/randalmurphal/orc/templates"
 )
 
 // workflowServer implements the WorkflowServiceHandler interface.
@@ -549,7 +550,7 @@ func (s *workflowServer) UpdatePhase(
 	if req.Msg.AgentOverride != nil {
 		existingPhase.AgentOverride = *req.Msg.AgentOverride
 	}
-	if len(req.Msg.SubAgentsOverride) > 0 {
+	if req.Msg.SubAgentsOverrideSet != nil && *req.Msg.SubAgentsOverrideSet {
 		existingPhase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
 
@@ -865,6 +866,9 @@ func (s *workflowServer) CreatePhaseTemplate(
 	if req.Msg.ArtifactType != nil {
 		tmpl.ArtifactType = *req.Msg.ArtifactType
 	}
+	if req.Msg.OutputVarName != nil {
+		tmpl.OutputVarName = *req.Msg.OutputVarName
+	}
 	// NOTE: model_override is now set via agent reference, not directly on phase template
 	if req.Msg.ThinkingEnabled != nil {
 		tmpl.ThinkingEnabled = req.Msg.ThinkingEnabled
@@ -935,6 +939,9 @@ func (s *workflowServer) UpdatePhaseTemplate(
 	}
 	if req.Msg.ArtifactType != nil {
 		pt.ArtifactType = *req.Msg.ArtifactType
+	}
+	if req.Msg.OutputVarName != nil {
+		pt.OutputVarName = *req.Msg.OutputVarName
 	}
 	if req.Msg.MaxIterations != nil {
 		pt.MaxIterations = int(*req.Msg.MaxIterations)
@@ -1096,7 +1103,13 @@ func (s *workflowServer) GetPromptContent(
 	case "db":
 		content = tmpl.PromptContent
 	case "embedded":
-		content = "<!-- Embedded prompt at: " + tmpl.PromptPath + " -->"
+		if tmpl.PromptPath != "" {
+			data, err := templates.Prompts.ReadFile(tmpl.PromptPath)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read embedded prompt %s: %w", tmpl.PromptPath, err))
+			}
+			content = string(data)
+		}
 	case "file":
 		content = "<!-- File prompt at: " + tmpl.PromptPath + " -->"
 	}
@@ -1710,6 +1723,11 @@ func dbPhaseTemplateToProto(t *db.PhaseTemplate) *orcv1.PhaseTemplate {
 	if t.ArtifactType != "" {
 		result.ArtifactType = &t.ArtifactType
 	}
+	// Phase output variable name
+	if t.OutputVarName != "" {
+		result.OutputVarName = &t.OutputVarName
+	}
+
 	// Agent references (WHO runs this phase)
 	if t.AgentID != "" {
 		result.AgentId = &t.AgentID

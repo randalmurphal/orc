@@ -8,24 +8,6 @@ import (
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
-// inferOutputVarName returns the standard output variable name for a phase ID.
-func inferOutputVarName(phaseID string) string {
-	switch phaseID {
-	case "spec", "tiny_spec":
-		return "SPEC_CONTENT"
-	case "tdd_write":
-		return "TDD_TESTS_CONTENT"
-	case "breakdown":
-		return "BREAKDOWN_CONTENT"
-	case "research":
-		return "RESEARCH_CONTENT"
-	case "docs":
-		return "DOCS_CONTENT"
-	default:
-		return "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(phaseID, "-", "_"))
-	}
-}
-
 // ExtractPhaseContent extracts content from JSON output.
 // This is the only mechanism for capturing phase content - no file lookups or XML parsing.
 func ExtractPhaseContent(output string) string {

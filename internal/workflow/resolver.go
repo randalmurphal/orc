@@ -531,6 +531,7 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 		PromptContent:    pt.PromptContent,
 		InputVariables:   pt.InputVariables,
 		OutputSchema:     pt.OutputSchema,
+		OutputVarName:    pt.OutputVarName,
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
 		MaxIterations:    pt.MaxIterations,

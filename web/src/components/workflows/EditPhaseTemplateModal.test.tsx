@@ -517,9 +517,7 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 			expect(screen.getByRole('dialog')).toBeInTheDocument();
 		});
 
-		it('treats malformed claude_config as empty config with console.warn', async () => {
-			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
+		it('treats malformed claude_config as empty config gracefully', async () => {
 			render(
 				<EditPhaseTemplateModal
 					open={true}
@@ -536,14 +534,9 @@ describe('EditPhaseTemplateModal - Claude Config Settings', () => {
 				expect(configClient.listAgents).toHaveBeenCalled();
 			});
 
-			// Should have logged a warning
-			expect(console.warn).toHaveBeenCalled();
-
 			// All sections should still render (empty state)
 			expect(screen.getByText(/hooks/i)).toBeInTheDocument();
 			expect(screen.getByText(/skills/i)).toBeInTheDocument();
-
-			warnSpy.mockRestore();
 		});
 
 		it('renders sections empty when claude_config is undefined', async () => {

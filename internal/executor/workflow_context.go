@@ -311,6 +311,7 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 			Description:  wv.Description,
 			SourceType:   variable.SourceType(wv.SourceType),
 			SourceConfig: json.RawMessage(wv.SourceConfig),
+			Extract:      wv.Extract,
 			Required:     wv.Required,
 			DefaultValue: wv.DefaultValue,
 			CacheTTL:     time.Duration(wv.CacheTTLSeconds) * time.Second,

@@ -166,6 +166,7 @@ type PhaseTemplate struct {
 	OutputSchema     string   `json:"output_schema,omitempty" db:"output_schema"`
 	ProducesArtifact bool     `json:"produces_artifact" db:"produces_artifact"`
 	ArtifactType     string   `json:"artifact_type,omitempty" db:"artifact_type"`
+	OutputVarName    string   `json:"output_var_name,omitempty" db:"output_var_name"` // Variable name for output (e.g., 'SPEC_CONTENT')
 
 	// Execution config
 	MaxIterations   int      `json:"max_iterations" db:"max_iterations"`

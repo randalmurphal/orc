@@ -434,6 +434,10 @@ function SettingsTab({
 		phase.subAgentsOverride ?? [],
 	);
 
+	// Claude config draft — updated by ClaudeConfigEditor, saved with the rest
+	const [claudeConfigDraft, setClaudeConfigDraft] = useState<string | null>(null);
+	const [saving, setSaving] = useState(false);
+
 	// Fetch agents list on mount
 	useEffect(() => {
 		let mounted = true;
@@ -448,7 +452,7 @@ function SettingsTab({
 		return () => { mounted = false; };
 	}, []);
 
-	// Reset state when phase changes
+	// Reset state when phase changes (e.g. after save + refresh, or selecting a different node)
 	useEffect(() => {
 		setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
 		setModelOverride(phase.modelOverride ?? '');
@@ -456,78 +460,69 @@ function SettingsTab({
 		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
 		setAgentOverride(phase.agentOverride ?? '');
 		setSubAgentsOverride(phase.subAgentsOverride ?? []);
+		setClaudeConfigDraft(null);
 		onError(null);
 	}, [phase, onError]);
 
-	const updatePhase = useCallback(
-		async (updates: Record<string, unknown>) => {
-			const workflowId = workflowDetails.workflow?.id;
-			if (!workflowId) return;
-			onError(null);
-			try {
-				await workflowClient.updatePhase({
-					workflowId,
-					phaseId: phase.id,
-					...updates,
-				});
-				// Refresh workflow data
-				if (onWorkflowRefresh) {
-					onWorkflowRefresh();
-				} else {
-					await workflowClient.getWorkflow({ id: workflowId });
-				}
-			} catch (err) {
-				const message = err instanceof Error ? err.message : 'Update failed';
-				onError(message);
-				// Revert to previous values
-				setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
-				setModelOverride(phase.modelOverride ?? '');
-				setThinkingOverride(phase.thinkingOverride ?? false);
-				setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
-				setAgentOverride(phase.agentOverride ?? '');
-				setSubAgentsOverride(phase.subAgentsOverride ?? []);
-			}
-		},
-		[workflowDetails, phase, onError, onWorkflowRefresh],
-	);
+	// Dirty detection — compare local state vs committed phase values
+	const isDirty = useMemo(() => {
+		if (modelOverride !== (phase.modelOverride ?? '')) return true;
+		if (thinkingOverride !== (phase.thinkingOverride ?? false)) return true;
+		if (gateTypeOverride !== (phase.gateTypeOverride ?? GateType.UNSPECIFIED)) return true;
+		if (maxIterations !== (phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3)) return true;
+		if (agentOverride !== (phase.agentOverride ?? '')) return true;
+		const origSorted = [...(phase.subAgentsOverride ?? [])].sort();
+		const currSorted = [...subAgentsOverride].sort();
+		if (JSON.stringify(currSorted) !== JSON.stringify(origSorted)) return true;
+		if (claudeConfigDraft !== null) return true;
+		return false;
+	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, phase]);
 
-	const handleMaxIterationsBlur = () => {
-		const currentValue = phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3;
-		if (maxIterations !== currentValue) {
-			updatePhase({ maxIterationsOverride: maxIterations });
+	// Save all pending changes in one API call
+	const handleSave = useCallback(async () => {
+		const workflowId = workflowDetails.workflow?.id;
+		if (!workflowId) return;
+		onError(null);
+		setSaving(true);
+		try {
+			await workflowClient.updatePhase({
+				workflowId,
+				phaseId: phase.id,
+				modelOverride: modelOverride || undefined,
+				thinkingOverride,
+				gateTypeOverride: gateTypeOverride || undefined,
+				maxIterationsOverride: maxIterations,
+				agentOverride: agentOverride || undefined,
+				subAgentsOverride,
+				subAgentsOverrideSet: true,
+				...(claudeConfigDraft !== null ? { claudeConfigOverride: claudeConfigDraft || undefined } : {}),
+			});
+			setClaudeConfigDraft(null);
+			onWorkflowRefresh?.();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Update failed';
+			onError(message);
+		} finally {
+			setSaving(false);
 		}
-	};
+	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, onError, onWorkflowRefresh]);
 
-	const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const value = e.target.value;
-		setModelOverride(value);
-		updatePhase({ modelOverride: value || undefined });
-	};
-
-	const handleThinkingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.target.checked;
-		setThinkingOverride(value);
-		updatePhase({ thinkingOverride: value });
-	};
-
-	const handleGateTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const value = Number(e.target.value) as GateType;
-		setGateTypeOverride(value);
-		updatePhase({ gateTypeOverride: value || undefined });
-	};
-
-	const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const value = e.target.value;
-		setAgentOverride(value);
-		updatePhase({ agentOverride: value || undefined });
-	};
+	// Discard all pending changes
+	const handleDiscard = useCallback(() => {
+		setMaxIterations(phase.maxIterationsOverride ?? phase.template?.maxIterations ?? 3);
+		setModelOverride(phase.modelOverride ?? '');
+		setThinkingOverride(phase.thinkingOverride ?? false);
+		setGateTypeOverride(phase.gateTypeOverride ?? GateType.UNSPECIFIED);
+		setAgentOverride(phase.agentOverride ?? '');
+		setSubAgentsOverride(phase.subAgentsOverride ?? []);
+		setClaudeConfigDraft(null);
+		onError(null);
+	}, [phase, onError]);
 
 	const handleSubAgentToggle = (agentName: string, checked: boolean) => {
-		const newValue = checked
-			? [...subAgentsOverride, agentName]
-			: subAgentsOverride.filter((a) => a !== agentName);
-		setSubAgentsOverride(newValue);
-		updatePhase({ subAgentsOverride: newValue.length > 0 ? newValue : undefined });
+		setSubAgentsOverride((prev) =>
+			checked ? [...prev, agentName] : prev.filter((a) => a !== agentName),
+		);
 	};
 
 	const disabled = readOnly;
@@ -544,6 +539,28 @@ function SettingsTab({
 				<div className="phase-inspector-settings-error">{error}</div>
 			)}
 
+			{/* Save / Discard bar */}
+			{!readOnly && isDirty && (
+				<div className="phase-inspector-save-bar">
+					<button
+						type="button"
+						className="phase-inspector-save-btn"
+						onClick={handleSave}
+						disabled={saving}
+					>
+						{saving ? 'Saving...' : 'Save Changes'}
+					</button>
+					<button
+						type="button"
+						className="phase-inspector-discard-btn"
+						onClick={handleDiscard}
+						disabled={saving}
+					>
+						Discard
+					</button>
+				</div>
+			)}
+
 			<div className="phase-inspector-setting">
 				<label htmlFor="inspector-model" className="phase-inspector-setting-label">
 					Model
@@ -552,7 +569,7 @@ function SettingsTab({
 					id="inspector-model"
 					className="phase-inspector-setting-select"
 					value={modelOverride}
-					onChange={handleModelChange}
+					onChange={(e) => setModelOverride(e.target.value)}
 					disabled={disabled}
 				>
 					<option value="">Inherit from workflow</option>
@@ -571,7 +588,7 @@ function SettingsTab({
 					type="checkbox"
 					className="phase-inspector-setting-checkbox"
 					checked={thinkingOverride}
-					onChange={handleThinkingChange}
+					onChange={(e) => setThinkingOverride(e.target.checked)}
 					disabled={disabled}
 				/>
 			</div>
@@ -584,7 +601,7 @@ function SettingsTab({
 					id="inspector-gate-type"
 					className="phase-inspector-setting-select"
 					value={gateTypeOverride}
-					onChange={handleGateTypeChange}
+					onChange={(e) => setGateTypeOverride(Number(e.target.value) as GateType)}
 					disabled={disabled}
 				>
 					<option value={GateType.UNSPECIFIED}>Inherit from template</option>
@@ -636,7 +653,6 @@ function SettingsTab({
 					className="phase-inspector-setting-input"
 					value={maxIterations}
 					onChange={(e) => setMaxIterations(Number(e.target.value))}
-					onBlur={handleMaxIterationsBlur}
 					min={1}
 					max={20}
 					disabled={disabled}
@@ -652,7 +668,7 @@ function SettingsTab({
 					id="inspector-agent"
 					className="phase-inspector-setting-select"
 					value={agentOverride}
-					onChange={handleAgentChange}
+					onChange={(e) => setAgentOverride(e.target.value)}
 					disabled={disabled || agentsLoading}
 				>
 					<option value="">
@@ -701,11 +717,11 @@ function SettingsTab({
 				</span>
 			</div>
 
-			{/* Claude Config Override (editable) */}
+			{/* Claude Config Override (editable) — changes accumulate in claudeConfigDraft */}
 			<ClaudeConfigEditor
 				phase={phase}
 				disabled={readOnly}
-				onSave={(json) => updatePhase({ claudeConfigOverride: json || undefined })}
+				onSave={setClaudeConfigDraft}
 			/>
 
 			{/* Danger Zone - Remove Phase */}
@@ -884,6 +900,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			)}
 
 			<CollapsibleSettingsSection title="Hooks" badgeCount={merged.hooks.length}>
+				<InheritedChips items={inheritedCount?.hooks} />
 				<LibraryPicker
 					type="hooks"
 					items={hooks}
@@ -900,6 +917,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			</CollapsibleSettingsSection>
 
 			<CollapsibleSettingsSection title="MCP Servers" badgeCount={merged.mcpServers.length}>
+				<InheritedChips items={inheritedCount?.mcpServers} />
 				<LibraryPicker
 					type="mcpServers"
 					items={mcpServers}
@@ -916,6 +934,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			</CollapsibleSettingsSection>
 
 			<CollapsibleSettingsSection title="Skills" badgeCount={merged.skillRefs.length}>
+				<InheritedChips items={inheritedCount?.skillRefs} />
 				<LibraryPicker
 					type="skills"
 					items={skills}
@@ -932,6 +951,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			</CollapsibleSettingsSection>
 
 			<CollapsibleSettingsSection title="Allowed Tools" badgeCount={merged.allowedTools.length}>
+				<InheritedChips items={inheritedCount?.allowedTools} />
 				<TagInput
 					tags={allowedTools}
 					onChange={(tags) => {
@@ -945,6 +965,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			</CollapsibleSettingsSection>
 
 			<CollapsibleSettingsSection title="Disallowed Tools" badgeCount={merged.disallowedTools.length}>
+				<InheritedChips items={inheritedCount?.disallowedTools} />
 				<TagInput
 					tags={disallowedTools}
 					onChange={(tags) => {
@@ -958,6 +979,7 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 			</CollapsibleSettingsSection>
 
 			<CollapsibleSettingsSection title="Env Vars" badgeCount={Object.keys(merged.env).length}>
+				<InheritedChips items={inheritedCount?.env ? Object.keys(inheritedCount.env) : undefined} label="env vars" />
 				<KeyValueEditor
 					entries={envVars}
 					onChange={(entries) => {
@@ -989,6 +1011,19 @@ function ClaudeConfigEditor({ phase, disabled, onSave }: ClaudeConfigEditorProps
 					)}
 				</div>
 			</CollapsibleSettingsSection>
+		</div>
+	);
+}
+
+/** Read-only chips showing items inherited from the phase template's claude_config. */
+function InheritedChips({ items }: { items?: string[]; label?: string }) {
+	if (!items || items.length === 0) return null;
+	return (
+		<div className="inherited-chips">
+			<span className="inherited-chips__label">From template:</span>
+			{items.map((item) => (
+				<span key={item} className="inherited-chips__chip">{item}</span>
+			))}
 		</div>
 	);
 }
