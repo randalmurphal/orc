@@ -2352,6 +2352,48 @@ Reusable phase definitions with prompts and configuration.
 | `artifact_type` | Artifact type: `spec`, `tests`, `breakdown`, `docs`, etc. |
 | `is_builtin` | Built-in templates cannot be modified |
 
+**Create phase template body (POST):**
+```json
+{
+  "id": "code-analysis",
+  "name": "Code Analysis",
+  "description": "Analyze codebase structure",
+  "prompt_source": "PROMPT_SOURCE_DB",
+  "prompt_content": "Analyze the codebase at {{PROJECT_ROOT}}...",
+  "gate_type": "GATE_TYPE_AUTO",
+  "max_iterations": 20,
+  "thinking_enabled": true,
+  "output_var_name": "ANALYSIS_RESULT",
+  "claude_config": "{\"hooks\":[\"pre-commit-check\"],\"skills\":[\"code-review\"]}"
+}
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|:--------:|---------|-------------|
+| `id` | string | Yes | - | Unique template ID (slugified, e.g., `code-analysis`) |
+| `name` | string | Yes | - | Display name |
+| `description` | string | No | `""` | Template description |
+| `prompt_source` | enum | No | `PROMPT_SOURCE_DB` | `PROMPT_SOURCE_DB` (inline), `PROMPT_SOURCE_FILE` (external) |
+| `prompt_content` | string | No | - | Inline prompt content (when `prompt_source=DB`) |
+| `prompt_path` | string | No | - | External prompt file path (when `prompt_source=FILE`) |
+| `gate_type` | enum | No | `GATE_TYPE_AUTO` | `GATE_TYPE_AUTO`, `GATE_TYPE_HUMAN`, `GATE_TYPE_AI`, `GATE_TYPE_SKIP` |
+| `max_iterations` | int | No | `20` | Maximum Claude turns |
+| `thinking_enabled` | bool | No | - | Enable extended thinking |
+| `checkpoint` | bool | No | `false` | Pause after phase completion |
+| `produces_artifact` | bool | No | `false` | Whether phase produces artifact |
+| `artifact_type` | string | No | - | Artifact type if `produces_artifact=true` |
+| `output_var_name` | string | No | - | Variable name for phase output (e.g., `SPEC_CONTENT`) |
+| `agent_id` | string | No | - | Executor agent reference |
+| `sub_agent_ids` | string[] | No | `[]` | Sub-agent references |
+| `claude_config` | string | No | - | JSON string with hooks, skills, MCP servers, env vars, allowed/disallowed tools |
+
+**Error responses:**
+
+| Status | Code | Condition |
+|--------|------|-----------|
+| 400 | `InvalidArgument` | Missing `id` or `name` |
+| 409 | `AlreadyExists` | Phase template with ID already exists |
+
 ### Before-Phase Triggers
 
 CRUD operations for before-phase triggers on workflow phases. Triggers are stored as a JSON array on `workflow_phases.before_triggers`. All operations are Connect RPC (not REST).
