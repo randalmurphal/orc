@@ -146,7 +146,7 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
 | `applyPhaseContentToVars()` | `workflow_executor.go:739` | Propagates phase content to subsequent phases |
-| `applyGateOutputToVars()` | `workflow_gates.go:233` | Stores gate output data as JSON workflow variable |
+| `applyGateOutputToVars()` | `workflow_gates.go:235` | Stores gate output data as JSON workflow variable; persists to `rctx.PhaseOutputVars` to survive retry (see `docs/architecture/GATES.md`) |
 | `resolveApprovedAction()` | `gate_actions.go:18` | Maps `OnApproved` config to `GateAction` (default: `continue`) |
 | `resolveRejectedAction()` | `gate_actions.go:31` | Maps `OnRejected` config to `GateAction` (empty = legacy behavior) |
 | `resolveRetryFrom()` | `gate_actions.go:44` | Determines retry target: `OutputConfig.RetryFrom` > `tmpl.RetryFromPhase` |

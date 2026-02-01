@@ -2,15 +2,19 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
+	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
 )
 
@@ -551,5 +555,500 @@ func TestExtractPhaseOutput(t *testing.T) {
 				t.Errorf("extractPhaseOutput() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// TASK-709: Ensure phase output variables survive retry flow
+//
+// Coverage mapping:
+//   SC-1: TestApplyPhaseContentToVars_PersistsToRctx
+//   SC-2: TestPhaseOutputVarsSurviveResolveAll
+//   SC-3: TestRetryFlowPreservesPhaseOutputVars
+//   SC-4: TestApplyGateOutputToVars_PersistsToRctx
+//   SC-5: TestGateOutputVarsSurviveResolveAll
+//   SC-6: TestRetryFlowPreservesGateOutputVars
+//
+// Failure modes:
+//   TestApplyGateOutputToVars_SkipsEmpty
+//
+// Edge cases:
+//   TestApplyGateOutputToVars_NilRctx
+// =============================================================================
+
+// SC-1: applyPhaseContentToVars stores output in rctx.PhaseOutputVars and rctx.PriorOutputs.
+// Documents existing behavior that must be preserved.
+func TestApplyPhaseContentToVars_PersistsToRctx(t *testing.T) {
+	t.Parallel()
+
+	vars := make(map[string]string)
+	rctx := &variable.ResolutionContext{
+		PriorOutputs: make(map[string]string),
+	}
+
+	content := "# Specification\n\nThis is the spec content with success criteria."
+	applyPhaseContentToVars(vars, rctx, "spec", content, "SPEC_CONTENT")
+
+	// Verify rctx.PhaseOutputVars is populated
+	if rctx.PhaseOutputVars == nil {
+		t.Fatal("rctx.PhaseOutputVars should be initialized, got nil")
+	}
+	if got := rctx.PhaseOutputVars["SPEC_CONTENT"]; got != content {
+		t.Errorf("rctx.PhaseOutputVars[\"SPEC_CONTENT\"] = %q, want %q", got, content)
+	}
+
+	// Verify rctx.PriorOutputs is populated
+	if got := rctx.PriorOutputs["spec"]; got != content {
+		t.Errorf("rctx.PriorOutputs[\"spec\"] = %q, want %q", got, content)
+	}
+
+	// Verify vars map also has the named variable
+	if got := vars["SPEC_CONTENT"]; got != content {
+		t.Errorf("vars[\"SPEC_CONTENT\"] = %q, want %q", got, content)
+	}
+
+	// Verify the lowercase OUTPUT_ key is also set (for loop condition evaluation)
+	if got := vars["OUTPUT_spec"]; got != content {
+		t.Errorf("vars[\"OUTPUT_spec\"] = %q, want %q", got, content)
+	}
+}
+
+// SC-2: Phase output variables restored by addBuiltinVariables from rctx after
+// ResolveAll creates a new vars map. Documents existing behavior.
+func TestPhaseOutputVarsSurviveResolveAll(t *testing.T) {
+	t.Parallel()
+
+	resolver := variable.NewResolver(t.TempDir())
+	rctx := &variable.ResolutionContext{
+		PhaseOutputVars: map[string]string{
+			"SPEC_CONTENT": "the spec content from a prior phase",
+		},
+		PriorOutputs: map[string]string{
+			"spec": "the spec content from a prior phase",
+		},
+	}
+
+	// ResolveAll creates a fresh VariableSet each call
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("ResolveAll: %v", err)
+	}
+
+	// Phase output variables should be restored from rctx.PhaseOutputVars
+	if got := vars["SPEC_CONTENT"]; got != "the spec content from a prior phase" {
+		t.Errorf("vars[\"SPEC_CONTENT\"] = %q, want %q", got, "the spec content from a prior phase")
+	}
+
+	// Generic OUTPUT_ prefix should also be restored from PriorOutputs
+	if got := vars["OUTPUT_SPEC"]; got != "the spec content from a prior phase" {
+		t.Errorf("vars[\"OUTPUT_SPEC\"] = %q, want %q", got, "the spec content from a prior phase")
+	}
+}
+
+// SC-4: applyGateOutputToVars persists gate output to rctx.PhaseOutputVars
+// in addition to the local vars map. This is the core fix.
+// The function's NEW signature includes rctx — this test will NOT COMPILE
+// until the implementation adds the rctx parameter.
+func TestApplyGateOutputToVars_PersistsToRctx(t *testing.T) {
+	t.Parallel()
+
+	vars := make(map[string]string)
+	rctx := &variable.ResolutionContext{}
+
+	gateResult := &GateEvaluationResult{
+		Approved:  false,
+		Reason:    "needs work on error handling",
+		OutputVar: "REVIEW_ANALYSIS",
+		OutputData: map[string]any{
+			"verdict":  "needs_fix",
+			"findings": []string{"missing error check in handler.go"},
+		},
+	}
+
+	// Call with NEW signature that includes rctx
+	applyGateOutputToVars(vars, rctx, gateResult)
+
+	// Verify vars map has the gate output
+	if _, ok := vars["REVIEW_ANALYSIS"]; !ok {
+		t.Fatal("vars should contain REVIEW_ANALYSIS")
+	}
+
+	// Verify the value is valid JSON
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(vars["REVIEW_ANALYSIS"]), &parsed); err != nil {
+		t.Fatalf("vars[\"REVIEW_ANALYSIS\"] is not valid JSON: %v", err)
+	}
+
+	// Verify rctx.PhaseOutputVars is populated with gate output
+	if rctx.PhaseOutputVars == nil {
+		t.Fatal("rctx.PhaseOutputVars should be initialized, got nil")
+	}
+	if got, ok := rctx.PhaseOutputVars["REVIEW_ANALYSIS"]; !ok {
+		t.Fatal("rctx.PhaseOutputVars should contain REVIEW_ANALYSIS")
+	} else if got != vars["REVIEW_ANALYSIS"] {
+		t.Errorf("rctx.PhaseOutputVars[\"REVIEW_ANALYSIS\"] = %q, want %q (same as vars)", got, vars["REVIEW_ANALYSIS"])
+	}
+}
+
+// SC-4 failure mode: empty OutputVar, nil OutputData, or nil gate result skips storage.
+// Guard behavior must be preserved: no entry stored in vars or rctx.
+func TestApplyGateOutputToVars_SkipsEmpty(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		gateResult *GateEvaluationResult
+	}{
+		{
+			name:       "nil gate result",
+			gateResult: nil,
+		},
+		{
+			name: "empty OutputVar",
+			gateResult: &GateEvaluationResult{
+				OutputVar:  "",
+				OutputData: map[string]any{"verdict": "ok"},
+			},
+		},
+		{
+			name: "whitespace-only OutputVar",
+			gateResult: &GateEvaluationResult{
+				OutputVar:  "   ",
+				OutputData: map[string]any{"verdict": "ok"},
+			},
+		},
+		{
+			name: "nil OutputData",
+			gateResult: &GateEvaluationResult{
+				OutputVar:  "REVIEW_RESULT",
+				OutputData: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			vars := make(map[string]string)
+			rctx := &variable.ResolutionContext{}
+
+			// Call with NEW signature
+			applyGateOutputToVars(vars, rctx, tt.gateResult)
+
+			if len(vars) != 0 {
+				t.Errorf("vars should be empty, got %v", vars)
+			}
+			if len(rctx.PhaseOutputVars) != 0 {
+				t.Errorf("rctx.PhaseOutputVars should be empty, got %v", rctx.PhaseOutputVars)
+			}
+		})
+	}
+}
+
+// Edge case: nil rctx should still work (degrade gracefully to vars-only storage).
+func TestApplyGateOutputToVars_NilRctx(t *testing.T) {
+	t.Parallel()
+
+	vars := make(map[string]string)
+	gateResult := &GateEvaluationResult{
+		OutputVar:  "REVIEW_ANALYSIS",
+		OutputData: map[string]any{"verdict": "approved"},
+	}
+
+	// Should not panic with nil rctx
+	applyGateOutputToVars(vars, nil, gateResult)
+
+	// vars should still be populated
+	if _, ok := vars["REVIEW_ANALYSIS"]; !ok {
+		t.Fatal("vars should contain REVIEW_ANALYSIS even with nil rctx")
+	}
+}
+
+// SC-5: Gate output variables restored by addBuiltinVariables after ResolveAll.
+// This piggybacks on existing PhaseOutputVars restoration mechanism.
+func TestGateOutputVarsSurviveResolveAll(t *testing.T) {
+	t.Parallel()
+
+	resolver := variable.NewResolver(t.TempDir())
+
+	// Simulate: gate output was stored in rctx.PhaseOutputVars (after fix)
+	gateOutputJSON := `{"verdict":"needs_fix","findings":["missing error check"]}`
+	rctx := &variable.ResolutionContext{
+		PhaseOutputVars: map[string]string{
+			"SPEC_CONTENT":    "the spec content",
+			"REVIEW_ANALYSIS": gateOutputJSON,
+		},
+	}
+
+	// ResolveAll creates a fresh VariableSet
+	vars, err := resolver.ResolveAll(context.Background(), nil, rctx)
+	if err != nil {
+		t.Fatalf("ResolveAll: %v", err)
+	}
+
+	// Gate output variable should be restored from rctx.PhaseOutputVars
+	if got := vars["REVIEW_ANALYSIS"]; got != gateOutputJSON {
+		t.Errorf("vars[\"REVIEW_ANALYSIS\"] = %q, want %q", got, gateOutputJSON)
+	}
+
+	// Phase output variable should also be restored
+	if got := vars["SPEC_CONTENT"]; got != "the spec content" {
+		t.Errorf("vars[\"SPEC_CONTENT\"] = %q, want %q", got, "the spec content")
+	}
+}
+
+// SC-3: Integration test — retried phase's rendered prompt contains output
+// variable from a prior phase that ran before the retry.
+//
+// Setup: 3-phase workflow (spec→implement→review).
+// - spec produces SPEC_CONTENT via OutputVarName
+// - review gate rejects and triggers retry to implement
+// - implement template contains {{SPEC_CONTENT}}
+// - After retry, implement's rendered prompt should contain the spec content.
+func TestRetryFlowPreservesPhaseOutputVars(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	// Set up phase templates:
+	// - spec produces artifact with OutputVarName="SPEC_CONTENT"
+	// - implement consumes SPEC_CONTENT in its prompt
+	// - review has gate that rejects (triggering retry to implement)
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:               "spec",
+		Name:             "spec",
+		PromptSource:     "db",
+		PromptContent:    "Generate a specification.",
+		ProducesArtifact: true,
+		OutputVarName:    "SPEC_CONTENT",
+	}); err != nil {
+		t.Fatalf("save spec template: %v", err)
+	}
+
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "implement",
+		Name:          "implement",
+		PromptSource:  "db",
+		PromptContent: "Implement based on spec:\n{{SPEC_CONTENT}}\nEnd of spec.",
+	}); err != nil {
+		t.Fatalf("save implement template: %v", err)
+	}
+
+	outputCfgJSON, _ := json.Marshal(db.GateOutputConfig{
+		OnRejected: "retry",
+		RetryFrom:  "implement",
+	})
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:               "review",
+		Name:             "review",
+		PromptSource:     "db",
+		PromptContent:    "Review the implementation.",
+		GateType:         "ai",
+		GateOutputConfig: string(outputCfgJSON),
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	setupThreePhaseWorkflow(t, backend, "retry-phase-output-wf", "spec", "implement", "review")
+
+	tsk := task.NewProtoTask("TASK-RETRY-PHASE-001", "Test phase output survives retry")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "retry-phase-output-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Mock turn executor with queued responses:
+	// 1. spec: returns content that becomes SPEC_CONTENT
+	// 2. implement (first): returns complete
+	// 3. review (first): returns complete (gate will reject externally)
+	// 4. implement (retry): returns complete
+	// 5. review (second): returns complete (gate will approve)
+	mockTE := &MockTurnExecutor{
+		Responses: []string{
+			`{"status": "complete", "content": "THE SPEC OUTPUT FROM PHASE ONE"}`,
+			`{"status": "complete", "summary": "Implemented"}`,
+			`{"status": "complete", "summary": "Reviewed"}`,
+			`{"status": "complete", "summary": "Re-implemented after review"}`,
+			`{"status": "complete", "summary": "Approved"}`,
+		},
+		SessionIDValue: "mock-session",
+	}
+
+	// Gate evaluator: review rejects first time, approves second
+	reviewCallCount := 0
+	mockEval := &configGateEvaluator{
+		decisionFn: func(g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error) {
+			if opts != nil && opts.Phase == "review" {
+				reviewCallCount++
+				if reviewCallCount == 1 {
+					return &gate.Decision{Approved: false, Reason: "needs work"}, nil
+				}
+			}
+			return &gate.Decision{Approved: true, Reason: "approved"}, nil
+		},
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(mockEval),
+		WithWorkflowTurnExecutor(mockTE),
+	)
+
+	_, err := we.Run(context.Background(), "retry-phase-output-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if err != nil {
+		t.Fatalf("workflow run failed: %v", err)
+	}
+
+	// The implement phase should have been called twice (initial + retry).
+	// Find the second implement call's prompt and verify it contains SPEC_CONTENT.
+	// Prompts: [spec, implement(1), review(1), implement(2), review(2)]
+	if len(mockTE.Prompts) < 4 {
+		t.Fatalf("expected at least 4 prompts (spec + impl + review + impl-retry), got %d", len(mockTE.Prompts))
+	}
+
+	// The 4th prompt (index 3) should be the implement retry.
+	// It should contain the spec output because SPEC_CONTENT survives retry.
+	retryImplementPrompt := mockTE.Prompts[3]
+	if !strings.Contains(retryImplementPrompt, "THE SPEC OUTPUT FROM PHASE ONE") {
+		t.Errorf("SC-3: retried implement prompt should contain SPEC_CONTENT.\nGot prompt:\n%s", retryImplementPrompt)
+	}
+}
+
+// SC-6: Integration test — retried phase's rendered prompt contains the gate
+// output variable from the rejecting gate.
+//
+// Setup: 3-phase workflow (spec→implement→review).
+// - review gate rejects with OutputVar="GATE_REVIEW" and OutputData
+// - implement template contains {{GATE_REVIEW}}
+// - After retry, implement's rendered prompt should contain gate output.
+//
+// This test FAILS before fix because applyGateOutputToVars only writes to vars
+// (lost on ResolveAll) and not to rctx.PhaseOutputVars.
+func TestRetryFlowPreservesGateOutputVars(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+
+	// spec produces SPEC_CONTENT
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:               "spec",
+		Name:             "spec",
+		PromptSource:     "db",
+		PromptContent:    "Generate a specification.",
+		ProducesArtifact: true,
+		OutputVarName:    "SPEC_CONTENT",
+	}); err != nil {
+		t.Fatalf("save spec template: %v", err)
+	}
+
+	// implement consumes both SPEC_CONTENT and GATE_REVIEW
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:            "implement",
+		Name:          "implement",
+		PromptSource:  "db",
+		PromptContent: "Implement based on spec:\n{{SPEC_CONTENT}}\n\nReview feedback:\n{{GATE_REVIEW}}\n\nEnd.",
+	}); err != nil {
+		t.Fatalf("save implement template: %v", err)
+	}
+
+	// review gate configured to retry with output
+	outputCfgJSON, _ := json.Marshal(db.GateOutputConfig{
+		OnRejected: "retry",
+		RetryFrom:  "implement",
+	})
+	if err := backend.SavePhaseTemplate(&db.PhaseTemplate{
+		ID:               "review",
+		Name:             "review",
+		PromptSource:     "db",
+		PromptContent:    "Review the implementation.",
+		GateType:         "ai",
+		GateOutputConfig: string(outputCfgJSON),
+	}); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	setupThreePhaseWorkflow(t, backend, "retry-gate-output-wf", "spec", "implement", "review")
+
+	tsk := task.NewProtoTask("TASK-RETRY-GATE-001", "Test gate output survives retry")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "retry-gate-output-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Mock turn executor with queued responses
+	mockTE := &MockTurnExecutor{
+		Responses: []string{
+			`{"status": "complete", "content": "The spec content"}`,
+			`{"status": "complete", "summary": "Implemented"}`,
+			`{"status": "complete", "summary": "Reviewed"}`,
+			`{"status": "complete", "summary": "Re-implemented with gate feedback"}`,
+			`{"status": "complete", "summary": "Approved"}`,
+		},
+		SessionIDValue: "mock-session",
+	}
+
+	// Gate evaluator: review rejects first time with OutputVar/OutputData
+	reviewCallCount := 0
+	mockEval := &configGateEvaluator{
+		decisionFn: func(g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error) {
+			if opts != nil && opts.Phase == "review" {
+				reviewCallCount++
+				if reviewCallCount == 1 {
+					return &gate.Decision{
+						Approved: false,
+						Reason:   "needs fixes",
+						OutputVar: "GATE_REVIEW",
+						OutputData: map[string]any{
+							"verdict":  "needs_fix",
+							"findings": []string{"error handling incomplete", "missing unit tests"},
+						},
+					}, nil
+				}
+			}
+			return &gate.Decision{Approved: true, Reason: "approved"}, nil
+		},
+	}
+
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), &config.Config{}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(mockEval),
+		WithWorkflowTurnExecutor(mockTE),
+	)
+
+	_, err := we.Run(context.Background(), "retry-gate-output-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+	if err != nil {
+		t.Fatalf("workflow run failed: %v", err)
+	}
+
+	// Find the retried implement prompt (4th prompt, index 3)
+	if len(mockTE.Prompts) < 4 {
+		t.Fatalf("expected at least 4 prompts, got %d", len(mockTE.Prompts))
+	}
+
+	retryImplementPrompt := mockTE.Prompts[3]
+
+	// SC-6: The retried implement prompt should contain the gate output data.
+	// Before fix: GATE_REVIEW is lost during ResolveAll → empty string in template.
+	// After fix: GATE_REVIEW persists in rctx.PhaseOutputVars → rendered in template.
+	if !strings.Contains(retryImplementPrompt, "needs_fix") {
+		t.Errorf("SC-6: retried implement prompt should contain gate output (\"needs_fix\").\n"+
+			"This fails before fix because gate output variables are lost during retry.\n"+
+			"Got prompt:\n%s", retryImplementPrompt)
+	}
+	if !strings.Contains(retryImplementPrompt, "error handling incomplete") {
+		t.Errorf("SC-6: retried implement prompt should contain gate findings.\n"+
+			"Got prompt:\n%s", retryImplementPrompt)
 	}
 }
