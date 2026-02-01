@@ -390,23 +390,21 @@ When phases fail or output `{"status": "blocked"}`:
 
 ### Review Multi-Round Flow
 
-The review phase supports multiple rounds via `RetryContext`:
+The review phase supports multiple rounds via the loop system:
 
 | Round | Template | Trigger | Detection |
 |-------|----------|---------|-----------|
-| 1 | `review.md` | Initial review | Default (no retry context) |
-| 2+ | `review_round2.md` | After implement retry | `RetryContext.FromPhase == "review"` |
+| 1 | `review.md` | Initial review | `LoopIteration == 0` or `LoopIteration == 1` |
+| 2+ | `review_round2.md` | After implement loop | `LoopIteration > 1` |
 
-**Round Detection:** `loadReviewContextProto()` checks `e.RetryContext.FromPhase` to determine round. When `FromPhase == "review"`, it's round 2+ (we're re-reviewing after fixing issues).
+**Round Detection:** The loop system sets `LoopIteration` in `ResolutionContext`. `GetEffectiveReviewRound()` returns this value (or falls back to `ReviewRound` for backward compatibility).
 
 **Findings Flow:**
-1. Round 1 blocks → `PhaseBlockedError` with full output
-2. Executor stores output in `RetryContext.FailureOutput`
-3. Gate triggers retry from implement phase
-4. On round 2, findings are parsed from `RetryContext.FailureOutput` and formatted via `FormatFindingsForRound2()`
-5. Round 2 uses `review_round2.md` template with `{{REVIEW_FINDINGS}}` populated
-
-**Post-Success Cleanup:** After successful review round 2+, `RetryContext` is cleared to prevent stale context on future runs.
+1. Round 1 blocks → Loop system captures output
+2. `output_transform: format_findings` parses findings via `ParseReviewFindings()` and formats via `FormatFindingsForRound2()`
+3. Loop condition triggers jump back to implement phase
+4. On round 2+, `{{REVIEW_FINDINGS}}` variable is populated from prior phase output
+5. Round 2 uses `review_round2.md` template (iteration-specific template selection)
 
 ## Agent & Model Resolution
 
