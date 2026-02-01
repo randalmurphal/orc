@@ -163,3 +163,11 @@ func (ep *PublishHelper) DecisionRequired(taskID string, data DecisionRequiredDa
 func (ep *PublishHelper) DecisionResolved(taskID string, data DecisionResolvedData) {
 	ep.Publish(NewEvent(EventDecisionResolved, taskID, data))
 }
+
+// PhaseSkipped publishes a phase skipped event.
+func (ep *PublishHelper) PhaseSkipped(taskID, phase string) {
+	ep.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
+		Phase:  phase,
+		Status: "skipped",
+	}))
+}

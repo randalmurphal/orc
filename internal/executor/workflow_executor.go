@@ -548,12 +548,12 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 	for i := 0; i < len(phases); i++ {
 		phase := phases[i]
 
-		// Resume logic: skip phases that are already completed in task state
+		// Resume logic: skip phases that are already terminal (completed or skipped)
 		// This allows resuming a task from where it left off
 		if we.task != nil {
 			if ps, ok := we.task.Execution.Phases[phase.PhaseTemplateID]; ok {
-				if ps.Status == orcv1.PhaseStatus_PHASE_STATUS_COMPLETED {
-					we.logger.Info("skipping completed phase", "phase", phase.PhaseTemplateID)
+				if IsPhaseTerminalForResume(ps.Status) {
+					we.logger.Info("skipping terminal phase", "phase", phase.PhaseTemplateID, "status", ps.Status)
 					// Load content from completed phase for variable chaining
 					// Phase outputs are stored in unified phase_outputs table keyed by run ID
 					if output, err := we.backend.GetPhaseOutput(run.ID, phase.PhaseTemplateID); err == nil && output != nil {
@@ -608,6 +608,42 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		if err != nil {
 			we.failRun(run, t, fmt.Errorf("resolve variables for phase %s: %w", tmpl.ID, err))
 			return result, err
+		}
+
+		// Evaluate phase condition — skip phase if condition evaluates to false
+		if phase.Condition != "" {
+			condCtx := &ConditionContext{
+				Task: t,
+				Vars: vars,
+				RCtx: rctx,
+			}
+			condResult, condErr := EvaluateCondition(phase.Condition, condCtx)
+			if condErr != nil {
+				we.failRun(run, t, fmt.Errorf("evaluate condition for phase %s: %w", phase.PhaseTemplateID, condErr))
+				return result, condErr
+			}
+			if !condResult {
+				if t != nil {
+					if err := we.SkipPhaseForCondition(t, run, runPhase, phase); err != nil {
+						we.failRun(run, t, fmt.Errorf("skip phase %s: %w", phase.PhaseTemplateID, err))
+						return result, err
+					}
+				} else {
+					// Non-task context: just mark run phase as skipped
+					now := time.Now()
+					runPhase.Status = orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String()
+					runPhase.CompletedAt = &now
+					if err := we.backend.SaveWorkflowRunPhase(runPhase); err != nil {
+						return result, fmt.Errorf("save skipped run phase %s: %w", phase.PhaseTemplateID, err)
+					}
+					we.logger.Info("phase skipped by condition (no task)", "phase", phase.PhaseTemplateID)
+				}
+				result.PhaseResults = append(result.PhaseResults, PhaseResult{
+					PhaseID: phase.PhaseTemplateID,
+					Status:  orcv1.PhaseStatus_PHASE_STATUS_SKIPPED.String(),
+				})
+				continue
+			}
 		}
 
 		// Evaluate before-phase triggers (gate/reaction)
