@@ -244,8 +244,33 @@ Spec phases include a quality checklist that must pass before implementation:
 | `p1_stories_independent` | P1 stories can ship alone |
 | `scope_explicit` | In/out scope listed |
 | `max_3_clarifications` | ≤3 clarifications, rest are assumptions |
+| `initiative_aligned` | All initiative vision requirements captured in SC |
+| `complexity_within_weight` | Scope fits weight classification (see Complexity Assessment) |
 
 Failed checklist triggers retry with feedback.
+
+## Complexity Assessment
+
+Spec phases (`spec.md`, `tiny_spec.md`) include mandatory complexity assessment to catch under-weighted tasks early:
+
+| Metric | Description |
+|--------|-------------|
+| `files_to_modify` | Distinct files needing changes |
+| `modules_affected` | Top-level packages/directories touched |
+| `integration_points` | Places where new code connects to existing paths |
+| `data_model_changes` | True if adding/modifying schema, protos, or domain types |
+| `cross_cutting_concerns` | True if changes span multiple layers (UI + API + storage) |
+
+**Thresholds by weight:**
+
+| Weight | Max Files | Max Modules | Max Integration | Data Model | Cross-cutting |
+|--------|-----------|-------------|-----------------|------------|---------------|
+| trivial | 1 | 1 | 0 | No | No |
+| small | 3 | 2 | 1 | No | No |
+| medium | 7 | 3 | 3 | Limited | Limited |
+| large | 15 | 5 | 5 | Yes | Yes |
+
+When complexity exceeds weight, spec outputs `{"status": "blocked"}` with guidance to split the task or re-run with higher weight.
 
 ## No-Op Prevention
 

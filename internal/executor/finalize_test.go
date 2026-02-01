@@ -530,6 +530,76 @@ func TestBuildTestFixPrompt(t *testing.T) {
 	}
 }
 
+func TestBuildTestFixPromptWithAttempt_FirstAttempt(t *testing.T) {
+	t.Parallel()
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	testResult := &ParsedTestResult{
+		Failed: 2,
+		Failures: []TestFailure{
+			{Test: "TestFoo", File: "foo_test.go", Line: 42, Message: "assertion failed"},
+		},
+	}
+
+	prompt := buildTestFixPromptWithAttempt(tsk, testResult, 1, 3)
+
+	// First attempt should NOT have retry context
+	if strings.Contains(prompt, "Retry Context") {
+		t.Error("first attempt should not have retry context section")
+	}
+	if strings.Contains(prompt, "Previous fix attempts") {
+		t.Error("first attempt should not mention previous attempts")
+	}
+	// Should still have basic content
+	if !strings.Contains(prompt, "TASK-001") {
+		t.Error("prompt should contain task ID")
+	}
+	if !strings.Contains(prompt, "2 failing tests") {
+		t.Error("prompt should show failure count")
+	}
+}
+
+func TestBuildTestFixPromptWithAttempt_RetryAttempt(t *testing.T) {
+	t.Parallel()
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	testResult := &ParsedTestResult{
+		Failed: 1,
+		Failures: []TestFailure{
+			{Test: "TestFoo", Message: "still failing"},
+		},
+	}
+
+	prompt := buildTestFixPromptWithAttempt(tsk, testResult, 2, 3)
+
+	// Retry attempt SHOULD have retry context
+	if !strings.Contains(prompt, "Retry Context") {
+		t.Error("retry attempt should have retry context section")
+	}
+	if !strings.Contains(prompt, "Attempt 2 of 3") {
+		t.Error("prompt should show attempt number")
+	}
+	if !strings.Contains(prompt, "Try a different approach") {
+		t.Error("prompt should suggest different approach")
+	}
+}
+
+func TestBuildTestFixPromptWithAttempt_LastAttempt(t *testing.T) {
+	t.Parallel()
+	tsk := task.NewProtoTask("TASK-001", "Test task")
+	testResult := &ParsedTestResult{
+		Failed: 1,
+		Failures: []TestFailure{
+			{Test: "TestFoo", Message: "persistent failure"},
+		},
+	}
+
+	prompt := buildTestFixPromptWithAttempt(tsk, testResult, 3, 3)
+
+	// Last attempt should show 3 of 3
+	if !strings.Contains(prompt, "Attempt 3 of 3") {
+		t.Error("prompt should show this is the last attempt")
+	}
+}
+
 func TestBuildFinalizeReport(t *testing.T) {
 	t.Parallel()
 	result := &FinalizeResult{

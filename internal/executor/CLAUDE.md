@@ -29,7 +29,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
-| `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
+| `finalize.go` | Branch sync, test fixing with retry (see `docs/architecture/FINALIZE.md`) |
+| `conflict_resolver.go` | Automatic merge conflict resolution via Claude sub-agent |
 | `ci_merge.go` | CI polling, auto-merge with retry logic, commit templates, SHA verification |
 | `cost_tracking.go` | `RecordCostEntry()` - global cost recording to `~/.orc/orc.db` |
 | `resource_tracker.go` | `RunResourceAnalysis()` - orphan process detection |
@@ -115,6 +116,36 @@ createPR()
 - `FindPRByBranch` failure is best-effort (doesn't block PR creation)
 - `UpdatePR` failure on reuse logs warning but saves PR info (PR exists, just stale metadata)
 - PR info persisted to task via `task.SetPRInfoProto()` + `backend.SaveTask()`
+
+### Automatic Conflict Resolution (`conflict_resolver.go`)
+
+When sync with target branch detects merge conflicts and `sync.auto_resolve: true`:
+
+```
+runCompletion()
+├── RebaseWithConflictCheck()    → detect conflicts
+├── if conflicts && AutoResolve:
+│   └── attemptConflictResolution()
+│       └── ConflictResolver.Resolve()
+│           ├── buildPrompt()        → create resolution prompt with task context
+│           ├── TurnExecutor         → spawn Claude sub-agent (configurable model)
+│           ├── verify resolution    → git diff --name-only --diff-filter=U
+│           └── retry if needed      → up to MaxResolveAttempts
+└── if resolved: continue to PR
+```
+
+**Config** (`sync:` in `.orc/config.yaml`):
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| `auto_resolve` | `false` | Enable automatic conflict resolution |
+| `max_resolve_attempts` | `2` | Retry limit before manual intervention |
+| `resolve_model` | `"sonnet"` | Claude model for resolution |
+
+**Key behaviors:**
+- Resolution uses task context (ID, title, description) to inform decisions
+- After resolution, verifies no unmerged files remain via `git diff --diff-filter=U`
+- On failure, task continues with conflicts for manual resolution or retry from implement
 
 ### PR Options (task overrides)
 
