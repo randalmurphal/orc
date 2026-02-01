@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -365,6 +366,12 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	result, err := finalizeExec.Execute(ctx, t, finalizePhase, t.Execution)
 	if err != nil {
 		task.FailPhaseProto(t.Execution, "finalize", err)
+		// Preserve error context for resume - allows the next run to understand what failed
+		task.SetRetryContextProto(t.Execution, "finalize", "finalize",
+			err.Error(),
+			buildFinalizeRetryContext(err),
+			1,
+		)
 		_ = backend.SaveTask(t)
 		s.finalizeFailed(taskID, finState, err)
 		return
@@ -489,4 +496,29 @@ func (s *Server) publishFinalizeEvent(taskID string, finState *FinalizeState) {
 
 	event := events.NewEvent(EventFinalize, taskID, data)
 	s.publisher.Publish(event)
+}
+
+// buildFinalizeRetryContext creates a context string from finalize errors.
+// This context is stored in RetryContext.FailureOutput to help diagnose issues on resume.
+func buildFinalizeRetryContext(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	errStr := err.Error()
+	errLower := strings.ToLower(errStr)
+
+	// Categorize the error to provide actionable guidance
+	switch {
+	case strings.Contains(errLower, "conflict"):
+		return fmt.Sprintf("Finalize failed due to merge conflicts: %s\n\nOn resume, the finalize process will attempt to resolve conflicts again. If conflicts persist, manual resolution may be required.", errStr)
+	case strings.Contains(errLower, "test"):
+		return fmt.Sprintf("Finalize failed due to test failures: %s\n\nOn resume, consider fixing the underlying test issues or reviewing the test changes.", errStr)
+	case strings.Contains(errLower, "rebase"):
+		return fmt.Sprintf("Finalize failed during rebase: %s\n\nOn resume, the rebase will be retried. If issues persist, consider using merge strategy instead.", errStr)
+	case strings.Contains(errLower, "git"):
+		return fmt.Sprintf("Finalize failed due to git operation: %s\n\nOn resume, ensure the worktree state is clean and the branch is accessible.", errStr)
+	default:
+		return fmt.Sprintf("Finalize failed: %s", errStr)
+	}
 }

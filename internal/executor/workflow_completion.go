@@ -79,7 +79,25 @@ func (we *WorkflowExecutor) runCompletion(ctx context.Context, t *orcv1.Task) er
 				we.logger.Warn("sync encountered conflicts",
 					"task", t.Id,
 					"conflict_files", result.ConflictFiles)
-				if we.orcConfig.Completion.Sync.FailOnConflict {
+
+				syncCfg := we.orcConfig.Completion.Sync
+
+				// Try automatic conflict resolution if enabled
+				if syncCfg.AutoResolve {
+					resolveResult, resolveErr := we.attemptConflictResolution(ctx, t, result.ConflictFiles, syncCfg)
+					if resolveErr == nil && resolveResult.Resolved {
+						we.logger.Info("conflicts auto-resolved",
+							"task", t.Id,
+							"files_resolved", len(resolveResult.ResolvedFiles))
+						// Continue to PR creation
+					} else {
+						we.logger.Warn("auto-resolve failed, checking fail_on_conflict",
+							"error", resolveErr)
+						if syncCfg.FailOnConflict {
+							return fmt.Errorf("%w: auto-resolve failed: %v", ErrSyncConflict, resolveErr)
+						}
+					}
+				} else if syncCfg.FailOnConflict {
 					return fmt.Errorf("%w: %d conflict files", ErrSyncConflict, len(result.ConflictFiles))
 				}
 			} else {
@@ -611,4 +629,44 @@ func (we *WorkflowExecutor) autoCommitBeforeCompletion(gitOps *git.Git, t *orcv1
 
 	we.logger.Info("auto-committed changes", "task", t.Id)
 	return nil
+}
+
+// attemptConflictResolution uses Claude to resolve merge conflicts during completion sync.
+func (we *WorkflowExecutor) attemptConflictResolution(
+	ctx context.Context,
+	t *orcv1.Task,
+	conflictFiles []string,
+	cfg config.SyncConfig,
+) (*ConflictResolutionResult, error) {
+	// Get effective git operations (worktree or main)
+	gitOps := we.gitOps
+	if we.worktreeGit != nil {
+		gitOps = we.worktreeGit
+	}
+
+	claudePath := ResolveClaudePath("claude")
+
+	resolver := NewConflictResolver(
+		WithConflictGitOps(gitOps),
+		WithConflictClaudePath(claudePath),
+		WithConflictWorkingDir(we.effectiveWorkingDir()),
+		WithConflictBackend(we.backend),
+		WithConflictLogger(we.logger),
+	)
+
+	result, err := resolver.Resolve(ctx, t, conflictFiles, cfg)
+	if err != nil {
+		return result, err
+	}
+
+	if result.Resolved {
+		// Stage resolved files and continue rebase
+		if stageErr := resolver.StageAndContinueRebase(ctx, result.ResolvedFiles); stageErr != nil {
+			we.logger.Warn("failed to continue rebase after resolution",
+				"error", stageErr)
+			// Don't fail - the files might be resolved but rebase state is complex
+		}
+	}
+
+	return result, nil
 }

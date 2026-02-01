@@ -487,7 +487,10 @@ func (e *FinalizeExecutor) syncViaMerge(
 		// If all conflicts were auto-resolved, we're done
 		if len(remaining) == 0 {
 			// Verify no unmerged files remain
-			unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+			unmerged, gitErr := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+			if gitErr != nil {
+				return result, fmt.Errorf("check unmerged files: %w", gitErr)
+			}
 			if strings.TrimSpace(unmerged) == "" {
 				// Commit the merge
 				_, commitErr := e.gitSvc.Context().RunGit("commit", "--no-edit")
@@ -611,14 +614,19 @@ func (e *FinalizeExecutor) resolveConflicts(
 	}
 
 	// Verify no unmerged files remain (Claude should have resolved them)
-	unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+	unmerged, gitErr := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+	if gitErr != nil {
+		return false, fmt.Errorf("check unmerged files: %w", gitErr)
+	}
 	if strings.TrimSpace(unmerged) == "" {
 		// All conflicts resolved, commit the merge
 		_, commitErr := e.gitSvc.Context().RunGit("commit", "--no-edit")
 		return commitErr == nil, commitErr
 	}
 
-	return false, fmt.Errorf("conflict resolution incomplete: unmerged files remain")
+	// List remaining unmerged files for debugging
+	remainingFiles := strings.Split(strings.TrimSpace(unmerged), "\n")
+	return false, fmt.Errorf("conflict resolution incomplete: %d files still unmerged: %v", len(remainingFiles), remainingFiles)
 }
 
 // resolveRebaseConflicts resolves conflicts during rebase.
@@ -633,9 +641,13 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 	// For rebase, we need to handle conflicts commit by commit
 	maxAttempts := 10 // Maximum rebase continue attempts
 
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for attempt := range maxAttempts {
 		// Check for conflicts
-		unmerged, _ := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+		unmerged, gitErr := e.gitSvc.Context().RunGit("diff", "--name-only", "--diff-filter=U")
+		if gitErr != nil {
+			_ = e.gitSvc.AbortRebase()
+			return false, fmt.Errorf("check unmerged files at attempt %d: %w", attempt, gitErr)
+		}
 		unmergedFiles := strings.Split(strings.TrimSpace(unmerged), "\n")
 		if len(unmergedFiles) == 0 || (len(unmergedFiles) == 1 && unmergedFiles[0] == "") {
 			// No more conflicts, continue rebase
@@ -675,7 +687,9 @@ func (e *FinalizeExecutor) resolveRebaseConflicts(
 
 		// Stage all resolved files and continue
 		for _, f := range unmergedFiles {
-			_, _ = e.gitSvc.Context().RunGit("add", f)
+			if _, stageErr := e.gitSvc.Context().RunGit("add", f); stageErr != nil {
+				e.logger.Warn("failed to stage resolved file", "file", f, "error", stageErr)
+			}
 		}
 
 		_, continueErr := e.gitSvc.Context().RunGit("rebase", "--continue")
@@ -735,16 +749,17 @@ func (e *FinalizeExecutor) runTests(ctx context.Context, t *orcv1.Task, cfg conf
 	return result, nil
 }
 
-// tryFixTests attempts to fix test failures using Claude.
+// tryFixTests attempts to fix test failures using Claude with retry logic.
+// It will attempt up to 3 fixes, updating the prompt with new test failures each time.
 func (e *FinalizeExecutor) tryFixTests(
 	ctx context.Context,
 	t *orcv1.Task,
 	p *PhaseDisplay,
-	exec *orcv1.ExecutionState,
+	_ *orcv1.ExecutionState, // exec - reserved for future use
 	testResult *ParsedTestResult,
 ) (bool, error) {
-	// Build fix prompt
-	prompt := buildTestFixPrompt(t, testResult)
+	const maxFixAttempts = 3
+	cfg := e.getFinalizeConfig()
 
 	// Use config default model (finalize doesn't have a phase template)
 	model := e.config.Model
@@ -752,42 +767,78 @@ func (e *FinalizeExecutor) tryFixTests(
 		model = "opus"
 	}
 
-	// Use injected turnExecutor if available, otherwise create ClaudeExecutor
-	// Transcript storage is handled internally by ClaudeExecutor when backend is provided
-	var turnExec TurnExecutor
-	sessionID := fmt.Sprintf("%s-test-fix", t.Id)
-	if e.turnExecutor != nil {
-		turnExec = e.turnExecutor
-	} else {
-		claudeOpts := []ClaudeExecutorOption{
-			WithClaudePath(e.claudePath),
-			WithClaudeWorkdir(e.workingDir),
-			WithClaudeModel(model),
-			WithClaudeSessionID(sessionID),
-			WithClaudeMaxTurns(5),
-			WithClaudeLogger(e.logger),
-			WithClaudePhaseID(p.ID),
-			// Transcript storage options - handled internally
-			WithClaudeBackend(e.backend),
-			WithClaudeTaskID(t.Id),
+	currentResult := testResult
+
+	for attempt := 1; attempt <= maxFixAttempts; attempt++ {
+		e.logger.Info("attempting to fix tests",
+			"task", t.Id,
+			"attempt", attempt,
+			"max_attempts", maxFixAttempts,
+			"failures", currentResult.Failed,
+		)
+
+		// Build fix prompt with current failures
+		prompt := buildTestFixPromptWithAttempt(t, currentResult, attempt, maxFixAttempts)
+
+		// Use injected turnExecutor if available, otherwise create ClaudeExecutor
+		// Transcript storage is handled internally by ClaudeExecutor when backend is provided
+		var turnExec TurnExecutor
+		sessionID := fmt.Sprintf("%s-test-fix-%d", t.Id, attempt)
+		if e.turnExecutor != nil {
+			turnExec = e.turnExecutor
+		} else {
+			claudeOpts := []ClaudeExecutorOption{
+				WithClaudePath(e.claudePath),
+				WithClaudeWorkdir(e.workingDir),
+				WithClaudeModel(model),
+				WithClaudeSessionID(sessionID),
+				WithClaudeMaxTurns(10), // Increased for complex fixes
+				WithClaudeLogger(e.logger),
+				WithClaudePhaseID(p.ID),
+				// Transcript storage options - handled internally
+				WithClaudeBackend(e.backend),
+				WithClaudeTaskID(t.Id),
+			}
+			turnExec = NewClaudeExecutor(claudeOpts...)
 		}
-		turnExec = NewClaudeExecutor(claudeOpts...)
+
+		// Execute test fix (without JSON schema - freeform response)
+		_, err := turnExec.ExecuteTurn(ctx, prompt)
+		if err != nil {
+			e.logger.Warn("test fix turn failed",
+				"attempt", attempt,
+				"error", err,
+			)
+			// Continue to next attempt if not last
+			if attempt < maxFixAttempts {
+				continue
+			}
+			return false, fmt.Errorf("test fix turn failed after %d attempts: %w", attempt, err)
+		}
+
+		// Re-run tests to verify fix
+		newResult, testErr := e.runTests(ctx, t, cfg)
+		if testErr == nil && newResult.Failed == 0 {
+			e.logger.Info("tests fixed successfully",
+				"attempt", attempt,
+				"passed", newResult.Passed,
+			)
+			return true, nil
+		}
+
+		// Tests still failing - prepare for next attempt
+		if newResult != nil {
+			e.logger.Warn("tests still failing after fix attempt",
+				"attempt", attempt,
+				"previous_failures", currentResult.Failed,
+				"current_failures", newResult.Failed,
+			)
+			currentResult = newResult
+		}
 	}
 
-	// Execute test fix (without JSON schema - freeform response)
-	_, err := turnExec.ExecuteTurn(ctx, prompt)
-	if err != nil {
-		return false, fmt.Errorf("test fix turn: %w", err)
-	}
-
-	// Re-run tests to verify fix
-	cfg := e.getFinalizeConfig()
-	newResult, testErr := e.runTests(ctx, t, cfg)
-	if testErr != nil || newResult.Failed > 0 {
-		return false, fmt.Errorf("tests still failing after fix: %d failures", newResult.Failed)
-	}
-
-	return true, nil
+	// All attempts exhausted
+	return false, fmt.Errorf("tests still failing after %d fix attempts: %d failures remain", maxFixAttempts, currentResult.Failed)
 }
 
 // assessRisk performs risk assessment for the changes.
@@ -975,6 +1026,60 @@ func buildTestFixPrompt(t *orcv1.Task, testResult *ParsedTestResult) string {
 	sb.WriteString("\n\n")
 
 	sb.WriteString("## Test Failures\n\n")
+	for i, f := range testResult.Failures {
+		if i >= 5 {
+			sb.WriteString(fmt.Sprintf("... and %d more failures\n", len(testResult.Failures)-5))
+			break
+		}
+		sb.WriteString(fmt.Sprintf("### %s\n", f.Test))
+		if f.File != "" {
+			sb.WriteString(fmt.Sprintf("**File**: `%s:%d`\n", f.File, f.Line))
+		}
+		if f.Message != "" {
+			sb.WriteString(fmt.Sprintf("**Error**: %s\n", f.Message))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("## Instructions\n\n")
+	sb.WriteString("1. Analyze each failing test\n")
+	sb.WriteString("2. Fix the code or test as appropriate\n")
+	sb.WriteString("3. The fix should preserve all intended functionality\n")
+	sb.WriteString("4. Do NOT remove tests to fix failures\n")
+	sb.WriteString("5. When done, output ONLY this JSON:\n")
+	sb.WriteString(`{"status": "complete", "summary": "Fixed X test failures"}`)
+	sb.WriteString("\n\nIf you cannot fix the tests, output ONLY this JSON:\n")
+	sb.WriteString(`{"status": "blocked", "reason": "[explanation]"}`)
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+// buildTestFixPromptWithAttempt creates the prompt for fixing test failures with retry context.
+// On retry attempts, it includes information about previous attempts to guide the fix strategy.
+func buildTestFixPromptWithAttempt(t *orcv1.Task, testResult *ParsedTestResult, attempt, maxAttempts int) string {
+	var sb strings.Builder
+
+	sb.WriteString("# Test Failure Fix Task\n\n")
+	sb.WriteString("You are fixing test failures for task: ")
+	sb.WriteString(t.Id)
+	sb.WriteString(" - ")
+	sb.WriteString(t.Title)
+	sb.WriteString("\n\n")
+
+	// Add retry context for attempts 2+
+	if attempt > 1 {
+		sb.WriteString("## Retry Context\n\n")
+		sb.WriteString(fmt.Sprintf("**Attempt %d of %d** - Previous fix attempts did not resolve all failures.\n", attempt, maxAttempts))
+		sb.WriteString("Try a different approach. Consider:\n")
+		sb.WriteString("- The test expectations may need adjustment (not the test removal)\n")
+		sb.WriteString("- A different implementation approach may be needed\n")
+		sb.WriteString("- There may be side effects from previous fixes causing new failures\n")
+		sb.WriteString("- Check for race conditions or timing issues\n\n")
+	}
+
+	sb.WriteString("## Test Failures\n\n")
+	sb.WriteString(fmt.Sprintf("**%d failing tests** (showing up to 5):\n\n", testResult.Failed))
 	for i, f := range testResult.Failures {
 		if i >= 5 {
 			sb.WriteString(fmt.Sprintf("... and %d more failures\n", len(testResult.Failures)-5))

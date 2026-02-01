@@ -199,6 +199,15 @@ type SyncConfig struct {
 
 	// SkipForWeights skips sync for these task weights
 	SkipForWeights []string `yaml:"skip_for_weights,omitempty"`
+
+	// AutoResolve enables automatic conflict resolution via Claude (default: false)
+	AutoResolve bool `yaml:"auto_resolve"`
+
+	// MaxResolveAttempts is the max attempts to resolve conflicts (default: 2)
+	MaxResolveAttempts int `yaml:"max_resolve_attempts"`
+
+	// ResolveModel is the Claude model to use for conflict resolution (default: sonnet)
+	ResolveModel string `yaml:"resolve_model"`
 }
 
 // FinalizeSyncStrategy defines how to integrate target branch changes.

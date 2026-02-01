@@ -13,19 +13,47 @@
     {"id": "no_existence_only_criteria", "check": "SC verifies behavior, not just existence", "passed": true},
     {"id": "p1_stories_independent", "check": "P1 stories can ship alone", "passed": true},
     {"id": "scope_explicit", "check": "In/out scope clearly listed", "passed": true},
-    {"id": "max_3_clarifications", "check": "≤3 clarifications, rest are assumptions", "passed": true}
+    {"id": "max_3_clarifications", "check": "≤3 clarifications, rest are assumptions", "passed": true},
+    {"id": "initiative_aligned", "check": "All initiative vision requirements captured in SC", "passed": true},
+    {"id": "complexity_within_weight", "check": "Scope fits weight classification", "passed": true}
   ],
+  "complexity_assessment": {
+    "files_to_modify": 5,
+    "modules_affected": ["module1", "module2"],
+    "integration_points": 2,
+    "data_model_changes": false,
+    "cross_cutting_concerns": false,
+    "exceeds_weight": false,
+    "weight_recommendation": "medium"
+  },
   "assumptions": [
     {"area": "scope", "assumption": "[what was assumed]", "rationale": "[why this is reasonable]"}
   ]
 }
 ```
 
-If blocked (requirements genuinely unclear - max 3 items):
+If blocked due to unclear requirements (max 3 items):
 ```json
 {
   "status": "blocked",
   "reason": "[what's unclear and what clarification is needed]"
+}
+```
+
+If blocked due to complexity exceeding weight (task too large):
+```json
+{
+  "status": "blocked",
+  "reason": "Task scope exceeds {{WEIGHT}} weight classification. Found: 8 files, 4 modules, data model + wiring pattern. Recommend: split into 2+ tasks or re-run with --weight large.",
+  "complexity_assessment": {
+    "files_to_modify": 8,
+    "modules_affected": ["task", "executor", "api", "storage"],
+    "integration_points": 4,
+    "data_model_changes": true,
+    "cross_cutting_concerns": true,
+    "exceeds_weight": true,
+    "weight_recommendation": "large"
+  }
 }
 ```
 
@@ -133,6 +161,44 @@ Self-evaluate before completing. **Implement phase blocked until all pass.**
 | scope_explicit | In/out scope clearly listed |
 | max_3_clarifications | ≤3 clarifications, rest are assumptions |
 | initiative_aligned | All initiative vision requirements captured in SC |
+| complexity_within_weight | Scope fits weight classification (see Complexity Thresholds below) |
+
+## Complexity Assessment
+
+**CRITICAL: You MUST assess task complexity and block if it exceeds the weight classification.**
+
+After analyzing requirements, count the following to fill out `complexity_assessment`:
+
+| Metric | How to Count |
+|--------|--------------|
+| `files_to_modify` | Distinct files that need changes (read→edit→write cycle) |
+| `modules_affected` | Top-level packages/directories touched |
+| `integration_points` | Places where new code connects to existing code paths |
+| `data_model_changes` | True if adding/modifying database schema, proto definitions, or core domain types |
+| `cross_cutting_concerns` | True if changes span multiple layers (UI + API + storage) or require coordinated updates |
+
+### Complexity Thresholds by Weight
+
+| Weight | Max Files | Max Modules | Max Integration Points | Data Model | Cross-cutting |
+|--------|-----------|-------------|------------------------|------------|---------------|
+| trivial | 1 | 1 | 0 | ❌ | ❌ |
+| small | 3 | 2 | 1 | ❌ | ❌ |
+| medium | 7 | 3 | 3 | Limited | Limited |
+| large | 15 | 5 | 5 | ✅ | ✅ |
+
+### Red Flags (Always Block)
+
+If you see these patterns, the task is likely under-weighted:
+
+1. **Data Model + Wiring Pattern**: Adding a new field/type AND wiring it through executor/API
+2. **Multi-layer Cascade**: Changes that require UI + API + storage updates in a single task
+3. **Protocol Buffer Changes**: Adding proto fields that need Go regeneration + handler updates
+4. **Review Catch Pattern**: Tasks that previously failed review 3+ times for "dead code" or "unwired"
+
+**Action when exceeds weight:**
+- Output `"status": "blocked"` with complexity details
+- Explain what's needed: "split into N tasks" or "re-run with --weight larger"
+- Do NOT proceed with a spec that will fail implementation
 
 **Top failure mode:** The most common failure is success criteria that verify existence ("file exists") instead of behavior ("file does X when given Y"). Every success criterion MUST describe observable behavior with a concrete expected result.
 

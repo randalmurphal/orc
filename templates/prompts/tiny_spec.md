@@ -30,8 +30,17 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
     {"id": "p1_stories_independent", "check": "Task can be completed independently", "passed": true},
     {"id": "scope_explicit", "check": "What's in/out of scope is clear", "passed": true},
     {"id": "max_3_clarifications", "check": "No blocking questions remain", "passed": true},
-    {"id": "initiative_aligned", "check": "All initiative vision requirements captured", "passed": true}
-  ]
+    {"id": "initiative_aligned", "check": "All initiative vision requirements captured", "passed": true},
+    {"id": "complexity_within_weight", "check": "Scope fits small weight (≤3 files, ≤2 modules)", "passed": true}
+  ],
+  "complexity_assessment": {
+    "files_to_modify": 2,
+    "modules_affected": ["module1"],
+    "integration_points": 0,
+    "data_model_changes": false,
+    "cross_cutting_concerns": false,
+    "exceeds_weight": false
+  }
 }
 ```
 
@@ -39,7 +48,7 @@ Output a JSON object with the spec, test information, **explicit coverage mappin
 - `tests[].covers` - Array of SC-X IDs this test covers
 - `coverage.covered` - All criteria with automated tests
 - `coverage.manual_verification` - Criteria that can't be automated (with justification)
-- `quality_checklist` - All 5 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
+- `quality_checklist` - All 7 checks evaluated. Set `passed: false` for any that don't apply or aren't met.
 
 **Validation:** All SC-X from your Success Criteria table must appear in either `covered` or `manual_verification`.
 
@@ -59,6 +68,25 @@ The most common failure is success criteria that verify existence ('file exists'
 - Each must have executable verification
 - Focus on user-visible behavior, not implementation details
 - If task belongs to initiative: criteria MUST cover all relevant vision requirements
+
+**Complexity Check (small weight):**
+
+Before completing, verify the task fits the small weight classification:
+
+| Threshold | Limit | If Exceeded |
+|-----------|-------|-------------|
+| Files to modify | ≤ 3 | Task is medium or larger |
+| Modules touched | ≤ 2 | Task is medium or larger |
+| Integration points | ≤ 1 | Task needs careful wiring |
+| Data model changes | None | Task should be medium+ |
+| Cross-cutting concerns | None | Task should be medium+ |
+
+**If the task exceeds these limits**, output `"status": "blocked"` with reason explaining why it's under-weighted and recommend re-running with appropriate weight.
+
+**Red flags that always block small tasks:**
+- Adding new proto fields or database columns
+- Changes spanning both frontend and backend
+- New code that needs wiring to multiple existing code paths
 </critical_constraints>
 
 <pre_output_verification>
@@ -167,7 +195,6 @@ The implement phase will execute this via Playwright MCP tools.
 </ui_testing>
 {{/if}}
 
-{{#if NOT_HAS_FRONTEND}}
 <unit_testing>
 Write unit/integration tests that:
 - Test the success criteria directly
@@ -179,7 +206,6 @@ Look for existing test files to match the pattern:
 - TypeScript: `*.test.ts` or `*.spec.ts` files
 - Python: `test_*.py` files
 </unit_testing>
-{{/if}}
 
 ## Step 3: Verify Tests Fail
 
