@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
@@ -15,67 +14,6 @@ const (
 	// DefaultMaxRetries is the default maximum number of retries per phase
 	DefaultMaxRetries = 5
 )
-
-// LoadRetryContextFromExecutionProto loads retry context from proto ExecutionState.
-func LoadRetryContextFromExecutionProto(e *orcv1.ExecutionState) string {
-	if e == nil || e.RetryContext == nil {
-		return ""
-	}
-
-	rc := e.RetryContext
-	failureOutput := ""
-	if rc.FailureOutput != nil {
-		failureOutput = *rc.FailureOutput
-	}
-	contextFile := ""
-	if rc.ContextFile != nil {
-		contextFile = *rc.ContextFile
-	}
-
-	return BuildRetryContext(rc.FromPhase, rc.Reason, failureOutput, int(rc.Attempt), contextFile)
-}
-
-// BuildRetryContext constructs the retry context string for prompt injection.
-// This is injected into prompts via the {{RETRY_CONTEXT}} template variable.
-func BuildRetryContext(fromPhase, reason, failureOutput string, attempt int, contextFile string) string {
-	context := fmt.Sprintf(`## Retry Context
-
-This phase is being re-executed due to a failure in a later phase.
-
-**What happened:**
-- Phase "%s" failed/was rejected
-- Reason: %s
-- This is retry attempt #%d
-
-**What to fix:**
-Please address the issues that caused the later phase to fail. The failure output is below:
-
----
-%s
----
-
-Focus on fixing the root cause of these issues in this phase.
-`, fromPhase, reason, attempt, failureOutput)
-
-	// If there's a context file with more details, reference it
-	if contextFile != "" {
-		context += fmt.Sprintf("\nDetailed context saved to: %s\n", contextFile)
-	}
-
-	return context
-}
-
-// BuildRetryContextWithGateAnalysis constructs retry context with an optional gate analysis section.
-// When gateContext is non-empty, a "Gate Analysis" section is appended after the standard retry info.
-// When gateContext is empty, the output is identical to BuildRetryContext.
-func BuildRetryContextWithGateAnalysis(fromPhase, reason, failureOutput string, attempt int, contextFile string, gateContext string) string {
-	base := BuildRetryContext(fromPhase, reason, failureOutput, attempt, contextFile)
-	if gateContext == "" {
-		return base
-	}
-
-	return base + fmt.Sprintf("\n## Gate Analysis\n\n%s\n", gateContext)
-}
 
 // RetryOptions configures retry behavior for fresh session retries.
 type RetryOptions struct {

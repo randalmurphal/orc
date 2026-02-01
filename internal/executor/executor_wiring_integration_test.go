@@ -7,7 +7,6 @@
 // - handleCompletionWithTriggers before PR creation (SC-3)
 // - fireLifecycleTriggers on failure paths (SC-4)
 // - applyGateOutputToVars after gate evaluation (SC-5)
-// - BuildRetryContextWithGateAnalysis for retry context (SC-6)
 // - ScriptHandler when GateOutputConfig.Script is set (SC-7)
 package executor
 
@@ -18,7 +17,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
@@ -850,60 +848,6 @@ func TestGateOutputApplied_OnRejection(t *testing.T) {
 	vulns, ok := parsed["vulnerabilities"].([]any)
 	if !ok || len(vulns) != 2 {
 		t.Errorf("vulnerabilities = %v, want [XSS, CSRF]", parsed["vulnerabilities"])
-	}
-}
-
-// =============================================================================
-// SC-6: BuildRetryContextWithGateAnalysis used for retry context
-// =============================================================================
-
-// TestBuildRetryContextWithGateAnalysis_IncludesGateContext verifies that when
-// gate context is available, retry context includes a "Gate Analysis" section.
-func TestBuildRetryContextWithGateAnalysis_IncludesGateContext(t *testing.T) {
-	t.Parallel()
-
-	gateContext := "Found 3 XSS vulnerabilities in auth module"
-
-	retryCtx := BuildRetryContextWithGateAnalysis(
-		"review", "security gate rejected", "review output", 1, "", gateContext,
-	)
-
-	// Must include Gate Analysis section
-	if !strings.Contains(retryCtx, "## Gate Analysis") {
-		t.Error("retry context missing '## Gate Analysis' section")
-	}
-	if !strings.Contains(retryCtx, gateContext) {
-		t.Error("retry context missing gate analysis content")
-	}
-
-	// Must still include standard retry info
-	if !strings.Contains(retryCtx, "## Retry Context") {
-		t.Error("retry context missing standard header")
-	}
-	if !strings.Contains(retryCtx, "review") {
-		t.Error("retry context missing phase name")
-	}
-	if !strings.Contains(retryCtx, "security gate rejected") {
-		t.Error("retry context missing rejection reason")
-	}
-}
-
-// TestBuildRetryContextWithGateAnalysis_EmptyGateContext verifies backward
-// compatibility: empty gate context produces output identical to BuildRetryContext.
-func TestBuildRetryContextWithGateAnalysis_EmptyGateContext(t *testing.T) {
-	t.Parallel()
-
-	withGate := BuildRetryContextWithGateAnalysis(
-		"review", "rejected", "output", 1, "", "",
-	)
-	standard := BuildRetryContext("review", "rejected", "output", 1, "")
-
-	if withGate != standard {
-		t.Errorf("empty gate context should produce identical output to BuildRetryContext\n"+
-			"got:  %q\nwant: %q", withGate, standard)
-	}
-	if strings.Contains(withGate, "Gate Analysis") {
-		t.Error("empty gate context should not add Gate Analysis section")
 	}
 }
 

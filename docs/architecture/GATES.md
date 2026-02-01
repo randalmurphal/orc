@@ -313,16 +313,9 @@ gate_output_config:
 
 ### Retry Context with Gate Analysis
 
-When a gate rejects and triggers retry, `BuildRetryContextWithGateAnalysis()` appends a gate analysis section to `{{RETRY_CONTEXT}}`:
+When a gate rejects and triggers retry, the structured retry variables (`{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}`) are populated via `SetRetryContextProto()` and `PopulateRetryFields()`. Gate output data is stored as a workflow variable via `applyGateOutputToVars()`.
 
-```
-## Gate Analysis
-[Gate's structured analysis of why the phase was rejected]
-```
-
-This gives the retry phase actionable context about what the gate found, not just a rejection reason.
-
-**Implementation**: `executor/workflow_gates.go:141` (output storage), `executor/retry.go:71` (retry context)
+**Implementation**: `executor/workflow_gates.go:141` (output storage), `executor/retry_populate.go` (structured retry fields)
 
 ---
 
@@ -334,13 +327,7 @@ When a gate rejects or a phase fails, orc can automatically retry from an earlie
 implement → test (FAIL) → implement (retry #1) → test → validate
 ```
 
-The retry phase receives **{{RETRY_CONTEXT}}** in its prompt:
-- What phase failed
-- Why it failed (error message or gate rejection reason)
-- Output from the failed phase
-- Which retry attempt this is
-
-This enables the agent to fix the root cause rather than just re-running blindly.
+The retry phase receives structured retry variables (`{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}`) in its prompt, enabling the agent to fix the root cause rather than just re-running blindly.
 
 ---
 

@@ -307,8 +307,6 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	// Phase context
 	vars["PHASE"] = rctx.Phase
 	vars["ITERATION"] = fmt.Sprintf("%d", rctx.Iteration)
-	vars["RETRY_CONTEXT"] = rctx.RetryContext
-
 	// Structured retry variables (only populated when retry is active)
 	if rctx.RetryAttempt > 0 {
 		vars["RETRY_ATTEMPT"] = fmt.Sprintf("%d", rctx.RetryAttempt)

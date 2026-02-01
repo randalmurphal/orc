@@ -182,9 +182,6 @@ type ResolutionContext struct {
 	// Iteration is the current phase iteration.
 	Iteration int
 
-	// RetryContext contains context from a previous failed attempt.
-	RetryContext string
-
 	// RetryAttempt is the retry attempt number (0 = not a retry).
 	RetryAttempt int
 

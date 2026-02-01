@@ -26,7 +26,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_executor.go` | `TurnExecutor` interface, ClaudeCLI wrapper with `--json-schema` |
 | `phase_response.go` | JSON schemas for phase completion (`GetSchemaForPhaseWithRound()`) |
 | `phase_executor.go` | `PhaseExecutor` interface, weight-based executor config |
-| `retry.go` | Retry context building (`BuildRetryContext`, `BuildRetryContextForFreshSession`, `BuildRetryContextWithGateAnalysis`) |
+| `retry.go` | Retry context building (`BuildRetryContextForFreshSession`, `CompressPreviousContext`, `BuildRetryPreview`) |
 | `review.go` | Review findings parsing, formatting for round 2 (`FormatFindingsForRound2`) |
 | `qa.go` | QA E2E types, parsing (`ParseQAE2ETestResult`, `ParseQAE2EFixResult`) |
 | `finalize.go` | Branch sync, conflict resolution (see `docs/architecture/FINALIZE.md`) |
@@ -151,7 +151,6 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `resolveRejectedAction()` | `gate_actions.go:31` | Maps `OnRejected` config to `GateAction` (empty = legacy behavior) |
 | `resolveRetryFrom()` | `gate_actions.go:44` | Determines retry target: `OutputConfig.RetryFrom` > `tmpl.RetryFromPhase` |
 | `runGateScript()` | `workflow_gates.go:145` | Executes gate output script; script can override gate decision |
-| `BuildRetryContextWithGateAnalysis()` | `retry.go:71` | Extends retry context with gate analysis section |
 | `ApplyPhaseSettings()` | `phase_settings.go:27` | Unified phase settings: reset → load config → hooks + skills + scripts |
 | `CleanupPhaseSettings()` | `phase_settings.go:215` | Removes all phase-specific Claude Code settings |
 | `DescribePhaseSettings()` | `phase_settings.go:225` | Human-readable description for logging/debugging |
@@ -233,7 +232,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Category | Variables |
 |----------|-----------|
 | Task | TASK_ID, TASK_TITLE, TASK_DESCRIPTION, TASK_CATEGORY, WEIGHT |
-| Phase | PHASE, ITERATION, RETRY_CONTEXT, RETRY_ATTEMPT, RETRY_FROM_PHASE, RETRY_REASON |
+| Phase | PHASE, ITERATION, RETRY_ATTEMPT, RETRY_FROM_PHASE, RETRY_REASON |
 | Git | WORKTREE_PATH, PROJECT_ROOT, TASK_BRANCH, TARGET_BRANCH |
 | Initiative | INITIATIVE_ID, INITIATIVE_TITLE, INITIATIVE_VISION, INITIATIVE_DECISIONS |
 | Review | REVIEW_ROUND, REVIEW_FINDINGS |
