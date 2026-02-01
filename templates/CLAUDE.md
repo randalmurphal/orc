@@ -58,7 +58,6 @@ Use it to sync with target branch and resolve conflicts before merge.
 | `{{ERROR_PATTERNS}}` | Language-specific error handling idioms |
 | `{{REQUIRES_UI_TESTING}}`, `{{SCREENSHOT_DIR}}`, `{{TEST_RESULTS}}` | UI testing |
 | `{{REVIEW_ROUND}}`, `{{REVIEW_FINDINGS}}` | Review phase |
-| `{{VERIFICATION_RESULTS}}` | Implement verification |
 | `{{CONSTITUTION_CONTENT}}` | Project principles |
 
 ## Phase Prompts
