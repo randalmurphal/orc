@@ -806,47 +806,6 @@ func resolveSchemaForReviewIteration(iteration int, loopConfigJSON string) strin
 	return resolveSchemaForIteration(cfg, iteration)
 }
 
-// applyOutputTransform applies the configured transform to phase output.
-// For "format_findings" type, formats review findings for next iteration.
-// If cfg is nil, returns the raw source value.
-func applyOutputTransform(cfg *db.OutputTransformConfig, vars variable.VariableSet, rctx *variable.ResolutionContext) (string, error) {
-	if cfg == nil {
-		// No transform configured - return source var raw if available
-		if sourceVal, ok := vars["REVIEW_OUTPUT"]; ok {
-			return sourceVal, nil
-		}
-		return "", nil
-	}
-
-	// Get source value
-	sourceVal := vars[cfg.SourceVar]
-	if sourceVal == "" {
-		return "", nil
-	}
-
-	// Apply transform based on type
-	switch cfg.Type {
-	case "format_findings":
-		// Parse as review findings and format
-		findings, err := ParseReviewFindings(sourceVal)
-		if err != nil {
-			return "", err
-		}
-		return FormatFindingsForRound2(findings), nil
-
-	case "passthrough":
-		return sourceVal, nil
-
-	case "json_extract":
-		// Extract field from JSON using extract_path
-		// Implementation would use gjson or similar
-		return sourceVal, nil
-
-	default:
-		return sourceVal, nil
-	}
-}
-
 // getReviewRoundFromContext returns the review round based on loop iteration.
 // Prefers LoopIteration, falls back to ReviewRound.
 func getReviewRoundFromContext(rctx *variable.ResolutionContext) int {

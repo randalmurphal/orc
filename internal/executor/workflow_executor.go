@@ -799,6 +799,25 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 							rctx.PreviousFindings = findingsContent
 						}
 
+						// Apply output transform if configured (e.g., format_findings for review loop)
+						if loopCfg.OutputTransform != nil {
+							transformed, transformErr := applyOutputTransform(loopCfg.OutputTransform, vars, rctx)
+							if transformErr != nil {
+								we.logger.Warn("output transform failed",
+									"phase", tmpl.ID,
+									"transform_type", loopCfg.OutputTransform.Type,
+									"error", transformErr,
+								)
+							} else if loopCfg.OutputTransform.TargetVar != "" {
+								// Store transformed output in vars and rctx for next iteration
+								vars[loopCfg.OutputTransform.TargetVar] = transformed
+								if rctx.PhaseOutputVars == nil {
+									rctx.PhaseOutputVars = make(map[string]string)
+								}
+								rctx.PhaseOutputVars[loopCfg.OutputTransform.TargetVar] = transformed
+							}
+						}
+
 						we.logger.Info("loop condition met, looping back",
 							"phase", tmpl.ID,
 							"loop_to", loopCfg.LoopToPhase,
