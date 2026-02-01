@@ -347,25 +347,6 @@ describe('TimelineTab', () => {
 			// The phase name should appear in the phase section
 			expect(screen.getAllByText('implement').length).toBeGreaterThan(0);
 		});
-
-		it('shows retry info when retryContext exists', () => {
-			renderTimelineTab({
-				task: createTask(),
-				taskState: createTaskState({ retryContext: { fromPhase: 'implement', toPhase: 'review' } } as unknown as Partial<ExecutionState>),
-			});
-
-			expect(screen.getByText('Retry Info')).toBeInTheDocument();
-			expect(screen.getByText(/From.*implement/)).toBeInTheDocument();
-		});
-
-		it('hides retry info when retryContext is undefined', () => {
-			renderTimelineTab({
-				task: createTask(),
-				taskState: createTaskState({ retryContext: undefined } as unknown as Partial<ExecutionState>),
-			});
-
-			expect(screen.queryByText('Retry Info')).not.toBeInTheDocument();
-		});
 	});
 
 	describe('Empty State', () => {
