@@ -456,7 +456,77 @@ phases:
     gate: auto
     gate_criteria:
       - tests_pass
+
+    # Condition: skip phase if false (JSON stored in DB)
+    condition: '{"field": "task.category", "op": "neq", "value": "docs"}'
 ```
+
+---
+
+## Phase Conditions
+
+Phases can be conditionally skipped using the `condition` field on `db.WorkflowPhase`. The condition is a JSON string stored in the database, evaluated by `EvaluateCondition()` (`internal/executor/condition.go:29`) before the phase starts.
+
+### Condition Format
+
+**Leaf condition** -- single field check:
+
+```json
+{"field": "task.weight", "op": "in", "value": ["medium", "large"]}
+```
+
+**Composite condition** -- boolean logic:
+
+```json
+{"all": [
+  {"field": "task.weight", "op": "neq", "value": "trivial"},
+  {"field": "task.category", "op": "neq", "value": "docs"}
+]}
+```
+
+### Operators
+
+| Op | Description | `value` Type |
+|----|-------------|--------------|
+| `eq` | Exact match | string |
+| `neq` | Not equal | string |
+| `in` | Member of list | string array |
+| `contains` | Substring match | string |
+| `exists` | Field is non-empty | (none) |
+| `gt` | Greater than (numeric or string) | string |
+| `lt` | Less than (numeric or string) | string |
+
+### Field Prefixes
+
+Fields use dotted paths with a prefix that determines the resolution source:
+
+| Prefix | Example | Source |
+|--------|---------|--------|
+| `task.` | `task.weight`, `task.category`, `task.priority` | Task proto fields (resolved to lowercase short form) |
+| `var.` | `var.SPEC_CONTENT` | Workflow variable set |
+| `env.` | `env.HOME` | Resolution context environment |
+| `phase_output.` | `phase_output.spec.status` | Prior phase output (parsed as JSON) |
+
+### Task Fields
+
+| Field | Values |
+|-------|--------|
+| `task.weight` | `trivial`, `small`, `medium`, `large` |
+| `task.category` | `feature`, `bug`, `refactor`, `chore`, `docs`, `test` |
+| `task.priority` | `critical`, `high`, `normal`, `low` |
+
+Proto enum values (e.g., `TASK_WEIGHT_MEDIUM`) are automatically normalized to short form.
+
+### Composites
+
+| Field | Semantics |
+|-------|-----------|
+| `all` | All sub-conditions must be true (vacuous truth: empty array returns true) |
+| `any` | Any sub-condition must be true (empty array returns false) |
+
+Composites can be nested arbitrarily deep.
+
+When a condition evaluates to false, the phase is skipped with status `skipped` and a `phase.skipped` event is published. An empty or `"null"` condition string means the phase always runs.
 
 ---
 

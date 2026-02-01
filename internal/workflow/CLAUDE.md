@@ -24,9 +24,25 @@ Reusable phase definitions with:
 
 Compose phases into execution plans:
 - Ordered sequence of phases
-- Per-phase overrides
+- Per-phase overrides (gate, condition, retries)
 - Custom variables
 - Context type (task, branch, PR, standalone)
+
+### Phase Conditions (`types.go:60`)
+
+`PhaseCondition` guards phase execution. Nil condition = always run.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `Var` | string | Variable to check (`weight`, `category`, `has_tests`, `language`) |
+| `Op` | string | Operator (`eq`, `neq`, `in`, `not_in`, `contains`) |
+| `Value` | string | Single comparison value |
+| `Values` | []string | Multiple values (for `in`/`not_in`) |
+| `And` | []PhaseCondition | All must be true |
+| `Or` | []PhaseCondition | Any must be true |
+| `Not` | *PhaseCondition | Negation |
+
+Evaluated by `executor.EvalCondition()` (`executor/condition.go:22`). See `seed.go` for built-in usage (tdd_write: `weight in [medium, large]`, breakdown: `weight eq large`).
 
 ### Extended Gate Configuration
 

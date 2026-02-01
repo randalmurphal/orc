@@ -31,11 +31,30 @@ func NewTestBackend(t testing.TB) *DatabaseBackend {
 		t.Fatalf("create test backend: %v", err)
 	}
 
+	// Seed standard phase templates so FK constraints on workflow_run_phases work.
+	// In production these are seeded via SeedBuiltins during orc init.
+	seedTestPhaseTemplates(backend)
+
 	t.Cleanup(func() {
 		_ = backend.Close()
 	})
 
 	return backend
+}
+
+// seedTestPhaseTemplates creates minimal phase template entries for FK constraints.
+func seedTestPhaseTemplates(backend *DatabaseBackend) {
+	ids := []string{
+		"spec", "tiny_spec", "tdd_write", "breakdown",
+		"implement", "review", "docs", "research",
+	}
+	for _, id := range ids {
+		_ = backend.SavePhaseTemplate(&db.PhaseTemplate{
+			ID:           id,
+			Name:         id,
+			PromptSource: "embedded",
+		})
+	}
 }
 
 // NewTestGlobalDB creates an in-memory global database for testing.
