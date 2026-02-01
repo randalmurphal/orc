@@ -1,7 +1,6 @@
 id: review
 name: "Review Only"
 description: "Code review workflow for existing changes"
-workflow_type: branch
 
 phases:
   - template: review

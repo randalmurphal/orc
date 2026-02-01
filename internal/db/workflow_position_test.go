@@ -37,7 +37,7 @@ func TestWorkflowPhasePositionFields(t *testing.T) {
 	wf := &Workflow{
 		ID:           "pos-wf",
 		Name:         "Position Test Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -108,7 +108,7 @@ func TestWorkflowPhaseNullPositions(t *testing.T) {
 	wf := &Workflow{
 		ID:           "null-pos-wf",
 		Name:         "Null Position Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -178,7 +178,7 @@ func TestWorkflowPhaseDuplicateSequenceAllowed(t *testing.T) {
 	wf := &Workflow{
 		ID:           "dup-seq-wf",
 		Name:         "Duplicate Sequence Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -249,7 +249,7 @@ func TestUpdateWorkflowPhasePositions(t *testing.T) {
 	wf := &Workflow{
 		ID:           "bulk-pos-wf",
 		Name:         "Bulk Position Workflow",
-		WorkflowType: "task",
+
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

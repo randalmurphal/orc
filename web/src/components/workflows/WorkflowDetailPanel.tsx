@@ -220,10 +220,6 @@ export function WorkflowDetailPanel({
 				)}
 
 				<div className="workflow-detail-meta">
-					<span className="workflow-detail-meta-item">
-						<Icon name="layers" size={12} />
-						{displayWorkflow.workflowType}
-					</span>
 					{displayWorkflow.defaultModel && (
 						<span className="workflow-detail-meta-item">
 							<Icon name="robot" size={12} />

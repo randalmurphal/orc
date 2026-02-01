@@ -27,12 +27,8 @@ enum GateType {
   GATE_TYPE_AI = 4;
 }
 
-enum WorkflowType {
-  WORKFLOW_TYPE_UNSPECIFIED = 0;
-  WORKFLOW_TYPE_TASK = 1;
-  WORKFLOW_TYPE_BRANCH = 2;
-  WORKFLOW_TYPE_STANDALONE = 3;
-}
+// WorkflowType enum removed (dead code, DEC-001).
+// Values 0-3 are reserved to prevent reuse.
 
 enum ContextType {
   CONTEXT_TYPE_UNSPECIFIED = 0;
@@ -110,7 +106,7 @@ message Workflow {
   string id = 1;
   string name = 2;
   optional string description = 3;
-  WorkflowType workflow_type = 4;
+  reserved 4; // was workflow_type (removed, DEC-001)
   optional string default_model = 5;
   bool default_thinking = 6;
   bool is_builtin = 7;
@@ -255,7 +251,7 @@ message ListWorkflowsRequest {
   PageRequest page = 1;
   bool include_builtin = 2;
   bool custom_only = 3;
-  optional WorkflowType workflow_type = 4;
+  reserved 4; // was workflow_type (removed, DEC-001)
 }
 
 message ListWorkflowsResponse {
@@ -278,7 +274,7 @@ message CreateWorkflowRequest {
   string id = 1;
   string name = 2;
   optional string description = 3;
-  WorkflowType workflow_type = 4;
+  reserved 4; // was workflow_type (removed, DEC-001)
   optional string default_model = 5;
   bool default_thinking = 6;
   optional string based_on = 7;

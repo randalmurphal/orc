@@ -252,7 +252,6 @@ func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 		ID:              workflow.ID,
 		Name:            workflow.Name,
 		Description:     workflow.Description,
-		WorkflowType:    string(workflow.WorkflowType),
 		DefaultModel:    workflow.DefaultModel,
 		DefaultThinking: workflow.DefaultThinking,
 		BasedOn:         workflow.BasedOn,

@@ -1,7 +1,6 @@
 id: implement-small
 name: "Implement (Small)"
 description: "Lightweight workflow: tiny_spec, implement, review"
-workflow_type: task
 
 phases:
   - template: tiny_spec

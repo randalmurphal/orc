@@ -21,7 +21,7 @@ func createTestWorkflow(t *testing.T, backend storage.Backend, id string) {
 	wf := &db.Workflow{
 		ID:           id,
 		Name:         id,
-		WorkflowType: "task",
+
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

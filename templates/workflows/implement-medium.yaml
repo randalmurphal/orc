@@ -1,7 +1,6 @@
 id: implement-medium
 name: "Implement (Medium)"
 description: "Standard implementation workflow: spec, TDD, implement, review, docs"
-workflow_type: task
 
 phases:
   - template: spec

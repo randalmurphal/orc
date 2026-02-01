@@ -3,7 +3,6 @@
  *
  * Features:
  * - ID, name, and description inputs
- * - Workflow type selection (task, branch, standalone)
  * - Default model and thinking options
  * - Validation and error handling
  */
@@ -12,7 +11,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Modal } from '@/components/overlays/Modal';
 import { Button, Icon } from '@/components/ui';
 import { workflowClient } from '@/lib/client';
-import { type Workflow, WorkflowType } from '@/gen/orc/v1/workflow_pb';
+import { type Workflow } from '@/gen/orc/v1/workflow_pb';
 import './CreateWorkflowModal.css';
 
 export interface CreateWorkflowModalProps {
@@ -35,24 +34,6 @@ function slugify(str: string): string {
 		.slice(0, 50);
 }
 
-const WORKFLOW_TYPES: { value: WorkflowType; label: string; description: string }[] = [
-	{
-		value: WorkflowType.TASK,
-		label: 'Task',
-		description: 'Standard task execution workflow',
-	},
-	{
-		value: WorkflowType.BRANCH,
-		label: 'Branch',
-		description: 'Works on existing branches',
-	},
-	{
-		value: WorkflowType.STANDALONE,
-		label: 'Standalone',
-		description: 'Independent execution without task',
-	},
-];
-
 const MODEL_OPTIONS = [
 	{ value: '', label: 'Default (inherit)' },
 	{ value: 'sonnet', label: 'Sonnet' },
@@ -71,7 +52,6 @@ export function CreateWorkflowModal({
 	const [id, setId] = useState('');
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
-	const [workflowType, setWorkflowType] = useState<WorkflowType>(WorkflowType.TASK);
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -84,7 +64,6 @@ export function CreateWorkflowModal({
 			setId('');
 			setName('');
 			setDescription('');
-			setWorkflowType(WorkflowType.TASK);
 			setDefaultModel('');
 			setDefaultThinking(false);
 			setError(null);
@@ -122,7 +101,6 @@ export function CreateWorkflowModal({
 					id: id.trim(),
 					name: name.trim() || undefined,
 					description: description.trim() || undefined,
-					workflowType: workflowType,
 					defaultModel: defaultModel || undefined,
 					defaultThinking: defaultThinking,
 				});
@@ -136,7 +114,7 @@ export function CreateWorkflowModal({
 				setSaving(false);
 			}
 		},
-		[id, name, description, workflowType, defaultModel, defaultThinking, onCreated, handleClose]
+		[id, name, description, defaultModel, defaultThinking, onCreated, handleClose]
 	);
 
 	return (
@@ -197,32 +175,6 @@ export function CreateWorkflowModal({
 						placeholder="Describe what this workflow does..."
 						rows={3}
 					/>
-				</div>
-
-				{/* Workflow Type */}
-				<div className="form-group">
-					<label className="form-label">Workflow Type</label>
-					<div className="workflow-type-options">
-						{WORKFLOW_TYPES.map((type) => (
-							<label
-								key={type.value}
-								className={`workflow-type-option ${
-									workflowType === type.value ? 'selected' : ''
-								}`}
-							>
-								<input
-									type="radio"
-									name="workflow-type"
-									value={type.value}
-									checked={workflowType === type.value}
-									onChange={() => setWorkflowType(type.value)}
-									className="visually-hidden"
-								/>
-								<span className="workflow-type-label">{type.label}</span>
-								<span className="workflow-type-desc">{type.description}</span>
-							</label>
-						))}
-					</div>
 				</div>
 
 				{/* Default Model */}
