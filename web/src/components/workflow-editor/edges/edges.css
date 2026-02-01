@@ -34,7 +34,7 @@
 	stroke-dasharray: 6 3;
 }
 
-/* Loop edge label */
+/* Edge label (shared base) */
 .edge-label {
 	font-size: var(--text-xs);
 	font-family: var(--font-sans);
@@ -56,9 +56,33 @@
 	stroke-dasharray: 3 3;
 }
 
-/* Dependency edge: dashed line, accent color (QA-005 fix) */
+/* Dependency edge: solid line, accent color */
 .edge-dependency .react-flow__edge-path {
 	stroke: var(--accent);
 	stroke-width: 2;
-	stroke-dasharray: 8 4;
+}
+
+.edge-dependency .edge-dot {
+	fill: var(--accent);
+}
+
+/* Dependency edge type badge */
+.edge-label-dependency {
+	background: var(--accent-dim, rgba(139, 92, 246, 0.15));
+	color: var(--accent);
+	border: 1px solid var(--accent);
+}
+
+/* Conditional edge: dotted line, teal/cyan color */
+.edge-conditional .react-flow__edge-path {
+	stroke: var(--teal, #14b8a6);
+	stroke-width: 2;
+	stroke-dasharray: 4 4;
+}
+
+/* Conditional edge type badge */
+.edge-label-conditional {
+	background: var(--teal-dim, rgba(20, 184, 166, 0.15));
+	color: var(--teal, #14b8a6);
+	border: 1px solid var(--teal, #14b8a6);
 }
