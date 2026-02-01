@@ -11,6 +11,7 @@ import (
 
 	"github.com/randalmurphal/llmkit/claude"
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -54,6 +55,12 @@ type ClaudeExecutor struct {
 
 	// Review round for review phase schema selection (1 = findings, 2 = decision)
 	reviewRound int
+
+	// Loop configuration for iteration-specific schema selection
+	loopConfig *db.LoopConfig
+
+	// Current loop iteration (1-based)
+	loopIteration int
 
 	// Transcript storage - if backend is set, transcripts are stored automatically
 	backend storage.Backend
@@ -121,6 +128,18 @@ func WithClaudeProducesArtifact(produces bool) ClaudeExecutorOption {
 // Round 1 uses ReviewFindingsSchema, Round 2 uses ReviewDecisionSchema.
 func WithClaudeReviewRound(round int) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.reviewRound = round }
+}
+
+// WithClaudeLoopConfig sets the loop configuration for iteration-specific schema selection.
+// The LoopConfig's LoopSchemas map determines which schema is used for each iteration.
+func WithClaudeLoopConfig(cfg *db.LoopConfig) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.loopConfig = cfg }
+}
+
+// WithClaudeLoopIteration sets the current loop iteration (1-based).
+// Used with LoopConfig for iteration-specific schema selection.
+func WithClaudeLoopIteration(iteration int) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.loopIteration = iteration }
 }
 
 // WithClaudeBackend sets the storage backend for automatic transcript storage.
