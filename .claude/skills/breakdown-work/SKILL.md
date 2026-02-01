@@ -1,5 +1,5 @@
 ---
-name: work-breakdown
+name: breakdown-work
 description: Use when a brainstorm or design is validated and ready to be decomposed into orc initiatives, tasks, and dependencies. The step after brainstorming — breaks down a plan into executable orc work items with proper weights, categories, and execution structure.
 ---
 
