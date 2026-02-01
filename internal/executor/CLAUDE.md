@@ -4,17 +4,18 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 
 ## File Structure
 
-### WorkflowExecutor (Split into 6 files)
+### WorkflowExecutor (Split into 8 files)
 
 | File | Lines | Key Functions | Purpose |
 |------|-------|---------------|---------|
-| `workflow_executor.go` | ~880 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, result types |
-| `workflow_context.go` | ~440 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
-| `workflow_phase.go` | ~850 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~575 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `applyPRAutomation()` | PR creation/reuse, merge, worktree setup/cleanup, sync |
-| `workflow_state.go` | ~195 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
-| `workflow_gates.go` | ~180 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()` | Gate evaluation (auto/human/AI), output variable pipeline, type resolution |
-| `workflow_triggers.go` | ~124 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
+| `workflow_executor.go` | ~400 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, gate action dispatch |
+| `workflow_context.go` | ~196 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
+| `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
+| `workflow_completion.go` | ~289 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `applyPRAutomation()` | PR creation/reuse, merge, worktree setup/cleanup, sync |
+| `workflow_state.go` | ~294 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
+| `workflow_gates.go` | ~250 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()`, `runGateScript()` | Gate evaluation (auto/human/AI), output variable pipeline, script execution, type resolution |
+| `workflow_triggers.go` | ~127 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
+| `gate_actions.go` | ~295 | `resolveApprovedAction()`, `resolveRejectedAction()`, `resolveRetryFrom()` | Gate output action resolution: maps `OnApproved`/`OnRejected` config to `GateAction` enum |
 
 ### Support Files
 
@@ -56,6 +57,7 @@ WorkflowExecutor.Run()
 │   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
 │   ├── evaluatePhaseGate()            # Gate evaluation (auto/human/AI via gate.Evaluator)
 │   ├── applyGateOutputToVars()       # Store gate output data as workflow variable (if configured)
+│   ├── [gate action dispatch]        # OnApproved/OnRejected → continue/retry/fail/skip/script
 │   ├── SetCurrentPhaseProto(t, id)   # Persist phase to task record (authoritative for `orc status`)
 │   ├── ApplyPhaseSettings()          # Configure Claude Code env (hooks, skills, hook scripts)
 │   ├── executePhaseWithTimeout()     # Run with timeout
@@ -144,7 +146,11 @@ Worktrees are created at `~/.orc/worktrees/<project-id>/orc-TASK-XXX/` (outside 
 | `RecordCostEntry()` | `cost_tracking.go:21` | Records phase costs to global DB |
 | `RunResourceAnalysis()` | `resource_tracker.go:531` | Detects orphaned MCP processes |
 | `applyPhaseContentToVars()` | `workflow_executor.go:739` | Propagates phase content to subsequent phases |
-| `applyGateOutputToVars()` | `workflow_gates.go:141` | Stores gate output data as JSON workflow variable |
+| `applyGateOutputToVars()` | `workflow_gates.go:233` | Stores gate output data as JSON workflow variable |
+| `resolveApprovedAction()` | `gate_actions.go:18` | Maps `OnApproved` config to `GateAction` (default: `continue`) |
+| `resolveRejectedAction()` | `gate_actions.go:31` | Maps `OnRejected` config to `GateAction` (empty = legacy behavior) |
+| `resolveRetryFrom()` | `gate_actions.go:44` | Determines retry target: `OutputConfig.RetryFrom` > `tmpl.RetryFromPhase` |
+| `runGateScript()` | `workflow_gates.go:145` | Executes gate output script; script can override gate decision |
 | `BuildRetryContextWithGateAnalysis()` | `retry.go:71` | Extends retry context with gate analysis section |
 | `ApplyPhaseSettings()` | `phase_settings.go:27` | Unified phase settings: reset → load config → hooks + skills + scripts |
 | `CleanupPhaseSettings()` | `phase_settings.go:215` | Removes all phase-specific Claude Code settings |
@@ -250,6 +256,53 @@ See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, A
 - `ExtractPhaseContent()` parses JSON and extracts `content`
 - `SaveSpecToDatabase()` extracts spec from JSON and saves to database
 - **Failure handling:** Extraction failures call `failRun()` to ensure task status becomes `StatusFailed`
+
+## Gate Output Action Dispatch (`gate_actions.go`, `workflow_executor.go`)
+
+When a gate evaluates, its `GateOutputConfig.OnApproved`/`OnRejected` determines what happens next. Action resolution is in `gate_actions.go`; dispatch logic is in the main phase loop (`workflow_executor.go:896-1094`).
+
+### On Rejection
+
+| Action | Behavior | Fallback |
+|--------|----------|----------|
+| `fail` | Fails task immediately via `failGateRejection()` | — |
+| `retry` | Retries from `RetryFrom` phase; fails if max retries exceeded | Fail on missing `retry_from` or max exceeded |
+| `skip_phase` | Skips current phase, continues to next | — |
+| `continue` | Same as `skip_phase` | — |
+| `run_script` | Script already ran in `evaluatePhaseGate()`; applies `fail` as secondary | Warn if empty script path |
+| `""` (empty) | **Legacy behavior**: review→fail, other phases→continue | — |
+
+### On Approval
+
+| Action | Behavior |
+|--------|----------|
+| `continue` | Default — proceed to next phase |
+| `skip_phase` | Skips the NEXT phase in sequence (marks it `SKIPPED`) |
+| `run_script` | Script already ran in `evaluatePhaseGate()`; secondary is continue |
+| `""` (empty) | Same as `continue` |
+
+### Key Behaviors
+
+- **Action validation**: Invalid actions fall back to `continue` (approved) or `""` (rejected/legacy)
+- **Script execution**: Scripts run during `evaluatePhaseGate()` via `runGateScript()`, can override gate decision (flip approved↔rejected)
+- **RetryFrom precedence**: `OutputConfig.RetryFrom` > `tmpl.RetryFromPhase` > config retry map (`resolveRetryFrom()` at `gate_actions.go:44`)
+- **OutputConfig on GateEvaluationResult**: Parsed from `PhaseTemplate.GateOutputConfig` and carried on `GateEvaluationResult.OutputConfig` for dispatch access
+
+### Implementation
+
+```
+evaluatePhaseGate()                    # workflow_gates.go — evaluates gate, runs script
+  ├── resolveRetryFrom()               # gate_actions.go — determines retry target
+  └── runGateScript()                  # workflow_gates.go — script execution + override
+
+[main phase loop]                      # workflow_executor.go
+  ├── if !approved:
+  │   ├── resolveRejectedAction()      # gate_actions.go — maps config to action
+  │   └── switch: fail/retry/skip/continue/run_script/legacy
+  └── if approved:
+      ├── resolveApprovedAction()      # gate_actions.go — maps config to action
+      └── switch: skip_phase/run_script/continue
+```
 
 ## Phase Settings (`phase_settings.go`, `claude_hooks.go`, `hook_scripts.go`)
 
@@ -469,6 +522,7 @@ go test ./internal/executor/... -v
 | `create_pr_test.go` | PR creation/reuse: stale PR detection, idempotency, error paths, automation settings |
 | `workflow_executor_test.go` | Core executor behavior |
 | `phase_response_test.go` | Phase completion parsing |
+| `gate_actions_test.go` | Gate output action dispatch: resolution (10 SC), approved/rejected dispatch, retry exhaustion, script handling, edge cases |
 | `gate_output_pipeline_test.go` | Gate output variable pipeline: propagation, storage, retry context, rejection |
 | `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
