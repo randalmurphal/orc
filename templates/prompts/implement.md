@@ -151,7 +151,14 @@ Follow existing code patterns. Stay within scope but be thorough within that sco
 
 ## Step 5: Self-Review
 
-Before completing: all success criteria addressed, all TDD tests pass, all breakdown items completed (if provided), preservation requirements verified, scope boundaries respected, code follows project patterns, no TODO comments left behind.
+Before completing, verify:
+- All success criteria addressed
+- All TDD tests pass
+- All breakdown items completed (if provided)
+- Preservation requirements verified
+- Scope boundaries respected
+- Code follows project patterns
+- No TODO comments left behind
 
 ## Step 7: Self-Review
 
