@@ -69,7 +69,23 @@ DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
 </breakdown>
 {{/if}}
 
-{{RETRY_CONTEXT}}
+{{#if RETRY_ATTEMPT}}
+<retry_context>
+## Retry Context
+
+This is retry attempt **{{RETRY_ATTEMPT}}**, triggered from the **{{RETRY_FROM_PHASE}}** phase.
+
+**Reason for retry:** {{RETRY_REASON}}
+
+{{#if OUTPUT_REVIEW}}
+### Previous Review Findings
+
+{{OUTPUT_REVIEW}}
+{{/if}}
+
+Address ALL issues identified above before proceeding with implementation.
+</retry_context>
+{{/if}}
 </context>
 
 {{#if TDD_TESTS_CONTENT}}

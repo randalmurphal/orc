@@ -313,7 +313,8 @@ func TestGetVariableReference(t *testing.T) {
 	required := []string{
 		"{{TASK_ID}}", "{{TASK_TITLE}}", "{{TASK_DESCRIPTION}}",
 		"{{TASK_CATEGORY}}", "{{WEIGHT}}",
-		"{{PHASE}}", "{{ITERATION}}", "{{RETRY_CONTEXT}}",
+		"{{PHASE}}", "{{ITERATION}}",
+		"{{RETRY_ATTEMPT}}", "{{RETRY_FROM_PHASE}}", "{{RETRY_REASON}}",
 		"{{WORKTREE_PATH}}", "{{PROJECT_ROOT}}", "{{TASK_BRANCH}}", "{{TARGET_BRANCH}}",
 		"{{LANGUAGE}}", "{{HAS_FRONTEND}}", "{{HAS_TESTS}}", "{{FRAMEWORKS}}",
 		"{{TEST_COMMAND}}", "{{LINT_COMMAND}}", "{{BUILD_COMMAND}}",
@@ -323,6 +324,28 @@ func TestGetVariableReference(t *testing.T) {
 		if _, ok := vars[v]; !ok {
 			t.Errorf("expected variable %s to exist", v)
 		}
+	}
+}
+
+// SC-6: GetVariableReference includes structured retry variables and removes RETRY_CONTEXT
+func TestGetVariableReference_StructuredRetryVars(t *testing.T) {
+	vars := GetVariableReference()
+
+	// New structured retry variables must be present
+	structuredRetryVars := []string{
+		"{{RETRY_ATTEMPT}}",
+		"{{RETRY_FROM_PHASE}}",
+		"{{RETRY_REASON}}",
+	}
+	for _, v := range structuredRetryVars {
+		if _, ok := vars[v]; !ok {
+			t.Errorf("GetVariableReference() must include %s", v)
+		}
+	}
+
+	// RETRY_CONTEXT must be removed (replaced by structured variables)
+	if _, ok := vars["{{RETRY_CONTEXT}}"]; ok {
+		t.Error("GetVariableReference() must not include {{RETRY_CONTEXT}} — replaced by structured retry variables")
 	}
 }
 
