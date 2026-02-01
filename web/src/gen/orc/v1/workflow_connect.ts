@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, SaveWorkflowLayoutRequest, SaveWorkflowLayoutResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateVariableRequest, UpdateVariableResponse, UpdateWorkflowRequest, UpdateWorkflowResponse, ValidateWorkflowRequest, ValidateWorkflowResponse } from "./workflow_pb.js";
+import { AddBeforePhaseTriggerRequest, AddBeforePhaseTriggerResponse, AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemoveBeforePhaseTriggerRequest, RemoveBeforePhaseTriggerResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, SaveWorkflowLayoutRequest, SaveWorkflowLayoutResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdateBeforePhaseTriggerRequest, UpdateBeforePhaseTriggerResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateVariableRequest, UpdateVariableResponse, UpdateWorkflowRequest, UpdateWorkflowResponse, ValidateWorkflowRequest, ValidateWorkflowResponse } from "./workflow_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -235,6 +235,35 @@ export const WorkflowService = {
       name: "ValidateWorkflow",
       I: ValidateWorkflowRequest,
       O: ValidateWorkflowResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Before-phase trigger CRUD (manages JSON array on workflow phases)
+     *
+     * @generated from rpc orc.v1.WorkflowService.AddBeforePhaseTrigger
+     */
+    addBeforePhaseTrigger: {
+      name: "AddBeforePhaseTrigger",
+      I: AddBeforePhaseTriggerRequest,
+      O: AddBeforePhaseTriggerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.UpdateBeforePhaseTrigger
+     */
+    updateBeforePhaseTrigger: {
+      name: "UpdateBeforePhaseTrigger",
+      I: UpdateBeforePhaseTriggerRequest,
+      O: UpdateBeforePhaseTriggerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.RemoveBeforePhaseTrigger
+     */
+    removeBeforePhaseTrigger: {
+      name: "RemoveBeforePhaseTrigger",
+      I: RemoveBeforePhaseTriggerRequest,
+      O: RemoveBeforePhaseTriggerResponse,
       kind: MethodKind.Unary,
     },
   }

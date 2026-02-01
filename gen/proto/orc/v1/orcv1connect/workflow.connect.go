@@ -108,6 +108,15 @@ const (
 	// WorkflowServiceValidateWorkflowProcedure is the fully-qualified name of the WorkflowService's
 	// ValidateWorkflow RPC.
 	WorkflowServiceValidateWorkflowProcedure = "/orc.v1.WorkflowService/ValidateWorkflow"
+	// WorkflowServiceAddBeforePhaseTriggerProcedure is the fully-qualified name of the
+	// WorkflowService's AddBeforePhaseTrigger RPC.
+	WorkflowServiceAddBeforePhaseTriggerProcedure = "/orc.v1.WorkflowService/AddBeforePhaseTrigger"
+	// WorkflowServiceUpdateBeforePhaseTriggerProcedure is the fully-qualified name of the
+	// WorkflowService's UpdateBeforePhaseTrigger RPC.
+	WorkflowServiceUpdateBeforePhaseTriggerProcedure = "/orc.v1.WorkflowService/UpdateBeforePhaseTrigger"
+	// WorkflowServiceRemoveBeforePhaseTriggerProcedure is the fully-qualified name of the
+	// WorkflowService's RemoveBeforePhaseTrigger RPC.
+	WorkflowServiceRemoveBeforePhaseTriggerProcedure = "/orc.v1.WorkflowService/RemoveBeforePhaseTrigger"
 )
 
 // WorkflowServiceClient is a client for the orc.v1.WorkflowService service.
@@ -137,6 +146,10 @@ type WorkflowServiceClient interface {
 	CancelWorkflowRun(context.Context, *connect.Request[v1.CancelWorkflowRunRequest]) (*connect.Response[v1.CancelWorkflowRunResponse], error)
 	SaveWorkflowLayout(context.Context, *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error)
 	ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error)
+	// Before-phase trigger CRUD (manages JSON array on workflow phases)
+	AddBeforePhaseTrigger(context.Context, *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error)
+	UpdateBeforePhaseTrigger(context.Context, *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error)
+	RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error)
 }
 
 // NewWorkflowServiceClient constructs a client for the orc.v1.WorkflowService service. By default,
@@ -300,36 +313,57 @@ func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
 			connect.WithClientOptions(opts...),
 		),
+		addBeforePhaseTrigger: connect.NewClient[v1.AddBeforePhaseTriggerRequest, v1.AddBeforePhaseTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceAddBeforePhaseTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("AddBeforePhaseTrigger")),
+			connect.WithClientOptions(opts...),
+		),
+		updateBeforePhaseTrigger: connect.NewClient[v1.UpdateBeforePhaseTriggerRequest, v1.UpdateBeforePhaseTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceUpdateBeforePhaseTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("UpdateBeforePhaseTrigger")),
+			connect.WithClientOptions(opts...),
+		),
+		removeBeforePhaseTrigger: connect.NewClient[v1.RemoveBeforePhaseTriggerRequest, v1.RemoveBeforePhaseTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceRemoveBeforePhaseTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("RemoveBeforePhaseTrigger")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // workflowServiceClient implements WorkflowServiceClient.
 type workflowServiceClient struct {
-	listWorkflows       *connect.Client[v1.ListWorkflowsRequest, v1.ListWorkflowsResponse]
-	getWorkflow         *connect.Client[v1.GetWorkflowRequest, v1.GetWorkflowResponse]
-	createWorkflow      *connect.Client[v1.CreateWorkflowRequest, v1.CreateWorkflowResponse]
-	updateWorkflow      *connect.Client[v1.UpdateWorkflowRequest, v1.UpdateWorkflowResponse]
-	deleteWorkflow      *connect.Client[v1.DeleteWorkflowRequest, v1.DeleteWorkflowResponse]
-	cloneWorkflow       *connect.Client[v1.CloneWorkflowRequest, v1.CloneWorkflowResponse]
-	addPhase            *connect.Client[v1.AddPhaseRequest, v1.AddPhaseResponse]
-	updatePhase         *connect.Client[v1.UpdatePhaseRequest, v1.UpdatePhaseResponse]
-	removePhase         *connect.Client[v1.RemovePhaseRequest, v1.RemovePhaseResponse]
-	addVariable         *connect.Client[v1.AddVariableRequest, v1.AddVariableResponse]
-	updateVariable      *connect.Client[v1.UpdateVariableRequest, v1.UpdateVariableResponse]
-	removeVariable      *connect.Client[v1.RemoveVariableRequest, v1.RemoveVariableResponse]
-	listPhaseTemplates  *connect.Client[v1.ListPhaseTemplatesRequest, v1.ListPhaseTemplatesResponse]
-	getPhaseTemplate    *connect.Client[v1.GetPhaseTemplateRequest, v1.GetPhaseTemplateResponse]
-	createPhaseTemplate *connect.Client[v1.CreatePhaseTemplateRequest, v1.CreatePhaseTemplateResponse]
-	updatePhaseTemplate *connect.Client[v1.UpdatePhaseTemplateRequest, v1.UpdatePhaseTemplateResponse]
-	deletePhaseTemplate *connect.Client[v1.DeletePhaseTemplateRequest, v1.DeletePhaseTemplateResponse]
-	clonePhaseTemplate  *connect.Client[v1.ClonePhaseTemplateRequest, v1.ClonePhaseTemplateResponse]
-	getPromptContent    *connect.Client[v1.GetPromptContentRequest, v1.GetPromptContentResponse]
-	listWorkflowRuns    *connect.Client[v1.ListWorkflowRunsRequest, v1.ListWorkflowRunsResponse]
-	getWorkflowRun      *connect.Client[v1.GetWorkflowRunRequest, v1.GetWorkflowRunResponse]
-	startWorkflowRun    *connect.Client[v1.StartWorkflowRunRequest, v1.StartWorkflowRunResponse]
-	cancelWorkflowRun   *connect.Client[v1.CancelWorkflowRunRequest, v1.CancelWorkflowRunResponse]
-	saveWorkflowLayout  *connect.Client[v1.SaveWorkflowLayoutRequest, v1.SaveWorkflowLayoutResponse]
-	validateWorkflow    *connect.Client[v1.ValidateWorkflowRequest, v1.ValidateWorkflowResponse]
+	listWorkflows            *connect.Client[v1.ListWorkflowsRequest, v1.ListWorkflowsResponse]
+	getWorkflow              *connect.Client[v1.GetWorkflowRequest, v1.GetWorkflowResponse]
+	createWorkflow           *connect.Client[v1.CreateWorkflowRequest, v1.CreateWorkflowResponse]
+	updateWorkflow           *connect.Client[v1.UpdateWorkflowRequest, v1.UpdateWorkflowResponse]
+	deleteWorkflow           *connect.Client[v1.DeleteWorkflowRequest, v1.DeleteWorkflowResponse]
+	cloneWorkflow            *connect.Client[v1.CloneWorkflowRequest, v1.CloneWorkflowResponse]
+	addPhase                 *connect.Client[v1.AddPhaseRequest, v1.AddPhaseResponse]
+	updatePhase              *connect.Client[v1.UpdatePhaseRequest, v1.UpdatePhaseResponse]
+	removePhase              *connect.Client[v1.RemovePhaseRequest, v1.RemovePhaseResponse]
+	addVariable              *connect.Client[v1.AddVariableRequest, v1.AddVariableResponse]
+	updateVariable           *connect.Client[v1.UpdateVariableRequest, v1.UpdateVariableResponse]
+	removeVariable           *connect.Client[v1.RemoveVariableRequest, v1.RemoveVariableResponse]
+	listPhaseTemplates       *connect.Client[v1.ListPhaseTemplatesRequest, v1.ListPhaseTemplatesResponse]
+	getPhaseTemplate         *connect.Client[v1.GetPhaseTemplateRequest, v1.GetPhaseTemplateResponse]
+	createPhaseTemplate      *connect.Client[v1.CreatePhaseTemplateRequest, v1.CreatePhaseTemplateResponse]
+	updatePhaseTemplate      *connect.Client[v1.UpdatePhaseTemplateRequest, v1.UpdatePhaseTemplateResponse]
+	deletePhaseTemplate      *connect.Client[v1.DeletePhaseTemplateRequest, v1.DeletePhaseTemplateResponse]
+	clonePhaseTemplate       *connect.Client[v1.ClonePhaseTemplateRequest, v1.ClonePhaseTemplateResponse]
+	getPromptContent         *connect.Client[v1.GetPromptContentRequest, v1.GetPromptContentResponse]
+	listWorkflowRuns         *connect.Client[v1.ListWorkflowRunsRequest, v1.ListWorkflowRunsResponse]
+	getWorkflowRun           *connect.Client[v1.GetWorkflowRunRequest, v1.GetWorkflowRunResponse]
+	startWorkflowRun         *connect.Client[v1.StartWorkflowRunRequest, v1.StartWorkflowRunResponse]
+	cancelWorkflowRun        *connect.Client[v1.CancelWorkflowRunRequest, v1.CancelWorkflowRunResponse]
+	saveWorkflowLayout       *connect.Client[v1.SaveWorkflowLayoutRequest, v1.SaveWorkflowLayoutResponse]
+	validateWorkflow         *connect.Client[v1.ValidateWorkflowRequest, v1.ValidateWorkflowResponse]
+	addBeforePhaseTrigger    *connect.Client[v1.AddBeforePhaseTriggerRequest, v1.AddBeforePhaseTriggerResponse]
+	updateBeforePhaseTrigger *connect.Client[v1.UpdateBeforePhaseTriggerRequest, v1.UpdateBeforePhaseTriggerResponse]
+	removeBeforePhaseTrigger *connect.Client[v1.RemoveBeforePhaseTriggerRequest, v1.RemoveBeforePhaseTriggerResponse]
 }
 
 // ListWorkflows calls orc.v1.WorkflowService.ListWorkflows.
@@ -457,6 +491,21 @@ func (c *workflowServiceClient) ValidateWorkflow(ctx context.Context, req *conne
 	return c.validateWorkflow.CallUnary(ctx, req)
 }
 
+// AddBeforePhaseTrigger calls orc.v1.WorkflowService.AddBeforePhaseTrigger.
+func (c *workflowServiceClient) AddBeforePhaseTrigger(ctx context.Context, req *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error) {
+	return c.addBeforePhaseTrigger.CallUnary(ctx, req)
+}
+
+// UpdateBeforePhaseTrigger calls orc.v1.WorkflowService.UpdateBeforePhaseTrigger.
+func (c *workflowServiceClient) UpdateBeforePhaseTrigger(ctx context.Context, req *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error) {
+	return c.updateBeforePhaseTrigger.CallUnary(ctx, req)
+}
+
+// RemoveBeforePhaseTrigger calls orc.v1.WorkflowService.RemoveBeforePhaseTrigger.
+func (c *workflowServiceClient) RemoveBeforePhaseTrigger(ctx context.Context, req *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error) {
+	return c.removeBeforePhaseTrigger.CallUnary(ctx, req)
+}
+
 // WorkflowServiceHandler is an implementation of the orc.v1.WorkflowService service.
 type WorkflowServiceHandler interface {
 	ListWorkflows(context.Context, *connect.Request[v1.ListWorkflowsRequest]) (*connect.Response[v1.ListWorkflowsResponse], error)
@@ -484,6 +533,10 @@ type WorkflowServiceHandler interface {
 	CancelWorkflowRun(context.Context, *connect.Request[v1.CancelWorkflowRunRequest]) (*connect.Response[v1.CancelWorkflowRunResponse], error)
 	SaveWorkflowLayout(context.Context, *connect.Request[v1.SaveWorkflowLayoutRequest]) (*connect.Response[v1.SaveWorkflowLayoutResponse], error)
 	ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error)
+	// Before-phase trigger CRUD (manages JSON array on workflow phases)
+	AddBeforePhaseTrigger(context.Context, *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error)
+	UpdateBeforePhaseTrigger(context.Context, *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error)
+	RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error)
 }
 
 // NewWorkflowServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -643,6 +696,24 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 		connect.WithSchema(workflowServiceMethods.ByName("ValidateWorkflow")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workflowServiceAddBeforePhaseTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceAddBeforePhaseTriggerProcedure,
+		svc.AddBeforePhaseTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("AddBeforePhaseTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceUpdateBeforePhaseTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceUpdateBeforePhaseTriggerProcedure,
+		svc.UpdateBeforePhaseTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("UpdateBeforePhaseTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceRemoveBeforePhaseTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceRemoveBeforePhaseTriggerProcedure,
+		svc.RemoveBeforePhaseTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("RemoveBeforePhaseTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.WorkflowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkflowServiceListWorkflowsProcedure:
@@ -695,6 +766,12 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 			workflowServiceSaveWorkflowLayoutHandler.ServeHTTP(w, r)
 		case WorkflowServiceValidateWorkflowProcedure:
 			workflowServiceValidateWorkflowHandler.ServeHTTP(w, r)
+		case WorkflowServiceAddBeforePhaseTriggerProcedure:
+			workflowServiceAddBeforePhaseTriggerHandler.ServeHTTP(w, r)
+		case WorkflowServiceUpdateBeforePhaseTriggerProcedure:
+			workflowServiceUpdateBeforePhaseTriggerHandler.ServeHTTP(w, r)
+		case WorkflowServiceRemoveBeforePhaseTriggerProcedure:
+			workflowServiceRemoveBeforePhaseTriggerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -802,4 +879,16 @@ func (UnimplementedWorkflowServiceHandler) SaveWorkflowLayout(context.Context, *
 
 func (UnimplementedWorkflowServiceHandler) ValidateWorkflow(context.Context, *connect.Request[v1.ValidateWorkflowRequest]) (*connect.Response[v1.ValidateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.ValidateWorkflow is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) AddBeforePhaseTrigger(context.Context, *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.AddBeforePhaseTrigger is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) UpdateBeforePhaseTrigger(context.Context, *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.UpdateBeforePhaseTrigger is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.RemoveBeforePhaseTrigger is not implemented"))
 }

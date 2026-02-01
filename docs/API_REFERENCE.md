@@ -2167,6 +2167,9 @@ Configurable workflow definitions with composable phases.
 | POST | `/api/workflows/:id/validate` | Validate workflow structure (check for cycles) |
 | POST | `/api/workflows/:id/variables` | Add variable to workflow |
 | DELETE | `/api/workflows/:id/variables/:name` | Remove variable from workflow |
+| POST | `WorkflowService/AddBeforePhaseTrigger` | Add before-phase trigger to a phase |
+| POST | `WorkflowService/UpdateBeforePhaseTrigger` | Update before-phase trigger at index |
+| POST | `WorkflowService/RemoveBeforePhaseTrigger` | Remove before-phase trigger at index |
 
 **Create workflow body:**
 ```json
@@ -2345,6 +2348,89 @@ Reusable phase definitions with prompts and configuration.
 | `produces_artifact` | Whether phase generates artifact (spec, tests, etc.) |
 | `artifact_type` | Artifact type: `spec`, `tests`, `breakdown`, `docs`, etc. |
 | `is_builtin` | Built-in templates cannot be modified |
+
+### Before-Phase Triggers
+
+CRUD operations for before-phase triggers on workflow phases. Triggers are stored as a JSON array on `workflow_phases.before_triggers`. All operations are Connect RPC (not REST).
+
+**Implementation:** `internal/api/workflow_server_before_trigger.go`
+
+#### Add Before-Phase Trigger
+
+**`WorkflowService/AddBeforePhaseTrigger`**
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "phase_id": 5,
+  "agent_id": "dependency-validator",
+  "mode": "gate",
+  "input_config": "{\"variables\":[\"TASK_ID\"]}",
+  "output_config": "{\"on_approved\":\"continue\",\"on_rejected\":\"fail\"}"
+}
+```
+
+| Field | Required | Default | Description |
+|-------|:--------:|---------|-------------|
+| `workflow_id` | Yes | - | Target workflow (must not be built-in) |
+| `phase_id` | Yes | - | Database ID of the workflow phase |
+| `agent_id` | Yes | - | Agent to execute (must exist) |
+| `mode` | No | `"gate"` | `"gate"` (blocks phase) or `"reaction"` (fire-and-forget) |
+| `input_config` | No | - | JSON `GateInputConfig` string |
+| `output_config` | No | - | JSON `GateOutputConfig` string |
+
+**Response:** `{ "phase": <WorkflowPhase> }` — updated phase with appended trigger.
+
+#### Update Before-Phase Trigger
+
+**`WorkflowService/UpdateBeforePhaseTrigger`**
+
+Partial update — only provided fields are modified.
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "phase_id": 5,
+  "trigger_index": 0,
+  "agent_id": "new-agent",
+  "mode": "reaction"
+}
+```
+
+| Field | Required | Description |
+|-------|:--------:|-------------|
+| `workflow_id` | Yes | Target workflow |
+| `phase_id` | Yes | Database ID of the workflow phase |
+| `trigger_index` | Yes | Zero-based index into triggers array |
+| `agent_id` | No | New agent (must exist if provided) |
+| `mode` | No | New mode (`"gate"` or `"reaction"`) |
+| `input_config` | No | New JSON `GateInputConfig` |
+| `output_config` | No | New JSON `GateOutputConfig` |
+
+**Response:** `{ "phase": <WorkflowPhase> }` — updated phase.
+
+#### Remove Before-Phase Trigger
+
+**`WorkflowService/RemoveBeforePhaseTrigger`**
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "phase_id": 5,
+  "trigger_index": 0
+}
+```
+
+**Response:** `{ "phase": <WorkflowPhase> }` — updated phase with trigger removed.
+
+#### Error Codes
+
+| Code | Condition |
+|------|-----------|
+| `InvalidArgument` | Missing required field, invalid mode, malformed JSON config, index out of range |
+| `NotFound` | Workflow, phase, or agent not found |
+| `PermissionDenied` | Attempting to modify built-in workflow |
+| `Internal` | Database or JSON marshal error |
 
 ---
 
