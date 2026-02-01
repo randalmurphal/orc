@@ -21,6 +21,7 @@ import (
 	"connectrpc.com/connect"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 )
 
@@ -308,5 +309,74 @@ func TestCreateTask_AllWeights_AutoAssignment(t *testing.T) {
 				t.Errorf("workflow_id = %q, want %q", *resp.Msg.Task.WorkflowId, tt.wantWfID)
 			}
 		})
+	}
+}
+
+// ============================================================================
+// TASK-682: Config-based weight→workflow mapping
+// ============================================================================
+
+// TestCreateTask_UsesConfigWeightMapping verifies SC-1:
+// When the server has a config with custom weight→workflow mapping,
+// CreateTask uses the config mapping instead of hardcoded defaults.
+func TestCreateTask_UsesConfigWeightMapping(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	cfg := &config.Config{
+		Weights: config.WeightsConfig{
+			Small: "custom-small-workflow",
+		},
+	}
+	server := NewTaskServer(backend, cfg, nil, nil, "", nil, nil)
+
+	req := connect.NewRequest(&orcv1.CreateTaskRequest{
+		Title:  "Task with custom weight mapping",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+		// workflow_id NOT provided - should use config mapping
+	})
+
+	resp, err := server.CreateTask(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+
+	if resp.Msg.Task == nil {
+		t.Fatal("response task is nil")
+	}
+
+	// Verify config-based mapping was used, not hardcoded
+	if resp.Msg.Task.WorkflowId == nil {
+		t.Fatal("workflow_id should be set, got nil")
+	}
+	if *resp.Msg.Task.WorkflowId != "custom-small-workflow" {
+		t.Errorf("workflow_id = %q, want %q (config override)", *resp.Msg.Task.WorkflowId, "custom-small-workflow")
+	}
+}
+
+// TestCreateTask_NilConfig_FallsBackToDefaults verifies backwards compatibility:
+// When no config is provided, CreateTask still auto-assigns using default mapping.
+func TestCreateTask_NilConfig_FallsBackToDefaults(t *testing.T) {
+	t.Parallel()
+
+	backend := storage.NewTestBackend(t)
+	server := NewTaskServer(backend, nil, nil, nil, "", nil, nil)
+
+	req := connect.NewRequest(&orcv1.CreateTaskRequest{
+		Title:  "Task without config",
+		Weight: orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+	})
+
+	resp, err := server.CreateTask(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateTask failed: %v", err)
+	}
+
+	// Should fall back to default mapping
+	if resp.Msg.Task.WorkflowId == nil {
+		t.Fatal("workflow_id should be set, got nil")
+	}
+	if *resp.Msg.Task.WorkflowId != "implement-small" {
+		t.Errorf("workflow_id = %q, want %q (default)", *resp.Msg.Task.WorkflowId, "implement-small")
 	}
 }
