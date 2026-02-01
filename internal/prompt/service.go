@@ -237,22 +237,42 @@ func (s *Service) HasOverride(phase string) bool {
 }
 
 // GetVariableReference returns documentation for available template variables.
+// NOTE: Phase output variables (e.g., SPEC_CONTENT, TDD_TESTS_CONTENT) are dynamic
+// and derived from each phase template's output_var_name field. The OUTPUT_<PHASE_ID>
+// pattern is always available as a generic accessor for any phase's output.
 func GetVariableReference() map[string]string {
 	return map[string]string{
+		// Task context
 		"{{TASK_ID}}":          "The task identifier (e.g., TASK-001)",
 		"{{TASK_TITLE}}":       "The task title from user input",
 		"{{TASK_DESCRIPTION}}": "The task description (if provided)",
-		"{{WEIGHT}}":           "Task weight classification (trivial/small/medium/large/greenfield)",
-		"{{PHASE}}":            "Current phase ID",
-		"{{ITERATION}}":        "Current iteration number within the phase",
-		"{{RESEARCH_CONTENT}}": "Output from the research phase (if applicable)",
-		"{{SPEC_CONTENT}}":     "Output from the spec phase (if applicable)",
-		"{{RETRY_CONTEXT}}":    "Context from failed phase when retrying",
+		"{{TASK_CATEGORY}}":    "Task category (feature, bug, refactor, chore, docs, test)",
+		"{{WEIGHT}}":           "Task weight classification (trivial/small/medium/large)",
 
-		// Worktree context variables
+		// Execution context
+		"{{PHASE}}":         "Current phase ID",
+		"{{ITERATION}}":     "Current iteration number within the phase",
+		"{{RETRY_CONTEXT}}": "Context from failed phase when retrying",
+
+		// Git context
 		"{{WORKTREE_PATH}}": "Absolute path to the isolated worktree directory",
+		"{{PROJECT_ROOT}}":  "Project root directory",
 		"{{TASK_BRANCH}}":   "The git branch for this task (e.g., orc/TASK-001)",
 		"{{TARGET_BRANCH}}": "The target branch for merging (e.g., main)",
+
+		// Project detection
+		"{{LANGUAGE}}":     "Primary programming language",
+		"{{HAS_FRONTEND}}": "Whether project has a frontend",
+		"{{HAS_TESTS}}":    "Whether project has existing tests",
+		"{{FRAMEWORKS}}":   "Detected frameworks",
+
+		// Commands
+		"{{TEST_COMMAND}}":  "Project test command",
+		"{{LINT_COMMAND}}":  "Project lint command",
+		"{{BUILD_COMMAND}}": "Project build command",
+
+		// Phase outputs (dynamic — derived from phase template output_var_name)
+		"{{OUTPUT_<PHASE_ID>}}": "Generic phase output (e.g., {{OUTPUT_SPEC}}, {{OUTPUT_IMPLEMENT}})",
 	}
 }
 

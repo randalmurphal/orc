@@ -309,8 +309,16 @@ func TestGetVariableReference(t *testing.T) {
 		t.Error("expected at least one variable")
 	}
 
-	// Check required variables
-	required := []string{"{{TASK_ID}}", "{{TASK_TITLE}}", "{{PHASE}}"}
+	// Check required variables exist
+	required := []string{
+		"{{TASK_ID}}", "{{TASK_TITLE}}", "{{TASK_DESCRIPTION}}",
+		"{{TASK_CATEGORY}}", "{{WEIGHT}}",
+		"{{PHASE}}", "{{ITERATION}}", "{{RETRY_CONTEXT}}",
+		"{{WORKTREE_PATH}}", "{{PROJECT_ROOT}}", "{{TASK_BRANCH}}", "{{TARGET_BRANCH}}",
+		"{{LANGUAGE}}", "{{HAS_FRONTEND}}", "{{HAS_TESTS}}", "{{FRAMEWORKS}}",
+		"{{TEST_COMMAND}}", "{{LINT_COMMAND}}", "{{BUILD_COMMAND}}",
+		"{{OUTPUT_<PHASE_ID>}}",
+	}
 	for _, v := range required {
 		if _, ok := vars[v]; !ok {
 			t.Errorf("expected variable %s to exist", v)

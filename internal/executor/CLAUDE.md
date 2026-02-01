@@ -217,7 +217,7 @@ All template variables resolved via `internal/variable/Resolver`. Resolution con
 | Project | LANGUAGE, HAS_FRONTEND, HAS_TESTS, TEST_COMMAND, FRAMEWORKS, ERROR_PATTERNS |
 | QA E2E | QA_ITERATION, QA_MAX_ITERATIONS, BEFORE_IMAGES, PREVIOUS_FINDINGS, QA_FINDINGS |
 | Gate Outputs | Custom variable names via `GateOutputConfig.variable_name` (JSON-serialized) |
-| Prior Outputs | SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT |
+| Phase Outputs | Data-driven from phase template `output_var_name`. Built-ins: SPEC_CONTENT, RESEARCH_CONTENT, TDD_TESTS_CONTENT, BREAKDOWN_CONTENT, QA_FINDINGS. Generic: OUTPUT_{PHASE_ID} |
 
 See `internal/variable/CLAUDE.md` for resolution sources (static, env, script, API, phase_output).
 

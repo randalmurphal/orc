@@ -1081,7 +1081,8 @@ type PhaseResult struct {
 // outputVarName is the variable name from the phase template (e.g., "SPEC_CONTENT").
 // If empty, falls back to OUTPUT_<PHASE_ID>.
 func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionContext, phaseID, content, outputVarName string) {
-	// Store raw output for OUTPUT_* variable (used by loop condition evaluation)
+	// Store raw output keyed by lowercase phase ID (e.g., "OUTPUT_qa_e2e_test")
+	// for loop condition evaluation — evaluateLoopCondition() looks up by phaseID directly.
 	vars["OUTPUT_"+phaseID] = content
 
 	// Determine the output variable name from template metadata, fallback to OUTPUT_<PHASE_ID>
@@ -1100,17 +1101,17 @@ func applyPhaseContentToVars(vars map[string]string, rctx *variable.ResolutionCo
 	}
 	rctx.PhaseOutputVars[varName] = content
 
-	// Special case: QA findings need additional formatting for the fix phase
+	// Special case: QA E2E test findings need formatting for the fix phase.
+	// Override the raw content with formatted findings that the fix agent can act on.
 	if phaseID == "qa_e2e_test" {
 		result, err := ParseQAE2ETestResult(content)
 		if err == nil {
-			vars["QA_FINDINGS"] = result.FormatFindingsForFix()
+			vars[varName] = result.FormatFindingsForFix()
 		} else {
-			// Fallback to raw if parse fails
-			vars["QA_FINDINGS"] = content
+			vars[varName] = content
 		}
-		// Persist to rctx so QA_FINDINGS survives ResolveAll() on next loop iteration
-		rctx.QAFindings = vars["QA_FINDINGS"]
+		// Persist so QA_FINDINGS survives ResolveAll() on next loop iteration
+		rctx.QAFindings = vars[varName]
 	}
 
 	// Store raw content in priorOutputs for loop condition evaluation
