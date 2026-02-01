@@ -13,6 +13,7 @@
 	flex: 0 0 420px;
 	width: 420px;
 	min-width: 420px;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	background: transparent;
