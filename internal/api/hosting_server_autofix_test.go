@@ -15,6 +15,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/hosting"
 	"github.com/randalmurphal/orc/internal/storage"
+	taskpkg "github.com/randalmurphal/orc/internal/task"
 )
 
 // mockGitHubProvider implements hosting.Provider for testing.
@@ -259,24 +260,24 @@ func TestAutofixComment_FetchesComment(t *testing.T) {
 		t.Fatalf("AutofixComment failed: %v", err)
 	}
 
-	// Reload task to check retry context
+	// Reload task to check retry state
 	loaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("reload task: %v", err)
 	}
 
-	if loaded.Execution == nil || loaded.Execution.RetryContext == nil {
-		t.Fatal("expected RetryContext to be set")
+	rs := taskpkg.GetRetryState(loaded)
+	if rs == nil {
+		t.Fatal("expected retry state to be set in task metadata")
 	}
 
-	rc := loaded.Execution.RetryContext
-	if rc.FailureOutput == nil {
+	if rs.FailureOutput == "" {
 		t.Fatal("expected FailureOutput to be set")
 	}
 
-	if !strings.Contains(*rc.FailureOutput, commentBody) {
-		t.Errorf("RetryContext.FailureOutput should contain comment body %q, got %q",
-			commentBody, *rc.FailureOutput)
+	if !strings.Contains(rs.FailureOutput, commentBody) {
+		t.Errorf("RetryState.FailureOutput should contain comment body %q, got %q",
+			commentBody, rs.FailureOutput)
 	}
 }
 
@@ -1070,28 +1071,28 @@ func TestAutofixComment_LongCommentTruncated(t *testing.T) {
 		t.Fatalf("AutofixComment failed: %v", err)
 	}
 
-	// Reload task to check retry context
+	// Reload task to check retry state
 	loaded, err := backend.LoadTask("TASK-001")
 	if err != nil {
 		t.Fatalf("reload task: %v", err)
 	}
 
-	if loaded.Execution == nil || loaded.Execution.RetryContext == nil {
-		t.Fatal("expected RetryContext to be set")
+	rs := taskpkg.GetRetryState(loaded)
+	if rs == nil {
+		t.Fatal("expected retry state to be set in task metadata")
 	}
 
-	rc := loaded.Execution.RetryContext
-	if rc.FailureOutput == nil {
+	if rs.FailureOutput == "" {
 		t.Fatal("expected FailureOutput to be set")
 	}
 
 	// Should contain truncation indicator
-	if !strings.Contains(*rc.FailureOutput, "truncated") {
+	if !strings.Contains(rs.FailureOutput, "truncated") {
 		t.Error("expected long comment to be truncated with indicator")
 	}
 
 	// Should be reasonable size (not full 15KB)
-	if len(*rc.FailureOutput) > 12*1024 { // Allow some overhead for formatting
-		t.Errorf("FailureOutput should be truncated, got %d bytes", len(*rc.FailureOutput))
+	if len(rs.FailureOutput) > 12*1024 { // Allow some overhead for formatting
+		t.Errorf("FailureOutput should be truncated, got %d bytes", len(rs.FailureOutput))
 	}
 }

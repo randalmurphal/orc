@@ -42,13 +42,9 @@ func protoTaskToDBTask(t *orcv1.Task) *db.Task {
 		}
 	}
 
-	// Convert retry context to JSON
-	var retryContextJSON string
-	if t.Execution != nil && t.Execution.RetryContext != nil {
-		if data, err := json.Marshal(protoRetryContextToMap(t.Execution.RetryContext)); err == nil {
-			retryContextJSON = string(data)
-		}
-	}
+	// Retry context is stored in task metadata under "_retry_state" key
+	// Get it directly from metadata for db storage
+	retryContextJSON := task.GetRetryStateJSON(t)
 
 	// Convert timestamps
 	var startedAt, completedAt, lastHeartbeat *time.Time
@@ -175,13 +171,8 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		},
 	}
 
-	// Parse retry context
-	if dbTask.RetryContext != "" {
-		var rc map[string]any
-		if err := json.Unmarshal([]byte(dbTask.RetryContext), &rc); err == nil {
-			execution.RetryContext = mapToProtoRetryContext(rc)
-		}
-	}
+	// Retry context is stored in task metadata under "_retry_state" key
+	// We'll inject it after building the task so metadata is properly initialized
 
 	// Build executor tracking fields
 	var lastHeartbeat *timestamppb.Timestamp
@@ -238,6 +229,12 @@ func dbTaskToProtoTask(dbTask *db.Task) *orcv1.Task {
 		if dbTask.PrStatus != "" {
 			t.Pr.Status = task.PRStatusToProto(dbTask.PrStatus)
 		}
+	}
+
+	// Inject retry context from db into task metadata
+	// This allows retry state to flow through the system via metadata
+	if dbTask.RetryContext != "" {
+		task.SetRetryStateJSON(t, dbTask.RetryContext)
 	}
 
 	return t
@@ -448,60 +445,6 @@ func mapToProtoQuality(m map[string]any) *orcv1.QualityMetrics {
 		q.TotalRetries = int32(v)
 	}
 	return q
-}
-
-// protoRetryContextToMap converts orcv1.RetryContext to a map for JSON serialization.
-func protoRetryContextToMap(rc *orcv1.RetryContext) map[string]any {
-	if rc == nil {
-		return nil
-	}
-	m := make(map[string]any)
-	m["from_phase"] = rc.FromPhase
-	m["to_phase"] = rc.ToPhase
-	m["reason"] = rc.Reason
-	m["attempt"] = rc.Attempt
-	if rc.FailureOutput != nil {
-		m["failure_output"] = *rc.FailureOutput
-	}
-	if rc.ContextFile != nil {
-		m["context_file"] = *rc.ContextFile
-	}
-	if rc.Timestamp != nil {
-		m["timestamp"] = rc.Timestamp.AsTime().Format(time.RFC3339)
-	}
-	return m
-}
-
-// mapToProtoRetryContext converts a map to orcv1.RetryContext.
-func mapToProtoRetryContext(m map[string]any) *orcv1.RetryContext {
-	if m == nil {
-		return nil
-	}
-	rc := &orcv1.RetryContext{}
-	if v, ok := m["from_phase"].(string); ok {
-		rc.FromPhase = v
-	}
-	if v, ok := m["to_phase"].(string); ok {
-		rc.ToPhase = v
-	}
-	if v, ok := m["reason"].(string); ok {
-		rc.Reason = v
-	}
-	if v, ok := m["attempt"].(float64); ok {
-		rc.Attempt = int32(v)
-	}
-	if v, ok := m["failure_output"].(string); ok {
-		rc.FailureOutput = &v
-	}
-	if v, ok := m["context_file"].(string); ok {
-		rc.ContextFile = &v
-	}
-	if v, ok := m["timestamp"].(string); ok {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			rc.Timestamp = timestamppb.New(t)
-		}
-	}
-	return rc
 }
 
 // ============================================================================

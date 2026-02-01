@@ -502,18 +502,18 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 			// If the previous run had an active retry (e.g., review rejected → retry implement),
 			// reset phases from the retry target through the rejecting phase so they re-execute.
 			// Without this, the resume skip logic sees them as "completed" and skips them.
-			if rc := task.GetRetryContextProto(t.Execution); rc != nil {
+			if rs := task.GetRetryState(t); rs != nil {
 				we.logger.Info("resetting phases for pending retry",
-					"from", rc.ToPhase, "through", rc.FromPhase)
+					"from", rs.ToPhase, "through", rs.FromPhase)
 				inRange := false
 				for _, p := range phases {
-					if p.PhaseTemplateID == rc.ToPhase {
+					if p.PhaseTemplateID == rs.ToPhase {
 						inRange = true
 					}
 					if inRange {
 						task.ResetPhaseProto(t.Execution, p.PhaseTemplateID)
 					}
-					if p.PhaseTemplateID == rc.FromPhase {
+					if p.PhaseTemplateID == rs.FromPhase {
 						break
 					}
 				}
@@ -692,8 +692,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				)
 
 				// Mark result as blocked for gate evaluation
-				// Note: Review findings are stored in RetryContext.FailureOutput when
-				// SetRetryContextProto is called by gate rejection handler below
+				// Note: Review findings are stored in RetryState.FailureOutput when
+				// SetRetryState is called by gate rejection handler below
 				phaseResult.BlockedReason = blockedErr.Reason
 				// Fall through to gate evaluation (don't return)
 			} else {
@@ -997,7 +997,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 							if we.task != nil {
 								reason := fmt.Sprintf("Gate rejected for phase %s: %s", tmpl.ID, gateResult.Reason)
-								task.SetRetryContextProto(we.task.Execution, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
+								task.SetRetryState(we.task, tmpl.ID, gateResult.RetryPhase, reason, phaseResult.Content, int32(retryCount))
 								if err := we.backend.SaveTask(we.task); err != nil {
 									we.logger.Warn("failed to save retry state", "error", err)
 								}
@@ -1011,7 +1011,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								}
 								// Clear retry context so gate-triggered retries
 								// don't cause review to think it's round 2.
-								we.task.Execution.RetryContext = nil
+								task.ClearRetryState(we.task)
 								if err := we.backend.SaveTask(we.task); err != nil {
 									we.logger.Warn("failed to save retry phase reset", "error", err)
 								}
@@ -1089,7 +1089,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 				// Clear retry context after successful review round 2
 				// This prevents stale context from affecting future runs
 				if gateResult.Approved && tmpl.ID == "review" && rctx.ReviewRound > 1 {
-					we.task.Execution.RetryContext = nil
+					task.ClearRetryState(we.task)
 					we.logger.Info("cleared retry context after successful review round 2",
 						"task", we.task.Id,
 						"round", rctx.ReviewRound,

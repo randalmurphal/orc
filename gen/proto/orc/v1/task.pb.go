@@ -1114,10 +1114,10 @@ type ExecutionState struct {
 	Cost             *CostTracking          `protobuf:"bytes,5,opt,name=cost,proto3" json:"cost,omitempty"`
 	Session          *SessionInfo           `protobuf:"bytes,6,opt,name=session,proto3,oneof" json:"session,omitempty"`
 	Error            *string                `protobuf:"bytes,7,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	RetryContext     *RetryContext          `protobuf:"bytes,8,opt,name=retry_context,json=retryContext,proto3,oneof" json:"retry_context,omitempty"`
-	JsonlPath        *string                `protobuf:"bytes,9,opt,name=jsonl_path,json=jsonlPath,proto3,oneof" json:"jsonl_path,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Field 8 removed: retry_context — retry state now stored in task metadata
+	JsonlPath     *string `protobuf:"bytes,9,opt,name=jsonl_path,json=jsonlPath,proto3,oneof" json:"jsonl_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecutionState) Reset() {
@@ -1197,13 +1197,6 @@ func (x *ExecutionState) GetError() string {
 		return *x.Error
 	}
 	return ""
-}
-
-func (x *ExecutionState) GetRetryContext() *RetryContext {
-	if x != nil {
-		return x.RetryContext
-	}
-	return nil
 }
 
 func (x *ExecutionState) GetJsonlPath() string {
@@ -8010,7 +8003,7 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x0f_interrupted_atB\r\n" +
 	"\v_commit_shaB\b\n" +
 	"\x06_errorB\r\n" +
-	"\v_session_id\"\xb4\x04\n" +
+	"\v_session_id\"\xe2\x03\n" +
 	"\x0eExecutionState\x12+\n" +
 	"\x11current_iteration\x18\x01 \x01(\x05R\x10currentIteration\x12:\n" +
 	"\x06phases\x18\x02 \x03(\v2\".orc.v1.ExecutionState.PhasesEntryR\x06phases\x12*\n" +
@@ -8018,17 +8011,15 @@ const file_orc_v1_task_proto_rawDesc = "" +
 	"\x06tokens\x18\x04 \x01(\v2\x12.orc.v1.TokenUsageR\x06tokens\x12(\n" +
 	"\x04cost\x18\x05 \x01(\v2\x14.orc.v1.CostTrackingR\x04cost\x122\n" +
 	"\asession\x18\x06 \x01(\v2\x13.orc.v1.SessionInfoH\x00R\asession\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\a \x01(\tH\x01R\x05error\x88\x01\x01\x12>\n" +
-	"\rretry_context\x18\b \x01(\v2\x14.orc.v1.RetryContextH\x02R\fretryContext\x88\x01\x01\x12\"\n" +
+	"\x05error\x18\a \x01(\tH\x01R\x05error\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"jsonl_path\x18\t \x01(\tH\x03R\tjsonlPath\x88\x01\x01\x1aM\n" +
+	"jsonl_path\x18\t \x01(\tH\x02R\tjsonlPath\x88\x01\x01\x1aM\n" +
 	"\vPhasesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
 	"\x05value\x18\x02 \x01(\v2\x12.orc.v1.PhaseStateR\x05value:\x028\x01B\n" +
 	"\n" +
 	"\b_sessionB\b\n" +
-	"\x06_errorB\x10\n" +
-	"\x0e_retry_contextB\r\n" +
+	"\x06_errorB\r\n" +
 	"\v_jsonl_path\"\x80\x10\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -9006,12 +8997,11 @@ var file_orc_v1_task_proto_goTypes = []any{
 	(*GateDecision)(nil),                // 127: orc.v1.GateDecision
 	(*CostTracking)(nil),                // 128: orc.v1.CostTracking
 	(*SessionInfo)(nil),                 // 129: orc.v1.SessionInfo
-	(*RetryContext)(nil),                // 130: orc.v1.RetryContext
-	(*PageRequest)(nil),                 // 131: orc.v1.PageRequest
-	(*PageResponse)(nil),                // 132: orc.v1.PageResponse
-	(*DiffResult)(nil),                  // 133: orc.v1.DiffResult
-	(*DiffStats)(nil),                   // 134: orc.v1.DiffStats
-	(*FileDiff)(nil),                    // 135: orc.v1.FileDiff
+	(*PageRequest)(nil),                 // 130: orc.v1.PageRequest
+	(*PageResponse)(nil),                // 131: orc.v1.PageResponse
+	(*DiffResult)(nil),                  // 132: orc.v1.DiffResult
+	(*DiffStats)(nil),                   // 133: orc.v1.DiffStats
+	(*FileDiff)(nil),                    // 134: orc.v1.FileDiff
 }
 var file_orc_v1_task_proto_depIdxs = []int32{
 	119, // 0: orc.v1.QualityMetrics.phase_retries:type_name -> orc.v1.QualityMetrics.PhaseRetriesEntry
@@ -9029,198 +9019,197 @@ var file_orc_v1_task_proto_depIdxs = []int32{
 	125, // 12: orc.v1.ExecutionState.tokens:type_name -> orc.v1.TokenUsage
 	128, // 13: orc.v1.ExecutionState.cost:type_name -> orc.v1.CostTracking
 	129, // 14: orc.v1.ExecutionState.session:type_name -> orc.v1.SessionInfo
-	130, // 15: orc.v1.ExecutionState.retry_context:type_name -> orc.v1.RetryContext
-	0,   // 16: orc.v1.Task.weight:type_name -> orc.v1.TaskWeight
-	1,   // 17: orc.v1.Task.status:type_name -> orc.v1.TaskStatus
-	2,   // 18: orc.v1.Task.queue:type_name -> orc.v1.TaskQueue
-	3,   // 19: orc.v1.Task.priority:type_name -> orc.v1.TaskPriority
-	4,   // 20: orc.v1.Task.category:type_name -> orc.v1.TaskCategory
-	12,  // 21: orc.v1.Task.testing_requirements:type_name -> orc.v1.TestingRequirements
-	13,  // 22: orc.v1.Task.quality:type_name -> orc.v1.QualityMetrics
-	14,  // 23: orc.v1.Task.pr:type_name -> orc.v1.PRInfo
-	16,  // 24: orc.v1.Task.execution:type_name -> orc.v1.ExecutionState
-	124, // 25: orc.v1.Task.created_at:type_name -> google.protobuf.Timestamp
-	124, // 26: orc.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
-	124, // 27: orc.v1.Task.started_at:type_name -> google.protobuf.Timestamp
-	124, // 28: orc.v1.Task.completed_at:type_name -> google.protobuf.Timestamp
-	121, // 29: orc.v1.Task.metadata:type_name -> orc.v1.Task.MetadataEntry
-	124, // 30: orc.v1.Task.last_heartbeat:type_name -> google.protobuf.Timestamp
-	7,   // 31: orc.v1.Task.dependency_status:type_name -> orc.v1.DependencyStatus
-	5,   // 32: orc.v1.PlanPhase.status:type_name -> orc.v1.PhaseStatus
-	124, // 33: orc.v1.PlanPhase.started_at:type_name -> google.protobuf.Timestamp
-	124, // 34: orc.v1.PlanPhase.completed_at:type_name -> google.protobuf.Timestamp
-	0,   // 35: orc.v1.TaskPlan.weight:type_name -> orc.v1.TaskWeight
-	18,  // 36: orc.v1.TaskPlan.phases:type_name -> orc.v1.PlanPhase
-	10,  // 37: orc.v1.TaskComment.author_type:type_name -> orc.v1.AuthorType
-	124, // 38: orc.v1.TaskComment.created_at:type_name -> google.protobuf.Timestamp
-	124, // 39: orc.v1.TaskComment.updated_at:type_name -> google.protobuf.Timestamp
-	8,   // 40: orc.v1.ReviewComment.severity:type_name -> orc.v1.CommentSeverity
-	9,   // 41: orc.v1.ReviewComment.status:type_name -> orc.v1.CommentStatus
-	124, // 42: orc.v1.ReviewComment.created_at:type_name -> google.protobuf.Timestamp
-	124, // 43: orc.v1.ReviewComment.resolved_at:type_name -> google.protobuf.Timestamp
-	23,  // 44: orc.v1.DependencyGraph.nodes:type_name -> orc.v1.DependencyNode
-	24,  // 45: orc.v1.DependencyGraph.edges:type_name -> orc.v1.DependencyEdge
-	1,   // 46: orc.v1.DependencyNode.status:type_name -> orc.v1.TaskStatus
-	0,   // 47: orc.v1.DependencyNode.weight:type_name -> orc.v1.TaskWeight
-	21,  // 48: orc.v1.RetryPreviewInfo.unresolved_comments:type_name -> orc.v1.ReviewComment
-	11,  // 49: orc.v1.TestResult.status:type_name -> orc.v1.TestResultStatus
-	27,  // 50: orc.v1.TestSuite.tests:type_name -> orc.v1.TestResult
-	30,  // 51: orc.v1.TestCoverage.lines:type_name -> orc.v1.CoverageDetail
-	30,  // 52: orc.v1.TestCoverage.branches:type_name -> orc.v1.CoverageDetail
-	30,  // 53: orc.v1.TestCoverage.functions:type_name -> orc.v1.CoverageDetail
-	30,  // 54: orc.v1.TestCoverage.statements:type_name -> orc.v1.CoverageDetail
-	124, // 55: orc.v1.TestReport.started_at:type_name -> google.protobuf.Timestamp
-	124, // 56: orc.v1.TestReport.completed_at:type_name -> google.protobuf.Timestamp
-	29,  // 57: orc.v1.TestReport.summary:type_name -> orc.v1.TestSummary
-	28,  // 58: orc.v1.TestReport.suites:type_name -> orc.v1.TestSuite
-	31,  // 59: orc.v1.TestReport.coverage:type_name -> orc.v1.TestCoverage
-	124, // 60: orc.v1.Screenshot.created_at:type_name -> google.protobuf.Timestamp
-	32,  // 61: orc.v1.TestResultsInfo.report:type_name -> orc.v1.TestReport
-	33,  // 62: orc.v1.TestResultsInfo.screenshots:type_name -> orc.v1.Screenshot
-	124, // 63: orc.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
-	131, // 64: orc.v1.ListTasksRequest.page:type_name -> orc.v1.PageRequest
-	7,   // 65: orc.v1.ListTasksRequest.dependency_status:type_name -> orc.v1.DependencyStatus
-	1,   // 66: orc.v1.ListTasksRequest.statuses:type_name -> orc.v1.TaskStatus
-	2,   // 67: orc.v1.ListTasksRequest.queue:type_name -> orc.v1.TaskQueue
-	4,   // 68: orc.v1.ListTasksRequest.category:type_name -> orc.v1.TaskCategory
-	17,  // 69: orc.v1.ListTasksResponse.tasks:type_name -> orc.v1.Task
-	132, // 70: orc.v1.ListTasksResponse.page:type_name -> orc.v1.PageResponse
-	17,  // 71: orc.v1.GetTaskResponse.task:type_name -> orc.v1.Task
-	0,   // 72: orc.v1.CreateTaskRequest.weight:type_name -> orc.v1.TaskWeight
-	2,   // 73: orc.v1.CreateTaskRequest.queue:type_name -> orc.v1.TaskQueue
-	3,   // 74: orc.v1.CreateTaskRequest.priority:type_name -> orc.v1.TaskPriority
-	4,   // 75: orc.v1.CreateTaskRequest.category:type_name -> orc.v1.TaskCategory
-	122, // 76: orc.v1.CreateTaskRequest.metadata:type_name -> orc.v1.CreateTaskRequest.MetadataEntry
-	17,  // 77: orc.v1.CreateTaskResponse.task:type_name -> orc.v1.Task
-	0,   // 78: orc.v1.UpdateTaskRequest.weight:type_name -> orc.v1.TaskWeight
-	2,   // 79: orc.v1.UpdateTaskRequest.queue:type_name -> orc.v1.TaskQueue
-	3,   // 80: orc.v1.UpdateTaskRequest.priority:type_name -> orc.v1.TaskPriority
-	4,   // 81: orc.v1.UpdateTaskRequest.category:type_name -> orc.v1.TaskCategory
-	123, // 82: orc.v1.UpdateTaskRequest.metadata:type_name -> orc.v1.UpdateTaskRequest.MetadataEntry
-	17,  // 83: orc.v1.UpdateTaskResponse.task:type_name -> orc.v1.Task
-	16,  // 84: orc.v1.GetTaskStateResponse.state:type_name -> orc.v1.ExecutionState
-	19,  // 85: orc.v1.GetTaskPlanResponse.plan:type_name -> orc.v1.TaskPlan
-	17,  // 86: orc.v1.RunTaskResponse.task:type_name -> orc.v1.Task
-	17,  // 87: orc.v1.PauseTaskResponse.task:type_name -> orc.v1.Task
-	17,  // 88: orc.v1.ResumeTaskResponse.task:type_name -> orc.v1.Task
-	17,  // 89: orc.v1.PauseAllTasksResponse.tasks:type_name -> orc.v1.Task
-	17,  // 90: orc.v1.ResumeAllTasksResponse.tasks:type_name -> orc.v1.Task
-	17,  // 91: orc.v1.SkipBlockResponse.task:type_name -> orc.v1.Task
-	17,  // 92: orc.v1.RetryTaskResponse.task:type_name -> orc.v1.Task
-	26,  // 93: orc.v1.RetryPreviewResponse.info:type_name -> orc.v1.RetryPreviewInfo
-	17,  // 94: orc.v1.FinalizeTaskResponse.task:type_name -> orc.v1.Task
-	25,  // 95: orc.v1.FinalizeTaskResponse.state:type_name -> orc.v1.FinalizeState
-	25,  // 96: orc.v1.GetFinalizeStateResponse.state:type_name -> orc.v1.FinalizeState
-	22,  // 97: orc.v1.GetDependenciesResponse.graph:type_name -> orc.v1.DependencyGraph
-	17,  // 98: orc.v1.AddBlockerResponse.task:type_name -> orc.v1.Task
-	17,  // 99: orc.v1.AddRelatedResponse.task:type_name -> orc.v1.Task
-	133, // 100: orc.v1.GetDiffResponse.diff:type_name -> orc.v1.DiffResult
-	134, // 101: orc.v1.GetDiffStatsResponse.stats:type_name -> orc.v1.DiffStats
-	135, // 102: orc.v1.GetFileDiffResponse.file:type_name -> orc.v1.FileDiff
-	10,  // 103: orc.v1.ListCommentsRequest.author_type:type_name -> orc.v1.AuthorType
-	20,  // 104: orc.v1.ListCommentsResponse.comments:type_name -> orc.v1.TaskComment
-	10,  // 105: orc.v1.CreateCommentRequest.author_type:type_name -> orc.v1.AuthorType
-	20,  // 106: orc.v1.CreateCommentResponse.comment:type_name -> orc.v1.TaskComment
-	20,  // 107: orc.v1.UpdateCommentResponse.comment:type_name -> orc.v1.TaskComment
-	9,   // 108: orc.v1.ListReviewCommentsRequest.status:type_name -> orc.v1.CommentStatus
-	21,  // 109: orc.v1.ListReviewCommentsResponse.comments:type_name -> orc.v1.ReviewComment
-	8,   // 110: orc.v1.CreateReviewCommentRequest.severity:type_name -> orc.v1.CommentSeverity
-	21,  // 111: orc.v1.CreateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
-	9,   // 112: orc.v1.UpdateReviewCommentRequest.status:type_name -> orc.v1.CommentStatus
-	21,  // 113: orc.v1.UpdateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
-	35,  // 114: orc.v1.ListAttachmentsResponse.attachments:type_name -> orc.v1.Attachment
-	105, // 115: orc.v1.UploadAttachmentRequest.metadata:type_name -> orc.v1.AttachmentMetadata
-	35,  // 116: orc.v1.UploadAttachmentResponse.attachment:type_name -> orc.v1.Attachment
-	34,  // 117: orc.v1.GetTestResultsResponse.results:type_name -> orc.v1.TestResultsInfo
-	113, // 118: orc.v1.ReviewRoundFindings.issues:type_name -> orc.v1.ReviewFinding
-	124, // 119: orc.v1.ReviewRoundFindings.created_at:type_name -> google.protobuf.Timestamp
-	114, // 120: orc.v1.GetReviewFindingsResponse.rounds:type_name -> orc.v1.ReviewRoundFindings
-	15,  // 121: orc.v1.ExecutionState.PhasesEntry.value:type_name -> orc.v1.PhaseState
-	36,  // 122: orc.v1.TaskService.ListTasks:input_type -> orc.v1.ListTasksRequest
-	38,  // 123: orc.v1.TaskService.GetTask:input_type -> orc.v1.GetTaskRequest
-	40,  // 124: orc.v1.TaskService.CreateTask:input_type -> orc.v1.CreateTaskRequest
-	42,  // 125: orc.v1.TaskService.UpdateTask:input_type -> orc.v1.UpdateTaskRequest
-	44,  // 126: orc.v1.TaskService.DeleteTask:input_type -> orc.v1.DeleteTaskRequest
-	46,  // 127: orc.v1.TaskService.GetTaskState:input_type -> orc.v1.GetTaskStateRequest
-	48,  // 128: orc.v1.TaskService.GetTaskPlan:input_type -> orc.v1.GetTaskPlanRequest
-	50,  // 129: orc.v1.TaskService.RunTask:input_type -> orc.v1.RunTaskRequest
-	52,  // 130: orc.v1.TaskService.PauseTask:input_type -> orc.v1.PauseTaskRequest
-	54,  // 131: orc.v1.TaskService.ResumeTask:input_type -> orc.v1.ResumeTaskRequest
-	56,  // 132: orc.v1.TaskService.PauseAllTasks:input_type -> orc.v1.PauseAllTasksRequest
-	58,  // 133: orc.v1.TaskService.ResumeAllTasks:input_type -> orc.v1.ResumeAllTasksRequest
-	60,  // 134: orc.v1.TaskService.SkipBlock:input_type -> orc.v1.SkipBlockRequest
-	62,  // 135: orc.v1.TaskService.RetryTask:input_type -> orc.v1.RetryTaskRequest
-	64,  // 136: orc.v1.TaskService.RetryPreview:input_type -> orc.v1.RetryPreviewRequest
-	66,  // 137: orc.v1.TaskService.FinalizeTask:input_type -> orc.v1.FinalizeTaskRequest
-	68,  // 138: orc.v1.TaskService.GetFinalizeState:input_type -> orc.v1.GetFinalizeStateRequest
-	70,  // 139: orc.v1.TaskService.GetDependencies:input_type -> orc.v1.GetDependenciesRequest
-	72,  // 140: orc.v1.TaskService.AddBlocker:input_type -> orc.v1.AddBlockerRequest
-	74,  // 141: orc.v1.TaskService.RemoveBlocker:input_type -> orc.v1.RemoveBlockerRequest
-	76,  // 142: orc.v1.TaskService.AddRelated:input_type -> orc.v1.AddRelatedRequest
-	78,  // 143: orc.v1.TaskService.RemoveRelated:input_type -> orc.v1.RemoveRelatedRequest
-	80,  // 144: orc.v1.TaskService.GetDiff:input_type -> orc.v1.GetDiffRequest
-	82,  // 145: orc.v1.TaskService.GetDiffStats:input_type -> orc.v1.GetDiffStatsRequest
-	84,  // 146: orc.v1.TaskService.GetFileDiff:input_type -> orc.v1.GetFileDiffRequest
-	86,  // 147: orc.v1.TaskService.ListComments:input_type -> orc.v1.ListCommentsRequest
-	88,  // 148: orc.v1.TaskService.CreateComment:input_type -> orc.v1.CreateCommentRequest
-	90,  // 149: orc.v1.TaskService.UpdateComment:input_type -> orc.v1.UpdateCommentRequest
-	92,  // 150: orc.v1.TaskService.DeleteComment:input_type -> orc.v1.DeleteCommentRequest
-	94,  // 151: orc.v1.TaskService.ListReviewComments:input_type -> orc.v1.ListReviewCommentsRequest
-	96,  // 152: orc.v1.TaskService.CreateReviewComment:input_type -> orc.v1.CreateReviewCommentRequest
-	98,  // 153: orc.v1.TaskService.UpdateReviewComment:input_type -> orc.v1.UpdateReviewCommentRequest
-	100, // 154: orc.v1.TaskService.DeleteReviewComment:input_type -> orc.v1.DeleteReviewCommentRequest
-	102, // 155: orc.v1.TaskService.ListAttachments:input_type -> orc.v1.ListAttachmentsRequest
-	104, // 156: orc.v1.TaskService.UploadAttachment:input_type -> orc.v1.UploadAttachmentRequest
-	107, // 157: orc.v1.TaskService.DownloadAttachment:input_type -> orc.v1.DownloadAttachmentRequest
-	109, // 158: orc.v1.TaskService.DeleteAttachment:input_type -> orc.v1.DeleteAttachmentRequest
-	111, // 159: orc.v1.TaskService.GetTestResults:input_type -> orc.v1.GetTestResultsRequest
-	115, // 160: orc.v1.TaskService.GetReviewFindings:input_type -> orc.v1.GetReviewFindingsRequest
-	117, // 161: orc.v1.TaskService.ExportTask:input_type -> orc.v1.ExportTaskRequest
-	37,  // 162: orc.v1.TaskService.ListTasks:output_type -> orc.v1.ListTasksResponse
-	39,  // 163: orc.v1.TaskService.GetTask:output_type -> orc.v1.GetTaskResponse
-	41,  // 164: orc.v1.TaskService.CreateTask:output_type -> orc.v1.CreateTaskResponse
-	43,  // 165: orc.v1.TaskService.UpdateTask:output_type -> orc.v1.UpdateTaskResponse
-	45,  // 166: orc.v1.TaskService.DeleteTask:output_type -> orc.v1.DeleteTaskResponse
-	47,  // 167: orc.v1.TaskService.GetTaskState:output_type -> orc.v1.GetTaskStateResponse
-	49,  // 168: orc.v1.TaskService.GetTaskPlan:output_type -> orc.v1.GetTaskPlanResponse
-	51,  // 169: orc.v1.TaskService.RunTask:output_type -> orc.v1.RunTaskResponse
-	53,  // 170: orc.v1.TaskService.PauseTask:output_type -> orc.v1.PauseTaskResponse
-	55,  // 171: orc.v1.TaskService.ResumeTask:output_type -> orc.v1.ResumeTaskResponse
-	57,  // 172: orc.v1.TaskService.PauseAllTasks:output_type -> orc.v1.PauseAllTasksResponse
-	59,  // 173: orc.v1.TaskService.ResumeAllTasks:output_type -> orc.v1.ResumeAllTasksResponse
-	61,  // 174: orc.v1.TaskService.SkipBlock:output_type -> orc.v1.SkipBlockResponse
-	63,  // 175: orc.v1.TaskService.RetryTask:output_type -> orc.v1.RetryTaskResponse
-	65,  // 176: orc.v1.TaskService.RetryPreview:output_type -> orc.v1.RetryPreviewResponse
-	67,  // 177: orc.v1.TaskService.FinalizeTask:output_type -> orc.v1.FinalizeTaskResponse
-	69,  // 178: orc.v1.TaskService.GetFinalizeState:output_type -> orc.v1.GetFinalizeStateResponse
-	71,  // 179: orc.v1.TaskService.GetDependencies:output_type -> orc.v1.GetDependenciesResponse
-	73,  // 180: orc.v1.TaskService.AddBlocker:output_type -> orc.v1.AddBlockerResponse
-	75,  // 181: orc.v1.TaskService.RemoveBlocker:output_type -> orc.v1.RemoveBlockerResponse
-	77,  // 182: orc.v1.TaskService.AddRelated:output_type -> orc.v1.AddRelatedResponse
-	79,  // 183: orc.v1.TaskService.RemoveRelated:output_type -> orc.v1.RemoveRelatedResponse
-	81,  // 184: orc.v1.TaskService.GetDiff:output_type -> orc.v1.GetDiffResponse
-	83,  // 185: orc.v1.TaskService.GetDiffStats:output_type -> orc.v1.GetDiffStatsResponse
-	85,  // 186: orc.v1.TaskService.GetFileDiff:output_type -> orc.v1.GetFileDiffResponse
-	87,  // 187: orc.v1.TaskService.ListComments:output_type -> orc.v1.ListCommentsResponse
-	89,  // 188: orc.v1.TaskService.CreateComment:output_type -> orc.v1.CreateCommentResponse
-	91,  // 189: orc.v1.TaskService.UpdateComment:output_type -> orc.v1.UpdateCommentResponse
-	93,  // 190: orc.v1.TaskService.DeleteComment:output_type -> orc.v1.DeleteCommentResponse
-	95,  // 191: orc.v1.TaskService.ListReviewComments:output_type -> orc.v1.ListReviewCommentsResponse
-	97,  // 192: orc.v1.TaskService.CreateReviewComment:output_type -> orc.v1.CreateReviewCommentResponse
-	99,  // 193: orc.v1.TaskService.UpdateReviewComment:output_type -> orc.v1.UpdateReviewCommentResponse
-	101, // 194: orc.v1.TaskService.DeleteReviewComment:output_type -> orc.v1.DeleteReviewCommentResponse
-	103, // 195: orc.v1.TaskService.ListAttachments:output_type -> orc.v1.ListAttachmentsResponse
-	106, // 196: orc.v1.TaskService.UploadAttachment:output_type -> orc.v1.UploadAttachmentResponse
-	108, // 197: orc.v1.TaskService.DownloadAttachment:output_type -> orc.v1.DownloadAttachmentResponse
-	110, // 198: orc.v1.TaskService.DeleteAttachment:output_type -> orc.v1.DeleteAttachmentResponse
-	112, // 199: orc.v1.TaskService.GetTestResults:output_type -> orc.v1.GetTestResultsResponse
-	116, // 200: orc.v1.TaskService.GetReviewFindings:output_type -> orc.v1.GetReviewFindingsResponse
-	118, // 201: orc.v1.TaskService.ExportTask:output_type -> orc.v1.ExportTaskResponse
-	162, // [162:202] is the sub-list for method output_type
-	122, // [122:162] is the sub-list for method input_type
-	122, // [122:122] is the sub-list for extension type_name
-	122, // [122:122] is the sub-list for extension extendee
-	0,   // [0:122] is the sub-list for field type_name
+	0,   // 15: orc.v1.Task.weight:type_name -> orc.v1.TaskWeight
+	1,   // 16: orc.v1.Task.status:type_name -> orc.v1.TaskStatus
+	2,   // 17: orc.v1.Task.queue:type_name -> orc.v1.TaskQueue
+	3,   // 18: orc.v1.Task.priority:type_name -> orc.v1.TaskPriority
+	4,   // 19: orc.v1.Task.category:type_name -> orc.v1.TaskCategory
+	12,  // 20: orc.v1.Task.testing_requirements:type_name -> orc.v1.TestingRequirements
+	13,  // 21: orc.v1.Task.quality:type_name -> orc.v1.QualityMetrics
+	14,  // 22: orc.v1.Task.pr:type_name -> orc.v1.PRInfo
+	16,  // 23: orc.v1.Task.execution:type_name -> orc.v1.ExecutionState
+	124, // 24: orc.v1.Task.created_at:type_name -> google.protobuf.Timestamp
+	124, // 25: orc.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
+	124, // 26: orc.v1.Task.started_at:type_name -> google.protobuf.Timestamp
+	124, // 27: orc.v1.Task.completed_at:type_name -> google.protobuf.Timestamp
+	121, // 28: orc.v1.Task.metadata:type_name -> orc.v1.Task.MetadataEntry
+	124, // 29: orc.v1.Task.last_heartbeat:type_name -> google.protobuf.Timestamp
+	7,   // 30: orc.v1.Task.dependency_status:type_name -> orc.v1.DependencyStatus
+	5,   // 31: orc.v1.PlanPhase.status:type_name -> orc.v1.PhaseStatus
+	124, // 32: orc.v1.PlanPhase.started_at:type_name -> google.protobuf.Timestamp
+	124, // 33: orc.v1.PlanPhase.completed_at:type_name -> google.protobuf.Timestamp
+	0,   // 34: orc.v1.TaskPlan.weight:type_name -> orc.v1.TaskWeight
+	18,  // 35: orc.v1.TaskPlan.phases:type_name -> orc.v1.PlanPhase
+	10,  // 36: orc.v1.TaskComment.author_type:type_name -> orc.v1.AuthorType
+	124, // 37: orc.v1.TaskComment.created_at:type_name -> google.protobuf.Timestamp
+	124, // 38: orc.v1.TaskComment.updated_at:type_name -> google.protobuf.Timestamp
+	8,   // 39: orc.v1.ReviewComment.severity:type_name -> orc.v1.CommentSeverity
+	9,   // 40: orc.v1.ReviewComment.status:type_name -> orc.v1.CommentStatus
+	124, // 41: orc.v1.ReviewComment.created_at:type_name -> google.protobuf.Timestamp
+	124, // 42: orc.v1.ReviewComment.resolved_at:type_name -> google.protobuf.Timestamp
+	23,  // 43: orc.v1.DependencyGraph.nodes:type_name -> orc.v1.DependencyNode
+	24,  // 44: orc.v1.DependencyGraph.edges:type_name -> orc.v1.DependencyEdge
+	1,   // 45: orc.v1.DependencyNode.status:type_name -> orc.v1.TaskStatus
+	0,   // 46: orc.v1.DependencyNode.weight:type_name -> orc.v1.TaskWeight
+	21,  // 47: orc.v1.RetryPreviewInfo.unresolved_comments:type_name -> orc.v1.ReviewComment
+	11,  // 48: orc.v1.TestResult.status:type_name -> orc.v1.TestResultStatus
+	27,  // 49: orc.v1.TestSuite.tests:type_name -> orc.v1.TestResult
+	30,  // 50: orc.v1.TestCoverage.lines:type_name -> orc.v1.CoverageDetail
+	30,  // 51: orc.v1.TestCoverage.branches:type_name -> orc.v1.CoverageDetail
+	30,  // 52: orc.v1.TestCoverage.functions:type_name -> orc.v1.CoverageDetail
+	30,  // 53: orc.v1.TestCoverage.statements:type_name -> orc.v1.CoverageDetail
+	124, // 54: orc.v1.TestReport.started_at:type_name -> google.protobuf.Timestamp
+	124, // 55: orc.v1.TestReport.completed_at:type_name -> google.protobuf.Timestamp
+	29,  // 56: orc.v1.TestReport.summary:type_name -> orc.v1.TestSummary
+	28,  // 57: orc.v1.TestReport.suites:type_name -> orc.v1.TestSuite
+	31,  // 58: orc.v1.TestReport.coverage:type_name -> orc.v1.TestCoverage
+	124, // 59: orc.v1.Screenshot.created_at:type_name -> google.protobuf.Timestamp
+	32,  // 60: orc.v1.TestResultsInfo.report:type_name -> orc.v1.TestReport
+	33,  // 61: orc.v1.TestResultsInfo.screenshots:type_name -> orc.v1.Screenshot
+	124, // 62: orc.v1.Attachment.created_at:type_name -> google.protobuf.Timestamp
+	130, // 63: orc.v1.ListTasksRequest.page:type_name -> orc.v1.PageRequest
+	7,   // 64: orc.v1.ListTasksRequest.dependency_status:type_name -> orc.v1.DependencyStatus
+	1,   // 65: orc.v1.ListTasksRequest.statuses:type_name -> orc.v1.TaskStatus
+	2,   // 66: orc.v1.ListTasksRequest.queue:type_name -> orc.v1.TaskQueue
+	4,   // 67: orc.v1.ListTasksRequest.category:type_name -> orc.v1.TaskCategory
+	17,  // 68: orc.v1.ListTasksResponse.tasks:type_name -> orc.v1.Task
+	131, // 69: orc.v1.ListTasksResponse.page:type_name -> orc.v1.PageResponse
+	17,  // 70: orc.v1.GetTaskResponse.task:type_name -> orc.v1.Task
+	0,   // 71: orc.v1.CreateTaskRequest.weight:type_name -> orc.v1.TaskWeight
+	2,   // 72: orc.v1.CreateTaskRequest.queue:type_name -> orc.v1.TaskQueue
+	3,   // 73: orc.v1.CreateTaskRequest.priority:type_name -> orc.v1.TaskPriority
+	4,   // 74: orc.v1.CreateTaskRequest.category:type_name -> orc.v1.TaskCategory
+	122, // 75: orc.v1.CreateTaskRequest.metadata:type_name -> orc.v1.CreateTaskRequest.MetadataEntry
+	17,  // 76: orc.v1.CreateTaskResponse.task:type_name -> orc.v1.Task
+	0,   // 77: orc.v1.UpdateTaskRequest.weight:type_name -> orc.v1.TaskWeight
+	2,   // 78: orc.v1.UpdateTaskRequest.queue:type_name -> orc.v1.TaskQueue
+	3,   // 79: orc.v1.UpdateTaskRequest.priority:type_name -> orc.v1.TaskPriority
+	4,   // 80: orc.v1.UpdateTaskRequest.category:type_name -> orc.v1.TaskCategory
+	123, // 81: orc.v1.UpdateTaskRequest.metadata:type_name -> orc.v1.UpdateTaskRequest.MetadataEntry
+	17,  // 82: orc.v1.UpdateTaskResponse.task:type_name -> orc.v1.Task
+	16,  // 83: orc.v1.GetTaskStateResponse.state:type_name -> orc.v1.ExecutionState
+	19,  // 84: orc.v1.GetTaskPlanResponse.plan:type_name -> orc.v1.TaskPlan
+	17,  // 85: orc.v1.RunTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 86: orc.v1.PauseTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 87: orc.v1.ResumeTaskResponse.task:type_name -> orc.v1.Task
+	17,  // 88: orc.v1.PauseAllTasksResponse.tasks:type_name -> orc.v1.Task
+	17,  // 89: orc.v1.ResumeAllTasksResponse.tasks:type_name -> orc.v1.Task
+	17,  // 90: orc.v1.SkipBlockResponse.task:type_name -> orc.v1.Task
+	17,  // 91: orc.v1.RetryTaskResponse.task:type_name -> orc.v1.Task
+	26,  // 92: orc.v1.RetryPreviewResponse.info:type_name -> orc.v1.RetryPreviewInfo
+	17,  // 93: orc.v1.FinalizeTaskResponse.task:type_name -> orc.v1.Task
+	25,  // 94: orc.v1.FinalizeTaskResponse.state:type_name -> orc.v1.FinalizeState
+	25,  // 95: orc.v1.GetFinalizeStateResponse.state:type_name -> orc.v1.FinalizeState
+	22,  // 96: orc.v1.GetDependenciesResponse.graph:type_name -> orc.v1.DependencyGraph
+	17,  // 97: orc.v1.AddBlockerResponse.task:type_name -> orc.v1.Task
+	17,  // 98: orc.v1.AddRelatedResponse.task:type_name -> orc.v1.Task
+	132, // 99: orc.v1.GetDiffResponse.diff:type_name -> orc.v1.DiffResult
+	133, // 100: orc.v1.GetDiffStatsResponse.stats:type_name -> orc.v1.DiffStats
+	134, // 101: orc.v1.GetFileDiffResponse.file:type_name -> orc.v1.FileDiff
+	10,  // 102: orc.v1.ListCommentsRequest.author_type:type_name -> orc.v1.AuthorType
+	20,  // 103: orc.v1.ListCommentsResponse.comments:type_name -> orc.v1.TaskComment
+	10,  // 104: orc.v1.CreateCommentRequest.author_type:type_name -> orc.v1.AuthorType
+	20,  // 105: orc.v1.CreateCommentResponse.comment:type_name -> orc.v1.TaskComment
+	20,  // 106: orc.v1.UpdateCommentResponse.comment:type_name -> orc.v1.TaskComment
+	9,   // 107: orc.v1.ListReviewCommentsRequest.status:type_name -> orc.v1.CommentStatus
+	21,  // 108: orc.v1.ListReviewCommentsResponse.comments:type_name -> orc.v1.ReviewComment
+	8,   // 109: orc.v1.CreateReviewCommentRequest.severity:type_name -> orc.v1.CommentSeverity
+	21,  // 110: orc.v1.CreateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
+	9,   // 111: orc.v1.UpdateReviewCommentRequest.status:type_name -> orc.v1.CommentStatus
+	21,  // 112: orc.v1.UpdateReviewCommentResponse.comment:type_name -> orc.v1.ReviewComment
+	35,  // 113: orc.v1.ListAttachmentsResponse.attachments:type_name -> orc.v1.Attachment
+	105, // 114: orc.v1.UploadAttachmentRequest.metadata:type_name -> orc.v1.AttachmentMetadata
+	35,  // 115: orc.v1.UploadAttachmentResponse.attachment:type_name -> orc.v1.Attachment
+	34,  // 116: orc.v1.GetTestResultsResponse.results:type_name -> orc.v1.TestResultsInfo
+	113, // 117: orc.v1.ReviewRoundFindings.issues:type_name -> orc.v1.ReviewFinding
+	124, // 118: orc.v1.ReviewRoundFindings.created_at:type_name -> google.protobuf.Timestamp
+	114, // 119: orc.v1.GetReviewFindingsResponse.rounds:type_name -> orc.v1.ReviewRoundFindings
+	15,  // 120: orc.v1.ExecutionState.PhasesEntry.value:type_name -> orc.v1.PhaseState
+	36,  // 121: orc.v1.TaskService.ListTasks:input_type -> orc.v1.ListTasksRequest
+	38,  // 122: orc.v1.TaskService.GetTask:input_type -> orc.v1.GetTaskRequest
+	40,  // 123: orc.v1.TaskService.CreateTask:input_type -> orc.v1.CreateTaskRequest
+	42,  // 124: orc.v1.TaskService.UpdateTask:input_type -> orc.v1.UpdateTaskRequest
+	44,  // 125: orc.v1.TaskService.DeleteTask:input_type -> orc.v1.DeleteTaskRequest
+	46,  // 126: orc.v1.TaskService.GetTaskState:input_type -> orc.v1.GetTaskStateRequest
+	48,  // 127: orc.v1.TaskService.GetTaskPlan:input_type -> orc.v1.GetTaskPlanRequest
+	50,  // 128: orc.v1.TaskService.RunTask:input_type -> orc.v1.RunTaskRequest
+	52,  // 129: orc.v1.TaskService.PauseTask:input_type -> orc.v1.PauseTaskRequest
+	54,  // 130: orc.v1.TaskService.ResumeTask:input_type -> orc.v1.ResumeTaskRequest
+	56,  // 131: orc.v1.TaskService.PauseAllTasks:input_type -> orc.v1.PauseAllTasksRequest
+	58,  // 132: orc.v1.TaskService.ResumeAllTasks:input_type -> orc.v1.ResumeAllTasksRequest
+	60,  // 133: orc.v1.TaskService.SkipBlock:input_type -> orc.v1.SkipBlockRequest
+	62,  // 134: orc.v1.TaskService.RetryTask:input_type -> orc.v1.RetryTaskRequest
+	64,  // 135: orc.v1.TaskService.RetryPreview:input_type -> orc.v1.RetryPreviewRequest
+	66,  // 136: orc.v1.TaskService.FinalizeTask:input_type -> orc.v1.FinalizeTaskRequest
+	68,  // 137: orc.v1.TaskService.GetFinalizeState:input_type -> orc.v1.GetFinalizeStateRequest
+	70,  // 138: orc.v1.TaskService.GetDependencies:input_type -> orc.v1.GetDependenciesRequest
+	72,  // 139: orc.v1.TaskService.AddBlocker:input_type -> orc.v1.AddBlockerRequest
+	74,  // 140: orc.v1.TaskService.RemoveBlocker:input_type -> orc.v1.RemoveBlockerRequest
+	76,  // 141: orc.v1.TaskService.AddRelated:input_type -> orc.v1.AddRelatedRequest
+	78,  // 142: orc.v1.TaskService.RemoveRelated:input_type -> orc.v1.RemoveRelatedRequest
+	80,  // 143: orc.v1.TaskService.GetDiff:input_type -> orc.v1.GetDiffRequest
+	82,  // 144: orc.v1.TaskService.GetDiffStats:input_type -> orc.v1.GetDiffStatsRequest
+	84,  // 145: orc.v1.TaskService.GetFileDiff:input_type -> orc.v1.GetFileDiffRequest
+	86,  // 146: orc.v1.TaskService.ListComments:input_type -> orc.v1.ListCommentsRequest
+	88,  // 147: orc.v1.TaskService.CreateComment:input_type -> orc.v1.CreateCommentRequest
+	90,  // 148: orc.v1.TaskService.UpdateComment:input_type -> orc.v1.UpdateCommentRequest
+	92,  // 149: orc.v1.TaskService.DeleteComment:input_type -> orc.v1.DeleteCommentRequest
+	94,  // 150: orc.v1.TaskService.ListReviewComments:input_type -> orc.v1.ListReviewCommentsRequest
+	96,  // 151: orc.v1.TaskService.CreateReviewComment:input_type -> orc.v1.CreateReviewCommentRequest
+	98,  // 152: orc.v1.TaskService.UpdateReviewComment:input_type -> orc.v1.UpdateReviewCommentRequest
+	100, // 153: orc.v1.TaskService.DeleteReviewComment:input_type -> orc.v1.DeleteReviewCommentRequest
+	102, // 154: orc.v1.TaskService.ListAttachments:input_type -> orc.v1.ListAttachmentsRequest
+	104, // 155: orc.v1.TaskService.UploadAttachment:input_type -> orc.v1.UploadAttachmentRequest
+	107, // 156: orc.v1.TaskService.DownloadAttachment:input_type -> orc.v1.DownloadAttachmentRequest
+	109, // 157: orc.v1.TaskService.DeleteAttachment:input_type -> orc.v1.DeleteAttachmentRequest
+	111, // 158: orc.v1.TaskService.GetTestResults:input_type -> orc.v1.GetTestResultsRequest
+	115, // 159: orc.v1.TaskService.GetReviewFindings:input_type -> orc.v1.GetReviewFindingsRequest
+	117, // 160: orc.v1.TaskService.ExportTask:input_type -> orc.v1.ExportTaskRequest
+	37,  // 161: orc.v1.TaskService.ListTasks:output_type -> orc.v1.ListTasksResponse
+	39,  // 162: orc.v1.TaskService.GetTask:output_type -> orc.v1.GetTaskResponse
+	41,  // 163: orc.v1.TaskService.CreateTask:output_type -> orc.v1.CreateTaskResponse
+	43,  // 164: orc.v1.TaskService.UpdateTask:output_type -> orc.v1.UpdateTaskResponse
+	45,  // 165: orc.v1.TaskService.DeleteTask:output_type -> orc.v1.DeleteTaskResponse
+	47,  // 166: orc.v1.TaskService.GetTaskState:output_type -> orc.v1.GetTaskStateResponse
+	49,  // 167: orc.v1.TaskService.GetTaskPlan:output_type -> orc.v1.GetTaskPlanResponse
+	51,  // 168: orc.v1.TaskService.RunTask:output_type -> orc.v1.RunTaskResponse
+	53,  // 169: orc.v1.TaskService.PauseTask:output_type -> orc.v1.PauseTaskResponse
+	55,  // 170: orc.v1.TaskService.ResumeTask:output_type -> orc.v1.ResumeTaskResponse
+	57,  // 171: orc.v1.TaskService.PauseAllTasks:output_type -> orc.v1.PauseAllTasksResponse
+	59,  // 172: orc.v1.TaskService.ResumeAllTasks:output_type -> orc.v1.ResumeAllTasksResponse
+	61,  // 173: orc.v1.TaskService.SkipBlock:output_type -> orc.v1.SkipBlockResponse
+	63,  // 174: orc.v1.TaskService.RetryTask:output_type -> orc.v1.RetryTaskResponse
+	65,  // 175: orc.v1.TaskService.RetryPreview:output_type -> orc.v1.RetryPreviewResponse
+	67,  // 176: orc.v1.TaskService.FinalizeTask:output_type -> orc.v1.FinalizeTaskResponse
+	69,  // 177: orc.v1.TaskService.GetFinalizeState:output_type -> orc.v1.GetFinalizeStateResponse
+	71,  // 178: orc.v1.TaskService.GetDependencies:output_type -> orc.v1.GetDependenciesResponse
+	73,  // 179: orc.v1.TaskService.AddBlocker:output_type -> orc.v1.AddBlockerResponse
+	75,  // 180: orc.v1.TaskService.RemoveBlocker:output_type -> orc.v1.RemoveBlockerResponse
+	77,  // 181: orc.v1.TaskService.AddRelated:output_type -> orc.v1.AddRelatedResponse
+	79,  // 182: orc.v1.TaskService.RemoveRelated:output_type -> orc.v1.RemoveRelatedResponse
+	81,  // 183: orc.v1.TaskService.GetDiff:output_type -> orc.v1.GetDiffResponse
+	83,  // 184: orc.v1.TaskService.GetDiffStats:output_type -> orc.v1.GetDiffStatsResponse
+	85,  // 185: orc.v1.TaskService.GetFileDiff:output_type -> orc.v1.GetFileDiffResponse
+	87,  // 186: orc.v1.TaskService.ListComments:output_type -> orc.v1.ListCommentsResponse
+	89,  // 187: orc.v1.TaskService.CreateComment:output_type -> orc.v1.CreateCommentResponse
+	91,  // 188: orc.v1.TaskService.UpdateComment:output_type -> orc.v1.UpdateCommentResponse
+	93,  // 189: orc.v1.TaskService.DeleteComment:output_type -> orc.v1.DeleteCommentResponse
+	95,  // 190: orc.v1.TaskService.ListReviewComments:output_type -> orc.v1.ListReviewCommentsResponse
+	97,  // 191: orc.v1.TaskService.CreateReviewComment:output_type -> orc.v1.CreateReviewCommentResponse
+	99,  // 192: orc.v1.TaskService.UpdateReviewComment:output_type -> orc.v1.UpdateReviewCommentResponse
+	101, // 193: orc.v1.TaskService.DeleteReviewComment:output_type -> orc.v1.DeleteReviewCommentResponse
+	103, // 194: orc.v1.TaskService.ListAttachments:output_type -> orc.v1.ListAttachmentsResponse
+	106, // 195: orc.v1.TaskService.UploadAttachment:output_type -> orc.v1.UploadAttachmentResponse
+	108, // 196: orc.v1.TaskService.DownloadAttachment:output_type -> orc.v1.DownloadAttachmentResponse
+	110, // 197: orc.v1.TaskService.DeleteAttachment:output_type -> orc.v1.DeleteAttachmentResponse
+	112, // 198: orc.v1.TaskService.GetTestResults:output_type -> orc.v1.GetTestResultsResponse
+	116, // 199: orc.v1.TaskService.GetReviewFindings:output_type -> orc.v1.GetReviewFindingsResponse
+	118, // 200: orc.v1.TaskService.ExportTask:output_type -> orc.v1.ExportTaskResponse
+	161, // [161:201] is the sub-list for method output_type
+	121, // [121:161] is the sub-list for method input_type
+	121, // [121:121] is the sub-list for extension type_name
+	121, // [121:121] is the sub-list for extension extendee
+	0,   // [0:121] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_task_proto_init() }

@@ -219,12 +219,12 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 		return
 	}
 
-	// Load structured retry fields from task's execution state
-	PopulateRetryFields(rctx, t.Execution)
+	// Load structured retry fields from task metadata
+	PopulateRetryFields(rctx, t)
 
 	// Load review context for review phases
 	if phaseID == "review" {
-		we.loadReviewContextProto(rctx, t.Id, t.Execution)
+		we.loadReviewContextProto(rctx, t)
 	}
 
 	// Load test results for review phase
@@ -322,26 +322,27 @@ func (we *WorkflowExecutor) convertToDefinitions(wvs []*db.WorkflowVariable) []v
 }
 
 // loadReviewContextProto loads review-specific context into the resolution context.
-func (we *WorkflowExecutor) loadReviewContextProto(rctx *variable.ResolutionContext, taskID string, e *orcv1.ExecutionState) {
+func (we *WorkflowExecutor) loadReviewContextProto(rctx *variable.ResolutionContext, t *orcv1.Task) {
 	// Determine review round from retry context
 	// Round 2 is when we're re-entering review after it blocked and we retried from implement
 	// The retry context's FromPhase indicates which phase triggered the retry
 	round := 1
-	if e != nil && e.RetryContext != nil && e.RetryContext.FromPhase == "review" {
+	rs := task.GetRetryState(t)
+	if rs != nil && rs.FromPhase == "review" {
 		round = 2
 		we.logger.Debug("detected review round 2 from retry context",
-			"task_id", taskID,
-			"from_phase", e.RetryContext.FromPhase,
-			"to_phase", e.RetryContext.ToPhase,
+			"task_id", t.Id,
+			"from_phase", rs.FromPhase,
+			"to_phase", rs.ToPhase,
 		)
 
-		// Load round 1 findings from RetryContext.FailureOutput
-		// (stored by SetRetryContextProto when review blocked)
-		if e.RetryContext.FailureOutput != nil && *e.RetryContext.FailureOutput != "" {
-			findings, err := ParseReviewFindings(*e.RetryContext.FailureOutput)
+		// Load round 1 findings from RetryState.FailureOutput
+		// (stored by SetRetryState when review blocked)
+		if rs.FailureOutput != "" {
+			findings, err := ParseReviewFindings(rs.FailureOutput)
 			if err != nil {
 				we.logger.Warn("failed to parse review findings from retry context (round 2 will proceed without findings)",
-					"task_id", taskID,
+					"task_id", t.Id,
 					"error", err,
 				)
 			} else {

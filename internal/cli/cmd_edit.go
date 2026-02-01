@@ -689,7 +689,7 @@ func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error 
 	task.EnsureExecutionProto(t)
 	t.Execution.CurrentIteration = 0
 	t.Execution.Error = nil
-	t.Execution.RetryContext = nil
+	task.ClearRetryState(t) // Clear retry state from metadata
 	t.Execution.Phases = make(map[string]*orcv1.PhaseState)
 
 	// Update workflow_id if it's weight-based (or empty), preserve explicit workflows
