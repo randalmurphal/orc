@@ -41,6 +41,7 @@ import (
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 	"github.com/randalmurphal/orc/internal/events"
+	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
 	"github.com/randalmurphal/orc/internal/variable"
@@ -1189,6 +1190,138 @@ func TestPhaseLoop_VarsSurviveLoop(t *testing.T) {
 	}
 	if vars["REVIEW_OUTPUT"] == "" {
 		t.Error("REVIEW_OUTPUT should survive loop")
+	}
+}
+
+// =============================================================================
+// TASK-707: Gate retry uses min(max_loops, max_retries)
+//
+// When a phase has loop_config with max_loops AND config has max_retries,
+// gate retry should use the LOWER of the two limits to respect both.
+// =============================================================================
+
+func TestPhaseLoop_GateRetryUsesLowerLimit(t *testing.T) {
+	t.Parallel()
+	backend := storage.NewTestBackend(t)
+	pdb := backend.DB()
+
+	// Create workflow where review has loop_config with max_loops=5
+	// but config has max_retries=2. Gate retry should use 2 (lower).
+	wf := &db.Workflow{ID: "lower-limit-wf", Name: "Lower Limit Workflow"}
+	if err := pdb.SaveWorkflow(wf); err != nil {
+		t.Fatalf("save workflow: %v", err)
+	}
+
+	// Configure review phase with on_rejected: retry
+	outputCfgJSON, _ := json.Marshal(db.GateOutputConfig{
+		OnRejected: "retry",
+		RetryFrom:  "implement",
+	})
+
+	// Save phase templates
+	implTmpl := &db.PhaseTemplate{
+		ID:            "implement",
+		Name:          "Implement",
+		PromptSource:  "db",
+		PromptContent: "Implement",
+		MaxIterations: 10,
+	}
+	reviewTmpl := &db.PhaseTemplate{
+		ID:               "review",
+		Name:             "Review",
+		PromptSource:     "db",
+		PromptContent:    "Review",
+		GateType:         "ai",
+		MaxIterations:    10,
+		GateOutputConfig: string(outputCfgJSON),
+	}
+	if err := pdb.SavePhaseTemplate(implTmpl); err != nil {
+		t.Fatalf("save impl template: %v", err)
+	}
+	if err := pdb.SavePhaseTemplate(reviewTmpl); err != nil {
+		t.Fatalf("save review template: %v", err)
+	}
+
+	// Set up phases - review has loop_config with max_loops=5
+	implPhase := &db.WorkflowPhase{
+		WorkflowID:      "lower-limit-wf",
+		PhaseTemplateID: "implement",
+		Sequence:        1,
+	}
+	reviewPhase := &db.WorkflowPhase{
+		WorkflowID:      "lower-limit-wf",
+		PhaseTemplateID: "review",
+		Sequence:        2,
+		LoopConfig: `{
+			"loop_to_phase": "implement",
+			"condition": {"field": "phase_output.review.status", "op": "eq", "value": "needs_changes"},
+			"max_loops": 5
+		}`,
+	}
+	if err := pdb.SaveWorkflowPhase(implPhase); err != nil {
+		t.Fatalf("save impl phase: %v", err)
+	}
+	if err := pdb.SaveWorkflowPhase(reviewPhase); err != nil {
+		t.Fatalf("save review phase: %v", err)
+	}
+
+	tsk := task.NewProtoTask("TASK-LOWER-LIMIT", "Lower limit test")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
+	wfID := "lower-limit-wf"
+	tsk.WorkflowId = &wfID
+	if err := backend.SaveTask(tsk); err != nil {
+		t.Fatalf("save task: %v", err)
+	}
+
+	// Gate always rejects - should exhaust at min(max_loops=5, max_retries=2) = 2
+	mockEval := &configGateEvaluator{
+		decisionFn: func(g *gate.Gate, output string, opts *gate.EvaluateOptions) (*gate.Decision, error) {
+			if opts.Phase == "review" {
+				return &gate.Decision{Approved: false, Reason: "still bad"}, nil
+			}
+			return &gate.Decision{Approved: true, Reason: "ok"}, nil
+		},
+	}
+
+	mockTE := NewMockTurnExecutor(`{"status": "complete", "summary": "Done"}`)
+
+	// Config has max_retries=2, loop_config has max_loops=5
+	// Gate retry should use min(5, 2) = 2
+	we := NewWorkflowExecutor(
+		backend, backend.DB(), &config.Config{
+			Retry: config.RetryConfig{MaxRetries: 2},
+		}, t.TempDir(),
+		WithWorkflowLogger(slog.Default()),
+		WithWorkflowGateEvaluator(mockEval),
+		WithWorkflowTurnExecutor(mockTE),
+	)
+
+	_, err := we.Run(context.Background(), "lower-limit-wf", WorkflowRunOptions{
+		ContextType: ContextTask,
+		TaskID:      tsk.Id,
+	})
+
+	// Task should fail after 2 retries (the lower limit), not 5
+	if err == nil {
+		t.Fatal("expected error after max retries exhausted (lower limit)")
+	}
+
+	// Verify exactly 6 calls happened:
+	// initial: impl + review
+	// retry 1: impl + review
+	// retry 2: impl + review (hits max=2, fails)
+	// Total: 6 phase executions
+	if mockTE.CallCount() != 6 {
+		t.Errorf("mock call count = %d, want 6 (2 retries × 2 phases + initial × 2 phases)", mockTE.CallCount())
+	}
+
+	updated, loadErr := backend.LoadTask(tsk.Id)
+	if loadErr != nil {
+		t.Fatalf("load task: %v", loadErr)
+	}
+	if updated.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
+		t.Errorf("task status = %v, want FAILED", updated.Status)
 	}
 }
 
