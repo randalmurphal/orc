@@ -55,7 +55,8 @@ func (we *WorkflowExecutor) buildResolutionContext(
 		Instructions:  opts.Instructions,
 		WorkingDir:    workDir,
 		ProjectRoot:   workDir,
-		PriorOutputs:  make(map[string]string),
+		PriorOutputs:    make(map[string]string),
+		PhaseOutputVars: make(map[string]string),
 	}
 
 	if t != nil {

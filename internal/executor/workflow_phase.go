@@ -389,6 +389,7 @@ func (we *WorkflowExecutor) executeWithClaude(ctx context.Context, cfg PhaseExec
 			WithClaudeMaxTurns(cfg.MaxIterations),
 			WithClaudeLogger(we.logger),
 			WithClaudePhaseID(cfg.PhaseID),
+			WithClaudeProducesArtifact(cfg.PhaseTemplate != nil && cfg.PhaseTemplate.ProducesArtifact),
 			// Transcript storage options - handled internally
 			WithClaudeBackend(we.backend),
 			WithClaudeTaskID(cfg.TaskID),

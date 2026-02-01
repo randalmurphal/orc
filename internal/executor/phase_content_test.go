@@ -455,68 +455,64 @@ func TestSaveSpecToDatabase_PopulatesDiagnostics(t *testing.T) {
 	})
 }
 
-// TestContentProducingPhases verifies the phase content mapping
-func TestContentProducingPhases(t *testing.T) {
-	t.Parallel()
-
-	// Includes TDD phases: tiny_spec (combined spec+TDD), tdd_write, breakdown
-	contentPhases := []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"}
-	nonContentPhases := []string{"implement", "test", "review", "finalize"}
-
-	for _, phase := range contentPhases {
-		if !contentProducingPhases[phase] {
-			t.Errorf("contentProducingPhases[%q] should be true", phase)
-		}
-	}
-
-	for _, phase := range nonContentPhases {
-		if contentProducingPhases[phase] {
-			t.Errorf("contentProducingPhases[%q] should be false", phase)
-		}
-	}
-}
-
 // TestGetSchemaForPhase verifies schema selection by phase
 func TestGetSchemaForPhase(t *testing.T) {
 	t.Parallel()
 
-	t.Run("content phases get content schema", func(t *testing.T) {
-		for _, phase := range []string{"spec", "tiny_spec", "research", "tdd_write", "breakdown", "docs"} {
-			schema := GetSchemaForPhase(phase)
-			if !strings.Contains(schema, `"content"`) {
-				t.Errorf("GetSchemaForPhase(%q) should return schema with content field", phase)
-			}
+	t.Run("producesArtifact=true gets content schema", func(t *testing.T) {
+		// Any phase with producesArtifact=true should get content schema
+		schema := GetSchemaForPhaseWithRound("spec", 0, true)
+		if !strings.Contains(schema, `"content"`) {
+			t.Error("producesArtifact=true should return schema with content field")
+		}
+
+		// Even custom phase IDs work when producesArtifact is true
+		schema = GetSchemaForPhaseWithRound("my-custom-phase", 0, true)
+		if !strings.Contains(schema, `"content"`) {
+			t.Error("custom phase with producesArtifact=true should return content schema")
 		}
 	})
 
-	t.Run("standard phases get basic schema", func(t *testing.T) {
-		for _, phase := range []string{"implement", "test", "finalize"} {
-			schema := GetSchemaForPhase(phase)
-			// Should not have content field
-			if strings.Contains(schema, `"content"`) {
-				t.Errorf("GetSchemaForPhase(%q) should return schema WITHOUT content field", phase)
-			}
+	t.Run("producesArtifact=false gets basic schema", func(t *testing.T) {
+		schema := GetSchemaForPhaseWithRound("test", 0, false)
+		if strings.Contains(schema, `"content"`) {
+			t.Error("producesArtifact=false should return schema WITHOUT content field")
+		}
+	})
+
+	t.Run("implement phase gets verification schema", func(t *testing.T) {
+		schema := GetSchemaForPhaseWithRound("implement", 0, false)
+		if !strings.Contains(schema, `"verification"`) {
+			t.Error("implement phase should return ImplementCompletionSchema with verification field")
 		}
 	})
 
 	t.Run("review phase gets specialized schema", func(t *testing.T) {
 		// Round 1 (default) gets ReviewFindingsSchema
-		schema := GetSchemaForPhaseWithRound("review", 1)
+		schema := GetSchemaForPhaseWithRound("review", 1, false)
 		if !strings.Contains(schema, `"issues"`) {
 			t.Error("review round 1 should return ReviewFindingsSchema with issues field")
 		}
 
 		// Round 2 gets ReviewDecisionSchema
-		schema = GetSchemaForPhaseWithRound("review", 2)
+		schema = GetSchemaForPhaseWithRound("review", 2, false)
 		if !strings.Contains(schema, `"gaps_addressed"`) {
 			t.Error("review round 2 should return ReviewDecisionSchema with gaps_addressed field")
 		}
 	})
 
 	t.Run("qa phase gets specialized schema", func(t *testing.T) {
-		schema := GetSchemaForPhase("qa")
+		schema := GetSchemaForPhaseWithRound("qa", 0, false)
 		if !strings.Contains(schema, `"tests_written"`) {
 			t.Error("qa phase should return QAResultSchema with tests_written field")
+		}
+	})
+
+	t.Run("GetSchemaForPhase convenience wrapper", func(t *testing.T) {
+		// GetSchemaForPhase assumes producesArtifact=false
+		schema := GetSchemaForPhase("implement")
+		if !strings.Contains(schema, `"verification"`) {
+			t.Error("GetSchemaForPhase(implement) should return ImplementCompletionSchema")
 		}
 	})
 }

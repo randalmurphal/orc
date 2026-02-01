@@ -599,7 +599,7 @@ func TestValidateImplementCompletion(t *testing.T) {
 
 func TestGetSchemaForPhaseWithRound_Implement(t *testing.T) {
 	t.Parallel()
-	schema := GetSchemaForPhaseWithRound("implement", 0)
+	schema := GetSchemaForPhaseWithRound("implement", 0, false)
 	if schema != ImplementCompletionSchema {
 		t.Error("GetSchemaForPhaseWithRound(implement) should return ImplementCompletionSchema")
 	}

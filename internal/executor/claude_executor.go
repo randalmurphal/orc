@@ -49,6 +49,9 @@ type ClaudeExecutor struct {
 	// Phase ID for schema selection (artifact vs non-artifact phases)
 	phaseID string
 
+	// Whether this phase produces an artifact (content field in schema)
+	producesArtifact bool
+
 	// Review round for review phase schema selection (1 = findings, 2 = decision)
 	reviewRound int
 
@@ -104,10 +107,14 @@ func WithClaudeLogger(l *slog.Logger) ClaudeExecutorOption {
 }
 
 // WithClaudePhaseID sets the phase ID for schema selection.
-// Content-producing phases (spec, research, docs) use a schema
-// that includes a content field for capturing output.
 func WithClaudePhaseID(id string) ClaudeExecutorOption {
 	return func(e *ClaudeExecutor) { e.phaseID = id }
+}
+
+// WithClaudeProducesArtifact sets whether the phase produces an artifact.
+// Content-producing phases use a schema with a content field for capturing output.
+func WithClaudeProducesArtifact(produces bool) ClaudeExecutorOption {
+	return func(e *ClaudeExecutor) { e.producesArtifact = produces }
 }
 
 // WithClaudeReviewRound sets the review round for review phase schema selection.
@@ -208,8 +215,8 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 
 	// Build CLI options using consolidated helper, then add JSON schema
 	cliOpts := e.buildBaseCLIOptions()
-	// Select schema based on phase and round - review/qa use specialized schemas
-	schema := GetSchemaForPhaseWithRound(e.phaseID, e.reviewRound)
+	// Select schema based on phase, round, and whether it produces content artifacts
+	schema := GetSchemaForPhaseWithRound(e.phaseID, e.reviewRound, e.producesArtifact)
 	cliOpts = append(cliOpts, claude.WithJSONSchema(schema))
 
 	cli := claude.NewClaudeCLI(cliOpts...)

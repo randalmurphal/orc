@@ -85,22 +85,12 @@ const ContentProducingPhaseSchema = `{
 	"required": ["status"]
 }`
 
-// contentProducingPhases lists phases that produce document content.
-// NOTE: This is used for schema selection. The authoritative source is
-// PhaseTemplate.ProducesArtifact in the database.
-var contentProducingPhases = map[string]bool{
-	"spec":      true,
-	"tiny_spec": true,
-	"research":  true,
-	"tdd_write": true,
-	"breakdown": true,
-	"docs":      true,
-}
-
 // GetSchemaForPhase returns the appropriate JSON schema for a phase.
 // For review phases, use GetSchemaForPhaseWithRound to get round-specific schemas.
+// This convenience wrapper assumes producesArtifact=false — use GetSchemaForPhaseWithRound
+// with the template's ProducesArtifact field for proper schema selection.
 func GetSchemaForPhase(phaseID string) string {
-	return GetSchemaForPhaseWithRound(phaseID, 0)
+	return GetSchemaForPhaseWithRound(phaseID, 0, false)
 }
 
 // ImplementCompletionSchema is the JSON schema for implement phase.
@@ -167,9 +157,10 @@ const ImplementCompletionSchema = `{
 
 // GetSchemaForPhaseWithRound returns the appropriate JSON schema for a phase,
 // with support for round-specific schemas (e.g., review round 1 vs round 2).
-func GetSchemaForPhaseWithRound(phaseID string, round int) string {
+// producesArtifact comes from the phase template's ProducesArtifact field.
+func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool) string {
 	// Content-producing phases get schema with content field
-	if contentProducingPhases[phaseID] {
+	if producesArtifact {
 		return ContentProducingPhaseSchema
 	}
 
