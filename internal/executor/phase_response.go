@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/randalmurphal/orc/internal/db"
 )
 
 // PhaseCompletionStatus represents the completion status of a phase.
@@ -192,6 +194,68 @@ func GetSchemaForPhaseWithRound(phaseID string, round int, producesArtifact bool
 	}
 
 	return PhaseCompletionSchema
+}
+
+// GetSchemaForIteration returns the appropriate JSON schema for a phase iteration.
+// If loopCfg has LoopSchemas configured, uses the schema identifier for the iteration.
+// Otherwise falls back to round-based logic via GetSchemaForPhaseWithRound.
+func GetSchemaForIteration(loopCfg *db.LoopConfig, iteration int, phaseID string, producesArtifact bool) string {
+	// If no loop config or no LoopSchemas, fall back to round-based schema
+	if loopCfg == nil || len(loopCfg.LoopSchemas) == 0 {
+		// For review phase, iteration maps to round
+		round := iteration
+		return GetSchemaForPhaseWithRound(phaseID, round, producesArtifact)
+	}
+
+	// Get schema identifier from LoopConfig
+	identifier := loopCfg.GetSchemaForIteration(iteration)
+	return MapSchemaIdentifierToSchema(identifier, phaseID, producesArtifact)
+}
+
+// MapSchemaIdentifierToSchema maps a schema identifier string to the actual JSON schema.
+// Identifiers are phase-specific:
+//   - review: "findings" -> ReviewFindingsSchema, "decision" -> ReviewDecisionSchema
+//   - qa: "qa_result" -> QAResultSchema
+//   - Empty identifier uses phase default
+//   - Unknown identifier falls back to PhaseCompletionSchema
+func MapSchemaIdentifierToSchema(identifier string, phaseID string, producesArtifact bool) string {
+	// Content-producing phases always use ContentProducingPhaseSchema
+	if producesArtifact {
+		return ContentProducingPhaseSchema
+	}
+
+	switch phaseID {
+	case "review":
+		switch identifier {
+		case "findings", "":
+			return ReviewFindingsSchema
+		case "decision":
+			return ReviewDecisionSchema
+		default:
+			return PhaseCompletionSchema
+		}
+
+	case "qa":
+		switch identifier {
+		case "qa_result", "":
+			return QAResultSchema
+		default:
+			return PhaseCompletionSchema
+		}
+
+	case "implement":
+		return ImplementCompletionSchema
+
+	case "qa_e2e_test":
+		return QAE2ETestResultSchema
+
+	case "qa_e2e_fix":
+		return QAE2EFixResultSchema
+
+	default:
+		// For unknown phases, use generic schema
+		return PhaseCompletionSchema
+	}
 }
 
 // PhaseResponse represents the structured response from a phase execution.
