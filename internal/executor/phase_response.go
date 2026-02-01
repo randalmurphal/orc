@@ -332,6 +332,9 @@ func unmarshalWithFallback(s string, v any) error {
 
 // ParsePhaseResponse parses a JSON response into a PhaseResponse struct.
 // Returns an error if the content is not valid JSON or doesn't match the schema.
+// Only accepts standard statuses: "complete", "blocked", "continue".
+// For contexts where non-standard statuses are valid (loop conditions),
+// use CheckPhaseCompletionJSON which handles them via fallback parsing.
 func ParsePhaseResponse(content string) (*PhaseResponse, error) {
 	var resp PhaseResponse
 	if err := unmarshalWithFallback(content, &resp); err != nil {
@@ -340,10 +343,11 @@ func ParsePhaseResponse(content string) (*PhaseResponse, error) {
 
 	switch resp.Status {
 	case "complete", "blocked", "continue":
-		return &resp, nil
+		// Valid standard statuses
 	default:
 		return nil, fmt.Errorf("invalid phase status: %q (expected complete, blocked, or continue)", resp.Status)
 	}
+	return &resp, nil
 }
 
 // IsComplete returns true if the phase completed successfully.
@@ -398,9 +402,22 @@ func HasJSONCompletion(content string) bool {
 // Content MUST be pure JSON from --json-schema. No extraction, no mixed content.
 // Returns error if JSON parsing fails - callers must handle this explicitly.
 // NO silent continue on parse failure - that hides bugs.
+//
+// Non-standard statuses (e.g., "needs_changes", "needs_review") are treated as
+// PhaseStatusComplete. The loop system evaluates phase_output.<phase>.status to
+// decide whether to loop back, so the phase itself must complete normally.
 func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, error) {
-	resp, err := ParsePhaseResponse(strings.TrimSpace(content))
+	trimmed := strings.TrimSpace(content)
+	resp, err := ParsePhaseResponse(trimmed)
 	if err != nil {
+		// ParsePhaseResponse rejects non-standard statuses, but the generic loop
+		// system requires phases to return arbitrary status values. Fall back to
+		// raw JSON parsing: if the JSON is valid with a non-empty status, treat it
+		// as PhaseStatusComplete so loop conditions can evaluate the status.
+		var raw PhaseResponse
+		if unmarshalErr := unmarshalWithFallback(trimmed, &raw); unmarshalErr == nil && raw.Status != "" {
+			return PhaseStatusComplete, raw.Summary, nil
+		}
 		return PhaseStatusContinue, "", fmt.Errorf("invalid phase completion JSON: %w (content=%q)",
 			err, truncateForPrompt(content, 200))
 	}
@@ -413,7 +430,8 @@ func CheckPhaseCompletionJSON(content string) (PhaseCompletionStatus, string, er
 	case "continue":
 		return PhaseStatusContinue, resp.Reason, nil
 	default:
-		return PhaseStatusContinue, "", fmt.Errorf("unexpected status %q in phase response", resp.Status)
+		// Unreachable: ParsePhaseResponse validates to complete/blocked/continue
+		return PhaseStatusComplete, resp.Summary, nil
 	}
 }
 

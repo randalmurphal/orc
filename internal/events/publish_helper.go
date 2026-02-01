@@ -171,3 +171,13 @@ func (ep *PublishHelper) PhaseSkipped(taskID, phase string) {
 		Status: "skipped",
 	}))
 }
+
+// PhaseLoop publishes a phase loop event when a loop triggers.
+func (ep *PublishHelper) PhaseLoop(taskID, phase, loopTo string, loopCount int) {
+	ep.Publish(NewEvent(EventPhase, taskID, PhaseUpdate{
+		Phase:     phase,
+		Status:    "looping",
+		LoopTo:    loopTo,
+		LoopCount: loopCount,
+	}))
+}

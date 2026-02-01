@@ -49,7 +49,7 @@ Two database types with distinct responsibilities:
 | `agents.go` | Agent CRUD, builtin vs custom agent management |
 | `transcript.go` | Transcript CRUD, batch insert, FTS, token aggregation, todos, metrics, agent stats |
 | `plan.go` | Plan CRUD |
-| `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD, QualityCheck type |
+| `workflow.go` | Workflow, PhaseTemplate, WorkflowRun CRUD, QualityCheck type, LoopConfig (parse, max_loops resolution) |
 | `gate_config.go` | Gate config JSON parse/marshal: GateInputConfig, GateOutputConfig, BeforePhaseTrigger, WorkflowTrigger |
 | `phase_output.go` | Phase output CRUD (unified specs + artifacts) |
 | `project_command.go` | ProjectCommand CRUD (quality check commands) |
@@ -77,6 +77,7 @@ Two database types with distinct responsibilities:
 | `TxRunner` | `project.go` | Transaction execution interface |
 | `TxOps` | `project.go` | Transaction context (stores context for cancellation) |
 | `driver.Driver` | `driver/` | SQLite/PostgreSQL backend interface |
+| `LoopConfig` | `workflow.go:114` | Phase loop config: `LoopToPhase`, `Condition` (JSON), `EffectiveMaxLoops()` |
 
 ## Usage
 
