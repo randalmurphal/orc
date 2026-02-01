@@ -1,9 +1,9 @@
 ---
-name: brainstorm-to-tasks
-description: Use when a brainstorm or design is validated and needs to be converted into orc initiatives, tasks, and dependencies. Produces manifest.yaml for orc initiative plan or individual orc CLI commands.
+name: work-breakdown
+description: Use when a brainstorm or design is validated and ready to be decomposed into orc initiatives, tasks, and dependencies. The step after brainstorming — breaks down a plan into executable orc work items with proper weights, categories, and execution structure.
 ---
 
-# Brainstorm to Orc Tasks
+# Work Breakdown
 
 ## Overview
 
