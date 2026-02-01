@@ -454,7 +454,6 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 		ID:              wf.ID,
 		Name:            wf.Name,
 		Description:     wf.Description,
-		WorkflowType:    WorkflowType(wf.WorkflowType),
 		DefaultModel:    wf.DefaultModel,
 		DefaultThinking: wf.DefaultThinking,
 		BasedOn:         wf.BasedOn,
@@ -565,7 +564,6 @@ type workflowYAML struct {
 	ID              string              `yaml:"id"`
 	Name            string              `yaml:"name"`
 	Description     string              `yaml:"description,omitempty"`
-	WorkflowType    string              `yaml:"workflow_type,omitempty"`
 	DefaultModel    string              `yaml:"default_model,omitempty"`
 	DefaultThinking bool                `yaml:"default_thinking,omitempty"`
 	BasedOn         string              `yaml:"based_on,omitempty"`

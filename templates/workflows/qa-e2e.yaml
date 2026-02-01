@@ -1,7 +1,6 @@
 id: qa-e2e
 name: "E2E QA Testing"
 description: "Browser-based E2E testing with automatic fix loop. Run via 'orc qa TASK-XXX'."
-workflow_type: branch
 
 phases:
   - template: qa_e2e_test

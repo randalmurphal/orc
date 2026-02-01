@@ -171,9 +171,8 @@ func (s *workflowServer) CreateWorkflow(
 	}
 
 	w := &db.Workflow{
-		ID:           req.Msg.Id,
-		Name:         req.Msg.Name,
-		WorkflowType: protoWorkflowTypeToString(req.Msg.WorkflowType),
+		ID:   req.Msg.Id,
+		Name: req.Msg.Name,
 	}
 	if req.Msg.Description != nil {
 		w.Description = *req.Msg.Description
@@ -1417,7 +1416,6 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	result := &orcv1.Workflow{
 		Id:              w.ID,
 		Name:            w.Name,
-		WorkflowType:    stringToProtoWorkflowType(w.WorkflowType),
 		DefaultThinking: w.DefaultThinking,
 		IsBuiltin:       w.IsBuiltin,
 	}
@@ -1431,32 +1429,6 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 		result.BasedOn = &w.BasedOn
 	}
 	return result
-}
-
-func stringToProtoWorkflowType(s string) orcv1.WorkflowType {
-	switch s {
-	case "task":
-		return orcv1.WorkflowType_WORKFLOW_TYPE_TASK
-	case "branch":
-		return orcv1.WorkflowType_WORKFLOW_TYPE_BRANCH
-	case "standalone":
-		return orcv1.WorkflowType_WORKFLOW_TYPE_STANDALONE
-	default:
-		return orcv1.WorkflowType_WORKFLOW_TYPE_UNSPECIFIED
-	}
-}
-
-func protoWorkflowTypeToString(t orcv1.WorkflowType) string {
-	switch t {
-	case orcv1.WorkflowType_WORKFLOW_TYPE_TASK:
-		return "task"
-	case orcv1.WorkflowType_WORKFLOW_TYPE_BRANCH:
-		return "branch"
-	case orcv1.WorkflowType_WORKFLOW_TYPE_STANDALONE:
-		return "standalone"
-	default:
-		return "task"
-	}
 }
 
 func dbWorkflowPhasesToProto(phases []*db.WorkflowPhase) []*orcv1.WorkflowPhase {

@@ -101,9 +101,6 @@ export function WorkflowCard({ workflow, phaseCount, source, onSelect, onClone }
 					<Icon name="layers" size={14} />
 					<span>{phaseCount ?? 0} phases</span>
 				</div>
-				<div className="workflow-card-stat">
-					<span className="workflow-card-type">{workflow.workflowType}</span>
-				</div>
 				{workflow.defaultModel && (
 					<div className="workflow-card-stat">
 						<Icon name="cpu" size={14} />

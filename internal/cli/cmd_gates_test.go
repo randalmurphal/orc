@@ -97,7 +97,7 @@ func seedWorkflow(t *testing.T, dir string) {
 	wf := &db.Workflow{
 		ID:           "wf-default",
 		Name:         "Default",
-		WorkflowType: "task",
+
 	}
 	if err := pdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("save workflow: %v", err)
@@ -374,7 +374,7 @@ func TestGatesList_AllSkip(t *testing.T) {
 			t.Fatalf("save template: %v", err)
 		}
 	}
-	wf := &db.Workflow{ID: "wf-skip", Name: "Skip Workflow", WorkflowType: "task"}
+	wf := &db.Workflow{ID: "wf-skip", Name: "Skip Workflow"}
 	if err := pdb.SaveWorkflow(wf); err != nil {
 		t.Fatalf("save workflow: %v", err)
 	}

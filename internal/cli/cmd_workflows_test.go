@@ -48,7 +48,6 @@ func TestWorkflowNew_FromExisting(t *testing.T) {
 		ID:              "test-cloned",
 		Name:            "test-cloned",
 		Description:     source.Description,
-		WorkflowType:    source.WorkflowType,
 		DefaultModel:    source.DefaultModel,
 		DefaultThinking: source.DefaultThinking,
 		IsBuiltin:       false,

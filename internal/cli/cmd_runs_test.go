@@ -57,7 +57,7 @@ func createTestWorkflow(t *testing.T, pdb *db.ProjectDB) {
 	wf := &db.Workflow{
 		ID:           "test-workflow",
 		Name:         "Test Workflow",
-		WorkflowType: "task",
+
 		IsBuiltin:    false,
 		CreatedAt:    now,
 		UpdatedAt:    now,

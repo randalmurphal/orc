@@ -1,7 +1,6 @@
 id: qa
 name: "QA Session"
 description: "Manual QA verification session"
-workflow_type: branch
 
 phases:
   - template: qa

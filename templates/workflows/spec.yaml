@@ -1,7 +1,6 @@
 id: spec
 name: "Spec Only"
 description: "Generate specification without implementation"
-workflow_type: standalone
 
 phases:
   - template: spec
