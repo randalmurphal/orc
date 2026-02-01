@@ -219,8 +219,7 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 		return
 	}
 
-	// Load retry context from task's execution state
-	rctx.RetryContext = LoadRetryContextFromExecutionProto(t.Execution)
+	// Load structured retry fields from task's execution state
 	PopulateRetryFields(rctx, t.Execution)
 
 	// Load review context for review phases

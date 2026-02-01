@@ -1002,16 +1002,6 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 									we.logger.Warn("failed to save retry state", "error", err)
 								}
 
-								gateContext := ""
-								if gateResult.OutputData != nil {
-									if gateJSON, jsonErr := json.Marshal(gateResult.OutputData); jsonErr == nil {
-										gateContext = string(gateJSON)
-									}
-								}
-								rctx.RetryContext = BuildRetryContextWithGateAnalysis(
-									tmpl.ID, reason, phaseResult.Content,
-									retryCount, "", gateContext,
-								)
 							}
 
 							// Reset phase completion status for retry phases
@@ -1019,9 +1009,8 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 								for k := retryIdx; k <= i; k++ {
 									task.ResetPhaseProto(we.task.Execution, phases[k].PhaseTemplateID)
 								}
-								// Clear structured retry context so gate-triggered retries
-								// don't cause review to think it's round 2. The retry info
-								// is already in rctx.RetryContext string for variable pipeline.
+								// Clear retry context so gate-triggered retries
+								// don't cause review to think it's round 2.
 								we.task.Execution.RetryContext = nil
 								if err := we.backend.SaveTask(we.task); err != nil {
 									we.logger.Warn("failed to save retry phase reset", "error", err)
