@@ -456,13 +456,7 @@ function TaskInfoList({ task, taskState }: TaskInfoListProps) {
 				</div>
 			)}
 
-			{/* Retries */}
-			{taskState?.retryContext && (
-				<div className="info-item">
-					<dt>Retry Info</dt>
-					<dd className="info-retries">From: {taskState.retryContext.fromPhase}</dd>
-				</div>
-			)}
+			{/* Retries - retry context deprecated in TASK-711, info now available via retry variables */}
 
 			{/* Timestamps */}
 			<div className="info-item">
