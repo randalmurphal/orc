@@ -32,6 +32,8 @@
 	display: flex;
 	flex-direction: column;
 	min-width: 280px;
+	/* Grid item needs min-height: 0 to shrink below content size */
+	min-height: 0;
 }
 
 /* =============================================================================

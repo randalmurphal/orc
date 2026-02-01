@@ -146,26 +146,28 @@ export const Swimlane = memo(function Swimlane({
 				</span>
 			</div>
 
-			{/* Content area */}
+			{/* Content area — grid wrapper handles collapse animation */}
 			<div
 				id={`swimlane-content-${swimlaneId}`}
-				className="swimlane-tasks swimlane-content"
+				className="swimlane-content"
 				aria-hidden={isCollapsed}
 			>
-				{tasks.length === 0 ? (
-					<div className="swimlane-empty">No tasks</div>
-				) : (
-					tasks.map((task, index) => (
-						<TaskCard
-							key={task.id}
-							task={task}
-							position={index + 1}
-							onTaskClick={onTaskClick}
-							onTaskContextMenu={onContextMenu}
-							pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
-						/>
-					))
-				)}
+				<div className="swimlane-tasks">
+					{tasks.length === 0 ? (
+						<div className="swimlane-empty">No tasks</div>
+					) : (
+						tasks.map((task, index) => (
+							<TaskCard
+								key={task.id}
+								task={task}
+								position={index + 1}
+								onTaskClick={onTaskClick}
+								onTaskContextMenu={onContextMenu}
+								pendingDecisionCount={taskDecisionCounts?.get(task.id) ?? 0}
+							/>
+						))
+					)}
+				</div>
 			</div>
 		</div>
 	);
