@@ -1,83 +1,90 @@
 # Documentation Phase
 
-You are creating and updating documentation after implementation is complete.
+You are updating documentation after implementation is complete for task {{TASK_ID}}.
 
-## Context
+<output_format>
+**CRITICAL**: Your final output MUST be a JSON object with the documentation summary in the `content` field.
 
-**Task ID**: {{TASK_ID}}
-**Task**: {{TASK_TITLE}}
-**Weight**: {{WEIGHT}}
+```json
+{
+  "status": "complete",
+  "summary": "Documentation updated, hierarchy verified, templates followed",
+  "content": "## Documentation Summary\n\n**Task**: {{TASK_TITLE}}\n\n### Staleness Audit\n- Files searched: N\n- Stale references fixed: N\n  - file:line: old -> new\n\n### Hierarchy Check\n- Parent docs referenced: [list]\n- Duplicate content removed: yes/no/none found\n\n### Docs Created\n| Path | Type | Lines | Purpose |\n|------|------|-------|---------|\n\n### Docs Updated\n| Path | Changes |\n|------|---------|\n\n### Line Counts\n- Root CLAUDE.md: N lines\n- [other files]: N lines\n\n### Navigation\n- llms.txt: created/updated/not needed"
+}
+```
 
-{{INITIATIVE_CONTEXT}}
+If blocked:
+```json
+{
+  "status": "blocked",
+  "reason": "[what's blocking and what clarification is needed]"
+}
+```
+</output_format>
 
-## Worktree Safety
+<critical_constraints>
+## Failure Mode Priming
 
-You are working in an **isolated git worktree**.
+The most common failure is creating documentation that duplicates content from parent CLAUDE.md files or exceeds line limits for its level. Every child doc MUST contain only unique information.
 
-| Property | Value |
-|----------|-------|
-| Worktree Path | `{{WORKTREE_PATH}}` |
-| Task Branch | `{{TASK_BRANCH}}` |
-| Target Branch | `{{TARGET_BRANCH}}` |
+Write maps to code, not tutorials. Tables over prose. File:line references over explanations. Claude reads code — provide structure and location references, not exhaustive walkthroughs.
 
-**CRITICAL SAFETY RULES:**
-- All commits go to branch `{{TASK_BRANCH}}`
-- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
-- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
-- Merging happens via PR after all phases complete
+## Hierarchical Inheritance (Non-Negotiable)
 
-## AI Documentation Standards
+Claude loads CLAUDE.md from root to current directory. Everything becomes context, so verbosity = wasted tokens.
 
-**Key Insight**: Documentation = MAP to codebase, not replacement. AI agents can read code - provide structure and location references (`file:line`), not exhaustive explanations.
-
-### Core Principles
-
-| Principle | Rule |
-|-----------|------|
-| Concise over comprehensive | Tables, bullets, code snippets >>> Paragraphs |
-| Location references | Include `file:line` for implementation details |
-| Structure over prose | AI parses structured content faster |
-| Hierarchical inheritance | Child docs ONLY contain unique info, reference parent for shared |
-
-### Hierarchical Inheritance (CRITICAL)
-
-**Claude loads CLAUDE.md from root → current directory.** Everything becomes context, so verbosity = wasted tokens.
-
-| Level | Lines | What to Include | What to Exclude |
-|-------|-------|-----------------|-----------------|
+| Level | Max Lines | Include | Exclude |
+|-------|-----------|---------|---------|
 | Project root | 150-180 | Project standards, commands, structure | Subsystem details, implementation specifics |
 | Package/subsystem | 100-150 | Architecture overview, unique patterns | Testing (project level), code style (project level) |
-| Complex tool | 300-400 max | Critical business logic, tool-specific gotchas | Patterns from parent, project standards |
-| Reference docs (`docs/*.md`) | 500-1000+ | Comprehensive reference, loaded on-demand | N/A - not auto-loaded |
+| Complex tool | 300-400 | Critical business logic, tool-specific gotchas | Patterns from parent, project standards |
+| Reference docs (`docs/*.md`) | 500-1000+ | Comprehensive reference (loaded on-demand) | N/A |
 
 **Never duplicate across levels:**
-- Testing patterns → project CLAUDE.md only
-- Code style → project CLAUDE.md only
-- Core principles → root CLAUDE.md only
-- Subsystem patterns → subsystem CLAUDE.md only
+- Testing patterns -> project CLAUDE.md only
+- Code style -> project CLAUDE.md only
+- Core principles -> root CLAUDE.md only
+- Subsystem patterns -> subsystem CLAUDE.md only
 
-**Child files must reference parent:** "See project CLAUDE.md for testing standards"
+Child files MUST reference parent: "See project CLAUDE.md for testing standards"
 
-### When to Extract to QUICKREF.md or docs/
+## When to Extract to QUICKREF.md or docs/
 
-**Triggers (any one = extract):**
+Triggers (any one = extract):
 1. CLAUDE.md exceeds 400 lines
 2. More than 5 code examples with before/after patterns
-3. Detailed implementation walkthroughs (>50 lines per pattern)
+3. Detailed walkthroughs > 50 lines per pattern
 4. Comprehensive testing strategies with mock examples
 
-**What goes where:**
-- **QUICKREF.md**: Full code examples, detailed patterns, debugging strategies
-- **docs/*.md**: Domain-specific reference (API_REFERENCE.md, SCHEMA.md, etc.)
-- **CLAUDE.md**: Condensed summary + "See X for details"
+| Destination | Content |
+|-------------|---------|
+| QUICKREF.md | Full code examples, detailed patterns, debugging strategies |
+| docs/*.md | Domain-specific reference (API_REFERENCE.md, SCHEMA.md, etc.) |
+| CLAUDE.md | Condensed summary + "See X for details" |
+</critical_constraints>
 
----
+<context>
+<task>
+ID: {{TASK_ID}}
+Title: {{TASK_TITLE}}
+Weight: {{WEIGHT}}
+</task>
 
-## Document Type Templates
+<worktree_safety>
+Path: {{WORKTREE_PATH}}
+Branch: {{TASK_BRANCH}}
+Target: {{TARGET_BRANCH}}
+DO NOT push to {{TARGET_BRANCH}} or any protected branch.
+DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
+</worktree_safety>
 
-When creating documentation, use the appropriate template structure:
+{{INITIATIVE_CONTEXT}}
+{{CONSTITUTION_CONTENT}}
+</context>
 
-### OVERVIEW.md (100-200 lines)
+<document_type_templates>
+## OVERVIEW.md (100-200 lines) — Primary Pattern
+
 **Purpose**: Give AI complete mental model in <5 minutes
 
 ```markdown
@@ -96,7 +103,7 @@ When creating documentation, use the appropriate template structure:
 | [Name] | [What it does] | path/to/file.py |
 
 ## Data Flow
-1. Input → Process A → Output
+1. Input -> Process A -> Output
 2. [Each step one line with file references]
 
 ## Critical Decisions
@@ -110,222 +117,29 @@ When creating documentation, use the appropriate template structure:
 - [Links to detailed docs]
 ```
 
-### ARCHITECTURE.md (200-400 lines)
-**Purpose**: Explain patterns and coordination
+## Other Document Types — Summary
 
-```markdown
-# [Component] Architecture
+Use the OVERVIEW.md structure as the base pattern. Adapt sections per type:
 
-## Design Principles
-- [Principle]: [Why this matters]
+| Type | Lines | Purpose | Key Sections |
+|------|-------|---------|-------------|
+| ARCHITECTURE.md | 200-400 | Patterns and coordination | Design Principles, Processing Pipeline (phase/purpose/input/output/location), Key Patterns (purpose/when/example/used-by), Integration Points, Performance |
+| BUSINESS_RULES.md | 300-800 | Single source of truth for logic | Rules Index, Rule table (#/Rule/Condition/Behavior/WHY/Location), Detailed rules with Implementation + Test Coverage + Edge Cases |
+| API_REFERENCE.md | 200-600 | Function catalog | Public Functions table, Per-function: signature, purpose, params, returns, raises, example, location |
+| TROUBLESHOOTING.md | 150-300 | Fast issue resolution | Quick Diagnosis table (Symptom/Cause/Fix), Detailed issues with Cause/Fix/Validation, Debug Workflows |
+| llms.txt | 50-150 | Navigation index (>10 doc files) | Quick Start links with line counts, By Domain sections, For Specific Tasks pointers |
+</document_type_templates>
 
-## Processing Pipeline
+<instructions>
+## Step 1: Staleness Audit (MANDATORY)
 
-### Phase 1: [Name]
-**Purpose**: [What]
-**Input/Output**: [Types]
-**Location**: `module/file.py:function()`
+Before writing ANY new docs, search for stale references.
 
-## Key Patterns
-### Pattern: [Name]
-**Purpose**: [Why]
-**When to use**: [Conditions]
-**Example**: [Code snippet]
-**Used by**: [Components]
-
-## Integration Points
-- Depends on: [A, B]
-- Used by: [C, D]
-
-## Performance Characteristics
-- Time complexity: [Big O]
-- Bottlenecks: [Known constraints]
-```
-
-### BUSINESS_RULES.md (300-800 lines)
-**Purpose**: Single source of truth for business logic
-
-```markdown
-# [Component] Business Rules
-
-## Rules Index
-[Quick navigation]
-
-## Rule Definitions
-| # | Rule | Condition | Behavior | WHY | Location |
-|---|------|-----------|----------|-----|----------|
-| 1 | [Name] | When [X] | Do [Y] | [Reason] | file.py:L123 |
-
-### Rule 1: [Name] (Detailed)
-**Condition**: [When]
-**Behavior**: [What]
-**WHY**: [Business justification]
-**Implementation**: `function()` @ file.py:123
-**Test Coverage**: test_file.py::test_rule_1()
-**Edge Cases**: [List]
-```
-
-### API_REFERENCE.md (200-600 lines)
-**Purpose**: Function catalog for quick lookup
-
-```markdown
-# [Module] API Reference
-
-## Public Functions
-| Function | Purpose | Input | Output | Location |
-|----------|---------|-------|--------|----------|
-
-### `function_name(param1: Type) -> ReturnType`
-**Purpose**: [One sentence]
-**Parameters**: [List with descriptions]
-**Returns**: [What]
-**Raises**: [Exceptions]
-**Example**: [Code snippet]
-**Location**: `module/file.py:123`
-```
-
-### TROUBLESHOOTING.md (150-300 lines)
-**Purpose**: Fast issue resolution
-
-```markdown
-# [Component] Troubleshooting
-
-## Quick Diagnosis
-| Symptom | Likely Cause | Fix |
-|---------|--------------|-----|
-
-## Common Issues
-### Issue: [Symptom]
-**Cause**: [Why]
-**Fix**: [Steps with file references]
-**Validation**: [How to confirm fixed]
-
-## Debug Workflows
-### When [Scenario]
-1. Check [Location] for [What]
-2. Run [Command]
-3. If [Condition], then [Action]
-```
-
-### llms.txt (For Large Repos)
-**Purpose**: Navigation index for AI agents
-**When to create**: >10 doc files, multiple subsystems
-
-```markdown
-# llms.txt - Documentation Index
-
-## Quick Start
-- docs/OVERVIEW.md (150 lines) - System architecture
-- docs/QUICK_REF.md (300 lines) - Common tasks
-
-## By Domain
-- docs/architecture/ - System design docs
-- docs/business_rules/ - Logic references
-
-## For Specific Tasks
-**Adding new component**: Read docs/PATTERNS.md first
-**Debugging**: Check docs/TROUBLESHOOTING.md
-```
-
----
-
-## Anti-Patterns (DO NOT DO)
-
-### ❌ Don't Write Tutorials
-
-**Bad**:
-```markdown
-# How to Add a New Processor
-In this guide, we'll walk through adding a new processor step by step...
-[500 lines of tutorial]
-```
-
-**Good**:
-```markdown
-# Adding New Processor - Checklist
-**Base class**: `processors/base.py:BaseProcessor`
-**Reference**: See `example_processor.py`
-**Steps**:
-1. Create file extending BaseProcessor
-2. Implement required methods (see API_REFERENCE.md)
-3. Register in main.py
-4. Add tests
-```
-
-### ❌ Don't Explain Obvious Code
-
-**Bad**: "The function first checks if the record is None. If it is None, it returns False..."
-
-**Good**: "**Skip insert**: severity in ['0', 'Pass'] - Location: `processor.py:234` - WHY: Pass = compliant"
-
-### ❌ Don't Mix Abstraction Levels
-
-**Bad** (OVERVIEW.md with implementation details):
-```markdown
-# System Overview
-The AsyncClient uses sessionless API key authentication to download data in parallel chunks of 5000 records with asyncio.gather()...
-```
-
-**Good**:
-```markdown
-# System Overview
-## Pipeline
-1. **Download**: Async parallel chunking (100x faster)
-2. **Process**: Parallel workers with caching
-**For implementation**: See architecture/DOWNLOAD.md
-```
-
-### ❌ Don't Duplicate Across Hierarchy
-
-**Bad**:
-```markdown
-# Global CLAUDE.md
-## Testing: 95% coverage required
-
-# Project CLAUDE.md
-## Testing: 95% coverage required  ← DUPLICATE!
-
-# Tool CLAUDE.md
-## Testing: 95% coverage required  ← DUPLICATE AGAIN!
-```
-
-**Good**:
-```markdown
-# Global CLAUDE.md
-## Testing: 95% coverage required
-
-# Project CLAUDE.md
-## Testing Structure
-- See global CLAUDE.md for coverage requirements
-
-# Tool CLAUDE.md
-## Testing
-- See project CLAUDE.md for structure
-```
-
----
-
-## Instructions
-
-### Step 1: Staleness Audit (MANDATORY)
-
-**Before writing ANY new docs, search for stale references:**
-
-```bash
-# Find all CLAUDE.md files
-find . -name "CLAUDE.md" -o -name "AGENTS.md" | head -20
-
-# Check for deprecated patterns
-grep -rn "deprecated\|TODO\|FIXME\|obsolete" docs/ **/CLAUDE.md 2>/dev/null
-
-# Check for stale file references
-grep -roh '\bpath/to/\|\.yaml\b' docs/ CLAUDE.md 2>/dev/null | sort -u
-
-# ADR status check
-grep -l "Status.*Accepted" docs/decisions/ 2>/dev/null | while read f; do
-  echo "Check if superseded: $f"
-done
-```
+**Find and check:**
+- All CLAUDE.md and AGENTS.md files in the repo
+- Deprecated/TODO/FIXME/obsolete markers in docs/ and CLAUDE.md files
+- Stale file path references in documentation
+- ADR status (check if accepted ADRs have been superseded)
 
 **For EVERY stale reference found:**
 1. Update to match current implementation
@@ -336,31 +150,24 @@ done
 **Report format:**
 ```
 Staleness audit:
-- [file:line] - [what was stale] → [what it was changed to]
+- [file:line] - [what was stale] -> [what it was changed to]
 ```
 
-### Step 1.5: Constitution Update (CRITICAL for bug fixes)
+## Step 1.5: Constitution Update (CRITICAL for bug fixes)
 
-**This creates a feedback loop: bugs → invariants → prevention.**
+This creates a feedback loop: bugs -> invariants -> prevention.
 
 If this task fixed a bug caused by violating an implicit rule:
 
-1. **Check if constitution exists:**
-   ```bash
-   cat .orc/CONSTITUTION.md 2>/dev/null || echo "No constitution"
-   ```
-
+1. **Check if constitution exists** at `.orc/CONSTITUTION.md`
 2. **If bug was caused by pattern violation, ADD the invariant:**
    ```markdown
    | INV-XX | [Rule violated] | [How to verify] | [Why it matters] |
    ```
    Include reference: `(from {{TASK_ID}})`
+3. **If feature established new pattern**, consider if it should be a default
 
-3. **If feature established new pattern, consider if it should be a default**
-
-### Step 2: Determine Documentation Scope
-
-Identify what level of documentation is affected:
+## Step 2: Determine Documentation Scope
 
 | Scope | Affected Area | Documentation Target |
 |-------|---------------|---------------------|
@@ -369,29 +176,13 @@ Identify what level of documentation is affected:
 | **repo_scope** | Cross-cutting pattern | Root CLAUDE.md, root docs/ |
 
 **Decision tree:**
-1. Does this change affect only one package? → project_local
-2. Does it affect a shared subsystem? → parent_scope
-3. Is it a cross-cutting pattern/decision? → repo_scope
+1. Affects only one package? -> project_local
+2. Affects a shared subsystem? -> parent_scope
+3. Cross-cutting pattern/decision? -> repo_scope
 
-### Step 3: Audit Missing Documentation
+## Step 3: Audit Missing Documentation
 
-Check what exists vs what's needed:
-
-```bash
-# Root level
-ls -la README.md CLAUDE.md AGENTS.md 2>/dev/null
-
-# Changed directories
-for dir in [affected_paths]; do
-  ls -la $dir/CLAUDE.md $dir/README.md 2>/dev/null
-done
-
-# Architecture docs
-ls -la docs/architecture/ docs/decisions/ 2>/dev/null
-
-# Check if llms.txt needed (>10 doc files)
-find docs -name "*.md" 2>/dev/null | wc -l
-```
+Check what exists vs what's needed in root level, changed directories, and architecture docs.
 
 **Required for all projects:**
 - Root `CLAUDE.md` or `AGENTS.md` (AI-readable)
@@ -402,41 +193,31 @@ find docs -name "*.md" 2>/dev/null | wc -l
 - Package `CLAUDE.md` if complex package was added/changed
 - `llms.txt` if >10 doc files exist
 
-### Step 4: Select Document Type
+## Step 4: Select Document Type
 
-Based on what you're documenting, use the appropriate template:
-
-| Content Type | Document | Template Section |
-|--------------|----------|------------------|
-| System overview, mental model | `docs/OVERVIEW.md` | OVERVIEW.md template |
-| Design patterns, pipeline | `docs/ARCHITECTURE.md` | ARCHITECTURE.md template |
-| Business logic, rules | `docs/BUSINESS_RULES.md` | BUSINESS_RULES.md template |
-| Function signatures | `docs/API_REFERENCE.md` | API_REFERENCE.md template |
-| Issue resolution | `docs/TROUBLESHOOTING.md` | TROUBLESHOOTING.md template |
+| Content Type | Document | Template |
+|--------------|----------|----------|
+| System overview, mental model | `docs/OVERVIEW.md` | OVERVIEW.md pattern above |
+| Design patterns, pipeline | `docs/ARCHITECTURE.md` | See summary table |
+| Business logic, rules | `docs/BUSINESS_RULES.md` | See summary table |
+| Function signatures | `docs/API_REFERENCE.md` | See summary table |
+| Issue resolution | `docs/TROUBLESHOOTING.md` | See summary table |
 | Quick reference, navigation | `CLAUDE.md` | Keep concise, link to docs/ |
 
-### Step 5: Update Existing Docs
+## Step 5: Update Existing Docs
 
 For each doc in the blast radius:
 
-1. **Check accuracy** - Does content match implementation?
-2. **Update affected sections** - Don't rewrite entire doc
-3. **Add new features/APIs** - With file:line references
-4. **Update examples** - If behavior changed
-5. **Verify file:line references** - Are they still accurate?
-6. **Check line counts** - Extract if exceeding limits
+1. **Check accuracy** — does content match implementation?
+2. **Update affected sections** — don't rewrite entire doc
+3. **Add new features/APIs** — with file:line references
+4. **Update examples** — if behavior changed
+5. **Verify file:line references** — are they still accurate?
+6. **Check line counts** — extract if exceeding limits
 
-### Step 6: CLAUDE.md Quality Check
+## Step 6: CLAUDE.md Quality Check
 
-**Verify hierarchical integrity:**
-```bash
-# Check line counts
-wc -l CLAUDE.md
-find . -name "CLAUDE.md" -exec wc -l {} \; 2>/dev/null | sort -rn
-
-# Check for duplication (should find minimal matches)
-grep -h "^## " CLAUDE.md */CLAUDE.md 2>/dev/null | sort | uniq -d
-```
+Verify hierarchical integrity: check line counts of all CLAUDE.md files and check for duplicate section headers across hierarchy levels.
 
 **Quality criteria:**
 - [ ] Under target line count for its level
@@ -445,64 +226,31 @@ grep -h "^## " CLAUDE.md */CLAUDE.md 2>/dev/null | sort | uniq -d
 - [ ] No duplicate content from parent CLAUDE.md
 - [ ] Accurate file layout section (if present)
 
-**If exceeds limits, apply optimization strategies:**
+## Step 7: Document Insights (If Applicable)
 
-| Strategy | When to Use | How |
-|----------|-------------|-----|
-| **Table-ify** | Prose explaining logic | Convert to What/When/Why/Where columns |
-| **Condense trees** | Full directory listing | Show key files, use `[N more files]` |
-| **Extract-Reference** | Duplicate content | Single source + "See X for details" |
-| **Bullets over paragraphs** | Explanatory text | One concept per line |
+If this task established patterns, decisions, or gotchas — place them by scope:
 
-### Step 7: Document Insights (If Applicable)
+| Scope | Insight Type | Location |
+|-------|--------------|----------|
+| project_local | Package gotcha | Package CLAUDE.md (Gotchas section) |
+| project_local | Package pattern | Package docs/ (ARCHITECTURE.md) |
+| parent_scope | Subsystem pattern | Parent docs/ (ARCHITECTURE.md) |
+| repo_scope | Architecture decision | `docs/decisions/ADR-XXX.md` |
+| repo_scope | Cross-cutting pattern | Root `docs/PATTERNS.md` |
+| repo_scope | Business rule | `docs/BUSINESS_RULES.md` |
+| repo_scope | Common issue | `docs/TROUBLESHOOTING.md` |
 
-If this task established patterns, decisions, or gotchas:
+**Guidelines:** Use tables and structured formats. Include file:line references. Capture the WHY, not just the WHAT. One insight = one location.
 
-**Placement by scope:**
+**Skip if:** Task was routine with no novel insights, knowledge already documented, or insight is too task-specific.
 
-| Scope | Insight Type | Location | Template |
-|-------|--------------|----------|----------|
-| project_local | Package gotcha | Package CLAUDE.md | Gotchas section |
-| project_local | Package pattern | Package docs/ | ARCHITECTURE.md |
-| parent_scope | Subsystem pattern | Parent docs/ | ARCHITECTURE.md |
-| repo_scope | Architecture decision | `docs/decisions/ADR-XXX.md` | ADR format |
-| repo_scope | Cross-cutting pattern | Root `docs/PATTERNS.md` | ARCHITECTURE.md |
-| repo_scope | Business rule | `docs/BUSINESS_RULES.md` | BUSINESS_RULES.md |
-| repo_scope | Common issue | `docs/TROUBLESHOOTING.md` | TROUBLESHOOTING.md |
-
-**Guidelines:**
-- Use tables and structured formats (not prose)
-- Include file:line references for implementation details
-- Capture the WHY (rationale), not just the WHAT
-- One insight = one location (no duplicating)
-
-**Skip if:**
-- Task was routine with no novel insights
-- Knowledge already documented elsewhere
-- Insight is too task-specific to help future work
-
-### Step 8: Validate Documentation
+## Step 8: Validate Documentation
 
 **Run validation:**
-
-```bash
-# Doc lint (if available)
-./scripts/doc-lint.sh 2>/dev/null || echo "No doc-lint script"
-
-# Check for broken internal links
-grep -roh '\[.*\](.*\.md)' docs/ CLAUDE.md 2>/dev/null | \
-  sed 's/.*(\(.*\))/\1/' | while read f; do
-    [ ! -f "$f" ] && echo "Broken link: $f"
-  done
-
-# Verify file:line references exist
-grep -roh '[a-zA-Z_/]*\.[a-z]*:[0-9]*' docs/ CLAUDE.md 2>/dev/null | \
-  head -10 | while read ref; do
-    file=$(echo $ref | cut -d: -f1)
-    line=$(echo $ref | cut -d: -f2)
-    [ -f "$file" ] || echo "Missing file: $file"
-  done
-```
+- Doc lint script (if available)
+- Check for broken internal markdown links
+- Verify file:line references point to existing files
+- Spot-check a sample of references for line accuracy
 
 **Final checks:**
 - [ ] All code blocks have correct syntax highlighting
@@ -511,26 +259,23 @@ grep -roh '[a-zA-Z_/]*\.[a-z]*:[0-9]*' docs/ CLAUDE.md 2>/dev/null | \
 - [ ] All examples are runnable
 - [ ] No TODO/FIXME placeholders in final docs
 - [ ] No references to deprecated/removed features
+</instructions>
 
----
-
-## Validation Checklist
+<validation_checklist>
+## Pre-Completion Checklist
 
 ### Hierarchy
 - [ ] Child CLAUDE.md files don't duplicate parent content
 - [ ] Each level contains only unique information
 - [ ] Cross-references use "See X for details" pattern
-- [ ] No testing/code style repeated outside project level
 
 ### Line Counts
-- [ ] Root CLAUDE.md ≤ 180 lines
-- [ ] Package CLAUDE.md files ≤ 150 lines
+- [ ] Root CLAUDE.md <= 180 lines
+- [ ] Package CLAUDE.md files <= 150 lines
 - [ ] No CLAUDE.md > 400 lines (extract to QUICKREF.md or docs/)
-- [ ] Reference docs (docs/*.md) can exceed 500 lines
 
 ### Content Quality
 - [ ] Tables over prose for structured content
-- [ ] Bullet points over paragraphs
 - [ ] File:line references for implementation details
 - [ ] No duplicate content across files
 - [ ] Document templates followed for each doc type
@@ -539,71 +284,13 @@ grep -roh '[a-zA-Z_/]*\.[a-z]*:[0-9]*' docs/ CLAUDE.md 2>/dev/null | \
 - [ ] File layout matches actual directory structure
 - [ ] Code examples match current implementation
 - [ ] All file:line references are valid
-- [ ] All ADRs have correct status (Accepted/Superseded)
+- [ ] All ADRs have correct status
 
-### Navigation (for large repos)
+### Navigation (large repos)
 - [ ] llms.txt exists if >10 doc files
-- [ ] llms.txt has task-specific navigation sections
 - [ ] Related docs linked from each document
 
-### Constitution (for bug fixes)
+### Constitution (bug fixes)
 - [ ] If bug was caused by pattern violation, invariant added
 - [ ] If new pattern established, considered for defaults
-
----
-
-## Output Format
-
-**CRITICAL**: Your final output MUST be a JSON object with the documentation summary in the `content` field.
-
-```markdown
-## Documentation Summary
-
-**Task**: {{TASK_TITLE}}
-
-### Staleness Audit
-- Files searched: [count]
-- Stale references fixed: [count]
-  - [file:line]: [old] → [new]
-
-### Hierarchy Check
-- Parent docs referenced: [list]
-- Duplicate content removed: [yes/no/none found]
-
-### Docs Created
-| Path | Type | Lines | Purpose |
-|------|------|-------|---------|
-| [path] | [OVERVIEW/ARCHITECTURE/etc] | [count] | [purpose] |
-
-### Docs Updated
-| Path | Changes |
-|------|---------|
-| [path] | [what changed] |
-
-### Line Counts
-- Root CLAUDE.md: [count] lines
-- [other files]: [count] lines
-
-### Navigation
-- llms.txt: [created/updated/not needed]
-```
-
-## Phase Completion
-
-Output a JSON object:
-
-```json
-{
-  "status": "complete",
-  "summary": "Documentation updated, hierarchy verified, templates followed",
-  "content": "## Documentation Summary\n\n**Task**: Feature X\n..."
-}
-```
-
-If blocked:
-```json
-{
-  "status": "blocked",
-  "reason": "[what's blocking and what clarification is needed]"
-}
-```
+</validation_checklist>

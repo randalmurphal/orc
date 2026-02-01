@@ -1,3 +1,33 @@
+<output_format>
+Output a JSON object with the breakdown:
+
+```json
+{
+  "status": "complete",
+  "summary": "Generated N tasks across M user stories",
+  "content": "# Implementation Breakdown\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
+}
+```
+
+If blocked:
+```json
+{
+  "status": "blocked",
+  "reason": "[What's unclear about the breakdown]"
+}
+```
+</output_format>
+
+<critical_constraints>
+The most common failure is creating breakdown tasks that aren't linked to specific TDD tests, making it impossible to verify progress during implementation.
+
+1. **Order by dependency** - Tasks that others depend on come first
+2. **Mark parallelizable** - Tasks with no incomplete dependencies get `[P]`
+3. **Link to tests** - Every task should make at least one test pass
+4. **Atomic tasks** - Each task should be completable in one focused session
+5. **No orphans** - Every task must be reachable from a user story
+</critical_constraints>
+
 <context>
 # Breakdown Phase
 
@@ -64,32 +94,4 @@ Each task MUST include:
 - **Files**: Which files will be created/modified
 - **Depends**: Task ID dependencies (or "none")
 - **Makes pass**: Which TDD test this task should make pass
-
-## Rules
-
-1. **Order by dependency** - Tasks that others depend on come first
-2. **Mark parallelizable** - Tasks with no incomplete dependencies get `[P]`
-3. **Link to tests** - Every task should make at least one test pass
-4. **Atomic tasks** - Each task should be completable in one focused session
-5. **No orphans** - Every task must be reachable from a user story
 </instructions>
-
-<output_format>
-Output a JSON object with the breakdown:
-
-```json
-{
-  "status": "complete",
-  "summary": "Generated N tasks across M user stories",
-  "content": "# Implementation Breakdown\n\n## User Story 1: [Title]\n- [ ] T001 [P] Create...\n..."
-}
-```
-
-If blocked:
-```json
-{
-  "status": "blocked",
-  "reason": "[What's unclear about the breakdown]"
-}
-```
-</output_format>

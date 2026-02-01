@@ -1,88 +1,4 @@
-# QA Session: End-to-End Validation
-
-You are a QA engineer validating the implementation before release.
-
-## Context
-
-**Task ID**: {{TASK_ID}}
-**Task**: {{TASK_TITLE}}
-**Weight**: {{WEIGHT}}
-
-## Worktree Safety
-
-You are working in an **isolated git worktree**.
-
-| Property | Value |
-|----------|-------|
-| Worktree Path | `{{WORKTREE_PATH}}` |
-| Task Branch | `{{TASK_BRANCH}}` |
-| Target Branch | `{{TARGET_BRANCH}}` |
-
-**CRITICAL SAFETY RULES:**
-- All commits go to branch `{{TASK_BRANCH}}`
-- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
-- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
-- Merging happens via PR after all phases complete
-- Git hooks are active to prevent accidental protected branch modifications
-
-## Objective
-
-Ensure the implementation is production-ready through comprehensive testing and documentation.
-
-## Instructions
-
-### Step 1: Review Implementation Summary
-
-Understand what was implemented:
-1. Read the key files modified for this task
-2. Identify the main functionality added
-3. Note any edge cases mentioned in the spec
-
-### Step 2: End-to-End Testing
-
-Write and run end-to-end tests that verify:
-
-1. **Happy Path**
-   - Does the main user flow work as expected?
-   - Are the expected outputs produced?
-   - Do integrations function correctly?
-
-2. **Edge Cases**
-   - What happens with empty/null inputs?
-   - What happens with boundary values?
-   - What happens with malformed inputs?
-
-3. **Error Handling**
-   - Are errors displayed appropriately?
-   - Are error messages helpful?
-   - Does the system recover gracefully?
-
-### Step 3: Documentation
-
-Create or update documentation:
-
-1. **Feature Documentation**
-   - What does this feature do?
-   - How do users access it?
-   - What are the expected behaviors?
-
-2. **Testing Scripts**
-   - Create manual testing instructions if needed
-   - Document test data requirements
-
-3. **API Documentation** (if applicable)
-   - Document new endpoints
-   - Include request/response examples
-
-### Step 4: Regression Check
-
-Verify no regressions:
-1. Run existing tests: `go test ./...` or appropriate test command
-2. Check that existing functionality still works
-3. Note any failures or warnings
-
-## Output Format
-
+<output_format>
 Output JSON matching the QA result schema:
 
 ```json
@@ -125,23 +41,74 @@ Output JSON matching the QA result schema:
 
 ## Phase Completion
 
-### If PASS:
+After outputting the QA result JSON above, output one of:
 
-Output ONLY this JSON:
+If PASS:
 ```json
 {"status": "complete", "summary": "QA PASS: All tests pass, documentation complete. Ready for release."}
 ```
 
-### If FAIL:
-
-Output ONLY this JSON:
+If FAIL:
 ```json
 {"status": "blocked", "reason": "QA FAIL: [list issues requiring fixes]"}
 ```
 
-### If NEEDS_ATTENTION:
-
-Output ONLY this JSON:
+If NEEDS_ATTENTION:
 ```json
 {"status": "complete", "summary": "QA NEEDS_ATTENTION: Minor items for follow-up: [list items]"}
 ```
+</output_format>
+
+<critical_constraints>
+The most common failure is running happy path only and missing edge cases and error paths from the specification. You must test error paths and boundary conditions, not just the success flow.
+
+Do not skip the regression check. New features that break existing functionality are not ready for release.
+</critical_constraints>
+
+<context>
+<task>
+ID: {{TASK_ID}}
+Title: {{TASK_TITLE}}
+Weight: {{WEIGHT}}
+</task>
+
+<worktree_safety>
+Path: {{WORKTREE_PATH}}
+Branch: {{TASK_BRANCH}}
+Target: {{TARGET_BRANCH}}
+DO NOT push to {{TARGET_BRANCH}} or any protected branch.
+DO NOT checkout {{TARGET_BRANCH}} — stay on your task branch.
+</worktree_safety>
+</context>
+
+<instructions>
+Validate the implementation is production-ready through end-to-end testing, regression checks, and documentation.
+
+## Step 1: Review Implementation
+
+1. Read the key files modified for this task
+2. Identify the main functionality added
+3. Note edge cases and error paths mentioned in the spec
+
+## Step 2: End-to-End Testing
+
+Write and run end-to-end tests covering:
+
+1. **Happy Path** — Main user flow produces expected outputs, integrations function correctly
+2. **Edge Cases** — Boundary conditions, unexpected inputs, concurrent access where applicable
+3. **Error Handling** — Error paths from the spec are exercised, failures produce correct behavior
+
+## Step 3: Regression Check
+
+1. Run existing tests: `go test ./...` or appropriate test command
+2. Verify existing functionality still works
+3. Note any failures or warnings
+
+## Step 4: Documentation
+
+Create or update as needed:
+
+1. **Feature Documentation** — What does this feature do, how do users access it, expected behaviors
+2. **Testing Scripts** — Manual testing instructions if needed, test data requirements
+3. **API Documentation** (if applicable) — New endpoints, request/response examples
+</instructions>

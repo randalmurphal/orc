@@ -1,123 +1,107 @@
 # Review Round 2: Validation Review
 
-You are performing a validation review after the implementation agent addressed feedback.
+<output_format>
+Output your structured response matching the review decision schema:
 
-## Context
+- `status`: "pass" | "fail" | "needs_user_input"
+- `gaps_addressed`: boolean — were round 1 issues addressed?
+- `summary`: Overall assessment
+- `resolved_issues`: List of round 1 issues that were fixed
+- `remaining_issues`: List with `severity`, `description`, and optionally `constitution_violation`
+- `questions`: User questions (if status is "needs_user_input")
+- `recommendation`: What should happen next
 
-**Task ID**: {{TASK_ID}}
-**Task**: {{TASK_TITLE}}
-**Weight**: {{WEIGHT}}
+## Phase Completion
 
-## Worktree Safety
+**If PASS:** `{"status": "complete", "summary": "All issues addressed, code ready for QA/merge"}`
+**If FAIL:** `{"status": "blocked", "reason": "[remaining issues needing implementation fixes]"}`
+**If NEEDS_USER_INPUT:** `{"status": "blocked", "reason": "[questions requiring user decision]"}`
+</output_format>
 
-You are working in an **isolated git worktree**.
+<critical_constraints>
+The most common failure is declaring round 1 issues "fixed" without verifying the fix actually works and didn't introduce regressions.
 
-| Property | Value |
-|----------|-------|
-| Worktree Path | `{{WORKTREE_PATH}}` |
-| Task Branch | `{{TASK_BRANCH}}` |
-| Target Branch | `{{TARGET_BRANCH}}` |
+## PASS Criteria
 
-**CRITICAL SAFETY RULES:**
-- All commits go to branch `{{TASK_BRANCH}}`
-- **DO NOT** push to `{{TARGET_BRANCH}}` or any protected branch
-- **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
-- Merging happens via PR after all phases complete
-- Git hooks are active to prevent accidental protected branch modifications
-
-## Round 1 Findings
-
-{{REVIEW_FINDINGS}}
-
-{{#if CONSTITUTION_CONTENT}}
-## Constitution & Invariants
-
-The following rules govern this project. **Invariants CANNOT be ignored or overridden.**
-
-<constitution>
-{{CONSTITUTION_CONTENT}}
-</constitution>
-
-### Constitution Compliance Validation
-
-**CRITICAL**: Any `constitution_violation: "invariant"` issues from Round 1 MUST be resolved. These are absolute rules that cannot be waived or deferred.
-
-When validating fixes:
-- Verify invariant violations were actually fixed, not just acknowledged
-- Check that fixes didn't introduce new invariant violations
-- `constitution_violation: "default"` issues can be deferred with documented justification
-{{/if}}
-
-## Instructions
-
-With fresh perspective, validate that all identified issues were addressed:
-
-### Step 1: Re-Read the Code
-
-Read through the implementation again:
-1. Check each file that had issues in Round 1
-2. Note any new changes made since Round 1
-3. Verify the overall implementation quality
-
-### Step 2: Verify Issues Addressed
-
-For each issue from Round 1:
-- [ ] Was the issue actually fixed?
-- [ ] Did the fix introduce any regressions?
-- [ ] Is the fix complete or partial?
-
-### Step 3: Check for New Issues
-
-While reviewing the fixes:
-- Any new issues introduced by the fixes?
-- New over-engineering introduced during fix
-- Any patterns that were missed in Round 1?
-- Verify no regressions in existing functionality
-
-**Re-verify critical checks:**
-- [ ] All dependents still updated (no new broken references)
-- [ ] Preservation requirements still met (fixes didn't remove preserved features)
-- [ ] Build/typecheck still passes
-
-### Step 4: Make Final Decision
-
-Based on your validation:
-
-**PASS** if:
 - All high-severity issues resolved
 - All medium-severity issues resolved or explicitly deferred
 - No new high/medium issues found
-- **No invariant violations remain** (constitution_violation: "invariant")
+- No invariant violations remain (`constitution_violation: "invariant"`)
 - Code is ready for production
 
-**FAIL** if:
+## FAIL Criteria
+
 - Any high-severity issues remain
 - Critical medium-severity issues remain
 - New significant issues discovered
 - Fixes introduced regressions
-- **Any invariant violation remains unresolved** (these cannot be deferred)
+- Any invariant violation remains unresolved (these cannot be deferred)
 
-**NEEDS_USER_INPUT** if:
+## NEEDS_USER_INPUT Criteria
+
 - Architecture decisions are unclear
 - Requirements need clarification
 - Trade-offs need user decision
+</critical_constraints>
 
-## Output Format
+<context>
+<task>
+ID: {{TASK_ID}}
+Title: {{TASK_TITLE}}
+Weight: {{WEIGHT}}
+</task>
 
-Output your structured response matching the review decision schema. Include the status (pass, fail, or needs_user_input), whether gaps were addressed, an overall summary, the list of resolved issues from Round 1, any remaining issues with severity and description, user questions if applicable, and a recommendation for what should happen next.
+<worktree_safety>
+Path: {{WORKTREE_PATH}}
+Branch: {{TASK_BRANCH}}
+Target: {{TARGET_BRANCH}}
+DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRANCH}}.
+</worktree_safety>
+</context>
 
-**Note:** Include the `constitution_violation` field on remaining issues only if applicable. Use "invariant" for issues that must be fixed (cannot pass) or "default" for issues that can be deferred with justification.
+<round1_findings>
+{{REVIEW_FINDINGS}}
+</round1_findings>
 
-## Phase Completion
+{{#if CONSTITUTION_CONTENT}}
+<constitution>
+{{CONSTITUTION_CONTENT}}
+</constitution>
 
-### If PASS:
+Constitution validation for round 2:
+- Any `constitution_violation: "invariant"` issues from round 1 MUST be resolved — not just acknowledged. These are absolute rules that cannot be waived or deferred.
+- Verify fixes didn't introduce new invariant violations.
+- `constitution_violation: "default"` issues can be deferred with documented justification.
+{{/if}}
 
-Output your structured response with status set to "complete" and a summary indicating all issues were addressed and the code is ready for QA/merge.
+<instructions>
+## Step 1: Re-Read the Code
 
-### If FAIL:
+1. Check each file that had issues in round 1
+2. Note any new changes made since round 1
+3. Verify overall implementation quality
 
-Output your structured response with status set to "blocked" and a reason listing the remaining issues that need implementation fixes.
+## Step 2: Verify Round 1 Issues Addressed
 
-### If NEEDS_USER_INPUT:
+For each issue from round 1:
+- [ ] Was the issue actually fixed?
+- [ ] Did the fix introduce any regressions?
+- [ ] Is the fix complete or partial?
 
-Output your structured response with status set to "blocked" and a reason listing the questions that require user decision.
+## Step 3: Check for New Issues
+
+While reviewing the fixes:
+- Any new issues introduced by the fixes?
+- New over-engineering introduced during fix?
+- Patterns missed in round 1?
+- Regressions in existing functionality?
+
+**Critical re-verification:**
+- [ ] All dependents still updated (no new broken references)
+- [ ] Preservation requirements still met (fixes didn't remove preserved features)
+- [ ] Build/typecheck still passes
+
+## Step 4: Make Final Decision
+
+Apply the PASS/FAIL/NEEDS_USER_INPUT criteria defined above. Include `constitution_violation` on remaining issues where applicable ("invariant" = must fix, "default" = can defer with justification).
+</instructions>
