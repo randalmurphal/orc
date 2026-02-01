@@ -234,8 +234,16 @@ func (e *ClaudeExecutor) ExecuteTurn(ctx context.Context, prompt string) (*TurnR
 
 	// Build CLI options using consolidated helper, then add JSON schema
 	cliOpts := e.buildBaseCLIOptions()
-	// Select schema based on phase, round, and whether it produces content artifacts
-	schema := GetSchemaForPhaseWithRound(e.phaseID, e.reviewRound, e.producesArtifact)
+	// Select schema using loop-aware selection (falls back to round-based for backward compat)
+	// Priority: loopIteration > reviewRound > 1
+	iteration := e.loopIteration
+	if iteration == 0 {
+		iteration = e.reviewRound
+	}
+	if iteration == 0 {
+		iteration = 1
+	}
+	schema := GetSchemaForIteration(e.loopConfig, iteration, e.phaseID, e.producesArtifact)
 	cliOpts = append(cliOpts, claude.WithJSONSchema(schema))
 
 	cli := claude.NewClaudeCLI(cliOpts...)
