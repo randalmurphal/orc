@@ -5138,6 +5138,382 @@ func (x *RemoveBeforePhaseTriggerResponse) GetPhase() *WorkflowPhase {
 	return nil
 }
 
+type AddLifecycleTriggerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Event         string                 `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"` // on_task_created, on_task_completed, on_task_failed, on_initiative_planned
+	AgentId       string                 `protobuf:"bytes,3,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Mode          *string                `protobuf:"bytes,4,opt,name=mode,proto3,oneof" json:"mode,omitempty"` // "gate" (default) or "reaction"
+	Enabled       bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	InputConfig   *string                `protobuf:"bytes,6,opt,name=input_config,json=inputConfig,proto3,oneof" json:"input_config,omitempty"`    // JSON GateInputConfig
+	OutputConfig  *string                `protobuf:"bytes,7,opt,name=output_config,json=outputConfig,proto3,oneof" json:"output_config,omitempty"` // JSON GateOutputConfig
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddLifecycleTriggerRequest) Reset() {
+	*x = AddLifecycleTriggerRequest{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddLifecycleTriggerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddLifecycleTriggerRequest) ProtoMessage() {}
+
+func (x *AddLifecycleTriggerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddLifecycleTriggerRequest.ProtoReflect.Descriptor instead.
+func (*AddLifecycleTriggerRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *AddLifecycleTriggerRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AddLifecycleTriggerRequest) GetEvent() string {
+	if x != nil {
+		return x.Event
+	}
+	return ""
+}
+
+func (x *AddLifecycleTriggerRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AddLifecycleTriggerRequest) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *AddLifecycleTriggerRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *AddLifecycleTriggerRequest) GetInputConfig() string {
+	if x != nil && x.InputConfig != nil {
+		return *x.InputConfig
+	}
+	return ""
+}
+
+func (x *AddLifecycleTriggerRequest) GetOutputConfig() string {
+	if x != nil && x.OutputConfig != nil {
+		return *x.OutputConfig
+	}
+	return ""
+}
+
+type AddLifecycleTriggerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workflow      *Workflow              `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddLifecycleTriggerResponse) Reset() {
+	*x = AddLifecycleTriggerResponse{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddLifecycleTriggerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddLifecycleTriggerResponse) ProtoMessage() {}
+
+func (x *AddLifecycleTriggerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddLifecycleTriggerResponse.ProtoReflect.Descriptor instead.
+func (*AddLifecycleTriggerResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *AddLifecycleTriggerResponse) GetWorkflow() *Workflow {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type UpdateLifecycleTriggerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	TriggerIndex  int32                  `protobuf:"varint,2,opt,name=trigger_index,json=triggerIndex,proto3" json:"trigger_index,omitempty"`
+	Event         *string                `protobuf:"bytes,3,opt,name=event,proto3,oneof" json:"event,omitempty"`
+	AgentId       *string                `protobuf:"bytes,4,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	Mode          *string                `protobuf:"bytes,5,opt,name=mode,proto3,oneof" json:"mode,omitempty"`
+	Enabled       *bool                  `protobuf:"varint,6,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	InputConfig   *string                `protobuf:"bytes,7,opt,name=input_config,json=inputConfig,proto3,oneof" json:"input_config,omitempty"`
+	OutputConfig  *string                `protobuf:"bytes,8,opt,name=output_config,json=outputConfig,proto3,oneof" json:"output_config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateLifecycleTriggerRequest) Reset() {
+	*x = UpdateLifecycleTriggerRequest{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateLifecycleTriggerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateLifecycleTriggerRequest) ProtoMessage() {}
+
+func (x *UpdateLifecycleTriggerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateLifecycleTriggerRequest.ProtoReflect.Descriptor instead.
+func (*UpdateLifecycleTriggerRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetTriggerIndex() int32 {
+	if x != nil {
+		return x.TriggerIndex
+	}
+	return 0
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetEvent() string {
+	if x != nil && x.Event != nil {
+		return *x.Event
+	}
+	return ""
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetMode() string {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return ""
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetInputConfig() string {
+	if x != nil && x.InputConfig != nil {
+		return *x.InputConfig
+	}
+	return ""
+}
+
+func (x *UpdateLifecycleTriggerRequest) GetOutputConfig() string {
+	if x != nil && x.OutputConfig != nil {
+		return *x.OutputConfig
+	}
+	return ""
+}
+
+type UpdateLifecycleTriggerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workflow      *Workflow              `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateLifecycleTriggerResponse) Reset() {
+	*x = UpdateLifecycleTriggerResponse{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateLifecycleTriggerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateLifecycleTriggerResponse) ProtoMessage() {}
+
+func (x *UpdateLifecycleTriggerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateLifecycleTriggerResponse.ProtoReflect.Descriptor instead.
+func (*UpdateLifecycleTriggerResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *UpdateLifecycleTriggerResponse) GetWorkflow() *Workflow {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type RemoveLifecycleTriggerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	TriggerIndex  int32                  `protobuf:"varint,2,opt,name=trigger_index,json=triggerIndex,proto3" json:"trigger_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveLifecycleTriggerRequest) Reset() {
+	*x = RemoveLifecycleTriggerRequest{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveLifecycleTriggerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveLifecycleTriggerRequest) ProtoMessage() {}
+
+func (x *RemoveLifecycleTriggerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveLifecycleTriggerRequest.ProtoReflect.Descriptor instead.
+func (*RemoveLifecycleTriggerRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *RemoveLifecycleTriggerRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *RemoveLifecycleTriggerRequest) GetTriggerIndex() int32 {
+	if x != nil {
+		return x.TriggerIndex
+	}
+	return 0
+}
+
+type RemoveLifecycleTriggerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Workflow      *Workflow              `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveLifecycleTriggerResponse) Reset() {
+	*x = RemoveLifecycleTriggerResponse{}
+	mi := &file_orc_v1_workflow_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveLifecycleTriggerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveLifecycleTriggerResponse) ProtoMessage() {}
+
+func (x *RemoveLifecycleTriggerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_workflow_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveLifecycleTriggerResponse.ProtoReflect.Descriptor instead.
+func (*RemoveLifecycleTriggerResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_workflow_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *RemoveLifecycleTriggerResponse) GetWorkflow() *Workflow {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
 var File_orc_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_orc_v1_workflow_proto_rawDesc = "" +
@@ -5712,7 +6088,46 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bphase_id\x18\x02 \x01(\x05R\aphaseId\x12#\n" +
 	"\rtrigger_index\x18\x03 \x01(\x05R\ftriggerIndex\"O\n" +
 	" RemoveBeforePhaseTriggerResponse\x12+\n" +
-	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase*w\n" +
+	"\x05phase\x18\x01 \x01(\v2\x15.orc.v1.WorkflowPhaseR\x05phase\"\x9f\x02\n" +
+	"\x1aAddLifecycleTriggerRequest\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12\x14\n" +
+	"\x05event\x18\x02 \x01(\tR\x05event\x12\x19\n" +
+	"\bagent_id\x18\x03 \x01(\tR\aagentId\x12\x17\n" +
+	"\x04mode\x18\x04 \x01(\tH\x00R\x04mode\x88\x01\x01\x12\x18\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\x12&\n" +
+	"\finput_config\x18\x06 \x01(\tH\x01R\vinputConfig\x88\x01\x01\x12(\n" +
+	"\routput_config\x18\a \x01(\tH\x02R\foutputConfig\x88\x01\x01B\a\n" +
+	"\x05_modeB\x0f\n" +
+	"\r_input_configB\x10\n" +
+	"\x0e_output_config\"K\n" +
+	"\x1bAddLifecycleTriggerResponse\x12,\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xf9\x02\n" +
+	"\x1dUpdateLifecycleTriggerRequest\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12#\n" +
+	"\rtrigger_index\x18\x02 \x01(\x05R\ftriggerIndex\x12\x19\n" +
+	"\x05event\x18\x03 \x01(\tH\x00R\x05event\x88\x01\x01\x12\x1e\n" +
+	"\bagent_id\x18\x04 \x01(\tH\x01R\aagentId\x88\x01\x01\x12\x17\n" +
+	"\x04mode\x18\x05 \x01(\tH\x02R\x04mode\x88\x01\x01\x12\x1d\n" +
+	"\aenabled\x18\x06 \x01(\bH\x03R\aenabled\x88\x01\x01\x12&\n" +
+	"\finput_config\x18\a \x01(\tH\x04R\vinputConfig\x88\x01\x01\x12(\n" +
+	"\routput_config\x18\b \x01(\tH\x05R\foutputConfig\x88\x01\x01B\b\n" +
+	"\x06_eventB\v\n" +
+	"\t_agent_idB\a\n" +
+	"\x05_modeB\n" +
+	"\n" +
+	"\b_enabledB\x0f\n" +
+	"\r_input_configB\x10\n" +
+	"\x0e_output_config\"N\n" +
+	"\x1eUpdateLifecycleTriggerResponse\x12,\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"e\n" +
+	"\x1dRemoveLifecycleTriggerRequest\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12#\n" +
+	"\rtrigger_index\x18\x02 \x01(\x05R\ftriggerIndex\"N\n" +
+	"\x1eRemoveLifecycleTriggerResponse\x12,\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow*w\n" +
 	"\fPromptSource\x12\x1d\n" +
 	"\x19PROMPT_SOURCE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROMPT_SOURCE_EMBEDDED\x10\x01\x12\x14\n" +
@@ -5753,7 +6168,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x19DEFINITION_SOURCE_PROJECT\x10\x02\x12\x1c\n" +
 	"\x18DEFINITION_SOURCE_SHARED\x10\x03\x12\x1b\n" +
 	"\x17DEFINITION_SOURCE_LOCAL\x10\x04\x12\x1e\n" +
-	"\x1aDEFINITION_SOURCE_PERSONAL\x10\x052\xfa\x12\n" +
+	"\x1aDEFINITION_SOURCE_PERSONAL\x10\x052\xac\x15\n" +
 	"\x0fWorkflowService\x12L\n" +
 	"\rListWorkflows\x12\x1c.orc.v1.ListWorkflowsRequest\x1a\x1d.orc.v1.ListWorkflowsResponse\x12F\n" +
 	"\vGetWorkflow\x12\x1a.orc.v1.GetWorkflowRequest\x1a\x1b.orc.v1.GetWorkflowResponse\x12O\n" +
@@ -5782,7 +6197,10 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x10ValidateWorkflow\x12\x1f.orc.v1.ValidateWorkflowRequest\x1a .orc.v1.ValidateWorkflowResponse\x12d\n" +
 	"\x15AddBeforePhaseTrigger\x12$.orc.v1.AddBeforePhaseTriggerRequest\x1a%.orc.v1.AddBeforePhaseTriggerResponse\x12m\n" +
 	"\x18UpdateBeforePhaseTrigger\x12'.orc.v1.UpdateBeforePhaseTriggerRequest\x1a(.orc.v1.UpdateBeforePhaseTriggerResponse\x12m\n" +
-	"\x18RemoveBeforePhaseTrigger\x12'.orc.v1.RemoveBeforePhaseTriggerRequest\x1a(.orc.v1.RemoveBeforePhaseTriggerResponseB\x89\x01\n" +
+	"\x18RemoveBeforePhaseTrigger\x12'.orc.v1.RemoveBeforePhaseTriggerRequest\x1a(.orc.v1.RemoveBeforePhaseTriggerResponse\x12^\n" +
+	"\x13AddLifecycleTrigger\x12\".orc.v1.AddLifecycleTriggerRequest\x1a#.orc.v1.AddLifecycleTriggerResponse\x12g\n" +
+	"\x16UpdateLifecycleTrigger\x12%.orc.v1.UpdateLifecycleTriggerRequest\x1a&.orc.v1.UpdateLifecycleTriggerResponse\x12g\n" +
+	"\x16RemoveLifecycleTrigger\x12%.orc.v1.RemoveLifecycleTriggerRequest\x1a&.orc.v1.RemoveLifecycleTriggerResponseB\x89\x01\n" +
 	"\n" +
 	"com.orc.v1B\rWorkflowProtoP\x01Z3github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1\xa2\x02\x03OXX\xaa\x02\x06Orc.V1\xca\x02\x06Orc\\V1\xe2\x02\x12Orc\\V1\\GPBMetadata\xea\x02\aOrc::V1b\x06proto3"
 
@@ -5799,7 +6217,7 @@ func file_orc_v1_workflow_proto_rawDescGZIP() []byte {
 }
 
 var file_orc_v1_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 72)
+var file_orc_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 78)
 var file_orc_v1_workflow_proto_goTypes = []any{
 	(PromptSource)(0),                        // 0: orc.v1.PromptSource
 	(GateType)(0),                            // 1: orc.v1.GateType
@@ -5874,23 +6292,29 @@ var file_orc_v1_workflow_proto_goTypes = []any{
 	(*UpdateBeforePhaseTriggerResponse)(nil), // 70: orc.v1.UpdateBeforePhaseTriggerResponse
 	(*RemoveBeforePhaseTriggerRequest)(nil),  // 71: orc.v1.RemoveBeforePhaseTriggerRequest
 	(*RemoveBeforePhaseTriggerResponse)(nil), // 72: orc.v1.RemoveBeforePhaseTriggerResponse
-	nil,                                      // 73: orc.v1.WorkflowRun.VariablesSnapshotEntry
-	nil,                                      // 74: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	nil,                                      // 75: orc.v1.ListWorkflowsResponse.SourcesEntry
-	nil,                                      // 76: orc.v1.ListPhaseTemplatesResponse.SourcesEntry
-	nil,                                      // 77: orc.v1.StartWorkflowRunRequest.VariablesEntry
-	(*timestamppb.Timestamp)(nil),            // 78: google.protobuf.Timestamp
-	(PhaseStatus)(0),                         // 79: orc.v1.PhaseStatus
-	(*PageRequest)(nil),                      // 80: orc.v1.PageRequest
-	(*PageResponse)(nil),                     // 81: orc.v1.PageResponse
+	(*AddLifecycleTriggerRequest)(nil),       // 73: orc.v1.AddLifecycleTriggerRequest
+	(*AddLifecycleTriggerResponse)(nil),      // 74: orc.v1.AddLifecycleTriggerResponse
+	(*UpdateLifecycleTriggerRequest)(nil),    // 75: orc.v1.UpdateLifecycleTriggerRequest
+	(*UpdateLifecycleTriggerResponse)(nil),   // 76: orc.v1.UpdateLifecycleTriggerResponse
+	(*RemoveLifecycleTriggerRequest)(nil),    // 77: orc.v1.RemoveLifecycleTriggerRequest
+	(*RemoveLifecycleTriggerResponse)(nil),   // 78: orc.v1.RemoveLifecycleTriggerResponse
+	nil,                                      // 79: orc.v1.WorkflowRun.VariablesSnapshotEntry
+	nil,                                      // 80: orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	nil,                                      // 81: orc.v1.ListWorkflowsResponse.SourcesEntry
+	nil,                                      // 82: orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	nil,                                      // 83: orc.v1.StartWorkflowRunRequest.VariablesEntry
+	(*timestamppb.Timestamp)(nil),            // 84: google.protobuf.Timestamp
+	(PhaseStatus)(0),                         // 85: orc.v1.PhaseStatus
+	(*PageRequest)(nil),                      // 86: orc.v1.PageRequest
+	(*PageResponse)(nil),                     // 87: orc.v1.PageResponse
 }
 var file_orc_v1_workflow_proto_depIdxs = []int32{
 	0,   // 0: orc.v1.PhaseTemplate.prompt_source:type_name -> orc.v1.PromptSource
 	1,   // 1: orc.v1.PhaseTemplate.gate_type:type_name -> orc.v1.GateType
-	78,  // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
-	78,  // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	78,  // 4: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
-	78,  // 5: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
+	84,  // 2: orc.v1.PhaseTemplate.created_at:type_name -> google.protobuf.Timestamp
+	84,  // 3: orc.v1.PhaseTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	84,  // 4: orc.v1.Workflow.created_at:type_name -> google.protobuf.Timestamp
+	84,  // 5: orc.v1.Workflow.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 6: orc.v1.WorkflowPhase.gate_type_override:type_name -> orc.v1.GateType
 	6,   // 7: orc.v1.WorkflowPhase.template:type_name -> orc.v1.PhaseTemplate
 	4,   // 8: orc.v1.WorkflowVariable.source_type:type_name -> orc.v1.VariableSourceType
@@ -5900,23 +6324,23 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	2,   // 12: orc.v1.WorkflowRun.context_type:type_name -> orc.v1.ContextType
 	11,  // 13: orc.v1.WorkflowRun.context_data:type_name -> orc.v1.ContextData
 	3,   // 14: orc.v1.WorkflowRun.status:type_name -> orc.v1.RunStatus
-	78,  // 15: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
-	78,  // 16: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
-	73,  // 17: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
-	78,  // 18: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
-	78,  // 19: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
-	79,  // 20: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
-	78,  // 21: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
-	78,  // 22: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
+	84,  // 15: orc.v1.WorkflowRun.started_at:type_name -> google.protobuf.Timestamp
+	84,  // 16: orc.v1.WorkflowRun.completed_at:type_name -> google.protobuf.Timestamp
+	79,  // 17: orc.v1.WorkflowRun.variables_snapshot:type_name -> orc.v1.WorkflowRun.VariablesSnapshotEntry
+	84,  // 18: orc.v1.WorkflowRun.created_at:type_name -> google.protobuf.Timestamp
+	84,  // 19: orc.v1.WorkflowRun.updated_at:type_name -> google.protobuf.Timestamp
+	85,  // 20: orc.v1.WorkflowRunPhase.status:type_name -> orc.v1.PhaseStatus
+	84,  // 21: orc.v1.WorkflowRunPhase.started_at:type_name -> google.protobuf.Timestamp
+	84,  // 22: orc.v1.WorkflowRunPhase.completed_at:type_name -> google.protobuf.Timestamp
 	6,   // 23: orc.v1.WorkflowRunPhase.template:type_name -> orc.v1.PhaseTemplate
 	12,  // 24: orc.v1.WorkflowRunWithDetails.run:type_name -> orc.v1.WorkflowRun
 	7,   // 25: orc.v1.WorkflowRunWithDetails.workflow:type_name -> orc.v1.Workflow
 	13,  // 26: orc.v1.WorkflowRunWithDetails.phases:type_name -> orc.v1.WorkflowRunPhase
-	80,  // 27: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
+	86,  // 27: orc.v1.ListWorkflowsRequest.page:type_name -> orc.v1.PageRequest
 	7,   // 28: orc.v1.ListWorkflowsResponse.workflows:type_name -> orc.v1.Workflow
-	74,  // 29: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
-	81,  // 30: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
-	75,  // 31: orc.v1.ListWorkflowsResponse.sources:type_name -> orc.v1.ListWorkflowsResponse.SourcesEntry
+	80,  // 29: orc.v1.ListWorkflowsResponse.phase_counts:type_name -> orc.v1.ListWorkflowsResponse.PhaseCountsEntry
+	87,  // 30: orc.v1.ListWorkflowsResponse.page:type_name -> orc.v1.PageResponse
+	81,  // 31: orc.v1.ListWorkflowsResponse.sources:type_name -> orc.v1.ListWorkflowsResponse.SourcesEntry
 	10,  // 32: orc.v1.GetWorkflowResponse.workflow:type_name -> orc.v1.WorkflowWithDetails
 	7,   // 33: orc.v1.CreateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
 	7,   // 34: orc.v1.UpdateWorkflowResponse.workflow:type_name -> orc.v1.Workflow
@@ -5931,10 +6355,10 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	4,   // 43: orc.v1.UpdateVariableRequest.source_type:type_name -> orc.v1.VariableSourceType
 	9,   // 44: orc.v1.UpdateVariableResponse.variable:type_name -> orc.v1.WorkflowVariable
 	7,   // 45: orc.v1.RemoveVariableResponse.workflow:type_name -> orc.v1.Workflow
-	80,  // 46: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
+	86,  // 46: orc.v1.ListPhaseTemplatesRequest.page:type_name -> orc.v1.PageRequest
 	6,   // 47: orc.v1.ListPhaseTemplatesResponse.templates:type_name -> orc.v1.PhaseTemplate
-	81,  // 48: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
-	76,  // 49: orc.v1.ListPhaseTemplatesResponse.sources:type_name -> orc.v1.ListPhaseTemplatesResponse.SourcesEntry
+	87,  // 48: orc.v1.ListPhaseTemplatesResponse.page:type_name -> orc.v1.PageResponse
+	82,  // 49: orc.v1.ListPhaseTemplatesResponse.sources:type_name -> orc.v1.ListPhaseTemplatesResponse.SourcesEntry
 	6,   // 50: orc.v1.GetPhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	0,   // 51: orc.v1.CreatePhaseTemplateRequest.prompt_source:type_name -> orc.v1.PromptSource
 	1,   // 52: orc.v1.CreatePhaseTemplateRequest.gate_type:type_name -> orc.v1.GateType
@@ -5944,14 +6368,14 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	6,   // 56: orc.v1.UpdatePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	6,   // 57: orc.v1.ClonePhaseTemplateResponse.template:type_name -> orc.v1.PhaseTemplate
 	0,   // 58: orc.v1.GetPromptContentResponse.source:type_name -> orc.v1.PromptSource
-	80,  // 59: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
+	86,  // 59: orc.v1.ListWorkflowRunsRequest.page:type_name -> orc.v1.PageRequest
 	3,   // 60: orc.v1.ListWorkflowRunsRequest.status:type_name -> orc.v1.RunStatus
 	12,  // 61: orc.v1.ListWorkflowRunsResponse.runs:type_name -> orc.v1.WorkflowRun
-	81,  // 62: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
+	87,  // 62: orc.v1.ListWorkflowRunsResponse.page:type_name -> orc.v1.PageResponse
 	14,  // 63: orc.v1.GetWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRunWithDetails
 	2,   // 64: orc.v1.StartWorkflowRunRequest.context_type:type_name -> orc.v1.ContextType
 	11,  // 65: orc.v1.StartWorkflowRunRequest.context_data:type_name -> orc.v1.ContextData
-	77,  // 66: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
+	83,  // 66: orc.v1.StartWorkflowRunRequest.variables:type_name -> orc.v1.StartWorkflowRunRequest.VariablesEntry
 	12,  // 67: orc.v1.StartWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
 	12,  // 68: orc.v1.CancelWorkflowRunResponse.run:type_name -> orc.v1.WorkflowRun
 	61,  // 69: orc.v1.SaveWorkflowLayoutRequest.positions:type_name -> orc.v1.PhasePosition
@@ -5959,69 +6383,78 @@ var file_orc_v1_workflow_proto_depIdxs = []int32{
 	8,   // 71: orc.v1.AddBeforePhaseTriggerResponse.phase:type_name -> orc.v1.WorkflowPhase
 	8,   // 72: orc.v1.UpdateBeforePhaseTriggerResponse.phase:type_name -> orc.v1.WorkflowPhase
 	8,   // 73: orc.v1.RemoveBeforePhaseTriggerResponse.phase:type_name -> orc.v1.WorkflowPhase
-	5,   // 74: orc.v1.ListWorkflowsResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
-	5,   // 75: orc.v1.ListPhaseTemplatesResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
-	15,  // 76: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
-	17,  // 77: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
-	19,  // 78: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
-	21,  // 79: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
-	23,  // 80: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
-	25,  // 81: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
-	27,  // 82: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
-	29,  // 83: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
-	31,  // 84: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
-	33,  // 85: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
-	35,  // 86: orc.v1.WorkflowService.UpdateVariable:input_type -> orc.v1.UpdateVariableRequest
-	37,  // 87: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
-	39,  // 88: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
-	41,  // 89: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
-	43,  // 90: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
-	45,  // 91: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
-	47,  // 92: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
-	49,  // 93: orc.v1.WorkflowService.ClonePhaseTemplate:input_type -> orc.v1.ClonePhaseTemplateRequest
-	51,  // 94: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
-	53,  // 95: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
-	55,  // 96: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
-	57,  // 97: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
-	59,  // 98: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
-	62,  // 99: orc.v1.WorkflowService.SaveWorkflowLayout:input_type -> orc.v1.SaveWorkflowLayoutRequest
-	64,  // 100: orc.v1.WorkflowService.ValidateWorkflow:input_type -> orc.v1.ValidateWorkflowRequest
-	67,  // 101: orc.v1.WorkflowService.AddBeforePhaseTrigger:input_type -> orc.v1.AddBeforePhaseTriggerRequest
-	69,  // 102: orc.v1.WorkflowService.UpdateBeforePhaseTrigger:input_type -> orc.v1.UpdateBeforePhaseTriggerRequest
-	71,  // 103: orc.v1.WorkflowService.RemoveBeforePhaseTrigger:input_type -> orc.v1.RemoveBeforePhaseTriggerRequest
-	16,  // 104: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
-	18,  // 105: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
-	20,  // 106: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
-	22,  // 107: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
-	24,  // 108: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
-	26,  // 109: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
-	28,  // 110: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
-	30,  // 111: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
-	32,  // 112: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
-	34,  // 113: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
-	36,  // 114: orc.v1.WorkflowService.UpdateVariable:output_type -> orc.v1.UpdateVariableResponse
-	38,  // 115: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
-	40,  // 116: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
-	42,  // 117: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
-	44,  // 118: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
-	46,  // 119: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
-	48,  // 120: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
-	50,  // 121: orc.v1.WorkflowService.ClonePhaseTemplate:output_type -> orc.v1.ClonePhaseTemplateResponse
-	52,  // 122: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
-	54,  // 123: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
-	56,  // 124: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
-	58,  // 125: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
-	60,  // 126: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
-	63,  // 127: orc.v1.WorkflowService.SaveWorkflowLayout:output_type -> orc.v1.SaveWorkflowLayoutResponse
-	66,  // 128: orc.v1.WorkflowService.ValidateWorkflow:output_type -> orc.v1.ValidateWorkflowResponse
-	68,  // 129: orc.v1.WorkflowService.AddBeforePhaseTrigger:output_type -> orc.v1.AddBeforePhaseTriggerResponse
-	70,  // 130: orc.v1.WorkflowService.UpdateBeforePhaseTrigger:output_type -> orc.v1.UpdateBeforePhaseTriggerResponse
-	72,  // 131: orc.v1.WorkflowService.RemoveBeforePhaseTrigger:output_type -> orc.v1.RemoveBeforePhaseTriggerResponse
-	104, // [104:132] is the sub-list for method output_type
-	76,  // [76:104] is the sub-list for method input_type
-	76,  // [76:76] is the sub-list for extension type_name
-	76,  // [76:76] is the sub-list for extension extendee
-	0,   // [0:76] is the sub-list for field type_name
+	7,   // 74: orc.v1.AddLifecycleTriggerResponse.workflow:type_name -> orc.v1.Workflow
+	7,   // 75: orc.v1.UpdateLifecycleTriggerResponse.workflow:type_name -> orc.v1.Workflow
+	7,   // 76: orc.v1.RemoveLifecycleTriggerResponse.workflow:type_name -> orc.v1.Workflow
+	5,   // 77: orc.v1.ListWorkflowsResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	5,   // 78: orc.v1.ListPhaseTemplatesResponse.SourcesEntry.value:type_name -> orc.v1.DefinitionSource
+	15,  // 79: orc.v1.WorkflowService.ListWorkflows:input_type -> orc.v1.ListWorkflowsRequest
+	17,  // 80: orc.v1.WorkflowService.GetWorkflow:input_type -> orc.v1.GetWorkflowRequest
+	19,  // 81: orc.v1.WorkflowService.CreateWorkflow:input_type -> orc.v1.CreateWorkflowRequest
+	21,  // 82: orc.v1.WorkflowService.UpdateWorkflow:input_type -> orc.v1.UpdateWorkflowRequest
+	23,  // 83: orc.v1.WorkflowService.DeleteWorkflow:input_type -> orc.v1.DeleteWorkflowRequest
+	25,  // 84: orc.v1.WorkflowService.CloneWorkflow:input_type -> orc.v1.CloneWorkflowRequest
+	27,  // 85: orc.v1.WorkflowService.AddPhase:input_type -> orc.v1.AddPhaseRequest
+	29,  // 86: orc.v1.WorkflowService.UpdatePhase:input_type -> orc.v1.UpdatePhaseRequest
+	31,  // 87: orc.v1.WorkflowService.RemovePhase:input_type -> orc.v1.RemovePhaseRequest
+	33,  // 88: orc.v1.WorkflowService.AddVariable:input_type -> orc.v1.AddVariableRequest
+	35,  // 89: orc.v1.WorkflowService.UpdateVariable:input_type -> orc.v1.UpdateVariableRequest
+	37,  // 90: orc.v1.WorkflowService.RemoveVariable:input_type -> orc.v1.RemoveVariableRequest
+	39,  // 91: orc.v1.WorkflowService.ListPhaseTemplates:input_type -> orc.v1.ListPhaseTemplatesRequest
+	41,  // 92: orc.v1.WorkflowService.GetPhaseTemplate:input_type -> orc.v1.GetPhaseTemplateRequest
+	43,  // 93: orc.v1.WorkflowService.CreatePhaseTemplate:input_type -> orc.v1.CreatePhaseTemplateRequest
+	45,  // 94: orc.v1.WorkflowService.UpdatePhaseTemplate:input_type -> orc.v1.UpdatePhaseTemplateRequest
+	47,  // 95: orc.v1.WorkflowService.DeletePhaseTemplate:input_type -> orc.v1.DeletePhaseTemplateRequest
+	49,  // 96: orc.v1.WorkflowService.ClonePhaseTemplate:input_type -> orc.v1.ClonePhaseTemplateRequest
+	51,  // 97: orc.v1.WorkflowService.GetPromptContent:input_type -> orc.v1.GetPromptContentRequest
+	53,  // 98: orc.v1.WorkflowService.ListWorkflowRuns:input_type -> orc.v1.ListWorkflowRunsRequest
+	55,  // 99: orc.v1.WorkflowService.GetWorkflowRun:input_type -> orc.v1.GetWorkflowRunRequest
+	57,  // 100: orc.v1.WorkflowService.StartWorkflowRun:input_type -> orc.v1.StartWorkflowRunRequest
+	59,  // 101: orc.v1.WorkflowService.CancelWorkflowRun:input_type -> orc.v1.CancelWorkflowRunRequest
+	62,  // 102: orc.v1.WorkflowService.SaveWorkflowLayout:input_type -> orc.v1.SaveWorkflowLayoutRequest
+	64,  // 103: orc.v1.WorkflowService.ValidateWorkflow:input_type -> orc.v1.ValidateWorkflowRequest
+	67,  // 104: orc.v1.WorkflowService.AddBeforePhaseTrigger:input_type -> orc.v1.AddBeforePhaseTriggerRequest
+	69,  // 105: orc.v1.WorkflowService.UpdateBeforePhaseTrigger:input_type -> orc.v1.UpdateBeforePhaseTriggerRequest
+	71,  // 106: orc.v1.WorkflowService.RemoveBeforePhaseTrigger:input_type -> orc.v1.RemoveBeforePhaseTriggerRequest
+	73,  // 107: orc.v1.WorkflowService.AddLifecycleTrigger:input_type -> orc.v1.AddLifecycleTriggerRequest
+	75,  // 108: orc.v1.WorkflowService.UpdateLifecycleTrigger:input_type -> orc.v1.UpdateLifecycleTriggerRequest
+	77,  // 109: orc.v1.WorkflowService.RemoveLifecycleTrigger:input_type -> orc.v1.RemoveLifecycleTriggerRequest
+	16,  // 110: orc.v1.WorkflowService.ListWorkflows:output_type -> orc.v1.ListWorkflowsResponse
+	18,  // 111: orc.v1.WorkflowService.GetWorkflow:output_type -> orc.v1.GetWorkflowResponse
+	20,  // 112: orc.v1.WorkflowService.CreateWorkflow:output_type -> orc.v1.CreateWorkflowResponse
+	22,  // 113: orc.v1.WorkflowService.UpdateWorkflow:output_type -> orc.v1.UpdateWorkflowResponse
+	24,  // 114: orc.v1.WorkflowService.DeleteWorkflow:output_type -> orc.v1.DeleteWorkflowResponse
+	26,  // 115: orc.v1.WorkflowService.CloneWorkflow:output_type -> orc.v1.CloneWorkflowResponse
+	28,  // 116: orc.v1.WorkflowService.AddPhase:output_type -> orc.v1.AddPhaseResponse
+	30,  // 117: orc.v1.WorkflowService.UpdatePhase:output_type -> orc.v1.UpdatePhaseResponse
+	32,  // 118: orc.v1.WorkflowService.RemovePhase:output_type -> orc.v1.RemovePhaseResponse
+	34,  // 119: orc.v1.WorkflowService.AddVariable:output_type -> orc.v1.AddVariableResponse
+	36,  // 120: orc.v1.WorkflowService.UpdateVariable:output_type -> orc.v1.UpdateVariableResponse
+	38,  // 121: orc.v1.WorkflowService.RemoveVariable:output_type -> orc.v1.RemoveVariableResponse
+	40,  // 122: orc.v1.WorkflowService.ListPhaseTemplates:output_type -> orc.v1.ListPhaseTemplatesResponse
+	42,  // 123: orc.v1.WorkflowService.GetPhaseTemplate:output_type -> orc.v1.GetPhaseTemplateResponse
+	44,  // 124: orc.v1.WorkflowService.CreatePhaseTemplate:output_type -> orc.v1.CreatePhaseTemplateResponse
+	46,  // 125: orc.v1.WorkflowService.UpdatePhaseTemplate:output_type -> orc.v1.UpdatePhaseTemplateResponse
+	48,  // 126: orc.v1.WorkflowService.DeletePhaseTemplate:output_type -> orc.v1.DeletePhaseTemplateResponse
+	50,  // 127: orc.v1.WorkflowService.ClonePhaseTemplate:output_type -> orc.v1.ClonePhaseTemplateResponse
+	52,  // 128: orc.v1.WorkflowService.GetPromptContent:output_type -> orc.v1.GetPromptContentResponse
+	54,  // 129: orc.v1.WorkflowService.ListWorkflowRuns:output_type -> orc.v1.ListWorkflowRunsResponse
+	56,  // 130: orc.v1.WorkflowService.GetWorkflowRun:output_type -> orc.v1.GetWorkflowRunResponse
+	58,  // 131: orc.v1.WorkflowService.StartWorkflowRun:output_type -> orc.v1.StartWorkflowRunResponse
+	60,  // 132: orc.v1.WorkflowService.CancelWorkflowRun:output_type -> orc.v1.CancelWorkflowRunResponse
+	63,  // 133: orc.v1.WorkflowService.SaveWorkflowLayout:output_type -> orc.v1.SaveWorkflowLayoutResponse
+	66,  // 134: orc.v1.WorkflowService.ValidateWorkflow:output_type -> orc.v1.ValidateWorkflowResponse
+	68,  // 135: orc.v1.WorkflowService.AddBeforePhaseTrigger:output_type -> orc.v1.AddBeforePhaseTriggerResponse
+	70,  // 136: orc.v1.WorkflowService.UpdateBeforePhaseTrigger:output_type -> orc.v1.UpdateBeforePhaseTriggerResponse
+	72,  // 137: orc.v1.WorkflowService.RemoveBeforePhaseTrigger:output_type -> orc.v1.RemoveBeforePhaseTriggerResponse
+	74,  // 138: orc.v1.WorkflowService.AddLifecycleTrigger:output_type -> orc.v1.AddLifecycleTriggerResponse
+	76,  // 139: orc.v1.WorkflowService.UpdateLifecycleTrigger:output_type -> orc.v1.UpdateLifecycleTriggerResponse
+	78,  // 140: orc.v1.WorkflowService.RemoveLifecycleTrigger:output_type -> orc.v1.RemoveLifecycleTriggerResponse
+	110, // [110:141] is the sub-list for method output_type
+	79,  // [79:110] is the sub-list for method input_type
+	79,  // [79:79] is the sub-list for extension type_name
+	79,  // [79:79] is the sub-list for extension extendee
+	0,   // [0:79] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_workflow_proto_init() }
@@ -6053,13 +6486,15 @@ func file_orc_v1_workflow_proto_init() {
 	file_orc_v1_workflow_proto_msgTypes[51].OneofWrappers = []any{}
 	file_orc_v1_workflow_proto_msgTypes[61].OneofWrappers = []any{}
 	file_orc_v1_workflow_proto_msgTypes[63].OneofWrappers = []any{}
+	file_orc_v1_workflow_proto_msgTypes[67].OneofWrappers = []any{}
+	file_orc_v1_workflow_proto_msgTypes[69].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_workflow_proto_rawDesc), len(file_orc_v1_workflow_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   72,
+			NumMessages:   78,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

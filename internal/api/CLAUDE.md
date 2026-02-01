@@ -28,7 +28,7 @@ Services are registered in `server_connect.go:17-116`. Each implements a handler
 |---------|------|:--------------:|-------------|
 | `TaskService` | `task_server.go` | Yes | CRUD, Run/Pause/Resume, Diff, Comments, Attachments, Branch Control |
 | `InitiativeService` | `initiative_server.go` | Yes | CRUD, Link tasks, Dependency graph |
-| `WorkflowService` | `workflow_server.go`, `workflow_server_before_trigger.go` | Yes | List, Get workflows and phases, Variables, Before-phase trigger CRUD |
+| `WorkflowService` | `workflow_server.go`, `workflow_server_before_trigger.go`, `workflow_server_lifecycle_trigger.go` | Yes | List, Get workflows and phases, Variables, Before-phase trigger CRUD, Lifecycle trigger CRUD |
 | `TranscriptService` | `transcript_server.go` | Yes | Get, Stream transcripts |
 | `EventService` | `event_server.go` | Yes | Subscribe (streaming), GetEvents, GetTimeline |
 | `ConfigService` | `config_server.go` | Yes | Config, Settings, Hooks (CRUD + Export/Import), Skills (CRUD + Export/Import), ScanClaudeDir, ClaudeMd, Constitution, Prompts, Agents, Scripts, Tools |
