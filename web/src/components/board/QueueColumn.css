@@ -63,6 +63,8 @@
 	padding: 12px;
 	overflow-y: auto;
 	overflow-x: hidden;
+	/* Flex child needs min-height: 0 to shrink and enable scrolling */
+	min-height: 0;
 }
 
 /* Custom thin scrollbar */

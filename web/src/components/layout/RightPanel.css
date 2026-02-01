@@ -6,6 +6,8 @@
 .right-panel {
 	width: 0;
 	min-width: 0;
+	/* Must inherit grid cell height to constrain scroll container */
+	height: 100%;
 	display: flex;
 	flex-direction: column;
 	background: var(--bg-elevated);
@@ -32,6 +34,8 @@
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
+	/* Flex child needs min-height: 0 to shrink below content size */
+	min-height: 0;
 }
 
 /* Custom scrollbar */

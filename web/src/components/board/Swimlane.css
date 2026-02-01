@@ -157,24 +157,28 @@
 	background: var(--text-muted);
 }
 
-/* Collapsible content area */
-.swimlane-tasks,
+/* Collapsible content area — uses grid-template-rows for height animation
+   instead of max-height which caps content at an arbitrary pixel value */
 .swimlane-content {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-1);
-	padding-left: var(--space-1);
-	overflow: hidden;
-	max-height: 1000px;
+	display: grid;
+	grid-template-rows: 1fr;
 	opacity: 1;
-	transition: max-height var(--duration-normal) var(--ease-out),
+	transition: grid-template-rows var(--duration-normal) var(--ease-out),
 	            opacity var(--duration-fast) var(--ease-out);
 }
 
 .swimlane.collapsed .swimlane-content {
-	max-height: 0;
+	grid-template-rows: 0fr;
 	opacity: 0;
-	padding: 0;
+}
+
+.swimlane-tasks {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding-left: var(--space-1);
+	/* overflow: hidden is required for the grid row to shrink below content height */
+	overflow: hidden;
 }
 
 /* Empty state */
