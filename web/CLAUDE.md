@@ -108,7 +108,8 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
 | `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
-| `WorkflowCanvas` | `workflow-editor/` | React Flow canvas with drag-to-add, delete, connections, layout persistence |
+| `WorkflowCanvas` | `workflow-editor/` | React Flow canvas: drag-to-add, edge drawing/deletion with cycle detection, topo sort resequencing (`utils/topoSort.ts`), layout persistence |
+| Edge types | `workflow-editor/edges/` | 5 custom edges: sequential, loop, retry, dependency (badge + animated dots), conditional (condition label). Styles in `edges.css` |
 | `PhaseNode` | `workflow-editor/nodes/` | Custom React Flow node: connection handles (L/R), category color accents, status states, gate badges |
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
