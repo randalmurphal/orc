@@ -64,6 +64,12 @@ When rules conflict, higher priority wins:
 |-----------|------|-----|-------------|
 | **Workflow ID on Create** | ALL task creation paths must assign `workflow_id` via `workflow.WeightToWorkflowID(weight)` (TASK-658) | `orc new` assigned it but `initiative plan` didn't | Tasks run without workflow, wrong phases execute |
 
+### Variable System
+
+| Invariant | Rule | Why | Consequence |
+|-----------|------|-----|-------------|
+| **Persist to rctx** | `applyGateOutputToVars()` and `applyPhaseContentToVars()` MUST store to `rctx.PhaseOutputVars` (TASK-709) | `ResolveAll()` creates fresh vars map; only `rctx.PhaseOutputVars` survives | Gate output lost on retry, templates render empty variables |
+
 ### Git & Worktrees
 
 | Invariant | Rule | Why | Consequence |

@@ -287,8 +287,10 @@ Gate evaluations can produce structured output data that flows into the workflow
 ```
 GateAgentResponse.data → Decision.OutputData + Decision.OutputVar
   → GateEvaluationResult.OutputData/OutputVar
-    → applyGateOutputToVars() → vars[OutputVar] = JSON(OutputData)
-      → {{VARIABLE_NAME}} in subsequent phase prompts
+    → applyGateOutputToVars()
+        ├── vars[OutputVar] = JSON(OutputData)      # Immediate use
+        └── rctx.PhaseOutputVars[OutputVar] = JSON  # Survives ResolveAll()
+      → {{VARIABLE_NAME}} in subsequent phase prompts (including retry)
 ```
 
 ### Configuration
@@ -305,17 +307,20 @@ gate_output_config:
 
 | Scenario | Output Stored? | Details |
 |----------|---------------|---------|
-| Gate approved with output data | Yes | `applyGateOutputToVars()` stores JSON to `vars[variable_name]` |
+| Gate approved with output data | Yes | `applyGateOutputToVars()` stores JSON to `vars[variable_name]` + `rctx.PhaseOutputVars` |
 | Gate rejected with output data | Yes | Output stored even on rejection (available to retry phase) |
+| Retry triggers `ResolveAll()` | Yes | Variables restored from `rctx.PhaseOutputVars` by `addBuiltinVariables()` |
 | No `variable_name` configured | No | Silently skipped |
 | No output data from gate | No | Silently skipped |
 | JSON serialization error | No | Logged warning, execution continues |
 
-### Retry Context with Gate Analysis
+### Retry Survival Guarantee
 
-When a gate rejects and triggers retry, the structured retry variables (`{{RETRY_ATTEMPT}}`, `{{RETRY_FROM_PHASE}}`, `{{RETRY_REASON}}`) are populated via `SetRetryContextProto()` and `PopulateRetryFields()`. Gate output data is stored as a workflow variable via `applyGateOutputToVars()`.
+Gate output variables **survive the retry flow**. When a gate rejects and triggers retry from an earlier phase, `ResolveAll()` creates a fresh `vars` map. Gate output variables are restored from `rctx.PhaseOutputVars` (populated by `applyGateOutputToVars()`), making them available in the retried phase's prompt.
 
-**Implementation**: `executor/workflow_gates.go:141` (output storage), `executor/retry_populate.go` (structured retry fields)
+**Why this matters:** Without persistence to `rctx.PhaseOutputVars`, gate output would be lost during retry. Templates like `{{GATE_REVIEW}}` would render empty, losing the AI reviewer's feedback that should guide the fix.
+
+**Implementation**: `executor/workflow_gates.go:235` (output storage), `variable/resolver.go:403` (restoration via `addBuiltinVariables()`)
 
 ---
 
