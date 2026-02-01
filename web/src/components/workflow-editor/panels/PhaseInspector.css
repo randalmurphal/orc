@@ -474,6 +474,61 @@
 	font-style: italic;
 }
 
+/* ─── Save / Discard Bar ─────────────────────────────────────────────────────── */
+
+.phase-inspector-save-bar {
+	display: flex;
+	gap: var(--space-2);
+	padding: var(--space-2);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-sm);
+}
+
+.phase-inspector-save-btn {
+	flex: 1;
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 600;
+	color: white;
+	background: var(--accent);
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: opacity 0.15s;
+}
+
+.phase-inspector-save-btn:hover:not(:disabled) {
+	opacity: 0.9;
+}
+
+.phase-inspector-save-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.phase-inspector-discard-btn {
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.phase-inspector-discard-btn:hover:not(:disabled) {
+	color: var(--text-primary);
+	border-color: var(--text-muted);
+}
+
+.phase-inspector-discard-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
 /* ─── Danger Zone (Delete Phase) ─────────────────────────────────────────────── */
 
 .phase-inspector-danger-zone {
@@ -584,4 +639,36 @@
 .claude-config-json-error {
 	font-size: 0.75rem;
 	color: var(--red-600, #dc2626);
+}
+
+/* ─── Inherited Chips (read-only template items inside config sections) ─────── */
+
+.inherited-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.375rem;
+	padding: 0.375rem 0.5rem;
+	margin-bottom: 0.375rem;
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm, 4px);
+	border: 1px dashed var(--border);
+}
+
+.inherited-chips__label {
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.inherited-chips__chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.125rem 0.5rem;
+	font-size: 0.7rem;
+	font-family: var(--font-mono, monospace);
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full, 999px);
 }

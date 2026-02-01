@@ -42,19 +42,31 @@ describe('PromptEditor', () => {
 	// ─── SC-5: Fetch and display prompt content ─────────────────────────────
 
 	describe('SC-5: prompt content display', () => {
-		it('displays promptContent directly for EMBEDDED source', async () => {
+		it('fetches content from API for EMBEDDED source', async () => {
+			vi.mocked(workflowClient.getPromptContent).mockResolvedValue({
+				content: 'You are a spec writer. Generate a specification.',
+				source: PromptSource.EMBEDDED,
+			} as any);
+
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
 					promptSource={PromptSource.EMBEDDED}
-					promptContent="You are a spec writer. Generate a specification."
 					readOnly={true}
 				/>,
 			);
 
-			expect(
-				screen.getByText(/you are a spec writer/i),
-			).toBeInTheDocument();
+			await waitFor(() => {
+				expect(workflowClient.getPromptContent).toHaveBeenCalledWith(
+					expect.objectContaining({ phaseTemplateId: 'spec' }),
+				);
+			});
+
+			await waitFor(() => {
+				expect(
+					screen.getByText(/you are a spec writer/i),
+				).toBeInTheDocument();
+			});
 		});
 
 		it('displays promptContent directly for DB source', () => {
@@ -185,7 +197,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="empty-phase"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent=""
 					readOnly={true}
 				/>,
@@ -204,7 +216,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="Generate a spec for {{TASK_DESCRIPTION}} using {{CONSTITUTION_CONTENT}}."
 					readOnly={true}
 				/>,
@@ -221,7 +233,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="Start {{FOO}} middle {{BAR}} end"
 					readOnly={true}
 				/>,
@@ -236,7 +248,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="This has {{ incomplete and {{VALID_VAR}} here."
 					readOnly={true}
 				/>,
@@ -255,7 +267,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="{{FOO}}{{BAR}}"
 					readOnly={true}
 				/>,
@@ -271,7 +283,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="JSON example: {literal} and {{REAL_VAR}} here"
 					readOnly={true}
 				/>,
@@ -286,7 +298,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="{{ONLY_VAR}}"
 					readOnly={true}
 				/>,
@@ -316,33 +328,47 @@ describe('PromptEditor', () => {
 			expect(textarea).toHaveValue('Editable prompt content');
 		});
 
-		it('renders read-only display for built-in phase templates', () => {
+		it('renders read-only display for built-in phase templates', async () => {
+			vi.mocked(workflowClient.getPromptContent).mockResolvedValue({
+				content: 'Built-in prompt content',
+				source: PromptSource.EMBEDDED,
+			} as any);
+
 			render(
 				<PromptEditor
 					phaseTemplateId="implement"
 					promptSource={PromptSource.EMBEDDED}
-					promptContent="Built-in prompt content"
 					readOnly={true}
 				/>,
 			);
+
+			await waitFor(() => {
+				expect(screen.getByText(/built-in prompt content/i)).toBeInTheDocument();
+			});
 
 			// Should NOT have an editable textarea
 			expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 		});
 
-		it('shows "Clone Template" button for built-in templates', () => {
+		it('shows "Clone Template" button for built-in templates', async () => {
+			vi.mocked(workflowClient.getPromptContent).mockResolvedValue({
+				content: 'Built-in prompt',
+				source: PromptSource.EMBEDDED,
+			} as any);
+
 			render(
 				<PromptEditor
 					phaseTemplateId="implement"
 					promptSource={PromptSource.EMBEDDED}
-					promptContent="Built-in prompt"
 					readOnly={true}
 				/>,
 			);
 
-			expect(
-				screen.getByRole('button', { name: /clone template/i }),
-			).toBeInTheDocument();
+			await waitFor(() => {
+				expect(
+					screen.getByRole('button', { name: /clone template/i }),
+				).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -530,7 +556,7 @@ describe('PromptEditor', () => {
 			const { container } = render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent={longContent}
 					readOnly={true}
 				/>,
@@ -582,7 +608,7 @@ describe('PromptEditor', () => {
 			render(
 				<PromptEditor
 					phaseTemplateId="spec"
-					promptSource={PromptSource.EMBEDDED}
+					promptSource={PromptSource.DB}
 					promptContent="Use {{UNKNOWN_VAR}} in this prompt"
 					readOnly={true}
 				/>,

@@ -207,6 +207,11 @@ type ResolutionContext struct {
 	// Key is phase ID, value is the artifact content.
 	PriorOutputs map[string]string
 
+	// PhaseOutputVars maps named output variables (e.g., "SPEC_CONTENT") to their content.
+	// Populated by applyPhaseContentToVars() using the phase template's OutputVarName.
+	// Used by addBuiltinVariables() to inject named outputs into the variable set.
+	PhaseOutputVars map[string]string
+
 	// Environment provides access to environment variables.
 	// If nil, os.Getenv is used.
 	Environment map[string]string

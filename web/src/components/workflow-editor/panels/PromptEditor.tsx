@@ -99,9 +99,9 @@ export function PromptEditor({
 		}
 	}, [phaseTemplateId]);
 
-	// Fetch for FILE source
+	// Fetch content for FILE and EMBEDDED sources (content lives on the server, not in proto)
 	useEffect(() => {
-		if (promptSource === PromptSource.FILE) {
+		if (promptSource === PromptSource.FILE || promptSource === PromptSource.EMBEDDED) {
 			fetchContent();
 		}
 		const ref = fetchIdRef;
@@ -121,11 +121,11 @@ export function PromptEditor({
 	}, []);
 
 	// Determine resolved content
-	const resolvedContent =
-		promptSource === PromptSource.FILE ? fetchedContent : (promptContent ?? '');
+	const needsFetch = promptSource === PromptSource.FILE || promptSource === PromptSource.EMBEDDED;
+	const resolvedContent = needsFetch ? fetchedContent : (promptContent ?? '');
 
-	// Handle loading state for FILE source
-	if (promptSource === PromptSource.FILE && loading) {
+	// Handle loading state for fetched sources
+	if (needsFetch && loading) {
 		return (
 			<div className="prompt-editor prompt-editor-loading">
 				<span>Loading prompt content...</span>
@@ -133,8 +133,8 @@ export function PromptEditor({
 		);
 	}
 
-	// Handle error state for FILE source
-	if (promptSource === PromptSource.FILE && fetchError) {
+	// Handle error state for fetched sources
+	if (needsFetch && fetchError) {
 		return (
 			<div className="prompt-editor prompt-editor-error-state">
 				<span>{fetchError}</span>

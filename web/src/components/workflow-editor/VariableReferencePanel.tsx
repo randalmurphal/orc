@@ -35,14 +35,6 @@ const BUILTIN_VARIABLES = {
 	],
 };
 
-// Prior phase output variables
-const PHASE_OUTPUT_VARIABLES = [
-	{ name: 'SPEC_CONTENT', description: 'Specification content from spec phase' },
-	{ name: 'TDD_TESTS_CONTENT', description: 'Test content from tdd_write phase' },
-	{ name: 'BREAKDOWN_CONTENT', description: 'Task breakdown from breakdown phase' },
-	{ name: 'RESEARCH_CONTENT', description: 'Research findings from research phase' },
-	{ name: 'DOCS_CONTENT', description: 'Documentation from docs phase' },
-];
 
 interface VariableReferencePanelProps {
 	workflowDetails?: WorkflowWithDetails | null;
@@ -60,11 +52,30 @@ export function VariableReferencePanel({
 		return workflowDetails?.variables ?? [];
 	}, [workflowDetails]);
 
-	// Get phase IDs for OUTPUT_* variables
-	const phaseOutputVars = useMemo(() => {
+	// Derive named phase output variables from template metadata
+	const namedPhaseOutputVars = useMemo(() => {
+		const phases = workflowDetails?.phases ?? [];
+		const seen = new Set<string>();
+		const vars: { name: string; description: string }[] = [];
+
+		for (const p of phases) {
+			const varName = p.template?.outputVarName;
+			if (varName && !seen.has(varName)) {
+				seen.add(varName);
+				vars.push({
+					name: varName,
+					description: `Output from ${p.template?.name || p.phaseTemplateId} phase`,
+				});
+			}
+		}
+		return vars;
+	}, [workflowDetails]);
+
+	// Generic OUTPUT_<PHASE_ID> variables for all phases
+	const genericPhaseOutputVars = useMemo(() => {
 		const phases = workflowDetails?.phases ?? [];
 		return phases.map((p) => ({
-			name: `OUTPUT_${p.phaseTemplateId.toUpperCase()}`,
+			name: `OUTPUT_${p.phaseTemplateId.toUpperCase().replace(/-/g, '_')}`,
 			description: `Raw output from ${p.phaseTemplateId} phase`,
 		}));
 	}, [workflowDetails]);
@@ -103,26 +114,28 @@ export function VariableReferencePanel({
 				</VariableSection>
 			)}
 
-			{/* Phase Output Variables */}
-			<VariableSection title="Phase Outputs">
-				{PHASE_OUTPUT_VARIABLES.map((v) => (
-					<VariableChip
-						key={v.name}
-						name={v.name}
-						description={v.description}
-						onClick={() => handleCopy(v.name)}
-					/>
-				))}
-				{phaseOutputVars.map((v) => (
-					<VariableChip
-						key={v.name}
-						name={v.name}
-						description={v.description}
-						onClick={() => handleCopy(v.name)}
-						secondary
-					/>
-				))}
-			</VariableSection>
+			{/* Phase Output Variables — derived from template metadata */}
+			{(namedPhaseOutputVars.length > 0 || genericPhaseOutputVars.length > 0) && (
+				<VariableSection title="Phase Outputs">
+					{namedPhaseOutputVars.map((v) => (
+						<VariableChip
+							key={v.name}
+							name={v.name}
+							description={v.description}
+							onClick={() => handleCopy(v.name)}
+						/>
+					))}
+					{genericPhaseOutputVars.map((v) => (
+						<VariableChip
+							key={v.name}
+							name={v.name}
+							description={v.description}
+							onClick={() => handleCopy(v.name)}
+							secondary
+						/>
+					))}
+				</VariableSection>
+			)}
 
 			{/* Built-in Variables by Category */}
 			{Object.entries(BUILTIN_VARIABLES).map(([category, vars]) => (

@@ -234,24 +234,10 @@ func (we *WorkflowExecutor) executePhase(
 		result.Content = execResult.Content
 	}
 	if result.Content != "" && t != nil {
-		// Determine output variable name from template or infer from phase ID
+		// Use template's output variable name, fall back to OUTPUT_<PHASE_ID>
 		outputVarName := tmpl.OutputVarName
 		if outputVarName == "" {
-			// Infer standard variable names for known phase types
-			switch tmpl.ID {
-			case "spec", "tiny_spec":
-				outputVarName = "SPEC_CONTENT"
-			case "tdd_write":
-				outputVarName = "TDD_TESTS_CONTENT"
-			case "breakdown":
-				outputVarName = "BREAKDOWN_CONTENT"
-			case "research":
-				outputVarName = "RESEARCH_CONTENT"
-			case "docs":
-				outputVarName = "DOCS_CONTENT"
-			default:
-				outputVarName = "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(tmpl.ID, "-", "_"))
-			}
+			outputVarName = "OUTPUT_" + strings.ToUpper(strings.ReplaceAll(tmpl.ID, "-", "_"))
 		}
 
 		taskID := t.Id

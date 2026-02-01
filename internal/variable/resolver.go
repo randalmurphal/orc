@@ -386,25 +386,17 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 		vars["QA_OUTPUT_DIR"] = "/tmp/orc-qa-" + rctx.TaskID
 	}
 
-	// Add prior phase outputs with OUTPUT_ prefix
+	// Add prior phase outputs with OUTPUT_ prefix (generic accessor)
 	for phase, content := range rctx.PriorOutputs {
 		key := "OUTPUT_" + strings.ToUpper(phase)
 		vars[key] = content
+	}
 
-		// Also add common aliases
-		switch phase {
-		case "spec", "tiny_spec":
-			vars["SPEC_CONTENT"] = content
-		case "research":
-			vars["RESEARCH_CONTENT"] = content
-		case "tdd_write":
-			vars["TDD_TESTS_CONTENT"] = content
-		case "breakdown":
-			vars["BREAKDOWN_CONTENT"] = content
-		case "implement":
-			vars["IMPLEMENT_CONTENT"] = content
-			vars["IMPLEMENTATION_SUMMARY"] = content // Alias for template compatibility
-		}
+	// Add named phase output variables (e.g., SPEC_CONTENT, TDD_TESTS_CONTENT)
+	// These are populated by applyPhaseContentToVars() using each phase template's
+	// OutputVarName field — the single source of truth for output variable naming.
+	for varName, content := range rctx.PhaseOutputVars {
+		vars[varName] = content
 	}
 }
 

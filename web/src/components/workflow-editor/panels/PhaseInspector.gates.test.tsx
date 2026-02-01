@@ -301,6 +301,10 @@ describe('PhaseInspector - AI Gate Type (TASK-655)', () => {
 			const gateTypeSelect = screen.getByLabelText(/gate type/i);
 			await user.selectOptions(gateTypeSelect, String(GateType_AI));
 
+			// Click Save button (manual save pattern)
+			const saveBtn = screen.getByRole('button', { name: /save changes/i });
+			await user.click(saveBtn);
+
 			// Should call updatePhase API with gate_type_override set to AI
 			await waitFor(() => {
 				expect(workflowClient.updatePhase).toHaveBeenCalledWith(

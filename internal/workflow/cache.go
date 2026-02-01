@@ -423,6 +423,7 @@ func workflowPhaseToDBPhase(pt *PhaseTemplate, source Source) *db.PhaseTemplate 
 		PromptPath:       pt.PromptPath,
 		InputVariables:   inputVarsJSON,
 		OutputSchema:     pt.OutputSchema,
+		OutputVarName:    pt.OutputVarName,
 		ProducesArtifact: pt.ProducesArtifact,
 		ArtifactType:     pt.ArtifactType,
 		MaxIterations:    pt.MaxIterations,

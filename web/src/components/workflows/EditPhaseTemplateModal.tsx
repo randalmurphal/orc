@@ -26,6 +26,7 @@ import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSetting
 import { LibraryPicker } from '@/components/core/LibraryPicker';
 import { TagInput } from '@/components/core/TagInput';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
+import { parseClaudeConfig } from '@/lib/claudeConfigUtils';
 import './EditPhaseTemplateModal.css';
 
 export interface EditPhaseTemplateModalProps {
@@ -46,59 +47,6 @@ const GATE_TYPE_OPTIONS = [
 	{ value: GateType.HUMAN, label: 'Human' },
 	{ value: GateType.SKIP, label: 'Skip' },
 ];
-
-/** Parse claude_config JSON string into structured state */
-function parseClaudeConfig(configStr: string | undefined): {
-	hooks: string[];
-	skillRefs: string[];
-	mcpServers: string[];
-	allowedTools: string[];
-	disallowedTools: string[];
-	env: Record<string, string>;
-	extra: Record<string, unknown>;
-} {
-	const defaults = {
-		hooks: [] as string[],
-		skillRefs: [] as string[],
-		mcpServers: [] as string[],
-		allowedTools: [] as string[],
-		disallowedTools: [] as string[],
-		env: {} as Record<string, string>,
-		extra: {} as Record<string, unknown>,
-	};
-
-	if (!configStr) return defaults;
-
-	try {
-		const parsed = JSON.parse(configStr);
-		if (typeof parsed !== 'object' || parsed === null) return defaults;
-
-		const {
-			hooks,
-			skill_refs,
-			mcp_servers,
-			allowed_tools,
-			disallowed_tools,
-			env,
-			...rest
-		} = parsed;
-
-		return {
-			hooks: Array.isArray(hooks) ? hooks : [],
-			skillRefs: Array.isArray(skill_refs) ? skill_refs : [],
-			mcpServers: mcp_servers && typeof mcp_servers === 'object'
-				? Object.keys(mcp_servers)
-				: [],
-			allowedTools: Array.isArray(allowed_tools) ? allowed_tools : [],
-			disallowedTools: Array.isArray(disallowed_tools) ? disallowed_tools : [],
-			env: env && typeof env === 'object' ? env : {},
-			extra: rest,
-		};
-	} catch {
-		console.warn('Failed to parse claude_config JSON:', configStr);
-		return defaults;
-	}
-}
 
 /** Serialize structured state back to claude_config JSON */
 function serializeClaudeConfig(state: {

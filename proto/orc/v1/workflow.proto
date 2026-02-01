@@ -103,6 +103,7 @@ message PhaseTemplate {
   // NEW: Agent references
   optional string agent_id = 22;              // Executor agent reference
   repeated string sub_agent_ids = 23;         // Sub-agent references
+  optional string output_var_name = 24;       // Variable name for phase output (e.g., 'SPEC_CONTENT')
 }
 
 message Workflow {
@@ -351,6 +352,7 @@ message UpdatePhaseRequest {
   // Agent overrides
   optional string agent_override = 10;          // Override executor agent
   repeated string sub_agents_override = 11;     // Override sub-agents
+  optional bool sub_agents_override_set = 13;   // True = update sub_agents (even if empty)
   // Claude configuration override (JSON)
   optional string claude_config_override = 12;
 }
@@ -447,6 +449,7 @@ message CreatePhaseTemplateRequest {
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
   optional string claude_config = 17;    // Per-phase settings JSON
+  optional string output_var_name = 18;  // Variable name for phase output
 }
 
 message CreatePhaseTemplateResponse {
@@ -471,6 +474,7 @@ message UpdatePhaseTemplateRequest {
   optional string agent_id = 15;         // Executor agent reference
   repeated string sub_agent_ids = 16;    // Sub-agent references
   optional string claude_config = 17;    // Per-phase settings JSON
+  optional string output_var_name = 18;  // Variable name for phase output
 }
 
 message UpdatePhaseTemplateResponse {

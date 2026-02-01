@@ -99,10 +99,71 @@ describe('parseClaudeConfig', () => {
 		expect(result.hooks).toEqual([]);
 	});
 
-	it('handles non-array hooks gracefully', () => {
+	it('handles non-array non-object hooks gracefully', () => {
 		const result = parseClaudeConfig('{"hooks": "not-an-array"}');
 
 		expect(result.hooks).toEqual([]);
+	});
+
+	it('parses hooks in Claude Code event map format', () => {
+		const config = {
+			hooks: {
+				Stop: [{
+					hooks: [{ type: 'command', command: 'bash {{hook:orc-verify-completion}}' }],
+				}],
+			},
+		};
+		const result = parseClaudeConfig(JSON.stringify(config));
+
+		expect(result.hooks).toEqual(['orc-verify-completion']);
+	});
+
+	it('extracts multiple hook refs from event map', () => {
+		const config = {
+			hooks: {
+				Stop: [{
+					hooks: [{ type: 'command', command: 'bash {{hook:orc-verify-completion}}' }],
+				}],
+				PreToolUse: [{
+					matcher: 'Edit|Write',
+					hooks: [{ type: 'command', command: 'bash {{hook:orc-tdd-discipline}}' }],
+				}],
+			},
+		};
+		const result = parseClaudeConfig(JSON.stringify(config));
+
+		expect(result.hooks).toContain('orc-verify-completion');
+		expect(result.hooks).toContain('orc-tdd-discipline');
+		expect(result.hooks).toHaveLength(2);
+	});
+
+	it('falls back to event type label when no {{hook:...}} refs found', () => {
+		const config = {
+			hooks: {
+				PostToolUse: [{
+					hooks: [{ type: 'command', command: '/usr/local/bin/custom-script.sh' }],
+				}],
+			},
+		};
+		const result = parseClaudeConfig(JSON.stringify(config));
+
+		expect(result.hooks).toEqual(['PostToolUse hook']);
+	});
+
+	it('does not put hook object format into extra field', () => {
+		const config = {
+			hooks: {
+				Stop: [{
+					hooks: [{ type: 'command', command: 'bash {{hook:my-hook}}' }],
+				}],
+			},
+			allowed_tools: ['Read'],
+		};
+		const result = parseClaudeConfig(JSON.stringify(config));
+
+		expect(result.hooks).toEqual(['my-hook']);
+		expect(result.allowedTools).toEqual(['Read']);
+		expect(result.extra).toEqual({});
 	});
 
 	it('handles non-object env gracefully', () => {
@@ -374,5 +435,21 @@ describe('mergeClaudeConfigs', () => {
 		// Template values should remain since override has no sections
 		expect(result.hooks).toEqual(['template-hook']);
 		expect(result.env).toEqual({ A: '1' });
+	});
+
+	it('merges template event map hooks with override name hooks', () => {
+		const template = JSON.stringify({
+			hooks: {
+				Stop: [{
+					hooks: [{ type: 'command', command: 'bash {{hook:orc-verify-completion}}' }],
+				}],
+			},
+		});
+		const override = '{"hooks": ["my-custom-hook"]}';
+		const result = mergeClaudeConfigs(template, override);
+
+		expect(result.hooks).toContain('orc-verify-completion');
+		expect(result.hooks).toContain('my-custom-hook');
+		expect(result.hooks).toHaveLength(2);
 	});
 });
