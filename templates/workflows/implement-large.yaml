@@ -21,6 +21,19 @@ phases:
   - template: review
     sequence: 4
     depends_on: ["implement"]
+    loop_config:
+      loop_to_phase: implement
+      condition:
+        field: "phase_output.review.status"
+        op: "eq"
+        value: "needs_changes"
+      max_loops: 3
+      loop_templates:
+        "1": "review.md"
+        default: "review_round2.md"
+      loop_schemas:
+        "1": "ReviewFindingsSchema"
+        default: "ReviewDecisionSchema"
 
   - template: docs
     sequence: 5

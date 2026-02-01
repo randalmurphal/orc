@@ -454,6 +454,7 @@ func workflowPhaseToDBWorkflowPhase(wp *WorkflowPhase) *db.WorkflowPhase {
 		DependsOn:       dependsOnJSON,
 		ModelOverride:   wp.ModelOverride,
 		Condition:       wp.Condition,
+		LoopConfig:      wp.LoopConfig,
 	}
 
 	if wp.MaxIterationsOverride != nil {
