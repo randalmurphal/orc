@@ -38,6 +38,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `claude_hooks.go` | `applyPhaseHooks()` - writes hooks to `.claude/settings.local.json` |
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
+| `condition.go` | Phase condition evaluator: `EvalCondition()`, `PhaseVars` |
 
 ## Architecture
 
@@ -48,6 +49,7 @@ WorkflowExecutor.Run()
 ├── checkSpecRequirements()    # Validate spec exists for non-trivial weights
 ├── buildResolutionContext()   # Create variable context
 ├── for each phase:
+│   ├── shouldSkipPhase()             # Evaluate phase condition (condition.go)
 │   ├── enrichContextForPhase()       # Add phase-specific context
 │   ├── resolver.ResolveAll()         # Resolve all variables
 │   ├── evaluateBeforePhaseTriggers() # Run before-phase triggers (gate/reaction)
@@ -456,6 +458,7 @@ go test ./internal/executor/... -v
 | `before_phase_trigger_test.go` | Before-phase gate/reaction, output variables, error resilience |
 | `lifecycle_trigger_test.go` | Lifecycle trigger firing: completed, failed, gate blocking |
 | `phase_settings_test.go` | Phase settings: apply/cleanup, skill merging, orc-managed detection |
+| `condition_test.go` | Phase condition evaluation: operators, composites, variable resolution |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 

@@ -92,7 +92,7 @@ func (we *WorkflowExecutor) executePhase(
 
 	// For review phase, use round-specific template if available
 	effectiveTemplate := tmpl
-	if tmpl.ID == "review" && rctx.ReviewRound > 1 {
+	if tmpl.ID == "review" && rctx != nil && rctx.ReviewRound > 1 {
 		roundTemplate := *tmpl
 		// Replace "review.md" with "review_round{N}.md" in prompt path
 		roundPath := strings.Replace(tmpl.PromptPath, "review.md", fmt.Sprintf("review_round%d.md", rctx.ReviewRound), 1)
