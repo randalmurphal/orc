@@ -552,6 +552,12 @@ func (s *workflowServer) UpdatePhase(
 	if req.Msg.SubAgentsOverrideSet != nil && *req.Msg.SubAgentsOverrideSet {
 		existingPhase.SubAgentsOverride = dependsOnToJSON(req.Msg.SubAgentsOverride)
 	}
+	if req.Msg.ClaudeConfigOverride != nil {
+		existingPhase.ClaudeConfigOverride = *req.Msg.ClaudeConfigOverride
+	}
+	if req.Msg.LoopConfig != nil {
+		existingPhase.LoopConfig = *req.Msg.LoopConfig
+	}
 
 	if err := s.globalDB.SaveWorkflowPhase(existingPhase); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save phase: %w", err))

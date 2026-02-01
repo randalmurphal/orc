@@ -22,7 +22,7 @@ import { TagInput } from '@/components/core/TagInput';
 import { KeyValueEditor } from '@/components/core/KeyValueEditor';
 import { PromptEditor } from './PromptEditor';
 import { VariableModal } from '../VariableModal';
-import { ConditionEditor } from '@/components/workflows';
+import { ConditionEditor, LoopEditor } from '@/components/workflows';
 import './PhaseInspector.css';
 
 type InspectorTab = 'input' | 'prompt' | 'criteria' | 'settings';
@@ -443,6 +443,10 @@ function SettingsTab({
 	const [conditionDraft, setConditionDraft] = useState<string | undefined>(undefined);
 	const [conditionDirty, setConditionDirty] = useState(false);
 
+	// Loop config state — tracks pending loop configuration changes
+	const [loopConfigDraft, setLoopConfigDraft] = useState<string | undefined>(undefined);
+	const [loopConfigDirty, setLoopConfigDirty] = useState(false);
+
 	// Fetch agents list on mount
 	useEffect(() => {
 		let mounted = true;
@@ -468,6 +472,8 @@ function SettingsTab({
 		setClaudeConfigDraft(null);
 		setConditionDraft(phase.condition);
 		setConditionDirty(false);
+		setLoopConfigDraft(phase.loopConfig);
+		setLoopConfigDirty(false);
 		onError(null);
 	}, [phase, onError]);
 
@@ -483,8 +489,9 @@ function SettingsTab({
 		if (JSON.stringify(currSorted) !== JSON.stringify(origSorted)) return true;
 		if (claudeConfigDraft !== null) return true;
 		if (conditionDirty) return true;
+		if (loopConfigDirty) return true;
 		return false;
-	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, phase]);
+	}, [modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, loopConfigDirty, phase]);
 
 	// Save all pending changes in one API call
 	const handleSave = useCallback(async () => {
@@ -505,9 +512,11 @@ function SettingsTab({
 				subAgentsOverrideSet: true,
 				...(claudeConfigDraft !== null ? { claudeConfigOverride: claudeConfigDraft || undefined } : {}),
 				...(conditionDirty ? { condition: conditionDraft || '' } : {}),
+				...(loopConfigDirty ? { loopConfig: loopConfigDraft || '' } : {}),
 			});
 			setClaudeConfigDraft(null);
 			setConditionDirty(false);
+			setLoopConfigDirty(false);
 			onWorkflowRefresh?.();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Update failed';
@@ -515,7 +524,7 @@ function SettingsTab({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, onError, onWorkflowRefresh]);
+	}, [workflowDetails, phase.id, modelOverride, thinkingOverride, gateTypeOverride, maxIterations, agentOverride, subAgentsOverride, claudeConfigDraft, conditionDirty, conditionDraft, loopConfigDirty, loopConfigDraft, onError, onWorkflowRefresh]);
 
 	// Discard all pending changes
 	const handleDiscard = useCallback(() => {
@@ -528,6 +537,8 @@ function SettingsTab({
 		setClaudeConfigDraft(null);
 		setConditionDraft(phase.condition);
 		setConditionDirty(false);
+		setLoopConfigDraft(phase.loopConfig);
+		setLoopConfigDirty(false);
 		onError(null);
 	}, [phase, onError]);
 
@@ -542,6 +553,21 @@ function SettingsTab({
 		setConditionDraft(newCondition || undefined);
 		setConditionDirty(true);
 	}, []);
+
+	// Handle loop config changes from LoopEditor
+	const handleLoopConfigChange = useCallback((newLoopConfig: string) => {
+		setLoopConfigDraft(newLoopConfig || undefined);
+		setLoopConfigDirty(true);
+	}, []);
+
+	// Compute prior phases for loop target selection
+	const priorPhases = useMemo(() => {
+		const phases = workflowDetails.phases ?? [];
+		const currentSequence = phase.sequence;
+		return phases
+			.filter((p) => p.sequence < currentSequence)
+			.map((p) => p.phaseTemplateId);
+	}, [workflowDetails.phases, phase.sequence]);
 
 	const disabled = readOnly;
 
@@ -740,6 +766,16 @@ function SettingsTab({
 				<ConditionEditor
 					condition={(conditionDirty ? conditionDraft : phase.condition) || ''}
 					onChange={handleConditionChange}
+					disabled={readOnly}
+				/>
+			</CollapsibleSettingsSection>
+
+			{/* Loop — loop back to earlier phase when condition is met */}
+			<CollapsibleSettingsSection title="Loop" badgeCount={loopConfigDraft || phase.loopConfig ? 1 : 0}>
+				<LoopEditor
+					loopConfig={(loopConfigDirty ? loopConfigDraft : phase.loopConfig) || ''}
+					onChange={handleLoopConfigChange}
+					priorPhases={priorPhases}
 					disabled={readOnly}
 				/>
 			</CollapsibleSettingsSection>
