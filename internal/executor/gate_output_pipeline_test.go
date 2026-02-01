@@ -79,7 +79,7 @@ func TestGateOutputApplied_ApprovedWithData(t *testing.T) {
 		OutputVar: "REVIEW_FINDINGS",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Variable should be set with JSON-serialized data
 	val, ok := vars["REVIEW_FINDINGS"]
@@ -121,7 +121,7 @@ func TestGateOutputNoConfig_EmptyOutputVar(t *testing.T) {
 		OutputVar: "", // No variable name configured
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// No variable should be set when OutputVar is empty
 	if len(vars) != 0 {
@@ -141,7 +141,7 @@ func TestGateOutputNoConfig_NilOutputData(t *testing.T) {
 		OutputVar:  "SOME_VAR",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// No variable should be set when OutputData is nil
 	if _, ok := vars["SOME_VAR"]; ok {
@@ -155,7 +155,7 @@ func TestGateOutputNoConfig_NilGateResult(t *testing.T) {
 	vars := map[string]string{"EXISTING": "val"}
 
 	// applyGateOutputToVars must handle nil result safely
-	applyGateOutputToVars(vars, nil)
+	applyGateOutputToVars(vars, nil, nil)
 
 	// Existing vars preserved, no panic
 	if vars["EXISTING"] != "val" {
@@ -182,7 +182,7 @@ func TestGateOutputInNextPhase_VariableResolvable(t *testing.T) {
 		OutputVar: "SECURITY_RESULT",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// The variable should now be in the vars map, ready for template rendering
 	val, ok := vars["SECURITY_RESULT"]
@@ -218,7 +218,7 @@ func TestGateOutputOnRejection_VariableStored(t *testing.T) {
 		RetryPhase: "implement",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Variable must be set even when gate rejects
 	val, ok := vars["GATE_RESULT"]
@@ -267,7 +267,7 @@ func TestGateOutputPipelineE2E(t *testing.T) {
 		"SPEC_CONTENT": "existing spec content",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Step 3: Verify variable is stored
 	codeReview, ok := vars["CODE_REVIEW"]
@@ -315,7 +315,7 @@ func TestGateOutputEmptyMap(t *testing.T) {
 		OutputVar:  "EMPTY_RESULT",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	val, ok := vars["EMPTY_RESULT"]
 	if !ok {
@@ -343,7 +343,7 @@ func TestGateOutputNestedData(t *testing.T) {
 		OutputVar: "NESTED_RESULT",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	val, ok := vars["NESTED_RESULT"]
 	if !ok {
@@ -380,7 +380,7 @@ func TestGateOutputWhitespaceVar(t *testing.T) {
 		OutputVar:  "   ", // Whitespace-only
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Whitespace-only OutputVar should be treated as empty - no variable stored
 	if len(vars) != 0 {
@@ -399,7 +399,7 @@ func TestGateOutputOverwriteSequential(t *testing.T) {
 		OutputData: map[string]any{"round": float64(1)},
 		OutputVar:  "SHARED_VAR",
 	}
-	applyGateOutputToVars(vars, gate1)
+	applyGateOutputToVars(vars, nil, gate1)
 
 	// Second gate overwrites the same variable
 	gate2 := &GateEvaluationResult{
@@ -407,7 +407,7 @@ func TestGateOutputOverwriteSequential(t *testing.T) {
 		OutputData: map[string]any{"round": float64(2)},
 		OutputVar:  "SHARED_VAR",
 	}
-	applyGateOutputToVars(vars, gate2)
+	applyGateOutputToVars(vars, nil, gate2)
 
 	// Later gate should win
 	val := vars["SHARED_VAR"]
@@ -434,7 +434,7 @@ func TestGateOutputWithTemplateSyntax(t *testing.T) {
 		OutputVar: "DYNAMIC_PROMPT",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	val := vars["DYNAMIC_PROMPT"]
 	if !strings.Contains(val, "{{SPEC_CONTENT}}") {
@@ -455,7 +455,7 @@ func TestNonAIGateNoOutput(t *testing.T) {
 		OutputVar:  "",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	if len(vars) != 0 {
 		t.Errorf("non-AI gate with no output should not set any vars, got %v", vars)
@@ -481,7 +481,7 @@ func TestGateOutputSerializationError(t *testing.T) {
 	}
 
 	// Should not panic; should either skip or log error
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Variable should NOT be set on serialization failure
 	if _, ok := vars["BAD_DATA"]; ok {
@@ -503,7 +503,7 @@ func TestGateOutputOverwriteBuiltin(t *testing.T) {
 		OutputVar:  "TASK_ID", // Overwrites built-in
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Per spec: gate output has higher precedence, overwrites built-in
 	val := vars["TASK_ID"]

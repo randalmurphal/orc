@@ -871,7 +871,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		if gateResult != nil {
 			// Store gate output data as workflow variable (both approved and rejected)
-			applyGateOutputToVars(vars, gateResult)
+			applyGateOutputToVars(vars, rctx, gateResult)
 
 			// Handle gate decision
 			if gateResult.Pending {

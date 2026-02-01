@@ -795,7 +795,7 @@ func TestGateOutputApplied_AfterGateEvaluation(t *testing.T) {
 	}
 
 	// Apply gate output (what executor loop does after evaluatePhaseGate)
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	// Verify variable was stored
 	val, ok := vars["GATE_ANALYSIS"]
@@ -834,7 +834,7 @@ func TestGateOutputApplied_OnRejection(t *testing.T) {
 		RetryPhase: "implement",
 	}
 
-	applyGateOutputToVars(vars, gateResult)
+	applyGateOutputToVars(vars, nil, gateResult)
 
 	val, ok := vars["SECURITY_FINDINGS"]
 	if !ok {

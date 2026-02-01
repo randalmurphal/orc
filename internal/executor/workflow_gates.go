@@ -13,6 +13,7 @@ import (
 	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/gate"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/variable"
 )
 
 // GateEvaluationResult contains the result of gate evaluation.
@@ -230,7 +231,8 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 
 // applyGateOutputToVars stores gate output data as a workflow variable.
 // Called for both approved and rejected gates so retry phases can access gate analysis.
-func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationResult) {
+// Gate output is persisted to rctx.PhaseOutputVars so it survives ResolveAll() during retry.
+func applyGateOutputToVars(vars map[string]string, rctx *variable.ResolutionContext, gateResult *GateEvaluationResult) {
 	if gateResult == nil {
 		return
 	}
@@ -246,6 +248,14 @@ func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationRes
 	}
 
 	vars[varName] = string(data)
+
+	// Persist to rctx so variable survives ResolveAll() during retry
+	if rctx != nil {
+		if rctx.PhaseOutputVars == nil {
+			rctx.PhaseOutputVars = make(map[string]string)
+		}
+		rctx.PhaseOutputVars[varName] = string(data)
+	}
 }
 
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.
