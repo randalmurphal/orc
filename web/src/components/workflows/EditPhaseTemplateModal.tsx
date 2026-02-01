@@ -21,7 +21,7 @@ import { toast } from '@/stores/uiStore';
 import type { PhaseTemplate } from '@/gen/orc/v1/workflow_pb';
 import type { Agent, Hook, Skill } from '@/gen/orc/v1/config_pb';
 import type { MCPServerInfo } from '@/gen/orc/v1/mcp_pb';
-import { GateType } from '@/gen/orc/v1/workflow_pb';
+import { GateType, PromptSource } from '@/gen/orc/v1/workflow_pb';
 import { CollapsibleSettingsSection } from '@/components/core/CollapsibleSettingsSection';
 import { LibraryPicker } from '@/components/core/LibraryPicker';
 import { TagInput } from '@/components/core/TagInput';
@@ -95,6 +95,12 @@ export function EditPhaseTemplateModal({
 	const [gateType, setGateType] = useState<GateType>(GateType.AUTO);
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
 	const [checkpoint, setCheckpoint] = useState(false);
+
+	// Data flow state
+	const [inputVariables, setInputVariables] = useState<string[]>([]);
+	const [outputVarName, setOutputVarName] = useState('');
+	const [promptSourceState, setPromptSourceState] = useState<'inline' | 'file'>('inline');
+	const [promptPath, setPromptPath] = useState('');
 
 	// Claude config structured state
 	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
@@ -194,6 +200,12 @@ export function EditPhaseTemplateModal({
 			setThinkingEnabled(template.thinkingEnabled || false);
 			setCheckpoint(template.checkpoint || false);
 
+			// Data flow fields
+			setInputVariables([...template.inputVariables]);
+			setOutputVarName(template.outputVarName || '');
+			setPromptSourceState(template.promptSource === PromptSource.FILE ? 'file' : 'inline');
+			setPromptPath(template.promptPath || '');
+
 			// Parse claude_config
 			const config = parseClaudeConfig(template.claudeConfig);
 			setSelectedHooks(config.hooks);
@@ -291,6 +303,8 @@ export function EditPhaseTemplateModal({
 				mcpServerData,
 			});
 
+			const trimmedOutputVar = outputVarName.trim();
+
 			const response = await workflowClient.updatePhaseTemplate({
 				id: template.id,
 				name: name.trim() || undefined,
@@ -301,6 +315,10 @@ export function EditPhaseTemplateModal({
 				thinkingEnabled: thinkingEnabled,
 				checkpoint: checkpoint,
 				claudeConfig: claudeConfig,
+				inputVariables: inputVariables,
+				outputVarName: trimmedOutputVar || undefined,
+				promptSource: promptSourceState === 'file' ? PromptSource.FILE : PromptSource.DB,
+				promptPath: promptSourceState === 'file' ? promptPath || undefined : undefined,
 			});
 			if (response.template) {
 				toast.success('Phase template updated successfully');
@@ -322,6 +340,10 @@ export function EditPhaseTemplateModal({
 		gateType,
 		thinkingEnabled,
 		checkpoint,
+		inputVariables,
+		outputVarName,
+		promptSourceState,
+		promptPath,
 		selectedHooks,
 		selectedSkills,
 		selectedMCPServers,
@@ -599,6 +621,91 @@ export function EditPhaseTemplateModal({
 							)}
 						</div>
 					</CollapsibleSettingsSection>
+				</div>
+
+				{/* Data Flow Section */}
+				<div className="edit-template-section">
+					<h3 className="edit-template-section-title">Data Flow</h3>
+
+					{/* Input Variables */}
+					<div className="form-group">
+						<label className="form-label">Input Variables</label>
+						<TagInput
+							tags={inputVariables}
+							onChange={setInputVariables}
+							placeholder="Add variable name..."
+						/>
+						<div className="edit-template-suggestions">
+							{['SPEC_CONTENT', 'PROJECT_ROOT', 'TASK_DESCRIPTION', 'WORKTREE_PATH']
+								.filter((varName) => !inputVariables.includes(varName))
+								.map((varName) => (
+									<button
+										key={varName}
+										type="button"
+										className="edit-template-suggestion-btn"
+										onClick={() => {
+											setInputVariables([...inputVariables, varName]);
+										}}
+									>
+										{varName}
+									</button>
+								))}
+						</div>
+					</div>
+
+					{/* Output Variable Name */}
+					<div className="form-group">
+						<label htmlFor="edit-template-output-var" className="form-label">
+							Output Variable
+						</label>
+						<input
+							id="edit-template-output-var"
+							type="text"
+							className="form-input"
+							value={outputVarName}
+							onChange={(e) => setOutputVarName(e.target.value)}
+							placeholder="e.g. SPEC_CONTENT"
+						/>
+					</div>
+				</div>
+
+				{/* Prompt Section */}
+				<div className="edit-template-section">
+					<h3 className="edit-template-section-title">Prompt</h3>
+
+					<div className="form-group">
+						<div className="edit-template-toggle">
+							<button
+								type="button"
+								className={`edit-template-toggle-btn ${promptSourceState === 'inline' ? 'edit-template-toggle-btn--active' : ''}`}
+								onClick={() => setPromptSourceState('inline')}
+							>
+								Inline
+							</button>
+							<button
+								type="button"
+								className={`edit-template-toggle-btn ${promptSourceState === 'file' ? 'edit-template-toggle-btn--active' : ''}`}
+								onClick={() => setPromptSourceState('file')}
+							>
+								File
+							</button>
+						</div>
+					</div>
+
+					{promptSourceState === 'file' && (
+						<div className="form-group">
+							<div className="edit-template-path-input">
+								<span className="edit-template-path-prefix">.orc/prompts/</span>
+								<input
+									type="text"
+									className="form-input"
+									value={promptPath}
+									onChange={(e) => setPromptPath(e.target.value)}
+									placeholder="path/to/prompt.md"
+								/>
+							</div>
+						</div>
+					)}
 				</div>
 
 				{/* Actions */}

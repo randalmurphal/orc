@@ -3499,6 +3499,7 @@ type UpdatePhaseTemplateRequest struct {
 	SubAgentIds     []string  `protobuf:"bytes,16,rep,name=sub_agent_ids,json=subAgentIds,proto3" json:"sub_agent_ids,omitempty"`             // Sub-agent references
 	ClaudeConfig    *string   `protobuf:"bytes,17,opt,name=claude_config,json=claudeConfig,proto3,oneof" json:"claude_config,omitempty"`      // Per-phase settings JSON
 	OutputVarName   *string   `protobuf:"bytes,18,opt,name=output_var_name,json=outputVarName,proto3,oneof" json:"output_var_name,omitempty"` // Variable name for phase output
+	InputVariables  []string  `protobuf:"bytes,19,rep,name=input_variables,json=inputVariables,proto3" json:"input_variables,omitempty"`      // Input variable names
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -3650,6 +3651,13 @@ func (x *UpdatePhaseTemplateRequest) GetOutputVarName() string {
 		return *x.OutputVarName
 	}
 	return ""
+}
+
+func (x *UpdatePhaseTemplateRequest) GetInputVariables() []string {
+	if x != nil {
+		return x.InputVariables
+	}
+	return nil
 }
 
 type UpdatePhaseTemplateResponse struct {
@@ -5927,7 +5935,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x0e_claude_configB\x12\n" +
 	"\x10_output_var_name\"P\n" +
 	"\x1bCreatePhaseTemplateResponse\x121\n" +
-	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xd4\a\n" +
+	"\btemplate\x18\x01 \x01(\v2\x15.orc.v1.PhaseTemplateR\btemplate\"\xfd\a\n" +
 	"\x1aUpdatePhaseTemplateRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -5950,7 +5958,8 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\bagent_id\x18\x0f \x01(\tH\fR\aagentId\x88\x01\x01\x12\"\n" +
 	"\rsub_agent_ids\x18\x10 \x03(\tR\vsubAgentIds\x12(\n" +
 	"\rclaude_config\x18\x11 \x01(\tH\rR\fclaudeConfig\x88\x01\x01\x12+\n" +
-	"\x0foutput_var_name\x18\x12 \x01(\tH\x0eR\routputVarName\x88\x01\x01B\a\n" +
+	"\x0foutput_var_name\x18\x12 \x01(\tH\x0eR\routputVarName\x88\x01\x01\x12'\n" +
+	"\x0finput_variables\x18\x13 \x03(\tR\x0einputVariablesB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_prompt_sourceB\x11\n" +
