@@ -1,0 +1,256 @@
+/**
+ * ConditionEditor styles
+ *
+ * Supports visual builder mode and raw JSON editor mode
+ */
+
+.condition-editor {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+/* ─── Mode Toggle ─────────────────────────────────────────────────────────── */
+
+.condition-editor__mode-toggle {
+	display: flex;
+	gap: 0;
+	align-self: flex-end;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.condition-editor__mode-btn {
+	padding: var(--space-1) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.condition-editor__mode-btn:hover {
+	background: var(--bg-tertiary);
+	color: var(--text-primary);
+}
+
+.condition-editor__mode-btn--active {
+	color: var(--accent);
+	background: rgba(139, 92, 246, 0.1);
+	cursor: default;
+}
+
+/* ─── Logic Toggle (All/Any) ──────────────────────────────────────────────── */
+
+.condition-editor__logic-toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-2);
+	background: var(--bg-tertiary);
+	border-radius: var(--radius-sm);
+}
+
+.condition-editor__logic-option {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	cursor: pointer;
+}
+
+.condition-editor__logic-option input[type="radio"] {
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+.condition-editor__logic-option input[type="radio"]:disabled {
+	cursor: not-allowed;
+}
+
+.condition-editor__logic-option input[type="radio"]:disabled + span {
+	color: var(--text-muted);
+}
+
+/* ─── Condition Rows Container ────────────────────────────────────────────── */
+
+.condition-editor__rows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+/* ─── Individual Condition Row ────────────────────────────────────────────── */
+
+.condition-editor__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: var(--space-2);
+	padding: var(--space-2);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.condition-editor__field-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	min-width: 120px;
+	flex: 1;
+}
+
+.condition-editor__label {
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.condition-editor__select,
+.condition-editor__input {
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.condition-editor__select:focus,
+.condition-editor__input:focus {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.condition-editor__select:disabled,
+.condition-editor__input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ─── Array Input (for "in" operator) ─────────────────────────────────────── */
+
+.condition-editor__array-input {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.condition-editor__array-values {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	min-height: 24px;
+}
+
+.condition-editor__array-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-0-5);
+	padding: 2px var(--space-1-5);
+	font-size: var(--text-xs);
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-full, 999px);
+}
+
+.condition-editor__array-tag-remove {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	font-size: 12px;
+	line-height: 1;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	border-radius: 50%;
+	cursor: pointer;
+	transition: color 0.15s, background 0.15s;
+}
+
+.condition-editor__array-tag-remove:hover {
+	color: var(--red);
+	background: rgba(239, 68, 68, 0.1);
+}
+
+/* ─── Row Remove Button ───────────────────────────────────────────────────── */
+
+.condition-editor__remove-btn {
+	align-self: flex-end;
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--red, #ef4444);
+	background: transparent;
+	border: 1px solid var(--red, #ef4444);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.condition-editor__remove-btn:hover {
+	color: white;
+	background: var(--red, #ef4444);
+}
+
+/* ─── Add Condition Button ────────────────────────────────────────────────── */
+
+.condition-editor__add-btn {
+	align-self: flex-start;
+	padding: var(--space-1-5) var(--space-2);
+	font-size: var(--text-xs);
+	font-weight: 500;
+	color: var(--accent);
+	background: transparent;
+	border: 1px dashed var(--accent);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.condition-editor__add-btn:hover {
+	background: rgba(139, 92, 246, 0.1);
+}
+
+/* ─── Raw JSON Editor ─────────────────────────────────────────────────────── */
+
+.condition-editor__textarea {
+	width: 100%;
+	min-height: 120px;
+	padding: var(--space-2);
+	font-family: var(--font-mono, monospace);
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	background: var(--bg-tertiary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	resize: vertical;
+}
+
+.condition-editor__textarea:focus {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.condition-editor__textarea--error {
+	border-color: var(--red, #ef4444);
+}
+
+.condition-editor__textarea:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.condition-editor__error {
+	font-size: var(--text-xs);
+	color: var(--red, #ef4444);
+}
