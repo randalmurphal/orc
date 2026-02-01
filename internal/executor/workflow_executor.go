@@ -930,19 +930,21 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 					// Retry action or legacy behavior
 
 					// Calculate retry counter (shared by explicit retry and legacy)
+					// TASK-707: Gate retry uses min(max_loops, max_retries) when both are configured
 					var retryCount int
 					var retryMax int
 					if we.task != nil {
 						task.EnsurePhaseProto(we.task.Execution, tmpl.ID)
 						retryCount = int(we.task.Execution.Phases[tmpl.ID].Iterations)
+						retryMax = maxRetries // Start with config default
 						if phase.LoopConfig != "" {
 							if lc, err := db.ParseLoopConfig(phase.LoopConfig); err == nil && lc != nil {
-								retryMax = lc.EffectiveMaxLoops()
-							} else {
-								retryMax = maxRetries
+								loopMax := lc.EffectiveMaxLoops()
+								// Use the lower of max_loops and max_retries
+								if loopMax < retryMax {
+									retryMax = loopMax
+								}
 							}
-						} else {
-							retryMax = maxRetries
 						}
 					} else {
 						retryCount = fallbackLoopCounts[tmpl.ID]
