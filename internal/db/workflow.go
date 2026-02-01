@@ -104,6 +104,52 @@ type Workflow struct {
 	Phases []*WorkflowPhase `json:"phases,omitempty"`
 }
 
+// OutputTransformConfig defines how phase output is transformed between loop iterations.
+// For example, review findings can be formatted for the implement phase to fix.
+type OutputTransformConfig struct {
+	// Type is the transform type: "format_findings", "json_extract", "passthrough"
+	Type string `json:"type"`
+
+	// SourceVar is the variable containing the source data (e.g., "REVIEW_OUTPUT")
+	SourceVar string `json:"source_var"`
+
+	// TargetVar is the variable to store the transformed output (e.g., "REVIEW_FINDINGS")
+	TargetVar string `json:"target_var"`
+
+	// ExtractPath is the JSON path for json_extract type (e.g., ".issues")
+	ExtractPath string `json:"extract_path,omitempty"`
+}
+
+// Validate checks that the OutputTransformConfig is valid.
+func (c *OutputTransformConfig) Validate() error {
+	if c.Type == "" {
+		return fmt.Errorf("output transform: type is required")
+	}
+	if c.SourceVar == "" {
+		return fmt.Errorf("output transform: source_var is required")
+	}
+	if c.TargetVar == "" {
+		return fmt.Errorf("output transform: target_var is required")
+	}
+
+	// Validate type is one of known types
+	validTypes := map[string]bool{
+		"format_findings": true,
+		"json_extract":    true,
+		"passthrough":     true,
+	}
+	if !validTypes[c.Type] {
+		return fmt.Errorf("output transform: unknown type %q", c.Type)
+	}
+
+	// json_extract requires extract_path
+	if c.Type == "json_extract" && c.ExtractPath == "" {
+		return fmt.Errorf("output transform: extract_path required for json_extract type")
+	}
+
+	return nil
+}
+
 // LoopConfig defines looping behavior for a workflow phase.
 // When configured, the phase can trigger a loop back to an earlier phase
 // based on output conditions (e.g., review finds issues → fix → re-review).
@@ -124,6 +170,20 @@ type LoopConfig struct {
 
 	// MaxIterations is the legacy maximum iterations field (backward compat).
 	MaxIterations int `json:"max_iterations,omitempty"`
+
+	// LoopTemplates maps loop iteration to template path override.
+	// Keys are iteration numbers as strings ("1", "2") or "default".
+	// Example: {"1": "review.md", "default": "review_round2.md"}
+	LoopTemplates map[string]string `json:"loop_templates,omitempty"`
+
+	// LoopSchemas maps loop iteration to output schema identifier.
+	// Keys are iteration numbers as strings ("1", "2") or "default".
+	// Example: {"1": "findings", "default": "decision"}
+	LoopSchemas map[string]string `json:"loop_schemas,omitempty"`
+
+	// OutputTransform defines how phase output is transformed between iterations.
+	// Used to format output from one iteration as input for the next.
+	OutputTransform *OutputTransformConfig `json:"output_transform,omitempty"`
 }
 
 // EffectiveMaxLoops returns the effective max loop count with precedence:
@@ -147,6 +207,48 @@ func (lc *LoopConfig) IsLegacyCondition() bool {
 	// A JSON string starts with '"', a JSON object starts with '{'
 	trimmed := bytes.TrimSpace(lc.Condition)
 	return len(trimmed) > 0 && trimmed[0] == '"'
+}
+
+// GetTemplateForIteration returns the template path for a given loop iteration.
+// Uses LoopTemplates map with "default" fallback, or returns baseTemplate if not configured.
+func (lc *LoopConfig) GetTemplateForIteration(iteration int, baseTemplate string) string {
+	if len(lc.LoopTemplates) == 0 {
+		return baseTemplate
+	}
+
+	// Try exact match for iteration number
+	iterKey := fmt.Sprintf("%d", iteration)
+	if tmpl, ok := lc.LoopTemplates[iterKey]; ok {
+		return tmpl
+	}
+
+	// Fall back to "default" key
+	if tmpl, ok := lc.LoopTemplates["default"]; ok {
+		return tmpl
+	}
+
+	return baseTemplate
+}
+
+// GetSchemaForIteration returns the schema identifier for a given loop iteration.
+// Uses LoopSchemas map with "default" fallback, or returns empty string if not configured.
+func (lc *LoopConfig) GetSchemaForIteration(iteration int) string {
+	if len(lc.LoopSchemas) == 0 {
+		return ""
+	}
+
+	// Try exact match for iteration number
+	iterKey := fmt.Sprintf("%d", iteration)
+	if schema, ok := lc.LoopSchemas[iterKey]; ok {
+		return schema
+	}
+
+	// Fall back to "default" key
+	if schema, ok := lc.LoopSchemas["default"]; ok {
+		return schema
+	}
+
+	return ""
 }
 
 // ParseLoopConfig parses a JSON string into LoopConfig.
