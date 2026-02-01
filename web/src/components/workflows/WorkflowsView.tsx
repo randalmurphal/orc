@@ -152,6 +152,10 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 		window.dispatchEvent(new CustomEvent('orc:add-workflow'));
 	}, []);
 
+	const handleCreatePhaseTemplate = useCallback(() => {
+		window.dispatchEvent(new CustomEvent('orc:create-phase-template'));
+	}, []);
+
 	// Separate built-in and custom workflows
 	const builtinWorkflows = workflows.filter((wf) => wf.isBuiltin);
 	const customWorkflows = workflows.filter((wf) => !wf.isBuiltin);
@@ -236,11 +240,21 @@ export function WorkflowsView({ className = '' }: WorkflowsViewProps) {
 				{/* Phase Templates Section */}
 				<section className="workflows-view-section">
 					<div className="workflows-view-section-header">
-						<h2 className="section-title">Phase Templates</h2>
-						<p className="section-subtitle">
-							Reusable phase definitions ({builtinPhases.length} built-in,{' '}
-							{customPhases.length} custom)
-						</p>
+						<div className="workflows-view-section-header-text">
+							<h2 className="section-title">Phase Templates</h2>
+							<p className="section-subtitle">
+								Reusable phase definitions ({builtinPhases.length} built-in,{' '}
+								{customPhases.length} custom)
+							</p>
+						</div>
+						<Button
+							variant="secondary"
+							size="sm"
+							leftIcon={<Icon name="plus" size={12} />}
+							onClick={handleCreatePhaseTemplate}
+						>
+							Create From Scratch
+						</Button>
 					</div>
 
 					{!loading && !error && phaseTemplates.length > 0 && (
