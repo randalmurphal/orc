@@ -185,6 +185,15 @@ type ResolutionContext struct {
 	// RetryContext contains context from a previous failed attempt.
 	RetryContext string
 
+	// RetryAttempt is the retry attempt number (0 = not a retry).
+	RetryAttempt int
+
+	// RetryFromPhase is the phase that triggered the retry.
+	RetryFromPhase string
+
+	// RetryReason is the reason for the retry.
+	RetryReason string
+
 	// WorkingDir is the current working directory (worktree or project root).
 	WorkingDir string
 

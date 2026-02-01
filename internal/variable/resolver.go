@@ -309,6 +309,13 @@ func (r *Resolver) addBuiltinVariables(vars VariableSet, rctx *ResolutionContext
 	vars["ITERATION"] = fmt.Sprintf("%d", rctx.Iteration)
 	vars["RETRY_CONTEXT"] = rctx.RetryContext
 
+	// Structured retry variables (only populated when retry is active)
+	if rctx.RetryAttempt > 0 {
+		vars["RETRY_ATTEMPT"] = fmt.Sprintf("%d", rctx.RetryAttempt)
+		vars["RETRY_FROM_PHASE"] = rctx.RetryFromPhase
+		vars["RETRY_REASON"] = rctx.RetryReason
+	}
+
 	// Git context
 	vars["WORKTREE_PATH"] = rctx.WorkingDir
 	vars["PROJECT_ROOT"] = rctx.ProjectRoot

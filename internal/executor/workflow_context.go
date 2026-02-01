@@ -221,6 +221,7 @@ func (we *WorkflowExecutor) enrichContextForPhase(rctx *variable.ResolutionConte
 
 	// Load retry context from task's execution state
 	rctx.RetryContext = LoadRetryContextFromExecutionProto(t.Execution)
+	PopulateRetryFields(rctx, t.Execution)
 
 	// Load review context for review phases
 	if phaseID == "review" {
