@@ -228,6 +228,9 @@ type WorkflowPhase struct {
 	// Before-phase triggers
 	BeforeTriggers []BeforePhaseTrigger `json:"before_triggers,omitempty"`
 
+	// Loop configuration (JSON) - defines iterative loop behavior
+	LoopConfig string `json:"loop_config,omitempty" db:"loop_config"`
+
 	// Visual editor position (nil = auto-layout via dagre)
 	PositionX *float64 `json:"position_x,omitempty" db:"position_x"`
 	PositionY *float64 `json:"position_y,omitempty" db:"position_y"`

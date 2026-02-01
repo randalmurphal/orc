@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -481,6 +482,13 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 		if p.Condition != "" {
 			wp.Condition = p.Condition
 		}
+		if p.LoopConfig != nil {
+			loopConfigJSON, err := json.Marshal(p.LoopConfig)
+			if err != nil {
+				return nil, fmt.Errorf("marshal loop_config for phase %s: %w", p.Template, err)
+			}
+			wp.LoopConfig = string(loopConfigJSON)
+		}
 		workflow.Phases = append(workflow.Phases, wp)
 	}
 
@@ -588,6 +596,7 @@ type workflowPhaseYAML struct {
 	Thinking      *bool    `yaml:"thinking,omitempty"`
 	GateType      string   `yaml:"gate_type,omitempty"`
 	Condition     string   `yaml:"condition,omitempty"`
+	LoopConfig    any      `yaml:"loop_config,omitempty"` // Parsed as any, converted to JSON string
 }
 
 type variableYAML struct {
