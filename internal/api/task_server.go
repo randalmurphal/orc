@@ -374,7 +374,11 @@ func (s *taskServer) CreateTask(
 	if req.Msg.WorkflowId != nil {
 		t.WorkflowId = req.Msg.WorkflowId
 	} else if t.Weight != orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED {
-		wfID := workflow.WeightToWorkflowID(t.Weight)
+		var weightsCfg config.WeightsConfig
+		if s.config != nil {
+			weightsCfg = s.config.Weights
+		}
+		wfID := workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
 		if wfID != "" {
 			t.WorkflowId = &wfID
 		}

@@ -695,7 +695,11 @@ func regeneratePlanForWeightProto(backend storage.Backend, t *orcv1.Task) error 
 	// Update workflow_id if it's weight-based (or empty), preserve explicit workflows
 	currentWorkflow := task.GetWorkflowIDProto(t)
 	if currentWorkflow == "" || workflow.IsWeightBasedWorkflow(currentWorkflow) {
-		task.SetWorkflowIDProto(t, workflow.WeightToWorkflowID(t.Weight))
+		var weightsCfg config.WeightsConfig
+		if cfg, err := config.Load(); err == nil {
+			weightsCfg = cfg.Weights
+		}
+		task.SetWorkflowIDProto(t, workflow.ResolveWorkflowID("", t.Weight, weightsCfg))
 	}
 
 	// Update task status to planned
