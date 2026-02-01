@@ -208,6 +208,169 @@ func TestDetectMulti_PythonProject(t *testing.T) {
 	}
 }
 
+func TestDetectMulti_GoProjectWithMakefile(t *testing.T) {
+	dir := t.TempDir()
+
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "Makefile"), []byte(
+		"build:\n\tgo build -o bin/app ./cmd/app\n\n"+
+			"test:\n\tgo test -race ./...\n\n"+
+			"lint:\n\tgolangci-lint run ./...\n\n"+
+			"clean:\n\trm -rf bin/\n",
+	), 0644)
+
+	d, err := DetectMulti(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(d.Languages) != 1 {
+		t.Fatalf("expected 1 language, got %d", len(d.Languages))
+	}
+
+	lang := d.Languages[0]
+	if lang.Language != ProjectTypeGo {
+		t.Errorf("expected Go, got %s", lang.Language)
+	}
+	if lang.BuildTool != BuildToolMake {
+		t.Errorf("expected build tool Make, got %s", lang.BuildTool)
+	}
+	if lang.BuildCommand != "make build" {
+		t.Errorf("expected 'make build', got %s", lang.BuildCommand)
+	}
+	if lang.TestCommand != "make test" {
+		t.Errorf("expected 'make test', got %s", lang.TestCommand)
+	}
+	if lang.LintCommand != "make lint" {
+		t.Errorf("expected 'make lint', got %s", lang.LintCommand)
+	}
+}
+
+func TestDetectMulti_GoProjectWithPartialMakefile(t *testing.T) {
+	// Makefile has build but not test or lint — should fall back to Go defaults for missing targets
+	dir := t.TempDir()
+
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "Makefile"), []byte("build:\n\tgo build ./...\n"), 0644)
+
+	d, err := DetectMulti(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(d.Languages) != 1 {
+		t.Fatalf("expected 1 language, got %d", len(d.Languages))
+	}
+
+	lang := d.Languages[0]
+	if lang.BuildCommand != "make build" {
+		t.Errorf("expected 'make build', got %s", lang.BuildCommand)
+	}
+	if lang.TestCommand != "go test ./..." {
+		t.Errorf("expected 'go test ./...' (no make target), got %s", lang.TestCommand)
+	}
+	if lang.LintCommand != "golangci-lint run" {
+		t.Errorf("expected 'golangci-lint run' (no make target), got %s", lang.LintCommand)
+	}
+}
+
+func TestDetectMulti_MakefileInSubdir(t *testing.T) {
+	dir := t.TempDir()
+
+	// Go project in server/ subdirectory with its own Makefile
+	serverDir := filepath.Join(dir, "server")
+	_ = os.MkdirAll(serverDir, 0755)
+	_ = os.WriteFile(filepath.Join(serverDir, "go.mod"), []byte("module test\ngo 1.21"), 0644)
+	_ = os.WriteFile(filepath.Join(serverDir, "Makefile"), []byte("test:\n\tgo test ./...\n"), 0644)
+
+	d, err := DetectMulti(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	goLang := findLanguage(d.Languages, ProjectTypeGo)
+	if goLang == nil {
+		t.Fatal("expected Go to be detected")
+	}
+	if goLang.RootPath != "server" {
+		t.Errorf("expected root path 'server', got %s", goLang.RootPath)
+	}
+	if goLang.TestCommand != "cd server && make test" {
+		t.Errorf("expected 'cd server && make test', got %s", goLang.TestCommand)
+	}
+	// build target doesn't exist in the Makefile, so falls back to Go default with cd prefix
+	if goLang.BuildCommand != "cd server && go build ./..." {
+		t.Errorf("expected 'cd server && go build ./...', got %s", goLang.BuildCommand)
+	}
+}
+
+func TestHasMakeTarget(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		target   string
+		expected bool
+	}{
+		{
+			name:     "simple target found",
+			content:  "build:\n\tgo build ./...\n",
+			target:   "build",
+			expected: true,
+		},
+		{
+			name:     "target not found",
+			content:  "build:\n\tgo build ./...\n",
+			target:   "test",
+			expected: false,
+		},
+		{
+			name:     "similar prefix is not a match",
+			content:  "builder:\n\techo building\n",
+			target:   "build",
+			expected: false,
+		},
+		{
+			name:     "target with dependencies",
+			content:  "test: build\n\tgo test ./...\n",
+			target:   "test",
+			expected: true,
+		},
+		{
+			name:     "target among multiple targets",
+			content:  "build:\n\tgo build\n\ntest:\n\tgo test\n\nlint:\n\tgolangci-lint run\n",
+			target:   "lint",
+			expected: true,
+		},
+		{
+			name:     "empty content",
+			content:  "",
+			target:   "build",
+			expected: false,
+		},
+		{
+			name:     "target with leading whitespace",
+			content:  "  build:\n\tgo build\n",
+			target:   "build",
+			expected: true,
+		},
+		{
+			name:     "target with double colon",
+			content:  "build::\n\tgo build\n",
+			target:   "build",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasMakeTarget(tt.content, tt.target)
+			if got != tt.expected {
+				t.Errorf("hasMakeTarget(%q, %q) = %v, want %v", tt.content, tt.target, got, tt.expected)
+			}
+		})
+	}
+}
+
 // Helper functions
 
 func findLanguage(langs []LanguageInfo, lang ProjectType) *LanguageInfo {

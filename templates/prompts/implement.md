@@ -5,8 +5,8 @@ Before outputting completion JSON, you MUST run all four checks and include evid
 
 1. **Tests**: Run `{{TEST_COMMAND}}` — exit code 0, all tests pass. If fails: fix implementation and re-run.
 2. **Success Criteria**: For each SC-X in spec, run its verification method, record PASS/FAIL with evidence. If any FAIL: fix and re-verify.
-3. **Build**: Run `{{BUILD_COMMAND}}` — if fails, fix build errors.
-4. **Linting**: Run `{{LINT_COMMAND}}` — if fails, fix lint errors.
+3. **Build**: {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — if fails, fix build errors.
+4. **Linting**: {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — if fails, fix lint errors.
 
 ## Completion Output Format
 
@@ -57,17 +57,22 @@ DO NOT checkout {{TARGET_BRANCH}} - stay on your task branch.
 {{INITIATIVE_CONTEXT}}
 {{CONSTITUTION_CONTENT}}
 
+{{#if SPEC_CONTENT}}
 <specification>
 {{SPEC_CONTENT}}
 </specification>
+{{/if}}
 
+{{#if BREAKDOWN_CONTENT}}
 <breakdown>
 {{BREAKDOWN_CONTENT}}
 </breakdown>
+{{/if}}
 
 {{RETRY_CONTEXT}}
 </context>
 
+{{#if TDD_TESTS_CONTENT}}
 <tdd_tests>
 ## Tests to Make Pass
 
@@ -86,6 +91,7 @@ Your implementation MUST make these tests pass.
 4. NEVER delete a failing test without replacement
 5. NEVER change assertions just to make buggy code pass
 </tdd_tests>
+{{/if}}
 
 {{#if TDD_TEST_PLAN}}
 <manual_ui_testing>
@@ -188,8 +194,8 @@ AMEND-001: [Original] → [Actual] — [Reason]
 Execute the verification steps defined in the Output Format section above:
 1. Run `{{TEST_COMMAND}}` — all TDD tests must pass. Fix implementation (not tests) on failure.
 2. Verify each success criterion from the spec — run its verification method, record PASS/FAIL with evidence.
-3. Run `{{BUILD_COMMAND}}` — fix any build errors.
-4. Run `{{LINT_COMMAND}}` — fix lint errors (unchecked returns, unused imports, type errors).
+3. {{#if BUILD_COMMAND}}Run `{{BUILD_COMMAND}}`{{else}}Run the project build command{{/if}} — fix any build errors.
+4. {{#if LINT_COMMAND}}Run `{{LINT_COMMAND}}`{{else}}Run the project linter{{/if}} — fix lint errors (unchecked returns, unused imports, type errors).
 
 **Only output completion JSON after all four checks pass.** See Output Format for the exact schema.
 </verification>

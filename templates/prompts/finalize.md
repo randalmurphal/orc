@@ -27,9 +27,11 @@ You are working in an **isolated git worktree**.
 - Merging happens via PR after this phase completes
 - Git hooks are active to prevent accidental protected branch modifications
 
+{{#if SPEC_CONTENT}}
 ## Specification
 
 {{SPEC_CONTENT}}
+{{/if}}
 
 ## Instructions
 

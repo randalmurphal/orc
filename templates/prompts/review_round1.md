@@ -45,9 +45,11 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches. Stay on {{TASK_BRAN
 </worktree_safety>
 </context>
 
+{{#if SPEC_CONTENT}}
 <specification>
 {{SPEC_CONTENT}}
 </specification>
+{{/if}}
 
 {{#if CONSTITUTION_CONTENT}}
 <constitution>

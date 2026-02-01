@@ -75,9 +75,11 @@ DO NOT push to {{TARGET_BRANCH}} or checkout other branches.
 {{INITIATIVE_CONTEXT}}
 {{CONSTITUTION_CONTENT}}
 
+{{#if SPEC_CONTENT}}
 <specification>
 {{SPEC_CONTENT}}
 </specification>
+{{/if}}
 
 {{RETRY_CONTEXT}}
 </context>
