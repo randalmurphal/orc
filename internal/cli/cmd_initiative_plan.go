@@ -216,6 +216,12 @@ Examples:
 			detection, _ := detect.Detect(".")
 			hasFrontend := detection != nil && detection.HasFrontend
 
+			// Load config for weight-based workflow resolution
+			var weightsCfg config.WeightsConfig
+			if cfg, err := config.Load(); err == nil {
+				weightsCfg = cfg.Weights
+			}
+
 			// Map local IDs to real task IDs as we create them
 			localToTaskID := make(map[int]string)
 			var createdTasks []string
@@ -243,8 +249,8 @@ Examples:
 					t.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
 				}
 
-				// Auto-assign workflow based on weight
-				wfID := workflow.WeightToWorkflowID(t.Weight)
+				// Auto-assign workflow based on weight using config-based resolution
+				wfID := workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
 				if wfID != "" {
 					t.WorkflowId = &wfID
 				}

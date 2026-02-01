@@ -91,8 +91,12 @@ func (c *AutoTaskCreator) CreateAutomationTask(ctx context.Context, templateID s
 	t.Category = task.CategoryToProto(tmpl.Category)
 	t.Queue = orcv1.TaskQueue_TASK_QUEUE_ACTIVE
 
-	// Auto-assign workflow based on weight
-	wfID := workflow.WeightToWorkflowID(t.Weight)
+	// Auto-assign workflow based on weight using config-based resolution
+	var weightsCfg config.WeightsConfig
+	if c.cfg != nil {
+		weightsCfg = c.cfg.Weights
+	}
+	wfID := workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
 	if wfID != "" {
 		t.WorkflowId = &wfID
 	}

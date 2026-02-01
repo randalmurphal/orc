@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/db"
 )
 
@@ -111,5 +112,30 @@ func IsWeightBasedWorkflow(workflowID string) bool {
 	default:
 		return false
 	}
+}
+
+// ResolveWorkflowID resolves a workflow ID with fallback logic:
+// 1. If workflowID is non-empty, return it as-is (explicit takes precedence).
+// 2. Otherwise, use config-based weight→workflow mapping (which itself falls
+//    back to hardcoded defaults when not configured).
+// Returns empty string for unspecified or invalid weight.
+func ResolveWorkflowID(workflowID string, weight orcv1.TaskWeight, cfg config.WeightsConfig) string {
+	if workflowID != "" {
+		return workflowID
+	}
+	var weightStr string
+	switch weight {
+	case orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL:
+		weightStr = "trivial"
+	case orcv1.TaskWeight_TASK_WEIGHT_SMALL:
+		weightStr = "small"
+	case orcv1.TaskWeight_TASK_WEIGHT_MEDIUM:
+		weightStr = "medium"
+	case orcv1.TaskWeight_TASK_WEIGHT_LARGE:
+		weightStr = "large"
+	default:
+		return ""
+	}
+	return cfg.GetWorkflowID(weightStr)
 }
 

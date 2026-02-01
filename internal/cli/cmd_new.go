@@ -357,7 +357,11 @@ See also:
 
 			// Auto-assign workflow based on weight if not explicitly provided
 			if workflowID == "" {
-				workflowID = workflow.WeightToWorkflowID(t.Weight)
+				var weightsCfg config.WeightsConfig
+				if cfg, err := config.Load(); err == nil {
+					weightsCfg = cfg.Weights
+				}
+				workflowID = workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
 			}
 
 			// Set workflow if we have one (either explicit or from weight)

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
+	"github.com/randalmurphal/orc/internal/config"
 )
 
 // TestWeightToWorkflowID_Small verifies SC-1:
@@ -137,6 +138,63 @@ func TestWeightToWorkflowID_AllWeights(t *testing.T) {
 			got := WeightToWorkflowID(tt.weight)
 			if got != tt.want {
 				t.Errorf("WeightToWorkflowID(%v) = %q, want %q", tt.weight, got, tt.want)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// TASK-682: ResolveWorkflowID fallback logic
+// ============================================================================
+
+// TestResolveWorkflowID_Fallback verifies SC-2:
+// When workflow_id is empty, ResolveWorkflowID falls back to config-based
+// weight→workflow mapping instead of returning empty string.
+func TestResolveWorkflowID_Fallback(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.WeightsConfig{
+		Small: "custom-small",
+	}
+
+	tests := []struct {
+		name       string
+		workflowID string
+		weight     orcv1.TaskWeight
+		want       string
+	}{
+		{
+			name:       "existing workflow preserved",
+			workflowID: "my-workflow",
+			weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+			want:       "my-workflow",
+		},
+		{
+			name:       "empty falls back to config",
+			workflowID: "",
+			weight:     orcv1.TaskWeight_TASK_WEIGHT_SMALL,
+			want:       "custom-small",
+		},
+		{
+			name:       "empty with medium falls back to default",
+			workflowID: "",
+			weight:     orcv1.TaskWeight_TASK_WEIGHT_MEDIUM,
+			want:       "implement-medium",
+		},
+		{
+			name:       "empty with unspecified weight returns empty",
+			workflowID: "",
+			weight:     orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED,
+			want:       "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := ResolveWorkflowID(tt.workflowID, tt.weight, cfg)
+			if got != tt.want {
+				t.Errorf("ResolveWorkflowID(%q, %v, cfg) = %q, want %q", tt.workflowID, tt.weight, got, tt.want)
 			}
 		})
 	}
