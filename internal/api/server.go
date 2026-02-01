@@ -698,6 +698,12 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 		return nil, fmt.Errorf("failed to update task: %w", err)
 	}
 
+	// Prepare git ops and claude path (matches CLI behavior)
+	gitOps, claudePath, err := s.prepareExecutorDeps(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("prepare executor deps: %w", err)
+	}
+
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -729,6 +735,8 @@ func (s *Server) resumeTask(id string, projectID string) (map[string]any, error)
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
 			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
+			executor.WithWorkflowGitOps(gitOps),
+			executor.WithWorkflowClaudePath(claudePath),
 		)
 
 		opts := executor.WorkflowRunOptions{
@@ -787,6 +795,16 @@ func (s *Server) startTask(id string, projectID string) error {
 	s.runningTasks[id] = cancel
 	s.runningTasksMu.Unlock()
 
+	// Prepare git ops and claude path (matches CLI behavior)
+	gitOps, claudePath, err := s.prepareExecutorDeps(workDir)
+	if err != nil {
+		cancel()
+		s.runningTasksMu.Lock()
+		delete(s.runningTasks, id)
+		s.runningTasksMu.Unlock()
+		return fmt.Errorf("prepare executor deps: %w", err)
+	}
+
 	go func() {
 		defer func() {
 			s.runningTasksMu.Lock()
@@ -804,6 +822,8 @@ func (s *Server) startTask(id string, projectID string) error {
 			executor.WithWorkflowLogger(s.logger),
 			executor.WithWorkflowAutomationService(s.automationSvc),
 			executor.WithWorkflowSessionBroadcaster(s.sessionBroadcaster),
+			executor.WithWorkflowGitOps(gitOps),
+			executor.WithWorkflowClaudePath(claudePath),
 		)
 
 		opts := executor.WorkflowRunOptions{
@@ -821,6 +841,32 @@ func (s *Server) startTask(id string, projectID string) error {
 	}()
 
 	return nil
+}
+
+// prepareExecutorDeps creates gitOps and resolves claudePath from server config,
+// matching CLI behavior (see cli.NewGitOpsFromConfig and cmd_run.go).
+func (s *Server) prepareExecutorDeps(projectDir string) (*git.Git, string, error) {
+	cfg := s.orcConfig
+	if cfg == nil {
+		cfg = config.Default()
+	}
+	gitCfg := git.Config{
+		BranchPrefix:   cfg.BranchPrefix,
+		CommitPrefix:   cfg.CommitPrefix,
+		WorktreeDir:    config.ResolveWorktreeDir(cfg.Worktree.Dir, projectDir),
+		ExecutorPrefix: cfg.ExecutorPrefix(),
+	}
+	gitOps, err := git.New(projectDir, gitCfg)
+	if err != nil {
+		return nil, "", fmt.Errorf("init git: %w", err)
+	}
+
+	claudePath := cfg.ClaudePath
+	if claudePath == "" {
+		claudePath = "claude"
+	}
+
+	return gitOps, claudePath, nil
 }
 
 // cancelTask cancels a running task (called by WebSocket handler).
