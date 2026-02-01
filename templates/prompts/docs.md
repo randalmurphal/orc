@@ -26,12 +26,6 @@ You are working in an **isolated git worktree**.
 - **DO NOT** checkout other branches - stay on `{{TASK_BRANCH}}`
 - Merging happens via PR after all phases complete
 
-## Implementation Summary
-
-{{IMPLEMENT_CONTENT}}
-
----
-
 ## AI Documentation Standards
 
 **Key Insight**: Documentation = MAP to codebase, not replacement. AI agents can read code - provide structure and location references (`file:line`), not exhaustive explanations.

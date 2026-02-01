@@ -31,10 +31,6 @@ You are working in an **isolated git worktree**.
 
 {{SPEC_CONTENT}}
 
-## Implementation Summary
-
-{{IMPLEMENTATION_SUMMARY}}
-
 ## Instructions
 
 ### Step 1: Fetch Latest Target Branch
