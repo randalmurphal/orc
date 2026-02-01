@@ -367,7 +367,7 @@ func (s *Server) runFinalizeAsync(ctx context.Context, taskID string, _ *orcv1.T
 	if err != nil {
 		task.FailPhaseProto(t.Execution, "finalize", err)
 		// Preserve error context for resume - allows the next run to understand what failed
-		task.SetRetryContextProto(t.Execution, "finalize", "finalize",
+		task.SetRetryState(t, "finalize", "finalize",
 			err.Error(),
 			buildFinalizeRetryContext(err),
 			1,

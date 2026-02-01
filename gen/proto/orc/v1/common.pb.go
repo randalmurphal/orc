@@ -560,106 +560,6 @@ func (x *GateDecision) GetTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
-// Retry context when retrying from a failed phase
-type RetryContext struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Phase to retry from
-	FromPhase string `protobuf:"bytes,1,opt,name=from_phase,json=fromPhase,proto3" json:"from_phase,omitempty"`
-	// Phase that failed
-	ToPhase string `protobuf:"bytes,2,opt,name=to_phase,json=toPhase,proto3" json:"to_phase,omitempty"`
-	// Reason for retry
-	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	// Output from failed attempt
-	FailureOutput *string `protobuf:"bytes,4,opt,name=failure_output,json=failureOutput,proto3,oneof" json:"failure_output,omitempty"`
-	// Path to context file
-	ContextFile *string `protobuf:"bytes,5,opt,name=context_file,json=contextFile,proto3,oneof" json:"context_file,omitempty"`
-	// Retry attempt number
-	Attempt int32 `protobuf:"varint,6,opt,name=attempt,proto3" json:"attempt,omitempty"`
-	// When retry was initiated
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RetryContext) Reset() {
-	*x = RetryContext{}
-	mi := &file_orc_v1_common_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RetryContext) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RetryContext) ProtoMessage() {}
-
-func (x *RetryContext) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RetryContext.ProtoReflect.Descriptor instead.
-func (*RetryContext) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *RetryContext) GetFromPhase() string {
-	if x != nil {
-		return x.FromPhase
-	}
-	return ""
-}
-
-func (x *RetryContext) GetToPhase() string {
-	if x != nil {
-		return x.ToPhase
-	}
-	return ""
-}
-
-func (x *RetryContext) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *RetryContext) GetFailureOutput() string {
-	if x != nil && x.FailureOutput != nil {
-		return *x.FailureOutput
-	}
-	return ""
-}
-
-func (x *RetryContext) GetContextFile() string {
-	if x != nil && x.ContextFile != nil {
-		return *x.ContextFile
-	}
-	return ""
-}
-
-func (x *RetryContext) GetAttempt() int32 {
-	if x != nil {
-		return x.Attempt
-	}
-	return 0
-}
-
-func (x *RetryContext) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
-	}
-	return nil
-}
-
 // File diff statistics
 type DiffStats struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -675,7 +575,7 @@ type DiffStats struct {
 
 func (x *DiffStats) Reset() {
 	*x = DiffStats{}
-	mi := &file_orc_v1_common_proto_msgTypes[8]
+	mi := &file_orc_v1_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -687,7 +587,7 @@ func (x *DiffStats) String() string {
 func (*DiffStats) ProtoMessage() {}
 
 func (x *DiffStats) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[8]
+	mi := &file_orc_v1_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -700,7 +600,7 @@ func (x *DiffStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffStats.ProtoReflect.Descriptor instead.
 func (*DiffStats) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{8}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DiffStats) GetFilesChanged() int32 {
@@ -741,7 +641,7 @@ type DiffLine struct {
 
 func (x *DiffLine) Reset() {
 	*x = DiffLine{}
-	mi := &file_orc_v1_common_proto_msgTypes[9]
+	mi := &file_orc_v1_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -753,7 +653,7 @@ func (x *DiffLine) String() string {
 func (*DiffLine) ProtoMessage() {}
 
 func (x *DiffLine) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[9]
+	mi := &file_orc_v1_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,7 +666,7 @@ func (x *DiffLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffLine.ProtoReflect.Descriptor instead.
 func (*DiffLine) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{9}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DiffLine) GetType() string {
@@ -816,7 +716,7 @@ type DiffHunk struct {
 
 func (x *DiffHunk) Reset() {
 	*x = DiffHunk{}
-	mi := &file_orc_v1_common_proto_msgTypes[10]
+	mi := &file_orc_v1_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +728,7 @@ func (x *DiffHunk) String() string {
 func (*DiffHunk) ProtoMessage() {}
 
 func (x *DiffHunk) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[10]
+	mi := &file_orc_v1_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +741,7 @@ func (x *DiffHunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffHunk.ProtoReflect.Descriptor instead.
 func (*DiffHunk) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{10}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DiffHunk) GetOldStart() int32 {
@@ -906,7 +806,7 @@ type FileDiff struct {
 
 func (x *FileDiff) Reset() {
 	*x = FileDiff{}
-	mi := &file_orc_v1_common_proto_msgTypes[11]
+	mi := &file_orc_v1_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -918,7 +818,7 @@ func (x *FileDiff) String() string {
 func (*FileDiff) ProtoMessage() {}
 
 func (x *FileDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[11]
+	mi := &file_orc_v1_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -931,7 +831,7 @@ func (x *FileDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDiff.ProtoReflect.Descriptor instead.
 func (*FileDiff) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{11}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FileDiff) GetPath() string {
@@ -1014,7 +914,7 @@ type DiffResult struct {
 
 func (x *DiffResult) Reset() {
 	*x = DiffResult{}
-	mi := &file_orc_v1_common_proto_msgTypes[12]
+	mi := &file_orc_v1_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +926,7 @@ func (x *DiffResult) String() string {
 func (*DiffResult) ProtoMessage() {}
 
 func (x *DiffResult) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[12]
+	mi := &file_orc_v1_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +939,7 @@ func (x *DiffResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffResult.ProtoReflect.Descriptor instead.
 func (*DiffResult) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{12}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DiffResult) GetBase() string {
@@ -1079,7 +979,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_orc_v1_common_proto_msgTypes[13]
+	mi := &file_orc_v1_common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +991,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_orc_v1_common_proto_msgTypes[13]
+	mi := &file_orc_v1_common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1004,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_orc_v1_common_proto_rawDescGZIP(), []int{13}
+	return file_orc_v1_common_proto_rawDescGZIP(), []int{12}
 }
 
 var File_orc_v1_common_proto protoreflect.FileDescriptor
@@ -1159,18 +1059,7 @@ const file_orc_v1_common_proto_rawDesc = "" +
 	"\bapproved\x18\x03 \x01(\bR\bapproved\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x00R\x06reason\x88\x01\x01\x128\n" +
 	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\t\n" +
-	"\a_reason\"\xac\x02\n" +
-	"\fRetryContext\x12\x1d\n" +
-	"\n" +
-	"from_phase\x18\x01 \x01(\tR\tfromPhase\x12\x19\n" +
-	"\bto_phase\x18\x02 \x01(\tR\atoPhase\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\x12*\n" +
-	"\x0efailure_output\x18\x04 \x01(\tH\x00R\rfailureOutput\x88\x01\x01\x12&\n" +
-	"\fcontext_file\x18\x05 \x01(\tH\x01R\vcontextFile\x88\x01\x01\x12\x18\n" +
-	"\aattempt\x18\x06 \x01(\x05R\aattempt\x128\n" +
-	"\ttimestamp\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\x11\n" +
-	"\x0f_failure_outputB\x0f\n" +
-	"\r_context_file\"l\n" +
+	"\a_reason\"l\n" +
 	"\tDiffStats\x12#\n" +
 	"\rfiles_changed\x18\x01 \x01(\x05R\ffilesChanged\x12\x1c\n" +
 	"\tadditions\x18\x02 \x01(\x05R\tadditions\x12\x1c\n" +
@@ -1223,7 +1112,7 @@ func file_orc_v1_common_proto_rawDescGZIP() []byte {
 	return file_orc_v1_common_proto_rawDescData
 }
 
-var file_orc_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_orc_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_orc_v1_common_proto_goTypes = []any{
 	(*PageRequest)(nil),           // 0: orc.v1.PageRequest
 	(*PageResponse)(nil),          // 1: orc.v1.PageResponse
@@ -1232,33 +1121,31 @@ var file_orc_v1_common_proto_goTypes = []any{
 	(*SessionInfo)(nil),           // 4: orc.v1.SessionInfo
 	(*ValidationEntry)(nil),       // 5: orc.v1.ValidationEntry
 	(*GateDecision)(nil),          // 6: orc.v1.GateDecision
-	(*RetryContext)(nil),          // 7: orc.v1.RetryContext
-	(*DiffStats)(nil),             // 8: orc.v1.DiffStats
-	(*DiffLine)(nil),              // 9: orc.v1.DiffLine
-	(*DiffHunk)(nil),              // 10: orc.v1.DiffHunk
-	(*FileDiff)(nil),              // 11: orc.v1.FileDiff
-	(*DiffResult)(nil),            // 12: orc.v1.DiffResult
-	(*Empty)(nil),                 // 13: orc.v1.Empty
-	nil,                           // 14: orc.v1.CostTracking.PhaseCostsEntry
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(*DiffStats)(nil),             // 7: orc.v1.DiffStats
+	(*DiffLine)(nil),              // 8: orc.v1.DiffLine
+	(*DiffHunk)(nil),              // 9: orc.v1.DiffHunk
+	(*FileDiff)(nil),              // 10: orc.v1.FileDiff
+	(*DiffResult)(nil),            // 11: orc.v1.DiffResult
+	(*Empty)(nil),                 // 12: orc.v1.Empty
+	nil,                           // 13: orc.v1.CostTracking.PhaseCostsEntry
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_orc_v1_common_proto_depIdxs = []int32{
-	14, // 0: orc.v1.CostTracking.phase_costs:type_name -> orc.v1.CostTracking.PhaseCostsEntry
-	15, // 1: orc.v1.CostTracking.last_updated_at:type_name -> google.protobuf.Timestamp
-	15, // 2: orc.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
-	15, // 3: orc.v1.SessionInfo.last_activity:type_name -> google.protobuf.Timestamp
-	15, // 4: orc.v1.ValidationEntry.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 5: orc.v1.GateDecision.timestamp:type_name -> google.protobuf.Timestamp
-	15, // 6: orc.v1.RetryContext.timestamp:type_name -> google.protobuf.Timestamp
-	9,  // 7: orc.v1.DiffHunk.lines:type_name -> orc.v1.DiffLine
-	10, // 8: orc.v1.FileDiff.hunks:type_name -> orc.v1.DiffHunk
-	8,  // 9: orc.v1.DiffResult.stats:type_name -> orc.v1.DiffStats
-	11, // 10: orc.v1.DiffResult.files:type_name -> orc.v1.FileDiff
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 0: orc.v1.CostTracking.phase_costs:type_name -> orc.v1.CostTracking.PhaseCostsEntry
+	14, // 1: orc.v1.CostTracking.last_updated_at:type_name -> google.protobuf.Timestamp
+	14, // 2: orc.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: orc.v1.SessionInfo.last_activity:type_name -> google.protobuf.Timestamp
+	14, // 4: orc.v1.ValidationEntry.timestamp:type_name -> google.protobuf.Timestamp
+	14, // 5: orc.v1.GateDecision.timestamp:type_name -> google.protobuf.Timestamp
+	8,  // 6: orc.v1.DiffHunk.lines:type_name -> orc.v1.DiffLine
+	9,  // 7: orc.v1.FileDiff.hunks:type_name -> orc.v1.DiffHunk
+	7,  // 8: orc.v1.DiffResult.stats:type_name -> orc.v1.DiffStats
+	10, // 9: orc.v1.DiffResult.files:type_name -> orc.v1.FileDiff
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_common_proto_init() }
@@ -1268,16 +1155,15 @@ func file_orc_v1_common_proto_init() {
 	}
 	file_orc_v1_common_proto_msgTypes[5].OneofWrappers = []any{}
 	file_orc_v1_common_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orc_v1_common_proto_msgTypes[7].OneofWrappers = []any{}
-	file_orc_v1_common_proto_msgTypes[9].OneofWrappers = []any{}
-	file_orc_v1_common_proto_msgTypes[11].OneofWrappers = []any{}
+	file_orc_v1_common_proto_msgTypes[8].OneofWrappers = []any{}
+	file_orc_v1_common_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_common_proto_rawDesc), len(file_orc_v1_common_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

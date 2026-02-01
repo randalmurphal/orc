@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file orc/v1/common.proto.
  */
 export const file_orc_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("ChNvcmMvdjEvY29tbW9uLnByb3RvEgZvcmMudjEiKgoLUGFnZVJlcXVlc3QSDAoEcGFnZRgBIAEoBRINCgVsaW1pdBgCIAEoBSJhCgxQYWdlUmVzcG9uc2USDAoEcGFnZRgBIAEoBRINCgVsaW1pdBgCIAEoBRINCgV0b3RhbBgDIAEoBRITCgt0b3RhbF9wYWdlcxgEIAEoBRIQCghoYXNfbW9yZRgFIAEoCCKVAQoKVG9rZW5Vc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAUSFQoNb3V0cHV0X3Rva2VucxgCIAEoBRIjChtjYWNoZV9jcmVhdGlvbl9pbnB1dF90b2tlbnMYAyABKAUSHwoXY2FjaGVfcmVhZF9pbnB1dF90b2tlbnMYBCABKAUSFAoMdG90YWxfdG9rZW5zGAUgASgFIskBCgxDb3N0VHJhY2tpbmcSFgoOdG90YWxfY29zdF91c2QYASABKAESOQoLcGhhc2VfY29zdHMYAiADKAsyJC5vcmMudjEuQ29zdFRyYWNraW5nLlBoYXNlQ29zdHNFbnRyeRIzCg9sYXN0X3VwZGF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wGjEKD1BoYXNlQ29zdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAE6AjgBIq8BCgtTZXNzaW9uSW5mbxIKCgJpZBgBIAEoCRINCgVtb2RlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoNbGFzdF9hY3Rpdml0eRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdHVybl9jb3VudBgGIAEoBSKTAQoPVmFsaWRhdGlvbkVudHJ5EhEKCWl0ZXJhdGlvbhgBIAEoBRIMCgR0eXBlGAIgASgJEhAKCGRlY2lzaW9uGAMgASgJEhMKBnJlYXNvbhgEIAEoCUgAiAEBEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX3JlYXNvbiKRAQoMR2F0ZURlY2lzaW9uEg0KBXBoYXNlGAEgASgJEhEKCWdhdGVfdHlwZRgCIAEoCRIQCghhcHByb3ZlZBgDIAEoCBITCgZyZWFzb24YBCABKAlIAIgBARItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgkKB19yZWFzb24i4AEKDFJldHJ5Q29udGV4dBISCgpmcm9tX3BoYXNlGAEgASgJEhAKCHRvX3BoYXNlGAIgASgJEg4KBnJlYXNvbhgDIAEoCRIbCg5mYWlsdXJlX291dHB1dBgEIAEoCUgAiAEBEhkKDGNvbnRleHRfZmlsZRgFIAEoCUgBiAEBEg8KB2F0dGVtcHQYBiABKAUSLQoJdGltZXN0YW1wGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIRCg9fZmFpbHVyZV9vdXRwdXRCDwoNX2NvbnRleHRfZmlsZSJICglEaWZmU3RhdHMSFQoNZmlsZXNfY2hhbmdlZBgBIAEoBRIRCglhZGRpdGlvbnMYAiABKAUSEQoJZGVsZXRpb25zGAMgASgFInEKCERpZmZMaW5lEgwKBHR5cGUYASABKAkSDwoHY29udGVudBgCIAEoCRIVCghvbGRfbGluZRgDIAEoBUgAiAEBEhUKCG5ld19saW5lGAQgASgFSAGIAQFCCwoJX29sZF9saW5lQgsKCV9uZXdfbGluZSJ3CghEaWZmSHVuaxIRCglvbGRfc3RhcnQYASABKAUSEQoJb2xkX2xpbmVzGAIgASgFEhEKCW5ld19zdGFydBgDIAEoBRIRCgluZXdfbGluZXMYBCABKAUSHwoFbGluZXMYBSADKAsyEC5vcmMudjEuRGlmZkxpbmUi2wEKCEZpbGVEaWZmEgwKBHBhdGgYASABKAkSFQoIb2xkX3BhdGgYAiABKAlIAIgBARIOCgZzdGF0dXMYAyABKAkSEQoJYWRkaXRpb25zGAQgASgFEhEKCWRlbGV0aW9ucxgFIAEoBRIOCgZiaW5hcnkYBiABKAgSDgoGc3ludGF4GAcgASgJEh8KBWh1bmtzGAggAygLMhAub3JjLnYxLkRpZmZIdW5rEhcKCmxvYWRfZXJyb3IYCSABKAlIAYgBAUILCglfb2xkX3BhdGhCDQoLX2xvYWRfZXJyb3IiawoKRGlmZlJlc3VsdBIMCgRiYXNlGAEgASgJEgwKBGhlYWQYAiABKAkSIAoFc3RhdHMYAyABKAsyES5vcmMudjEuRGlmZlN0YXRzEh8KBWZpbGVzGAQgAygLMhAub3JjLnYxLkZpbGVEaWZmIgcKBUVtcHR5QocBCgpjb20ub3JjLnYxQgtDb21tb25Qcm90b1ABWjNnaXRodWIuY29tL3JhbmRhbG11cnBoYWwvb3JjL2dlbi9wcm90by9vcmMvdjE7b3JjdjGiAgNPWFiqAgZPcmMuVjHKAgZPcmNcVjHiAhJPcmNcVjFcR1BCTWV0YWRhdGHqAgdPcmM6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChNvcmMvdjEvY29tbW9uLnByb3RvEgZvcmMudjEiKgoLUGFnZVJlcXVlc3QSDAoEcGFnZRgBIAEoBRINCgVsaW1pdBgCIAEoBSJhCgxQYWdlUmVzcG9uc2USDAoEcGFnZRgBIAEoBRINCgVsaW1pdBgCIAEoBRINCgV0b3RhbBgDIAEoBRITCgt0b3RhbF9wYWdlcxgEIAEoBRIQCghoYXNfbW9yZRgFIAEoCCKVAQoKVG9rZW5Vc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAUSFQoNb3V0cHV0X3Rva2VucxgCIAEoBRIjChtjYWNoZV9jcmVhdGlvbl9pbnB1dF90b2tlbnMYAyABKAUSHwoXY2FjaGVfcmVhZF9pbnB1dF90b2tlbnMYBCABKAUSFAoMdG90YWxfdG9rZW5zGAUgASgFIskBCgxDb3N0VHJhY2tpbmcSFgoOdG90YWxfY29zdF91c2QYASABKAESOQoLcGhhc2VfY29zdHMYAiADKAsyJC5vcmMudjEuQ29zdFRyYWNraW5nLlBoYXNlQ29zdHNFbnRyeRIzCg9sYXN0X3VwZGF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wGjEKD1BoYXNlQ29zdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAE6AjgBIq8BCgtTZXNzaW9uSW5mbxIKCgJpZBgBIAEoCRINCgVtb2RlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMQoNbGFzdF9hY3Rpdml0eRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKdHVybl9jb3VudBgGIAEoBSKTAQoPVmFsaWRhdGlvbkVudHJ5EhEKCWl0ZXJhdGlvbhgBIAEoBRIMCgR0eXBlGAIgASgJEhAKCGRlY2lzaW9uGAMgASgJEhMKBnJlYXNvbhgEIAEoCUgAiAEBEi0KCXRpbWVzdGFtcBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX3JlYXNvbiKRAQoMR2F0ZURlY2lzaW9uEg0KBXBoYXNlGAEgASgJEhEKCWdhdGVfdHlwZRgCIAEoCRIQCghhcHByb3ZlZBgDIAEoCBITCgZyZWFzb24YBCABKAlIAIgBARItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgkKB19yZWFzb24iSAoJRGlmZlN0YXRzEhUKDWZpbGVzX2NoYW5nZWQYASABKAUSEQoJYWRkaXRpb25zGAIgASgFEhEKCWRlbGV0aW9ucxgDIAEoBSJxCghEaWZmTGluZRIMCgR0eXBlGAEgASgJEg8KB2NvbnRlbnQYAiABKAkSFQoIb2xkX2xpbmUYAyABKAVIAIgBARIVCghuZXdfbGluZRgEIAEoBUgBiAEBQgsKCV9vbGRfbGluZUILCglfbmV3X2xpbmUidwoIRGlmZkh1bmsSEQoJb2xkX3N0YXJ0GAEgASgFEhEKCW9sZF9saW5lcxgCIAEoBRIRCgluZXdfc3RhcnQYAyABKAUSEQoJbmV3X2xpbmVzGAQgASgFEh8KBWxpbmVzGAUgAygLMhAub3JjLnYxLkRpZmZMaW5lItsBCghGaWxlRGlmZhIMCgRwYXRoGAEgASgJEhUKCG9sZF9wYXRoGAIgASgJSACIAQESDgoGc3RhdHVzGAMgASgJEhEKCWFkZGl0aW9ucxgEIAEoBRIRCglkZWxldGlvbnMYBSABKAUSDgoGYmluYXJ5GAYgASgIEg4KBnN5bnRheBgHIAEoCRIfCgVodW5rcxgIIAMoCzIQLm9yYy52MS5EaWZmSHVuaxIXCgpsb2FkX2Vycm9yGAkgASgJSAGIAQFCCwoJX29sZF9wYXRoQg0KC19sb2FkX2Vycm9yImsKCkRpZmZSZXN1bHQSDAoEYmFzZRgBIAEoCRIMCgRoZWFkGAIgASgJEiAKBXN0YXRzGAMgASgLMhEub3JjLnYxLkRpZmZTdGF0cxIfCgVmaWxlcxgEIAMoCzIQLm9yYy52MS5GaWxlRGlmZiIHCgVFbXB0eUKHAQoKY29tLm9yYy52MUILQ29tbW9uUHJvdG9QAVozZ2l0aHViLmNvbS9yYW5kYWxtdXJwaGFsL29yYy9nZW4vcHJvdG8vb3JjL3YxO29yY3YxogIDT1hYqgIGT3JjLlYxygIGT3JjXFYx4gIST3JjXFYxXEdQQk1ldGFkYXRh6gIHT3JjOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Pagination request parameters
@@ -330,69 +330,6 @@ export const GateDecisionSchema: GenMessage<GateDecision> = /*@__PURE__*/
   messageDesc(file_orc_v1_common, 6);
 
 /**
- * Retry context when retrying from a failed phase
- *
- * @generated from message orc.v1.RetryContext
- */
-export type RetryContext = Message<"orc.v1.RetryContext"> & {
-  /**
-   * Phase to retry from
-   *
-   * @generated from field: string from_phase = 1;
-   */
-  fromPhase: string;
-
-  /**
-   * Phase that failed
-   *
-   * @generated from field: string to_phase = 2;
-   */
-  toPhase: string;
-
-  /**
-   * Reason for retry
-   *
-   * @generated from field: string reason = 3;
-   */
-  reason: string;
-
-  /**
-   * Output from failed attempt
-   *
-   * @generated from field: optional string failure_output = 4;
-   */
-  failureOutput?: string;
-
-  /**
-   * Path to context file
-   *
-   * @generated from field: optional string context_file = 5;
-   */
-  contextFile?: string;
-
-  /**
-   * Retry attempt number
-   *
-   * @generated from field: int32 attempt = 6;
-   */
-  attempt: number;
-
-  /**
-   * When retry was initiated
-   *
-   * @generated from field: google.protobuf.Timestamp timestamp = 7;
-   */
-  timestamp?: Timestamp;
-};
-
-/**
- * Describes the message orc.v1.RetryContext.
- * Use `create(RetryContextSchema)` to create a new message.
- */
-export const RetryContextSchema: GenMessage<RetryContext> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 7);
-
-/**
  * File diff statistics
  *
  * @generated from message orc.v1.DiffStats
@@ -425,7 +362,7 @@ export type DiffStats = Message<"orc.v1.DiffStats"> & {
  * Use `create(DiffStatsSchema)` to create a new message.
  */
 export const DiffStatsSchema: GenMessage<DiffStats> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 8);
+  messageDesc(file_orc_v1_common, 7);
 
 /**
  * Single line in a diff hunk
@@ -467,7 +404,7 @@ export type DiffLine = Message<"orc.v1.DiffLine"> & {
  * Use `create(DiffLineSchema)` to create a new message.
  */
 export const DiffLineSchema: GenMessage<DiffLine> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 9);
+  messageDesc(file_orc_v1_common, 8);
 
 /**
  * Diff hunk (contiguous changed section)
@@ -516,7 +453,7 @@ export type DiffHunk = Message<"orc.v1.DiffHunk"> & {
  * Use `create(DiffHunkSchema)` to create a new message.
  */
 export const DiffHunkSchema: GenMessage<DiffHunk> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 10);
+  messageDesc(file_orc_v1_common, 9);
 
 /**
  * Single file diff
@@ -593,7 +530,7 @@ export type FileDiff = Message<"orc.v1.FileDiff"> & {
  * Use `create(FileDiffSchema)` to create a new message.
  */
 export const FileDiffSchema: GenMessage<FileDiff> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 11);
+  messageDesc(file_orc_v1_common, 10);
 
 /**
  * Complete diff result
@@ -635,7 +572,7 @@ export type DiffResult = Message<"orc.v1.DiffResult"> & {
  * Use `create(DiffResultSchema)` to create a new message.
  */
 export const DiffResultSchema: GenMessage<DiffResult> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 12);
+  messageDesc(file_orc_v1_common, 11);
 
 /**
  * Empty message for RPCs with no request parameters
@@ -650,5 +587,5 @@ export type Empty = Message<"orc.v1.Empty"> & {
  * Use `create(EmptySchema)` to create a new message.
  */
 export const EmptySchema: GenMessage<Empty> = /*@__PURE__*/
-  messageDesc(file_orc_v1_common, 13);
+  messageDesc(file_orc_v1_common, 12);
 

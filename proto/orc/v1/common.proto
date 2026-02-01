@@ -96,24 +96,6 @@ message GateDecision {
   google.protobuf.Timestamp timestamp = 5;
 }
 
-// Retry context when retrying from a failed phase
-message RetryContext {
-  // Phase to retry from
-  string from_phase = 1;
-  // Phase that failed
-  string to_phase = 2;
-  // Reason for retry
-  string reason = 3;
-  // Output from failed attempt
-  optional string failure_output = 4;
-  // Path to context file
-  optional string context_file = 5;
-  // Retry attempt number
-  int32 attempt = 6;
-  // When retry was initiated
-  google.protobuf.Timestamp timestamp = 7;
-}
-
 // File diff statistics
 message DiffStats {
   // Number of files changed

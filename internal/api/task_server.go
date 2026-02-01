@@ -1307,12 +1307,12 @@ func (s *taskServer) RetryTask(
 		currentRetries = t.Quality.TotalRetries
 	}
 
-	// Set retry context using proto helper
+	// Set retry state in task metadata
 	instructions := ""
 	if req.Msg.Instructions != nil {
 		instructions = *req.Msg.Instructions
 	}
-	task.SetRetryContextProto(t.Execution, fromPhase, "", "manual retry", instructions, currentRetries+1)
+	task.SetRetryState(t, fromPhase, "", "manual retry", instructions, currentRetries+1)
 
 	// Reset status
 	t.Status = orcv1.TaskStatus_TASK_STATUS_PLANNED

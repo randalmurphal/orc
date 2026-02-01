@@ -177,7 +177,7 @@ message ExecutionState {
   CostTracking cost = 5;
   optional SessionInfo session = 6;
   optional string error = 7;
-  optional RetryContext retry_context = 8;
+  // Field 8 removed: retry_context — retry state now stored in task metadata
   optional string jsonl_path = 9;
 }
 
