@@ -115,10 +115,14 @@ func (we *WorkflowExecutor) executePhase(
 	// Render template with variables
 	renderedPrompt := variable.RenderTemplate(promptContent, vars)
 
-	// Determine max iterations (phase override or template default)
+	// Determine max iterations (phase override > template default > fallback 20).
+	// Zero means unset (Go zero value) — apply same default as workflow.WorkflowPhase.GetEffectiveMaxIterations().
 	maxIter := tmpl.MaxIterations
 	if phase.MaxIterationsOverride != nil {
 		maxIter = *phase.MaxIterationsOverride
+	}
+	if maxIter <= 0 {
+		maxIter = 20
 	}
 
 	// Determine model (workflow phase override > template default > config default)

@@ -1,5 +1,4 @@
 // workflow_gates.go contains gate evaluation and related utilities for workflow execution.
-// This includes gate evaluation, event publishing, resource tracking, and automation triggers.
 package executor
 
 import (
@@ -26,6 +25,9 @@ type GateEvaluationResult struct {
 	// Gate output pipeline fields (propagated from gate.Decision)
 	OutputData map[string]any // Structured data from gate agent for variable pipeline
 	OutputVar  string         // Variable name to store output as
+
+	// OutputConfig from PhaseTemplate; nil when not configured or gates skipped.
+	OutputConfig *db.GateOutputConfig
 }
 
 // evaluatePhaseGate evaluates the gate for a completed phase.
@@ -43,8 +45,15 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	// Use gate resolver if available, fall back to legacy resolution
 	gateType := we.resolveGateType(tmpl, phase, t)
 
-	// If no gate or auto with auto-approve, just approve
-	if gateType == "" || gateType == gate.GateAuto {
+	// No gate type configured: auto-approve without evaluation
+	if gateType == "" {
+		result.Approved = true
+		result.Reason = "no gate configured"
+		return result, nil
+	}
+
+	// Auto gate with auto-approve config: auto-approve
+	if gateType == gate.GateAuto {
 		if we.orcConfig != nil && we.orcConfig.Gates.AutoApproveOnSuccess {
 			result.Approved = true
 			result.Reason = "auto-approved on success"
@@ -59,7 +68,6 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		return result, nil
 	}
 
-	// Create gate struct for evaluator
 	g := &gate.Gate{
 		Type: gateType,
 	}
@@ -85,7 +93,6 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		}
 	}
 
-	// Build EvaluateOptions with task metadata and parsed configs
 	opts := &gate.EvaluateOptions{
 		Phase:        tmpl.ID,
 		AgentID:      tmpl.GateAgentID,
@@ -100,7 +107,6 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		opts.TaskWeight = t.Weight.String()
 	}
 
-	// Evaluate with populated options
 	decision, err := we.gateEvaluator.EvaluateWithOptions(ctx, g, output, opts)
 	if err != nil {
 		return nil, fmt.Errorf("gate evaluation: %w", err)
@@ -111,8 +117,8 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 	result.Reason = decision.Reason
 	result.OutputData = decision.OutputData
 	result.OutputVar = decision.OutputVar
+	result.OutputConfig = outputCfg
 
-	// Run script handler if OutputConfig.Script is configured
 	if outputCfg != nil && outputCfg.Script != "" {
 		scriptResult := we.runGateScript(ctx, outputCfg.Script, decision, result)
 		if scriptResult != nil && scriptResult.Override {
@@ -122,11 +128,10 @@ func (we *WorkflowExecutor) evaluatePhaseGate(ctx context.Context, tmpl *db.Phas
 		}
 	}
 
-	// If not approved, check for retry target
+	// SC-10: outputCfg.RetryFrom takes precedence over tmpl.RetryFromPhase
 	if !result.Approved && !result.Pending {
-		if tmpl.RetryFromPhase != "" {
-			result.RetryPhase = tmpl.RetryFromPhase
-		} else if we.orcConfig != nil {
+		result.RetryPhase = resolveRetryFrom(outputCfg, tmpl.RetryFromPhase)
+		if result.RetryPhase == "" && we.orcConfig != nil {
 			// Fall back to config-based retry map
 			result.RetryPhase = we.orcConfig.ShouldRetryFrom(tmpl.ID)
 		}
@@ -171,37 +176,39 @@ func (we *WorkflowExecutor) runGateScript(ctx context.Context, scriptPath string
 // Uses the GateResolver if available (when we have a task with potential overrides),
 // otherwise falls back to legacy resolution (template + phase override).
 func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase, t *orcv1.Task) gate.GateType {
-	// If we have a task and project DB, use full resolution
 	if t != nil && we.projectDB != nil {
-		// Load task overrides from database
 		taskOverrides, err := we.projectDB.GetTaskGateOverridesMap(t.Id)
 		if err != nil {
 			we.logger.Warn("failed to load task gate overrides", "task", t.Id, "error", err)
 			taskOverrides = nil
 		}
 
-		// Load phase gates from database
 		phaseGates, err := we.projectDB.GetPhaseGatesMap()
 		if err != nil {
 			we.logger.Warn("failed to load phase gates", "error", err)
 			phaseGates = nil
 		}
 
-		// Build resolver with task context
 		resolver := gate.NewResolver(
 			we.orcConfig,
 			gate.WithTaskOverrides(taskOverrides),
 			gate.WithPhaseGates(phaseGates),
 		)
 
-		// Resolve gate type
 		taskWeight := ""
 		if t.Weight != 0 {
 			taskWeight = t.Weight.String()
 		}
 		resolved := resolver.Resolve(tmpl.ID, taskWeight)
 
-		// Log resolution for debugging
+		// When the resolver used its default (no explicit override found),
+		// fall back to the template's gate type for backward compatibility.
+		// This ensures templates with GateType="ai" are respected, and
+		// templates with no gate type don't get an unwanted auto gate.
+		if resolved.Source == "default" {
+			return gate.GateType(tmpl.GateType)
+		}
+
 		we.logger.Debug("gate type resolved",
 			"phase", tmpl.ID,
 			"gate_type", resolved.GateType,
@@ -222,9 +229,7 @@ func (we *WorkflowExecutor) resolveGateType(tmpl *db.PhaseTemplate, phase *db.Wo
 }
 
 // applyGateOutputToVars stores gate output data as a workflow variable.
-// If the gate result has both OutputVar (non-empty, non-whitespace) and OutputData (non-nil),
-// the data is JSON-serialized and stored in vars under the configured variable name.
-// This is called for both approved and rejected gates so retry phases can access gate analysis.
+// Called for both approved and rejected gates so retry phases can access gate analysis.
 func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationResult) {
 	if gateResult == nil {
 		return
@@ -237,7 +242,6 @@ func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationRes
 
 	data, err := json.Marshal(gateResult.OutputData)
 	if err != nil {
-		// Serialization failed - don't store variable, don't panic
 		return
 	}
 
@@ -245,7 +249,6 @@ func applyGateOutputToVars(vars map[string]string, gateResult *GateEvaluationRes
 }
 
 // publishTaskUpdated publishes a task_updated event for real-time UI updates.
-// Uses the EventTaskUpdated type which the frontend listens for.
 func (we *WorkflowExecutor) publishTaskUpdated(t *orcv1.Task) {
 	if we.publisher == nil || t == nil {
 		return
