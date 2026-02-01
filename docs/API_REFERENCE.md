@@ -2170,6 +2170,9 @@ Configurable workflow definitions with composable phases.
 | POST | `WorkflowService/AddBeforePhaseTrigger` | Add before-phase trigger to a phase |
 | POST | `WorkflowService/UpdateBeforePhaseTrigger` | Update before-phase trigger at index |
 | POST | `WorkflowService/RemoveBeforePhaseTrigger` | Remove before-phase trigger at index |
+| POST | `WorkflowService/AddLifecycleTrigger` | Add lifecycle trigger to a workflow |
+| POST | `WorkflowService/UpdateLifecycleTrigger` | Update lifecycle trigger at index |
+| POST | `WorkflowService/RemoveLifecycleTrigger` | Remove lifecycle trigger at index |
 
 **Create workflow body:**
 ```json
@@ -2429,6 +2432,90 @@ Partial update — only provided fields are modified.
 |------|-----------|
 | `InvalidArgument` | Missing required field, invalid mode, malformed JSON config, index out of range |
 | `NotFound` | Workflow, phase, or agent not found |
+| `PermissionDenied` | Attempting to modify built-in workflow |
+| `Internal` | Database or JSON marshal error |
+
+### Lifecycle Triggers
+
+CRUD operations for workflow-level lifecycle triggers. Triggers are stored as a JSON array in the `workflows.triggers` column. All operations are Connect RPC (not REST).
+
+**Implementation:** `internal/api/workflow_server_lifecycle_trigger.go`
+
+#### Add Lifecycle Trigger
+
+**`WorkflowService/AddLifecycleTrigger`**
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "event": "on_task_completed",
+  "agent_id": "notify-slack",
+  "mode": "reaction",
+  "enabled": true,
+  "input_config": "{\"include_task\":true}",
+  "output_config": "{\"on_approved\":\"continue\"}"
+}
+```
+
+| Field | Required | Default | Description |
+|-------|:--------:|---------|-------------|
+| `workflow_id` | Yes | - | Target workflow (must not be built-in) |
+| `event` | Yes | - | `on_task_created`, `on_task_completed`, `on_task_failed`, `on_initiative_planned` |
+| `agent_id` | Yes | - | Agent to execute (must exist) |
+| `mode` | No | `"gate"` | `"gate"` (blocks) or `"reaction"` (fire-and-forget) |
+| `enabled` | No | `false` | Whether trigger is active |
+| `input_config` | No | - | JSON `GateInputConfig` string |
+| `output_config` | No | - | JSON `GateOutputConfig` string |
+
+**Response:** `{ "workflow": <Workflow> }` — updated workflow with appended trigger.
+
+#### Update Lifecycle Trigger
+
+**`WorkflowService/UpdateLifecycleTrigger`**
+
+Partial update — only provided fields are modified.
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "trigger_index": 0,
+  "enabled": true,
+  "mode": "gate"
+}
+```
+
+| Field | Required | Description |
+|-------|:--------:|-------------|
+| `workflow_id` | Yes | Target workflow |
+| `trigger_index` | Yes | Zero-based index into triggers array |
+| `event` | No | New event (must be valid if provided) |
+| `agent_id` | No | New agent (must exist if provided) |
+| `mode` | No | New mode (`"gate"` or `"reaction"`) |
+| `enabled` | No | Enable/disable trigger |
+| `input_config` | No | New JSON `GateInputConfig` |
+| `output_config` | No | New JSON `GateOutputConfig` |
+
+**Response:** `{ "workflow": <Workflow> }` — updated workflow.
+
+#### Remove Lifecycle Trigger
+
+**`WorkflowService/RemoveLifecycleTrigger`**
+
+```json
+{
+  "workflow_id": "my-workflow",
+  "trigger_index": 0
+}
+```
+
+**Response:** `{ "workflow": <Workflow> }` — updated workflow with trigger removed.
+
+#### Error Codes
+
+| Code | Condition |
+|------|-----------|
+| `InvalidArgument` | Missing required field, invalid event/mode, malformed JSON config, index out of range |
+| `NotFound` | Workflow or agent not found |
 | `PermissionDenied` | Attempting to modify built-in workflow |
 | `Internal` | Database or JSON marshal error |
 

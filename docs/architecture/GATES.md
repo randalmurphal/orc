@@ -106,6 +106,8 @@ Single `TriggerRunner` used by executor, CLI, and API for consistent trigger eva
 | CLI initiative plan | `cli/cmd_initiative_plan.go` | `on_initiative_planned` |
 | API task creation | `api/task_server.go` | `on_task_created` |
 
+**API CRUD**: `api/workflow_server_lifecycle_trigger.go` — Add/Update/Remove lifecycle triggers on workflows. See `docs/API_REFERENCE.md` → Lifecycle Triggers.
+
 ---
 
 ### Before-Phase Triggers

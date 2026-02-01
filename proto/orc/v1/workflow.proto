@@ -245,6 +245,10 @@ service WorkflowService {
   rpc AddBeforePhaseTrigger(AddBeforePhaseTriggerRequest) returns (AddBeforePhaseTriggerResponse);
   rpc UpdateBeforePhaseTrigger(UpdateBeforePhaseTriggerRequest) returns (UpdateBeforePhaseTriggerResponse);
   rpc RemoveBeforePhaseTrigger(RemoveBeforePhaseTriggerRequest) returns (RemoveBeforePhaseTriggerResponse);
+  // Lifecycle trigger CRUD (manages JSON array on workflows)
+  rpc AddLifecycleTrigger(AddLifecycleTriggerRequest) returns (AddLifecycleTriggerResponse);
+  rpc UpdateLifecycleTrigger(UpdateLifecycleTriggerRequest) returns (UpdateLifecycleTriggerResponse);
+  rpc RemoveLifecycleTrigger(RemoveLifecycleTriggerRequest) returns (RemoveLifecycleTriggerResponse);
 }
 
 // =============================================================================
@@ -626,4 +630,46 @@ message RemoveBeforePhaseTriggerRequest {
 
 message RemoveBeforePhaseTriggerResponse {
   WorkflowPhase phase = 1;
+}
+
+// =============================================================================
+// LIFECYCLE TRIGGER CRUD
+// =============================================================================
+
+message AddLifecycleTriggerRequest {
+  string workflow_id = 1;
+  string event = 2;                 // on_task_created, on_task_completed, on_task_failed, on_initiative_planned
+  string agent_id = 3;
+  optional string mode = 4;         // "gate" (default) or "reaction"
+  bool enabled = 5;
+  optional string input_config = 6; // JSON GateInputConfig
+  optional string output_config = 7; // JSON GateOutputConfig
+}
+
+message AddLifecycleTriggerResponse {
+  Workflow workflow = 1;
+}
+
+message UpdateLifecycleTriggerRequest {
+  string workflow_id = 1;
+  int32 trigger_index = 2;
+  optional string event = 3;
+  optional string agent_id = 4;
+  optional string mode = 5;
+  optional bool enabled = 6;
+  optional string input_config = 7;
+  optional string output_config = 8;
+}
+
+message UpdateLifecycleTriggerResponse {
+  Workflow workflow = 1;
+}
+
+message RemoveLifecycleTriggerRequest {
+  string workflow_id = 1;
+  int32 trigger_index = 2;
+}
+
+message RemoveLifecycleTriggerResponse {
+  Workflow workflow = 1;
 }
