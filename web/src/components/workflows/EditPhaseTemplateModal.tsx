@@ -100,7 +100,9 @@ export function EditPhaseTemplateModal({
 	const [inputVariables, setInputVariables] = useState<string[]>([]);
 	const [outputVarName, setOutputVarName] = useState('');
 	const [promptSourceState, setPromptSourceState] = useState<'inline' | 'file'>('inline');
+	const [promptContent, setPromptContent] = useState('');
 	const [promptPath, setPromptPath] = useState('');
+	const [showSwitchWarning, setShowSwitchWarning] = useState(false);
 
 	// Claude config structured state
 	const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
@@ -204,7 +206,9 @@ export function EditPhaseTemplateModal({
 			setInputVariables([...template.inputVariables]);
 			setOutputVarName(template.outputVarName || '');
 			setPromptSourceState(template.promptSource === PromptSource.FILE ? 'file' : 'inline');
+			setPromptContent(template.promptContent || '');
 			setPromptPath(template.promptPath || '');
+			setShowSwitchWarning(false);
 
 			// Parse claude_config
 			const config = parseClaudeConfig(template.claudeConfig);
@@ -318,6 +322,7 @@ export function EditPhaseTemplateModal({
 				inputVariables: inputVariables,
 				outputVarName: trimmedOutputVar || undefined,
 				promptSource: promptSourceState === 'file' ? PromptSource.FILE : PromptSource.DB,
+				promptContent: promptSourceState === 'inline' ? promptContent || undefined : undefined,
 				promptPath: promptSourceState === 'file' ? promptPath || undefined : undefined,
 			});
 			if (response.template) {
@@ -343,6 +348,7 @@ export function EditPhaseTemplateModal({
 		inputVariables,
 		outputVarName,
 		promptSourceState,
+		promptContent,
 		promptPath,
 		selectedHooks,
 		selectedSkills,
@@ -678,7 +684,14 @@ export function EditPhaseTemplateModal({
 							<button
 								type="button"
 								className={`edit-template-toggle-btn ${promptSourceState === 'inline' ? 'edit-template-toggle-btn--active' : ''}`}
-								onClick={() => setPromptSourceState('inline')}
+								onClick={() => {
+									// Warn when switching from file to inline
+									if (promptSourceState === 'file' && promptPath.trim()) {
+										setShowSwitchWarning(true);
+									} else {
+										setPromptSourceState('inline');
+									}
+								}}
 							>
 								Inline
 							</button>
@@ -691,6 +704,52 @@ export function EditPhaseTemplateModal({
 							</button>
 						</div>
 					</div>
+
+					{/* File to inline switch warning */}
+					{showSwitchWarning && (
+						<div className="edit-template-switch-warning">
+							<Icon name="alert-triangle" size={16} />
+							<span>Switching to inline will clear the file reference. Continue?</span>
+							<div className="edit-template-switch-warning-actions">
+								<button
+									type="button"
+									className="edit-template-switch-warning-btn"
+									onClick={() => setShowSwitchWarning(false)}
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									className="edit-template-switch-warning-btn edit-template-switch-warning-btn--confirm"
+									onClick={() => {
+										setPromptPath('');
+										setPromptSourceState('inline');
+										setShowSwitchWarning(false);
+									}}
+								>
+									Continue
+								</button>
+							</div>
+						</div>
+					)}
+
+					{promptSourceState === 'inline' && (
+						<div className="form-group">
+							<div className="edit-template-prompt-editor">
+								<textarea
+									className="edit-template-prompt-textarea"
+									value={promptContent}
+									onChange={(e) => setPromptContent(e.target.value)}
+									placeholder="Enter your prompt template..."
+									aria-label="Prompt Content"
+									rows={8}
+								/>
+							</div>
+							<span className="form-help">
+								Use {'{{VARIABLE_NAME}}'} for template variables
+							</span>
+						</div>
+					)}
 
 					{promptSourceState === 'file' && (
 						<div className="form-group">
