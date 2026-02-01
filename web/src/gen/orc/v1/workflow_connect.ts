@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddBeforePhaseTriggerRequest, AddBeforePhaseTriggerResponse, AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemoveBeforePhaseTriggerRequest, RemoveBeforePhaseTriggerResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, SaveWorkflowLayoutRequest, SaveWorkflowLayoutResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdateBeforePhaseTriggerRequest, UpdateBeforePhaseTriggerResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateVariableRequest, UpdateVariableResponse, UpdateWorkflowRequest, UpdateWorkflowResponse, ValidateWorkflowRequest, ValidateWorkflowResponse } from "./workflow_pb.js";
+import { AddBeforePhaseTriggerRequest, AddBeforePhaseTriggerResponse, AddLifecycleTriggerRequest, AddLifecycleTriggerResponse, AddPhaseRequest, AddPhaseResponse, AddVariableRequest, AddVariableResponse, CancelWorkflowRunRequest, CancelWorkflowRunResponse, ClonePhaseTemplateRequest, ClonePhaseTemplateResponse, CloneWorkflowRequest, CloneWorkflowResponse, CreatePhaseTemplateRequest, CreatePhaseTemplateResponse, CreateWorkflowRequest, CreateWorkflowResponse, DeletePhaseTemplateRequest, DeletePhaseTemplateResponse, DeleteWorkflowRequest, DeleteWorkflowResponse, GetPhaseTemplateRequest, GetPhaseTemplateResponse, GetPromptContentRequest, GetPromptContentResponse, GetWorkflowRequest, GetWorkflowResponse, GetWorkflowRunRequest, GetWorkflowRunResponse, ListPhaseTemplatesRequest, ListPhaseTemplatesResponse, ListWorkflowRunsRequest, ListWorkflowRunsResponse, ListWorkflowsRequest, ListWorkflowsResponse, RemoveBeforePhaseTriggerRequest, RemoveBeforePhaseTriggerResponse, RemoveLifecycleTriggerRequest, RemoveLifecycleTriggerResponse, RemovePhaseRequest, RemovePhaseResponse, RemoveVariableRequest, RemoveVariableResponse, SaveWorkflowLayoutRequest, SaveWorkflowLayoutResponse, StartWorkflowRunRequest, StartWorkflowRunResponse, UpdateBeforePhaseTriggerRequest, UpdateBeforePhaseTriggerResponse, UpdateLifecycleTriggerRequest, UpdateLifecycleTriggerResponse, UpdatePhaseRequest, UpdatePhaseResponse, UpdatePhaseTemplateRequest, UpdatePhaseTemplateResponse, UpdateVariableRequest, UpdateVariableResponse, UpdateWorkflowRequest, UpdateWorkflowResponse, ValidateWorkflowRequest, ValidateWorkflowResponse } from "./workflow_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -264,6 +264,35 @@ export const WorkflowService = {
       name: "RemoveBeforePhaseTrigger",
       I: RemoveBeforePhaseTriggerRequest,
       O: RemoveBeforePhaseTriggerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lifecycle trigger CRUD (manages JSON array on workflows)
+     *
+     * @generated from rpc orc.v1.WorkflowService.AddLifecycleTrigger
+     */
+    addLifecycleTrigger: {
+      name: "AddLifecycleTrigger",
+      I: AddLifecycleTriggerRequest,
+      O: AddLifecycleTriggerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.UpdateLifecycleTrigger
+     */
+    updateLifecycleTrigger: {
+      name: "UpdateLifecycleTrigger",
+      I: UpdateLifecycleTriggerRequest,
+      O: UpdateLifecycleTriggerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc orc.v1.WorkflowService.RemoveLifecycleTrigger
+     */
+    removeLifecycleTrigger: {
+      name: "RemoveLifecycleTrigger",
+      I: RemoveLifecycleTriggerRequest,
+      O: RemoveLifecycleTriggerResponse,
       kind: MethodKind.Unary,
     },
   }

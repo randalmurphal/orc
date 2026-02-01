@@ -117,6 +117,15 @@ const (
 	// WorkflowServiceRemoveBeforePhaseTriggerProcedure is the fully-qualified name of the
 	// WorkflowService's RemoveBeforePhaseTrigger RPC.
 	WorkflowServiceRemoveBeforePhaseTriggerProcedure = "/orc.v1.WorkflowService/RemoveBeforePhaseTrigger"
+	// WorkflowServiceAddLifecycleTriggerProcedure is the fully-qualified name of the WorkflowService's
+	// AddLifecycleTrigger RPC.
+	WorkflowServiceAddLifecycleTriggerProcedure = "/orc.v1.WorkflowService/AddLifecycleTrigger"
+	// WorkflowServiceUpdateLifecycleTriggerProcedure is the fully-qualified name of the
+	// WorkflowService's UpdateLifecycleTrigger RPC.
+	WorkflowServiceUpdateLifecycleTriggerProcedure = "/orc.v1.WorkflowService/UpdateLifecycleTrigger"
+	// WorkflowServiceRemoveLifecycleTriggerProcedure is the fully-qualified name of the
+	// WorkflowService's RemoveLifecycleTrigger RPC.
+	WorkflowServiceRemoveLifecycleTriggerProcedure = "/orc.v1.WorkflowService/RemoveLifecycleTrigger"
 )
 
 // WorkflowServiceClient is a client for the orc.v1.WorkflowService service.
@@ -150,6 +159,10 @@ type WorkflowServiceClient interface {
 	AddBeforePhaseTrigger(context.Context, *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error)
 	UpdateBeforePhaseTrigger(context.Context, *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error)
 	RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error)
+	// Lifecycle trigger CRUD (manages JSON array on workflows)
+	AddLifecycleTrigger(context.Context, *connect.Request[v1.AddLifecycleTriggerRequest]) (*connect.Response[v1.AddLifecycleTriggerResponse], error)
+	UpdateLifecycleTrigger(context.Context, *connect.Request[v1.UpdateLifecycleTriggerRequest]) (*connect.Response[v1.UpdateLifecycleTriggerResponse], error)
+	RemoveLifecycleTrigger(context.Context, *connect.Request[v1.RemoveLifecycleTriggerRequest]) (*connect.Response[v1.RemoveLifecycleTriggerResponse], error)
 }
 
 // NewWorkflowServiceClient constructs a client for the orc.v1.WorkflowService service. By default,
@@ -331,6 +344,24 @@ func NewWorkflowServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(workflowServiceMethods.ByName("RemoveBeforePhaseTrigger")),
 			connect.WithClientOptions(opts...),
 		),
+		addLifecycleTrigger: connect.NewClient[v1.AddLifecycleTriggerRequest, v1.AddLifecycleTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceAddLifecycleTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("AddLifecycleTrigger")),
+			connect.WithClientOptions(opts...),
+		),
+		updateLifecycleTrigger: connect.NewClient[v1.UpdateLifecycleTriggerRequest, v1.UpdateLifecycleTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceUpdateLifecycleTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("UpdateLifecycleTrigger")),
+			connect.WithClientOptions(opts...),
+		),
+		removeLifecycleTrigger: connect.NewClient[v1.RemoveLifecycleTriggerRequest, v1.RemoveLifecycleTriggerResponse](
+			httpClient,
+			baseURL+WorkflowServiceRemoveLifecycleTriggerProcedure,
+			connect.WithSchema(workflowServiceMethods.ByName("RemoveLifecycleTrigger")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -364,6 +395,9 @@ type workflowServiceClient struct {
 	addBeforePhaseTrigger    *connect.Client[v1.AddBeforePhaseTriggerRequest, v1.AddBeforePhaseTriggerResponse]
 	updateBeforePhaseTrigger *connect.Client[v1.UpdateBeforePhaseTriggerRequest, v1.UpdateBeforePhaseTriggerResponse]
 	removeBeforePhaseTrigger *connect.Client[v1.RemoveBeforePhaseTriggerRequest, v1.RemoveBeforePhaseTriggerResponse]
+	addLifecycleTrigger      *connect.Client[v1.AddLifecycleTriggerRequest, v1.AddLifecycleTriggerResponse]
+	updateLifecycleTrigger   *connect.Client[v1.UpdateLifecycleTriggerRequest, v1.UpdateLifecycleTriggerResponse]
+	removeLifecycleTrigger   *connect.Client[v1.RemoveLifecycleTriggerRequest, v1.RemoveLifecycleTriggerResponse]
 }
 
 // ListWorkflows calls orc.v1.WorkflowService.ListWorkflows.
@@ -506,6 +540,21 @@ func (c *workflowServiceClient) RemoveBeforePhaseTrigger(ctx context.Context, re
 	return c.removeBeforePhaseTrigger.CallUnary(ctx, req)
 }
 
+// AddLifecycleTrigger calls orc.v1.WorkflowService.AddLifecycleTrigger.
+func (c *workflowServiceClient) AddLifecycleTrigger(ctx context.Context, req *connect.Request[v1.AddLifecycleTriggerRequest]) (*connect.Response[v1.AddLifecycleTriggerResponse], error) {
+	return c.addLifecycleTrigger.CallUnary(ctx, req)
+}
+
+// UpdateLifecycleTrigger calls orc.v1.WorkflowService.UpdateLifecycleTrigger.
+func (c *workflowServiceClient) UpdateLifecycleTrigger(ctx context.Context, req *connect.Request[v1.UpdateLifecycleTriggerRequest]) (*connect.Response[v1.UpdateLifecycleTriggerResponse], error) {
+	return c.updateLifecycleTrigger.CallUnary(ctx, req)
+}
+
+// RemoveLifecycleTrigger calls orc.v1.WorkflowService.RemoveLifecycleTrigger.
+func (c *workflowServiceClient) RemoveLifecycleTrigger(ctx context.Context, req *connect.Request[v1.RemoveLifecycleTriggerRequest]) (*connect.Response[v1.RemoveLifecycleTriggerResponse], error) {
+	return c.removeLifecycleTrigger.CallUnary(ctx, req)
+}
+
 // WorkflowServiceHandler is an implementation of the orc.v1.WorkflowService service.
 type WorkflowServiceHandler interface {
 	ListWorkflows(context.Context, *connect.Request[v1.ListWorkflowsRequest]) (*connect.Response[v1.ListWorkflowsResponse], error)
@@ -537,6 +586,10 @@ type WorkflowServiceHandler interface {
 	AddBeforePhaseTrigger(context.Context, *connect.Request[v1.AddBeforePhaseTriggerRequest]) (*connect.Response[v1.AddBeforePhaseTriggerResponse], error)
 	UpdateBeforePhaseTrigger(context.Context, *connect.Request[v1.UpdateBeforePhaseTriggerRequest]) (*connect.Response[v1.UpdateBeforePhaseTriggerResponse], error)
 	RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error)
+	// Lifecycle trigger CRUD (manages JSON array on workflows)
+	AddLifecycleTrigger(context.Context, *connect.Request[v1.AddLifecycleTriggerRequest]) (*connect.Response[v1.AddLifecycleTriggerResponse], error)
+	UpdateLifecycleTrigger(context.Context, *connect.Request[v1.UpdateLifecycleTriggerRequest]) (*connect.Response[v1.UpdateLifecycleTriggerResponse], error)
+	RemoveLifecycleTrigger(context.Context, *connect.Request[v1.RemoveLifecycleTriggerRequest]) (*connect.Response[v1.RemoveLifecycleTriggerResponse], error)
 }
 
 // NewWorkflowServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -714,6 +767,24 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 		connect.WithSchema(workflowServiceMethods.ByName("RemoveBeforePhaseTrigger")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workflowServiceAddLifecycleTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceAddLifecycleTriggerProcedure,
+		svc.AddLifecycleTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("AddLifecycleTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceUpdateLifecycleTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceUpdateLifecycleTriggerProcedure,
+		svc.UpdateLifecycleTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("UpdateLifecycleTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workflowServiceRemoveLifecycleTriggerHandler := connect.NewUnaryHandler(
+		WorkflowServiceRemoveLifecycleTriggerProcedure,
+		svc.RemoveLifecycleTrigger,
+		connect.WithSchema(workflowServiceMethods.ByName("RemoveLifecycleTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orc.v1.WorkflowService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkflowServiceListWorkflowsProcedure:
@@ -772,6 +843,12 @@ func NewWorkflowServiceHandler(svc WorkflowServiceHandler, opts ...connect.Handl
 			workflowServiceUpdateBeforePhaseTriggerHandler.ServeHTTP(w, r)
 		case WorkflowServiceRemoveBeforePhaseTriggerProcedure:
 			workflowServiceRemoveBeforePhaseTriggerHandler.ServeHTTP(w, r)
+		case WorkflowServiceAddLifecycleTriggerProcedure:
+			workflowServiceAddLifecycleTriggerHandler.ServeHTTP(w, r)
+		case WorkflowServiceUpdateLifecycleTriggerProcedure:
+			workflowServiceUpdateLifecycleTriggerHandler.ServeHTTP(w, r)
+		case WorkflowServiceRemoveLifecycleTriggerProcedure:
+			workflowServiceRemoveLifecycleTriggerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -891,4 +968,16 @@ func (UnimplementedWorkflowServiceHandler) UpdateBeforePhaseTrigger(context.Cont
 
 func (UnimplementedWorkflowServiceHandler) RemoveBeforePhaseTrigger(context.Context, *connect.Request[v1.RemoveBeforePhaseTriggerRequest]) (*connect.Response[v1.RemoveBeforePhaseTriggerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.RemoveBeforePhaseTrigger is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) AddLifecycleTrigger(context.Context, *connect.Request[v1.AddLifecycleTriggerRequest]) (*connect.Response[v1.AddLifecycleTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.AddLifecycleTrigger is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) UpdateLifecycleTrigger(context.Context, *connect.Request[v1.UpdateLifecycleTriggerRequest]) (*connect.Response[v1.UpdateLifecycleTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.UpdateLifecycleTrigger is not implemented"))
+}
+
+func (UnimplementedWorkflowServiceHandler) RemoveLifecycleTrigger(context.Context, *connect.Request[v1.RemoveLifecycleTriggerRequest]) (*connect.Response[v1.RemoveLifecycleTriggerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.WorkflowService.RemoveLifecycleTrigger is not implemented"))
 }
