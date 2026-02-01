@@ -80,6 +80,8 @@ import {
 	type ValidationIssue,
 	UpdatePhaseTemplateResponseSchema,
 	type UpdatePhaseTemplateResponse,
+	CreatePhaseTemplateResponseSchema,
+	type CreatePhaseTemplateResponse,
 } from '@/gen/orc/v1/workflow_pb';
 import {
 	HookSchema,
@@ -501,4 +503,11 @@ export function createMockMCPServerInfo(overrides: Partial<Omit<MCPServerInfo, '
  */
 export function createMockUpdatePhaseTemplateResponse(template: PhaseTemplate): UpdatePhaseTemplateResponse {
 	return create(UpdatePhaseTemplateResponseSchema, { template });
+}
+
+/**
+ * Create a mock CreatePhaseTemplateResponse with proto-compatible types
+ */
+export function createMockCreatePhaseTemplateResponse(template: PhaseTemplate): CreatePhaseTemplateResponse {
+	return create(CreatePhaseTemplateResponseSchema, { template });
 }

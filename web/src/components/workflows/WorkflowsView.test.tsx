@@ -2,9 +2,11 @@
  * TDD Tests for WorkflowsView - workflow card navigation
  *
  * Tests for TASK-636: 3-panel editor layout, routing, canvas integration
+ * Tests for TASK-703: Create 'New Phase Template' modal - SC-1 (button appears)
  *
  * Success Criteria Coverage:
- * - SC-1: Clicking a workflow card on /workflows navigates to /workflows/:id
+ * - TASK-636 SC-1: Clicking a workflow card on /workflows navigates to /workflows/:id
+ * - TASK-703 SC-1: "Create From Scratch" button appears in Phase Templates section
  *
  * Preservation Requirements:
  * - Phase template card click still fires orc:select-phase-template event
@@ -204,6 +206,95 @@ describe('WorkflowsView', () => {
 			}
 
 			window.removeEventListener('orc:select-phase-template', eventHandler);
+		});
+	});
+
+	/**
+	 * TASK-703 SC-1: "Create From Scratch" button appears in Phase Templates section
+	 */
+	describe('TASK-703 SC-1: Create From Scratch button in Phase Templates section', () => {
+		it('renders "Create From Scratch" button in the Phase Templates section header', async () => {
+			vi.mocked(workflowClient.listWorkflows).mockResolvedValue({
+				...createMockListWorkflowsResponse([]),
+				sources: {},
+			});
+			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue({
+				...createMockListPhaseTemplatesResponse([]),
+				sources: {},
+			});
+
+			renderWorkflowsView();
+
+			await waitFor(() => {
+				expect(workflowClient.listPhaseTemplates).toHaveBeenCalled();
+			});
+
+			// Find the Phase Templates section header
+			expect(screen.getByText('Phase Templates')).toBeTruthy();
+
+			// Should have a "Create From Scratch" button
+			const createButton = screen.getByRole('button', { name: /create from scratch/i });
+			expect(createButton).toBeTruthy();
+		});
+
+		it('dispatches orc:create-phase-template event when "Create From Scratch" is clicked', async () => {
+			const user = userEvent.setup();
+
+			vi.mocked(workflowClient.listWorkflows).mockResolvedValue({
+				...createMockListWorkflowsResponse([]),
+				sources: {},
+			});
+			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue({
+				...createMockListPhaseTemplatesResponse([]),
+				sources: {},
+			});
+
+			const eventHandler = vi.fn();
+			window.addEventListener('orc:create-phase-template', eventHandler);
+
+			renderWorkflowsView();
+
+			await waitFor(() => {
+				expect(workflowClient.listPhaseTemplates).toHaveBeenCalled();
+			});
+
+			// Click the "Create From Scratch" button
+			const createButton = screen.getByRole('button', { name: /create from scratch/i });
+			await user.click(createButton);
+
+			// Event should have been dispatched
+			expect(eventHandler).toHaveBeenCalled();
+
+			window.removeEventListener('orc:create-phase-template', eventHandler);
+		});
+
+		it('button appears below Phase Templates header', async () => {
+			const templates = [
+				createMockPhaseTemplate({ id: 'implement', name: 'Implement' }),
+			];
+
+			vi.mocked(workflowClient.listWorkflows).mockResolvedValue({
+				...createMockListWorkflowsResponse([]),
+				sources: {},
+			});
+			vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue({
+				...createMockListPhaseTemplatesResponse(templates),
+				sources: { implement: DefinitionSource.EMBEDDED },
+			});
+
+			renderWorkflowsView();
+
+			await waitFor(() => {
+				expect(screen.getByText('Implement')).toBeTruthy();
+			});
+
+			// Both the header and button should exist
+			const phaseTemplatesSection = screen.getByText('Phase Templates').closest('section');
+			expect(phaseTemplatesSection).toBeTruthy();
+
+			// Button should be within the section or section header
+			const createButton = screen.getByRole('button', { name: /create from scratch/i });
+			expect(createButton).toBeTruthy();
 		});
 	});
 });

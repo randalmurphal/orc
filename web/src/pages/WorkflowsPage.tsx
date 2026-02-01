@@ -23,6 +23,7 @@ import {
 	PhaseTemplateDetailPanel,
 	ClonePhaseTemplateModal,
 	EditPhaseTemplateModal,
+	CreatePhaseTemplateModal,
 } from '@/components/workflows';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useDocumentTitle } from '@/hooks';
@@ -59,6 +60,7 @@ export function WorkflowsPage() {
 	const [editTemplate, setEditTemplate] = useState<PhaseTemplate | null>(null);
 	const [editTemplateSource, setEditTemplateSource] = useState<DefinitionSource | undefined>(undefined);
 	const [editTemplateModalOpen, setEditTemplateModalOpen] = useState(false);
+	const [createTemplateModalOpen, setCreateTemplateModalOpen] = useState(false);
 
 	// Store for refreshing data
 	const { addWorkflow, removeWorkflow, updateWorkflow, refreshPhaseTemplates } = useWorkflowStore();
@@ -106,6 +108,11 @@ export function WorkflowsPage() {
 		setEditTemplateModalOpen(true);
 	}, []);
 
+	// Handle orc:create-phase-template event
+	const handleCreatePhaseTemplate = useCallback(() => {
+		setCreateTemplateModalOpen(true);
+	}, []);
+
 	// Register event listeners
 	useEffect(() => {
 		const selectHandler = handleSelectWorkflow as EventListener;
@@ -115,6 +122,7 @@ export function WorkflowsPage() {
 		const selectTemplateHandler = handleSelectPhaseTemplate as EventListener;
 		const cloneTemplateHandler = handleClonePhaseTemplate as EventListener;
 		const editTemplateHandler = handleEditPhaseTemplate as EventListener;
+		const createTemplateHandler = handleCreatePhaseTemplate;
 
 		window.addEventListener('orc:select-workflow', selectHandler);
 		window.addEventListener('orc:clone-workflow', cloneHandler);
@@ -123,6 +131,7 @@ export function WorkflowsPage() {
 		window.addEventListener('orc:select-phase-template', selectTemplateHandler);
 		window.addEventListener('orc:clone-phase-template', cloneTemplateHandler);
 		window.addEventListener('orc:edit-phase-template', editTemplateHandler);
+		window.addEventListener('orc:create-phase-template', createTemplateHandler);
 
 		return () => {
 			window.removeEventListener('orc:select-workflow', selectHandler);
@@ -132,8 +141,9 @@ export function WorkflowsPage() {
 			window.removeEventListener('orc:select-phase-template', selectTemplateHandler);
 			window.removeEventListener('orc:clone-phase-template', cloneTemplateHandler);
 			window.removeEventListener('orc:edit-phase-template', editTemplateHandler);
+			window.removeEventListener('orc:create-phase-template', createTemplateHandler);
 		};
-	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow, handleEditWorkflow, handleSelectPhaseTemplate, handleClonePhaseTemplate, handleEditPhaseTemplate]);
+	}, [handleSelectWorkflow, handleCloneWorkflow, handleAddWorkflow, handleEditWorkflow, handleSelectPhaseTemplate, handleClonePhaseTemplate, handleEditPhaseTemplate, handleCreatePhaseTemplate]);
 
 	// Handle workflow cloned
 	const handleWorkflowCloned = useCallback(
@@ -257,6 +267,21 @@ export function WorkflowsPage() {
 		setEditTemplate(null);
 	}, []);
 
+	const handleCreateTemplateModalClose = useCallback(() => {
+		setCreateTemplateModalOpen(false);
+	}, []);
+
+	const handleTemplateCreated = useCallback(
+		(template: PhaseTemplate) => {
+			refreshPhaseTemplates();
+			setCreateTemplateModalOpen(false);
+			setSelectedTemplate(template);
+			setSelectedTemplateSource(undefined);
+			setTemplateDetailOpen(true);
+		},
+		[refreshPhaseTemplates]
+	);
+
 	const handleTemplateUpdated = useCallback(
 		(template: PhaseTemplate) => {
 			refreshPhaseTemplates();
@@ -336,6 +361,13 @@ export function WorkflowsPage() {
 					onUpdated={handleTemplateUpdated}
 				/>
 			)}
+
+			{/* Create Phase Template Modal */}
+			<CreatePhaseTemplateModal
+				open={createTemplateModalOpen}
+				onClose={handleCreateTemplateModalClose}
+				onCreated={handleTemplateCreated}
+			/>
 		</div>
 	);
 }
