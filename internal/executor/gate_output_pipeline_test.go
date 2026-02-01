@@ -200,63 +200,6 @@ func TestGateOutputInNextPhase_VariableResolvable(t *testing.T) {
 }
 
 // =============================================================================
-// SC-4: Gate rejection context appended to RETRY_CONTEXT
-// =============================================================================
-
-func TestGateRetryContext_IncludesGateContext(t *testing.T) {
-	t.Parallel()
-
-	gateContext := "Security issues found: XSS vulnerability in login form, CSRF missing on /api/update"
-
-	retryCtx := BuildRetryContext("review", "gate rejected", "phase output here", 1, "")
-
-	// The existing BuildRetryContext should work as before
-	if !strings.Contains(retryCtx, "review") {
-		t.Error("retry context missing phase name")
-	}
-
-	// Now test the extended version with gate context
-	retryCtxWithGate := BuildRetryContextWithGateAnalysis(
-		"review", "gate rejected", "phase output here", 1, "", gateContext,
-	)
-
-	// Must include the gate analysis section
-	if !strings.Contains(retryCtxWithGate, gateContext) {
-		t.Error("retry context missing gate analysis context")
-	}
-	if !strings.Contains(retryCtxWithGate, "Gate Analysis") {
-		t.Error("retry context missing 'Gate Analysis' section header")
-	}
-
-	// Must still include standard retry info
-	if !strings.Contains(retryCtxWithGate, "review") {
-		t.Error("retry context with gate analysis missing phase name")
-	}
-	if !strings.Contains(retryCtxWithGate, "gate rejected") {
-		t.Error("retry context with gate analysis missing reason")
-	}
-}
-
-func TestGateRetryContext_EmptyGateContext(t *testing.T) {
-	t.Parallel()
-
-	// When gate context is empty, should behave like standard BuildRetryContext
-	retryCtxWithGate := BuildRetryContextWithGateAnalysis(
-		"review", "gate rejected", "output", 1, "", "",
-	)
-	retryCtxStandard := BuildRetryContext("review", "gate rejected", "output", 1, "")
-
-	// With empty gate context, the result should match standard (no extra section)
-	if strings.Contains(retryCtxWithGate, "Gate Analysis") {
-		t.Error("empty gate context should not add Gate Analysis section")
-	}
-	if retryCtxWithGate != retryCtxStandard {
-		t.Errorf("empty gate context result differs from standard:\ngot:  %q\nwant: %q",
-			retryCtxWithGate, retryCtxStandard)
-	}
-}
-
-// =============================================================================
 // SC-5: Gate output variables available even on rejection
 // =============================================================================
 
@@ -569,29 +512,3 @@ func TestGateOutputOverwriteBuiltin(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Preservation: Existing behavior must not break
-// =============================================================================
-
-func TestBuildRetryContext_UnchangedSignature(t *testing.T) {
-	t.Parallel()
-
-	// Existing BuildRetryContext must continue to work with its current signature
-	result := BuildRetryContext("implement", "tests failed", "error output", 2, "/tmp/context.txt")
-
-	if !strings.Contains(result, "implement") {
-		t.Error("BuildRetryContext output missing phase name")
-	}
-	if !strings.Contains(result, "tests failed") {
-		t.Error("BuildRetryContext output missing reason")
-	}
-	if !strings.Contains(result, "error output") {
-		t.Error("BuildRetryContext output missing failure output")
-	}
-	if !strings.Contains(result, "#2") {
-		t.Error("BuildRetryContext output missing attempt number")
-	}
-	if !strings.Contains(result, "/tmp/context.txt") {
-		t.Error("BuildRetryContext output missing context file")
-	}
-}

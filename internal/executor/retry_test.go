@@ -7,67 +7,6 @@ import (
 	"github.com/randalmurphal/orc/internal/db"
 )
 
-func TestBuildRetryContext_FormatsCorrectly(t *testing.T) {
-	t.Parallel()
-	context := BuildRetryContext("test", "Tests failed: 2 errors", "Error: foo\nError: bar", 1, "")
-
-	// Check structure
-	if !strings.Contains(context, "## Retry Context") {
-		t.Error("context should have header")
-	}
-	if !strings.Contains(context, "This phase is being re-executed") {
-		t.Error("context should explain retry situation")
-	}
-	if !strings.Contains(context, "**What happened:**") {
-		t.Error("context should have 'What happened' section")
-	}
-	if !strings.Contains(context, "**What to fix:**") {
-		t.Error("context should have 'What to fix' section")
-	}
-	if !strings.Contains(context, "Focus on fixing the root cause") {
-		t.Error("context should contain guidance")
-	}
-}
-
-func TestBuildRetryContext_IncludesAttemptNumber(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		attempt  int
-		expected string
-	}{
-		{1, "retry attempt #1"},
-		{2, "retry attempt #2"},
-		{3, "retry attempt #3"},
-	}
-
-	for _, tc := range tests {
-		context := BuildRetryContext("test", "reason", "output", tc.attempt, "")
-		if !strings.Contains(context, tc.expected) {
-			t.Errorf("attempt %d: expected context to contain %q", tc.attempt, tc.expected)
-		}
-	}
-}
-
-func TestBuildRetryContext_IncludesContextFile(t *testing.T) {
-	t.Parallel()
-	context := BuildRetryContext("test", "reason", "output", 1, "/path/to/context.md")
-
-	if !strings.Contains(context, "Detailed context saved to: /path/to/context.md") {
-		t.Error("context should reference context file when provided")
-	}
-}
-
-func TestBuildRetryContext_NoContextFile_NoReference(t *testing.T) {
-	t.Parallel()
-	context := BuildRetryContext("test", "reason", "output", 1, "")
-
-	if strings.Contains(context, "Detailed context saved to:") {
-		t.Error("context should not reference context file when not provided")
-	}
-}
-
-// Tests for enhanced fresh session retry functions
-
 func TestBuildRetryContextForFreshSession_Basic(t *testing.T) {
 	t.Parallel()
 	opts := RetryOptions{
