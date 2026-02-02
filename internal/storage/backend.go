@@ -163,6 +163,7 @@ type Feedback struct {
 	Timing    string // "now", "when_done", "manual"
 	SentAt    *time.Time
 	Received  bool
+	CreatedAt time.Time
 }
 
 // BranchType represents the type of branch being tracked.

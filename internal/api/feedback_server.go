@@ -325,6 +325,9 @@ func feedbackToProto(f *storage.Feedback) *orcv1.Feedback {
 		Line:     int32(f.Line),
 		Received: f.Received,
 	}
+	if !f.CreatedAt.IsZero() {
+		proto.CreatedAt = timestamppb.New(f.CreatedAt)
+	}
 	if f.SentAt != nil {
 		proto.SentAt = timestamppb.New(*f.SentAt)
 	}

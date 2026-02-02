@@ -22,7 +22,8 @@ func (d *DatabaseBackend) SaveFeedback(f *Feedback) error {
 		Timing:   f.Timing,
 		File:     f.File,
 		Line:     f.Line,
-		Received: f.Received,
+		Received:  f.Received,
+		CreatedAt: f.CreatedAt,
 		SentAt:   f.SentAt,
 	}
 	if err := d.db.CreateFeedback(dbFeedback); err != nil {
@@ -73,7 +74,8 @@ func (d *DatabaseBackend) UpdateFeedback(f *Feedback) error {
 		Timing:   f.Timing,
 		File:     f.File,
 		Line:     f.Line,
-		Received: f.Received,
+		Received:  f.Received,
+		CreatedAt: f.CreatedAt,
 		SentAt:   f.SentAt,
 	}
 	if err := d.db.UpdateFeedback(dbFeedback); err != nil {
@@ -114,6 +116,7 @@ func dbFeedbackToStorage(f *db.Feedback) *Feedback {
 		Text:     f.Text,
 		Timing:   f.Timing,
 		SentAt:   f.SentAt,
-		Received: f.Received,
+		Received:  f.Received,
+		CreatedAt: f.CreatedAt,
 	}
 }
