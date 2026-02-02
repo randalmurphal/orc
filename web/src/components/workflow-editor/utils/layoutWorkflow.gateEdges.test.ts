@@ -85,7 +85,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 			expect(gateEdge).toBeDefined();
 			expect(gateEdge!.data).toBeDefined();
 			// Gate type should come from the TARGET phase (the gate that needs to pass to enter that phase)
-			expect(gateEdge!.data.gateType).toBeDefined();
+			expect(gateEdge!.data?.gateType).toBeDefined();
 		});
 
 		it('gate type on edge comes from target phase', () => {
@@ -114,7 +114,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 			);
 
 			// The gate before "implement" phase should be HUMAN (from the target phase)
-			expect(specToImplementEdge?.data.gateType).toBe(GateType.HUMAN);
+			expect(specToImplementEdge?.data?.gateType).toBe(GateType.HUMAN);
 		});
 
 		it('respects gateTypeOverride over template default', () => {
@@ -141,7 +141,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 				(e) => e.type === 'gate' && e.target === 'phase-2'
 			);
 
-			expect(gateEdge?.data.gateType).toBe(GateType.AI);
+			expect(gateEdge?.data?.gateType).toBe(GateType.AI);
 		});
 	});
 
@@ -220,7 +220,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 			const result = layoutWorkflow(details);
 
 			const entryEdge = result.edges.find((e) => e.data?.position === 'entry');
-			expect(entryEdge?.data.gateType).toBe(GateType.HUMAN);
+			expect(entryEdge?.data?.gateType).toBe(GateType.HUMAN);
 		});
 
 		it('creates virtual entry node for the edge source', () => {
@@ -322,7 +322,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 
 			const exitEdge = result.edges.find((e) => e.data?.position === 'exit');
 			// Exit gate is AUTO by default (workflow completion gate)
-			expect(exitEdge?.data.gateType).toBe(GateType.AUTO);
+			expect(exitEdge?.data?.gateType).toBe(GateType.AUTO);
 		});
 
 		it('creates virtual exit node for the edge target', () => {
@@ -426,7 +426,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 			);
 
 			// Should default to AUTO when unspecified
-			expect(gateEdge?.data.gateType).toBe(GateType.AUTO);
+			expect(gateEdge?.data?.gateType).toBe(GateType.AUTO);
 		});
 
 		it('uses template gateType when phase override is unspecified', () => {
@@ -456,7 +456,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 				(e) => e.type === 'gate' && e.target === 'phase-2'
 			);
 
-			expect(gateEdge?.data.gateType).toBe(GateType.HUMAN);
+			expect(gateEdge?.data?.gateType).toBe(GateType.HUMAN);
 		});
 	});
 
@@ -513,7 +513,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 				(e) => e.type === 'gate' && e.data?.position === 'between'
 			);
 
-			expect(betweenEdge?.data.phaseId).toBe(2);
+			expect(betweenEdge?.data?.phaseId).toBe(2);
 		});
 
 		it('entry gate includes first phase phaseId', () => {
@@ -526,7 +526,7 @@ describe('layoutWorkflow - Gate Edges', () => {
 			const result = layoutWorkflow(details);
 
 			const entryEdge = result.edges.find((e) => e.data?.position === 'entry');
-			expect(entryEdge?.data.phaseId).toBe(42);
+			expect(entryEdge?.data?.phaseId).toBe(42);
 		});
 	});
 

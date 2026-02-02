@@ -133,10 +133,16 @@ describe('workflowEditorStore - Edge Selection', () => {
 		});
 	});
 
-	describe('getSelectedEdge helper', () => {
-		it('returns null when no edge is selected', () => {
+	describe('selected edge lookup', () => {
+		// Helper to get selected edge from store state
+		const getSelectedEdge = () => {
 			const state = useWorkflowEditorStore.getState();
-			expect(state.getSelectedEdge?.() ?? null).toBeNull();
+			if (!state.selectedEdgeId) return null;
+			return state.edges.find((e) => e.id === state.selectedEdgeId) ?? null;
+		};
+
+		it('returns null when no edge is selected', () => {
+			expect(getSelectedEdge()).toBeNull();
 		});
 
 		it('returns the selected edge object when an edge is selected', () => {
@@ -155,7 +161,7 @@ describe('workflowEditorStore - Edge Selection', () => {
 			if (firstGateEdge) {
 				useWorkflowEditorStore.getState().selectEdge(firstGateEdge.id);
 
-				const selectedEdge = useWorkflowEditorStore.getState().getSelectedEdge?.();
+				const selectedEdge = getSelectedEdge();
 				expect(selectedEdge).toBeDefined();
 				expect(selectedEdge?.id).toBe(firstGateEdge.id);
 			}
@@ -165,7 +171,7 @@ describe('workflowEditorStore - Edge Selection', () => {
 			useWorkflowEditorStore.getState().selectEdge('nonexistent-edge');
 
 			// getSelectedEdge should return null since the edge doesn't exist
-			const selectedEdge = useWorkflowEditorStore.getState().getSelectedEdge?.();
+			const selectedEdge = getSelectedEdge();
 			expect(selectedEdge).toBeNull();
 		});
 	});

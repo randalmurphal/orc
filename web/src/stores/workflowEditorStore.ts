@@ -31,7 +31,6 @@ interface WorkflowEditorStore {
 	setNodes: (nodes: Node[]) => void;
 	setEdges: (edges: Edge[]) => void;
 	reset: () => void;
-	getSelectedEdge: () => Edge | null;
 
 	// Execution tracking actions (TASK-639)
 	setActiveRun: (run: WorkflowRunWithDetails | null) => void;
@@ -81,12 +80,6 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 
 		selectEdge: (edgeId: string | null) =>
 			set({ selectedEdgeId: edgeId, selectedNodeId: null }), // Clear node when selecting edge
-
-		getSelectedEdge: () => {
-			const state = useWorkflowEditorStore.getState();
-			if (!state.selectedEdgeId) return null;
-			return state.edges.find((e) => e.id === state.selectedEdgeId) ?? null;
-		},
 
 		setNodes: (nodes: Node[]) => set({ nodes }),
 
@@ -191,18 +184,26 @@ export const useWorkflowEditorStore = create<WorkflowEditorStore>()(
 	}))
 );
 
-// Selector hooks
-export const useEditorNodes = () =>
-	useWorkflowEditorStore((state) => state.nodes);
-export const useEditorEdges = () =>
-	useWorkflowEditorStore((state) => state.edges);
-export const useEditorReadOnly = () =>
-	useWorkflowEditorStore((state) => state.readOnly);
-export const useEditorSelectedNodeId = () =>
-	useWorkflowEditorStore((state) => state.selectedNodeId);
-export const useEditorSelectedEdgeId = () =>
-	useWorkflowEditorStore((state) => state.selectedEdgeId);
-export const useEditorWorkflowDetails = () =>
-	useWorkflowEditorStore((state) => state.workflowDetails);
-export const useEditorActiveRun = () =>
-	useWorkflowEditorStore((state) => state.activeRun);
+// Selector hooks with explicit types to avoid implicit any
+export const useEditorNodes = (): Node[] =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.nodes);
+export const useEditorEdges = (): Edge[] =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.edges);
+export const useEditorReadOnly = (): boolean =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.readOnly);
+export const useEditorSelectedNodeId = (): string | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedNodeId);
+export const useEditorSelectedEdgeId = (): string | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.selectedEdgeId);
+export const useEditorWorkflowDetails = (): WorkflowWithDetails | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.workflowDetails);
+export const useEditorActiveRun = (): WorkflowRunWithDetails | null =>
+	useWorkflowEditorStore((state: WorkflowEditorStore) => state.activeRun);
+
+// Derived selector for selected edge (replaces getSelectedEdge method)
+export const useSelectedEdge = (): Edge | null => {
+	const edges = useEditorEdges();
+	const selectedEdgeId = useEditorSelectedEdgeId();
+	if (!selectedEdgeId) return null;
+	return edges.find((e: Edge) => e.id === selectedEdgeId) ?? null;
+};

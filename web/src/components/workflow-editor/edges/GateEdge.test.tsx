@@ -21,9 +21,6 @@ import { render, fireEvent } from '@testing-library/react';
 import { ReactFlowProvider, ReactFlow } from '@xyflow/react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 
-// Import the component that doesn't exist yet - tests will fail until implemented
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error - GateEdge doesn't exist yet, this is TDD
 import { GateEdge } from './GateEdge';
 
 // Mock ResizeObserver for React Flow
@@ -53,7 +50,7 @@ beforeAll(() => {
 type GateStatus = 'pending' | 'passed' | 'blocked' | 'failed';
 
 /** Edge data for gate edges */
-interface GateEdgeData {
+interface GateEdgeData extends Record<string, unknown> {
 	gateType?: GateType;
 	gateStatus?: GateStatus;
 	phaseId?: number;

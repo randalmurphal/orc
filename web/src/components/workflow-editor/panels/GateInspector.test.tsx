@@ -24,9 +24,6 @@ import {
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { Edge } from '@xyflow/react';
 
-// Import the component that doesn't exist yet
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error - GateInspector doesn't exist yet, this is TDD
 import { GateInspector } from './GateInspector';
 
 // Mock IntersectionObserver
@@ -43,7 +40,7 @@ beforeAll(() => {
 });
 
 /** Gate edge data structure */
-interface GateEdgeData {
+interface GateEdgeData extends Record<string, unknown> {
 	gateType: GateType;
 	gateStatus?: 'pending' | 'passed' | 'blocked' | 'failed';
 	phaseId?: number;

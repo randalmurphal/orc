@@ -15,7 +15,7 @@ export interface LayoutResult {
 }
 
 /** Gate edge data for visual rendering and inspector */
-export interface GateEdgeData {
+export interface GateEdgeData extends Record<string, unknown> {
 	gateType: GateType;
 	gateStatus?: 'pending' | 'passed' | 'blocked' | 'failed';
 	phaseId?: number;
