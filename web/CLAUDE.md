@@ -61,9 +61,10 @@ web/src/
 | `/tasks/:taskId` | TaskDetail | Task details, transcript, review |
 | `/initiatives` | InitiativesPage | Initiative list and stats |
 | `/initiatives/:id` | InitiativeDetailPage | Initiative detail view |
-| `/agents` | AgentsView | Agent configuration, execution settings |
-| `/settings` | SettingsPage | Configuration editor |
-| `/settings/git` | GitSettingsPage | Read-only view of project git defaults (branch naming, target branch, PR settings) |
+| `/settings` | SettingsPage | 3-tab layout: General, Agents, Environment |
+| `/settings/general/*` | SettingsLayout | Sidebar nav for Claude Code, ORC, Account sections |
+| `/settings/agents` | AgentsView | Agent configuration, execution settings |
+| `/settings/environment/*` | EnvironmentLayout | Sub-nav for hooks, skills, tools, config |
 | `/workflows` | WorkflowsPage | Workflow and phase template management |
 | `/workflows/:id` | WorkflowEditorPage | Visual workflow editor (React Flow canvas) |
 | `/timeline` | TimelinePage | Event timeline with filters |
@@ -106,6 +107,9 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `RightPanel` | `layout/` | Collapsible panel with compound component API (Section/Header/Body) |
 | `TopBar` | `layout/` | Session stats, search, pause/resume. Uses individual store selectors |
 | `TaskEditModal` | `task-detail/` | Edit task properties + branch/PR settings (`branchName`, `targetBranch`, `prDraft`, `prLabels`, `prReviewers`) |
+| `SettingsTabs` | `settings/` | Top-level 3-tab navigation (General, Agents, Environment) with URL-driven state |
+| `SettingsLayout` | `settings/` | General tab: 240px sidebar with CLAUDE CODE/ORC/ACCOUNT groups |
+| `EnvironmentLayout` | `pages/environment/` | Environment tab: horizontal sub-nav for hooks/skills/tools/config |
 | `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
 | `WorkflowCanvas` | `workflow-editor/` | React Flow canvas: drag-to-add, edge drawing/deletion with cycle detection, topo sort resequencing (`utils/topoSort.ts`), layout persistence |

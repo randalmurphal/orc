@@ -236,14 +236,13 @@ Initiatives overview page at `/initiatives` with aggregate statistics and card g
 
 ## Agents
 
-Agent configuration page at `/agents` with active agents grid, execution settings, and tool permissions.
+Agent configuration accessed via `/settings/agents` tab. Active agents grid, execution settings, and tool permissions.
 
 ### Page Structure
 
 | Component | Purpose |
 |-----------|---------|
-| `AgentsPage` | Route wrapper that renders AgentsView |
-| `AgentsView` | Container with data fetching, sections, and state handling |
+| `AgentsView` | Container with data fetching, sections, and state handling (rendered in Settings Agents tab) |
 
 ### Visual Sections
 
@@ -464,83 +463,109 @@ draft -> active -> completed -> archived
 
 ## Settings
 
-Settings page at `/settings` with dedicated sidebar layout.
+Settings page at `/settings` with 3-tab layout: General, Agents, Environment.
 
 ### Route Structure
 
 | Route | Component | Content |
 |-------|-----------|---------|
-| `/settings` | SettingsPage | Redirects to `/settings/commands` |
-| `/settings/commands` | SettingsView | Slash commands editor (CommandList + ConfigEditor) |
-| `/settings/claude-md` | SettingsPlaceholder | CLAUDE.md editor (placeholder) |
-| `/settings/mcp` | SettingsPlaceholder | MCP servers (placeholder) |
-| `/settings/memory` | SettingsPlaceholder | Memory management (placeholder) |
-| `/settings/permissions` | SettingsPlaceholder | Permissions (placeholder) |
-| `/settings/projects` | SettingsPlaceholder | Projects (placeholder) |
-| `/settings/billing` | SettingsPlaceholder | Billing & Usage (placeholder) |
-| `/settings/import-export` | SettingsPlaceholder | Import / Export (placeholder) |
-| `/settings/profile` | SettingsPlaceholder | Profile (placeholder) |
-| `/settings/api-keys` | SettingsPlaceholder | API Keys (placeholder) |
-| `/settings/*` | NotFoundPage | Unknown paths |
+| `/settings` | SettingsPage | Redirects to `/settings/general` |
+| `/settings/general/*` | SettingsLayout | Sidebar layout with CLAUDE CODE/ORC/ACCOUNT groups |
+| `/settings/agents` | AgentsView | Agent configuration (see Agents section above) |
+| `/settings/environment/*` | EnvironmentLayout | Sub-nav for hooks/skills/tools/config |
+
+#### General Tab Routes (`/settings/general/*`)
+
+| Route | Component | Content |
+|-------|-----------|---------|
+| `/settings/general` | - | Redirects to `/settings/general/commands` |
+| `/settings/general/commands` | SettingsView | Slash commands editor |
+| `/settings/general/claude-md` | ClaudeMdPage | CLAUDE.md editor |
+| `/settings/general/mcp` | Mcp | MCP servers configuration |
+| `/settings/general/permissions` | SettingsPlaceholder | Permissions (placeholder) |
+| `/settings/general/projects` | SettingsPlaceholder | Projects (placeholder) |
+| `/settings/general/git` | GitSettingsPage | Git settings (read-only) |
+| `/settings/general/billing` | SettingsPlaceholder | Billing & Usage (placeholder) |
+| `/settings/general/import-export` | ImportExportPage | Import / Export |
+| `/settings/general/constitution` | ConstitutionPage | Constitution editor |
+| `/settings/general/profile` | SettingsPlaceholder | Profile (placeholder) |
+| `/settings/general/api-keys` | SettingsPlaceholder | API Keys (placeholder) |
+
+#### Environment Tab Routes (`/settings/environment/*`)
+
+| Route | Component | Content |
+|-------|-----------|---------|
+| `/settings/environment` | - | Redirects to `/settings/environment/hooks` |
+| `/settings/environment/hooks` | EnvHooks | Hooks configuration |
+| `/settings/environment/skills` | EnvSkills | Skills configuration |
+| `/settings/environment/tools` | EnvTools | Tools configuration |
+| `/settings/environment/config` | EnvConfig | Config editor |
 
 ### Layout Structure
 
 ```
 SettingsPage
-└── SettingsLayout
-    ├── SettingsSidebar (240px)
-    │   ├── Header: "Settings" / "Configure ORC and Claude"
-    │   └── Navigation groups with NavLinks
-    │       ├── CLAUDE CODE: Slash Commands, CLAUDE.md, MCP Servers, Memory, Permissions
-    │       ├── ORC: Projects, Billing & Usage, Import / Export
-    │       └── ACCOUNT: Profile, API Keys
-    └── Content (1fr)
-        └── Outlet (renders section components)
+└── SettingsTabs (top-level 3-tab navigation)
+    ├── General tab → SettingsLayout
+    │   ├── Sidebar (240px)
+    │   │   ├── Header: "Settings" / "Configure ORC and Claude"
+    │   │   └── Nav groups: CLAUDE CODE, ORC, ACCOUNT
+    │   └── Content (1fr) → Outlet
+    ├── Agents tab → AgentsView
+    └── Environment tab → EnvironmentLayout
+        ├── Horizontal nav: Hooks, Skills, Tools, Config
+        └── Content → Outlet
 ```
 
-### Sidebar Navigation
+### SettingsTabs
+
+Top-level navigation using Radix Tabs with URL-driven state.
+
+| Tab | Route Prefix | Component |
+|-----|--------------|-----------|
+| General | `/settings/general` | SettingsLayout |
+| Agents | `/settings/agents` | AgentsView |
+| Environment | `/settings/environment` | EnvironmentLayout |
+
+**URL Sync:** `getActiveTabFromPath()` derives active tab from pathname.
+
+### SettingsLayout (General Tab)
+
+240px sidebar with grouped navigation sections.
 
 | Group | Items |
 |-------|-------|
-| CLAUDE CODE | Slash Commands (badge), CLAUDE.md, MCP Servers (badge), Memory (badge), Permissions |
-| ORC | Projects, Billing & Usage, Import / Export |
+| CLAUDE CODE | Slash Commands (badge), CLAUDE.md, MCP Servers (badge), Permissions |
+| ORC | Projects, Git Settings, Billing & Usage, Import / Export, Constitution |
 | ACCOUNT | Profile, API Keys |
 
-**Badge counts:** Slash Commands, MCP Servers, and Memory show count badges (currently mock data).
+**Badge counts:** Fetched from `configClient.getConfigStats()`.
 
-### SettingsView (Slash Commands)
+### EnvironmentLayout (Environment Tab)
 
-Page header with title "Slash Commands", subtitle, and "New Command" button.
+Horizontal sub-navigation for environment configuration.
 
-Content area displays:
-- **CommandList**: Left panel showing project and global commands
-- **ConfigEditor**: Right panel for editing selected command
-
-**Data flow:** Mock data initially. Will integrate with API when endpoints are available.
+| Nav Item | Route | Component |
+|----------|-------|-----------|
+| Hooks | `/settings/environment/hooks` | EnvHooks |
+| Skills | `/settings/environment/skills` | EnvSkills |
+| Tools | `/settings/environment/tools` | EnvTools |
+| Config | `/settings/environment/config` | EnvConfig |
 
 ### CSS Specifications
 
-**Sidebar:**
+**SettingsTabs:**
+- Full height flex container
+- Tab list with bottom border
+
+**SettingsLayout Sidebar:**
 - Width: 240px fixed
 - Background: `var(--bg-elevated)`
 - Border-right: 1px solid `var(--border)`
-- Independent scrolling: `overflow-y: auto`
 
-**Navigation Items:**
-- Padding: 10px 12px
-- Border-radius: 6px
-- Font-size: 12px
-- Gap: 10px (icon to text)
-- Hover: `var(--bg-surface)`, `var(--text-primary)`
-- Active: `var(--primary-dim)`, `var(--primary-bright)`
-
-**Content Area:**
-- Padding: 24px
-- Independent scrolling: `overflow-y: auto`
-
-## Environment Pages (Legacy)
-
-**Note:** `/environment/*` routes now redirect to `/settings`. The new Settings page provides a redesigned interface with grouped navigation.
+**EnvironmentLayout Nav:**
+- Horizontal flex with gap
+- NavLink active state styling
 
 ## Layout Components
 
@@ -556,9 +581,11 @@ Handles: Global shortcuts, modal states, responsive sidebar margin.
 
 **Structure:**
 - Logo section with gradient "O" mark (32x32px)
-- Main nav: Board, Initiatives, Stats (with divider)
-- Secondary nav: Agents, Settings
+- Main nav: Board, Initiatives, Timeline, Stats (with divider)
+- Secondary nav: Workflows, Settings
 - Bottom section: Help
+
+**Note:** Agents removed from main nav per UX simplification (DEC-001). Now accessible via Settings > Agents tab.
 
 **Features:**
 - Active state detection via React Router NavLink
@@ -572,8 +599,9 @@ Handles: Global shortcuts, modal states, responsive sidebar margin.
 |------|------|-------|
 | Board | board | `/board` |
 | Initiatives | layers | `/initiatives` |
+| Timeline | activity | `/timeline` |
 | Stats | bar-chart | `/stats` |
-| Agents | robot | `/agents` |
+| Workflows | workflow | `/workflows` |
 | Settings | settings | `/settings` |
 | Help | help | `/help` |
 
