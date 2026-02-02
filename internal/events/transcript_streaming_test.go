@@ -3,8 +3,11 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/encoding/protojson"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/stretchr/testify/assert"
@@ -73,28 +76,54 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 		ctx := context.Background()
 
 		// Act: Publish events for different projects and tasks
+		proj1 := "project-1"
+		proj2 := "project-2"
+		task1 := "TASK-001"
+		task2 := "TASK-002"
+
 		event1 := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "project-1",
-			TaskId:    "TASK-001",
-			Data:      `{"content":"Project 1 Task 1"}`,
+			Id:        "event-1",
+			ProjectId: &proj1,
+			TaskId:    &task1,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Project 1 Task 1"}`),
+				},
+			},
 		}
 		event2 := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "project-2",
-			TaskId:    "TASK-001",
-			Data:      `{"content":"Project 2 Task 1"}`,
+			Id:        "event-2",
+			ProjectId: &proj2,
+			TaskId:    &task1,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Project 2 Task 1"}`),
+				},
+			},
 		}
 		event3 := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "project-1",
-			TaskId:    "TASK-002",
-			Data:      `{"content":"Project 1 Task 2"}`,
+			Id:        "event-3",
+			ProjectId: &proj1,
+			TaskId:    &task2,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-002",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Project 1 Task 2"}`),
+				},
+			},
 		}
 
-		server.PublishEvent(ctx, event1)
-		server.PublishEvent(ctx, event2)
-		server.PublishEvent(ctx, event3)
+		require.NoError(t, server.PublishEvent(ctx, event1))
+		require.NoError(t, server.PublishEvent(ctx, event2))
+		require.NoError(t, server.PublishEvent(ctx, event3))
 
 		// Assert: All events should be published but clients will filter by subscription
 		assert.Equal(t, 3, len(hub.events))
@@ -108,11 +137,20 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 		ctx := context.Background()
 
 		// Act: Publish event with invalid JSON data
+		projectID := "test-project"
+		taskID := "TASK-001"
 		event := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "test-project",
-			TaskId:    "TASK-001",
-			Data:      `invalid json{`,
+			Id:        "invalid-event-1",
+			ProjectId: &projectID,
+			TaskId:    &taskID,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`invalid json{`),
+				},
+			},
 		}
 
 		err := server.PublishEvent(ctx, event)
@@ -123,8 +161,12 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 		// Event should still be forwarded
 		select {
 		case receivedEvent := <-hub.events:
-			assert.Equal(t, "transcript_chunk", receivedEvent.Type)
-			assert.Equal(t, "invalid json{", receivedEvent.Data)
+			assert.Equal(t, "TASK-001", *receivedEvent.TaskId)
+			activity, ok := receivedEvent.Payload.(*orcv1.Event_Activity)
+			assert.True(t, ok, "Event should contain ActivityEvent payload")
+			if ok {
+				assert.Contains(t, *activity.Activity.Details, "invalid json{")
+			}
 		case <-time.After(1 * time.Second):
 			t.Fatal("Expected malformed event to still be forwarded")
 		}
@@ -156,10 +198,10 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		// Assert: Transcript events should be generated
 		assert.Greater(t, len(mockEventPublisher.events), 0)
 
-		// Find transcript events
+		// Find transcript events (using Activity events for transcript data)
 		transcriptEvents := make([]*orcv1.Event, 0)
 		for _, event := range mockEventPublisher.events {
-			if event.Type == "transcript_chunk" {
+			if activity, ok := event.Payload.(*orcv1.Event_Activity); ok && activity.Activity.Activity == orcv1.ActivityState_ACTIVITY_STATE_STREAMING {
 				transcriptEvents = append(transcriptEvents, event)
 			}
 		}
@@ -168,18 +210,22 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 
 		// Verify event structure
 		for _, event := range transcriptEvents {
-			assert.Equal(t, "TASK-001", event.TaskId)
-			assert.Equal(t, "test-project", event.ProjectId)
+			assert.Equal(t, "TASK-001", *event.TaskId)
+			assert.Equal(t, "test-project", *event.ProjectId)
 
 			// Verify data format
-			var transcriptData map[string]interface{}
-			err := json.Unmarshal([]byte(event.Data), &transcriptData)
-			assert.NoError(t, err, "Transcript data should be valid JSON")
+			activity, ok := event.Payload.(*orcv1.Event_Activity)
+			require.True(t, ok, "Event should have Activity payload")
+			if activity.Activity.Details != nil {
+				var transcriptData map[string]interface{}
+				err := json.Unmarshal([]byte(*activity.Activity.Details), &transcriptData)
+				assert.NoError(t, err, "Transcript data should be valid JSON")
 
-			assert.Contains(t, transcriptData, "content")
-			assert.Contains(t, transcriptData, "timestamp")
-			assert.Contains(t, transcriptData, "type")
-			assert.Contains(t, transcriptData, "phase")
+				assert.Contains(t, transcriptData, "content")
+				assert.Contains(t, transcriptData, "timestamp")
+				assert.Contains(t, transcriptData, "type")
+				assert.Contains(t, transcriptData, "phase")
+			}
 		}
 	})
 
@@ -202,7 +248,7 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		// Assert: Events should include token information
 		transcriptEvents := make([]*orcv1.Event, 0)
 		for _, event := range mockEventPublisher.events {
-			if event.Type == "transcript_chunk" {
+			if activity, ok := event.Payload.(*orcv1.Event_Activity); ok && activity.Activity.Activity == orcv1.ActivityState_ACTIVITY_STATE_STREAMING {
 				transcriptEvents = append(transcriptEvents, event)
 			}
 		}
@@ -212,15 +258,19 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		// Check that at least one event has token data
 		hasTokenData := false
 		for _, event := range transcriptEvents {
-			var transcriptData map[string]interface{}
-			err := json.Unmarshal([]byte(event.Data), &transcriptData)
-			require.NoError(t, err)
+			activity, ok := event.Payload.(*orcv1.Event_Activity)
+			require.True(t, ok, "Event should have Activity payload")
+			if activity.Activity.Details != nil {
+				var transcriptData map[string]interface{}
+				err := json.Unmarshal([]byte(*activity.Activity.Details), &transcriptData)
+				require.NoError(t, err)
 
-			if tokens, exists := transcriptData["tokens"]; exists {
-				tokenMap, ok := tokens.(map[string]interface{})
-				if ok && tokenMap["input"] != nil && tokenMap["output"] != nil {
-					hasTokenData = true
-					break
+				if tokens, exists := transcriptData["tokens"]; exists {
+					tokenMap, ok := tokens.(map[string]interface{})
+					if ok && tokenMap["input"] != nil && tokenMap["output"] != nil {
+						hasTokenData = true
+						break
+					}
 				}
 			}
 		}
@@ -249,19 +299,21 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		responseEvents := 0
 
 		for _, event := range mockEventPublisher.events {
-			if event.Type == "transcript_chunk" {
-				var transcriptData map[string]interface{}
-				err := json.Unmarshal([]byte(event.Data), &transcriptData)
-				require.NoError(t, err)
+			if activity, ok := event.Payload.(*orcv1.Event_Activity); ok && activity.Activity.Activity == orcv1.ActivityState_ACTIVITY_STATE_STREAMING {
+				if activity.Activity.Details != nil {
+					var transcriptData map[string]interface{}
+					err := json.Unmarshal([]byte(*activity.Activity.Details), &transcriptData)
+					require.NoError(t, err)
 
-				eventType, exists := transcriptData["type"]
-				require.True(t, exists)
+					eventType, exists := transcriptData["type"]
+					require.True(t, exists)
 
-				switch eventType {
-				case "prompt":
-					promptEvents++
-				case "response":
-					responseEvents++
+					switch eventType {
+					case "prompt":
+						promptEvents++
+					case "response":
+						responseEvents++
+					}
 				}
 			}
 		}
@@ -285,11 +337,20 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.RegisterClient(mockClient, "test-project", "TASK-001")
 
 		// Act: Send transcript event through hub
+		projectID := "test-project"
+		taskID := "TASK-001"
 		event := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "test-project",
-			TaskId:    "TASK-001",
-			Data:      `{"content":"Test message","type":"response"}`,
+			Id:        "websocket-event-1",
+			ProjectId: &projectID,
+			TaskId:    &taskID,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Test message","type":"response"}`),
+				},
+			},
 		}
 
 		err := hub.BroadcastEvent(event)
@@ -299,10 +360,14 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		select {
 		case message := <-mockClient.messages:
 			var receivedEvent orcv1.Event
-			err := json.Unmarshal(message, &receivedEvent)
+			err := protojson.Unmarshal(message, &receivedEvent)
 			assert.NoError(t, err)
-			assert.Equal(t, "transcript_chunk", receivedEvent.Type)
-			assert.Equal(t, "TASK-001", receivedEvent.TaskId)
+			assert.Equal(t, "TASK-001", *receivedEvent.TaskId)
+			activity, ok := receivedEvent.Payload.(*orcv1.Event_Activity)
+			assert.True(t, ok, "Event should contain ActivityEvent payload")
+			if ok {
+				assert.Equal(t, orcv1.ActivityState_ACTIVITY_STATE_STREAMING, activity.Activity.Activity)
+			}
 		case <-time.After(1 * time.Second):
 			t.Fatal("Client should have received the transcript event")
 		}
@@ -319,11 +384,20 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.RegisterClient(mockClient, "test-project", "TASK-002")
 
 		// Act: Send event for different task
+		projectID := "test-project"
+		taskID := "TASK-001"
 		event := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "test-project",
-			TaskId:    "TASK-001", // Different task
-			Data:      `{"content":"Test message"}`,
+			Id:        "websocket-event-2",
+			ProjectId: &projectID,
+			TaskId:    &taskID, // Different task
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Test message"}`),
+				},
+			},
 		}
 
 		err := hub.BroadcastEvent(event)
@@ -353,11 +427,20 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.UnregisterClient(mockClient)
 
 		// Send event after client disconnection
+		projectID := "test-project"
+		taskID := "TASK-001"
 		event := &orcv1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "test-project",
-			TaskId:    "TASK-001",
-			Data:      `{"content":"After disconnect"}`,
+			Id:        "websocket-event-3",
+			ProjectId: &projectID,
+			TaskId:    &taskID,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"After disconnect"}`),
+				},
+			},
 		}
 
 		// Assert: Should not panic or error
@@ -462,21 +545,41 @@ func (t *TaskExecutor) ExecutePhase(ctx context.Context, task *Task) error {
 
 	// Simulate prompt event
 	promptEvent := &orcv1.Event{
-		Type:      "transcript_chunk",
-		ProjectId: task.ProjectID,
-		TaskId:    task.ID,
-		Data:      `{"content":"User prompt for implementation","type":"prompt","phase":"` + task.Phase + `","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`,
+		Id:        "mock-prompt-" + task.ID,
+		ProjectId: &task.ProjectID,
+		TaskId:    &task.ID,
+		Payload: &orcv1.Event_Activity{
+			Activity: &orcv1.ActivityEvent{
+				TaskId:   task.ID,
+				PhaseId:  task.Phase,
+				Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+				Details:  stringPtr(`{"content":"User prompt for implementation","type":"prompt","phase":"` + task.Phase + `","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`),
+			},
+		},
 	}
-	t.eventPublisher.PublishEvent(ctx, promptEvent)
+	err := t.eventPublisher.PublishEvent(ctx, promptEvent)
+	if err != nil {
+		return fmt.Errorf("failed to publish prompt event: %w", err)
+	}
 
 	// Simulate response event with token counts
 	responseEvent := &orcv1.Event{
-		Type:      "transcript_chunk",
-		ProjectId: task.ProjectID,
-		TaskId:    task.ID,
-		Data:      `{"content":"Claude's implementation response","type":"response","phase":"` + task.Phase + `","timestamp":"` + time.Now().Format(time.RFC3339) + `","tokens":{"input":150,"output":300}}`,
+		Id:        "mock-response-" + task.ID,
+		ProjectId: &task.ProjectID,
+		TaskId:    &task.ID,
+		Payload: &orcv1.Event_Activity{
+			Activity: &orcv1.ActivityEvent{
+				TaskId:   task.ID,
+				PhaseId:  task.Phase,
+				Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+				Details:  stringPtr(`{"content":"Claude's implementation response","type":"response","phase":"` + task.Phase + `","timestamp":"` + time.Now().Format(time.RFC3339) + `","tokens":{"input":150,"output":300}}`),
+			},
+		},
 	}
-	t.eventPublisher.PublishEvent(ctx, responseEvent)
+	err = t.eventPublisher.PublishEvent(ctx, responseEvent)
+	if err != nil {
+		return fmt.Errorf("failed to publish response event: %w", err)
+	}
 
 	return nil
 }
@@ -503,10 +606,48 @@ func NewWebSocketHub() WebSocketHub {
 
 type mockWebSocketHubImpl struct {
 	clients map[string]WebSocketClient
+	// Map of client ID to project and task subscription
+	subscriptions map[string]struct {
+		ProjectID string
+		TaskID    string
+	}
 }
 
 func (m *mockWebSocketHubImpl) BroadcastEvent(event *orcv1.Event) error {
-	// Mock implementation
+	// Serialize the event to JSON using protobuf JSON marshalling
+	data, err := protojson.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	// Send to clients that are subscribed to this event's project and task
+	if m.clients != nil && m.subscriptions != nil {
+		for clientID, client := range m.clients {
+			subscription, exists := m.subscriptions[clientID]
+			if !exists {
+				continue
+			}
+
+			// Check if client is subscribed to this project and task
+			eventProjectID := ""
+			if event.ProjectId != nil {
+				eventProjectID = *event.ProjectId
+			}
+			eventTaskID := ""
+			if event.TaskId != nil {
+				eventTaskID = *event.TaskId
+			}
+
+			if subscription.ProjectID == eventProjectID && subscription.TaskID == eventTaskID {
+				err := client.Send(data)
+				if err != nil {
+					// Log error but continue sending to other clients
+					continue
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -514,11 +655,30 @@ func (m *mockWebSocketHubImpl) RegisterClient(client WebSocketClient, projectID,
 	if m.clients == nil {
 		m.clients = make(map[string]WebSocketClient)
 	}
-	m.clients[client.ID()] = client
+	if m.subscriptions == nil {
+		m.subscriptions = make(map[string]struct {
+			ProjectID string
+			TaskID    string
+		})
+	}
+
+	clientID := client.ID()
+	m.clients[clientID] = client
+	m.subscriptions[clientID] = struct {
+		ProjectID string
+		TaskID    string
+	}{
+		ProjectID: projectID,
+		TaskID:    taskID,
+	}
 }
 
 func (m *mockWebSocketHubImpl) UnregisterClient(client WebSocketClient) {
+	clientID := client.ID()
 	if m.clients != nil {
-		delete(m.clients, client.ID())
+		delete(m.clients, clientID)
+	}
+	if m.subscriptions != nil {
+		delete(m.subscriptions, clientID)
 	}
 }

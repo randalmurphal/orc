@@ -555,22 +555,36 @@ func (s *transcriptServer) GetLiveTranscript(
 		totalOutput += int32(t.OutputTokens)
 	}
 
-	// For testing, add some mock live content if no phase specified or if it matches
+	// Add live content if available from backend (for streaming backends that support it)
 	hasLiveContent := false
-	if req.Msg.Phase == nil || *req.Msg.Phase == "implement" {
-		liveEvent := &orcv1.TranscriptEntry{
-			Timestamp: timestamppb.New(time.Now()),
-			Type:      "response",
-			Content:   "Live streaming content",
+	if streamingBackend, ok := backend.(interface {
+		GetLiveTranscript(string) []TranscriptStreamEvent
+	}); ok {
+		liveEvents := streamingBackend.GetLiveTranscript(req.Msg.TaskId)
+		for _, event := range liveEvents {
+			// Filter by phase if requested
+			if req.Msg.Phase == nil || event.Phase == *req.Msg.Phase {
+				liveEvent := &orcv1.TranscriptEntry{
+					Timestamp: timestamppb.New(event.Timestamp),
+					Type:      event.Type,
+					Content:   event.Content,
+				}
+				entries = append(entries, liveEvent)
+				hasLiveContent = true
+			}
 		}
-		entries = append(entries, liveEvent)
-		hasLiveContent = true
+	}
+
+	// Determine phase from the transcript data or request
+	phase := req.Msg.GetPhase()
+	if phase == "" && len(transcripts) > 0 {
+		phase = transcripts[0].Phase // Use phase from first transcript entry
 	}
 
 	// Build the response
 	transcript := &orcv1.Transcript{
 		TaskId:  req.Msg.TaskId,
-		Phase:   req.Msg.GetPhase(),
+		Phase:   phase,
 		Entries: entries,
 		TotalTokens: &orcv1.TokenUsage{
 			InputTokens:  totalInput,
