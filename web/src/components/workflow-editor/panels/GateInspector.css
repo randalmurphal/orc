@@ -39,6 +39,58 @@
 	gap: 16px;
 }
 
+/* Configuration sections */
+.gate-inspector__section {
+	margin: 16px 0;
+	padding: 16px;
+	border: 1px solid var(--border-muted);
+	border-radius: var(--radius-md);
+	background: var(--surface-muted);
+}
+
+.gate-inspector__section h4 {
+	margin: 0 0 12px 0;
+	font-size: var(--text-sm);
+	font-weight: 600;
+	color: var(--text-primary);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* Section toggle button for advanced section */
+.gate-inspector__section-toggle {
+	background: none;
+	border: none;
+	padding: 8px 0;
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	text-align: left;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.gate-inspector__section-toggle:hover {
+	color: var(--primary);
+}
+
+.gate-inspector__section-toggle:focus {
+	outline: none;
+	color: var(--primary);
+}
+
+/* Advanced configuration */
+.gate-inspector__advanced {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--border-default);
+}
+
 /* Field layout */
 .gate-inspector__field {
 	display: flex;
@@ -55,7 +107,10 @@
 
 /* Form controls */
 .gate-inspector__select,
-.gate-inspector__input {
+.gate-inspector__input,
+.gate-inspector__input[type="text"],
+.gate-inspector__input[type="number"],
+textarea.gate-inspector__input {
 	padding: 8px 12px;
 	border: 1px solid var(--border-default);
 	border-radius: var(--radius-md);
@@ -63,6 +118,39 @@
 	color: var(--text-primary);
 	font-size: var(--text-sm);
 	font-family: var(--font-sans);
+	resize: none;
+}
+
+/* Textarea specific */
+textarea.gate-inspector__input {
+	min-height: 80px;
+	resize: vertical;
+}
+
+/* Checkbox styling */
+.gate-inspector__field label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0;
+	font-size: var(--text-sm);
+	color: var(--text-primary);
+	cursor: pointer;
+}
+
+.gate-inspector__field input[type="checkbox"] {
+	margin: 0;
+	cursor: pointer;
+}
+
+/* Context sources layout */
+.gate-inspector__field:has(label:first-child) {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.gate-inspector__section .gate-inspector__field:has(input[type="checkbox"]) {
+	margin: 8px 0;
 }
 
 .gate-inspector__select:disabled,

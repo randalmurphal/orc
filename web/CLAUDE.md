@@ -119,7 +119,7 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `PhaseNode` | `workflow-editor/nodes/` | Custom React Flow node: connection handles (L/R), category color accents, status states, gate badges |
 | `VirtualNode` | `workflow-editor/nodes/` | Invisible anchor nodes for entry/exit gate edges (20×20px, excluded from minimap) |
 | `GateEdge` | `workflow-editor/edges/` | Gate transition edge: diamond ◆ symbol on midpoint, type colors (gray/blue/yellow/purple), status override (green/red), hover tooltip |
-| `GateInspector` | `workflow-editor/panels/` | Right panel for gate edges: type, position label (entry/exit/between), status, max retries, failure action. Read-only for built-in workflows |
+| `GateInspector` | `workflow-editor/panels/` | Enhanced gate configuration panel: type selector (Auto/Human/AI/Skip), type-specific sections (auto criteria, human prompts, AI agents), failure handling with retry options, collapsible advanced settings (scripts, result variables), API integration for saving changes. Read-only for built-in workflows |
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
