@@ -326,7 +326,7 @@ export function WorkflowsPage() {
 			{editWorkflow && (
 				<EditWorkflowModal
 					open={editModalOpen}
-					workflow={editWorkflow}
+					workflowId={editWorkflow.id}
 					onClose={handleEditModalClose}
 					onUpdated={handleWorkflowUpdated}
 				/>

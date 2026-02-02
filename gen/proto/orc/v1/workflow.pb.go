@@ -592,18 +592,19 @@ func (x *PhaseTemplate) GetOutputVarName() string {
 }
 
 type Workflow struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description     *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel    *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
-	IsBuiltin       bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
-	BasedOn         *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
-	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel     *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking  bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
+	IsBuiltin        bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	BasedOn          *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CompletionAction *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Workflow) Reset() {
@@ -697,6 +698,13 @@ func (x *Workflow) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Workflow) GetCompletionAction() string {
+	if x != nil && x.CompletionAction != nil {
+		return *x.CompletionAction
+	}
+	return ""
 }
 
 type WorkflowPhase struct {
@@ -1762,15 +1770,16 @@ func (x *GetWorkflowResponse) GetWorkflow() *WorkflowWithDetails {
 }
 
 type CreateWorkflowRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description     *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel    *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
-	BasedOn         *string                `protobuf:"bytes,7,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel     *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking  bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
+	BasedOn          *string                `protobuf:"bytes,7,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
+	CompletionAction *string                `protobuf:"bytes,8,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateWorkflowRequest) Reset() {
@@ -1845,6 +1854,13 @@ func (x *CreateWorkflowRequest) GetBasedOn() string {
 	return ""
 }
 
+func (x *CreateWorkflowRequest) GetCompletionAction() string {
+	if x != nil && x.CompletionAction != nil {
+		return *x.CompletionAction
+	}
+	return ""
+}
+
 type CreateWorkflowResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workflow      *Workflow              `protobuf:"bytes,1,opt,name=workflow,proto3" json:"workflow,omitempty"`
@@ -1890,14 +1906,15 @@ func (x *CreateWorkflowResponse) GetWorkflow() *Workflow {
 }
 
 type UpdateWorkflowRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name            *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description     *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel    *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel     *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking  *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
+	CompletionAction *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateWorkflowRequest) Reset() {
@@ -1963,6 +1980,13 @@ func (x *UpdateWorkflowRequest) GetDefaultThinking() bool {
 		return *x.DefaultThinking
 	}
 	return false
+}
+
+func (x *UpdateWorkflowRequest) GetCompletionAction() string {
+	if x != nil && x.CompletionAction != nil {
+		return *x.CompletionAction
+	}
+	return ""
 }
 
 type UpdateWorkflowResponse struct {
@@ -5586,7 +5610,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_retry_prompt_pathB\x10\n" +
 	"\x0e_claude_configB\v\n" +
 	"\t_agent_idB\x12\n" +
-	"\x10_output_var_name\"\x94\x03\n" +
+	"\x10_output_var_name\"\xdc\x03\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5600,10 +5624,12 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x120\n" +
+	"\x11completion_action\x18\v \x01(\tH\x03R\x10completionAction\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
-	"\t_based_onJ\x04\b\x04\x10\x05\"\xa8\a\n" +
+	"\t_based_onB\x14\n" +
+	"\x12_completion_actionJ\x04\b\x04\x10\x05\"\xa8\a\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -5767,29 +5793,33 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12GetWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"N\n" +
 	"\x13GetWorkflowResponse\x127\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x1b.orc.v1.WorkflowWithDetailsR\bworkflow\"\x8c\x02\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x1b.orc.v1.WorkflowWithDetailsR\bworkflow\"\xd4\x02\n" +
 	"\x15CreateWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12(\n" +
 	"\rdefault_model\x18\x05 \x01(\tH\x01R\fdefaultModel\x88\x01\x01\x12)\n" +
 	"\x10default_thinking\x18\x06 \x01(\bR\x0fdefaultThinking\x12\x1e\n" +
-	"\bbased_on\x18\a \x01(\tH\x02R\abasedOn\x88\x01\x01B\x0e\n" +
+	"\bbased_on\x18\a \x01(\tH\x02R\abasedOn\x88\x01\x01\x120\n" +
+	"\x11completion_action\x18\b \x01(\tH\x03R\x10completionAction\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
-	"\t_based_onJ\x04\b\x04\x10\x05\"F\n" +
+	"\t_based_onB\x14\n" +
+	"\x12_completion_actionJ\x04\b\x04\x10\x05\"F\n" +
 	"\x16CreateWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\x81\x02\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xc9\x02\n" +
 	"\x15UpdateWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12(\n" +
 	"\rdefault_model\x18\x04 \x01(\tH\x02R\fdefaultModel\x88\x01\x01\x12.\n" +
-	"\x10default_thinking\x18\x05 \x01(\bH\x03R\x0fdefaultThinking\x88\x01\x01B\a\n" +
+	"\x10default_thinking\x18\x05 \x01(\bH\x03R\x0fdefaultThinking\x88\x01\x01\x120\n" +
+	"\x11completion_action\x18\x06 \x01(\tH\x04R\x10completionAction\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\x13\n" +
-	"\x11_default_thinking\"F\n" +
+	"\x11_default_thinkingB\x14\n" +
+	"\x12_completion_action\"F\n" +
 	"\x16UpdateWorkflowResponse\x12,\n" +
 	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"'\n" +
 	"\x15DeleteWorkflowRequest\x12\x0e\n" +

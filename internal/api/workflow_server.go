@@ -180,6 +180,9 @@ func (s *workflowServer) CreateWorkflow(
 	if req.Msg.DefaultModel != nil {
 		w.DefaultModel = *req.Msg.DefaultModel
 	}
+	if req.Msg.CompletionAction != nil {
+		w.CompletionAction = *req.Msg.CompletionAction
+	}
 
 	if err := s.globalDB.SaveWorkflow(w); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save workflow: %w", err))
@@ -220,6 +223,9 @@ func (s *workflowServer) UpdateWorkflow(
 		if req.Msg.DefaultThinking != nil {
 			dbWf.DefaultThinking = *req.Msg.DefaultThinking
 		}
+		if req.Msg.CompletionAction != nil {
+			dbWf.CompletionAction = *req.Msg.CompletionAction
+		}
 
 		// Save to database
 		if err := s.globalDB.SaveWorkflow(dbWf); err != nil {
@@ -255,6 +261,9 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 	if req.Msg.DefaultThinking != nil {
 		wf.DefaultThinking = *req.Msg.DefaultThinking
+	}
+	if req.Msg.CompletionAction != nil {
+		wf.CompletionAction = *req.Msg.CompletionAction
 	}
 
 	// Write back to file
@@ -1529,6 +1538,8 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	if w.BasedOn != "" {
 		result.BasedOn = &w.BasedOn
 	}
+	// Always set completion_action, even if empty (empty means inherit from config)
+	result.CompletionAction = &w.CompletionAction
 	return result
 }
 
