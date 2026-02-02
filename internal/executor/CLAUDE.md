@@ -41,6 +41,7 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `hook_scripts.go` | `applyPhaseHookScripts()` - copies scripts to `.claude/hooks/` |
 | `heartbeat.go` | Periodic heartbeat updates during execution |
 | `condition.go` | Condition evaluator: `EvaluateCondition()`, `ConditionContext` (phase skip + loop conditions) |
+| `topo_sort.go` | Phase ordering: `topologicalSort()`, `computeExecutionLevels()` (DAG execution levels for parallel phases) |
 | `phase_loop_test.go` | Phase loop integration tests (10 success criteria + failure modes) |
 
 ## Architecture
@@ -557,6 +558,9 @@ go test ./internal/executor/... -v
 | `phase_settings_test.go` | Phase settings: apply/cleanup, skill merging, orc-managed detection |
 | `condition_test.go` | Phase condition evaluation: operators, composites, variable resolution |
 | `phase_loop_test.go` | Phase loop: JSON/legacy conditions, max enforcement, counter unification, events |
+| `topo_sort_test.go` | Topological sort and execution levels: cycle detection, level grouping, sequence tiebreakers |
+| `parallel_execution_test.go` | Parallel phase execution: diamond pattern, failure cancellation, variable safety |
+| `dag_skip_integration_test.go` | DAG skip integration: skipped phases don't block dependents (SC-7 verification) |
 
 **Mock injection:** Use `WithWorkflowTurnExecutor(mock)`, `WithFinalizeTurnExecutor(mock)`, `WithResolverTurnExecutor(mock)`, `WithWorkflowTriggerRunner(mock)`, `hostingProvider` field for PR tests
 
