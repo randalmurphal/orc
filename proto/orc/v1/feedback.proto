@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package orc.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/randalmurphal/orc/gen/proto/orc/v1;orcv1";
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Type of feedback being provided
+enum FeedbackType {
+  FEEDBACK_TYPE_UNSPECIFIED = 0;
+  FEEDBACK_TYPE_GENERAL = 1;    // General feedback/comment
+  FEEDBACK_TYPE_INLINE = 2;     // Inline code comment (requires file/line)
+  FEEDBACK_TYPE_APPROVAL = 3;   // Approval/acknowledgement
+  FEEDBACK_TYPE_DIRECTION = 4;  // Direction change request
+}
+
+// When the feedback should be delivered to the agent
+enum FeedbackTiming {
+  FEEDBACK_TIMING_UNSPECIFIED = 0;
+  FEEDBACK_TIMING_NOW = 1;       // Send immediately (pauses task)
+  FEEDBACK_TIMING_WHEN_DONE = 2; // Queue until phase completes
+  FEEDBACK_TIMING_MANUAL = 3;    // Save for manual send
+}
+
+// =============================================================================
+// DOMAIN MESSAGES
+// =============================================================================
+
+// Feedback represents user feedback to an agent during task execution
+message Feedback {
+  string id = 1;
+  string task_id = 2;
+  FeedbackType type = 3;
+  string text = 4;
+  FeedbackTiming timing = 5;
+
+  // For inline comments
+  string file = 6;
+  int32 line = 7;
+
+  // Status
+  bool received = 8;
+  google.protobuf.Timestamp sent_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+service FeedbackService {
+  // Add feedback for a task
+  rpc AddFeedback(AddFeedbackRequest) returns (AddFeedbackResponse);
+
+  // List feedback for a task
+  rpc ListFeedback(ListFeedbackRequest) returns (ListFeedbackResponse);
+
+  // Send all pending feedback to the agent
+  rpc SendFeedback(SendFeedbackRequest) returns (SendFeedbackResponse);
+
+  // Delete specific feedback
+  rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse);
+}
+
+// =============================================================================
+// REQUEST/RESPONSE MESSAGES
+// =============================================================================
+
+// AddFeedback
+message AddFeedbackRequest {
+  string project_id = 1;
+  string task_id = 2;
+  FeedbackType type = 3;
+  string text = 4;
+  FeedbackTiming timing = 5;
+
+  // For inline comments
+  string file = 6;
+  int32 line = 7;
+}
+
+message AddFeedbackResponse {
+  Feedback feedback = 1;
+}
+
+// ListFeedback
+message ListFeedbackRequest {
+  string project_id = 1;
+  string task_id = 2;
+  bool exclude_received = 3;  // If true, only return pending feedback
+}
+
+message ListFeedbackResponse {
+  repeated Feedback feedback = 1;
+}
+
+// SendFeedback
+message SendFeedbackRequest {
+  string project_id = 1;
+  string task_id = 2;
+}
+
+message SendFeedbackResponse {
+  int32 sent_count = 1;
+}
+
+// DeleteFeedback
+message DeleteFeedbackRequest {
+  string project_id = 1;
+  string task_id = 2;
+  string feedback_id = 3;
+}
+
+message DeleteFeedbackResponse {}

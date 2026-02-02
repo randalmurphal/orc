@@ -152,6 +152,19 @@ type QAResult struct {
 	CreatedAt      time.Time   `json:"created_at"`
 }
 
+// Feedback represents user feedback to an agent during task execution.
+type Feedback struct {
+	ID        string
+	TaskID    string
+	Type      string // "inline", "general", "approval", "direction"
+	File      string // For inline comments
+	Line      int    // For inline comments
+	Text      string
+	Timing    string // "now", "when_done", "manual"
+	SentAt    *time.Time
+	Received  bool
+}
+
 // BranchType represents the type of branch being tracked.
 type BranchType string
 
@@ -312,6 +325,14 @@ type Backend interface {
 	// QA result operations (structured QA output for reporting)
 	SaveQAResult(r *QAResult) error
 	LoadQAResult(taskID string) (*QAResult, error)
+
+	// Feedback operations (for real-time user feedback to agents)
+	SaveFeedback(f *Feedback) error
+	GetFeedback(taskID, feedbackID string) (*Feedback, error)
+	ListFeedback(taskID string, excludeReceived bool) ([]*Feedback, error)
+	UpdateFeedback(f *Feedback) error
+	DeleteFeedback(taskID, feedbackID string) error
+	MarkFeedbackReceived(taskID string) (int, error)
 
 	// Gate decision operations (for export/import)
 	ListGateDecisions(taskID string) ([]db.GateDecision, error)

@@ -1217,8 +1217,3 @@ func (m *mockTaskPauser) PauseTask(taskID, projectID string) error {
 	}
 	return nil
 }
-
-// TaskPauser interface for dependency injection in tests.
-type TaskPauser interface {
-	PauseTask(taskID, projectID string) error
-}

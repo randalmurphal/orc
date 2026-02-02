@@ -22,20 +22,6 @@ import (
 	"time"
 )
 
-// Feedback represents user feedback to an agent during task execution.
-// This struct defines the storage model for feedback.
-type Feedback struct {
-	ID       string
-	TaskID   string
-	Type     string // "inline", "general", "approval", "direction"
-	File     string // For inline comments
-	Line     int    // For inline comments
-	Text     string
-	Timing   string // "now", "when_done", "manual"
-	SentAt   *time.Time
-	Received bool
-}
-
 // ============================================================================
 // SaveFeedback tests
 // ============================================================================
