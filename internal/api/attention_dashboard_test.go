@@ -49,7 +49,8 @@ func TestGetAttentionDashboardData_ReturnsThreeSections(t *testing.T) {
 	// Create test data for each section
 	runningTask := task.NewProtoTask("TASK-001", "Implement feature")
 	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	runningTask.CurrentPhase = "implement"
+	currentPhase := "implement"
+	runningTask.CurrentPhase = &currentPhase
 	runningTask.StartedAt = timestamppb.New(time.Now().Add(-5 * time.Minute))
 
 	blockedTask := task.NewProtoTask("TASK-002", "Deploy to prod")
@@ -63,7 +64,7 @@ func TestGetAttentionDashboardData_ReturnsThreeSections(t *testing.T) {
 	require.NoError(t, backend.SaveTask(blockedTask))
 	require.NoError(t, backend.SaveTask(queuedTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -103,7 +104,8 @@ func TestGetRunningTaskDetails_IncludesTimingAndProgress(t *testing.T) {
 	startTime := time.Now().Add(-10 * time.Minute)
 	runningTask := task.NewProtoTask("TASK-001", "Implement auth system")
 	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	runningTask.CurrentPhase = "implement"
+	currentPhase := "implement"
+	runningTask.CurrentPhase = &currentPhase
 	runningTask.StartedAt = timestamppb.New(startTime)
 
 	initID := "INIT-001"
@@ -115,7 +117,7 @@ func TestGetRunningTaskDetails_IncludesTimingAndProgress(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(runningTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -151,7 +153,8 @@ func TestGetRunningTaskDetails_IncludesPipelineProgress(t *testing.T) {
 	// Create running task with mock execution state showing phase progress
 	runningTask := task.NewProtoTask("TASK-001", "Feature implementation")
 	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	runningTask.CurrentPhase = "implement"
+	currentPhase := "implement"
+	runningTask.CurrentPhase = &currentPhase
 
 	require.NoError(t, backend.SaveTask(runningTask))
 
@@ -159,7 +162,7 @@ func TestGetRunningTaskDetails_IncludesPipelineProgress(t *testing.T) {
 	// TODO: Create execution state with completed spec phase, active implement phase
 	// This will require integration with the execution state system
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -200,7 +203,7 @@ func TestGetAttentionItems_IncludesBlockedTasks(t *testing.T) {
 
 	require.NoError(t, backend.SaveTask(blockedTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -251,7 +254,7 @@ func TestGetAttentionItems_IncludesPendingDecisions(t *testing.T) {
 	}
 	require.NoError(t, backend.SaveDecisionProto(pendingDecision))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -300,7 +303,7 @@ func TestGetAttentionItems_IncludesGateApprovals(t *testing.T) {
 	gateApproval.Status = orcv1.GateStatus_GATE_STATUS_PENDING
 	require.NoError(t, backend.SaveGateApprovalProto(gateApproval))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -359,7 +362,7 @@ func TestGetQueueData_OrganizesByInitiative(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task2))
 	require.NoError(t, backend.SaveTask(task3))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -418,7 +421,7 @@ func TestGetQueueData_IncludesTaskPositioning(t *testing.T) {
 	require.NoError(t, backend.SaveTask(task1))
 	require.NoError(t, backend.SaveTask(task2))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -452,7 +455,7 @@ func TestGetQueueData_IncludesPriorityIndicators(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highPriorityTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -508,7 +511,7 @@ func TestGetAttentionItems_SortedByPriority(t *testing.T) {
 	require.NoError(t, backend.SaveTask(highTask))
 	require.NoError(t, backend.SaveTask(normalTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",
@@ -597,7 +600,8 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 	// Create tasks across different states
 	runningTask := task.NewProtoTask("RUNNING-001", "Active implementation")
 	runningTask.Status = orcv1.TaskStatus_TASK_STATUS_RUNNING
-	runningTask.CurrentPhase = "implement"
+	currentPhase := "implement"
+	runningTask.CurrentPhase = &currentPhase
 	runningTask.StartedAt = timestamppb.Now()
 
 	blockedHighPriority := task.NewProtoTask("BLOCKED-001", "High priority blocked")
@@ -622,7 +626,7 @@ func TestAttentionDashboardData_CorrectDataFiltering(t *testing.T) {
 	require.NoError(t, backend.SaveTask(queuedLow))
 	require.NoError(t, backend.SaveTask(completedTask))
 
-	server := NewDashboardServer(backend, nil)
+	server := NewAttentionDashboardServer(backend, nil)
 
 	req := connect.NewRequest(&orcv1.GetAttentionDashboardDataRequest{
 		ProjectId: "test-project",

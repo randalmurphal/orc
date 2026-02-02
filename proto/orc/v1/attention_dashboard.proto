@@ -12,6 +12,7 @@ package orc.v1;
 
 import "google/protobuf/timestamp.proto";
 import "orc/v1/task.proto";
+import "orc/v1/decision.proto";
 
 // Request for getting attention dashboard data
 message GetAttentionDashboardDataRequest {
@@ -104,13 +105,6 @@ enum AttentionAction {
   ATTENTION_ACTION_RESOLVE = 7;
 }
 
-// Decision option for pending decisions
-message DecisionOption {
-  string id = 1;
-  string label = 2;
-  string description = 3;
-  bool recommended = 4;
-}
 
 // Summary of task queue organized by initiatives
 message QueueSummary {

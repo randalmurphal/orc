@@ -16,6 +16,7 @@ import (
 	"github.com/randalmurphal/orc/internal/diff"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"strings"
 )
 
 // DiffServicer defines the interface for diff operations needed by GetTopFiles.
@@ -957,10 +958,4 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*orcv1.Task, start, 
 	return metrics
 }
 
-// ptrStringValue returns the value of a string pointer, or empty string if nil.
-func ptrStringValue(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
+
