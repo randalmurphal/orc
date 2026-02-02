@@ -96,6 +96,7 @@ type Workflow struct {
 	DefaultThinking      bool      `json:"default_thinking"`
 	DefaultMaxIterations int       `json:"default_max_iterations,omitempty"`
 	CompletionAction     string    `json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit)
+	TargetBranch         string    `json:"target_branch,omitempty"`     // Default PR target branch, or "" (inherit from config)
 	IsBuiltin            bool      `json:"is_builtin"`
 	BasedOn              string    `json:"based_on,omitempty"`
 	Triggers             string    `json:"triggers,omitempty"` // JSON array of WorkflowTrigger
@@ -516,8 +517,8 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 	basedOn := sqlNullString(w.BasedOn)
 
 	_, err := p.Exec(`
-		INSERT INTO workflows (id, name, description, default_model, default_thinking, default_max_iterations, completion_action, is_builtin, based_on, triggers, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO workflows (id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			description = excluded.description,
@@ -525,11 +526,12 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 			default_thinking = excluded.default_thinking,
 			default_max_iterations = excluded.default_max_iterations,
 			completion_action = excluded.completion_action,
+			target_branch = excluded.target_branch,
 			based_on = excluded.based_on,
 			triggers = excluded.triggers,
 			updated_at = excluded.updated_at
 	`, w.ID, w.Name, w.Description, w.DefaultModel, w.DefaultThinking, w.DefaultMaxIterations, w.CompletionAction,
-		w.IsBuiltin, basedOn, w.Triggers, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
+		w.TargetBranch, w.IsBuiltin, basedOn, w.Triggers, w.CreatedAt.Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("save workflow: %w", err)
 	}
@@ -539,7 +541,7 @@ func (p *ProjectDB) SaveWorkflow(w *Workflow) error {
 // GetWorkflow retrieves a workflow by ID.
 func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 	row := p.QueryRow(`
-		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows WHERE id = ?
 	`, id)
 
@@ -556,7 +558,7 @@ func (p *ProjectDB) GetWorkflow(id string) (*Workflow, error) {
 // ListWorkflows returns all workflows.
 func (p *ProjectDB) ListWorkflows() ([]*Workflow, error) {
 	rows, err := p.Query(`
-		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, is_builtin, based_on, triggers, created_at, updated_at
+		SELECT id, name, description, default_model, default_thinking, default_max_iterations, completion_action, target_branch, is_builtin, based_on, triggers, created_at, updated_at
 		FROM workflows
 		ORDER BY is_builtin DESC, name ASC
 	`)
@@ -1133,12 +1135,12 @@ func scanPhaseTemplateRow(rows *sql.Rows) (*PhaseTemplate, error) {
 func scanWorkflow(row rowScanner) (*Workflow, error) {
 	w := &Workflow{}
 	var createdAt, updatedAt string
-	var description, defaultModel, completionAction, basedOn, triggers sql.NullString
+	var description, defaultModel, completionAction, targetBranch, basedOn, triggers sql.NullString
 	var defaultMaxIterations sql.NullInt64
 
 	err := row.Scan(
 		&w.ID, &w.Name, &description, &defaultModel, &w.DefaultThinking, &defaultMaxIterations,
-		&completionAction, &w.IsBuiltin, &basedOn, &triggers, &createdAt, &updatedAt,
+		&completionAction, &targetBranch, &w.IsBuiltin, &basedOn, &triggers, &createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -1150,6 +1152,7 @@ func scanWorkflow(row rowScanner) (*Workflow, error) {
 		w.DefaultMaxIterations = int(defaultMaxIterations.Int64)
 	}
 	w.CompletionAction = completionAction.String
+	w.TargetBranch = targetBranch.String
 	w.BasedOn = basedOn.String
 	w.Triggers = triggers.String
 	w.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
