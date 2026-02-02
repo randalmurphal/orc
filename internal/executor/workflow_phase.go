@@ -319,7 +319,17 @@ func (we *WorkflowExecutor) executePhase(
 
 	// Update execution state if available (Task-centric approach)
 	if we.task != nil {
-		task.CompletePhaseProto(we.task.Execution, tmpl.ID, "") // Empty commit SHA for workflow phases
+		// Create checkpoint commit for this phase so `orc rewind` works
+		commitSHA := ""
+		if we.gitOps != nil {
+			checkpoint, err := we.gitOps.CreateCheckpoint(t.Id, tmpl.ID, "completed")
+			if err != nil {
+				we.logger.Debug("no checkpoint created", "phase", tmpl.ID, "reason", err)
+			} else if checkpoint != nil {
+				commitSHA = checkpoint.CommitSHA
+			}
+		}
+		task.CompletePhaseProto(we.task.Execution, tmpl.ID, commitSHA)
 		currentPhase := ""
 		if we.task.CurrentPhase != nil {
 			currentPhase = *we.task.CurrentPhase
