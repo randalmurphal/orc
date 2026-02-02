@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
@@ -226,6 +227,9 @@ func (s *workflowServer) UpdateWorkflow(
 		if req.Msg.DefaultThinking != nil {
 			dbWf.DefaultThinking = *req.Msg.DefaultThinking
 		}
+		if req.Msg.DefaultMaxIterations != nil {
+			dbWf.DefaultMaxIterations = int(*req.Msg.DefaultMaxIterations)
+		}
 		if req.Msg.CompletionAction != nil {
 			dbWf.CompletionAction = *req.Msg.CompletionAction
 		}
@@ -267,6 +271,9 @@ func (s *workflowServer) UpdateWorkflow(
 	}
 	if req.Msg.DefaultThinking != nil {
 		wf.DefaultThinking = *req.Msg.DefaultThinking
+	}
+	if req.Msg.DefaultMaxIterations != nil {
+		wf.DefaultMaxIterations = int(*req.Msg.DefaultMaxIterations)
 	}
 	if req.Msg.CompletionAction != nil {
 		wf.CompletionAction = *req.Msg.CompletionAction
@@ -1544,6 +1551,10 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	if w.DefaultModel != "" {
 		result.DefaultModel = &w.DefaultModel
 	}
+	if w.DefaultMaxIterations != 0 {
+		iterations := int32(w.DefaultMaxIterations)
+		result.DefaultMaxIterations = &iterations
+	}
 	if w.BasedOn != "" {
 		result.BasedOn = &w.BasedOn
 	}
@@ -1551,6 +1562,9 @@ func dbWorkflowToProto(w *db.Workflow) *orcv1.Workflow {
 	result.CompletionAction = &w.CompletionAction
 	// Always set target_branch, even if empty (empty means inherit from config)
 	result.TargetBranch = &w.TargetBranch
+	// Set timestamps
+	result.CreatedAt = timestamppb.New(w.CreatedAt)
+	result.UpdatedAt = timestamppb.New(w.UpdatedAt)
 	return result
 }
 

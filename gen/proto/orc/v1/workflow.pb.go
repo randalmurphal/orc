@@ -592,20 +592,21 @@ func (x *PhaseTemplate) GetOutputVarName() string {
 }
 
 type Workflow struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel     *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking  bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
-	IsBuiltin        bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
-	BasedOn          *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	CompletionAction *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
-	TargetBranch     *string                `protobuf:"bytes,12,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow, or "" (inherit from config)
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description          *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel         *string                `protobuf:"bytes,5,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking      bool                   `protobuf:"varint,6,opt,name=default_thinking,json=defaultThinking,proto3" json:"default_thinking,omitempty"`
+	IsBuiltin            bool                   `protobuf:"varint,7,opt,name=is_builtin,json=isBuiltin,proto3" json:"is_builtin,omitempty"`
+	BasedOn              *string                `protobuf:"bytes,8,opt,name=based_on,json=basedOn,proto3,oneof" json:"based_on,omitempty"`
+	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CompletionAction     *string                `protobuf:"bytes,11,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"`                // "pr", "commit", "none", or "" (inherit from config)
+	TargetBranch         *string                `protobuf:"bytes,12,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`                            // Default PR target branch for this workflow, or "" (inherit from config)
+	DefaultMaxIterations *int32                 `protobuf:"varint,13,opt,name=default_max_iterations,json=defaultMaxIterations,proto3,oneof" json:"default_max_iterations,omitempty"` // Default maximum iterations for workflow phases
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Workflow) Reset() {
@@ -713,6 +714,13 @@ func (x *Workflow) GetTargetBranch() string {
 		return *x.TargetBranch
 	}
 	return ""
+}
+
+func (x *Workflow) GetDefaultMaxIterations() int32 {
+	if x != nil && x.DefaultMaxIterations != nil {
+		return *x.DefaultMaxIterations
+	}
+	return 0
 }
 
 type WorkflowPhase struct {
@@ -1922,16 +1930,17 @@ func (x *CreateWorkflowResponse) GetWorkflow() *Workflow {
 }
 
 type UpdateWorkflowRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name             *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description      *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	DefaultModel     *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
-	DefaultThinking  *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
-	CompletionAction *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"` // "pr", "commit", "none", or "" (inherit from config)
-	TargetBranch     *string                `protobuf:"bytes,7,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`             // Default PR target branch for this workflow
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description          *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	DefaultModel         *string                `protobuf:"bytes,4,opt,name=default_model,json=defaultModel,proto3,oneof" json:"default_model,omitempty"`
+	DefaultThinking      *bool                  `protobuf:"varint,5,opt,name=default_thinking,json=defaultThinking,proto3,oneof" json:"default_thinking,omitempty"`
+	CompletionAction     *string                `protobuf:"bytes,6,opt,name=completion_action,json=completionAction,proto3,oneof" json:"completion_action,omitempty"`                // "pr", "commit", "none", or "" (inherit from config)
+	TargetBranch         *string                `protobuf:"bytes,7,opt,name=target_branch,json=targetBranch,proto3,oneof" json:"target_branch,omitempty"`                            // Default PR target branch for this workflow
+	DefaultMaxIterations *int32                 `protobuf:"varint,8,opt,name=default_max_iterations,json=defaultMaxIterations,proto3,oneof" json:"default_max_iterations,omitempty"` // Default maximum iterations for workflow phases
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *UpdateWorkflowRequest) Reset() {
@@ -2011,6 +2020,13 @@ func (x *UpdateWorkflowRequest) GetTargetBranch() string {
 		return *x.TargetBranch
 	}
 	return ""
+}
+
+func (x *UpdateWorkflowRequest) GetDefaultMaxIterations() int32 {
+	if x != nil && x.DefaultMaxIterations != nil {
+		return *x.DefaultMaxIterations
+	}
+	return 0
 }
 
 type UpdateWorkflowResponse struct {
@@ -5634,7 +5650,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_retry_prompt_pathB\x10\n" +
 	"\x0e_claude_configB\v\n" +
 	"\t_agent_idB\x12\n" +
-	"\x10_output_var_name\"\x98\x04\n" +
+	"\x10_output_var_name\"\xee\x04\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
@@ -5650,12 +5666,14 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"updated_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x120\n" +
 	"\x11completion_action\x18\v \x01(\tH\x03R\x10completionAction\x88\x01\x01\x12(\n" +
-	"\rtarget_branch\x18\f \x01(\tH\x04R\ftargetBranch\x88\x01\x01B\x0e\n" +
+	"\rtarget_branch\x18\f \x01(\tH\x04R\ftargetBranch\x88\x01\x01\x129\n" +
+	"\x16default_max_iterations\x18\r \x01(\x05H\x05R\x14defaultMaxIterations\x88\x01\x01B\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\v\n" +
 	"\t_based_onB\x14\n" +
 	"\x12_completion_actionB\x10\n" +
-	"\x0e_target_branchJ\x04\b\x04\x10\x05\"\xa8\a\n" +
+	"\x0e_target_branchB\x19\n" +
+	"\x17_default_max_iterationsJ\x04\b\x04\x10\x05\"\xa8\a\n" +
 	"\rWorkflowPhase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -5835,7 +5853,7 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\x12_completion_actionB\x10\n" +
 	"\x0e_target_branchJ\x04\b\x04\x10\x05\"F\n" +
 	"\x16CreateWorkflowResponse\x12,\n" +
-	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\x85\x03\n" +
+	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"\xdb\x03\n" +
 	"\x15UpdateWorkflowRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -5843,13 +5861,15 @@ const file_orc_v1_workflow_proto_rawDesc = "" +
 	"\rdefault_model\x18\x04 \x01(\tH\x02R\fdefaultModel\x88\x01\x01\x12.\n" +
 	"\x10default_thinking\x18\x05 \x01(\bH\x03R\x0fdefaultThinking\x88\x01\x01\x120\n" +
 	"\x11completion_action\x18\x06 \x01(\tH\x04R\x10completionAction\x88\x01\x01\x12(\n" +
-	"\rtarget_branch\x18\a \x01(\tH\x05R\ftargetBranch\x88\x01\x01B\a\n" +
+	"\rtarget_branch\x18\a \x01(\tH\x05R\ftargetBranch\x88\x01\x01\x129\n" +
+	"\x16default_max_iterations\x18\b \x01(\x05H\x06R\x14defaultMaxIterations\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\x10\n" +
 	"\x0e_default_modelB\x13\n" +
 	"\x11_default_thinkingB\x14\n" +
 	"\x12_completion_actionB\x10\n" +
-	"\x0e_target_branch\"F\n" +
+	"\x0e_target_branchB\x19\n" +
+	"\x17_default_max_iterations\"F\n" +
 	"\x16UpdateWorkflowResponse\x12,\n" +
 	"\bworkflow\x18\x01 \x01(\v2\x10.orc.v1.WorkflowR\bworkflow\"'\n" +
 	"\x15DeleteWorkflowRequest\x12\x0e\n" +
