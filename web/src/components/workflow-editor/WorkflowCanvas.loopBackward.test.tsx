@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { render, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { Edge } from '@xyflow/react';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { useWorkflowEditorStore } from '@/stores/workflowEditorStore';
 import { workflowClient } from '@/lib/client';
@@ -200,21 +201,21 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			render(<WorkflowCanvas />);
 
 			await waitFor(() => {
-				const _store = useWorkflowEditorStore.getState();
+				const store = useWorkflowEditorStore.getState();
 				const edges = store.edges;
 
 				// Should have loop edges
-				const loopEdges = edges.filter(edge => edge.type === 'loop');
+				const loopEdges = edges.filter((edge: Edge) => edge.type === 'loop');
 				expect(loopEdges.length).toBe(2); // review->implement, docs->spec
 
 				// Verify sequence information in edge data
-				loopEdges.forEach(edge => {
+				loopEdges.forEach((edge: Edge) => {
 					expect(edge.data).toHaveProperty('sourceSequence');
 					expect(edge.data).toHaveProperty('targetSequence');
 					expect(edge.data).toHaveProperty('isBackward');
 
 					// All edges in this workflow should be backward
-					expect(edge.data.isBackward).toBe(true);
+					expect(edge.data?.isBackward).toBe(true);
 				});
 			});
 		});
@@ -245,13 +246,13 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 
 			await waitFor(() => {
 				// Edge from review (now seq 1) to implement (now seq 4) should be forward
-				const _store = useWorkflowEditorStore.getState();
+				const store = useWorkflowEditorStore.getState();
 				const reviewToImplEdge = store.edges.find(
-					edge => edge.source === 'phase-4' && edge.target === 'phase-3' && edge.type === 'loop'
+					(edge: Edge) => edge.source === 'phase-4' && edge.target === 'phase-3' && edge.type === 'loop'
 				);
 
 				if (reviewToImplEdge) {
-					expect(reviewToImplEdge.data.isBackward).toBe(false); // Now forward: seq 1 -> seq 4
+					expect(reviewToImplEdge.data?.isBackward).toBe(false); // Now forward: seq 1 -> seq 4
 				}
 			});
 		});
@@ -277,7 +278,6 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			// Should be able to select the edge (React Flow handles this)
 			// The edge should become part of the selected elements
 			await waitFor(() => {
-				const _store = useWorkflowEditorStore.getState();
 				// Selection behavior depends on React Flow implementation
 				// This test documents expected interactivity
 				expect(backwardEdgePath).toBeDefined();
@@ -340,14 +340,14 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(updatedWorkflow);
 
 			await waitFor(() => {
-				const _store = useWorkflowEditorStore.getState();
+				const store = useWorkflowEditorStore.getState();
 				const updatedLoopEdge = store.edges.find(
-					edge => edge.source === 'phase-4' && edge.type === 'loop'
+					(edge: Edge) => edge.source === 'phase-4' && edge.type === 'loop'
 				);
 
 				expect(updatedLoopEdge).toBeDefined();
 				expect(updatedLoopEdge?.target).toBe('phase-2'); // tdd_write
-				expect(updatedLoopEdge?.data.label).toContain('always_retry ×5');
+				expect(updatedLoopEdge?.data?.label).toContain('always_retry ×5');
 			});
 		});
 
@@ -375,8 +375,8 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(workflowWithoutLoop);
 
 			await waitFor(() => {
-				const _store = useWorkflowEditorStore.getState();
-				const loopEdges = store.edges.filter(edge => edge.type === 'loop');
+				const store = useWorkflowEditorStore.getState();
+				const loopEdges = store.edges.filter((edge: Edge) => edge.type === 'loop');
 				expect(loopEdges.length).toBe(1); // Only docs->spec loop remains
 			});
 		});

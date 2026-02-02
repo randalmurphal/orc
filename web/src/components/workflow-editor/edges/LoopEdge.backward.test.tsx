@@ -16,7 +16,7 @@
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render } from '@testing-library/react';
-import { ReactFlowProvider } from '@xyflow/react';
+import { ReactFlowProvider, Position } from '@xyflow/react';
 import { LoopEdge } from './LoopEdge';
 import type { EdgeProps } from '@xyflow/react';
 
@@ -55,8 +55,8 @@ function createBaseEdgeProps(overrides: Partial<EdgeProps> = {}): EdgeProps {
 		sourceY: 100,
 		targetX: 100,
 		targetY: 50,
-		sourcePosition: 'right' as const,
-		targetPosition: 'left' as const,
+		sourcePosition: Position.Right,
+		targetPosition: Position.Left,
 		data: {
 			condition: 'needs_changes',
 			maxIterations: 3,
@@ -177,7 +177,8 @@ describe('LoopEdge - Backward Connection Detection', () => {
 				})
 			);
 
-			const curvature = mockGetBezierPath.mock.calls[0]?.[0]?.curvature;
+			const calls = mockGetBezierPath.mock.calls as unknown as Array<[{ curvature?: number }]>;
+			const curvature = calls[0]?.[0]?.curvature;
 			expect(curvature).toBeGreaterThan(0.5); // Backward should have more curve
 		});
 
@@ -202,7 +203,8 @@ describe('LoopEdge - Backward Connection Detection', () => {
 			renderLoopEdge(props);
 
 			// Forward flow should use standard curvature
-			const curvature = mockGetBezierPath.mock.calls[0]?.[0]?.curvature;
+			const calls = mockGetBezierPath.mock.calls as unknown as Array<[{ curvature?: number }]>;
+			const curvature = calls[0]?.[0]?.curvature;
 			expect(curvature).toBeLessThanOrEqual(0.5); // Standard curvature
 		});
 	});

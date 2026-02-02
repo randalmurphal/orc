@@ -12,14 +12,14 @@
  * - SC-6: Streaming lifecycle - Transcript streaming should start/stop based on task execution state
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { render, screen } from '@testing-library/react';
 import { useTaskSubscription, type TranscriptLine } from './useEvents';
 import { EventProvider } from './EventProvider';
 import { TranscriptViewer } from '@/components/transcript/TranscriptViewer';
 import { create } from '@bufbuild/protobuf';
-import { EventSchema, type Event } from '@/gen/orc/v1/events_pb';
+import { EventSchema, ActivityEventSchema, ActivityState, type Event } from '@/gen/orc/v1/events_pb';
 import type { ReactNode } from 'react';
 
 // Mock the EventSubscription class to control event emissions
@@ -73,17 +73,25 @@ vi.mock('@/lib/client', () => ({
 	},
 }));
 
-// Helper to emit transcript events
+// Helper to emit transcript events via activity events (which is how transcript streaming works)
 function emitTranscriptEvent(taskId: string, content: string, type: 'prompt' | 'response' | 'tool' | 'error' = 'response') {
 	const event = create(EventSchema, {
-		type: 'transcript_chunk',
+		id: `evt-${Date.now()}`,
 		taskId,
-		data: JSON.stringify({
-			content,
-			timestamp: new Date().toISOString(),
-			type,
-			phase: 'implement',
-		}),
+		payload: {
+			case: 'activity',
+			value: create(ActivityEventSchema, {
+				taskId,
+				phaseId: 'phase-1',
+				activity: ActivityState.STREAMING,
+				details: JSON.stringify({
+					content,
+					timestamp: new Date().toISOString(),
+					type,
+					phase: 'implement',
+				}),
+			}),
+		},
 	});
 
 	// Emit to all registered handlers
@@ -210,21 +218,29 @@ describe('SC-2: Event-to-transcript conversion - Connect RPC events converted to
 
 		const testTimestamp = '2024-01-01T12:00:00Z';
 
-		// Act: Emit event with specific format
+		// Act: Emit event with specific format (using activity event with streaming state)
 		act(() => {
 			const event = create(EventSchema, {
-				type: 'transcript_chunk',
+				id: `evt-${Date.now()}`,
 				taskId: 'TASK-001',
-				data: JSON.stringify({
-					content: 'Test content',
-					timestamp: testTimestamp,
-					type: 'tool',
-					phase: 'spec',
-					tokens: {
-						input: 100,
-						output: 50,
-					},
-				}),
+				payload: {
+					case: 'activity',
+					value: create(ActivityEventSchema, {
+						taskId: 'TASK-001',
+						phaseId: 'phase-1',
+						activity: ActivityState.STREAMING,
+						details: JSON.stringify({
+							content: 'Test content',
+							timestamp: testTimestamp,
+							type: 'tool',
+							phase: 'spec',
+							tokens: {
+								input: 100,
+								output: 50,
+							},
+						}),
+					}),
+				},
 			});
 
 			mockEventHandlers.forEach(handler => handler(event));
@@ -273,12 +289,20 @@ describe('SC-2: Event-to-transcript conversion - Connect RPC events converted to
 			wrapper: createWrapper(),
 		});
 
-		// Act: Emit event with invalid JSON
+		// Act: Emit event with invalid JSON in details
 		act(() => {
 			const event = create(EventSchema, {
-				type: 'transcript_chunk',
+				id: `evt-${Date.now()}`,
 				taskId: 'TASK-001',
-				data: 'invalid json{',
+				payload: {
+					case: 'activity',
+					value: create(ActivityEventSchema, {
+						taskId: 'TASK-001',
+						phaseId: 'phase-1',
+						activity: ActivityState.STREAMING,
+						details: 'invalid json{', // Malformed JSON
+					}),
+				},
 			});
 
 			mockEventHandlers.forEach(handler => handler(event));
@@ -290,17 +314,25 @@ describe('SC-2: Event-to-transcript conversion - Connect RPC events converted to
 		});
 	});
 
-	it('should ignore non-transcript events', async () => {
+	it('should ignore non-streaming activity events', async () => {
 		const { result } = renderHook(() => useTaskSubscription('TASK-001'), {
 			wrapper: createWrapper(),
 		});
 
-		// Act: Emit non-transcript event
+		// Act: Emit non-streaming activity event (IDLE state instead of STREAMING)
 		act(() => {
 			const event = create(EventSchema, {
-				type: 'task_status_changed',
+				id: `evt-${Date.now()}`,
 				taskId: 'TASK-001',
-				data: JSON.stringify({ status: 'running' }),
+				payload: {
+					case: 'activity',
+					value: create(ActivityEventSchema, {
+						taskId: 'TASK-001',
+						phaseId: 'phase-1',
+						activity: ActivityState.IDLE, // Not streaming
+						details: JSON.stringify({ content: 'Should be ignored' }),
+					}),
+				},
 			});
 
 			mockEventHandlers.forEach(handler => handler(event));

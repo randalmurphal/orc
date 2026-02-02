@@ -14,6 +14,7 @@ import {
 } from 'react';
 import type { ConnectionStatus } from '@/lib/events';
 import { useTaskState } from '@/stores/taskStore';
+import { ActivityState } from '@/gen/orc/v1/events_pb';
 
 // Re-export for convenience
 export type { ConnectionStatus } from '@/lib/events';
@@ -105,7 +106,7 @@ export function useTaskSubscription(taskId: string | undefined): {
 			// Check if this is a transcript chunk event for our task
 			if (
 				event.payload?.case === 'activity' &&
-				event.payload.value.activity === 'ACTIVITY_STATE_STREAMING' &&
+				event.payload.value.activity === ActivityState.STREAMING &&
 				event.taskId === taskId
 			) {
 				try {

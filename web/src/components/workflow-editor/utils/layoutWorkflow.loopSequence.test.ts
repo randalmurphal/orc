@@ -390,7 +390,7 @@ describe('layoutWorkflow - Loop Edge Sequence Integration', () => {
 				const edge = loopEdges[0];
 				expect(edge.data).toHaveProperty('isBackward');
 				// Should default to false when sequence is unknown
-				expect(edge.data.isBackward).toBe(false);
+				expect(edge.data?.isBackward).toBe(false);
 			}
 		});
 	});

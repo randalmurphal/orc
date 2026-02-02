@@ -3,8 +3,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { PhaseInspector } from './PhaseInspector';
 import { workflowClient, configClient, mcpClient } from '@/lib/client';
-import type { WorkflowPhase, WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
+import { PromptSource, GateType } from '@/gen/orc/v1/workflow_pb';
 import type { Agent } from '@/gen/orc/v1/config_pb';
+import {
+	createMockWorkflowPhase,
+	createMockWorkflowWithDetails,
+	createMockPhaseTemplate,
+	createMockWorkflow,
+} from '@/test/factories';
 
 // Mock the clients
 vi.mock('@/lib/client', () => ({
@@ -25,35 +31,34 @@ describe('PhaseInspector - Redesigned with Collapsible Sections (TDD)', () => {
 	const mockUser = userEvent.setup();
 
 	const mockAgent: Agent = {
+		$typeName: 'orc.v1.Agent',
 		id: 'test-agent-id',
 		name: 'test-agent',
 		model: 'claude-sonnet-4',
 		description: 'Test agent',
 		systemPrompt: '',
-		skills: [],
-		hooks: [],
-		mcpServers: [],
-		envVars: {},
+		skillRefs: [],
+		isBuiltin: false,
+		scope: 0,
 		createdAt: undefined,
 		updatedAt: undefined,
 	};
 
-	const mockPhase: WorkflowPhase = {
+	const mockPhase = createMockWorkflowPhase({
 		id: 1,
 		sequence: 1,
 		phaseTemplateId: 'spec',
-		template: {
+		template: createMockPhaseTemplate({
 			id: 'spec',
 			name: 'Specification',
 			isBuiltin: false,
 			agentId: 'default-agent',
-			model: 'claude-sonnet-4',
 			maxIterations: 3,
 			inputVariables: [],
-			promptSource: 'template',
+			promptSource: PromptSource.EMBEDDED,
 			promptContent: 'Write a spec',
-			gateType: 0, // AUTO
-		},
+			gateType: GateType.AUTO,
+		}),
 		agentOverride: undefined,
 		modelOverride: undefined,
 		maxIterationsOverride: undefined,
@@ -63,22 +68,20 @@ describe('PhaseInspector - Redesigned with Collapsible Sections (TDD)', () => {
 		claudeConfigOverride: undefined,
 		condition: undefined,
 		loopConfig: undefined,
-	};
+	});
 
-	const mockWorkflowDetails: WorkflowWithDetails = {
-		workflow: {
+	const mockWorkflowDetails = createMockWorkflowWithDetails({
+		workflow: createMockWorkflow({
 			id: 'test-workflow',
 			name: 'Test Workflow',
 			description: 'Test workflow description',
 			isBuiltin: false,
-			phases: [],
-			variables: [],
 			createdAt: undefined,
 			updatedAt: undefined,
-		},
+		}),
 		phases: [mockPhase],
 		variables: [],
-	};
+	});
 
 	beforeEach(() => {
 		vi.clearAllMocks();

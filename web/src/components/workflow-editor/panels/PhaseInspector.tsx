@@ -128,9 +128,8 @@ export function PhaseInspector({
 	const [savingFields, setSavingFields] = useState(new Set<string>());
 
 	// Auto-save debounce
-	const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
+	const [_pendingChanges, setPendingChanges] = useState<PendingChanges>({});
 	const debounceTimeoutRef = useRef<number | null>(null);
-	const savePromisesRef = useRef(new Map<string, Promise<void>>());
 
 	// Data fetching states
 	const [agents, setAgents] = useState<Agent[]>([]);
@@ -334,7 +333,6 @@ export function PhaseInspector({
 	}
 
 	const isBuiltin = template.isBuiltin ?? false;
-	const workflowIsBuiltin = workflowDetails.workflow?.isBuiltin ?? false;
 
 	return (
 		<div
@@ -769,11 +767,6 @@ function SubAgentsSection({
 		autoSave('subAgentsOverride', newSubAgents);
 	};
 
-	const handleReorderAgents = (newOrder: string[]) => {
-		setSubAgentsOverride(newOrder);
-		autoSave('subAgentsOverride', newOrder);
-	};
-
 	if (agentsLoading) {
 		return <span className="field-loading">Loading agents...</span>;
 	}
@@ -795,7 +788,7 @@ function SubAgentsSection({
 				<p className="sub-agents-empty">None assigned</p>
 			) : (
 				<div className="sub-agents-list">
-					{assignedAgents.map((agentName, index) => (
+					{assignedAgents.map((agentName, _index) => (
 						<div
 							key={agentName}
 							className="sub-agent-item"
@@ -860,7 +853,7 @@ interface PromptSectionProps {
 	fieldErrors: FieldErrors;
 }
 
-function PromptSection({ phase, template, readOnly, fieldErrors }: PromptSectionProps) {
+function PromptSection({ phase: _phase, template, readOnly, fieldErrors: _fieldErrors }: PromptSectionProps) {
 	const [promptSource, setPromptSource] = useState(template.promptSource || 'template');
 	const [filePath, setFilePath] = useState('');
 
@@ -922,7 +915,7 @@ function PromptSection({ phase, template, readOnly, fieldErrors }: PromptSection
 						promptContent={template.promptContent}
 						readOnly={readOnly}
 					/>
-					{fieldErrors.promptContent && (
+					{_fieldErrors.promptContent && (
 						<span className="field-error">Failed to load prompt content</span>
 					)}
 				</div>
@@ -963,7 +956,7 @@ interface DataFlowSectionProps {
 }
 
 function DataFlowSection({
-	phase,
+	phase: _phase,
 	template,
 	workflowDetails,
 	readOnly,
@@ -1094,7 +1087,7 @@ interface EnvironmentSectionProps {
 }
 
 function EnvironmentSection({
-	phase,
+	phase: _phase,
 	hooks,
 	skills,
 	mcpServers,
@@ -1102,7 +1095,7 @@ function EnvironmentSection({
 	skillsLoading,
 	mcpLoading,
 	readOnly,
-	fieldErrors,
+	fieldErrors: _fieldErrors,
 	autoSave,
 }: EnvironmentSectionProps) {
 	const [workingDirectory, setWorkingDirectory] = useState('inherit');
@@ -1179,7 +1172,7 @@ interface AdvancedSectionProps {
 function AdvancedSection({
 	phase,
 	readOnly,
-	fieldErrors,
+	fieldErrors: _fieldErrors,
 	autoSave,
 	onDeletePhase,
 }: AdvancedSectionProps) {
@@ -1232,7 +1225,7 @@ interface CompletionCriteriaTabProps {
 	phase: WorkflowPhase;
 }
 
-function CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
+export function _CompletionCriteriaTab({ phase }: CompletionCriteriaTabProps) {
 	const template = phase.template;
 	const gateType = phase.gateTypeOverride || template?.gateType || GateType.AUTO;
 	const maxIterations = phase.maxIterationsOverride ?? template?.maxIterations ?? 3;
@@ -1288,7 +1281,7 @@ interface AvailableVariablesListProps {
 	onWorkflowRefresh?: () => void;
 }
 
-function AvailableVariablesList({
+export function _AvailableVariablesList({
 	variables,
 	workflowDetails,
 	workflowIsBuiltin,
@@ -1376,7 +1369,7 @@ interface SettingsTabProps {
 	onDeletePhase?: () => void;
 }
 
-function SettingsTab({
+export function _SettingsTab({
 	phase,
 	workflowDetails,
 	readOnly,
