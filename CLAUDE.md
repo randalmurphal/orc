@@ -86,6 +86,8 @@ Run `orc new --help` for detailed guidance on creating tasks that execute well.
 
 ### Weight Classification (Determines Required Phases)
 
+Phase sequences automatically selected via workflow defaults system (`internal/workflow/defaults.go`):
+
 | Weight | Phases | Spec? | When to Use |
 |--------|--------|-------|-------------|
 | trivial | implement | NO | One-liner fixes, typos |

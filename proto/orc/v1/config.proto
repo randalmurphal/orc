@@ -266,6 +266,24 @@ message Constitution {
   google.protobuf.Timestamp updated_at = 3;
 }
 
+// WorkflowDefaults define default workflow IDs for different task categories
+message WorkflowDefaults {
+  // Feature is the default workflow for feature tasks
+  string feature = 1;
+  // Bug is the default workflow for bug tasks
+  string bug = 2;
+  // Refactor is the default workflow for refactor tasks
+  string refactor = 3;
+  // Chore is the default workflow for chore tasks
+  string chore = 4;
+  // Docs is the default workflow for docs tasks
+  string docs = 5;
+  // Test is the default workflow for test tasks
+  string test = 6;
+  // Default is the fallback workflow for unknown/unspecified categories
+  string default = 7;
+}
+
 // Agent runtime statistics
 message AgentStats {
   int64 tokens_today = 1;     // Total tokens used today
@@ -425,6 +443,12 @@ service ConfigService {
 
   // Config stats
   rpc GetConfigStats(GetConfigStatsRequest) returns (GetConfigStatsResponse);
+
+  // Get workflow defaults
+  rpc GetWorkflowDefaults(GetWorkflowDefaultsRequest) returns (GetWorkflowDefaultsResponse);
+
+  // Update workflow defaults
+  rpc UpdateWorkflowDefaults(UpdateWorkflowDefaultsRequest) returns (UpdateWorkflowDefaultsResponse);
 
   // Export hooks to .claude/ directory
   rpc ExportHooks(ExportHooksRequest) returns (ExportHooksResponse);
@@ -849,6 +873,24 @@ message GetConfigStatsRequest {
 
 message GetConfigStatsResponse {
   ConfigStats stats = 1;
+}
+
+// Workflow defaults request/response messages
+message GetWorkflowDefaultsRequest {
+  string project_id = 1;
+}
+
+message GetWorkflowDefaultsResponse {
+  WorkflowDefaults workflow_defaults = 1;
+}
+
+message UpdateWorkflowDefaultsRequest {
+  string project_id = 1;
+  WorkflowDefaults workflow_defaults = 2;
+}
+
+message UpdateWorkflowDefaultsResponse {
+  WorkflowDefaults workflow_defaults = 1;
 }
 
 // Export/Import request/response messages

@@ -275,7 +275,7 @@ message Task {
 > **Already implemented:** `--workflow` flag exists on `orc new`. When not provided,
 > `workflow.WeightToWorkflowID(weight)` is called. This behavior is preserved.
 
-**Remaining work:** Switch from hardcoded `WeightToWorkflowID()` to config-based `config.Weights.GetWorkflowID()` so users can override the mapping in config.yaml.
+**✅ COMPLETED by TASK-753:** Comprehensive workflow defaults system implemented in `internal/workflow/defaults.go` with hierarchical resolution and config-based overrides.
 
 ```bash
 # Weight implies workflow (current behavior, preserved)
