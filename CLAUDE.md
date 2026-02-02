@@ -84,22 +84,26 @@ The spec phase generates these from your task description. **Vague input → vag
 
 Run `orc new --help` for detailed guidance on creating tasks that execute well.
 
-### Weight Classification (Determines Required Phases)
+### Workflow-First Task Creation
 
-Phase sequences automatically selected via workflow defaults system (`internal/workflow/defaults.go`):
+**Task creation is workflow-first** (not weight-based). Users select workflows directly, which determine phase sequences. Web UI offers 2-step modal process.
 
-| Weight | Phases | Spec? | When to Use |
-|--------|--------|-------|-------------|
+**Built-in workflows** (legacy weight mapping still supported for CLI):
+
+| Workflow | Phases | Spec? | When to Use |
+|----------|--------|-------|-------------|
 | trivial | implement | NO | One-liner fixes, typos |
 | small | tiny_spec → implement → review | YES | Bug fixes, isolated changes |
 | medium | spec → tdd_write → implement → review → docs | YES | Features needing thought |
 | large | spec → tdd_write → breakdown → implement → review → docs | YES | Complex multi-file features |
 
-Key phases:
+**Key phases:**
 - **spec/tiny_spec**: Generates Success Criteria + Testing requirements (foundation for quality)
 - **tdd_write**: Writes failing tests BEFORE implementation (context isolation)
 - **breakdown**: Decomposes large tasks into checkboxed implementation steps
 - **review**: Multi-agent code review with 6 specialized reviewers + no-op detection + success criteria verification
+
+**UI workflow:** Step 1 (select workflow) → Step 2 (task details). See `web/src/components/overlays/NewTaskWorkflowModal.tsx`.
 
 ### Task Completion Flow
 
@@ -111,7 +115,7 @@ Key phases:
 
 **Note:** Auto-merge and CI polling are **disabled by default**. Set `completion.pr.auto_merge: true` and `completion.ci.wait_for_ci: true` to enable. GitHub auto-merge requires GraphQL (not supported); GitLab auto-merge is fully supported via `MergeWhenPipelineSucceeds`.
 
-⚠️ **Common mistake**: Under-weighting tasks. A "medium" task run as "small" skips the spec phase, causing Claude to guess requirements.
+⚠️ **Common mistake**: Selecting too simple a workflow. Complex tasks run with "small" workflow skip the spec phase, causing Claude to guess requirements.
 
 ### Task Properties
 
@@ -248,7 +252,7 @@ Task data stored in per-project SQLite (`~/.orc/projects/<id>/orc.db`). Use `orc
 
 | Command | Purpose | Key Flags |
 |---------|---------|-----------|
-| `orc new "title"` | Create task with full control | `-w weight`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` |
+| `orc new "title"` | Create task with full control | `--workflow/-w workflow`, `-d description`, `-i initiative`, `--branch`, `--target-branch`, `--pr-draft` (legacy weight still supported) |
 | `orc run TASK-ID` | Execute task phases | `--profile`, `--auto-skip`, `--stream`, `--skip-gates` |
 | `orc status` | Dashboard: what needs attention | `--watch`, `--all` |
 
