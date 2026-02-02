@@ -101,6 +101,43 @@ Category changes how the spec phase analyzes the work:
 
 **Don't default everything to `feature`.** A bug categorized as feature misses root cause analysis. A refactor categorized as feature generates unnecessary user stories.
 
+### Step 2.5: Choose the Right Workflow
+
+**Weight suggests a default workflow, but you can override it.** Different workflows exist for different types of work:
+
+| Workflow | Use For | Phases |
+|----------|---------|--------|
+| `implement-trivial` | One-liner fixes, typos | implement |
+| `implement-small` | Bug fixes, isolated changes | tiny_spec → implement → review |
+| `implement-medium` | Features needing design | spec → tdd → implement → review → docs |
+| `implement-large` | Complex multi-file features | spec → tdd → breakdown → implement → review → docs |
+| `qa-e2e` | E2E testing, QA verification | test → fix loop |
+| `docs` | Documentation only | docs |
+| `review` | Code review only | review |
+| `spec` | Specification only | spec |
+
+**Match workflow to work type, not just complexity:**
+
+| Task Type | Wrong | Right |
+|-----------|-------|-------|
+| QA/testing task | implement-medium | qa-e2e |
+| Documentation task | implement-small | docs |
+| Pure code review | implement-medium | review |
+| Spec/design only | implement-medium | spec |
+
+In manifests, explicitly set workflow when the default (based on weight) isn't appropriate:
+
+```yaml
+tasks:
+  - id: 1
+    title: "QA: Verify pagination works end-to-end"
+    weight: medium
+    workflow: qa-e2e  # Override: this is testing, not implementing
+    category: test
+    description: |
+      E2E tests for pagination feature...
+```
+
 ### Step 3: Write Task Descriptions
 
 The description flows into EVERY phase prompt via `{{TASK_DESCRIPTION}}`. It's your primary communication channel with the executing Claude instance.
@@ -174,6 +211,7 @@ tasks:
   - id: 1
     title: "Add pagination to /api/users endpoint"
     weight: medium
+    # workflow: implement-medium  # Optional: override if weight default isn't right
     category: feature
     priority: high
     description: |
@@ -204,6 +242,20 @@ tasks:
       Update to use the paginated /api/users endpoint.
       Add page controls (prev/next, page size selector).
       Show total count. Handle loading and empty states.
+
+  - id: 4
+    title: "QA: Verify pagination end-to-end"
+    weight: medium
+    workflow: qa-e2e  # IMPORTANT: Testing tasks use qa-e2e, not implement-*
+    category: test
+    priority: normal
+    depends_on: [1, 3]
+    description: |
+      E2E tests verifying pagination works correctly:
+      - API returns correct page sizes
+      - UI displays page controls
+      - Navigation between pages works
+      - Edge cases (empty, single page, last page)
 ```
 
 Then execute:
@@ -317,3 +369,4 @@ If no → either merge with the task it depends on, or add the missing context t
 | Always using inline specs | Skips the excellent spec phase analysis | Let spec phase generate unless you've done equivalent analysis |
 | No decisions recorded | Each task's Claude reinvents architectural choices | Record every decision with rationale |
 | Everything is medium | Some work needs large (breakdown) or small (light spec) | Match weight to actual complexity |
+| Wrong workflow for task type | QA task runs implement phases, wastes effort | Use `qa-e2e` for testing, `docs` for documentation, etc. |
