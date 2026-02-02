@@ -26,7 +26,44 @@ The most common failure is creating breakdown tasks that aren't linked to specif
 3. **Link to tests** - Every task should make at least one test pass
 4. **Atomic tasks** - Each task should be completable in one focused session
 5. **No orphans** - Every task must be reachable from a user story
+6. **Identify integration points** - Tasks that wire new code into existing paths MUST be explicit
+7. **Flag concurrent/parallel code** - Any task involving goroutines, parallel execution, or concurrent state needs explicit call-out
 </critical_constraints>
+
+<parallel_code_requirements>
+## Parallel/Concurrent Code Handling
+
+If the spec involves ANY concurrent or parallel execution:
+
+1. **Explicit synchronization tasks** - Create separate tasks for:
+   - Setting up synchronization primitives (mutexes, channels, atomics)
+   - Implementing thread-safe wrappers if needed
+   - Adding cancellation/context propagation
+
+2. **All code paths must be covered** - Parallel code often has multiple execution paths:
+   - Happy path (all succeed)
+   - Partial failure (some succeed, some fail)
+   - Full failure (all fail)
+   - Cancellation mid-execution
+   - Timeout scenarios
+
+3. **Mark with `[CONC]`** - Any task involving concurrent code gets this marker:
+   ```markdown
+   - [ ] T005 [P][CONC] Implement parallel phase execution
+     - Files: internal/executor/parallel.go
+     - Depends: T003
+     - Makes pass: TestParallel_HappyPath, TestParallel_PartialFailure
+     - Concurrency: Uses errgroup, must handle context cancellation
+   ```
+
+4. **Integration tasks are separate** - Don't combine "implement the feature" with "wire it into the system":
+   ```markdown
+   - [ ] T006 [P] Implement parallel executor
+   - [ ] T007 Wire parallel executor into workflow engine
+     - Depends: T006
+     - Makes pass: TestWorkflow_UsesParallelExecution (integration)
+   ```
+</parallel_code_requirements>
 
 <context>
 # Breakdown Phase

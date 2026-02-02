@@ -94,8 +94,38 @@ Pay special attention to whether the issues from the previous review have been a
 {{/if}}
 </context>
 
+<mandatory_subagent_review>
+## MANDATORY: Spawn Specialist Reviewers
+
+**You MUST spawn the following sub-agents for thorough review.** Do NOT attempt to review alone - specialist agents catch issues you will miss.
+
+Spawn ALL of these in parallel using the Task tool:
+
+| Agent | subagent_type | Purpose |
+|-------|---------------|---------|
+| Code Reviewer | `Reviewer` | Guidelines compliance, patterns, code quality |
+| Security Auditor | `Security-Auditor` | OWASP Top 10, injection, auth bypass |
+
+For each agent, provide:
+- The spec content and success criteria
+- The list of changed files
+- The task context (ID, category, weight)
+
+**Wait for all agents to complete before making your final decision.** Incorporate their findings into your assessment.
+
+Example agent spawn:
+```
+Task tool with subagent_type="Reviewer", prompt="Review these changes for TASK-XXX:
+[spec summary]
+[changed files list]
+Focus on: integration completeness, dead code, behavioral correctness"
+```
+
+**If you skip this step, your review is incomplete and will miss issues.**
+</mandatory_subagent_review>
+
 <instructions>
-Fast validation before test phase. Run linting, review changed files against the spec, then decide on one of the three outcomes.
+Thorough validation before test phase. Spawn specialist reviewers, run linting, review changed files against the spec, then decide on one of the three outcomes.
 
 ## Check 1: Completeness (CRITICAL)
 
@@ -171,7 +201,35 @@ If success criteria are vague or untestable, this is a blocking finding — the 
 
 Dead code, unwired integration, or incomplete bug fixes are **high-severity** findings.
 
-## Check 7: Over-Engineering
+## Check 7: Behavioral Parity (CRITICAL for parallel/concurrent code)
+
+**If the implementation adds a new execution path (parallel, async, alternate mode):**
+
+1. **List all behaviors from the original path** - What does the sequential/sync version do?
+2. **Verify EACH behavior exists in the new path** - Don't assume "it's the same code"
+3. **Check for skipped steps** - Common failures:
+   - Condition checks not evaluated
+   - Hooks/callbacks not called
+   - State not updated
+   - Logging/metrics missing
+   - Error handling different
+
+Example checklist for parallel execution feature:
+```
+Original sequential path:
+✓ Evaluates phase conditions
+✓ Calls pre-phase hooks
+✓ Executes phase
+✓ Handles errors with retry
+✓ Updates execution state
+✓ Calls post-phase hooks
+
+New parallel path must do ALL of these for EACH parallel phase.
+```
+
+**If ANY behavior from the original path is missing in the new path, this is a HIGH-SEVERITY finding.**
+
+## Check 8: Over-Engineering
 
 Did the implementation add functionality, abstractions, or error handling beyond what the spec requested?
 
@@ -185,8 +243,12 @@ If you find over-engineering, flag it. The spec defines what should be built —
 
 ## Process
 
-1. Run linting and check changed files
-2. Review each changed file against the spec using the seven checks above
-3. If you made small fixes, commit them
-4. Output your structured response with the appropriate outcome
+1. **Spawn specialist sub-agents** (MANDATORY - see `<mandatory_subagent_review>` above)
+2. Run linting and check changed files
+3. Review each changed file against the spec using the eight checks above
+4. Wait for sub-agent results and incorporate their findings
+5. If you made small fixes, commit them
+6. Output your structured response with the appropriate outcome
+
+**Your final decision must account for ALL sub-agent findings.** If a sub-agent found a high-severity issue, you must block even if your own review found nothing.
 </instructions>
