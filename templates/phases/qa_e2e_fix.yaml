@@ -15,4 +15,4 @@ gate_type: auto
 checkpoint: true
 retry_from_phase: qa_e2e_test
 
-quality_checks: '[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"}]'
+quality_checks: '[{"type":"code","name":"tests","enabled":true,"on_failure":"block"},{"type":"code","name":"lint","enabled":true,"on_failure":"block"},{"type":"code","name":"build","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck","enabled":true,"on_failure":"block"},{"type":"code","name":"lint-web","enabled":true,"on_failure":"block"},{"type":"code","name":"typecheck-web","enabled":true,"on_failure":"block"}]'
