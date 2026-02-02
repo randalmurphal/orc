@@ -62,7 +62,7 @@ When rules conflict, higher priority wins:
 
 | Invariant | Rule | Why | Consequence |
 |-----------|------|-----|-------------|
-| **Workflow ID on Create** | ALL task creation paths must assign `workflow_id` via `workflow.WeightToWorkflowID(weight)` (TASK-658) | `orc new` assigned it but `initiative plan` didn't | Tasks run without workflow, wrong phases execute |
+| **Workflow ID on Create** | ALL task creation paths must assign `workflow_id` via workflow defaults system or explicit override (TASK-658, TASK-753) | `orc new` assigned it but `initiative plan` didn't | Tasks run without workflow, wrong phases execute |
 
 ### Variable System
 

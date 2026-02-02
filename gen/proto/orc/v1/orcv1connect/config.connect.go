@@ -144,6 +144,12 @@ const (
 	// ConfigServiceGetConfigStatsProcedure is the fully-qualified name of the ConfigService's
 	// GetConfigStats RPC.
 	ConfigServiceGetConfigStatsProcedure = "/orc.v1.ConfigService/GetConfigStats"
+	// ConfigServiceGetWorkflowDefaultsProcedure is the fully-qualified name of the ConfigService's
+	// GetWorkflowDefaults RPC.
+	ConfigServiceGetWorkflowDefaultsProcedure = "/orc.v1.ConfigService/GetWorkflowDefaults"
+	// ConfigServiceUpdateWorkflowDefaultsProcedure is the fully-qualified name of the ConfigService's
+	// UpdateWorkflowDefaults RPC.
+	ConfigServiceUpdateWorkflowDefaultsProcedure = "/orc.v1.ConfigService/UpdateWorkflowDefaults"
 	// ConfigServiceExportHooksProcedure is the fully-qualified name of the ConfigService's ExportHooks
 	// RPC.
 	ConfigServiceExportHooksProcedure = "/orc.v1.ConfigService/ExportHooks"
@@ -230,6 +236,10 @@ type ConfigServiceClient interface {
 	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
 	// Config stats
 	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
+	// Get workflow defaults
+	GetWorkflowDefaults(context.Context, *connect.Request[v1.GetWorkflowDefaultsRequest]) (*connect.Response[v1.GetWorkflowDefaultsResponse], error)
+	// Update workflow defaults
+	UpdateWorkflowDefaults(context.Context, *connect.Request[v1.UpdateWorkflowDefaultsRequest]) (*connect.Response[v1.UpdateWorkflowDefaultsResponse], error)
 	// Export hooks to .claude/ directory
 	ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error)
 	// Import hooks from .claude/ directory
@@ -487,6 +497,18 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getWorkflowDefaults: connect.NewClient[v1.GetWorkflowDefaultsRequest, v1.GetWorkflowDefaultsResponse](
+			httpClient,
+			baseURL+ConfigServiceGetWorkflowDefaultsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetWorkflowDefaults")),
+			connect.WithClientOptions(opts...),
+		),
+		updateWorkflowDefaults: connect.NewClient[v1.UpdateWorkflowDefaultsRequest, v1.UpdateWorkflowDefaultsResponse](
+			httpClient,
+			baseURL+ConfigServiceUpdateWorkflowDefaultsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("UpdateWorkflowDefaults")),
+			connect.WithClientOptions(opts...),
+		),
 		exportHooks: connect.NewClient[v1.ExportHooksRequest, v1.ExportHooksResponse](
 			httpClient,
 			baseURL+ConfigServiceExportHooksProcedure,
@@ -522,50 +544,52 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	getConfig             *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
-	updateConfig          *connect.Client[v1.UpdateConfigRequest, v1.UpdateConfigResponse]
-	getSettings           *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	updateSettings        *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
-	getSettingsHierarchy  *connect.Client[v1.GetSettingsHierarchyRequest, v1.GetSettingsHierarchyResponse]
-	listHooks             *connect.Client[v1.ListHooksRequest, v1.ListHooksResponse]
-	createHook            *connect.Client[v1.CreateHookRequest, v1.CreateHookResponse]
-	updateHook            *connect.Client[v1.UpdateHookRequest, v1.UpdateHookResponse]
-	deleteHook            *connect.Client[v1.DeleteHookRequest, v1.DeleteHookResponse]
-	listSkills            *connect.Client[v1.ListSkillsRequest, v1.ListSkillsResponse]
-	createSkill           *connect.Client[v1.CreateSkillRequest, v1.CreateSkillResponse]
-	updateSkill           *connect.Client[v1.UpdateSkillRequest, v1.UpdateSkillResponse]
-	deleteSkill           *connect.Client[v1.DeleteSkillRequest, v1.DeleteSkillResponse]
-	getClaudeMd           *connect.Client[v1.GetClaudeMdRequest, v1.GetClaudeMdResponse]
-	updateClaudeMd        *connect.Client[v1.UpdateClaudeMdRequest, v1.UpdateClaudeMdResponse]
-	getConstitution       *connect.Client[v1.GetConstitutionRequest, v1.GetConstitutionResponse]
-	updateConstitution    *connect.Client[v1.UpdateConstitutionRequest, v1.UpdateConstitutionResponse]
-	deleteConstitution    *connect.Client[v1.DeleteConstitutionRequest, v1.DeleteConstitutionResponse]
-	listPrompts           *connect.Client[v1.ListPromptsRequest, v1.ListPromptsResponse]
-	getPrompt             *connect.Client[v1.GetPromptRequest, v1.GetPromptResponse]
-	getDefaultPrompt      *connect.Client[v1.GetDefaultPromptRequest, v1.GetDefaultPromptResponse]
-	updatePrompt          *connect.Client[v1.UpdatePromptRequest, v1.UpdatePromptResponse]
-	deletePrompt          *connect.Client[v1.DeletePromptRequest, v1.DeletePromptResponse]
-	listPromptVariables   *connect.Client[v1.ListPromptVariablesRequest, v1.ListPromptVariablesResponse]
-	listAgents            *connect.Client[v1.ListAgentsRequest, v1.ListAgentsResponse]
-	getAgent              *connect.Client[v1.GetAgentRequest, v1.GetAgentResponse]
-	createAgent           *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
-	updateAgent           *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
-	deleteAgent           *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
-	listScripts           *connect.Client[v1.ListScriptsRequest, v1.ListScriptsResponse]
-	discoverScripts       *connect.Client[v1.DiscoverScriptsRequest, v1.DiscoverScriptsResponse]
-	getScript             *connect.Client[v1.GetScriptRequest, v1.GetScriptResponse]
-	createScript          *connect.Client[v1.CreateScriptRequest, v1.CreateScriptResponse]
-	updateScript          *connect.Client[v1.UpdateScriptRequest, v1.UpdateScriptResponse]
-	deleteScript          *connect.Client[v1.DeleteScriptRequest, v1.DeleteScriptResponse]
-	listTools             *connect.Client[v1.ListToolsRequest, v1.ListToolsResponse]
-	getToolPermissions    *connect.Client[v1.GetToolPermissionsRequest, v1.GetToolPermissionsResponse]
-	updateToolPermissions *connect.Client[v1.UpdateToolPermissionsRequest, v1.UpdateToolPermissionsResponse]
-	getConfigStats        *connect.Client[v1.GetConfigStatsRequest, v1.GetConfigStatsResponse]
-	exportHooks           *connect.Client[v1.ExportHooksRequest, v1.ExportHooksResponse]
-	importHooks           *connect.Client[v1.ImportHooksRequest, v1.ImportHooksResponse]
-	exportSkills          *connect.Client[v1.ExportSkillsRequest, v1.ExportSkillsResponse]
-	importSkills          *connect.Client[v1.ImportSkillsRequest, v1.ImportSkillsResponse]
-	scanClaudeDir         *connect.Client[v1.ScanClaudeDirRequest, v1.ScanClaudeDirResponse]
+	getConfig              *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
+	updateConfig           *connect.Client[v1.UpdateConfigRequest, v1.UpdateConfigResponse]
+	getSettings            *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	updateSettings         *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	getSettingsHierarchy   *connect.Client[v1.GetSettingsHierarchyRequest, v1.GetSettingsHierarchyResponse]
+	listHooks              *connect.Client[v1.ListHooksRequest, v1.ListHooksResponse]
+	createHook             *connect.Client[v1.CreateHookRequest, v1.CreateHookResponse]
+	updateHook             *connect.Client[v1.UpdateHookRequest, v1.UpdateHookResponse]
+	deleteHook             *connect.Client[v1.DeleteHookRequest, v1.DeleteHookResponse]
+	listSkills             *connect.Client[v1.ListSkillsRequest, v1.ListSkillsResponse]
+	createSkill            *connect.Client[v1.CreateSkillRequest, v1.CreateSkillResponse]
+	updateSkill            *connect.Client[v1.UpdateSkillRequest, v1.UpdateSkillResponse]
+	deleteSkill            *connect.Client[v1.DeleteSkillRequest, v1.DeleteSkillResponse]
+	getClaudeMd            *connect.Client[v1.GetClaudeMdRequest, v1.GetClaudeMdResponse]
+	updateClaudeMd         *connect.Client[v1.UpdateClaudeMdRequest, v1.UpdateClaudeMdResponse]
+	getConstitution        *connect.Client[v1.GetConstitutionRequest, v1.GetConstitutionResponse]
+	updateConstitution     *connect.Client[v1.UpdateConstitutionRequest, v1.UpdateConstitutionResponse]
+	deleteConstitution     *connect.Client[v1.DeleteConstitutionRequest, v1.DeleteConstitutionResponse]
+	listPrompts            *connect.Client[v1.ListPromptsRequest, v1.ListPromptsResponse]
+	getPrompt              *connect.Client[v1.GetPromptRequest, v1.GetPromptResponse]
+	getDefaultPrompt       *connect.Client[v1.GetDefaultPromptRequest, v1.GetDefaultPromptResponse]
+	updatePrompt           *connect.Client[v1.UpdatePromptRequest, v1.UpdatePromptResponse]
+	deletePrompt           *connect.Client[v1.DeletePromptRequest, v1.DeletePromptResponse]
+	listPromptVariables    *connect.Client[v1.ListPromptVariablesRequest, v1.ListPromptVariablesResponse]
+	listAgents             *connect.Client[v1.ListAgentsRequest, v1.ListAgentsResponse]
+	getAgent               *connect.Client[v1.GetAgentRequest, v1.GetAgentResponse]
+	createAgent            *connect.Client[v1.CreateAgentRequest, v1.CreateAgentResponse]
+	updateAgent            *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
+	deleteAgent            *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
+	listScripts            *connect.Client[v1.ListScriptsRequest, v1.ListScriptsResponse]
+	discoverScripts        *connect.Client[v1.DiscoverScriptsRequest, v1.DiscoverScriptsResponse]
+	getScript              *connect.Client[v1.GetScriptRequest, v1.GetScriptResponse]
+	createScript           *connect.Client[v1.CreateScriptRequest, v1.CreateScriptResponse]
+	updateScript           *connect.Client[v1.UpdateScriptRequest, v1.UpdateScriptResponse]
+	deleteScript           *connect.Client[v1.DeleteScriptRequest, v1.DeleteScriptResponse]
+	listTools              *connect.Client[v1.ListToolsRequest, v1.ListToolsResponse]
+	getToolPermissions     *connect.Client[v1.GetToolPermissionsRequest, v1.GetToolPermissionsResponse]
+	updateToolPermissions  *connect.Client[v1.UpdateToolPermissionsRequest, v1.UpdateToolPermissionsResponse]
+	getConfigStats         *connect.Client[v1.GetConfigStatsRequest, v1.GetConfigStatsResponse]
+	getWorkflowDefaults    *connect.Client[v1.GetWorkflowDefaultsRequest, v1.GetWorkflowDefaultsResponse]
+	updateWorkflowDefaults *connect.Client[v1.UpdateWorkflowDefaultsRequest, v1.UpdateWorkflowDefaultsResponse]
+	exportHooks            *connect.Client[v1.ExportHooksRequest, v1.ExportHooksResponse]
+	importHooks            *connect.Client[v1.ImportHooksRequest, v1.ImportHooksResponse]
+	exportSkills           *connect.Client[v1.ExportSkillsRequest, v1.ExportSkillsResponse]
+	importSkills           *connect.Client[v1.ImportSkillsRequest, v1.ImportSkillsResponse]
+	scanClaudeDir          *connect.Client[v1.ScanClaudeDirRequest, v1.ScanClaudeDirResponse]
 }
 
 // GetConfig calls orc.v1.ConfigService.GetConfig.
@@ -763,6 +787,16 @@ func (c *configServiceClient) GetConfigStats(ctx context.Context, req *connect.R
 	return c.getConfigStats.CallUnary(ctx, req)
 }
 
+// GetWorkflowDefaults calls orc.v1.ConfigService.GetWorkflowDefaults.
+func (c *configServiceClient) GetWorkflowDefaults(ctx context.Context, req *connect.Request[v1.GetWorkflowDefaultsRequest]) (*connect.Response[v1.GetWorkflowDefaultsResponse], error) {
+	return c.getWorkflowDefaults.CallUnary(ctx, req)
+}
+
+// UpdateWorkflowDefaults calls orc.v1.ConfigService.UpdateWorkflowDefaults.
+func (c *configServiceClient) UpdateWorkflowDefaults(ctx context.Context, req *connect.Request[v1.UpdateWorkflowDefaultsRequest]) (*connect.Response[v1.UpdateWorkflowDefaultsResponse], error) {
+	return c.updateWorkflowDefaults.CallUnary(ctx, req)
+}
+
 // ExportHooks calls orc.v1.ConfigService.ExportHooks.
 func (c *configServiceClient) ExportHooks(ctx context.Context, req *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error) {
 	return c.exportHooks.CallUnary(ctx, req)
@@ -857,6 +891,10 @@ type ConfigServiceHandler interface {
 	UpdateToolPermissions(context.Context, *connect.Request[v1.UpdateToolPermissionsRequest]) (*connect.Response[v1.UpdateToolPermissionsResponse], error)
 	// Config stats
 	GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error)
+	// Get workflow defaults
+	GetWorkflowDefaults(context.Context, *connect.Request[v1.GetWorkflowDefaultsRequest]) (*connect.Response[v1.GetWorkflowDefaultsResponse], error)
+	// Update workflow defaults
+	UpdateWorkflowDefaults(context.Context, *connect.Request[v1.UpdateWorkflowDefaultsRequest]) (*connect.Response[v1.UpdateWorkflowDefaultsResponse], error)
 	// Export hooks to .claude/ directory
 	ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error)
 	// Import hooks from .claude/ directory
@@ -1110,6 +1148,18 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("GetConfigStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceGetWorkflowDefaultsHandler := connect.NewUnaryHandler(
+		ConfigServiceGetWorkflowDefaultsProcedure,
+		svc.GetWorkflowDefaults,
+		connect.WithSchema(configServiceMethods.ByName("GetWorkflowDefaults")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceUpdateWorkflowDefaultsHandler := connect.NewUnaryHandler(
+		ConfigServiceUpdateWorkflowDefaultsProcedure,
+		svc.UpdateWorkflowDefaults,
+		connect.WithSchema(configServiceMethods.ByName("UpdateWorkflowDefaults")),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceExportHooksHandler := connect.NewUnaryHandler(
 		ConfigServiceExportHooksProcedure,
 		svc.ExportHooks,
@@ -1220,6 +1270,10 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceUpdateToolPermissionsHandler.ServeHTTP(w, r)
 		case ConfigServiceGetConfigStatsProcedure:
 			configServiceGetConfigStatsHandler.ServeHTTP(w, r)
+		case ConfigServiceGetWorkflowDefaultsProcedure:
+			configServiceGetWorkflowDefaultsHandler.ServeHTTP(w, r)
+		case ConfigServiceUpdateWorkflowDefaultsProcedure:
+			configServiceUpdateWorkflowDefaultsHandler.ServeHTTP(w, r)
 		case ConfigServiceExportHooksProcedure:
 			configServiceExportHooksHandler.ServeHTTP(w, r)
 		case ConfigServiceImportHooksProcedure:
@@ -1393,6 +1447,14 @@ func (UnimplementedConfigServiceHandler) UpdateToolPermissions(context.Context, 
 
 func (UnimplementedConfigServiceHandler) GetConfigStats(context.Context, *connect.Request[v1.GetConfigStatsRequest]) (*connect.Response[v1.GetConfigStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetConfigStats is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetWorkflowDefaults(context.Context, *connect.Request[v1.GetWorkflowDefaultsRequest]) (*connect.Response[v1.GetWorkflowDefaultsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.GetWorkflowDefaults is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) UpdateWorkflowDefaults(context.Context, *connect.Request[v1.UpdateWorkflowDefaultsRequest]) (*connect.Response[v1.UpdateWorkflowDefaultsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.ConfigService.UpdateWorkflowDefaults is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) ExportHooks(context.Context, *connect.Request[v1.ExportHooksRequest]) (*connect.Response[v1.ExportHooksResponse], error) {

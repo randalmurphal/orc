@@ -1,0 +1,240 @@
+version: 1
+profile: auto
+gates:
+    default_type: auto
+    all_phases: false
+    auto_approve_on_success: true
+    retry_on_failure: true
+    max_retries: 5
+retry:
+    enabled: true
+    retry_map:
+        review: implement
+    max_retries: 5
+worktree:
+    enabled: true
+    dir: ""
+    cleanup_on_complete: true
+    cleanup_on_fail: false
+completion:
+    action: pr
+    target_branch: main
+    delete_branch: true
+    wait_for_ci: false
+    ci_timeout: 10m0s
+    merge_on_ci_pass: false
+    pr:
+        title: '[orc] {{TASK_TITLE}}'
+        body_template: templates/pr-body.md
+        labels:
+            - automated
+        draft: false
+        maintainer_can_modify: true
+        auto_merge: false
+        auto_approve: false
+    ci:
+        wait_for_ci: false
+        ci_timeout: 10m0s
+        poll_interval: 30s
+        merge_on_ci_pass: false
+        merge_method: squash
+        verify_sha_on_merge: true
+    sync:
+        strategy: completion
+        sync_on_start: true
+        fail_on_conflict: true
+        max_conflict_files: 0
+        skip_for_weights:
+            - trivial
+        auto_resolve: false
+        max_resolve_attempts: 0
+        resolve_model: ""
+    finalize:
+        enabled: true
+        auto_trigger: true
+        auto_trigger_on_approval: true
+        sync:
+            strategy: merge
+        conflict_resolution:
+            enabled: true
+        risk_assessment:
+            enabled: true
+            re_review_threshold: high
+        gates:
+            pre_merge: auto
+execution:
+    use_session_execution: false
+    session_persistence: true
+    checkpoint_interval: 0
+    max_retries: 5
+    parallel_tasks: 2
+    cost_limit: 25
+budget:
+    threshold_usd: 0
+    alert_on_exceed: false
+    pause_on_exceed: false
+pool:
+    enabled: false
+    config_path: ~/.orc/token-pool/pool.yaml
+server:
+    host: 127.0.0.1
+    port: 8080
+    max_port_attempts: 10
+    auth:
+        enabled: false
+        type: token
+team:
+    activity_logging: true
+    task_claiming: false
+    visibility: all
+    mode: local
+identity:
+    initials: ""
+    display_name: ""
+task_id:
+    mode: solo
+    prefix_source: initials
+testing:
+    required: true
+    coverage_threshold: 85
+    types:
+        - unit
+    skip_for_weights:
+        - trivial
+    commands:
+        unit: go test ./...
+        integration: go test -tags=integration ./...
+        e2e: make e2e
+        coverage: go test -coverprofile=coverage.out ./...
+    parse_output: true
+validation:
+    enabled: true
+    model: haiku
+    skip_for_weights:
+        - trivial
+    validate_specs: true
+    validate_criteria: true
+    fail_on_api_error: true
+documentation:
+    enabled: true
+    auto_update_claudemd: true
+    update_on:
+        - feature
+        - api_change
+    skip_for_weights:
+        - trivial
+    sections:
+        - api-endpoints
+        - commands
+        - config-options
+timeouts:
+    phase_max: 1h0m0s
+    turn_max: 10m0s
+    idle_warning: 5m0s
+    heartbeat_interval: 30s
+    idle_timeout: 2m0s
+qa:
+    enabled: true
+    skip_for_weights:
+        - trivial
+    require_e2e: false
+    generate_docs: true
+review:
+    enabled: true
+    rounds: 2
+    require_pass: true
+plan:
+    minimum_sections:
+        - intent
+        - success_criteria
+        - testing
+weights:
+    trivial: implement-trivial
+    small: implement-small
+    medium: implement-medium
+    large: implement-large
+workflow_defaults:
+    default: valid-workflow
+artifact_skip:
+    enabled: true
+    auto_skip: false
+    phases:
+        - spec
+        - research
+        - docs
+subtasks:
+    allow_creation: true
+    auto_approve: false
+    max_pending: 10
+tasks:
+    disable_auto_commit: false
+diagnostics:
+    resource_tracking:
+        enabled: true
+        memory_threshold_mb: 500
+        filter_system_processes: true
+mcp:
+    playwright:
+        enabled: true
+        headless: true
+        browser: chromium
+        timeout_action: 5000
+        timeout_navigation: 60000
+hosting:
+    provider: auto
+    base_url: ""
+    token_env_var: ""
+jira:
+    url: ""
+    email: ""
+    token_env_var: ""
+    epic_to_initiative: null
+    default_weight: ""
+    default_queue: ""
+    default_projects: []
+    custom_fields: {}
+    status_overrides: {}
+    category_overrides: {}
+    priority_overrides: {}
+database:
+    driver: sqlite
+    sqlite:
+        path: .orc/orc.db
+        global_path: ~/.orc/orc.db
+    postgres:
+        host: localhost
+        port: 5432
+        database: orc
+        user: orc
+        password: ""
+        ssl_mode: disable
+        pool_max: 10
+storage:
+    mode: hybrid
+    files:
+        cleanup_on_complete: true
+    database:
+        cache_transcripts: true
+        retention_days: 90
+    export:
+        enabled: false
+        task_definition: true
+        final_state: true
+        transcripts: false
+        context_summary: true
+automation:
+    enabled: true
+    auto_approve: true
+    global_cooldown: 30m0s
+    max_concurrent: 1
+    default_mode: auto
+model: opus
+max_iterations: 30
+timeout: 10m0s
+branch_prefix: orc/
+commit_prefix: '[orc]'
+claude_path: claude
+dangerously_skip_permissions: true
+templates_dir: templates
+enable_checkpoints: true
+workflow: ""

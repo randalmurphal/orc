@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateAgentRequest, CreateAgentResponse, CreateHookRequest, CreateHookResponse, CreateScriptRequest, CreateScriptResponse, CreateSkillRequest, CreateSkillResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteScriptRequest, DeleteScriptResponse, DeleteSkillRequest, DeleteSkillResponse, DiscoverScriptsRequest, DiscoverScriptsResponse, ExportHooksRequest, ExportHooksResponse, ExportSkillsRequest, ExportSkillsResponse, GetAgentRequest, GetAgentResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConfigStatsRequest, GetConfigStatsResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetScriptRequest, GetScriptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, GetToolPermissionsRequest, GetToolPermissionsResponse, ImportHooksRequest, ImportHooksResponse, ImportSkillsRequest, ImportSkillsResponse, ListAgentsRequest, ListAgentsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListScriptsRequest, ListScriptsResponse, ListSkillsRequest, ListSkillsResponse, ListToolsRequest, ListToolsResponse, ScanClaudeDirRequest, ScanClaudeDirResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateScriptRequest, UpdateScriptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse, UpdateToolPermissionsRequest, UpdateToolPermissionsResponse } from "./config_pb.js";
+import { CreateAgentRequest, CreateAgentResponse, CreateHookRequest, CreateHookResponse, CreateScriptRequest, CreateScriptResponse, CreateSkillRequest, CreateSkillResponse, DeleteAgentRequest, DeleteAgentResponse, DeleteConstitutionRequest, DeleteConstitutionResponse, DeleteHookRequest, DeleteHookResponse, DeletePromptRequest, DeletePromptResponse, DeleteScriptRequest, DeleteScriptResponse, DeleteSkillRequest, DeleteSkillResponse, DiscoverScriptsRequest, DiscoverScriptsResponse, ExportHooksRequest, ExportHooksResponse, ExportSkillsRequest, ExportSkillsResponse, GetAgentRequest, GetAgentResponse, GetClaudeMdRequest, GetClaudeMdResponse, GetConfigRequest, GetConfigResponse, GetConfigStatsRequest, GetConfigStatsResponse, GetConstitutionRequest, GetConstitutionResponse, GetDefaultPromptRequest, GetDefaultPromptResponse, GetPromptRequest, GetPromptResponse, GetScriptRequest, GetScriptResponse, GetSettingsHierarchyRequest, GetSettingsHierarchyResponse, GetSettingsRequest, GetSettingsResponse, GetToolPermissionsRequest, GetToolPermissionsResponse, GetWorkflowDefaultsRequest, GetWorkflowDefaultsResponse, ImportHooksRequest, ImportHooksResponse, ImportSkillsRequest, ImportSkillsResponse, ListAgentsRequest, ListAgentsResponse, ListHooksRequest, ListHooksResponse, ListPromptsRequest, ListPromptsResponse, ListPromptVariablesRequest, ListPromptVariablesResponse, ListScriptsRequest, ListScriptsResponse, ListSkillsRequest, ListSkillsResponse, ListToolsRequest, ListToolsResponse, ScanClaudeDirRequest, ScanClaudeDirResponse, UpdateAgentRequest, UpdateAgentResponse, UpdateClaudeMdRequest, UpdateClaudeMdResponse, UpdateConfigRequest, UpdateConfigResponse, UpdateConstitutionRequest, UpdateConstitutionResponse, UpdateHookRequest, UpdateHookResponse, UpdatePromptRequest, UpdatePromptResponse, UpdateScriptRequest, UpdateScriptResponse, UpdateSettingsRequest, UpdateSettingsResponse, UpdateSkillRequest, UpdateSkillResponse, UpdateToolPermissionsRequest, UpdateToolPermissionsResponse, UpdateWorkflowDefaultsRequest, UpdateWorkflowDefaultsResponse } from "./config_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -417,6 +417,28 @@ export const ConfigService = {
       name: "GetConfigStats",
       I: GetConfigStatsRequest,
       O: GetConfigStatsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Get workflow defaults
+     *
+     * @generated from rpc orc.v1.ConfigService.GetWorkflowDefaults
+     */
+    getWorkflowDefaults: {
+      name: "GetWorkflowDefaults",
+      I: GetWorkflowDefaultsRequest,
+      O: GetWorkflowDefaultsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Update workflow defaults
+     *
+     * @generated from rpc orc.v1.ConfigService.UpdateWorkflowDefaults
+     */
+    updateWorkflowDefaults: {
+      name: "UpdateWorkflowDefaults",
+      I: UpdateWorkflowDefaultsRequest,
+      O: UpdateWorkflowDefaultsResponse,
       kind: MethodKind.Unary,
     },
     /**
