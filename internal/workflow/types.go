@@ -187,15 +187,16 @@ type PhaseTemplate struct {
 // Workflow composes phases into an execution plan.
 // Stored in workflows table.
 type Workflow struct {
-	ID              string       `json:"id" db:"id"`
-	Name            string       `json:"name" db:"name"`
-	Description     string       `json:"description,omitempty" db:"description"`
-	DefaultModel    string       `json:"default_model,omitempty" db:"default_model"`
-	DefaultThinking bool         `json:"default_thinking" db:"default_thinking"`
-	IsBuiltin       bool         `json:"is_builtin" db:"is_builtin"`
-	BasedOn         string       `json:"based_on,omitempty" db:"based_on"`
-	CreatedAt       time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at" db:"updated_at"`
+	ID                   string       `json:"id" db:"id"`
+	Name                 string       `json:"name" db:"name"`
+	Description          string       `json:"description,omitempty" db:"description"`
+	DefaultModel         string       `json:"default_model,omitempty" db:"default_model"`
+	DefaultThinking      bool         `json:"default_thinking" db:"default_thinking"`
+	DefaultMaxIterations int          `json:"default_max_iterations,omitempty" db:"default_max_iterations"`
+	IsBuiltin            bool         `json:"is_builtin" db:"is_builtin"`
+	BasedOn              string       `json:"based_on,omitempty" db:"based_on"`
+	CreatedAt            time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time    `json:"updated_at" db:"updated_at"`
 
 	// Workflow-level lifecycle triggers
 	Triggers []WorkflowTrigger `json:"triggers,omitempty"`

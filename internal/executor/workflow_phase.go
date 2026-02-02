@@ -126,15 +126,9 @@ func (we *WorkflowExecutor) executePhase(
 	// Render template with variables
 	renderedPrompt := variable.RenderTemplate(promptContent, vars)
 
-	// Determine max iterations (phase override > template default > fallback 20).
-	// Zero means unset (Go zero value) — apply same default as workflow.WorkflowPhase.GetEffectiveMaxIterations().
-	maxIter := tmpl.MaxIterations
-	if phase.MaxIterationsOverride != nil {
-		maxIter = *phase.MaxIterationsOverride
-	}
-	if maxIter <= 0 {
-		maxIter = 20
-	}
+	// Determine max iterations via resolution chain:
+	// phase override > workflow default > template default > 20
+	maxIter := we.resolveMaxIterations(tmpl, phase)
 
 	// Determine model (workflow phase override > template default > config default)
 	model := we.resolvePhaseModel(tmpl, phase)
@@ -744,6 +738,32 @@ func (we *WorkflowExecutor) shouldUseThinking(tmpl *db.PhaseTemplate, phase *db.
 	}
 
 	return false
+}
+
+// resolveMaxIterations determines the max iterations for a phase.
+// Resolution chain (highest priority first):
+// 1. phase.MaxIterationsOverride (workflow-phase-level override)
+// 2. workflow.DefaultMaxIterations (workflow-level default, 0 = inherit)
+// 3. template.MaxIterations (phase template default)
+// 4. 20 (hardcoded fallback)
+func (we *WorkflowExecutor) resolveMaxIterations(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) int {
+	// Phase override takes precedence
+	if phase.MaxIterationsOverride != nil {
+		return *phase.MaxIterationsOverride
+	}
+
+	// Workflow default_max_iterations (0 means inherit, falls through)
+	if we.wf != nil && we.wf.DefaultMaxIterations > 0 {
+		return we.wf.DefaultMaxIterations
+	}
+
+	// Template default
+	if tmpl.MaxIterations > 0 {
+		return tmpl.MaxIterations
+	}
+
+	// Ultimate fallback
+	return 20
 }
 
 // phaseTimeoutError wraps an error to indicate it was caused by PhaseMax timeout.
