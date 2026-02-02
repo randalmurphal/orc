@@ -1398,49 +1398,5 @@ func extractPhaseFromPrompt(prompt string) string {
 	return "unknown"
 }
 
-// =============================================================================
-// safeVars stub - this is the type we're testing (will be implemented)
-// =============================================================================
-
-// safeVars provides thread-safe access to a map[string]string.
-// This is a stub that will fail to compile until implemented.
-type safeVars struct {
-	mu   sync.RWMutex
-	vars map[string]string
-}
-
-// newSafeVars creates a new thread-safe vars wrapper.
-func newSafeVars() *safeVars {
-	return &safeVars{
-		vars: make(map[string]string),
-	}
-}
-
-// Set stores a value for the given key.
-func (sv *safeVars) Set(key, value string) {
-	sv.mu.Lock()
-	defer sv.mu.Unlock()
-	sv.vars[key] = value
-}
-
-// Get retrieves a value for the given key.
-func (sv *safeVars) Get(key string) string {
-	sv.mu.RLock()
-	defer sv.mu.RUnlock()
-	return sv.vars[key]
-}
-
-// Clone returns a copy of the internal map.
-func (sv *safeVars) Clone() map[string]string {
-	sv.mu.RLock()
-	defer sv.mu.RUnlock()
-	result := make(map[string]string, len(sv.vars))
-	for k, v := range sv.vars {
-		result[k] = v
-	}
-	return result
-}
-
-// =============================================================================
+// NOTE: safeVars is implemented in parallel_execution.go
 // NOTE: computeExecutionLevels is implemented in topo_sort.go
-// =============================================================================
