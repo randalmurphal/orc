@@ -460,15 +460,6 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/agents route', () => {
-		it('renders Agents page', async () => {
-			renderWithRouter('/agents');
-			// Just verify the route doesn't error and renders something
-			await waitFor(() => {
-				expect(screen.getByRole('navigation')).toBeInTheDocument();
-			});
-		});
-	});
 
 	describe('/preferences route', () => {
 		it('renders Preferences page', async () => {

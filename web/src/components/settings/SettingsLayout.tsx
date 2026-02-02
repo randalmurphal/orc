@@ -119,7 +119,6 @@ export function SettingsLayout() {
 					<NavGroup title="ENVIRONMENT">
 						<NavItem to="/settings/hooks" icon="terminal" label="Hooks" />
 						<NavItem to="/settings/skills" icon="layers" label="Skills" />
-						<NavItem to="/settings/mcp" icon="mcp" label="MCP Servers" />
 						<NavItem to="/settings/tools" icon="settings" label="Tools" />
 						<NavItem to="/settings/config" icon="file-text" label="Config" />
 					</NavGroup>
