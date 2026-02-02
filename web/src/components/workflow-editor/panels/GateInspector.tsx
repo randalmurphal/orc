@@ -1,21 +1,22 @@
 import type { Edge } from '@xyflow/react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { GateType } from '@/gen/orc/v1/workflow_pb';
 import type { WorkflowWithDetails } from '@/gen/orc/v1/workflow_pb';
 import type { GateEdgeData } from '../utils/layoutWorkflow';
 import { workflowClient } from '@/lib/client';
 import './GateInspector.css';
 
-// Enhanced gate edge data structure for configuration
+// Enhanced gate configuration data structure
 interface GateConfigData extends Record<string, unknown> {
-	// Basic gate info
+	// Base gate fields (matching GateEdgeData)
 	gateType: GateType;
 	gateStatus?: 'pending' | 'passed' | 'blocked' | 'failed';
 	phaseId?: number;
-	position: 'entry' | 'exit' | 'between';
+	position?: 'entry' | 'exit' | 'between';
 	maxRetries?: number;
 	failureAction?: 'retry' | 'retry_from' | 'fail' | 'pause';
 
+	// Enhanced configuration fields
 	// Auto gate configuration
 	autoCriteria?: {
 		hasOutput?: boolean;
@@ -47,7 +48,7 @@ interface GateConfigData extends Record<string, unknown> {
 }
 
 interface GateInspectorProps {
-	edge: Edge<GateConfigData> | null | undefined;
+	edge: Edge<GateEdgeData> | null | undefined;
 	workflowDetails: WorkflowWithDetails | null;
 	readOnly: boolean;
 }
@@ -90,47 +91,33 @@ export function GateInspector({
 	const [localGateType, setLocalGateType] = useState<GateType | null>(null);
 	const [localConfig, setLocalConfig] = useState<Partial<GateConfigData>>({});
 
-	// Return nothing if no edge is selected
-	if (!edge || !edge.data) {
-		return null;
-	}
+	// Extract edge data safely
+	const edgeData = edge?.data as GateEdgeData | undefined;
+	const gateType = localGateType ?? edgeData?.gateType ?? GateType.AUTO;
+	const gateStatus = edgeData?.gateStatus;
+	const maxRetries = edgeData?.maxRetries ?? 3;
+	const failureAction = edgeData?.failureAction ?? 'retry';
+	const phaseId = edgeData?.phaseId;
 
-	const edgeData = edge.data as GateConfigData;
-	// Use local gate type if set, otherwise use edge data
-	const gateType = localGateType ?? edgeData.gateType ?? GateType.AUTO;
-	const position = edgeData.position ?? 'between';
-	const gateStatus = edgeData.gateStatus;
-	const maxRetries = edgeData.maxRetries ?? 3;
-	const failureAction = edgeData.failureAction ?? 'retry';
-	const phaseId = edgeData.phaseId;
-
-	// Configuration data with local state overrides
-	const autoCriteria = { ...(edgeData.autoCriteria ?? {}), ...(localConfig.autoCriteria ?? {}) };
-	const humanConfig = { ...(edgeData.humanConfig ?? {}), ...(localConfig.humanConfig ?? {}) };
-	const aiConfig = { ...(edgeData.aiConfig ?? {}), ...(localConfig.aiConfig ?? {}) };
-	const advancedConfig = { ...(edgeData.advancedConfig ?? {}), ...(localConfig.advancedConfig ?? {}) };
-	const retryFromPhaseId = localConfig.retryFromPhaseId ?? edgeData.retryFromPhaseId;
-
-	// Find the target phase name for between gates
-	const targetPhase = phaseId
-		? workflowDetails?.phases?.find((p) => p.id === phaseId)
-		: null;
-	const targetPhaseName = targetPhase?.template?.name ?? targetPhase?.phaseTemplateId;
-
-	// Build header text based on position
-	let headerText: string;
-	if (position === 'entry') {
-		headerText = 'Entry Gate';
-	} else if (position === 'exit') {
-		headerText = 'Exit Gate';
-	} else if (targetPhaseName) {
-		headerText = `Gate → ${targetPhaseName}`;
-	} else {
-		headerText = getPositionLabel(position);
-	}
-
-	// Get status CSS class
-	const statusClass = gateStatus ? `gate-inspector__status--${gateStatus}` : '';
+	// Configuration data with local state overrides - memoized for performance
+	const enhancedData = edgeData as GateConfigData | undefined;
+	const autoCriteria = useMemo(() =>
+		({ ...(enhancedData?.autoCriteria ?? {}), ...(localConfig.autoCriteria ?? {}) }),
+		[enhancedData?.autoCriteria, localConfig.autoCriteria]
+	);
+	const humanConfig = useMemo(() =>
+		({ ...(enhancedData?.humanConfig ?? {}), ...(localConfig.humanConfig ?? {}) }),
+		[enhancedData?.humanConfig, localConfig.humanConfig]
+	);
+	const aiConfig = useMemo(() =>
+		({ ...(enhancedData?.aiConfig ?? {}), ...(localConfig.aiConfig ?? {}) }),
+		[enhancedData?.aiConfig, localConfig.aiConfig]
+	);
+	const advancedConfig = useMemo(() =>
+		({ ...(enhancedData?.advancedConfig ?? {}), ...(localConfig.advancedConfig ?? {}) }),
+		[enhancedData?.advancedConfig, localConfig.advancedConfig]
+	);
+	const retryFromPhaseId = localConfig.retryFromPhaseId ?? enhancedData?.retryFromPhaseId;
 
 	// API call to save configuration changes
 	const saveConfiguration = useCallback(async (updates: Partial<GateConfigData>) => {
@@ -144,14 +131,14 @@ export function GateInspector({
 				maxIterations: updates.maxRetries ?? maxRetries,
 				// Additional fields would be added here based on the actual API structure
 			});
-		} catch (error) {
+		} catch (_error) {
 			// Only log in development/non-test environments
 			if (process.env.NODE_ENV !== 'test') {
-				console.error('Failed to save gate configuration:', error);
+				console.error('Failed to save gate configuration:', _error);
 			}
 			// Don't re-throw in tests to avoid uncaught errors
 			if (process.env.NODE_ENV !== 'test') {
-				throw error;
+				throw _error;
 			}
 		} finally {
 			setIsLoading(false);
@@ -165,7 +152,7 @@ export function GateInspector({
 		setLocalGateType(newGateType);
 		try {
 			await saveConfiguration({ gateType: newGateType });
-		} catch (error) {
+		} catch (_error) {
 			// Revert local state on API failure
 			setLocalGateType(null);
 		}
@@ -213,6 +200,35 @@ export function GateInspector({
 		setLocalConfig(prev => ({ ...prev, advancedConfig: newAdvancedConfig }));
 		saveConfiguration({ advancedConfig: newAdvancedConfig });
 	}, [saveConfiguration, advancedConfig]);
+
+	// Return nothing if no edge is selected (after all hooks)
+	if (!edge || !edge.data) {
+		return null;
+	}
+
+	// Extract position and build UI state after early return
+	const position = edgeData?.position ?? 'between';
+
+	// Find the target phase name for between gates
+	const targetPhase = phaseId
+		? workflowDetails?.phases?.find((p) => p.id === phaseId)
+		: null;
+	const targetPhaseName = targetPhase?.template?.name ?? targetPhase?.phaseTemplateId;
+
+	// Build header text based on position
+	let headerText: string;
+	if (position === 'entry') {
+		headerText = 'Entry Gate';
+	} else if (position === 'exit') {
+		headerText = 'Exit Gate';
+	} else if (targetPhaseName) {
+		headerText = `Gate → ${targetPhaseName}`;
+	} else {
+		headerText = getPositionLabel(position);
+	}
+
+	// Get status CSS class
+	const statusClass = gateStatus ? `gate-inspector__status--${gateStatus}` : '';
 
 	return (
 		<div className="gate-inspector">
