@@ -200,7 +200,7 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			render(<WorkflowCanvas />);
 
 			await waitFor(() => {
-				const store = useWorkflowEditorStore.getState();
+				const _store = useWorkflowEditorStore.getState();
 				const edges = store.edges;
 
 				// Should have loop edges
@@ -245,7 +245,7 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 
 			await waitFor(() => {
 				// Edge from review (now seq 1) to implement (now seq 4) should be forward
-				const store = useWorkflowEditorStore.getState();
+				const _store = useWorkflowEditorStore.getState();
 				const reviewToImplEdge = store.edges.find(
 					edge => edge.source === 'phase-4' && edge.target === 'phase-3' && edge.type === 'loop'
 				);
@@ -277,7 +277,7 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			// Should be able to select the edge (React Flow handles this)
 			// The edge should become part of the selected elements
 			await waitFor(() => {
-				const store = useWorkflowEditorStore.getState();
+				const _store = useWorkflowEditorStore.getState();
 				// Selection behavior depends on React Flow implementation
 				// This test documents expected interactivity
 				expect(backwardEdgePath).toBeDefined();
@@ -340,7 +340,7 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(updatedWorkflow);
 
 			await waitFor(() => {
-				const store = useWorkflowEditorStore.getState();
+				const _store = useWorkflowEditorStore.getState();
 				const updatedLoopEdge = store.edges.find(
 					edge => edge.source === 'phase-4' && edge.type === 'loop'
 				);
@@ -375,7 +375,7 @@ describe('WorkflowCanvas - Backward Loop Edge Integration', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(workflowWithoutLoop);
 
 			await waitFor(() => {
-				const store = useWorkflowEditorStore.getState();
+				const _store = useWorkflowEditorStore.getState();
 				const loopEdges = store.edges.filter(edge => edge.type === 'loop');
 				expect(loopEdges.length).toBe(1); // Only docs->spec loop remains
 			});

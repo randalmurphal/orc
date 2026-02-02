@@ -21,7 +21,6 @@ import {
 	createMockWorkflowPhase,
 	createMockPhaseTemplate,
 } from '@/test/factories';
-import { GateType } from '@/gen/orc/v1/workflow_pb';
 
 /**
  * Create a workflow with loop configuration for testing
