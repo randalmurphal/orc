@@ -233,10 +233,10 @@ export function TaskDetail() {
 							projectId={projectId}
 							isTaskRunning={task.status === TaskStatus.RUNNING}
 							onFeedbackAdded={(feedback) => {
-								console.log('Feedback added:', feedback);
+								// DEBUG:('Feedback added:', feedback);
 							}}
 							onTaskPaused={() => {
-								console.log('Task paused for feedback');
+								// DEBUG:('Task paused for feedback');
 								// The task status will be updated via WebSocket subscription
 							}}
 							onError={(error) => {
