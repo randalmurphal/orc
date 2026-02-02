@@ -11,8 +11,8 @@ Unified workflow execution engine. All execution goes through `WorkflowExecutor`
 | `workflow_executor.go` | ~400 | `NewWorkflowExecutor()`, `Run()`, `applyPhaseContentToVars()` | Core types, options, entry point, phase loop logic, gate action dispatch |
 | `workflow_context.go` | ~196 | `buildResolutionContext()`, `enrichContextForPhase()`, `loadInitiativeContext()` | Context building, initiative/project loading, variable conversion |
 | `workflow_phase.go` | ~195 | `executePhase()`, `executePhaseWithTimeout()`, `executeWithClaude()`, `checkSpecRequirements()` | Phase execution, timeout handling, spec validation |
-| `workflow_completion.go` | ~289 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `applyPRAutomation()` | PR creation/reuse, merge, worktree setup/cleanup, sync |
-| `workflow_state.go` | ~294 | `failRun()`, `failSetup()`, `interruptRun()`, `recordCostToGlobal()` | Failure/interrupt handling, cost tracking, transcript sync |
+| `workflow_completion.go` | ~380 | `runCompletion()`, `createPR()`, `directMerge()`, `ResolvePROptions()`, `cleanupSyncFailure()`, `detectExistingWork()` | PR creation/reuse, merge, worktree setup/cleanup, sync, work-aware cleanup |
+| `workflow_state.go` | ~300 | `failRun()`, `failSetup()`, `interruptRun()`, `commitWIPOnInterrupt()`, `recordCostToGlobal()` | Failure/interrupt handling, work preservation, cost tracking |
 | `workflow_gates.go` | ~250 | `evaluatePhaseGate()`, `applyGateOutputToVars()`, `resolveGateType()`, `runGateScript()` | Gate evaluation (auto/human/AI), output variable pipeline, script execution, type resolution |
 | `workflow_triggers.go` | ~127 | `evaluateBeforePhaseTriggers()`, `fireLifecycleTriggers()`, `handleCompletionWithTriggers()` | Trigger evaluation (before-phase + lifecycle events) |
 | `gate_actions.go` | ~295 | `resolveApprovedAction()`, `resolveRejectedAction()`, `resolveRetryFrom()` | Gate output action resolution: maps `OnApproved`/`OnRejected` config to `GateAction` enum |
@@ -599,6 +599,24 @@ When adding new error paths:
 5. **Publish events:** `e.publishError()` and `e.publishState()`
 
 **Always use helper functions** (`failRun`, `failSetup`, `interruptRun`) which handle all cleanup consistently.
+
+### Work Preservation
+
+Both `failRun()` and `interruptRun()` commit work-in-progress before updating status. This preserves uncommitted changes so they can be recovered on retry.
+
+| Event | Commits WIP? | Preserves Worktree? |
+|-------|--------------|---------------------|
+| Ctrl+C / SIGUSR1 (pause) | ✅ via `commitWIPOnInterrupt()` | ✅ |
+| Task failure (`failRun`) | ✅ via `commitWIPOnInterrupt()` | N/A |
+| Sync-on-start failure | N/A | ✅ if work exists via `detectExistingWork()` |
+| Completion | ✅ via `autoCommitBeforeCompletion()` | Config-dependent |
+
+**`detectExistingWork()`** checks three signals before allowing cleanup:
+1. Uncommitted changes (staged, unstaged, or untracked)
+2. Commits ahead of target branch
+3. Phase execution state (any `StartedAt` timestamp)
+
+If any signal is found, worktree/branch is preserved. Fail-safe: detection errors preserve (can't confirm no work = don't delete).
 
 ### Anti-Patterns
 

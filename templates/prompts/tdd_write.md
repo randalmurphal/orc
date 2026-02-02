@@ -273,6 +273,19 @@ Run: `{{TEST_COMMAND}}`
 This is correct - it proves tests are testing real behavior, not mocks or stubs.
 
 If any test passes before implementation, it's testing the wrong thing or the feature already exists.
+
+## Step 4: Commit Your Tests
+
+Before outputting completion JSON, commit all test files to preserve them:
+
+```bash
+git add -A
+git commit -m "[orc] {{TASK_ID}}: tdd_write - [brief description of tests]
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+**CRITICAL:** Always commit before claiming completion. Uncommitted tests may be lost if execution is interrupted or the task fails.
 </instructions>
 
 <example_good_tdd>

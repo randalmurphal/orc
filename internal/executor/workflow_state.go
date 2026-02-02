@@ -15,7 +15,14 @@ import (
 )
 
 // failRun marks a run as failed and syncs task status.
+// Commits any work-in-progress before updating status to preserve changes.
 func (we *WorkflowExecutor) failRun(run *db.WorkflowRun, t *orcv1.Task, err error) {
+	// Commit work-in-progress before marking failed (match interruptRun behavior)
+	// This preserves any uncommitted changes so they can be recovered on retry
+	if t != nil && run.CurrentPhase != "" {
+		we.commitWIPOnInterrupt(t, run.CurrentPhase)
+	}
+
 	run.Status = string(workflow.RunStatusFailed)
 	run.Error = err.Error()
 	run.CompletedAt = timePtr(time.Now())

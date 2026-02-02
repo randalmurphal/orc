@@ -17,6 +17,7 @@ import (
 	"github.com/randalmurphal/orc/internal/git"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // syncCleanupTestEnv holds all the state needed to test sync-on-start failure cleanup.
@@ -191,9 +192,9 @@ func (env *syncCleanupTestEnv) branchName() string {
 	return env.gitOps.BranchName(env.taskID)
 }
 
-// TestSyncOnStartFailure_CleansWorktree verifies SC-1:
-// When sync-on-start fails, the worktree directory is removed regardless of CleanupOnFail config.
-func TestSyncOnStartFailure_CleansWorktree(t *testing.T) {
+// TestSyncOnStartFailure_PreservesWorktreeWithCommits verifies SC-1:
+// When sync-on-start fails and there are commits on the branch, the worktree is PRESERVED.
+func TestSyncOnStartFailure_PreservesWorktreeWithCommits(t *testing.T) {
 	t.Parallel()
 
 	env := setupSyncCleanupTest(t, "TASK-SYNC-WT")
@@ -204,7 +205,7 @@ func TestSyncOnStartFailure_CleansWorktree(t *testing.T) {
 		t.Fatalf("worktree should exist before run: %s", wtPath)
 	}
 
-	// Explicitly set CleanupOnFail to false — sync failure cleanup should be unconditional
+	// Explicitly set CleanupOnFail to false (doesn't matter - work detection takes precedence)
 	env.cfg.Worktree.CleanupOnFail = false
 
 	// Run executor — should fail on sync-on-start due to merge conflict
@@ -216,15 +217,15 @@ func TestSyncOnStartFailure_CleansWorktree(t *testing.T) {
 		t.Fatalf("expected sync-on-start error, got: %v", err)
 	}
 
-	// SC-1: Worktree directory must be removed regardless of CleanupOnFail config
-	if _, statErr := os.Stat(wtPath); !os.IsNotExist(statErr) {
-		t.Errorf("SC-1 FAILED: worktree directory should not exist after sync failure, path: %s", wtPath)
+	// SC-1: Worktree directory must be PRESERVED because there's work (commits ahead)
+	if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
+		t.Errorf("SC-1 FAILED: worktree directory should exist after sync failure when work exists, path: %s", wtPath)
 	}
 }
 
-// TestSyncOnStartFailure_CleansBranch verifies SC-2:
-// When sync-on-start fails, the task branch is deleted so retry creates a fresh branch.
-func TestSyncOnStartFailure_CleansBranch(t *testing.T) {
+// TestSyncOnStartFailure_PreservesBranchWithCommits verifies SC-2:
+// When sync-on-start fails and there are commits on the branch, the branch is PRESERVED.
+func TestSyncOnStartFailure_PreservesBranchWithCommits(t *testing.T) {
 	t.Parallel()
 
 	env := setupSyncCleanupTest(t, "TASK-SYNC-BR")
@@ -248,19 +249,19 @@ func TestSyncOnStartFailure_CleansBranch(t *testing.T) {
 		t.Fatalf("expected sync-on-start error, got: %v", runErr)
 	}
 
-	// SC-2: Branch must be deleted after sync failure
+	// SC-2: Branch must be PRESERVED because there are commits ahead
 	exists, err = env.gitOps.BranchExists(branchName)
 	if err != nil {
 		t.Fatalf("BranchExists check after failure: %v", err)
 	}
-	if exists {
-		t.Errorf("SC-2 FAILED: branch %s should not exist after sync failure", branchName)
+	if !exists {
+		t.Errorf("SC-2 FAILED: branch %s should exist after sync failure when work exists", branchName)
 	}
 }
 
-// TestSyncOnStartFailure_RetrySucceeds verifies SC-3:
-// After sync-on-start failure and cleanup, a retry can create fresh worktree and branch.
-func TestSyncOnStartFailure_RetrySucceeds(t *testing.T) {
+// TestSyncOnStartFailure_RetryReusesPreservedWorktree verifies SC-3:
+// When work is preserved after sync failure, the retry reuses the existing worktree.
+func TestSyncOnStartFailure_RetryReusesPreservedWorktree(t *testing.T) {
 	t.Parallel()
 
 	env := setupSyncCleanupTest(t, "TASK-SYNC-RETRY")
@@ -274,31 +275,35 @@ func TestSyncOnStartFailure_RetrySucceeds(t *testing.T) {
 		t.Fatalf("expected sync-on-start error, got: %v", err)
 	}
 
-	// After cleanup, verify we can create a fresh worktree and branch.
-	// This simulates what the next `orc run` would do for worktree setup.
-	// Reset task status so it can be loaded again
+	// Verify worktree was preserved (not cleaned)
+	wtPath := env.worktreePath()
+	if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
+		t.Fatalf("worktree should be preserved after sync failure with work: %s", wtPath)
+	}
+
+	// Reset task status so it can be retried
 	env.tsk.Status = orcv1.TaskStatus_TASK_STATUS_CREATED
 	if saveErr := env.backend.SaveTask(env.tsk); saveErr != nil {
 		t.Fatalf("reset task status: %v", saveErr)
 	}
 
-	// SC-3: SetupWorktreeForTask must succeed on retry (fresh worktree and branch)
+	// SC-3: SetupWorktreeForTask should REUSE the preserved worktree
 	result, err := SetupWorktreeForTask(env.tsk, env.cfg, env.gitOps, nil)
 	if err != nil {
 		t.Fatalf("SC-3 FAILED: SetupWorktreeForTask should succeed on retry, got: %v", err)
 	}
 
-	// Verify new worktree exists
+	// Verify worktree exists
 	if _, statErr := os.Stat(result.Path); os.IsNotExist(statErr) {
 		t.Errorf("SC-3 FAILED: retry worktree should exist at %s", result.Path)
 	}
 
-	// Verify it's a fresh creation (not reused)
-	if result.Reused {
-		t.Error("SC-3 FAILED: retry worktree should be fresh, not reused")
+	// Verify it's REUSED (not fresh), because the worktree was preserved
+	if !result.Reused {
+		t.Error("SC-3 FAILED: retry should reuse preserved worktree")
 	}
 
-	// Verify branch was freshly created
+	// Verify branch still exists
 	exists, err := env.gitOps.BranchExists(env.branchName())
 	if err != nil {
 		t.Fatalf("BranchExists after retry: %v", err)
@@ -308,9 +313,9 @@ func TestSyncOnStartFailure_RetrySucceeds(t *testing.T) {
 	}
 }
 
-// TestSyncOnStartFailure_LogsCleanup verifies SC-4:
-// Cleanup on sync failure logs an info-level message indicating zombie cleanup occurred.
-func TestSyncOnStartFailure_LogsCleanup(t *testing.T) {
+// TestSyncOnStartFailure_LogsPreservation verifies SC-4:
+// When sync failure occurs and work exists, logs a WARN-level message about preserving work.
+func TestSyncOnStartFailure_LogsPreservation(t *testing.T) {
 	t.Parallel()
 
 	env := setupSyncCleanupTest(t, "TASK-SYNC-LOG")
@@ -329,27 +334,27 @@ func TestSyncOnStartFailure_LogsCleanup(t *testing.T) {
 		t.Fatalf("expected sync-on-start error, got: %v", err)
 	}
 
-	// SC-4: Log should contain cleanup message with task ID and path info
+	// SC-4: Log should contain preservation message with task ID and reason
 	logOutput := logBuf.String()
-	if !strings.Contains(logOutput, "sync") || !strings.Contains(logOutput, "cleanup") ||
+	if !strings.Contains(logOutput, "sync failure: preserving existing work") ||
 		!strings.Contains(logOutput, "TASK-SYNC-LOG") {
-		t.Errorf("SC-4 FAILED: expected log message about sync failure cleanup with task ID, got:\n%s", logOutput)
+		t.Errorf("SC-4 FAILED: expected log message about preserving work with task ID, got:\n%s", logOutput)
 	}
 }
 
-// TestSyncOnStartFailure_CleanupIgnoresConfig verifies BDD-3:
-// When CleanupOnFail is false, sync-on-start failure STILL cleans up worktree and branch.
-// This is because no phases ran, so there's no user work to preserve.
-func TestSyncOnStartFailure_CleanupIgnoresConfig(t *testing.T) {
+// TestSyncOnStartFailure_PreservesIgnoringCleanupConfig verifies BDD-3:
+// Work preservation takes priority over CleanupOnFail config. Even if config says
+// to cleanup, we PRESERVE work when commits exist.
+func TestSyncOnStartFailure_PreservesIgnoringCleanupConfig(t *testing.T) {
 	t.Parallel()
 
 	env := setupSyncCleanupTest(t, "TASK-SYNC-CFG")
 
-	// Explicitly disable failure cleanup — sync failure cleanup should override this
-	env.cfg.Worktree.CleanupOnFail = false
-	env.cfg.Worktree.CleanupOnComplete = false
+	// Set cleanup config to true — preservation should override this when work exists
+	env.cfg.Worktree.CleanupOnFail = true
+	env.cfg.Worktree.CleanupOnComplete = true
 
-	// Verify worktree and branch exist
+	// Verify worktree and branch exist before
 	wtPath := env.worktreePath()
 	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
 		t.Fatal("worktree should exist before run")
@@ -363,22 +368,22 @@ func TestSyncOnStartFailure_CleanupIgnoresConfig(t *testing.T) {
 		t.Fatalf("branch %s should exist before run", branchName)
 	}
 
-	// Run executor
+	// Run executor — sync failure will occur
 	runErr := env.runWithSyncFailure(t, nil)
 	if runErr == nil {
 		t.Fatal("expected sync-on-start failure")
 	}
 
-	// BDD-3: Both worktree and branch must be cleaned up despite config being false
-	if _, statErr := os.Stat(wtPath); !os.IsNotExist(statErr) {
-		t.Error("BDD-3 FAILED: worktree should be cleaned up even when CleanupOnFail is false")
+	// BDD-3: Work is PRESERVED despite CleanupOnFail=true because commits exist
+	if _, statErr := os.Stat(wtPath); os.IsNotExist(statErr) {
+		t.Error("BDD-3 FAILED: worktree should be PRESERVED when commits exist (work detection)")
 	}
 	exists, err = env.gitOps.BranchExists(branchName)
 	if err != nil {
 		t.Fatalf("BranchExists after failure: %v", err)
 	}
-	if exists {
-		t.Error("BDD-3 FAILED: branch should be deleted even when CleanupOnFail is false")
+	if !exists {
+		t.Error("BDD-3 FAILED: branch should be PRESERVED when commits exist (work detection)")
 	}
 }
 
@@ -494,6 +499,226 @@ func TestSyncOnStartFailure_EmptyWorktreePath(t *testing.T) {
 	// cleanupWorktree should return immediately when path is empty
 	// (this is existing behavior that must be preserved)
 	we.cleanupWorktree(tsk) // Should not panic
+}
+
+// TestDetectExistingWork_FreshWorktree verifies that detectExistingWork correctly
+// identifies a truly fresh worktree (no commits ahead, no uncommitted changes, no phase state)
+// as having NO work, allowing cleanup to proceed.
+func TestDetectExistingWork_FreshWorktree(t *testing.T) {
+	t.Parallel()
+
+	// Create a bare remote
+	remoteDir := t.TempDir()
+	runGitCmdOrFatal(t, remoteDir, "init", "--bare")
+
+	// Create working repo
+	repoDir := t.TempDir()
+	runGitCmdOrFatal(t, repoDir, "init", "--initial-branch=main")
+	runGitCmdOrFatal(t, repoDir, "config", "user.email", "test@example.com")
+	runGitCmdOrFatal(t, repoDir, "config", "user.name", "Test")
+
+	// Initial commit
+	writeTestFile(t, repoDir, "README.md", "# Initial\n")
+	runGitCmdOrFatal(t, repoDir, "add", ".")
+	runGitCmdOrFatal(t, repoDir, "commit", "-m", "Initial commit")
+
+	// Add remote and push
+	runGitCmdOrFatal(t, repoDir, "remote", "add", "origin", remoteDir)
+	runGitCmdOrFatal(t, repoDir, "push", "-u", "origin", "main")
+
+	// Create git ops
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(repoDir, ".orc", "worktrees")
+	gitOps, err := git.New(repoDir, gitCfg)
+	if err != nil {
+		t.Fatalf("git.New: %v", err)
+	}
+
+	// Create a fresh task with NO execution state
+	tsk := task.NewProtoTask("TASK-FRESH", "Fresh task")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	// Explicitly ensure NO execution state
+	tsk.Execution = nil
+
+	// Create worktree for the task (this creates a branch from main, no extra commits)
+	cfg := config.Default()
+	cfg.Worktree.Enabled = true
+	cfg.Completion.TargetBranch = "main"
+
+	result, err := SetupWorktreeForTask(tsk, cfg, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask: %v", err)
+	}
+
+	// Create executor with the worktree git ops
+	worktreeGitCfg := git.DefaultConfig()
+	worktreeGit, err := git.New(result.Path, worktreeGitCfg)
+	if err != nil {
+		t.Fatalf("worktree git.New: %v", err)
+	}
+
+	backend := storage.NewTestBackend(t)
+	we := &WorkflowExecutor{
+		worktreePath: result.Path,
+		worktreeGit:  worktreeGit,
+		gitOps:       gitOps,
+		orcConfig:    cfg,
+		backend:      backend,
+		logger:       slog.Default(),
+	}
+
+	// Call detectExistingWork — should return false (no work)
+	hasWork, description := we.detectExistingWork(tsk)
+
+	if hasWork {
+		t.Errorf("expected NO work in fresh worktree, got: hasWork=true, description=%q", description)
+	}
+	if description != "no work detected" {
+		t.Errorf("expected 'no work detected' description, got: %q", description)
+	}
+}
+
+// TestDetectExistingWork_WithUncommittedChanges verifies that uncommitted changes are detected.
+func TestDetectExistingWork_WithUncommittedChanges(t *testing.T) {
+	t.Parallel()
+
+	// Create a bare remote
+	remoteDir := t.TempDir()
+	runGitCmdOrFatal(t, remoteDir, "init", "--bare")
+
+	// Create working repo
+	repoDir := t.TempDir()
+	runGitCmdOrFatal(t, repoDir, "init", "--initial-branch=main")
+	runGitCmdOrFatal(t, repoDir, "config", "user.email", "test@example.com")
+	runGitCmdOrFatal(t, repoDir, "config", "user.name", "Test")
+
+	writeTestFile(t, repoDir, "README.md", "# Initial\n")
+	runGitCmdOrFatal(t, repoDir, "add", ".")
+	runGitCmdOrFatal(t, repoDir, "commit", "-m", "Initial commit")
+	runGitCmdOrFatal(t, repoDir, "remote", "add", "origin", remoteDir)
+	runGitCmdOrFatal(t, repoDir, "push", "-u", "origin", "main")
+
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(repoDir, ".orc", "worktrees")
+	gitOps, err := git.New(repoDir, gitCfg)
+	if err != nil {
+		t.Fatalf("git.New: %v", err)
+	}
+
+	tsk := task.NewProtoTask("TASK-DIRTY", "Task with uncommitted changes")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+
+	cfg := config.Default()
+	cfg.Worktree.Enabled = true
+	cfg.Completion.TargetBranch = "main"
+
+	result, err := SetupWorktreeForTask(tsk, cfg, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask: %v", err)
+	}
+
+	// Add uncommitted changes in the worktree
+	writeTestFile(t, result.Path, "new_file.txt", "uncommitted content\n")
+
+	worktreeGitCfg := git.DefaultConfig()
+	worktreeGit, err := git.New(result.Path, worktreeGitCfg)
+	if err != nil {
+		t.Fatalf("worktree git.New: %v", err)
+	}
+
+	backend := storage.NewTestBackend(t)
+	we := &WorkflowExecutor{
+		worktreePath: result.Path,
+		worktreeGit:  worktreeGit,
+		gitOps:       gitOps,
+		orcConfig:    cfg,
+		backend:      backend,
+		logger:       slog.Default(),
+	}
+
+	// Call detectExistingWork — should return true (uncommitted changes)
+	hasWork, description := we.detectExistingWork(tsk)
+
+	if !hasWork {
+		t.Error("expected work to be detected (uncommitted changes)")
+	}
+	if !strings.Contains(description, "uncommitted changes") {
+		t.Errorf("expected 'uncommitted changes' in description, got: %q", description)
+	}
+}
+
+// TestDetectExistingWork_WithPhaseState verifies that phase execution state triggers preservation.
+func TestDetectExistingWork_WithPhaseState(t *testing.T) {
+	t.Parallel()
+
+	// Create a bare remote
+	remoteDir := t.TempDir()
+	runGitCmdOrFatal(t, remoteDir, "init", "--bare")
+
+	// Create working repo
+	repoDir := t.TempDir()
+	runGitCmdOrFatal(t, repoDir, "init", "--initial-branch=main")
+	runGitCmdOrFatal(t, repoDir, "config", "user.email", "test@example.com")
+	runGitCmdOrFatal(t, repoDir, "config", "user.name", "Test")
+
+	writeTestFile(t, repoDir, "README.md", "# Initial\n")
+	runGitCmdOrFatal(t, repoDir, "add", ".")
+	runGitCmdOrFatal(t, repoDir, "commit", "-m", "Initial commit")
+	runGitCmdOrFatal(t, repoDir, "remote", "add", "origin", remoteDir)
+	runGitCmdOrFatal(t, repoDir, "push", "-u", "origin", "main")
+
+	gitCfg := git.DefaultConfig()
+	gitCfg.WorktreeDir = filepath.Join(repoDir, ".orc", "worktrees")
+	gitOps, err := git.New(repoDir, gitCfg)
+	if err != nil {
+		t.Fatalf("git.New: %v", err)
+	}
+
+	tsk := task.NewProtoTask("TASK-PHASED", "Task with phase state")
+	tsk.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	// Set up execution state with a started phase
+	tsk.Execution = &orcv1.ExecutionState{
+		Phases: map[string]*orcv1.PhaseState{
+			"implement": {
+				StartedAt: timestamppb.Now(), // Phase started
+			},
+		},
+	}
+
+	cfg := config.Default()
+	cfg.Worktree.Enabled = true
+	cfg.Completion.TargetBranch = "main"
+
+	result, err := SetupWorktreeForTask(tsk, cfg, gitOps, nil)
+	if err != nil {
+		t.Fatalf("SetupWorktreeForTask: %v", err)
+	}
+
+	worktreeGitCfg := git.DefaultConfig()
+	worktreeGit, err := git.New(result.Path, worktreeGitCfg)
+	if err != nil {
+		t.Fatalf("worktree git.New: %v", err)
+	}
+
+	backend := storage.NewTestBackend(t)
+	we := &WorkflowExecutor{
+		worktreePath: result.Path,
+		worktreeGit:  worktreeGit,
+		gitOps:       gitOps,
+		orcConfig:    cfg,
+		backend:      backend,
+		logger:       slog.Default(),
+	}
+
+	// Call detectExistingWork — should return true (phase state)
+	hasWork, description := we.detectExistingWork(tsk)
+
+	if !hasWork {
+		t.Error("expected work to be detected (phase state)")
+	}
+	if !strings.Contains(description, "phase implement previously started") {
+		t.Errorf("expected phase mention in description, got: %q", description)
+	}
 }
 
 // Helper functions

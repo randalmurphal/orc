@@ -216,6 +216,21 @@ Execute the verification steps defined in the Output Format section above:
 **Only output completion JSON after all four checks pass.** See Output Format for the exact schema.
 </verification>
 
+<commit_step>
+## Step 7: Commit Your Changes
+
+Before outputting completion JSON, commit all work to preserve it:
+
+```bash
+git add -A
+git commit -m "[orc] {{TASK_ID}}: implement - [brief description]
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+**CRITICAL:** Always commit before claiming completion. Uncommitted work may be lost if execution is interrupted or the task fails.
+</commit_step>
+
 <example_good_completion>
 {
   "status": "complete",

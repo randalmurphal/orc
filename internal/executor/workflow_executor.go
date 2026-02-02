@@ -455,9 +455,10 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 		if err := we.syncOnTaskStart(execCtx, t); err != nil {
 			we.logger.Error("sync-on-start failed", "task", t.Id, "error", err)
 
-			// Unconditionally cleanup worktree and branch on sync failure.
-			// Since no phases ran, there's no user work to preserve — cleanup is always correct.
-			// This bypasses the config-gated deferred cleanup.
+			// Cleanup worktree and branch on sync failure IF no work exists.
+			// detectExistingWork() checks for uncommitted changes, commits ahead of target,
+			// and phase execution state. Work is preserved for retry; only truly fresh
+			// worktrees are cleaned up. This bypasses the config-gated deferred cleanup.
 			we.cleanupSyncFailure(t)
 
 			we.failSetup(run, t, err)

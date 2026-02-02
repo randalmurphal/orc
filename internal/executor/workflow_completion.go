@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
@@ -426,30 +427,111 @@ func (we *WorkflowExecutor) cleanupWorktree(t *orcv1.Task) {
 	}
 }
 
-// cleanupSyncFailure removes the worktree and branch when sync-on-start fails.
-// This is unconditional (ignores CleanupOnFail config) because no phases ran —
-// there's no user work to preserve. By cleaning up, we allow retry to start fresh.
+// cleanupSyncFailure handles worktree and branch after sync-on-start fails.
+// It preserves any existing work (commits or uncommitted changes) and only
+// cleans up when there's nothing to preserve.
 func (we *WorkflowExecutor) cleanupSyncFailure(t *orcv1.Task) {
 	if we.worktreePath == "" {
 		return
 	}
 
-	we.logger.Info("sync failure cleanup: removing worktree and branch", "task", t.Id, "path", we.worktreePath)
+	// Check if there's work to preserve BEFORE any cleanup
+	hasWork, workDescription := we.detectExistingWork(t)
+	if hasWork {
+		we.logger.Warn("sync failure: preserving existing work",
+			"task", t.Id,
+			"path", we.worktreePath,
+			"reason", workDescription)
+		// DO NOT cleanup - there's work to preserve
+		// Clear worktreePath to prevent deferred cleanup from destroying work
+		we.worktreePath = ""
+		return
+	}
+
+	// No work to preserve - safe to cleanup for fresh retry
+	we.logger.Info("sync failure cleanup: removing worktree and branch",
+		"task", t.Id,
+		"path", we.worktreePath,
+		"reason", "no work detected")
 
 	// Remove the worktree directory
 	if err := we.gitOps.CleanupWorktreeAtPath(we.worktreePath); err != nil {
-		we.logger.Warn("failed to cleanup worktree after sync failure", "task", t.Id, "path", we.worktreePath, "error", err)
+		we.logger.Warn("failed to cleanup worktree after sync failure",
+			"task", t.Id,
+			"path", we.worktreePath,
+			"error", err)
 	}
 
 	// Delete the branch so retry creates a fresh one
 	if t.Branch != "" {
 		if err := we.gitOps.DeleteBranch(t.Branch, true); err != nil {
-			we.logger.Warn("failed to delete branch after sync failure", "task", t.Id, "branch", t.Branch, "error", err)
+			we.logger.Warn("failed to delete branch after sync failure",
+				"task", t.Id,
+				"branch", t.Branch,
+				"error", err)
 		}
 	}
 
 	// Clear worktreePath to prevent deferred cleanupWorktree from double-cleanup
 	we.worktreePath = ""
+}
+
+// detectExistingWork checks if the worktree/branch has work that should be preserved.
+// Returns (hasWork, description) where description explains what was detected.
+// This is fail-safe: any detection error returns (true, "error_description") to preserve.
+func (we *WorkflowExecutor) detectExistingWork(t *orcv1.Task) (bool, string) {
+	gitOps := we.worktreeGit
+	if gitOps == nil {
+		gitOps = we.gitOps
+	}
+	if gitOps == nil {
+		return true, "git ops unavailable (fail-safe preserve)"
+	}
+
+	var reasons []string
+
+	// Check 1: Uncommitted changes (staged, unstaged, or untracked)
+	hasChanges, err := gitOps.HasUncommittedChanges()
+	if err != nil {
+		return true, fmt.Sprintf("uncommitted check error: %v (fail-safe preserve)", err)
+	}
+	if hasChanges {
+		reasons = append(reasons, "uncommitted changes")
+	}
+
+	// Check 2: Commits ahead of target branch
+	targetBranch := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+	target := "origin/" + targetBranch
+	ahead, _, err := gitOps.GetCommitCounts(target)
+	if err != nil {
+		// Can't determine commit state. Only continue if error indicates fresh worktree
+		// (unknown revision = target ref doesn't exist yet). For other errors, fail-safe preserve.
+		if !strings.Contains(err.Error(), "unknown revision") {
+			return true, fmt.Sprintf("commit count check failed: %v (fail-safe preserve)", err)
+		}
+		// Unknown revision error = fresh worktree with no remote tracking yet
+		// Continue to phase state check to decide
+		we.logger.Debug("target ref not found, likely fresh worktree", "target", target, "error", err)
+	} else if ahead > 0 {
+		reasons = append(reasons, fmt.Sprintf("%d commits ahead of %s", ahead, targetBranch))
+	}
+
+	// Check 3: Any phase has started (from task execution state)
+	// This catches resume scenarios where phases ran but may not have committed
+	if t.Execution != nil && len(t.Execution.Phases) > 0 {
+		for phaseID, state := range t.Execution.Phases {
+			if state.StartedAt != nil {
+				reasons = append(reasons, fmt.Sprintf("phase %s previously started", phaseID))
+				break // One is enough to know work happened
+			}
+		}
+	}
+
+	if len(reasons) > 0 {
+		return true, strings.Join(reasons, "; ")
+	}
+
+	return false, "no work detected"
 }
 
 // effectiveWorkingDir returns the working directory for phase execution.
