@@ -79,7 +79,7 @@ describe('CreateWorkflowModal - completion_action field', () => {
 	});
 
 	it('SC-7d: completion_action options include pr, commit, none', async () => {
-		const user = userEvent.setup();
+		const _user = userEvent.setup();
 
 		render(
 			<CreateWorkflowModal
