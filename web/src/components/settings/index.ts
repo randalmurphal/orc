@@ -3,6 +3,7 @@
  */
 
 export { SettingsLayout } from './SettingsLayout';
+export { SettingsTabs } from './SettingsTabs';
 export { SettingsView } from './SettingsView';
 export { SettingsPlaceholder } from './SettingsPlaceholder';
 export { CommandList, type Command, type CommandListProps } from './CommandList';

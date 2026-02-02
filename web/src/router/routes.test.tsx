@@ -474,78 +474,67 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/settings routes', () => {
-		it('redirects /settings to /settings/commands', async () => {
-			renderWithRouter('/settings');
-			await waitFor(() => {
-				// Commands page shows "Slash Commands" in sidebar and content
-				expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
-				// Check that we're on the commands page by looking at the active nav
-				const activeLink = document.querySelector('.settings-nav-item--active');
-				expect(activeLink).toHaveTextContent('Slash Commands');
-			});
-		});
-
-		it('renders SettingsView at /settings/commands', async () => {
-			renderWithRouter('/settings/commands');
+	describe('/settings/general routes', () => {
+		it('renders SettingsView at /settings/general/commands', async () => {
+			renderWithRouter('/settings/general/commands');
 			await waitFor(() => {
 				// SettingsView shows "Slash Commands" header
 				expect(screen.getByRole('heading', { level: 2, name: 'Slash Commands' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders ClaudeMdPage at /settings/claude-md', async () => {
-			renderWithRouter('/settings/claude-md');
+		it('renders ClaudeMdPage at /settings/general/claude-md', async () => {
+			renderWithRouter('/settings/general/claude-md');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 3, name: 'CLAUDE.md Editor' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders Mcp at /settings/mcp', async () => {
-			renderWithRouter('/settings/mcp');
+		it('renders Mcp at /settings/general/mcp', async () => {
+			renderWithRouter('/settings/general/mcp');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 3, name: 'MCP Servers' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/permissions', async () => {
-			renderWithRouter('/settings/permissions');
+		it('renders placeholder at /settings/general/permissions', async () => {
+			renderWithRouter('/settings/general/permissions');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 2, name: 'Permissions' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/projects', async () => {
-			renderWithRouter('/settings/projects');
+		it('renders placeholder at /settings/general/projects', async () => {
+			renderWithRouter('/settings/general/projects');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 2, name: 'Projects' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/billing', async () => {
-			renderWithRouter('/settings/billing');
+		it('renders placeholder at /settings/general/billing', async () => {
+			renderWithRouter('/settings/general/billing');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 2, name: 'Billing & Usage' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders ImportExportPage at /settings/import-export', async () => {
-			renderWithRouter('/settings/import-export');
+		it('renders ImportExportPage at /settings/general/import-export', async () => {
+			renderWithRouter('/settings/general/import-export');
 			await waitFor(() => {
 				// ImportExportPage renders separate Export and Import sections (h3)
 				expect(screen.getByRole('heading', { level: 3, name: 'Export' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/profile', async () => {
-			renderWithRouter('/settings/profile');
+		it('renders placeholder at /settings/general/profile', async () => {
+			renderWithRouter('/settings/general/profile');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 2, name: 'Profile' })).toBeInTheDocument();
 			});
 		});
 
-		it('renders placeholder at /settings/api-keys', async () => {
-			renderWithRouter('/settings/api-keys');
+		it('renders placeholder at /settings/general/api-keys', async () => {
+			renderWithRouter('/settings/general/api-keys');
 			await waitFor(() => {
 				expect(screen.getByRole('heading', { level: 2, name: 'API Keys' })).toBeInTheDocument();
 			});
@@ -559,20 +548,20 @@ describe('Routes', () => {
 		});
 	});
 
-	describe('/settings environment routes render within settings layout', () => {
-		it('renders settings layout at /settings/hooks', async () => {
-			renderWithRouter('/settings/hooks');
+	describe('/settings/environment routes render within environment layout', () => {
+		it('renders environment layout at /settings/environment/hooks', async () => {
+			renderWithRouter('/settings/environment/hooks');
 			await waitFor(() => {
-				// Should render the settings layout
-				expect(document.querySelector('.settings-layout')).toBeInTheDocument();
+				// Should render the environment layout (has environment-nav class)
+				expect(document.querySelector('.environment-nav')).toBeInTheDocument();
 			});
 		});
 
-		it('renders settings layout at /settings/skills', async () => {
-			renderWithRouter('/settings/skills');
+		it('renders environment layout at /settings/environment/skills', async () => {
+			renderWithRouter('/settings/environment/skills');
 			await waitFor(() => {
-				// Should render the settings layout
-				expect(document.querySelector('.settings-layout')).toBeInTheDocument();
+				// Should render the environment layout
+				expect(document.querySelector('.environment-nav')).toBeInTheDocument();
 			});
 		});
 	});
@@ -629,8 +618,8 @@ describe('Routes', () => {
 			expect(screen.getByRole('banner')).toBeInTheDocument();
 		});
 
-		it('shows settings sidebar navigation on settings routes', async () => {
-			renderWithRouter('/settings/commands');
+		it('shows settings sidebar navigation on settings general routes', async () => {
+			renderWithRouter('/settings/general/commands');
 			await waitFor(() => {
 				// Should see settings sidebar with navigation groups
 				expect(screen.getByRole('navigation', { name: 'Settings navigation' })).toBeInTheDocument();
@@ -647,6 +636,125 @@ describe('Routes', () => {
 			await waitFor(() => {
 				expect(screen.getByText('Page not found')).toBeInTheDocument();
 				expect(screen.getByText('404')).toBeInTheDocument();
+			});
+		});
+	});
+
+	/**
+	 * TASK-723: Settings Tabs Integration Tests
+	 *
+	 * These tests verify the new tabbed Settings page structure with
+	 * General, Agents, and Environment tabs.
+	 *
+	 * Coverage mapping:
+	 * - SC-1: Settings page renders three tabs
+	 * - SC-4: Direct navigation to /settings/agents
+	 * - SC-5: Direct navigation to /settings/environment
+	 * - SC-6: Navigation to /settings redirects to /settings/general
+	 */
+	describe('/settings tabs routes (TASK-723)', () => {
+		describe('SC-1: Settings page renders three tabs', () => {
+			it('renders tablist with three tabs at /settings/general', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					// Should have a tablist with Settings sections aria-label
+					const tablist = screen.getByRole('tablist', { name: 'Settings sections' });
+					expect(tablist).toBeInTheDocument();
+				});
+			});
+
+			it('renders General tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /general/i })).toBeInTheDocument();
+				});
+			});
+
+			it('renders Agents tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /agents/i })).toBeInTheDocument();
+				});
+			});
+
+			it('renders Environment tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /environment/i })).toBeInTheDocument();
+				});
+			});
+		});
+
+		describe('SC-4: Direct navigation to /settings/agents', () => {
+			it('renders AgentsView content at /settings/agents', async () => {
+				renderWithRouter('/settings/agents');
+				await waitFor(() => {
+					// AgentsView has "Agents" as the page title and "Active Agents" section
+					expect(screen.getByRole('heading', { name: 'Agents' })).toBeInTheDocument();
+				});
+			});
+
+			it('Agents tab is active at /settings/agents', async () => {
+				renderWithRouter('/settings/agents');
+				await waitFor(() => {
+					const agentsTab = screen.getByRole('tab', { name: /agents/i });
+					expect(agentsTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+		});
+
+		describe('SC-5: Direct navigation to /settings/environment', () => {
+			it('renders EnvironmentLayout at /settings/environment', async () => {
+				renderWithRouter('/settings/environment');
+				await waitFor(() => {
+					// EnvironmentLayout has the environment-nav class
+					expect(document.querySelector('.environment-nav')).toBeInTheDocument();
+				});
+			});
+
+			it('Environment tab is active at /settings/environment', async () => {
+				renderWithRouter('/settings/environment');
+				await waitFor(() => {
+					const envTab = screen.getByRole('tab', { name: /environment/i });
+					expect(envTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+		});
+
+		describe('SC-6: Navigation to /settings redirects to /settings/general', () => {
+			it('redirects /settings to /settings/general', async () => {
+				renderWithRouter('/settings');
+				await waitFor(() => {
+					// After redirect, General tab should be active
+					const generalTab = screen.getByRole('tab', { name: /general/i });
+					expect(generalTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+
+			it('shows SettingsLayout content after redirect', async () => {
+				renderWithRouter('/settings');
+				await waitFor(() => {
+					// SettingsLayout has the settings-layout class
+					expect(document.querySelector('.settings-layout')).toBeInTheDocument();
+				});
+			});
+		});
+
+		describe('Tab state synchronization', () => {
+			it('General sub-routes keep General tab active', async () => {
+				renderWithRouter('/settings/general/commands');
+				await waitFor(() => {
+					const generalTab = screen.getByRole('tab', { name: /general/i });
+					expect(generalTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+
+			it('Environment sub-routes keep Environment tab active', async () => {
+				renderWithRouter('/settings/environment/hooks');
+				await waitFor(() => {
+					const envTab = screen.getByRole('tab', { name: /environment/i });
+					expect(envTab).toHaveAttribute('data-state', 'active');
+				});
 			});
 		});
 	});

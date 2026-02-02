@@ -1,0 +1,99 @@
+/* =============================================================================
+   SettingsTabs Component Styles
+   Top-level tabbed navigation for Settings page
+   ============================================================================= */
+
+/* ==========================================================================
+   CONTAINER
+   ========================================================================== */
+
+.settings-tabs {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.settings-tabs-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+/* ==========================================================================
+   TAB LIST
+   ========================================================================== */
+
+.settings-tabs-list {
+	display: flex;
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-4);
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-elevated);
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   TAB TRIGGER
+   ========================================================================== */
+
+.settings-tabs-trigger {
+	padding: var(--space-2) var(--space-4);
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+	color: var(--text-secondary);
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition:
+		background-color var(--duration-fast) var(--ease-out),
+		color var(--duration-fast) var(--ease-out);
+}
+
+.settings-tabs-trigger:hover {
+	background: var(--bg-surface);
+	color: var(--text-primary);
+}
+
+.settings-tabs-trigger:focus {
+	outline: none;
+}
+
+.settings-tabs-trigger:focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+/* Active State */
+.settings-tabs-trigger[data-state='active'] {
+	background: var(--primary-dim);
+	color: var(--primary-bright);
+}
+
+.settings-tabs-trigger[data-state='active']:hover {
+	background: var(--primary-dim);
+	color: var(--primary-bright);
+}
+
+/* ==========================================================================
+   TAB CONTENT
+   ========================================================================== */
+
+.settings-tabs-content {
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.settings-tabs-trigger {
+		transition: none;
+	}
+}

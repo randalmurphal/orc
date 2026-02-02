@@ -30,12 +30,20 @@ const EnvConfig = lazy(() => import('@/pages/environment/Config').then(m => ({ d
 const EnvTools = lazy(() => import('@/pages/environment/Tools').then(m => ({ default: m.Tools })));
 
 // Settings sub-components (loaded with SettingsPage chunk)
+// SettingsTabs is used internally by SettingsPage, not directly in routes
+const SettingsLayout = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsLayout })));
 const SettingsView = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsView })));
 const SettingsPlaceholder = lazy(() => import('@/components/settings').then(m => ({ default: m.SettingsPlaceholder })));
 const ConstitutionPage = lazy(() => import('@/pages/settings/Constitution').then(m => ({ default: m.ConstitutionPage })));
 const ClaudeMdPage = lazy(() => import('@/pages/settings/ClaudeMdPage').then(m => ({ default: m.ClaudeMdPage })));
 const ImportExportPage = lazy(() => import('@/pages/settings/ImportExport').then(m => ({ default: m.ImportExportPage })));
 const GitSettingsPage = lazy(() => import('@/pages/settings/GitSettings').then(m => ({ default: m.GitSettingsPage })));
+
+// Agents page
+const AgentsView = lazy(() => import('@/components/agents').then(m => ({ default: m.AgentsView })));
+
+// Environment layout
+const EnvironmentLayout = lazy(() => import('@/pages/environment/EnvironmentLayout').then(m => ({ default: m.EnvironmentLayout })));
 
 // Legacy pages (lower priority, separate chunks)
 const AutomationPage = lazy(() => import('@/pages/AutomationPage').then(m => ({ default: m.AutomationPage })));
@@ -214,7 +222,7 @@ export const routes: RouteObject[] = [
 					</LazyRoute>
 				),
 			},
-			// Settings - New settings layout with 240px sidebar
+			// Settings - Tabbed layout with General, Agents, Environment tabs
 			{
 				path: 'settings',
 				element: (
@@ -223,138 +231,196 @@ export const routes: RouteObject[] = [
 					</LazyRoute>
 				),
 				children: [
-					// Default redirect to commands
+					// Default redirect to general tab
 					{
 						index: true,
-						element: <Navigate to="/settings/commands" replace />,
+						element: <Navigate to="/settings/general" replace />,
 					},
-					// CLAUDE CODE section
+					// General tab - SettingsLayout with sidebar navigation
 					{
-						path: 'commands',
+						path: 'general',
 						element: (
 							<LazyRoute>
-								<SettingsView />
+								<SettingsLayout />
+							</LazyRoute>
+						),
+						children: [
+							// Default redirect to commands
+							{
+								index: true,
+								element: <Navigate to="/settings/general/commands" replace />,
+							},
+							// CLAUDE CODE section
+							{
+								path: 'commands',
+								element: (
+									<LazyRoute>
+										<SettingsView />
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'claude-md',
+								element: (
+									<LazyRoute>
+										<ClaudeMdPage />
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'mcp',
+								element: (
+									<LazyRoute>
+										<Mcp />
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'permissions',
+								element: (
+									<LazyRoute>
+										<SettingsPlaceholder
+											title="Permissions"
+											description="Configure tool permissions and access controls"
+											icon="shield"
+										/>
+									</LazyRoute>
+								),
+							},
+							// ORC section
+							{
+								path: 'projects',
+								element: (
+									<LazyRoute>
+										<SettingsPlaceholder
+											title="Projects"
+											description="Manage your ORC projects and repositories"
+											icon="folder"
+										/>
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'git',
+								element: (
+									<LazyRoute>
+										<GitSettingsPage />
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'billing',
+								element: (
+									<LazyRoute>
+										<SettingsPlaceholder
+											title="Billing & Usage"
+											description="View your usage statistics and billing information"
+											icon="dollar"
+										/>
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'import-export',
+								element: (
+									<LazyRoute>
+										<ImportExportPage />
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'constitution',
+								element: (
+									<LazyRoute>
+										<ConstitutionPage />
+									</LazyRoute>
+								),
+							},
+							// ACCOUNT section
+							{
+								path: 'profile',
+								element: (
+									<LazyRoute>
+										<SettingsPlaceholder
+											title="Profile"
+											description="Manage your account profile and preferences"
+											icon="user"
+										/>
+									</LazyRoute>
+								),
+							},
+							{
+								path: 'api-keys',
+								element: (
+									<LazyRoute>
+										<SettingsPlaceholder
+											title="API Keys"
+											description="Manage your API keys and authentication tokens"
+											icon="settings"
+										/>
+									</LazyRoute>
+								),
+							},
+							// 404 for unknown general settings paths
+							{
+								path: '*',
+								element: (
+									<LazyRoute>
+										<NotFoundPage />
+									</LazyRoute>
+								),
+							},
+						],
+					},
+					// Agents tab - AgentsView
+					{
+						path: 'agents',
+						element: (
+							<LazyRoute>
+								<AgentsView />
 							</LazyRoute>
 						),
 					},
+					// Environment tab - EnvironmentLayout with sub-navigation
 					{
-						path: 'claude-md',
+						path: 'environment',
 						element: (
 							<LazyRoute>
-								<ClaudeMdPage />
+								<EnvironmentLayout />
 							</LazyRoute>
 						),
-					},
-					{
-						path: 'mcp',
-						element: (
-							<LazyRoute>
-								<Mcp />
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'permissions',
-						element: (
-							<LazyRoute>
-								<SettingsPlaceholder
-									title="Permissions"
-									description="Configure tool permissions and access controls"
-									icon="shield"
-								/>
-							</LazyRoute>
-						),
-					},
-					// ORC section
-					{
-						path: 'projects',
-						element: (
-							<LazyRoute>
-								<SettingsPlaceholder
-									title="Projects"
-									description="Manage your ORC projects and repositories"
-									icon="folder"
-								/>
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'git',
-						element: (
-							<LazyRoute>
-								<GitSettingsPage />
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'billing',
-						element: (
-							<LazyRoute>
-								<SettingsPlaceholder
-									title="Billing & Usage"
-									description="View your usage statistics and billing information"
-									icon="dollar"
-								/>
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'import-export',
-						element: (
-							<LazyRoute>
-								<ImportExportPage />
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'constitution',
-						element: (
-							<LazyRoute>
-								<ConstitutionPage />
-							</LazyRoute>
-						),
-					},
-					// ENVIRONMENT section (merged from /environment)
-					{
-						path: 'hooks',
-						element: <LazyRoute><EnvHooks /></LazyRoute>,
-					},
-					{
-						path: 'skills',
-						element: <LazyRoute><EnvSkills /></LazyRoute>,
-					},
-					{
-						path: 'tools',
-						element: <LazyRoute><EnvTools /></LazyRoute>,
-					},
-					{
-						path: 'config',
-						element: <LazyRoute><EnvConfig /></LazyRoute>,
-					},
-					// ACCOUNT section
-					{
-						path: 'profile',
-						element: (
-							<LazyRoute>
-								<SettingsPlaceholder
-									title="Profile"
-									description="Manage your account profile and preferences"
-									icon="user"
-								/>
-							</LazyRoute>
-						),
-					},
-					{
-						path: 'api-keys',
-						element: (
-							<LazyRoute>
-								<SettingsPlaceholder
-									title="API Keys"
-									description="Manage your API keys and authentication tokens"
-									icon="settings"
-								/>
-							</LazyRoute>
-						),
+						children: [
+							// Default redirect to hooks
+							{
+								index: true,
+								element: <Navigate to="/settings/environment/hooks" replace />,
+							},
+							{
+								path: 'hooks',
+								element: <LazyRoute><EnvHooks /></LazyRoute>,
+							},
+							{
+								path: 'skills',
+								element: <LazyRoute><EnvSkills /></LazyRoute>,
+							},
+							{
+								path: 'tools',
+								element: <LazyRoute><EnvTools /></LazyRoute>,
+							},
+							{
+								path: 'config',
+								element: <LazyRoute><EnvConfig /></LazyRoute>,
+							},
+							// 404 for unknown environment paths
+							{
+								path: '*',
+								element: (
+									<LazyRoute>
+										<NotFoundPage />
+									</LazyRoute>
+								),
+							},
+						],
 					},
 					// 404 for unknown settings paths
 					{

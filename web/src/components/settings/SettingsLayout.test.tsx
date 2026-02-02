@@ -28,18 +28,20 @@ vi.mock('@/lib/client', () => ({
 import { SettingsLayout } from './SettingsLayout';
 
 /**
- * Test wrapper providing router context at specific routes
+ * Test wrapper providing router context at specific routes.
+ * SettingsLayout is now nested under /settings/general/* in the main app.
  */
-function renderWithRouter(initialRoute: string = '/settings/commands') {
+function renderWithRouter(initialRoute: string = '/settings/general/commands') {
 	return render(
 		<MemoryRouter initialEntries={[initialRoute]}>
 			<Routes>
-				<Route path="/settings" element={<SettingsLayout />}>
+				<Route path="/settings/general" element={<SettingsLayout />}>
 					<Route path="commands" element={<div data-testid="commands-content">Commands Content</div>} />
 					<Route path="claude-md" element={<div data-testid="claude-md-content">CLAUDE.md Content</div>} />
 					<Route path="mcp" element={<div data-testid="mcp-content">MCP Content</div>} />
 					<Route path="permissions" element={<div data-testid="permissions-content">Permissions Content</div>} />
 					<Route path="projects" element={<div data-testid="projects-content">Projects Content</div>} />
+					<Route path="git" element={<div data-testid="git-content">Git Content</div>} />
 					<Route path="billing" element={<div data-testid="billing-content">Billing Content</div>} />
 					<Route path="import-export" element={<div data-testid="import-export-content">Import/Export Content</div>} />
 					<Route path="constitution" element={<div data-testid="constitution-content">Constitution Content</div>} />
@@ -78,9 +80,10 @@ describe('SettingsLayout', () => {
 		it('renders all navigation groups', () => {
 			renderWithRouter();
 
+			// SettingsLayout now only shows CLAUDE CODE, ORC, and ACCOUNT groups
+			// ENVIRONMENT items have moved to the Environment tab
 			expect(screen.getByText('CLAUDE CODE')).toBeInTheDocument();
 			expect(screen.getByText('ORC')).toBeInTheDocument();
-			expect(screen.getByText('ENVIRONMENT')).toBeInTheDocument();
 			expect(screen.getByText('ACCOUNT')).toBeInTheDocument();
 		});
 
@@ -90,22 +93,15 @@ describe('SettingsLayout', () => {
 			// CLAUDE CODE section
 			expect(screen.getByText('Slash Commands')).toBeInTheDocument();
 			expect(screen.getByText('CLAUDE.md')).toBeInTheDocument();
+			expect(screen.getByText('MCP Servers')).toBeInTheDocument();
 			expect(screen.getByText('Permissions')).toBeInTheDocument();
 
 			// ORC section
 			expect(screen.getByText('Projects')).toBeInTheDocument();
+			expect(screen.getByText('Git Settings')).toBeInTheDocument();
 			expect(screen.getByText('Billing & Usage')).toBeInTheDocument();
 			expect(screen.getByText('Import / Export')).toBeInTheDocument();
 			expect(screen.getByText('Constitution')).toBeInTheDocument();
-
-			// ENVIRONMENT section
-			expect(screen.getByText('Hooks')).toBeInTheDocument();
-			expect(screen.getByText('Skills')).toBeInTheDocument();
-			expect(screen.getByText('Tools')).toBeInTheDocument();
-			expect(screen.getByText('Config')).toBeInTheDocument();
-
-			// MCP Servers appears in both CLAUDE CODE and ENVIRONMENT
-			expect(screen.getAllByText('MCP Servers')).toHaveLength(2);
 
 			// ACCOUNT section
 			expect(screen.getByText('Profile')).toBeInTheDocument();
@@ -143,7 +139,7 @@ describe('SettingsLayout', () => {
 
 	describe('navigation', () => {
 		it('clicking nav item navigates to route', async () => {
-			renderWithRouter('/settings/commands');
+			renderWithRouter('/settings/general/commands');
 
 			// Initial content should be commands
 			expect(screen.getByTestId('commands-content')).toBeInTheDocument();
@@ -157,7 +153,7 @@ describe('SettingsLayout', () => {
 		});
 
 		it('active nav item has correct styling class', () => {
-			const { container } = renderWithRouter('/settings/commands');
+			const { container } = renderWithRouter('/settings/general/commands');
 
 			// Find the active nav item (commands)
 			const activeItem = container.querySelector('.settings-nav-item--active');
@@ -168,14 +164,14 @@ describe('SettingsLayout', () => {
 		});
 
 		it('clicking different sections updates active state', () => {
-			const { container } = renderWithRouter('/settings/commands');
+			const { container } = renderWithRouter('/settings/general/commands');
 
 			// Initially commands is active
 			let activeItem = container.querySelector('.settings-nav-item--active');
 			expect(within(activeItem as HTMLElement).getByText('Slash Commands')).toBeInTheDocument();
 
-			// Click MCP Servers (first one is in CLAUDE CODE section, links to /settings/mcp)
-			fireEvent.click(screen.getAllByText('MCP Servers')[0]);
+			// Click MCP Servers (links to /settings/general/mcp)
+			fireEvent.click(screen.getByText('MCP Servers'));
 
 			// MCP should now be active
 			activeItem = container.querySelector('.settings-nav-item--active');
@@ -223,10 +219,10 @@ describe('SettingsLayout', () => {
 		});
 
 		it('Enter key on nav item triggers navigation', () => {
-			renderWithRouter('/settings/commands');
+			renderWithRouter('/settings/general/commands');
 
-			// First MCP Servers link is in CLAUDE CODE section, links to /settings/mcp
-			const mcpLink = screen.getAllByText('MCP Servers')[0];
+			// MCP Servers link is in CLAUDE CODE section, links to /settings/general/mcp
+			const mcpLink = screen.getByText('MCP Servers');
 			mcpLink.focus();
 			fireEvent.keyDown(mcpLink, { key: 'Enter' });
 
@@ -246,53 +242,58 @@ describe('SettingsLayout', () => {
 	});
 
 	describe('route integration', () => {
-		it('renders correct content for /settings/commands', () => {
-			renderWithRouter('/settings/commands');
+		it('renders correct content for /settings/general/commands', () => {
+			renderWithRouter('/settings/general/commands');
 			expect(screen.getByTestId('commands-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/claude-md', () => {
-			renderWithRouter('/settings/claude-md');
+		it('renders correct content for /settings/general/claude-md', () => {
+			renderWithRouter('/settings/general/claude-md');
 			expect(screen.getByTestId('claude-md-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/mcp', () => {
-			renderWithRouter('/settings/mcp');
+		it('renders correct content for /settings/general/mcp', () => {
+			renderWithRouter('/settings/general/mcp');
 			expect(screen.getByTestId('mcp-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/permissions', () => {
-			renderWithRouter('/settings/permissions');
+		it('renders correct content for /settings/general/permissions', () => {
+			renderWithRouter('/settings/general/permissions');
 			expect(screen.getByTestId('permissions-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/projects', () => {
-			renderWithRouter('/settings/projects');
+		it('renders correct content for /settings/general/projects', () => {
+			renderWithRouter('/settings/general/projects');
 			expect(screen.getByTestId('projects-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/billing', () => {
-			renderWithRouter('/settings/billing');
+		it('renders correct content for /settings/general/git', () => {
+			renderWithRouter('/settings/general/git');
+			expect(screen.getByTestId('git-content')).toBeInTheDocument();
+		});
+
+		it('renders correct content for /settings/general/billing', () => {
+			renderWithRouter('/settings/general/billing');
 			expect(screen.getByTestId('billing-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/import-export', () => {
-			renderWithRouter('/settings/import-export');
+		it('renders correct content for /settings/general/import-export', () => {
+			renderWithRouter('/settings/general/import-export');
 			expect(screen.getByTestId('import-export-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/constitution', () => {
-			renderWithRouter('/settings/constitution');
+		it('renders correct content for /settings/general/constitution', () => {
+			renderWithRouter('/settings/general/constitution');
 			expect(screen.getByTestId('constitution-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/profile', () => {
-			renderWithRouter('/settings/profile');
+		it('renders correct content for /settings/general/profile', () => {
+			renderWithRouter('/settings/general/profile');
 			expect(screen.getByTestId('profile-content')).toBeInTheDocument();
 		});
 
-		it('renders correct content for /settings/api-keys', () => {
-			renderWithRouter('/settings/api-keys');
+		it('renders correct content for /settings/general/api-keys', () => {
+			renderWithRouter('/settings/general/api-keys');
 			expect(screen.getByTestId('api-keys-content')).toBeInTheDocument();
 		});
 	});

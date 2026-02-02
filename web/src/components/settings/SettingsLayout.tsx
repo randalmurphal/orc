@@ -93,39 +93,32 @@ export function SettingsLayout() {
 				<nav className="settings-nav">
 					<NavGroup title="CLAUDE CODE">
 						<NavItem
-							to="/settings/commands"
+							to="/settings/general/commands"
 							icon="terminal"
 							label="Slash Commands"
 							badge={counts.commandsCount}
 						/>
-						<NavItem to="/settings/claude-md" icon="file-text" label="CLAUDE.md" />
+						<NavItem to="/settings/general/claude-md" icon="file-text" label="CLAUDE.md" />
 						<NavItem
-							to="/settings/mcp"
+							to="/settings/general/mcp"
 							icon="mcp"
 							label="MCP Servers"
 							badge={counts.mcpServersCount}
 						/>
-						<NavItem to="/settings/permissions" icon="shield" label="Permissions" />
+						<NavItem to="/settings/general/permissions" icon="shield" label="Permissions" />
 					</NavGroup>
 
 					<NavGroup title="ORC">
-						<NavItem to="/settings/projects" icon="folder" label="Projects" />
-						<NavItem to="/settings/git" icon="git-branch" label="Git Settings" />
-						<NavItem to="/settings/billing" icon="dollar" label="Billing & Usage" />
-						<NavItem to="/settings/import-export" icon="export" label="Import / Export" />
-						<NavItem to="/settings/constitution" icon="shield" label="Constitution" />
-					</NavGroup>
-
-					<NavGroup title="ENVIRONMENT">
-						<NavItem to="/settings/hooks" icon="terminal" label="Hooks" />
-						<NavItem to="/settings/skills" icon="layers" label="Skills" />
-						<NavItem to="/settings/tools" icon="settings" label="Tools" />
-						<NavItem to="/settings/config" icon="file-text" label="Config" />
+						<NavItem to="/settings/general/projects" icon="folder" label="Projects" />
+						<NavItem to="/settings/general/git" icon="git-branch" label="Git Settings" />
+						<NavItem to="/settings/general/billing" icon="dollar" label="Billing & Usage" />
+						<NavItem to="/settings/general/import-export" icon="export" label="Import / Export" />
+						<NavItem to="/settings/general/constitution" icon="shield" label="Constitution" />
 					</NavGroup>
 
 					<NavGroup title="ACCOUNT">
-						<NavItem to="/settings/profile" icon="user" label="Profile" />
-						<NavItem to="/settings/api-keys" icon="settings" label="API Keys" />
+						<NavItem to="/settings/general/profile" icon="user" label="Profile" />
+						<NavItem to="/settings/general/api-keys" icon="settings" label="API Keys" />
 					</NavGroup>
 				</nav>
 			</aside>

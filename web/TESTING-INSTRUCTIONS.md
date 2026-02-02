@@ -84,7 +84,7 @@ node qa-agents-simple.mjs
 
 **What this does:**
 1. Launches headless Chrome browser
-2. Navigates to http://localhost:5173/agents
+2. Navigates to http://localhost:5173/settings/agents
 3. Takes full-page screenshot (desktop 1440x900)
 4. Validates all required sections present
 5. Tests interactive elements (buttons, sliders, toggles)
@@ -130,7 +130,7 @@ node qa-agents-simple.mjs
 
 ### Step 5: Manual Interactive Testing
 
-Open http://localhost:5173/agents in your browser and test:
+Open http://localhost:5173/settings/agents in your browser and test:
 
 **Header:**
 - [ ] Click "Add Agent" button - should trigger action
