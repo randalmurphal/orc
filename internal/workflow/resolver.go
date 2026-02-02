@@ -452,12 +452,13 @@ func parseWorkflowYAML(data []byte) (*Workflow, error) {
 	}
 
 	workflow := &Workflow{
-		ID:              wf.ID,
-		Name:            wf.Name,
-		Description:     wf.Description,
-		DefaultModel:    wf.DefaultModel,
-		DefaultThinking: wf.DefaultThinking,
-		BasedOn:         wf.BasedOn,
+		ID:                   wf.ID,
+		Name:                 wf.Name,
+		Description:          wf.Description,
+		DefaultModel:         wf.DefaultModel,
+		DefaultThinking:      wf.DefaultThinking,
+		DefaultMaxIterations: wf.DefaultMaxIterations,
+		BasedOn:              wf.BasedOn,
 	}
 
 	// Convert phases
@@ -569,15 +570,16 @@ func parsePhaseYAML(data []byte) (*PhaseTemplate, error) {
 
 // workflowYAML is the YAML structure for workflow files.
 type workflowYAML struct {
-	ID              string              `yaml:"id"`
-	Name            string              `yaml:"name"`
-	Description     string              `yaml:"description,omitempty"`
-	DefaultModel    string              `yaml:"default_model,omitempty"`
-	DefaultThinking bool                `yaml:"default_thinking,omitempty"`
-	BasedOn         string              `yaml:"based_on,omitempty"`
-	Phases          []workflowPhaseYAML `yaml:"phases,omitempty"`
-	Variables       []variableYAML      `yaml:"variables,omitempty"`
-	Triggers        []workflowTriggerYAML `yaml:"triggers,omitempty"`
+	ID                   string              `yaml:"id"`
+	Name                 string              `yaml:"name"`
+	Description          string              `yaml:"description,omitempty"`
+	DefaultModel         string              `yaml:"default_model,omitempty"`
+	DefaultThinking      bool                `yaml:"default_thinking,omitempty"`
+	DefaultMaxIterations int                 `yaml:"default_max_iterations,omitempty"`
+	BasedOn              string              `yaml:"based_on,omitempty"`
+	Phases               []workflowPhaseYAML `yaml:"phases,omitempty"`
+	Variables            []variableYAML      `yaml:"variables,omitempty"`
+	Triggers             []workflowTriggerYAML `yaml:"triggers,omitempty"`
 }
 
 type workflowTriggerYAML struct {
