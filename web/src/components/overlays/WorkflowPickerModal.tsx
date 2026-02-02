@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { workflowClient } from '@/lib/client';
 import { toast } from '@/stores/uiStore';
-import { useCurrentProjectId } from '@/stores';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 
 import './WorkflowPickerModal.css';
@@ -33,7 +32,6 @@ export function WorkflowPickerModal({
 	onSelectWorkflow,
 	defaultWorkflowId
 }: WorkflowPickerModalProps) {
-	const currentProjectId = useCurrentProjectId();
 	const [workflows, setWorkflows] = useState<Workflow[]>([]);
 	const [phaseCounts, setPhaseCounts] = useState<Record<string, number>>({});
 	const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>(defaultWorkflowId);
@@ -71,13 +69,11 @@ export function WorkflowPickerModal({
 		}
 	}, [open, defaultWorkflowId]);
 
-	// Sort workflows: built-in first, then by name
+	// Sort workflows: built-in first (preserve original order), then custom by name
 	const sortedWorkflows = useMemo(() => {
-		return [...workflows].sort((a, b) => {
-			if (a.isBuiltin && !b.isBuiltin) return -1;
-			if (b.isBuiltin && !a.isBuiltin) return 1;
-			return a.name.localeCompare(b.name);
-		});
+		const builtins = workflows.filter(w => w.isBuiltin);
+		const customs = workflows.filter(w => !w.isBuiltin).sort((a, b) => a.name.localeCompare(b.name));
+		return [...builtins, ...customs];
 	}, [workflows]);
 
 	// Handle workflow selection
@@ -120,7 +116,7 @@ export function WorkflowPickerModal({
 			open={open}
 			title="New Task"
 			onClose={onClose}
-			size="large"
+			size="lg"
 		>
 			<div className="workflow-picker-modal">
 				<div className="workflow-picker-header">
@@ -157,7 +153,7 @@ export function WorkflowPickerModal({
 
 					{!loading && !error && sortedWorkflows.length === 0 && (
 						<div className="workflow-picker-empty">
-							<Icon name="package" size={48} />
+							<Icon name="box" size={48} />
 							<h3>No workflows available</h3>
 							<p>No workflows found for this project.</p>
 						</div>

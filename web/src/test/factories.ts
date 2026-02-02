@@ -244,10 +244,13 @@ export function createMockWorkflow(overrides: Partial<Omit<Workflow, '$typeName'
 /**
  * Create a mock ListWorkflowsResponse with proto-compatible types
  */
-export function createMockListWorkflowsResponse(workflows: Workflow[] = []): ListWorkflowsResponse {
+export function createMockListWorkflowsResponse(
+	workflows: Workflow[] = [],
+	phaseCounts: Record<string, number> = {}
+): ListWorkflowsResponse {
 	return create(ListWorkflowsResponseSchema, {
 		workflows,
-		phaseCounts: {},
+		phaseCounts,
 	});
 }
 
