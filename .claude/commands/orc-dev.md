@@ -83,7 +83,13 @@ orc run TASK-001
 orc run TASK-002
 ```
 
-Set `run_in_background: true` on each Bash call. After launching, **stop responding and end your turn**. Do NOT use sleep commands or polling loops. The system will notify you when background tasks complete, and you'll continue from Step 5.
+Set `run_in_background: true` on each Bash call. Then monitor with `TaskOutput`:
+
+```
+TaskOutput(task_id="<task_id>", block=true, timeout=300000)
+```
+
+Use `block=true` with a 5-minute timeout (300000ms). This waits efficiently without polling. If a task times out, call TaskOutput again. Do NOT use sleep commands or manual polling loops - TaskOutput handles the waiting.
 
 ## Step 5: Validate Completed Work
 
