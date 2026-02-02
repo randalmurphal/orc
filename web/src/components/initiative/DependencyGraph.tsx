@@ -34,7 +34,7 @@ function taskStatusToString(status: TaskStatus): StatusString {
 		case TaskStatus.CREATED:
 		case TaskStatus.CLASSIFYING:
 		case TaskStatus.FINALIZING:
-		case TaskStatus.RESOLVED:
+		case TaskStatus.CLOSED:
 		default:
 			return 'pending';
 	}

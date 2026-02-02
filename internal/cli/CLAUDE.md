@@ -87,6 +87,10 @@ Executes phases: setup worktree -> load plan -> execute phases -> create PR/merg
 
 Resumes paused/blocked/failed/orphaned tasks from last incomplete phase.
 
+### `orc close TASK-ID`
+
+Close task without re-running. For failed tasks by default; use `--force` for any status. Flags: `--message`, `--cleanup`, `--force`
+
 ### `orc status`
 
 Priority display: Orphaned -> Attention -> Running -> Blocked -> Ready -> Paused -> Recent

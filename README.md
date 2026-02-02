@@ -231,7 +231,7 @@ orc pause TASK-ID            # Pause with checkpoint
 orc resume TASK-ID           # Continue from checkpoint
 orc rewind TASK-ID --to X    # Roll back to phase X
 orc reset TASK-ID            # Clear progress for fresh retry
-orc resolve TASK-ID          # Mark failed task as resolved
+orc close TASK-ID            # Close task without re-running
 orc approve TASK-ID          # Approve human gate
 orc delete TASK-ID           # Delete task and files
 ```

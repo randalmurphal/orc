@@ -265,7 +265,7 @@ Task data stored in per-project SQLite (`~/.orc/projects/<id>/orc.db`). Use `orc
 | `orc log TASK-ID` | View Claude transcripts (`--follow` for streaming) |
 | `orc resume TASK-ID` | Continue paused/failed/orphaned task |
 | `orc approve TASK-ID` | Approve blocked gate |
-| `orc resolve TASK-ID` | Mark failed task as resolved |
+| `orc close TASK-ID` | Close task without re-running |
 | `orc gates list` | Show gate config for all workflow phases |
 | `orc gates show <phase>` | Detailed gate config for a phase |
 

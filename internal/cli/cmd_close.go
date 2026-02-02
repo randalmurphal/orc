@@ -84,39 +84,39 @@ func (s *worktreeStatus) hasWorktreeIssues() bool {
 	return s.isDirty || s.hasConflicts || s.rebaseInProg || s.mergeInProg
 }
 
-// newResolveCmd creates the resolve command
-func newResolveCmd() *cobra.Command {
+// newCloseCmd creates the close command
+func newCloseCmd() *cobra.Command {
 	var message string
 	var cleanup bool
 
 	cmd := &cobra.Command{
-		Use:   "resolve <task-id>",
-		Short: "Mark failed task as resolved without re-running",
-		Long: `Mark a failed task as resolved/acknowledged without re-running it.
+		Use:   "close <task-id>",
+		Short: "Close task without re-running",
+		Long: `Close a task without re-running it.
 
 This is useful when:
   - The issue was fixed manually outside of orc
   - The failure is no longer relevant (e.g., requirements changed)
-  - You want to acknowledge and close out a failed task
+  - You want to close out a failed task you don't want to pursue further
   - A task is stuck in 'running' status but its PR was already merged
 
-The task will be marked as completed with metadata indicating it was resolved
+The task will be marked as closed with metadata indicating it was closed
 rather than executed to completion. This preserves the failure context in the
 execution history.
 
-Unlike 'reset' which clears progress and allows retry, 'resolve' closes the
+Unlike 'reset' which clears progress and allows retry, 'close' closes the
 task without clearing its execution state.
 
-Force resolving non-failed tasks:
-  By default, resolve only works on failed tasks. Use --force to resolve tasks
+Force closing non-failed tasks:
+  By default, close only works on failed tasks. Use --force to close tasks
   in any status (running, paused, blocked, created, etc.). This is useful when
   a task is stuck but the work is already complete (e.g., PR merged but executor
   crashed before marking task complete).
 
-  When force-resolving, the command will:
+  When force closing, the command will:
   - Check if the task has a merged PR and report it
   - Warn if no PR exists or the PR is not merged
-  - Record the original status and force_resolved flag in metadata
+  - Record the original status and force_closed flag in metadata
 
 Worktree handling:
   If the task has an associated worktree with uncommitted changes, in-progress
@@ -124,24 +124,24 @@ Worktree handling:
   displayed with suggested actions:
 
   --cleanup   Abort in-progress git operations and discard uncommitted changes
-  -f/--force  Skip confirmation and status checks (resolve any status)
+  -f/--force  Skip confirmation and status checks (close any status)
 
 Note: --cleanup cleans the worktree state but preserves the worktree itself.
-Use 'orc cleanup TASK-XXX' to fully remove a worktree after resolving.
+Use 'orc cleanup TASK-XXX' to fully remove a worktree after closing.
 
 Skipping confirmation:
-  By default, resolve asks for confirmation before proceeding. Use --yes/-y to
+  By default, close asks for confirmation before proceeding. Use --yes/-y to
   skip the confirmation prompt (useful in scripts and automated pipelines).
-  Note: --yes only skips the prompt; it does NOT allow resolving non-failed tasks.
-  Use --force to resolve tasks in any status.
+  Note: --yes only skips the prompt; it does NOT allow closing non-failed tasks.
+  Use --force to close tasks in any status.
 
 Examples:
-  orc resolve TASK-001                          # Mark failed task as resolved
-  orc resolve TASK-001 --yes                    # Skip confirmation prompt
-  orc resolve TASK-001 -y -m "Fixed manually"   # Skip prompt with message
-  orc resolve TASK-001 --cleanup                # Clean up worktree state first
-  orc resolve TASK-001 --force                  # Resolve any status (skip checks)
-  orc resolve TASK-001 --force -m "PR merged"   # Force resolve with message`,
+  orc close TASK-001                          # Close a failed task
+  orc close TASK-001 --yes                    # Skip confirmation prompt
+  orc close TASK-001 -y -m "Fixed manually"   # Skip prompt with message
+  orc close TASK-001 --cleanup                # Clean up worktree state first
+  orc close TASK-001 --force                  # Close any status (skip checks)
+  orc close TASK-001 --force -m "PR merged"   # Force close with message`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find the project root (handles worktrees)
@@ -170,13 +170,13 @@ Examples:
 				return fmt.Errorf("load task: %w", err)
 			}
 
-			// Track if we're force-resolving a non-failed task
+			// Track if we're force-closing a non-failed task
 			originalStatus := t.Status
-			forceResolving := false
+			forceClosing := false
 
-			// Only allow resolving failed tasks without --force.
+			// Only allow closing failed tasks without --force.
 			// With --force, allow any status (useful for stuck running tasks with merged PRs).
-			// Blocked tasks get special guidance since users often confuse "resolve" with "resume".
+			// Blocked tasks get special guidance since users often confuse "close" with "resume".
 			if t.Status != orcv1.TaskStatus_TASK_STATUS_FAILED {
 				if !force {
 					if t.Status == orcv1.TaskStatus_TASK_STATUS_BLOCKED {
@@ -187,17 +187,17 @@ For blocked tasks, use one of these commands instead:
   orc approve %s   Approve a gate and mark task ready to run
   orc resume %s    Resume execution (for paused/blocked/failed tasks)
 
-The 'resolve' command is for marking failed tasks as complete without re-running.
-Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
+The 'close' command is for closing failed tasks without re-running.
+Use --force to close anyway (e.g., if work is already complete)`, id, id, id)
 					}
-					return fmt.Errorf("task %s is %s, not failed; resolve is only for failed tasks (use --force to override)", id, task.StatusFromProto(t.Status))
+					return fmt.Errorf("task %s is %s, not failed; close is only for failed tasks (use --force to override)", id, task.StatusFromProto(t.Status))
 				}
-				forceResolving = true
+				forceClosing = true
 			}
 
-			// Check PR merge status when force-resolving non-failed tasks
+			// Check PR merge status when force-closing non-failed tasks
 			prWasMerged := false
-			if forceResolving {
+			if forceClosing {
 				prStatus := task.GetPRStatusProto(t)
 				prNumber := int32(0)
 				if t.Pr != nil && t.Pr.Number != nil {
@@ -324,8 +324,8 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 
 			// Confirmation prompt
 			if !force && !quiet && !yes {
-				fmt.Printf("⚠️  Resolve task %s as completed?\n", id)
-				fmt.Println("   The task will be marked as completed (resolved).")
+				fmt.Printf("⚠️  Close task %s?\n", id)
+				fmt.Println("   The task will be marked as closed.")
 				fmt.Println("   Execution state will be preserved for reference.")
 				if wtStatus != nil && wtStatus.exists && !cleanupPerformed {
 					fmt.Println("   The worktree will be preserved.")
@@ -340,33 +340,33 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 				}
 			}
 
-			// Update task status to resolved (distinct from completed to indicate no actual work done)
-			t.Status = orcv1.TaskStatus_TASK_STATUS_RESOLVED
+			// Update task status to closed (distinct from completed to indicate no actual work done)
+			t.Status = orcv1.TaskStatus_TASK_STATUS_CLOSED
 			now := time.Now()
 
 			// Track manual intervention in quality metrics
-			reason := "Resolved manually via 'orc resolve'"
+			reason := "Closed manually via 'orc close'"
 			if message != "" {
 				reason = message
 			}
 			task.RecordManualInterventionProto(t, reason)
 
-			// Add resolution metadata
+			// Add close metadata
 			task.EnsureMetadataProto(t)
-			t.Metadata["resolved"] = "true"
-			t.Metadata["resolved_at"] = now.Format(time.RFC3339)
+			t.Metadata["closed"] = "true"
+			t.Metadata["closed_at"] = now.Format(time.RFC3339)
 			if message != "" {
-				t.Metadata["resolution_message"] = message
+				t.Metadata["close_message"] = message
 			}
-			// Track force-resolve metadata for non-failed tasks
-			if forceResolving {
-				t.Metadata["force_resolved"] = "true"
+			// Track force-close metadata for non-failed tasks
+			if forceClosing {
+				t.Metadata["force_closed"] = "true"
 				t.Metadata["original_status"] = task.StatusFromProto(originalStatus)
 				if prWasMerged {
 					t.Metadata["pr_was_merged"] = "true"
 				}
 			}
-			// Track worktree state at resolution time
+			// Track worktree state at close time
 			if wtStatus != nil && wtStatus.exists {
 				if wtStatus.isDirty {
 					t.Metadata["worktree_was_dirty"] = "true"
@@ -385,16 +385,16 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 
 			// Output results
 			if plain {
-				if forceResolving {
-					fmt.Printf("Task %s resolved (was: %s)\n", id, originalStatus)
+				if forceClosing {
+					fmt.Printf("Task %s closed (was: %s)\n", id, originalStatus)
 				} else {
-					fmt.Printf("Task %s resolved\n", id)
+					fmt.Printf("Task %s closed\n", id)
 				}
 			} else {
-				if forceResolving {
-					fmt.Printf("✓ Task %s marked as resolved (was: %s)\n", id, originalStatus)
+				if forceClosing {
+					fmt.Printf("✓ Task %s marked as closed (was: %s)\n", id, originalStatus)
 				} else {
-					fmt.Printf("✓ Task %s marked as resolved\n", id)
+					fmt.Printf("✓ Task %s marked as closed\n", id)
 				}
 			}
 			if message != "" {
@@ -407,9 +407,9 @@ Use --force to resolve anyway (e.g., if work is already complete)`, id, id, id)
 		},
 	}
 
-	cmd.Flags().BoolP("force", "f", false, "skip confirmation and allow resolving non-failed tasks")
+	cmd.Flags().BoolP("force", "f", false, "skip confirmation and allow closing non-failed tasks")
 	cmd.Flags().BoolP("yes", "y", false, "skip confirmation prompt (does not imply --force)")
-	cmd.Flags().StringVarP(&message, "message", "m", "", "resolution message explaining why task was resolved")
+	cmd.Flags().StringVarP(&message, "message", "m", "", "message explaining why task was closed")
 	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "abort in-progress git operations and discard uncommitted changes")
 	return cmd
 }

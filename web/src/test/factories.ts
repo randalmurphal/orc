@@ -287,7 +287,7 @@ export function getStatusLabel(status: TaskStatus): string {
 		case TaskStatus.FINALIZING: return 'finalizing';
 		case TaskStatus.COMPLETED: return 'completed';
 		case TaskStatus.FAILED: return 'failed';
-		case TaskStatus.RESOLVED: return 'resolved';
+		case TaskStatus.CLOSED: return 'closed';
 		default: return 'created';
 	}
 }

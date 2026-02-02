@@ -207,7 +207,7 @@ func (we *WorkflowExecutor) directMerge(ctx context.Context, t *orcv1.Task, gitO
 	}
 
 	// Update task with merge info
-	t.Status = orcv1.TaskStatus_TASK_STATUS_RESOLVED
+	t.Status = orcv1.TaskStatus_TASK_STATUS_CLOSED
 	task.MarkCompletedProto(t)
 	if err := we.backend.SaveTask(t); err != nil {
 		we.logger.Warn("failed to save task after direct merge", "task", t.Id, "error", err)
@@ -414,8 +414,8 @@ func (we *WorkflowExecutor) cleanupWorktree(t *orcv1.Task) {
 		return
 	}
 
-	// StatusResolved is treated like StatusCompleted for cleanup - both are terminal success states
-	shouldCleanup := ((t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED || t.Status == orcv1.TaskStatus_TASK_STATUS_RESOLVED) && we.orcConfig.Worktree.CleanupOnComplete) ||
+	// StatusClosed is treated like StatusCompleted for cleanup - both are terminal states
+	shouldCleanup := ((t.Status == orcv1.TaskStatus_TASK_STATUS_COMPLETED || t.Status == orcv1.TaskStatus_TASK_STATUS_CLOSED) && we.orcConfig.Worktree.CleanupOnComplete) ||
 		(t.Status == orcv1.TaskStatus_TASK_STATUS_FAILED && we.orcConfig.Worktree.CleanupOnFail)
 	if !shouldCleanup {
 		return

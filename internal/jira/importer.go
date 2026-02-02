@@ -240,7 +240,7 @@ func isOrcStarted(t *orcv1.Task) bool {
 		orcv1.TaskStatus_TASK_STATUS_FINALIZING,
 		orcv1.TaskStatus_TASK_STATUS_COMPLETED,
 		orcv1.TaskStatus_TASK_STATUS_FAILED,
-		orcv1.TaskStatus_TASK_STATUS_RESOLVED:
+		orcv1.TaskStatus_TASK_STATUS_CLOSED:
 		return true
 	default:
 		return false

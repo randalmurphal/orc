@@ -210,10 +210,10 @@ metadata:
   source: cli
   tags: [auth, feature]
   external_id: JIRA-123          # Link to external tracker
-  # Resolution metadata (set by `orc resolve` command)
-  resolved: "true"               # Task was resolved, not executed to completion
-  resolved_at: 2026-01-10T14:00:00Z  # When task was resolved
-  resolution_message: "Fixed manually outside of orc"  # Optional explanation
+  # Close metadata (set by `orc close` command)
+  closed: "true"                 # Task was closed, not executed to completion
+  closed_at: 2026-01-10T14:00:00Z   # When task was closed
+  close_message: "Fixed manually outside of orc"  # Optional explanation
 
 # PR Status (auto-populated when PR is created, updated via polling)
 pr:
