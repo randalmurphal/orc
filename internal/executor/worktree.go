@@ -9,8 +9,10 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/git"
+	"github.com/randalmurphal/orc/internal/initiative"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
+	"github.com/randalmurphal/orc/internal/workflow"
 )
 
 // WorktreeSetup contains the result of setting up a worktree.
@@ -24,13 +26,14 @@ type WorktreeSetup struct {
 }
 
 // SetupWorktreeForTask creates or reuses an isolated worktree for the given task,
-// using the full 5-level branch resolution hierarchy:
+// using the full 6-level branch resolution hierarchy:
 //
 //  1. Task.TargetBranch (explicit override)
-//  2. Initiative.BranchBase (inherited from initiative)
-//  3. Developer.StagingBranch (personal staging area)
-//  4. Config.Completion.TargetBranch (project default)
-//  5. "main" (hardcoded fallback)
+//  2. Workflow.TargetBranch (per-workflow default)
+//  3. Initiative.BranchBase (inherited from initiative)
+//  4. Developer.StagingBranch (personal staging area)
+//  5. Config.Completion.TargetBranch (project default)
+//  6. "main" (hardcoded fallback)
 //
 // If the resolved target branch doesn't exist locally and is not a default branch
 // (main/master/develop), it will be auto-created from the configured base branch.
@@ -41,7 +44,37 @@ type WorktreeSetup struct {
 //
 // This is the preferred function for task execution as it supports initiative-level
 // and developer staging branches.
+//
+// Note: This function does not include workflow-level target branch resolution.
+// Use SetupWorktreeForTaskWithWorkflow when you have a loaded workflow.
 func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
+	return SetupWorktreeForTaskWithWorkflow(t, nil, cfg, gitOps, backend)
+}
+
+// SetupWorktreeForTaskWithWorkflow creates or reuses an isolated worktree for the given task,
+// using the full 6-level branch resolution hierarchy that includes workflow:
+//
+//  1. Task.TargetBranch (explicit override)
+//  2. Workflow.TargetBranch (per-workflow default)
+//  3. Initiative.BranchBase (inherited from initiative)
+//  4. Developer.StagingBranch (personal staging area)
+//  5. Config.Completion.TargetBranch (project default)
+//  6. "main" (hardcoded fallback)
+//
+// If the resolved target branch doesn't exist locally and is not a default branch
+// (main/master/develop), it will be auto-created from the configured base branch.
+//
+// When the task belongs to an initiative with a BranchPrefix, the task branch will
+// use that prefix instead of the default "orc/" prefix. For example, an initiative
+// with BranchPrefix "feature/auth-" will create branches like "feature/auth-TASK-001".
+//
+// Parameters:
+//   - t: The task (required)
+//   - wf: The workflow the task uses (may be nil, skips workflow-level resolution)
+//   - cfg: The orc configuration (may be nil)
+//   - gitOps: Git operations (required)
+//   - backend: Storage backend for loading initiatives (may be nil)
+func SetupWorktreeForTaskWithWorkflow(t *orcv1.Task, wf *workflow.Workflow, cfg *config.Config, gitOps *git.Git, backend storage.Backend) (*WorktreeSetup, error) {
 	if gitOps == nil {
 		return nil, fmt.Errorf("git operations not available")
 	}
@@ -49,23 +82,30 @@ func SetupWorktreeForTask(t *orcv1.Task, cfg *config.Config, gitOps *git.Git, ba
 		return nil, fmt.Errorf("task is required")
 	}
 
-	// Resolve target branch using 5-level hierarchy
-	targetBranch := ResolveTargetBranchForTask(t, backend, cfg)
-
-	// Get initiative prefix if task belongs to an initiative
-	var initiativePrefix string
+	// Load initiative if task belongs to one
+	var init *initiative.Initiative
 	initiativeID := task.GetInitiativeIDProto(t)
 	if initiativeID != "" && backend != nil {
-		init, err := backend.LoadInitiative(initiativeID)
+		var err error
+		init, err = backend.LoadInitiative(initiativeID)
 		if err != nil {
-			slog.Warn("failed to load initiative for branch prefix, using default 'orc/' prefix",
+			slog.Debug("failed to load initiative for branch resolution",
 				"task_id", t.Id,
 				"initiative_id", initiativeID,
 				"error", err,
 			)
-		} else if init != nil {
-			initiativePrefix = init.BranchPrefix
+			// Continue with nil initiative - will fall through to other resolution levels
 		}
+	}
+
+	// Resolve target branch using 6-level hierarchy (includes workflow)
+	targetBranch := ResolveTargetBranchWithWorkflow(t, wf, init, cfg)
+
+	// Get initiative prefix if task belongs to an initiative
+	// Reuse the init we already loaded above
+	var initiativePrefix string
+	if init != nil {
+		initiativePrefix = init.BranchPrefix
 	}
 
 	// For non-default branches (initiative/staging), ensure they exist

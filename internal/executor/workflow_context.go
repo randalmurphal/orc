@@ -68,8 +68,8 @@ func (we *WorkflowExecutor) buildResolutionContext(
 		rctx.TaskBranch = t.Branch
 		rctx.RequiresUITesting = t.RequiresUiTesting
 
-		// Resolve target branch
-		rctx.TargetBranch = ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+		// Resolve target branch using 6-level priority
+		rctx.TargetBranch = we.resolveTargetBranch(t)
 
 		// Load initiative context if task belongs to an initiative
 		initiativeID := task.GetInitiativeIDProto(t)

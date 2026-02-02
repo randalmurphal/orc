@@ -443,7 +443,7 @@ func (we *WorkflowExecutor) Run(ctx context.Context, workflowID string, opts Wor
 
 		// Start file watcher for real-time diff detection
 		if we.publisher != nil && we.worktreePath != "" {
-			baseRef := ResolveTargetBranchForTask(t, we.backend, we.orcConfig)
+			baseRef := we.resolveTargetBranch(t)
 			detector := NewGitDiffDetector(we.worktreePath)
 			we.fileWatcher = NewFileWatcher(detector, we.publisher, t.Id, we.worktreePath, baseRef, we.logger)
 			we.fileWatcher.Start(execCtx)

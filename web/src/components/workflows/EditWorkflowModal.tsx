@@ -61,6 +61,7 @@ export function EditWorkflowModal({
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
 	const [completionAction, setCompletionAction] = useState('');
+	const [targetBranch, setTargetBranch] = useState('');
 
 	// Phases state
 	const [phases, setPhases] = useState<WorkflowPhase[]>([]);
@@ -89,6 +90,7 @@ export function EditWorkflowModal({
 			setDefaultModel('');
 			setDefaultThinking(false);
 			setCompletionAction('');
+			setTargetBranch('');
 			setPhases([]);
 			setLoadError(null);
 
@@ -106,6 +108,7 @@ export function EditWorkflowModal({
 							setDefaultModel(details.workflow.defaultModel || '');
 							setDefaultThinking(details.workflow.defaultThinking || false);
 							setCompletionAction(details.workflow.completionAction || '');
+							setTargetBranch(details.workflow.targetBranch || '');
 						}
 						setPhases(details.phases || []);
 					}
@@ -147,6 +150,7 @@ export function EditWorkflowModal({
 				defaultModel: defaultModel || undefined,
 				defaultThinking: defaultThinking,
 				completionAction: completionAction,
+				targetBranch: targetBranch || undefined,
 			});
 			if (response.workflow) {
 				toast.success('Workflow updated successfully');
@@ -159,7 +163,7 @@ export function EditWorkflowModal({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflowId, name, description, defaultModel, defaultThinking, completionAction, onUpdated, onClose]);
+	}, [workflowId, name, description, defaultModel, defaultThinking, completionAction, targetBranch, onUpdated, onClose]);
 
 	// Handle add phase
 	const handleAddPhase = useCallback(
@@ -303,6 +307,7 @@ export function EditWorkflowModal({
 						setDefaultModel(details.workflow.defaultModel || '');
 						setDefaultThinking(details.workflow.defaultThinking || false);
 						setCompletionAction(details.workflow.completionAction || '');
+						setTargetBranch(details.workflow.targetBranch || '');
 					}
 					setPhases(details.phases || []);
 				}
@@ -484,6 +489,24 @@ export function EditWorkflowModal({
 							</select>
 							<span className="form-help">
 								What happens when the workflow completes successfully
+							</span>
+						</div>
+
+						{/* Target Branch */}
+						<div className="form-group">
+							<label htmlFor="edit-workflow-target-branch" className="form-label">
+								Target Branch
+							</label>
+							<input
+								id="edit-workflow-target-branch"
+								type="text"
+								className="form-input"
+								value={targetBranch}
+								onChange={(e) => setTargetBranch(e.target.value)}
+								placeholder="main"
+							/>
+							<span className="form-help">
+								Default target branch for PRs (empty inherits from config)
 							</span>
 						</div>
 					</div>

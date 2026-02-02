@@ -62,6 +62,7 @@ export function CreateWorkflowModal({
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
 	const [completionAction, setCompletionAction] = useState('');
+	const [targetBranch, setTargetBranch] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [idManuallySet, setIdManuallySet] = useState(false);
@@ -75,6 +76,7 @@ export function CreateWorkflowModal({
 			setDefaultModel('');
 			setDefaultThinking(false);
 			setCompletionAction('');
+			setTargetBranch('');
 			setError(null);
 			setIdManuallySet(false);
 		}
@@ -113,6 +115,7 @@ export function CreateWorkflowModal({
 					defaultModel: defaultModel || undefined,
 					defaultThinking: defaultThinking,
 					completionAction: completionAction,
+					targetBranch: targetBranch || undefined,
 				});
 				if (response.workflow) {
 					onCreated(response.workflow);
@@ -124,7 +127,7 @@ export function CreateWorkflowModal({
 				setSaving(false);
 			}
 		},
-		[id, name, description, defaultModel, defaultThinking, completionAction, onCreated, handleClose]
+		[id, name, description, defaultModel, defaultThinking, completionAction, targetBranch, onCreated, handleClose]
 	);
 
 	return (
@@ -239,6 +242,24 @@ export function CreateWorkflowModal({
 					</select>
 					<span className="form-help">
 						What happens when the workflow completes successfully
+					</span>
+				</div>
+
+				{/* Target Branch */}
+				<div className="form-group">
+					<label htmlFor="new-workflow-target-branch" className="form-label">
+						Target Branch
+					</label>
+					<input
+						id="new-workflow-target-branch"
+						type="text"
+						className="form-input"
+						value={targetBranch}
+						onChange={(e) => setTargetBranch(e.target.value)}
+						placeholder="main"
+					/>
+					<span className="form-help">
+						Default target branch for PRs (empty inherits from config)
 					</span>
 				</div>
 
