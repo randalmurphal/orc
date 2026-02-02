@@ -10,13 +10,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EditWorkflowModal } from './EditWorkflowModal';
 import {
 	createMockWorkflow,
 	createMockWorkflowWithDetails,
-	createMockWorkflowPhase,
 	createMockPhaseTemplate,
 	createMockGetWorkflowResponse,
 	createMockListPhaseTemplatesResponse,
@@ -42,7 +41,6 @@ vi.mock('@/stores/uiStore', () => ({
 
 // Import mocked modules for assertions
 import { workflowClient } from '@/lib/client';
-import { toast } from '@/stores/uiStore';
 
 // Mock browser APIs
 beforeAll(() => {
