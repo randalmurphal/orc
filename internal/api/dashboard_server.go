@@ -957,10 +957,4 @@ func (s *dashboardServer) calculateMetricsForPeriod(tasks []*orcv1.Task, start, 
 	return metrics
 }
 
-// ptrStringValue returns the value of a string pointer, or empty string if nil.
-func ptrStringValue(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
+
