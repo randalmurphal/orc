@@ -1,0 +1,6 @@
+id: documentation-copy
+name: Documentation (copy)
+description: Documentation update workflow
+phases:
+    - template: docs
+      sequence: 0
