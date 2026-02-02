@@ -205,9 +205,17 @@ func (w *Worker) run(pool *WorkerPool, t *orcv1.Task, pln *executor.Plan) {
 
 		// Check if ralph state file was removed (completion)
 		if !mgr.Exists() {
-			// Phase completed - update task's execution state
+			// Phase completed - create checkpoint and update task's execution state
 			task.EnsureExecutionProto(t)
-			task.CompletePhaseProto(t.Execution, currentPhase.ID, "")
+			commitSHA := ""
+			if pool.gitOps != nil {
+				wtGit := pool.gitOps.InWorktree(w.WorktreePath)
+				checkpoint, err := wtGit.CreateCheckpoint(t.Id, currentPhase.ID, "completed")
+				if err == nil && checkpoint != nil {
+					commitSHA = checkpoint.CommitSHA
+				}
+			}
+			task.CompletePhaseProto(t.Execution, currentPhase.ID, commitSHA)
 			if pool.backend != nil {
 				_ = pool.backend.SaveTask(t)
 			}
