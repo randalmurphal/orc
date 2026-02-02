@@ -12,16 +12,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/randalmurphal/orc/internal/db"
+	"github.com/randalmurphal/orc/internal/events"
 	"github.com/randalmurphal/orc/internal/storage"
 
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
 )
 
-// EventPublisher publishes events for real-time notifications.
-type EventPublisher interface {
-	PublishEvent(ctx context.Context, event *orcv1.Event) error
-}
 
 // TranscriptStreamEvent represents a real-time transcript chunk.
 type TranscriptStreamEvent struct {
@@ -50,7 +47,7 @@ type transcriptServer struct {
 	orcv1connect.UnimplementedTranscriptServiceHandler
 	backend        storage.Backend
 	projectCache   *ProjectCache
-	eventPublisher EventPublisher
+	eventPublisher events.Publisher
 }
 
 // NewTranscriptServer creates a new TranscriptService handler.
@@ -438,7 +435,7 @@ func (s *transcriptServer) GetTodoHistory(
 }
 
 // SetEventPublisher sets the event publisher for real-time transcript streaming.
-func (s *transcriptServer) SetEventPublisher(publisher EventPublisher) {
+func (s *transcriptServer) SetEventPublisher(publisher events.Publisher) {
 	s.eventPublisher = publisher
 }
 
@@ -610,8 +607,22 @@ func (s *transcriptServer) StoreTranscriptEntry(
 	// For now, we'll just publish the event
 
 	// Publish real-time event if publisher is configured
-	// TODO: Implement proper event publishing once Event structure is clarified
-	_ = s.eventPublisher // Avoid unused field error
+	if s.eventPublisher != nil {
+		// Create transcript line for event data
+		transcriptLine := events.TranscriptLine{
+			Phase:     transcript.Phase,
+			Iteration: 1, // Default iteration
+			Type:      transcript.Type,
+			Content:   transcript.Content,
+			Timestamp: time.UnixMilli(transcript.Timestamp),
+		}
+
+		// Create event using the events.Event type
+		event := events.NewEvent(events.EventTranscript, transcript.TaskID, transcriptLine)
+
+		// Publish the event
+		s.eventPublisher.Publish(event)
+	}
 
 	return nil
 }

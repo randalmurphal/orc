@@ -39,6 +39,7 @@ func (s *Server) registerConnectHandlers() {
 	transcriptSvc := NewTranscriptServer(s.backend)
 	if ts, ok := transcriptSvc.(*transcriptServer); ok {
 		ts.SetProjectCache(s.projectCache)
+		ts.SetEventPublisher(s.publisher)
 	}
 	eventSvc := NewEventServer(s.publisher, s.backend, s.logger)
 	if es, ok := eventSvc.(*eventServer); ok {
