@@ -6,10 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/randalmurphal/orc/gen/orc/v1"
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Helper function to create string pointers
+func stringPtr(s string) *string {
+	return &s
+}
 
 // TestTranscriptStreaming_SC1_RealTimeTranscriptEvents tests that
 // transcript events are streamed in real-time to WebSocket clients
@@ -17,18 +22,27 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 	t.Run("should stream transcript_chunk events to subscribed clients", func(t *testing.T) {
 		// Arrange: Set up event server with WebSocket hub
 		server := NewEventServer()
-		hub := &MockWebSocketHub{events: make(chan *v1.Event, 10)}
+		hub := &MockWebSocketHub{events: make(chan *orcv1.Event, 10)}
 		server.SetWebSocketHub(hub)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		// Act: Publish a transcript event
-		event := &v1.Event{
-			Type:      "transcript_chunk",
-			ProjectId: "test-project",
-			TaskId:    "TASK-001",
-			Data:      `{"content":"Hello World","timestamp":"2024-01-01T12:00:00Z","type":"response","phase":"implement"}`,
+		projectID := "test-project"
+		taskID := "TASK-001"
+		event := &orcv1.Event{
+			Id:        "transcript-event-1",
+			ProjectId: &projectID,
+			TaskId:    &taskID,
+			Payload: &orcv1.Event_Activity{
+				Activity: &orcv1.ActivityEvent{
+					TaskId:   "TASK-001",
+					PhaseId:  "implement",
+					Activity: orcv1.ActivityState_ACTIVITY_STATE_STREAMING,
+					Details:  stringPtr(`{"content":"Hello World","timestamp":"2024-01-01T12:00:00Z","type":"response","phase":"implement"}`),
+				},
+			},
 		}
 
 		err := server.PublishEvent(ctx, event)
@@ -37,9 +51,15 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 		// Assert: Event should be forwarded to WebSocket hub
 		select {
 		case receivedEvent := <-hub.events:
-			assert.Equal(t, "transcript_chunk", receivedEvent.Type)
-			assert.Equal(t, "TASK-001", receivedEvent.TaskId)
-			assert.Contains(t, receivedEvent.Data, "Hello World")
+			assert.Equal(t, "TASK-001", *receivedEvent.TaskId)
+			assert.Equal(t, "test-project", *receivedEvent.ProjectId)
+			// Check that it's an activity event with transcript details
+			activity, ok := receivedEvent.Payload.(*orcv1.Event_Activity)
+			assert.True(t, ok, "Event should contain ActivityEvent payload")
+			if ok {
+				assert.Contains(t, *activity.Activity.Details, "Hello World")
+				assert.Equal(t, orcv1.ActivityState_ACTIVITY_STATE_STREAMING, activity.Activity.Activity)
+			}
 		case <-time.After(1 * time.Second):
 			t.Fatal("Expected transcript event to be forwarded to WebSocket hub")
 		}
@@ -47,25 +67,25 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 
 	t.Run("should filter events by project and task ID", func(t *testing.T) {
 		server := NewEventServer()
-		hub := &MockWebSocketHub{events: make(chan *v1.Event, 10)}
+		hub := &MockWebSocketHub{events: make(chan *orcv1.Event, 10)}
 		server.SetWebSocketHub(hub)
 
 		ctx := context.Background()
 
 		// Act: Publish events for different projects and tasks
-		event1 := &v1.Event{
+		event1 := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "project-1",
 			TaskId:    "TASK-001",
 			Data:      `{"content":"Project 1 Task 1"}`,
 		}
-		event2 := &v1.Event{
+		event2 := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "project-2",
 			TaskId:    "TASK-001",
 			Data:      `{"content":"Project 2 Task 1"}`,
 		}
-		event3 := &v1.Event{
+		event3 := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "project-1",
 			TaskId:    "TASK-002",
@@ -82,13 +102,13 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 
 	t.Run("should handle malformed transcript data gracefully", func(t *testing.T) {
 		server := NewEventServer()
-		hub := &MockWebSocketHub{events: make(chan *v1.Event, 10)}
+		hub := &MockWebSocketHub{events: make(chan *orcv1.Event, 10)}
 		server.SetWebSocketHub(hub)
 
 		ctx := context.Background()
 
 		// Act: Publish event with invalid JSON data
-		event := &v1.Event{
+		event := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "test-project",
 			TaskId:    "TASK-001",
@@ -116,7 +136,7 @@ func TestTranscriptStreaming_SC1_RealTimeTranscriptEvents(t *testing.T) {
 func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 	t.Run("should generate transcript_chunk events during LLM interactions", func(t *testing.T) {
 		// Arrange: Set up task executor with event publisher
-		mockEventPublisher := &MockEventPublisher{events: make([]*v1.Event, 0)}
+		mockEventPublisher := &MockEventPublisher{events: make([]*orcv1.Event, 0)}
 		executor := &TaskExecutor{
 			eventPublisher: mockEventPublisher,
 		}
@@ -137,7 +157,7 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		assert.Greater(t, len(mockEventPublisher.events), 0)
 
 		// Find transcript events
-		transcriptEvents := make([]*v1.Event, 0)
+		transcriptEvents := make([]*orcv1.Event, 0)
 		for _, event := range mockEventPublisher.events {
 			if event.Type == "transcript_chunk" {
 				transcriptEvents = append(transcriptEvents, event)
@@ -164,7 +184,7 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 	})
 
 	t.Run("should include token counts in transcript events", func(t *testing.T) {
-		mockEventPublisher := &MockEventPublisher{events: make([]*v1.Event, 0)}
+		mockEventPublisher := &MockEventPublisher{events: make([]*orcv1.Event, 0)}
 		executor := &TaskExecutor{
 			eventPublisher: mockEventPublisher,
 		}
@@ -180,7 +200,7 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Assert: Events should include token information
-		transcriptEvents := make([]*v1.Event, 0)
+		transcriptEvents := make([]*orcv1.Event, 0)
 		for _, event := range mockEventPublisher.events {
 			if event.Type == "transcript_chunk" {
 				transcriptEvents = append(transcriptEvents, event)
@@ -209,7 +229,7 @@ func TestTranscriptStreaming_SC2_EventGeneration(t *testing.T) {
 	})
 
 	t.Run("should generate different event types for prompts vs responses", func(t *testing.T) {
-		mockEventPublisher := &MockEventPublisher{events: make([]*v1.Event, 0)}
+		mockEventPublisher := &MockEventPublisher{events: make([]*orcv1.Event, 0)}
 		executor := &TaskExecutor{
 			eventPublisher: mockEventPublisher,
 		}
@@ -265,7 +285,7 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.RegisterClient(mockClient, "test-project", "TASK-001")
 
 		// Act: Send transcript event through hub
-		event := &v1.Event{
+		event := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "test-project",
 			TaskId:    "TASK-001",
@@ -278,7 +298,7 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		// Assert: Client should receive the event
 		select {
 		case message := <-mockClient.messages:
-			var receivedEvent v1.Event
+			var receivedEvent orcv1.Event
 			err := json.Unmarshal(message, &receivedEvent)
 			assert.NoError(t, err)
 			assert.Equal(t, "transcript_chunk", receivedEvent.Type)
@@ -299,7 +319,7 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.RegisterClient(mockClient, "test-project", "TASK-002")
 
 		// Act: Send event for different task
-		event := &v1.Event{
+		event := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "test-project",
 			TaskId:    "TASK-001", // Different task
@@ -333,7 +353,7 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 		hub.UnregisterClient(mockClient)
 
 		// Send event after client disconnection
-		event := &v1.Event{
+		event := &orcv1.Event{
 			Type:      "transcript_chunk",
 			ProjectId: "test-project",
 			TaskId:    "TASK-001",
@@ -349,10 +369,10 @@ func TestTranscriptStreaming_SC3_WebSocketIntegration(t *testing.T) {
 // Mock implementations for testing
 
 type MockWebSocketHub struct {
-	events chan *v1.Event
+	events chan *orcv1.Event
 }
 
-func (m *MockWebSocketHub) BroadcastEvent(event *v1.Event) error {
+func (m *MockWebSocketHub) BroadcastEvent(event *orcv1.Event) error {
 	select {
 	case m.events <- event:
 		return nil
@@ -370,10 +390,10 @@ func (m *MockWebSocketHub) UnregisterClient(client WebSocketClient) {
 }
 
 type MockEventPublisher struct {
-	events []*v1.Event
+	events []*orcv1.Event
 }
 
-func (m *MockEventPublisher) PublishEvent(ctx context.Context, event *v1.Event) error {
+func (m *MockEventPublisher) PublishEvent(ctx context.Context, event *orcv1.Event) error {
 	m.events = append(m.events, event)
 	return nil
 }
@@ -420,7 +440,7 @@ func (e *EventServer) SetWebSocketHub(hub WebSocketHub) {
 	e.hub = hub
 }
 
-func (e *EventServer) PublishEvent(ctx context.Context, event *v1.Event) error {
+func (e *EventServer) PublishEvent(ctx context.Context, event *orcv1.Event) error {
 	if e.hub != nil {
 		return e.hub.BroadcastEvent(event)
 	}
@@ -441,7 +461,7 @@ func (t *TaskExecutor) ExecutePhase(ctx context.Context, task *Task) error {
 	// Mock implementation that simulates LLM interaction and event generation
 
 	// Simulate prompt event
-	promptEvent := &v1.Event{
+	promptEvent := &orcv1.Event{
 		Type:      "transcript_chunk",
 		ProjectId: task.ProjectID,
 		TaskId:    task.ID,
@@ -450,7 +470,7 @@ func (t *TaskExecutor) ExecutePhase(ctx context.Context, task *Task) error {
 	t.eventPublisher.PublishEvent(ctx, promptEvent)
 
 	// Simulate response event with token counts
-	responseEvent := &v1.Event{
+	responseEvent := &orcv1.Event{
 		Type:      "transcript_chunk",
 		ProjectId: task.ProjectID,
 		TaskId:    task.ID,
@@ -462,7 +482,7 @@ func (t *TaskExecutor) ExecutePhase(ctx context.Context, task *Task) error {
 }
 
 type WebSocketHub interface {
-	BroadcastEvent(event *v1.Event) error
+	BroadcastEvent(event *orcv1.Event) error
 	RegisterClient(client WebSocketClient, projectID, taskID string)
 	UnregisterClient(client WebSocketClient)
 }
@@ -474,7 +494,7 @@ type WebSocketClient interface {
 }
 
 type EventPublisher interface {
-	PublishEvent(ctx context.Context, event *v1.Event) error
+	PublishEvent(ctx context.Context, event *orcv1.Event) error
 }
 
 func NewWebSocketHub() WebSocketHub {
@@ -485,7 +505,7 @@ type mockWebSocketHubImpl struct {
 	clients map[string]WebSocketClient
 }
 
-func (m *mockWebSocketHubImpl) BroadcastEvent(event *v1.Event) error {
+func (m *mockWebSocketHubImpl) BroadcastEvent(event *orcv1.Event) error {
 	// Mock implementation
 	return nil
 }

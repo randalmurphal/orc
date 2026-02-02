@@ -65,10 +65,18 @@ message Transcript {
 
 // Transcript chunk for streaming
 message TranscriptChunk {
-  // Chunk data
-  bytes data = 1;
-  // Whether this is the last chunk
-  bool is_last = 2;
+  // Task ID this chunk belongs to
+  string task_id = 1;
+  // Message type: "prompt", "response", "tool", "error"
+  string type = 2;
+  // Message content
+  string content = 3;
+  // Phase this chunk belongs to
+  string phase = 4;
+  // Timestamp when this chunk was generated
+  google.protobuf.Timestamp timestamp = 5;
+  // Token usage for this chunk (if available)
+  optional TokenUsage tokens = 6;
 }
 
 // Todo item from Claude's todo list
@@ -106,6 +114,12 @@ service TranscriptService {
 
   // Stream transcript content (for large transcripts)
   rpc GetTranscriptContent(GetTranscriptContentRequest) returns (stream GetTranscriptContentResponse);
+
+  // Stream real-time transcript chunks for a task
+  rpc StreamTranscript(StreamTranscriptRequest) returns (stream StreamTranscriptResponse);
+
+  // Get live transcript combining persisted and streaming content
+  rpc GetLiveTranscript(GetLiveTranscriptRequest) returns (GetLiveTranscriptResponse);
 
   // Get token usage for a task
   rpc GetTokens(GetTokensRequest) returns (GetTokensResponse);
@@ -193,4 +207,25 @@ message GetTodoHistoryRequest {
 
 message GetTodoHistoryResponse {
   repeated TodoSnapshot snapshots = 1;
+}
+
+message StreamTranscriptRequest {
+  string project_id = 1;
+  string task_id = 2;
+  optional string phase = 3;
+}
+
+message StreamTranscriptResponse {
+  TranscriptChunk chunk = 1;
+}
+
+message GetLiveTranscriptRequest {
+  string project_id = 1;
+  string task_id = 2;
+  optional string phase = 3;
+}
+
+message GetLiveTranscriptResponse {
+  Transcript transcript = 1;
+  bool has_live_content = 2;
 }

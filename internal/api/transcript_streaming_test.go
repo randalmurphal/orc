@@ -448,93 +448,12 @@ func (m *MockEventPublisher) PublishEvent(ctx context.Context, event *orcv1.Even
 	return nil
 }
 
-// New types that need to be defined for the streaming functionality
-
-type TranscriptStreamEvent struct {
-	TaskID    string
-	ProjectID string
-	Content   string
-	Type      string // "prompt", "response", "tool", "error"
-	Phase     string
-	Timestamp time.Time
-	Tokens    *TokenCount
-}
-
-type TokenCount struct {
-	Input  int32
-	Output int32
-}
-
-// Methods that need to be added to transcriptServer
-
-func (s *transcriptServer) StreamTranscript(
-	ctx context.Context,
-	req *connect.Request[orcv1.StreamTranscriptRequest],
-	stream TranscriptStreamer,
-) error {
-	// This method needs to be implemented to satisfy SC-7
-	// It should:
-	// 1. Validate request parameters
-	// 2. Subscribe to transcript events for the given task
-	// 3. Stream transcript chunks to the client
-	// 4. Handle context cancellation gracefully
-
-	if req.Msg.TaskId == "" {
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
-	}
-
-	// Implementation would go here...
-	return errors.New("StreamTranscript not yet implemented")
-}
-
-func (s *transcriptServer) GetLiveTranscript(
-	ctx context.Context,
-	req *connect.Request[orcv1.GetLiveTranscriptRequest],
-) (*connect.Response[orcv1.GetLiveTranscriptResponse], error) {
-	// This method needs to be implemented to satisfy SC-8
-	// It should:
-	// 1. Get persisted transcript entries
-	// 2. Get current live transcript events
-	// 3. Merge them into a single response
-	// 4. Return the combined transcript
-
-	if req.Msg.TaskId == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("task_id is required"))
-	}
-
-	// Implementation would go here...
-	return nil, errors.New("GetLiveTranscript not yet implemented")
-}
-
-func (s *transcriptServer) SetEventPublisher(publisher EventPublisher) {
-	// This method needs to be implemented to satisfy SC-9
-	// It should allow the server to publish transcript events
-
-	// Implementation would go here...
-}
-
-func (s *transcriptServer) StoreTranscriptEntry(
-	ctx context.Context,
-	projectID string,
-	transcript storage.Transcript,
-) error {
-	// This method needs to be implemented to satisfy SC-9
-	// It should:
-	// 1. Store the transcript entry in the backend
-	// 2. Publish a transcript_chunk event for real-time subscribers
-
-	// Implementation would go here...
-	return errors.New("StoreTranscriptEntry not yet implemented")
-}
+// Methods are now implemented in transcript_server.go
 
 // Interfaces that need to be defined
 
 type TranscriptStreamer interface {
 	Send(*orcv1.StreamTranscriptResponse) error
-}
-
-type EventPublisher interface {
-	PublishEvent(ctx context.Context, event *orcv1.Event) error
 }
 
 // Proto message types that need to be defined in the .proto files
