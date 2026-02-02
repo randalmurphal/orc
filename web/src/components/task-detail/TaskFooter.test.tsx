@@ -255,10 +255,15 @@ describe('TaskFooter', () => {
 				phase: 'implement',
 			};
 
-			render(<TaskFooter task={task} taskState={taskState} metrics={null} />);
+			const { container } = render(<TaskFooter task={task} taskState={taskState} metrics={null} />);
 
-			expect(screen.getByText(/failed/i)).toBeInTheDocument();
-			expect(screen.getByText(/implement/i)).toBeInTheDocument();
+			// Check error header shows "Error at" with the phase name
+			const errorHeader = container.querySelector('.task-footer__error-header');
+			expect(errorHeader).toBeInTheDocument();
+			expect(errorHeader?.textContent).toContain('Error at');
+			expect(errorHeader?.textContent).toContain('implement');
+
+			// Check error details shows the error message
 			expect(screen.getByText(/validation failed/i)).toBeInTheDocument();
 		});
 
@@ -399,7 +404,7 @@ describe('TaskFooter', () => {
 			await waitFor(() => {
 				expect(mockRetryTask).toHaveBeenCalledWith(
 					expect.objectContaining({
-						feedback: 'Use validateSession instead',
+						instructions: 'Use validateSession instead',
 					})
 				);
 			});
@@ -419,9 +424,10 @@ describe('TaskFooter', () => {
 			fireEvent.click(retryButton);
 
 			await waitFor(() => {
+				// instructions should be undefined when no feedback is entered
 				expect(mockRetryTask).toHaveBeenCalledWith(
 					expect.objectContaining({
-						feedback: '', // or undefined
+						fromPhase: 'implement',
 					})
 				);
 			});

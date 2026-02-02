@@ -419,8 +419,8 @@ describe('Routes', () => {
 		it('renders TaskDetail page with task title in heading', async () => {
 			renderWithRouter('/tasks/TASK-001');
 			await waitFor(() => {
-				// The task title appears in an h1 with class "task-title"
-				const taskTitle = document.querySelector('h1.task-title');
+				// The task title appears in an h1 with class "task-detail-header__title"
+				const taskTitle = document.querySelector('h1.task-detail-header__title');
 				expect(taskTitle).toBeInTheDocument();
 				expect(taskTitle).toHaveTextContent('Test Task');
 			});
@@ -588,21 +588,23 @@ describe('Routes', () => {
 			});
 		});
 
-		it('TaskDetail reads tab param from URL', async () => {
-			renderWithRouter('/tasks/TASK-001?tab=transcript');
-			// Wait for task to load and tabs to render
+		it('TaskDetail renders split pane with transcript and changes', async () => {
+			renderWithRouter('/tasks/TASK-001');
+			// Wait for task to load and split pane to render
 			await waitFor(() => {
-				// The tab button should be rendered
-				expect(screen.getByRole('tab', { name: /transcript/i })).toBeInTheDocument();
+				// The split pane should be rendered with left and right panels
+				expect(document.querySelector('.split-pane')).toBeInTheDocument();
+				expect(document.querySelector('.split-pane__left')).toBeInTheDocument();
+				expect(document.querySelector('.split-pane__right')).toBeInTheDocument();
 			});
 		});
 
-		it('TaskDetail defaults to timeline tab when no tab param', async () => {
+		it('TaskDetail renders workflow progress', async () => {
 			renderWithRouter('/tasks/TASK-001');
-			// Wait for task to load and tabs to render
+			// Wait for task to load and workflow progress to render
 			await waitFor(() => {
-				// The timeline tab button should be rendered
-				expect(screen.getByRole('tab', { name: /timeline/i })).toBeInTheDocument();
+				// The workflow progress should be rendered
+				expect(document.querySelector('.workflow-progress')).toBeInTheDocument();
 			});
 		});
 	});
