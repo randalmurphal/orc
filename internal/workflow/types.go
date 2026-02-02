@@ -193,6 +193,7 @@ type Workflow struct {
 	DefaultModel         string       `json:"default_model,omitempty" db:"default_model"`
 	DefaultThinking      bool         `json:"default_thinking" db:"default_thinking"`
 	DefaultMaxIterations int          `json:"default_max_iterations,omitempty" db:"default_max_iterations"`
+	CompletionAction     string       `json:"completion_action,omitempty" yaml:"completion_action" db:"completion_action"` // "pr", "commit", "none", or "" (inherit)
 	IsBuiltin            bool         `json:"is_builtin" db:"is_builtin"`
 	BasedOn              string       `json:"based_on,omitempty" db:"based_on"`
 	CreatedAt            time.Time    `json:"created_at" db:"created_at"`

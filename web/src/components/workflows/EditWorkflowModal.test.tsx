@@ -133,7 +133,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -150,7 +150,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={false}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -168,7 +168,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -190,7 +190,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -223,7 +223,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -265,7 +265,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -296,7 +296,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -327,7 +327,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -366,7 +366,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -395,7 +395,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -427,7 +427,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -481,7 +481,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -526,7 +526,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -564,7 +564,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -601,7 +601,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -635,7 +635,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -661,7 +661,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -683,7 +683,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -718,7 +718,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -777,7 +777,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -824,7 +824,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -867,7 +867,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -893,7 +893,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -924,7 +924,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -959,7 +959,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -994,7 +994,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1025,7 +1025,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1053,7 +1053,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1078,7 +1078,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1102,7 +1102,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1130,7 +1130,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1165,7 +1165,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1200,7 +1200,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1243,7 +1243,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1269,7 +1269,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1306,7 +1306,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1326,53 +1326,90 @@ describe('EditWorkflowModal', () => {
 	});
 
 	describe('SC-9: Built-in workflows cannot be edited', () => {
-		it('should not render EditWorkflowModal for built-in workflows', async () => {
+		it('should show message for built-in workflows after loading', async () => {
 			const builtinWorkflow = createBuiltinWorkflow();
+			const workflowDetails = createMockWorkflowWithDetails({
+				workflow: builtinWorkflow,
+				phases: [],
+				variables: [],
+			});
+			vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
+				createMockGetWorkflowResponse(workflowDetails)
+			);
 
-			// The component should not render or show a message
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={builtinWorkflow}
+					workflowId={builtinWorkflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
 			);
+
+			await waitFor(() => {
+				expect(workflowClient.getWorkflow).toHaveBeenCalled();
+			});
 
 			// Should show message that built-in cannot be edited
-			expect(screen.getByText(/cannot edit built-in workflow|clone to customize/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/cannot edit built-in workflow|clone to customize/i)).toBeInTheDocument();
+			});
 		});
 
-		it('should not call getWorkflow API for built-in workflows', async () => {
+		it('should load workflow to determine if built-in', async () => {
 			const builtinWorkflow = createBuiltinWorkflow();
+			const workflowDetails = createMockWorkflowWithDetails({
+				workflow: builtinWorkflow,
+				phases: [],
+				variables: [],
+			});
+			vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
+				createMockGetWorkflowResponse(workflowDetails)
+			);
 
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={builtinWorkflow}
+					workflowId={builtinWorkflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
 			);
 
-			// Should not try to load details for built-in
-			expect(workflowClient.getWorkflow).not.toHaveBeenCalled();
+			// Should load workflow to check if it's built-in
+			await waitFor(() => {
+				expect(workflowClient.getWorkflow).toHaveBeenCalledWith({ id: 'medium' });
+			});
 		});
 
 		it('should suggest cloning for built-in workflows', async () => {
 			const builtinWorkflow = createBuiltinWorkflow();
+			const workflowDetails = createMockWorkflowWithDetails({
+				workflow: builtinWorkflow,
+				phases: [],
+				variables: [],
+			});
+			vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
+				createMockGetWorkflowResponse(workflowDetails)
+			);
 
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={builtinWorkflow}
+					workflowId={builtinWorkflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
 			);
 
+			await waitFor(() => {
+				expect(workflowClient.getWorkflow).toHaveBeenCalled();
+			});
+
 			// Should have a clone suggestion or button
-			expect(screen.getByText(/clone/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/clone/i)).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -1395,7 +1432,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1434,7 +1471,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1469,7 +1506,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflowDetails.workflow!}
+					workflowId={workflowDetails.workflow!.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1521,7 +1558,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1570,7 +1607,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1600,7 +1637,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1631,7 +1668,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>
@@ -1662,7 +1699,7 @@ describe('EditWorkflowModal', () => {
 			render(
 				<EditWorkflowModal
 					open={true}
-					workflow={workflow}
+					workflowId={workflow.id}
 					onClose={mockOnClose}
 					onUpdated={mockOnUpdated}
 				/>

@@ -2,7 +2,7 @@
  * EditWorkflowModal - Modal for editing workflow metadata and phases.
  *
  * Features:
- * - Edit workflow name, description, model, and thinking settings
+ * - Edit workflow name, description, model, thinking, and completion action settings
  * - Manage phases through PhaseListEditor sub-component
  * - Built-in workflows cannot be edited (shows clone suggestion)
  * - Load workflow details on open
@@ -21,8 +21,8 @@ import './EditWorkflowModal.css';
 export interface EditWorkflowModalProps {
 	/** Whether the modal is open */
 	open: boolean;
-	/** The workflow to edit (basic info) */
-	workflow: Workflow;
+	/** The workflow ID to edit */
+	workflowId: string;
 	/** Callback when modal should close */
 	onClose: () => void;
 	/** Callback when workflow is successfully updated */
@@ -36,20 +36,31 @@ const MODEL_OPTIONS = [
 	{ value: 'haiku', label: 'Haiku' },
 ];
 
+const COMPLETION_ACTION_OPTIONS = [
+	{ value: '', label: 'Inherit from config' },
+	{ value: 'pr', label: 'Create PR' },
+	{ value: 'commit', label: 'Commit only' },
+	{ value: 'none', label: 'No action' },
+];
+
 /**
  * EditWorkflowModal allows editing workflow metadata and phases.
  */
 export function EditWorkflowModal({
 	open,
-	workflow,
+	workflowId,
 	onClose,
 	onUpdated,
 }: EditWorkflowModalProps) {
+	// Workflow metadata loaded from API
+	const [workflow, setWorkflow] = useState<Workflow | null>(null);
+
 	// Form state
 	const [name, setName] = useState('');
 	const [description, setDescription] = useState('');
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
+	const [completionAction, setCompletionAction] = useState('');
 
 	// Phases state
 	const [phases, setPhases] = useState<WorkflowPhase[]>([]);
@@ -66,31 +77,35 @@ export function EditWorkflowModal({
 	const [templateError, setTemplateError] = useState<string | null>(null);
 
 	// Check if built-in workflow
-	const isBuiltin = workflow.isBuiltin;
+	const isBuiltin = workflow?.isBuiltin ?? false;
 
-	// Reset form when workflow changes or modal opens
+	// Reset form when workflowId changes or modal opens
 	useEffect(() => {
-		if (open && workflow && !isBuiltin) {
-			// Reset to basic workflow info initially
-			setName(workflow.name || '');
-			setDescription(workflow.description || '');
-			setDefaultModel(workflow.defaultModel || '');
-			setDefaultThinking(workflow.defaultThinking || false);
+		if (open && workflowId) {
+			// Reset state
+			setWorkflow(null);
+			setName('');
+			setDescription('');
+			setDefaultModel('');
+			setDefaultThinking(false);
+			setCompletionAction('');
 			setPhases([]);
 			setLoadError(null);
 
 			// Load full workflow details
 			setLoadingDetails(true);
 			workflowClient
-				.getWorkflow({ id: workflow.id })
+				.getWorkflow({ id: workflowId })
 				.then((response) => {
 					if (response.workflow) {
 						const details = response.workflow;
 						if (details.workflow) {
+							setWorkflow(details.workflow);
 							setName(details.workflow.name || '');
 							setDescription(details.workflow.description || '');
 							setDefaultModel(details.workflow.defaultModel || '');
 							setDefaultThinking(details.workflow.defaultThinking || false);
+							setCompletionAction(details.workflow.completionAction || '');
 						}
 						setPhases(details.phases || []);
 					}
@@ -119,18 +134,19 @@ export function EditWorkflowModal({
 					setLoadingTemplates(false);
 				});
 		}
-	}, [open, workflow, isBuiltin]);
+	}, [open, workflowId]);
 
 	// Handle save metadata
 	const handleSave = useCallback(async () => {
 		setSaving(true);
 		try {
 			const response = await workflowClient.updateWorkflow({
-				id: workflow.id,
+				id: workflowId,
 				name: name.trim() || undefined,
 				description: description.trim() || undefined,
 				defaultModel: defaultModel || undefined,
 				defaultThinking: defaultThinking,
+				completionAction: completionAction,
 			});
 			if (response.workflow) {
 				toast.success('Workflow updated successfully');
@@ -143,7 +159,7 @@ export function EditWorkflowModal({
 		} finally {
 			setSaving(false);
 		}
-	}, [workflow.id, name, description, defaultModel, defaultThinking, onUpdated, onClose]);
+	}, [workflowId, name, description, defaultModel, defaultThinking, completionAction, onUpdated, onClose]);
 
 	// Handle add phase
 	const handleAddPhase = useCallback(
@@ -151,7 +167,7 @@ export function EditWorkflowModal({
 			setPhaseLoading(true);
 			try {
 				const response = await workflowClient.addPhase({
-					workflowId: workflow.id,
+					workflowId: workflowId,
 					phaseTemplateId: request.phaseTemplateId,
 					sequence: request.sequence,
 				});
@@ -166,7 +182,7 @@ export function EditWorkflowModal({
 				setPhaseLoading(false);
 			}
 		},
-		[workflow.id]
+		[workflowId]
 	);
 
 	// Handle update phase
@@ -175,7 +191,7 @@ export function EditWorkflowModal({
 			setPhaseLoading(true);
 			try {
 				const response = await workflowClient.updatePhase({
-					workflowId: workflow.id,
+					workflowId: workflowId,
 					phaseId: phaseId,
 					modelOverride: overrides.modelOverride,
 					thinkingOverride: overrides.thinkingOverride,
@@ -195,7 +211,7 @@ export function EditWorkflowModal({
 				setPhaseLoading(false);
 			}
 		},
-		[workflow.id]
+		[workflowId]
 	);
 
 	// Handle remove phase
@@ -204,7 +220,7 @@ export function EditWorkflowModal({
 			setPhaseLoading(true);
 			try {
 				await workflowClient.removePhase({
-					workflowId: workflow.id,
+					workflowId: workflowId,
 					phaseId: phaseId,
 				});
 				setPhases((prev) => prev.filter((p) => p.id !== phaseId));
@@ -216,7 +232,7 @@ export function EditWorkflowModal({
 				setPhaseLoading(false);
 			}
 		},
-		[workflow.id]
+		[workflowId]
 	);
 
 	// Handle reorder phase
@@ -237,12 +253,12 @@ export function EditWorkflowModal({
 			try {
 				// Swap sequences
 				await workflowClient.updatePhase({
-					workflowId: workflow.id,
+					workflowId: workflowId,
 					phaseId: currentPhase.id,
 					sequence: targetPhase.sequence,
 				});
 				await workflowClient.updatePhase({
-					workflowId: workflow.id,
+					workflowId: workflowId,
 					phaseId: targetPhase.id,
 					sequence: currentPhase.sequence,
 				});
@@ -267,24 +283,26 @@ export function EditWorkflowModal({
 				setPhaseLoading(false);
 			}
 		},
-		[workflow.id, phases]
+		[workflowId, phases]
 	);
 
 	// Handle retry load
 	const handleRetry = useCallback(() => {
-		if (!workflow) return;
+		if (!workflowId) return;
 		setLoadError(null);
 		setLoadingDetails(true);
 		workflowClient
-			.getWorkflow({ id: workflow.id })
+			.getWorkflow({ id: workflowId })
 			.then((response) => {
 				if (response.workflow) {
 					const details = response.workflow;
 					if (details.workflow) {
+						setWorkflow(details.workflow);
 						setName(details.workflow.name || '');
 						setDescription(details.workflow.description || '');
 						setDefaultModel(details.workflow.defaultModel || '');
 						setDefaultThinking(details.workflow.defaultThinking || false);
+						setCompletionAction(details.workflow.completionAction || '');
 					}
 					setPhases(details.phases || []);
 				}
@@ -296,7 +314,7 @@ export function EditWorkflowModal({
 			.finally(() => {
 				setLoadingDetails(false);
 			});
-	}, [workflow]);
+	}, [workflowId]);
 
 	// Handle close
 	const handleClose = useCallback(() => {
@@ -304,7 +322,7 @@ export function EditWorkflowModal({
 	}, [onClose]);
 
 	// Built-in workflow message
-	if (isBuiltin) {
+	if (workflow && isBuiltin) {
 		return (
 			<Modal
 				open={open}
@@ -446,6 +464,28 @@ export function EditWorkflowModal({
 								</label>
 							</div>
 						</div>
+
+						{/* Completion Action */}
+						<div className="form-group">
+							<label htmlFor="edit-workflow-completion-action" className="form-label">
+								Completion Action
+							</label>
+							<select
+								id="edit-workflow-completion-action"
+								className="form-select"
+								value={completionAction}
+								onChange={(e) => setCompletionAction(e.target.value)}
+							>
+								{COMPLETION_ACTION_OPTIONS.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
+							</select>
+							<span className="form-help">
+								What happens when the workflow completes successfully
+							</span>
+						</div>
 					</div>
 
 					{/* Phases Section */}
@@ -458,7 +498,7 @@ export function EditWorkflowModal({
 						</h3>
 
 						<PhaseListEditor
-							workflowId={workflow.id}
+							workflowId={workflowId}
 							phases={phases}
 							phaseTemplates={phaseTemplates}
 							loading={phaseLoading}

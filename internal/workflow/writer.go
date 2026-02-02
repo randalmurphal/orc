@@ -249,12 +249,14 @@ func (w *Writer) dirForLevel(level WriteLevel) (string, error) {
 // marshalWorkflowYAML converts a Workflow to YAML bytes.
 func marshalWorkflowYAML(workflow *Workflow) ([]byte, error) {
 	wf := workflowYAML{
-		ID:              workflow.ID,
-		Name:            workflow.Name,
-		Description:     workflow.Description,
-		DefaultModel:    workflow.DefaultModel,
-		DefaultThinking: workflow.DefaultThinking,
-		BasedOn:         workflow.BasedOn,
+		ID:                   workflow.ID,
+		Name:                 workflow.Name,
+		Description:          workflow.Description,
+		DefaultModel:         workflow.DefaultModel,
+		DefaultThinking:      workflow.DefaultThinking,
+		DefaultMaxIterations: workflow.DefaultMaxIterations,
+		CompletionAction:     workflow.CompletionAction,
+		BasedOn:              workflow.BasedOn,
 	}
 
 	for _, p := range workflow.Phases {

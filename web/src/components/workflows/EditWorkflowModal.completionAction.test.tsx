@@ -73,7 +73,7 @@ describe('EditWorkflowModal - completion_action field', () => {
 
 		// Default mock for listPhaseTemplates
 		vi.mocked(workflowClient.listPhaseTemplates).mockResolvedValue(
-			createMockListPhaseTemplatesResponse({ templates: mockPhaseTemplates })
+			createMockListPhaseTemplatesResponse(mockPhaseTemplates)
 		);
 	});
 
@@ -94,7 +94,7 @@ describe('EditWorkflowModal - completion_action field', () => {
 		});
 
 		vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
-			createMockGetWorkflowResponse({ workflow: workflowWithDetails })
+			createMockGetWorkflowResponse(workflowWithDetails)
 		);
 
 		render(
@@ -125,7 +125,7 @@ describe('EditWorkflowModal - completion_action field', () => {
 		});
 
 		vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
-			createMockGetWorkflowResponse({ workflow: workflowWithDetails })
+			createMockGetWorkflowResponse(workflowWithDetails)
 		);
 
 		render(
@@ -158,16 +158,14 @@ describe('EditWorkflowModal - completion_action field', () => {
 		});
 
 		vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
-			createMockGetWorkflowResponse({ workflow: workflowWithDetails })
+			createMockGetWorkflowResponse(workflowWithDetails)
 		);
 		vi.mocked(workflowClient.updateWorkflow).mockResolvedValue(
-			createMockUpdateWorkflowResponse({
-				workflow: createMockWorkflow({
-					id: 'test-workflow',
-					name: 'Test',
-					completionAction: 'commit',
-				}),
-			})
+			createMockUpdateWorkflowResponse(createMockWorkflow({
+				id: 'test-workflow',
+				name: 'Test',
+				completionAction: 'commit',
+			}))
 		);
 
 		render(
@@ -213,16 +211,14 @@ describe('EditWorkflowModal - completion_action field', () => {
 		});
 
 		vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
-			createMockGetWorkflowResponse({ workflow: workflowWithDetails })
+			createMockGetWorkflowResponse(workflowWithDetails)
 		);
 		vi.mocked(workflowClient.updateWorkflow).mockResolvedValue(
-			createMockUpdateWorkflowResponse({
-				workflow: createMockWorkflow({
-					id: 'test-workflow',
-					name: 'Test',
-					completionAction: 'none',
-				}),
-			})
+			createMockUpdateWorkflowResponse(createMockWorkflow({
+				id: 'test-workflow',
+				name: 'Test',
+				completionAction: 'none',
+			}))
 		);
 
 		render(
@@ -267,16 +263,14 @@ describe('EditWorkflowModal - completion_action field', () => {
 		});
 
 		vi.mocked(workflowClient.getWorkflow).mockResolvedValue(
-			createMockGetWorkflowResponse({ workflow: workflowWithDetails })
+			createMockGetWorkflowResponse(workflowWithDetails)
 		);
 		vi.mocked(workflowClient.updateWorkflow).mockResolvedValue(
-			createMockUpdateWorkflowResponse({
-				workflow: createMockWorkflow({
-					id: 'test-workflow',
-					name: 'Test',
-					completionAction: '',
-				}),
-			})
+			createMockUpdateWorkflowResponse(createMockWorkflow({
+				id: 'test-workflow',
+				name: 'Test',
+				completionAction: '',
+			}))
 		);
 
 		render(

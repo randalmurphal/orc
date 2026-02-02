@@ -41,6 +41,13 @@ const MODEL_OPTIONS = [
 	{ value: 'haiku', label: 'Haiku' },
 ];
 
+const COMPLETION_ACTION_OPTIONS = [
+	{ value: '', label: 'Inherit from config' },
+	{ value: 'pr', label: 'Create PR' },
+	{ value: 'commit', label: 'Commit only' },
+	{ value: 'none', label: 'No action' },
+];
+
 /**
  * CreateWorkflowModal allows creating a new workflow from scratch.
  */
@@ -54,6 +61,7 @@ export function CreateWorkflowModal({
 	const [description, setDescription] = useState('');
 	const [defaultModel, setDefaultModel] = useState('');
 	const [defaultThinking, setDefaultThinking] = useState(false);
+	const [completionAction, setCompletionAction] = useState('');
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [idManuallySet, setIdManuallySet] = useState(false);
@@ -66,6 +74,7 @@ export function CreateWorkflowModal({
 			setDescription('');
 			setDefaultModel('');
 			setDefaultThinking(false);
+			setCompletionAction('');
 			setError(null);
 			setIdManuallySet(false);
 		}
@@ -103,6 +112,7 @@ export function CreateWorkflowModal({
 					description: description.trim() || undefined,
 					defaultModel: defaultModel || undefined,
 					defaultThinking: defaultThinking,
+					completionAction: completionAction,
 				});
 				if (response.workflow) {
 					onCreated(response.workflow);
@@ -114,7 +124,7 @@ export function CreateWorkflowModal({
 				setSaving(false);
 			}
 		},
-		[id, name, description, defaultModel, defaultThinking, onCreated, handleClose]
+		[id, name, description, defaultModel, defaultThinking, completionAction, onCreated, handleClose]
 	);
 
 	return (
@@ -208,6 +218,28 @@ export function CreateWorkflowModal({
 							<span className="form-checkbox-label">Enable thinking mode</span>
 						</label>
 					</div>
+				</div>
+
+				{/* Completion Action */}
+				<div className="form-group">
+					<label htmlFor="new-workflow-completion-action" className="form-label">
+						Completion Action
+					</label>
+					<select
+						id="new-workflow-completion-action"
+						className="form-select"
+						value={completionAction}
+						onChange={(e) => setCompletionAction(e.target.value)}
+					>
+						{COMPLETION_ACTION_OPTIONS.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					<span className="form-help">
+						What happens when the workflow completes successfully
+					</span>
 				</div>
 
 				{/* Error message */}
