@@ -355,28 +355,44 @@ See also:
 				t.Priority = pri
 			}
 
-			// Resolve workflow ID with priority:
-			// 1. Explicit --workflow flag (already set in workflowID)
+			// Resolve workflow ID with priority hierarchy:
+			// 1. Explicit --workflow flag (highest priority)
 			// 2. Explicit --weight flag -> map to workflow
-			// 3. Config default workflow (workflow field in config.yaml)
-			// 4. Error if none of the above
+			// 3. Category-based workflow defaults (NEW)
+			// 4. General workflow default (from WorkflowDefaults.Default)
+			// 5. Legacy config default workflow (config.Workflow)
+			// 6. Error if none of the above
 			if workflowID == "" {
 				weightExplicit := cmd.Flags().Changed("weight")
 				cfg, cfgErr := config.Load()
 
 				if weightExplicit {
-					// User specified --weight, map to workflow
+					// User specified --weight, map to workflow using WeightsConfig
 					var weightsCfg config.WeightsConfig
 					if cfgErr == nil {
 						weightsCfg = cfg.Weights
 					}
 					workflowID = workflow.ResolveWorkflowID("", t.Weight, weightsCfg)
-				} else if cfgErr == nil && cfg.Workflow != "" {
-					// Use config default workflow
-					workflowID = cfg.Workflow
-				} else {
-					// No workflow specified and no config default - error with helpful message
-					return fmt.Errorf("no default workflow configured. Specify a workflow with --workflow or set 'workflow:' in config.yaml.\n\nExamples:\n  orc new \"My task\" --workflow implement-small\n  orc new \"My task\" --weight small\n\nRun 'orc workflows' to see available workflows")
+				} else if cfgErr == nil {
+					// Use new priority-based resolution: category defaults -> general default -> legacy
+					categoryStr := ""
+					if t.Category != orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED {
+						categoryStr = strings.ToLower(t.Category.String()[len("TASK_CATEGORY_"):])
+					}
+
+					resolvedWorkflow, source := cfg.ResolveWorkflow("", categoryStr)
+					if resolvedWorkflow != "" {
+						workflowID = resolvedWorkflow
+						// Optional: log the resolution source for debugging
+						if source == "category_default" {
+							fmt.Fprintf(cmd.OutOrStdout(), "Using workflow %q for %s tasks\n", workflowID, categoryStr)
+						}
+					}
+				}
+
+				if workflowID == "" {
+					// No workflow could be resolved - error with helpful message
+					return fmt.Errorf("no default workflow configured. Configure workflow defaults or specify explicitly.\n\nOptions:\n  1. Set category defaults: orc config set workflow_defaults.feature implement-medium\n  2. Set general default: orc config set workflow_defaults.default implement-medium\n  3. Specify explicitly: orc new \"My task\" --workflow implement-small\n\nRun 'orc workflows' to see available workflows")
 				}
 			}
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/internal/config"
 	"github.com/randalmurphal/orc/internal/storage"
 	"github.com/randalmurphal/orc/internal/task"
@@ -139,13 +140,13 @@ func TestNewCommand_WorkflowDefaultsResolution(t *testing.T) {
 			}
 
 			// Verify task was created with correct workflow
-			createdTask, err := backend.GetTask(nil, taskID)
+			createdTask, err := backend.LoadTask(taskID)
 			if err != nil {
 				t.Fatalf("Failed to get created task: %v", err)
 			}
 
-			if createdTask.WorkflowID != tt.expectedWorkflowID {
-				t.Errorf("task.WorkflowID = %q, want %q", createdTask.WorkflowID, tt.expectedWorkflowID)
+			if createdTask.WorkflowId != nil && *createdTask.WorkflowId != tt.expectedWorkflowID {
+				t.Errorf("task.WorkflowId = %q, want %q", *createdTask.WorkflowId, tt.expectedWorkflowID)
 			}
 		})
 	}
@@ -193,13 +194,17 @@ func TestNewCommand_WorkflowDefaultsBackwardCompatibility(t *testing.T) {
 	}
 
 	// Verify task was created correctly
-	createdTask, err := backend.GetTask(nil, taskID)
+	createdTask, err := backend.LoadTask(taskID)
 	if err != nil {
 		t.Fatalf("Failed to get created task: %v", err)
 	}
 
-	if createdTask.WorkflowID != "legacy-workflow" {
-		t.Errorf("task.WorkflowID = %q, want %q", createdTask.WorkflowID, "legacy-workflow")
+	if createdTask.WorkflowId == nil || *createdTask.WorkflowId != "legacy-workflow" {
+		workflowID := ""
+		if createdTask.WorkflowId != nil {
+			workflowID = *createdTask.WorkflowId
+		}
+		t.Errorf("task.WorkflowId = %q, want %q", workflowID, "legacy-workflow")
 	}
 }
 
@@ -380,11 +385,45 @@ func runNewCommandWithWorkflowDefaults(
 
 	// Create task
 	taskProto := task.NewProtoTask("TASK-001", title)
-	taskProto.Category = category
-	taskProto.Weight = weight
-	taskProto.WorkflowId = resolvedWorkflow
 
-	if err := backend.SaveTask(nil, task.ProtoToModel(taskProto)); err != nil {
+	// Convert string category to enum
+	switch category {
+	case "feature":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_FEATURE
+	case "bug":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_BUG
+	case "refactor":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_REFACTOR
+	case "chore":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_CHORE
+	case "docs":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_DOCS
+	case "test":
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_TEST
+	default:
+		taskProto.Category = orcv1.TaskCategory_TASK_CATEGORY_UNSPECIFIED
+	}
+
+	// Convert string weight to enum
+	switch weight {
+	case "trivial":
+		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_TRIVIAL
+	case "small":
+		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_SMALL
+	case "medium":
+		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_MEDIUM
+	case "large":
+		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_LARGE
+	default:
+		taskProto.Weight = orcv1.TaskWeight_TASK_WEIGHT_UNSPECIFIED
+	}
+
+	// Set workflow ID as pointer to string
+	if resolvedWorkflow != "" {
+		taskProto.WorkflowId = &resolvedWorkflow
+	}
+
+	if err := backend.SaveTask(taskProto); err != nil {
 		return "", "", err
 	}
 
