@@ -650,4 +650,123 @@ describe('Routes', () => {
 			});
 		});
 	});
+
+	/**
+	 * TASK-723: Settings Tabs Integration Tests
+	 *
+	 * These tests verify the new tabbed Settings page structure with
+	 * General, Agents, and Environment tabs.
+	 *
+	 * Coverage mapping:
+	 * - SC-1: Settings page renders three tabs
+	 * - SC-4: Direct navigation to /settings/agents
+	 * - SC-5: Direct navigation to /settings/environment
+	 * - SC-6: Navigation to /settings redirects to /settings/general
+	 */
+	describe('/settings tabs routes (TASK-723)', () => {
+		describe('SC-1: Settings page renders three tabs', () => {
+			it('renders tablist with three tabs at /settings/general', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					// Should have a tablist with Settings sections aria-label
+					const tablist = screen.getByRole('tablist', { name: 'Settings sections' });
+					expect(tablist).toBeInTheDocument();
+				});
+			});
+
+			it('renders General tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /general/i })).toBeInTheDocument();
+				});
+			});
+
+			it('renders Agents tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /agents/i })).toBeInTheDocument();
+				});
+			});
+
+			it('renders Environment tab', async () => {
+				renderWithRouter('/settings/general');
+				await waitFor(() => {
+					expect(screen.getByRole('tab', { name: /environment/i })).toBeInTheDocument();
+				});
+			});
+		});
+
+		describe('SC-4: Direct navigation to /settings/agents', () => {
+			it('renders AgentsView content at /settings/agents', async () => {
+				renderWithRouter('/settings/agents');
+				await waitFor(() => {
+					// AgentsView has "Agents" as the page title and "Active Agents" section
+					expect(screen.getByRole('heading', { name: 'Agents' })).toBeInTheDocument();
+				});
+			});
+
+			it('Agents tab is active at /settings/agents', async () => {
+				renderWithRouter('/settings/agents');
+				await waitFor(() => {
+					const agentsTab = screen.getByRole('tab', { name: /agents/i });
+					expect(agentsTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+		});
+
+		describe('SC-5: Direct navigation to /settings/environment', () => {
+			it('renders EnvironmentLayout at /settings/environment', async () => {
+				renderWithRouter('/settings/environment');
+				await waitFor(() => {
+					// EnvironmentLayout has the environment-nav class
+					expect(document.querySelector('.environment-nav')).toBeInTheDocument();
+				});
+			});
+
+			it('Environment tab is active at /settings/environment', async () => {
+				renderWithRouter('/settings/environment');
+				await waitFor(() => {
+					const envTab = screen.getByRole('tab', { name: /environment/i });
+					expect(envTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+		});
+
+		describe('SC-6: Navigation to /settings redirects to /settings/general', () => {
+			it('redirects /settings to /settings/general', async () => {
+				renderWithRouter('/settings');
+				await waitFor(() => {
+					// After redirect, General tab should be active
+					const generalTab = screen.getByRole('tab', { name: /general/i });
+					expect(generalTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+
+			it('shows SettingsLayout content after redirect', async () => {
+				renderWithRouter('/settings');
+				await waitFor(() => {
+					// SettingsLayout has the settings-layout class
+					expect(document.querySelector('.settings-layout')).toBeInTheDocument();
+				});
+			});
+		});
+
+		describe('Tab state synchronization', () => {
+			it('General sub-routes keep General tab active', async () => {
+				renderWithRouter('/settings/general/commands');
+				await waitFor(() => {
+					const generalTab = screen.getByRole('tab', { name: /general/i });
+					expect(generalTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+
+			it('Environment sub-routes keep Environment tab active', async () => {
+				renderWithRouter('/settings/environment/hooks');
+				await waitFor(() => {
+					const envTab = screen.getByRole('tab', { name: /environment/i });
+					expect(envTab).toHaveAttribute('data-state', 'active');
+				});
+			});
+		});
+	});
 });
