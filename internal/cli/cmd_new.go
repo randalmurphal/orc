@@ -385,7 +385,7 @@ See also:
 						workflowID = resolvedWorkflow
 						// Optional: log the resolution source for debugging
 						if source == "category_default" {
-							fmt.Fprintf(cmd.OutOrStdout(), "Using workflow %q for %s tasks\n", workflowID, categoryStr)
+							_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Using workflow %q for %s tasks\n", workflowID, categoryStr)
 						}
 					}
 				}
