@@ -42,6 +42,12 @@ const (
 	// TranscriptServiceGetTranscriptContentProcedure is the fully-qualified name of the
 	// TranscriptService's GetTranscriptContent RPC.
 	TranscriptServiceGetTranscriptContentProcedure = "/orc.v1.TranscriptService/GetTranscriptContent"
+	// TranscriptServiceStreamTranscriptProcedure is the fully-qualified name of the TranscriptService's
+	// StreamTranscript RPC.
+	TranscriptServiceStreamTranscriptProcedure = "/orc.v1.TranscriptService/StreamTranscript"
+	// TranscriptServiceGetLiveTranscriptProcedure is the fully-qualified name of the
+	// TranscriptService's GetLiveTranscript RPC.
+	TranscriptServiceGetLiveTranscriptProcedure = "/orc.v1.TranscriptService/GetLiveTranscript"
 	// TranscriptServiceGetTokensProcedure is the fully-qualified name of the TranscriptService's
 	// GetTokens RPC.
 	TranscriptServiceGetTokensProcedure = "/orc.v1.TranscriptService/GetTokens"
@@ -64,6 +70,10 @@ type TranscriptServiceClient interface {
 	GetTranscript(context.Context, *connect.Request[v1.GetTranscriptRequest]) (*connect.Response[v1.GetTranscriptResponse], error)
 	// Stream transcript content (for large transcripts)
 	GetTranscriptContent(context.Context, *connect.Request[v1.GetTranscriptContentRequest]) (*connect.ServerStreamForClient[v1.GetTranscriptContentResponse], error)
+	// Stream real-time transcript chunks for a task
+	StreamTranscript(context.Context, *connect.Request[v1.StreamTranscriptRequest]) (*connect.ServerStreamForClient[v1.StreamTranscriptResponse], error)
+	// Get live transcript combining persisted and streaming content
+	GetLiveTranscript(context.Context, *connect.Request[v1.GetLiveTranscriptRequest]) (*connect.Response[v1.GetLiveTranscriptResponse], error)
 	// Get token usage for a task
 	GetTokens(context.Context, *connect.Request[v1.GetTokensRequest]) (*connect.Response[v1.GetTokensResponse], error)
 	// Get session info for a task
@@ -103,6 +113,18 @@ func NewTranscriptServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(transcriptServiceMethods.ByName("GetTranscriptContent")),
 			connect.WithClientOptions(opts...),
 		),
+		streamTranscript: connect.NewClient[v1.StreamTranscriptRequest, v1.StreamTranscriptResponse](
+			httpClient,
+			baseURL+TranscriptServiceStreamTranscriptProcedure,
+			connect.WithSchema(transcriptServiceMethods.ByName("StreamTranscript")),
+			connect.WithClientOptions(opts...),
+		),
+		getLiveTranscript: connect.NewClient[v1.GetLiveTranscriptRequest, v1.GetLiveTranscriptResponse](
+			httpClient,
+			baseURL+TranscriptServiceGetLiveTranscriptProcedure,
+			connect.WithSchema(transcriptServiceMethods.ByName("GetLiveTranscript")),
+			connect.WithClientOptions(opts...),
+		),
 		getTokens: connect.NewClient[v1.GetTokensRequest, v1.GetTokensResponse](
 			httpClient,
 			baseURL+TranscriptServiceGetTokensProcedure,
@@ -135,6 +157,8 @@ type transcriptServiceClient struct {
 	listTranscripts      *connect.Client[v1.ListTranscriptsRequest, v1.ListTranscriptsResponse]
 	getTranscript        *connect.Client[v1.GetTranscriptRequest, v1.GetTranscriptResponse]
 	getTranscriptContent *connect.Client[v1.GetTranscriptContentRequest, v1.GetTranscriptContentResponse]
+	streamTranscript     *connect.Client[v1.StreamTranscriptRequest, v1.StreamTranscriptResponse]
+	getLiveTranscript    *connect.Client[v1.GetLiveTranscriptRequest, v1.GetLiveTranscriptResponse]
 	getTokens            *connect.Client[v1.GetTokensRequest, v1.GetTokensResponse]
 	getSession           *connect.Client[v1.GetSessionRequest, v1.GetSessionResponse]
 	getTodos             *connect.Client[v1.GetTodosRequest, v1.GetTodosResponse]
@@ -154,6 +178,16 @@ func (c *transcriptServiceClient) GetTranscript(ctx context.Context, req *connec
 // GetTranscriptContent calls orc.v1.TranscriptService.GetTranscriptContent.
 func (c *transcriptServiceClient) GetTranscriptContent(ctx context.Context, req *connect.Request[v1.GetTranscriptContentRequest]) (*connect.ServerStreamForClient[v1.GetTranscriptContentResponse], error) {
 	return c.getTranscriptContent.CallServerStream(ctx, req)
+}
+
+// StreamTranscript calls orc.v1.TranscriptService.StreamTranscript.
+func (c *transcriptServiceClient) StreamTranscript(ctx context.Context, req *connect.Request[v1.StreamTranscriptRequest]) (*connect.ServerStreamForClient[v1.StreamTranscriptResponse], error) {
+	return c.streamTranscript.CallServerStream(ctx, req)
+}
+
+// GetLiveTranscript calls orc.v1.TranscriptService.GetLiveTranscript.
+func (c *transcriptServiceClient) GetLiveTranscript(ctx context.Context, req *connect.Request[v1.GetLiveTranscriptRequest]) (*connect.Response[v1.GetLiveTranscriptResponse], error) {
+	return c.getLiveTranscript.CallUnary(ctx, req)
 }
 
 // GetTokens calls orc.v1.TranscriptService.GetTokens.
@@ -184,6 +218,10 @@ type TranscriptServiceHandler interface {
 	GetTranscript(context.Context, *connect.Request[v1.GetTranscriptRequest]) (*connect.Response[v1.GetTranscriptResponse], error)
 	// Stream transcript content (for large transcripts)
 	GetTranscriptContent(context.Context, *connect.Request[v1.GetTranscriptContentRequest], *connect.ServerStream[v1.GetTranscriptContentResponse]) error
+	// Stream real-time transcript chunks for a task
+	StreamTranscript(context.Context, *connect.Request[v1.StreamTranscriptRequest], *connect.ServerStream[v1.StreamTranscriptResponse]) error
+	// Get live transcript combining persisted and streaming content
+	GetLiveTranscript(context.Context, *connect.Request[v1.GetLiveTranscriptRequest]) (*connect.Response[v1.GetLiveTranscriptResponse], error)
 	// Get token usage for a task
 	GetTokens(context.Context, *connect.Request[v1.GetTokensRequest]) (*connect.Response[v1.GetTokensResponse], error)
 	// Get session info for a task
@@ -219,6 +257,18 @@ func NewTranscriptServiceHandler(svc TranscriptServiceHandler, opts ...connect.H
 		connect.WithSchema(transcriptServiceMethods.ByName("GetTranscriptContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	transcriptServiceStreamTranscriptHandler := connect.NewServerStreamHandler(
+		TranscriptServiceStreamTranscriptProcedure,
+		svc.StreamTranscript,
+		connect.WithSchema(transcriptServiceMethods.ByName("StreamTranscript")),
+		connect.WithHandlerOptions(opts...),
+	)
+	transcriptServiceGetLiveTranscriptHandler := connect.NewUnaryHandler(
+		TranscriptServiceGetLiveTranscriptProcedure,
+		svc.GetLiveTranscript,
+		connect.WithSchema(transcriptServiceMethods.ByName("GetLiveTranscript")),
+		connect.WithHandlerOptions(opts...),
+	)
 	transcriptServiceGetTokensHandler := connect.NewUnaryHandler(
 		TranscriptServiceGetTokensProcedure,
 		svc.GetTokens,
@@ -251,6 +301,10 @@ func NewTranscriptServiceHandler(svc TranscriptServiceHandler, opts ...connect.H
 			transcriptServiceGetTranscriptHandler.ServeHTTP(w, r)
 		case TranscriptServiceGetTranscriptContentProcedure:
 			transcriptServiceGetTranscriptContentHandler.ServeHTTP(w, r)
+		case TranscriptServiceStreamTranscriptProcedure:
+			transcriptServiceStreamTranscriptHandler.ServeHTTP(w, r)
+		case TranscriptServiceGetLiveTranscriptProcedure:
+			transcriptServiceGetLiveTranscriptHandler.ServeHTTP(w, r)
 		case TranscriptServiceGetTokensProcedure:
 			transcriptServiceGetTokensHandler.ServeHTTP(w, r)
 		case TranscriptServiceGetSessionProcedure:
@@ -278,6 +332,14 @@ func (UnimplementedTranscriptServiceHandler) GetTranscript(context.Context, *con
 
 func (UnimplementedTranscriptServiceHandler) GetTranscriptContent(context.Context, *connect.Request[v1.GetTranscriptContentRequest], *connect.ServerStream[v1.GetTranscriptContentResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TranscriptService.GetTranscriptContent is not implemented"))
+}
+
+func (UnimplementedTranscriptServiceHandler) StreamTranscript(context.Context, *connect.Request[v1.StreamTranscriptRequest], *connect.ServerStream[v1.StreamTranscriptResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TranscriptService.StreamTranscript is not implemented"))
+}
+
+func (UnimplementedTranscriptServiceHandler) GetLiveTranscript(context.Context, *connect.Request[v1.GetLiveTranscriptRequest]) (*connect.Response[v1.GetLiveTranscriptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orc.v1.TranscriptService.GetLiveTranscript is not implemented"))
 }
 
 func (UnimplementedTranscriptServiceHandler) GetTokens(context.Context, *connect.Request[v1.GetTokensRequest]) (*connect.Response[v1.GetTokensResponse], error) {

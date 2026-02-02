@@ -91,11 +91,53 @@ export function useTaskSubscription(taskId: string | undefined): {
 	state: import('@/gen/orc/v1/task_pb').ExecutionState | null;
 	transcript: TranscriptLine[];
 } {
-	const { subscribe, subscribeGlobal } = useEvents();
+	const { subscribe, subscribeGlobal, onEvent } = useEvents();
 	const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
 
 	// Get execution state from taskStore (updated via event handlers)
 	const state = useTaskState(taskId ?? '') ?? null;
+
+	// Handle transcript events
+	useEffect(() => {
+		if (!taskId) return;
+
+		const unsubscribe = onEvent((event) => {
+			// Check if this is a transcript chunk event for our task
+			if (
+				event.payload?.case === 'activity' &&
+				event.payload.value.activity === 'ACTIVITY_STATE_STREAMING' &&
+				event.taskId === taskId
+			) {
+				try {
+					// Parse transcript data from event details
+					const details = event.payload.value.details;
+					if (details) {
+						const transcriptData = JSON.parse(details);
+
+						// Convert to TranscriptLine format
+						const line: TranscriptLine = {
+							content: transcriptData.content || '',
+							timestamp: transcriptData.timestamp || new Date().toISOString(),
+							type: transcriptData.type || 'response',
+							phase: transcriptData.phase,
+							tokens: transcriptData.tokens ? {
+								input: transcriptData.tokens.input || 0,
+								output: transcriptData.tokens.output || 0,
+							} : undefined,
+						};
+
+						// Add to transcript
+						setTranscript(prev => [...prev, line]);
+					}
+				} catch (e) {
+					// Ignore malformed transcript data
+					console.warn('Failed to parse transcript event data:', e);
+				}
+			}
+		});
+
+		return unsubscribe;
+	}, [taskId, onEvent]);
 
 	// Subscribe to task-specific events when taskId changes
 	useEffect(() => {

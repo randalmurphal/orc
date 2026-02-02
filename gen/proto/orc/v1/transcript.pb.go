@@ -316,10 +316,18 @@ func (x *Transcript) GetEndedAt() *timestamppb.Timestamp {
 // Transcript chunk for streaming
 type TranscriptChunk struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Chunk data
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	// Whether this is the last chunk
-	IsLast        bool `protobuf:"varint,2,opt,name=is_last,json=isLast,proto3" json:"is_last,omitempty"`
+	// Task ID this chunk belongs to
+	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	// Message type: "prompt", "response", "tool", "error"
+	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	// Message content
+	Content string `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	// Phase this chunk belongs to
+	Phase string `protobuf:"bytes,4,opt,name=phase,proto3" json:"phase,omitempty"`
+	// Timestamp when this chunk was generated
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Token usage for this chunk (if available)
+	Tokens        *TokenUsage `protobuf:"bytes,6,opt,name=tokens,proto3,oneof" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,18 +362,46 @@ func (*TranscriptChunk) Descriptor() ([]byte, []int) {
 	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *TranscriptChunk) GetData() []byte {
+func (x *TranscriptChunk) GetTaskId() string {
 	if x != nil {
-		return x.Data
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *TranscriptChunk) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *TranscriptChunk) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *TranscriptChunk) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *TranscriptChunk) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
 	}
 	return nil
 }
 
-func (x *TranscriptChunk) GetIsLast() bool {
+func (x *TranscriptChunk) GetTokens() *TokenUsage {
 	if x != nil {
-		return x.IsLast
+		return x.Tokens
 	}
-	return false
+	return nil
 }
 
 // Todo item from Claude's todo list
@@ -1234,6 +1270,222 @@ func (x *GetTodoHistoryResponse) GetSnapshots() []*TodoSnapshot {
 	return nil
 }
 
+type StreamTranscriptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Phase         *string                `protobuf:"bytes,3,opt,name=phase,proto3,oneof" json:"phase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamTranscriptRequest) Reset() {
+	*x = StreamTranscriptRequest{}
+	mi := &file_orc_v1_transcript_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamTranscriptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamTranscriptRequest) ProtoMessage() {}
+
+func (x *StreamTranscriptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_transcript_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamTranscriptRequest.ProtoReflect.Descriptor instead.
+func (*StreamTranscriptRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *StreamTranscriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *StreamTranscriptRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *StreamTranscriptRequest) GetPhase() string {
+	if x != nil && x.Phase != nil {
+		return *x.Phase
+	}
+	return ""
+}
+
+type StreamTranscriptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Chunk         *TranscriptChunk       `protobuf:"bytes,1,opt,name=chunk,proto3" json:"chunk,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamTranscriptResponse) Reset() {
+	*x = StreamTranscriptResponse{}
+	mi := &file_orc_v1_transcript_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamTranscriptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamTranscriptResponse) ProtoMessage() {}
+
+func (x *StreamTranscriptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_transcript_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamTranscriptResponse.ProtoReflect.Descriptor instead.
+func (*StreamTranscriptResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *StreamTranscriptResponse) GetChunk() *TranscriptChunk {
+	if x != nil {
+		return x.Chunk
+	}
+	return nil
+}
+
+type GetLiveTranscriptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Phase         *string                `protobuf:"bytes,3,opt,name=phase,proto3,oneof" json:"phase,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLiveTranscriptRequest) Reset() {
+	*x = GetLiveTranscriptRequest{}
+	mi := &file_orc_v1_transcript_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLiveTranscriptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLiveTranscriptRequest) ProtoMessage() {}
+
+func (x *GetLiveTranscriptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_transcript_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLiveTranscriptRequest.ProtoReflect.Descriptor instead.
+func (*GetLiveTranscriptRequest) Descriptor() ([]byte, []int) {
+	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetLiveTranscriptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetLiveTranscriptRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *GetLiveTranscriptRequest) GetPhase() string {
+	if x != nil && x.Phase != nil {
+		return *x.Phase
+	}
+	return ""
+}
+
+type GetLiveTranscriptResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Transcript     *Transcript            `protobuf:"bytes,1,opt,name=transcript,proto3" json:"transcript,omitempty"`
+	HasLiveContent bool                   `protobuf:"varint,2,opt,name=has_live_content,json=hasLiveContent,proto3" json:"has_live_content,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetLiveTranscriptResponse) Reset() {
+	*x = GetLiveTranscriptResponse{}
+	mi := &file_orc_v1_transcript_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLiveTranscriptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLiveTranscriptResponse) ProtoMessage() {}
+
+func (x *GetLiveTranscriptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orc_v1_transcript_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLiveTranscriptResponse.ProtoReflect.Descriptor instead.
+func (*GetLiveTranscriptResponse) Descriptor() ([]byte, []int) {
+	return file_orc_v1_transcript_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetLiveTranscriptResponse) GetTranscript() *Transcript {
+	if x != nil {
+		return x.Transcript
+	}
+	return nil
+}
+
+func (x *GetLiveTranscriptResponse) GetHasLiveContent() bool {
+	if x != nil {
+		return x.HasLiveContent
+	}
+	return false
+}
+
 var File_orc_v1_transcript_proto protoreflect.FileDescriptor
 
 const file_orc_v1_transcript_proto_rawDesc = "" +
@@ -1273,10 +1525,15 @@ const file_orc_v1_transcript_proto_rawDesc = "" +
 	"\bended_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x02R\aendedAt\x88\x01\x01B\r\n" +
 	"\v_session_idB\b\n" +
 	"\x06_modelB\v\n" +
-	"\t_ended_at\">\n" +
-	"\x0fTranscriptChunk\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\x12\x17\n" +
-	"\ais_last\x18\x02 \x01(\bR\x06isLast\"r\n" +
+	"\t_ended_at\"\xe4\x01\n" +
+	"\x0fTranscriptChunk\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x14\n" +
+	"\x05phase\x18\x04 \x01(\tR\x05phase\x128\n" +
+	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12/\n" +
+	"\x06tokens\x18\x06 \x01(\v2\x12.orc.v1.TokenUsageH\x00R\x06tokens\x88\x01\x01B\t\n" +
+	"\a_tokens\"r\n" +
 	"\bTodoItem\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\tR\acontent\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12$\n" +
@@ -1342,11 +1599,32 @@ const file_orc_v1_transcript_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\"L\n" +
 	"\x16GetTodoHistoryResponse\x122\n" +
-	"\tsnapshots\x18\x01 \x03(\v2\x14.orc.v1.TodoSnapshotR\tsnapshots2\xb1\x04\n" +
+	"\tsnapshots\x18\x01 \x03(\v2\x14.orc.v1.TodoSnapshotR\tsnapshots\"v\n" +
+	"\x17StreamTranscriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
+	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
+	"\x06_phase\"I\n" +
+	"\x18StreamTranscriptResponse\x12-\n" +
+	"\x05chunk\x18\x01 \x01(\v2\x17.orc.v1.TranscriptChunkR\x05chunk\"w\n" +
+	"\x18GetLiveTranscriptRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
+	"\x05phase\x18\x03 \x01(\tH\x00R\x05phase\x88\x01\x01B\b\n" +
+	"\x06_phase\"y\n" +
+	"\x19GetLiveTranscriptResponse\x122\n" +
+	"\n" +
+	"transcript\x18\x01 \x01(\v2\x12.orc.v1.TranscriptR\n" +
+	"transcript\x12(\n" +
+	"\x10has_live_content\x18\x02 \x01(\bR\x0ehasLiveContent2\xe4\x05\n" +
 	"\x11TranscriptService\x12R\n" +
 	"\x0fListTranscripts\x12\x1e.orc.v1.ListTranscriptsRequest\x1a\x1f.orc.v1.ListTranscriptsResponse\x12L\n" +
 	"\rGetTranscript\x12\x1c.orc.v1.GetTranscriptRequest\x1a\x1d.orc.v1.GetTranscriptResponse\x12c\n" +
-	"\x14GetTranscriptContent\x12#.orc.v1.GetTranscriptContentRequest\x1a$.orc.v1.GetTranscriptContentResponse0\x01\x12@\n" +
+	"\x14GetTranscriptContent\x12#.orc.v1.GetTranscriptContentRequest\x1a$.orc.v1.GetTranscriptContentResponse0\x01\x12W\n" +
+	"\x10StreamTranscript\x12\x1f.orc.v1.StreamTranscriptRequest\x1a .orc.v1.StreamTranscriptResponse0\x01\x12X\n" +
+	"\x11GetLiveTranscript\x12 .orc.v1.GetLiveTranscriptRequest\x1a!.orc.v1.GetLiveTranscriptResponse\x12@\n" +
 	"\tGetTokens\x12\x18.orc.v1.GetTokensRequest\x1a\x19.orc.v1.GetTokensResponse\x12C\n" +
 	"\n" +
 	"GetSession\x12\x19.orc.v1.GetSessionRequest\x1a\x1a.orc.v1.GetSessionResponse\x12=\n" +
@@ -1367,7 +1645,7 @@ func file_orc_v1_transcript_proto_rawDescGZIP() []byte {
 	return file_orc_v1_transcript_proto_rawDescData
 }
 
-var file_orc_v1_transcript_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_orc_v1_transcript_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_orc_v1_transcript_proto_goTypes = []any{
 	(*TranscriptFile)(nil),               // 0: orc.v1.TranscriptFile
 	(*TranscriptEntry)(nil),              // 1: orc.v1.TranscriptEntry
@@ -1389,46 +1667,58 @@ var file_orc_v1_transcript_proto_goTypes = []any{
 	(*GetTodosResponse)(nil),             // 17: orc.v1.GetTodosResponse
 	(*GetTodoHistoryRequest)(nil),        // 18: orc.v1.GetTodoHistoryRequest
 	(*GetTodoHistoryResponse)(nil),       // 19: orc.v1.GetTodoHistoryResponse
-	(*timestamppb.Timestamp)(nil),        // 20: google.protobuf.Timestamp
-	(*TokenUsage)(nil),                   // 21: orc.v1.TokenUsage
-	(*SessionInfo)(nil),                  // 22: orc.v1.SessionInfo
+	(*StreamTranscriptRequest)(nil),      // 20: orc.v1.StreamTranscriptRequest
+	(*StreamTranscriptResponse)(nil),     // 21: orc.v1.StreamTranscriptResponse
+	(*GetLiveTranscriptRequest)(nil),     // 22: orc.v1.GetLiveTranscriptRequest
+	(*GetLiveTranscriptResponse)(nil),    // 23: orc.v1.GetLiveTranscriptResponse
+	(*timestamppb.Timestamp)(nil),        // 24: google.protobuf.Timestamp
+	(*TokenUsage)(nil),                   // 25: orc.v1.TokenUsage
+	(*SessionInfo)(nil),                  // 26: orc.v1.SessionInfo
 }
 var file_orc_v1_transcript_proto_depIdxs = []int32{
-	20, // 0: orc.v1.TranscriptFile.created_at:type_name -> google.protobuf.Timestamp
-	20, // 1: orc.v1.TranscriptEntry.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 2: orc.v1.TranscriptEntry.tokens:type_name -> orc.v1.TokenUsage
+	24, // 0: orc.v1.TranscriptFile.created_at:type_name -> google.protobuf.Timestamp
+	24, // 1: orc.v1.TranscriptEntry.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 2: orc.v1.TranscriptEntry.tokens:type_name -> orc.v1.TokenUsage
 	1,  // 3: orc.v1.Transcript.entries:type_name -> orc.v1.TranscriptEntry
-	21, // 4: orc.v1.Transcript.total_tokens:type_name -> orc.v1.TokenUsage
-	20, // 5: orc.v1.Transcript.started_at:type_name -> google.protobuf.Timestamp
-	20, // 6: orc.v1.Transcript.ended_at:type_name -> google.protobuf.Timestamp
-	20, // 7: orc.v1.TodoSnapshot.timestamp:type_name -> google.protobuf.Timestamp
-	4,  // 8: orc.v1.TodoSnapshot.items:type_name -> orc.v1.TodoItem
-	0,  // 9: orc.v1.ListTranscriptsResponse.transcripts:type_name -> orc.v1.TranscriptFile
-	2,  // 10: orc.v1.GetTranscriptResponse.transcript:type_name -> orc.v1.Transcript
-	3,  // 11: orc.v1.GetTranscriptContentResponse.chunk:type_name -> orc.v1.TranscriptChunk
-	21, // 12: orc.v1.GetTokensResponse.tokens:type_name -> orc.v1.TokenUsage
-	22, // 13: orc.v1.GetSessionResponse.session:type_name -> orc.v1.SessionInfo
-	4,  // 14: orc.v1.GetTodosResponse.items:type_name -> orc.v1.TodoItem
-	5,  // 15: orc.v1.GetTodoHistoryResponse.snapshots:type_name -> orc.v1.TodoSnapshot
-	6,  // 16: orc.v1.TranscriptService.ListTranscripts:input_type -> orc.v1.ListTranscriptsRequest
-	8,  // 17: orc.v1.TranscriptService.GetTranscript:input_type -> orc.v1.GetTranscriptRequest
-	10, // 18: orc.v1.TranscriptService.GetTranscriptContent:input_type -> orc.v1.GetTranscriptContentRequest
-	12, // 19: orc.v1.TranscriptService.GetTokens:input_type -> orc.v1.GetTokensRequest
-	14, // 20: orc.v1.TranscriptService.GetSession:input_type -> orc.v1.GetSessionRequest
-	16, // 21: orc.v1.TranscriptService.GetTodos:input_type -> orc.v1.GetTodosRequest
-	18, // 22: orc.v1.TranscriptService.GetTodoHistory:input_type -> orc.v1.GetTodoHistoryRequest
-	7,  // 23: orc.v1.TranscriptService.ListTranscripts:output_type -> orc.v1.ListTranscriptsResponse
-	9,  // 24: orc.v1.TranscriptService.GetTranscript:output_type -> orc.v1.GetTranscriptResponse
-	11, // 25: orc.v1.TranscriptService.GetTranscriptContent:output_type -> orc.v1.GetTranscriptContentResponse
-	13, // 26: orc.v1.TranscriptService.GetTokens:output_type -> orc.v1.GetTokensResponse
-	15, // 27: orc.v1.TranscriptService.GetSession:output_type -> orc.v1.GetSessionResponse
-	17, // 28: orc.v1.TranscriptService.GetTodos:output_type -> orc.v1.GetTodosResponse
-	19, // 29: orc.v1.TranscriptService.GetTodoHistory:output_type -> orc.v1.GetTodoHistoryResponse
-	23, // [23:30] is the sub-list for method output_type
-	16, // [16:23] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	25, // 4: orc.v1.Transcript.total_tokens:type_name -> orc.v1.TokenUsage
+	24, // 5: orc.v1.Transcript.started_at:type_name -> google.protobuf.Timestamp
+	24, // 6: orc.v1.Transcript.ended_at:type_name -> google.protobuf.Timestamp
+	24, // 7: orc.v1.TranscriptChunk.timestamp:type_name -> google.protobuf.Timestamp
+	25, // 8: orc.v1.TranscriptChunk.tokens:type_name -> orc.v1.TokenUsage
+	24, // 9: orc.v1.TodoSnapshot.timestamp:type_name -> google.protobuf.Timestamp
+	4,  // 10: orc.v1.TodoSnapshot.items:type_name -> orc.v1.TodoItem
+	0,  // 11: orc.v1.ListTranscriptsResponse.transcripts:type_name -> orc.v1.TranscriptFile
+	2,  // 12: orc.v1.GetTranscriptResponse.transcript:type_name -> orc.v1.Transcript
+	3,  // 13: orc.v1.GetTranscriptContentResponse.chunk:type_name -> orc.v1.TranscriptChunk
+	25, // 14: orc.v1.GetTokensResponse.tokens:type_name -> orc.v1.TokenUsage
+	26, // 15: orc.v1.GetSessionResponse.session:type_name -> orc.v1.SessionInfo
+	4,  // 16: orc.v1.GetTodosResponse.items:type_name -> orc.v1.TodoItem
+	5,  // 17: orc.v1.GetTodoHistoryResponse.snapshots:type_name -> orc.v1.TodoSnapshot
+	3,  // 18: orc.v1.StreamTranscriptResponse.chunk:type_name -> orc.v1.TranscriptChunk
+	2,  // 19: orc.v1.GetLiveTranscriptResponse.transcript:type_name -> orc.v1.Transcript
+	6,  // 20: orc.v1.TranscriptService.ListTranscripts:input_type -> orc.v1.ListTranscriptsRequest
+	8,  // 21: orc.v1.TranscriptService.GetTranscript:input_type -> orc.v1.GetTranscriptRequest
+	10, // 22: orc.v1.TranscriptService.GetTranscriptContent:input_type -> orc.v1.GetTranscriptContentRequest
+	20, // 23: orc.v1.TranscriptService.StreamTranscript:input_type -> orc.v1.StreamTranscriptRequest
+	22, // 24: orc.v1.TranscriptService.GetLiveTranscript:input_type -> orc.v1.GetLiveTranscriptRequest
+	12, // 25: orc.v1.TranscriptService.GetTokens:input_type -> orc.v1.GetTokensRequest
+	14, // 26: orc.v1.TranscriptService.GetSession:input_type -> orc.v1.GetSessionRequest
+	16, // 27: orc.v1.TranscriptService.GetTodos:input_type -> orc.v1.GetTodosRequest
+	18, // 28: orc.v1.TranscriptService.GetTodoHistory:input_type -> orc.v1.GetTodoHistoryRequest
+	7,  // 29: orc.v1.TranscriptService.ListTranscripts:output_type -> orc.v1.ListTranscriptsResponse
+	9,  // 30: orc.v1.TranscriptService.GetTranscript:output_type -> orc.v1.GetTranscriptResponse
+	11, // 31: orc.v1.TranscriptService.GetTranscriptContent:output_type -> orc.v1.GetTranscriptContentResponse
+	21, // 32: orc.v1.TranscriptService.StreamTranscript:output_type -> orc.v1.StreamTranscriptResponse
+	23, // 33: orc.v1.TranscriptService.GetLiveTranscript:output_type -> orc.v1.GetLiveTranscriptResponse
+	13, // 34: orc.v1.TranscriptService.GetTokens:output_type -> orc.v1.GetTokensResponse
+	15, // 35: orc.v1.TranscriptService.GetSession:output_type -> orc.v1.GetSessionResponse
+	17, // 36: orc.v1.TranscriptService.GetTodos:output_type -> orc.v1.GetTodosResponse
+	19, // 37: orc.v1.TranscriptService.GetTodoHistory:output_type -> orc.v1.GetTodoHistoryResponse
+	29, // [29:38] is the sub-list for method output_type
+	20, // [20:29] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_orc_v1_transcript_proto_init() }
@@ -1439,16 +1729,19 @@ func file_orc_v1_transcript_proto_init() {
 	file_orc_v1_common_proto_init()
 	file_orc_v1_transcript_proto_msgTypes[1].OneofWrappers = []any{}
 	file_orc_v1_transcript_proto_msgTypes[2].OneofWrappers = []any{}
+	file_orc_v1_transcript_proto_msgTypes[3].OneofWrappers = []any{}
 	file_orc_v1_transcript_proto_msgTypes[4].OneofWrappers = []any{}
 	file_orc_v1_transcript_proto_msgTypes[6].OneofWrappers = []any{}
 	file_orc_v1_transcript_proto_msgTypes[17].OneofWrappers = []any{}
+	file_orc_v1_transcript_proto_msgTypes[20].OneofWrappers = []any{}
+	file_orc_v1_transcript_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orc_v1_transcript_proto_rawDesc), len(file_orc_v1_transcript_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
