@@ -413,10 +413,10 @@ Phase = Agent (WHO) + Prompt (WHAT). Resolution functions in `workflow_phase.go`
 
 | Function | Line | Resolution Order |
 |----------|------|------------------|
-| `resolveExecutorAgent()` | 623 | phase.AgentOverride → tmpl.AgentID → nil |
-| `resolvePhaseModel()` | 658 | phase.ModelOverride → agent.Model → config.Model → "opus" |
-| `getEffectivePhaseClaudeConfig()` | 920 | Merge agent + phase config → nil if empty |
-| `shouldUseThinking()` | 679 | phase.ThinkingOverride → tmpl.ThinkingEnabled → phase defaults |
+| `resolveExecutorAgent()` | 658 | phase.AgentOverride → tmpl.AgentID → nil |
+| `resolvePhaseModel()` | 693 | phase.ModelOverride → workflow.DefaultModel → agent.Model → config.Model → "opus" |
+| `getEffectivePhaseClaudeConfig()` | 970 | Merge agent + phase config → nil if empty |
+| `shouldUseThinking()` | 724 | phase.ThinkingOverride → workflow.DefaultThinking (true only) → tmpl.ThinkingEnabled → phase defaults |
 
 **Phase defaults:** spec/review → thinking=true, implement → thinking=false
 
