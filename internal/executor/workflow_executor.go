@@ -120,7 +120,7 @@ type WorkflowExecutor struct {
 	fileWatcher  *FileWatcher
 	isResuming      bool // True if resuming a paused/failed/blocked task
 	skipGates       bool // When true, bypass all gate evaluations
-	inParallelLevel bool //nolint:unused // WIP for INIT-036 parallel execution
+	inParallelLevel bool //nolint:unused // True when executing phases in parallel (prepared for parallel execution)
 
 	// turnExecutor is injected for testing to avoid spawning real Claude CLI.
 	turnExecutor TurnExecutor

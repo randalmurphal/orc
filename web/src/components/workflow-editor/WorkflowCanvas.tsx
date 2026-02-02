@@ -9,6 +9,7 @@ import {
 	applyNodeChanges,
 	applyEdgeChanges,
 	type NodeMouseHandler,
+	type EdgeMouseHandler,
 	type Node,
 	type Edge,
 	type OnConnect,
@@ -111,6 +112,7 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 	const edges = useWorkflowEditorStore((s) => s.edges);
 	const readOnly = useWorkflowEditorStore((s) => s.readOnly);
 	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
+	const selectEdge = useWorkflowEditorStore((s) => s.selectEdge);
 	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
 	const setNodes = useWorkflowEditorStore((s) => s.setNodes);
@@ -337,9 +339,20 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 		[selectNode]
 	);
 
+	// Only select gate edges, not dependency/loop/retry edges
+	const onEdgeClick: EdgeMouseHandler = useCallback(
+		(_event, edge) => {
+			if (edge.type === 'gate') {
+				selectEdge(edge.id);
+			}
+		},
+		[selectEdge]
+	);
+
 	const onPaneClick = useCallback(() => {
 		selectNode(null);
-	}, [selectNode]);
+		selectEdge(null);
+	}, [selectNode, selectEdge]);
 
 	const onDragOver = useCallback(
 		(event: React.DragEvent) => {
@@ -585,6 +598,7 @@ function WorkflowCanvasInner({ onWorkflowRefresh }: WorkflowCanvasProps) {
 				nodesConnectable={!readOnly}
 				elementsSelectable={true}
 				onNodeClick={onNodeClick}
+				onEdgeClick={onEdgeClick}
 				onPaneClick={onPaneClick}
 				onConnect={onConnect}
 				onNodeDragStop={onNodeDragStop}

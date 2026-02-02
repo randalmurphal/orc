@@ -201,8 +201,8 @@ describe('layoutWorkflow - Position Persistence (SC-11)', () => {
 		});
 	});
 
-	describe('only phase nodes are produced (no start/end)', () => {
-		it('produces only phase nodes with stored positions', () => {
+	describe('phase nodes with stored positions', () => {
+		it('produces phase and virtual nodes with stored positions for phases', () => {
 			const details = createMockWorkflowWithDetails({
 				phases: [
 					createMockWorkflowPhase({
@@ -217,11 +217,14 @@ describe('layoutWorkflow - Position Persistence (SC-11)', () => {
 
 			const result = layoutWorkflow(details);
 
-			// Only phase nodes, no startEnd nodes
-			expect(result.nodes).toHaveLength(1);
-			expect(result.nodes[0].type).toBe('phase');
-			expect(result.nodes[0].position.x).toBe(200);
-			expect(result.nodes[0].position.y).toBe(200);
+			// 1 phase + 2 virtual (entry/exit) = 3 nodes
+			const phaseNodes = result.nodes.filter((n) => n.type === 'phase');
+			expect(phaseNodes).toHaveLength(1);
+			expect(phaseNodes[0].position.x).toBe(200);
+			expect(phaseNodes[0].position.y).toBe(200);
+
+			const virtualNodes = result.nodes.filter((n) => n.type === 'virtual');
+			expect(virtualNodes).toHaveLength(2);
 		});
 	});
 

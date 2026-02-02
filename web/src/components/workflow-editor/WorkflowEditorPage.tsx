@@ -9,7 +9,9 @@ import type { PhaseNodeData, PhaseStatus as UIPhaseStatus } from './nodes';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { PhaseTemplatePalette } from './panels/PhaseTemplatePalette';
 import { PhaseInspector } from './panels/PhaseInspector';
+import { GateInspector } from './panels/GateInspector';
 import { ExecutionHeader } from './ExecutionHeader';
+import type { GateEdgeData } from './utils/layoutWorkflow';
 import { DeletePhaseDialog } from './DeletePhaseDialog';
 import { CloneWorkflowModal } from '@/components/workflows/CloneWorkflowModal';
 import { formatDuration } from '@/stores/sessionStore';
@@ -51,8 +53,10 @@ export function WorkflowEditorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const workflowDetails = useWorkflowEditorStore((s) => s.workflowDetails);
 	const selectedNodeId = useWorkflowEditorStore((s) => s.selectedNodeId);
+	const selectedEdgeId = useWorkflowEditorStore((s) => s.selectedEdgeId);
 	const selectNode = useWorkflowEditorStore((s) => s.selectNode);
 	const nodes = useWorkflowEditorStore((s) => s.nodes);
+	const edges = useWorkflowEditorStore((s) => s.edges);
 	const loadFromWorkflow = useWorkflowEditorStore((s) => s.loadFromWorkflow);
 	const reset = useWorkflowEditorStore((s) => s.reset);
 
@@ -322,7 +326,11 @@ export function WorkflowEditorPage() {
 	const workflow = workflowDetails?.workflow;
 	const workflowName = workflow?.name || id || 'Workflow';
 	const isBuiltin = workflow?.isBuiltin ?? false;
-	const inspectorOpen = selectedNodeId !== null;
+
+	// Determine which inspector should be open
+	const nodeInspectorOpen = selectedNodeId !== null;
+	const edgeInspectorOpen = selectedEdgeId !== null;
+	const inspectorOpen = nodeInspectorOpen || edgeInspectorOpen;
 
 	// Find selected phase for the inspector panel
 	const selectedNode = selectedNodeId
@@ -334,6 +342,11 @@ export function WorkflowEditorPage() {
 	// Find the actual WorkflowPhase from workflowDetails
 	const selectedPhase = selectedPhaseData
 		? workflowDetails?.phases.find((p) => p.id === selectedPhaseData.phaseId) ?? null
+		: null;
+
+	// Find selected edge for the gate inspector (TASK-727)
+	const selectedEdge = selectedEdgeId
+		? edges.find((e) => e.id === selectedEdgeId) ?? null
 		: null;
 
 	const bodyClasses = ['workflow-editor-body'];
@@ -405,7 +418,7 @@ export function WorkflowEditorPage() {
 				<div className="workflow-editor-canvas">
 					<WorkflowCanvas onWorkflowRefresh={refreshWorkflow} />
 				</div>
-				{inspectorOpen && (
+				{nodeInspectorOpen && (
 					<aside className="workflow-editor-inspector">
 						<PhaseInspector
 							phase={selectedPhase}
@@ -413,6 +426,15 @@ export function WorkflowEditorPage() {
 							readOnly={isBuiltin}
 							onWorkflowRefresh={refreshWorkflow}
 							onDeletePhase={handleDeletePhaseRequest}
+						/>
+					</aside>
+				)}
+				{edgeInspectorOpen && (
+					<aside className="workflow-editor-inspector">
+						<GateInspector
+							edge={selectedEdge as import('@xyflow/react').Edge<GateEdgeData> | null}
+							workflowDetails={workflowDetails}
+							readOnly={isBuiltin}
 						/>
 					</aside>
 				)}

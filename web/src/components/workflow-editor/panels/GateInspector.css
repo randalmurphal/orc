@@ -1,0 +1,114 @@
+/* GateInspector panel styles */
+.gate-inspector {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 16px;
+	background: var(--surface-default);
+	border-left: 1px solid var(--border-default);
+	overflow-y: auto;
+}
+
+/* Header */
+.gate-inspector__header {
+	margin-bottom: 16px;
+}
+
+.gate-inspector__header h3 {
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+/* Read-only notice for built-in workflows */
+.gate-inspector__readonly-notice {
+	background: var(--amber-dim, rgba(245, 158, 11, 0.1));
+	color: var(--amber, #f59e0b);
+	padding: 8px 12px;
+	border-radius: var(--radius-md);
+	font-size: var(--text-sm);
+	margin-bottom: 16px;
+	text-align: center;
+}
+
+/* Settings section */
+.gate-inspector__settings {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/* Field layout */
+.gate-inspector__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.gate-inspector__label {
+	font-size: var(--text-xs);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* Form controls */
+.gate-inspector__select,
+.gate-inspector__input {
+	padding: 8px 12px;
+	border: 1px solid var(--border-default);
+	border-radius: var(--radius-md);
+	background: var(--surface-muted);
+	color: var(--text-primary);
+	font-size: var(--text-sm);
+	font-family: var(--font-sans);
+}
+
+.gate-inspector__select:disabled,
+.gate-inspector__input:disabled {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+.gate-inspector__select:focus,
+.gate-inspector__input:focus {
+	outline: none;
+	border-color: var(--primary);
+	box-shadow: 0 0 0 1px var(--primary);
+}
+
+.gate-inspector__value {
+	font-size: var(--text-sm);
+	color: var(--text-secondary);
+}
+
+/* Status indicators */
+.gate-inspector__status {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 8px;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+.gate-inspector__status--pending {
+	background: var(--surface-muted);
+	color: var(--text-secondary);
+}
+
+.gate-inspector__status--passed {
+	background: var(--green-dim, rgba(16, 185, 129, 0.15));
+	color: var(--green);
+}
+
+.gate-inspector__status--blocked {
+	background: var(--orange-dim, rgba(249, 115, 22, 0.15));
+	color: var(--orange);
+}
+
+.gate-inspector__status--failed {
+	background: var(--red-dim, rgba(239, 68, 68, 0.15));
+	color: var(--red);
+}

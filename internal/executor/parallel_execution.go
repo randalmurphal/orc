@@ -44,6 +44,8 @@ func newSafeVars() *safeVars {
 }
 
 // newSafeVarsFrom creates a safeVars initialized from an existing map.
+//
+//nolint:unused // Prepared for parallel execution wiring
 func newSafeVarsFrom(initial map[string]string) *safeVars {
 	sv := &safeVars{
 		vars: make(map[string]string, len(initial)),
@@ -88,6 +90,8 @@ func (sv *safeVars) MergeFrom(other *safeVars) {
 }
 
 // parallelPhaseResult holds the result of a parallel phase execution.
+//
+//nolint:unused // Prepared for parallel execution wiring
 type parallelPhaseResult struct {
 	phase       *db.WorkflowPhase
 	result      PhaseResult
@@ -113,6 +117,8 @@ type parallelPhaseResult struct {
 // - results: All phase results (even from failed/cancelled phases)
 // - mergedVars: Variables collected from all phases (merge into caller's vars after)
 // - firstErr: First error encountered, or nil if all succeeded
+//
+//nolint:unused // Prepared for parallel execution wiring
 func (we *WorkflowExecutor) executeLevelParallel(
 	ctx context.Context,
 	phases []*db.WorkflowPhase,
@@ -192,6 +198,8 @@ func (we *WorkflowExecutor) executeLevelParallel(
 }
 
 // executeSinglePhase handles the single-phase case without goroutine overhead.
+//
+//nolint:unused // Prepared for parallel execution wiring
 func (we *WorkflowExecutor) executeSinglePhase(
 	ctx context.Context,
 	phase *db.WorkflowPhase,
@@ -221,6 +229,8 @@ func (we *WorkflowExecutor) executeSinglePhase(
 
 // executeParallelPhase executes a single phase within parallel execution.
 // This is the core execution logic extracted for use by both single and parallel paths.
+//
+//nolint:unused // Prepared for parallel execution wiring
 func (we *WorkflowExecutor) executeParallelPhase(
 	ctx context.Context,
 	phase *db.WorkflowPhase,
@@ -352,6 +362,8 @@ func (we *WorkflowExecutor) executeParallelPhase(
 
 // cloneResolutionContext creates a deep copy of a ResolutionContext.
 // This ensures each goroutine has its own context to modify.
+//
+//nolint:unused // Prepared for parallel execution wiring
 func cloneResolutionContext(rctx *variable.ResolutionContext) *variable.ResolutionContext {
 	if rctx == nil {
 		return nil
@@ -463,6 +475,8 @@ func cloneResolutionContext(rctx *variable.ResolutionContext) *variable.Resoluti
 
 // normalizeVarName converts a phase ID to a variable name.
 // e.g., "qa-e2e-test" -> "QA_E2E_TEST"
+//
+//nolint:unused // Prepared for parallel execution wiring
 func normalizeVarName(phaseID string) string {
 	result := make([]byte, 0, len(phaseID))
 	for i := 0; i < len(phaseID); i++ {
@@ -484,6 +498,8 @@ func normalizeVarName(phaseID string) string {
 // before starting the next level.
 //
 // This is the parallel execution entry point, called from Run when parallelExecution is enabled.
+//
+//nolint:unused // Prepared for parallel execution wiring
 func (we *WorkflowExecutor) runPhasesParallel(
 	ctx context.Context,
 	phases []*db.WorkflowPhase,
@@ -582,7 +598,9 @@ func (we *WorkflowExecutor) runPhasesParallel(
 // updateTaskStateAfterLevel updates the task state for all phases that completed
 // in a parallel level. This is called after all phases in the level have finished
 // to avoid race conditions during concurrent execution.
-func (we *WorkflowExecutor) updateTaskStateAfterLevel(results []parallelPhaseResult, t *orcv1.Task, _ *db.WorkflowRun) { //nolint:unparam
+//
+//nolint:unused,unparam // Prepared for parallel execution wiring
+func (we *WorkflowExecutor) updateTaskStateAfterLevel(results []parallelPhaseResult, t *orcv1.Task, _ *db.WorkflowRun) {
 	if t == nil || t.Execution == nil {
 		return
 	}

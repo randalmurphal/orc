@@ -82,7 +82,7 @@ Zustand stores in `stores/`. Each exports the base store hook + granular selecto
 | `projectStore` | `useCurrentProject`, `useProjects` | Active project context; `projectId` passed to all API queries via `DataProvider` |
 | `uiStore` | `usePendingDecisions`, `useWsStatus`, `useToasts` | |
 | `preferencesStore` | `useTheme`, `useBoardViewMode` | |
-| `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun` | React Flow state + execution tracking |
+| `workflowEditorStore` | `useEditorNodes`, `useEditorEdges`, `useEditorActiveRun`, `useSelectedEdge` | React Flow state, execution tracking, edge selection (for GateInspector) |
 | `dependencyStore` | `useDependencyFilter` | URL + localStorage persisted dependency status filter |
 | `statsStore` | `useStats`, `useCostSummary` | Dashboard statistics, cost summaries, daily metrics |
 
@@ -109,8 +109,11 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `GitSettingsPage` | `pages/settings/` | Read-only info page showing project-level git defaults and override options |
 | `WorkflowEditorPage` | `workflow-editor/` | 3-panel visual editor: palette \| canvas \| inspector |
 | `WorkflowCanvas` | `workflow-editor/` | React Flow canvas: drag-to-add, edge drawing/deletion with cycle detection, topo sort resequencing (`utils/topoSort.ts`), layout persistence |
-| Edge types | `workflow-editor/edges/` | 5 custom edges: sequential, loop, retry, dependency (badge + animated dots), conditional (condition label). Styles in `edges.css` |
+| Edge types | `workflow-editor/edges/` | 6 custom edges: sequential, loop, retry, dependency (badge + animated dots), conditional (condition label), gate (diamond symbol with type/status colors). Styles in `edges.css` |
 | `PhaseNode` | `workflow-editor/nodes/` | Custom React Flow node: connection handles (L/R), category color accents, status states, gate badges |
+| `VirtualNode` | `workflow-editor/nodes/` | Invisible anchor nodes for entry/exit gate edges (20×20px, excluded from minimap) |
+| `GateEdge` | `workflow-editor/edges/` | Gate transition edge: diamond ◆ symbol on midpoint, type colors (gray/blue/yellow/purple), status override (green/red), hover tooltip |
+| `GateInspector` | `workflow-editor/panels/` | Right panel for gate edges: type, position label (entry/exit/between), status, max retries, failure action. Read-only for built-in workflows |
 | `CanvasToolbar` | `workflow-editor/` | Canvas controls: fit view, reset layout, zoom in/out |
 | `DeletePhaseDialog` | `workflow-editor/` | Confirmation dialog for phase deletion |
 | `ExecutionHeader` | `workflow-editor/` | Run status badge, metrics (duration/tokens/cost), cancel button |
@@ -127,6 +130,21 @@ export const useActiveTasks = () => useTaskStore(useShallow((s) => s.getActiveTa
 | `LibraryPicker` | `core/` | Multi-select picker for hooks (grouped by event), skills, MCP servers |
 | `TagInput` | `core/` | Chip-style tag input (Enter/comma to add, backspace to remove) |
 | `KeyValueEditor` | `core/` | Row-based key-value editor for env vars. Empty keys excluded from output |
+
+### Gates as Edges Visual Model
+
+**Mental model:** Phases are work (nodes), gates are transitions (edges). This matches how users think about workflows.
+
+| Element | Component | Rendering |
+|---------|-----------|-----------|
+| Entry gate | `GateEdge` | `virtual-entry` → first phase |
+| Between gates | `GateEdge` | `phase[i]` → `phase[i+1]` |
+| Exit gate | `GateEdge` | last phase → `virtual-exit` |
+| Virtual anchors | `VirtualNode` | Invisible 20×20px nodes for entry/exit edges |
+
+**Gate type colors:** Auto (blue), Human (yellow), AI (purple), Passthrough/Skip (gray). **Status overrides:** Passed (green), Blocked/Failed (red).
+
+Layout generation: `utils/layoutWorkflow.ts:getEffectiveGateType()` resolves gate type from phase override → template default → AUTO.
 
 ## React Patterns
 

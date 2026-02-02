@@ -1,0 +1,21 @@
+/* Virtual node - small anchor point for entry/exit gates */
+.virtual-node {
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.virtual-node__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--border-muted);
+	opacity: 0.5;
+}
+
+/* Hide in minimap */
+.react-flow__minimap .virtual-node {
+	display: none;
+}

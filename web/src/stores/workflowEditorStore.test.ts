@@ -47,8 +47,9 @@ describe('workflowEditorStore', () => {
 			useWorkflowEditorStore.getState().loadFromWorkflow(details);
 
 			const state = useWorkflowEditorStore.getState();
-			// 2 phase nodes (no start/end nodes per design spec)
-			expect(state.nodes).toHaveLength(2);
+			// 2 phase nodes + 2 virtual nodes (for gate edges)
+			const phaseNodes = state.nodes.filter((n) => n.type === 'phase');
+			expect(phaseNodes).toHaveLength(2);
 			expect(state.edges.length).toBeGreaterThan(0);
 		});
 
@@ -121,10 +122,12 @@ describe('workflowEditorStore', () => {
 			});
 
 			useWorkflowEditorStore.getState().loadFromWorkflow(details1);
-			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(1); // 1 phase node
+			const phaseNodes1 = useWorkflowEditorStore.getState().nodes.filter((n) => n.type === 'phase');
+			expect(phaseNodes1).toHaveLength(1); // 1 phase node
 
 			useWorkflowEditorStore.getState().loadFromWorkflow(details2);
-			expect(useWorkflowEditorStore.getState().nodes).toHaveLength(3); // 3 phase nodes
+			const phaseNodes2 = useWorkflowEditorStore.getState().nodes.filter((n) => n.type === 'phase');
+			expect(phaseNodes2).toHaveLength(3); // 3 phase nodes
 		});
 
 		it('clears selected node when loading new workflow', () => {
