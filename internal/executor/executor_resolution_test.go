@@ -502,3 +502,110 @@ func TestResolvePhaseModel_WorkflowDefaultModel(t *testing.T) {
 		assert.Equal(t, "haiku", model)
 	})
 }
+
+func TestShouldUseThinking_WorkflowDefaultThinking(t *testing.T) {
+	t.Run("uses workflow default_thinking when no phase override", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_thinking=true
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultThinking: true,
+		}
+
+		// Phase without thinking enabled in template (implement phase normally has thinking=false)
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		phase := &db.WorkflowPhase{}
+
+		result := env.executor.shouldUseThinking(tmpl, phase)
+
+		// Should use workflow default_thinking=true
+		assert.True(t, result)
+	})
+
+	t.Run("workflow default_thinking beats template default", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_thinking=true
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultThinking: true,
+		}
+
+		// Phase template with thinking explicitly disabled
+		thinkingDisabled := false
+		tmpl := &db.PhaseTemplate{
+			ID:              "implement",
+			ThinkingEnabled: &thinkingDisabled,
+		}
+		phase := &db.WorkflowPhase{}
+
+		result := env.executor.shouldUseThinking(tmpl, phase)
+
+		// Workflow default_thinking should win over template default
+		assert.True(t, result)
+	})
+
+	t.Run("phase thinking override still beats workflow default_thinking", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_thinking=true
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultThinking: true,
+		}
+
+		tmpl := &db.PhaseTemplate{ID: "implement"}
+		thinkingOverride := false
+		phase := &db.WorkflowPhase{
+			ThinkingOverride: &thinkingOverride, // Phase override should win
+		}
+
+		result := env.executor.shouldUseThinking(tmpl, phase)
+
+		// Phase override=false should beat workflow default_thinking=true
+		assert.False(t, result)
+	})
+
+	t.Run("falls through to template when workflow default_thinking is false", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_thinking=false (not set, zero value)
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultThinking: false, // Zero value - should fall through
+		}
+
+		// Phase template with thinking explicitly enabled
+		thinkingEnabled := true
+		tmpl := &db.PhaseTemplate{
+			ID:              "implement",
+			ThinkingEnabled: &thinkingEnabled,
+		}
+		phase := &db.WorkflowPhase{}
+
+		result := env.executor.shouldUseThinking(tmpl, phase)
+
+		// Should fall through to template default
+		assert.True(t, result)
+	})
+
+	t.Run("falls through to phase-specific defaults when workflow default_thinking is false", func(t *testing.T) {
+		env := setupTestExecutor(t, nil)
+
+		// Set workflow with default_thinking=false
+		env.executor.wf = &workflow.Workflow{
+			ID:              "test-workflow",
+			DefaultThinking: false,
+		}
+
+		// spec phase defaults to thinking=true via hardcoded fallback
+		tmpl := &db.PhaseTemplate{ID: "spec"}
+		phase := &db.WorkflowPhase{}
+
+		result := env.executor.shouldUseThinking(tmpl, phase)
+
+		// Should fall through to spec phase default (true)
+		assert.True(t, result)
+	})
+}

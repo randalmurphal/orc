@@ -716,10 +716,20 @@ func (we *WorkflowExecutor) resolvePhaseModel(tmpl *db.PhaseTemplate, phase *db.
 }
 
 // shouldUseThinking determines if extended thinking should be enabled.
+// Resolution chain:
+// 1. Phase ThinkingOverride (highest priority)
+// 2. Workflow DefaultThinking (only when true; false falls through)
+// 3. Template ThinkingEnabled
+// 4. Phase-specific defaults (spec/review -> true, others -> false)
 func (we *WorkflowExecutor) shouldUseThinking(tmpl *db.PhaseTemplate, phase *db.WorkflowPhase) bool {
 	// Phase override takes precedence
 	if phase.ThinkingOverride != nil {
 		return *phase.ThinkingOverride
+	}
+
+	// Workflow default_thinking (only when explicitly true)
+	if we.wf != nil && we.wf.DefaultThinking {
+		return true
 	}
 
 	// Template default

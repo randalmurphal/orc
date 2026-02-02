@@ -8,6 +8,11 @@
 // - First error in parallel group is reported (SC-6)
 // - Thread-safe variable writes via safeVars (SC-8)
 // - rctx cloned per goroutine (SC-9)
+//
+// NOTE: This file contains work-in-progress code for INIT-036 parallel execution.
+// Functions are implemented but not yet wired into the main execution path.
+//
+//nolint:unused // WIP code for INIT-036 parallel phase execution
 package executor
 
 import (
