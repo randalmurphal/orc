@@ -10,22 +10,31 @@ templates/
 ├── prompts/              # ALL prompt templates
 │   ├── *.md              # Phase and session prompts (22 files)
 │   └── automation/*.md   # Maintenance automation templates (8 files)
+├── workflows/            # Built-in workflow definitions (9 YAML files)
+├── phases/               # Built-in phase template definitions (11 YAML files)
 ├── agents/               # Sub-agent definitions (9 built-in)
 ├── docs/                 # Documentation templates
 ├── scripts/              # Helper scripts
 └── pr-body.md            # PR description template
 ```
 
-## Workflows (Database-First)
+## Workflows (YAML-First)
 
-Workflows are now stored in the database, not YAML files. Use `workflow.SeedBuiltins()` to populate built-in workflows.
+Built-in workflows are defined as YAML in `templates/workflows/` and synced to GlobalDB on startup via `workflow.CacheService`. YAML files are the source of truth; DB is a runtime cache.
 
-| Workflow | Phases |
-|----------|--------|
-| `trivial` | implement (short tests + build only) |
-| `small` | tiny_spec → implement → review |
-| `medium` | spec → tdd_write → implement → review → docs |
-| `large` | spec → tdd_write → breakdown → implement → review → docs |
+| Workflow ID | Phases | Use Case |
+|-------------|--------|----------|
+| `implement-trivial` | implement | One-liner fixes, typos |
+| `implement-small` | tiny_spec → implement → review | Bug fixes, isolated changes |
+| `implement-medium` | spec → tdd_write → implement → review → docs | Standard features |
+| `implement-large` | spec → tdd_write → breakdown → implement → review → docs | Complex multi-file features |
+| `review` | review | Review existing changes |
+| `spec` | spec | Generate spec only |
+| `docs` | docs | Documentation only |
+| `qa` | qa | Manual QA session |
+| `qa-e2e` | qa_e2e_test ⟳ qa_e2e_fix | E2E browser testing with fix loop |
+
+**Resolution priority:** personal (`~/.orc/workflows/`) > local (`.orc/local/workflows/`) > project (`.orc/workflows/`) > embedded (`templates/workflows/`)
 
 **Key concepts:**
 - **TDD-first**: Tests written before implementation (medium/large via tdd_write phase)
