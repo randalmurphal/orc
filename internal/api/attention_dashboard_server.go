@@ -15,7 +15,6 @@ import (
 	orcv1 "github.com/randalmurphal/orc/gen/proto/orc/v1"
 	"github.com/randalmurphal/orc/gen/proto/orc/v1/orcv1connect"
 	"github.com/randalmurphal/orc/internal/storage"
-	"github.com/randalmurphal/orc/internal/task"
 )
 
 // attentionDashboardServer implements the AttentionDashboardServiceHandler interface.
@@ -78,7 +77,7 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 	now := time.Now()
 
 	// Build running summary
-	runningSummary := s.buildRunningSummary(tasks, now)
+	runningSummary := s.buildRunningSummary(backend, tasks, now)
 
 	// Build attention items (blocked, failed, pending decisions, gate approvals)
 	attentionItems := s.buildAttentionItems(tasks, now)
@@ -99,7 +98,7 @@ func (s *attentionDashboardServer) GetAttentionDashboardData(
 }
 
 // buildRunningSummary creates the running tasks summary with progress and timing.
-func (s *attentionDashboardServer) buildRunningSummary(tasks []*orcv1.Task, now time.Time) *orcv1.RunningSummary {
+func (s *attentionDashboardServer) buildRunningSummary(backend storage.Backend, tasks []*orcv1.Task, now time.Time) *orcv1.RunningSummary {
 	var runningTasks []*orcv1.RunningTask
 
 	for _, t := range tasks {
@@ -117,8 +116,12 @@ func (s *attentionDashboardServer) buildRunningSummary(tasks []*orcv1.Task, now 
 		var initiativeID, initiativeTitle string
 		if t.InitiativeId != nil {
 			initiativeID = *t.InitiativeId
-			// TODO: Load initiative title from database
-			initiativeTitle = initiativeID // Fallback to ID
+			// Load initiative title from database
+			if initiative, err := backend.LoadInitiativeProto(initiativeID); err == nil && initiative != nil {
+				initiativeTitle = initiative.Title
+			} else {
+				initiativeTitle = initiativeID // Fallback to ID if load fails
+			}
 		}
 
 		// Build phase progress
@@ -197,7 +200,7 @@ func mapPhaseToDisplay(phase string) string {
 
 // buildAttentionItems creates attention items for blocked/failed tasks and pending decisions.
 func (s *attentionDashboardServer) buildAttentionItems(tasks []*orcv1.Task, now time.Time) []*orcv1.AttentionItem {
-	var items []*orcv1.AttentionItem
+	items := make([]*orcv1.AttentionItem, 0)
 
 	for _, t := range tasks {
 		// Add blocked tasks
@@ -242,9 +245,9 @@ func (s *attentionDashboardServer) buildAttentionItems(tasks []*orcv1.Task, now 
 	// TODO: Add pending decisions and gate approvals from respective stores
 	// This would require loading from decision store and gate approval store
 
-	// Sort by priority (highest first)
+	// Sort by priority (highest first - lower enum values = higher priority)
 	sort.Slice(items, func(i, j int) bool {
-		return items[i].Priority > items[j].Priority
+		return items[i].Priority < items[j].Priority
 	})
 
 	return items
@@ -283,21 +286,24 @@ func (s *attentionDashboardServer) buildQueueSummary(backend storage.Backend, ta
 	var swimlanes []*orcv1.InitiativeSwimlane
 
 	for initID, initTasks := range initiativeMap {
-		// TODO: Load initiative title from database
+		// Load initiative title from database
 		initTitle := initID // Fallback to ID
+		if initiative, err := backend.LoadInitiativeProto(initID); err == nil && initiative != nil {
+			initTitle = initiative.Title
+		}
 
 		// Convert tasks to queued tasks format
 		var queuedTasks []*orcv1.QueuedTask
 		for pos, t := range initTasks {
 			queuedTask := &orcv1.QueuedTask{
-				Id:          t.Id,
-				Title:       t.Title,
-				Category:    t.Category,
-				Priority:    t.Priority,
-				Position:    int32(pos + 1),
-				CreatedAt:   t.CreatedAt,
-				WorkflowId:  ptrStringValue(t.WorkflowId),
-				Tags:        []string{}, // TODO: Load task tags if implemented
+				Id:         t.Id,
+				Title:      t.Title,
+				Category:   t.Category,
+				Priority:   t.Priority,
+				Position:   int32(pos + 1),
+				CreatedAt:  t.CreatedAt,
+				WorkflowId: ptrStringValue(t.WorkflowId),
+				Tags:       []string{}, // TODO: Load task tags if implemented
 			}
 			queuedTasks = append(queuedTasks, queuedTask)
 		}
@@ -317,14 +323,14 @@ func (s *attentionDashboardServer) buildQueueSummary(backend storage.Backend, ta
 	var unassignedQueuedTasks []*orcv1.QueuedTask
 	for pos, t := range unassignedTasks {
 		queuedTask := &orcv1.QueuedTask{
-			Id:          t.Id,
-			Title:       t.Title,
-			Category:    t.Category,
-			Priority:    t.Priority,
-			Position:    int32(pos + 1),
-			CreatedAt:   t.CreatedAt,
-			WorkflowId:  ptrStringValue(t.WorkflowId),
-			Tags:        []string{},
+			Id:         t.Id,
+			Title:      t.Title,
+			Category:   t.Category,
+			Priority:   t.Priority,
+			Position:   int32(pos + 1),
+			CreatedAt:  t.CreatedAt,
+			WorkflowId: ptrStringValue(t.WorkflowId),
+			Tags:       []string{},
 		}
 		unassignedQueuedTasks = append(unassignedQueuedTasks, queuedTask)
 	}
