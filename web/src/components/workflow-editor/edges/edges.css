@@ -34,6 +34,20 @@
 	stroke-dasharray: 6 3;
 }
 
+/* Backward loop edge: more pronounced dashing, slightly thicker */
+.edge-loop-backward .react-flow__edge-path {
+	stroke: var(--orange);
+	stroke-width: 2.5;
+	stroke-dasharray: 8 4;
+}
+
+/* Forward loop edge: standard dashing pattern */
+.edge-loop-forward .react-flow__edge-path {
+	stroke: var(--orange);
+	stroke-width: 2;
+	stroke-dasharray: 6 3;
+}
+
 /* Edge label (shared base) */
 .edge-label {
 	font-size: var(--text-xs);

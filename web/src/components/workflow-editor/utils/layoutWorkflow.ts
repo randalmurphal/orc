@@ -209,6 +209,9 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 				if (config.loop_to_phase) {
 					const targetNodeId = templateToNodeId.get(config.loop_to_phase);
 					if (targetNodeId) {
+						// Find the target phase to get its sequence number
+						const targetPhase = phases.find((p) => p.phaseTemplateId === config.loop_to_phase);
+
 						edges.push({
 							id: `loop-phase-${phase.id}-${targetNodeId}`,
 							source: `phase-${phase.id}`,
@@ -218,6 +221,9 @@ export function layoutWorkflow(details: WorkflowWithDetails): LayoutResult {
 								condition: config.condition,
 								maxIterations: config.max_iterations,
 								label: `${config.condition} ×${config.max_iterations}`,
+								// Add sequence data for backward detection
+								sourceSequence: phase.sequence,
+								targetSequence: targetPhase?.sequence,
 							},
 						});
 					}
