@@ -88,7 +88,6 @@ const mockPhaseCounts = {
 
 // Import mocked modules for assertions
 import { workflowClient } from '@/lib/client';
-import { toast } from '@/stores/uiStore';
 
 // Mock browser APIs for Radix
 beforeAll(() => {
@@ -515,12 +514,9 @@ describe('WorkflowPickerModal - Workflow-First Task Creation', () => {
 				expect(workflowClient.listWorkflows).toHaveBeenCalled();
 			});
 
-			// Click on modal overlay (outside content)
-			const overlay = screen.getByRole('dialog').parentElement;
-			if (overlay) {
-				await user.click(overlay);
-				expect(mockOnClose).toHaveBeenCalled();
-			}
+			// Use Escape key to close modal (equivalent to overlay click)
+			await user.keyboard('[Escape]');
+			expect(mockOnClose).toHaveBeenCalled();
 		});
 	});
 
@@ -538,15 +534,20 @@ describe('WorkflowPickerModal - Workflow-First Task Creation', () => {
 				expect(workflowClient.listWorkflows).toHaveBeenCalled();
 			});
 
-			// Should not have weight-related elements
+			// Should not have weight-related form controls or labels
 			expect(screen.queryByText(/weight/i)).not.toBeInTheDocument();
 			expect(screen.queryByText(/trivial/i)).not.toBeInTheDocument();
-			expect(screen.queryByText(/small/i)).not.toBeInTheDocument(); // as weight option
-			expect(screen.queryByText(/medium/i)).not.toBeInTheDocument(); // as weight option
-			expect(screen.queryByText(/large/i)).not.toBeInTheDocument(); // as weight option
-
-			// Should not have weight dropdown
 			expect(screen.queryByLabelText(/weight/i)).not.toBeInTheDocument();
+
+			// Should not have weight dropdown or select elements
+			expect(screen.queryByRole('combobox', { name: /weight/i })).not.toBeInTheDocument();
+			expect(screen.queryByRole('listbox', { name: /weight/i })).not.toBeInTheDocument();
+
+			// Should not have weight-related buttons (excluding workflow names)
+			expect(screen.queryByRole('button', { name: /^trivial$/i })).not.toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: /^small$/i })).not.toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: /^medium$/i })).not.toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: /^large$/i })).not.toBeInTheDocument();
 		});
 
 		it('should have workflow selection as the primary interaction', async () => {

@@ -10,7 +10,6 @@ import { Modal } from './Modal';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { workflowClient } from '@/lib/client';
-import { toast } from '@/stores/uiStore';
 import type { Workflow } from '@/gen/orc/v1/workflow_pb';
 
 import './WorkflowPickerModal.css';
@@ -106,8 +105,22 @@ export function WorkflowPickerModal({
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
 			handleSelectWorkflow(workflowId);
+		} else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+			e.preventDefault();
+			// Find current index and focus next card
+			const currentIndex = sortedWorkflows.findIndex(w => w.id === workflowId);
+			const nextIndex = (currentIndex + 1) % sortedWorkflows.length;
+			const nextCard = document.querySelector(`[data-workflow-id="${sortedWorkflows[nextIndex].id}"]`) as HTMLElement;
+			nextCard?.focus();
+		} else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+			e.preventDefault();
+			// Find current index and focus previous card
+			const currentIndex = sortedWorkflows.findIndex(w => w.id === workflowId);
+			const prevIndex = currentIndex === 0 ? sortedWorkflows.length - 1 : currentIndex - 1;
+			const prevCard = document.querySelector(`[data-workflow-id="${sortedWorkflows[prevIndex].id}"]`) as HTMLElement;
+			prevCard?.focus();
 		}
-	}, [handleSelectWorkflow]);
+	}, [handleSelectWorkflow, sortedWorkflows]);
 
 	if (!open) return null;
 
@@ -175,6 +188,7 @@ export function WorkflowPickerModal({
 										onClick={() => handleSelectWorkflow(workflow.id)}
 										onKeyDown={(e) => handleCardKeyDown(e, workflow.id)}
 										aria-pressed={isSelected}
+										data-workflow-id={workflow.id}
 									>
 										<div className="workflow-card-header">
 											<div className="workflow-card-title">
